@@ -1,6 +1,6 @@
 [
     {
-        "Task": "Cook_Steak",
+        "Task": "Cook Steak",
         "Location": "Kitchen",
         "Subtasks": [
             {
@@ -34,7 +34,7 @@
         ]
     },
     {
-        "Task": "Wash_Dishes",
+        "Task": "Wash Dishes",
         "Location": "Kitchen",
         "Subtasks": [
             {
@@ -55,7 +55,7 @@
         ]
     },
     {
-        "Task": "Clean_Living_Room",
+        "Task": "Clean Living Room",
         "Location": "Living Room",
         "Subtasks": [
             {
@@ -98,7 +98,7 @@
         ]
     },
     {
-        "Task": "Make_Coffee",
+        "Task": "Make Coffee",
         "Location": "Kitchen",
         "Subtasks": [
             {
@@ -126,7 +126,7 @@
         ]
     },
     {
-        "Task": "Make_Bed",
+        "Task": "Make Bed",
         "Location": "Bedroom",
         "Subtasks": [
             {
@@ -147,7 +147,7 @@
         ]
     },
     {
-        "Task": "Take_Out_Trash",
+        "Task": "Take Out Trash",
         "Location": "Living Room",
         "Subtasks": [
             {
@@ -168,7 +168,7 @@
         ]
     },
     {
-        "Task": "Vacuum_Clean",
+        "Task": "Vacuum Clean",
         "Location": "Living Room",
         "Subtasks": [
             {
