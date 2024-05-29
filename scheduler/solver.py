@@ -1,7 +1,7 @@
 import pulp
 
 from scheduler import *
-from scheduler.task import get_all_controllable_subtasks
+from task import get_all_controllable_subtasks
 
 
 class SchedulingProblem:
@@ -17,17 +17,16 @@ class SchedulingProblem:
         self.add_constraints()
 
     def define_variables(self):
-        for task in self.tasks.values():
-            for phase, duration, task_type in task.phases:
-                subtask_name = f"{task.name}_{phase}"
-                self.start_times[subtask_name] = pulp.LpVariable(
-                    f"Start_time_{subtask_name}", lowBound=0, cat=pulp.LpContinuous
+        for task in self.tasks:
+            for subtask in task.subtasks:
+                self.start_times[subtask.name] = pulp.LpVariable(
+                    f"Start_time_{subtask.name}", lowBound=0, cat=pulp.LpContinuous
                 )
-                self.completion_times[subtask_name] = pulp.LpVariable(
-                    f"Completion_time_{subtask_name}", lowBound=0, cat=pulp.LpContinuous
+                self.completion_times[subtask.name] = pulp.LpVariable(
+                    f"Completion_time_{subtask.name}", lowBound=0, cat=pulp.LpContinuous
                 )
-                self.task_vars[subtask_name] = pulp.LpVariable(
-                    f"Task_{subtask_name}", 0, 1, pulp.LpBinary
+                self.task_vars[subtask.name] = pulp.LpVariable(
+                    f"Task_{subtask.name}", 0, 1, pulp.LpBinary
                 )
 
     def set_objective(self):
@@ -39,13 +38,12 @@ class SchedulingProblem:
         )
 
     def add_constraints(self):
-        # Each sub-task must start exactly once
-        for task in self.tasks.values():
-            for phase, duration, task_type in task.phases:
-                subtask_name = f"{task.name}_{phase}"
-                self.prob += self.task_vars[subtask_name] == 1
+        # Each sub-task must start exactly once and ruled by Min time
+        for task in self.tasks:
+            for subtask in task.subtasks:
+                self.prob += self.task_vars[subtask.name] == 1
                 self.prob += (
-                    self.completion_times[subtask_name] - self.start_times[subtask_name]
+                    self.completion_times[subtask.name] - self.start_times[subtask.name]
                     >= MIN_TIME
                 )
 
@@ -69,29 +67,26 @@ class SchedulingProblem:
                 )
 
         # Sub Task dependencies and durations (start -> continue -> end)
-        for task in self.tasks.values():
-            for i in range(len(task.phases) - 1):
-                phase1, duration1, task_type1 = task.phases[i]
-                phase2, duration2, task_type2 = task.phases[i + 1]
-                subtask_name1 = f"{task.name}_{phase1}"
-                subtask_name2 = f"{task.name}_{phase2}"
+        for task in self.tasks:
+            for i in range(len(task.subtasks) - 1):
+                pre_subtask = task.subtasks[i]
+                trail_subtask = task.subtasks[i + 1]
 
                 # Start -> Continue -> End sequence
                 self.prob += (
-                    self.start_times[subtask_name2]
-                    >= self.completion_times[subtask_name1]
+                    self.start_times[trail_subtask.name]
+                    >= self.completion_times[pre_subtask.name]
                 )
                 self.prob += (
-                    self.completion_times[subtask_name1]
-                    == self.start_times[subtask_name1] + duration1
+                    self.completion_times[pre_subtask.name]
+                    == self.start_times[pre_subtask.name] + pre_subtask.duration
                 )
 
-            # Ensure the completion time for the last phase in each task
-            last_phase, last_duration, last_task_type = task.phases[-1]
-            last_subtask_name = f"{task.name}_{last_phase}"
+            # Ensure the completion time for the last subtask in each task
+            last_subtask = task.subtasks[-1]
             self.prob += (
-                self.completion_times[last_subtask_name]
-                == self.start_times[last_subtask_name] + last_duration
+                self.completion_times[last_subtask.name]
+                == self.start_times[last_subtask.name] + last_subtask.duration
             )
 
     def solve(self):
