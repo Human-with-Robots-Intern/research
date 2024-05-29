@@ -1,6 +1,7 @@
 import pulp
-from constants import LARGE_NUM, MIN_TIME, TRANSITION_TIME
-from task import get_all_controllable_subtasks, tasks
+
+from scheduler import *
+from scheduler.task import get_all_controllable_subtasks
 
 
 class SchedulingProblem:
@@ -10,6 +11,10 @@ class SchedulingProblem:
         self.start_times = {}
         self.completion_times = {}
         self.task_vars = {}
+
+        self.define_variables()
+        self.set_objective()
+        self.add_constraints()
 
     def define_variables(self):
         for task in self.tasks.values():
