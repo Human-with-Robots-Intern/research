@@ -3,7 +3,7 @@ import os
 import sys
 
 from scheduler.solver import SchedulingProblem
-from task import parse_tasks
+from task import get_subtask_dict, parse_tasks
 from visualizer import *
 
 

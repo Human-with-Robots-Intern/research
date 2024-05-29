@@ -41,11 +41,26 @@ class Task:
             if subtask.type == "Controllable"
         ]
 
-    def get_duration(self):
+    def check_containing(self, subtask_name):
+        for subtask in self.subtasks:
+            if subtask.name == subtask_name:
+                return True
+
+        return False
+
+    def get_total_seq_duration(self):
         return sum(subtask.duration for subtask in self.subtasks)
 
     def __repr__(self):
         return f"Task(name={self.name}, location={self.location}, subtasks={self.subtasks})"
+
+
+def get_subtask_dict(tasks):
+    subtask_dict = {}
+    for task in tasks:
+        for subtask in task.subtasks:
+            subtask_dict[subtask.name] = task.name
+    return subtask_dict
 
 
 def get_all_controllable_subtasks(tasks):

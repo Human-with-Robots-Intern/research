@@ -1,20 +1,23 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from task import get_subtask_dict
+
 
 def visualize(tasks, schedule):
+    subtask_task_dict = get_subtask_dict(tasks)
     # Create a DataFrame for visualization
     df = pd.DataFrame(schedule, columns=["Task", "Start", "End"])
 
     # Extract task names and phases
-    df["Task_Name"] = df["Task"].apply(lambda x: x.split(":")[0])
-    df["Subtask_Name"] = df["Task"].apply(lambda x: x.split(":")[-1])
+    df["Task_Name"] = df["Task"].apply(lambda x: subtask_task_dict[x])
+    df["Subtask_Name"] = df["Task"]
 
     # Sort the DataFrame
     df.sort_values(by=["Start"], inplace=True)
 
     # Plot the Gantt chart
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(10, 8))
 
     for i, task in df.iterrows():
         ax.barh(
