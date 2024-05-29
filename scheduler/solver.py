@@ -19,15 +19,14 @@ class SchedulingProblem:
     def define_variables(self):
         for task in self.tasks:
             for subtask in task.subtasks:
-                subtask_name = f"{task.name}_{subtask.name}"
-                self.start_times[subtask_name] = pulp.LpVariable(
-                    f"Start_time_{subtask_name}", lowBound=0, cat=pulp.LpContinuous
+                self.start_times[subtask.name] = pulp.LpVariable(
+                    f"Start_time_{subtask.name}", lowBound=0, cat=pulp.LpContinuous
                 )
-                self.completion_times[subtask_name] = pulp.LpVariable(
-                    f"Completion_time_{subtask_name}", lowBound=0, cat=pulp.LpContinuous
+                self.completion_times[subtask.name] = pulp.LpVariable(
+                    f"Completion_time_{subtask.name}", lowBound=0, cat=pulp.LpContinuous
                 )
-                self.task_vars[subtask_name] = pulp.LpVariable(
-                    f"Task_{subtask_name}", 0, 1, pulp.LpBinary
+                self.task_vars[subtask.name] = pulp.LpVariable(
+                    f"Task_{subtask.name}", 0, 1, pulp.LpBinary
                 )
 
     def set_objective(self):
@@ -42,10 +41,9 @@ class SchedulingProblem:
         # Each sub-task must start exactly once and ruled by Min time
         for task in self.tasks:
             for subtask in task.subtasks:
-                subtask_name = f"{task.name}_{subtask.name}"
-                self.prob += self.task_vars[subtask_name] == 1
+                self.prob += self.task_vars[subtask.name] == 1
                 self.prob += (
-                    self.completion_times[subtask_name] - self.start_times[subtask_name]
+                    self.completion_times[subtask.name] - self.start_times[subtask.name]
                     >= MIN_TIME
                 )
 
@@ -71,28 +69,24 @@ class SchedulingProblem:
         # Sub Task dependencies and durations (start -> continue -> end)
         for task in self.tasks:
             for i in range(len(task.subtasks) - 1):
-                preceding_subtask = task.subtasks[i]
-                trailing_subtask = task.subtasks[i + 1]
-
-                pre_subtask_name = f"{task.name}_{preceding_subtask.name}"
-                trail_subtask_name = f"{task.name}_{trailing_subtask.name}"
+                pre_subtask = task.subtasks[i]
+                trail_subtask = task.subtasks[i + 1]
 
                 # Start -> Continue -> End sequence
                 self.prob += (
-                    self.start_times[trail_subtask_name]
-                    >= self.completion_times[pre_subtask_name]
+                    self.start_times[trail_subtask.name]
+                    >= self.completion_times[pre_subtask.name]
                 )
                 self.prob += (
-                    self.completion_times[pre_subtask_name]
-                    == self.start_times[pre_subtask_name] + preceding_subtask.duration
+                    self.completion_times[pre_subtask.name]
+                    == self.start_times[pre_subtask.name] + pre_subtask.duration
                 )
 
             # Ensure the completion time for the last subtask in each task
             last_subtask = task.subtasks[-1]
-            last_subtask_name = f"{task.name}_{last_subtask.name}"
             self.prob += (
-                self.completion_times[last_subtask_name]
-                == self.start_times[last_subtask_name] + last_subtask.duration
+                self.completion_times[last_subtask.name]
+                == self.start_times[last_subtask.name] + last_subtask.duration
             )
 
     def solve(self):

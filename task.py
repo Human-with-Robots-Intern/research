@@ -36,7 +36,7 @@ class Task:
 
     def get_controllable_subtasks(self):
         return [
-            f"{self.name}_{subtask.name}"
+            f"{subtask.name}"
             for subtask in self.subtasks
             if subtask.type == "Controllable"
         ]

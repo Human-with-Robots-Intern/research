@@ -2,13 +2,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def visualize(schedule):
+def visualize(tasks, schedule):
     # Create a DataFrame for visualization
     df = pd.DataFrame(schedule, columns=["Task", "Start", "End"])
 
     # Extract task names and phases
-    df["Task_Name"] = df["Task"].apply(lambda x: x.split("_")[0] + x.split("_")[1])
-    df["Subtask_Name"] = df["Task"].apply(lambda x: x.split("_")[-1])
+    df["Task_Name"] = df["Task"].apply(lambda x: x.split(":")[0])
+    df["Subtask_Name"] = df["Task"].apply(lambda x: x.split(":")[-1])
 
     # Sort the DataFrame
     df.sort_values(by=["Start"], inplace=True)

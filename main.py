@@ -23,7 +23,7 @@ def main():
         print(f"{task}: Start at {start}, Complete at {end}")
 
     # Visualize the schedule
-    visualize(schedule)
+    visualize(tasks, schedule)
 
 
 if __name__ == "__main__":

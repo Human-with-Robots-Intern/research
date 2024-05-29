@@ -96,5 +96,101 @@
                 "Type": "Controllable"
             }
         ]
+    },
+    {
+        "Task": "Make_Coffee",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Prepare Coffee Maker",
+                "Duration": 3,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Boil Water",
+                "Duration": 5,
+                "Type": "Uncontrollable",
+                "Constraint": "Temperature"
+            },
+            {
+                "Name": "Brew Coffee",
+                "Duration": 5,
+                "Type": "Uncontrollable",
+                "Constraint": "Time"
+            },
+            {
+                "Name": "Serve Coffee",
+                "Duration": 2,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Make_Bed",
+        "Location": "Bedroom",
+        "Subtasks": [
+            {
+                "Name": "Remove Old Sheets",
+                "Duration": 3,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Place New Sheets",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Arrange Pillows and Blanket",
+                "Duration": 2,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Take_Out_Trash",
+        "Location": "Living Room",
+        "Subtasks": [
+            {
+                "Name": "Collect Trash Bags",
+                "Duration": 3,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Take Trash Bags Outside",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Dispose Trash Bags",
+                "Duration": 2,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Vacuum_Clean",
+        "Location": "Living Room",
+        "Subtasks": [
+            {
+                "Name": "Prepare Vacuum Cleaner",
+                "Duration": 2,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Vacuum Main Area",
+                "Duration": 10,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Vacuum Corners and Edges",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Store Vacuum Cleaner",
+                "Duration": 2,
+                "Type": "Controllable"
+            }
+        ]
     }
 ]
