@@ -1,0 +1,196 @@
+[
+    {
+        "Task": "Cook_Steak",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Prepare and Start Cooking",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "First Cooking Interval",
+                "Duration": 5,
+                "Type": "Uncontrollable",
+                "Constraint": "Temperature"
+            },
+            {
+                "Name": "Second Cooking Interval",
+                "Duration": 5,
+                "Type": "Uncontrollable",
+                "Constraint": "Temperature"
+            },
+            {
+                "Name": "Final Cooking Interval",
+                "Duration": 5,
+                "Type": "Uncontrollable",
+                "Constraint": "Temperature"
+            },
+            {
+                "Name": "Let Steak Rest",
+                "Duration": 10,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Wash_Dishes",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Gather Dishes",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Start Washing Dishes",
+                "Duration": 10,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Finish Washing Dishes",
+                "Duration": 5,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Clean_Living_Room",
+        "Location": "Living Room",
+        "Subtasks": [
+            {
+                "Name": "Start Cleaning",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Continue Cleaning",
+                "Duration": 10,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Finishing Cleaning",
+                "Duration": 5,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Laundry",
+        "Location": "Restroom",
+        "Subtasks": [
+            {
+                "Name": "Start Washing Clothes",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Wait Washing Clothes",
+                "Duration": 45,
+                "Type": "Uncontrollable",
+                "Constraint": "Time"
+            },
+            {
+                "Name": "End Washing Clothes",
+                "Duration": 5,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Make_Coffee",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Prepare Coffee Maker",
+                "Duration": 3,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Boil Water",
+                "Duration": 5,
+                "Type": "Uncontrollable",
+                "Constraint": "Temperature"
+            },
+            {
+                "Name": "Brew Coffee",
+                "Duration": 5,
+                "Type": "Uncontrollable",
+                "Constraint": "Time"
+            },
+            {
+                "Name": "Serve Coffee",
+                "Duration": 2,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Make_Bed",
+        "Location": "Bedroom",
+        "Subtasks": [
+            {
+                "Name": "Remove Old Sheets",
+                "Duration": 3,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Place New Sheets",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Arrange Pillows and Blanket",
+                "Duration": 2,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Take_Out_Trash",
+        "Location": "Living Room",
+        "Subtasks": [
+            {
+                "Name": "Collect Trash Bags",
+                "Duration": 3,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Take Trash Bags Outside",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Dispose Trash Bags",
+                "Duration": 2,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Vacuum_Clean",
+        "Location": "Living Room",
+        "Subtasks": [
+            {
+                "Name": "Prepare Vacuum Cleaner",
+                "Duration": 2,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Vacuum Main Area",
+                "Duration": 10,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Vacuum Corners and Edges",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Store Vacuum Cleaner",
+                "Duration": 2,
+                "Type": "Controllable"
+            }
+        ]
+    }
+]
