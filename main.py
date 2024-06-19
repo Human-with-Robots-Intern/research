@@ -2,14 +2,18 @@ import json
 import os
 import sys
 
-from scheduler.solver import SchedulingProblem
-from task import get_subtask_dict, parse_tasks
-from visualizer import *
+from concept.env import Env
+from concept.task import parse_tasks
+from scheduler.milp_solver import SchedulingProblem
+from scheduler.task_scheduler import TaskProfiler
+from util.util import printing_queue
+from util.visualizer import *
+
+with open(os.path.join("asset", "task_all.json"), "r") as file:
+    tasks = parse_tasks(json.load(file))
 
 
-def main():
-    with open(os.path.join("asset", "tasks.json"), "r") as file:
-        tasks = parse_tasks(json.load(file))
+def milp_scheduler(tasks):
     # Create and define the scheduling problem
     scheduler = SchedulingProblem(tasks)
 
@@ -26,5 +30,16 @@ def main():
     visualize(tasks, schedule)
 
 
+def priority_scheduler(env, tasks):
+    task_profiler = TaskProfiler()
+    task_que = task_profiler.priority_classify(env, tasks)
+    print(printing_queue(task_que[0]))
+    print(printing_queue(task_que[1]))
+
+
 if __name__ == "__main__":
-    main()
+    env = Env()
+    env.gen_dummpy()
+
+    # milp_scheduler(tasks)
+    priority_scheduler(env, tasks)

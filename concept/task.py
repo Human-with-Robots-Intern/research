@@ -41,6 +41,19 @@ class Task:
             if subtask.type == "Controllable"
         ]
 
+    def is_contain_uncontrollable(self):
+        uncontrollable_subtasks = [
+            f"{subtask.name}"
+            for subtask in self.subtasks
+            if subtask.type == "Uncontrollable"
+        ]
+        print()
+
+        if uncontrollable_subtasks:
+            return True
+        else:
+            return False
+
     def check_containing(self, subtask_name):
         for subtask in self.subtasks:
             if subtask.name == subtask_name:

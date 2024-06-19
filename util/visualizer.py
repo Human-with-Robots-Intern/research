@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from task import get_subtask_dict
+from concept.task import get_subtask_dict
 
 
 def visualize(tasks, schedule):
@@ -19,6 +19,10 @@ def visualize(tasks, schedule):
     # Plot the Gantt chart
     fig, ax = plt.subplots(figsize=(10, 8))
 
+    # Track y offsets for each task name to avoid overlap
+    y_offsets = {task_name: 0 for task_name in df["Task_Name"].unique()}
+    offset_increment = 0.3
+
     for i, task in df.iterrows():
         ax.barh(
             task["Task_Name"],
@@ -27,14 +31,21 @@ def visualize(tasks, schedule):
             color="skyblue",
             edgecolor="black",
         )
+        # Adjust y position to prevent text overlap
+        y_position = (
+            list(df["Task_Name"].unique()).index(task["Task_Name"])
+            + y_offsets[task["Task_Name"]]
+        )
         ax.text(
             (task["Start"] + task["End"]) / 2,
-            task["Task_Name"],
+            y_position,
             f'{task["Subtask_Name"]}',
             ha="center",
             va="center",
             color="black",
         )
+        # Increment the offset for the next subtask of the same task name
+        y_offsets[task["Task_Name"]] += 0.5 * offset_increment
 
     ax.set_xlabel("Time (minutes)")
     ax.set_ylabel("Tasks")
@@ -42,3 +53,8 @@ def visualize(tasks, schedule):
     plt.grid(axis="x", linestyle="--", alpha=0.7)
 
     plt.show()
+
+
+# Example usage
+# Assuming `tasks` and `schedule` are defined
+# visualize(tasks, schedule)

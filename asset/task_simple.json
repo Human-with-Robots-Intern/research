@@ -1,0 +1,45 @@
+[
+    {
+        "Task": "Cook_Steak",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Prepare and Start Cooking",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Cooking Interval",
+                "Duration": 15,
+                "Type": "Uncontrollable",
+                "Constraint": "Temperature"
+            },
+            {
+                "Name": "Let Steak Rest",
+                "Duration": 10,
+                "Type": "Uncontrollable"
+            }
+        ]
+    },
+    {
+        "Task": "Wash_Dishes",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Gather Dishes",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Start Washing Dishes",
+                "Duration": 10,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Finish Washing Dishes",
+                "Duration": 5,
+                "Type": "Controllable"
+            }
+        ]
+    }
+]
