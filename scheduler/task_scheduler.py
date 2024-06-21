@@ -1,7 +1,7 @@
 from collections import deque
 from queue import PriorityQueue
 
-from anytree import Node, RenderTree
+from anytree import Node
 
 from concept.env import Env
 from concept.task import Task
@@ -16,15 +16,10 @@ class TaskProfiler:
         priority_score = 0
         for subtask in task.subtasks:
             if subtask.type == "Uncontrollable":
-                if subtask.constraints == "Temperature":
-                    risk_score = 2
-                else:
-                    risk_score = 1
-
+                risk_score = 2 if subtask.constraints == "Temperature" else 1
                 priority_score -= subtask.duration * risk_score + self.env.get_cost(
                     task.location
                 )
-
         return priority_score
 
     def ctl_priority_scoring(self, task: Task) -> int:
@@ -51,98 +46,99 @@ class TaskProfiler:
 
 
 class TaskScheduler:
-    def __init__(self, env: Env, task_ques: tuple) -> None:
+    def __init__(
+        self, env: Env, task_ques: tuple[PriorityQueue, PriorityQueue]
+    ) -> None:
         """Initialize the TaskScheduler with environment and task queues"""
         self.env = env
         self.in_progress_que = deque()
         self.unctl_task_que, self.ctl_task_que = task_ques
+        self.root_node = None
         self.init_tree()
-        self.render_tree
 
     def init_tree(self):
-        if self.unctl_task_que.qsize() > 0:
-            # Get the first uncontrollable task's subtask
-            _, task = self.unctl_task_que.get()
-            subtask = task.subtasks.popleft()
-
-            # Insert subtask into the tree node
-            root_node = Node(subtask)
-            self.env.current_location = task.location
-
-            # Add task to in-progress queue
-            self.in_progress_que.append(task)
-            self.construct_tree(root_node)
+        if not self.unctl_task_que.empty():
+            self.process_first_unctl_task()
         else:
             print("No uncontrollable tasks available to initialize the tree.")
 
+    def process_first_unctl_task(self):
+        _, task = self.unctl_task_que.get()
+        subtask = task.subtasks.popleft()
+        self.root_node = Node(subtask)
+        self.env.current_location = task.location
+        self.in_progress_que.append(task)
+        self.construct_tree(self.root_node)
+
     def construct_tree(self, parent):
-        if (
-            self.ctl_task_que.qsize() == 0
-            and self.unctl_task_que.qsize() == 0
-            and len(self.in_progress_que) == 0
-        ):
-            return  # Base case to stop recursion
+        while not self.queues_are_empty():
+            next_subtask, task, queue_type = self.select_next_subtask()
+            if next_subtask is None:
+                break
+            self.update_queues(task, queue_type)
+            child_node = Node(next_subtask, parent=parent)
+            self.env.current_location = task.location
+            parent = child_node  # Move to the next node
 
-        ctl_score = unctl_score = in_progress_score = float("inf")
-        ctl_subtask = unctl_subtask = in_progress_subtask = None
+    def queues_are_empty(self):
+        return (
+            self.ctl_task_que.empty()
+            and self.unctl_task_que.empty()
+            and not self.in_progress_que
+        )
 
-        # Check controllable task queue
-        if self.ctl_task_que.qsize() > 0:
-            ctl_task = self.ctl_task_que.queue[0][1]
-            ctl_subtask = ctl_task.subtasks[0]
-            ctl_score = ctl_subtask.duration + self.env.get_cost(ctl_task.location)
+    def select_next_subtask(self):
+        ctl_score, ctl_subtask, ctl_task = self.get_next_task(self.ctl_task_que)
+        unctl_score, unctl_subtask, unctl_task = self.get_next_task(self.unctl_task_que)
+        in_progress_score, in_progress_subtask, in_progress_task = (
+            self.get_in_progress_task()
+        )
 
-        # Check uncontrollable task queue
-        if self.unctl_task_que.qsize() > 0:
-            unctl_task = self.unctl_task_que.queue[0][1]
-            unctl_subtask = unctl_task.subtasks[0]
-            unctl_score = unctl_subtask.duration + self.env.get_cost(
-                unctl_task.location
+        scores = [
+            (ctl_score, ctl_subtask, ctl_task, "ctl"),
+            (unctl_score, unctl_subtask, unctl_task, "unctl"),
+            (in_progress_score, in_progress_subtask, in_progress_task, "in_progress"),
+        ]
+
+        min_score, next_subtask, task, queue_type = min(scores, key=lambda x: x[0])
+        return next_subtask, task, queue_type
+
+    def get_next_task(self, queue):
+        if queue.empty():
+            return float("inf"), None, None
+        task = queue.queue[0][1]
+        if not task.subtasks:
+            return float("inf"), None, None
+        subtask = task.subtasks[0]
+        score = subtask.duration + self.env.get_cost(task.location)
+        return score, subtask, task
+
+    def get_in_progress_task(self):
+        if not self.in_progress_que:
+            return float("inf"), None, None
+        scores = [
+            (
+                task.subtasks[0].duration + self.env.get_cost(task.location),
+                task.subtasks[0],
+                task,
             )
+            for task in self.in_progress_que
+            if task.subtasks
+        ]
+        if not scores:
+            return float("inf"), None, None
+        return min(scores, key=lambda x: x[0])
 
-        # Check in-progress queue
-        in_progress_scores = []
-        for i in range(len(self.in_progress_que)):
-            in_progress_task = self.in_progress_que[i]
-            in_progress_subtask = in_progress_task.subtasks[0]
-            in_progress_score = in_progress_subtask.duration + self.env.get_cost(
-                in_progress_task.location
-            )
-            in_progress_scores.append(in_progress_score)
-
-        if in_progress_scores:
-            in_progress_score = min(in_progress_scores)
-            in_progress_idx = in_progress_scores.index(in_progress_score)
-            in_progress_task = self.in_progress_que[in_progress_idx]
-            in_progress_subtask = in_progress_task.subtasks[0]
-
-        # Determine minimum score and select the next subtask
-        min_score = min(ctl_score, in_progress_score, unctl_score)
-
-        if min_score == ctl_score:
-            _, task = self.ctl_task_que.get()
-            subtask = task.subtasks.popleft()
-            self.env.current_location = task.location
+    def update_queues(self, task, queue_type):
+        if queue_type == "ctl":
+            self.ctl_task_que.get()
+        elif queue_type == "unctl":
+            self.unctl_task_que.get()
+        task.subtasks.popleft()
+        if task.subtasks:
             self.in_progress_que.append(task)
-            child_node = Node(subtask, parent=parent)
-
-        elif min_score == unctl_score:
-            _, task = self.unctl_task_que.get()
-            subtask = task.subtasks.popleft()
-            self.env.current_location = task.location
-            self.in_progress_que.append(task)
-            child_node = Node(subtask, parent=parent)
-
-        else:
-            task = self.in_progress_que[in_progress_idx]
-            subtask = task.subtasks.popleft()
-            self.env.current_location = task.location
-            child_node = Node(subtask, parent=parent)
-
-            if not task.subtasks:
-                self.in_progress_que.remove(task)
-
-        self.construct_tree(child_node)
+        elif task in self.in_progress_que:
+            self.in_progress_que.remove(task)
 
 
 # Example usage:
@@ -151,4 +147,4 @@ class TaskScheduler:
 # profiler = TaskProfiler(env)
 # task_ques = profiler.priority_classify(tasks)
 # scheduler = TaskScheduler(env, task_ques)
-# root = scheduler.init_tree()
+# root = scheduler.root_node
