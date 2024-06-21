@@ -2,9 +2,10 @@ import heapq
 
 
 class Env:
-    def __init__(self):
+    def __init__(self, current_location="Kitchen"):
         self.rooms = ["Kitchen", "Living Room", "Restroom", "Bedroom"]
         self.graph = {room: {} for room in self.rooms}
+        self.current_location = current_location
 
     def add_transition(self, room1, room2, cost):
         if room1 in self.graph and room2 in self.graph:
@@ -13,13 +14,13 @@ class Env:
         else:
             raise ValueError("Both rooms must be in the graph.")
 
-    def get_cost(self, room1, room2):
-        if room1 in self.graph and room2 in self.graph[room1]:
-            return self.graph[room1][room2]
-        elif room1 == room2:
+    def get_cost(self, goal):
+        if self.current_location in self.graph and goal in self.graph[self.current_location]:
+            return self.graph[self.current_location][goal]
+        elif self.current_location == goal:
             return 0
         else:
-            return self.dijkstra(room1, room2)
+            return self.dijkstra(self.current_location, goal)
 
     def __repr__(self):
         return str(self.graph)

@@ -17,7 +17,7 @@
             {
                 "Name": "Let Steak Rest",
                 "Duration": 10,
-                "Type": "Uncontrollable"
+                "Type": "controllable"
             }
         ]
     },
@@ -39,6 +39,45 @@
                 "Name": "Finish Washing Dishes",
                 "Duration": 5,
                 "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Clean Living Room",
+        "Location": "Living Room",
+        "Subtasks": [
+            {
+                "Name": "Start Cleaning",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Continue Cleaning",
+                "Duration": 10,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Finishing Cleaning",
+                "Duration": 5,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Laundry",
+        "Location": "Restroom",
+        "Subtasks": [
+            {
+                "Name": "Start Washing Clothes",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Put out Clothes",
+                "Duration": 5,
+                "Type": "Uncontrollable",
+                "Constraint": "Time",
+                "Desc" : "can start 45 minutes after start washing"
             }
         ]
     }

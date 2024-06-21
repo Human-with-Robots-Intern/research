@@ -31,10 +31,8 @@ def milp_scheduler(tasks):
 
 
 def priority_scheduler(env, tasks):
-    task_profiler = TaskProfiler()
-    task_que = task_profiler.priority_classify(env, tasks)
-    print(printing_queue(task_que[0]))
-    print(printing_queue(task_que[1]))
+    task_profiler = TaskProfiler(env)
+    unctl_task_que, ctl_task_que = task_profiler.priority_classify(tasks)
 
 
 if __name__ == "__main__":
