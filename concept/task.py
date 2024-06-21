@@ -1,4 +1,5 @@
 import json
+from collections import deque
 
 
 class Subtask:
@@ -32,7 +33,7 @@ class Task:
 
         self.name = name
         self.location = location
-        self.subtasks = [Subtask(*subtask) for subtask in subtasks]
+        self.subtasks = deque(Subtask(*subtask) for subtask in subtasks)
 
     def get_controllable_subtasks(self):
         return [
