@@ -5,7 +5,7 @@ import sys
 from concept.env import Env
 from concept.task import parse_tasks
 from scheduler.milp_solver import SchedulingProblem
-from scheduler.task_scheduler import TaskProfiler
+from scheduler.task_scheduler import TaskProfiler, TaskScheduler
 from util.util import printing_queue
 from util.visualizer import *
 
@@ -32,7 +32,8 @@ def milp_scheduler(tasks):
 
 def priority_scheduler(env, tasks):
     task_profiler = TaskProfiler(env)
-    unctl_task_que, ctl_task_que = task_profiler.priority_classify(tasks)
+    task_ques = task_profiler.priority_classify(tasks)
+    task_scheduler = TaskScheduler(task_ques)
 
 
 if __name__ == "__main__":

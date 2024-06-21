@@ -5,7 +5,7 @@ from concept.task import Task
 
 
 class TaskProfiler:
-    def __init__(self, env: Env, tasks: list[Task]) -> None:
+    def __init__(self, env: Env):
         self.env = env
 
     def unctl_priority_scoring(self, task: Task) -> int:
@@ -32,7 +32,7 @@ class TaskProfiler:
         return priority_score
 
     def priority_classify(
-        self, env: Env, tasks: list[Task]
+        self, tasks: list[Task]
     ) -> tuple[PriorityQueue, PriorityQueue]:
         """task 항목을 순회하면서, constraints가 존재하는 (uncontrollable) task를 priority queue에 올림
 
@@ -49,23 +49,22 @@ class TaskProfiler:
 
         for task in tasks:
             if task.is_contain_uncontrollable():
-                self.priority_task_que.put(
-                    (self.unctl_priority_scoring(task), task.name, task)
-                )
+                unctl_task_que.put((self.unctl_priority_scoring(task), task.name, task))
             else:
-                self.non_priority_task_que.put(
-                    (self.ctl_priority_scoring(task), task.name, task)
-                )
+                ctl_task_que.put((self.ctl_priority_scoring(task), task.name, task))
 
         return unctl_task_que, ctl_task_que
 
 
 class TaskScheduler:
-    def __init__(self) -> None:
+    def __init__(self, task_ques: tuple) -> None:
         """두종류의 queue를 이용하여 Task Sequence를 만듦
 
         Args:
             priority_tasks (PriorityQueue): 긴급한 작업 큐
             non_priority_tasks (PriorityQueue): 긴급하지 않은 작업 큐
         """
-        pass
+        self.in_progress_que = []
+        self.uctl_task_que, self.ctl_task_que = task_ques
+
+    

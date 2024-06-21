@@ -47,7 +47,6 @@ class Task:
             for subtask in self.subtasks
             if subtask.type == "Uncontrollable"
         ]
-        print()
 
         if uncontrollable_subtasks:
             return True
