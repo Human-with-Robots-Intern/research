@@ -77,7 +77,7 @@
                 "Duration": 5,
                 "Type": "Uncontrollable",
                 "Constraint": "Time",
-                "Desc" : "can start 45 minutes after start washing"
+                "Desc": "can start 45 minutes after start washing"
             }
         ]
     }

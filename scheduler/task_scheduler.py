@@ -139,12 +139,3 @@ class TaskScheduler:
             self.in_progress_que.append(task)
         elif task in self.in_progress_que:
             self.in_progress_que.remove(task)
-
-
-# Example usage:
-# env = Env()  # Assume Env is properly defined
-# tasks = [...]  # Assume this is a list of Task objects
-# profiler = TaskProfiler(env)
-# task_ques = profiler.priority_classify(tasks)
-# scheduler = TaskScheduler(env, task_ques)
-# root = scheduler.root_node
