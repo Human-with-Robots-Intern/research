@@ -1,4 +1,5 @@
 import heapq
+from collections import namedtuple
 
 
 class Env:
@@ -15,7 +16,10 @@ class Env:
             raise ValueError("Both rooms must be in the graph.")
 
     def get_cost(self, goal):
-        if self.current_location in self.graph and goal in self.graph[self.current_location]:
+        if (
+            self.current_location in self.graph
+            and goal in self.graph[self.current_location]
+        ):
             return self.graph[self.current_location][goal]
         elif self.current_location == goal:
             return 0
@@ -43,8 +47,17 @@ class Env:
 
         raise ValueError("No path found between the given rooms.")
 
-    def gen_dummpy(self):
+    def gen_dummpy(self, current_location):
+        self.current_location = current_location
         self.add_transition("Kitchen", "Living Room", 5)
         self.add_transition("Living Room", "Restroom", 2)
         self.add_transition("Restroom", "Bedroom", 3)
         self.add_transition("Bedroom", "Kitchen", 4)
+
+    def move(self, goal):
+        name = f"Move from {self.current_location} to {goal}"
+        duration = self.get_cost(goal)
+        self.current_location = goal
+        Move = namedtuple("Move", ["name", "duration"])
+
+        return Move(name, duration)

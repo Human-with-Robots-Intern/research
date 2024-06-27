@@ -3,7 +3,14 @@ from collections import deque
 
 
 class Subtask:
-    def __init__(self, name: str, duration: int, type: str, constraints: str = None):
+    def __init__(
+        self,
+        task_location,
+        name: str,
+        duration: int,
+        type: str,
+        constraints: str = None,
+    ):
         """subtask constructor
 
         Args:
@@ -12,6 +19,7 @@ class Subtask:
             type (str, optional): controllable / uncontrollable
             constraints (str, optional): additional constraints for the uncontrollable sub task. Defualt is None (Space, Time, Temperature)
         """
+        self.location = task_location
         self.name = name
         self.duration = duration
         self.type = type
@@ -33,7 +41,7 @@ class Task:
 
         self.name = name
         self.location = location
-        self.subtasks = deque(Subtask(*subtask) for subtask in subtasks)
+        self.subtasks = deque(Subtask(location, *subtask) for subtask in subtasks)
 
     def get_controllable_subtasks(self):
         return [

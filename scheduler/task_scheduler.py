@@ -1,8 +1,7 @@
 from collections import deque
 from queue import PriorityQueue
 
-from anytree import Node
-
+from anytree import Node, RenderTree
 from concept.env import Env
 from concept.task import Task
 
@@ -65,10 +64,17 @@ class TaskScheduler:
     def process_first_unctl_task(self):
         _, task = self.unctl_task_que.get()
         subtask = task.subtasks.popleft()
-        self.root_node = Node(subtask)
-        self.env.current_location = task.location
-        self.in_progress_que.append(task)
-        self.construct_tree(self.root_node)
+
+        if self.env.current_location != subtask.location:
+            self.root_node = Node(self.env.move(subtask.location))
+            child_node = Node(subtask, parent=self.root_node)
+            self.in_progress_que.append(task)
+            self.construct_tree(child_node)
+        else:
+            self.root_node = Node(subtask)
+            self.env.current_location = subtask.location
+            self.in_progress_que.append(task)
+            self.construct_tree(self.root_node)
 
     def construct_tree(self, parent):
         while not self.queues_are_empty():
@@ -76,8 +82,13 @@ class TaskScheduler:
             if next_subtask is None:
                 break
             self.update_queues(task, queue_type)
-            child_node = Node(next_subtask, parent=parent)
-            self.env.current_location = task.location
+
+            if self.env.current_location != next_subtask.location:
+                move_node = Node(self.env.move(next_subtask.location), parent=parent)
+                child_node = Node(next_subtask, parent=move_node)
+            else:
+                child_node = Node(next_subtask, parent=parent)
+
             parent = child_node  # Move to the next node
 
     def queues_are_empty(self):
@@ -139,3 +150,11 @@ class TaskScheduler:
             self.in_progress_que.append(task)
         elif task in self.in_progress_que:
             self.in_progress_que.remove(task)
+
+    def generate_plan(self):
+        plan = []
+
+        for _, _, node in RenderTree(self.root_node):
+            plan.append(node.name)
+
+        return plan
