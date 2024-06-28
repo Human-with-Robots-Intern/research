@@ -13,7 +13,7 @@ def visualize2(schedule):
         )
         start_time += task.duration
 
-    df = pd.DataFrame(results)
+    df = pd.DataFrame(results).iloc[::-1]
 
     fig, ax = plt.subplots(figsize=(10, 8))
 
