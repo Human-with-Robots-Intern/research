@@ -1,8 +1,16 @@
 import json
+from collections import deque
 
 
 class Subtask:
-    def __init__(self, name: str, duration: int, type: str, constraints: str = None):
+    def __init__(
+        self,
+        task_location,
+        name: str,
+        duration: int,
+        type: str,
+        constraints: str = None,
+    ):
         """subtask constructor
 
         Args:
@@ -11,6 +19,7 @@ class Subtask:
             type (str, optional): controllable / uncontrollable
             constraints (str, optional): additional constraints for the uncontrollable sub task. Defualt is None (Space, Time, Temperature)
         """
+        self.location = task_location
         self.name = name
         self.duration = duration
         self.type = type
@@ -32,7 +41,7 @@ class Task:
 
         self.name = name
         self.location = location
-        self.subtasks = [Subtask(*subtask) for subtask in subtasks]
+        self.subtasks = deque(Subtask(location, *subtask) for subtask in subtasks)
 
     def get_controllable_subtasks(self):
         return [
@@ -41,11 +50,38 @@ class Task:
             if subtask.type == "Controllable"
         ]
 
-    def get_duration(self):
+    def is_contain_uncontrollable(self):
+        uncontrollable_subtasks = [
+            f"{subtask.name}"
+            for subtask in self.subtasks
+            if subtask.type == "Uncontrollable"
+        ]
+
+        if uncontrollable_subtasks:
+            return True
+        else:
+            return False
+
+    def check_containing(self, subtask_name):
+        for subtask in self.subtasks:
+            if subtask.name == subtask_name:
+                return True
+
+        return False
+
+    def get_total_seq_duration(self):
         return sum(subtask.duration for subtask in self.subtasks)
 
     def __repr__(self):
         return f"Task(name={self.name}, location={self.location}, subtasks={self.subtasks})"
+
+
+def get_subtask_dict(tasks):
+    subtask_dict = {}
+    for task in tasks:
+        for subtask in task.subtasks:
+            subtask_dict[subtask.name] = task.name
+    return subtask_dict
 
 
 def get_all_controllable_subtasks(tasks):

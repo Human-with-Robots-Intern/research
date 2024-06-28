@@ -1,0 +1,30 @@
+name: research
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - pip
+  - cairo
+  - certifi
+  - dbus
+  - freetype
+  - gettext
+  - glib
+  - icu
+  - libxml2
+  - lz4-c
+  - openssl
+  - pyqt
+  - readline
+  - sqlite
+  - tk
+  - tzdata
+  - xorg-libx11
+  - xz
+  - zlib
+  - zstd
+prefix: /home/dongkyu/miniforge3/envs/research

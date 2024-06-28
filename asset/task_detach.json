@@ -1,0 +1,68 @@
+[
+    {
+        "Task": "Toast",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Toast Start",
+                "Duration": 2,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Toast Waiting",
+                "Duration": 5,
+                "Type": "Uncontrollable",
+                "Constraint": "Time"
+            },
+            {
+                "Name": "Toast End",
+                "Duration": 1,
+                "Type": "controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Clean-restroom",
+        "Location": "Restroom",
+        "Subtasks": [
+            {
+                "Name": "Clean Restroom",
+                "Duration": 20,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Laundry",
+        "Location": "Restroom",
+        "Subtasks": [
+            {
+                "Name": "Start Laundry",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Waiting Laundry",
+                "Duration": 45,
+                "Type": "Uncontrollable",
+                "Constraint": "Time"
+            },
+            {
+                "Name": "End Laundry",
+                "Duration": 10,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Pour-milk",
+        "Location": "Living Room",
+        "Subtasks": [
+            {
+                "Name": "Pour-milk",
+                "Duration": 10,
+                "Type": "Controllable"
+            }
+        ]
+    }
+]

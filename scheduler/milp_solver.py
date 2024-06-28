@@ -1,7 +1,7 @@
 import pulp
 
 from scheduler import *
-from task import get_all_controllable_subtasks
+from concept.task import get_all_controllable_subtasks
 
 
 class SchedulingProblem:
@@ -42,10 +42,10 @@ class SchedulingProblem:
         for task in self.tasks:
             for subtask in task.subtasks:
                 self.prob += self.task_vars[subtask.name] == 1
-                self.prob += (
-                    self.completion_times[subtask.name] - self.start_times[subtask.name]
-                    >= MIN_TIME
-                )
+                # self.prob += (
+                #     self.completion_times[subtask.name] - self.start_times[subtask.name]
+                #     >= MIN_TIME
+                # )
 
         # Non-overlapping Controllable tasks
         ctrl_subtask_names = get_all_controllable_subtasks(self.tasks)

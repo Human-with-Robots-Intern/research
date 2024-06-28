@@ -2,14 +2,20 @@ import json
 import os
 import sys
 
-from scheduler.solver import SchedulingProblem
-from task import parse_tasks
-from visualizer import *
+from anytree import Node, RenderTree
+
+from concept.env import Env
+from concept.task import parse_tasks
+from scheduler.milp_solver import SchedulingProblem
+from scheduler.task_scheduler import TaskProfiler, TaskScheduler
+from util.util import printing_queue
+from util.visualizer import *
+
+with open(os.path.join("asset", "task_detach.json"), "r") as file:
+    tasks = parse_tasks(json.load(file))
 
 
-def main():
-    with open(os.path.join("asset", "tasks.json"), "r") as file:
-        tasks = parse_tasks(json.load(file))
+def milp_scheduler(tasks):
     # Create and define the scheduling problem
     scheduler = SchedulingProblem(tasks)
 
@@ -26,5 +32,18 @@ def main():
     visualize(tasks, schedule)
 
 
+def priority_scheduler(env, tasks):
+    task_profiler = TaskProfiler(env)
+    task_ques = task_profiler.priority_classify(tasks)
+
+    task_schedule = TaskScheduler(env, task_ques).generate_plan()
+
+    visualize2(task_schedule)
+
+
 if __name__ == "__main__":
-    main()
+    env = Env()
+    env.gen_dummpy(current_location="Living Room")
+
+    # milp_scheduler(tasks)
+    priority_scheduler(env, tasks)

@@ -9,27 +9,15 @@
                 "Type": "Controllable"
             },
             {
-                "Name": "First Cooking Interval",
-                "Duration": 5,
-                "Type": "Uncontrollable",
-                "Constraint": "Temperature"
-            },
-            {
-                "Name": "Second Cooking Interval",
-                "Duration": 5,
-                "Type": "Uncontrollable",
-                "Constraint": "Temperature"
-            },
-            {
-                "Name": "Final Cooking Interval",
-                "Duration": 5,
+                "Name": "Cooking Interval",
+                "Duration": 15,
                 "Type": "Uncontrollable",
                 "Constraint": "Temperature"
             },
             {
                 "Name": "Let Steak Rest",
                 "Duration": 10,
-                "Type": "Controllable"
+                "Type": "controllable"
             }
         ]
     },
@@ -55,7 +43,7 @@
         ]
     },
     {
-        "Task": "Clean_Living_Room",
+        "Task": "Clean Living Room",
         "Location": "Living Room",
         "Subtasks": [
             {
@@ -85,15 +73,11 @@
                 "Type": "Controllable"
             },
             {
-                "Name": "Wait Washing Clothes",
-                "Duration": 45,
-                "Type": "Uncontrollable",
-                "Constraint": "Time"
-            },
-            {
-                "Name": "End Washing Clothes",
+                "Name": "Put out Clothes",
                 "Duration": 5,
-                "Type": "Controllable"
+                "Type": "Uncontrollable",
+                "Constraint": "Time",
+                "Desc": "can start 45 minutes after start washing"
             }
         ]
     }
