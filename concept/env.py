@@ -49,10 +49,10 @@ class Env:
 
     def gen_dummpy(self, current_location):
         self.current_location = current_location
-        self.add_transition("Kitchen", "Living Room", 5)
+        self.add_transition("Kitchen", "Living Room", 1)
         self.add_transition("Living Room", "Restroom", 2)
-        self.add_transition("Restroom", "Bedroom", 3)
-        self.add_transition("Bedroom", "Kitchen", 4)
+        # self.add_transition("Restroom", "Bedroom", 3)
+        # self.add_transition("Bedroom", "Kitchen", 4)
 
     def move(self, goal):
         name = f"Move from {self.current_location} to {goal}"

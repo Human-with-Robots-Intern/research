@@ -3,6 +3,7 @@ import os
 import sys
 
 from anytree import Node, RenderTree
+
 from concept.env import Env
 from concept.task import parse_tasks
 from scheduler.milp_solver import SchedulingProblem
@@ -10,7 +11,7 @@ from scheduler.task_scheduler import TaskProfiler, TaskScheduler
 from util.util import printing_queue
 from util.visualizer import *
 
-with open(os.path.join("asset", "task_simple.json"), "r") as file:
+with open(os.path.join("asset", "task_detach.json"), "r") as file:
     tasks = parse_tasks(json.load(file))
 
 
@@ -42,7 +43,7 @@ def priority_scheduler(env, tasks):
 
 if __name__ == "__main__":
     env = Env()
-    env.gen_dummpy(current_location="Restroom")
+    env.gen_dummpy(current_location="Living Room")
 
     # milp_scheduler(tasks)
     priority_scheduler(env, tasks)
