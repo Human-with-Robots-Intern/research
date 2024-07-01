@@ -36,7 +36,7 @@ def priority_scheduler(env, tasks):
     task_profiler = TaskProfiler(env)
     task_ques = task_profiler.priority_classify(tasks)
 
-    task_schedule = TaskScheduler(env, task_ques).generate_plan()
+    task_schedule = TaskScheduler(env, task_ques).generate_schedule()
 
     visualize2(task_schedule)
 

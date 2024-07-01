@@ -1,7 +1,9 @@
 from collections import deque
 from queue import PriorityQueue
 
+import pandas as pd
 from anytree import Node, RenderTree
+
 from concept.env import Env
 from concept.task import Task
 
@@ -151,10 +153,25 @@ class TaskScheduler:
         elif task in self.in_progress_que:
             self.in_progress_que.remove(task)
 
-    def generate_plan(self):
-        plan = []
+    def generate_schedule(self):
+        schedule = []
 
         for _, _, node in RenderTree(self.root_node):
-            plan.append(node.name)
+            schedule.append(node.name)
 
-        return plan
+        results = []
+        start_time = 0
+        for i, subtask in enumerate(schedule):
+            results.append(
+                {
+                    "name": subtask.name,
+                    "start": start_time,
+                    "duration": subtask.duration,
+                }
+            )
+
+            start_time += subtask.duration
+
+        df = pd.DataFrame(results).iloc[::-1]
+
+        return df
