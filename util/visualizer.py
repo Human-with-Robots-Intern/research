@@ -5,19 +5,10 @@ from concept.task import get_subtask_dict
 
 
 def visualize2(schedule):
-    results = []
-    start_time = 0
-    for i, task in enumerate(schedule):
-        results.append(
-            {"name": task.name, "start": start_time, "duration": task.duration}
-        )
-        start_time += task.duration
-
-    df = pd.DataFrame(results).iloc[::-1]
 
     fig, ax = plt.subplots(figsize=(10, 8))
 
-    for i, task in df.iterrows():
+    for i, task in schedule.iterrows():
         ax.barh(
             task["name"],
             task["duration"],
@@ -25,14 +16,6 @@ def visualize2(schedule):
             color="skyblue",
             edgecolor="black",
         )
-        # ax.text(
-        #     (task["start"] + task["duration"]),
-        #     task["name"],
-        #     f'{task["name"]}',
-        #     ha="center",
-        #     va="center",
-        #     color="black",
-        # )
 
     ax.set_xlabel("Time (minutes)")
     ax.set_ylabel("Tasks")
