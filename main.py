@@ -41,9 +41,14 @@ def priority_scheduler(env, tasks):
     visualize2(task_schedule)
 
 
+def exhaustive_scheduler(env, tasks):
+    pass
+
+
 if __name__ == "__main__":
     env = Env()
     env.gen_dummpy(current_location="Living Room")
 
     # milp_scheduler(tasks)
-    priority_scheduler(env, tasks)
+    # priority_scheduler(env, tasks)
+    exhaustive_scheduler(env, tasks)

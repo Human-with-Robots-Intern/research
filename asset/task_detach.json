@@ -6,13 +6,11 @@
             {
                 "Name": "Toast Start",
                 "Duration": 2,
-                "Type": "Controllable"
-            },
-            {
-                "Name": "Toast Waiting",
-                "Duration": 5,
-                "Type": "Uncontrollable",
-                "Constraint": "Time"
+                "Type": "Controllable",
+                "Constraint": {
+                    "Duration": 5,
+                    "After": "Toast Start"
+                }
             },
             {
                 "Name": "Toast End",
@@ -39,13 +37,11 @@
             {
                 "Name": "Start Laundry",
                 "Duration": 5,
-                "Type": "Controllable"
-            },
-            {
-                "Name": "Waiting Laundry",
-                "Duration": 45,
-                "Type": "Uncontrollable",
-                "Constraint": "Time"
+                "Type": "Controllable",
+                "Constraint": {
+                    "Duration": 45,
+                    "After": "Start Laundry"
+                }
             },
             {
                 "Name": "End Laundry",
