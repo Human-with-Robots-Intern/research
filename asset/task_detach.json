@@ -9,14 +9,19 @@
                 "Type": "Controllable"
             },
             {
-                "Name": "Cooking End",
-                "Duration": 10,
+                "Name": "Cooking Surveillance",
+                "Duration": 15,
                 "Type": "Controllable",
                 "Constraint": {
                     "Type": "Surveillance",
-                    "Duration": 15,
+                    "Duration": 0,
                     "After": "Cooking Start"
                 }
+            },
+            {
+                "Name": "Cooking End",
+                "Duration": 10,
+                "Type": "Controllable"
             }
         ]
     },
@@ -78,7 +83,7 @@
                 "Type": "Controllable",
                 "Constraint": {
                     "Type": "Waiting",
-                    "Duration": 100,
+                    "Duration": 45,
                     "After": "Laundry Start"
                 }
             }
