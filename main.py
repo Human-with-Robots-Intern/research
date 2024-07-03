@@ -44,12 +44,12 @@ def priority_scheduler(env, tasks):
 
 def exhaustive_scheduler(env, tasks):
     task_schedule = ExhaustiveSearch(env, tasks).generate_schedule()
-    visualize2(task_schedule)
+    visualize3(task_schedule)
 
 
 if __name__ == "__main__":
     env = Env()
-    env.gen_dummpy(current_location="Living Room")
+    env.gen_dummpy(current_location="Living Room", goal_location="Living Room")
 
     # milp_scheduler(tasks)
     # priority_scheduler(env, tasks)

@@ -4,6 +4,36 @@ import pandas as pd
 from concept.task import get_all_subtasks
 
 
+def visualize3(schedule):
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    for i, task in schedule.iterrows():
+        task["duration"] = task["end"] - task["start"]
+        ax.barh(
+            task["name"],
+            task["duration"],
+            left=task["start"],
+            color="skyblue",
+            edgecolor="black",
+        )
+
+        ax.text(
+            task["start"] + task["duration"] / 2,
+            task["name"],
+            f'{task["start"]}~{task["start"]+task["duration"]} ({task["duration"]})',
+            ha="center",
+            va="center",
+            color="black",
+        )
+
+    ax.set_xlabel("Time (minutes)")
+    ax.set_ylabel("Tasks")
+    ax.set_title("Household Tasks Scheduling Gantt Chart")
+    plt.grid(axis="x", linestyle="--", alpha=0.7)
+
+    plt.show()
+
+
 def visualize2(schedule):
     fig, ax = plt.subplots(figsize=(10, 8))
 

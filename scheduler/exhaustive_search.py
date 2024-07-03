@@ -1,9 +1,6 @@
 import copy
-from collections import deque
-from itertools import permutations
 
 import pandas as pd
-from anytree import Node, RenderTree
 
 from concept.env import Env
 from concept.task import Subtask, Task, get_all_subtasks
@@ -14,10 +11,9 @@ class ExhaustiveSearch:
         """Initialize the TaskScheduler with environment and tasks"""
         self.env = env
         self.init_location = self.env.current_location
-
+        self.goal_location = self.env.goal_location
         self.tasks = tasks
-        self.root_node = None
-        self.init_tree()
+        self.schedule = self.init_tree()
 
     def init_tree(self):
         best_schedule, best_log = None, None
@@ -25,7 +21,7 @@ class ExhaustiveSearch:
         subtasks = get_all_subtasks(self.tasks, mode="all")
         permutations = list(get_permutations(subtasks, []))
 
-        # 최적의 makespan을 계산
+        # Calculate the optimal makespan
         for idx, permutation in enumerate(permutations):
             temp_permutation = copy.deepcopy(permutation)
             self.env.current_location = self.init_location
@@ -33,58 +29,42 @@ class ExhaustiveSearch:
 
             if total_cost < best_cost:
                 best_cost = total_cost
-                best_schedule = permutations[idx]
-                best_log = log
-
-        print(best_log)
+                best_schedule = log
 
         if best_schedule:
-            self.root_node = Node("Start")
-            parent = self.root_node
-            self.env.current_location = self.init_location
+            return best_schedule
         else:
-            raise Exception("Not exist optimal schedule")
-
-        for subtask in best_schedule:
-            if self.env.current_location != subtask.location:
-                move_node = Node(self.env.move(subtask.location), parent=parent)
-                parent = Node(subtask, parent=move_node)
-            else:
-                # 어떻게 Waiting을 추가하지?
-                parent = Node(subtask, parent=parent)
-            self.env.current_location = subtask.location
+            raise Exception("No optimal schedule exists")
 
     def exhaustive_search(
         self, permutation: list[Subtask], makespan: int, log: dict, index: int = 0
     ) -> tuple[int, dict]:
-        """permutation에 대해, 예상 소요 시간 계산 (실제로 방을 움직이는 것은 아님)
+        """Calculate the expected duration for the given permutation (without actually moving rooms)
 
         Args:
-            permutation (list[Subtask]): 일련의 subtask 순서
-            makespan (int): 모든 subtask를 처리하는데 걸리는 시간
-            log (dict): wait, move까지 고려한 schedule
-            index (int, optional): prevent a log_dict key overwrite. Defaults to 0.
+            permutation (list[Subtask]): Sequence of subtasks
+            makespan (int): Time taken to handle all subtasks
+            log (dict): Schedule considering wait and move
+            index (int, optional): Prevent log_dict key overwrite. Defaults to 0.
 
         Returns:
-            tuple[int, dict]: 최종 makespan, log
+            tuple[int, dict]: Final makespan, log
         """
 
-        def update_log_and_makespan(
-            subtask,
-            start_time,
-            index,
-        ):
-            # Log the move first
+        def update_log_and_makespan(subtask, start_time, index):
             transition_cost = self.env.get_cost(subtask.location)
             move_start_time = start_time
             move_end_time = move_start_time + transition_cost
-            log[
-                f"move_from_{self.env.current_location}_to_{subtask.location}_{index}"
-            ] = {
-                "Start": move_start_time,
-                "End": move_end_time,
-            }
-            self.env.current_location = subtask.location
+
+            # Log the move first
+            if self.env.current_location != subtask.location:
+                log[
+                    f"Move_from_{self.env.current_location}_to_{subtask.location}_{index}"
+                ] = {
+                    "Start": move_start_time,
+                    "End": move_end_time,
+                }
+                self.env.current_location = subtask.location
 
             # Now log the subtask
             task_start_time = move_end_time
@@ -92,26 +72,43 @@ class ExhaustiveSearch:
             log[f"{subtask.name}_{index}"] = {
                 "Start": task_start_time,
                 "End": task_end_time,
-                "Location": subtask.location,
             }
 
             return task_end_time
 
-        def handle_constraints(subtask, makespan, index):
+        def handle_constraints(subtask: Subtask, makespan: int, index: int) -> int:
+            """작업 시작 조건 충족위한 대기시간 결정
+
+            Args:
+                subtask (Subtask): 시작에 시간 제약이 있는 작업
+                makespan (int): 작업 시작 전 시각
+                index (int): dict key 겹침 방지용
+
+            Raises:
+                ValueError: Constraint가 없는 작업이 해당 함수에 들어온 경우
+
+            Returns:
+                int: 해당 작업 완료 시각
+            """
             constraint_task = subtask.constraints.get("After")
             constraint_duration = subtask.constraints.get("Duration", 0)
+            constraint_type = subtask.constraints.get("Type", 0)
 
             if constraint_task:
                 constraint_key = next(
                     (key for key in log if key.startswith(constraint_task)), None
                 )
+                # constraint_key : 제약 조건 기준 작업
                 if constraint_key:
                     task_end_time = log[constraint_key]["End"]
+
                     if makespan >= task_end_time + constraint_duration:
+                        # 만약, 현 시점이 제약 조건을 충족하였다면
                         return makespan  # No waiting needed
                     else:
+                        # 제약 조건을 충족하지 않아, Surveilance
                         waiting_time = task_end_time + constraint_duration - makespan
-                        log[f"Waiting_for_{constraint_task}_{index}"] = {
+                        log[f"{constraint_type}_for_{constraint_task}_{index}"] = {
                             "Start": makespan,
                             "End": makespan + waiting_time,
                         }
@@ -122,7 +119,22 @@ class ExhaustiveSearch:
                     )
             return makespan
 
+        # parallel_tasks = self.find_parallel_tasks(permutation, subtask.location)
+        #         for parallel_task in parallel_tasks:
+        #             permutation.remove(parallel_task)
+        #             makespan = self.update_log_and_makespan(
+        #                 parallel_task, surveillance_start_time, log, index
+        #             )
+        #             surveillance_start_time = makespan
+
         if not permutation:
+            if self.env.current_location != self.goal_location:
+                log[
+                    f"Move_from_{self.env.current_location}_to_{self.goal_location}_{index}"
+                ] = {
+                    "Start": makespan,
+                    "End": makespan + self.env.get_cost(self.goal_location),
+                }
             return makespan, log
 
         subtask = permutation.pop(0)
@@ -130,51 +142,33 @@ class ExhaustiveSearch:
         if subtask.constraints:
             makespan = handle_constraints(subtask, makespan, index)
 
-        makespan = update_log_and_makespan(
-            subtask,
-            makespan,
-            index,
-        )
+        makespan = update_log_and_makespan(subtask, makespan, index)
 
         return self.exhaustive_search(permutation, makespan, log, index + 1)
 
     def generate_schedule(self):
-        schedule = []
-
-        for _, _, node in RenderTree(self.root_node):
-            schedule.append(node.name)
-
-        results = []
-        start_time = 0
-        for idx, subtask in enumerate(schedule):
-            if idx == 0:
-                continue
-            results.append(
-                {
-                    "name": subtask.name,
-                    "start": start_time,
-                    "duration": subtask.duration,
-                }
-            )
-
-            start_time += subtask.duration
-
+        results = [
+            {
+                "name": "_".join(subtask.split("_")[:-1]),
+                "start": info["Start"],
+                "end": info["End"],
+            }
+            for subtask, info in self.schedule.items()
+        ]
         df = pd.DataFrame(results).iloc[::-1]
-
+        print(df)
         return df
 
 
 def get_permutations(lists, result):
-    # 모든 리스트의 모든 요소를 다 사용한 경우
+    # If all lists are exhausted, return the result
     if all(len(lst) == 0 for lst in lists):
         yield result
         return
 
-    # 각 리스트에서 하나씩 요소를 선택
+    # Choose an element from each list
     for i, lst in enumerate(lists):
-        if lst:  # 리스트에 요소가 남아 있는 경우에만
-            # 요소를 하나 선택하여 새로운 결과 리스트에 추가
+        if lst:  # Only if the list has elements
             new_result = result + [lst[0]]
-            # 선택된 요소를 제외한 리스트들로 재귀 호출
             new_lists = [lst[1:] if j == i else lst for j, lst in enumerate(lists)]
             yield from get_permutations(new_lists, new_result)

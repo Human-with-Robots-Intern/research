@@ -21,6 +21,17 @@
         ]
     },
     {
+        "Task": "Wash_Dishes",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Washing Dishes",
+                "Duration": 20,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
         "Task": "Toast",
         "Location": "Kitchen",
         "Subtasks": [

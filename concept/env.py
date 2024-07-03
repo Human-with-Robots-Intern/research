@@ -3,10 +3,11 @@ from collections import namedtuple
 
 
 class Env:
-    def __init__(self, current_location="Kitchen"):
+    def __init__(self, current_location="Kitchen", goal_location="Living Room"):
         self.rooms = ["Kitchen", "Living Room", "Restroom", "Bedroom"]
         self.graph = {room: {} for room in self.rooms}
         self.current_location = current_location
+        self.goal_location = goal_location
 
     def add_transition(self, room1, room2, cost):
         if room1 in self.graph and room2 in self.graph:
@@ -47,8 +48,9 @@ class Env:
 
         raise ValueError("No path found between the given rooms.")
 
-    def gen_dummpy(self, current_location):
+    def gen_dummpy(self, current_location, goal_location):
         self.current_location = current_location
+        self.goal_location = goal_location
         self.add_transition("Kitchen", "Living Room", 1)
         self.add_transition("Living Room", "Restroom", 2)
         # self.add_transition("Restroom", "Bedroom", 3)
