@@ -67,7 +67,7 @@
                 "Type": "Controllable",
                 "Constraint": {
                     "Type": "Waiting",
-                    "Duration": 45,
+                    "Duration": 100,
                     "After": "Laundry Start"
                 }
             }

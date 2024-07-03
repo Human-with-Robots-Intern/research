@@ -6,13 +6,15 @@ import pandas as pd
 from anytree import Node, RenderTree
 
 from concept.env import Env
-from concept.task import Task, get_all_subtasks
+from concept.task import Subtask, Task, get_all_subtasks
 
 
 class ExhaustiveSearch:
     def __init__(self, env: Env, tasks: list[Task]) -> None:
         """Initialize the TaskScheduler with environment and tasks"""
         self.env = env
+        self.init_location = self.env.current_location
+
         self.tasks = tasks
         self.root_node = None
         self.init_tree()
@@ -38,6 +40,7 @@ class ExhaustiveSearch:
         if best_schedule:
             self.root_node = Node("Start")
             parent = self.root_node
+            self.env.current_location = self.init_location
         for subtask in best_schedule:
             if self.env.current_location != subtask.location:
                 move_node = Node(self.env.move(subtask.location), parent=parent)
@@ -46,7 +49,21 @@ class ExhaustiveSearch:
                 parent = Node(subtask, parent=parent)
             self.env.current_location = subtask.location
 
-    def exhaustive_search(self, permutation, makespan, log, index=0):
+    def exhaustive_search(
+        self, permutation: list[Subtask], makespan: int, log: dict, index: int = 0
+    ) -> tuple[int, dict]:
+        """permutation에 대해, 예상 소요 시간 계산 (실제로 방을 움직이는 것은 아님)
+
+        Args:
+            permutation (list[Subtask]): 일련의 subtask 순서
+            makespan (int): 모든 subtask를 처리하는데 걸리는 시간
+            log (dict): wait, move까지 고려한 schedule
+            index (int, optional): prevent a log_dict key overwrite. Defaults to 0.
+
+        Returns:
+            tuple[int, dict]: 최종 makespan, log
+        """
+
         def update_log_and_makespan(
             start_time,
             subtask_duration,
