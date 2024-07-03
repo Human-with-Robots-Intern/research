@@ -28,6 +28,7 @@ class ExhaustiveSearch:
         # 최적의 makespan을 계산
         for idx, permutation in enumerate(permutations):
             temp_permutation = copy.deepcopy(permutation)
+            self.env.current_location = self.init_location
             total_cost, log = self.exhaustive_search(temp_permutation, 0, {})
 
             if total_cost < best_cost:
@@ -41,11 +42,15 @@ class ExhaustiveSearch:
             self.root_node = Node("Start")
             parent = self.root_node
             self.env.current_location = self.init_location
+        else:
+            raise Exception("Not exist optimal schedule")
+
         for subtask in best_schedule:
             if self.env.current_location != subtask.location:
                 move_node = Node(self.env.move(subtask.location), parent=parent)
                 parent = Node(subtask, parent=move_node)
             else:
+                # 어떻게 Waiting을 추가하지?
                 parent = Node(subtask, parent=parent)
             self.env.current_location = subtask.location
 
@@ -65,30 +70,29 @@ class ExhaustiveSearch:
         """
 
         def update_log_and_makespan(
+            subtask,
             start_time,
-            subtask_duration,
-            transition_cost,
-            subtask_name,
-            subtask_location,
             index,
         ):
             # Log the move first
+            transition_cost = self.env.get_cost(subtask.location)
             move_start_time = start_time
             move_end_time = move_start_time + transition_cost
             log[
-                f"move_from_{self.env.current_location}_to_{subtask_location}_{index}"
+                f"move_from_{self.env.current_location}_to_{subtask.location}_{index}"
             ] = {
                 "Start": move_start_time,
                 "End": move_end_time,
             }
-            self.env.current_location = subtask_location
+            self.env.current_location = subtask.location
 
             # Now log the subtask
             task_start_time = move_end_time
-            task_end_time = task_start_time + subtask_duration
-            log[f"{subtask_name}_{index}"] = {
+            task_end_time = task_start_time + subtask.duration
+            log[f"{subtask.name}_{index}"] = {
                 "Start": task_start_time,
                 "End": task_end_time,
+                "Location": subtask.location,
             }
 
             return task_end_time
@@ -107,7 +111,7 @@ class ExhaustiveSearch:
                         return makespan  # No waiting needed
                     else:
                         waiting_time = task_end_time + constraint_duration - makespan
-                        log[f"Waiting_for_{subtask.name}_{index}"] = {
+                        log[f"Waiting_for_{constraint_task}_{index}"] = {
                             "Start": makespan,
                             "End": makespan + waiting_time,
                         }
@@ -127,11 +131,8 @@ class ExhaustiveSearch:
             makespan = handle_constraints(subtask, makespan, index)
 
         makespan = update_log_and_makespan(
+            subtask,
             makespan,
-            subtask.duration,
-            self.env.get_cost(subtask.location),
-            subtask.name,
-            subtask.location,
             index,
         )
 
