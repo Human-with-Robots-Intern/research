@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from concept.task import get_subtask_dict
+from concept.task import get_all_subtasks
 
 
 def visualize2(schedule):
@@ -26,7 +26,7 @@ def visualize2(schedule):
 
 
 def visualize(tasks, schedule):
-    subtask_task_dict = get_subtask_dict(tasks)
+    subtask_task_dict = get_all_subtasks(tasks)
     # Create a DataFrame for visualization
     df = pd.DataFrame(schedule, columns=["Task", "Start", "End"])
 

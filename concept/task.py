@@ -26,7 +26,7 @@ class Subtask:
         self.constraints = constraints
 
     def __repr__(self):
-        return f"Subtask(name={self.name}, duration={self.duration}, type={self.type}, constraints={self.constraints})"
+        return f"Subtask(name={self.name}, location={self.location} duration={self.duration}, type={self.type}, constraints={self.constraints})"
 
 
 class Task:
@@ -76,12 +76,20 @@ class Task:
         return f"Task(name={self.name}, location={self.location}, subtasks={self.subtasks})"
 
 
-def get_subtask_dict(tasks):
-    subtask_dict = {}
-    for task in tasks:
-        for subtask in task.subtasks:
-            subtask_dict[subtask.name] = task.name
-    return subtask_dict
+def get_all_subtasks(tasks: list[Task], mode: str = "name"):
+    if mode == "name":
+        subtasks = {}
+        for task in tasks:
+            for subtask in task.subtasks:
+                subtasks[subtask.name] = task.name
+    elif mode == "all":
+        subtasks = []
+        for task in tasks:
+            subtask_group = []
+            for subtask in task.subtasks:
+                subtask_group.append(subtask)
+            subtasks.append(subtask_group)
+    return subtasks
 
 
 def get_all_controllable_subtasks(tasks):

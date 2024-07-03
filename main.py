@@ -6,6 +6,7 @@ from anytree import Node, RenderTree
 
 from concept.env import Env
 from concept.task import parse_tasks
+from scheduler.exhaustive_search import ExhaustiveSearch
 from scheduler.milp_solver import SchedulingProblem
 from scheduler.task_scheduler import TaskProfiler, TaskScheduler
 from util.util import printing_queue
@@ -42,7 +43,8 @@ def priority_scheduler(env, tasks):
 
 
 def exhaustive_scheduler(env, tasks):
-    pass
+    task_schedule = ExhaustiveSearch(env, tasks).generate_schedule()
+    visualize2(task_schedule)
 
 
 if __name__ == "__main__":

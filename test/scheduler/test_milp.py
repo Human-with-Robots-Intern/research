@@ -2,11 +2,10 @@ import unittest
 from unittest.mock import MagicMock
 
 import pulp
-from scheduling_problem import SchedulingProblem
 
 from concept.env import Env
 from concept.task import Subtask, Task, get_all_controllable_subtasks
-from scheduler import TaskScheduler
+from scheduler import SchedulingProblem, TaskScheduler
 
 
 class TestSchedulingProblem(unittest.TestCase):

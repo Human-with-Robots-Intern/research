@@ -1,21 +1,43 @@
 [
     {
+        "Task": "Cook_Steak",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Cooking Start",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Cooking End",
+                "Duration": 10,
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Surveillance",
+                    "Duration": 15,
+                    "After": "Cooking Start"
+                }
+            }
+        ]
+    },
+    {
         "Task": "Toast",
         "Location": "Kitchen",
         "Subtasks": [
             {
                 "Name": "Toast Start",
                 "Duration": 2,
-                "Type": "Controllable",
-                "Constraint": {
-                    "Duration": 5,
-                    "After": "Toast Start"
-                }
+                "Type": "Controllable"
             },
             {
                 "Name": "Toast End",
                 "Duration": 1,
-                "Type": "controllable"
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Waiting",
+                    "Duration": 5,
+                    "After": "Toast Start"
+                }
             }
         ]
     },
@@ -35,18 +57,19 @@
         "Location": "Restroom",
         "Subtasks": [
             {
-                "Name": "Start Laundry",
+                "Name": "Laundry Start",
                 "Duration": 5,
-                "Type": "Controllable",
-                "Constraint": {
-                    "Duration": 45,
-                    "After": "Start Laundry"
-                }
+                "Type": "Controllable"
             },
             {
-                "Name": "End Laundry",
+                "Name": "Laundry End",
                 "Duration": 10,
-                "Type": "Controllable"
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Waiting",
+                    "Duration": 45,
+                    "After": "Laundry Start"
+                }
             }
         ]
     },
