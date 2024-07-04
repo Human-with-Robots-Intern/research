@@ -3,7 +3,6 @@ from queue import PriorityQueue
 
 import pandas as pd
 from anytree import Node, RenderTree
-
 from concept.env import Env
 from concept.task import Task
 

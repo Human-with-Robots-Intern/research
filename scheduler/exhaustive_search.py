@@ -16,7 +16,8 @@ class ExhaustiveSearch:
         self.schedule = self.init_tree()
 
     def init_tree(self):
-        best_schedule, best_log = None, None
+        best_schedule = None
+        best_schedules = []
         best_cost = float("inf")
         subtasks = get_all_subtasks(self.tasks, mode="all")
         permutations = list(get_permutations(subtasks, []))
@@ -25,13 +26,14 @@ class ExhaustiveSearch:
         for idx, permutation in enumerate(permutations):
             temp_permutation = copy.deepcopy(permutation)
             self.env.current_location = self.init_location
-            total_cost, log = self.exhaustive_search(temp_permutation, 0, {})
-
+            total_cost, schedule = self.exhaustive_search(temp_permutation, 0, {})
             if total_cost < best_cost:
                 best_cost = total_cost
-                best_schedule = log
+                best_schedule = schedule
+                best_schedules.append(best_schedules)
 
         if best_schedule:
+
             return best_schedule
         else:
             raise Exception("No optimal schedule exists")
@@ -119,8 +121,13 @@ class ExhaustiveSearch:
                     )
             return makespan
 
-        def handle_Surveillance(subtask: Subtask, makespan: int, index: int) -> int:
-            """작업 시작 조건 충족위한 대기시간 결정
+        def handle_Surveillance(
+            subtask: Subtask,
+            parallelable_subtask: list[Subtask],
+            makespan: int,
+            index: int,
+        ) -> int:
+            """Surveillance Subtask와 함께 병렬화를 진행할 작업을 선정
 
             Args:
                 subtask (Subtask): 시작에 시간 제약이 있는 작업
@@ -145,9 +152,6 @@ class ExhaustiveSearch:
                 if constraint_key:
                     task_end_time = log[constraint_key]["End"]
 
-                    # TODO 병렬화 가능한 작업을 동일한 방 Task에서 가져옴
-                    # TODO 이 때, 작업은 병렬화가 가능하여, 해당 슬롯만큼이나 넘치게 작업을 가져와야 함.
-                    # TODO 가져오는 작업은 작은 시간 단위 일련의 작업이거나, 크기가 큰 작업의 일부를 가져와야 함.
                     # TODO 바로 작업을 시작하게 만듦
                     # parallel_tasks = self.find_parallel_tasks(permutation, subtask.location)
                     #         for parallel_task in parallel_tasks:
@@ -171,6 +175,8 @@ class ExhaustiveSearch:
                     "Start": makespan,
                     "End": makespan + self.env.get_cost(self.goal_location),
                 }
+
+                makespan += self.env.get_cost(self.goal_location)
             return makespan, log
 
         subtask = permutation.pop(0)
@@ -181,11 +187,13 @@ class ExhaustiveSearch:
                 makespan = handle_Waiting(subtask, makespan, index)
             else:
                 # Surveillance 동안 수행할 병렬가능 작업을 배치
-                parallelable_subtask = self.get_parallelable_subtask(
+                permutation, parallelable_subtask = self.get_parallelable_subtask(
                     permutation, subtask
                 )
 
-                makespan = handle_Surveillance(subtask, makespan, index)
+                makespan = handle_Surveillance(
+                    subtask, parallelable_subtask, makespan, index
+                )
 
         makespan = update_log_and_makespan(subtask, makespan, index)
 
@@ -204,12 +212,84 @@ class ExhaustiveSearch:
         return df
 
     def get_parallelable_subtask(self, permutation, target_subtask):
+        # Surveillance 15분. 결과값은 15분 자르기 + alpha겠지?
+
+        # 앞으로 해야 하는 부엌 작업
         parallelable_subtasks = [
             subtask
             for subtask in permutation
             if subtask.location == target_subtask.location
+            and target_subtask.task_name != subtask.task_name
         ]
-        return parallelable_subtasks
+
+        # 병렬 가능 후보군에서 해당 기간동안 병렬화할 수 있는 작업만 선택
+        cumulative_duration = 0
+        splitted_subtasks = []
+        is_parallel_complete = False
+
+        # 사이즈 20에 맞게 잘라야 함.
+        for parallelable_subtask in parallelable_subtasks:
+            cumulative_duration += parallelable_subtask.duration
+
+            if cumulative_duration > target_subtask.duration:
+                if not is_parallel_complete:
+
+                    over_duration = cumulative_duration - target_subtask.duration
+
+                    splitted_subtask1 = copy.deepcopy(parallelable_subtask)
+                    splitted_subtask2 = copy.deepcopy(parallelable_subtask)
+
+                    splitted_subtask1.duration -= over_duration
+                    splitted_subtask2.duration = over_duration
+
+                    splitted_subtasks.extend([splitted_subtask1, splitted_subtask2])
+                    is_parallel_complete = True
+                else:
+                    splitted_subtasks.append(parallelable_subtask)
+
+            else:
+                splitted_subtasks.append(parallelable_subtask)
+
+        # 병렬처리할 작업
+        parallelable_subtasks = []
+        cumulative_duration = 0
+        # 병렬 처리 이후, 남겨진 수행할 작업
+        left_splitted_subtasks = []
+        is_parallel_complete = False
+
+        for splitted_subtask in splitted_subtasks:
+            if not is_parallel_complete:
+                cumulative_duration += splitted_subtask.duration
+                parallelable_subtasks.append(splitted_subtask)
+
+                if cumulative_duration == target_subtask.duration:
+                    is_parallel_complete = True
+            else:
+                left_splitted_subtasks.append(splitted_subtask)
+
+        # 기존 permutation에서 병렬 처리할 작업은 빼고, 남은 작업으로 작업 업데이트
+        result_permutation = []
+        is_parallel_subtask = False
+
+        for subtask in permutation:
+            # 병렬처리 대상 작업은 기존 permutation에서 제거
+            for parallelable_subtask in parallelable_subtasks:
+                if subtask.name == parallelable_subtask.name:
+                    is_parallel_subtask = True
+
+            # 나머지 작업이면 업데이트된 작업으로 바꿔치기
+            for left_splitted_subtask in left_splitted_subtasks:
+                if subtask.name == left_splitted_subtask.name:
+                    result_permutation.append(left_splitted_subtask)
+
+            # 일반적 경우 그냥 추가
+            if is_parallel_subtask:
+                continue
+
+            if not is_parallel_subtask:
+                result_permutation.append(subtask)
+
+        return result_permutation, parallelable_subtasks
 
 
 def get_permutations(lists, result):
