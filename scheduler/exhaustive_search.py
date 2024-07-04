@@ -26,14 +26,16 @@ class ExhaustiveSearch:
         for idx, permutation in enumerate(permutations):
             temp_permutation = copy.deepcopy(permutation)
             self.env.current_location = self.init_location
-            total_cost, schedule = self.exhaustive_search(temp_permutation, 0, {})
+            try:
+                total_cost, schedule = self.exhaustive_search(temp_permutation, 0, {})
+            except ValueError:
+                continue
             if total_cost < best_cost:
                 best_cost = total_cost
                 best_schedule = schedule
                 best_schedules.append(best_schedules)
 
         if best_schedule:
-
             return best_schedule
         else:
             raise Exception("No optimal schedule exists")
@@ -94,7 +96,6 @@ class ExhaustiveSearch:
             """
             constraint_task = subtask.constraints.get("After")
             constraint_duration = subtask.constraints.get("Duration", 0)
-            constraint_type = subtask.constraints.get("Type", 0)
 
             if constraint_task:
                 constraint_key = next(
@@ -110,12 +111,14 @@ class ExhaustiveSearch:
                     else:
                         # 제약 조건을 충족하지 않는 경우, Waiting
                         waiting_time = task_end_time + constraint_duration - makespan
-                        log[f"{constraint_type}_for_{constraint_task}_{index}"] = {
+                        log[f"Waiting_for_{constraint_task}_{index}"] = {
                             "Start": makespan,
                             "End": makespan + waiting_time,
                         }
                         return makespan + waiting_time
                 else:
+                    print(f"에러 당시 task : {subtask}")
+                    print(f"에러 당시 로그 : {log}")
                     raise ValueError(
                         f"Constraint task {constraint_task} not found in log."
                     )
@@ -123,7 +126,7 @@ class ExhaustiveSearch:
 
         def handle_Surveillance(
             subtask: Subtask,
-            parallelable_subtask: list[Subtask],
+            parallelable_subtasks: list[Subtask],
             makespan: int,
             index: int,
         ) -> int:
@@ -142,7 +145,6 @@ class ExhaustiveSearch:
             """
             constraint_task = subtask.constraints.get("After")
             constraint_duration = subtask.constraints.get("Duration", 0)
-            constraint_type = subtask.constraints.get("Type", 0)
 
             if constraint_task:
                 constraint_key = next(
@@ -150,17 +152,24 @@ class ExhaustiveSearch:
                 )
                 # constraint_key : 제약 조건 기준 작업
                 if constraint_key:
-                    task_end_time = log[constraint_key]["End"]
+                    precedence_task_end_time = log[constraint_key]["End"]
 
-                    # TODO 바로 작업을 시작하게 만듦
-                    # parallel_tasks = self.find_parallel_tasks(permutation, subtask.location)
-                    #         for parallel_task in parallel_tasks:
-                    #             permutation.remove(parallel_task)
-                    #             makespan = self.update_log_and_makespan(
-                    #                 parallel_task, surveillance_start_time, log, index
-                    #             )
-                    #             surveillance_start_time = makespan
-
+                    if makespan == precedence_task_end_time + constraint_duration:
+                        task_start_time = makespan
+                        for parallelable_subtask in parallelable_subtasks:
+                            task_end_time = (
+                                task_start_time + parallelable_subtask.duration
+                            )
+                            log[f"{parallelable_subtask.name}_{index}"] = {
+                                "Start": task_start_time,
+                                "End": task_end_time,
+                            }
+                            task_start_time = task_end_time
+                        return makespan
+                    else:
+                        raise ValueError(
+                            f"The surveillance task must start right after precedence task end"
+                        )
                 else:
                     raise ValueError(
                         f"Constraint task {constraint_task} not found in log."
@@ -187,13 +196,17 @@ class ExhaustiveSearch:
                 makespan = handle_Waiting(subtask, makespan, index)
             else:
                 # Surveillance 동안 수행할 병렬가능 작업을 배치
-                permutation, parallelable_subtask = self.get_parallelable_subtask(
+                permutation, parallelable_subtasks = self.get_parallelable_subtask(
                     permutation, subtask
                 )
-
-                makespan = handle_Surveillance(
-                    subtask, parallelable_subtask, makespan, index
-                )
+                try:
+                    makespan = handle_Surveillance(
+                        subtask, parallelable_subtasks, makespan, index
+                    )
+                except ValueError:
+                    raise ValueError(
+                        "The surveillance task must start right after precedence task end"
+                    )
 
         makespan = update_log_and_makespan(subtask, makespan, index)
 
@@ -269,9 +282,9 @@ class ExhaustiveSearch:
 
         # 기존 permutation에서 병렬 처리할 작업은 빼고, 남은 작업으로 작업 업데이트
         result_permutation = []
-        is_parallel_subtask = False
 
         for subtask in permutation:
+            is_parallel_subtask = False
             # 병렬처리 대상 작업은 기존 permutation에서 제거
             for parallelable_subtask in parallelable_subtasks:
                 if subtask.name == parallelable_subtask.name:
