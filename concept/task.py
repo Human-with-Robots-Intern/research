@@ -5,6 +5,7 @@ from collections import deque
 class Subtask:
     def __init__(
         self,
+        task_name,
         task_location,
         name: str,
         duration: int,
@@ -19,6 +20,7 @@ class Subtask:
             type (str, optional): controllable / uncontrollable
             constraints (str, optional): additional constraints for the uncontrollable sub task. Defualt is None (Space, Time, Temperature)
         """
+        self.task_name = task_name
         self.location = task_location
         self.name = name
         self.duration = duration
@@ -26,7 +28,7 @@ class Subtask:
         self.constraints = constraints
 
     def __repr__(self):
-        return f"Subtask(name={self.name}, duration={self.duration}, type={self.type}, constraints={self.constraints})"
+        return f"Subtask(name={self.name}, location={self.location} duration={self.duration}, type={self.type}, constraints={self.constraints})"
 
 
 class Task:
@@ -41,7 +43,7 @@ class Task:
 
         self.name = name
         self.location = location
-        self.subtasks = deque(Subtask(location, *subtask) for subtask in subtasks)
+        self.subtasks = deque(Subtask(name, location, *subtask) for subtask in subtasks)
 
     def get_controllable_subtasks(self):
         return [
@@ -76,12 +78,20 @@ class Task:
         return f"Task(name={self.name}, location={self.location}, subtasks={self.subtasks})"
 
 
-def get_subtask_dict(tasks):
-    subtask_dict = {}
-    for task in tasks:
-        for subtask in task.subtasks:
-            subtask_dict[subtask.name] = task.name
-    return subtask_dict
+def get_all_subtasks(tasks: list[Task], mode: str = "name"):
+    if mode == "name":
+        subtasks = {}
+        for task in tasks:
+            for subtask in task.subtasks:
+                subtasks[subtask.name] = task.name
+    elif mode == "all":
+        subtasks = []
+        for task in tasks:
+            subtask_group = []
+            for subtask in task.subtasks:
+                subtask_group.append(subtask)
+            subtasks.append(subtask_group)
+    return subtasks
 
 
 def get_all_controllable_subtasks(tasks):

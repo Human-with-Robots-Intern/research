@@ -6,6 +6,7 @@ from anytree import Node, RenderTree
 
 from concept.env import Env
 from concept.task import parse_tasks
+from scheduler.exhaustive_search import ExhaustiveSearch
 from scheduler.milp_solver import SchedulingProblem
 from scheduler.task_scheduler import TaskProfiler, TaskScheduler
 from util.util import printing_queue
@@ -41,9 +42,15 @@ def priority_scheduler(env, tasks):
     visualize2(task_schedule)
 
 
+def exhaustive_scheduler(env, tasks):
+    task_schedule = ExhaustiveSearch(env, tasks).generate_schedule()
+    visualize3(task_schedule)
+
+
 if __name__ == "__main__":
     env = Env()
-    env.gen_dummpy(current_location="Living Room")
+    env.gen_dummpy(current_location="Living Room", goal_location="Living Room")
 
     # milp_scheduler(tasks)
-    priority_scheduler(env, tasks)
+    # priority_scheduler(env, tasks)
+    exhaustive_scheduler(env, tasks)

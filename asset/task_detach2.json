@@ -14,7 +14,7 @@
                 "Type": "Controllable",
                 "Constraint": {
                     "Type": "Surveillance",
-                    "Duration": 0,
+                    "Duration": 5,
                     "After": "Cooking Start"
                 }
             },
@@ -51,7 +51,7 @@
                 "Type": "Controllable",
                 "Constraint": {
                     "Type": "Waiting",
-                    "Duration": 5,
+                    "Duration": 3,
                     "After": "Toast Start"
                 }
             }
@@ -97,6 +97,16 @@
                 "Name": "Pour-milk",
                 "Duration": 10,
                 "Type": "Controllable"
+            },
+            {
+                "Name": "Wipe-milk",
+                "Duration": 10,
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Emergency",
+                    "Duration": 0,
+                    "After": "Pour-milk"
+                }
             }
         ]
     }
