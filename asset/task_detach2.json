@@ -1,0 +1,113 @@
+[
+    {
+        "Task": "Cook_Steak",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Cooking Start",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Cooking Surveillance",
+                "Duration": 15,
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Surveillance",
+                    "Duration": 5,
+                    "After": "Cooking Start"
+                }
+            },
+            {
+                "Name": "Cooking End",
+                "Duration": 10,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Wash_Dishes",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Washing Dishes",
+                "Duration": 20,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Toast",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Toast Start",
+                "Duration": 2,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Toast End",
+                "Duration": 1,
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Waiting",
+                    "Duration": 3,
+                    "After": "Toast Start"
+                }
+            }
+        ]
+    },
+    {
+        "Task": "Clean-restroom",
+        "Location": "Restroom",
+        "Subtasks": [
+            {
+                "Name": "Clean Restroom",
+                "Duration": 20,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Laundry",
+        "Location": "Restroom",
+        "Subtasks": [
+            {
+                "Name": "Laundry Start",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Laundry End",
+                "Duration": 10,
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Waiting",
+                    "Duration": 45,
+                    "After": "Laundry Start"
+                }
+            }
+        ]
+    },
+    {
+        "Task": "Pour-milk",
+        "Location": "Living Room",
+        "Subtasks": [
+            {
+                "Name": "Pour-milk",
+                "Duration": 10,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Wipe-milk",
+                "Duration": 10,
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Emergency",
+                    "Duration": 0,
+                    "After": "Pour-milk"
+                }
+            }
+        ]
+    }
+]
