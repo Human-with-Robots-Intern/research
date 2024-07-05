@@ -3,10 +3,9 @@ import os
 import sys
 
 from anytree import Node, RenderTree
-
 from concept.env import Env
 from concept.task import parse_tasks
-from scheduler.exhaustive_search import ExhaustiveSearch
+from scheduler.exhaustive_search2 import ExhaustiveSearch
 from scheduler.milp_solver import SchedulingProblem
 from scheduler.task_scheduler import TaskProfiler, TaskScheduler
 from util.util import printing_queue

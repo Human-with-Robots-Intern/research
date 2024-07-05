@@ -195,6 +195,7 @@ class ExhaustiveSearch:
             return makespan
 
         if not permutation:
+            # 스케쥴링 끝에, 목표 지점으로
             if self.env.current_location != self.goal_location:
                 goal_cost = self.env.get_cost(self.goal_location)
                 log[
