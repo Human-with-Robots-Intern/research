@@ -21,6 +21,8 @@ class ExhaustiveSearch:
         self.goal_location = self.env.goal_location
         self.tasks = tasks
         self.schedule = self.init_tree()
+        # with Pool() as pool:
+        #     schedules = pool.map(self.evaluate_permutation, permutations)
 
     def init_tree(self) -> dict:
         """
@@ -30,8 +32,7 @@ class ExhaustiveSearch:
         subtasks = get_all_subtasks(self.tasks, mode="all")
         permutations = list(get_permutations(subtasks, []))
 
-        # with Pool() as pool:
-        #     schedules = pool.map(self.evaluate_permutation, permutations)
+        print(f"Total permutations: {len(permutations)}")
 
         schedules = []
         for idx, permutation in enumerate(permutations):
@@ -39,17 +40,44 @@ class ExhaustiveSearch:
                 schedule = self.exhaustive_search(permutation, 0, {})
             except ValueError:
                 schedule = (float("inf"), {})
-            schedules.append(schedule)
-            logger.info(f"Evaluated permutation {idx + 1}/{len(permutations)}")
 
-        best_cost, best_schedule = min(schedules, key=lambda x: x[0])
+            schedules.append((schedule[0], schedule, permutation))
+            logger.info(
+                f"Evaluated permutation {idx}/{len(permutations)-1}, cost : {schedule[0]}"
+            )
+
+        # Finding the minimum cost
+        best_cost, best_schedule, best_permutation = min(schedules, key=lambda x: x[0])
         best_schedules = [
-            schedule[1] for schedule in schedules if schedule[0] == best_cost
+            idx
+            for idx, (cost, schedule, perm) in enumerate(schedules)
+            if cost == best_cost
         ]
+
+        print(best_schedules)
         logger.info(f"Number of optimal solutions: {len(best_schedules)}")
 
+        # Debugging output
+        print(f"Permutation at index 151199 during generation: {permutations[151199]}")
+        cost_at_index, schedule_at_index = self.exhaustive_search(
+            permutations[151199], 0, {}
+        )
+        print(f"Cost at index 151199 after direct access: {cost_at_index}")
+        print(f"Schedule at index 151199 after direct access: {schedule_at_index}")
+
+        # Cross-check
+        evaluated_schedule = [s for c, s, p in schedules if p == permutations[151199]][
+            0
+        ]
+        print(
+            f"Evaluated cost for permutation at index 151199: {evaluated_schedule[0]}"
+        )
+        print(
+            f"Evaluated schedule for permutation at index 151199: {evaluated_schedule[1]}"
+        )
+
         if best_schedule:
-            return best_schedule
+            return best_schedule[1]
         else:
             raise Exception("No optimal schedule exists")
 
@@ -245,14 +273,17 @@ class ExhaustiveSearch:
         """Update the permutation by removing completed parallelized subtasks."""
         result_permutation = []
         for subtask in original_permutation:
-            for parallelized_subtask in parallelized_subtasks:
-                if (
-                    parallelized_subtask.name == subtask.name
-                    and parallelized_subtask.duration == subtask.duration
-                ):
-                    pass
-                else:
-                    result_permutation.append(subtask)
+            if parallelized_subtasks:
+                for parallelized_subtask in parallelized_subtasks:
+                    if (
+                        parallelized_subtask.name == subtask.name
+                        and parallelized_subtask.duration == subtask.duration
+                    ):
+                        pass
+                    else:
+                        result_permutation.append(subtask)
+            else:
+                result_permutation.append(subtask)
         return result_permutation
 
     def get_parallelable_subtask(
@@ -308,6 +339,7 @@ class ExhaustiveSearch:
 
     def generate_schedule(self) -> pd.DataFrame:
         """Generate the schedule in a pandas DataFrame."""
+
         results = [
             {
                 "name": "_".join(subtask.split("_")[:-1]),
@@ -316,6 +348,7 @@ class ExhaustiveSearch:
             }
             for subtask, info in self.schedule.items()
         ]
+
         df = pd.DataFrame(results).iloc[::-1]
         return df
 
