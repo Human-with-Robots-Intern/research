@@ -1,8 +1,6 @@
 import json
 import os
-import sys
 
-from anytree import Node, RenderTree
 from concept.env import Env
 from concept.task import parse_tasks
 from scheduler.exhaustive_search2 import ExhaustiveSearch

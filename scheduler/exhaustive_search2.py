@@ -10,54 +10,45 @@ from concept.task import Subtask, Task, get_all_subtasks
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-global is_degugged
-is_debugged = False
-
 
 class ExhaustiveSearch:
     def __init__(self, env: Env, tasks: list[Task]) -> None:
         """
         Initialize the ExhaustiveSearch with environment and tasks.
-
-        Args:
-            env (Env): The environment.
-            tasks (list[Task]): List of tasks.
         """
         self.env = env
         self.init_location = self.env.current_location
         self.goal_location = self.env.goal_location
-
         self.tasks = tasks
         self.schedule = self.init_tree()
 
     def init_tree(self) -> dict:
         """
         Initialize the search tree to find the optimal schedule.
-
-        Returns:
-            dict: The best schedule found.
-
-        Raises:
-            Exception: If no optimal schedule exists.
         """
         best_schedule, best_cost = None, float("inf")
-
         subtasks = get_all_subtasks(self.tasks, mode="all")
         permutations = list(get_permutations(subtasks, []))
 
-        # Evaluate permutations in parallel
-        with Pool() as pool:
-            schedules = pool.map(self.evaluate_permutation, permutations)
-        # schedules = self.evaluate_permutation(permutations[0])
-        # print(schedules)
+        # with Pool() as pool:
+        #     schedules = pool.map(self.evaluate_permutation, permutations)
+
+        schedules = []
+        for idx, permutation in enumerate(permutations):
+            try:
+                schedule = self.exhaustive_search(permutation, 0, {})
+            except ValueError:
+                schedule = (float("inf"), {})
+            schedules.append(schedule)
+            logger.info(f"Evaluated permutation {idx + 1}/{len(permutations)}")
 
         best_cost, best_schedule = min(schedules, key=lambda x: x[0])
         best_schedules = [
             schedule[1] for schedule in schedules if schedule[0] == best_cost
         ]
+        logger.info(f"Number of optimal solutions: {len(best_schedules)}")
 
         if best_schedule:
-            # print(f"The number of Optimal Solutions : {len(best_schedules)}")
             return best_schedule
         else:
             raise Exception("No optimal schedule exists")
@@ -85,24 +76,18 @@ class ExhaustiveSearch:
     ) -> tuple[int, dict]:
         """
         Perform an exhaustive search to calculate the expected duration for the given permutation.
-
-        Args:
-            permutation (list[Subtask]): Sequence of subtasks.
-            makespan (int): Time taken to handle all subtasks.
-            log (dict): Schedule considering wait and move.
-            index (int, optional): Prevent log_dict key overwrite. Defaults to 0.
-
-        Returns:
-            tuple[int, dict]: Final makespan, log.
         """
         if not permutation:
             return self.handle_goal_return(makespan, log, index)
 
         subtask = permutation.pop(0)
-        if subtask.constraints:
-            makespan, log = self.handle_constraints(
-                subtask, permutation, makespan, log, index
-            )
+        try:
+            if subtask.constraints:
+                permutation, makespan, log = self.handle_constraints(
+                    subtask, permutation, makespan, log, index
+                )
+        except ValueError:
+            raise ValueError("Surveillance constraint not satisfied")
 
         makespan = self.update_log_and_makespan(subtask, makespan, log, index)
         return self.exhaustive_search(permutation, makespan, log, index + 1)
@@ -143,32 +128,29 @@ class ExhaustiveSearch:
     def handle_constraints(self, subtask, permutation, makespan, log, index):
         """Handle the constraints for the given subtask."""
         constraint_type = subtask.constraints.get("Type", None)
+        original_permutation = permutation
+
         if constraint_type == "Waiting":
             makespan, log = self.handle_waiting(subtask, makespan, log, index)
         else:
-            permutation, parallelable_subtasks = self.get_parallelable_subtask(
-                permutation, subtask
-            )
-            makespan, log = self.handle_surveillance(
-                subtask, parallelable_subtasks, makespan, log, index
-            )
-        # else:
-        #     makespan, log = handle_emergency(subtask, makespan, log, index)
+            try:
+                permutation, parallelable_subtasks = self.get_parallelable_subtask(
+                    permutation, subtask
+                )
+                parallelized_subtasks, makespan, log = self.handle_surveillance(
+                    subtask, parallelable_subtasks, makespan, log, index
+                )
+                result_permutation = self.update_permutation_with_parallelized(
+                    original_permutation, parallelized_subtasks
+                )
+                permutation = result_permutation
+            except ValueError:
+                raise ValueError("Surveillance constraint not satisfied")
 
-        return makespan, log
+        return permutation, makespan, log
 
     def handle_waiting(self, subtask, makespan, log, index):
-        """
-        Determine waiting time for tasks with start constraints.
-
-        Args:
-            subtask (Subtask): Task with time constraints.
-            makespan (int): Time before starting the task.
-            index (int): Prevent log_dict key overwrite.
-
-        Returns:
-            int, dict: Updated makespan and log.
-        """
+        """Determine waiting time for tasks with start constraints."""
         constraint_task = subtask.constraints.get("After")
         constraint_duration = subtask.constraints.get("Duration", 0)
 
@@ -195,38 +177,57 @@ class ExhaustiveSearch:
         return makespan, log
 
     def handle_surveillance(self, subtask, parallelable_subtasks, makespan, log, index):
-        """
-        Handle surveillance tasks with potential parallel subtasks.
-
-        Args:
-            subtask (Subtask): Surveillance task.
-            parallelable_subtasks (list[Subtask]): List of parallelable subtasks.
-            makespan (int): Time before starting the task.
-            index (int): Prevent log_dict key overwrite.
-
-        Returns:
-            int, dict: Updated makespan and log.
-        """
+        """Handle surveillance tasks with potential parallel subtasks."""
         constraint_task = subtask.constraints.get("After")
         constraint_duration = subtask.constraints.get("Duration", 0)
+        parallelized_tasks = []
 
         if constraint_task:
             constraint_key = next(
                 (key for key in log if key.startswith(constraint_task)), None
             )
             if constraint_key:
-                # TODO Waiting 고려
                 precedence_task_end_time = log[constraint_key]["End"]
+
                 if makespan == precedence_task_end_time + constraint_duration:
                     task_start_time = makespan
-                    for parallelable_subtask in parallelable_subtasks:
-                        task_end_time = task_start_time + parallelable_subtask.duration
+                    parallel_cumulative_duration = 0
+                    wait_duration = 0
+
+                    for _ in range(len(parallelable_subtasks)):
+                        parallelable_subtask = parallelable_subtasks.pop(0)
+
+                        if parallelable_subtask.constraints is None:
+                            task_end_time = (
+                                task_start_time + parallelable_subtask.duration
+                            )
+                        else:
+                            wait_duration = parallelable_subtask.constraints.get(
+                                "Duration", 0
+                            )
+                            task_end_time = (
+                                task_start_time
+                                + parallelable_subtask.duration
+                                + wait_duration
+                            )
+                            task_start_time = (
+                                task_end_time - parallelable_subtask.duration
+                            )
+
                         log[f"{parallelable_subtask.name}_{index}"] = {
                             "Start": task_start_time,
                             "End": task_end_time,
                         }
-                        task_start_time = task_end_time
-                    return makespan, log
+
+                        parallelized_tasks.append(parallelable_subtask)
+                        parallel_cumulative_duration += (
+                            task_end_time - task_start_time + wait_duration
+                        )
+
+                        if parallel_cumulative_duration >= subtask.duration:
+                            break
+
+                    return parallelized_tasks, makespan, log
                 else:
                     raise ValueError(
                         "The surveillance task must start right after precedence task end"
@@ -238,31 +239,26 @@ class ExhaustiveSearch:
 
         return makespan, log
 
-    def handle_emergency(subtask, makespan, log, index):
-        # Placeholder for the actual emergency handling logic
-        # This function needs to be defined based on specific requirements
-
-        # Assuming some emergency handling logic that updates makespan and log
-        log[f"Emergency_{subtask.name}_{index}"] = {
-            "Start": makespan,
-            "End": makespan + subtask.duration,
-        }
-        return makespan + subtask.duration, log
+    def update_permutation_with_parallelized(
+        self, original_permutation, parallelized_subtasks
+    ):
+        """Update the permutation by removing completed parallelized subtasks."""
+        result_permutation = []
+        for subtask in original_permutation:
+            for parallelized_subtask in parallelized_subtasks:
+                if (
+                    parallelized_subtask.name == subtask.name
+                    and parallelized_subtask.duration == subtask.duration
+                ):
+                    pass
+                else:
+                    result_permutation.append(subtask)
+        return result_permutation
 
     def get_parallelable_subtask(
         self, permutation: list[Subtask], target_subtask: Subtask
     ) -> tuple[list[Subtask], list[Subtask]]:
-        """
-        Get parallelable subtasks for a given target subtask.
-
-        Args:
-            permutation (list[Subtask]): Remaining subtasks.
-            target_subtask (Subtask): Target subtask.
-
-        Returns:
-            tuple[list[Subtask], list[Subtask]]: Updated permutation and list of parallelable subtasks.
-        """
-        # 1. 동일 task가 아닌, task 중 동일 공간 작업만 뽑아냄
+        """Get parallelable subtasks for a given target subtask."""
         parallelable_subtasks = [
             subtask
             for subtask in permutation
@@ -276,26 +272,18 @@ class ExhaustiveSearch:
         is_parallel_complete = False
 
         for parallelable_subtask in parallelable_subtasks:
-            # 병렬화 가능 후보 subtask에 대하여
-
-            # subtask추가를 simulation 함
             constraint_duration = (
                 parallelable_subtask.constraints["Duration"]
                 if parallelable_subtask.constraints
                 else 0
             )
-
             cumulative_duration += parallelable_subtask.duration + constraint_duration
 
             if cumulative_duration <= target_subtask.duration:
-                # 만약, 병렬화 subtask들의 duration이 병렬 목표 시간보다 작으면
                 parallelized_subtasks.append(parallelable_subtask)
             else:
-                # 해당 병렬화 subtask 때문에 병렬화 기간이 넘치게 되는 경우
                 if not is_parallel_complete:
-                    # 해당 작업을 2개로 쪼갬 (병렬화 포함 기간 // 병렬화 미포함 기간)
                     is_parallel_complete = True
-
                     over_duration = cumulative_duration - target_subtask.duration
                     splitted_subtask1 = parallelable_subtask
                     splitted_subtask2 = copy.deepcopy(parallelable_subtask)
@@ -307,23 +295,11 @@ class ExhaustiveSearch:
                 else:
                     break
 
-        # 기존 permutation과 병렬화 subtask로부터 새로운 permutation을 생성
         result_permutation = []
-        result_parallelable_permutation = []
-
         for subtask in permutation:
-            is_parallel_subtask = any(
-                subtask.name == psubtask.name for psubtask in parallelable_subtasks
-            )
-
-            if not is_parallel_subtask:
+            if subtask not in parallelable_subtasks:
                 result_permutation.append(subtask)
             else:
-                # 병렬화 task인 경우, 기존 permutation에서 제거
-                # parallelized_subtask에서 이름 동일한 subtask를 추가
-                result_parallelable_permutation.append(subtask)
-
-                # 병렬화 task가 쪼개진 것인지 검사
                 for left_splitted_subtask in left_splitted_subtasks:
                     if subtask.name == left_splitted_subtask.name:
                         result_permutation.append(left_splitted_subtask)
@@ -331,12 +307,7 @@ class ExhaustiveSearch:
         return result_permutation, parallelable_subtasks
 
     def generate_schedule(self) -> pd.DataFrame:
-        """
-        Generate the schedule in a pandas DataFrame.
-
-        Returns:
-            pd.DataFrame: The generated schedule.
-        """
+        """Generate the schedule in a pandas DataFrame."""
         results = [
             {
                 "name": "_".join(subtask.split("_")[:-1]),
@@ -352,13 +323,6 @@ class ExhaustiveSearch:
 def get_permutations(lists: list[list[Subtask]], result: list[Subtask]):
     """
     Generate all permutations of the given lists of subtasks.
-
-    Args:
-        lists (list[list[Subtask]]): List of lists of subtasks.
-        result (list[Subtask]): Accumulated result of permutations.
-
-    Yields:
-        list[Subtask]: A permutation of subtasks.
     """
     if all(len(lst) == 0 for lst in lists):
         yield result
