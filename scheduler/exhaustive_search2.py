@@ -37,11 +37,13 @@ class ExhaustiveSearch:
         schedules = []
         for idx, permutation in enumerate(permutations):
             try:
-                schedule = self.exhaustive_search(permutation, 0, {})
+                temp_permutation = copy.deepcopy(permutation)
+                schedule = self.exhaustive_search(temp_permutation, 0, {})
             except ValueError:
                 schedule = (float("inf"), {})
 
-            schedules.append((schedule[0], schedule, permutation))
+            # cost schedule permutation
+            schedules.append((schedule[0], schedule[1], permutation))
             logger.info(
                 f"Evaluated permutation {idx}/{len(permutations)-1}, cost : {schedule[0]}"
             )
@@ -54,32 +56,20 @@ class ExhaustiveSearch:
             if cost == best_cost
         ]
 
-        print(best_schedules)
-        logger.info(f"Number of optimal solutions: {len(best_schedules)}")
-
-        # Debugging output
-        print(f"Permutation at index 151199 during generation: {permutations[151199]}")
-        cost_at_index, schedule_at_index = self.exhaustive_search(
-            permutations[151199], 0, {}
-        )
-        print(f"Cost at index 151199 after direct access: {cost_at_index}")
-        print(f"Schedule at index 151199 after direct access: {schedule_at_index}")
-
-        # Cross-check
-        evaluated_schedule = [s for c, s, p in schedules if p == permutations[151199]][
-            0
-        ]
-        print(
-            f"Evaluated cost for permutation at index 151199: {evaluated_schedule[0]}"
-        )
-        print(
-            f"Evaluated schedule for permutation at index 151199: {evaluated_schedule[1]}"
+        logger.info(f"optimal cost: {best_cost}")
+        logger.info(
+            f"Number of optimal solutions: {len(best_schedules)}, {best_schedules}"
         )
 
-        if best_schedule:
-            return best_schedule[1]
-        else:
-            raise Exception("No optimal schedule exists")
+        # 디버깅용
+        test_cost, test_schedule = self.exhaustive_search(permutations[133261], 0, {})
+        print(test_cost, test_schedule)
+        return test_schedule
+
+        # if best_schedule:
+        #     return best_schedule
+        # else:
+        #     raise Exception("No optimal schedule exists")
 
     def evaluate_permutation(self, permutation: list[Subtask]) -> tuple[int, dict]:
         """
@@ -168,10 +158,13 @@ class ExhaustiveSearch:
                 parallelized_subtasks, makespan, log = self.handle_surveillance(
                     subtask, parallelable_subtasks, makespan, log, index
                 )
-                result_permutation = self.update_permutation_with_parallelized(
-                    original_permutation, parallelized_subtasks
+                # original permutation에는 원래 작업 계획 상 병렬 처리 전 작업들이 존재
+                # permutation에는 병렬 가능한 작업들이 제거된 상태의 작업들이 존재
+                # 원하는 것 : 병렬 가능한 작업들이 존재하면서, 잘려진 원본의 데이터를 원래 자리에 끼워 넣는 것
+                permutation = self.update_permutation_with_parallelized(
+                    original_permutation, permutation, parallelized_subtasks
                 )
-                permutation = result_permutation
+
             except ValueError:
                 raise ValueError("Surveillance constraint not satisfied")
 
@@ -217,7 +210,7 @@ class ExhaustiveSearch:
             if constraint_key:
                 precedence_task_end_time = log[constraint_key]["End"]
 
-                if makespan == precedence_task_end_time + constraint_duration:
+                if makespan >= precedence_task_end_time + constraint_duration:
                     task_start_time = makespan
                     parallel_cumulative_duration = 0
                     wait_duration = 0
@@ -252,13 +245,13 @@ class ExhaustiveSearch:
                             task_end_time - task_start_time + wait_duration
                         )
 
-                        if parallel_cumulative_duration >= subtask.duration:
+                        if parallel_cumulative_duration == subtask.duration:
                             break
 
                     return parallelized_tasks, makespan, log
                 else:
                     raise ValueError(
-                        "The surveillance task must start right after precedence task end"
+                        "The surveillance task must start right after precedence task end + wait duration"
                     )
             else:
                 raise ValueError(
@@ -268,9 +261,11 @@ class ExhaustiveSearch:
         return makespan, log
 
     def update_permutation_with_parallelized(
-        self, original_permutation, parallelized_subtasks
+        self, original_permutation, permutation, parallelized_subtasks
     ):
         """Update the permutation by removing completed parallelized subtasks."""
+        # permutation은 병렬처리 이후, 잘리고 남겨진 subtask를 삽입하는 역할임
+
         result_permutation = []
         for subtask in original_permutation:
             if parallelized_subtasks:
@@ -279,7 +274,11 @@ class ExhaustiveSearch:
                         parallelized_subtask.name == subtask.name
                         and parallelized_subtask.duration == subtask.duration
                     ):
-                        pass
+                        for cropped_subtask in permutation:
+                            if cropped_subtask.name == parallelized_subtask.name:
+                                result_permutation.append(cropped_subtask)
+                            else:
+                                pass
                     else:
                         result_permutation.append(subtask)
             else:

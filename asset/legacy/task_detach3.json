@@ -1,0 +1,113 @@
+[
+    {
+        "Task": "Cook_Steak",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Cooking Start",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Cooking Surveillance",
+                "Duration": 30,
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Surveillance",
+                    "Duration": 0,
+                    "After": "Cooking Start"
+                }
+            },
+            {
+                "Name": "Cooking End",
+                "Duration": 10,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Wash_Dishes",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Washing Dishes",
+                "Duration": 20,
+                "Type": "Controllable"
+            }
+        ]
+    },
+    {
+        "Task": "Toast",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Toast Start",
+                "Duration": 2,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Toast End",
+                "Duration": 1,
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Waiting",
+                    "Duration": 5,
+                    "After": "Toast Start"
+                }
+            }
+        ]
+    },
+    {
+        "Task": "Laundry",
+        "Location": "Restroom",
+        "Subtasks": [
+            {
+                "Name": "Laundry Start",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Laundry End",
+                "Duration": 10,
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Waiting",
+                    "Duration": 45,
+                    "After": "Laundry Start"
+                }
+            }
+        ]
+    },
+    {
+        "Task": "Dryer",
+        "Location": "Restroom",
+        "Subtasks": [
+            {
+                "Name": "Dryer Start",
+                "Duration": 5,
+                "Type": "Controllable"
+            },
+            {
+                "Name": "Dryer End",
+                "Duration": 10,
+                "Type": "Controllable",
+                "Constraint": {
+                    "Type": "Waiting",
+                    "Duration": 45,
+                    "After": "Dryer Start"
+                }
+            }
+        ]
+    },
+    {
+        "Task": "Folding laundry",
+        "Location": "Living Room",
+        "Subtasks": [
+            {
+                "Name": "Folding laundry",
+                "Duration": 10,
+                "Type": "Controllable"
+            }
+        ]
+    }
+]
