@@ -22,13 +22,14 @@ class Subtask:
         """
         self.task_name = task_name
         self.location = task_location
+
         self.name = name
         self.duration = duration
         self.type = type
         self.constraints = constraints
 
     def __repr__(self):
-        return f"Subtask(name={self.name}, location={self.location} duration={self.duration}, type={self.type}, constraints={self.constraints})"
+        return f"Subtask(name={self.name}, duration={self.duration}, constraints={self.constraints}) \n"
 
 
 class Task:

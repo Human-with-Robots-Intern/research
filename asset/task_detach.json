@@ -1,38 +1,81 @@
 [
     {
-        "Task": "Cook_Steak",
+        "Task": "Cook Steak",
         "Location": "Kitchen",
         "Subtasks": [
             {
-                "Name": "Cooking Start",
-                "Duration": 5,
-                "Type": "Controllable"
+                "Subtask": "Cooking Start",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": null,
+                        "Urgency": "False",
+                        "Interval": 0
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
             },
             {
-                "Name": "Cooking Surveillance",
-                "Duration": 15,
-                "Type": "Controllable",
-                "Constraint": {
-                    "Type": "Surveillance",
-                    "Duration": 0,
-                    "After": "Cooking Start"
-                }
+                "Subtask": "Cooking Monitoring",
+                "Type": "Monitoring",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 30
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": "Cooking Start",
+                        "Urgency": "False",
+                        "Interval": 0
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
             },
             {
-                "Name": "Cooking End",
-                "Duration": 10,
-                "Type": "Controllable"
+                "Subtask": "Cooking End",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": "Cooking Monitoring",
+                        "Urgency": "False",
+                        "Interval": 0
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
             }
         ]
     },
     {
-        "Task": "Wash_Dishes",
+        "Task": "Washing Dishes",
         "Location": "Kitchen",
         "Subtasks": [
             {
-                "Name": "Washing Dishes",
-                "Duration": 20,
-                "Type": "Controllable"
+                "Subtask": "Washing Dishes",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 20
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": null,
+                        "Urgency": "False",
+                        "Interval": 0
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
             }
         ]
     },
@@ -41,30 +84,38 @@
         "Location": "Kitchen",
         "Subtasks": [
             {
-                "Name": "Toast Start",
-                "Duration": 2,
-                "Type": "Controllable"
+                "Subtask": "Toast Start",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": null,
+                        "Urgency": "False",
+                        "Interval": 0
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
             },
             {
-                "Name": "Toast End",
-                "Duration": 1,
-                "Type": "Controllable",
-                "Constraint": {
-                    "Type": "Waiting",
-                    "Duration": 5,
-                    "After": "Toast Start"
-                }
-            }
-        ]
-    },
-    {
-        "Task": "Clean-restroom",
-        "Location": "Restroom",
-        "Subtasks": [
-            {
-                "Name": "Clean Restroom",
-                "Duration": 20,
-                "Type": "Controllable"
+                "Subtask": "Toast End",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": "Toast Start",
+                        "Urgency": "False",
+                        "Interval": 5
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
             }
         ]
     },
@@ -73,30 +124,101 @@
         "Location": "Restroom",
         "Subtasks": [
             {
-                "Name": "Laundry Start",
-                "Duration": 5,
-                "Type": "Controllable"
+                "Subtask": "Laundry Start",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": null,
+                        "Urgency": "False",
+                        "Interval": 0
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
             },
             {
-                "Name": "Laundry End",
-                "Duration": 10,
-                "Type": "Controllable",
-                "Constraint": {
-                    "Type": "Waiting",
-                    "Duration": 45,
-                    "After": "Laundry Start"
-                }
+                "Subtask": "Laundry End",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": "Laundry Start",
+                        "Urgency": "False",
+                        "Interval": 45
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
             }
         ]
     },
     {
-        "Task": "Pour-milk",
+        "Task": "Dryer",
+        "Location": "Restroom",
+        "Subtasks": [
+            {
+                "Subtask": "Dryer Start",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": "Laundry End",
+                        "Urgency": "False",
+                        "Interval": 0
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
+            },
+            {
+                "Subtask": "Dryer End",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": "Dryer Start",
+                        "Urgency": "False",
+                        "Interval": 45
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
+            }
+        ]
+    },
+    {
+        "Task": "Folding Laundry",
         "Location": "Living Room",
         "Subtasks": [
             {
-                "Name": "Pour-milk",
-                "Duration": 10,
-                "Type": "Controllable"
+                "Subtask": "Folding Laundry",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": "Dryer End",
+                        "Urgency": "False",
+                        "Interval": 0
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
             }
         ]
     }
