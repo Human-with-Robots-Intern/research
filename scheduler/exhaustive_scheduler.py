@@ -174,6 +174,6 @@ class ExhaustiveScheduler:
         )
 
         print(f"length of optimal_path : {len(min_value_leaves)}")
-        print(f"makespan : {min_value}")
+        print(f"makespan : {min_value_leaves[0].makespan}")
         for leaf in min_value_leaves:
             print(leaf)
