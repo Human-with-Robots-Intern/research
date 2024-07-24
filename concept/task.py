@@ -1,3 +1,6 @@
+from typing import Dict, List, Union
+
+
 class Subtask:
     def __init__(
         self,
@@ -26,13 +29,13 @@ class Subtask:
 
     def __repr__(self):
         constraint = None
-        if self.constraints.get["After"]:
+        if self.constraints.get("After"):
             precedence_subtask = self.constraints["After"]
             time_interval = self.constraints["Interval"]
             constraint = f"can start {time_interval} after {precedence_subtask} end"
         else:
             constraint = f"don't have any constraints"
-        return f"Subtask(name={self.name} (duration={self.duration}) constraints={constraint}) \n"
+        return f"Subtask({self.name} (duration={self.duration}) {constraint}) \n"
 
 
 class Task:
@@ -56,20 +59,15 @@ class Task:
         return sum(subtask.duration for subtask in self.subtasks)
 
 
-def get_all_subtasks(tasks: list[Task], mode: str = "name"):
+def get_all_subtasks(
+    tasks: List[Task], mode: str = "name"
+) -> Union[Dict[str, str], List[List[Subtask]], List[Subtask]]:
     if mode == "name":
-        subtasks = {}
-        for task in tasks:
-            for subtask in task.subtasks:
-                subtasks[subtask.name] = task.name
-    elif mode == "all":
-        subtasks = []
-        for task in tasks:
-            subtask_group = []
-            for subtask in task.subtasks:
-                subtask_group.append(subtask)
-            subtasks.append(subtask_group)
-    return subtasks
+        return {subtask.name: task.name for task in tasks for subtask in task.subtasks}
+    elif mode == "group":
+        return [[subtask for subtask in task.subtasks] for task in tasks]
+    else:
+        return [subtask for task in tasks for subtask in task.subtasks]
 
 
 def parse_tasks(data):

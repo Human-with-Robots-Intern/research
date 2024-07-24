@@ -16,14 +16,14 @@ class Env:
         else:
             raise ValueError("Both rooms must be in the graph.")
 
-    def gen_dummpy(self):
+    def gen_dummy(self):
         self.add_transition("Kitchen", "Living Room", 1)
         self.add_transition("Living Room", "Restroom", 1)
         self.add_transition("Living Room", "Bedroom", 1)
 
-    def get_cost(self, departure, destination):
+    def get_cost(self, departure: str, destination: str) -> int:
 
-        def dijkstra(self, start, goal):
+        def dijkstra(start, goal):
             # Priority queue: (cost, node)
             queue = [(0, start)]
             visited = {}

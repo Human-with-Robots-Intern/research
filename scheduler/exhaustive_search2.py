@@ -3,7 +3,6 @@ import logging
 from multiprocessing import Pool
 
 import pandas as pd
-
 from concept.env import Env
 from concept.task import Subtask, Task, get_all_subtasks
 
