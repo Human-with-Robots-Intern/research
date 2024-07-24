@@ -3,6 +3,7 @@ from queue import PriorityQueue
 
 import pandas as pd
 from anytree import Node, RenderTree
+
 from concept.env import Env
 from concept.task import Task
 
@@ -16,7 +17,7 @@ class TaskProfiler:
         priority_score = 0
         for subtask in task.subtasks:
             if subtask.type == "Uncontrollable":
-                risk_score = 2 if subtask.constraints == "Temperature" else 1
+                risk_score = 2 if subtask.constraint == "Temperature" else 1
                 priority_score -= subtask.duration * risk_score + self.env.get_cost(
                     task.location
                 )
