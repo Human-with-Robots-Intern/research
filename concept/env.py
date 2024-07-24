@@ -1,5 +1,4 @@
 import heapq
-from collections import namedtuple
 
 
 class Env:
@@ -43,11 +42,3 @@ class Env:
             raise ValueError("No path found between the given rooms.")
 
         return dijkstra(departure, destination)
-
-    # def move(self, goal):
-    #     name = f"Move from {self.current_location} to {goal}"
-    #     duration = self.get_cost(goal)
-    #     self.current_location = goal
-    #     Move = namedtuple("Move", ["name", "duration"])
-
-    #     return Move(name, duration)
