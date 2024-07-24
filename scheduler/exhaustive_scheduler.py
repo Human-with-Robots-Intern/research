@@ -1,7 +1,7 @@
 from anytree import Node, RenderTree
 
 from concept.agent import Agent
-from concept.task import Subtask, Task, get_all_subtasks
+from concept.task import *
 
 
 class ExhaustiveScheduler:
@@ -31,29 +31,70 @@ class ExhaustiveScheduler:
         self, parent_node: Node, subtask: Subtask, remaining_subtasks: list[Subtask]
     ) -> None:
         """Adds a subtask to the tree under the specified parent node and expands the tree recursively."""
-        # Parent의 노드 정보를 불러옴
         makespan = parent_node.makespan
         self.agent.location = parent_node.location
+        parent_node, makespan = self._handle_movement(parent_node, subtask, makespan)
+        parent_node, makespan = self._handle_wait_time(parent_node, subtask, makespan)
 
-        # agent를 이동시키고, 이동 cost를 반환
-        move_cost = self.agent.move(subtask.location)
+        # if subtask.type == "Monitoring":
+        #     # 병렬처리 가능한 subtask를 추출해야 함
+        #     # 병렬처리 가능함이란? subtask의 선행 요구 작업과 무관하고 subtask가 같은 장소에 위치해야 함
+        #     # subtask가 Dryer end일 경우, 병렬처리 가능한 것은 Folding Laundry일 뿐, 다른 subtask가 위치하면 안됨
+        #     temporal_constraint_subtask = subtask.constraints.get("After")
+        #     node_trajectory = [node for node in parent_node.path]
 
-        # 방을 이동한경우, 이동 node를 추가
-        if move_cost != 0:
-            makespan += move_cost
-            parent_node = Node(
-                f"move {parent_node.location} -> {self.agent.location}",
-                parent_node,
-                makespan=makespan,
-                location=subtask.location,
-            )
+        #     for node in node_trajectory:
+        #         if node.name ==
+
+        #     parallelable_subtasks = get_subtasks_by(remaining_subtasks, subtask)
+        #     parent_node, makespan = self._handle_parallel(
+        #         parent_node, subtask, parallelable_subtasks, makespan
+        #     )
 
         makespan += subtask.duration
         child_node = Node(
             subtask.name, parent_node, makespan=makespan, location=subtask.location
         )
-
         self._expand_tree(child_node, remaining_subtasks)
+
+    def _handle_movement(
+        self, parent_node: Node, subtask: Subtask, makespan: int
+    ) -> int:
+        """Handles agent movement and updates makespan accordingly."""
+        move_cost = self.agent.move(subtask.location)
+        if move_cost != 0:
+            makespan += move_cost
+            parent_node = Node(
+                f"Move {parent_node.location} -> {self.agent.location}",
+                parent_node,
+                makespan=makespan,
+                location=subtask.location,
+            )
+        return parent_node, makespan
+
+    def _handle_wait_time(
+        self, parent_node: Node, subtask: Subtask, makespan: int
+    ) -> int:
+        """Handles wait time before starting a subtask and updates makespan accordingly."""
+        wait_time = self._calculate_wait_time(parent_node, subtask)
+        if wait_time > 0:
+            makespan += wait_time
+            parent_node = Node(
+                f"Wait {wait_time} units",
+                parent_node,
+                makespan=makespan,
+                location=self.agent.location,
+            )
+        return parent_node, makespan
+
+    def _handle_parallel(
+        self,
+        parent_node: Node,
+        subtask: Subtask,
+        parallelable_subtasks: List[Subtask],
+        makespan: int,
+    ):
+        pass
 
     def _expand_tree(
         self, parent_node: Node, remaining_subtasks: list[Subtask]
@@ -74,24 +115,65 @@ class ExhaustiveScheduler:
 
     def _validate_temporal_constraints(self, parent_node: Node, subtask: Subtask):
         temporal_constraint_subtask = subtask.constraints.get("After")
-        node_trajectory = [node for node in parent_node.path]
 
+        if not temporal_constraint_subtask:
+            return True
+
+        node_trajectory = [node for node in parent_node.path]
         for dependency_node in node_trajectory:
             if dependency_node.name == temporal_constraint_subtask:
                 return True
 
         # 얘를 True로 만들면 순서 제약조건 무관하게 모든 노드가 expansion됨 (Completness)
-        return True
+        return False
 
-    def get_optimal_schedule(self):
-        """Finds and returns the optimal schedule."""
-        pass
+    def _calculate_wait_time(self, parent_node: Node, subtask: Subtask) -> int:
+        """Calculates the required wait time for a subtask based on temporal constraints."""
+        temporal_constraint_subtask = subtask.constraints.get("After")
+        temporal_constraint_duration = subtask.constraints.get("Interval")
+
+        if not temporal_constraint_subtask:
+            return 0
+
+        node_trajectory = [node for node in parent_node.path]
+        for dependency_node in node_trajectory:
+            if dependency_node.name == temporal_constraint_subtask:
+                wait_time = (
+                    dependency_node.makespan
+                    + temporal_constraint_duration
+                    - parent_node.makespan
+                )
+                return max(0, wait_time)
+
+        return 0
 
     def generate_schedule(self) -> None:
-        """Generates and prints the schedule tree."""
-        # leaf_nodes = self.subtask_tree.leaves
+        """Generates and prints the schedule tree if all subtasks are included."""
+        leaf_paths = []
+        # Get all subtasks from the initial tasks
+        all_subtasks = get_all_subtasks(self.tasks, mode="all")
+        all_subtask_names = set(subtask.name for subtask in all_subtasks)
+        # Collect all subtasks included in the schedule tree
+        for leaf in self.subtask_tree.leaves:
+            included_subtasks = [node.name for node in leaf.path]
+            included_subtask_names = set(
+                node_name
+                for node_name in included_subtasks
+                if not node_name.startswith(("Move", "Wait", "Start"))
+            )
 
-        # print("Leaf nodes:")
-        # for idx, leaf in enumerate(leaf_nodes):
-        #     print(idx, leaf)
-        print(RenderTree(self.subtask_tree))
+            # Check if all subtasks are included in the schedule
+            if all_subtask_names == included_subtask_names:
+                leaf_paths.append(leaf)
+
+        min_value = min(
+            leaf_paths, key=lambda node_makespan: node_makespan.makespan
+        ).makespan
+        min_value_leaves = set(
+            [path for path in leaf_paths if path.makespan == min_value]
+        )
+
+        print(f"length of optimal_path : {len(min_value_leaves)}")
+        print(f"makespan : {min_value}")
+        for leaf in min_value_leaves:
+            print(leaf)

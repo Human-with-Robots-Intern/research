@@ -70,6 +70,14 @@ def get_all_subtasks(
         return [subtask for task in tasks for subtask in task.subtasks]
 
 
+def get_subtasks_by(subtasks: List[Subtask], target_subtask: Subtask) -> List[Subtask]:
+    
+    
+    return [
+        subtask for subtask in subtasks if subtask.location == target_subtask.location
+    ]
+
+
 def parse_tasks(data):
     tasks = []
 
