@@ -11,6 +11,7 @@ class Agent:
         self.status = status
         self.location = location
         self.env = env
+        self.trajectory = []
 
     def move(self, goal):
         move_cost = self.env.get_cost(self.location, goal)

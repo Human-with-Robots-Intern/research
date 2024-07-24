@@ -1,7 +1,7 @@
 from anytree import Node, RenderTree
 
 from concept.agent import Agent
-from concept.task import Task, get_all_subtasks
+from concept.task import Subtask, Task, get_all_subtasks
 
 
 class ExhaustiveScheduler:
@@ -27,32 +27,8 @@ class ExhaustiveScheduler:
 
         return root_node
 
-    def _expand_tree(self, parent_node: Node, remaining_subtasks: list[Task]) -> None:
-        """Expands the tree by adding eligible subtasks as children to the parent node."""
-        eligible_subtasks = []
-
-        for subtask in remaining_subtasks:
-            precedence_task = subtask.constraints.get("After")
-
-            # precedence subtask와 현재 subtask 사이에 temporal constraints가 존재하는 경우
-            if subtask.constraints.get("After", []) in parent_node.path:
-                # precedence subtask의 정보와 time constraints를 불러옴
-                precedence_node = find_node_by_name(self.subtask_tree, precedence_task)
-                tc_duration = subtask.constraints.get("Interval", 0)
-
-                # temporal constraints가 충족되는지 확인
-                if precedence_node.makespan + tc_duration <= parent_node.makespan:
-                    eligible_subtasks.append(subtask)
-            else:
-                eligible_subtasks.append(subtask)
-
-            for subtask in eligible_subtasks:
-                new_remaining_subtasks = remaining_subtasks[:]
-                new_remaining_subtasks.remove(subtask)
-                self._add_subtask_to_tree(parent_node, subtask, new_remaining_subtasks)
-
     def _add_subtask_to_tree(
-        self, parent_node: Node, subtask: Task, remaining_subtasks: list[Task]
+        self, parent_node: Node, subtask: Subtask, remaining_subtasks: list[Subtask]
     ) -> None:
         """Adds a subtask to the tree under the specified parent node and expands the tree recursively."""
         # Parent의 노드 정보를 불러옴
@@ -79,25 +55,43 @@ class ExhaustiveScheduler:
 
         self._expand_tree(child_node, remaining_subtasks)
 
+    def _expand_tree(
+        self, parent_node: Node, remaining_subtasks: list[Subtask]
+    ) -> None:
+        """Expands the tree by adding eligible subtasks as children to the parent node."""
+
+        eligible_subtasks = []
+        for subtask in remaining_subtasks:
+            is_valid = self._validate_temporal_constraints(parent_node, subtask)
+
+            if is_valid:
+                eligible_subtasks.append(subtask)
+
+        for subtask in eligible_subtasks:
+            new_remaining_subtasks = remaining_subtasks[:]
+            new_remaining_subtasks.remove(subtask)
+            self._add_subtask_to_tree(parent_node, subtask, new_remaining_subtasks)
+
+    def _validate_temporal_constraints(self, parent_node: Node, subtask: Subtask):
+        temporal_constraint_subtask = subtask.constraints.get("After")
+        node_trajectory = [node for node in parent_node.path]
+
+        for dependency_node in node_trajectory:
+            if dependency_node.name == temporal_constraint_subtask:
+                return True
+
+        # 얘를 True로 만들면 순서 제약조건 무관하게 모든 노드가 expansion됨 (Completness)
+        return True
+
     def get_optimal_schedule(self):
         """Finds and returns the optimal schedule."""
         pass
 
     def generate_schedule(self) -> None:
         """Generates and prints the schedule tree."""
-        leaf_nodes = list(set(self.subtask_tree.leaves))
+        # leaf_nodes = self.subtask_tree.leaves
 
-        print("Leaf nodes:")
-        for idx, leaf in enumerate(leaf_nodes):
-            print(idx, leaf)
-
-
-def find_node_by_name(root: Node, name: str) -> Node:
-    """Recursively searches for a node with the given name starting from the root node."""
-    if root.name == name:
-        return root
-    for child in root.children:
-        result = find_node_by_name(child, name)
-        if result is not None:
-            return result
-    return None
+        # print("Leaf nodes:")
+        # for idx, leaf in enumerate(leaf_nodes):
+        #     print(idx, leaf)
+        print(RenderTree(self.subtask_tree))

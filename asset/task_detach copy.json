@@ -120,6 +120,29 @@
         ]
     },
     {
+        "Task": "Folding Laundry",
+        "Location": "Living Room",
+        "Subtasks": [
+            {
+                "Subtask": "Folding Laundry",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Constraints": {
+                    "TemporalConstraint": {
+                        "After": "Dryer End",
+                        "Urgency": "False",
+                        "Interval": 0
+                    },
+                    "ResourceConstraint": null
+                },
+                "Effect": null
+            }
+        ]
+    },
+    {
         "Task": "Laundry",
         "Location": "Restroom",
         "Subtasks": [
@@ -192,29 +215,6 @@
                         "After": "Dryer Start",
                         "Urgency": "False",
                         "Interval": 45
-                    },
-                    "ResourceConstraint": null
-                },
-                "Effect": null
-            }
-        ]
-    },
-    {
-        "Task": "Folding Laundry",
-        "Location": "Living Room",
-        "Subtasks": [
-            {
-                "Subtask": "Folding Laundry",
-                "Type": "Interaction",
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 10
-                },
-                "Constraints": {
-                    "TemporalConstraint": {
-                        "After": "Dryer End",
-                        "Urgency": "False",
-                        "Interval": 0
                     },
                     "ResourceConstraint": null
                 },
