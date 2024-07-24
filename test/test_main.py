@@ -15,7 +15,7 @@ class TestSchedulers(unittest.TestCase):
 
     def setUp(self):
         self.env = Env()
-        self.env.gen_dummpy(current_location="Living Room")
+        self.env.gen_dummpy()
 
     def test_exhaustive_scheduler(self):
         from main import exhaustive_scheduler

@@ -1,74 +1,73 @@
 import json
 import unittest
 
-from concept import (
-    Subtask,
-    Task,
-    get_all_controllable_subtasks,
-    get_subtask_dict,
-    parse_tasks,
-)
+from concept.task import *
 
 
-class TestTaskModule(unittest.TestCase):
+class TestTaskSubtask(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Load data from the given JSON path
+        with open("/home/dongkyu/pdk_ws/research/asset/task_detach.json") as file:
+            cls.data = json.load(file)
 
-    def setUp(self):
-        with open("task.json", "r") as f:
-            self.data = json.load(f)
-        self.tasks = parse_tasks(self.data)
+        cls.tasks = parse_tasks(cls.data)
 
-    def test_subtask_creation(self):
-        subtask = Subtask("Kitchen", "Test Subtask", 10, "Controllable")
-        self.assertEqual(subtask.name, "Test Subtask")
-        self.assertEqual(subtask.duration, 10)
-        self.assertEqual(subtask.type, "Controllable")
-        self.assertEqual(subtask.constraints, None)
-
-    def test_task_creation(self):
-        task = Task(
-            "Test Task", "Kitchen", [("Test Subtask", 10, "Controllable", None)]
+    def test_subtask_initialization(self):
+        subtask_data = self.data[0]["Subtasks"][0]
+        subtask = Subtask(
+            self.data[0]["Task"],
+            self.data[0]["Location"],
+            subtask_data["Subtask"],
+            subtask_data["Type"],
+            subtask_data["Duration"]["Interval"],
+            subtask_data["Constraints"]["TemporalConstraint"],
         )
-        self.assertEqual(task.name, "Test Task")
-        self.assertEqual(task.location, "Kitchen")
-        self.assertEqual(len(task.subtasks), 1)
+        self.assertEqual(subtask.name, subtask_data["Subtask"])
+        self.assertEqual(subtask.type, subtask_data["Type"])
+        self.assertEqual(subtask.duration, subtask_data["Duration"]["Interval"])
+        self.assertEqual(
+            subtask.constraints, subtask_data["Constraints"]["TemporalConstraint"]
+        )
 
-    def test_parse_tasks(self):
-        self.assertEqual(len(self.tasks), 4)
-
-    def test_get_controllable_subtasks(self):
-        task = self.tasks[0]
-        controllable_subtasks = task.get_controllable_subtasks()
-        self.assertEqual(controllable_subtasks, ["Toast Start", "Toast End"])
-
-    def test_is_contain_uncontrollable(self):
-        task = self.tasks[0]
-        self.assertFalse(task.is_contain_uncontrollable())
-
-    def test_check_containing(self):
-        task = self.tasks[0]
-        self.assertTrue(task.check_containing("Toast Start"))
-        self.assertFalse(task.check_containing("Nonexistent Subtask"))
+    def test_task_initialization(self):
+        task_data = self.data[0]
+        task = Task(
+            task_data["Task"],
+            task_data["Location"],
+            [
+                (
+                    subtask["Subtask"],
+                    subtask["Type"],
+                    subtask["Duration"]["Interval"],
+                    subtask["Constraints"]["TemporalConstraint"],
+                )
+                for subtask in task_data["Subtasks"]
+            ],
+        )
+        self.assertEqual(task.name, task_data["Task"])
+        self.assertEqual(task.location, task_data["Location"])
+        self.assertEqual(len(task.subtasks), len(task_data["Subtasks"]))
 
     def test_get_total_seq_duration(self):
         task = self.tasks[0]
-        self.assertEqual(task.get_total_seq_duration(), 3)
+        expected_duration = sum(
+            subtask["Duration"]["Interval"] for subtask in self.data[0]["Subtasks"]
+        )
+        self.assertEqual(task.get_total_seq_duration(), expected_duration)
 
-    def test_get_subtask_dict(self):
-        subtask_dict = get_subtask_dict(self.tasks)
-        self.assertEqual(subtask_dict["Toast Start"], "Toast")
-        self.assertEqual(subtask_dict["Clean Restroom"], "Clean-restroom")
+    def test_get_all_subtasks(self):
+        subtasks_by_name = get_all_subtasks(self.tasks, mode="name")
+        for task in self.tasks:
+            for subtask in task.subtasks:
+                self.assertEqual(subtasks_by_name[subtask.name], task.name)
 
-    def test_get_all_controllable_subtasks(self):
-        controllable_subtasks = get_all_controllable_subtasks(self.tasks)
-        expected_subtasks = [
-            "Toast Start",
-            "Toast End",
-            "Clean Restroom",
-            "Start Laundry",
-            "End Laundry",
-            "Pour-milk",
-        ]
-        self.assertEqual(controllable_subtasks, expected_subtasks)
+        subtasks_all = get_all_subtasks(self.tasks, mode="all")
+        for task, subtasks in zip(self.tasks, subtasks_all):
+            self.assertEqual(len(subtasks), len(task.subtasks))
+            for subtask_obj, subtask_data in zip(subtasks, task.subtasks):
+                self.assertEqual(subtask_obj.name, subtask_data.name)
+                self.assertEqual(subtask_obj.duration, subtask_data.duration)
 
 
 if __name__ == "__main__":
