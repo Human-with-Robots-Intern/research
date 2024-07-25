@@ -36,20 +36,8 @@ class ExhaustiveScheduler:
         parent_node, makespan = self._handle_movement(parent_node, subtask, makespan)
         parent_node, makespan = self._handle_wait_time(parent_node, subtask, makespan)
 
-        # if subtask.type == "Monitoring":
-        #     # 병렬처리 가능한 subtask를 추출해야 함
-        #     # 병렬처리 가능함이란? subtask의 선행 요구 작업과 무관하고 subtask가 같은 장소에 위치해야 함
-        #     # subtask가 Dryer end일 경우, 병렬처리 가능한 것은 Folding Laundry일 뿐, 다른 subtask가 위치하면 안됨
-        #     temporal_constraint_subtask = subtask.constraints.get("After")
-        #     node_trajectory = [node for node in parent_node.path]
-
-        #     for node in node_trajectory:
-        #         if node.name ==
-
-        #     parallelable_subtasks = get_subtasks_by(remaining_subtasks, subtask)
-        #     parent_node, makespan = self._handle_parallel(
-        #         parent_node, subtask, parallelable_subtasks, makespan
-        #     )
+        if subtask.type == "Monitoring":
+            pass
 
         makespan += subtask.duration
         child_node = Node(
@@ -114,7 +102,9 @@ class ExhaustiveScheduler:
             self._add_subtask_to_tree(parent_node, subtask, new_remaining_subtasks)
 
     def _validate_temporal_constraints(self, parent_node: Node, subtask: Subtask):
+        # return True # For complete node expansion
         temporal_constraint_subtask = subtask.constraints.get("After")
+        is_urgency = subtask.constraints.get("Urgency")
 
         if not temporal_constraint_subtask:
             return True
@@ -124,7 +114,6 @@ class ExhaustiveScheduler:
             if dependency_node.name == temporal_constraint_subtask:
                 return True
 
-        # 얘를 True로 만들면 순서 제약조건 무관하게 모든 노드가 expansion됨 (Completness)
         return False
 
     def _calculate_wait_time(self, parent_node: Node, subtask: Subtask) -> int:
@@ -169,11 +158,12 @@ class ExhaustiveScheduler:
         min_value = min(
             leaf_paths, key=lambda node_makespan: node_makespan.makespan
         ).makespan
-        min_value_leaves = set(
-            [path for path in leaf_paths if path.makespan == min_value]
-        )
+
+        min_value_leaves = [path for path in leaf_paths if path.makespan == min_value]
 
         print(f"length of optimal_path : {len(min_value_leaves)}")
-        print(f"makespan : {min_value_leaves[0].makespan}")
-        for leaf in min_value_leaves:
-            print(leaf)
+        print(f"makespan : {min_value}")
+        # for leaf in min_value_leaves:
+        #     print(leaf)
+
+        return self.subtask_tree

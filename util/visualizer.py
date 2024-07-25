@@ -1,7 +1,12 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+from anytree.exporter import UniqueDotExporter
 
 from concept.task import get_all_subtasks
+
+
+def visualize4(schedules):
+    UniqueDotExporter(schedules).to_picture("udo.png")
 
 
 def visualize3(schedule):

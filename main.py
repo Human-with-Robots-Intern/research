@@ -16,4 +16,4 @@ if __name__ == "__main__":
     agent = Agent("Waiting", "Living Room", env)
 
     task_schedule = ExhaustiveScheduler(agent, tasks).generate_schedule()
-    # visualize3(task_schedule)
+    visualize4(task_schedule)
