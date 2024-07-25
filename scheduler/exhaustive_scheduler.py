@@ -102,8 +102,10 @@ class ExhaustiveScheduler:
             self._add_subtask_to_tree(parent_node, subtask, new_remaining_subtasks)
 
     def _validate_temporal_constraints(self, parent_node: Node, subtask: Subtask):
+        """Parent node의 Trajectory에 subtask의 constraint subtask가 존재하는지 확인"""
         # return True # For complete node expansion
         temporal_constraint_subtask = subtask.constraints.get("After")
+        temporal_constraint_interval = subtask.constraints.get("Interval")
         is_urgency = subtask.constraints.get("Urgency")
 
         if not temporal_constraint_subtask:
@@ -111,6 +113,8 @@ class ExhaustiveScheduler:
 
         node_trajectory = [node for node in parent_node.path]
         for dependency_node in node_trajectory:
+            # Waiting time이
+            # wait_time = self._calculate_wait_time(parent_node, subtask)
             if dependency_node.name == temporal_constraint_subtask:
                 return True
 
