@@ -64,8 +64,14 @@ class TreeBuilder:
         self, parent_node: Node, subtask: Subtask
     ) -> bool:
         temporal_constraint_subtask = subtask.constraints.get("After")
+        temporal_constraint_interval = subtask.constraints.get("Interval")
+        is_urgency = subtask.constraints.get("Urgency")
+
         if not temporal_constraint_subtask:
             return True
-
-        node_trajectory = [node.name for node in parent_node.path]
+        else:
+            # 시간에 대한 고려 시작
+            node_trajectory = [node.name for node in parent_node.path]
+            # Urgency task인 경우, constraint_subtask makespan
+            if 
         return temporal_constraint_subtask in node_trajectory
