@@ -121,8 +121,8 @@ class ExhaustiveSearch:
             Returns:
                 int: Updated makespan.
             """
-            constraint_task = subtask.constraints.get("After")
-            constraint_duration = subtask.constraints.get("Duration", 0)
+            constraint_task = subtask.constraint.get("After")
+            constraint_duration = subtask.constraint.get("Duration", 0)
 
             if constraint_task:
                 constraint_key = next(
@@ -163,8 +163,8 @@ class ExhaustiveSearch:
             Returns:
                 int: Updated makespan.
             """
-            constraint_task = subtask.constraints.get("After")
-            constraint_duration = subtask.constraints.get("Duration", 0)
+            constraint_task = subtask.constraint.get("After")
+            constraint_duration = subtask.constraint.get("Duration", 0)
 
             if constraint_task:
                 constraint_key = next(
@@ -209,8 +209,8 @@ class ExhaustiveSearch:
 
         subtask = permutation.pop(0)
 
-        if subtask.constraints:
-            if subtask.constraints.get("Type", None) == "Waiting":
+        if subtask.constraint:
+            if subtask.constraint.get("Type", None) == "Waiting":
                 makespan = handle_waiting(subtask, makespan, index)
             else:
                 permutation, parallelable_subtasks = self.get_parallelable_subtask(

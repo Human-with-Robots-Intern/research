@@ -3,7 +3,6 @@ import logging
 from multiprocessing import Pool
 
 import pandas as pd
-
 from concept.env import Env
 from concept.task import Subtask, Task, get_all_subtasks
 
@@ -100,7 +99,7 @@ class ExhaustiveSearch:
 
         subtask = permutation.pop(0)
         try:
-            if subtask.constraints:
+            if subtask.constraint:
                 permutation, makespan, log = self.handle_constraints(
                     subtask, permutation, makespan, log, index
                 )
@@ -303,8 +302,8 @@ class ExhaustiveSearch:
 
         for parallelable_subtask in parallelable_subtasks:
             constraint_duration = (
-                parallelable_subtask.constraints["Duration"]
-                if parallelable_subtask.constraints
+                parallelable_subtask.constraint["Duration"]
+                if parallelable_subtask.constraint
                 else 0
             )
             cumulative_duration += parallelable_subtask.duration + constraint_duration

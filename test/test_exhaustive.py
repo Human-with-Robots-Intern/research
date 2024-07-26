@@ -8,13 +8,13 @@ from anytree import Node, RenderTree
 
 from concept.env import Env
 from concept.task import Subtask, Task
-from scheduler.exhaustive_search import ExhaustiveSearch
+from scheduler.legacy.exhaustive_search import ExhaustiveSearch
 
 
 class TestExhaustiveSearch(unittest.TestCase):
     def setUp(self):
         self.env = Env()
-        self.env.gen_dummpy(current_location="Living Room")
+        self.env.gen_dummpy()
 
         # Define some sample tasks
         subtasks1 = [
