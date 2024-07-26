@@ -16,8 +16,7 @@ class TreeBuilder:
     def build_tree(self) -> Node:
         root_node = Node(name="Start", makespan=0, location=self.agent.location)
         subtasks = get_all_subtasks(self.tasks, mode="all")
-
-        initial_subtasks = self._get_initial_subtasks(subtasks)
+        initial_subtasks = self.get_initial_subtasks(subtasks)
 
         for subtask in initial_subtasks:
             remaining_subtasks = subtasks[:]
@@ -25,9 +24,6 @@ class TreeBuilder:
             self._add_subtask_to_tree(root_node, subtask, remaining_subtasks)
 
         return root_node
-
-    def _get_initial_subtasks(self, subtasks: List[Subtask]) -> List[Subtask]:
-        return [subtask for subtask in subtasks if not subtask.constraints.get("After")]
 
     def _expand_tree(
         self, parent_node: Node, remaining_subtasks: List[Subtask]
@@ -48,7 +44,7 @@ class TreeBuilder:
         parent_node, makespan = self.task_handler.handle_movement(
             parent_node, subtask, makespan
         )
-        wait_time = _calculate_wait_time(parent_node, subtask)
+        wait_time = self._calculate_wait_time(parent_node, subtask)
 
         if wait_time > 0:
             parent_node, makespan = self.task_handler.handle_wait_time(
@@ -57,10 +53,16 @@ class TreeBuilder:
 
         makespan += subtask.duration
         child_node = Node(
-            subtask.name, parent_node, makespan=makespan, location=subtask.location
+            subtask.name,
+            parent=parent_node,
+            makespan=makespan,
+            location=subtask.location,
         )
 
         self._expand_tree(child_node, remaining_subtasks)
+
+    def get_initial_subtasks(self, subtasks: List[Subtask]) -> List[Subtask]:
+        return [subtask for subtask in subtasks if not subtask.constraints.get("After")]
 
     def _get_eligible_subtasks(
         self, parent_node: Node, remaining_subtasks: List[Subtask]
@@ -75,29 +77,25 @@ class TreeBuilder:
         self, parent_node: Node, subtask: Subtask
     ) -> bool:
         tc_name = subtask.constraints.get("After")
-
         if not tc_name:
             return True
+        return self._get_temporal_constraint_node(parent_node, subtask) is not None
 
-        tc_node = _get_temporal_constraint_node(parent_node, subtask)
-        return tc_node is not None
+    def _get_temporal_constraint_node(
+        self, parent_node: Node, subtask: Subtask
+    ) -> Node:
+        tc_name = subtask.constraints.get("After")
+        if tc_name:
+            for node in parent_node.path:
+                if node.name == tc_name:
+                    return node
+        return None
 
+    def _calculate_wait_time(self, parent_node: Node, subtask: Subtask) -> int:
+        tc_interval = subtask.constraints.get("Interval", 0)
+        tc_node = self._get_temporal_constraint_node(parent_node, subtask)
 
-def _get_temporal_constraint_node(parent_node: Node, subtask: Subtask) -> Node:
-    tc_name = subtask.constraints.get("After")
-    node_trajectory = [node for node in parent_node.path]
-
-    for dependency_node in node_trajectory:
-        if dependency_node.name == tc_name:
-            return dependency_node
-    return None
-
-
-def _calculate_wait_time(parent_node: Node, subtask: Subtask) -> int:
-    tc_interval = subtask.constraints.get("Interval", 0)
-    tc_node = _get_temporal_constraint_node(parent_node, subtask)
-
-    if tc_node:
-        wait_time = tc_node.makespan + tc_interval - parent_node.makespan
-        return max(0, wait_time)
-    return 0
+        if tc_node:
+            wait_time = tc_node.makespan + tc_interval - parent_node.makespan
+            return max(0, wait_time)
+        return 0
