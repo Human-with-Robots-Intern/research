@@ -16,7 +16,7 @@ class TreeBuilder:
     def build_tree(self) -> Node:
         root_node = Node(name="Start", makespan=0, location=self.agent.location)
         subtasks = get_all_subtasks(self.tasks, mode="all")
-        initial_subtasks = self.get_initial_subtasks(subtasks)
+        initial_subtasks = self._get_initial_subtasks(subtasks)
 
         for subtask in initial_subtasks:
             remaining_subtasks = subtasks[:]
@@ -61,7 +61,7 @@ class TreeBuilder:
 
         self._expand_tree(child_node, remaining_subtasks)
 
-    def get_initial_subtasks(self, subtasks: List[Subtask]) -> List[Subtask]:
+    def _get_initial_subtasks(self, subtasks: List[Subtask]) -> List[Subtask]:
         return [subtask for subtask in subtasks if not subtask.constraints.get("After")]
 
     def _get_eligible_subtasks(
