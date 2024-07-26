@@ -28,24 +28,6 @@ class TreeBuilder:
 
         return root_node
 
-    def _add_subtask_to_tree(
-        self, parent_node: Node, subtask: Subtask, remaining_subtasks: List[Subtask]
-    ) -> None:
-        makespan = parent_node.makespan
-        self.agent.location = parent_node.location
-        parent_node, makespan = self.task_handler.handle_movement(
-            parent_node, subtask, makespan
-        )
-        parent_node, makespan = self.task_handler.handle_wait_time(
-            parent_node, subtask, makespan
-        )
-
-        makespan += subtask.duration
-        child_node = Node(
-            subtask.name, parent_node, makespan=makespan, location=subtask.location
-        )
-        self._expand_tree(child_node, remaining_subtasks)
-
     def _expand_tree(
         self, parent_node: Node, remaining_subtasks: List[Subtask]
     ) -> None:
@@ -60,18 +42,65 @@ class TreeBuilder:
             new_remaining_subtasks.remove(subtask)
             self._add_subtask_to_tree(parent_node, subtask, new_remaining_subtasks)
 
+    def _add_subtask_to_tree(
+        self, parent_node: Node, subtask: Subtask, remaining_subtasks: List[Subtask]
+    ) -> None:
+        makespan = parent_node.makespan
+        self.agent.location = parent_node.location
+
+        parent_node, makespan = self.task_handler.handle_movement(
+            parent_node, subtask, makespan
+        )
+
+        parent_node, makespan = self.task_handler.handle_wait_time(
+            parent_node, subtask, makespan
+        )
+        makespan += subtask.duration
+        child_node = Node(
+            subtask.name, parent_node, makespan=makespan, location=subtask.location
+        )
+
+        self._expand_tree(child_node, remaining_subtasks)
+
     def _validate_temporal_constraints(
         self, parent_node: Node, subtask: Subtask
     ) -> bool:
-        temporal_constraint_subtask = subtask.constraints.get("After")
-        temporal_constraint_interval = subtask.constraints.get("Interval")
+        """
+        Valid란? Waiting / Move / Subtask가 Add될 수 있는 상황
+        Urgency가 True / False일 때 별로 서로 다른 temporal constraints checking 로직을 따른다."""
+
+        is_tc_exist = subtask.constraints.get("After")
         is_urgency = subtask.constraints.get("Urgency")
 
-        if not temporal_constraint_subtask:
+        # Subtask node에 시간 제약이 없는 경우
+        if not is_tc_exist:
             return True
+        # Subtask node에 시간 제약이 있는 경우
         else:
-            # 시간에 대한 고려 시작
-            node_trajectory = [node.name for node in parent_node.path]
-            # Urgency task인 경우, constraint_subtask makespan
-            if 
-        return temporal_constraint_subtask in node_trajectory
+            tc_node = _get_temporal_constraint_node(parent_node, subtask)
+            tc_interval = subtask.constraints.get("Interval")
+
+            if tc_node:
+                return (
+                    True
+                    if tc_node.makespan + tc_interval <= parent_node.makespan
+                    else False
+                )
+            else:
+                return False
+            # Urgency task인 경우, Subtask의 제약이 충족되는 즉시,
+            if is_urgency:
+                pass
+            # Urgency task가 아닌 경우,
+            else:
+                # wait time이 음수면 False 나머지 경우 True
+                return is_tc_exist in node_trajectory
+
+
+def _get_temporal_constraint_node(parent_node: Node, subtask: Subtask):
+    tc_name = subtask.constraints.get("After")
+
+    node_trajectory = [node for node in parent_node.path]
+    for dependency_node in node_trajectory:
+        if dependency_node.name == tc_name:
+            return dependency_node
