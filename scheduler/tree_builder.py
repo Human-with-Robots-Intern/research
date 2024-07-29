@@ -1,5 +1,6 @@
 from typing import List
 
+import networkx as nx
 from anytree import Node
 
 from concept.agent import Agent
@@ -8,10 +9,17 @@ from scheduler.dynamic_task_handler import TaskHandler
 
 
 class TreeBuilder:
-    def __init__(self, agent: Agent, tasks: List[Task], task_handler: TaskHandler):
+    def __init__(
+        self,
+        agent: Agent,
+        tasks: List[Task],
+        task_handler: TaskHandler,
+        constraints: nx.Diagraph,
+    ):
         self.agent = agent
         self.tasks = tasks
         self.task_handler = task_handler
+        self.constraints = constraints
 
     def build_tree(self) -> Node:
         root_node = Node(name="Start", makespan=0, location=self.agent.location)

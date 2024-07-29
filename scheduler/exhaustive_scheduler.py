@@ -13,16 +13,13 @@ class ExhaustiveScheduler:
     def __init__(
         self, agent: Agent, tasks: List[Task], constraints: nx.DiGraph
     ) -> None:
-        self.agent = agent
         self.tasks = tasks
-        self.constraints = constraints
-        self.task_handler = TaskHandler(agent)
-        self.tree_builder = TreeBuilder(agent, tasks, self.task_handler)
+        self.tree_builder = TreeBuilder(agent, tasks, TaskHandler(agent), constraints)
         self.subtask_tree = self.tree_builder.build_tree()
 
     def generate_schedule(self) -> Node:
         leaf_paths = []
-        all_subtasks = get_all_subtasks(self.tasks, mode="all")
+        all_subtasks = get_all_subtasks(self.tasks)
         all_subtask_names = {subtask.name for subtask in all_subtasks}
 
         for leaf in self.subtask_tree.leaves:
