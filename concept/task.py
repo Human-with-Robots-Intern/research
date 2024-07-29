@@ -1,53 +1,47 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple
+
+import networkx as nx
 
 
 class Subtask:
     def __init__(
         self,
-        task_name,
-        task_location,
+        task_name: str,
+        task_location: str,
         name: str,
-        type: str,
+        subtask_type: str,
         duration: int,
-        constraints: str = None,
     ):
-        """subtask constructor
+        """
+        Subtask constructor
 
         Args:
-            name (str): the name of the sub task
-            type (str): Interaction / Monitoring
-            duration (int): time cost to complete the task
-            constraints (str, optional): Temporal / Resource constraint to start subtask
+            task_name (str): The name of the main task
+            task_location (str): The location of the task
+            name (str): The name of the subtask
+            subtask_type (str): Type of the subtask (Interaction / Monitoring)
+            duration (int): Time cost to complete the subtask
         """
         self.task_name = task_name
         self.location = task_location
-
         self.name = name
-        self.type = type
+        self.type = subtask_type
         self.duration = duration
-        self.constraints = constraints
 
     def __repr__(self):
-        constraint = None
-        if self.constraints.get("After"):
-            precedence_subtask = self.constraints["After"]
-            time_interval = self.constraints["Interval"]
-            constraint = f"can start {time_interval} after {precedence_subtask} end"
-        else:
-            constraint = f"don't have any constraints"
-        return f"Subtask({self.name} (duration={self.duration}) {constraint}) \n"
+        return f"Subtask({self.name} (duration={self.duration}))"
 
 
 class Task:
-    def __init__(self, name: str, location: str, subtasks: list[tuple]):
-        """_summary_
+    def __init__(self, name: str, location: str, subtasks: List[Tuple[str, str, int]]):
+        """
+        Task constructor
 
         Args:
             name (str): Task name
-            location (str): Task Location (Kichen, Living Room, Restroom, Bedroom)
-            subtasks (list[tuple]): list of suptask (tuple)
+            location (str): Task location (Kitchen, Living Room, Restroom, Bedroom)
+            subtasks (list[tuple]): List of subtasks (name, type, duration)
         """
-
         self.name = name
         self.location = location
         self.subtasks = [Subtask(name, location, *subtask) for subtask in subtasks]
@@ -55,55 +49,51 @@ class Task:
     def __repr__(self):
         return f"Task(name={self.name}, location={self.location}, subtasks={self.subtasks})"
 
-    def get_total_seq_duration(self):
+    def get_total_seq_duration(self) -> int:
         return sum(subtask.duration for subtask in self.subtasks)
 
 
-def get_all_subtasks(
-    tasks: List[Task], mode: str = "name"
-) -> Union[Dict[str, str], List[List[Subtask]], List[Subtask]]:
-    if mode == "name":
-        return {subtask.name: task.name for task in tasks for subtask in task.subtasks}
-    elif mode == "group":
-        return [[subtask for subtask in task.subtasks] for task in tasks]
-    else:
-        return [subtask for task in tasks for subtask in task.subtasks]
+def get_all_subtasks(tasks: List[Task]) -> List[Subtask]:
+    return [subtask for task in tasks for subtask in task.subtasks]
 
 
-def get_subtasks_by(subtasks: List[Subtask], target_subtask: Subtask) -> List[Subtask]:
-    
-    
-    return [
-        subtask for subtask in subtasks if subtask.location == target_subtask.location
-    ]
-
-
-def parse_tasks(data):
+def parse_tasks(data: List[Dict]) -> List[Task]:
     tasks = []
-
     for task in data:
         task_name = task["Task"]
         location = task["Location"]
-
-        subtasks = []
-        for subtask in task["Subtasks"]:
-            subtask_name = subtask["Subtask"]
-            subtask_type = subtask["Type"]
-            subtask_duration = subtask["Duration"]["Interval"]
-            subtask_temporal_constraint = subtask["Constraints"]["TemporalConstraint"]
-            subtask_resource_constraint = subtask["Constraints"]["ResourceConstraint"]
-            subtask_effect = subtask["Effect"]
-
-            subtasks.append(
-                (
-                    subtask_name,
-                    subtask_type,
-                    subtask_duration,
-                    subtask_temporal_constraint,
-                    # subtask_resource_constraint,
-                    # subtask_effect,
-                )
-            )
-
+        subtasks = [
+            (sub["Subtask"], sub["Type"], sub["Duration"]["Interval"])
+            for sub in task["Subtasks"]
+        ]
         tasks.append(Task(task_name, location, subtasks))
     return tasks
+
+
+def parse_constraints(data: List[Dict]) -> nx.DiGraph:
+    G = nx.DiGraph()
+
+    # Add all subtask nodes to the graph
+    for task in data:
+        for subtask in task["Subtasks"]:
+            subtask_node = subtask["Subtask"]
+            G.add_node(subtask_node)
+
+    # Add edges based on temporal constraints
+    for task in data:
+        for subtask in task["Subtasks"]:
+            main_subtask = subtask["Subtask"]
+            temporal_constraints = subtask.get("TemporalConstraints", [])
+
+            for temporal_constraint in temporal_constraints:
+                condition_subtask = temporal_constraint["Subtask"]
+                edge_data = {
+                    "info": {
+                        "Type": temporal_constraint["Type"],
+                        "Interval": temporal_constraint["Interval"],
+                        "Urgency": temporal_constraint["Urgency"],
+                    }
+                }
+                G.add_edge(main_subtask, condition_subtask, **edge_data)
+
+    return G

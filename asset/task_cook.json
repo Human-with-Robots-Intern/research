@@ -1,0 +1,146 @@
+[
+    {
+        "Task": "Cook Steak",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Subtask": "Turn on Stove",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": null,
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            },
+            {
+                "Subtask": "Placing Steak",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Preparing Steak",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            },
+            {
+                "Subtask": "Monitoring Steak",
+                "Type": "Monitoring",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 20
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Placing Steak",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            },
+            {
+                "Subtask": "Flipping Steak",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Monitoring Steak",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            }
+        ]
+    },
+    {
+        "Task": "Washing Dishes",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Subtask": "Washing Dishes",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": null,
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            }
+        ]
+    },
+    {
+        "Task": "Toast",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Subtask": "Toast Start",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": null,
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            },
+            {
+                "Subtask": "Toast End",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Toast Start",
+                        "Interval": 5,
+                        "Urgency": true
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            }
+        ]
+    }
+]

@@ -1,5 +1,6 @@
 from typing import List
 
+import networkx as nx
 from anytree import Node
 
 from concept.agent import Agent
@@ -9,7 +10,9 @@ from scheduler.tree_builder import TreeBuilder
 
 
 class ExhaustiveScheduler:
-    def __init__(self, agent: Agent, tasks: List[Task]) -> None:
+    def __init__(
+        self, agent: Agent, tasks: List[Task], constraints: nx.DiGraph
+    ) -> None:
         self.agent = agent
         self.tasks = tasks
         self.task_handler = TaskHandler(agent)
