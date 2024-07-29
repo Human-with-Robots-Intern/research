@@ -15,6 +15,7 @@ class ExhaustiveScheduler:
     ) -> None:
         self.agent = agent
         self.tasks = tasks
+        self.constraints = constraints
         self.task_handler = TaskHandler(agent)
         self.tree_builder = TreeBuilder(agent, tasks, self.task_handler)
         self.subtask_tree = self.tree_builder.build_tree()

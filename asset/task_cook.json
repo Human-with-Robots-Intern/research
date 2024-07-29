@@ -32,7 +32,7 @@
                     {
                         "Type": "After",
                         "Subtask": "Preparing Steak",
-                        "Interval": 0,
+                        "Interval": 5,
                         "Urgency": true
                     }
                 ],

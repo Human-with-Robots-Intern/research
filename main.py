@@ -6,7 +6,7 @@ from concept.agent import Agent
 from concept.env import Env
 from concept.task import parse_constraints, parse_tasks
 from scheduler.exhaustive_scheduler import ExhaustiveScheduler
-from util.visualizer import visualize4
+from util.visualizer import visualize_graph, visualize_schedule
 
 
 def parse_arguments():
@@ -22,12 +22,12 @@ def parse_arguments():
 
 def load_tasks_and_constraints(task_name):
     file_mapping = {
-        "all": "task.detach.json",
-        "cook": "task.cook.json",
-        "laundry": "task.laundry.json",
+        "all": "task_all.json",
+        "cook": "task_cook.json",
+        "laundry": "task_laundry.json",
     }
 
-    file_name = file_mapping.get(task_name, "task.detach.json")
+    file_name = file_mapping.get(task_name, "task_all.json")
     file_path = os.path.join("asset", file_name)
 
     with open(file_path, "r") as file:
@@ -43,6 +43,7 @@ def main():
     args = parse_arguments()
 
     tasks, constraints_graph = load_tasks_and_constraints(args.name)
+    visualize_graph(constraints_graph)
 
     env = Env()
     env.gen_dummy()
@@ -52,7 +53,7 @@ def main():
     scheduler = ExhaustiveScheduler(agent, tasks, constraints_graph)
     task_schedule = scheduler.generate_schedule()
 
-    visualize4(task_schedule)
+    visualize_schedule(task_schedule)
 
 
 if __name__ == "__main__":

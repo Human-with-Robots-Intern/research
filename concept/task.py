@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple
 
 import networkx as nx
+from matplotlib import pyplot as plt
 
 
 class Subtask:
@@ -86,14 +87,15 @@ def parse_constraints(data: List[Dict]) -> nx.DiGraph:
             temporal_constraints = subtask.get("TemporalConstraints", [])
 
             for temporal_constraint in temporal_constraints:
-                condition_subtask = temporal_constraint["Subtask"]
-                edge_data = {
-                    "info": {
-                        "Type": temporal_constraint["Type"],
-                        "Interval": temporal_constraint["Interval"],
-                        "Urgency": temporal_constraint["Urgency"],
+                precedence_subtask = temporal_constraint["Subtask"]
+                if precedence_subtask:
+                    edge_data = {
+                        "info": {
+                            "Type": temporal_constraint["Type"],
+                            "Interval": temporal_constraint["Interval"],
+                            "Urgency": temporal_constraint["Urgency"],
+                        }
                     }
-                }
-                G.add_edge(main_subtask, condition_subtask, **edge_data)
+                    G.add_edge(precedence_subtask, main_subtask, **edge_data)
 
     return G
