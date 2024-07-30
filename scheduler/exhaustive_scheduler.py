@@ -5,7 +5,7 @@ from anytree import Node
 
 from concept.agent import Agent
 from concept.task import Task, get_all_subtasks
-from scheduler.dynamic_task_handler import TaskHandler
+from scheduler.handler.dynamic_task_handler import TaskHandler
 from scheduler.tree_builder import TreeBuilder
 
 

@@ -55,3 +55,14 @@ class ConstraintHandler:
                 if node.name == source:
                     tc_nodes.append(node)
         return tc_nodes
+
+    def enforce_urgency(
+        self, parent_node: Node, subtask: Subtask, makespan: int
+    ) -> int:
+        constraints = self.gather_constraints(subtask.name)
+        for constraint in constraints:
+            if constraint.is_urgency:
+                required_start_time = parent_node.makespan + constraint.interval
+                if makespan < required_start_time:
+                    return required_start_time
+        return makespan
