@@ -1,0 +1,86 @@
+[
+    {
+        "Task": "Clean Kitchen",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Subtask": "Washing Dishes",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": null,
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            },
+            {
+                "Subtask": "Setting Table",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Toast End",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            }
+        ]
+    },
+    {
+        "Task": "Toast",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Subtask": "Toast Start",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": null,
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            },
+            {
+                "Subtask": "Toast End",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Toast Start",
+                        "Interval": 5,
+                        "Urgency": true
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            }
+        ]
+    }
+]

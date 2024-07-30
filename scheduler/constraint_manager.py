@@ -38,28 +38,20 @@ class ConstraintHandler:
             return True
 
         for constraint in constraints:
-            if not self.check_constraint(parent_node, subtask, constraint):
+            tc_nodes = self.get_temporal_constraint_nodes(
+                parent_node, constraint.target
+            )
+            if not tc_nodes:
                 return False
 
         return True
 
-    def check_constraint(
-        self, parent_node: Node, subtask: Subtask, constraint: namedtuple
-    ) -> bool:
-        tc_node = self.get_temporal_constraint_node(parent_node, constraint.source)
-
-        if not tc_node:
-            return False
-
-        if tc_node.makespan + constraint.interval <= parent_node.makespan:
-            return True
-        else:
-            return False
-
-    def get_temporal_constraint_node(
-        self, parent_node: Node, source_name: str
+    def get_temporal_constraint_nodes(
+        self, parent_node: Node, subtask_name: str
     ) -> Optional[Node]:
-        for node in parent_node.path:
-            if node.name == source_name:
-                return node
-        return None
+        tc_nodes = []
+        for source, _, _ in self.constraints.in_edges(subtask_name, data=True):
+            for node in parent_node.path:
+                if node.name == source:
+                    tc_nodes.append(node)
+        return tc_nodes

@@ -13,9 +13,9 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Task Scheduler")
     parser.add_argument(
         "-name",
-        help="Select the Goal [all, laundry, cook]",
-        choices=["all", "laundry", "cook"],
-        default="cook",
+        help="Select the Goal [all, laundry, cook, toast]",
+        choices=["all", "laundry", "cook", "toast"],
+        default="laundry",
     )
     return parser.parse_args()
 
@@ -25,6 +25,7 @@ def load_tasks_and_constraints(task_name):
         "all": "task_all.json",
         "cook": "task_cook.json",
         "laundry": "task_laundry.json",
+        "toast": "task_toast.json",
     }
 
     file_name = file_mapping.get(task_name, "task_all.json")

@@ -90,14 +90,17 @@ class TreeBuilder:
         ]
 
     def _calculate_wait_time(self, parent_node: Node, subtask: Subtask) -> int:
-        tc_node = self.constraint_handler.get_temporal_constraint_node(
-            parent_node, subtask
+        tc_nodes = self.constraint_handler.get_temporal_constraint_nodes(
+            parent_node, subtask.name
         )
-
-        if tc_node:
-            tc_interval = self.constraint_handler.constraints.get_edge_data(
-                tc_node.name, subtask.name
-            )["info"]["Interval"]
-            wait_time = tc_node.makespan + tc_interval - parent_node.makespan
-            return max(0, wait_time)
-        return 0
+        wait_times = []
+        if tc_nodes:
+            for tc_node in tc_nodes:
+                tc_interval = self.constraint_handler.constraints.get_edge_data(
+                    tc_node.name, subtask.name
+                )["info"]["Interval"]
+                wait_time = tc_node.makespan + tc_interval - parent_node.makespan
+                wait_times.append(wait_time)
+            return max(wait_times)
+        else:
+            return 0
