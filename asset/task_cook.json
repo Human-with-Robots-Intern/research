@@ -31,7 +31,7 @@
                 "TemporalConstraints": [
                     {
                         "Type": "After",
-                        "Subtask": "Preparing Steak",
+                        "Subtask": "Turn on Stove",
                         "Interval": 5,
                         "Urgency": true
                     }
@@ -110,7 +110,7 @@
                 "Type": "Interaction",
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 2
+                    "Interval": 1
                 },
                 "TemporalConstraints": [
                     {

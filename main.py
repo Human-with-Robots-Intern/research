@@ -15,7 +15,7 @@ def parse_arguments():
         "-name",
         help="Select the Goal [all, laundry, cook]",
         choices=["all", "laundry", "cook"],
-        default="all",
+        default="cook",
     )
     return parser.parse_args()
 
@@ -34,23 +34,23 @@ def load_tasks_and_constraints(task_name):
         task_data = json.load(file)
 
     tasks = parse_tasks(task_data)
-    constraints_graph = parse_constraints(task_data)
+    constraints = parse_constraints(task_data)
 
-    return tasks, constraints_graph
+    return tasks, constraints
 
 
 def main():
     args = parse_arguments()
 
-    tasks, constraints_graph = load_tasks_and_constraints(args.name)
-    visualize_graph(constraints_graph)
+    tasks, constraints = load_tasks_and_constraints(args.name)
+    visualize_graph(constraints)
 
     env = Env()
     env.gen_dummy()
 
     agent = Agent("Waiting", "Living Room", env)
 
-    scheduler = ExhaustiveScheduler(agent, tasks, constraints_graph)
+    scheduler = ExhaustiveScheduler(agent, tasks, constraints)
     task_schedule = scheduler.generate_schedule()
 
     visualize_schedule(task_schedule)

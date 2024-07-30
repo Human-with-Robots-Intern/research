@@ -43,5 +43,7 @@ class ExhaustiveScheduler:
 
         print(f"Number of optimal paths: {len(optimal_paths)}")
         print(f"Makespan: {min_makespan}")
+        for optimal_path in optimal_paths:
+            print(optimal_path)
 
         return self.subtask_tree
