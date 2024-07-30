@@ -74,11 +74,29 @@
                 ],
                 "Precondition": null,
                 "Effect": null
+            },
+            {
+                "Subtask": "Seasoning Steak",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": null,
+                        "Subtask": null,
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
             }
         ]
     },
     {
-        "Task": "Washing Dishes",
+        "Task": "Clean Kitchen",
         "Location": "Kitchen",
         "Subtasks": [
             {
@@ -92,6 +110,36 @@
                     {
                         "Type": "After",
                         "Subtask": null,
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            },
+            {
+                "Subtask": "Setting Table",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Toast End",
+                        "Interval": 0,
+                        "Urgency": false
+                    },
+                    {
+                        "Type": "After",
+                        "Subtask": "Flipping Steak",
+                        "Interval": 0,
+                        "Urgency": false
+                    },
+                    {
+                        "Type": "Before",
+                        "Subtask": "Seasoning Steak",
                         "Interval": 0,
                         "Urgency": false
                     }

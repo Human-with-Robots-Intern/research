@@ -1,8 +1,7 @@
-from collections import namedtuple
-from typing import List, Optional
+from typing import List
 
 import networkx as nx
-from anytree import Node, RenderTree
+from anytree import Node
 
 from concept.agent import Agent
 from concept.task import Subtask, Task, get_all_subtasks
@@ -85,7 +84,7 @@ class TreeBuilder:
         return [
             subtask
             for subtask in remaining_subtasks
-            if self.constraint_handler.validate_ordering_constraints(
+            if self.constraint_handler.validate_temporal_constraints(
                 parent_node, subtask
             )
         ]

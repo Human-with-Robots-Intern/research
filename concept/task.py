@@ -96,6 +96,9 @@ def parse_constraints(data: List[Dict]) -> nx.DiGraph:
                             "Urgency": temporal_constraint["Urgency"],
                         }
                     }
-                    G.add_edge(precedence_subtask, main_subtask, **edge_data)
+                    if temporal_constraint["Type"] == "Before":
+                        G.add_edge(main_subtask, precedence_subtask, **edge_data)
+                    elif temporal_constraint["Type"] == "After":
+                        G.add_edge(precedence_subtask, main_subtask, **edge_data)
 
     return G
