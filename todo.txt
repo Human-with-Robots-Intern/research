@@ -1,0 +1,7 @@
+#TODO 1. Urgency Handling
+ - Urgency에 대한 정의
+
+#TODO 2. 시각화
+
+#TODO 3. 병렬 & Decomposition
+- 병렬에 대한 정의

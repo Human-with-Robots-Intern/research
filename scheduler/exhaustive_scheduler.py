@@ -1,5 +1,6 @@
 from typing import List
 
+import networkx as nx
 from anytree import Node
 
 from concept.agent import Agent
@@ -9,16 +10,16 @@ from scheduler.tree_builder import TreeBuilder
 
 
 class ExhaustiveScheduler:
-    def __init__(self, agent: Agent, tasks: List[Task]) -> None:
-        self.agent = agent
+    def __init__(
+        self, agent: Agent, tasks: List[Task], constraints: nx.DiGraph
+    ) -> None:
         self.tasks = tasks
-        self.task_handler = TaskHandler(agent)
-        self.tree_builder = TreeBuilder(agent, tasks, self.task_handler)
+        self.tree_builder = TreeBuilder(agent, tasks, TaskHandler(agent), constraints)
         self.subtask_tree = self.tree_builder.build_tree()
 
     def generate_schedule(self) -> Node:
         leaf_paths = []
-        all_subtasks = get_all_subtasks(self.tasks, mode="all")
+        all_subtasks = get_all_subtasks(self.tasks)
         all_subtask_names = {subtask.name for subtask in all_subtasks}
 
         for leaf in self.subtask_tree.leaves:
@@ -42,5 +43,7 @@ class ExhaustiveScheduler:
 
         print(f"Number of optimal paths: {len(optimal_paths)}")
         print(f"Makespan: {min_makespan}")
+        for optimal_path in optimal_paths:
+            print(optimal_path)
 
         return self.subtask_tree
