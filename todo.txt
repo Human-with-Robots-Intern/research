@@ -3,5 +3,5 @@
 
 #TODO 2. 시각화
 
-#TODO 3. 병렬 & Decomposition
+#TODO 3. 병렬
 - 병렬에 대한 정의

@@ -60,13 +60,18 @@ class TreeBuilder:
                 parent_node, subtask, wait_time, makespan
             )
 
-        makespan += subtask.duration
-        child_node = Node(
-            subtask.name,
-            parent=parent_node,
-            makespan=makespan,
-            location=subtask.location,
-        )
+        if True:
+            makespan += subtask.duration
+            child_node = Node(
+                subtask.name,
+                parent=parent_node,
+                makespan=makespan,
+                location=subtask.location,
+            )
+            if self.constraint_handler.get_urgency_constraints(child_node):
+                print(f"remaining subtasks : {remaining_subtasks}")
+        else:
+            pass
 
         self._expand_tree(child_node, remaining_subtasks)
 

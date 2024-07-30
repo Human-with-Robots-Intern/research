@@ -29,6 +29,16 @@ class ConstraintHandler:
             )
         return constraints
 
+    def get_temporal_constraint_nodes(
+        self, parent_node: Node, subtask_name: str
+    ) -> Optional[Node]:
+        tc_nodes = []
+        for source, _, _ in self.constraints.in_edges(subtask_name, data=True):
+            for node in parent_node.path:
+                if node.name == source:
+                    tc_nodes.append(node)
+        return tc_nodes
+
     def validate_temporal_constraints(
         self, parent_node: Node, subtask: Subtask
     ) -> bool:
@@ -46,23 +56,13 @@ class ConstraintHandler:
 
         return True
 
-    def get_temporal_constraint_nodes(
-        self, parent_node: Node, subtask_name: str
-    ) -> Optional[Node]:
-        tc_nodes = []
-        for source, _, _ in self.constraints.in_edges(subtask_name, data=True):
-            for node in parent_node.path:
-                if node.name == source:
-                    tc_nodes.append(node)
-        return tc_nodes
-
-    def enforce_urgency(
-        self, parent_node: Node, subtask: Subtask, makespan: int
-    ) -> int:
-        constraints = self.gather_constraints(subtask.name)
-        for constraint in constraints:
-            if constraint.is_urgency:
-                required_start_time = parent_node.makespan + constraint.interval
-                if makespan < required_start_time:
-                    return required_start_time
-        return makespan
+    def get_urgency_constraints(self, subtask: Node):
+        # subtask에서 outgoing하는 urgency constraints를 반환
+        results = []
+        for source, target, data in self.constraints.out_edges(subtask.name, data=True):
+            if data["info"]["Urgency"]:
+                interval = data["info"]["Interval"]
+                target_start_time = subtask.makespan + interval
+                print(f"{target} must start at {target_start_time}")
+                print(subtask)
+                return True
