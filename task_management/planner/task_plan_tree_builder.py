@@ -5,7 +5,7 @@ from anytree import Node
 
 from concept.agent import Agent
 from concept.task import Subtask, Task, get_all_subtasks
-from task_management.constraint_manager import ConstraintHandler
+from task_management.handler.constraint_handler import ConstraintHandler
 from task_management.handler.dynamic_task_handler import TaskHandler
 from task_management.handler.subtask_decomposer import TaskDecomposer
 
@@ -101,10 +101,16 @@ class TreeBuilder:
         wait_times = []
         if tc_nodes:
             for tc_node in tc_nodes:
-                tc_interval = self.constraint_handler.constraints.get_edge_data(
+                edge_data = self.constraint_handler.constraints.get_edge_data(
                     tc_node.name, subtask.name
-                )["info"]["Interval"]
+                )["info"]
+                tc_interval = edge_data["Interval"]
+                urgency = edge_data["Urgency"]
                 wait_time = tc_node.makespan + tc_interval - parent_node.makespan
+                wait_times.append(wait_time)
+
+                if urgency:
+                    wait_time = max(0, tc_interval - wait_time)
                 wait_times.append(wait_time)
             return max(wait_times)
         else:
