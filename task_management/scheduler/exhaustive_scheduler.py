@@ -5,7 +5,7 @@ from anytree import Node
 
 from concept.agent import Agent
 from concept.task import Task, get_all_subtasks
-from task_management.handler.constraint_handler import ConstraintHandler
+from task_management.constraint_manager import ConstraintHandler
 from task_management.handler.dynamic_task_handler import TaskHandler
 from task_management.planner.task_plan_tree_builder import TreeBuilder
 

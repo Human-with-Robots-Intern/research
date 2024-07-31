@@ -54,18 +54,4 @@ class ConstraintHandler:
             if not tc_nodes:
                 return False
 
-            for tc_node in tc_nodes:
-                interval = self.constraints.get_edge_data(tc_node.name, subtask.name)[
-                    "info"
-                ]["Interval"]
-                urgency = self.constraints.get_edge_data(tc_node.name, subtask.name)[
-                    "info"
-                ]["Urgency"]
-                time_diff = parent_node.makespan - tc_node.makespan
-
-                if urgency and time_diff > interval:
-                    return False
-                elif not urgency and time_diff < interval:
-                    return False
-
         return True
