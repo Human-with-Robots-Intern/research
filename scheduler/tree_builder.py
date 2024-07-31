@@ -50,29 +50,42 @@ class TreeBuilder:
         makespan = parent_node.makespan
         self.agent.location = parent_node.location
 
-        parent_node, makespan = self.task_handler.handle_movement(
-            parent_node, subtask, makespan
+        # # Urgent (Hard-constraints)
+        # urgent_constraints = self.constraint_handler.get_urgency_constraints(
+        #     parent_node
+        # )
+        # if urgent_constraints:
+        #     print()
+        #     print(f"urgent_constraints : {urgent_constraints}")
+        #     print(f"remaining subtasks : {remaining_subtasks}")
+
+        #     for remaining_subtask in remaining_subtasks:
+        #         for key, value in urgent_constraints.items():
+        #             if key == remaining_subtask.name:
+        #                 print(key, value)
+        #                 print(parent_node.path)
+        #                 print()
+
+        # # Move
+        # parent_node, makespan = self.task_handler.handle_movement(
+        #     parent_node, subtask, makespan
+        # )
+
+        # # Wait
+        # wait_time = self._calculate_wait_time(parent_node, subtask)
+
+        # if wait_time > 0:
+        #     parent_node, makespan = self.task_handler.handle_wait_time(
+        #         parent_node, subtask, wait_time, makespan
+        #     )
+
+        makespan += subtask.duration
+        child_node = Node(
+            subtask.name,
+            parent=parent_node,
+            makespan=makespan,
+            location=subtask.location,
         )
-        
-        wait_time = self._calculate_wait_time(parent_node, subtask)
-
-        if wait_time > 0:
-            parent_node, makespan = self.task_handler.handle_wait_time(
-                parent_node, subtask, wait_time, makespan
-            )
-
-        if True:
-            makespan += subtask.duration
-            child_node = Node(
-                subtask.name,
-                parent=parent_node,
-                makespan=makespan,
-                location=subtask.location,
-            )
-            if self.constraint_handler.get_urgency_constraints(child_node):
-                print(f"remaining subtasks : {remaining_subtasks}")
-        else:
-            pass
 
         self._expand_tree(child_node, remaining_subtasks)
 
@@ -97,18 +110,18 @@ class TreeBuilder:
             )
         ]
 
-    def _calculate_wait_time(self, parent_node: Node, subtask: Subtask) -> int:
-        tc_nodes = self.constraint_handler.get_temporal_constraint_nodes(
-            parent_node, subtask.name
-        )
-        wait_times = []
-        if tc_nodes:
-            for tc_node in tc_nodes:
-                tc_interval = self.constraint_handler.constraints.get_edge_data(
-                    tc_node.name, subtask.name
-                )["info"]["Interval"]
-                wait_time = tc_node.makespan + tc_interval - parent_node.makespan
-                wait_times.append(wait_time)
-            return max(wait_times)
-        else:
-            return 0
+    # def _calculate_wait_time(self, parent_node: Node, subtask: Subtask) -> int:
+    #     tc_nodes = self.constraint_handler.get_temporal_constraint_nodes(
+    #         parent_node, subtask.name
+    #     )
+    #     wait_times = []
+    #     if tc_nodes:
+    #         for tc_node in tc_nodes:
+    #             tc_interval = self.constraint_handler.constraints.get_edge_data(
+    #                 tc_node.name, subtask.name
+    #             )["info"]["Interval"]
+    #             wait_time = tc_node.makespan + tc_interval - parent_node.makespan
+    #             wait_times.append(wait_time)
+    #         return max(wait_times)
+    #     else:
+    #         return 0

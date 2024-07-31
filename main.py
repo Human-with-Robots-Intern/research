@@ -5,7 +5,7 @@ import os
 from concept.agent import Agent
 from concept.env import Env
 from concept.task import parse_constraints, parse_tasks
-from scheduler.exhaustive_scheduler import ExhaustiveScheduler
+from scheduler.exhaustive_planner import ExhaustiveScheduler
 from util.visualizer import visualize_graph, visualize_schedule
 
 
