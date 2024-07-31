@@ -53,6 +53,7 @@ class TreeBuilder:
         parent_node, makespan = self.task_handler.handle_movement(
             parent_node, subtask, makespan
         )
+        
         wait_time = self._calculate_wait_time(parent_node, subtask)
 
         if wait_time > 0:

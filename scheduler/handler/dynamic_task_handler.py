@@ -17,7 +17,7 @@ class TaskHandler:
         if move_cost != 0:
             makespan += move_cost
             parent_node = Node(
-                f"Move {parent_node.location} -> {self.agent.location}",
+                f"Move ({parent_node.location} -> {self.agent.location})",
                 parent_node,
                 makespan=makespan,
                 location=subtask.location,
@@ -28,6 +28,7 @@ class TaskHandler:
         self, parent_node: Node, subtask: Subtask, wait_time: int, makespan: int
     ) -> Tuple[Node, int]:
         makespan += wait_time
+
         parent_node = Node(
             f"Wait {wait_time} units",
             parent_node,
