@@ -5,11 +5,11 @@ from anytree import Node
 
 from concept.agent import Agent
 from concept.task import Task, get_all_subtasks
-from scheduler.handler.dynamic_task_handler import TaskHandler
-from scheduler.tree_builder import TreeBuilder
+from task_management.handler.dynamic_task_handler import TaskHandler
+from task_management.planner.task_plan_tree_builder import TreeBuilder
 
 
-class ExhaustiveScheduler:
+class ExhaustivePlanner:
     def __init__(
         self, agent: Agent, tasks: List[Task], constraints: nx.DiGraph
     ) -> None:
@@ -17,7 +17,7 @@ class ExhaustiveScheduler:
         self.tree_builder = TreeBuilder(agent, tasks, TaskHandler(agent), constraints)
         self.subtask_tree = self.tree_builder.build_tree()
 
-    def generate_schedule(self) -> Node:
+    def generate_valid_plans(self) -> Node:
         leaf_paths = []
         all_subtasks = get_all_subtasks(self.tasks)
         all_subtask_names = {subtask.name for subtask in all_subtasks}
@@ -35,15 +35,13 @@ class ExhaustiveScheduler:
 
         if not leaf_paths:
             print("No complete paths found.")
-            return self.subtask_tree
+            return None
 
         min_makespan_leaf = min(leaf_paths, key=lambda leaf: leaf.makespan)
         min_makespan = min_makespan_leaf.makespan
         optimal_paths = [leaf for leaf in leaf_paths if leaf.makespan == min_makespan]
-        print(f"lengh of paths : {len(leaf_paths)}")
-        print(f"Number of ordered paths: {len(optimal_paths)}")
-        # print(f"Makespan: {min_makespan}")
-        for optimal_path in optimal_paths:
-            pass
+        print()
+        print(f"Number of ordered paths: {len(optimal_paths)}/{len(leaf_paths)}")
+        print(f"Makespan: {min_makespan}")
 
-        return self.subtask_tree
+        return optimal_paths

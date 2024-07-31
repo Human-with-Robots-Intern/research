@@ -55,12 +55,3 @@ class ConstraintHandler:
                 return False
 
         return True
-
-    # def get_urgency_constraints(self, subtask: Node):
-    #     # subtask에서 outgoing하는 urgency constraints를 반환
-    #     results = {}
-    #     for _, target, data in self.constraints.out_edges(subtask.name, data=True):
-    #         if data["info"]["Urgency"]:
-    #             target_start_time = subtask.makespan + data["info"]["Interval"]
-    #             results[target] = target_start_time
-    #     return results

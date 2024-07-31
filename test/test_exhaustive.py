@@ -8,7 +8,7 @@ from anytree import Node, RenderTree
 
 from concept.env import Env
 from concept.task import Subtask, Task
-from scheduler.legacy.exhaustive_search import ExhaustiveSearch
+from task_management.legacy.exhaustive_search import ExhaustiveSearch
 
 
 class TestExhaustiveSearch(unittest.TestCase):

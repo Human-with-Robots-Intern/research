@@ -5,7 +5,8 @@ import os
 from concept.agent import Agent
 from concept.env import Env
 from concept.task import parse_constraints, parse_tasks
-from scheduler.exhaustive_planner import ExhaustiveScheduler
+from task_management.planner.exhaustive_planner import ExhaustivePlanner
+from task_management.scheduler.exhaustive_scheduler import ExhaustiveScheduler
 from util.visualizer import visualize_graph, visualize_schedule
 
 
@@ -51,8 +52,8 @@ def main():
 
     agent = Agent("Waiting", "Living Room", env)
 
-    scheduler = ExhaustiveScheduler(agent, tasks, constraints)
-    task_schedule = scheduler.generate_schedule()
+    task_plans = ExhaustivePlanner(agent, tasks, constraints).generate_valid_plans()
+    task_schedule = ExhaustiveScheduler(task_plans)
 
     visualize_schedule(task_schedule)
 
