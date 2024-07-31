@@ -7,7 +7,7 @@ from concept.env import Env
 from concept.task import parse_constraints, parse_tasks
 from task_management.planner.exhaustive_planner import ExhaustivePlanner
 from task_management.scheduler.exhaustive_scheduler import ExhaustiveScheduler
-from util.visualizer import visualize_graph, visualize_schedule, visualize_tree
+from util.visualizer import visualize_graph, visualize_schedule
 
 
 def parse_arguments():
@@ -52,13 +52,8 @@ def main():
 
     agent = Agent("Waiting", "Living Room", env)
 
-    task_tree, task_plans = ExhaustivePlanner(
-        agent, tasks, constraints
-    ).generate_valid_plans()
-
-    visualize_tree(task_tree, task_plans)
-
-    task_schedule = ExhaustiveScheduler(task_plans, constraints).generate_schedule()
+    task_plans = ExhaustivePlanner(agent, tasks, constraints).generate_valid_plans()
+    task_schedule = ExhaustiveScheduler(task_plans)
 
     visualize_schedule(task_schedule)
 

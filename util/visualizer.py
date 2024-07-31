@@ -1,18 +1,10 @@
-from typing import List
-
 import matplotlib.pyplot as plt
 import networkx as nx
-from anytree import Node
 from anytree.exporter import UniqueDotExporter
 
 
-def visualize_tree(tree, plans: List[Node]):
-
-    UniqueDotExporter(tree).to_picture("task_tree.png")
-
-
 def visualize_schedule(schedules):
-    pass
+    UniqueDotExporter(schedules).to_picture("udo.png")
 
 
 def visualize_graph(G):
@@ -47,5 +39,4 @@ def visualize_graph(G):
     )
 
     plt.title("Directed Acyclic Graph (DAG) with Edge Info")
-    plt.savefig("task_graph.png")
     plt.show()

@@ -127,6 +127,12 @@
                 "TemporalConstraints": [
                     {
                         "Type": "After",
+                        "Subtask": "Toast End",
+                        "Interval": 0,
+                        "Urgency": false
+                    },
+                    {
+                        "Type": "After",
                         "Subtask": "Flipping Steak",
                         "Interval": 0,
                         "Urgency": false
@@ -136,6 +142,48 @@
                         "Subtask": "Seasoning Steak",
                         "Interval": 0,
                         "Urgency": false
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            }
+        ]
+    },
+    {
+        "Task": "Toast",
+        "Location": "Kitchen",
+        "Subtasks": [
+            {
+                "Subtask": "Toast Start",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": null,
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ],
+                "Precondition": null,
+                "Effect": null
+            },
+            {
+                "Subtask": "Toast End",
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Toast Start",
+                        "Interval": 5,
+                        "Urgency": true
                     }
                 ],
                 "Precondition": null,

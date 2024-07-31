@@ -55,14 +55,6 @@ class TreeBuilder:
             parent_node, subtask, makespan
         )
 
-        # Wait
-        wait_time = self._calculate_wait_time(parent_node, subtask)
-
-        if wait_time > 0:
-            parent_node, makespan = self.task_handler.handle_wait_time(
-                parent_node, subtask, wait_time, makespan
-            )
-
         makespan += subtask.duration
         child_node = Node(
             subtask.name,
@@ -101,16 +93,10 @@ class TreeBuilder:
         wait_times = []
         if tc_nodes:
             for tc_node in tc_nodes:
-                edge_data = self.constraint_handler.constraints.get_edge_data(
+                tc_interval = self.constraint_handler.constraints.get_edge_data(
                     tc_node.name, subtask.name
-                )["info"]
-                tc_interval = edge_data["Interval"]
-                urgency = edge_data["Urgency"]
+                )["info"]["Interval"]
                 wait_time = tc_node.makespan + tc_interval - parent_node.makespan
-                wait_times.append(wait_time)
-
-                if urgency:
-                    wait_time = max(0, tc_interval - wait_time)
                 wait_times.append(wait_time)
             return max(wait_times)
         else:
