@@ -2,6 +2,7 @@ from typing import List
 
 import networkx as nx
 from anytree import Node
+from anytree.exporter import DotExporter
 
 from concept.agent import Agent
 from concept.task import Task, get_all_subtasks
@@ -44,4 +45,27 @@ class ExhaustivePlanner:
         print(f"Number of ordered paths: {len(optimal_paths)}/{len(leaf_paths)}")
         print(f"Makespan: {min_makespan}")
 
-        return optimal_paths
+        # optimal paths에 대한 시각화
+        optimal_nodes = set()
+        for leaf in optimal_paths:
+            for node in leaf.path:
+                optimal_nodes.add(node)
+
+        # Filter the tree to include only optimal nodes
+        def filter_tree(node):
+            if node not in optimal_nodes:
+                return None
+            new_node = Node(node.name, parent=node.parent)
+            for child in node.children:
+                new_child = filter_tree(child)
+                if new_child is not None:
+                    new_child.parent = new_node
+            return new_node
+
+        # Create a filtered tree
+        filtered_tree_root = filter_tree(self.subtask_tree.root)
+
+        # Visualize the filtered tree
+        DotExporter(filtered_tree_root).to_picture("optimal_paths_tree.png")
+
+        return self.subtask_tree

@@ -3,8 +3,9 @@ import networkx as nx
 from anytree.exporter import UniqueDotExporter
 
 
-def visualize_schedule(schedules):
-    UniqueDotExporter(schedules).to_picture("udo.png")
+def visualize_tree(schedules):
+
+    UniqueDotExporter(schedules).to_picture("task_tree.png")
 
 
 def visualize_graph(G):
@@ -39,4 +40,5 @@ def visualize_graph(G):
     )
 
     plt.title("Directed Acyclic Graph (DAG) with Edge Info")
+    plt.savefig("task_graph.png")
     plt.show()

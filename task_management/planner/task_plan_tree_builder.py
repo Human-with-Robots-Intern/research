@@ -5,7 +5,7 @@ from anytree import Node
 
 from concept.agent import Agent
 from concept.task import Subtask, Task, get_all_subtasks
-from task_management.constraint_manager import ConstraintHandler
+from task_management.handler.constraint_handler import ConstraintHandler
 from task_management.handler.dynamic_task_handler import TaskHandler
 from task_management.handler.subtask_decomposer import TaskDecomposer
 
@@ -54,6 +54,14 @@ class TreeBuilder:
         parent_node, makespan = self.task_handler.handle_movement(
             parent_node, subtask, makespan
         )
+
+        # Wait
+        wait_time = self._calculate_wait_time(parent_node, subtask)
+
+        if wait_time > 0:
+            parent_node, makespan = self.task_handler.handle_wait_time(
+                parent_node, subtask, wait_time, makespan
+            )
 
         makespan += subtask.duration
         child_node = Node(
