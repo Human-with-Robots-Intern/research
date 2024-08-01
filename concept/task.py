@@ -78,7 +78,8 @@ def parse_constraints(data: List[Dict]) -> nx.DiGraph:
     for task in data:
         for subtask in task["Subtasks"]:
             subtask_node = subtask["Subtask"]
-            G.add_node(subtask_node)
+            subtask_type = subtask["Type"]
+            G.add_node(subtask_node, subtask_type=subtask_type)
 
     # Add edges based on temporal constraints
     for task in data:

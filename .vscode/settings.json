@@ -68,4 +68,8 @@
     "todo-tree.regex.regex": "((\\*|//|#|<!--|;|/\\*|^)\\s*($TAGS)|^\\s*- \\[ \\])",
     "python.analysis.typeCheckingMode": "off",
     "python.analysis.autoImportCompletions": true,
+    "cSpell.words": [
+        "anytree",
+        "networkx"
+    ],
 }

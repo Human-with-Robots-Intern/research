@@ -1,4 +1,5 @@
-#TODO 복수의 Constraints에 대한 고려 
+#TODO Decomposable, Atomic Task Type 추가
+#TODO Chunk 단위로 Decomposable task 추가 
 
 #TODO 1. Urgency Handling 
 

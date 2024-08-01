@@ -11,7 +11,12 @@ def visualize_graph(G):
     pos = nx.spring_layout(G, k=0.5)  # k 값 조정
     plt.figure(figsize=(10, 8))  # fig 크기 조정
     edge_labels = {(u, v): f"{d['info']['Interval']}" for u, v, d in G.edges(data=True)}
-    node_colors = "lightblue"
+    color_map = {
+        "Monitoring": "pink",
+        "Interaction": "lightblue",
+        "Type C": "green",
+    }
+    node_colors = [color_map[G.nodes[node]["subtask_type"]] for node in G.nodes]
     edge_colors = [
         "red" if data["info"]["Urgency"] else "blue"
         for _, _, data in G.edges(data=True)
