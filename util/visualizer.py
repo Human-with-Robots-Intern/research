@@ -4,8 +4,7 @@ from anytree.exporter import UniqueDotExporter
 
 
 def visualize_tree(schedules):
-
-    UniqueDotExporter(schedules).to_picture("task_tree.png")
+    UniqueDotExporter(schedules).to_picture("results/task_tree.png")
 
 
 def visualize_graph(G):
@@ -40,5 +39,5 @@ def visualize_graph(G):
     )
 
     plt.title("Directed Acyclic Graph (DAG) with Edge Info")
-    plt.savefig("task_graph.png")
+    plt.savefig("results/task_graph.png")
     plt.show()

@@ -2,7 +2,7 @@ from typing import List
 
 import networkx as nx
 from anytree import Node
-from anytree.exporter import DotExporter
+from anytree.exporter import UniqueDotExporter
 
 from concept.agent import Agent
 from concept.task import Task, get_all_subtasks
@@ -41,7 +41,7 @@ class ExhaustivePlanner:
         min_makespan_leaf = min(leaf_paths, key=lambda leaf: leaf.makespan)
         min_makespan = min_makespan_leaf.makespan
         optimal_paths = [leaf for leaf in leaf_paths if leaf.makespan == min_makespan]
-        print()
+
         print(f"Number of ordered paths: {len(optimal_paths)}/{len(leaf_paths)}")
         print(f"Makespan: {min_makespan}")
 
@@ -64,8 +64,6 @@ class ExhaustivePlanner:
 
         # Create a filtered tree
         filtered_tree_root = filter_tree(self.subtask_tree.root)
-
-        # Visualize the filtered tree
-        DotExporter(filtered_tree_root).to_picture("optimal_paths_tree.png")
+        UniqueDotExporter(filtered_tree_root).to_picture("results/opt_task_tree.png")
 
         return self.subtask_tree

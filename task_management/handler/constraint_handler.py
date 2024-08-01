@@ -42,6 +42,10 @@ class ConstraintHandler:
     def validate_temporal_constraints(
         self, parent_node: Node, subtask: Subtask
     ) -> bool:
+
+        if subtask.name == "Setting Table":
+            pass
+
         constraints = self.gather_constraints(subtask.name)
 
         if not constraints:
@@ -52,6 +56,8 @@ class ConstraintHandler:
                 parent_node, constraint.target
             )
             if not tc_nodes:
+                return False
+            elif len(tc_nodes) != len(constraints):
                 return False
 
         return True

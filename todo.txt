@@ -1,5 +1,6 @@
-#TODO 1. Urgency Handling
- - Urgency에 대한 정의
+#TODO 복수의 Constraints에 대한 고려 
+
+#TODO 1. Urgency Handling 
 
 #TODO 2. 시각화
 

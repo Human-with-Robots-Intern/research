@@ -16,7 +16,7 @@ def parse_arguments():
         "-name",
         help="Select the Goal [all, laundry, cook, toast]",
         choices=["all", "laundry", "cook", "toast"],
-        default="laundry",
+        default="cook",
     )
     return parser.parse_args()
 
