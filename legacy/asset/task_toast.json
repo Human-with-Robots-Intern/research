@@ -4,7 +4,38 @@
         "Location": "Kitchen",
         "Subtasks": [
             {
-                "Subtask": "Washing Dish",
+                "Subtask": "Washing Dishes",
+                "Type": "Interaction",
+                "Decomposable": true,
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 20
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": null,
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ],
+                "Precondition": {
+                    "Asset": "Sink",
+                    "Object": [
+                        "Dirty Dish"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Clean Dish"
+                    ],
+                    "Del": [
+                        "Dirty Dish"
+                    ]
+                }
+            },
+            {
+                "Subtask": "Washing Dishes",
                 "Type": "Interaction",
                 "Decomposable": true,
                 "Duration": {

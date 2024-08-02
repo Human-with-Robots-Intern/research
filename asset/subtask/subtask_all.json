@@ -1,0 +1,419 @@
+[
+    {
+        "Subtask": "Gathering Steak",
+        "Type": "Interaction",
+        "Asset": "Refrigerator",
+        "Parameter": [
+            "Steak"
+        ],
+        "Precondition": "not (steak-readied)",
+        "Effect": {
+            "Add": "steak-readied",
+            "Del": null
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 5
+        },
+        "TemporalConstraints": []
+    },
+    {
+        "Subtask": "Turn on Stove",
+        "Type": "Interaction",
+        "Asset": "Stove",
+        "Parameter": [],
+        "Precondition": "not (stove-on)",
+        "Effect": {
+            "Add": "stove-on",
+            "Del": "stove-off"
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 1
+        },
+        "TemporalConstraints": []
+    },
+    {
+        "Subtask": "Turn off Stove",
+        "Type": "Interaction",
+        "Asset": "Stove",
+        "Parameter": [],
+        "Precondition": "stove-on",
+        "Effect": {
+            "Add": "stove-off",
+            "Del": "stove-on"
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 1
+        },
+        "TemporalConstraints": [
+            {
+                "Type": "After",
+                "Subtask": "Flipping Steak",
+                "Interval": 5,
+                "Urgency": true
+            }
+        ]
+    },
+    {
+        "Subtask": "Placing Steak",
+        "Type": "Interaction",
+        "Asset": "Stove",
+        "Parameter": [
+            "Steak",
+            "Pan"
+        ],
+        "Precondition": "stove-on",
+        "Effect": {
+            "Add": "steak-in-pan",
+            "Del": "steak-unplaced"
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 5
+        },
+        "TemporalConstraints": [
+            {
+                "Type": "After",
+                "Subtask": "Turn on Stove",
+                "Interval": 5,
+                "Urgency": true
+            }
+        ]
+    },
+    {
+        "Subtask": "Monitoring Steak",
+        "Type": "Monitoring",
+        "Asset": "Stove",
+        "Parameter": [
+            "Steak",
+            "Pan"
+        ],
+        "Precondition": "steak-in-pan",
+        "Effect": null,
+        "Duration": {
+            "Type": "Uncontrollable",
+            "Interval": 20
+        },
+        "TemporalConstraints": [
+            {
+                "Type": "After",
+                "Subtask": "Placing Steak",
+                "Interval": 0,
+                "Urgency": true
+            }
+        ]
+    },
+    {
+        "Subtask": "Flipping Steak",
+        "Type": "Interaction",
+        "Asset": "Stove",
+        "Parameter": [
+            "Steak",
+            "Pan"
+        ],
+        "Precondition": "steak-in-pan",
+        "Effect": {
+            "Add": "steak-is-flipped",
+            "Del": "steak-in-pan"
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 5
+        },
+        "TemporalConstraints": [
+            {
+                "Type": "After",
+                "Subtask": "Monitoring Steak",
+                "Interval": 0,
+                "Urgency": true
+            }
+        ]
+    },
+    {
+        "Subtask": "Setting Meal",
+        "Type": "Interaction",
+        "Asset": "Table",
+        "Parameter": [
+            "Steak",
+            "Toast"
+        ],
+        "Precondition": [
+            "steak-is-flipped",
+            "toast-is-toasted"
+        ],
+        "Effect": {
+            "Add": [
+                "table-set"
+            ],
+            "Del": [
+                "steak-is-flipped",
+                "toast-is-toasted"
+            ]
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 5
+        },
+        "TemporalConstraints": [
+            {
+                "Type": "After",
+                "Subtask": "Toast End",
+                "Interval": 0,
+                "Urgency": false
+            },
+            {
+                "Type": "After",
+                "Subtask": "Flipping Steak",
+                "Interval": 0,
+                "Urgency": false
+            }
+        ]
+    },
+    {
+        "Subtask": "Washing Dish",
+        "Type": "Interaction",
+        "Asset": "Sink",
+        "Parameter": [
+            "Dish"
+        ],
+        "Precondition": [
+            "dirty-dish"
+        ],
+        "Effect": {
+            "Add": [
+                "clean-dish"
+            ],
+            "Del": [
+                "dirty-dish"
+            ]
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 5
+        },
+        "TemporalConstraints": []
+    },
+    {
+        "Subtask": "Turn on Toaster",
+        "Type": "Interaction",
+        "Asset": "Toaster",
+        "Parameter": [
+            "Sliced-bread"
+        ],
+        "Precondition": [
+            "not (toaster-on)",
+            "bread-ready"
+        ],
+        "Effect": {
+            "Add": [
+                "toaster-on"
+            ],
+            "Del": [
+                "toaster-off"
+            ]
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 1
+        },
+        "TemporalConstraints": []
+    },
+    {
+        "Subtask": "Turn off Toaster",
+        "Type": "Interaction",
+        "Asset": "Toaster",
+        "Parameter": [
+            "Sliced-bread"
+        ],
+        "Precondition": [
+            "toaster-on"
+        ],
+        "Effect": {
+            "Add": [
+                "toaster-off"
+            ],
+            "Del": [
+                "toaster-on"
+            ]
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 1
+        },
+        "TemporalConstraints": [
+            {
+                "Type": "After",
+                "Subtask": "Turn on Toaster",
+                "Interval": 5,
+                "Urgency": true
+            }
+        ]
+    },
+    {
+        "Subtask": "Turn on Washing Machine",
+        "Type": "Interaction",
+        "Asset": "Washing Machine",
+        "Parameter": [
+            "Laundry"
+        ],
+        "Precondition": [
+            "laundry-loaded"
+        ],
+        "Effect": {
+            "Add": [
+                "washing-machine-on"
+            ],
+            "Del": [
+                "washing-machine-off"
+            ]
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 5
+        },
+        "TemporalConstraints": []
+    },
+    {
+        "Subtask": "Turn off Washing Machine",
+        "Type": "Interaction",
+        "Asset": "Washing Machine",
+        "Parameter": [
+            "Laundry"
+        ],
+        "Precondition": [
+            "washing-machine-on"
+        ],
+        "Effect": {
+            "Add": [
+                "washing-machine-off"
+            ],
+            "Del": [
+                "washing-machine-on"
+            ]
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 5
+        },
+        "TemporalConstraints": [
+            {
+                "Type": "After",
+                "Subtask": "Turn on Washing Machine",
+                "Interval": 45,
+                "Urgency": false
+            }
+        ]
+    },
+    {
+        "Subtask": "Turn on Dryer",
+        "Type": "Interaction",
+        "Asset": "Dryer",
+        "Parameter": [
+            "Laundry"
+        ],
+        "Precondition": [
+            "laundry-washed"
+        ],
+        "Effect": {
+            "Add": [
+                "dryer-on"
+            ],
+            "Del": [
+                "dryer-off"
+            ]
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 5
+        },
+        "TemporalConstraints": [
+            {
+                "Type": "After",
+                "Subtask": "Turn off Washing Machine",
+                "Interval": 0,
+                "Urgency": false
+            }
+        ]
+    },
+    {
+        "Subtask": "Turn off Dryer",
+        "Type": "Interaction",
+        "Asset": "Dryer",
+        "Parameter": [
+            "Laundry"
+        ],
+        "Precondition": [
+            "dryer-on"
+        ],
+        "Effect": {
+            "Add": [
+                "dryer-off"
+            ],
+            "Del": [
+                "dryer-on"
+            ]
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 5
+        },
+        "TemporalConstraints": [
+            {
+                "Type": "After",
+                "Subtask": "Turn on Dryer",
+                "Interval": 45,
+                "Urgency": false
+            }
+        ]
+    },
+    {
+        "Subtask": "Transfer Laundry",
+        "Type": "Interaction",
+        "Asset": "Laundry Room",
+        "Parameter": [
+            "Laundry"
+        ],
+        "Precondition": [
+            "laundry-dried"
+        ],
+        "Effect": {
+            "Add": [
+                "laundry-transferred"
+            ],
+            "Del": [
+                "laundry-in-dryer"
+            ]
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 5
+        },
+        "TemporalConstraints": []
+    },
+    {
+        "Subtask": "Fold Laundry",
+        "Type": "Interaction",
+        "Asset": "Living Room",
+        "Parameter": [
+            "Laundry"
+        ],
+        "Precondition": [
+            "laundry-transferred"
+        ],
+        "Effect": {
+            "Add": [
+                "laundry-folded"
+            ],
+            "Del": [
+                "laundry-unfolded"
+            ]
+        },
+        "Duration": {
+            "Type": "Controllable",
+            "Interval": 10
+        },
+        "TemporalConstraints": []
+    }
+]

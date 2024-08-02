@@ -1,0 +1,98 @@
+[
+    {
+        "Task": "Prepare Steak",
+        "Location": "Kitchen",
+        "Estimated Time": 10,
+        "Subtasks": [
+            "Gathering Steak"
+        ],
+        "Repeatable": true
+    },
+    {
+        "Task": "Stove",
+        "Location": "Kitchen",
+        "Estimated Time": 2,
+        "Subtasks": [
+            "Turn on Stove",
+            "Turn off Stove"
+        ],
+        "Repeatable": false
+    },
+    {
+        "Task": "Cook Steak",
+        "Location": "Kitchen",
+        "Estimated Time": 30,
+        "Subtasks": [
+            "Placing Steak",
+            "Monitoring Steak",
+            "Flipping Steak"
+        ],
+        "Repeatable": true
+    },
+    {
+        "Task": "Setting Table",
+        "Location": "Kitchen",
+        "Estimated Time": 10,
+        "Subtasks": [
+            "Setting Meal"
+        ],
+        "Repeatable": true
+    },
+    {
+        "Task": "Washing Dishes",
+        "Location": "Kitchen",
+        "Estimated Time": 20,
+        "Subtasks": [
+            "Washing Dish"
+        ],
+        "Repeatable": true
+    },
+    {
+        "Task": "Toast",
+        "Location": "Kitchen",
+        "Estimated Time": 2,
+        "Subtasks": [
+            "Turn on Toaster",
+            "Turn off Toaster"
+        ],
+        "Repeatable": false
+    },
+    {
+        "Task": "Washing",
+        "Location": "Restroom",
+        "Estimated Time": 10,
+        "Subtasks": [
+            "Turn on Washing Machine",
+            "Turn off Washing Machine"
+        ],
+        "Repeatable": false
+    },
+    {
+        "Task": "Drying",
+        "Location": "Restroom",
+        "Estimated Time": 10,
+        "Subtasks": [
+            "Turn on Dryer",
+            "Turn off Dryer"
+        ],
+        "Repeatable": false
+    },
+    {
+        "Task": "Transferring Laundry",
+        "Location": "Restroom",
+        "Estimated Time": 10,
+        "Subtasks": [
+            "Transfer Laundry"
+        ],
+        "Repeatable": true
+    },
+    {
+        "Task": "Folding Laundry",
+        "Location": "Living Room",
+        "Estimated Time": 30,
+        "Subtasks": [
+            "Fold Laundry"
+        ],
+        "Repeatable": true
+    }
+]
