@@ -1,4 +1,2 @@
 # Constants
 MIN_TIME = 5
-TRANSITION_TIME = 5
-LARGE_NUM = 1000

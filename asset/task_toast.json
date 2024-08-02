@@ -6,6 +6,7 @@
             {
                 "Subtask": "Washing Dishes",
                 "Type": "Interaction",
+                "Decomposable": true,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 10
@@ -19,11 +20,15 @@
                     }
                 ],
                 "Precondition": null,
-                "Effect": null
+                "Effect": {
+                    "Add": [],
+                    "Del": []
+                }
             },
             {
                 "Subtask": "Setting Table",
                 "Type": "Interaction",
+                "Decomposable": true,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 10
@@ -37,7 +42,10 @@
                     }
                 ],
                 "Precondition": null,
-                "Effect": null
+                "Effect": {
+                    "Add": [],
+                    "Del": []
+                }
             }
         ]
     },
@@ -48,6 +56,7 @@
             {
                 "Subtask": "Toast Start",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
@@ -61,11 +70,15 @@
                     }
                 ],
                 "Precondition": null,
-                "Effect": null
+                "Effect": {
+                    "Add": [],
+                    "Del": []
+                }
             },
             {
                 "Subtask": "Toast End",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
@@ -79,7 +92,10 @@
                     }
                 ],
                 "Precondition": null,
-                "Effect": null
+                "Effect": {
+                    "Add": [],
+                    "Del": []
+                }
             }
         ]
     }
