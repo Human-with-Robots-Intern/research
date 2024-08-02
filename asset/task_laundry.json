@@ -6,6 +6,7 @@
             {
                 "Subtask": "Laundry Start",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 5
@@ -18,12 +19,26 @@
                         "Urgency": false
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Washing Machine",
+                    "Object": [
+                        "Clothes Loaded",
+                        "Detergent Added"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Washing Started"
+                    ],
+                    "Del": [
+                        "Clothes Not Washed"
+                    ]
+                }
             },
             {
                 "Subtask": "Laundry End",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 5
@@ -36,8 +51,20 @@
                         "Urgency": false
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Washing Machine",
+                    "Object": [
+                        "Washing Started"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Clothes Washed"
+                    ],
+                    "Del": [
+                        "Washing Started"
+                    ]
+                }
             }
         ]
     },
@@ -48,6 +75,7 @@
             {
                 "Subtask": "Dryer Start",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 5
@@ -60,12 +88,25 @@
                         "Urgency": false
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Dryer",
+                    "Object": [
+                        "Clothes Washed"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Drying Started"
+                    ],
+                    "Del": [
+                        "Clothes Not Dried"
+                    ]
+                }
             },
             {
                 "Subtask": "Dryer End",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 5
@@ -78,8 +119,20 @@
                         "Urgency": false
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Dryer",
+                    "Object": [
+                        "Drying Started"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Clothes Dried"
+                    ],
+                    "Del": [
+                        "Drying Started"
+                    ]
+                }
             }
         ]
     },
@@ -90,6 +143,7 @@
             {
                 "Subtask": "Folding Laundry",
                 "Type": "Interaction",
+                "Decomposable": true,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 10
@@ -102,8 +156,20 @@
                         "Urgency": false
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Living Room",
+                    "Object": [
+                        "Clothes Dried"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Clothes Folded"
+                    ],
+                    "Del": [
+                        "Clothes Unfolded"
+                    ]
+                }
             }
         ]
     }

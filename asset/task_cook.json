@@ -6,6 +6,7 @@
             {
                 "Subtask": "Turn on Stove",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 5
@@ -18,12 +19,25 @@
                         "Urgency": false
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Stove",
+                    "Object": [
+                        "Stove Off"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Stove On"
+                    ],
+                    "Del": [
+                        "Stove Off"
+                    ]
+                }
             },
             {
                 "Subtask": "Placing Steak",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 5
@@ -36,12 +50,25 @@
                         "Urgency": true
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Pan",
+                    "Object": [
+                        "Steak Unplaced"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Steak In Pan"
+                    ],
+                    "Del": [
+                        "Steak Unplaced"
+                    ]
+                }
             },
             {
                 "Subtask": "Monitoring Steak",
                 "Type": "Monitoring",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 20
@@ -54,12 +81,25 @@
                         "Urgency": true
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Steak",
+                    "Object": [
+                        "Steak In Pan"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Steak Cooked Side One"
+                    ],
+                    "Del": [
+                        "Steak In Pan"
+                    ]
+                }
             },
             {
                 "Subtask": "Flipping Steak",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 5
@@ -72,26 +112,51 @@
                         "Urgency": true
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Steak",
+                    "Object": [
+                        "Steak Cooked Side One"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Steak Flipped"
+                    ],
+                    "Del": [
+                        "Steak Cooked Side One"
+                    ]
+                }
             },
             {
                 "Subtask": "Seasoning Steak",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 5
                 },
                 "TemporalConstraints": [
                     {
-                        "Type": null,
-                        "Subtask": null,
-                        "Interval": 0,
-                        "Urgency": false
+                        "Type": "After",
+                        "Subtask": "Flipping Steak",
+                        "Interval": 5,
+                        "Urgency": true
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Steak",
+                    "Object": [
+                        "Steak Flipped"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Steak Seasoned"
+                    ],
+                    "Del": [
+                        "Steak Flipped"
+                    ]
+                }
             }
         ]
     },
@@ -102,6 +167,7 @@
             {
                 "Subtask": "Washing Dishes",
                 "Type": "Interaction",
+                "Decomposable": true,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 10
@@ -114,12 +180,25 @@
                         "Urgency": false
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Sink",
+                    "Object": [
+                        "Dirty Dishes"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Clean Dishes"
+                    ],
+                    "Del": [
+                        "Dirty Dishes"
+                    ]
+                }
             },
             {
                 "Subtask": "Setting Table",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 10
@@ -144,8 +223,20 @@
                         "Urgency": false
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Table",
+                    "Object": [
+                        "Clean Dishes"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Table Set"
+                    ],
+                    "Del": [
+                        "Table Empty"
+                    ]
+                }
             }
         ]
     },
@@ -156,6 +247,7 @@
             {
                 "Subtask": "Toast Start",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
@@ -168,12 +260,25 @@
                         "Urgency": false
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Toaster",
+                    "Object": [
+                        "Sliced Bread"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Toasting Bread"
+                    ],
+                    "Del": [
+                        "Sliced Bread"
+                    ]
+                }
             },
             {
                 "Subtask": "Toast End",
                 "Type": "Interaction",
+                "Decomposable": false,
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
@@ -186,8 +291,20 @@
                         "Urgency": true
                     }
                 ],
-                "Precondition": null,
-                "Effect": null
+                "Precondition": {
+                    "Asset": "Toaster",
+                    "Object": [
+                        "Toasting Bread"
+                    ]
+                },
+                "Effect": {
+                    "Add": [
+                        "Toasted Bread"
+                    ],
+                    "Del": [
+                        "Toasting Bread"
+                    ]
+                }
             }
         ]
     }

@@ -4,12 +4,12 @@
         "Location": "Kitchen",
         "Subtasks": [
             {
-                "Subtask": "Washing Dishes",
+                "Subtask": "Washing Dish",
                 "Type": "Interaction",
                 "Decomposable": true,
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 10
+                    "Interval": 20
                 },
                 "TemporalConstraints": [
                     {
@@ -19,32 +19,19 @@
                         "Urgency": false
                     }
                 ],
-                "Precondition": null,
-                "Effect": {
-                    "Add": [],
-                    "Del": []
-                }
-            },
-            {
-                "Subtask": "Setting Table",
-                "Type": "Interaction",
-                "Decomposable": true,
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 10
+                "Precondition": {
+                    "Asset": "Sink",
+                    "Object": [
+                        "Dirty Dish"
+                    ]
                 },
-                "TemporalConstraints": [
-                    {
-                        "Type": "After",
-                        "Subtask": null,
-                        "Interval": 0,
-                        "Urgency": false
-                    }
-                ],
-                "Precondition": null,
                 "Effect": {
-                    "Add": [],
-                    "Del": []
+                    "Add": [
+                        "Clean Dish"
+                    ],
+                    "Del": [
+                        "Dirty Dish"
+                    ]
                 }
             }
         ]
@@ -69,10 +56,19 @@
                         "Urgency": false
                     }
                 ],
-                "Precondition": null,
+                "Precondition": {
+                    "Asset": "Toaster",
+                    "Object": [
+                        "Sliced Bread"
+                    ]
+                },
                 "Effect": {
-                    "Add": [],
-                    "Del": []
+                    "Add": [
+                        "Toasting Bread"
+                    ],
+                    "Del": [
+                        "Sliced Bread"
+                    ]
                 }
             },
             {
@@ -91,10 +87,19 @@
                         "Urgency": true
                     }
                 ],
-                "Precondition": null,
+                "Precondition": {
+                    "Asset": "Toaster",
+                    "Object": [
+                        "Toasting Bread"
+                    ]
+                },
                 "Effect": {
-                    "Add": [],
-                    "Del": []
+                    "Add": [
+                        "Toasted Bread"
+                    ],
+                    "Del": [
+                        "Toasting Bread"
+                    ]
                 }
             }
         ]

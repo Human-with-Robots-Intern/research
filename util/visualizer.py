@@ -14,9 +14,15 @@ def visualize_graph(G):
     color_map = {
         "Monitoring": "pink",
         "Interaction": "lightblue",
-        "Type C": "green",
     }
+    for node in G.nodes:
+        try:
+            print(G.nodes[node]["subtask_type"])
+        except Exception:
+            print(node)
+
     node_colors = [color_map[G.nodes[node]["subtask_type"]] for node in G.nodes]
+
     edge_colors = [
         "red" if data["info"]["Urgency"] else "blue"
         for _, _, data in G.edges(data=True)
