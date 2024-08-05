@@ -70,8 +70,8 @@
             },
             {
                 "Name": "Fold Laundry",
-                "Estimated Time": 25,
-                "Iterations": 1
+                "Estimated Time": 5,
+                "Iterations": 5
             }
         ]
     }

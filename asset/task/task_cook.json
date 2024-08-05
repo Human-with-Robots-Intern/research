@@ -42,9 +42,9 @@
         "Estimated Time": 10,
         "Subtasks": [
             {
-                "Name": "Setting Steak",
-                "Estimated Time": 10,
-                "Iterations": 1
+                "Name": "Setting Table",
+                "Estimated Time": 5,
+                "Iterations": 2
             }
         ]
     },
