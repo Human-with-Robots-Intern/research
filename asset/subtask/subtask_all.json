@@ -6,10 +6,14 @@
         "Parameter": [
             "Steak"
         ],
-        "Precondition": "not (steak-readied)",
+        "Precondition": [
+            "not (steak-readied)"
+        ],
         "Effect": {
-            "Add": "steak-readied",
-            "Del": null
+            "Add": [
+                "steak-readied"
+            ],
+            "Del": []
         },
         "Duration": {
             "Type": "Controllable",
@@ -22,10 +26,16 @@
         "Type": "Interaction",
         "Asset": "Stove",
         "Parameter": [],
-        "Precondition": "not (stove-on)",
+        "Precondition": [
+            "not (stove-on)"
+        ],
         "Effect": {
-            "Add": "stove-on",
-            "Del": "stove-off"
+            "Add": [
+                "stove-on"
+            ],
+            "Del": [
+                "stove-off"
+            ]
         },
         "Duration": {
             "Type": "Controllable",
@@ -38,10 +48,16 @@
         "Type": "Interaction",
         "Asset": "Stove",
         "Parameter": [],
-        "Precondition": "stove-on",
+        "Precondition": [
+            "stove-on"
+        ],
         "Effect": {
-            "Add": "stove-off",
-            "Del": "stove-on"
+            "Add": [
+                "stove-off"
+            ],
+            "Del": [
+                "stove-on"
+            ]
         },
         "Duration": {
             "Type": "Controllable",
@@ -64,10 +80,16 @@
             "Steak",
             "Pan"
         ],
-        "Precondition": "stove-on",
+        "Precondition": [
+            "stove-on"
+        ],
         "Effect": {
-            "Add": "steak-in-pan",
-            "Del": "steak-unplaced"
+            "Add": [
+                "steak-in-pan"
+            ],
+            "Del": [
+                "steak-unplaced"
+            ]
         },
         "Duration": {
             "Type": "Controllable",
@@ -90,8 +112,13 @@
             "Steak",
             "Pan"
         ],
-        "Precondition": "steak-in-pan",
-        "Effect": null,
+        "Precondition": [
+            "steak-in-pan"
+        ],
+        "Effect": {
+            "Add": [],
+            "Del": []
+        },
         "Duration": {
             "Type": "Uncontrollable",
             "Interval": 20
@@ -113,10 +140,16 @@
             "Steak",
             "Pan"
         ],
-        "Precondition": "steak-in-pan",
+        "Precondition": [
+            "steak-in-pan"
+        ],
         "Effect": {
-            "Add": "steak-is-flipped",
-            "Del": "steak-in-pan"
+            "Add": [
+                "steak-is-flipped"
+            ],
+            "Del": [
+                "steak-in-pan"
+            ]
         },
         "Duration": {
             "Type": "Controllable",

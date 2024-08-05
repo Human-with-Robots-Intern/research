@@ -1,10 +1,8 @@
-#TODO Chunk 단위로 Decomposable task 추가 
+#TODO 올바른 Task, Subtask, Action에 대한 구조 잡기 
+    - 반복 가능성에 대한 고민...
 
 #TODO 1. Urgency Handling 
-    - Wait 있으면, Wait 작업 넣기 전에 Duration 조정하기
-    - Wait가 없어도, 
 
-#TODO 2. 시각화
+#TODO 2. Parallel Handling
 
-#TODO 3. 병렬
-- 병렬에 대한 정의
+#TODO 3. Schedule 시각화
