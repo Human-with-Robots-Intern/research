@@ -89,7 +89,7 @@
                 "Type": "After",
                 "Subtask": "Turn on Washing Machine",
                 "Interval": 50,
-                "Urgency": true
+                "Urgency": false
             }
         ],
         "Actions": [
@@ -159,7 +159,7 @@
                 "Type": "After",
                 "Subtask": "Load Laundry",
                 "Interval": 0,
-                "Urgency": true
+                "Urgency": false
             }
         ],
         "Actions": [
@@ -193,7 +193,7 @@
                 "Type": "After",
                 "Subtask": "Turn on Dryer",
                 "Interval": 50,
-                "Urgency": true
+                "Urgency": false
             }
         ],
         "Actions": [

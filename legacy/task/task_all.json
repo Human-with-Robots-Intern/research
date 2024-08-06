@@ -1,0 +1,84 @@
+[
+    {
+        "Task": "Cook Steak",
+        "Location": "Kitchen",
+        "Estimated Time": 40,
+        "Subtasks": [
+            "Gathering Steak",
+            "Turn on Stove",
+            "Placing Steak",
+            "Monitoring Steak",
+            "Flipping Steak",
+            "Turn off Stove"
+        ]
+    },
+    {
+        "Task": "Setting Table",
+        "Location": "Kitchen",
+        "Estimated Time": 10,
+        "Subtasks": [
+            "Setting Meal"
+        ]
+    },
+    {
+        "Task": "Washing Dishes",
+        "Location": "Kitchen",
+        "Estimated Time": 20,
+        "Subtasks": [
+            "Washing Dish"
+        ]
+    },
+    {
+        "Task": "Toast",
+        "Location": "Kitchen",
+        "Estimated Time": 2,
+        "Subtasks": [
+            "Turn on Toaster",
+            "Turn off Toaster"
+        ]
+    },
+    {
+        "Task": "Washing",
+        "Location": "Restroom",
+        "Estimated Time": 60,
+        "Subtasks": [
+            "Load Laundry",
+            "Turn on Washing Machine",
+            "Turn off Washing Machine"
+        ]
+    },
+    {
+        "Task": "Drying",
+        "Location": "Restroom",
+        "Estimated Time": 60,
+        "Subtasks": [
+            "Load Laundry",
+            "Turn on Dryer",
+            "Turn off Dryer"
+        ]
+    },
+    {
+        "Task": "Transferring Laundry",
+        "Location": "Restroom",
+        "Estimated Time": 10,
+        "Subtasks": [
+            "Transfer Laundry"
+        ]
+    },
+    {
+        "Task": "Gathering Laundry",
+        "Location": "Living Room",
+        "Estimated Time": 10,
+        "Subtasks": [
+            "Gather Laundry"
+        ]
+    },
+    {
+        "Task": "Folding Laundry",
+        "Location": "Living Room",
+        "Estimated Time": 30,
+        "Subtasks": [
+            "Fold Laundry"
+        ]
+    }
+]

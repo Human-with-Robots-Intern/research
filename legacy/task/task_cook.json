@@ -2,49 +2,49 @@
     {
         "Task": "Cook Steak",
         "Location": "Kitchen",
-        "Estimated Time": 40,
+        "Estimated Time": 45,
         "Subtasks": [
             {
                 "Name": "Gathering Steak",
                 "Estimated Time": 5,
-                "Iterations": 1
+                "Decomposable": false
             },
             {
                 "Name": "Turn on Stove",
                 "Estimated Time": 2,
-                "Iterations": 1
+                "Decomposable": false
             },
             {
                 "Name": "Placing Steak",
                 "Estimated Time": 3,
-                "Iterations": 1
+                "Decomposable": false
             },
             {
                 "Name": "Monitoring Steak",
                 "Estimated Time": 20,
-                "Iterations": 1
+                "Decomposable": true
             },
             {
                 "Name": "Flipping Steak",
                 "Estimated Time": 5,
-                "Iterations": 1
+                "Decomposable": false
             },
             {
                 "Name": "Turn off Stove",
                 "Estimated Time": 2,
-                "Iterations": 1
+                "Decomposable": false
             }
         ]
     },
     {
         "Task": "Setting Table",
         "Location": "Kitchen",
-        "Estimated Time": 10,
+        "Estimated Time": 5,
         "Subtasks": [
             {
-                "Name": "Setting Table",
+                "Name": "Setting Steak",
                 "Estimated Time": 5,
-                "Iterations": 2
+                "Decomposable": false
             }
         ]
     },
@@ -55,8 +55,8 @@
         "Subtasks": [
             {
                 "Name": "Washing Dish",
-                "Estimated Time": 5,
-                "Iterations": 4
+                "Estimated Time": 20,
+                "Decomposable": true
             }
         ]
     }

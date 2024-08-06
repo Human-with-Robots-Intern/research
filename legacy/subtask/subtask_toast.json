@@ -1,12 +1,11 @@
 [
     {
-        "Subtask": "Setting Meal",
-        "ID": 1,
+        "Subtask": "Setting Toast",
         "Type": "Interaction",
         "Asset": "Table",
         "Parameter": [
             "Plate",
-            "Cutlery",
+            "Toast",
             "Glass"
         ],
         "Precondition": [
@@ -34,7 +33,6 @@
     },
     {
         "Subtask": "Washing Dish",
-        "ID": 2,
         "Type": "Interaction",
         "Asset": "Sink",
         "Parameter": [
@@ -67,7 +65,6 @@
     },
     {
         "Subtask": "Turn on Toaster",
-        "ID": 3,
         "Type": "Interaction",
         "Asset": "Toaster",
         "Parameter": [
@@ -98,7 +95,6 @@
     },
     {
         "Subtask": "Turn off Toaster",
-        "ID": 4,
         "Type": "Interaction",
         "Asset": "Toaster",
         "Parameter": [
@@ -125,7 +121,7 @@
             {
                 "Type": "After",
                 "Subtask": "Turn on Toaster",
-                "Interval": 1,
+                "Interval": 5,
                 "Urgency": true
             }
         ],

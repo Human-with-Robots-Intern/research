@@ -1,0 +1,109 @@
+[
+    {
+        "Task": "Setting Table",
+        "Subtasks": [
+            {
+                "Subtask": "Setting Toast",
+                "Type": "Interaction",
+                "Room": "Kitchen",
+                "Asset": "Table",
+                "Objects": {
+                    "Toast": 4
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 4,
+                    "Interval": 1,
+                    "Actions": [
+                        "find toast",
+                        "putin toast table"
+                    ]
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Washing Dishes",
+        "Subtasks": [
+            {
+                "Subtask": "Washing Dish",
+                "Type": "Interaction",
+                "Room": "Kitchen",
+                "Asset": "Sink",
+                "Objects": {
+                    "Dish": 10
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 20
+                },
+                "Decomposition": {
+                    "Repetition": 10,
+                    "Interval": 2,
+                    "Actions": [
+                        "grab dish",
+                        "putin dish sink",
+                        "grab sponge",
+                        "putin sponge dish",
+                        "putback dish rack"
+                    ]
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Toast",
+        "Subtasks": [
+            {
+                "Subtask": "Turn on Toaster",
+                "Type": "Interaction",
+                "Room": "Kitchen",
+                "Asset": "Toaster",
+                "Objects": {},
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 1,
+                    "Actions": [
+                        "switch_on toaster"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Turn off Toaster",
+                "Type": "Interaction",
+                "Room": "Kitchen",
+                "Asset": "Toaster",
+                "Objects": {},
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 1,
+                    "Actions": [
+                        "switch_off toaster"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn on Toaster",
+                        "Interval": 5,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    }
+]

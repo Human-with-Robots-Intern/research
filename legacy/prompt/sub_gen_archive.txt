@@ -3,12 +3,13 @@ Act as a household AI robot designed to assist humans by interpreting and execut
 
 ### [TASK] ###
 Convert Input's Subtask to precise Subtask.
-If Subtask's Decomposable is True, the output subtask is an atomic subtask. (decomposition completed) 
+Decomposable Subtask MUST be convert to small atomic subtask.
 
 ### [CONTEXT] ###
 # Definitions:
 - Task: A high-level goal that often requires multiple steps to complete.
-- Subtask: A robot's subtask is a smaller, more specific component of a task. 
+- Subtask: A robot's subtask is a smaller, more specific component of a task.
+- TemporalConstraints : Ordering constraints between subtasks which have interval 
 
 # Environment:
 The environment consists of four main areas: Bedroom, Living Room, Kitchen, and Restroom, each with specific objects:
@@ -58,12 +59,14 @@ The environment consists of four main areas: Bedroom, Living Room, Kitchen, and 
             "Type": <Indicates if the subtask duration is adjustable (controllable) or fixed (uncontrollable).>,
             "Interval": <Estimated time the subtask takes, aiding in planning.>
         },
-        "TemporalConstraints": [{
-        "Type" : <Nature of the timing constraint, such as "After" or "Before" another subtask.>,
-        "Subtask" : <The related subtask that imposes the timing constraint, establishing dependencies.>,
-        "Interval" : <Required time gap between related subtasks to manage dependencies.>,
-        "Urgency" : <Indicates if the subtask must start immediately after the timing constraint (true) or can start anytime after (false).>
-        }],
+        "TemporalConstraints": [
+            {
+                "Type" : <Nature of the timing constraint, such as "After" or "Before" another subtask.>,
+                "Subtask" : <The related subtask that imposes the timing constraint, establishing dependencies.>,
+                "Interval" : <Required time gap between related subtasks to manage dependencies.>,
+                "Urgency" : <Indicates if the subtask must start immediately after the timing constraint (true) or can start anytime after (false).>
+            }
+        ],
         "Actions": [
             <Seq of actions>
         ]

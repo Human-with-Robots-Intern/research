@@ -1,0 +1,231 @@
+[
+    {
+        "Task": "Cook Steak",
+        "Subtasks": [
+            {
+                "Subtask": "Gathering Steak",
+                "Type": "Interaction",
+                "Room": "Kitchen",
+                "Asset": "Refrigerator",
+                "Objects": {
+                    "Steak": 1
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 5,
+                    "Actions": [
+                        "find Steak",
+                        "grab Steak"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Turn on Stove",
+                "Type": "Interaction",
+                "Room": "Kitchen",
+                "Asset": "Stove",
+                "Objects": {},
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 2,
+                    "Actions": [
+                        "switch_on Stove"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Gathering Steak",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Subtask": "Placing Steak",
+                "Type": "Interaction",
+                "Room": "Kitchen",
+                "Asset": "Pan",
+                "Objects": {
+                    "Steak": 1
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 3,
+                    "Actions": [
+                        "putin Steak Pan"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn on Stove",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Subtask": "Monitoring Steak",
+                "Type": "Monitoring",
+                "Room": "Kitchen",
+                "Asset": "Pan",
+                "Objects": {},
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 20
+                },
+                "Decomposition": {
+                    "Repetition": 4,
+                    "Interval": 5,
+                    "Actions": [
+                        "find Steak"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Placing Steak",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Subtask": "Flipping Steak",
+                "Type": "Interaction",
+                "Room": "Kitchen",
+                "Asset": "Pan",
+                "Objects": {
+                    "Spatula": 1
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 5,
+                    "Actions": [
+                        "grab Spatula",
+                        "putin Spatula Steak",
+                        "putback Spatula Pan"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Monitoring Steak",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Turn off Stove",
+                "Type": "Interaction",
+                "Room": "Kitchen",
+                "Asset": "Stove",
+                "Objects": {},
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 2,
+                    "Actions": [
+                        "switch_off Stove"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Flipping Steak",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "Task": "Setting Table",
+        "Subtasks": [
+            {
+                "Subtask": "Setting Steak",
+                "Type": "Interaction",
+                "Room": "Kitchen",
+                "Asset": "Table",
+                "Objects": {
+                    "Steak": 1
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 5,
+                    "Actions": [
+                        "find Steak",
+                        "putin Steak Table"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Cook Steak",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "Task": "Washing Dishes",
+        "Subtasks": [
+            {
+                "Subtask": "Washing Dish",
+                "Type": "Interaction",
+                "Room": "Kitchen",
+                "Asset": "Sink",
+                "Objects": {
+                    "Dish": 5,
+                    "Sponge": 1,
+                    "Dish Soap": 1
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 20
+                },
+                "Decomposition": {
+                    "Repetition": 5,
+                    "Interval": 4,
+                    "Actions": [
+                        "grab Dish",
+                        "grab Sponge",
+                        "putin Dish Soap Sponge",
+                        "putin Sponge Dish",
+                        "putback Dish Rack"
+                    ]
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]

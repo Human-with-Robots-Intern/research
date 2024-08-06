@@ -2,12 +2,12 @@
     {
         "Task": "Setting Table",
         "Location": "Kitchen",
-        "Estimated Time": 10,
+        "Estimated Time": 5,
         "Subtasks": [
             {
-                "Name": "Setting Table",
+                "Name": "Setting Toast",
                 "Estimated Time": 5,
-                "Iterations": 2
+                "Decomposable": false
             }
         ]
     },
@@ -18,25 +18,25 @@
         "Subtasks": [
             {
                 "Name": "Washing Dish",
-                "Estimated Time": 5,
-                "Iterations": 4
+                "Estimated Time": 20,
+                "Decomposable": true
             }
         ]
     },
     {
         "Task": "Toast",
         "Location": "Kitchen",
-        "Estimated Time": 10,
+        "Estimated Time": "7",
         "Subtasks": [
             {
                 "Name": "Turn on Toaster",
                 "Estimated Time": 1,
-                "Iterations": 1
+                "Decomposable": false
             },
             {
                 "Name": "Turn off Toaster",
                 "Estimated Time": 1,
-                "Iterations": 1
+                "Decomposable": false
             }
         ]
     }
