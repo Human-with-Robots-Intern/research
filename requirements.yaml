@@ -12,9 +12,9 @@ dependencies:
   - brotli=1.1.0=hd590300_1
   - brotli-bin=1.1.0=hd590300_1
   - bzip2=1.0.8=hd590300_5
-  - ca-certificates=2024.6.2=hbcca054_0
+  - ca-certificates=2024.7.4=hbcca054_0
   - cairo=1.18.0=h3faef2a_0
-  - certifi=2024.6.2=pyhd8ed1ab_0
+  - certifi=2024.7.4=pyhd8ed1ab_0
   - coin-or-cbc=2.10.10=h9002f0b_0
   - coin-or-cgl=0.60.7=h516709c_0
   - coin-or-clp=1.17.8=h1ee7a9c_0
@@ -125,11 +125,12 @@ dependencies:
   - mysql-libs=8.3.0=hca2cd23_4
   - ncurses=6.5=h59595ed_0
   - nest-asyncio=1.6.0=pyhd8ed1ab_0
+  - networkx=3.3=pyhd8ed1ab_1
   - nspr=4.35=h27087fc_0
   - nss=3.100=hca3bf56_0
   - numpy=1.26.4=py311h64a7726_0
   - openjpeg=2.5.2=h488ebb8_0
-  - openssl=3.3.1=h4ab18f5_0
+  - openssl=3.3.1=h4bc722e_2
   - packaging=24.0=pyhd8ed1ab_0
   - pandas=2.2.2=py311h14de704_1
   - parso=0.8.4=pyhd8ed1ab_0

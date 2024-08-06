@@ -48,6 +48,7 @@ def main():
     visualize_graph(constraints)
 
     env = Env()
+
     env.gen_dummy()
 
     agent = Agent("Waiting", "Living Room", env)

@@ -63,12 +63,12 @@ class TreeBuilder:
                 parent_node, subtask, wait_time, makespan
             )
 
-        makespan += subtask.duration
+        makespan += subtask.duration.interval
         child_node = Node(
             subtask.name,
             parent=parent_node,
             makespan=makespan,
-            location=subtask.location,
+            location=subtask.roi.room,
         )
 
         self._expand_tree(child_node, remaining_subtasks)

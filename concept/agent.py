@@ -10,8 +10,8 @@ class Agent:
             location (str): current_location
         """
         self.status = status
-        self.location = self.normalize_location(location)
         self.env = env
+        self.location = self.normalize_location(location)
         self.trajectory = [
             self.location
         ]  # Initialize trajectory with starting location
