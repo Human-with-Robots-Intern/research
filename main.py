@@ -5,7 +5,7 @@ import os
 from concept.agent import Agent
 from concept.env import Env
 from concept.task import Task, parse_constraints, parse_tasks
-from task_management.handler.subtask_decomposer import BatchDecomposer
+from task_management.handler.subtask_decomposer import SubtaskDecomposer
 from task_management.planner.exhaustive_planner import ExhaustivePlanner
 from task_management.scheduler.exhaustive_scheduler import ExhaustiveScheduler
 from util.visualizer import visualize_graph, visualize_tree
@@ -38,10 +38,11 @@ def load_tasks_and_constraints(task_name):
 
     tasks = parse_tasks(task_data)
     # Decompose tasks into batches
-    batch_decomposer = BatchDecomposer(batch_size=3)
+    batch_decomposer = SubtaskDecomposer(batch_duration=5)
     decomposed_tasks = [
         Task(task.name, batch_decomposer.decompose(task)) for task in tasks
     ]
+    print(decomposed_tasks)
 
     # Parse constraints using decomposed tasks
     constraints = parse_constraints(decomposed_tasks)

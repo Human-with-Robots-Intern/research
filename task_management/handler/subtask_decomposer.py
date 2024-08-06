@@ -3,21 +3,20 @@ from typing import List
 from concept.task import Subtask, Task
 
 
-class BatchDecomposer:
-    def __init__(self, batch_size: int):
-        self.batch_size = batch_size
+class SubtaskDecomposer:
+    def __init__(self, batch_duration: int):
+        self.batch_duration = batch_duration
 
     def decompose(self, task: Task) -> List[Subtask]:
         new_subtasks = []
         for subtask in task.subtasks:
-            if subtask.type == "Interaction":
+            if subtask.decomposition.repetition > 1:
                 batched_subtasks = self._decompose_interaction(subtask)
                 new_subtasks.extend(batched_subtasks)
-            else:
-                new_subtasks.append(subtask)
         return new_subtasks
 
     def _decompose_interaction(self, subtask: Subtask) -> List[Subtask]:
+        """Subtask의 Repetition, Batch_duration을 고려하여 Task를 분할"""
         repetitions = subtask.decomposition.repetition
         intervals = subtask.decomposition.interval
         actions = subtask.decomposition.actions
@@ -27,25 +26,25 @@ class BatchDecomposer:
         batch_index = 1
 
         while current_repetition < repetitions:
-            batch_repetitions = min(self.batch_size, repetitions - current_repetition)
-            batch_name = f"{subtask.name}_batch_{batch_index}"
+            batch_repetitions = repetitions - current_repetition
+            batch_name = f"{subtask.name}_{batch_index}"
 
             # Check if the batch is the first one for urgency constraint adjustment
-            urgency_constraint = False
-            for constraint in subtask.temporal_constraints:
-                if constraint.urgency is False:
-                    urgency_constraint = True
-                    break
+            # urgency_constraint = False
+            # for constraint in subtask.temporal_constraints:
+            #     if constraint.urgency is False:
+            #         urgency_constraint = True
+            #         break
 
-            new_temporal_constraints = [
-                Subtask.TemporalConstraint(
-                    constraint_type=constraint.type,
-                    subtask=constraint.subtask,
-                    interval=constraint.interval,
-                    urgency=(constraint.urgency if not urgency_constraint else True),
-                )
-                for constraint in subtask.temporal_constraints
-            ]
+            # new_temporal_constraints = [
+            #     Subtask.TemporalConstraint(
+            #         constraint_type=constraint.type,
+            #         subtask=constraint.subtask,
+            #         interval=constraint.interval,
+            #         urgency=(constraint.urgency if not urgency_constraint else True),
+            #     )
+            #     for constraint in subtask.temporal_constraints
+            # ]
 
             batched_subtasks.append(
                 Subtask(
@@ -57,7 +56,7 @@ class BatchDecomposer:
                         interval=intervals * batch_repetitions,
                     ),
                     decomposition=Subtask.Decomposition(
-                        repetition=batch_repetitions,
+                        repetition=1,
                         interval=intervals,
                         actions=actions,
                     ),
