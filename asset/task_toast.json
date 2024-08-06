@@ -8,14 +8,14 @@
                 "Room": "Kitchen",
                 "Asset": "Table",
                 "Objects": {
-                    "Toast": 4
+                    "Toast": 5
                 },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 5
                 },
                 "Decomposition": {
-                    "Repetition": 4,
+                    "Repetition": 5,
                     "Interval": 1,
                     "Actions": [
                         "find toast",

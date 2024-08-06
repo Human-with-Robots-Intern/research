@@ -5,53 +5,63 @@ from matplotlib import pyplot as plt
 
 
 class Subtask:
+    class Duration:
+        def __init__(self, duration_type: str, interval: int):
+            self.type = duration_type
+            self.interval = interval
+
+        def __repr__(self):
+            return f"Duration(type={self.type}, interval={self.interval})"
+
+    class Decomposition:
+        def __init__(self, repetition: int, interval: int, actions: list):
+            self.repetition = repetition
+            self.interval = interval
+            self.actions = actions
+
+        def __repr__(self):
+            return (
+                f"Decomposition(repetition={self.repetition}, "
+                f"interval={self.interval}, actions={self.actions})"
+            )
+
+    class RoI:
+        def __init__(self, room, asset, objects) -> None:
+            self.room = room
+            self.asset = asset
+            self.objects = objects
+
+        def __repr__(self) -> str:
+            return f"RoI(room={self.room}, asset={self.asset}, objects={self.objects})"
+
     def __init__(
         self,
-        task_name: str,
-        task_location: str,
         name: str,
-        subtask_type: str,
-        duration: int,
+        type: str,
+        roi: RoI,
+        duration: Duration,
+        decomposition: Decomposition,
     ):
-        """
-        Subtask constructor
-
-        Args:
-            task_name (str): The name of the main task
-            task_location (str): The location of the task
-            name (str): The name of the subtask
-            subtask_type (str): Type of the subtask (Interaction / Monitoring)
-            duration (int): Time cost to complete the subtask
-        """
-        self.task_name = task_name
-        self.location = task_location
         self.name = name
-        self.type = subtask_type
+        self.type = type
+        self.roi = roi
         self.duration = duration
+        self.decomposition = decomposition
 
     def __repr__(self):
         return f"Subtask({self.name} (duration={self.duration}))"
 
 
 class Task:
-    def __init__(self, name: str, location: str, subtasks: List[Tuple[str, str, int]]):
-        """
-        Task constructor
-
-        Args:
-            name (str): Task name
-            location (str): Task location (Kitchen, Living Room, Restroom, Bedroom)
-            subtasks (list[tuple]): List of subtasks (name, type, duration)
-        """
+    def __init__(self, name: str, subtasks: List[Subtask]):
         self.name = name
-        self.location = location
-        self.subtasks = [Subtask(name, location, *subtask) for subtask in subtasks]
+        self.subtasks = subtasks
 
     def __repr__(self):
-        return f"Task(name={self.name}, location={self.location}, subtasks={self.subtasks})"
+        return f"Task(name={self.name}, subtasks={self.subtasks})"
 
     def get_total_seq_duration(self) -> int:
-        return sum(subtask.duration for subtask in self.subtasks)
+        return sum(subtask.duration.interval for subtask in self.subtasks)
 
 
 def get_all_subtasks(tasks: List[Task]) -> List[Subtask]:
@@ -62,12 +72,36 @@ def parse_tasks(data: List[Dict]) -> List[Task]:
     tasks = []
     for task in data:
         task_name = task["Task"]
-        location = task["Location"]
-        subtasks = [
-            (sub["Subtask"], sub["Type"], sub["Duration"]["Interval"])
-            for sub in task["Subtasks"]
-        ]
-        tasks.append(Task(task_name, location, subtasks))
+        subtasks = []
+
+        for subtask_data in task["Subtasks"]:
+            subtask_name = subtask_data["Subtask"]
+            subtask_type = subtask_data["Type"]
+            roi = Subtask.RoI(
+                room=subtask_data["Room"],
+                asset=subtask_data["Asset"],
+                objects=subtask_data["Objects"],
+            )
+            duration = Subtask.Duration(
+                duration_type=subtask_data["Duration"]["Type"],
+                interval=subtask_data["Duration"]["Interval"],
+            )
+            decomposition = Subtask.Decomposition(
+                repetition=subtask_data["Decomposition"]["Repetition"],
+                interval=subtask_data["Decomposition"]["Interval"],
+                actions=subtask_data["Decomposition"]["Actions"],
+            )
+            subtask = Subtask(
+                name=subtask_name,
+                type=subtask_type,
+                roi=roi,
+                duration=duration,
+                decomposition=decomposition,
+            )
+            subtasks.append(subtask)
+
+        tasks.append(Task(name=task_name, subtasks=subtasks))
+
     return tasks
 
 

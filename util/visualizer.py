@@ -15,11 +15,6 @@ def visualize_graph(G):
         "Monitoring": "pink",
         "Interaction": "lightblue",
     }
-    for node in G.nodes:
-        try:
-            print(G.nodes[node]["subtask_type"])
-        except Exception:
-            print(node)
 
     node_colors = [color_map[G.nodes[node]["subtask_type"]] for node in G.nodes]
 
