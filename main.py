@@ -4,7 +4,8 @@ import os
 
 from concept.agent import Agent
 from concept.env import Env
-from concept.task import parse_constraints, parse_tasks
+from concept.task import Task, parse_constraints, parse_tasks
+from task_management.handler.subtask_decomposer import BatchDecomposer
 from task_management.planner.exhaustive_planner import ExhaustivePlanner
 from task_management.scheduler.exhaustive_scheduler import ExhaustiveScheduler
 from util.visualizer import visualize_graph, visualize_tree
@@ -36,7 +37,14 @@ def load_tasks_and_constraints(task_name):
         task_data = json.load(file)
 
     tasks = parse_tasks(task_data)
-    constraints = parse_constraints(task_data)
+    # Decompose tasks into batches
+    batch_decomposer = BatchDecomposer(batch_size=3)
+    decomposed_tasks = [
+        Task(task.name, batch_decomposer.decompose(task)) for task in tasks
+    ]
+
+    # Parse constraints using decomposed tasks
+    constraints = parse_constraints(decomposed_tasks)
 
     return tasks, constraints
 
@@ -48,9 +56,7 @@ def main():
     visualize_graph(constraints)
 
     env = Env()
-
     env.gen_dummy()
-
     agent = Agent("Waiting", "Living Room", env)
 
     task_plans = ExhaustivePlanner(agent, tasks, constraints).generate_valid_plans()

@@ -1,42 +1,71 @@
-# task_decomposer.py
 from typing import List
 
-from concept.task import Subtask
+from concept.task import Subtask, Task
 
 
-class TaskDecomposer:
-    def decompose_task(self, subtask: Subtask, duration: int) -> List[Subtask]:
-        """
-        Decompose a subtask into two smaller subtasks.
+class BatchDecomposer:
+    def __init__(self, batch_size: int):
+        self.batch_size = batch_size
 
-        Parameters:
-        - subtask: The original subtask to be decomposed.
-        - duration: The duration of the first part of the decomposed subtask.
+    def decompose(self, task: Task) -> List[Subtask]:
+        new_subtasks = []
+        for subtask in task.subtasks:
+            if subtask.type == "Interaction":
+                batched_subtasks = self._decompose_interaction(subtask)
+                new_subtasks.extend(batched_subtasks)
+            else:
+                new_subtasks.append(subtask)
+        return new_subtasks
 
-        Returns:
-        - A list of two smaller subtasks.
-        """
-        if subtask.duration <= duration:
-            return [subtask]
+    def _decompose_interaction(self, subtask: Subtask) -> List[Subtask]:
+        repetitions = subtask.decomposition.repetition
+        intervals = subtask.decomposition.interval
+        actions = subtask.decomposition.actions
 
-        first_part = Subtask(
-            name=f"{subtask.name}_part_1",
-            type=subtask.type,
-            duration=duration,
-            location=subtask.location,
-            temporal_constraints=subtask.temporal_constraints,
-            precondition=subtask.precondition,
-            effect=subtask.effect,
-        )
+        batched_subtasks = []
+        current_repetition = 0
+        batch_index = 1
 
-        second_part = Subtask(
-            name=f"{subtask.name}_part_2",
-            type=subtask.type,
-            duration=subtask.duration - duration,
-            location=subtask.location,
-            temporal_constraints=subtask.temporal_constraints,
-            precondition=subtask.precondition,
-            effect=subtask.effect,
-        )
+        while current_repetition < repetitions:
+            batch_repetitions = min(self.batch_size, repetitions - current_repetition)
+            batch_name = f"{subtask.name}_batch_{batch_index}"
 
-        return [first_part, second_part]
+            # Check if the batch is the first one for urgency constraint adjustment
+            urgency_constraint = False
+            for constraint in subtask.temporal_constraints:
+                if constraint.urgency is False:
+                    urgency_constraint = True
+                    break
+
+            new_temporal_constraints = [
+                Subtask.TemporalConstraint(
+                    constraint_type=constraint.type,
+                    subtask=constraint.subtask,
+                    interval=constraint.interval,
+                    urgency=(constraint.urgency if not urgency_constraint else True),
+                )
+                for constraint in subtask.temporal_constraints
+            ]
+
+            batched_subtasks.append(
+                Subtask(
+                    name=batch_name,
+                    type=subtask.type,
+                    roi=subtask.roi,
+                    duration=Subtask.Duration(
+                        duration_type=subtask.duration.type,
+                        interval=intervals * batch_repetitions,
+                    ),
+                    decomposition=Subtask.Decomposition(
+                        repetition=batch_repetitions,
+                        interval=intervals,
+                        actions=actions,
+                    ),
+                    temporal_constraints=new_temporal_constraints,
+                )
+            )
+
+            current_repetition += batch_repetitions
+            batch_index += 1
+
+        return batched_subtasks

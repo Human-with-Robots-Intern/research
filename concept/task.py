@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional
 
 import networkx as nx
 from matplotlib import pyplot as plt
@@ -34,6 +34,21 @@ class Subtask:
         def __repr__(self) -> str:
             return f"RoI(room={self.room}, asset={self.asset}, objects={self.objects})"
 
+    class TemporalConstraint:
+        def __init__(
+            self, constraint_type: str, subtask: str, interval: int, urgency: bool
+        ):
+            self.type = constraint_type
+            self.subtask = subtask
+            self.interval = interval
+            self.urgency = urgency
+
+        def __repr__(self):
+            return (
+                f"TemporalConstraint(type={self.type}, subtask={self.subtask}, "
+                f"interval={self.interval}, urgency={self.urgency})"
+            )
+
     def __init__(
         self,
         name: str,
@@ -41,15 +56,17 @@ class Subtask:
         roi: RoI,
         duration: Duration,
         decomposition: Decomposition,
+        temporal_constraints: Optional[List[TemporalConstraint]] = None,
     ):
         self.name = name
         self.type = type
         self.roi = roi
         self.duration = duration
         self.decomposition = decomposition
+        self.temporal_constraints = temporal_constraints or []
 
     def __repr__(self):
-        return f"Subtask({self.name} (duration={self.duration}))"
+        return f"Subtask({self.name}, duration={self.duration}, constraints={self.temporal_constraints})"
 
 
 class Task:
@@ -91,12 +108,26 @@ def parse_tasks(data: List[Dict]) -> List[Task]:
                 interval=subtask_data["Decomposition"]["Interval"],
                 actions=subtask_data["Decomposition"]["Actions"],
             )
+
+            # Parse temporal constraints
+            temporal_constraints_data = subtask_data.get("TemporalConstraints", [])
+            temporal_constraints = [
+                Subtask.TemporalConstraint(
+                    constraint_type=tc["Type"],
+                    subtask=tc["Subtask"],
+                    interval=tc["Interval"],
+                    urgency=tc["Urgency"],
+                )
+                for tc in temporal_constraints_data
+            ]
+
             subtask = Subtask(
                 name=subtask_name,
                 type=subtask_type,
                 roi=roi,
                 duration=duration,
                 decomposition=decomposition,
+                temporal_constraints=temporal_constraints,
             )
             subtasks.append(subtask)
 
@@ -105,35 +136,30 @@ def parse_tasks(data: List[Dict]) -> List[Task]:
     return tasks
 
 
-def parse_constraints(data: List[Dict]) -> nx.DiGraph:
+def parse_constraints(tasks: List[Task]) -> nx.DiGraph:
     G = nx.DiGraph()
 
     # Add all subtask nodes to the graph
-    for task in data:
-        for subtask in task["Subtasks"]:
-            subtask_node = subtask["Subtask"]
-            subtask_type = subtask["Type"]
+    for task in tasks:
+        for subtask in task.subtasks:
+            subtask_node = subtask.name
+            subtask_type = subtask.type
             G.add_node(subtask_node, subtask_type=subtask_type)
 
-    # Add edges based on temporal constraints
-    for task in data:
-        for subtask in task["Subtasks"]:
-            main_subtask = subtask["Subtask"]
-            temporal_constraints = subtask.get("TemporalConstraints", [])
-
-            for temporal_constraint in temporal_constraints:
-                precedence_subtask = temporal_constraint["Subtask"]
+            # Add edges based on temporal constraints
+            for constraint in subtask.temporal_constraints:
+                precedence_subtask = constraint.subtask
                 if precedence_subtask:
                     edge_data = {
                         "info": {
-                            "Type": temporal_constraint["Type"],
-                            "Interval": temporal_constraint["Interval"],
-                            "Urgency": temporal_constraint["Urgency"],
+                            "Type": constraint.type,
+                            "Interval": constraint.interval,
+                            "Urgency": constraint.urgency,
                         }
                     }
-                    if temporal_constraint["Type"] == "Before":
-                        G.add_edge(main_subtask, precedence_subtask, **edge_data)
-                    elif temporal_constraint["Type"] == "After":
-                        G.add_edge(precedence_subtask, main_subtask, **edge_data)
+                    if constraint.type == "Before":
+                        G.add_edge(subtask_node, precedence_subtask, **edge_data)
+                    elif constraint.type == "After":
+                        G.add_edge(precedence_subtask, subtask_node, **edge_data)
 
     return G

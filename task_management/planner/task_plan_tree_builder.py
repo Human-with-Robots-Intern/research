@@ -7,7 +7,6 @@ from concept.agent import Agent
 from concept.task import Subtask, Task, get_all_subtasks
 from task_management.handler.constraint_handler import ConstraintHandler
 from task_management.handler.dynamic_task_handler import TaskHandler
-from task_management.handler.subtask_decomposer import TaskDecomposer
 
 
 class TreeBuilder:
@@ -22,7 +21,6 @@ class TreeBuilder:
         self.tasks = tasks
         self.task_handler = task_handler
         self.constraint_handler = ConstraintHandler(constraints)
-        self.task_decomposer = TaskDecomposer()
 
     def build_tree(self) -> Node:
         root_node = Node(name="Start", makespan=0, location=self.agent.location)
