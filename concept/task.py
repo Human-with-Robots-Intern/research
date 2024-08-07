@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional
 
 import networkx as nx
-from matplotlib import pyplot as plt
 
 
 class Subtask:
@@ -95,9 +94,9 @@ def parse_tasks(data: List[Dict]) -> List[Task]:
             subtask_name = subtask_data["Subtask"]
             subtask_type = subtask_data["Type"]
             roi = Subtask.RoI(
-                room=subtask_data["Room"],
-                asset=subtask_data["Asset"],
-                objects=subtask_data["Objects"],
+                room=subtask_data["TaskScene"]["Room"],
+                asset=subtask_data["TaskScene"]["Asset"],
+                objects=subtask_data["TaskScene"]["Objects"],
             )
             duration = Subtask.Duration(
                 duration_type=subtask_data["Duration"]["Type"],

@@ -1,7 +1,11 @@
-#TODO Asset에 대한 고려 // Task Decomposition
+#TODO Move 조정
 
-#TODO 1. Urgency Handling 
+#TODO Task Decomposition
 
-#TODO 2. Parallel Handling
+#TODO Urgency Handling 
 
-#TODO 3. Schedule 시각화
+#TODO Parallel Handling
+
+#TODO Schedule Visualization
+
+#TODO Pruning Rule

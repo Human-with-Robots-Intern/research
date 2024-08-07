@@ -28,7 +28,7 @@ class ExhaustivePlanner:
             included_subtask_names = {
                 node_name
                 for node_name in included_subtasks
-                if not node_name.startswith(("Move", "Wait", "Start"))
+                if not (node_name.startswith(("Move", "Wait")) or node_name == "Start")
             }
 
             if all_subtask_names == included_subtask_names:

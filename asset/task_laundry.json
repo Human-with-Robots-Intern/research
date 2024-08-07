@@ -54,7 +54,7 @@
                         "Type": "After",
                         "Subtask": "Gather Laundry",
                         "Interval": 0,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             },
@@ -85,7 +85,7 @@
                         "Type": "After",
                         "Subtask": "Load Washing Machine",
                         "Interval": 0,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             },
@@ -113,7 +113,7 @@
                         "Type": "After",
                         "Subtask": "Add Detergent",
                         "Interval": 0,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             }
@@ -180,7 +180,7 @@
                         "Type": "After",
                         "Subtask": "Unload Washing Machine",
                         "Interval": 0,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             },
@@ -208,7 +208,7 @@
                         "Type": "After",
                         "Subtask": "Load Dryer",
                         "Interval": 0,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             }
@@ -275,7 +275,7 @@
                         "Type": "After",
                         "Subtask": "Unload Dryer",
                         "Interval": 0,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             },
@@ -306,7 +306,7 @@
                         "Type": "After",
                         "Subtask": "Transfer Laundry",
                         "Interval": 0,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             }

@@ -26,6 +26,7 @@ class TreeBuilder:
         root_node = Node(name="Start", makespan=0, location=self.agent.location)
         subtasks = get_all_subtasks(self.tasks)
         initial_subtasks = self._get_initial_subtasks(subtasks)
+        
 
         for subtask in initial_subtasks:
             remaining_subtasks = subtasks[:]

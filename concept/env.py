@@ -6,16 +6,25 @@ class Env:
         # Initialize rooms and assets
         self.rooms = ["Kitchen", "Living Room", "Restroom", "Bedroom"]
         self.assets = {
-            "Kitchen": ["Table", "Toaster", "Sink"],
-            "Living Room": [],
-            "Restroom": [],
-            "Bedroom": [],
+            "Kitchen": ["Table", "Toaster", "Sink", "Refrigerator", "Stove", "Pan"],
+            "Living Room": ["Table", "Sofa", "Television"],
+            "Restroom": [
+                "Laundry Basket",
+                "Washing Machine",
+                "Dryer",
+                "Sink",
+                "Toilet",
+            ],
+            "Bedroom": ["Bed", "Wardrobe", "Desk"],
         }
         # Graph includes both rooms and assets
         self.graph = {room: {} for room in self.rooms}
         for room in self.assets:
             for asset in self.assets[room]:
-                self.graph[f"{room}:{asset}"] = {}
+                asset_node = f"{room}:{asset}"
+                self.graph[asset_node] = {}
+                # Add default cost for moving from room to asset
+                self.add_transition(room, asset_node, 1)
 
     def __repr__(self):
         return str(self.graph)
@@ -32,11 +41,28 @@ class Env:
         self.add_transition("Kitchen", "Living Room", 1)
         self.add_transition("Living Room", "Restroom", 1)
         self.add_transition("Living Room", "Bedroom", 1)
+        self.add_transition("Bedroom", "Restroom", 1)
 
         # Add asset to asset transitions within rooms
         self.add_transition("Kitchen:Table", "Kitchen:Toaster", 1)
         self.add_transition("Kitchen:Toaster", "Kitchen:Sink", 1)
-        self.add_transition("Kitchen:Table", "Kitchen:Sink", 2)
+        self.add_transition("Kitchen:Sink", "Kitchen:Refrigerator", 1)
+        self.add_transition("Kitchen:Stove", "Kitchen:Pan", 1)
+        self.add_transition("Kitchen:Sink", "Kitchen:Stove", 1)
+
+        self.add_transition("Living Room:Table", "Living Room:Sofa", 1)
+        self.add_transition("Living Room:Sofa", "Living Room:Television", 1)
+
+        self.add_transition("Restroom:Laundry Basket", "Restroom:Washing Machine", 1)
+        self.add_transition("Restroom:Washing Machine", "Restroom:Dryer", 1)
+        self.add_transition("Restroom:Sink", "Restroom:Toilet", 1)
+
+        self.add_transition("Bedroom:Bed", "Bedroom:Wardrobe", 1)
+        self.add_transition("Bedroom:Wardrobe", "Bedroom:Desk", 1)
+
+        # Add inter-room asset transitions
+        self.add_transition("Kitchen:Table", "Living Room:Table", 2)
+        self.add_transition("Living Room:Sofa", "Bedroom:Bed", 2)
 
     def get_cost(self, departure: str, destination: str) -> int:
 
