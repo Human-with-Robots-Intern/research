@@ -1,8 +1,8 @@
-#TODO Move 조정
+#[x] Move 조정
 
-#TODO Task Decomposition
+#[ ] Task Decomposition
 
-#TODO Urgency Handling 
+#[ ] Urgency Handling 
 
 #TODO Parallel Handling
 

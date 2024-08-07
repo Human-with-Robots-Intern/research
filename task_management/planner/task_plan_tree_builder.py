@@ -50,13 +50,13 @@ class TreeBuilder:
         makespan = parent_node.makespan
         self.agent.location = parent_node.location
 
+        # Time Slot
+        time_slot = self.constraint_handler.get_time_slot(parent_node, subtask)
+
         # Move
         parent_node, makespan = self.task_handler.handle_movement(
             parent_node, subtask, makespan
         )
-
-        # # Wait
-        # wait_time = self._calculate_wait_time(parent_node, subtask)
 
         # if wait_time > 0:
         #     parent_node, makespan = self.task_handler.handle_wait_time(
@@ -89,23 +89,7 @@ class TreeBuilder:
         return [
             subtask
             for subtask in remaining_subtasks
-            if self.constraint_handler.validate_temporal_constraints(
+            if self.constraint_handler.validate_ordering_constraints(
                 parent_node, subtask
             )
         ]
-
-    def _calculate_wait_time(self, parent_node: Node, subtask: Subtask) -> int:
-        tc_nodes = self.constraint_handler.get_temporal_constraint_nodes(
-            parent_node, subtask.name
-        )
-        wait_times = []
-        if tc_nodes:
-            for tc_node in tc_nodes:
-                tc_interval = self.constraint_handler.constraints.get_edge_data(
-                    tc_node.name, subtask.name
-                )["info"]["Interval"]
-                wait_time = tc_node.makespan + tc_interval - parent_node.makespan
-                wait_times.append(wait_time)
-            return max(wait_times)
-        else:
-            return 0

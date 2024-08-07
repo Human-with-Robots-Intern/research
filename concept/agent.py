@@ -12,9 +12,6 @@ class Agent:
         self.status = status
         self.env = env
         self.location = self.normalize_location(location)
-        self.trajectory = [
-            self.location
-        ]  # Initialize trajectory with starting location
 
     def normalize_location(self, location: str) -> str:
         """
@@ -45,11 +42,8 @@ class Agent:
         goal = self.normalize_location(goal)
         move_cost = self.env.get_cost(self.location, goal)
         self.location = goal
-        self.trajectory.append(goal)  # Track movement history
+
         return move_cost
 
     def __repr__(self):
-        return (
-            f"Agent(status={self.status}, location={self.location}, "
-            f"trajectory={self.trajectory})"
-        )
+        return f"Agent(status={self.status}, location={self.location}"

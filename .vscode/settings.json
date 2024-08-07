@@ -8,63 +8,6 @@
     ],
     "python.testing.pytestEnabled": false,
     "python.testing.unittestEnabled": true,
-    "todo-tree.general.tags": [
-        "BUG",
-        "TODO",
-        "[ ]",
-        "[x]",
-        "NOTE",
-        "CHECKLIST",
-        "WARNING"
-    ],
-    "todo-tree.highlights.customHighlight": {
-        "CHECKLIST": {
-            "background": "#20a904",
-            "foreground": "#ffffff",
-            "gutterIcon": true,
-            "icon": "check-circle-fill",
-            "iconColour": "#20a904",
-            "type": "text"
-        },
-        "NOTE": {
-            "background": "#ff0404",
-            "foreground": "#ffffff",
-            "gutterIcon": true,
-            "icon": "star-fill",
-            "iconColour": "#ffc404",
-            "type": "text"
-        },
-        "TODO": {
-            "background": "#b782f9",
-            "foreground": "#ffffff",
-            "gutterIcon": true,
-            "icon": "pin",
-            "iconColour": "#b782f9"
-        },
-        "WARNING": {
-            "background": "#ffc404",
-            "foreground": "#ffffff",
-            "gutterIcon": true,
-            "icon": "alert",
-            "iconColour": "#ff9f04"
-        },
-        "[ ]": {
-            "background": "#f87364",
-            "foreground": "#ffffff",
-            "gutterIcon": true,
-            "icon": "x",
-            "iconColour": "#f87364",
-            "type": "text"
-        },
-        "[x]": {
-            "background": "#20a904",
-            "foreground": "#ffffff",
-            "gutterIcon": true,
-            "icon": "check",
-            "iconColour": "#20a904",
-            "type": "text"
-        }
-    },
     "todo-tree.regex.regex": "((\\*|//|#|<!--|;|/\\*|^)\\s*($TAGS)|^\\s*- \\[ \\])",
     "python.analysis.typeCheckingMode": "off",
     "python.analysis.autoImportCompletions": true,
