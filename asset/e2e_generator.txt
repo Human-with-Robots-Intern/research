@@ -9,8 +9,6 @@ Decomposable Subtask MUST be convert to small atomic subtask.
 # Definitions:
 - Task: A high-level goal that often requires multiple steps to complete.
 - Subtask: A robot's subtask is a smaller, more specific component of a task.
-- Asset : A Specific furniture or appliance the robot uses to complete the subtask
-- Object : the tool or ingredients
 
 # Environment:
 The environment consists of four main areas: Bedroom, Living Room, Kitchen, and Restroom, each with specific Asset:
@@ -30,11 +28,12 @@ The Natural Language.
             {
                 "Subtask": <The name of each subtask>,
                 "Type": <Classifies the subtask as either "Interaction" (direct interaction with the environment) or "Monitoring" (observation without interaction).>,
-                "Room": <The area where the task is to be performed>,
-                "Asset": <Specifies the furniture or appliance the robot uses to complete the subtask.>,
-                "Objects": {<the necessary items or inputs needed for the subtask, such as ingredients or tools.>
-                    <The name of object> : <Random Amount of Object> 
-                },
+                "TaskScene" : {    
+                    "Room": <The area where the task is to be performed>,
+                    "Asset": <Specifies the furniture or appliance the robot uses to complete the subtask.>,
+                    "Objects": {<the necessary items or inputs needed for the subtask, such as ingredients or tools.>
+                        <The name of object> : <Random Amount of Object> },
+                    }
                 "Duration": {
                     "Type": <Indicates if the subtask duration is adjustable (controllable) or fixed (uncontrollable).>,
                     "Interval": <Estimated time the subtask takes, aiding in planning.>
@@ -69,20 +68,23 @@ Output :
             {
                 "Subtask": "Setting Toast",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Table",
-                "Objects": {
-                    "Toast": 4
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Table",
+                    "Objects": {
+                        "Toast": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 5
                 },
                 "Decomposition": {
-                    "Repetition": 4,
+                    "Repetition": 5,
                     "Interval": 1,
                     "Actions": [
                         "find toast",
+                        "grab toast",
                         "putin toast table"
                     ]
                 },
@@ -96,10 +98,12 @@ Output :
             {
                 "Subtask": "Washing Dish",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Sink",
-                "Objects": {
-                    "Dish": 10
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Sink",
+                    "Objects": {
+                        "Dish": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -126,9 +130,11 @@ Output :
             {
                 "Subtask": "Turn on Toaster",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Toaster",
-                "Objects": {},
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Toaster",
+                    "Objects": {}
+                },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
@@ -145,9 +151,11 @@ Output :
             {
                 "Subtask": "Turn off Toaster",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Toaster",
-                "Objects": {},
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Toaster",
+                    "Objects": {}
+                },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
@@ -172,6 +180,7 @@ Output :
     }
 ]
 
+
 # Example 2
 Input : 
 """Do Laundry and Fold it"""
@@ -183,10 +192,12 @@ Output :
             {
                 "Subtask": "Gather Laundry",
                 "Type": "Interaction",
-                "Room": "Restroom",
-                "Asset": "Laundry Basket",
-                "Objects": {
-                    "Laundry": 5
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Laundry Basket",
+                    "Objects": {
+                        "Laundry": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -197,6 +208,7 @@ Output :
                     "Interval": 3,
                     "Actions": [
                         "find laundry",
+                        "grab laundry",
                         "putin laundry basket"
                     ]
                 },
@@ -205,10 +217,12 @@ Output :
             {
                 "Subtask": "Load Washing Machine",
                 "Type": "Interaction",
-                "Room": "Restroom",
-                "Asset": "Washing Machine",
-                "Objects": {
-                    "Laundry": 5
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Washing Machine",
+                    "Objects": {
+                        "Laundry": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -234,10 +248,12 @@ Output :
             {
                 "Subtask": "Add Detergent",
                 "Type": "Interaction",
-                "Room": "Restroom",
-                "Asset": "Washing Machine",
-                "Objects": {
-                    "Detergent": 1
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Washing Machine",
+                    "Objects": {
+                        "Detergent": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -263,9 +279,11 @@ Output :
             {
                 "Subtask": "Start Washing Machine",
                 "Type": "Interaction",
-                "Room": "Restroom",
-                "Asset": "Washing Machine",
-                "Objects": {},
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Washing Machine",
+                    "Objects": {}
+                },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
@@ -294,10 +312,12 @@ Output :
             {
                 "Subtask": "Unload Washing Machine",
                 "Type": "Interaction",
-                "Room": "Restroom",
-                "Asset": "Washing Machine",
-                "Objects": {
-                    "Wet Laundry": 5
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Washing Machine",
+                    "Objects": {
+                        "Wet Laundry": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -323,10 +343,12 @@ Output :
             {
                 "Subtask": "Load Dryer",
                 "Type": "Interaction",
-                "Room": "Restroom",
-                "Asset": "Dryer",
-                "Objects": {
-                    "Wet Laundry": 5
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Dryer",
+                    "Objects": {
+                        "Wet Laundry": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -352,9 +374,11 @@ Output :
             {
                 "Subtask": "Start Dryer",
                 "Type": "Interaction",
-                "Room": "Restroom",
-                "Asset": "Dryer",
-                "Objects": {},
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Dryer",
+                    "Objects": {}
+                },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
@@ -383,10 +407,12 @@ Output :
             {
                 "Subtask": "Unload Dryer",
                 "Type": "Interaction",
-                "Room": "Restroom",
-                "Asset": "Dryer",
-                "Objects": {
-                    "Dry Laundry": 5
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Dryer",
+                    "Objects": {
+                        "Dry Laundry": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -412,10 +438,12 @@ Output :
             {
                 "Subtask": "Transfer Laundry",
                 "Type": "Interaction",
-                "Room": "Living Room",
-                "Asset": "Laundry Basket",
-                "Objects": {
-                    "Dry Laundry": 5
+                "TaskScene": {
+                    "Room": "Living Room",
+                    "Asset": "Laundry Basket",
+                    "Objects": {
+                        "Dry Laundry": 5
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -441,10 +469,12 @@ Output :
             {
                 "Subtask": "Fold Clothes",
                 "Type": "Interaction",
-                "Room": "Living Room",
-                "Asset": "Table",
-                "Objects": {
-                    "Clothes": 5
+                "TaskScene": {
+                    "Room": "Living Room",
+                    "Asset": "Table",
+                    "Objects": {
+                        "Clothes": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -470,6 +500,297 @@ Output :
         ]
     }
 ]
+
+# Example 3
+Input : 
+"""Clean Rooms and Take it out for recycling"""
+Output :
+[
+    {
+        "Task": "Clean Rooms",
+        "Subtasks": [
+            {
+                "Subtask": "Clean Bedroom",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Bedroom",
+                    "Asset": "Floor",
+                    "Objects": {
+                        "Dust": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 15
+                },
+                "Decomposition": {
+                    "Repetition": 5,
+                    "Interval": 3,
+                    "Actions": [
+                        "find dust",
+                        "grab dust",
+                        "putin dust bin"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Clean Living Room",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Living Room",
+                    "Asset": "Floor",
+                    "Objects": {
+                        "Dust": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 15
+                },
+                "Decomposition": {
+                    "Repetition": 5,
+                    "Interval": 3,
+                    "Actions": [
+                        "find dust",
+                        "grab dust",
+                        "putin dust bin"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Clean Bedroom",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Clean Kitchen",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Floor",
+                    "Objects": {
+                        "Dust": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 15
+                },
+                "Decomposition": {
+                    "Repetition": 5,
+                    "Interval": 3,
+                    "Actions": [
+                        "find dust",
+                        "grab dust",
+                        "putin dust bin"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Clean Living Room",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Clean Restroom",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Floor",
+                    "Objects": {
+                        "Dust": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 15
+                },
+                "Decomposition": {
+                    "Repetition": 5,
+                    "Interval": 3,
+                    "Actions": [
+                        "find dust",
+                        "grab dust",
+                        "putin dust bin"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Clean Kitchen",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "Task": "Sort Recycling",
+        "Subtasks": [
+            {
+                "Subtask": "Collect Recycling from Bedroom",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Bedroom",
+                    "Asset": "Recycling Bin",
+                    "Objects": {
+                        "Recycling": 2
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Decomposition": {
+                    "Repetition": 2,
+                    "Interval": 5,
+                    "Actions": [
+                        "find recycling",
+                        "grab recycling",
+                        "putin recycling bin"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Collect Recycling from Living Room",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Living Room",
+                    "Asset": "Recycling Bin",
+                    "Objects": {
+                        "Recycling": 3
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 15
+                },
+                "Decomposition": {
+                    "Repetition": 3,
+                    "Interval": 5,
+                    "Actions": [
+                        "find recycling",
+                        "grab recycling",
+                        "putin recycling bin"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Collect Recycling from Bedroom",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Collect Recycling from Kitchen",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Recycling Bin",
+                    "Objects": {
+                        "Recycling": 4
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 20
+                },
+                "Decomposition": {
+                    "Repetition": 4,
+                    "Interval": 5,
+                    "Actions": [
+                        "find recycling",
+                        "grab recycling",
+                        "putin recycling bin"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Collect Recycling from Living Room",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Collect Recycling from Restroom",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Recycling Bin",
+                    "Objects": {
+                        "Recycling": 2
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Decomposition": {
+                    "Repetition": 2,
+                    "Interval": 5,
+                    "Actions": [
+                        "find recycling",
+                        "grab recycling",
+                        "putin recycling bin"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Collect Recycling from Kitchen",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Empty Recycling Bin",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Main Recycling Bin",
+                    "Objects": {
+                        "Recycling": 11
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 5,
+                    "Actions": [
+                        "grab recycling bin",
+                        "putin main recycling bin"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Collect Recycling from Restroom",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    }
+]
+
 
 
 ### [OUTPUT DETAILS] ###

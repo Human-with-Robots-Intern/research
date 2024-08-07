@@ -5,10 +5,12 @@
             {
                 "Subtask": "Gathering Steak",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Refrigerator",
-                "Objects": {
-                    "Steak": 1
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Refrigerator",
+                    "Objects": {
+                        "Steak": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -27,9 +29,11 @@
             {
                 "Subtask": "Turn on Stove",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Stove",
-                "Objects": {},
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Stove",
+                    "Objects": {}
+                },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 2
@@ -53,10 +57,12 @@
             {
                 "Subtask": "Placing Steak",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Pan",
-                "Objects": {
-                    "Steak": 1
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pan",
+                    "Objects": {
+                        "Steak": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -81,9 +87,11 @@
             {
                 "Subtask": "Monitoring Steak",
                 "Type": "Monitoring",
-                "Room": "Kitchen",
-                "Asset": "Pan",
-                "Objects": {},
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pan",
+                    "Objects": {}
+                },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 20
@@ -107,10 +115,12 @@
             {
                 "Subtask": "Flipping Steak",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Pan",
-                "Objects": {
-                    "Spatula": 1
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pan",
+                    "Objects": {
+                        "Spatula": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -137,9 +147,11 @@
             {
                 "Subtask": "Turn off Stove",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Stove",
-                "Objects": {},
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Stove",
+                    "Objects": {}
+                },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 2
@@ -168,10 +180,12 @@
             {
                 "Subtask": "Setting Steak",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Table",
-                "Objects": {
-                    "Steak": 1
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Table",
+                    "Objects": {
+                        "Steak": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -202,16 +216,18 @@
             {
                 "Subtask": "Washing Dish",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Sink",
-                "Objects": {
-                    "Dish": 5,
-                    "Sponge": 1,
-                    "Dish Soap": 1
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Sink",
+                    "Objects": {
+                        "Dish": 1,
+                        "Sponge": 1,
+                        "Dish Soap": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 20
+                    "Interval": 4
                 },
                 "Decomposition": {
                     "Repetition": 5,

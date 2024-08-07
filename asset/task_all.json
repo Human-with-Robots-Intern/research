@@ -1,84 +1,550 @@
 [
     {
         "Task": "Cook Steak",
-        "Location": "Kitchen",
-        "Estimated Time": 40,
         "Subtasks": [
-            "Gathering Steak",
-            "Turn on Stove",
-            "Placing Steak",
-            "Monitoring Steak",
-            "Flipping Steak",
-            "Turn off Stove"
+            {
+                "Subtask": "Gathering Steak",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Refrigerator",
+                    "Objects": {
+                        "Steak": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 5,
+                    "Actions": [
+                        "find Steak",
+                        "grab Steak"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Turn on Stove",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Stove",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 2,
+                    "Actions": [
+                        "switch_on Stove"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Gathering Steak",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Subtask": "Placing Steak",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pan",
+                    "Objects": {
+                        "Steak": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 3,
+                    "Actions": [
+                        "putin Steak Pan"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn on Stove",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Subtask": "Monitoring Steak",
+                "Type": "Monitoring",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pan",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 20
+                },
+                "Decomposition": {
+                    "Repetition": 4,
+                    "Interval": 5,
+                    "Actions": [
+                        "find Steak"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Placing Steak",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Subtask": "Flipping Steak",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pan",
+                    "Objects": {
+                        "Spatula": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 5,
+                    "Actions": [
+                        "grab Spatula",
+                        "putin Spatula Steak",
+                        "putback Spatula Pan"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Monitoring Steak",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Turn off Stove",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Stove",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 2,
+                    "Actions": [
+                        "switch_off Stove"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Flipping Steak",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            }
         ]
     },
     {
         "Task": "Setting Table",
-        "Location": "Kitchen",
-        "Estimated Time": 10,
         "Subtasks": [
-            "Setting Meal"
+            {
+                "Subtask": "Setting Meal",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Table",
+                    "Objects": {
+                        "Meal": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 10,
+                    "Actions": [
+                        "find Meal",
+                        "putin Meal Table"
+                    ]
+                },
+                "TemporalConstraints": []
+            }
         ]
     },
     {
         "Task": "Washing Dishes",
-        "Location": "Kitchen",
-        "Estimated Time": 20,
         "Subtasks": [
-            "Washing Dish"
+            {
+                "Subtask": "Washing Dish",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Sink",
+                    "Objects": {
+                        "Dish": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 20
+                },
+                "Decomposition": {
+                    "Repetition": 10,
+                    "Interval": 2,
+                    "Actions": [
+                        "grab Dish",
+                        "putin Dish Sink",
+                        "grab Sponge",
+                        "putin Sponge Dish",
+                        "putback Dish Rack"
+                    ]
+                },
+                "TemporalConstraints": []
+            }
         ]
     },
     {
         "Task": "Toast",
-        "Location": "Kitchen",
-        "Estimated Time": 2,
         "Subtasks": [
-            "Turn on Toaster",
-            "Turn off Toaster"
+            {
+                "Subtask": "Turn on Toaster",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Toaster",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 1,
+                    "Actions": [
+                        "switch_on Toaster"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Turn off Toaster",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Toaster",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 1,
+                    "Actions": [
+                        "switch_off Toaster"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn on Toaster",
+                        "Interval": 5,
+                        "Urgency": true
+                    }
+                ]
+            }
         ]
     },
     {
         "Task": "Washing",
-        "Location": "Restroom",
-        "Estimated Time": 60,
         "Subtasks": [
-            "Load Laundry",
-            "Turn on Washing Machine",
-            "Turn off Washing Machine"
+            {
+                "Subtask": "Load Laundry",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Washing Machine",
+                    "Objects": {
+                        "Laundry": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 5,
+                    "Interval": 1,
+                    "Actions": [
+                        "grab Laundry",
+                        "putin Laundry Washing Machine"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Turn on Washing Machine",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Washing Machine",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 1,
+                    "Actions": [
+                        "switch_on Washing Machine"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Load Laundry",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Subtask": "Turn off Washing Machine",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Washing Machine",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 1,
+                    "Actions": [
+                        "switch_off Washing Machine"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn on Washing Machine",
+                        "Interval": 58,
+                        "Urgency": true
+                    }
+                ]
+            }
         ]
     },
     {
         "Task": "Drying",
-        "Location": "Restroom",
-        "Estimated Time": 60,
         "Subtasks": [
-            "Load Laundry",
-            "Turn on Dryer",
-            "Turn off Dryer"
+            {
+                "Subtask": "Load Laundry",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Dryer",
+                    "Objects": {
+                        "Wet Laundry": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 5,
+                    "Interval": 1,
+                    "Actions": [
+                        "grab Wet Laundry",
+                        "putin Wet Laundry Dryer"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Turn on Dryer",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Dryer",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 1,
+                    "Actions": [
+                        "switch_on Dryer"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Load Laundry",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Subtask": "Turn off Dryer",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Dryer",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 1,
+                    "Actions": [
+                        "switch_off Dryer"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn on Dryer",
+                        "Interval": 58,
+                        "Urgency": true
+                    }
+                ]
+            }
         ]
     },
     {
         "Task": "Transferring Laundry",
-        "Location": "Restroom",
-        "Estimated Time": 10,
         "Subtasks": [
-            "Transfer Laundry"
+            {
+                "Subtask": "Transfer Laundry",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Restroom",
+                    "Asset": "Laundry Basket",
+                    "Objects": {
+                        "Laundry": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 10,
+                    "Actions": [
+                        "grab Laundry Basket",
+                        "putin Laundry Basket Living Room"
+                    ]
+                },
+                "TemporalConstraints": []
+            }
         ]
     },
     {
         "Task": "Gathering Laundry",
-        "Location": "Living Room",
-        "Estimated Time": 10,
         "Subtasks": [
-            "Gather Laundry"
+            {
+                "Subtask": "Gather Laundry",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Living Room",
+                    "Asset": "Laundry Basket",
+                    "Objects": {
+                        "Laundry": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 10,
+                    "Actions": [
+                        "find Laundry",
+                        "grab Laundry",
+                        "putin Laundry Basket"
+                    ]
+                },
+                "TemporalConstraints": []
+            }
         ]
     },
     {
         "Task": "Folding Laundry",
-        "Location": "Living Room",
-        "Estimated Time": 30,
         "Subtasks": [
-            "Fold Laundry"
+            {
+                "Subtask": "Fold Laundry",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Living Room",
+                    "Asset": "Table",
+                    "Objects": {
+                        "Clothes": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 30
+                },
+                "Decomposition": {
+                    "Repetition": 5,
+                    "Interval": 6,
+                    "Actions": [
+                        "grab Clothes",
+                        "putin Clothes Folded"
+                    ]
+                },
+                "TemporalConstraints": []
+            }
         ]
     }
 ]

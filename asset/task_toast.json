@@ -5,10 +5,12 @@
             {
                 "Subtask": "Setting Toast",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Table",
-                "Objects": {
-                    "Toast": 5
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Table",
+                    "Objects": {
+                        "Toast": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -19,6 +21,7 @@
                     "Interval": 1,
                     "Actions": [
                         "find toast",
+                        "grab toast",
                         "putin toast table"
                     ]
                 },
@@ -32,10 +35,12 @@
             {
                 "Subtask": "Washing Dish",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Sink",
-                "Objects": {
-                    "Dish": 10
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Sink",
+                    "Objects": {
+                        "Dish": 1
+                    }
                 },
                 "Duration": {
                     "Type": "Controllable",
@@ -62,9 +67,11 @@
             {
                 "Subtask": "Turn on Toaster",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Toaster",
-                "Objects": {},
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Toaster",
+                    "Objects": {}
+                },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
@@ -81,9 +88,11 @@
             {
                 "Subtask": "Turn off Toaster",
                 "Type": "Interaction",
-                "Room": "Kitchen",
-                "Asset": "Toaster",
-                "Objects": {},
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Toaster",
+                    "Objects": {}
+                },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
