@@ -26,7 +26,6 @@ class TreeBuilder:
         root_node = Node(name="Start", makespan=0, location=self.agent.location)
         subtasks = get_all_subtasks(self.tasks)
         initial_subtasks = self._get_initial_subtasks(subtasks)
-        
 
         for subtask in initial_subtasks:
             remaining_subtasks = subtasks[:]
@@ -46,6 +45,8 @@ class TreeBuilder:
     def _add_subtask_to_tree(
         self, parent_node: Node, subtask: Subtask, remaining_subtasks: List[Subtask]
     ) -> None:
+
+        # 부모 노드 데이터 읽기
         makespan = parent_node.makespan
         self.agent.location = parent_node.location
 
@@ -54,13 +55,13 @@ class TreeBuilder:
             parent_node, subtask, makespan
         )
 
-        # Wait
-        wait_time = self._calculate_wait_time(parent_node, subtask)
+        # # Wait
+        # wait_time = self._calculate_wait_time(parent_node, subtask)
 
-        if wait_time > 0:
-            parent_node, makespan = self.task_handler.handle_wait_time(
-                parent_node, subtask, wait_time, makespan
-            )
+        # if wait_time > 0:
+        #     parent_node, makespan = self.task_handler.handle_wait_time(
+        #         parent_node, subtask, wait_time, makespan
+        #     )
 
         makespan += subtask.duration.interval
         child_node = Node(

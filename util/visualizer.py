@@ -1,13 +1,8 @@
 import matplotlib.pyplot as plt
 import networkx as nx
-from anytree.exporter import UniqueDotExporter
 
 
-def visualize_tree(schedules):
-    UniqueDotExporter(schedules).to_picture("results/task_tree.png")
-
-
-def visualize_graph(G):
+def visualize_graph(G, is_display):
     pos = nx.spring_layout(G, k=0.5)  # Adjusting the k value for layout optimization
     plt.figure(figsize=(10, 8))  # Adjust the figure size to make it more readable
 
@@ -64,4 +59,5 @@ def visualize_graph(G):
     plt.savefig("results/task_graph.png")
 
     # Display the plot
-    plt.show()
+    if is_display:
+        plt.show()

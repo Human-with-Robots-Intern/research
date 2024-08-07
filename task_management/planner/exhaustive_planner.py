@@ -64,6 +64,7 @@ class ExhaustivePlanner:
 
         # Create a filtered tree
         filtered_tree_root = filter_tree(self.subtask_tree.root)
+        UniqueDotExporter(self.subtask_tree).to_picture("results/task_tree.png")
         UniqueDotExporter(filtered_tree_root).to_picture("results/opt_task_tree.png")
 
         return self.subtask_tree

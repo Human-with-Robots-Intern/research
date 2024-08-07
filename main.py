@@ -5,11 +5,9 @@ import sys
 
 from concept.agent import Agent
 from concept.env import Env
-from concept.task import Task, parse_constraints, parse_tasks
-from task_management.handler.subtask_decomposer import SubtaskDecomposer
+from concept.task import parse_constraints, parse_tasks
 from task_management.planner.exhaustive_planner import ExhaustivePlanner
-from task_management.scheduler.exhaustive_scheduler import ExhaustiveScheduler
-from util.visualizer import visualize_graph, visualize_tree
+from util.visualizer import visualize_graph
 
 
 def parse_arguments():
@@ -30,7 +28,7 @@ def load_tasks_and_constraints(task_name):
 
     tasks = parse_tasks(task_data)
     constraints = parse_constraints(tasks)
-    # visualize_graph(constraints)
+    visualize_graph(constraints, is_display=False)
 
     return tasks, constraints
 
@@ -45,7 +43,6 @@ def main():
     agent = Agent("Waiting", "Living Room", env)
 
     task_plans = ExhaustivePlanner(agent, tasks, constraints).generate_valid_plans()
-    visualize_tree(task_plans)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ class Agent:
 
         Args:
             status (str): Waiting / Running / Monitoring(?)
-            location (str): current_location
+            location (str): current_location (Room or Asset)
         """
         self.status = status
         self.env = env

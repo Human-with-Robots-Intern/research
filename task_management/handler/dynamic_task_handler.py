@@ -13,15 +13,19 @@ class TaskHandler:
     def handle_movement(
         self, parent_node: Node, subtask: Subtask, makespan: int
     ) -> Tuple[Node, int]:
-        move_cost = self.agent.move(subtask.roi.room)
+
+        goal_location = subtask.roi.asset if subtask.roi.asset else subtask.roi.room
+        move_cost = self.agent.move(goal_location)
+
         if move_cost != 0:
             makespan += move_cost
             parent_node = Node(
                 f"Move ({parent_node.location} -> {self.agent.location})",
                 parent_node,
                 makespan=makespan,
-                location=subtask.roi.room,
+                location=goal_location,
             )
+
         return parent_node, makespan
 
     def handle_wait_time(
