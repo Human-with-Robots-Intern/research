@@ -9,15 +9,15 @@
                     "Room": "Kitchen",
                     "Asset": "Table",
                     "Objects": {
-                        "Toast": 1
+                        "Toast": 2
                     }
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 5
+                    "Interval": 2
                 },
                 "Decomposition": {
-                    "Repetition": 5,
+                    "Repetition": 2,
                     "Interval": 1,
                     "Actions": [
                         "find toast",
@@ -46,15 +46,15 @@
                     "Room": "Kitchen",
                     "Asset": "Sink",
                     "Objects": {
-                        "Dish": 1
+                        "Dish": 3
                     }
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 20
+                    "Interval": 6
                 },
                 "Decomposition": {
-                    "Repetition": 10,
+                    "Repetition": 3,
                     "Interval": 2,
                     "Actions": [
                         "grab dish",

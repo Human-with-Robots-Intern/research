@@ -1,70 +1,99 @@
-from typing import List
+from typing import Dict, List
 
 from concept.task import Subtask, Task
 
 
 class SubtaskDecomposer:
-    def __init__(self, batch_duration: int):
-        self.batch_duration = batch_duration
+    def __init__(self, subtask: Subtask):
+        self.subtask = subtask
 
-    def decompose(self, task: Task) -> List[Subtask]:
-        new_subtasks = []
-        for subtask in task.subtasks:
-            if subtask.decomposition.repetition > 1:
-                batched_subtasks = self._decompose_interaction(subtask)
-                new_subtasks.extend(batched_subtasks)
-        return new_subtasks
+    def decompose(self) -> List[Subtask]:
+        if self.subtask.decomposition.repetition > 1:
+            return self._decompose_subtask()
+        else:
+            return [self.subtask]
 
-    def _decompose_interaction(self, subtask: Subtask) -> List[Subtask]:
-        """Subtask의 Repetition, Batch_duration을 고려하여 Task를 분할"""
-        repetitions = subtask.decomposition.repetition
-        intervals = subtask.decomposition.interval
-        actions = subtask.decomposition.actions
+    def _decompose_subtask(self) -> List[Subtask]:
+        decomposed_subtasks = []
+        subtask_part_num = self.subtask.decomposition.repetition
 
-        batched_subtasks = []
-        current_repetition = 0
-        batch_index = 1
+        object_counts = self._calculate_object_counts(subtask_part_num)
 
-        while current_repetition < repetitions:
-            batch_repetitions = repetitions - current_repetition
-            batch_name = f"{subtask.name}_{batch_index}"
+        for i in range(subtask_part_num):
+            decomposed_subtask = self._create_decomposed_subtask(i, object_counts)
+            decomposed_subtasks.append(decomposed_subtask)
 
-            # Check if the batch is the first one for urgency constraint adjustment
-            # urgency_constraint = False
-            # for constraint in subtask.temporal_constraints:
-            #     if constraint.urgency is False:
-            #         urgency_constraint = True
-            #         break
+        return decomposed_subtasks
 
-            # new_temporal_constraints = [
-            #     Subtask.TemporalConstraint(
-            #         constraint_type=constraint.type,
-            #         subtask=constraint.subtask,
-            #         interval=constraint.interval,
-            #         urgency=(constraint.urgency if not urgency_constraint else True),
-            #     )
-            #     for constraint in subtask.temporal_constraints
-            # ]
+    def _calculate_object_counts(self, subtask_part_num: int) -> Dict[str, int]:
+        return {
+            obj: max(1, num // subtask_part_num)
+            for obj, num in self.subtask.roi.objects.items()
+        }
 
-            batched_subtasks.append(
-                Subtask(
-                    name=batch_name,
-                    type=subtask.type,
-                    roi=subtask.roi,
-                    duration=Subtask.Duration(
-                        duration_type=subtask.duration.type,
-                        interval=intervals * batch_repetitions,
-                    ),
-                    decomposition=Subtask.Decomposition(
-                        repetition=1,
-                        interval=intervals,
-                        actions=actions,
-                    ),
-                    temporal_constraints=new_temporal_constraints,
+    def _create_decomposed_subtask(
+        self, part_index: int, object_counts: Dict[str, int]
+    ) -> Subtask:
+        decomposed_subtask_name = f"{self.subtask.name}_part_{part_index + 1}"
+        decomposed_roi = Subtask.RoI(
+            room=self.subtask.roi.room,
+            asset=self.subtask.roi.asset,
+            objects=object_counts,
+        )
+        decomposed_duration = Subtask.Duration(
+            duration_type=self.subtask.duration.type,
+            interval=self.subtask.decomposition.interval,
+        )
+        decomposed_decomposition = Subtask.Decomposition(
+            repetition=1,
+            interval=self.subtask.decomposition.interval,
+            actions=self.subtask.decomposition.actions,
+        )
+        decomposed_temporal_constraints = self._get_temporal_constraints(part_index)
+
+        return Subtask(
+            name=decomposed_subtask_name,
+            type=self.subtask.type,
+            roi=decomposed_roi,
+            duration=decomposed_duration,
+            decomposition=decomposed_decomposition,
+            temporal_constraints=decomposed_temporal_constraints,
+        )
+
+    def _get_temporal_constraints(
+        self, part_index: int
+    ) -> List[Subtask.TemporalConstraint]:
+        if part_index == 0:
+            return self.subtask.temporal_constraints
+        else:
+            return [
+                Subtask.TemporalConstraint(
+                    constraint_type="After",
+                    subtask=f"{self.subtask.name}_part_{part_index}",
+                    interval=0,
+                    urgency=False,
                 )
-            )
+            ]
 
-            current_repetition += batch_repetitions
-            batch_index += 1
 
-        return batched_subtasks
+def decompose_tasks(tasks: List[Task]) -> List[Task]:
+    """
+    Decomposes tasks with subtasks that have a repetition count greater than 1.
+
+    Args:
+        tasks (List[Task]): The original list of tasks.
+
+    Returns:
+        List[Task]: The list of tasks with decomposed subtasks.
+    """
+    decomposed_tasks = []
+
+    for task in tasks:
+        decomposed_subtasks = []
+        for subtask in task.subtasks:
+            decomposer = SubtaskDecomposer(subtask)
+            decomposed_subtasks.extend(decomposer.decompose())
+
+        decomposed_tasks.append(Task(name=task.name, subtasks=decomposed_subtasks))
+
+    return decomposed_tasks

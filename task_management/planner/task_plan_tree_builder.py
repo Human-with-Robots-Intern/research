@@ -20,7 +20,7 @@ class TreeBuilder:
         self.agent = agent
         self.tasks = tasks
         self.task_handler = task_handler
-        self.constraint_handler = ConstraintHandler(constraints)
+        self.constraint_handler = ConstraintHandler(agent, constraints)
 
     def build_tree(self) -> Node:
         root_node = Node(name="Start", makespan=0, location=self.agent.location)
@@ -65,7 +65,7 @@ class TreeBuilder:
             subtask.name,
             parent=parent_node,
             makespan=makespan,
-            location=subtask.roi.room,
+            location=f"{subtask.roi.room}:{subtask.roi.asset}",
         )
 
         self._expand_tree(child_node, remaining_subtasks)
@@ -90,12 +90,13 @@ class TreeBuilder:
             if self.constraint_handler.validate_ordering_constraints(
                 parent_node, subtask
             ):
-                time_slot, is_urgency = self.constraint_handler.get_time_slot(
+                time_slot_urgencies = self.constraint_handler.get_time_slot_and_urgency(
                     parent_node, subtask
                 )
-                if time_slot >= 0:
-                    results.append(subtask)
 
-                # results.append(subtask)
+                if self.constraint_handler.validate_timing_constraints(
+                    time_slot_urgencies
+                ):
+                    results.append(subtask)
 
         return results

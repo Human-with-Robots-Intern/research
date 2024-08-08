@@ -45,5 +45,10 @@ class Agent:
 
         return move_cost
 
+    def get_move_cost(self, goal: str) -> int:
+        goal = self.normalize_location(goal)
+        move_cost = self.env.get_cost(self.location, goal)
+        return move_cost
+
     def __repr__(self):
         return f"Agent(status={self.status}, location={self.location}"

@@ -12,7 +12,8 @@ class ConstraintHandler:
         "Constraint", ["source", "target", "interval", "is_urgency"]
     )
 
-    def __init__(self, constraints: nx.DiGraph):
+    def __init__(self, agent, constraints: nx.DiGraph):
+        self.agent = agent
         self.constraints = constraints
 
     def _gather_constraints(self, subtask_name: str) -> List[Constraint]:
@@ -46,71 +47,8 @@ class ConstraintHandler:
 
         return bool(constraints) == bool(tc_nodes) and len(tc_nodes) == len(constraints)
 
-    def _calculate_move_duration(self, path_difference: List[Node]) -> int:
-        """
-        Calculate the move duration for nodes whose names start with "Move".
-
-        Args:
-            path_difference (List[Node]): The path difference between the parent node and the constraint node.
-
-        Returns:
-            int: The total move duration.
-        """
-        move_duration = 0
-        move_indexes = [
-            i
-            for i in range(len(path_difference) - 1)
-            if path_difference[i].name.startswith("Move")
-        ]
-
-        move_duration = sum(
-            path_difference[i].makespan - path_difference[i - 1].makespan
-            for i in move_indexes
-        )
-
-        return move_duration
-
-    def _calculate_time_slot_for_constraint(
-        self, parent_node: Node, constraint_node: Node, subtask: Subtask
-    ) -> Tuple[int, bool]:
-        """
-        Calculate the time slot for a single constraint node.
-
-        Args:
-            parent_node (Node): The parent node in the task tree.
-            constraint_node (Node): The constraint node affecting the subtask.
-            subtask (Subtask): The subtask for which the time slot is being calculated.
-
-        Returns:
-            Tuple[int, bool]: The calculated time slot and its urgency.
-        """
-        path_difference = parent_node.path[len(constraint_node.path) - 1 :]
-        move_duration = self._calculate_move_duration(path_difference)
-
-        constraint_info = self.constraints.get_edge_data(
-            constraint_node.name, subtask.name
-        )["info"]
-        constraint_interval = constraint_info["Interval"]
-        constraint_urgency = constraint_info["Urgency"]
-
-        calculated_time_slot = (
-            constraint_node.makespan
-            + constraint_interval
-            + move_duration
-            - parent_node.makespan
-        )
-
-        # # NOTE! Do not Erase it, use for debugging
-        # if calculated_time_slot >= 0:
-        #     print(
-        #         f"Calculated_time_slot between '{constraint_node.name}' and '{subtask.name}': {calculated_time_slot}"
-        #     )
-        #     print(f"Urgency is {constraint_urgency}")
-        #     print()
-        return calculated_time_slot, constraint_urgency
-
-    def get_time_slot(
-        self, parent_node: Node, subtask: Subtask, tolerance: int = 1
+    def get_time_slot_and_urgency(
+        self, parent_node: Node, subtask: Subtask
     ) -> List[Tuple[int, bool]]:
         """
         Calculate the appropriate time slot for the given subtask.
@@ -128,14 +66,80 @@ class ConstraintHandler:
         )
 
         if not constraint_nodes:
-            return (0, False)
+            return [(0, False)]
 
-        time_slots = [
-            self._calculate_time_slot_for_constraint(parent_node, node, subtask)
-            for node in constraint_nodes
-        ]
+        results = []
 
-        # Sort the time slots based on time and urgency
-        time_slots.sort(key=lambda slot: (slot[0], slot[1]))
+        for constraint_node in constraint_nodes:
+            time_slot, is_urgency = self._calculate_time_slot_for_constraint(
+                parent_node, constraint_node, subtask
+            )
+            results.append((time_slot, is_urgency))
+        return results
 
-        return time_slots[0]
+    def validate_timing_constraints(self, inputs) -> List[Tuple[int, bool]]:
+        results = []
+        time_slot_handling_needed_list = []
+        for time_slot, is_urgency in inputs:
+            if is_urgency:
+                if time_slot == 0:
+                    # Expandable
+                    is_valid = True
+                elif time_slot > 0:
+                    # fill the time slot then, expandable
+                    time_slot_handling_needed_list.append((time_slot, is_urgency))
+                    is_valid = True
+                else:
+                    # Pruning
+                    is_valid = False
+            else:
+                if time_slot <= 0:
+                    # Expandable
+                    is_valid = True
+                else:
+                    # fill the time slot then, expandable
+                    time_slot_handling_needed_list.append((time_slot, is_urgency))
+                    is_valid = True
+            if time_slot_handling_needed_list:
+                print(time_slot_handling_needed_list)
+
+            results.append(is_valid)
+
+        if False in results:
+            return False
+        else:
+            return True
+
+    def _calculate_time_slot_for_constraint(
+        self, parent_node: Node, constraint_node: Node, subtask: Subtask
+    ) -> Tuple[int, bool]:
+        """
+        Calculate the time slot for a single constraint node.
+
+        Args:
+            parent_node (Node): The parent node in the task tree.
+            constraint_node (Node): The constraint node affecting the subtask.
+            subtask (Subtask): The subtask for which the time slot is being calculated.
+
+        Returns:
+            Tuple[int, bool]: The calculated time slot and its urgency.
+        """
+
+        constraint_info = self.constraints.get_edge_data(
+            constraint_node.name, subtask.name
+        )["info"]
+        constraint_interval = constraint_info["Interval"]
+        constraint_urgency = constraint_info["Urgency"]
+
+        calculated_time_slot = (
+            constraint_node.makespan + constraint_interval - (parent_node.makespan)
+        )
+
+        # NOTE! Do not Erase it, use for debugging
+        # if calculated_time_slot >= 0:
+        # print(
+        #     f"Calculated_time_slot between '{constraint_node.name}' and '{subtask.name}': {calculated_time_slot}"
+        # )
+        # print(f"Urgency is {constraint_urgency}")
+        # print()
+        return calculated_time_slot, constraint_urgency

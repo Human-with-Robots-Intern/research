@@ -7,7 +7,7 @@ class Env:
         self.rooms = ["Kitchen", "Living Room", "Restroom", "Bedroom"]
         self.assets = {
             "Kitchen": ["Table", "Toaster", "Sink", "Refrigerator", "Stove", "Pan"],
-            "Living Room": ["Table", "Sofa", "Television"],
+            "Living Room": ["Table", "Sofa", "Television", "Laundry Basket"],
             "Restroom": [
                 "Laundry Basket",
                 "Washing Machine",

@@ -227,7 +227,7 @@
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 4
+                    "Interval": 20
                 },
                 "Decomposition": {
                     "Repetition": 5,

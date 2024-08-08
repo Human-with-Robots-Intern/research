@@ -6,6 +6,7 @@ import sys
 from concept.agent import Agent
 from concept.env import Env
 from concept.task import parse_constraints, parse_tasks
+from task_management.handler.subtask_decomposer import decompose_tasks
 from task_management.planner.exhaustive_planner import ExhaustivePlanner
 from util.visualizer import visualize_graph
 
@@ -27,6 +28,7 @@ def load_tasks_and_constraints(task_name):
         task_data = json.load(file)
 
     tasks = parse_tasks(task_data)
+    tasks = decompose_tasks(tasks)
     constraints = parse_constraints(tasks)
     visualize_graph(constraints, is_display=False)
 
