@@ -97,11 +97,7 @@ class ConstraintHandler:
                     # Expandable
                     is_valid = True
                 else:
-                    # fill the time slot then, expandable
-                    time_slot_handling_needed_list.append((time_slot, is_urgency))
-                    is_valid = True
-            if time_slot_handling_needed_list:
-                print(time_slot_handling_needed_list)
+                    is_valid = False
 
             results.append(is_valid)
 

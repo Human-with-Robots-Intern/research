@@ -8,7 +8,7 @@ from concept.env import Env
 from concept.task import parse_constraints, parse_tasks
 from task_management.handler.subtask_decomposer import decompose_tasks
 from task_management.planner.exhaustive_planner import ExhaustivePlanner
-from util.visualizer import visualize_graph
+from util.visualizer import plot_gantt_chart, visualize_graph
 
 
 def parse_arguments():
@@ -45,6 +45,7 @@ def main():
     agent = Agent("Waiting", "Living Room", env)
 
     task_plans = ExhaustivePlanner(agent, tasks, constraints).generate_valid_plans()
+    plot_gantt_chart(task_plans)
 
 
 if __name__ == "__main__":

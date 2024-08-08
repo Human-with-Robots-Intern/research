@@ -44,7 +44,7 @@ class ExhaustivePlanner:
 
         print(f"Number of ordered paths: {len(optimal_paths)}/{len(leaf_paths)}")
         print(f"Makespan: {min_makespan}")
-
+        
         # optimal paths에 대한 시각화
         optimal_nodes = set()
         for leaf in optimal_paths:
@@ -55,7 +55,7 @@ class ExhaustivePlanner:
         def filter_tree(node):
             if node not in optimal_nodes:
                 return None
-            new_node = Node(node.name, parent=node.parent)
+            new_node = Node(node.name, parent=node.parent, makespan=node.makespan)
             for child in node.children:
                 new_child = filter_tree(child)
                 if new_child is not None:
@@ -67,4 +67,4 @@ class ExhaustivePlanner:
         UniqueDotExporter(self.subtask_tree).to_picture("results/task_tree.png")
         UniqueDotExporter(filtered_tree_root).to_picture("results/opt_task_tree.png")
 
-        return self.subtask_tree
+        return filtered_tree_root

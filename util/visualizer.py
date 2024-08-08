@@ -61,3 +61,69 @@ def visualize_graph(G, is_display):
     # Display the plot
     if is_display:
         plt.show()
+
+
+from anytree import Node
+
+
+def plot_gantt_chart(root: Node):
+    """
+    Plot a Gantt chart for the given task tree.
+
+    Args:
+        root (Node): The root of the filtered task tree.
+    """
+    tasks = []
+    start_times = []
+    durations = []
+
+    # Traverse the tree to gather task information
+    def traverse_tree(node, path=[]):
+        if node.name != "Start":
+            task_name = node.name
+            makespan = node.makespan
+
+            # Calculate duration based on the difference between makespan and the parent's makespan
+            parent_makespan = node.parent.makespan if node.parent else 0
+            duration = makespan - parent_makespan
+            start_time = parent_makespan
+
+            tasks.append(task_name)
+            start_times.append(start_time)
+            durations.append(duration)
+
+        for child in node.children:
+            traverse_tree(child, path + [node])
+
+    traverse_tree(root)
+
+    # Create a Gantt chart
+    fig, ax = plt.subplots(figsize=(12, len(tasks) * 0.5))
+    y_pos = range(len(tasks))
+
+    bars = ax.barh(y_pos, durations, left=start_times, align="center", color="skyblue")
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(tasks)
+    ax.invert_yaxis()  # Invert y-axis to display tasks from top to bottom
+    ax.set_xlabel("Time")
+    ax.set_title("Gantt Chart of Task Schedule")
+
+    # Add text labels for start and end times
+    for i, bar in enumerate(bars):
+        # Calculate end time
+        end_time = start_times[i] + durations[i]
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_y() + bar.get_height() / 2,
+            f"{start_times[i]} - {end_time}",
+            ha="center",
+            va="center",
+            color="black",
+            fontsize=8,
+            weight="bold",
+        )
+
+    # Save the plot to a file
+    plt.savefig("results/task_schedule.png")
+
+    plt.show()
