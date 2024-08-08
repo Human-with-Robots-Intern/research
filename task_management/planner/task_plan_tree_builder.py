@@ -50,9 +50,6 @@ class TreeBuilder:
         makespan = parent_node.makespan
         self.agent.location = parent_node.location
 
-        # Time Slot
-        time_slot = self.constraint_handler.get_time_slot(parent_node, subtask)
-
         # Move
         parent_node, makespan = self.task_handler.handle_movement(
             parent_node, subtask, makespan
@@ -86,10 +83,19 @@ class TreeBuilder:
     def _get_eligible_subtasks(
         self, parent_node: Node, remaining_subtasks: List[Subtask]
     ) -> List[Subtask]:
-        return [
-            subtask
-            for subtask in remaining_subtasks
+
+        results = []
+
+        for subtask in remaining_subtasks:
             if self.constraint_handler.validate_ordering_constraints(
                 parent_node, subtask
-            )
-        ]
+            ):
+                time_slot, is_urgency = self.constraint_handler.get_time_slot(
+                    parent_node, subtask
+                )
+                if time_slot >= 0:
+                    results.append(subtask)
+
+                # results.append(subtask)
+
+        return results

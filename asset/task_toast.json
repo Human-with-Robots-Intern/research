@@ -25,7 +25,14 @@
                         "putin toast table"
                     ]
                 },
-                "TemporalConstraints": []
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn off Toaster",
+                        "Interval": 1,
+                        "Urgency": false
+                    }
+                ]
             }
         ]
     },

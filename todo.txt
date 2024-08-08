@@ -1,4 +1,5 @@
 #[x] Move 조정
+#[x] Time Slot 계산
 
 #[ ] Task Decomposition
 

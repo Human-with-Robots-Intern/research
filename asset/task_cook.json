@@ -49,7 +49,7 @@
                     {
                         "Type": "After",
                         "Subtask": "Gathering Steak",
-                        "Interval": 0,
+                        "Interval": 1,
                         "Urgency": true
                     }
                 ]
@@ -79,7 +79,7 @@
                     {
                         "Type": "After",
                         "Subtask": "Turn on Stove",
-                        "Interval": 0,
+                        "Interval": 1,
                         "Urgency": true
                     }
                 ]
@@ -107,7 +107,7 @@
                     {
                         "Type": "After",
                         "Subtask": "Placing Steak",
-                        "Interval": 0,
+                        "Interval": 1,
                         "Urgency": true
                     }
                 ]
@@ -139,7 +139,7 @@
                     {
                         "Type": "After",
                         "Subtask": "Monitoring Steak",
-                        "Interval": 0,
+                        "Interval": 1,
                         "Urgency": false
                     }
                 ]
@@ -167,7 +167,7 @@
                     {
                         "Type": "After",
                         "Subtask": "Flipping Steak",
-                        "Interval": 0,
+                        "Interval": 1,
                         "Urgency": true
                     }
                 ]
@@ -203,7 +203,7 @@
                     {
                         "Type": "After",
                         "Subtask": "Turn off Stove",
-                        "Interval": 0,
+                        "Interval": 1,
                         "Urgency": true
                     }
                 ]
