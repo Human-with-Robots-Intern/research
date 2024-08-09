@@ -167,5 +167,8 @@ config/*
 test/*
 scripts/*
 
+!assets/prompts
+!assets/tasks
+
 *.ipynb
 todo.txt
