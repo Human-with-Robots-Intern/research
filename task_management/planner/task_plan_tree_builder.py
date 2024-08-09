@@ -7,6 +7,7 @@ from concept.agent import Agent
 from concept.task import Subtask, Task, get_all_subtasks
 from task_management.handler.constraint_handler import ConstraintHandler
 from task_management.handler.dynamic_task_handler import TaskHandler
+from task_management.handler.slot_handler import SlotHandler
 
 
 class TreeBuilder:
@@ -21,6 +22,8 @@ class TreeBuilder:
         self.tasks = tasks
         self.task_handler = task_handler
         self.constraint_handler = ConstraintHandler(agent, constraints)
+        # Pass the _process_subtask method as a callback
+        self.slot_handler = SlotHandler(self.constraint_handler, self._process_subtask)
 
     def build_tree(self) -> Node:
         root_node = Node(name="Start", makespan=0, location=self.agent.location)
@@ -28,9 +31,7 @@ class TreeBuilder:
         initial_subtasks = self._get_initial_subtasks(subtasks)
 
         for subtask in initial_subtasks:
-            remaining_subtasks = subtasks[:]
-            remaining_subtasks.remove(subtask)
-            self._add_subtask_to_tree(root_node, subtask, remaining_subtasks)
+            self._process_subtask(root_node, subtask, subtasks)
 
         return root_node
 
@@ -42,11 +43,13 @@ class TreeBuilder:
         }
         return [subtask for subtask in subtasks if subtask.name in initial_nodes]
 
-    def _add_subtask_to_tree(
-        self, parent_node: Node, subtask: Subtask, remaining_subtasks: List[Subtask]
+    def _process_subtask(
+        self, parent_node: Node, subtask: Subtask, subtasks: List[Subtask]
     ) -> None:
+        remaining_subtasks = subtasks[:]
+        remaining_subtasks.remove(subtask)
 
-        # Retrieve the makespan and location from the parent node
+        # Retrieve makespan and location from the parent node
         makespan = parent_node.makespan
         self.agent.location = parent_node.location
 
@@ -55,58 +58,12 @@ class TreeBuilder:
             parent_node, subtask, makespan
         )
 
-        # Check for time slot handling needs
-        time_slot_urgencies = self.constraint_handler.get_time_slot_and_urgency(
-            parent_node, subtask
+        # Handle time slot urgencies
+        makespan = self.slot_handler.handle_time_slots(
+            parent_node, subtask, makespan, remaining_subtasks
         )
 
-        # Process each time slot urgency
-        for time_slot, is_urgency in time_slot_urgencies:
-            if time_slot > 0:
-                if is_urgency:
-                    # Check if other quick tasks can be performed in this time slot
-                    available_subtasks = self._get_eligible_subtasks(
-                        parent_node, remaining_subtasks
-                    )
-                    time_spent = 0
-
-                    for available_subtask in available_subtasks:
-                        if (
-                            available_subtask.duration.interval
-                            <= time_slot - time_spent
-                        ):
-                            self._add_subtask_to_tree(
-                                parent_node, available_subtask, remaining_subtasks
-                            )
-                            time_spent += available_subtask.duration.interval
-                            remaining_subtasks.remove(available_subtask)
-
-                            if time_spent >= time_slot:
-                                break
-
-                    # Add waiting time if there is still some time left after quick tasks
-                    if time_spent < time_slot:
-                        wait_time = time_slot - time_spent
-                        wait_node = Node(
-                            name=f"Wait_for_{subtask.name}",
-                            parent=parent_node,
-                            makespan=makespan + wait_time,
-                            location=parent_node.location,
-                        )
-                        makespan += wait_time
-                        parent_node = wait_node
-                else:
-                    # If urgency is False, just wait the specified time
-                    wait_node = Node(
-                        name=f"Wait_for_{subtask.name}",
-                        parent=parent_node,
-                        makespan=makespan + time_slot,
-                        location=parent_node.location,
-                    )
-                    makespan += time_slot
-                    parent_node = wait_node
-
-        # Add the subtask execution
+        # Execute the subtask
         makespan += subtask.duration.interval
         child_node = Node(
             subtask.name,
@@ -121,30 +78,9 @@ class TreeBuilder:
     def _expand_tree(
         self, parent_node: Node, remaining_subtasks: List[Subtask]
     ) -> None:
-        eligible_subtasks = self._get_eligible_subtasks(parent_node, remaining_subtasks)
+        eligible_subtasks = self.slot_handler._get_eligible_subtasks(
+            parent_node, remaining_subtasks
+        )
 
         for subtask in eligible_subtasks:
-            new_remaining_subtasks = remaining_subtasks[:]
-            new_remaining_subtasks.remove(subtask)
-            self._add_subtask_to_tree(parent_node, subtask, new_remaining_subtasks)
-
-    def _get_eligible_subtasks(
-        self, parent_node: Node, remaining_subtasks: List[Subtask]
-    ) -> List[Subtask]:
-
-        results = []
-
-        for subtask in remaining_subtasks:
-            if self.constraint_handler.validate_ordering_constraints(
-                parent_node, subtask
-            ):
-                time_slot_urgencies = self.constraint_handler.get_time_slot_and_urgency(
-                    parent_node, subtask
-                )
-
-                if self.constraint_handler.validate_timing_constraints(
-                    time_slot_urgencies
-                ):
-                    results.append(subtask)
-
-        return results
+            self._process_subtask(parent_node, subtask, remaining_subtasks)
