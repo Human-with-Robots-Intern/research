@@ -799,4 +799,3 @@ Output :
 - The Object Amount is not Variable, Real grounded Integer.
 - The Interval is Integer 
 
-### [Input] ###

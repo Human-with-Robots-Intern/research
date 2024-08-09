@@ -6,9 +6,10 @@ from datetime import datetime
 from concept.agent import Agent
 from concept.env import Env
 from concept.task import parse_constraints, parse_tasks
+from src.utils.openai import generate_task_by_llm
 from task_management.handler.subtask_decomposer import decompose_tasks
 from task_management.planner.exhaustive_planner import ExhaustivePlanner
-from util.visualizer import plot_gantt_chart, visualize_graph, visualize_tree
+from utils.visualizer import plot_gantt_chart, visualize_graph, visualize_tree
 
 
 def parse_arguments():
@@ -21,7 +22,10 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def load_tasks_and_constraints(task_name):
+def load_tasks_and_constraints(task_name=None):
+    if not task_name:
+        task_name = generate_task_by_llm()
+
     file_path = os.path.join("assets/tasks", f"task_{task_name}.json")
 
     with open(file_path, "r") as file:
@@ -48,6 +52,7 @@ def visualize(task_name, constraints, task_plans, opt_task_plans):
 
 
 def main():
+
     args = parse_arguments()
 
     tasks, constraints = load_tasks_and_constraints(args.name)
