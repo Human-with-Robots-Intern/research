@@ -56,7 +56,7 @@ def visualize_graph(G, is_display):
     plt.title("Directed Acyclic Graph (DAG) with Edge Info")
 
     # Save the plot to a file
-    plt.savefig("results/task_graph.png")
+    plt.savefig("assets/results/task_graph.png")
 
     # Display the plot
     if is_display:
@@ -124,6 +124,6 @@ def plot_gantt_chart(root: Node):
         )
 
     # Save the plot to a file
-    plt.savefig("results/task_schedule.png")
+    plt.savefig("assets/results/task_schedule.png")
 
     plt.show()

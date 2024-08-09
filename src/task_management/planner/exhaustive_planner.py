@@ -85,5 +85,7 @@ class ExhaustivePlanner:
 
     def _export_tree_visualizations(self, filtered_tree_root: Node) -> None:
         """Export the visualizations of the complete and optimal task trees."""
-        UniqueDotExporter(self.subtask_tree).to_picture("results/task_tree.png")
-        UniqueDotExporter(filtered_tree_root).to_picture("results/opt_task_tree.png")
+        UniqueDotExporter(self.subtask_tree).to_picture("assets/results/task_tree.png")
+        UniqueDotExporter(filtered_tree_root).to_picture(
+            "assets/results/opt_task_tree.png"
+        )

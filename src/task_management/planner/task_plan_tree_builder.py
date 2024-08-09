@@ -22,7 +22,6 @@ class TreeBuilder:
         self.tasks = tasks
         self.task_handler = task_handler
         self.constraint_handler = ConstraintHandler(agent, constraints)
-        # Pass the _process_subtask method as a callback
         self.slot_handler = SlotHandler(self.constraint_handler, self._process_subtask)
 
     def build_tree(self) -> Node:

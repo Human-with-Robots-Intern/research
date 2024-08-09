@@ -22,7 +22,7 @@ def parse_arguments():
 
 
 def load_tasks_and_constraints(task_name):
-    file_path = os.path.join("asset", f"task_{task_name}.json")
+    file_path = os.path.join("assets/tasks", f"task_{task_name}.json")
 
     with open(file_path, "r") as file:
         task_data = json.load(file)
