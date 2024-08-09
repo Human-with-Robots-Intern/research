@@ -2,7 +2,6 @@ from typing import List, Optional, Tuple
 
 import networkx as nx
 from anytree import Node
-from anytree.exporter import UniqueDotExporter
 
 from concept.agent import Agent
 from concept.task import Task, get_all_subtasks
@@ -32,9 +31,8 @@ class ExhaustivePlanner:
         self._print_plan_summary(optimal_paths, leaf_paths, min_makespan)
 
         filtered_tree_root = self._filter_optimal_tree(optimal_paths)
-        self._export_tree_visualizations(filtered_tree_root)
 
-        return filtered_tree_root
+        return self.subtask_tree, filtered_tree_root
 
     def _find_complete_leaf_paths(self) -> List[Node]:
         """Find all leaf paths that include all subtasks."""
@@ -82,12 +80,3 @@ class ExhaustivePlanner:
             return new_node
 
         return filter_tree(self.subtask_tree.root)
-
-    def _export_tree_visualizations(self, filtered_tree_root: Node) -> None:
-        """Export the visualizations of the complete and optimal task trees."""
-        UniqueDotExporter(self.subtask_tree).to_picture(
-            "assets/results/schedule/task_tree.png"
-        )
-        UniqueDotExporter(filtered_tree_root).to_picture(
-            "assets/results/schedule/opt_task_tree.png"
-        )

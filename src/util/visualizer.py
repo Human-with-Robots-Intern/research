@@ -1,8 +1,20 @@
+import os
+
 import matplotlib.pyplot as plt
 import networkx as nx
+from anytree import Node
+from anytree.exporter import UniqueDotExporter
 
 
-def visualize_graph(G, is_display):
+def visualize_tree(tree, opt_tree, save_folder_path):
+    """Export the visualizations of the complete and optimal task trees."""
+    UniqueDotExporter(tree).to_picture(os.path.join(save_folder_path, "task_tree.png"))
+    UniqueDotExporter(opt_tree).to_picture(
+        os.path.join(save_folder_path, "opt_task_tree.png")
+    )
+
+
+def visualize_graph(G, save_folder_path, is_display=False):
     pos = nx.spring_layout(G, k=0.5)  # Adjusting the k value for layout optimization
     plt.figure(figsize=(10, 8))  # Adjust the figure size to make it more readable
 
@@ -56,17 +68,14 @@ def visualize_graph(G, is_display):
     plt.title("Directed Acyclic Graph (DAG) with Edge Info")
 
     # Save the plot to a file
-    plt.savefig("assets/results/task_graph.png")
+    plt.savefig(os.path.join(save_folder_path, "task_graph.png"))
 
     # Display the plot
     if is_display:
         plt.show()
 
 
-from anytree import Node
-
-
-def plot_gantt_chart(root: Node):
+def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
     """
     Plot a Gantt chart for the given task tree.
 
@@ -124,6 +133,6 @@ def plot_gantt_chart(root: Node):
         )
 
     # Save the plot to a file
-    plt.savefig("assets/results/schedule/task_schedule.png")
-
-    plt.show()
+    plt.savefig(os.path.join(save_folder_path, "task_schedule.png"))
+    if is_display:
+        plt.show()
