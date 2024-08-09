@@ -1,8 +1,0 @@
-#TODO 올바른 Task, Subtask, Action에 대한 구조 잡기 
-    - 반복 가능성에 대한 고민...
-
-#TODO 1. Urgency Handling 
-
-#TODO 2. Parallel Handling
-
-#TODO 3. Schedule 시각화
