@@ -165,5 +165,7 @@ archive/*
 assets/*
 config/*
 test/*
+scripts/*
+
 *.ipynb
 todo.txt

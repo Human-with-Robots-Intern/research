@@ -124,6 +124,6 @@ def plot_gantt_chart(root: Node):
         )
 
     # Save the plot to a file
-    plt.savefig("assets/results/task_schedule.png")
+    plt.savefig("assets/results/schedule/task_schedule.png")
 
     plt.show()

@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-import sys
 
 from concept.agent import Agent
 from concept.env import Env
