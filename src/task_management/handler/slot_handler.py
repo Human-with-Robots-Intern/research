@@ -48,53 +48,14 @@ class SlotHandler:
 
         # Process each time slot
         for time_slot, is_urgent in time_slot_urgencies:
-            if time_slot > 0:
-                makespan = self._process_time_slot(
-                    parent_node,
-                    subtask,
-                    makespan,
-                    remaining_subtasks,
-                    time_slot,
-                    is_urgent,
+            if is_urgent and time_slot < 0:
+                pass
+            else:
+                parent_node, makespan = self._execute_quick_tasks(
+                    parent_node, makespan, remaining_subtasks, time_slot
                 )
 
-        return makespan
-
-    def _process_time_slot(
-        self,
-        parent_node: Node,
-        subtask: Subtask,
-        makespan: int,
-        remaining_subtasks: List[Subtask],
-        time_slot: int,
-        is_urgent: bool,
-    ) -> int:
-        """
-        Processes a specific time slot by either executing quick tasks or waiting.
-
-        Args:
-            parent_node (Node): The parent node in the task tree.
-            subtask (Subtask): The subtask to be scheduled.
-            makespan (int): The current makespan.
-            remaining_subtasks (List[Subtask]): List of remaining subtasks to be processed.
-            time_slot (int): The available time slot duration.
-            is_urgent (bool): Indicates if the time slot is urgent.
-
-        Returns:
-            int: Updated makespan after processing the time slot.
-        """
-        if is_urgent:
-            # Execute quick tasks if the time slot is urgent
-            makespan = self._execute_quick_tasks(
-                parent_node, makespan, remaining_subtasks, time_slot
-            )
-        else:
-            # Wait for the time slot if it is not urgent
-            makespan = self._wait_for_time_slot(
-                parent_node, subtask, makespan, time_slot
-            )
-
-        return makespan
+        return parent_node, makespan
 
     def _execute_quick_tasks(
         self,
@@ -120,9 +81,6 @@ class SlotHandler:
             parent_node, remaining_subtasks
         )
         time_spent = 0
-        last_processed_subtask = (
-            None  # Keep track of the last processed subtask for waiting
-        )
 
         # Process each available subtask
         for available_subtask in available_subtasks:
@@ -131,6 +89,7 @@ class SlotHandler:
                 self.process_subtask_callback(
                     parent_node, available_subtask, remaining_subtasks
                 )
+
                 time_spent += available_subtask.duration.interval
                 remaining_subtasks.remove(available_subtask)
                 last_processed_subtask = (
@@ -145,42 +104,15 @@ class SlotHandler:
             # Wait for the remaining time if not all time slots are used
             wait_time = time_slot - time_spent
             # Ensure last_processed_subtask is defined before using it
-            wait_subtask_name = (
-                last_processed_subtask.name if last_processed_subtask else "Idle"
-            )
             parent_node = Node(
-                name=f"Wait_for_{wait_subtask_name}",
+                name=f"Wait_for_{wait_time}",
                 parent=parent_node,
                 makespan=makespan + wait_time,
                 location=parent_node.location,
             )
             makespan += wait_time
 
-        return makespan
-
-    def _wait_for_time_slot(
-        self, parent_node: Node, subtask: Subtask, makespan: int, time_slot: int
-    ) -> int:
-        """
-        Waits for a specific time slot before proceeding with the next subtask.
-
-        Args:
-            parent_node (Node): The parent node in the task tree.
-            subtask (Subtask): The subtask to wait for.
-            makespan (int): The current makespan.
-            time_slot (int): The duration of the time slot to wait for.
-
-        Returns:
-            int: Updated makespan after waiting.
-        """
-        # Create a wait node for the specified time slot
-        Node(
-            name=f"Wait_for_{subtask.name}",
-            parent=parent_node,
-            makespan=makespan + time_slot,
-            location=parent_node.location,
-        )
-        return makespan + time_slot
+        return parent_node, makespan
 
     def _get_eligible_subtasks(
         self, parent_node: Node, remaining_subtasks: List[Subtask]

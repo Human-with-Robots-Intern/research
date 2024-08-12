@@ -70,7 +70,7 @@ def generate_task_by_llm():
             # Convert the output text to JSON
             output_json = json.loads(output)
             # Save the JSON data to a file
-            save_to_file(output_json, f"assets/tasks/{user_input}.json")
+            save_to_file(output_json, f"assets/tasks/task_{user_input.split()[0]}.json")
             return user_input
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")

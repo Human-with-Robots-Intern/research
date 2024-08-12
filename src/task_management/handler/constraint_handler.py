@@ -71,7 +71,7 @@ class ConstraintHandler:
         if is_urgency:
             return time_slot >= 0
         else:
-            return time_slot <= 0
+            return True
 
     def _calculate_time_slot_for_constraint(
         self, parent_node: Node, constraint_node: Node, subtask: Subtask

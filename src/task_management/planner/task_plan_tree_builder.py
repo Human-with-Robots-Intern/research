@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import networkx as nx
 from anytree import Node
@@ -6,7 +6,6 @@ from anytree import Node
 from concept.agent import Agent
 from concept.task import Subtask, Task, get_all_subtasks
 from task_management.handler.constraint_handler import ConstraintHandler
-from task_management.handler.dynamic_task_handler import TaskHandler
 from task_management.handler.slot_handler import SlotHandler
 
 
@@ -15,12 +14,10 @@ class TreeBuilder:
         self,
         agent: Agent,
         tasks: List[Task],
-        task_handler: TaskHandler,
         constraints: nx.DiGraph,
     ):
         self.agent = agent
         self.tasks = tasks
-        self.task_handler = task_handler
         self.constraint_handler = ConstraintHandler(agent, constraints)
         self.slot_handler = SlotHandler(self.constraint_handler, self._process_subtask)
 
@@ -52,13 +49,21 @@ class TreeBuilder:
         makespan = parent_node.makespan
         self.agent.location = parent_node.location
 
-        # Handle movement
-        parent_node, makespan = self.task_handler.handle_movement(
-            parent_node, subtask, makespan
-        )
+        # Move
+        goal_location = subtask.roi.asset if subtask.roi.asset else subtask.roi.room
+        move_cost = self.agent.move(goal_location)
+
+        if move_cost > 0:
+            makespan += move_cost
+            parent_node = Node(
+                f"Move ({parent_node.location} -> {self.agent.location})",
+                parent_node,
+                makespan=makespan,
+                location=goal_location,
+            )
 
         # Handle time slot urgencies
-        makespan = self.slot_handler.handle_time_slots(
+        parent_node, makespan = self.slot_handler.handle_time_slots(
             parent_node, subtask, makespan, remaining_subtasks
         )
 

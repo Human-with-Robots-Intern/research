@@ -5,7 +5,6 @@ from anytree import Node
 
 from concept.agent import Agent
 from concept.task import Task, get_all_subtasks
-from task_management.handler.dynamic_task_handler import TaskHandler
 from task_management.planner.task_plan_tree_builder import TreeBuilder
 
 
@@ -16,7 +15,7 @@ class ExhaustivePlanner:
         self.agent = agent
         self.tasks = tasks
         self.constraints = constraints
-        self.tree_builder = TreeBuilder(agent, tasks, TaskHandler(agent), constraints)
+        self.tree_builder = TreeBuilder(agent, tasks, constraints)
         self.subtask_tree = self.tree_builder.build_tree()
 
     def generate_valid_plans(self) -> Optional[Node]:
