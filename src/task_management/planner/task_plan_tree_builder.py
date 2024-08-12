@@ -67,12 +67,6 @@ class TreeBuilder:
             parent_node, subtask, makespan, remaining_subtasks
         )
 
-        if subtask.type == "Monitoring":
-            # Use monitoring duration as a time slot
-            parent_node, makespan = self.slot_handler.handle_monitoring_slot(
-                parent_node, subtask, makespan, remaining_subtasks
-            )
-
         # Execute the subtask
         makespan += subtask.duration.interval
         child_node = Node(

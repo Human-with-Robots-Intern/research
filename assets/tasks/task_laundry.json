@@ -14,10 +14,10 @@
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 15
+                    "Interval": 6
                 },
                 "Decomposition": {
-                    "Repetition": 5,
+                    "Repetition": 2,
                     "Interval": 3,
                     "Actions": [
                         "find laundry",
@@ -134,10 +134,10 @@
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 5
+                    "Interval": 1
                 },
                 "Decomposition": {
-                    "Repetition": 5,
+                    "Repetition": 1,
                     "Interval": 1,
                     "Actions": [
                         "grab wet laundry",
@@ -165,10 +165,10 @@
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 5
+                    "Interval": 1
                 },
                 "Decomposition": {
-                    "Repetition": 5,
+                    "Repetition": 1,
                     "Interval": 1,
                     "Actions": [
                         "grab wet laundry",
@@ -229,10 +229,10 @@
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 5
+                    "Interval": 1
                 },
                 "Decomposition": {
-                    "Repetition": 5,
+                    "Repetition": 1,
                     "Interval": 1,
                     "Actions": [
                         "grab dry laundry",
@@ -255,7 +255,7 @@
                     "Room": "Living Room",
                     "Asset": "Laundry Basket",
                     "Objects": {
-                        "Dry Laundry": 5
+                        "Dry Laundry": 1
                     }
                 },
                 "Duration": {
@@ -286,7 +286,7 @@
                     "Room": "Living Room",
                     "Asset": "Table",
                     "Objects": {
-                        "Clothes": 1
+                        "Clothes": 5
                     }
                 },
                 "Duration": {

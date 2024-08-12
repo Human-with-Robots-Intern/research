@@ -227,11 +227,11 @@
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 8
+                    "Interval": 4
                 },
                 "Decomposition": {
                     "Repetition": 2,
-                    "Interval": 4,
+                    "Interval": 2,
                     "Actions": [
                         "grab Dish",
                         "grab Sponge",

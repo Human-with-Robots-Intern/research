@@ -6,8 +6,8 @@ from datetime import datetime
 from concept.agent import Agent
 from concept.env import Env
 from concept.task import parse_constraints, parse_tasks
+from task_management.handler.subtask_decomposer import decompose_tasks
 from task_management.planner.exhaustive_planner import ExhaustivePlanner
-from utils.subtask_decomposer import decompose_tasks
 from utils.task_generator import generate_task_by_llm
 from utils.visualizer import plot_gantt_chart, visualize_graph, visualize_tree
 
@@ -17,7 +17,7 @@ def parse_arguments():
     parser.add_argument(
         "-name",
         help="Select the Goal [all, laundry, cook, toast etc.]",
-        default="toast",
+        default="cook",
     )
     return parser.parse_args()
 
@@ -34,7 +34,7 @@ def load_tasks_and_constraints(task_name=None):
     tasks = parse_tasks(task_data)
     tasks = decompose_tasks(tasks)
     constraints = parse_constraints(tasks)
-    # visualize_graph(constraints)
+
     return tasks, constraints
 
 
