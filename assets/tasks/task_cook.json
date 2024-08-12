@@ -9,16 +9,16 @@
                     "Room": "Kitchen",
                     "Asset": "Refrigerator",
                     "Objects": {
-                        "Steak": 1
+                        "Steak": 2
                     }
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 5
+                    "Interval": 4
                 },
                 "Decomposition": {
-                    "Repetition": 1,
-                    "Interval": 5,
+                    "Repetition": 2,
+                    "Interval": 2,
                     "Actions": [
                         "find Steak",
                         "grab Steak"
@@ -61,16 +61,16 @@
                     "Room": "Kitchen",
                     "Asset": "Pan",
                     "Objects": {
-                        "Steak": 1
+                        "Steak": 2
                     }
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 3
+                    "Interval": 4
                 },
                 "Decomposition": {
-                    "Repetition": 1,
-                    "Interval": 3,
+                    "Repetition": 2,
+                    "Interval": 2,
                     "Actions": [
                         "putin Steak Pan"
                     ]
@@ -94,10 +94,10 @@
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 20
+                    "Interval": 10
                 },
                 "Decomposition": {
-                    "Repetition": 4,
+                    "Repetition": 2,
                     "Interval": 5,
                     "Actions": [
                         "find Steak"
@@ -184,16 +184,16 @@
                     "Room": "Kitchen",
                     "Asset": "Table",
                     "Objects": {
-                        "Steak": 1
+                        "Steak": 2
                     }
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 5
+                    "Interval": 2
                 },
                 "Decomposition": {
-                    "Repetition": 1,
-                    "Interval": 5,
+                    "Repetition": 2,
+                    "Interval": 1,
                     "Actions": [
                         "find Steak",
                         "putin Steak Table"
@@ -220,17 +220,17 @@
                     "Room": "Kitchen",
                     "Asset": "Sink",
                     "Objects": {
-                        "Dish": 1,
+                        "Dish": 2,
                         "Sponge": 1,
                         "Dish Soap": 1
                     }
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 20
+                    "Interval": 8
                 },
                 "Decomposition": {
-                    "Repetition": 5,
+                    "Repetition": 2,
                     "Interval": 4,
                     "Actions": [
                         "grab Dish",

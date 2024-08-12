@@ -14,7 +14,7 @@ def visualize_tree(tree, opt_tree, save_folder_path):
     )
 
 
-def visualize_graph(G, save_folder_path, is_display=False):
+def visualize_graph(G, save_folder_path="assets/results", is_display=False):
     pos = nx.spring_layout(G, k=0.5)  # Adjusting the k value for layout optimization
     plt.figure(figsize=(10, 8))  # Adjust the figure size to make it more readable
 
@@ -107,7 +107,7 @@ def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
     traverse_tree(root)
 
     # Create a Gantt chart
-    fig, ax = plt.subplots(figsize=(12, len(tasks) * 0.5))
+    fig, ax = plt.subplots(figsize=(24, len(tasks) * 0.5))
     y_pos = range(len(tasks))
 
     bars = ax.barh(y_pos, durations, left=start_times, align="center", color="skyblue")

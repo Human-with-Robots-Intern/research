@@ -147,8 +147,7 @@ def parse_constraints(tasks: List[Task]) -> nx.DiGraph:
 
             # Add edges based on temporal constraints
             for constraint in subtask.temporal_constraints:
-                precedence_subtask = constraint.subtask
-                if precedence_subtask:
+                if constraint.subtask:
                     edge_data = {
                         "info": {
                             "Type": constraint.type,
@@ -157,8 +156,10 @@ def parse_constraints(tasks: List[Task]) -> nx.DiGraph:
                         }
                     }
                     if constraint.type == "Before":
-                        G.add_edge(subtask_node, precedence_subtask, **edge_data)
+                        G.add_edge(subtask_node, constraint.subtask, **edge_data)
                     elif constraint.type == "After":
-                        G.add_edge(precedence_subtask, subtask_node, **edge_data)
+                        G.add_edge(constraint.subtask, subtask_node, **edge_data)
+                else:
+                    raise ValueError("Constrained Node is not exist")
 
     return G

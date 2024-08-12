@@ -1,6 +1,6 @@
 from typing import Dict, List
 
-from concept.task import Subtask, Task
+from concept.task import Subtask, Task, get_all_subtasks
 
 
 class SubtaskDecomposer:
@@ -9,7 +9,8 @@ class SubtaskDecomposer:
 
     def decompose(self) -> List[Subtask]:
         if self.subtask.decomposition.repetition > 1:
-            return self._decompose_subtask()
+            decomposed_subtask = self._decompose_subtask()
+            return decomposed_subtask
         else:
             return [self.subtask]
 
@@ -87,13 +88,57 @@ def decompose_tasks(tasks: List[Task]) -> List[Task]:
         List[Task]: The list of tasks with decomposed subtasks.
     """
     decomposed_tasks = []
+    subtask_mapping = {}  # Map from original subtask names to decomposed parts
 
     for task in tasks:
         decomposed_subtasks = []
         for subtask in task.subtasks:
             decomposer = SubtaskDecomposer(subtask)
-            decomposed_subtasks.extend(decomposer.decompose())
+            decomposed_parts = decomposer.decompose()
+            decomposed_subtasks.extend(decomposed_parts)
+            subtask_mapping[subtask.name] = decomposed_parts
 
         decomposed_tasks.append(Task(name=task.name, subtasks=decomposed_subtasks))
 
+    # Update constraints to point to the correct decomposed parts
+    for decomposed_task in decomposed_tasks:
+        for decomposed_subtask in decomposed_task.subtasks:
+            decomposed_subtask.temporal_constraints = update_constraints(
+                decomposed_subtask.temporal_constraints, subtask_mapping
+            )
+
     return decomposed_tasks
+
+
+def update_constraints(
+    constraints: List[Subtask.TemporalConstraint],
+    subtask_mapping: Dict[str, List[Subtask]],
+) -> List[Subtask.TemporalConstraint]:
+    """
+    Updates temporal constraints to refer to the correct decomposed subtask parts.
+
+    Args:
+        constraints (List[Subtask.TemporalConstraint]): Original constraints to update.
+        subtask_mapping (Dict[str, List[Subtask]]): Mapping of original subtasks to their decomposed parts.
+
+    Returns:
+        List[Subtask.TemporalConstraint]: Updated list of temporal constraints.
+    """
+    updated_constraints = []
+
+    for constraint in constraints:
+        if constraint.subtask in subtask_mapping:
+            # Point the constraint to the last part of the decomposed subtask
+            last_decomposed_part = subtask_mapping[constraint.subtask][-1]
+            updated_constraints.append(
+                Subtask.TemporalConstraint(
+                    constraint_type=constraint.type,
+                    subtask=last_decomposed_part.name,
+                    interval=constraint.interval,
+                    urgency=constraint.urgency,
+                )
+            )
+        else:
+            updated_constraints.append(constraint)
+
+    return updated_constraints

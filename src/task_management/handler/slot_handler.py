@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, List, Tuple
 
 from anytree import Node
 
@@ -21,6 +21,38 @@ class SlotHandler:
         """
         self.constraint_handler = constraint_handler
         self.process_subtask_callback = process_subtask_callback
+
+    def handle_monitoring_slot(
+        self,
+        parent_node: Node,
+        monitoring_subtask: Subtask,
+        makespan: int,
+        remaining_subtasks: List[Subtask],
+    ) -> Tuple[Node, int]:
+        """
+        Handles scheduling of tasks within a monitoring subtask's duration.
+
+        Args:
+            parent_node (Node): The parent node in the task tree.
+            monitoring_subtask (Subtask): The monitoring subtask being processed.
+            makespan (int): The current makespan.
+            remaining_subtasks (List[Subtask]): List of remaining subtasks to be processed.
+
+        Returns:
+            Tuple[Node, int]: Updated parent node and makespan after processing the monitoring duration.
+        """
+        monitoring_duration = monitoring_subtask.duration.interval
+
+        # Execute tasks that can fit within the monitoring duration
+        parent_node, makespan = self._execute_quick_tasks(
+            parent_node,
+            monitoring_subtask,
+            makespan,
+            remaining_subtasks,
+            monitoring_duration,
+        )
+
+        return parent_node, makespan
 
     def handle_time_slots(
         self,
@@ -47,12 +79,13 @@ class SlotHandler:
         )
 
         # Process each time slot
+        # TODO 복수의 Time constraints가 한 노드에 걸려 있는 경우 처리
         for time_slot, is_urgent in time_slot_urgencies:
             if is_urgent and time_slot < 0:
                 pass
             else:
                 parent_node, makespan = self._execute_quick_tasks(
-                    parent_node, makespan, remaining_subtasks, time_slot
+                    parent_node, subtask, makespan, remaining_subtasks, time_slot
                 )
 
         return parent_node, makespan
@@ -60,6 +93,7 @@ class SlotHandler:
     def _execute_quick_tasks(
         self,
         parent_node: Node,
+        subtask: Subtask,
         makespan: int,
         remaining_subtasks: List[Subtask],
         time_slot: int,
@@ -80,10 +114,12 @@ class SlotHandler:
         available_subtasks = self._get_eligible_subtasks(
             parent_node, remaining_subtasks
         )
+
         time_spent = 0
 
         # Process each available subtask
         for available_subtask in available_subtasks:
+            # Time slot이 존재하는 경우 Handling
             if available_subtask.duration.interval <= time_slot - time_spent:
                 # Process the subtask if it fits within the remaining time slot
                 self.process_subtask_callback(
@@ -92,9 +128,6 @@ class SlotHandler:
 
                 time_spent += available_subtask.duration.interval
                 remaining_subtasks.remove(available_subtask)
-                last_processed_subtask = (
-                    available_subtask  # Update the last processed subtask
-                )
 
                 # Break if the time slot is filled
                 if time_spent >= time_slot:
@@ -105,7 +138,7 @@ class SlotHandler:
             wait_time = time_slot - time_spent
             # Ensure last_processed_subtask is defined before using it
             parent_node = Node(
-                name=f"Wait_for_{wait_time}",
+                name=f"Wait_for_{subtask.name}",
                 parent=parent_node,
                 makespan=makespan + wait_time,
                 location=parent_node.location,
