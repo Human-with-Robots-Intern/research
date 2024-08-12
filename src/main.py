@@ -6,7 +6,7 @@ from datetime import datetime
 from concept.agent import Agent
 from concept.env import Env
 from concept.task import parse_constraints, parse_tasks
-from src.utils.openai import generate_task_by_llm
+from utils.task_generator import generate_task_by_llm
 from task_management.handler.subtask_decomposer import decompose_tasks
 from task_management.planner.exhaustive_planner import ExhaustivePlanner
 from utils.visualizer import plot_gantt_chart, visualize_graph, visualize_tree

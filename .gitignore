@@ -170,5 +170,7 @@ scripts/*
 !assets/prompts
 !assets/tasks
 
+.env
+
 *.ipynb
 todo.txt

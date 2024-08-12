@@ -1,9 +1,17 @@
 import json
 import os
 
+from dotenv import load_dotenv
 from openai import OpenAI
 
-from src.utils.util import get_openai_key
+
+def get_openai_key():
+    load_dotenv()
+    return os.environ.get("OPENAI_API_KEY")
+
+
+openai_api_key = get_openai_key()
+client = OpenAI(api_key=openai_api_key)
 
 
 def load_prompt(file_path):
@@ -17,17 +25,13 @@ def load_prompt(file_path):
         return None
 
 
-def generate_subtasks(user_input, examples_prompt, openai_api_key):
+def generate_subtasks(messages):
     """Generate the subtasks decomposition from the user's task description."""
-    client = OpenAI(api_key=openai_api_key)
-
-    # Construct the full prompt
-    full_prompt = f'{examples_prompt}\n\n### [Input] ###\n"""\n{user_input}\n"""\n'
 
     # Using OpenAI API to get the response
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo", prompt=full_prompt
+            model="gpt-4o-mini", messages=messages
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
@@ -46,7 +50,6 @@ def save_to_file(data, file_name):
 
 
 def generate_task_by_llm():
-    openai_api_key = get_openai_key()
 
     prompt_file_path = os.path.join("assets/prompts", f"e2e_generator.txt")
 
@@ -55,7 +58,12 @@ def generate_task_by_llm():
         return
 
     user_input = input("Please enter your task description: ")
-    output = generate_subtasks(user_input, examples_prompt, openai_api_key)
+    full_prompt = [
+        {"role": "system", "content": f"""{examples_prompt}"""},
+        {"role": "assistant", "content": f"""\n\n### [Input] ###\n\n"""},
+        {"role": "user", "content": f"""{user_input}"""},
+    ]
+    output = generate_subtasks(full_prompt)
 
     if output:
         try:
@@ -66,3 +74,7 @@ def generate_task_by_llm():
             return user_input
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
+
+
+if __name__ == "__main__":
+    generate_task_by_llm()

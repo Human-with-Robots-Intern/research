@@ -1,0 +1,128 @@
+[
+    {
+        "Task": "Cooking Noodles",
+        "Subtasks": [
+            {
+                "Subtask": "Boil Water",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pot",
+                    "Objects": {
+                        "Water": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 0,
+                    "Actions": [
+                        "find pot",
+                        "grab pot",
+                        "putin pot stove",
+                        "grab water",
+                        "putin water pot",
+                        "switch_on stove"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Add Noodles",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pot",
+                    "Objects": {
+                        "Noodles": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 0,
+                    "Actions": [
+                        "grab noodles",
+                        "putin noodles pot"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Boil Water",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Subtask": "Stir Noodles",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pot",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 5,
+                    "Interval": 1,
+                    "Actions": [
+                        "grab spoon",
+                        "stir noodles"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Add Noodles",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Subtask": "Drain Noodles",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Colander",
+                    "Objects": {
+                        "Noodles": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 0,
+                    "Actions": [
+                        "grab pot",
+                        "putin noodles colander",
+                        "grab colander",
+                        "putin colander sink"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Stir Noodles",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    }
+]

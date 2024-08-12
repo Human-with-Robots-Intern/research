@@ -1,13 +1,6 @@
 import os
 import signal
 
-from dotenv import load_dotenv
-
-
-def get_openai_key():
-    load_dotenv()
-    return os.environ.get("OPENAI_KEY")
-
 
 # with timeout(seconds=timeout_seconds):
 class timeout:
@@ -24,4 +17,3 @@ class timeout:
 
     def __exit__(self, type, value, traceback):
         signal.alarm(0)
-
