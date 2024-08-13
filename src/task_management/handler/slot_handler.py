@@ -142,10 +142,7 @@ class SlotHandler:
             for s in self._get_eligible_subtasks(parent_node, remaining_subtasks)
             if s.type == "Interaction"
         ]
-        print(parent_node.name)
-        print(
-            [interaction_subtask.name for interaction_subtask in interaction_subtasks]
-        )
+
         # Schedule interaction subtasks during the monitoring period
         for interaction_subtask in interaction_subtasks:
             if (

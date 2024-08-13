@@ -35,17 +35,17 @@
                     "Room": "Kitchen",
                     "Asset": "Sink",
                     "Objects": {
-                        "Dish": 2,
+                        "Dish": 1,
                         "Sponge": 1,
                         "Dish Soap": 1
                     }
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 4
+                    "Interval": 2
                 },
                 "Decomposition": {
-                    "Repetition": 2,
+                    "Repetition": 1,
                     "Interval": 2,
                     "Actions": [
                         "grab Dish",
@@ -56,6 +56,38 @@
                     ]
                 },
                 "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Flipping Steak",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pan",
+                    "Objects": {
+                        "Spatula": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Interval": 2,
+                    "Actions": [
+                        "grab Spatula",
+                        "putin Spatula Steak",
+                        "putback Spatula Pan"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Monitoring Steak",
+                        "Interval": 1,
+                        "Urgency": false
+                    }
+                ]
             }
         ]
     }

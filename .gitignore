@@ -173,4 +173,4 @@ scripts/*
 .env
 
 *.ipynb
-todo.txt
+!todo.txt

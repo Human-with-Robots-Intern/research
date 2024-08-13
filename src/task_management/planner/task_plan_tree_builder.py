@@ -51,6 +51,7 @@ class TreeBuilder:
             makespan = parent_node.parent.makespan
         else:
             makespan = parent_node.makespan
+
         self.agent.location = parent_node.location
 
         # Move to the subtask location if necessary
@@ -67,16 +68,17 @@ class TreeBuilder:
                 type="Move",
             )
 
-        # print("노드 path", [path_node.name for path_node in parent_node.path])
-        # # print(f"부모 노드 : {parent_node.name}")
-        # print(
-        #     f"추가할 task : {subtask.name} ({parent_node.makespan}~{parent_node.makespan + subtask.duration.interval})"
-        # )
-        # print(
-        #     "남은 task : ",
-        #     [remaining_subtask.name for remaining_subtask in remaining_subtasks],
-        # )
-        # print()
+        # Debugging
+        print("노드 path", [path_node.name for path_node in parent_node.path])
+        # print(f"부모 노드 : {parent_node.name}")
+        print(
+            f"추가할 task : {subtask.name} ({parent_node.makespan}~{parent_node.makespan + subtask.duration.interval})"
+        )
+        print(
+            "남은 task : ",
+            [remaining_subtask.name for remaining_subtask in remaining_subtasks],
+        )
+        print()
 
         # Parallel execution check
         if subtask.type == "Monitoring":
@@ -89,25 +91,19 @@ class TreeBuilder:
             self.slot_handler.handle_time_slots(
                 parent_node, subtask, makespan, remaining_subtasks
             )
+            makespan += subtask.duration.interval
+            parent_node = Node(
+                subtask.name,
+                parent=parent_node,
+                makespan=makespan,
+                location=f"{subtask.roi.room}:{subtask.roi.asset}",
+                type=subtask.type,
+            )
 
-        makespan += subtask.duration.interval
-        child_node = Node(
-            subtask.name,
-            parent=parent_node,
-            makespan=makespan,
-            location=f"{subtask.roi.room}:{subtask.roi.asset}",
-            type=subtask.type,
-        )
+            # Expand the tree with remaining subtasks
+            eligible_subtasks = self.slot_handler._get_eligible_subtasks(
+                parent_node, remaining_subtasks
+            )
 
-        # Expand the tree with remaining subtasks
-        self._expand_tree(child_node, remaining_subtasks)
-
-    def _expand_tree(
-        self, parent_node: Node, remaining_subtasks: List[Subtask]
-    ) -> None:
-        eligible_subtasks = self.slot_handler._get_eligible_subtasks(
-            parent_node, remaining_subtasks
-        )
-
-        for subtask in eligible_subtasks:
-            self._process_subtask(parent_node, subtask, remaining_subtasks)
+            for subtask in eligible_subtasks:
+                self._process_subtask(parent_node, subtask, remaining_subtasks)

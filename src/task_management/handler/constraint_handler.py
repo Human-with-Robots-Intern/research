@@ -25,12 +25,13 @@ class ConstraintHandler:
 
     def _get_constraint_nodes(self, parent_node: Node, subtask_name: str) -> List[Node]:
         """Get constraint nodes for the given subtask based on the task tree."""
-        return [
+        constraint_nodes = [
             node
             for source, _, _ in self.constraints.in_edges(subtask_name, data=True)
             for node in parent_node.path
-            if node.name == source
+            if node.name.startswith(source)
         ]
+        return constraint_nodes
 
     def validate_ordering_constraints(
         self, parent_node: Node, subtask: Subtask
@@ -49,11 +50,11 @@ class ConstraintHandler:
 
         if not constraint_nodes:
             return [(0, False)]
-
-        return [
+        time_slots = [
             self._calculate_time_slot_for_constraint(parent_node, node, subtask)
             for node in constraint_nodes
         ]
+        return time_slots
 
     def validate_timing_constraints(
         self, time_slot_info: List[Tuple[int, bool]]
