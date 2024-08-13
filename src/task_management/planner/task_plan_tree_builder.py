@@ -20,6 +20,7 @@ class TreeBuilder:
         self.tasks = tasks
         self.constraint_handler = ConstraintHandler(agent, constraints)
         self.slot_handler = SlotHandler(self.constraint_handler, self._process_subtask)
+        self.active_monitoring_tasks = []
 
     def build_tree(self) -> Node:
         root_node = Node(name="Start", makespan=0, location=self.agent.location)
@@ -45,29 +46,35 @@ class TreeBuilder:
         remaining_subtasks = subtasks[:]
         remaining_subtasks.remove(subtask)
 
-        # Retrieve makespan and location from the parent node
         makespan = parent_node.makespan
         self.agent.location = parent_node.location
 
-        # Move
+        # Move to the subtask location if necessary
         goal_location = subtask.roi.asset if subtask.roi.asset else subtask.roi.room
         move_cost = self.agent.move(goal_location)
 
-        if move_cost > 0:
+        if move_cost != 0:
             makespan += move_cost
             parent_node = Node(
                 f"Move ({parent_node.location} -> {self.agent.location})",
-                parent_node,
+                parent=parent_node,
                 makespan=makespan,
                 location=goal_location,
             )
 
-        # Handle time slot urgencies
-        parent_node, makespan = self.slot_handler.handle_time_slots(
-            parent_node, subtask, makespan, remaining_subtasks
-        )
+        # Parallel execution check
+        if subtask.type == "Monitoring":
+            # This monitoring task can have parallel interaction tasks
+            self.active_monitoring_tasks.append(subtask)
+            self.slot_handler.handle_monitoring_slots(
+                parent_node, subtask, makespan, remaining_subtasks
+            )
+        else:
+            # Regular task processing
+            self.slot_handler.handle_time_slots(
+                parent_node, subtask, makespan, remaining_subtasks
+            )
 
-        # Execute the subtask
         makespan += subtask.duration.interval
         child_node = Node(
             subtask.name,

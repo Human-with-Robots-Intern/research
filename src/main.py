@@ -17,7 +17,7 @@ def parse_arguments():
     parser.add_argument(
         "-name",
         help="Select the Goal [all, laundry, cook, toast etc.]",
-        default="cook",
+        default="monitor",
     )
     return parser.parse_args()
 
@@ -40,7 +40,7 @@ def load_tasks_and_constraints(task_name=None):
 
 def visualize(task_name, constraints, task_plans, opt_task_plans):
     save_path = "assets/results/"
-    folder_name = datetime.now().strftime("%Y-%m-%d_%H-%M") + f"_{task_name}"
+    folder_name = datetime.now().strftime("%Y-%m-%d_%H") + f"_{task_name}"
     save_folder_path = os.path.join(save_path, folder_name)
     os.makedirs(
         save_folder_path, exist_ok=True
@@ -52,7 +52,6 @@ def visualize(task_name, constraints, task_plans, opt_task_plans):
 
 
 def main():
-
     args = parse_arguments()
 
     tasks, constraints = load_tasks_and_constraints(args.name)

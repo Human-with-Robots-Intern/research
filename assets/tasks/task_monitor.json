@@ -1,0 +1,62 @@
+[
+    {
+        "Task": "Cook Steak",
+        "Subtasks": [
+            {
+                "Subtask": "Monitoring Steak",
+                "Type": "Monitoring",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pan",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Decomposition": {
+                    "Repetition": 2,
+                    "Interval": 5,
+                    "Actions": [
+                        "find Steak"
+                    ]
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Washing Dishes",
+        "Subtasks": [
+            {
+                "Subtask": "Washing Dish",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Sink",
+                    "Objects": {
+                        "Dish": 2,
+                        "Sponge": 1,
+                        "Dish Soap": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 4
+                },
+                "Decomposition": {
+                    "Repetition": 2,
+                    "Interval": 2,
+                    "Actions": [
+                        "grab Dish",
+                        "grab Sponge",
+                        "putin Dish Soap Sponge",
+                        "putin Sponge Dish",
+                        "putback Dish Rack"
+                    ]
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]

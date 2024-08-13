@@ -28,9 +28,9 @@ class SlotHandler:
         subtask: Subtask,
         makespan: int,
         remaining_subtasks: List[Subtask],
-    ) -> Tuple[Node, int]:
+    ) -> Tuple[Node, int, List[Subtask]]:
         """
-        Handles the scheduling of a subtask based on available time slots and urgency.
+        Handles the scheduling of an interaction subtask based on available time slots.
 
         Args:
             parent_node (Node): The parent node in the task tree.
@@ -39,95 +39,26 @@ class SlotHandler:
             remaining_subtasks (List[Subtask]): List of remaining subtasks to be processed.
 
         Returns:
-            Tuple[Node, int]: Updated node and makespan after processing the time slots.
+            Tuple[Node, int, List[Subtask]]: Updated node, makespan, and remaining subtasks after processing the time slots.
         """
-
         # Process based on time slot urgencies
         time_slot_urgencies = self.constraint_handler.get_time_slot_and_urgency(
             parent_node, subtask
         )
+
         for time_slot, is_urgent in time_slot_urgencies:
             if is_urgent and time_slot < 0:
                 pass
             else:
-                # Monitoring 시작 시간을 저장할 변수
-                temp_parent_node = parent_node
-                temp_makespan = makespan
-
-                # Monitoring을 작업 배치 이후 makespan
-                parent_node, makespan, remaining_subtasks = self._execute_quick_tasks(
-                    parent_node, subtask, makespan, remaining_subtasks, time_slot
+                parent_node, makespan = self._execute_quick_tasks(
+                    parent_node,
+                    subtask,
+                    makespan,
+                    remaining_subtasks,
+                    time_slot,
                 )
-
-                # Monitoring Duration 만큼, 작업 배치 할 것
-                if subtask.type == "Monitoring":
-                    parent_node, makespan, remaining_subtasks = (
-                        self._execute_parallel_tasks(
-                            temp_parent_node, subtask, temp_makespan, remaining_subtasks
-                        )
-                    )
 
         return parent_node, makespan
-
-    def _execute_parallel_tasks(
-        self,
-        parent_node: Node,
-        subtask: Subtask,
-        makespan: int,
-        remaining_subtasks: List[Subtask],
-    ) -> Tuple[Node, int, List[Subtask]]:
-        """
-        Schedules interaction subtasks to run in parallel with a monitoring subtask.
-
-        Args:
-            parent_node (Node): The parent node in the task tree.
-            subtask (Subtask): The monitoring subtask being processed.
-            makespan (int): The current makespan.
-            remaining_subtasks (List[Subtask]): List of remaining subtasks to be processed.
-
-        Returns:
-            Tuple[Node, int, List[Subtask]]: Updated node, makespan, and remaining subtasks.
-        """
-        # Retrieve eligible subtasks that can run in parallel
-        available_subtasks = self._get_eligible_subtasks(
-            parent_node, remaining_subtasks
-        )
-        time_slot = subtask.duration.interval
-        time_spent = 0
-
-        # Process each eligible interaction subtask
-        for available_subtask in available_subtasks:
-            # Check if the subtask can fit within the remaining time slot
-            if (
-                available_subtask.type == "Interaction"
-                and available_subtask.duration.interval <= time_slot - time_spent
-            ):
-                # Process the interaction subtask
-                self.process_subtask_callback(
-                    parent_node, available_subtask, remaining_subtasks
-                )
-
-                # Update the time spent and remove the subtask from the list
-                time_spent += available_subtask.duration.interval
-                remaining_subtasks.remove(available_subtask)
-
-                # Break if the time slot is filled
-                if time_spent >= time_slot:
-                    break
-
-        # If there is remaining time, add a wait node
-        if time_spent < time_slot:
-            wait_time = time_slot - time_spent
-            wait_node = Node(
-                name=f"Wait_for_{subtask.name}",
-                parent=parent_node,
-                makespan=makespan + wait_time,
-                location=parent_node.location,
-            )
-            parent_node = wait_node
-            makespan += wait_time
-
-        return parent_node, makespan, remaining_subtasks
 
     def _execute_quick_tasks(
         self,
@@ -136,18 +67,19 @@ class SlotHandler:
         makespan: int,
         remaining_subtasks: List[Subtask],
         time_slot: int,
-    ) -> Tuple[Node, int]:
+    ) -> Tuple[Node, int, List[Subtask]]:
         """
         Executes quick tasks that can fit within the given time slot.
 
         Args:
             parent_node (Node): The parent node in the task tree.
+            subtask (Subtask): The current subtask being processed.
             makespan (int): The current makespan.
             remaining_subtasks (List[Subtask]): List of remaining subtasks to be processed.
             time_slot (int): The available time slot duration.
 
         Returns:
-            Tuple[Node, int]: Updated node and makespan after executing quick tasks.
+            Tuple[Node, int, List[Subtask]]: Updated node, makespan, and remaining subtasks after executing quick tasks.
         """
         # Get eligible subtasks based on constraints
         available_subtasks = self._get_eligible_subtasks(
@@ -183,7 +115,50 @@ class SlotHandler:
             )
             makespan += wait_time
 
-        return parent_node, makespan, remaining_subtasks
+        return parent_node, makespan
+
+    def handle_monitoring_slots(
+        self,
+        parent_node: Node,
+        subtask: Subtask,
+        makespan: int,
+        remaining_subtasks: List[Subtask],
+    ) -> Tuple[Node, int]:
+
+        monitoring_duration = subtask.duration.interval
+        time_spent = 0
+        # Schedule interaction subtasks during the monitoring period
+        for interaction_subtask in [
+            s
+            for s in self._get_eligible_subtasks(parent_node, remaining_subtasks)
+            if s.type == "Interaction"
+        ]:
+            if (
+                interaction_subtask.duration.interval
+                <= monitoring_duration - time_spent
+            ):
+                # Use the callback to process the subtask
+                self.process_subtask_callback(
+                    parent_node, interaction_subtask, remaining_subtasks
+                )
+                time_spent += interaction_subtask.duration.interval
+                remaining_subtasks.remove(interaction_subtask)
+
+                if time_spent >= monitoring_duration:
+                    break
+
+        if time_spent < monitoring_duration:
+            # Wait for the remaining time if not all time slots are used
+            wait_time = monitoring_duration - time_spent
+            parent_node = Node(
+                name=f"Wait_for_{subtask.name}",
+                parent=parent_node,
+                makespan=makespan + wait_time,
+                location=parent_node.location,
+            )
+            makespan += wait_time
+
+        return parent_node, makespan
 
     def _get_eligible_subtasks(
         self, parent_node: Node, remaining_subtasks: List[Subtask]
