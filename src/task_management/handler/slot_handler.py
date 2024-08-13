@@ -112,6 +112,7 @@ class SlotHandler:
                 parent=parent_node,
                 makespan=makespan + wait_time,
                 location=parent_node.location,
+                type="Wait",
             )
             makespan += wait_time
 
@@ -124,15 +125,29 @@ class SlotHandler:
         makespan: int,
         remaining_subtasks: List[Subtask],
     ) -> Tuple[Node, int]:
-
         monitoring_duration = subtask.duration.interval
+
+        makespan += monitoring_duration
+        parent_node = Node(
+            subtask.name,
+            parent=parent_node,
+            makespan=makespan,
+            location=f"{subtask.roi.room}:{subtask.roi.asset}",
+            type="Monitoring",
+        )
+
         time_spent = 0
-        # Schedule interaction subtasks during the monitoring period
-        for interaction_subtask in [
+        interaction_subtasks = [
             s
             for s in self._get_eligible_subtasks(parent_node, remaining_subtasks)
             if s.type == "Interaction"
-        ]:
+        ]
+        print(parent_node.name)
+        print(
+            [interaction_subtask.name for interaction_subtask in interaction_subtasks]
+        )
+        # Schedule interaction subtasks during the monitoring period
+        for interaction_subtask in interaction_subtasks:
             if (
                 interaction_subtask.duration.interval
                 <= monitoring_duration - time_spent
@@ -147,16 +162,17 @@ class SlotHandler:
                 if time_spent >= monitoring_duration:
                     break
 
-        if time_spent < monitoring_duration:
-            # Wait for the remaining time if not all time slots are used
-            wait_time = monitoring_duration - time_spent
-            parent_node = Node(
-                name=f"Wait_for_{subtask.name}",
-                parent=parent_node,
-                makespan=makespan + wait_time,
-                location=parent_node.location,
-            )
-            makespan += wait_time
+        # if time_spent < monitoring_duration:
+        #     # Wait for the remaining time if not all time slots are used
+        #     wait_time = monitoring_duration - time_spent
+        #     parent_node = Node(
+        #         name=f"Wait_for_{subtask.name}",
+        #         parent=parent_node,
+        #         makespan=makespan + wait_time,
+        #         location=parent_node.location,
+        #         type="Wait",
+        #     )
+        #     makespan += wait_time
 
         return parent_node, makespan
 
@@ -186,6 +202,9 @@ class SlotHandler:
                 if self.constraint_handler.validate_timing_constraints(
                     time_slot_urgencies
                 ):
+                    if subtask.name == "Flipping Steak":
+                        print()
+                        print(time_slot_urgencies)
                     eligible_subtasks.append(subtask)
 
         return eligible_subtasks

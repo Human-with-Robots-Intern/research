@@ -20,10 +20,11 @@ class TreeBuilder:
         self.tasks = tasks
         self.constraint_handler = ConstraintHandler(agent, constraints)
         self.slot_handler = SlotHandler(self.constraint_handler, self._process_subtask)
-        self.active_monitoring_tasks = []
 
     def build_tree(self) -> Node:
-        root_node = Node(name="Start", makespan=0, location=self.agent.location)
+        root_node = Node(
+            name="Start", makespan=0, location=self.agent.location, type="Start"
+        )
         subtasks = get_all_subtasks(self.tasks)
         initial_subtasks = self._get_initial_subtasks(subtasks)
 
@@ -46,7 +47,10 @@ class TreeBuilder:
         remaining_subtasks = subtasks[:]
         remaining_subtasks.remove(subtask)
 
-        makespan = parent_node.makespan
+        if parent_node.type == "Monitoring":
+            makespan = parent_node.parent.makespan
+        else:
+            makespan = parent_node.makespan
         self.agent.location = parent_node.location
 
         # Move to the subtask location if necessary
@@ -59,13 +63,24 @@ class TreeBuilder:
                 f"Move ({parent_node.location} -> {self.agent.location})",
                 parent=parent_node,
                 makespan=makespan,
-                location=goal_location,
+                location=self.agent.location,
+                type="Move",
             )
+
+        # print("노드 path", [path_node.name for path_node in parent_node.path])
+        # # print(f"부모 노드 : {parent_node.name}")
+        # print(
+        #     f"추가할 task : {subtask.name} ({parent_node.makespan}~{parent_node.makespan + subtask.duration.interval})"
+        # )
+        # print(
+        #     "남은 task : ",
+        #     [remaining_subtask.name for remaining_subtask in remaining_subtasks],
+        # )
+        # print()
 
         # Parallel execution check
         if subtask.type == "Monitoring":
             # This monitoring task can have parallel interaction tasks
-            self.active_monitoring_tasks.append(subtask)
             self.slot_handler.handle_monitoring_slots(
                 parent_node, subtask, makespan, remaining_subtasks
             )
@@ -81,6 +96,7 @@ class TreeBuilder:
             parent=parent_node,
             makespan=makespan,
             location=f"{subtask.roi.room}:{subtask.roi.asset}",
+            type=subtask.type,
         )
 
         # Expand the tree with remaining subtasks

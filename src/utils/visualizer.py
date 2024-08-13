@@ -93,7 +93,10 @@ def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
             makespan = node.makespan
 
             # Calculate duration based on the difference between makespan and the parent's makespan
-            parent_makespan = node.parent.makespan if node.parent else 0
+            if node.parent.type == "Monitoring":
+                parent_makespan = node.parent.parent.makespan
+            else:
+                parent_makespan = node.parent.makespan if node.parent else 0
             duration = makespan - parent_makespan
             start_time = parent_makespan
 

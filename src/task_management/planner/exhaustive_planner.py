@@ -71,7 +71,7 @@ class ExhaustivePlanner:
         def filter_tree(node: Node) -> Optional[Node]:
             if node not in optimal_nodes:
                 return None
-            new_node = Node(node.name, makespan=node.makespan)
+            new_node = Node(node.name, makespan=node.makespan, type=node.type)
             for child in node.children:
                 new_child = filter_tree(child)
                 if new_child is not None:
