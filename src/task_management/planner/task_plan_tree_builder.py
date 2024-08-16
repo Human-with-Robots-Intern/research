@@ -36,20 +36,22 @@ class TreeBuilder:
 
         return root_node
 
+    #! 모니터링 노드 채우는 중임을 어떻게 표시?
     def _process_subtask(
         self, parent_node: Node, subtask: Subtask, subtasks: List[Subtask]
     ) -> None:
+        # 추가할 subtask를 제외한 리스트 생성 -> subtask의 자식노드에 쓰일 subtasks
         remaining_subtasks = subtasks[:]
         remaining_subtasks.remove(subtask)
 
-        # Monitoring일 때, 함께 작업할 subtask의 makespan을 monitoring시작에 위치
-        # 함께 병렬처리할 subtask의 부모는 일단 monitoring
         if parent_node.type == "Monitoring":
+            # Monitoring node를 채울 때, makespan은 monitoring subtask의 시작점
             makespan = parent_node.parent.makespan
         else:
+            # 보통의 경우 부모노드의 makespan이 시작점
             makespan = parent_node.makespan
 
-        # Move to the subtask location if necessary
+        # 지정된 subtask를 위한 이동
         self.agent.location = parent_node.location
         goal_location = subtask.roi.asset if subtask.roi.asset else subtask.roi.room
         move_cost = self.agent.move(goal_location)
@@ -64,28 +66,35 @@ class TreeBuilder:
                 type="Move",
             )
 
-        # Debugging
-        print("노드 path", [path_node.name for path_node in parent_node.path])
-        print(
-            f"추가할 task : {subtask.name} ({parent_node.makespan}~{parent_node.makespan + subtask.duration.interval})"
-        )
-        print(
-            "남은 task : ",
-            [remaining_subtask.name for remaining_subtask in remaining_subtasks],
-        )
-        print()
+        # move 이후, subtask가 추가될 때, 고려해야할 time slot을 계산
+        time_slot, urgency = self.slot_handler.compress_time_slots(parent_node, subtask)
 
-        # Parallel execution check
         if subtask.type == "Monitoring":
-            # This monitoring task can have parallel interaction tasks
-            self.slot_handler.handle_monitoring_slots(
+            # 모니터링 작업이 추가될 때, 모니터링 슬롯을 추가하며 남는 작업시간은 wait으로 때울 것임
+            wait_time = self.slot_handler.handle_monitoring_slots(
                 parent_node, subtask, makespan, remaining_subtasks
             )
+            parent_node = Node(
+                name=f"Wait_for_{subtask.name}",
+                parent=parent_node,
+                makespan=makespan + wait_time,
+                location=parent_node.location,
+                type="Wait",
+            )
+            makespan += wait_time
         else:
-
-            self.slot_handler.handle_time_slots(
-                parent_node, subtask, makespan, remaining_subtasks
-            )
+            if time_slot > 0:
+                wait_time = self.slot_handler.handle_time_slots(
+                    parent_node, subtask, makespan, remaining_subtasks, time_slot
+                )
+                parent_node = Node(
+                    name=f"Wait_for_{subtask.name}",
+                    parent=parent_node,
+                    makespan=makespan + wait_time,
+                    location=parent_node.location,
+                    type="Wait",
+                )
+                makespan += wait_time
 
             # Regular task processing
             makespan += subtask.duration.interval
