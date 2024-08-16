@@ -12,11 +12,11 @@
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 5
+                    "Interval": 2
                 },
                 "Decomposition": {
                     "Repetition": 1,
-                    "Interval": 5,
+                    "Interval": 2,
                     "Actions": [
                         "find Steak"
                     ]
