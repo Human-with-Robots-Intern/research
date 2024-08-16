@@ -31,7 +31,6 @@ class TreeBuilder:
         initial_subtasks = self.slot_handler.constraint_handler.get_initial_subtasks(
             subtasks
         )
-
         for subtask in initial_subtasks:
             self._process_subtask(root_node, subtask, subtasks)
 
@@ -44,20 +43,12 @@ class TreeBuilder:
         remaining_subtasks = subtasks[:]
         remaining_subtasks.remove(subtask)
 
-        if parent_node.type == "Monitoring":
-            # Monitoring node를 채울 때, makespan은 monitoring subtask의 시작점
-            makespan = parent_node.parent.makespan
-        else:
-            # 보통의 경우 부모노드의 makespan이 시작점
-
-            makespan = parent_node.makespan
+        makespan = parent_node.makespan
 
         # 지정된 subtask를 위한 이동
         self.agent.location = parent_node.location
-        if subtask.type == "Monitoring":
-            goal_location = parent_node.location
-        else:
-            goal_location = subtask.roi.asset if subtask.roi.asset else subtask.roi.room
+
+        goal_location = subtask.roi.asset if subtask.roi.asset else subtask.roi.room
         move_cost = self.agent.move(goal_location)
 
         if move_cost != 0:
@@ -71,7 +62,6 @@ class TreeBuilder:
             )
 
         # move 이후, subtask가 추가될 때, 고려해야할 time slot을 계산
-        #! Monitoring을 채우기 위한 경우에는?
         time_slot, urgency = self.slot_handler.compress_time_slots(parent_node, subtask)
 
         if time_slot > 0:
@@ -88,32 +78,15 @@ class TreeBuilder:
             makespan += wait_time
             print(f"waiting time : {wait_time}")
 
-        if subtask.type == "Monitoring":
-            # 모니터링 작업이 추가될 때, 모니터링 슬롯을 추가하며 남는 작업시간은 wait으로 때울 것
-
-            self.active_subtask = subtask
-            wait_time = self.slot_handler.handle_monitoring_slots(
-                parent_node, subtask, makespan, remaining_subtasks
-            )
-
-            parent_node = Node(
-                name=f"Wait_for_{subtask.name}",
-                parent=parent_node,
-                makespan=makespan + wait_time,
-                location=parent_node.location,
-                type="Wait",
-            )
-            makespan += wait_time
-        else:
-            # Regular task processing
-            makespan += subtask.duration.interval
-            parent_node = Node(
-                subtask.name,
-                parent=parent_node,
-                makespan=makespan,
-                location=f"{subtask.roi.room}:{subtask.roi.asset}",
-                type=subtask.type,
-            )
+        # Regular task processing
+        makespan += subtask.duration.interval
+        parent_node = Node(
+            subtask.name,
+            parent=parent_node,
+            makespan=makespan,
+            location=f"{subtask.roi.room}:{subtask.roi.asset}",
+            type=subtask.type,
+        )
 
         # Expand the tree with remaining subtasks
         expandable_subtasks = (
