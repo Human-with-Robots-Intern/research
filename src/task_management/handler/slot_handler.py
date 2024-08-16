@@ -41,82 +41,43 @@ class SlotHandler:
         Returns:
             Tuple[Node, int, List[Subtask]]: Updated node, makespan, and remaining subtasks after processing the time slots.
         """
-        # Process based on time slot urgencies
-        time_slot_urgencies = self.constraint_handler.get_time_slot_and_urgency(
+
+        for time_slot, is_urgent in self.constraint_handler.get_time_slot_and_urgency(
             parent_node, subtask
-        )
-
-        for time_slot, is_urgent in time_slot_urgencies:
-            if is_urgent and time_slot < 0:
-                pass
-            else:
-                parent_node, makespan = self._execute_quick_tasks(
-                    parent_node,
-                    subtask,
-                    makespan,
-                    remaining_subtasks,
-                    time_slot,
-                )
-
-        return parent_node, makespan
-
-    def _execute_quick_tasks(
-        self,
-        parent_node: Node,
-        subtask: Subtask,
-        makespan: int,
-        remaining_subtasks: List[Subtask],
-        time_slot: int,
-    ) -> Tuple[Node, int, List[Subtask]]:
-        """
-        Executes quick tasks that can fit within the given time slot.
-
-        Args:
-            parent_node (Node): The parent node in the task tree.
-            subtask (Subtask): The current subtask being processed.
-            makespan (int): The current makespan.
-            remaining_subtasks (List[Subtask]): List of remaining subtasks to be processed.
-            time_slot (int): The available time slot duration.
-
-        Returns:
-            Tuple[Node, int, List[Subtask]]: Updated node, makespan, and remaining subtasks after executing quick tasks.
-        """
-        # Get eligible subtasks based on constraints
-        available_subtasks = self.constraint_handler.get_eligible_subtasks(
-            parent_node, remaining_subtasks
-        )
-
-        time_spent = 0
-
-        # Process each available subtask
-        for available_subtask in available_subtasks:
-            # Check if the available subtask can fit within the time slot
-            if available_subtask.duration.interval <= time_slot - time_spent:
-                # Process the subtask if it fits within the remaining time slot
-                self.process_subtask_callback(
-                    parent_node, available_subtask, remaining_subtasks
-                )
-
-                time_spent += available_subtask.duration.interval
-                remaining_subtasks.remove(available_subtask)
-
-                # Break if the time slot is filled
-                if time_spent >= time_slot:
-                    break
-
-        if time_spent < time_slot:
-            # Wait for the remaining time if not all time slots are used
-            wait_time = time_slot - time_spent
-            parent_node = Node(
-                name=f"Wait_for_{subtask.name}",
-                parent=parent_node,
-                makespan=makespan + wait_time,
-                location=parent_node.location,
-                type="Wait",
+        ):
+            available_subtasks = self.constraint_handler.get_expandable_subtasks(
+                parent_node, remaining_subtasks
             )
-            makespan += wait_time
 
-        return parent_node, makespan
+            time_spent = 0
+
+            # Process each available subtask
+            for available_subtask in available_subtasks:
+                # Check if the available subtask can fit within the time slot
+                if available_subtask.duration.interval <= time_slot - time_spent:
+                    # Process the subtask if it fits within the remaining time slot
+                    self.process_subtask_callback(
+                        parent_node, available_subtask, remaining_subtasks
+                    )
+
+                    time_spent += available_subtask.duration.interval
+                    remaining_subtasks.remove(available_subtask)
+
+                    # Break if the time slot is filled
+                    if time_spent >= time_slot:
+                        break
+
+            if time_spent < time_slot:
+                # Wait for the remaining time if not all time slots are used
+                wait_time = time_slot - time_spent
+                parent_node = Node(
+                    name=f"Wait_for_{subtask.name}",
+                    parent=parent_node,
+                    makespan=makespan + wait_time,
+                    location=parent_node.location,
+                    type="Wait",
+                )
+                makespan += wait_time
 
     def handle_monitoring_slots(
         self,
@@ -139,7 +100,7 @@ class SlotHandler:
         time_spent = 0
         interaction_subtasks = [
             s
-            for s in self.constraint_handler.get_eligible_subtasks(
+            for s in self.constraint_handler.get_expandable_subtasks(
                 parent_node, remaining_subtasks
             )
             if s.type == "Interaction"
@@ -172,5 +133,3 @@ class SlotHandler:
         #         type="Wait",
         #     )
         #     makespan += wait_time
-
-        return parent_node, makespan

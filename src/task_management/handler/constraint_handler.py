@@ -8,17 +8,14 @@ from concept.task import Subtask
 
 
 class ConstraintHandler:
-    Constraint = namedtuple(
-        "Constraint", ["source", "target", "interval", "is_urgency"]
-    )
 
     def __init__(self, constraints: nx.DiGraph):
         self.constraints = constraints
 
-    def _gather_constraints(self, subtask_name: str) -> List[Constraint]:
+    def _get_constraints(self, subtask_name: str) -> List[Tuple]:
         """Gather all constraints related to the given subtask."""
         return [
-            self.Constraint(u, v, data["info"]["Interval"], data["info"]["Urgency"])
+            (u, v, data["info"]["Interval"], data["info"]["Urgency"])
             for u, v, data in self.constraints.in_edges(subtask_name, data=True)
         ]
 
@@ -32,32 +29,28 @@ class ConstraintHandler:
         ]
         return constraint_nodes
 
-    def validate_ordering_constraints(
-        self, parent_node: Node, subtask: Subtask
-    ) -> bool:
-        """Validate if a subtask satisfies ordering constraints to be added as a child node."""
+    def validate_constraints(self, parent_node: Node, subtask: Subtask) -> bool:
+        """
+        Validate if a subtask satisfies all constraints to be added as a child node.
+
+        Args:
+            parent_node (Node): The parent node in the task tree.
+            subtask (Subtask): The subtask to validate.
+
+        Returns:
+            bool: True if all constraints are satisfied, False otherwise.
+        """
         constraint_nodes = self._get_constraint_nodes(parent_node, subtask.name)
-        constraints = self._gather_constraints(subtask.name)
+        constraints = self._get_constraints(subtask.name)
 
-        return len(constraint_nodes) == len(constraints)
+        if len(constraint_nodes) != len(constraints):
+            return False
 
-    def validate_timing_constraints(
-        self, time_slot_info: List[Tuple[int, bool]]
-    ) -> bool:
-        """Validate timing constraints for a given list of time slots and urgencies."""
-        results = [
-            self._is_valid_time_slot(time_slot, is_urgency)
-            for time_slot, is_urgency in time_slot_info
-        ]
-
-        return all(results)
-
-    def _is_valid_time_slot(self, time_slot: int, is_urgency: bool) -> bool:
-        """Determine if a time slot is valid based on its urgency."""
-        if is_urgency:
-            return time_slot >= 0
-        else:
-            return True
+        time_slots = self.get_time_slot_and_urgency(parent_node, subtask)
+        return all(
+            time_slot >= 0 if is_urgency else True
+            for time_slot, is_urgency in time_slots
+        )
 
     def get_time_slot_and_urgency(
         self, parent_node: Node, subtask: Subtask
@@ -67,6 +60,7 @@ class ConstraintHandler:
 
         if not constraint_nodes:
             return [(0, False)]
+
         time_slots = [
             self._calculate_time_slot_for_constraint(parent_node, node, subtask)
             for node in constraint_nodes
@@ -93,7 +87,7 @@ class ConstraintHandler:
         }
         return [subtask for subtask in subtasks if subtask.name in initial_nodes]
 
-    def get_eligible_subtasks(
+    def get_expandable_subtasks(
         self, parent_node: Node, remaining_subtasks: List[Subtask]
     ) -> List[Subtask]:
         """
@@ -106,18 +100,9 @@ class ConstraintHandler:
         Returns:
             List[Subtask]: List of subtasks that meet the constraints and can be executed.
         """
-        eligible_subtasks = []
-        for subtask in remaining_subtasks:
-            # Check ordering constraints
-            if self.validate_ordering_constraints(parent_node, subtask):
-                # Check timing constraints
-                time_slot_urgencies = self.get_time_slot_and_urgency(
-                    parent_node, subtask
-                )
-                if self.validate_timing_constraints(time_slot_urgencies):
-                    if subtask.name == "Flipping Steak":
-                        print()
-                        print(time_slot_urgencies)
-                    eligible_subtasks.append(subtask)
-
+        eligible_subtasks = [
+            subtask
+            for subtask in remaining_subtasks
+            if self.validate_constraints(parent_node, subtask)
+        ]
         return eligible_subtasks

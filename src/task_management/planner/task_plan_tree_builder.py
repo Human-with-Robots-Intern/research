@@ -82,10 +82,12 @@ class TreeBuilder:
                 parent_node, subtask, makespan, remaining_subtasks
             )
         else:
-            # Regular task processing
+
             self.slot_handler.handle_time_slots(
                 parent_node, subtask, makespan, remaining_subtasks
             )
+
+            # Regular task processing
             makespan += subtask.duration.interval
             parent_node = Node(
                 subtask.name,
@@ -96,11 +98,11 @@ class TreeBuilder:
             )
 
             # Expand the tree with remaining subtasks
-            eligible_subtasks = (
-                self.slot_handler.constraint_handler.get_eligible_subtasks(
+            expandable_subtasks = (
+                self.slot_handler.constraint_handler.get_expandable_subtasks(
                     parent_node, remaining_subtasks
                 )
             )
 
-            for subtask in eligible_subtasks:
+            for subtask in expandable_subtasks:
                 self._process_subtask(parent_node, subtask, remaining_subtasks)
