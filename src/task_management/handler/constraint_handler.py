@@ -12,8 +12,7 @@ class ConstraintHandler:
         "Constraint", ["source", "target", "interval", "is_urgency"]
     )
 
-    def __init__(self, agent, constraints: nx.DiGraph):
-        self.agent = agent
+    def __init__(self, constraints: nx.DiGraph):
         self.constraints = constraints
 
     def _gather_constraints(self, subtask_name: str) -> List[Constraint]:
@@ -42,20 +41,6 @@ class ConstraintHandler:
 
         return len(constraint_nodes) == len(constraints)
 
-    def get_time_slot_and_urgency(
-        self, parent_node: Node, subtask: Subtask
-    ) -> List[Tuple[int, bool]]:
-        """Calculate and return the time slots and urgency for a given subtask."""
-        constraint_nodes = self._get_constraint_nodes(parent_node, subtask.name)
-
-        if not constraint_nodes:
-            return [(0, False)]
-        time_slots = [
-            self._calculate_time_slot_for_constraint(parent_node, node, subtask)
-            for node in constraint_nodes
-        ]
-        return time_slots
-
     def validate_timing_constraints(
         self, time_slot_info: List[Tuple[int, bool]]
     ) -> bool:
@@ -74,6 +59,20 @@ class ConstraintHandler:
         else:
             return True
 
+    def get_time_slot_and_urgency(
+        self, parent_node: Node, subtask: Subtask
+    ) -> List[Tuple[int, bool]]:
+        """Calculate and return the time slots and urgency for a given subtask."""
+        constraint_nodes = self._get_constraint_nodes(parent_node, subtask.name)
+
+        if not constraint_nodes:
+            return [(0, False)]
+        time_slots = [
+            self._calculate_time_slot_for_constraint(parent_node, node, subtask)
+            for node in constraint_nodes
+        ]
+        return time_slots
+
     def _calculate_time_slot_for_constraint(
         self, parent_node: Node, constraint_node: Node, subtask: Subtask
     ) -> Tuple[int, bool]:
@@ -87,3 +86,38 @@ class ConstraintHandler:
         time_slot = constraint_node.makespan + interval - parent_node.makespan
 
         return time_slot, urgency
+
+    def get_initial_subtasks(self, subtasks: List[Subtask]) -> List[Subtask]:
+        initial_nodes = {
+            node for node, in_degree in self.constraints.in_degree() if in_degree == 0
+        }
+        return [subtask for subtask in subtasks if subtask.name in initial_nodes]
+
+    def get_eligible_subtasks(
+        self, parent_node: Node, remaining_subtasks: List[Subtask]
+    ) -> List[Subtask]:
+        """
+        Retrieves a list of subtasks that are eligible for execution based on constraints.
+
+        Args:
+            parent_node (Node): The parent node in the task tree.
+            remaining_subtasks (List[Subtask]): List of remaining subtasks to be processed.
+
+        Returns:
+            List[Subtask]: List of subtasks that meet the constraints and can be executed.
+        """
+        eligible_subtasks = []
+        for subtask in remaining_subtasks:
+            # Check ordering constraints
+            if self.validate_ordering_constraints(parent_node, subtask):
+                # Check timing constraints
+                time_slot_urgencies = self.get_time_slot_and_urgency(
+                    parent_node, subtask
+                )
+                if self.validate_timing_constraints(time_slot_urgencies):
+                    if subtask.name == "Flipping Steak":
+                        print()
+                        print(time_slot_urgencies)
+                    eligible_subtasks.append(subtask)
+
+        return eligible_subtasks
