@@ -100,19 +100,11 @@ class ConstraintHandler:
         Returns:
             List[Subtask]: List of subtasks that meet the constraints and can be executed.
         """
-        if parent_node.type == "Monitoring":
-            eligible_subtasks = [
-                subtask
-                for subtask in remaining_subtasks
-                if self.validate_constraints(parent_node, subtask)
-                and parent_node
-                not in self._get_constraint_nodes(parent_node, subtask.name)
-            ]
-        else:
-            eligible_subtasks = [
-                subtask
-                for subtask in remaining_subtasks
-                if self.validate_constraints(parent_node, subtask)
-            ]
+
+        eligible_subtasks = [
+            subtask
+            for subtask in remaining_subtasks
+            if self.validate_constraints(parent_node, subtask)
+        ]
 
         return eligible_subtasks

@@ -96,9 +96,9 @@ def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
             # if node.parent.type == "Monitoring":
             #     parent_makespan = node.parent.parent.makespan
             # else:
-            parent_makespan = node.parent.makespan if node.parent else 0
-            duration = makespan - parent_makespan
-            start_time = parent_makespan
+
+            duration = node.duration
+            start_time = makespan - duration
 
             tasks.append(task_name)
             start_times.append(start_time)
