@@ -1,7 +1,3 @@
-#TODO Waiting 시간 계산, makespan 기준으로 다시 하기
-
 #TODO Dynamic Task Decomposition
 
 #TODO Prompt 간소화
-
-# TODO 복수의 시간 제약 고려할 수 있게 만들기

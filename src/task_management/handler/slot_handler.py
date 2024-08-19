@@ -14,7 +14,6 @@ class SlotHandler:
         self,
         parent_node: Node,
         subtask: Subtask,
-        makespan: int,
         remaining_subtasks: List[Subtask],
         time_slot: int,
     ) -> Tuple[Node, int, List[Subtask]]:
@@ -24,15 +23,11 @@ class SlotHandler:
         )
 
         time_spent = 0
-        last_processed_node = parent_node
 
         for available_subtask in available_subtasks:
-            if (
-                available_subtask.duration.interval + last_processed_node.makespan
-                <= makespan + time_slot - time_spent
-            ):
-                last_processed_node = self.process_subtask_callback(
-                    last_processed_node, available_subtask, remaining_subtasks
+            if available_subtask.duration.interval <= time_slot - time_spent:
+                self.process_subtask_callback(
+                    parent_node, available_subtask, remaining_subtasks
                 )
                 time_spent += available_subtask.duration.interval
                 remaining_subtasks.remove(available_subtask)
@@ -40,10 +35,10 @@ class SlotHandler:
                 if time_spent >= time_slot:
                     break
 
-        return last_processed_node, time_slot - time_spent, remaining_subtasks
+        return parent_node, time_slot - time_spent, remaining_subtasks
 
     def compress_time_slots(self, parent_node: Node, subtask: Subtask):
-        time_slots_urgencies = self.constraint_handler.get_time_slot_and_urgency(
+        time_slots_urgencies = self.constraint_handler._get_time_slot_and_urgency(
             parent_node, subtask
         )
 

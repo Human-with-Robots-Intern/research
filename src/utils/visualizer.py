@@ -92,13 +92,11 @@ def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
             task_name = node.name
             makespan = node.makespan
 
-            # Calculate duration based on the difference between makespan and the parent's makespan
-            # if node.parent.type == "Monitoring":
-            #     parent_makespan = node.parent.parent.makespan
-            # else:
-
             duration = node.duration
             start_time = makespan - duration
+
+            if node.name.startswith("Move"):
+                print(task_name, start_time, duration)
 
             tasks.append(task_name)
             start_times.append(start_time)

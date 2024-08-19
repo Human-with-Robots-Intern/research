@@ -17,7 +17,7 @@ def parse_arguments():
     parser.add_argument(
         "-name",
         help="Select the Goal [all, laundry, cook, toast etc.]",
-        default="monitor",
+        default="toast",
     )
     return parser.parse_args()
 
