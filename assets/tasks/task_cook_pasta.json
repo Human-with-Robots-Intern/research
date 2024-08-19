@@ -1,0 +1,149 @@
+[
+    {
+        "Task": "Cooking Pasta",
+        "Subtasks": [
+            {
+                "Subtask": "Gather Ingredients",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Refrigerator",
+                    "Objects": {
+                        "Pasta": 1,
+                        "Water": 1,
+                        "Salt": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Actions": [
+                        "find pasta",
+                        "grab pasta",
+                        "putin pasta countertop",
+                        "find water",
+                        "grab water",
+                        "putin water countertop",
+                        "find salt",
+                        "grab salt",
+                        "putin salt countertop"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Boil Water",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Stove",
+                    "Objects": {
+                        "Water": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Actions": [
+                        "find pot",
+                        "grab pot",
+                        "putin pot stove",
+                        "switch_on stove"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Add Pasta",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pot",
+                    "Objects": {
+                        "Pasta": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Actions": [
+                        "grab pasta",
+                        "putin pasta pot"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Boil Water",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Cook Pasta",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Pot",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 8
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Actions": [
+                        "wait for pasta to cook"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Add Pasta",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Drain Pasta",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Sink",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Actions": [
+                        "grab pot",
+                        "putin pot sink"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Cook Pasta",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]

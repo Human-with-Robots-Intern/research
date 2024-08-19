@@ -62,6 +62,9 @@ class TreeBuilder:
 
         time_slot, _ = self.slot_handler.compress_time_slots(parent_node, subtask)
 
+        if time_slot is None:
+            return
+
         if time_slot > 0:
             # subtask가 monitoring type일 때, 해당 시간동안 subtask로 채워야 함
             parent_node, wait_time, remaining_subtasks = (

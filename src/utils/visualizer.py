@@ -77,63 +77,83 @@ def visualize_graph(G, save_folder_path="assets/results", is_display=False):
 
 def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
     """
-    Plot a Gantt chart for the given task tree.
+    Plot a Gantt chart for the given task tree, visualizing each path as a separate subplot.
 
     Args:
         root (Node): The root of the filtered task tree.
+        save_folder_path (str): The path where the plot will be saved.
+        is_display (bool): Whether to display the plot after saving.
     """
-    tasks = []
-    start_times = []
-    durations = []
+    paths = []
 
-    # Traverse the tree to gather task information
+    # Traverse the tree to gather task paths
     def traverse_tree(node, path=[]):
-        if node.name != "Start":
-            task_name = node.name
-            makespan = node.makespan
-
-            duration = node.duration
-            start_time = makespan - duration
-
-            if node.name.startswith("Move"):
-                print(task_name, start_time, duration)
-
-            tasks.append(task_name)
-            start_times.append(start_time)
-            durations.append(duration)
-
-        for child in node.children:
-            traverse_tree(child, path + [node])
+        new_path = path + [node]
+        if not node.children:  # If it's a leaf node, store the path
+            paths.append(new_path)
+        else:
+            for child in node.children:
+                traverse_tree(child, new_path)
 
     traverse_tree(root)
 
-    # Create a Gantt chart
-    fig, ax = plt.subplots(figsize=(24, len(tasks) * 0.5))
-    y_pos = range(len(tasks))
+    # Number of subplots needed
+    n_plots = len(paths)
 
-    bars = ax.barh(y_pos, durations, left=start_times, align="center", color="skyblue")
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(tasks)
-    ax.invert_yaxis()  # Invert y-axis to display tasks from top to bottom
-    ax.set_xlabel("Time")
-    ax.set_title("Gantt Chart of Task Schedule")
+    # Create subplots
+    fig, axs = plt.subplots(n_plots, 1, figsize=(24, 4 * n_plots))
 
-    # Add text labels for start and end times
-    for i, bar in enumerate(bars):
-        # Calculate end time
-        end_time = start_times[i] + durations[i]
-        ax.text(
-            bar.get_x() + bar.get_width() / 2,
-            bar.get_y() + bar.get_height() / 2,
-            f"{start_times[i]} - {end_time}",
-            ha="center",
-            va="center",
-            color="black",
-            fontsize=8,
-            weight="bold",
+    if n_plots == 1:
+        axs = [axs]  # Ensure axs is a list even when there's only one plot
+
+    for i, path in enumerate(paths):
+        tasks = []
+        start_times = []
+        durations = []
+
+        for node in path:
+            if node.name != "Start":
+                task_name = node.name
+                makespan = node.makespan
+                duration = node.duration
+                start_time = makespan - duration
+
+                tasks.append(task_name)
+                start_times.append(start_time)
+                durations.append(duration)
+
+        # Plot the Gantt chart for the current path
+        ax = axs[i]
+        y_pos = range(len(tasks))
+        bars = ax.barh(
+            y_pos, durations, left=start_times, align="center", color="skyblue"
         )
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(tasks)
+        ax.invert_yaxis()
+        ax.set_xlabel("Time")
+        ax.set_title(f"Gantt Chart of Path {i+1}")
+
+        # Add text labels for start and end times
+        for j, bar in enumerate(bars):
+            end_time = start_times[j] + durations[j]
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_y() + bar.get_height() / 2,
+                f"{start_times[j]} - {end_time}",
+                ha="center",
+                va="center",
+                color="black",
+                fontsize=8,
+                weight="bold",
+            )
+
+    plt.tight_layout()
 
     # Save the plot to a file
-    plt.savefig(os.path.join(save_folder_path, "task_schedule.png"))
+    plt.savefig(os.path.join(save_folder_path, "task_schedule_paths.png"))
+
     if is_display:
         plt.show()
+    else:
+        plt.close()
