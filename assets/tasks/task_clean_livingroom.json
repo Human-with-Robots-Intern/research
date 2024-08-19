@@ -1,0 +1,99 @@
+[
+    {
+        "Task": "Clean Living Room",
+        "Subtasks": [
+            {
+                "Subtask": "Gather Dust in Living Room",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Living Room",
+                    "Asset": "Floor",
+                    "Objects": {
+                        "Dust": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 15
+                },
+                "Decomposition": {
+                    "Repetition": 5,
+                    "Actions": [
+                        "find dust",
+                        "grab dust",
+                        "putin dust bin"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Organize Sofa in Living Room",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Living Room",
+                    "Asset": "Sofa",
+                    "Objects": {}
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Actions": [
+                        "arrange cushions",
+                        "putback cushions sofa"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Clean Laundry Basket in Living Room",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Living Room",
+                    "Asset": "Laundry Basket",
+                    "Objects": {
+                        "Laundry": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Actions": [
+                        "grab laundry",
+                        "putin laundry basket"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Dust Television in Living Room",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Living Room",
+                    "Asset": "Television",
+                    "Objects": {
+                        "Dust": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Actions": [
+                        "find dust",
+                        "grab dust",
+                        "putin dust bin"
+                    ]
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]

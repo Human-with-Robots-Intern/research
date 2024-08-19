@@ -49,7 +49,7 @@
                     {
                         "Type": "After",
                         "Subtask": "Gathering Steak",
-                        "Interval": 1,
+                        "Interval": 0,
                         "Urgency": true
                     }
                 ]

@@ -46,13 +46,13 @@ class ConstraintHandler:
         if len(constraint_nodes) != len(constraints):
             return False
 
-        time_slots = self.get_time_slot_and_urgency(parent_node, subtask)
+        time_slots = self._get_time_slot_and_urgency(parent_node, subtask)
         return all(
             time_slot >= 0 if is_urgency else True
             for time_slot, is_urgency in time_slots
         )
 
-    def get_time_slot_and_urgency(
+    def _get_time_slot_and_urgency(
         self, parent_node: Node, subtask: Subtask
     ) -> List[Tuple[int, bool]]:
         """Calculate and return the time slots and urgency for a given subtask."""
@@ -100,19 +100,11 @@ class ConstraintHandler:
         Returns:
             List[Subtask]: List of subtasks that meet the constraints and can be executed.
         """
-        if parent_node.type == "Monitoring":
-            eligible_subtasks = [
-                subtask
-                for subtask in remaining_subtasks
-                if self.validate_constraints(parent_node, subtask)
-                and parent_node
-                not in self._get_constraint_nodes(parent_node, subtask.name)
-            ]
-        else:
-            eligible_subtasks = [
-                subtask
-                for subtask in remaining_subtasks
-                if self.validate_constraints(parent_node, subtask)
-            ]
+
+        eligible_subtasks = [
+            subtask
+            for subtask in remaining_subtasks
+            if self.validate_constraints(parent_node, subtask)
+        ]
 
         return eligible_subtasks

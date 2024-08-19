@@ -1,0 +1,122 @@
+[
+    {
+        "Task": "Cook Dinner",
+        "Subtasks": [
+            {
+                "Subtask": "Gather Ingredients",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Refrigerator",
+                    "Objects": {
+                        "Ingredient": 3
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 10
+                },
+                "Decomposition": {
+                    "Repetition": 3,
+                    "Actions": [
+                        "find ingredient",
+                        "grab ingredient",
+                        "putin ingredient table"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Subtask": "Prepare Ingredients",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Table",
+                    "Objects": {
+                        "Ingredient": 3
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 15
+                },
+                "Decomposition": {
+                    "Repetition": 3,
+                    "Actions": [
+                        "grab ingredient",
+                        "putin ingredient pot"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Gather Ingredients",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Cook Ingredients",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Kitchen",
+                    "Asset": "Stove",
+                    "Objects": {
+                        "Cooking Pot": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 30
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Actions": [
+                        "switch_on stove",
+                        "wait for cooking",
+                        "switch_off stove"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Prepare Ingredients",
+                        "Interval": 5,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Serve Dinner",
+                "Type": "Interaction",
+                "TaskScene": {
+                    "Room": "Table",
+                    "Asset": "Table",
+                    "Objects": {
+                        "Cooked Meal": 1
+                    }
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "Decomposition": {
+                    "Repetition": 1,
+                    "Actions": [
+                        "grab cooked meal",
+                        "putin cooked meal table"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Cook Ingredients",
+                        "Interval": 1,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]

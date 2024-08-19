@@ -31,7 +31,8 @@ def generate_subtasks(messages):
     # Using OpenAI API to get the response
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini", messages=messages
+            model="gpt-4o-mini",
+            messages=messages,
         )
         return response.choices[0].message.content.strip()
     except Exception as e:

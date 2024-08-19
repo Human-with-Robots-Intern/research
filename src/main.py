@@ -15,15 +15,16 @@ from utils.visualizer import plot_gantt_chart, visualize_graph, visualize_tree
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Task Scheduler")
     parser.add_argument(
-        "-name",
+        "--name",
         help="Select the Goal [all, laundry, cook, toast etc.]",
-        default="monitor",
+        default=None,
     )
+
     return parser.parse_args()
 
 
-def load_tasks_and_constraints(task_name=None):
-    if not task_name:
+def load_tasks_and_constraints(task_name):
+    if task_name is None:
         task_name = generate_task_by_llm()
 
     file_path = os.path.join("assets/tasks", f"task_{task_name}.json")
@@ -58,6 +59,7 @@ def main():
 
     env = Env()
     env.gen_dummy()
+
     agent = Agent("Waiting", "Living Room", env)
 
     task_plans, opt_task_plans = ExhaustivePlanner(

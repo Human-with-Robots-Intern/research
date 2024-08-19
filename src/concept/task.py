@@ -13,15 +13,14 @@ class Subtask:
             return f"Duration(type={self.type}, interval={self.interval})"
 
     class Decomposition:
-        def __init__(self, repetition: int, interval: int, actions: list):
+        def __init__(self, repetition: int, actions: list):
             self.repetition = repetition
-            self.interval = interval
+
             self.actions = actions
 
         def __repr__(self):
             return (
-                f"Decomposition(repetition={self.repetition}, "
-                f"interval={self.interval}, actions={self.actions})"
+                f"Decomposition(repetition={self.repetition}, actions={self.actions})"
             )
 
     class RoI:
@@ -104,7 +103,6 @@ def parse_tasks(data: List[Dict]) -> List[Task]:
             )
             decomposition = Subtask.Decomposition(
                 repetition=subtask_data["Decomposition"]["Repetition"],
-                interval=subtask_data["Decomposition"]["Interval"],
                 actions=subtask_data["Decomposition"]["Actions"],
             )
 

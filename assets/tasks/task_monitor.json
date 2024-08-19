@@ -12,11 +12,11 @@
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 2
+                    "Interval": 1
                 },
                 "Decomposition": {
-                    "Repetition": 1,
-                    "Interval": 2,
+                    "Repetition": 2,
+                    "Interval": 0.5,
                     "Actions": [
                         "find Steak"
                     ]
@@ -84,8 +84,8 @@
                     {
                         "Type": "After",
                         "Subtask": "Monitoring Steak",
-                        "Interval": 1,
-                        "Urgency": false
+                        "Interval": 0,
+                        "Urgency": true
                     }
                 ]
             }

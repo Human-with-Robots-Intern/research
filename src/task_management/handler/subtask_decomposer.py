@@ -43,11 +43,12 @@ class SubtaskDecomposer:
         )
         decomposed_duration = Subtask.Duration(
             duration_type=self.subtask.duration.type,
-            interval=self.subtask.decomposition.interval,
+            interval=(
+                self.subtask.duration.interval // self.subtask.decomposition.repetition
+            ),
         )
         decomposed_decomposition = Subtask.Decomposition(
             repetition=1,
-            interval=self.subtask.decomposition.interval,
             actions=self.subtask.decomposition.actions,
         )
         decomposed_temporal_constraints = self._get_temporal_constraints(part_index)
