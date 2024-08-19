@@ -65,14 +65,14 @@ def generate_task_by_llm():
         {"role": "user", "content": f"""{user_input}"""},
     ]
     output = generate_subtasks(full_prompt)
-
+    file_name = user_input.split()[0]
     if output:
         try:
             # Convert the output text to JSON
             output_json = json.loads(output)
             # Save the JSON data to a file
-            save_to_file(output_json, f"assets/tasks/task_{user_input.split()[0]}.json")
-            return user_input
+            save_to_file(output_json, f"assets/tasks/task_{file_name}.json")
+            return file_name
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON: {e}")
 

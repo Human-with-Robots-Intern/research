@@ -3,13 +3,13 @@
         "Task": "Cook Dinner",
         "Subtasks": [
             {
-                "Subtask": "Gather Ingredients",
+                "Subtask": "Prepare Ingredients",
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Refrigerator",
+                    "Asset": "Table",
                     "Objects": {
-                        "Ingredient": 3
+                        "Ingredients": 1
                     }
                 },
                 "Duration": {
@@ -17,72 +17,36 @@
                     "Interval": 10
                 },
                 "Decomposition": {
-                    "Repetition": 3,
+                    "Repetition": 1,
                     "Actions": [
-                        "find ingredient",
-                        "grab ingredient",
-                        "putin ingredient table"
+                        "find ingredients",
+                        "grab ingredients",
+                        "putin ingredients table"
                     ]
                 },
                 "TemporalConstraints": []
             },
             {
-                "Subtask": "Prepare Ingredients",
-                "Type": "Interaction",
+                "Subtask": "Monitor Cooking",
+                "Type": "Monitoring",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Table",
-                    "Objects": {
-                        "Ingredient": 3
-                    }
+                    "Asset": "Stove",
+                    "Objects": {}
                 },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 15
                 },
                 "Decomposition": {
-                    "Repetition": 3,
-                    "Actions": [
-                        "grab ingredient",
-                        "putin ingredient pot"
-                    ]
-                },
-                "TemporalConstraints": [
-                    {
-                        "Type": "After",
-                        "Subtask": "Gather Ingredients",
-                        "Interval": 0,
-                        "Urgency": false
-                    }
-                ]
-            },
-            {
-                "Subtask": "Cook Ingredients",
-                "Type": "Interaction",
-                "TaskScene": {
-                    "Room": "Kitchen",
-                    "Asset": "Stove",
-                    "Objects": {
-                        "Cooking Pot": 1
-                    }
-                },
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 30
-                },
-                "Decomposition": {
                     "Repetition": 1,
-                    "Actions": [
-                        "switch_on stove",
-                        "wait for cooking",
-                        "switch_off stove"
-                    ]
+                    "Actions": []
                 },
                 "TemporalConstraints": [
                     {
                         "Type": "After",
                         "Subtask": "Prepare Ingredients",
-                        "Interval": 5,
+                        "Interval": 0,
                         "Urgency": false
                     }
                 ]
@@ -91,10 +55,10 @@
                 "Subtask": "Serve Dinner",
                 "Type": "Interaction",
                 "TaskScene": {
-                    "Room": "Table",
+                    "Room": "Kitchen",
                     "Asset": "Table",
                     "Objects": {
-                        "Cooked Meal": 1
+                        "Dinner": 1
                     }
                 },
                 "Duration": {
@@ -104,15 +68,15 @@
                 "Decomposition": {
                     "Repetition": 1,
                     "Actions": [
-                        "grab cooked meal",
-                        "putin cooked meal table"
+                        "grab dinner",
+                        "putin dinner table"
                     ]
                 },
                 "TemporalConstraints": [
                     {
                         "Type": "After",
-                        "Subtask": "Cook Ingredients",
-                        "Interval": 1,
+                        "Subtask": "Monitor Cooking",
+                        "Interval": 5,
                         "Urgency": false
                     }
                 ]

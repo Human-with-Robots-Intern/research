@@ -36,7 +36,7 @@ def load_tasks_and_constraints(task_name):
     tasks = decompose_tasks(tasks)
     constraints = parse_constraints(tasks)
 
-    return tasks, constraints
+    return task_name, tasks, constraints
 
 
 def visualize(task_name, constraints, task_plans, opt_task_plans):
@@ -55,7 +55,7 @@ def visualize(task_name, constraints, task_plans, opt_task_plans):
 def main():
     args = parse_arguments()
 
-    tasks, constraints = load_tasks_and_constraints(args.name)
+    task_name, tasks, constraints = load_tasks_and_constraints(args.name)
 
     env = Env()
     env.gen_dummy()
@@ -66,7 +66,7 @@ def main():
         agent, tasks, constraints
     ).generate_valid_plans()
 
-    visualize(args.name, constraints, task_plans, opt_task_plans)
+    visualize(task_name, constraints, task_plans, opt_task_plans)
 
 
 if __name__ == "__main__":
