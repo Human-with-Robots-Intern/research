@@ -7,7 +7,7 @@
                 "Type": "Monitoring",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Pan",
+                    "Assets": "Pan",
                     "Objects": {}
                 },
                 "Duration": {
@@ -33,7 +33,7 @@
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Sink",
+                    "Assets": "Sink",
                     "Objects": {
                         "Dish": 1,
                         "Sponge": 1,
@@ -62,7 +62,7 @@
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Pan",
+                    "Assets": "Pan",
                     "Objects": {
                         "Spatula": 1
                     }

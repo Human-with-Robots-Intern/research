@@ -1,246 +1,114 @@
 [
     {
-        "Task": "Cook Steak",
+        "Task": "Cooking Toast",
         "Subtasks": [
             {
-                "Subtask": "Gathering Steak",
+                "Subtask": "Place Bread in Toaster",
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Refrigerator",
+                    "Assets": "Toaster",
                     "Objects": {
-                        "Steak": 2
+                        "Bread": 1
                     }
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 4
+                    "Interval": 1
                 },
                 "Decomposition": {
-                    "Repetition": 2,
-                    "Interval": 2,
+                    "Repetition": 1,
                     "Actions": [
-                        "find Steak",
-                        "grab Steak"
+                        "find bread",
+                        "pick bread",
+                        "place bread toaster"
                     ]
                 },
                 "TemporalConstraints": []
             },
             {
-                "Subtask": "Turn on Stove",
+                "Subtask": "Turn on Toaster",
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Stove",
+                    "Assets": "Toaster",
                     "Objects": {}
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 2
+                    "Interval": 1
                 },
                 "Decomposition": {
                     "Repetition": 1,
-                    "Interval": 2,
                     "Actions": [
-                        "switch_on Stove"
+                        "turn_on toaster"
                     ]
                 },
                 "TemporalConstraints": [
                     {
                         "Type": "After",
-                        "Subtask": "Gathering Steak",
+                        "Subtask": "Place Bread in Toaster",
                         "Interval": 0,
-                        "Urgency": true
-                    }
-                ]
-            },
-            {
-                "Subtask": "Placing Steak",
-                "Type": "Interaction",
-                "TaskScene": {
-                    "Room": "Kitchen",
-                    "Asset": "Pan",
-                    "Objects": {
-                        "Steak": 2
-                    }
-                },
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 4
-                },
-                "Decomposition": {
-                    "Repetition": 2,
-                    "Interval": 2,
-                    "Actions": [
-                        "putin Steak Pan"
-                    ]
-                },
-                "TemporalConstraints": [
-                    {
-                        "Type": "After",
-                        "Subtask": "Turn on Stove",
-                        "Interval": 1,
-                        "Urgency": true
-                    }
-                ]
-            },
-            {
-                "Subtask": "Monitoring Steak",
-                "Type": "Monitoring",
-                "TaskScene": {
-                    "Room": "Kitchen",
-                    "Asset": "Pan",
-                    "Objects": {}
-                },
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 10
-                },
-                "Decomposition": {
-                    "Repetition": 2,
-                    "Interval": 5,
-                    "Actions": [
-                        "find Steak"
-                    ]
-                },
-                "TemporalConstraints": [
-                    {
-                        "Type": "After",
-                        "Subtask": "Placing Steak",
-                        "Interval": 1,
-                        "Urgency": true
-                    }
-                ]
-            },
-            {
-                "Subtask": "Flipping Steak",
-                "Type": "Interaction",
-                "TaskScene": {
-                    "Room": "Kitchen",
-                    "Asset": "Pan",
-                    "Objects": {
-                        "Spatula": 1
-                    }
-                },
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 5
-                },
-                "Decomposition": {
-                    "Repetition": 1,
-                    "Interval": 5,
-                    "Actions": [
-                        "grab Spatula",
-                        "putin Spatula Steak",
-                        "putback Spatula Pan"
-                    ]
-                },
-                "TemporalConstraints": [
-                    {
-                        "Type": "After",
-                        "Subtask": "Monitoring Steak",
-                        "Interval": 1,
                         "Urgency": false
                     }
                 ]
             },
             {
-                "Subtask": "Turn off Stove",
+                "Subtask": "Turn off Toaster",
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Stove",
+                    "Assets": "Toaster",
                     "Objects": {}
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 2
+                    "Interval": 1
                 },
                 "Decomposition": {
                     "Repetition": 1,
-                    "Interval": 2,
                     "Actions": [
-                        "switch_off Stove"
+                        "turn_off toaster"
                     ]
                 },
                 "TemporalConstraints": [
                     {
                         "Type": "After",
-                        "Subtask": "Flipping Steak",
-                        "Interval": 1,
+                        "Subtask": "Turn on Toaster",
+                        "Interval": 5,
                         "Urgency": true
                     }
                 ]
-            }
-        ]
-    },
-    {
-        "Task": "Setting Table",
-        "Subtasks": [
+            },
             {
-                "Subtask": "Setting Steak",
+                "Subtask": "Remove Toast from Toaster",
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Table",
+                    "Assets": "Toaster",
                     "Objects": {
-                        "Steak": 2
+                        "Toast": 1
                     }
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 2
+                    "Interval": 1
                 },
                 "Decomposition": {
-                    "Repetition": 2,
-                    "Interval": 1,
+                    "Repetition": 1,
                     "Actions": [
-                        "find Steak",
-                        "putin Steak Table"
+                        "pick toast",
+                        "place toast plate"
                     ]
                 },
                 "TemporalConstraints": [
                     {
                         "Type": "After",
-                        "Subtask": "Turn off Stove",
-                        "Interval": 1,
-                        "Urgency": true
+                        "Subtask": "Turn off Toaster",
+                        "Interval": 0,
+                        "Urgency": false
                     }
                 ]
-            }
-        ]
-    },
-    {
-        "Task": "Washing Dishes",
-        "Subtasks": [
-            {
-                "Subtask": "Washing Dish",
-                "Type": "Interaction",
-                "TaskScene": {
-                    "Room": "Kitchen",
-                    "Asset": "Sink",
-                    "Objects": {
-                        "Dish": 2,
-                        "Sponge": 1,
-                        "Dish Soap": 1
-                    }
-                },
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 4
-                },
-                "Decomposition": {
-                    "Repetition": 2,
-                    "Interval": 2,
-                    "Actions": [
-                        "grab Dish",
-                        "grab Sponge",
-                        "putin Dish Soap Sponge",
-                        "putin Sponge Dish",
-                        "putback Dish Rack"
-                    ]
-                },
-                "TemporalConstraints": []
             }
         ]
     }

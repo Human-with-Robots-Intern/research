@@ -7,7 +7,7 @@
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Table",
+                    "Assets": "Table",
                     "Objects": {
                         "Toast": 2
                     }
@@ -44,7 +44,7 @@
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Sink",
+                    "Assets": "Sink",
                     "Objects": {
                         "Dish": 3
                     }
@@ -76,7 +76,7 @@
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Toaster",
+                    "Assets": "Toaster",
                     "Objects": {}
                 },
                 "Duration": {
@@ -97,7 +97,7 @@
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Toaster",
+                    "Assets": "Toaster",
                     "Objects": {}
                 },
                 "Duration": {

@@ -31,7 +31,7 @@ def generate_subtasks(messages):
     # Using OpenAI API to get the response
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=messages,
         )
         return response.choices[0].message.content.strip()
@@ -65,7 +65,7 @@ def generate_task_by_llm():
         {"role": "user", "content": f"""{user_input}"""},
     ]
     output = generate_subtasks(full_prompt)
-    file_name = user_input.split()[0]
+    file_name = user_input.join("_")
     if output:
         try:
             # Convert the output text to JSON

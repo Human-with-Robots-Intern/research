@@ -94,7 +94,7 @@ def parse_tasks(data: List[Dict]) -> List[Task]:
             subtask_type = subtask_data["Type"]
             roi = Subtask.RoI(
                 room=subtask_data["TaskScene"]["Room"],
-                asset=subtask_data["TaskScene"]["Asset"],
+                asset=subtask_data["TaskScene"]["Assets"],
                 objects=subtask_data["TaskScene"]["Objects"],
             )
             duration = Subtask.Duration(

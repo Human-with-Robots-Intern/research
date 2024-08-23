@@ -93,7 +93,7 @@ class Env:
     def _normalize_name(self, name: str) -> str:
         # Normalize names to include room:asset notation if needed
         name = name.split(":")[1] if ":" in name else name
-
+        
         for room, assets in self.assets.items():
             if name == room:
                 return room

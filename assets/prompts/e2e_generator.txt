@@ -11,7 +11,7 @@ Decomposable Subtask MUST be convert to small atomic subtask.
 - Subtask: A robot's subtask is a smaller, more specific component of a task.
 
 # Environment:
-The environment consists of four main areas: Bedroom, Living Room, Kitchen, and Restroom, each with specific Asset:
+The environment consists of four main areas: Bedroom, Living Room, Kitchen, and Restroom, each with specific Assets:
 {
     "Kitchen": ["Table", "Toaster", "Sink", "Refrigerator", "Stove", "Pan", "Pot"],
     "Living Room": ["Table", "Sofa", "Television", "Laundry Basket"],
@@ -27,7 +27,7 @@ The environment consists of four main areas: Bedroom, Living Room, Kitchen, and 
 
 # Robot Actions
 The robot action handle ONLY single object. NOT multiple objects.
-[find <obj>, open <obj>, close <obj>,switch_on <obj>, switch_off <obj>, putin <obj> <obj>, putback <obj> <obj>, grab <obj>]
+[find <obj>, open <obj>, close <obj>,turn_on <obj>, turn_off <obj>, place <obj> <obj>, pick <obj>]
 
 ### [INPUT FORMAT] ###
 The Natural Language.
@@ -42,12 +42,12 @@ The Natural Language.
                 "Type": <Classifies the subtask as either "Interaction" (direct interaction with the environment) or "Monitoring" (observation without interaction).>,
                 "TaskScene" : {    
                     "Room": <The area where the task is to be performed>,
-                    "Asset": <Specifies the furniture or appliance the robot uses to complete the subtask.>,
-                    "Objects": {<the necessary items or inputs needed for the subtask, such as ingredients or tools.>
-                        <The name of object> : <Random Amount of Object> },
+                    "Assets": <Specifies the furniture or appliance the robot uses to complete the subtask.>,
+                    "Objects": { <the main target items like clothes, ingredients, dishes>
+                        <The name of object> : <Amount of Object> },
                     }
                 "Duration": {
-                    "Type": <Indicates if the subtask duration is adjustable (controllable) or fixed (uncontrollable).>,
+                    "Type": <Indicates if the subtask duration is calculable (controllable) or estimable (uncontrollable).>,
                     "Interval": <Estimated time the subtask takes, aiding in planning.>
                 },
                 "Decomposition" : { 
@@ -81,7 +81,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Table",
+                    "Assets": "Table",
                     "Objects": {
                         "Toast": 1
                     }
@@ -110,7 +110,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Sink",
+                    "Assets": "Sink",
                     "Objects": {
                         "Dish": 1
                     }
@@ -126,7 +126,7 @@ Output :
                         "putin dish sink",
                         "grab sponge",
                         "putin sponge dish",
-                        "putback dish rack"
+                        "putin dish rack"
                     ]
                 },
                 "TemporalConstraints": []
@@ -141,7 +141,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Toaster",
+                    "Assets": "Toaster",
                     "Objects": {}
                 },
                 "Duration": {
@@ -161,7 +161,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Toaster",
+                    "Assets": "Toaster",
                     "Objects": {}
                 },
                 "Duration": {
@@ -201,7 +201,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Restroom",
-                    "Asset": "Laundry Basket",
+                    "Assets": "Laundry Basket",
                     "Objects": {
                         "Laundry": 1
                     }
@@ -225,7 +225,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Restroom",
-                    "Asset": "Washing Machine",
+                    "Assets": "Washing Machine",
                     "Objects": {
                         "Laundry": 1
                     }
@@ -255,7 +255,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Restroom",
-                    "Asset": "Washing Machine",
+                    "Assets": "Washing Machine",
                     "Objects": {
                         "Detergent": 1
                     }
@@ -285,7 +285,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Restroom",
-                    "Asset": "Washing Machine",
+                    "Assets": "Washing Machine",
                     "Objects": {}
                 },
                 "Duration": {
@@ -317,7 +317,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Restroom",
-                    "Asset": "Washing Machine",
+                    "Assets": "Washing Machine",
                     "Objects": {
                         "Wet Laundry": 1
                     }
@@ -347,7 +347,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Restroom",
-                    "Asset": "Dryer",
+                    "Assets": "Dryer",
                     "Objects": {
                         "Wet Laundry": 1
                     }
@@ -377,7 +377,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Restroom",
-                    "Asset": "Dryer",
+                    "Assets": "Dryer",
                     "Objects": {}
                 },
                 "Duration": {
@@ -409,7 +409,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Restroom",
-                    "Asset": "Dryer",
+                    "Assets": "Dryer",
                     "Objects": {
                         "Dry Laundry": 1
                     }
@@ -439,7 +439,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Living Room",
-                    "Asset": "Laundry Basket",
+                    "Assets": "Laundry Basket",
                     "Objects": {
                         "Dry Laundry": 5
                     }
@@ -469,7 +469,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Living Room",
-                    "Asset": "Table",
+                    "Assets": "Table",
                     "Objects": {
                         "Clothes": 1
                     }
@@ -511,7 +511,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Bedroom",
-                    "Asset": "Floor",
+                    "Assets": "Floor",
                     "Objects": {
                         "Dust": 1
                     }
@@ -535,7 +535,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Living Room",
-                    "Asset": "Floor",
+                    "Assets": "Floor",
                     "Objects": {
                         "Dust": 1
                     }
@@ -566,7 +566,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Floor",
+                    "Assets": "Floor",
                     "Objects": {
                         "Dust": 1
                     }
@@ -597,7 +597,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Restroom",
-                    "Asset": "Floor",
+                    "Assets": "Floor",
                     "Objects": {
                         "Dust": 1
                     }
@@ -633,7 +633,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Bedroom",
-                    "Asset": "Recycling Bin",
+                    "Assets": "Recycling Bin",
                     "Objects": {
                         "Recycling": 2
                     }
@@ -657,7 +657,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Living Room",
-                    "Asset": "Recycling Bin",
+                    "Assets": "Recycling Bin",
                     "Objects": {
                         "Recycling": 3
                     }
@@ -688,7 +688,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Recycling Bin",
+                    "Assets": "Recycling Bin",
                     "Objects": {
                         "Recycling": 4
                     }
@@ -719,7 +719,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Restroom",
-                    "Asset": "Recycling Bin",
+                    "Assets": "Recycling Bin",
                     "Objects": {
                         "Recycling": 2
                     }
@@ -750,7 +750,7 @@ Output :
                 "Type": "Interaction",
                 "TaskScene": {
                     "Room": "Kitchen",
-                    "Asset": "Main Recycling Bin",
+                    "Assets": "Main Recycling Bin",
                     "Objects": {
                         "Recycling": 11
                     }
