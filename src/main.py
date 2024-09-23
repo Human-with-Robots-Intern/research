@@ -15,6 +15,7 @@ from utils.visualizer import plot_gantt_chart, visualize_graph, visualize_tree
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Task Scheduler")
     parser.add_argument(
+        "-n",
         "--name",
         help="Select the Goal [all, laundry, cook, toast etc.]",
         default=None,
@@ -50,9 +51,9 @@ def visualize(task_name, constraints, task_plans, opt_task_plans):
     visualize_graph(constraints, save_folder_path)
     visualize_tree(task_plans, opt_task_plans, save_folder_path)
     plot_gantt_chart(opt_task_plans, save_folder_path)
+    print()
 
-
-def main():
+def gen_task_plan():
     args = parse_arguments()
 
     task_name, tasks, constraints = load_tasks_and_constraints(args.name)
@@ -70,4 +71,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    gen_task_plan()

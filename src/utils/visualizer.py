@@ -99,7 +99,7 @@ def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
 
     # Number of subplots needed
     n_plots = len(paths)
-
+    
     # Create subplots
     fig, axs = plt.subplots(n_plots, 1, figsize=(24, 4 * n_plots))
 

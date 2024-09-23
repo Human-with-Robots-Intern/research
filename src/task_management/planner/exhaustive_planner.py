@@ -63,6 +63,9 @@ class ExhaustivePlanner:
         """Print a summary of the number of optimal paths and their makespan."""
         print(f"Number of ordered paths: {len(optimal_paths)}/{len(leaf_paths)}")
         print(f"Makespan: {min_makespan}")
+        print(
+            f"Optimal Paths : {[optimal_path.path for optimal_path in optimal_paths]}"
+        )
 
     def _filter_optimal_tree(self, optimal_paths: List[Node]) -> Node:
         """Filter the task tree to include only the optimal nodes."""
