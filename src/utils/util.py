@@ -17,3 +17,17 @@ class timeout:
 
     def __exit__(self, type, value, traceback):
         signal.alarm(0)
+
+
+def get_paths_to_leaves(root):
+    paths = []
+
+    # Traverse the tree to gather task paths
+    def traverse_tree(node, current_path):
+        if not node.children:  # If it's a leaf node, store the path
+            paths.append(current_path + [node])
+        for child in node.children:
+            traverse_tree(child, current_path + [node])
+
+    traverse_tree(root, [])
+    return paths

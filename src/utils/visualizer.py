@@ -1,9 +1,25 @@
 import os
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import networkx as nx
 from anytree import Node
 from anytree.exporter import UniqueDotExporter
+
+from utils.util import get_paths_to_leaves
+
+
+def visualize(task_name, constraints, task_plans, opt_task_plans):
+    save_path = "assets/results/"
+    folder_name = datetime.now().strftime("%Y-%m-%d_%H") + f"_{task_name}"
+    save_folder_path = os.path.join(save_path, folder_name)
+    os.makedirs(
+        save_folder_path, exist_ok=True
+    )  # Create the folder if it doesn't exist
+
+    visualize_graph(constraints, save_folder_path)
+    visualize_tree(task_plans, opt_task_plans, save_folder_path)
+    plot_gantt_chart(opt_task_plans, save_folder_path)
 
 
 def visualize_tree(tree, opt_tree, save_folder_path):
@@ -84,22 +100,11 @@ def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
         save_folder_path (str): The path where the plot will be saved.
         is_display (bool): Whether to display the plot after saving.
     """
-    paths = []
-
-    # Traverse the tree to gather task paths
-    def traverse_tree(node, path=[]):
-        new_path = path + [node]
-        if not node.children:  # If it's a leaf node, store the path
-            paths.append(new_path)
-        else:
-            for child in node.children:
-                traverse_tree(child, new_path)
-
-    traverse_tree(root)
+    paths = get_paths_to_leaves(root)
 
     # Number of subplots needed
     n_plots = len(paths)
-    
+
     # Create subplots
     fig, axs = plt.subplots(n_plots, 1, figsize=(24, 4 * n_plots))
 
