@@ -1,9 +1,10 @@
+import numpy as np
 from scipy.stats import truncnorm
 
 
 def update_completion_time(mu_prior, sigma_prior, t_c):
     """
-    작업 종료 시각의 사전 분포와 현재 시각을 이용하여 사후 분포를 계산합니다.
+    작업 종료 시각의 사전 분포와 현재 시각을 이용하여 사후 분포를 계산
 
     Parameters:
     - mu_prior: 사전 분포의 평균 (초기 예상 작업 종료 시각)
