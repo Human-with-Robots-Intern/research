@@ -172,5 +172,4 @@ scripts/*
 
 .env
 
-*.ipynb
 !todo.txt
