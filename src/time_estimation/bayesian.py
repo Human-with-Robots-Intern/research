@@ -1,76 +1,96 @@
 import numpy as np
-import scipy.stats as stats
+from scipy.stats import norm
 
 
-class BayesianSubtaskTimeEstimator:
-    def __init__(self, prior_mean, prior_std, initial_data=None):
-        # Initial prior mean and standard deviation (assuming normal distribution)
-        self.prior_mean = prior_mean
-        self.prior_std = prior_std
-        self.prior_variance = prior_std**2
+class Config:
+    def __init__(self, criteria=0.7, interval=0.1, obs_dur=0.01):
+        self.criteria = criteria
+        self.interval = interval
+        self.obs_dur = obs_dur
 
-        if initial_data is not None:
-            self.update_posterior(initial_data)
-        else:
-            self.posterior_mean = self.prior_mean
-            self.posterior_variance = self.prior_variance
 
-    def update_posterior(self, observed_times):
-        """
-        Update the posterior mean and variance based on observed data (Bayesian update).
-        observed_times: List of observed durations for the subtask.
-        """
-        observed_times = np.array(observed_times)
-        n = len(observed_times)
-        sample_mean = observed_times.mean()
-        sample_variance = observed_times.var(ddof=1)
+class TaskInfo:
+    def __init__(self, idx, plan_task, sim_task, start_time):
+        self.idx = idx
+        self.plan_task = plan_task
+        self.sim_task = sim_task
+        self.start_time = start_time
 
-        # Update posterior mean and variance using Bayesian updating for normal distribution
-        self.posterior_variance = 1 / (1 / self.prior_variance + n / sample_variance)
-        self.posterior_mean = self.posterior_variance * (
-            self.prior_mean / self.prior_variance + n * sample_mean / sample_variance
+
+class TaskEstimator:
+    def __init__(self, config=None):
+        if config is None:
+            config = Config()
+        self.config = config
+
+    def bayesian_estimation(self, dist, elapsed_time, obs_var=0.001):
+        prior_mean, prior_variance = dist.mean(), dist.var()
+        if prior_variance < 1e-6:
+            prior_variance = 1e-6
+
+        try:
+            updated_mean = (prior_mean / prior_variance + elapsed_time / obs_var) / (
+                1 / prior_variance + 1 / obs_var
+            )
+            updated_variance = 1 / (1 / prior_variance + 1 / obs_var)
+            if not (np.isfinite(updated_mean) and np.isfinite(updated_variance)):
+                updated_mean, updated_variance = prior_mean, prior_variance
+                print("Warning: NaN encountered, using prior values.")
+            dist = norm(loc=updated_mean, scale=max(updated_variance**0.5, 1e-3))
+        except Exception as e:
+            print(f"Exception during estimation: {e}, using prior values.")
+            dist = norm(loc=prior_mean, scale=max(prior_variance**0.5, 1e-3))
+
+        print(f"   [Estimation] Mean updated: {prior_mean:.2f} -> {updated_mean:.2f}")
+        return dist
+
+    def run_task(self, task_info):
+        print("\n===================================")
+        print(f"Task {task_info.idx + 1}: {task_info.plan_task.name}")
+        print("-----------------------------------")
+        print(
+            f"  - Planned Task Schedule Info: {task_info.plan_task.start:.2f} ~ {task_info.plan_task.end:.2f} ({task_info.plan_task.duration:.2f})"
         )
-
-    def predict_time(self):
-        """
-        Predict the time for the next subtask execution.
-        Returns the mean of the posterior distribution as the predicted time.
-        """
-        return self.posterior_mean
-
-    def predict_time_with_uncertainty(self, confidence_level=0.95):
-        """
-        Predict the time with uncertainty (confidence interval).
-        confidence_level: The desired confidence level for the interval.
-        Returns the mean and the confidence interval of the posterior distribution.
-        """
-        z_score = stats.norm.ppf(1 - (1 - confidence_level) / 2)
-        confidence_interval = z_score * np.sqrt(self.posterior_variance)
-        return self.posterior_mean, (
-            self.posterior_mean - confidence_interval,
-            self.posterior_mean + confidence_interval,
+        print(
+            f"  - Noise Task Schedule Info: {task_info.sim_task.start:.2f} ~ {task_info.sim_task.end:.2f} ({task_info.sim_task.duration:.2f})"
         )
+        print("-----------------------------------")
 
+        task_duration_dist = norm(
+            loc=task_info.plan_task.duration, scale=(task_info.plan_task.duration / 2)
+        )
+        t_c = task_info.start_time
 
-# Example usage
-if __name__ == "__main__":
-    # Initialize the estimator with a prior mean of 5 minutes and a standard deviation of 2 minutes
-    estimator = BayesianSubtaskTimeEstimator(prior_mean=5, prior_std=2)
+        while True:
+            t_c += self.config.interval
+            elapsed_time = t_c - task_info.start_time
 
-    # Simulate observing times for a subtask (e.g., the robot performs the subtask multiple times)
-    observed_times = [6, 7, 5, 6.5, 6]
+            if task_duration_dist.cdf(elapsed_time) >= self.config.criteria:
+                print(f"   [Time: {t_c:.2f}] Elapsed: {elapsed_time:.2f}", end="")
+                task_duration_dist = self.bayesian_estimation(
+                    task_duration_dist, elapsed_time
+                )
 
-    # Update the estimator with the observed times
-    estimator.update_posterior(observed_times)
+            if task_info.sim_task.end <= t_c:
+                print(f"   [Time: {t_c:.2f}] Elapsed: {elapsed_time:.2f}", end="")
+                task_duration_dist = self.bayesian_estimation(
+                    task_duration_dist, elapsed_time
+                )
 
-    # Predict the time for the next subtask
-    predicted_time = estimator.predict_time()
-    print(f"Predicted time for the next subtask: {predicted_time:.2f} minutes")
+                print("\n-----------------------------------")
+                # print(f"   [Task End] Actual End: {t_c:.2f}")
+                print(f"   Planned Task Duration: {task_info.plan_task.duration:.2f}")
+                print(f"   Real Task Duration: {task_info.sim_task.duration:.2f}")
+                print(
+                    f"   Duration updated: {task_info.plan_task.duration:.2f} -> {task_duration_dist.mean():.2f}"
+                )
+                print("===================================")
+                break
 
-    # Predict time with uncertainty
-    predicted_time, confidence_interval = estimator.predict_time_with_uncertainty(
-        confidence_level=0.95
-    )
-    print(
-        f"Predicted time: {predicted_time:.2f} minutes, 95% confidence interval: {confidence_interval[0]:.2f} - {confidence_interval[1]:.2f} minutes"
-    )
+        return t_c
+
+    def estimate_tasks(self, plan_tasks, sim_tasks):
+        start_time = 0
+        for idx, (plan_task, sim_task) in enumerate(zip(plan_tasks, sim_tasks)):
+            task_info = TaskInfo(idx, plan_task, sim_task, start_time)
+            start_time = self.run_task(task_info)

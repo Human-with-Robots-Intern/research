@@ -92,6 +92,7 @@ class TreeBuilder:
             duration=subtask.duration.interval,
             location=f"{subtask.roi.room}:{subtask.roi.asset}",
             type=subtask.type,
+            task_info=subtask,
         )
 
         expandable_subtasks = (

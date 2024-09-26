@@ -1,2 +1,2 @@
 #TODO Dynamic Task Decomposition
-
+#TODO Agent에 Task Duration 저장
