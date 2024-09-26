@@ -1,30 +1,96 @@
 import numpy as np
-from scipy.stats import truncnorm
+from scipy.stats import norm
 
 
-def update_completion_time(mu_prior, sigma_prior, t_c):
-    """
-    작업 종료 시각의 사전 분포와 현재 시각을 이용하여 사후 분포를 계산
+class Config:
+    def __init__(self, criteria=0.7, interval=0.1, obs_dur=0.01):
+        self.criteria = criteria
+        self.interval = interval
+        self.obs_dur = obs_dur
 
-    Parameters:
-    - mu_prior: 사전 분포의 평균 (초기 예상 작업 종료 시각)
-    - sigma_prior: 사전 분포의 표준편차
-    - t_c: 현재 시각 (작업이 완료되지 않은 시각)
 
-    Returns:
-    - mu_posterior: 사후 분포의 평균
-    - sigma_posterior: 사후 분포의 표준편차
-    - posterior_dist: 사후 분포 객체 (truncnorm)
-    """
+class TaskInfo:
+    def __init__(self, idx, plan_task, sim_task, start_time):
+        self.idx = idx
+        self.plan_task = plan_task
+        self.sim_task = sim_task
+        self.start_time = start_time
 
-    # 사전 분포의 a, b 계산 (표준화)
-    a, b = (t_c - mu_prior) / sigma_prior, np.inf
 
-    # 절단 정규 분포 생성
-    posterior_dist = truncnorm(a=a, b=b, loc=mu_prior, scale=sigma_prior)
+class TaskEstimator:
+    def __init__(self, config=None):
+        if config is None:
+            config = Config()
+        self.config = config
 
-    # 사후 분포의 평균과 표준편차 계산
-    mu_posterior = posterior_dist.mean()
-    sigma_posterior = posterior_dist.std()
+    def bayesian_estimation(self, dist, elapsed_time, obs_var=0.001):
+        prior_mean, prior_variance = dist.mean(), dist.var()
+        if prior_variance < 1e-6:
+            prior_variance = 1e-6
 
-    return mu_posterior, sigma_posterior, posterior_dist
+        try:
+            updated_mean = (prior_mean / prior_variance + elapsed_time / obs_var) / (
+                1 / prior_variance + 1 / obs_var
+            )
+            updated_variance = 1 / (1 / prior_variance + 1 / obs_var)
+            if not (np.isfinite(updated_mean) and np.isfinite(updated_variance)):
+                updated_mean, updated_variance = prior_mean, prior_variance
+                print("Warning: NaN encountered, using prior values.")
+            dist = norm(loc=updated_mean, scale=max(updated_variance**0.5, 1e-3))
+        except Exception as e:
+            print(f"Exception during estimation: {e}, using prior values.")
+            dist = norm(loc=prior_mean, scale=max(prior_variance**0.5, 1e-3))
+
+        print(f"   [Estimation] Mean updated: {prior_mean:.2f} -> {updated_mean:.2f}")
+        return dist
+
+    def run_task(self, task_info):
+        print("\n===================================")
+        print(f"Task {task_info.idx + 1}: {task_info.plan_task.name}")
+        print("-----------------------------------")
+        print(
+            f"  - Planned Task Schedule Info: {task_info.plan_task.start:.2f} ~ {task_info.plan_task.end:.2f} ({task_info.plan_task.duration:.2f})"
+        )
+        print(
+            f"  - Noise Task Schedule Info: {task_info.sim_task.start:.2f} ~ {task_info.sim_task.end:.2f} ({task_info.sim_task.duration:.2f})"
+        )
+        print("-----------------------------------")
+
+        task_duration_dist = norm(
+            loc=task_info.plan_task.duration, scale=(task_info.plan_task.duration / 2)
+        )
+        t_c = task_info.start_time
+
+        while True:
+            t_c += self.config.interval
+            elapsed_time = t_c - task_info.start_time
+
+            if task_duration_dist.cdf(elapsed_time) >= self.config.criteria:
+                print(f"   [Time: {t_c:.2f}] Elapsed: {elapsed_time:.2f}", end="")
+                task_duration_dist = self.bayesian_estimation(
+                    task_duration_dist, elapsed_time
+                )
+
+            if task_info.sim_task.end <= t_c:
+                print(f"   [Time: {t_c:.2f}] Elapsed: {elapsed_time:.2f}", end="")
+                task_duration_dist = self.bayesian_estimation(
+                    task_duration_dist, elapsed_time
+                )
+
+                print("\n-----------------------------------")
+                # print(f"   [Task End] Actual End: {t_c:.2f}")
+                print(f"   Planned Task Duration: {task_info.plan_task.duration:.2f}")
+                print(f"   Real Task Duration: {task_info.sim_task.duration:.2f}")
+                print(
+                    f"   Duration updated: {task_info.plan_task.duration:.2f} -> {task_duration_dist.mean():.2f}"
+                )
+                print("===================================")
+                break
+
+        return t_c
+
+    def estimate_tasks(self, plan_tasks, sim_tasks):
+        start_time = 0
+        for idx, (plan_task, sim_task) in enumerate(zip(plan_tasks, sim_tasks)):
+            task_info = TaskInfo(idx, plan_task, sim_task, start_time)
+            start_time = self.run_task(task_info)

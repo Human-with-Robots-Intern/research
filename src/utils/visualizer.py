@@ -6,7 +6,7 @@ import networkx as nx
 from anytree import Node
 from anytree.exporter import UniqueDotExporter
 
-from utils.util import get_paths_to_leaves
+from utils.util import convert_tree_to_schedule
 
 
 def visualize(task_name, constraints, task_plans, opt_task_plans):
@@ -100,10 +100,10 @@ def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
         save_folder_path (str): The path where the plot will be saved.
         is_display (bool): Whether to display the plot after saving.
     """
-    paths = get_paths_to_leaves(root)
+    schedules = convert_tree_to_schedule(root)
 
     # Number of subplots needed
-    n_plots = len(paths)
+    n_plots = len(schedules)
 
     # Create subplots
     fig, axs = plt.subplots(n_plots, 1, figsize=(24, 4 * n_plots))
@@ -111,21 +111,16 @@ def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
     if n_plots == 1:
         axs = [axs]  # Ensure axs is a list even when there's only one plot
 
-    for i, path in enumerate(paths):
+    for i, schedule in enumerate(schedules):
         tasks = []
         start_times = []
         durations = []
 
-        for node in path:
-            if node.name != "Start":
-                task_name = node.name
-                makespan = node.makespan
-                duration = node.duration
-                start_time = makespan - duration
-
-                tasks.append(task_name)
-                start_times.append(start_time)
-                durations.append(duration)
+        # 노드에 있는 시작, 끝, duration 시간 리스트로 뺌
+        for subtask in schedule:
+            tasks.append(subtask.name)
+            start_times.append(subtask.start)
+            durations.append(subtask.duration)
 
         # Plot the Gantt chart for the current path
         ax = axs[i]

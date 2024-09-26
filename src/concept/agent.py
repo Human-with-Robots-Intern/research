@@ -12,6 +12,7 @@ class Agent:
         self.status = status
         self.env = env
         self.location = location
+        self.knowledge = {}
 
     def move(self, goal: str) -> int:
         move_cost = self.env.get_cost(self.location, goal)
