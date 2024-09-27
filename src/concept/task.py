@@ -49,6 +49,7 @@ class Subtask:
 
     def __init__(
         self,
+        task_name: str,
         name: str,
         type: str,
         roi: RoI,
@@ -56,6 +57,7 @@ class Subtask:
         decomposition: Decomposition,
         temporal_constraints: Optional[List[TemporalConstraint]] = None,
     ):
+        self.task_name = task_name
         self.name = name
         self.type = type
         self.roi = roi
@@ -119,6 +121,7 @@ def parse_tasks(data: List[Dict]) -> List[Task]:
             ]
 
             subtask = Subtask(
+                task_name=task_name,
                 name=subtask_name,
                 type=subtask_type,
                 roi=roi,

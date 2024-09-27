@@ -75,7 +75,7 @@ class TreeBuilder:
                     time_slot,
                 )
             )
-            # timeslot에 들어갈 작업이 없는 경우 wait 처리
+            # time slot에 들어갈 작업이 없는 경우 wait 처리
             parent_node = Node(
                 name=f"Wait_for_{subtask.name}",
                 parent=parent_node,
@@ -92,7 +92,6 @@ class TreeBuilder:
             duration=subtask.duration.interval,
             location=f"{subtask.roi.room}:{subtask.roi.asset}",
             type=subtask.type,
-            task_info=subtask,
         )
 
         expandable_subtasks = (

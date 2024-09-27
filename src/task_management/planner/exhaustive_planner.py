@@ -78,8 +78,8 @@ class ExhaustivePlanner:
             new_node = Node(
                 node.name,
                 makespan=node.makespan,
-                type=node.type,
                 duration=node.duration,
+                type=node.type,
             )
             for child in node.children:
                 new_child = filter_tree(child)

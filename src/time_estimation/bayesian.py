@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.stats import norm
 
+from utils.util import update_task_duration
+
 
 class Config:
     def __init__(self, criteria=0.7, interval=0.1, obs_dur=0.01):
@@ -28,18 +30,14 @@ class TaskEstimator:
         if prior_variance < 1e-6:
             prior_variance = 1e-6
 
-        try:
-            updated_mean = (prior_mean / prior_variance + elapsed_time / obs_var) / (
-                1 / prior_variance + 1 / obs_var
-            )
-            updated_variance = 1 / (1 / prior_variance + 1 / obs_var)
-            if not (np.isfinite(updated_mean) and np.isfinite(updated_variance)):
-                updated_mean, updated_variance = prior_mean, prior_variance
-                print("Warning: NaN encountered, using prior values.")
-            dist = norm(loc=updated_mean, scale=max(updated_variance**0.5, 1e-3))
-        except Exception as e:
-            print(f"Exception during estimation: {e}, using prior values.")
-            dist = norm(loc=prior_mean, scale=max(prior_variance**0.5, 1e-3))
+        updated_mean = (prior_mean / prior_variance + elapsed_time / obs_var) / (
+            1 / prior_variance + 1 / obs_var
+        )
+        updated_variance = 1 / (1 / prior_variance + 1 / obs_var)
+        if not (np.isfinite(updated_mean) and np.isfinite(updated_variance)):
+            updated_mean, updated_variance = prior_mean, prior_variance
+            print("Warning: NaN encountered, using prior values.")
+        dist = norm(loc=updated_mean, scale=max(updated_variance**0.5, 1e-3))
 
         print(f"   [Estimation] Mean updated: {prior_mean:.2f} -> {updated_mean:.2f}")
         return dist
@@ -76,6 +74,9 @@ class TaskEstimator:
                 task_duration_dist = self.bayesian_estimation(
                     task_duration_dist, elapsed_time
                 )
+
+                if task_info.plan_task is not None:
+                    pass
 
                 print("\n-----------------------------------")
                 # print(f"   [Task End] Actual End: {t_c:.2f}")
