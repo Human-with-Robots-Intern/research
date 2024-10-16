@@ -6,7 +6,8 @@ from ai2thor.controller import Controller
 from handlers.input_handler import InputHandler
 from teleoperation import Teleoperation
 
-from sim.utils.constants import SCREEN_HEIGHT, SCREEN_WIDTH
+from sim.utils.constants import SCENE_NAME, SCREEN_HEIGHT, SCREEN_WIDTH
+from sim.utils.utils import *
 
 
 def main():
@@ -19,7 +20,7 @@ def main():
     controller = Controller(
         agentMode="arm",  # "default", "locobot", "drone", or "arm",
         massThreshold=0.04,  # 물리 엔진에서 물체를 움직이는 최소 질량
-        scene="FloorPlan1_physics",
+        scene=SCENE_NAME,  # Scene 이름
         gridSize=0.125,  # Move Actions의 Mean
         movementGaussianSigma=0.005,  # Move Actions의 Sigma
         renderDepthImage=False,  # Depth Image 렌더링 여부 (오랜 시간 소요)
@@ -32,7 +33,7 @@ def main():
 
     # Teleoperation 및 InputHandler 객체 생성
     teleop = Teleoperation(controller)
-    input_handler = InputHandler(controller, teleop)
+    input_handler = InputHandler(controller, teleop, load_agent_knowledge(SCENE_NAME))
 
     # 초기 위치 저장
     teleop.save_initial_position()
@@ -51,8 +52,6 @@ def main():
         # 이미지 변환 및 화면에 그리기
         image = np.flip(np.rot90(image), axis=0)
         surface = pygame.surfarray.make_surface(image)
-
-        # 바운딩 박스 그리기
         screen.blit(surface, (0, 0))
 
         # pygame에 display 업데이트
@@ -61,6 +60,7 @@ def main():
     # 프로그램 종료
     pygame.quit()
     controller.stop()
+    save_the_agent_knowledge(SCENE_NAME, input_handler.agent_knowledge)
 
 
 if __name__ == "__main__":

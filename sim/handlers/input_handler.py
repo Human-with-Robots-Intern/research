@@ -1,36 +1,35 @@
 # input_handler.py
 
+
 import pygame
 
 from sim.utils.constants import *
 
 
 class InputHandler:
-    def __init__(self, controller, teleop):
+    def __init__(self, controller, teleop, agent_knowledge):
         self.controller = controller
         self.teleop = teleop
         self.radius_index = 0
+        self.agent_knowledge = agent_knowledge
 
     def process_events(self):
         running = True
 
         for event in pygame.event.get():
+            if self.controller.last_event.metadata["lastActionSuccess"]:
+                obj_infos = self.teleop.object_handler.get_obj_info()
+                self.agent_knowledge.update(obj_infos)
+
             if event.type == pygame.QUIT:
                 running = False
 
-            elif event.type == pygame.KEYDOWN:
-
-                # Get Object Info
-                if self.controller.last_event.metadata["lastActionSuccess"]:
-                    obj_infos = self.teleop.camera_handler.get_obj_info()
-
+            if event.type == pygame.KEYDOWN:
                 # Reset and Escape
                 if event.key == pygame.K_v:
                     self.teleop.camera_handler.toggle_view()
                 if event.key == pygame.K_r:
                     self.teleop.teleport_to_initial_position()
-                if event.key == pygame.K_ESCAPE:
-                    running = False
 
                 # Pick and place
                 if event.key == pygame.K_SPACE:

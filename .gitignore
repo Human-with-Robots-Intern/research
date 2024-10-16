@@ -173,3 +173,5 @@ scripts/*
 .env
 
 !todo.txt
+*.json
+*.ipynb

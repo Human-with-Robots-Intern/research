@@ -15,16 +15,9 @@ class MoveHandler:
         )
         self.controller.step(action=move_action, moveMagnitude=speed)
 
-        # 성공시, 카메라 뷰 업데이트
-        if self.camera_handler.camera_mode == "third_person":
-            self.camera_handler.update_third_person_camera()
-        elif self.camera_handler.camera_mode == "top_down":
-            self.camera_handler.update_top_down_camera()
+        self.camera_handler.update_view()
 
     def rotate_agent(self, rotate_action):
         self.controller.step(action=rotate_action, degrees=self.rotate_step)
-        # 성공시, 카메라 뷰 업데이트
-        if self.camera_handler.camera_mode == "third_person":
-            self.camera_handler.update_third_person_camera()
-        elif self.camera_handler.camera_mode == "top_down":
-            self.camera_handler.update_top_down_camera()
+
+        self.camera_handler.update_view()

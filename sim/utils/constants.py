@@ -3,6 +3,7 @@
 # test.py
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
+SCENE_NAME = "FloorPlan1_physics"
 
 # MoveHandler.py
 MOVE_STEP = 0.1  # 에이전트 이동 거리
@@ -43,3 +44,6 @@ OBJECT_INTERESTS = {
         "isUsedUp",
     ],
 }
+
+# utils.py
+OBJECTS_INFO_PATH = "sim/data/knowledges"

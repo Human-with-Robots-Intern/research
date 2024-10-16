@@ -1,6 +1,7 @@
 from handlers.arm_handler import ArmHandler
 from handlers.camera_handler import CameraHandler
 from handlers.move_handler import MoveHandler
+from handlers.object_handler import ObjectHandler
 
 
 class Teleoperation:
@@ -9,6 +10,7 @@ class Teleoperation:
         self.camera_handler = CameraHandler(controller)
         self.move_handler = MoveHandler(controller, self.camera_handler)
         self.arm_handler = ArmHandler(controller)
+        self.object_handler = ObjectHandler(controller)
         self.initial_position = None
         self.initial_rotation = None
 
