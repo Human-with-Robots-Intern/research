@@ -6,7 +6,6 @@ class ArmHandler:
         self.controller = controller
         self.arm_position = {"x": 0, "y": 0, "z": 0}  # 초기값 설정
         self.update_arm_position()  # 초기 팔 위치 업데이트
-        self.held_object_id = None
 
     def update_arm_position(self):
         """
@@ -59,9 +58,6 @@ class ArmHandler:
 
             if event.metadata["lastActionSuccess"]:
                 self.update_arm_position()  # 팔 위치 업데이트
-                print(
-                    f"팔이 {coordinate_space} 좌표계에서 ({delta_x}, {delta_y}, {delta_z})만큼 이동했습니다."
-                )
             else:
                 print("팔을 지정된 위치로 이동할 수 없습니다.")
 
@@ -119,16 +115,14 @@ class ArmHandler:
                 print("집을 수 있는 객체가 주변에 없습니다.")
                 return
 
-            # 첫 번째 객체 선택
-            object_id = pickupable_objects[0]
-            print("Picking up " + object_id)
-            event = self.controller.step(action="PickupObject", objectId=object_id)
-
+            event = self.controller.step(
+                action="PickupObject", objectIdCandidates=pickupable_objects
+            )
+            # 집기 성공 시 held_object_id 업데이트
             if event.metadata["lastActionSuccess"]:
-                self.held_object_id = event.metadata["arm"]["heldObjects"][0]
-                print(f"객체를 집었습니다: {self.held_object_id}")
+                print(f"객체를 집었습니다: {pickupable_objects[0]}")
             else:
-                print("객체를 집을 수 없습니다.")
+                print(event.metadata["errorMessage"])
         except Exception as e:
             print(f"PickupObject 액션 중 에러 발생: {str(e)}")
 
@@ -139,8 +133,7 @@ class ArmHandler:
         try:
             event = self.controller.step(action="ReleaseObject")
             if event.metadata["lastActionSuccess"]:
-                print(f"객체를 놓았습니다: {self.held_object_id}")
-                self.held_object_id = None
+                print(f"객체를 놓았습니다:")
             else:
                 print("객체를 놓을 수 없습니다.")
         except Exception as e:

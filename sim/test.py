@@ -35,8 +35,6 @@ def main():
     teleop = Teleoperation(controller)
     input_handler = InputHandler(controller, teleop)
 
-    # set grasp radius
-    controller.step(action="SetHandSphereRadius", radius=0.3)
     # 초기 위치 저장
     teleop.save_initial_position()
 
@@ -56,7 +54,7 @@ def main():
         surface = pygame.surfarray.make_surface(image)
         screen.blit(surface, (0, 0))
 
-        # 디스플레이 업데이트
+        # pygame에 display 업데이트
         pygame.display.flip()
 
     # 프로그램 종료
