@@ -6,14 +6,13 @@ from ai2thor.controller import Controller
 from handlers.input_handler import InputHandler
 from teleoperation import Teleoperation
 
+from sim.utils.constants import SCREEN_HEIGHT, SCREEN_WIDTH
+
 
 def main():
-    # 화면 크기 설정
-    width, height = 800, 600
-
     # Pygame 초기화
     pygame.init()
-    screen = pygame.display.set_mode((width, height))
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("AI2-THOR Control")
 
     # AI2-THOR 컨트롤러 초기화
@@ -25,8 +24,8 @@ def main():
         movementGaussianSigma=0.005,  # Move Actions의 Sigma
         renderDepthImage=False,  # Depth Image 렌더링 여부 (오랜 시간 소요)
         renderInstanceSegmentation=False,  # Instance Segmentation 렌더링 여부 (오랜 시간 소요)
-        width=width,
-        height=height,
+        width=SCREEN_WIDTH,
+        height=SCREEN_HEIGHT,
         renderThirdPartyCameras=True,
         fieldOfView=60,
     )
@@ -52,6 +51,8 @@ def main():
         # 이미지 변환 및 화면에 그리기
         image = np.flip(np.rot90(image), axis=0)
         surface = pygame.surfarray.make_surface(image)
+
+        # 바운딩 박스 그리기
         screen.blit(surface, (0, 0))
 
         # pygame에 display 업데이트

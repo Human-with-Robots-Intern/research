@@ -13,16 +13,13 @@ class MoveHandler:
         speed = (
             self.move_step * self.run_speed_multiplier if run_mode else self.move_step
         )
-        event = self.controller.step(action=move_action, moveMagnitude=speed)
+        self.controller.step(action=move_action, moveMagnitude=speed)
 
-        if not event.metadata["lastActionSuccess"]:
-            print("이동이 막혔습니다. 원하는 위치로 이동할 수 없습니다.")
-        else:
-            # 성공시, 카메라 뷰 업데이트
-            if self.camera_handler.camera_mode == "third_person":
-                self.camera_handler.update_third_person_camera()
-            elif self.camera_handler.camera_mode == "top_down":
-                self.camera_handler.update_top_down_camera()
+        # 성공시, 카메라 뷰 업데이트
+        if self.camera_handler.camera_mode == "third_person":
+            self.camera_handler.update_third_person_camera()
+        elif self.camera_handler.camera_mode == "top_down":
+            self.camera_handler.update_top_down_camera()
 
     def rotate_agent(self, rotate_action):
         self.controller.step(action=rotate_action, degrees=self.rotate_step)

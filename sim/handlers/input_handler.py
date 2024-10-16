@@ -19,18 +19,26 @@ class InputHandler:
                 running = False
 
             elif event.type == pygame.KEYDOWN:
+
+                # Get Object Info
+                if self.controller.last_event.metadata["lastActionSuccess"]:
+                    obj_infos = self.teleop.camera_handler.get_obj_info()
+
+                # Reset and Escape
                 if event.key == pygame.K_v:
                     self.teleop.camera_handler.toggle_view()
                 if event.key == pygame.K_r:
                     self.teleop.teleport_to_initial_position()
                 if event.key == pygame.K_ESCAPE:
                     running = False
+
                 # Pick and place
                 if event.key == pygame.K_SPACE:
                     if self.controller.last_event.metadata["arm"]["heldObjects"]:
                         self.teleop.arm_handler.drop_object()
                     else:
                         self.teleop.arm_handler.pickup_object()
+
                 # set grasp radius
                 if event.key == pygame.K_SLASH:
                     self.radius_index = (self.radius_index + 1) % len(HAND_RADIUS)

@@ -5,19 +5,6 @@ class ArmHandler:
     def __init__(self, controller):
         self.controller = controller
         self.arm_position = {"x": 0, "y": 0, "z": 0}  # 초기값 설정
-        self.update_arm_position()  # 초기 팔 위치 업데이트
-
-    def update_arm_position(self):
-        """
-        메타데이터에서 현재 팔의 위치를 업데이트합니다.
-        """
-        try:
-            arm_metadata = self.controller.last_event.metadata["arm"]
-            # 손목의 위치를 가져옵니다.
-            wrist_joint = arm_metadata["joints"][-1]  # 마지막 조인트가 손목
-            self.arm_position = wrist_joint["rootRelativePosition"]
-        except Exception as e:
-            print(f"팔 위치 업데이트 중 에러 발생: {str(e)}")
 
     def move_arm(
         self,
@@ -56,11 +43,6 @@ class ArmHandler:
                 fixedDeltaTime=fixed_delta_time,
             )
 
-            if event.metadata["lastActionSuccess"]:
-                self.update_arm_position()  # 팔 위치 업데이트
-            else:
-                print("팔을 지정된 위치로 이동할 수 없습니다.")
-
         except Exception as e:
             print(f"MoveArm 액션 중 에러 발생: {str(e)}")
 
@@ -86,18 +68,13 @@ class ArmHandler:
             # y 값은 0과 1 사이로 클램핑
             target_y = max(0.0, min(1.0, target_y))
 
-            event = self.controller.step(
+            self.controller.step(
                 action="MoveArmBase",
                 y=target_y,
                 speed=speed,
                 returnToStart=return_to_start,
                 fixedDeltaTime=fixed_delta_time,
             )
-
-            if event.metadata["lastActionSuccess"]:
-                print(f"팔의 기반이 높이 {target_y}로 이동했습니다.")
-            else:
-                print("팔의 기반을 지정된 높이로 이동할 수 없습니다.")
 
         except Exception as e:
             print(f"MoveArmBase 액션 중 에러 발생: {str(e)}")
@@ -138,3 +115,5 @@ class ArmHandler:
                 print("객체를 놓을 수 없습니다.")
         except Exception as e:
             print(f"DropHandObject 액션 중 에러 발생: {str(e)}")
+
+    

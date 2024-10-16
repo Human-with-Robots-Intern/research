@@ -42,25 +42,6 @@ class CameraHandler:
         }
         return position, rotation
 
-    def set_third_person_view(self):
-        position, rotation = self.calculate_third_person_camera_pos_rot()
-        self.controller.step(
-            action="AddThirdPartyCamera",
-            position=position,
-            rotation=rotation,
-            fieldOfView=60,
-        )
-
-    def update_third_person_camera(self):
-        position, rotation = self.calculate_third_person_camera_pos_rot()
-        self.controller.step(
-            action="UpdateThirdPartyCamera",
-            thirdPartyCameraId=0,
-            position=position,
-            rotation=rotation,
-            fieldOfView=60,
-        )
-
     def calculate_top_down_camera_pos_rot(self):
         agent_position = self.controller.last_event.metadata["agent"]["position"]
         position = {
@@ -75,19 +56,19 @@ class CameraHandler:
         }
         return position, rotation
 
-    def set_top_down_view(self):
-        position, rotation = self.calculate_top_down_camera_pos_rot()
+    def set_third_person_view(self):
+        position, rotation = self.calculate_third_person_camera_pos_rot()
         self.controller.step(
             action="AddThirdPartyCamera",
             position=position,
             rotation=rotation,
-            fieldOfView=90,
+            fieldOfView=60,
         )
 
-    def update_top_down_camera(self):
+    def set_top_down_view(self):
         position, rotation = self.calculate_top_down_camera_pos_rot()
         self.controller.step(
-            action="UpdateThirdPartyCamera",
+            action="AddThirdPartyCamera",
             position=position,
             rotation=rotation,
             fieldOfView=90,
@@ -100,8 +81,74 @@ class CameraHandler:
             position={"x": 0, "y": -100, "z": 0},
         )
 
+    def update_third_person_camera(self):
+        position, rotation = self.calculate_third_person_camera_pos_rot()
+        self.controller.step(
+            action="UpdateThirdPartyCamera",
+            thirdPartyCameraId=0,
+            position=position,
+            rotation=rotation,
+            fieldOfView=60,
+        )
+
+    def update_top_down_camera(self):
+        position, rotation = self.calculate_top_down_camera_pos_rot()
+        self.controller.step(
+            action="UpdateThirdPartyCamera",
+            position=position,
+            rotation=rotation,
+            fieldOfView=90,
+        )
+
     def get_current_frame(self):
         if self.camera_mode == "egocentric":
             return self.controller.last_event.frame
         else:
             return self.controller.last_event.third_party_camera_frames[0]
+
+    def get_obj_info(self):
+        object_infos = {}
+        # 1. visible object만 추출
+        objects = [
+            obj
+            for obj in self.controller.last_event.metadata["objects"]
+            if obj["visible"] and obj["isInteractable"]
+        ]
+
+        # 2. Object 정보 출력
+        for obj in objects:
+            # obj_id, interactions, states 추출
+            obj_id = obj["objectId"]
+            obj_interactions = [
+                obj_interaction
+                for obj_interaction in OBJECT_INTERESTS["object_interactions"]
+                if obj.get(obj_interaction)
+            ]
+
+            if self.detect_manipulable_objs is not None:
+                obj_interactions.append("manipulable")
+
+            obj_states = [
+                obj_state
+                for obj_state in OBJECT_INTERESTS["object_states"]
+                if obj.get(obj_state)
+            ]
+
+            if obj_interactions or obj_states:
+                object_infos[obj_id] = {
+                    "interactions": obj_interactions,
+                    "states": obj_states,
+                }
+                print(f"Object ID: {obj_id}")
+                print(f"Object interactions: {obj_interactions}")
+                print(f"Object states: {obj_states}\n")
+
+        return object_infos
+
+    # Manipulation 가능한 Object 감지
+    def detect_manipulable_objs(self):
+        manipulable_objects = set(
+            self.controller.last_event.metadata["arm"]["pickupableObjects"]
+        )
+        held_objects = set(self.controller.last_event.metadata["arm"]["heldObjects"])
+        return manipulable_objects - held_objects if manipulable_objects else None
