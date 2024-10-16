@@ -3,19 +3,16 @@
 import argparse
 import json
 import os
-import sys
-
-import numpy as np
 
 from concept.agent import Agent
 from concept.env import Env
-from concept.schedule import ScheduledTask
+from concept.schedule import ScheduledTask, convert_tree_to_schedule, simulate_task_plan
 from concept.task import parse_constraints, parse_tasks
 from task_management.handler.subtask_decomposer import decompose_tasks
 from task_management.planner.exhaustive_planner import ExhaustivePlanner
 from time_estimation.bayesian import TaskEstimator
+from utils.constants import ROOT_PATH
 from utils.task_generator import generate_task_by_llm
-from utils.util import convert_tree_to_schedule, simulate_task_plan
 from utils.visualizer import visualize
 
 
@@ -41,7 +38,7 @@ def load_tasks_and_constraints(task_name="cook"):
         task_name = generate_task_by_llm()
 
     file_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        ROOT_PATH,
         f"assets/tasks/task_{task_name}.json",
     )
 
@@ -68,15 +65,13 @@ if __name__ == "__main__":
     planner = ExhaustivePlanner(agent, tasks, constraints)
     task_plans, opt_task_plans = planner.generate_valid_plans()
 
+    # task_plans to schedule & simulate it
+    opt_task_plan = convert_tree_to_schedule(opt_task_plans)
+    simulated_task_plan = simulate_task_plan(opt_task_plan)
+
     # Task plan visualization
     if args.visualize:
         visualize(task_name, constraints, task_plans, opt_task_plans)
-
-    # Convert the optimal task plan to a schedule
-    opt_task_plan = convert_tree_to_schedule(opt_task_plans)
-
-    # Simulate the task plan execution
-    simulated_task_plan = simulate_task_plan(opt_task_plan)
 
     # Estimate task durations using Bayesian estimation
     estimator = TaskEstimator()

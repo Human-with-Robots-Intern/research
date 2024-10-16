@@ -1,4 +1,8 @@
+import json
+import os
+
 from concept.env import Env
+from utils.constants import ROOT_PATH
 
 
 class Agent:
@@ -12,7 +16,6 @@ class Agent:
         self.status = status
         self.env = env
         self.location = location
-        self.knowledge = {}
 
     def move(self, goal: str) -> int:
         move_cost = self.env.get_cost(self.location, goal)
