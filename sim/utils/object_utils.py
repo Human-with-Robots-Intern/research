@@ -1,6 +1,7 @@
+from utils.math_utils import calculate_rotation_angle, closest_position
+
+
 # object_utils.py
-
-
 def detect_manipulable_objs(controller):
     manipulable_objects = set(
         controller.last_event.metadata["arm"]["pickupableObjects"]
@@ -24,3 +25,29 @@ def obj_in_scene(controller, object_type):
         for obj in controller.last_event.metadata["objects"]
         if obj["objectType"] == object_type
     )
+
+
+def rotate_to_object(controller, object_type):
+    """
+    Rotates the agent to face the specified object type.
+    """
+    obj = obj_in_scene(controller, object_type)
+    obj_position = obj["position"]
+    agent_position = controller.last_event.metadata["agent"]["position"]
+
+    rotation_angle = calculate_rotation_angle(agent_position, obj_position)
+    controller.step(action="RotateRight", degrees=rotation_angle)
+
+
+def teleport_to_object(controller, object_type):
+    """
+    Teleports the agent close to the specified object type and rotates to face it.
+    """
+    obj = obj_in_scene(controller, object_type)
+    reachable_positions = controller.step(action="GetReachablePositions").metadata[
+        "actionReturn"
+    ]
+    closest_pos = closest_position(obj["position"], reachable_positions)
+    controller.step(action="Teleport", position=closest_pos)
+    rotate_to_object(object_type)
+    return obj["objectId"]

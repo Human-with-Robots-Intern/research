@@ -2,6 +2,8 @@
 
 import math
 
+from sim.utils.constants import GRID_SIZE
+
 
 def closest_grid_point(pos):
     """Helper function to find the closest grid point to a given position."""
@@ -18,6 +20,10 @@ def closest_position(object_position, reachable_positions):
             min_distance = dist
             closest = pos
     return closest
+
+
+def quantize_position(pos):
+    return tuple(round(coord / GRID_SIZE) * GRID_SIZE for coord in pos)
 
 
 def euclidean_distance(pointA, pointB):

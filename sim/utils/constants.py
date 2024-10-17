@@ -32,6 +32,7 @@ OBJECT_INTERESTS = {
         "moveable",
         "canFillWithLiquid",
         "canBeUsedUp",
+        # "receptacle",
     ],
     "object_states": [
         "isToggled",
@@ -43,6 +44,7 @@ OBJECT_INTERESTS = {
         "isPickedUp",
         "isFilledWithLiquid",
         "isUsedUp",
+        # "receptacleObjectIds",
     ],
 }
 

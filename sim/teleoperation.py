@@ -5,7 +5,7 @@ from handlers.interaction_handler import InteractionHandler
 from handlers.move_handler import MoveHandler
 from handlers.navigation_handler import NavigationHandler
 
-from utils.constants import *
+from sim.utils.constants import *
 
 
 class Teleoperation:
@@ -21,6 +21,7 @@ class Teleoperation:
         self.initial_rotation = self.controller.last_event.metadata["agent"]["rotation"]
         self.radius_index = 0
         self.agent_knowledge = agent_knowledge
+        self.objs_in_scene = None
 
     def process_events(self):
         running = True
@@ -32,8 +33,9 @@ class Teleoperation:
 
             if event.type == pygame.KEYDOWN:
                 if self.controller.last_event.metadata["lastActionSuccess"]:
-                    obj_infos = self.interaction_handler.detect_object()
+                    obj_infos = self.interaction_handler.detect_objects()
                     self.agent_knowledge.update(obj_infos)
+                    self.objs_in_scene = obj_infos
                 # Reset and Escape
                 if event.key == pygame.K_v:
                     self.camera_handler.toggle_view()
@@ -50,13 +52,6 @@ class Teleoperation:
 
                     self.camera_handler.update_view()
 
-                # Pick and place
-                if event.key == pygame.K_SPACE:
-                    if self.controller.last_event.metadata["arm"]["heldObjects"]:
-                        self.interaction_handler.drop_object()
-                    else:
-                        self.interaction.pickup_object()
-
                 # set grasp radius
                 if event.key == pygame.K_SLASH:
                     self.radius_index = (self.radius_index + 1) % len(HAND_RADIUS)
@@ -65,8 +60,14 @@ class Teleoperation:
                         radius=HAND_RADIUS[self.radius_index],
                     )
 
-                if event.key == pygame.K_1:
+                # Pick and place
+                if event.key == pygame.K_SPACE:
+                    # scence 내 object와 가능한 상호작용이 있는 경우
+                    if self.objs_in_scene:
+                        self.interaction_handler.random_interact(self.objs_in_scene)
 
+                # Navigation scenario
+                if event.key == pygame.K_1:
                     self.navigation_handler.move_to("Stool|+00.74|+00.00|+00.56")
 
         return running
