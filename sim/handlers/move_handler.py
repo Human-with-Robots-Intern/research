@@ -1,4 +1,4 @@
-from sim.utils.constants import *
+from utils.constants import *
 
 
 class MoveHandler:

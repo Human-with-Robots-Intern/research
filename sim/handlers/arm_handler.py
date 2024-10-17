@@ -1,4 +1,4 @@
-from sim.utils.file_utils import *
+from utils.file_utils import *
 
 
 class ArmHandler:

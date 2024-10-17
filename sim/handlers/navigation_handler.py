@@ -1,5 +1,6 @@
 from collections import deque
 
+from utils.constants import GRID_SIZE
 from utils.math_utils import closest_position
 
 
@@ -14,19 +15,20 @@ class NavigationHandler:
         Neighbors are the positions reachable from a given position within one step.
         """
         neighbors = dict()
+        # agent가 teleport할 수 있는 모든 position을 가져옴
         positions = self.controller.step("GetReachablePositions").metadata[
             "actionReturn"
         ]
+        # position을 tuple 집합으로 변환
         positions_tuple = [(p["x"], p["y"], p["z"]) for p in positions]
-        grid_size = 0.25  # Assuming a grid size of 0.25 units for AI2-THOR
 
         # Populate neighbors for each position
         for position in positions_tuple:
             position_neighbors = set()
             for p in positions_tuple:
                 if position != p and (
-                    abs(position[0] - p[0]) <= 1.5 * grid_size
-                    and abs(position[2] - p[2]) <= 1.5 * grid_size
+                    abs(position[0] - p[0]) <= 2 * GRID_SIZE
+                    and abs(position[2] - p[2]) <= 2 * GRID_SIZE
                 ):
                     position_neighbors.add(p)
             neighbors[position] = position_neighbors

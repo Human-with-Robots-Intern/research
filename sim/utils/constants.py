@@ -4,6 +4,7 @@
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 SCENE_NAME = "FloorPlan1_physics"
+GRID_SIZE = 0.125
 
 # MoveHandler.py
 MOVE_STEP = 0.1  # 에이전트 이동 거리

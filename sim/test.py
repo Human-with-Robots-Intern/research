@@ -5,7 +5,7 @@ import pygame
 from ai2thor.controller import Controller
 from teleoperation import Teleoperation
 
-from sim.utils.constants import SCENE_NAME, SCREEN_HEIGHT, SCREEN_WIDTH
+from sim.utils.constants import *
 from sim.utils.file_utils import *
 
 
@@ -20,7 +20,7 @@ def main():
         agentMode="arm",  # "default", "locobot", "drone", or "arm",
         massThreshold=0.04,  # 물리 엔진에서 물체를 움직이는 최소 질량
         scene=SCENE_NAME,  # Scene 이름
-        gridSize=0.125,  # Move Actions의 Mean
+        gridSize=GRID_SIZE,  # Move Actions의 Mean
         movementGaussianSigma=0.005,  # Move Actions의 Sigma
         renderDepthImage=False,  # Depth Image 렌더링 여부 (오랜 시간 소요)
         renderInstanceSegmentation=False,  # Instance Segmentation 렌더링 여부 (오랜 시간 소요)

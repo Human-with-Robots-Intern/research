@@ -3,9 +3,9 @@ from handlers.arm_handler import ArmHandler
 from handlers.camera_handler import CameraHandler
 from handlers.interaction_handler import InteractionHandler
 from handlers.move_handler import MoveHandler
+from handlers.navigation_handler import NavigationHandler
 
-from sim.handlers.navigation_handler import NavigationHandler
-from sim.utils.constants import *
+from utils.constants import *
 
 
 class Teleoperation:
@@ -66,7 +66,7 @@ class Teleoperation:
                     )
 
                 if event.key == pygame.K_1:
-                    
+
                     self.navigation_handler.move_to("Stool|+00.74|+00.00|+00.56")
 
         return running
