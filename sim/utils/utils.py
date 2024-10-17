@@ -32,8 +32,10 @@ def load_agent_knowledge(scene_name: str):
     return agent_knowledge
 
 
-# 사용 예시
-# agent_knowledge = {"example_key": "example_value"}
-# save_the_agent_knowledge(agent_knowledge)
-# recent_knowledge = load_recent_agent_knowledge()
-# print(recent_knowledge)
+# from ai2thor.controller import Controller
+#     c = Controller()
+#     event = c.step('GetReachablePositions')
+#     positions = event.metadata['reachablePositions']
+#     for pos in positions:
+#         for rotation in (0, 90, 180, 270):
+#             c.step('TeleportFull', rotation=dict(x=0.0, y=rotation, z=0.0), **pos)

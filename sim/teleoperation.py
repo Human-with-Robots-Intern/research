@@ -1,8 +1,8 @@
 import pygame
 from handlers.arm_handler import ArmHandler
 from handlers.camera_handler import CameraHandler
+from handlers.interaction_handler import InteractionHandler
 from handlers.move_handler import MoveHandler
-from handlers.object_handler import ObjectHandler
 
 from sim.utils.constants import *
 
@@ -13,7 +13,8 @@ class Teleoperation:
         self.camera_handler = CameraHandler(controller)
         self.move_handler = MoveHandler(controller, self.camera_handler)
         self.arm_handler = ArmHandler(controller)
-        self.object_handler = ObjectHandler(controller)
+        self.interaction_handler = InteractionHandler(controller)
+
         self.initial_position = self.controller.last_event.metadata["agent"]["position"]
         self.initial_rotation = self.controller.last_event.metadata["agent"]["rotation"]
         self.radius_index = 0
@@ -29,7 +30,7 @@ class Teleoperation:
 
             if event.type == pygame.KEYDOWN:
                 if self.controller.last_event.metadata["lastActionSuccess"]:
-                    obj_infos = self.object_handler.get_obj_info()
+                    obj_infos = self.interaction.get_obj_info()
                     self.agent_knowledge.update(obj_infos)
                 # Reset and Escape
                 if event.key == pygame.K_v:
