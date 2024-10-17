@@ -17,6 +17,36 @@ class Agent:
         self.env = env
         self.location = location
 
+    def agent_obj_knowledge(self):
+        """Agent knowledge management
+
+        Returns:
+            dict: agent knowledge
+        """
+        agent_knowledge = {
+            "status": self.status,
+            "location": self.location,
+        }
+
+        return agent_knowledge
+
+    def agent_action_knowledge(self, action: str, goal: str):
+        """Agent action knowledge management
+
+        Args:
+            action (str): action name
+            goal (str): goal location
+
+        Returns:
+            dict: agent action knowledge
+        """
+        agent_action_knowledge = {
+            "action": action,
+            "goal": goal,
+        }
+
+        return agent_action_knowledge
+
     def move(self, goal: str) -> int:
         move_cost = self.env.get_cost(self.location, goal)
 

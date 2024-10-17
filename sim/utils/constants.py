@@ -18,7 +18,7 @@ CAMERA_HEIGHT_ABOVE = 1.5  # Third Person View에서 에이전트 위의 거리
 ARM_MOVE_STEP = 0.05  # 팔 이동 거리
 HAND_RADIUS = [0.1, 0.3, 0.5]  # Grasp Radius
 
-# input_handler.py
+# teleop.py
 OBJECT_INTERESTS = {
     "object_interactions": [
         "toggleable",

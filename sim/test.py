@@ -3,7 +3,6 @@
 import numpy as np
 import pygame
 from ai2thor.controller import Controller
-from handlers.input_handler import InputHandler
 from teleoperation import Teleoperation
 
 from sim.utils.constants import SCENE_NAME, SCREEN_HEIGHT, SCREEN_WIDTH
@@ -32,19 +31,15 @@ def main():
     )
 
     # Teleoperation 및 InputHandler 객체 생성
-    teleop = Teleoperation(controller)
-    input_handler = InputHandler(controller, teleop, load_agent_knowledge(SCENE_NAME))
-
-    # 초기 위치 저장
-    teleop.save_initial_position()
+    teleop = Teleoperation(controller, load_agent_knowledge(SCENE_NAME))
 
     running = True
     while running:
         # 이벤트 처리
-        running = input_handler.process_events()
+        running = teleop.process_events()
 
         # 키 입력 처리
-        input_handler.handle_keys()
+        teleop.handle_keys()
 
         # 이미지 렌더링
         image = teleop.get_current_frame()
@@ -60,7 +55,7 @@ def main():
     # 프로그램 종료
     pygame.quit()
     controller.stop()
-    save_the_agent_knowledge(SCENE_NAME, input_handler.agent_knowledge)
+    save_the_agent_knowledge(SCENE_NAME, teleop.agent_knowledge)
 
 
 if __name__ == "__main__":
