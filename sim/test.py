@@ -6,7 +6,7 @@ from ai2thor.controller import Controller
 from teleoperation import Teleoperation
 
 from sim.utils.constants import SCENE_NAME, SCREEN_HEIGHT, SCREEN_WIDTH
-from sim.utils.utils import *
+from sim.utils.file_utils import *
 
 
 def main():

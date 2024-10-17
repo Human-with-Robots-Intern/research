@@ -4,6 +4,7 @@ from handlers.camera_handler import CameraHandler
 from handlers.interaction_handler import InteractionHandler
 from handlers.move_handler import MoveHandler
 
+from sim.handlers.navigation_handler import NavigationHandler
 from sim.utils.constants import *
 
 
@@ -14,6 +15,7 @@ class Teleoperation:
         self.move_handler = MoveHandler(controller, self.camera_handler)
         self.arm_handler = ArmHandler(controller)
         self.interaction_handler = InteractionHandler(controller)
+        self.navigation_handler = NavigationHandler(controller)
 
         self.initial_position = self.controller.last_event.metadata["agent"]["position"]
         self.initial_rotation = self.controller.last_event.metadata["agent"]["rotation"]
@@ -30,7 +32,7 @@ class Teleoperation:
 
             if event.type == pygame.KEYDOWN:
                 if self.controller.last_event.metadata["lastActionSuccess"]:
-                    obj_infos = self.interaction.get_obj_info()
+                    obj_infos = self.interaction_handler.detect_object()
                     self.agent_knowledge.update(obj_infos)
                 # Reset and Escape
                 if event.key == pygame.K_v:
@@ -51,9 +53,9 @@ class Teleoperation:
                 # Pick and place
                 if event.key == pygame.K_SPACE:
                     if self.controller.last_event.metadata["arm"]["heldObjects"]:
-                        self.arm_handler.drop_object()
+                        self.interaction_handler.drop_object()
                     else:
-                        self.arm_handler.pickup_object()
+                        self.interaction.pickup_object()
 
                 # set grasp radius
                 if event.key == pygame.K_SLASH:
@@ -62,6 +64,10 @@ class Teleoperation:
                         action="SetHandSphereRadius",
                         radius=HAND_RADIUS[self.radius_index],
                     )
+
+                if event.key == pygame.K_1:
+                    
+                    self.navigation_handler.move_to("Stool|+00.74|+00.00|+00.56")
 
         return running
 

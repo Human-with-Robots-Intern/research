@@ -1,4 +1,4 @@
-from sim.utils.utils import *
+from sim.utils.file_utils import *
 
 
 class ArmHandler:
@@ -78,42 +78,3 @@ class ArmHandler:
 
         except Exception as e:
             print(f"MoveArmBase 액션 중 에러 발생: {str(e)}")
-
-    def pickup_object(self):
-        """
-        팔의 현재 위치에서 객체를 집는 메소드.
-        """
-        try:
-            # 팔의 현재 위치에서 집을 수 있는 객체 목록 가져오기
-            pickupable_objects = self.controller.last_event.metadata["arm"].get(
-                "pickupableObjects", []
-            )
-            if not pickupable_objects:
-                print("집을 수 있는 객체가 주변에 없습니다.")
-                return
-
-            event = self.controller.step(
-                action="PickupObject", objectIdCandidates=pickupable_objects
-            )
-            # 집기 성공 시 held_object_id 업데이트
-            if event.metadata["lastActionSuccess"]:
-                print(f"객체를 집었습니다: {pickupable_objects[0]}")
-            else:
-                print(event.metadata["errorMessage"])
-        except Exception as e:
-            print(f"PickupObject 액션 중 에러 발생: {str(e)}")
-
-    def drop_object(self):
-        """
-        현재 들고 있는 객체를 놓는 메소드.
-        """
-        try:
-            event = self.controller.step(action="ReleaseObject")
-            if event.metadata["lastActionSuccess"]:
-                print(f"객체를 놓았습니다:")
-            else:
-                print("객체를 놓을 수 없습니다.")
-        except Exception as e:
-            print(f"DropHandObject 액션 중 에러 발생: {str(e)}")
-
-    
