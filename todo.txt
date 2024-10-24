@@ -1,3 +1,2 @@
 #TODO Dynamic Task Decomposition
 #TODO Agent에 Task Duration 저장
-#TODO Cook2LTL 코드 읽고 , nav, manipulation 구현하기
