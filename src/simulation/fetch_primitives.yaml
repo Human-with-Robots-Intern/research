@@ -47,7 +47,7 @@ robots:
     self_collisions: false
     action_normalize: false
     action_type: continuous
-    grasping_mode: physical
+    grasping_mode: sticky # physical
     rigid_trunk: false
     default_trunk_offset: 0.365
     default_arm_pose: diagonal30
