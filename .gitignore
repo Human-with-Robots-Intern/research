@@ -175,3 +175,5 @@ scripts/*
 !todo.txt
 *.json
 *.ipynb
+src/simulation/examples/*
+src/simulation/logs/*
