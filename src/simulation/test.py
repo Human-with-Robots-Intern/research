@@ -33,9 +33,6 @@ def execute_controller(ctrl_gen, env):
 
 
 def main():
-    # Define tasks
-    tasks = ["find bread", "pick bread", "place bread in toaster"]
-
     # # Load the config
     config_filename = os.path.join("src/simulation/fetch_primitives.yaml")
     config = yaml.load(open(config_filename, "r"), Loader=yaml.FullLoader)
@@ -58,33 +55,21 @@ def main():
             "orientation": [0, 0, 0, 1],
         },
     ]
-
-    # Load the environment
     env = og.Environment(configs=config)
     scene = env.scene
-
-    # Allow user to move camera more easily
     controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
+
     table = scene.object_registry("name", "breakfast_table_skczfi_0")
     apple = scene.object_registry("name", "apple")
 
     try:
-        # Grasp apple
-        print("Executing controller")
-
         execute_controller(
             controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple), env
         )
-        print("Finished executing grasp")
-
-        # Place on table
-        print("Executing controller")
-
         execute_controller(
             controller.apply_ref(StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, table),
             env,
         )
-        print("Finished executing place")
     except ActionPrimitiveErrorGroup as e:
         log.error(f"Failed to execute action primitives: {e}")
 
