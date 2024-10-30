@@ -18,12 +18,10 @@ gm.USE_GPU_DYNAMICS = False
 gm.ENABLE_FLATCACHE = True
 
 log = create_module_logger(module_name=__name__)
-file_handler = logging.FileHandler("./src/simulation/logs/app.log", "a")
-file_formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+file_handler = logging.FileHandler(f"./src/simulation/logs/{__name__}.log", "a")
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 )
-file_handler.setFormatter(file_formatter)
-
 log.addHandler(file_handler)
 
 
@@ -32,7 +30,7 @@ def execute_controller(ctrl_gen, env):
         env.step(action)
 
 
-def main():
+def load_config():
     # # Load the config
     config_filename = os.path.join("src/simulation/fetch_primitives.yaml")
     config = yaml.load(open(config_filename, "r"), Loader=yaml.FullLoader)
@@ -55,7 +53,12 @@ def main():
             "orientation": [0, 0, 0, 1],
         },
     ]
-    env = og.Environment(configs=config)
+    return config
+
+
+def main():
+    # Initialize the environment
+    env = og.Environment(configs=load_config())
     scene = env.scene
     controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
 
@@ -73,7 +76,6 @@ def main():
     except ActionPrimitiveErrorGroup as e:
         log.error(f"Failed to execute action primitives: {e}")
 
-    # Always shut down the environment cleanly at the end
     og.clear()
 
 

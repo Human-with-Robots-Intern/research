@@ -66,9 +66,17 @@ robots:
         name: DifferentialDriveController
       arm_0:
         name: JointController
+        # [JointController parameters]
         motor_type: position
         command_input_limits: null
         use_delta_commands: false
+
+        # IK parameters
+        # command_input_limits: default
+        # mode: pose_absolute_ori
+        # smoothing_filter_size: 2
+        # workspace_pose_limiter: null
+        
       gripper_0:
         name: JointController
         motor_type: position
