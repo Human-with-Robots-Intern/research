@@ -176,3 +176,4 @@ scripts/*
 *.json
 *.ipynb
 src/simulation/examples/*
+src/simulation/logs/*

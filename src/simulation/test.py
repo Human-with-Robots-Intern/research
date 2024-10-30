@@ -18,18 +18,12 @@ gm.USE_GPU_DYNAMICS = False
 gm.ENABLE_FLATCACHE = True
 
 log = create_module_logger(module_name=__name__)
-
-console_handler = logging.StreamHandler()
-console_formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
-console_handler.setFormatter(console_formatter)
-
 file_handler = logging.FileHandler("./src/simulation/logs/app.log", "a")
 file_formatter = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 file_handler.setFormatter(file_formatter)
 
-log.addHandler(console_handler)
 log.addHandler(file_handler)
 
 
@@ -68,7 +62,6 @@ def main():
     # Load the environment
     env = og.Environment(configs=config)
     scene = env.scene
-    robot = env.robots[0]
 
     # Allow user to move camera more easily
     controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
@@ -84,13 +77,13 @@ def main():
         )
         print("Finished executing grasp")
 
-        # Place on sofa
-        # print("Executing controller")
+        # Place on table
+        print("Executing controller")
 
-        # execute_controller(
-        #     controller.apply_ref(StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, table),
-        #     env,
-        # )
+        execute_controller(
+            controller.apply_ref(StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, table),
+            env,
+        )
         print("Finished executing place")
     except ActionPrimitiveErrorGroup as e:
         log.error(f"Failed to execute action primitives: {e}")
