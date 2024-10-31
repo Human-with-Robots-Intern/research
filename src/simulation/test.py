@@ -67,12 +67,10 @@ def main():
 
     try:
         execute_controller(
-            controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple), env
-        )
-        execute_controller(
-            controller.apply_ref(StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, table),
+            controller.apply_ref(StarterSemanticActionPrimitiveSet.NAVIGATE_TO, apple),
             env,
         )
+
     except ActionPrimitiveErrorGroup as e:
         log.error(f"Failed to execute action primitives: {e}")
 
