@@ -3,7 +3,6 @@ from typing import List, Tuple
 import networkx as nx
 from anytree import Node
 
-from concept.agent import Agent
 from concept.task import Subtask, Task, get_all_subtasks
 from task_management.handler.constraint_handler import ConstraintHandler
 from task_management.handler.slot_handler import SlotHandler
@@ -28,7 +27,7 @@ class TreeBuilder:
             name="Start",
             makespan=0,
             duration=0,
-            location=self.agent.location,
+            location=self.agent.position,
             type="Start",
         )
         subtasks = get_all_subtasks(self.tasks)
@@ -52,11 +51,11 @@ class TreeBuilder:
 
         if move_cost != 0:
             parent_node = Node(
-                f"Move ({parent_node.location} -> {self.agent.location})",
+                f"Move ({parent_node.location} -> {self.agent.position})",
                 parent=parent_node,
                 makespan=parent_node.makespan + move_cost,
                 duration=move_cost,
-                location=self.agent.location,
+                location=self.agent.position,
                 type="Move",
             )
 

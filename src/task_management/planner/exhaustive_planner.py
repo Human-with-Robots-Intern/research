@@ -3,7 +3,6 @@ from typing import List, Optional, Tuple
 import networkx as nx
 from anytree import Node
 
-from concept.agent import Agent
 from concept.task import Task, get_all_subtasks
 from task_management.planner.task_plan_tree_builder import TreeBuilder
 

@@ -15,15 +15,15 @@ from omnigibson.action_primitives.starter_semantic_action_primitives import (
 from omnigibson.macros import gm
 from omnigibson.utils.ui_utils import create_module_logger
 
-gm.USE_GPU_DYNAMICS = False
-gm.ENABLE_FLATCACHE = True
-
 log = create_module_logger(module_name=__name__)
 file_handler = logging.FileHandler(f"./src/simulation/logs/{__name__}.log", "a")
 file_handler.setFormatter(
     logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 )
 log.addHandler(file_handler)
+
+gm.USE_GPU_DYNAMICS = False
+gm.ENABLE_FLATCACHE = True
 
 
 def execute_controller(ctrl_gen, env):
