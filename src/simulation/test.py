@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 
 import torch as th
 import yaml
@@ -63,7 +62,7 @@ def main():
     env = og.Environment(configs=load_config())
     scene = env.scene
     controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
-
+    og.sim.enable_viewer_camera_teleoperation()
     table = scene.object_registry("name", "breakfast_table_skczfi_0")
     apple = scene.object_registry("name", "apple")
 
