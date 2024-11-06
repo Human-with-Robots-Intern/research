@@ -1,10 +1,7 @@
-from collections import namedtuple
 from typing import List, Tuple
 
 import networkx as nx
 from anytree import Node
-
-from concept.task import Subtask
 
 
 class ConstraintHandler:

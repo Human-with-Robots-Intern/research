@@ -238,7 +238,7 @@ class SymbolicSemanticActionPrimitives(StarterSemanticActionPrimitives):
         Yields action for the robot to navigate to the object if needed, then to place it
 
         Args:
-            obj (StatefulObject): Object for robot to place the object in its hand on
+            obj (StatefulObject): Object for robot to placeSim2Real the object in its hand on
             predicate (object_states.OnTop or object_states.Inside): Determines whether to place on top or inside
 
         Returns:

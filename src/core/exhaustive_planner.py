@@ -3,19 +3,16 @@ from typing import List, Optional, Tuple
 import networkx as nx
 from anytree import Node
 
-from concept.agent import Agent
-from concept.task import Task, get_all_subtasks
+from tasks.task import Task, get_all_subtasks
 from task_management.planner.task_plan_tree_builder import TreeBuilder
 
 
 class ExhaustivePlanner:
-    def __init__(
-        self, agent: Agent, tasks: List[Task], constraints: nx.DiGraph
-    ) -> None:
-        self.agent = agent
+    def __init__(self, tasks: List[Task], constraints: nx.DiGraph) -> None:
+
         self.tasks = tasks
         self.constraints = constraints
-        self.tree_builder = TreeBuilder(agent, tasks, constraints)
+        self.tree_builder = TreeBuilder(tasks, constraints)
         self.subtask_tree = self.tree_builder.build_tree()
 
     def generate_valid_plans(self) -> Optional[Node]:

@@ -84,7 +84,9 @@ def plan_base_motion(
                     return False
 
             # Goal rotation
-            if not self.is_valid_rotation(self.si, [goal[0], goal[1], segment_theta], goal[2]):
+            if not self.is_valid_rotation(
+                self.si, [goal[0], goal[1], segment_theta], goal[2]
+            ):
                 return False
 
             return True
@@ -98,7 +100,9 @@ def plan_base_motion(
             nav_angle = th.linspace(0.0, diff, num_points) * direction
             angles = nav_angle + start_conf[2]
             for i in range(num_points):
-                state = create_state(si.getStateSpace(), start_conf[0], start_conf[1], angles[i])
+                state = create_state(
+                    si.getStateSpace(), start_conf[0], start_conf[1], angles[i]
+                )
                 if not si.isValid(state()):
                     return False
             return True
@@ -131,7 +135,10 @@ def plan_base_motion(
         x = q.getX()
         y = q.getY()
         yaw = q.getYaw()
-        pose = (th.tensor([x, y, 0.0], dtype=th.float32), T.euler2quat(th.tensor([0, 0, yaw], dtype=th.float32)))
+        pose = (
+            th.tensor([x, y, 0.0], dtype=th.float32),
+            T.euler2quat(th.tensor([0, 0, yaw], dtype=th.float32)),
+        )
         return not set_base_and_detect_collision(context, pose, verbose=verbose)
 
     def remove_unnecessary_rotations(path):
@@ -151,12 +158,18 @@ def plan_base_motion(
         # Process every intermediate waypoint
         for i in range(1, len(path) - 1):
             # compute the yaw you'd be at when arriving into path[i] and departing from it
-            arriving_yaw = CustomMotionValidator.get_angle_between_poses(path[i - 1], path[i])
-            departing_yaw = CustomMotionValidator.get_angle_between_poses(path[i], path[i + 1])
+            arriving_yaw = CustomMotionValidator.get_angle_between_poses(
+                path[i - 1], path[i]
+            )
+            departing_yaw = CustomMotionValidator.get_angle_between_poses(
+                path[i], path[i + 1]
+            )
 
             # check if you are able to make that rotation directly.
             arriving_state = (path[i][0], path[i][1], arriving_yaw)
-            if CustomMotionValidator.is_valid_rotation(si, arriving_state, departing_yaw):
+            if CustomMotionValidator.is_valid_rotation(
+                si, arriving_state, departing_yaw
+            ):
                 # Then use the arriving yaw directly
                 new_path.append(arriving_state)
             else:
@@ -200,7 +213,9 @@ def plan_base_motion(
     goal = create_state(space, end_conf[0], end_conf[1], end_conf[2])
 
     ss.setStartAndGoalStates(start, goal)
-    if not state_valid_fn(start(), verbose=True) or not state_valid_fn(goal(), verbose=True):
+    if not state_valid_fn(start(), verbose=True) or not state_valid_fn(
+        goal(), verbose=True
+    ):
         return
 
     solved = ss.solve(planning_time)
@@ -241,14 +256,24 @@ def plan_arm_motion(robot, end_conf, context, planning_time=15.0, torso_fixed=Tr
         initial_joint_pos = robot.get_joint_positions()[joint_control_idx]
         control_idx_in_joint_pos = th.arange(dim)
     else:
-        joint_control_idx = th.cat([robot.trunk_control_idx, robot.arm_control_idx[robot.default_arm]])
+        joint_control_idx = th.cat(
+            [robot.trunk_control_idx, robot.arm_control_idx[robot.default_arm]]
+        )
         dim = len(joint_control_idx)
         if "combined" in robot.robot_arm_descriptor_yamls:
-            joint_combined_idx = th.cat([robot.trunk_control_idx, robot.arm_control_idx["combined"]])
-            initial_joint_pos = th.tensor(robot.get_joint_positions()[joint_combined_idx])
-            control_idx_in_joint_pos = th.where(th.isin(joint_combined_idx, joint_control_idx))[0]
+            joint_combined_idx = th.cat(
+                [robot.trunk_control_idx, robot.arm_control_idx["combined"]]
+            )
+            initial_joint_pos = th.tensor(
+                robot.get_joint_positions()[joint_combined_idx]
+            )
+            control_idx_in_joint_pos = th.where(
+                th.isin(joint_combined_idx, joint_control_idx)
+            )[0]
         else:
-            initial_joint_pos = th.tensor(robot.get_joint_positions()[joint_control_idx])
+            initial_joint_pos = th.tensor(
+                robot.get_joint_positions()[joint_control_idx]
+            )
             control_idx_in_joint_pos = th.arange(dim)
 
     def state_valid_fn(q, verbose=False):
@@ -291,7 +316,9 @@ def plan_arm_motion(robot, end_conf, context, planning_time=15.0, torso_fixed=Tr
     ss.setStartAndGoalStates(start, goal)
 
     # if the start pose or the goal pose collides, abort
-    if not state_valid_fn(start, verbose=True) or not state_valid_fn(goal, verbose=True):
+    if not state_valid_fn(start, verbose=True) or not state_valid_fn(
+        goal, verbose=True
+    ):
         return
 
     # this will automatically choose a default planner with
@@ -305,7 +332,9 @@ def plan_arm_motion(robot, end_conf, context, planning_time=15.0, torso_fixed=Tr
         sol_path = ss.getSolutionPath()
         return_path = []
         for i in range(sol_path.getStateCount()):
-            joint_pos = th.tensor([sol_path.getState(i)[j] for j in range(dim)], dtype=th.float32)
+            joint_pos = th.tensor(
+                [sol_path.getState(i)[j] for j in range(dim)], dtype=th.float32
+            )
             return_path.append(joint_pos)
         return return_path
     return None
@@ -336,14 +365,24 @@ def plan_arm_motion_ik(robot, end_conf, context, planning_time=15.0, torso_fixed
         control_idx_in_joint_pos = th.arange(dim)
         robot_description_path = robot.robot_arm_descriptor_yamls["left_fixed"]
     else:
-        joint_control_idx = th.cat([robot.trunk_control_idx, robot.arm_control_idx[robot.default_arm]])
+        joint_control_idx = th.cat(
+            [robot.trunk_control_idx, robot.arm_control_idx[robot.default_arm]]
+        )
         dim = len(joint_control_idx)
         if "combined" in robot.robot_arm_descriptor_yamls:
-            joint_combined_idx = th.cat([robot.trunk_control_idx, robot.arm_control_idx["combined"]])
-            initial_joint_pos = th.tensor(robot.get_joint_positions()[joint_combined_idx])
-            control_idx_in_joint_pos = th.where(th.isin(joint_combined_idx, joint_control_idx))[0]
+            joint_combined_idx = th.cat(
+                [robot.trunk_control_idx, robot.arm_control_idx["combined"]]
+            )
+            initial_joint_pos = th.tensor(
+                robot.get_joint_positions()[joint_combined_idx]
+            )
+            control_idx_in_joint_pos = th.where(
+                th.isin(joint_combined_idx, joint_control_idx)
+            )[0]
         else:
-            initial_joint_pos = th.tensor(robot.get_joint_positions()[joint_control_idx])
+            initial_joint_pos = th.tensor(
+                robot.get_joint_positions()[joint_control_idx]
+            )
             control_idx_in_joint_pos = th.arange(dim)
         robot_description_path = robot.robot_arm_descriptor_yamls[robot.default_arm]
 
@@ -398,7 +437,12 @@ def plan_arm_motion_ik(robot, end_conf, context, planning_time=15.0, torso_fixed
     planner = ompl_geo.BITstar(si)
     ss.setPlanner(planner)
 
-    start_conf = th.cat((robot.get_relative_eef_position(), T.quat2axisangle(robot.get_relative_eef_orientation())))
+    start_conf = th.cat(
+        (
+            robot.get_relative_eef_position(),
+            T.quat2axisangle(robot.get_relative_eef_orientation()),
+        )
+    )
     # do fk
     start = ob.State(space)
     for i in range(DOF):
@@ -409,7 +453,9 @@ def plan_arm_motion_ik(robot, end_conf, context, planning_time=15.0, torso_fixed
         goal[i] = float(end_conf[i])
     ss.setStartAndGoalStates(start, goal)
 
-    if not state_valid_fn(start, verbose=True) or not state_valid_fn(goal, verbose=True):
+    if not state_valid_fn(start, verbose=True) or not state_valid_fn(
+        goal, verbose=True
+    ):
         return
 
     # this will automatically choose a default planner with
@@ -423,7 +469,9 @@ def plan_arm_motion_ik(robot, end_conf, context, planning_time=15.0, torso_fixed
         sol_path = ss.getSolutionPath()
         return_path = []
         for i in range(sol_path.getStateCount()):
-            eef_pose = th.tensor([sol_path.getState(i)[j] for j in range(DOF)], dtype=th.float32)
+            eef_pose = th.tensor(
+                [sol_path.getState(i)[j] for j in range(DOF)], dtype=th.float32
+            )
             return_path.append(eef_pose)
         return return_path
     return None
@@ -449,7 +497,9 @@ def set_base_and_detect_collision(context, pose, verbose=False):
     robot_copy.prims[robot_copy_type].GetAttribute("xformOp:translate").Set(translation)
 
     orientation = pose[1][[3, 0, 1, 2]]
-    robot_copy.prims[robot_copy_type].GetAttribute("xformOp:orient").Set(lazy.pxr.Gf.Quatd(*orientation.tolist()))
+    robot_copy.prims[robot_copy_type].GetAttribute("xformOp:orient").Set(
+        lazy.pxr.Gf.Quatd(*orientation.tolist())
+    )
     return detect_robot_collision(context, verbose=verbose)
 
 
@@ -475,12 +525,16 @@ def set_arm_and_detect_collision(context, joint_pos, verbose=False):
         pose = link_poses[link]
         if link in robot_copy.meshes[robot_copy_type].keys():
             for mesh_name, mesh in robot_copy.meshes[robot_copy_type][link].items():
-                relative_pose = robot_copy.relative_poses[robot_copy_type][link][mesh_name]
+                relative_pose = robot_copy.relative_poses[robot_copy_type][link][
+                    mesh_name
+                ]
                 mesh_pose = T.pose_transform(*pose, *relative_pose)
                 translation = lazy.pxr.Gf.Vec3d(*mesh_pose[0].tolist())
                 mesh.GetAttribute("xformOp:translate").Set(translation)
                 orientation = mesh_pose[1][[3, 0, 1, 2]]
-                mesh.GetAttribute("xformOp:orient").Set(lazy.pxr.Gf.Quatd(*orientation.tolist()))
+                mesh.GetAttribute("xformOp:orient").Set(
+                    lazy.pxr.Gf.Quatd(*orientation.tolist())
+                )
 
     return detect_robot_collision(context, verbose=verbose)
 
@@ -506,7 +560,9 @@ def detect_robot_collision(context, verbose=False):
     def overlap_callback(hit):
         nonlocal valid_hit
 
-        valid_hit = hit.rigid_body not in context.disabled_collision_pairs_dict[mesh_path]
+        valid_hit = (
+            hit.rigid_body not in context.disabled_collision_pairs_dict[mesh_path]
+        )
 
         # if verbose mode is on and overlap is detected, output a warning on the colliding object and robot mesh_path
         if valid_hit and verbose:
@@ -556,13 +612,18 @@ def detect_robot_collision_in_sim(robot, filter_objs=None, ignore_obj_in_hand=Tr
     link_paths = set(robot.link_prim_paths)
     collision_body_paths = {
         row
-        for row, _ in GripperRigidContactAPI.get_contact_pairs(scene_idx, column_prim_paths=link_paths)
+        for row, _ in GripperRigidContactAPI.get_contact_pairs(
+            scene_idx, column_prim_paths=link_paths
+        )
         if row not in link_paths
     }
 
     # Convert to prim objects and filter out the necessary objects.
     rigid_prims = prim_paths_to_rigid_prims(collision_body_paths, robot.scene)
-    return any(o not in filter_objs and o.category not in filter_categories for o, p in rigid_prims)
+    return any(
+        o not in filter_objs and o.category not in filter_categories
+        for o, p in rigid_prims
+    )
 
 
 def astar(search_map, start, goal, eight_connected=True):
@@ -600,11 +661,20 @@ def astar(search_map, start, goal, eight_connected=True):
             ]
         else:
             # 4-connected grid
-            return [(cell[0] + 1, cell[1]), (cell[0] - 1, cell[1]), (cell[0], cell[1] + 1), (cell[0], cell[1] - 1)]
+            return [
+                (cell[0] + 1, cell[1]),
+                (cell[0] - 1, cell[1]),
+                (cell[0], cell[1] + 1),
+                (cell[0], cell[1] - 1),
+            ]
 
     def is_valid(cell):
         # Check if cell is within the map and traversable
-        return 0 <= cell[0] < search_map.shape[0] and 0 <= cell[1] < search_map.shape[1] and search_map[cell] != 0
+        return (
+            0 <= cell[0] < search_map.shape[0]
+            and 0 <= cell[1] < search_map.shape[1]
+            and search_map[cell] != 0
+        )
 
     def cost(cell1, cell2):
         # Define the cost of moving from cell1 to cell2
@@ -618,7 +688,10 @@ def astar(search_map, start, goal, eight_connected=True):
     came_from = {}
     visited = set()
     rows, cols = search_map.shape
-    g_score = {(i.item(), j.item()): float("inf") for i, j in th.cartesian_prod(th.arange(rows), th.arange(cols))}
+    g_score = {
+        (i.item(), j.item()): float("inf")
+        for i, j in th.cartesian_prod(th.arange(rows), th.arange(cols))
+    }
     g_score[start] = 0
 
     while open_set:

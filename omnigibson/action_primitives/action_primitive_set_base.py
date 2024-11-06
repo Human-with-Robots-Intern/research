@@ -3,6 +3,7 @@ from abc import ABCMeta, abstractmethod
 from enum import IntEnum
 from typing import List
 
+
 from future.utils import with_metaclass
 
 REGISTERED_PRIMITIVE_SETS = {}
