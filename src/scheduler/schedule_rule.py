@@ -1,21 +1,16 @@
-from typing import List, Tuple
+from typing import List
 
 import networkx as nx
 from anytree import Node
-
-from concept.task import Subtask, Task, get_all_subtasks
-from task_management.handler.constraint_handler import ConstraintHandler
-from task_management.handler.slot_handler import SlotHandler
 
 
 class TreeBuilder:
     def __init__(
         self,
-        agent: Agent,
         tasks: List[Task],
         constraints: nx.DiGraph,
     ):
-        self.agent = agent
+
         self.tasks = tasks
         self.slot_handler = SlotHandler(
             ConstraintHandler(constraints), self._process_subtask
@@ -45,6 +40,7 @@ class TreeBuilder:
         remaining_subtasks = subtasks[:]
         remaining_subtasks.remove(subtask)
 
+        # TODO Agent 부분 고쳐야 함
         move_cost = self.agent.move(
             subtask.roi.asset if subtask.roi.asset else subtask.roi.room
         )
