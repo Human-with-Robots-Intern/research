@@ -12,6 +12,8 @@ import math
 import random
 from functools import cached_property
 
+import numpy as np
+
 import cv2
 import gymnasium as gym
 import torch as th
@@ -51,12 +53,14 @@ from omnigibson.utils.ui_utils import create_module_logger
 
 m = create_module_macros(module_path=__file__)
 
+
 m.DEFAULT_BODY_OFFSET_FROM_FLOOR = 0.01
 
+# 로봇의 선형이동 속도
 m.KP_LIN_VEL = {
     Tiago: 0.3,
-    Fetch: 0.2,
-    Stretch: 0.5,
+    Fetch: 1.25,# default : 0.2
+    Stretch: 0.5, 
     Turtlebot: 0.3,
     Husky: 0.05,
     Freight: 0.05,
@@ -64,9 +68,10 @@ m.KP_LIN_VEL = {
     BehaviorRobot: 0.3,
     R1: 0.3,
 }
+# 로봇의 각속도
 m.KP_ANGLE_VEL = {
     Tiago: 0.2,
-    Fetch: 0.1,
+    Fetch: 0.75, # default : 0.1
     Stretch: 0.7,
     Turtlebot: 0.2,
     Husky: 0.05,
@@ -78,35 +83,56 @@ m.KP_ANGLE_VEL = {
 
 m.MAX_STEPS_FOR_SETTLING = 500
 
-m.MAX_CARTESIAN_HAND_STEP = 0.002
-m.MAX_STEPS_FOR_HAND_MOVE_JOINT = 500
+# 로봇의 팔이 목표 위치에 도달하기 위해 허용되는 최대 스텝 수
+m.MAX_STEPS_FOR_HAND_MOVE_JOINT = 750 # Default : 500
 m.MAX_STEPS_FOR_HAND_MOVE_IK = 1000
-m.MAX_STEPS_FOR_GRASP_OR_RELEASE = 250
-m.MAX_STEPS_FOR_WAYPOINT_NAVIGATION = 500
-m.MAX_ATTEMPTS_FOR_OPEN_CLOSE = 20
 
-m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_WITH_OBJECT_AND_PREDICATE = 20
-m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_NEAR_OBJECT = 200
+# Gripper open/close 시 허용되는 최대 스텝 수
+m.MAX_STEPS_FOR_GRASP_OR_RELEASE = 250 # Default : 250
+
+# 웨이포인트 네비게이션 시 허용되는 최대 스텝 수
+m.MAX_STEPS_FOR_WAYPOINT_NAVIGATION = 500
+
+m.MAX_ATTEMPTS_FOR_OPEN_CLOSE = 20
+m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_WITH_OBJECT_AND_PREDICATE = 30 # Default : 20
+m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_NEAR_OBJECT = 300 # Default : 200
 m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_IN_ROOM = 60
 m.PREDICATE_SAMPLING_Z_OFFSET = 0.02
 
+# 이동 및 접근 거리 상수
+m.MAX_CARTESIAN_HAND_STEP = 0.002
 m.GRASP_APPROACH_DISTANCE = 0.2
-m.OPEN_GRASP_APPROACH_DISTANCE = 0.4
+m.OPEN_GRASP_APPROACH_DISTANCE = 0.4 # Default : 0.4
 
-m.HAND_DIST_THRESHOLD = 0.002
-m.DEFAULT_DIST_THRESHOLD = 0.05
-m.DEFAULT_ANGLE_THRESHOLD = 0.05
+# 로봇의 손끝이 목표 위치에 도달했다고 판단하는 거리 임계값
+m.HAND_DIST_THRESHOLD = 0.002 # Default : 0.002
+
+# 로봇이 목표 위치에 도달했다고 판단하는 거리 및 각도에 대한 임계값
+m.DEFAULT_DIST_THRESHOLD = 0.05 # Default : 0.05
+m.DEFAULT_ANGLE_THRESHOLD = 0.05 # Default : 0.05
+
 m.LOW_PRECISION_DIST_THRESHOLD = 0.1
 m.LOW_PRECISION_ANGLE_THRESHOLD = 0.2
 
 m.TIAGO_TORSO_FIXED = False
-m.JOINT_POS_DIFF_THRESHOLD = 0.01
+
+#  관절 위치의 차이에 대한 허용 오차
+m.JOINT_POS_DIFF_THRESHOLD = 0.03 # Default : 0.01
 m.JOINT_CONTROL_MIN_ACTION = 0.0
-m.MAX_ALLOWED_JOINT_ERROR_FOR_LINEAR_MOTION = math.radians(45)
+
+# 선형 움직임 중 허용되는 최대 관절 오차
+m.MAX_ALLOWED_JOINT_ERROR_FOR_LINEAR_MOTION = math.radians(360) # Default : math.radians(45)
 m.TIME_BEFORE_JOINT_STUCK_CHECK = 1.0
 
 log = create_module_logger(module_name=__name__)
+log.setLevel(logging.DEBUG)
+file_handler = logging.FileHandler(f"./src/simulation/logs/{__name__}.log", "a")
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+)
+log.addHandler(file_handler)
 
+SEARCHED = []
 
 def indented_print(msg, *args, **kwargs):
     print("  " * len(inspect.stack()) + str(msg), *args, **kwargs)
@@ -491,7 +517,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         action = StarterSemanticActionPrimitiveSet(action_idx)
         return self.apply_ref(action, target_obj)
 
-    def apply_ref(self, prim, *args, attempts=3):
+    def apply_ref(self, prim, *args, attempts=4):
         """
         Yields action for robot to execute the primitive with the given arguments.
 
@@ -511,7 +537,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
 
         errors = []
         for _ in range(attempts):
-            # Attempt
+            # 
             success = False
             try:
                 yield from ctrl(*args)
@@ -541,7 +567,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             # Stop on success
             if success:
                 return
-
+        
         raise ActionPrimitiveErrorGroup(errors)
 
     def _open(self, obj):
@@ -1064,25 +1090,25 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 (target_pos, target_quat), ignore_failure=True, in_world_frame=False, stop_if_stuck=stop_if_stuck
             )
 
-    def _add_linearly_interpolated_waypoints(self, plan, max_inter_dist):
-        """
-        Adds waypoints to the plan so the distance between values in the plan never exceeds the max_inter_dist.
+    # def _add_linearly_interpolated_waypoints(self, plan, max_inter_dist):
+    #     """
+    #     Adds waypoints to the plan so the distance between values in the plan never exceeds the max_inter_dist.
 
-        Args:
-            plan (Array of arrays): Planned path
-            max_inter_dist (float): Maximum distance between values in the plan
+    #     Args:
+    #         plan (Array of arrays): Planned path
+    #         max_inter_dist (float): Maximum distance between values in the plan
 
-        Returns:
-            Array of arrays: Planned path with additional waypoints
-        """
-        plan = th.tensor(plan)
-        interpolated_plan = []
-        for i in range(len(plan) - 1):
-            max_diff = max(plan[i + 1] - plan[i])
-            num_intervals = math.ceil(max_diff / max_inter_dist)
-            interpolated_plan += th.linspace(plan[i], plan[i + 1], num_intervals, endpoint=False).tolist()
-        interpolated_plan.append(plan[-1].tolist())
-        return interpolated_plan
+    #     Returns:
+    #         Array of arrays: Planned path with additional waypoints
+    #     """
+    #     plan = th.tensor(plan)
+    #     interpolated_plan = []
+    #     for i in range(len(plan) - 1):
+    #         max_diff = max(plan[i + 1] - plan[i])
+    #         num_intervals = math.ceil(max_diff / max_inter_dist)
+    #         interpolated_plan += th.linspace(plan[i], plan[i + 1], num_intervals, endpoint=False).tolist()
+    #     interpolated_plan.append(plan[-1].tolist())
+    #     return interpolated_plan
 
     def _move_hand_direct_joint(self, joint_pos, stop_on_contact=False, ignore_failure=False):
         """
@@ -1279,7 +1305,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                     ActionPrimitiveError.Reason.EXECUTION_ERROR,
                     "Your hand was obstructed from moving to the desired world position",
                 )
-        else:
+        else: # Use Joint Controller
             # Use joint positions
             joint_space_data = [
                 self._convert_cartesian_to_joint_space(waypoint) for waypoint in zip(pos_waypoints, quat_waypoints)
@@ -1593,7 +1619,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         Yields the action to navigate robot to the specified 2d pose
 
         Args:
-            pose_2d (Iterable): (x, y, yaw) 2d pose
+            pose_2d (Iterable): (x, y, yaw) 2d pose (Target)
 
         Returns:
             th.tensor or None: Action array for one step for the robot to navigate or None if it is done navigating
@@ -1613,36 +1639,48 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             )
 
         # Follow the plan to navigate.
-        # self._draw_plan(plan)
+        self._draw_plan(plan)
+        
         indented_print(f"Navigation plan has {len(plan)} steps")
         for i, pose_2d in enumerate(plan):
+            
             indented_print(f"Executing navigation plan step {i + 1}/{len(plan)}")
+            log.info(f"{self.robot.get_position_orientation()[0]} -> {pose_2d}")
+            
             low_precision = True if i < len(plan) - 1 else False
+            # Orient 조정 및 Move Execution
             yield from self._navigate_to_pose_direct(pose_2d, low_precision=low_precision)
-
-    def _draw_plan(self, plan):
-        SEARCHED = []
+    
+    
+    def _draw_plan(self, plan:list[th.Tensor]):
+        global SEARCHED
         trav_map = self.env.scene._trav_map
+        
         for q in plan:
             # The below code is useful for plotting the RRT tree.
+            # map_point = [x,y]
             map_point = trav_map.world_to_map((q[0], q[1]))
             SEARCHED.append(th.flip(map_point, dims=tuple(range(map_point.dim()))))
-
+            
             fig = plt.figure()
             plt.imshow(trav_map.floor_map[0])
             plt.scatter(*zip(*SEARCHED), 5)
+            plt.plot(*zip(*SEARCHED), '-o', markersize=2)
             fig.canvas.draw()
-
+            
             # Convert the canvas to image
-            img = th.frombuffer(fig.canvas.tostring_rgb(), dtype=th.uint8)
+            img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8).copy()
+            img = th.from_numpy(img)
             img = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
             plt.close(fig)
 
             # Convert to BGR for cv2-based viewing.
+            img = img.detach().cpu().numpy()
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
             cv2.imshow("SceneGraph", img)
-            cv2.waitKey(1)
+            cv2.waitKey(100)
+        
 
     def _navigate_if_needed(self, obj, pose_on_obj=None, **kwargs):
         """
@@ -1700,6 +1738,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 break
 
             diff_pos = end_pose[0] - self.robot.get_position_orientation()[0]
+            # 현위치에서 목표위치까지의 각도 계산
             intermediate_pose = (
                 end_pose[0],
                 T.euler2quat(th.tensor([0, 0, math.atan2(diff_pos[1], diff_pos[0])], dtype=th.float32)),
@@ -1715,9 +1754,12 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                     assert (
                         base_action_size == 3
                     ), "Currently, the action primitives only support [x, y, theta] joint controller"
+                    
+                    # 방향 벡터 계산 (속도 반영)
                     direction_vec = (
                         body_target_pose[0][:2] / th.norm(body_target_pose[0][:2]) * m.KP_LIN_VEL[type(self.robot)]
                     )
+                    # yaw는 0으로 설정하여 직진을 의미
                     base_action = th.tensor([direction_vec[0], direction_vec[1], 0.0], dtype=th.float32)
                     action[self.robot.controller_action_idx["base"]] = base_action
                 else:
@@ -1807,17 +1849,22 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         """
         with PlanningContext(self.env, self.robot, self.robot_copy, "simplified") as context:
             for _ in range(m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_NEAR_OBJECT):
+                # Sample a position near the object
                 if pose_on_obj is None:
+                    # obj의 AABB로부터 position 샘플링
                     pos_on_obj = self._sample_position_on_aabb_side(obj)
+                    # 4-array: (x,y,z,w) Quaternion orientation in the world frame
                     pose_on_obj = [pos_on_obj, th.tensor([0, 0, 0, 1])]
 
+                # Distance and yaw Sampling
                 distance_lo, distance_hi = 0.0, 5.0
                 distance = (th.rand(1) * (distance_hi - distance_lo) + distance_lo).item()
                 yaw_lo, yaw_hi = -math.pi, math.pi
                 yaw = th.rand(1) * (yaw_hi - yaw_lo) + yaw_lo
                 avg_arm_workspace_range = th.mean(self.robot.arm_workspace_range[self.arm])
+                # obj 위치에서 distance만큼, yaw 방향으로 pose_2d 샘플링
                 pose_2d = th.cat(
-                    [
+                    [   
                         pose_on_obj[0][0] + distance * th.cos(yaw),
                         pose_on_obj[0][1] + distance * th.sin(yaw),
                         yaw + math.pi - avg_arm_workspace_range,
@@ -1827,12 +1874,14 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 obj_rooms = (
                     obj.in_rooms
                     if obj.in_rooms
+                    # x,y 좌표로부터 room instance (room_type) 찾기
                     else [self.env.scene._seg_map.get_room_instance_by_point(pose_on_obj[0][:2])]
                 )
+                # pose_2d 위치가 obj_rooms에 속하지 않으면 다시 샘플링
                 if self.env.scene._seg_map.get_room_instance_by_point(pose_2d[:2]) not in obj_rooms:
                     indented_print("Candidate position is in the wrong room.")
                     continue
-
+                
                 if not self._test_pose(pose_2d, context, pose_on_obj=pose_on_obj, **kwargs):
                     continue
 
@@ -1967,6 +2016,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             if not self._target_in_reach_of_robot_relative(relative_pose):
                 return False
 
+        # TODO Collision Issue 발생할 때, 한 번 들여다 보기
         if set_base_and_detect_collision(context, pose):
             indented_print("Candidate position failed collision test.")
             return False

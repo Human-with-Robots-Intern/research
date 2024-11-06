@@ -33,7 +33,9 @@ __version__ = "1.1.1"
 root_path = os.path.dirname(os.path.realpath(__file__))
 
 # Store paths to example configs
-example_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "configs")
+example_config_path = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "configs"
+)
 
 # Initialize global variables
 app = None  # (this is a singleton so it's okay that it's global)
