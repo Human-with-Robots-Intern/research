@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.stats import norm
 
-from utils.util import update_task_duration
-
 
 class Config:
     def __init__(self, criteria=0.7, interval=0.1, obs_dur=0.01):

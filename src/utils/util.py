@@ -1,11 +1,7 @@
-import json
 import os
 import signal
 
-import numpy as np
-
-from concept.schedule import ScheduledTask
-from utils.constants import ROOT_PATH
+ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 # with timeout(seconds=timeout_seconds):
@@ -23,9 +19,3 @@ class timeout:
 
     def __exit__(self, type, value, traceback):
         signal.alarm(0)
-
-
-def update_task_duration(self, task_name, subtask_name, duration: int):
-    TASK_PATH = os.path.join(ROOT_PATH, f"assets/tasks/task_{task_name}.json")
-    with open(TASK_PATH, "r") as f:
-        task_dict = json.load(f)

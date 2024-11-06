@@ -24,8 +24,8 @@ from omnigibson.utils.ui_utils import create_module_logger
 from task_management.handler.subtask_decomposer import decompose_tasks
 from task_management.planner.exhaustive_planner import ExhaustivePlanner
 from time_estimation.bayesian import TaskEstimator
-from utils.constants import ROOT_PATH
 from utils.task_generator import generate_task_by_llm
+from utils.util import ROOT_PATH
 from utils.visualizer import visualize
 
 gm.USE_GPU_DYNAMICS = False

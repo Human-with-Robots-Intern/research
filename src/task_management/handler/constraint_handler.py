@@ -1,4 +1,3 @@
-from collections import namedtuple
 from typing import List, Tuple
 
 import networkx as nx

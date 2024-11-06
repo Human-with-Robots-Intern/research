@@ -1,6 +1,6 @@
 from typing import Dict, List
 
-from concept.task import Subtask, Task, get_all_subtasks
+from concept.task import Subtask, Task
 
 
 class SubtaskDecomposer:
