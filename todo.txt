@@ -1,3 +1,0 @@
-#TODO Dynamic Task Decomposition
-#TODO Agent에 Task Duration 저장
-# TODO Path planning에서 갈 수 없는 공간 인식시키기

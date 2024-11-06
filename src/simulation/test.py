@@ -18,12 +18,10 @@ gm.USE_GPU_DYNAMICS = False
 gm.ENABLE_FLATCACHE = True
 
 log = create_module_logger(module_name=__name__)
-file_handler = logging.FileHandler("./src/simulation/logs/app.log", "a")
-file_formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+file_handler = logging.FileHandler(f"./src/simulation/logs/{__name__}.log", "a")
+file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 )
-file_handler.setFormatter(file_formatter)
-
 log.addHandler(file_handler)
 
 
@@ -32,10 +30,7 @@ def execute_controller(ctrl_gen, env):
         env.step(action)
 
 
-def main():
-    # Define tasks
-    tasks = ["find bread", "pick bread", "place bread in toaster"]
-
+def load_config():
     # # Load the config
     config_filename = os.path.join("src/simulation/fetch_primitives.yaml")
     config = yaml.load(open(config_filename, "r"), Loader=yaml.FullLoader)
@@ -58,37 +53,27 @@ def main():
             "orientation": [0, 0, 0, 1],
         },
     ]
+    return config
 
-    # Load the environment
-    env = og.Environment(configs=config)
+
+def main():
+    # Initialize the environment
+    env = og.Environment(configs=load_config())
     scene = env.scene
-
-    # Allow user to move camera more easily
     controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
+
     table = scene.object_registry("name", "breakfast_table_skczfi_0")
     apple = scene.object_registry("name", "apple")
 
     try:
-        # Grasp apple
-        print("Executing controller")
-
         execute_controller(
-            controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple), env
-        )
-        print("Finished executing grasp")
-
-        # Place on table
-        print("Executing controller")
-
-        execute_controller(
-            controller.apply_ref(StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, table),
+            controller.apply_ref(StarterSemanticActionPrimitiveSet.NAVIGATE_TO, apple),
             env,
         )
-        print("Finished executing place")
+
     except ActionPrimitiveErrorGroup as e:
         log.error(f"Failed to execute action primitives: {e}")
 
-    # Always shut down the environment cleanly at the end
     og.clear()
 
 

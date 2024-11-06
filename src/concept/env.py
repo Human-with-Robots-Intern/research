@@ -2,6 +2,8 @@ import heapq
 
 
 class Env:
+    """objects and rooms in the environment -> 이동 소요시간 계산에 사용"""
+
     def __init__(self):
         # Initialize rooms and assets
         self.rooms = ["Kitchen", "Living Room", "Restroom", "Bedroom"]
@@ -93,7 +95,7 @@ class Env:
     def _normalize_name(self, name: str) -> str:
         # Normalize names to include room:asset notation if needed
         name = name.split(":")[1] if ":" in name else name
-        
+
         for room, assets in self.assets.items():
             if name == room:
                 return room

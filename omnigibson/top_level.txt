@@ -1,0 +1,3 @@
+omnigibson
+*.yaml
+*.kit
