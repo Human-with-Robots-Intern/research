@@ -1,7 +1,5 @@
 from typing import Dict, List
 
-from tasks.task import Subtask, Task
-
 
 class SubtaskDecomposer:
     def __init__(self, subtask: Subtask):

@@ -47,19 +47,21 @@ class Subtask(TaskComponent):
         name: str,
         task_scene: Dict,
         duration: Duration,
-        decomposition: Dict,
+        actions : List[str],
         temporal_constraints: Optional[List[TemporalConstraint]] = None,
         subtask_type: str = "Interaction",
     ):
         super().__init__(name)
         self.task_scene = task_scene
         self.duration_obj = duration
-        self.decomposition = decomposition
+        self.actions = actions
         self.temporal_constraints = temporal_constraints or []
         self.type = subtask_type
 
     def duration(self):
         return self.duration_obj.interval
+
+    def _decompose
 
     def __repr__(self):
         return (
@@ -69,19 +71,21 @@ class Subtask(TaskComponent):
         )
 
     @classmethod
-    def from_dict(cls, data: Dict):
+    def from_dict(cls, data: Dict, decompose: bool = False):
         task_scene = data["TaskScene"]
-        duration = Duration(data["Duration"]["Interval"], data["Duration"]["Type"])
-        decomposition = data["Decomposition"]
-        temporal_constraints = [
-            TemporalConstraint(
-                constraint["Type"],
-                constraint["Subtask"],
-                constraint["Interval"],
-                constraint["Urgency"],
-            )
+        
+        if decompose:
+            duration = Duration(data["Duration"]["Interval"], data["Duration"]["Type"])
+            decomposition = data["Decomposition"]
+            temporal_constraints = [
+                TemporalConstraint(
+                    constraint["Type"],
+                    constraint["Subtask"],
+                    constraint["Interval"],
+                    constraint["Urgency"],
+                )
             for constraint in data.get("TemporalConstraints", [])
-        ]
+            ]
         return cls(
             name=data["Subtask"],
             task_scene=task_scene,
