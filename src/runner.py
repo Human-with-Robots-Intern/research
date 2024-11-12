@@ -5,6 +5,7 @@ import torch as th
 import yaml
 
 import omnigibson as og
+from archive.agent import Agent
 from omnigibson.action_primitives.action_primitive_set_base import (
     ActionPrimitiveErrorGroup,
 )
@@ -60,12 +61,11 @@ def _load_config():
     return config
 
 
-def init_env():
+def init_omnigibson():
     # Initialize environment and agent
     env = og.Environment(configs=_load_config())
-    scene = env.scene
-    controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
-    return env, scene, controller
+    agent = Agent(env.robots[0])
+    return env, agent
 
 
 def _execute_controller(ctrl_gen, env):
@@ -73,9 +73,10 @@ def _execute_controller(ctrl_gen, env):
         env.step(action)
 
 
-def execute_task(env, scene, controller):
-    table = scene.object_registry("name", "breakfast_table_skczfi_0")
-    apple = scene.object_registry("name", "apple")
+def execute_task(env):
+    controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
+    table = env.scene.object_registry("name", "breakfast_table_skczfi_0")
+    apple = env.scene.object_registry("name", "apple")
 
     try:
         _execute_controller(

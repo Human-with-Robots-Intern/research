@@ -2,23 +2,11 @@ import numpy as np
 from scipy.stats import norm
 
 
-class Config:
-    def __init__(self, criteria=0.7, interval=0.1, obs_dur=0.01):
-        self.criteria = criteria
-        self.interval = interval
-        self.obs_dur = obs_dur
-
-
-class TaskInfo:
-    def __init__(self, idx, plan_task, sim_task, start_time):
-        self.idx = idx
-        self.plan_task = plan_task
-        self.sim_task = sim_task
-        self.start_time = start_time
-
-
-class TaskEstimator:
-    def __init__(self, config=None):
+class Agent:
+    def __init__(self, robot, config=None):
+        self.robot = robot
+        self.task_knowledge = dict()
+        self.action_knowledge = dict()
         if config is None:
             config = Config()
         self.config = config
@@ -77,7 +65,6 @@ class TaskEstimator:
                     pass
 
                 print("\n-----------------------------------")
-                # print(f"   [Task End] Actual End: {t_c:.2f}")
                 print(f"   Planned Task Duration: {task_info.plan_task.duration:.2f}")
                 print(f"   Real Task Duration: {task_info.sim_task.duration:.2f}")
                 print(
@@ -93,3 +80,18 @@ class TaskEstimator:
         for idx, (plan_task, sim_task) in enumerate(zip(plan_tasks, sim_tasks)):
             task_info = TaskInfo(idx, plan_task, sim_task, start_time)
             start_time = self.run_task(task_info)
+
+
+class Config:
+    def __init__(self, criteria=0.7, interval=0.1, obs_dur=0.01):
+        self.criteria = criteria
+        self.interval = interval
+        self.obs_dur = obs_dur
+
+
+class TaskInfo:
+    def __init__(self, idx, plan_task, sim_task, start_time):
+        self.idx = idx
+        self.plan_task = plan_task
+        self.sim_task = sim_task
+        self.start_time = start_time

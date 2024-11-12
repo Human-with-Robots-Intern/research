@@ -7,7 +7,7 @@ import json
 import os
 from pathlib import Path
 
-from runner import execute_task, init_env
+from runner import execute_task, init_omnigibson
 from src.core import Task, TaskGraphBuilder
 from utils import ROOT_PATH, main, visualize
 
@@ -71,14 +71,12 @@ def main():
     try:
         task_name, task_data = load_task_data(args.name)
         tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
+        env, agent = init_omnigibson()
 
         # Visualize task graph if requested
         if args.visualize:
             visualize(task_name, task_graph)
 
-        # Example: Uncomment below to initialize environment and execute tasks
-        # Task plan generation
-        # task_name, tasks, constraints = load_tasks_and_constraints(args.name)
         # planner = ExhaustivePlanner(agent, tasks, constraints)
         # task_plans, opt_task_plans = planner.generate_valid_plans()
 
@@ -86,13 +84,7 @@ def main():
         # opt_task_plan = convert_tree_to_schedule(opt_task_plans)
         # simulated_task_plan = simulate_task_plan(opt_task_plan)
 
-        # # Task plan visualization
-        # if args.visualize:
-        #     visualize(task_name, constraints, task_plans, opt_task_plans)
-
-        # # Estimate task durations using Bayesian estimation
-        # estimator = TaskEstimator()
-        # estimator.estimate_tasks(opt_task_plan, simulated_task_plan)
+        # agent.estimate_tasks(opt_task_plan, simulated_task_plan)
 
         print(f"Task '{task_name}' loaded and processed successfully.")
 

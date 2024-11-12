@@ -18,7 +18,9 @@ from omnigibson.utils.usd_utils import ControllableObjectViewAPI, JointType
 log = create_module_logger(module_name=__name__)
 
 
-class Fetch(TwoWheelRobot, ArticulatedTrunkRobot, UntuckedArmPoseRobot, ActiveCameraRobot):
+class Fetch(
+    TwoWheelRobot, ArticulatedTrunkRobot, UntuckedArmPoseRobot, ActiveCameraRobot
+):
     """
     Fetch Robot
     Reference: https://fetchrobotics.com/robotics-platforms/fetch-mobile-manipulator/
@@ -168,17 +170,29 @@ class Fetch(TwoWheelRobot, ArticulatedTrunkRobot, UntuckedArmPoseRobot, ActiveCa
         pos[self.base_control_idx] = 0.0
         pos[self.trunk_control_idx] = 0.02 + self.default_trunk_offset
         pos[self.camera_control_idx] = th.tensor([0.0, 0.45])
-        pos[self.gripper_control_idx[self.default_arm]] = th.tensor([0.05, 0.05])  # open gripper
+        pos[self.gripper_control_idx[self.default_arm]] = th.tensor(
+            [0.05, 0.05]
+        )  # open gripper
         return pos
 
     @property
     def default_arm_poses(self):
         return {
-            "vertical": th.tensor([-0.94121, -0.64134, 1.55186, 1.65672, -0.93218, 1.53416, 2.14474]),
-            "diagonal15": th.tensor([-0.95587, -0.34778, 1.46388, 1.47821, -0.93813, 1.4587, 1.9939]),
-            "diagonal30": th.tensor([-1.06595, -0.22184, 1.53448, 1.46076, -0.84995, 1.36904, 1.90996]),
-            "diagonal45": th.tensor([-1.11479, -0.0685, 1.5696, 1.37304, -0.74273, 1.3983, 1.79618]),
-            "horizontal": th.tensor([-1.43016, 0.20965, 1.86816, 1.77576, -0.27289, 1.31715, 2.01226]),
+            "vertical": th.tensor(
+                [-0.94121, -0.64134, 1.55186, 1.65672, -0.93218, 1.53416, 2.14474]
+            ),
+            "diagonal15": th.tensor(
+                [-0.95587, -0.34778, 1.46388, 1.47821, -0.93813, 1.4587, 1.9939]
+            ),
+            "diagonal30": th.tensor(
+                [-1.06595, -0.22184, 1.53448, 1.46076, -0.84995, 1.36904, 1.90996]
+            ),
+            "diagonal45": th.tensor(
+                [-1.11479, -0.0685, 1.5696, 1.37304, -0.74273, 1.3983, 1.79618]
+            ),
+            "horizontal": th.tensor(
+                [-1.43016, 0.20965, 1.86816, 1.77576, -0.27289, 1.31715, 2.01226]
+            ),
         }
 
     def _post_load(self):
@@ -191,13 +205,21 @@ class Fetch(TwoWheelRobot, ArticulatedTrunkRobot, UntuckedArmPoseRobot, ActiveCa
                 "Please ignore any previous errors about these collision meshes."
             )
             wheel_link = self.links[wheel_name]
-            assert set(wheel_link.collision_meshes) == {"collisions"}, "Wheel link should only have 1 collision!"
-            wheel_link.collision_meshes["collisions"].set_collision_approximation("boundingSphere")
+            assert set(wheel_link.collision_meshes) == {
+                "collisions"
+            }, "Wheel link should only have 1 collision!"
+            wheel_link.collision_meshes["collisions"].set_collision_approximation(
+                "boundingSphere"
+            )
 
         # Also apply a convex decomposition to the torso lift link
         torso_lift_link = self.links["torso_lift_link"]
-        assert set(torso_lift_link.collision_meshes) == {"collisions"}, "torso link should only have 1 collision!"
-        torso_lift_link.collision_meshes["collisions"].set_collision_approximation("convexDecomposition")
+        assert set(torso_lift_link.collision_meshes) == {
+            "collisions"
+        }, "torso link should only have 1 collision!"
+        torso_lift_link.collision_meshes["collisions"].set_collision_approximation(
+            "convexDecomposition"
+        )
 
     @property
     def discrete_action_list(self):
@@ -209,7 +231,12 @@ class Fetch(TwoWheelRobot, ArticulatedTrunkRobot, UntuckedArmPoseRobot, ActiveCa
     @property
     def controller_order(self):
         # Ordered by general robot kinematics chain
-        return ["base", "camera", "arm_{}".format(self.default_arm), "gripper_{}".format(self.default_arm)]
+        return [
+            "base",
+            "camera",
+            "arm_{}".format(self.default_arm),
+            "gripper_{}".format(self.default_arm),
+        ]
 
     @property
     def _default_controllers(self):
@@ -220,7 +247,9 @@ class Fetch(TwoWheelRobot, ArticulatedTrunkRobot, UntuckedArmPoseRobot, ActiveCa
         controllers["base"] = "DifferentialDriveController"
         controllers["camera"] = "JointController"
         controllers["arm_{}".format(self.default_arm)] = "InverseKinematicsController"
-        controllers["gripper_{}".format(self.default_arm)] = "MultiFingerGripperController"
+        controllers["gripper_{}".format(self.default_arm)] = (
+            "MultiFingerGripperController"
+        )
 
         return controllers
 
@@ -240,8 +269,14 @@ class Fetch(TwoWheelRobot, ArticulatedTrunkRobot, UntuckedArmPoseRobot, ActiveCa
     def assisted_grasp_start_points(self):
         return {
             self.default_arm: [
-                GraspingPoint(link_name="r_gripper_finger_link", position=th.tensor([0.025, -0.012, 0.0])),
-                GraspingPoint(link_name="r_gripper_finger_link", position=th.tensor([-0.025, -0.012, 0.0])),
+                GraspingPoint(
+                    link_name="r_gripper_finger_link",
+                    position=th.tensor([0.025, -0.012, 0.0]),
+                ),
+                GraspingPoint(
+                    link_name="r_gripper_finger_link",
+                    position=th.tensor([-0.025, -0.012, 0.0]),
+                ),
             ]
         }
 
@@ -249,8 +284,14 @@ class Fetch(TwoWheelRobot, ArticulatedTrunkRobot, UntuckedArmPoseRobot, ActiveCa
     def assisted_grasp_end_points(self):
         return {
             self.default_arm: [
-                GraspingPoint(link_name="l_gripper_finger_link", position=th.tensor([0.025, 0.012, 0.0])),
-                GraspingPoint(link_name="l_gripper_finger_link", position=th.tensor([-0.025, 0.012, 0.0])),
+                GraspingPoint(
+                    link_name="l_gripper_finger_link",
+                    position=th.tensor([0.025, 0.012, 0.0]),
+                ),
+                GraspingPoint(
+                    link_name="l_gripper_finger_link",
+                    position=th.tensor([-0.025, 0.012, 0.0]),
+                ),
             ]
         }
 
@@ -353,7 +394,11 @@ class Fetch(TwoWheelRobot, ArticulatedTrunkRobot, UntuckedArmPoseRobot, ActiveCa
 
     @property
     def robot_arm_descriptor_yamls(self):
-        return {self.default_arm: os.path.join(gm.ASSET_PATH, "models/fetch/fetch_descriptor.yaml")}
+        return {
+            self.default_arm: os.path.join(
+                gm.ASSET_PATH, "models/fetch/fetch_descriptor.yaml"
+            )
+        }
 
     @property
     def urdf_path(self):
@@ -365,8 +410,16 @@ class Fetch(TwoWheelRobot, ArticulatedTrunkRobot, UntuckedArmPoseRobot, ActiveCa
 
     @property
     def eef_usd_path(self):
-        return {self.default_arm: os.path.join(gm.ASSET_PATH, "models/fetch/fetch/fetch_eef.usd")}
+        return {
+            self.default_arm: os.path.join(
+                gm.ASSET_PATH, "models/fetch/fetch/fetch_eef.usd"
+            )
+        }
 
     @property
     def teleop_rotation_offset(self):
-        return {self.default_arm: euler2quat(th.tensor([0, math.pi / 2, math.pi], dtype=th.float32))}
+        return {
+            self.default_arm: euler2quat(
+                th.tensor([0, math.pi / 2, math.pi], dtype=th.float32)
+            )
+        }
