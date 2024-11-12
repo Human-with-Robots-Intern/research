@@ -58,16 +58,16 @@ def main():
     # Grasp apple
     print("Executing controller")
     execute_controller(
-        controller.apply_ref(StarterSemanticActionPrimitiveSet.NAVIGATE_TO, apple), env
+        controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple), env
     )
     print("Finished executing grasp")
 
     # Place on cabinet
-    # print("Executing controller")
-    # execute_controller(
-    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, cabinet),
-    #     env,
-    # )
+    print("Executing controller")
+    execute_controller(
+        controller.apply_ref(StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, cabinet),
+        env,
+    )
     print("Finished executing place")
 
 
