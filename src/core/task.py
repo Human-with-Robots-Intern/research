@@ -220,6 +220,7 @@ class Task:
         for subtask in self.subtasks:
             decomposed_parts = subtask.decompose()
             decomposed_subtasks.extend(decomposed_parts)
+            # subtask가 decompose가 된 경우, mapping 정보를 담는 dictionary 생성
             subtask_mapping[subtask.name] = decomposed_parts
 
         self.subtasks = decomposed_subtasks
@@ -227,9 +228,19 @@ class Task:
         self.update_constraints(subtask_mapping)
 
     def update_constraints(self, subtask_mapping: Dict[str, List[Subtask]]):
+        """
+        - 기존 Temporal Constraints:
+            Subtask_B는 Subtask_A가 끝난 후에 시작해야 한다는 "After" 조건
+        - 분해 후 Temporal Constraints:
+            Subtask_A가 Subtask_A_1, Subtask_A_2, Subtask_A_3로 분해되었을 경우,
+            이제 Subtask_B는 Subtask_A_3(마지막 파트)의 끝난 후에 시작해야 한다는 조건을 가지도록 수정
+        """
+        # Task에 종속된 subtask에 대하여 temporal constraints 업데이트
         for subtask in self.subtasks:
             updated_constraints = []
+            # decompose된 subtask에 대하여
             for constraint in subtask.temporal_constraints:
+                # decompose된 subtask가 기존 subtask의 temporal constraints에 포함되어 있는 경우
                 if constraint.subtask in subtask_mapping:
                     last_decomposed_part = subtask_mapping[constraint.subtask][-1]
                     updated_constraints.append(
@@ -245,7 +256,7 @@ class Task:
             subtask.temporal_constraints = updated_constraints
 
 
-class TaskGraph:
+class TaskGraphBuilder:
     def __init__(self):
         self.graph = nx.DiGraph()
 
@@ -275,9 +286,10 @@ class TaskGraph:
                             )
                     else:
                         raise ValueError("Constrained Node does not exist")
-
-    def get_graph(self) -> nx.DiGraph:
         return self.graph
+
+    def get_graph_info(self):
+        return self.graph.nodes, self.graph.edges
 
 
 class ScheduledTask:

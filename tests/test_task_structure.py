@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from unittest import TestCase, main
 
-from src.core.task import ScheduledTask, Subtask, Task, TaskGraph
+from src.core.task import ScheduledTask, Subtask, Task, TaskGraphBuilder
 from src.utils import ROOT_PATH
 
 logging.basicConfig(
@@ -51,13 +51,13 @@ class TestTaskSystem(TestCase):
 
     def test_task_graph(self):
         tasks = Task.parse_instruction(self.json_data)
-        task_graph = TaskGraph()
+        task_graph = TaskGraphBuilder()
 
         # 그래프 생성
-        task_graph.build_graph(tasks)
+        graph = task_graph.build_graph(tasks)
 
         # 그래프 노드 및 엣지 확인
-        graph = task_graph.get_graph()
+
         self.assertEqual(len(graph.nodes), 4)
         self.assertEqual(len(graph.edges), 3)  # TemporalConstraints에 기반한 엣지 수
 

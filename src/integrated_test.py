@@ -4,14 +4,8 @@ import argparse
 import json
 from pathlib import Path
 
-from archive.task import (
-    ScheduledTask,
-    convert_tree_to_schedule,
-    parse_constraints,
-    parse_tasks,
-    simulate_task_plan,
-)
 from runner import execute_task, init_env
+from src.core import Task, TaskGraphBuilder
 from utils import ROOT_PATH, generate_task_by_llm, visualize
 
 
@@ -24,33 +18,50 @@ def parse_arguments():
         default="new",
     )
     parser.add_argument(
+        "-d",
+        "--decomposition",
+        help="Select the decomposition setting [True, False]",
+        default=False,
+    )
+    parser.add_argument(
         "-v",
         "--visualize",
-        action="store_true",
+        default=False,
         help="Enable visualization of the task plan",
     )
     return parser.parse_args()
 
 
-def load_tasks_and_constraints(task_name="new"):
-    if task_name == "all":
+def load_tasks_and_constraints(args):
+    if args.name == "all":
         task_name = generate_task_by_llm()
+    else:
+        task_name = args.name
 
-    file_path = Path(ROOT_PATH) / f"assets/tasks/task_{task_name}.json"
+    file_path = Path(ROOT_PATH) / f"assets/tasks/task_{args.name}.json"
 
     with open(file_path, "r") as file:
         task_data = json.load(file)
 
-    tasks = parse_tasks(task_data)
-    tasks = decompose_tasks(tasks)
-    constraints = parse_constraints(tasks)
+    tasks = Task.parse_instruction(task_data)
+    if args.decomposition:
+        for task in tasks:
+            task.decompose_subtasks()
 
-    return task_name, tasks, constraints
+    task_graph_builder = TaskGraphBuilder()
+    task_graph = task_graph_builder.build_graph(tasks)
+
+    return task_name, tasks, task_graph
 
 
 if __name__ == "__main__":
-    # args = parse_arguments()
-    execute_task(*init_env())
+    args = parse_arguments()
+    task_name, tasks, task_graph = load_tasks_and_constraints(args)
+
+    if args.visualize:
+        visualize(task_name, task_graph)
+
+    # execute_task(*init_env())
 
     # # Task plan generation
     # task_name, tasks, constraints = load_tasks_and_constraints(args.name)

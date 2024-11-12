@@ -1,25 +1,25 @@
-import os
 from datetime import datetime
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import networkx as nx
 from anytree import Node
 from anytree.exporter import UniqueDotExporter
 
+from src.utils import ROOT_PATH
+
 # from src.core.schedule import convert_tree_to_schedule
 
 
-def visualize(task_name, constraints, task_plans, opt_task_plans):
-    save_path = "assets/results/"
+def visualize(task_name, constraints, task_plans=None, opt_task_plans=None):
+
     folder_name = datetime.now().strftime("%Y-%m-%d_%H") + f"_{task_name}"
-    save_folder_path = os.path.join(save_path, folder_name)
-    os.makedirs(
-        save_folder_path, exist_ok=True
-    )  # Create the folder if it doesn't exist
+    save_folder_path = Path(ROOT_PATH) / f"assets/results/{folder_name}"
+    save_folder_path.mkdir(exist_ok=True)  # Create the folder if it doesn't exist
 
     visualize_graph(constraints, save_folder_path)
-    visualize_tree(task_plans, opt_task_plans, save_folder_path)
-    plot_gantt_chart(opt_task_plans, save_folder_path)
+    # visualize_tree(task_plans, opt_task_plans, save_folder_path)
+    # plot_gantt_chart(opt_task_plans, save_folder_path)
 
 
 def visualize_tree(tree, opt_tree, save_folder_path):
@@ -30,7 +30,7 @@ def visualize_tree(tree, opt_tree, save_folder_path):
     )
 
 
-def visualize_graph(G, save_folder_path="assets/results", is_display=False):
+def visualize_graph(G: nx.DiGraph, save_folder_path="assets/results", is_display=False):
     pos = nx.spring_layout(G, k=0.5)  # Adjusting the k value for layout optimization
     plt.figure(figsize=(10, 8))  # Adjust the figure size to make it more readable
 
@@ -84,7 +84,7 @@ def visualize_graph(G, save_folder_path="assets/results", is_display=False):
     plt.title("Directed Acyclic Graph (DAG) with Edge Info")
 
     # Save the plot to a file
-    plt.savefig(os.path.join(save_folder_path, "task_graph.png"))
+    plt.savefig(Path(save_folder_path) / "task_graph.png")
 
     # Display the plot
     if is_display:
