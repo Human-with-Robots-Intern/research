@@ -3,7 +3,7 @@ from typing import List, Tuple
 import networkx as nx
 from anytree import Node
 
-from core.task import Subtask
+from archive.task import Subtask
 
 
 class ConstraintHandler:

@@ -2,7 +2,7 @@ from typing import Callable, List, Tuple
 
 from anytree import Node
 
-from core.task import Subtask
+from archive.task import Subtask
 
 
 class SlotHandler:

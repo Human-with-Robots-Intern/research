@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from core.task import (
+from archive.task import (
     ScheduledTask,
     convert_tree_to_schedule,
     parse_constraints,

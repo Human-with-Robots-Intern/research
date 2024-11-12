@@ -3,7 +3,7 @@ from typing import List, Tuple
 import networkx as nx
 from anytree import Node
 
-from core.task import Subtask, Task, get_all_subtasks
+from archive.task import Subtask, Task, get_all_subtasks
 from task_management.rule import ConstraintHandler, SlotHandler
 
 

@@ -3,8 +3,57 @@ from typing import List, Optional, Tuple
 import networkx as nx
 from anytree import Node
 
-from core.task import Task, get_all_subtasks
+from archive.task import Task, get_all_subtasks
 from task_management.task_plan_builder import TreeBuilder
+
+
+class Scheduler:
+    def __init__(self, task_plan: List[ScheduledTask]):
+        self.task_plan = task_plan
+
+    def simulate_task_plan(self) -> List[ScheduledTask]:
+        sim_schedule = []
+        current_time = 0
+
+        for task in self.task_plan:
+            sim_task_duration = max(np.random.normal(task.duration, 0.1), 0.1)
+            sim_task_start_time = round(current_time, 3)
+            sim_task_end_time = sim_task_start_time + sim_task_duration
+
+            sim_task = ScheduledTask(
+                name=task.name,
+                start=sim_task_start_time,
+                end=sim_task_end_time,
+                duration=sim_task_duration,
+            )
+            sim_schedule.append(sim_task)
+
+            current_time = sim_task_end_time
+
+        return sim_schedule
+
+    @staticmethod
+    def convert_tree_to_schedule(root) -> List[ScheduledTask]:
+        schedules = []
+
+        def traverse_tree(node, current_path):
+            task = ScheduledTask(
+                node.name,
+                node.makespan - node.duration,
+                node.makespan,
+                node.duration,
+            )
+            if not node.children:
+                schedules.append(current_path + [task])
+            for child in node.children:
+                traverse_tree(
+                    child,
+                    current_path + [task],
+                )
+
+        traverse_tree(root, [])
+
+        return schedules[0][1:] if schedules else []
 
 
 class ExhaustivePlanner:
