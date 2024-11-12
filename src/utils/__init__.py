@@ -1,5 +1,5 @@
-from .task_generator import generate_task_by_llm
+from .task_generator import main
 from .util import ROOT_PATH
 from .visualizer import visualize
 
-__all__ = ["generate_task_by_llm", "ROOT_PATH", "visualize"]
+__all__ = ["main", "ROOT_PATH", "visualize"]

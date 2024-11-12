@@ -8,9 +8,8 @@ from anytree.exporter import UniqueDotExporter
 
 from src.utils import ROOT_PATH
 
+
 # from src.core.schedule import convert_tree_to_schedule
-
-
 def visualize(task_name, constraints, task_plans=None, opt_task_plans=None):
 
     folder_name = datetime.now().strftime("%Y-%m-%d_%H") + f"_{task_name}"

@@ -50,8 +50,7 @@ def save_to_file(data, file_name):
         print(f"Error saving file: {e}")
 
 
-def generate_task_by_llm():
-
+def main():
     prompt_file_path = os.path.join("assets/prompts", f"e2e_generator.txt")
 
     examples_prompt = load_prompt(prompt_file_path)
@@ -78,4 +77,4 @@ def generate_task_by_llm():
 
 
 if __name__ == "__main__":
-    generate_task_by_llm()
+    main()

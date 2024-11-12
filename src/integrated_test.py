@@ -1,15 +1,19 @@
 # main.py
 
+# main.py
+
 import argparse
 import json
+import os
 from pathlib import Path
 
 from runner import execute_task, init_env
 from src.core import Task, TaskGraphBuilder
-from utils import ROOT_PATH, generate_task_by_llm, visualize
+from utils import ROOT_PATH, main, visualize
 
 
 def parse_arguments():
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Task Scheduler")
     parser.add_argument(
         "-n",
@@ -20,62 +24,85 @@ def parse_arguments():
     parser.add_argument(
         "-d",
         "--decomposition",
-        help="Select the decomposition setting [True, False]",
+        help="Enable or disable decomposition [True, False]",
+        type=lambda x: x.lower() == "true",
         default=False,
     )
     parser.add_argument(
         "-v",
         "--visualize",
-        default=False,
         help="Enable visualization of the task plan",
+        type=lambda x: x.lower() == "true",
+        default=False,
     )
     return parser.parse_args()
 
 
-def load_tasks_and_constraints(args):
-    if args.name == "all":
-        task_name = generate_task_by_llm()
-    else:
-        task_name = args.name
+def load_task_data(task_name: str) -> dict:
+    """Load task data from a JSON file."""
+    if task_name == "all":
+        task_name = main()
+    file_path = Path(ROOT_PATH) / f"assets/tasks/task_{task_name}.json"
 
-    file_path = Path(ROOT_PATH) / f"assets/tasks/task_{args.name}.json"
+    if not file_path.exists():
+        raise FileNotFoundError(f"Task file not found: {file_path}")
 
     with open(file_path, "r") as file:
-        task_data = json.load(file)
+        return task_name, json.load(file)
 
+
+def load_tasks_and_constraints(task_data: dict, enable_decomposition: bool):
+    """Parse tasks and build task graph."""
     tasks = Task.parse_instruction(task_data)
-    if args.decomposition:
+    if enable_decomposition:
         for task in tasks:
             task.decompose_subtasks()
 
     task_graph_builder = TaskGraphBuilder()
     task_graph = task_graph_builder.build_graph(tasks)
 
-    return task_name, tasks, task_graph
+    return tasks, task_graph
+
+
+def main():
+    """Main entry point for the Task Scheduler."""
+    args = parse_arguments()
+
+    try:
+        task_name, task_data = load_task_data(args.name)
+        tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
+
+        # Visualize task graph if requested
+        if args.visualize:
+            visualize(task_name, task_graph)
+
+        # Example: Uncomment below to initialize environment and execute tasks
+        # Task plan generation
+        # task_name, tasks, constraints = load_tasks_and_constraints(args.name)
+        # planner = ExhaustivePlanner(agent, tasks, constraints)
+        # task_plans, opt_task_plans = planner.generate_valid_plans()
+
+        # # task_plans to schedule & simulate it
+        # opt_task_plan = convert_tree_to_schedule(opt_task_plans)
+        # simulated_task_plan = simulate_task_plan(opt_task_plan)
+
+        # # Task plan visualization
+        # if args.visualize:
+        #     visualize(task_name, constraints, task_plans, opt_task_plans)
+
+        # # Estimate task durations using Bayesian estimation
+        # estimator = TaskEstimator()
+        # estimator.estimate_tasks(opt_task_plan, simulated_task_plan)
+
+        print(f"Task '{task_name}' loaded and processed successfully.")
+
+    except FileNotFoundError as e:
+        print(f"[ERROR] {e}")
+    except json.JSONDecodeError:
+        print("[ERROR] Failed to parse JSON task file. Please check the file format.")
+    except Exception as e:
+        print(f"[ERROR] An unexpected error occurred: {e}")
 
 
 if __name__ == "__main__":
-    args = parse_arguments()
-    task_name, tasks, task_graph = load_tasks_and_constraints(args)
-
-    if args.visualize:
-        visualize(task_name, task_graph)
-
-    # execute_task(*init_env())
-
-    # # Task plan generation
-    # task_name, tasks, constraints = load_tasks_and_constraints(args.name)
-    # planner = ExhaustivePlanner(agent, tasks, constraints)
-    # task_plans, opt_task_plans = planner.generate_valid_plans()
-
-    # # task_plans to schedule & simulate it
-    # opt_task_plan = convert_tree_to_schedule(opt_task_plans)
-    # simulated_task_plan = simulate_task_plan(opt_task_plan)
-
-    # # Task plan visualization
-    # if args.visualize:
-    #     visualize(task_name, constraints, task_plans, opt_task_plans)
-
-    # # Estimate task durations using Bayesian estimation
-    # estimator = TaskEstimator()
-    # estimator.estimate_tasks(opt_task_plan, simulated_task_plan)
+    main()
