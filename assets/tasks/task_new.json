@@ -4,7 +4,7 @@
         "Subtasks": [
             {
                 "Name": "Place_in Bread Toaster",
-                "Repetition": 1,
+                "Repetition": 2,
                 "Type": "Interaction",
                 "Duration": {
                     "Type": "Controllable",
@@ -48,7 +48,7 @@
                 ]
             },
             {
-                "Subtask": "Toggle_off Toaster",
+                "Name": "Toggle_off Toaster",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Duration": {
@@ -73,7 +73,7 @@
                 ]
             },
             {
-                "Subtask": "Set the Toast on a Table",
+                "Name": "Set the Toast on a Table",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Duration": {

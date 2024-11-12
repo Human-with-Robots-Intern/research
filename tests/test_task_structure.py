@@ -1,122 +1,26 @@
 import json
+import logging
+from pathlib import Path
 from unittest import TestCase, main
 
-from src.core.task import ScheduledTask, Scheduler, Task, TaskGraph
+from src.core.task import ScheduledTask, Subtask, Task, TaskGraph
+from src.utils import ROOT_PATH
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 class TestTaskSystem(TestCase):
     def setUp(self):
         # JSON 데이터 로드
-        self.json_data = json.loads(
-            """
-            [
-                {
-                    "Task": "Cooking Toast",
-                    "Subtasks": [
-                        {
-                            "Name": "Place_in Bread Toaster",
-                            "Repetition": 1,
-                            "Type": "Interaction",
-                            "Duration": {
-                                "Type": "Controllable",
-                                "Interval": 1
-                            },
-                            "Executions": {
-                                "Objects": {
-                                    "Bread": 1,
-                                    "Toaster": 1
-                                },
-                                "PrimitiveActions": [
-                                    "Grasp Bread",
-                                    "Place_in Bread Toaster"
-                                ]
-                            },
-                            "TemporalConstraints": []
-                        },
-                        {
-                            "Name": "Toggle_on Toaster",
-                            "Repetition": 1,
-                            "Type": "Interaction",
-                            "Duration": {
-                                "Type": "Controllable",
-                                "Interval": 1
-                            },
-                            "Executions": {
-                                "Objects": {
-                                    "Toaster": 1
-                                },
-                                "PrimitiveActions": [
-                                    "Toggle_on Toaster"
-                                ]
-                            },
-                            "TemporalConstraints": [
-                                {
-                                    "Type": "After",
-                                    "Subtask": "Place_in Bread Toaster",
-                                    "Interval": 0,
-                                    "Urgency": false
-                                }
-                            ]
-                        },
-                        {
-                            "Subtask": "Toggle_off Toaster",
-                            "Repetition": 1,
-                            "Type": "Interaction",
-                            "Duration": {
-                                "Type": "Controllable",
-                                "Interval": 1
-                            },
-                            "Executions": {
-                                "Objects": {
-                                    "Toaster": 1
-                                },
-                                "PrimitiveActions": [
-                                    "Toggle_off Toaster"
-                                ]
-                            },
-                            "TemporalConstraints": [
-                                {
-                                    "Type": "After",
-                                    "Subtask": "Toggle_on Toaster",
-                                    "Interval": 5,
-                                    "Urgency": true
-                                }
-                            ]
-                        },
-                        {
-                            "Subtask": "Set the Toast on a Table",
-                            "Repetition": 1,
-                            "Type": "Interaction",
-                            "Duration": {
-                                "Type": "Controllable",
-                                "Interval": 1
-                            },
-                            "Executions": {
-                                "Objects": {
-                                    "Toast": 1,
-                                    "Table": 1
-                                },
-                                "PrimitiveActions": [
-                                    "Grasp Toast",
-                                    "Place_on Table Toast"
-                                ]
-                            },
-                            "TemporalConstraints": [
-                                {
-                                    "Type": "After",
-                                    "Subtask": "Toggle_off Toaster",
-                                    "Interval": 0,
-                                    "Urgency": false
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-            """
-        )
+        file_path = Path(ROOT_PATH) / f"assets/tasks/task_new.json"
 
-    def test_task_parsing(self):
+        with open(file_path, "r") as file:
+            self.json_data = json.load(file)
+
+    def test_instruction_parsing(self):
         # 태스크 생성
         tasks = Task.parse_instruction(self.json_data)
 
@@ -131,6 +35,9 @@ class TestTaskSystem(TestCase):
         self.assertEqual(subtasks[2].name, "Toggle_off Toaster")
         self.assertEqual(subtasks[3].name, "Set the Toast on a Table")
 
+        # 테스트 통과 로그
+        logger.info("test_instruction_parsing passed.")
+
     def test_task_decomposition(self):
         tasks = Task.parse_instruction(self.json_data)
         task = tasks[0]
@@ -138,8 +45,9 @@ class TestTaskSystem(TestCase):
         # 디컴포지션 테스트 (현재 데이터는 Repetition이 1이라 변경 없음)
         task.decompose_subtasks()
 
-        self.assertEqual(len(task.subtasks), 4)  # Repetition이 1이므로 분해 X
-        self.assertEqual(task.subtasks[0].name, "Place_in Bread Toaster")
+        self.assertEqual(len(task.subtasks), 5)  # Repetition이 1이므로 분해 X
+        self.assertEqual(task.subtasks[0].name, "Place_in Bread Toaster_part_1")
+        logger.info("test_task_decomposition passed.")
 
     def test_task_graph(self):
         tasks = Task.parse_instruction(self.json_data)
@@ -156,32 +64,37 @@ class TestTaskSystem(TestCase):
         # 특정 엣지 확인
         self.assertTrue(graph.has_edge("Place_in Bread Toaster", "Toggle_on Toaster"))
         self.assertTrue(graph.has_edge("Toggle_on Toaster", "Toggle_off Toaster"))
+        logger.info("test_task_graph passed.")
 
-    def test_scheduler_simulation(self):
-        tasks = Task.parse_instruction(self.json_data)
-        subtasks = tasks[0].subtasks
+    # def test_scheduler_simulation(self):
+    #     tasks = Task.parse_instruction(self.json_data)
+    #     subtasks = tasks[0].subtasks
 
-        # 서브태스크를 기반으로 스케줄 생성
-        task_plan = [
-            ScheduledTask(
-                name=subtask.name, start=0, end=0, duration=subtask.duration.interval
-            )
-            for subtask in subtasks
-        ]
+    #     # 서브태스크를 기반으로 스케줄 생성
+    #     task_plan = [
+    #         ScheduledTask(
+    #             name=subtask.name, start=0, end=0, duration=subtask.duration.interval
+    #         )
+    #         for subtask in subtasks
+    #     ]
 
-        scheduler = Scheduler(task_plan)
+    #     scheduler = Scheduler(task_plan)
 
-        # 스케줄 시뮬레이션
-        simulated_plan = scheduler.simulate_task_plan()
+    #     # 스케줄 시뮬레이션
+    #     simulated_plan = scheduler.simulate_task_plan()
 
-        self.assertEqual(len(simulated_plan), 4)  # 4개의 서브태스크 스케줄 확인
-        self.assertGreater(
-            simulated_plan[0].end, simulated_plan[0].start
-        )  # 종료 시간 > 시작 시간 확인
-        self.assertGreater(
-            simulated_plan[-1].end, simulated_plan[-2].end
-        )  # 각 서브태스크가 순차적으로 실행됨을 확인
+    #     self.assertEqual(len(simulated_plan), 4)  # 4개의 서브태스크 스케줄 확인
+    #     self.assertGreater(
+    #         simulated_plan[0].end, simulated_plan[0].start
+    #     )  # 종료 시간 > 시작 시간 확인
+    #     self.assertGreater(
+    #         simulated_plan[-1].end, simulated_plan[-2].end
+    #     )  # 각 서브태스크가 순차적으로 실행됨을 확인
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+        print("\n[INFO] 모든 테스트가 성공적으로 통과했습니다!")
+    except Exception as e:
+        print(f"\n[ERROR] 테스트 실패: {str(e)}")

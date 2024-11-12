@@ -139,7 +139,7 @@ class Subtask:
 
         return cls(
             task_name=task_name,
-            name=subtask_data["Subtask"],
+            name=subtask_data["Name"],
             repetition=repetition,
             type=subtask_data["Type"],
             duration=duration,
@@ -213,39 +213,36 @@ class Task:
     def parse_instruction(cls, data: List[Dict]) -> List["Task"]:
         return [cls.from_dict(task_data) for task_data in data]
 
-    # def decompose_subtasks(self):
-    #     decomposed_subtasks = []
-    #     subtask_mapping = {}
+    def decompose_subtasks(self):
+        decomposed_subtasks = []
+        subtask_mapping = {}
 
-    #     for subtask in self.subtasks:
-    #         decomposed_parts = subtask.decompose()
-    #         decomposed_subtasks.extend(decomposed_parts)
-    #         subtask_mapping[subtask.name] = decomposed_parts
+        for subtask in self.subtasks:
+            decomposed_parts = subtask.decompose()
+            decomposed_subtasks.extend(decomposed_parts)
+            subtask_mapping[subtask.name] = decomposed_parts
 
-    #     self.subtasks = decomposed_subtasks
+        self.subtasks = decomposed_subtasks
 
-    #     self.update_constraints(subtask_mapping)
+        self.update_constraints(subtask_mapping)
 
-    # def update_constraints(self, subtask_mapping: Dict[str, List[Subtask]]):
-    #     for subtask in self.subtasks:
-    #         updated_constraints = []
-    #         for constraint in subtask.temporal_constraints:
-    #             if constraint.subtask in subtask_mapping:
-    #                 last_decomposed_part = subtask_mapping[constraint.subtask][-1]
-    #                 updated_constraints.append(
-    #                     TemporalConstraint(
-    #                         constraint_type=constraint.type,
-    #                         subtask=last_decomposed_part.name,
-    #                         interval=constraint.interval,
-    #                         urgency=constraint.urgency,
-    #                     )
-    #                 )
-    #             else:
-    #                 updated_constraints.append(constraint)
-    #         subtask.temporal_constraints = updated_constraints
-    # @staticmethod
-    # def get_all_subtasks(tasks: List["Task"]) -> List[Subtask]:
-    #     return [subtask for task in tasks for subtask in task.subtasks]
+    def update_constraints(self, subtask_mapping: Dict[str, List[Subtask]]):
+        for subtask in self.subtasks:
+            updated_constraints = []
+            for constraint in subtask.temporal_constraints:
+                if constraint.subtask in subtask_mapping:
+                    last_decomposed_part = subtask_mapping[constraint.subtask][-1]
+                    updated_constraints.append(
+                        TemporalConstraint(
+                            constraint_type=constraint.type,
+                            subtask=last_decomposed_part.name,
+                            interval=constraint.interval,
+                            urgency=constraint.urgency,
+                        )
+                    )
+                else:
+                    updated_constraints.append(constraint)
+            subtask.temporal_constraints = updated_constraints
 
 
 class TaskGraph:
