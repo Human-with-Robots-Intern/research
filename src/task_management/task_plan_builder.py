@@ -3,9 +3,8 @@ from typing import List, Tuple
 import networkx as nx
 from anytree import Node
 
-from concept.task import Subtask, Task, get_all_subtasks
-from task_management.handler.constraint_handler import ConstraintHandler
-from task_management.handler.slot_handler import SlotHandler
+from core.task import Subtask, Task, get_all_subtasks
+from task_management.rule import ConstraintHandler, SlotHandler
 
 
 class TreeBuilder:

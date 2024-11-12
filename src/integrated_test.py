@@ -4,16 +4,18 @@ import argparse
 import json
 from pathlib import Path
 
-# from concept.schedule import ScheduledTask, convert_tree_to_schedule, simulate_task_plan
-# from concept.task import parse_constraints, parse_tasks
+from core.task import (
+    ScheduledTask,
+    convert_tree_to_schedule,
+    parse_constraints,
+    parse_tasks,
+    simulate_task_plan,
+)
 from runner import execute_task, init_env
+from utils import ROOT_PATH, generate_task_by_llm, visualize
 
 # from task_management.handler.subtask_decomposer import decompose_tasks
 # from task_management.planner.exhaustive_planner import ExhaustivePlanner
-# from time_estimation.bayesian import TaskEstimator
-# from utils.task_generator import generate_task_by_llm
-# from utils.util import ROOT_PATH
-# from utils.visualizer import visualize
 
 
 def parse_arguments():

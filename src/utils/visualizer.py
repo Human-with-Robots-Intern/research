@@ -6,7 +6,7 @@ import networkx as nx
 from anytree import Node
 from anytree.exporter import UniqueDotExporter
 
-from concept.schedule import convert_tree_to_schedule
+from core.schedule import convert_tree_to_schedule
 
 
 def visualize(task_name, constraints, task_plans, opt_task_plans):
