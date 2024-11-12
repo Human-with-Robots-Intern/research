@@ -1,0 +1,104 @@
+[
+    {
+        "Task": "Cooking Toast",
+        "Subtasks": [
+            {
+                "Name": "Place_in Bread Toaster",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Executions": {
+                    "Objects": {
+                        "Bread": 1,
+                        "Toaster": 1
+                    },
+                    "PrimitiveActions": [
+                        "Grasp Bread",
+                        "Place_in Bread Toaster"
+                    ]
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Toggle_on Toaster",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Executions": {
+                    "Objects": {
+                        "Toaster": 1
+                    },
+                    "PrimitiveActions": [
+                        "Toggle_on Toaster"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Place_in Bread Toaster",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Subtask": "Toggle_off Toaster",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Executions": {
+                    "Objects": {
+                        "Toaster": 1
+                    },
+                    "PrimitiveActions": [
+                        "Toggle_off Toaster"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Toggle_on Toaster",
+                        "Interval": 5,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Subtask": "Set the Toast on a Table",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "Executions": {
+                    "Objects": {
+                        "Toast": 1,
+                        "Table": 1
+                    },
+                    "PrimitiveActions": [
+                        "Grasp Toast",
+                        "Place_on Table Toast"
+                    ]
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Toggle_off Toaster",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]

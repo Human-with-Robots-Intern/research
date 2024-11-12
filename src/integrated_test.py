@@ -14,17 +14,14 @@ from core.task import (
 from runner import execute_task, init_env
 from utils import ROOT_PATH, generate_task_by_llm, visualize
 
-# from task_management.handler.subtask_decomposer import decompose_tasks
-# from task_management.planner.exhaustive_planner import ExhaustivePlanner
-
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Task Scheduler")
     parser.add_argument(
         "-n",
         "--name",
-        help="Select the goal [all, laundry, cook, toast, etc.]",
-        default="cook",
+        help="Select the goal [laundry, cook, toast, etc.]",
+        default="new",
     )
     parser.add_argument(
         "-v",
@@ -35,7 +32,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def load_tasks_and_constraints(task_name="cook"):
+def load_tasks_and_constraints(task_name="new"):
     if task_name == "all":
         task_name = generate_task_by_llm()
 
