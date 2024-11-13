@@ -91,6 +91,6 @@ class ConstraintHandler:
         interval = constraint_info["Interval"]
         urgency = constraint_info["Urgency"]
 
-        time_slot = constraint_node.makespan + interval - parent_node.makespan
+        time_slot = constraint_node.end + interval - parent_node.end
 
         return time_slot, urgency

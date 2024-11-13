@@ -2,99 +2,101 @@ from typing import List, Optional, Tuple
 
 import networkx as nx
 import numpy as np
-from anytree import Node, PreOrderIter
+from anytree import AsciiStyle, Node, RenderTree
 
 from task_management import TaskTreeBuilder
 
 
 class TaskTimingPlanner:
     def __init__(self, agent: "Agent", tasks: List["Task"], constraints: nx.DiGraph):
-        self.tree_builder = TaskTreeBuilder(agent, tasks, constraints)
+        self.tasks = tasks
+        self.tree_builder = TaskTreeBuilder(agent, self.tasks, constraints)
         self.task_tree = self.tree_builder.build_tree()
 
-    def get_task_tree(self) -> Node:
-        return self.task_tree
+    def get_task_trees(self) -> Node:
+        return self.task_tree, self._get_optimal_tree()
 
-    # def get_optimal_paths(self) -> Optional[Tuple[Node, Node]]:
-    #     """Generate valid task plans and set the optimal task plan."""
+    def _get_optimal_tree(self) -> Node:
+        """Traverse self.task_tree to find the optimal path and return it
 
-    #     # Tree에서 optimal path 찾기
-    #     # leaf_paths = self._find_complete_leaf_paths()
-    #     # if not leaf_paths:
-    #     #     print("No complete paths found.")
-    #     #     return None
+        Returns:
+            Node: Node from self.task_tree with only the optimal path left
+        """
 
-    #     optimal_paths, min_makespan = self._find_optimal_paths(leaf_paths)
-    #     self._print_plan_summary(optimal_paths, leaf_paths, min_makespan)
+        leaf_nodes = self._get_leaf_nodes(self.task_tree)
 
-    #     filtered_tree_root = self._filter_optimal_tree(optimal_paths)
-    #     self.task_tree = (
-    #         filtered_tree_root  # Update the subtask tree to the optimal one
-    #     )
+        all_subtask_names = {
+            subtask.name for task in self.tasks for subtask in task.subtasks
+        }
 
-    #     # Convert the optimal tree to a task plan
-    #     self.task_plan = self.convert_tree_to_schedule(filtered_tree_root)
+        # 리프 노드들 중 모든 subtask name을 path에 포함하는 노드 찾기
+        complete_leaf_paths = []
 
-    #     return self.task_tree, filtered_tree_root
+        for leaf_node in leaf_nodes:
+            included_subtask_names = set()
+            current = leaf_node
 
-    # def _find_complete_leaf_paths(self) -> List[Node]:
-    #     """Find all leaf paths that include all subtasks."""
-    #     leaf_paths = []
-    #     # Assuming your Task class has a method to get all subtasks
-    #     all_subtask_names = {
-    #         subtask.name for task in self.tasks for subtask in task.subtasks
-    #     }
+            while current:
+                # Exclude "Move", "Wait", and "Init" nodes
+                if not (
+                    current.name.startswith(("Move", "Wait")) or current.name == "Init"
+                ):
+                    included_subtask_names.add(current.name)
+                current = current.parent
 
-    #     for leaf in self.task_tree.leaves:
-    #         included_subtask_names = {
-    #             node.name
-    #             for node in leaf.path
-    #             if not (node.name.startswith(("Move", "Wait")) or node.name == "Start")
-    #         }
+            # 모든 subtask name이 포함되어 있으면 complete path로 판단
+            if all_subtask_names == included_subtask_names:
+                complete_leaf_paths.append(leaf_node)
 
-    #         if all_subtask_names == included_subtask_names:
-    #             leaf_paths.append(leaf)
+        if not complete_leaf_paths:
+            print("No complete paths found.")
+            raise ValueError("No complete paths found.")
 
-    #     return leaf_paths
+        # 최적 경로를 갖는 leaf 노드들 찾기
+        min_makespan = min(leaf.end for leaf in complete_leaf_paths)
+        optimal_leaf_nodes = [
+            leaf for leaf in complete_leaf_paths if leaf.end == min_makespan
+        ]
 
-    # def _find_optimal_paths(self, leaf_paths: List[Node]) -> Tuple[List[Node], float]:
-    #     """Find the optimal paths with the minimum makespan."""
-    #     min_makespan_leaf = min(leaf_paths, key=lambda leaf: leaf.makespan)
-    #     min_makespan = min_makespan_leaf.makespan
-    #     optimal_paths = [leaf for leaf in leaf_paths if leaf.makespan == min_makespan]
-    #     return optimal_paths, min_makespan
+        # Create a set of subtask nodes that are on the optimal paths
+        optimal_nodes_set = set()
+        for leaf_node in optimal_leaf_nodes:
+            current = leaf_node
+            while current:
+                optimal_nodes_set.add(current)
+                current = current.parent
 
-    # # def _print_plan_summary(
-    # #     self, optimal_paths: List[Node], leaf_paths: List[Node], min_makespan: float
-    # # ) -> None:
-    # #     """Print a summary of the number of optimal paths and their makespan."""
-    # #     print(f"Number of ordered paths: {len(optimal_paths)}/{len(leaf_paths)}")
-    # #     print(f"Makespan: {min_makespan}")
-    # #     for idx, optimal_path in enumerate(optimal_paths, start=1):
-    # #         path_names = [node.name for node in optimal_path.path]
-    # #         print(f"Optimal Path {idx}: {path_names}")
-    # #     print()
+        # Step 6: Recursively prune nodes that are not in optimal_nodes_set
+        def prune_tree(node):
+            if node not in optimal_nodes_set:
+                return None
+            else:
+                pruned_children = []
+                for child in node.children:
+                    pruned_child = prune_tree(child)
+                    if pruned_child is not None:
+                        pruned_children.append(pruned_child)
+                node.children = pruned_children
+                return node
 
-    # def _filter_optimal_tree(self, optimal_paths: List[Node]) -> Node:
-    #     """Filter the task tree to include only the optimal nodes."""
-    #     optimal_nodes = {node for leaf in optimal_paths for node in leaf.path}
+        # Step 7: Get the filtered tree containing only the optimal paths
+        filtered_tree_root = prune_tree(self.task_tree)
+        self._print_plan(filtered_tree_root)
+        return filtered_tree_root
 
-    #     def filter_tree(node: Node) -> Optional[Node]:
-    #         if node not in optimal_nodes:
-    #             return None
-    #         new_node = Node(
-    #             node.name,
-    #             makespan=node.makespan,
-    #             duration=node.duration,
-    #             type=node.type,
-    #         )
-    #         for child in node.children:
-    #             new_child = filter_tree(child)
-    #             if new_child is not None:
-    #                 new_child.parent = new_node
-    #         return new_node
+    # 모든 leaf 노드 찾기
+    def _get_leaf_nodes(self, node):
+        if not node.children:
+            return [node]
+        else:
+            leaves = []
+            for child in node.children:
+                leaves.extend(self._get_leaf_nodes(child))
+            return leaves
 
-    #     return filter_tree(self.task_tree)
+    def _print_plan(self, tree_root: Node) -> None:
+        print(RenderTree(tree_root, style=AsciiStyle()).by_attr())
+        print("total_time_cost :", tree_root.leaves[0].end)
 
     # @staticmethod
     # def convert_tree_to_schedule(root: Node) -> List["ScheduledTask"]:

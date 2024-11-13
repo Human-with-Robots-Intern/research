@@ -9,7 +9,7 @@ from task_management.rule import ConstraintHandler, SlotHandler
 
 class TaskTree:
     def __init__(self, agent: "Agent"):
-        self.agent = agent
+        self.agent = 1
         self.root_node = Node(
             name="Init",
             start=0,
@@ -19,10 +19,10 @@ class TaskTree:
 
     def add_move_node(self, parent_node: Node, move_cost: int) -> Node:
         return Node(
-            name=f"Move ({parent_node.location} -> {self.agent.position})",
+            name=f"Move ({parent_node.location} -> {self.agent})",
             parent=parent_node,
-            start=parent_node.makespan,
-            end=parent_node.makespan + move_cost,
+            start=parent_node.end,
+            end=parent_node.end + move_cost,
             duration=move_cost,
         )
 
@@ -32,8 +32,8 @@ class TaskTree:
         return Node(
             name=f"Wait_for_{subtask.name}",
             parent=parent_node,
-            start=parent_node.makespan,
-            end=parent_node.makespan + wait_time,
+            start=parent_node.end,
+            end=parent_node.end + wait_time,
             duration=wait_time,
         )
 
@@ -41,8 +41,8 @@ class TaskTree:
         return Node(
             name=subtask.name,
             parent=parent_node,
-            start=parent_node.makespan,
-            end=parent_node.makespan + subtask.duration.interval,
+            start=parent_node.end,
+            end=parent_node.end + subtask.duration.interval,
             duration=subtask.duration.interval,
         )
 
@@ -54,6 +54,8 @@ class TaskTreeBuilder:
         tasks: List[Task],
         constraints: nx.DiGraph,
     ):
+        # TODO Util the Agent Knowledge
+        """이 단계에서 Agent의 Knowledge를 활용할 수 있어야 함"""
         self.agent = agent
         self.tasks = tasks
         self.constraint_handler = ConstraintHandler(constraints)

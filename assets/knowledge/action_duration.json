@@ -1,0 +1,12 @@
+{
+    "PremitiveActions": {
+        "GRASP": 1,
+        "PLACE_INSIDE": 1,
+        "PLACE_ON_TOP": 1,
+        "TOGGLE_ON": 1,
+        "TOGGLE_OFF": 1,
+        "OPEN": 1,
+        "CLOSE": 1
+    },
+    "Subtask": {}
+}
