@@ -3,22 +3,6 @@ from typing import Dict, List, Optional
 import networkx as nx
 import numpy as np
 
-# class Decomposition:
-#     def __init__(self, repetition: int, actions: List[str]):
-#         self.repetition = repetition
-#         self.actions = actions
-
-#     def __repr__(self):
-#         return f"Decomposition(repetition={self.repetition}, actions={self.actions})"
-
-#     @classmethod
-#     def from_dict(cls, data: Dict) -> "Decomposition":
-#         return cls(
-#             repetition=data["Repetition"],
-#             actions=data["Actions"],
-#         )
-
-
 # class RoI:
 #     def __init__(self, room: str, asset: List[str], objects: Dict[str, int]) -> None:
 #         self.room = room
@@ -287,9 +271,6 @@ class TaskGraphBuilder:
                     else:
                         raise ValueError("Constrained Node does not exist")
         return self.graph
-
-    def get_graph_info(self):
-        return self.graph.nodes, self.graph.edges
 
 
 class ScheduledTask:

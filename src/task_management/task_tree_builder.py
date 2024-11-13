@@ -7,7 +7,7 @@ from archive.task import Subtask, Task, get_all_subtasks
 from task_management.rule import ConstraintHandler, SlotHandler
 
 
-class TreeBuilder:
+class TaskTreeBuilder:
     def __init__(
         self,
         agent: Agent,
