@@ -7,6 +7,79 @@ Translate the human's natural instruction into a structured JSON format, adherin
 # [CONTEXT]
 ## Environment:
 You operate in a household setting, interacting with common household objects.
+bedroom_0
+    bed-zrumze: 1
+    door-ktydvs: 1
+    bottom_cabinet-dajebq: 1
+    picture-etixod: 1
+    window-ulnafj: 1
+    floors-ucjdgj: 2
+    ceilings-zlhppj: 2
+    electric_switch-wseglt: 1
+    
+kitchen_0
+    bottom_cabinet-bamfsz: 1
+    bottom_cabinet-slgzfc: 1
+    countertop-tpuwys: 1
+    dishwasher-xlmier: 1
+    fridge-xyejdx: 1
+    public_trash_can-zotrbg: 1
+    microwave-abzvij: 1
+    oven-wuinhm: 1
+    furniture_sink-zexzrc: 1
+    top_cabinet-fqhdne: 1
+    top_cabinet-lsyzkh: 4
+    window-ithrgo: 1
+    floors-ifmioj: 2
+    ceilings-yimfml: 2
+    electric_switch-wseglt: 1
+
+entryway_0
+    bottom_cabinet-slgzfc: 1
+    door-lvgliq: 1
+    floors-gjemfr: 2
+    ceilings-rhfker: 2
+    electric_switch-wseglt: 1
+
+living_room_0
+    carpet-ctclvd: 1
+    countertop-tpuwys: 1
+    bottom_cabinet-bamfsz: 1
+    bottom_cabinet-jhymlr: 1
+    breakfast_table-skczfi: 2
+    coffee_table-fqluyq: 1
+    floor_lamp-vdxlda: 1
+    laptop-nvulcs: 1
+    loudspeaker-bmpdyv: 1
+    pot_plant-jatssq: 2
+    pot_plant-udqjui: 1
+    shelf-njwsoa: 2
+    shelf-owvfik: 1
+    sofa-mnfbbh: 1
+    standing_tv-udotid: 1
+    ottoman-ycfbsd: 1
+    straight_chair-amgwaw: 3
+    straight_chair-eospnr: 2
+    swivel_chair-qtqitn: 1
+    table_lamp-xbfgjc: 1
+    picture-hhxttu: 1
+    picture-jpfyrq: 1
+    window-ithrgo: 2
+    floors-ptwlei: 2
+    ceilings-phrrml: 2
+    electric_switch-wseglt: 2
+
+bathroom_0
+    carpet-ctclvd: 1
+    door-ktydvs: 1
+    mirror-pevdqu: 1
+    shower_stall-invgma: 1
+    pedestal_sink-ksecxq: 1
+    toilet-vtqdev: 1
+    towel_rack-kqrmrh: 2
+    floors-avvnuv: 2
+    ceilings-jfsbfp: 2
+    electric_switch-wseglt: 1
 
 ## Definitions:
 - Task: The main goal or objective derived from the human instruction.
@@ -46,15 +119,16 @@ Available primitive actions:
     Do not consider operation times for other machines unless the robot interacts with them.
 
 - Subtasks and Actions:
-    Do not list "Move" or "Wait" as separate subtasks; these are implied within the time constraints.
     Each subtask should involve handling a single object.
-
+    Do not list "Move" or "Wait" as separate subtasks; these are implied within the time constraints.
+    
 - Objects and Amounts:
-    Specify the exact amount of each object using real, grounded integers (e.g., "Bread": 2).
+    Specify the exact amount of each object using real, grounded integers (e.g., "Bread": 1). it is required object for each repetition 
+    If an object is not listed in the environment context, assume it is unavailable unless instructed otherwise.
 
 - Duration and Intervals:
     Use integers for all intervals.
-    The "Duration" indicates the estimated time to complete the subtask.
+    The "Duration" indicates the estimated time to complete the subtask. (time unit is second)
 
 - Temporal Constraints:
     Avoid setting "Urgency": true with an "Interval" of 0.
@@ -99,7 +173,7 @@ A Natural Language Instruction.
 # [EXAMPLES]
 ## Example 1
 Input:
-""""Make me a Toast and set the table for lunch"""
+""""Make me a Toast and set the table for lunch""""
 
 Output:
 [
@@ -107,47 +181,76 @@ Output:
         "Task": "Prepare Toast and Set Table",
         "Subtasks": [
             {
-                "Name": "Place Bread in Toaster",
+                "Name": "Retrieve Bread from Fridge",
                 "Repetition": 1,
                 "Type": "Interaction",
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 1
-                },
                 "Executions": {
                     "Objects": {
-                        "Bread": 1,
-                        "Toaster": 1
+                        "fridge-xyejdx": 1,
+                        "Bread": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Bread",
+                        "NAVIGATE_TO fridge-xyejdx",
+                        "OPEN fridge-xyejdx",
                         "GRASP Bread",
-                        "NAVIGATE_TO Toaster",
-                        "PLACE_INSIDE Toaster"
+                        "CLOSE fridge-xyejdx"
                     ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
                 },
                 "TemporalConstraints": []
             },
             {
-                "Name": "Start Toaster",
+                "Name": "Place Bread in Oven",
                 "Repetition": 1,
                 "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Bread": 1,
+                        "oven-wuinhm": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO oven-wuinhm",
+                        "OPEN oven-wuinhm",
+                        "PLACE_INSIDE oven-wuinhm",
+                        "CLOSE oven-wuinhm"
+                    ]
+                },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
                 },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Retrieve Bread from Fridge",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Start Oven",
+                "Repetition": 1,
+                "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Toaster": 1
+                        "oven-wuinhm": 1
                     },
                     "PrimitiveActions": [
-                        "TOGGLE_ON Toaster"
+                        "TOGGLE_ON oven-wuinhm"
                     ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
                 },
                 "TemporalConstraints": [
                     {
                         "Type": "After",
-                        "Subtask": "Place Bread in Toaster",
+                        "Subtask": "Place Bread in Oven",
                         "Interval": 0,
                         "Urgency": false
                     }
@@ -157,39 +260,42 @@ Output:
                 "Name": "Wait for Toast",
                 "Repetition": 1,
                 "Type": "Monitoring",
-                "Duration": {
-                    "Type": "Uncontrollable",
-                    "Interval": 5
-                },
                 "Executions": {
                     "Objects": {},
                     "PrimitiveActions": []
                 },
+                "Duration": {
+                    "Type": "Uncontrollable",
+                    "Interval": 5
+                },
                 "TemporalConstraints": [
                     {
                         "Type": "After",
-                        "Subtask": "Start Toaster",
+                        "Subtask": "Start Oven",
                         "Interval": 0,
                         "Urgency": false
                     }
                 ]
             },
             {
-                "Name": "Retrieve Toast",
+                "Name": "Retrieve Toast from Oven",
                 "Repetition": 1,
                 "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Toast": 1,
+                        "oven-wuinhm": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF oven-wuinhm",
+                        "OPEN oven-wuinhm",
+                        "GRASP Toast",
+                        "CLOSE oven-wuinhm"
+                    ]
+                },
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 1
-                },
-                "Executions": {
-                    "Objects": {
-                        "Toast": 1
-                    },
-                    "PrimitiveActions": [
-                        "NAVIGATE_TO Toaster",
-                        "GRASP Toast"
-                    ]
                 },
                 "TemporalConstraints": [
                     {
@@ -204,26 +310,26 @@ Output:
                 "Name": "Set the Table",
                 "Repetition": 1,
                 "Type": "Interaction",
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 2
-                },
                 "Executions": {
                     "Objects": {
                         "Plate": 1,
                         "Cutlery": 1,
-                        "Table": 1
+                        "breakfast_table-skczfi": 1
                     },
                     "PrimitiveActions": [
                         "NAVIGATE_TO Plate",
                         "GRASP Plate",
-                        "NAVIGATE_TO Table",
-                        "PLACE_ON_TOP Table",
+                        "NAVIGATE_TO breakfast_table-skczfi",
+                        "PLACE_ON_TOP breakfast_table-skczfi",
                         "NAVIGATE_TO Cutlery",
                         "GRASP Cutlery",
-                        "NAVIGATE_TO Table",
-                        "PLACE_ON_TOP Table"
+                        "NAVIGATE_TO breakfast_table-skczfi",
+                        "PLACE_ON_TOP breakfast_table-skczfi"
                     ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
                 },
                 "TemporalConstraints": []
             },
@@ -231,24 +337,26 @@ Output:
                 "Name": "Serve Toast",
                 "Repetition": 1,
                 "Type": "Interaction",
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 1
-                },
                 "Executions": {
                     "Objects": {
                         "Toast": 1,
                         "Plate": 1
                     },
                     "PrimitiveActions": [
+                        "NAVIGATE_TO Toast",
+                        "GRASP Toast",
                         "NAVIGATE_TO Plate",
                         "PLACE_ON_TOP Plate"
                     ]
                 },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
                 "TemporalConstraints": [
                     {
                         "Type": "After",
-                        "Subtask": "Retrieve Toast",
+                        "Subtask": "Retrieve Toast from Oven",
                         "Interval": 0,
                         "Urgency": false
                     },
@@ -265,10 +373,166 @@ Output:
 ]
 
 
+## Example 2
+Input:
+""""Clean the living room and prepare a cup of tea.""""
+
+Output:
+[
+    
+    {
+        "Task": "Prepare Tea",
+        "Subtasks": [
+            {
+                "Name": "Boil Water",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "furniture_sink-zexzrc": 1,
+                        "kettle": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO furniture_sink-zexzrc",
+                        "GRASP kettle",
+                        "NAVIGATE_TO stove",
+                        "PLACE_ON_TOP stove",
+                        "TOGGLE_ON stove",
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Wait for Boil Water",
+                "Repetition": 1,
+                "Type": "Monitoring",
+                "Executions": {
+                    "Objects": {},
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Uncontrollable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Boil Water",
+                        "Interval": 3,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Steep Tea Bag",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "cup": 1,
+                        "tea_bag": 1,
+                        "kettle": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF stove"
+                        "NAVIGATE_TO tea_bag",
+                        "GRASP tea_bag",
+                        "PLACE_ON_TOP cup",
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Boil Water",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Serve Tea",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "cup": 1,
+                        "breakfast_table-skczfi": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP cup",
+                        "NAVIGATE_TO breakfast_table-skczfi",
+                        "PLACE_ON_TOP breakfast_table-skczfi"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Steep Tea Bag",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]
+
+
+## Example 3
+Input:
+""""Pick up the toys scattered in the living room three times""""
+
+
+Output:
+[
+    {
+        "Task": "Clean Living Room",
+        "Subtasks": [
+            {
+                "Name": "Collect Toys",
+                "Repetition": 3,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Toy": 1,
+                        "toy_box": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Toy",
+                        "GRASP Toy",
+                        "NAVIGATE_TO toy_box",
+                        "PLACE_INSIDE toy_box"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": []
+            },
+        ]
+    }
+]
+
+
+
 # [Output Details]
 - Object Amounts: All amounts are specified with real, grounded integers.
-- Intervals: All intervals in "Duration" and "TemporalConstraints" are integers.
+- Intervals: All intervals in "Duration" and "TemporalConstraints" are integers. (time unit is second)
 - Urgency: Avoid setting "Urgency": true when "Interval": 0 in temporal constraints.
+    "Urgency": false should be used with an "Interval" of 0 to indicate that a subtask can start any time after the preceding one finishes.
 
 # [Instructions]
 1. Read the Human Instruction: Carefully understand the natural language instruction provided.
