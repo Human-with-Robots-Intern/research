@@ -16,8 +16,10 @@
                         "Toaster": 1
                     },
                     "PrimitiveActions": [
-                        "Grasp Bread",
-                        "Place_in Bread Toaster"
+                        "NAVIGATE_TO Bread",
+                        "GRASP Bread",
+                        "NAVIGATE_TO Toaster",
+                        "PLACE_INSIDE Toaster"
                     ]
                 },
                 "TemporalConstraints": []
@@ -35,7 +37,7 @@
                         "Toaster": 1
                     },
                     "PrimitiveActions": [
-                        "Toggle_on Toaster"
+                        "TOGGLE_ON Toaster"
                     ]
                 },
                 "TemporalConstraints": [
@@ -60,7 +62,7 @@
                         "Toaster": 1
                     },
                     "PrimitiveActions": [
-                        "Toggle_off Toaster"
+                        "TOGGLE_OFF Toaster"
                     ]
                 },
                 "TemporalConstraints": [
@@ -86,8 +88,9 @@
                         "Table": 1
                     },
                     "PrimitiveActions": [
-                        "Grasp Toast",
-                        "Place_on Table Toast"
+                        "GRASP Toast",
+                        "NAVIGATE_TO Table",
+                        "PLACE_ON_TOP Table"
                     ]
                 },
                 "TemporalConstraints": [
