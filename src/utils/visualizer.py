@@ -17,16 +17,14 @@ def visualize(task_name, constraints, task_plans=None, opt_task_plans=None):
     save_folder_path.mkdir(exist_ok=True)  # Create the folder if it doesn't exist
 
     visualize_graph(constraints, save_folder_path)
-    # visualize_tree(task_plans, opt_task_plans, save_folder_path)
+    visualize_tree(task_plans, opt_task_plans, save_folder_path)
     # plot_gantt_chart(opt_task_plans, save_folder_path)
 
 
-def visualize_tree(tree, opt_tree, save_folder_path):
+def visualize_tree(tree, opt_tree):
     """Export the visualizations of the complete and optimal task trees."""
-    UniqueDotExporter(tree).to_picture(os.path.join(save_folder_path, "task_tree.png"))
-    UniqueDotExporter(opt_tree).to_picture(
-        os.path.join(save_folder_path, "opt_task_tree.png")
-    )
+    UniqueDotExporter(tree).to_picture(Path(save_folder_path) / "task_tree.png")
+    UniqueDotExporter(opt_tree).to_picture(Path(save_folder_path) / "opt_task_tree.png")
 
 
 def visualize_graph(G: nx.DiGraph, save_folder_path="assets/results", is_display=False):

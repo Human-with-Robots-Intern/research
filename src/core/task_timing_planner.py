@@ -12,6 +12,9 @@ class TaskTimingPlanner:
         self.tree_builder = TaskTreeBuilder(agent, tasks, constraints)
         self.task_tree = self.tree_builder.build_tree()
 
+    def get_task_tree(self) -> Node:
+        return self.task_tree
+
     # def get_optimal_paths(self) -> Optional[Tuple[Node, Node]]:
     #     """Generate valid task plans and set the optimal task plan."""
 

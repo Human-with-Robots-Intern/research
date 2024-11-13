@@ -73,13 +73,14 @@ def main():
         tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
         env, agent = init_omnigibson()
         task_timing_planner = TaskTimingPlanner(agent, tasks, task_graph)
-        
+        task_tree = task_timing_planner.get_task_tree()
+
         # Visualize task graph if requested
         if args.visualize:
             visualize(task_name, task_graph)
 
         # planner = ExhaustivePlanner(agent, tasks, constraints)
-        task_plans, opt_task_plans = planner.generate_valid_plans()
+        # task_plans, opt_task_plans = planner.generate_valid_plans()
 
         # # task_plans to schedule & simulate it
         # opt_task_plan = convert_tree_to_schedule(opt_task_plans)
