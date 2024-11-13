@@ -12,20 +12,18 @@ class TaskTree:
         self.agent = agent
         self.root_node = Node(
             name="Init",
-            makespan=0,
+            start=0,
+            end=0,
             duration=0,
-            location=self.agent.position,
-            type="Init",
         )
 
     def add_move_node(self, parent_node: Node, move_cost: int) -> Node:
         return Node(
             name=f"Move ({parent_node.location} -> {self.agent.position})",
             parent=parent_node,
-            makespan=parent_node.makespan + move_cost,
+            start=parent_node.makespan,
+            end=parent_node.makespan + move_cost,
             duration=move_cost,
-            location=self.agent.position,
-            type="Move",
         )
 
     def add_wait_node(
@@ -34,20 +32,18 @@ class TaskTree:
         return Node(
             name=f"Wait_for_{subtask.name}",
             parent=parent_node,
-            makespan=parent_node.makespan + wait_time,
+            start=parent_node.makespan,
+            end=parent_node.makespan + wait_time,
             duration=wait_time,
-            location=parent_node.location,
-            type="Wait",
         )
 
     def add_subtask_node(self, parent_node: Node, subtask: Subtask) -> Node:
         return Node(
             name=subtask.name,
             parent=parent_node,
-            makespan=parent_node.makespan + subtask.duration.interval,
+            start=parent_node.makespan,
+            end=parent_node.makespan + subtask.duration.interval,
             duration=subtask.duration.interval,
-            location=f"{subtask.roi.room}:{subtask.roi.asset}",
-            type=subtask.type,
         )
 
 
@@ -80,7 +76,8 @@ class TaskTreeBuilder:
 
         # TODO RRT로 이동 비용 계산 -> environment 정보 필요
         move_cost = 0
-        parent_node = self.tree.add_move_node(parent_node, move_cost)
+        if move_cost:
+            parent_node = self.tree.add_move_node(parent_node, move_cost)
 
         # 시간 슬롯 처리
         time_slot, _ = self.slot_handler.compress_time_slots(

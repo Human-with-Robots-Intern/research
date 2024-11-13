@@ -3,7 +3,7 @@ import signal
 
 ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROMPT_PATH = os.path.join(ROOT_PATH, "assets", "prompts")
-ASSET_PATH = os.path.join(ROOT_PATH, "assets", "results")
+VIS_PATH = os.path.join(ROOT_PATH, "assets", "results")
 TASK_PATH = os.path.join(ROOT_PATH, "assets", "tasks")
 LOG_PATH = os.path.join(ROOT_PATH, "logs")
 

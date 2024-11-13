@@ -1,4 +1,4 @@
-from .task import ScheduledTask, Subtask, Task, TaskGraphBuilder
+from .task import Subtask, Task, TaskGraphBuilder
 from .task_timing_planner import TaskTimingPlanner
 
-__all__ = ["ScheduledTask", "Subtask", "Task", "TaskGraphBuilder", "TaskTimingPlanner"]
+__all__ = ["Subtask", "Task", "TaskGraphBuilder", "TaskTimingPlanner"]

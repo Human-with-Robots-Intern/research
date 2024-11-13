@@ -7,6 +7,7 @@ class Agent:
         self.robot = robot
         self.task_knowledge = dict()
         self.action_knowledge = dict()
+        self.position = "Somewhere"
         if config is None:
             config = Config()
         self.config = config

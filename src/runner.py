@@ -5,7 +5,7 @@ import torch as th
 import yaml
 
 import omnigibson as og
-from archive.agent import Agent
+from core.agent import Agent
 from omnigibson.action_primitives.action_primitive_set_base import (
     ActionPrimitiveErrorGroup,
 )
@@ -80,7 +80,7 @@ def execute_task(env):
 
     try:
         _execute_controller(
-            controller.apply_ref(StarterSemanticActionPrimitiveSet.NAVIGATE_TO, apple),
+            controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple),
             env,
         )
 

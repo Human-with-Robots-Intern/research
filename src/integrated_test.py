@@ -22,18 +22,16 @@ def parse_arguments():
         default="new",
     )
     parser.add_argument(
-        "-d",
+        "-de",
         "--decomposition",
-        help="Enable or disable decomposition [True, False]",
-        type=lambda x: x.lower() == "true",
-        default=False,
+        help="Enable or disable decomposition",
+        action="store_true",
     )
     parser.add_argument(
         "-v",
         "--visualize",
         help="Enable visualization of the task plan",
-        type=lambda x: x.lower() == "true",
-        default=False,
+        action="store_true",
     )
     return parser.parse_args()
 
@@ -68,32 +66,22 @@ def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
 
-    try:
-        task_name, task_data = load_task_data(args.name)
-        tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
-        env, agent = init_omnigibson()
-        task_timing_planner = TaskTimingPlanner(agent, tasks, task_graph)
-        task_tree = task_timing_planner.get_task_tree()
+    task_name, task_data = load_task_data(args.name)
+    tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
+    env, agent = init_omnigibson()
+    task_timing_planner = TaskTimingPlanner(agent, tasks, task_graph)
+    task_tree = task_timing_planner.get_task_tree()
 
-        # Visualize task graph if requested
-        if args.visualize:
-            visualize(task_name, task_graph)
+    # execute_task(env)
+    # Visualize task graph if requested
+    if args.visualize:
+        visualize(task_name, task_graph, task_tree)
 
-        # planner = ExhaustivePlanner(agent, tasks, constraints)
-        # task_plans, opt_task_plans = planner.generate_valid_plans()
+    # # task_plans to schedule & simulate it
+    # opt_task_plan = convert_tree_to_schedule(opt_task_plans)
+    # simulated_task_plan = simulate_task_plan(opt_task_plan)
 
-        # # task_plans to schedule & simulate it
-        # opt_task_plan = convert_tree_to_schedule(opt_task_plans)
-        # simulated_task_plan = simulate_task_plan(opt_task_plan)
-
-        # agent.estimate_tasks(opt_task_plan, simulated_task_plan)
-
-    except FileNotFoundError as e:
-        print(f"[ERROR] {e}")
-    except json.JSONDecodeError:
-        print("[ERROR] Failed to parse JSON task file. Please check the file format.")
-    except Exception as e:
-        print(f"[ERROR] An unexpected error occurred: {e}")
+    # agent.estimate_tasks(opt_task_plan, simulated_task_plan)
 
 
 if __name__ == "__main__":

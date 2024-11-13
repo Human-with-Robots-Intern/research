@@ -4,7 +4,7 @@
         "Subtasks": [
             {
                 "Name": "Place_in Bread Toaster",
-                "Repetition": 2,
+                "Repetition": 1,
                 "Type": "Interaction",
                 "Duration": {
                     "Type": "Controllable",

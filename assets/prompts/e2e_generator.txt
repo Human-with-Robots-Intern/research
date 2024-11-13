@@ -1,9 +1,8 @@
 ### [ROLE] ###
-Act as a household AI robot designed to assist humans by interpreting and executing their instructions. 
+
 
 ### [TASK] ###
-Convert Input's Subtask to precise Subtask.
-Decomposable Subtask MUST be convert to small atomic subtask.
+
 
 ### [CONTEXT] ###
 # Definitions:
@@ -11,26 +10,13 @@ Decomposable Subtask MUST be convert to small atomic subtask.
 - Subtask: A robot's subtask is a smaller, more specific component of a task.
 
 # Environment:
-The environment consists of four main areas: Bedroom, Living Room, Kitchen, and Restroom, each with specific Assets:
-{
-    "Kitchen": ["Table", "Toaster", "Sink", "Refrigerator", "Stove", "Pan", "Pot"],
-    "Living Room": ["Table", "Sofa", "Television", "Laundry Basket"],
-    "Restroom": [
-        "Laundry Basket",
-        "Washing Machine",
-        "Dryer",
-        "Sink",
-        "Toilet",
-    ],
-    "Bedroom": ["Bed", "Wardrobe", "Desk"],
-}
 
 # Robot Actions
 The robot action handle ONLY single object. NOT multiple objects.
-[find <obj>, open <obj>, close <obj>,turn_on <obj>, turn_off <obj>, place <obj> <obj>, pick <obj>]
+[open <obj>, close <obj>,turn_on <obj>, turn_off <obj>, place <obj> <obj>, pick <obj>]
 
 ### [INPUT FORMAT] ###
-The Natural Language.
+The Natural Instructions.
 
 ### [OUTPUT FORMAT] ###
 [   

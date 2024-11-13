@@ -12,6 +12,7 @@ class SlotHandler:
     def handle_time_slots(
         self,
         parent_node: Node,
+        subtask: Subtask,
         remaining_subtasks: List[Subtask],
         time_slot: int,
         get_expandable_subtasks: Callable[[Node, List[Subtask]], List[Subtask]],

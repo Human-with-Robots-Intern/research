@@ -6,28 +6,42 @@ import networkx as nx
 from anytree import Node
 from anytree.exporter import UniqueDotExporter
 
-from src.utils import ROOT_PATH
+from src.utils import VIS_PATH
 
 
 # from src.core.schedule import convert_tree_to_schedule
-def visualize(task_name, constraints, task_plans=None, opt_task_plans=None):
-
+def visualize(task_name, constraints, task_tree=None, opt_task_tree=None):
     folder_name = datetime.now().strftime("%Y-%m-%d_%H") + f"_{task_name}"
-    save_folder_path = Path(ROOT_PATH) / f"assets/results/{folder_name}"
+    save_folder_path = Path(VIS_PATH) / folder_name
     save_folder_path.mkdir(exist_ok=True)  # Create the folder if it doesn't exist
 
     visualize_graph(constraints, save_folder_path)
-    visualize_tree(task_plans, opt_task_plans, save_folder_path)
+    visualize_tree(task_tree, opt_task_tree, save_folder_path)
     # plot_gantt_chart(opt_task_plans, save_folder_path)
 
 
-def visualize_tree(tree, opt_tree):
+def visualize_tree(task_tree, opt_task_tree, save_folder_path):
     """Export the visualizations of the complete and optimal task trees."""
-    UniqueDotExporter(tree).to_picture(Path(save_folder_path) / "task_tree.png")
-    UniqueDotExporter(opt_tree).to_picture(Path(save_folder_path) / "opt_task_tree.png")
+    if task_tree:
+        UniqueDotExporter(task_tree).to_picture(
+            Path(save_folder_path) / "task_tree.png"
+        )
+    elif opt_task_tree:
+        UniqueDotExporter(opt_task_tree).to_picture(
+            Path(save_folder_path) / "opt_task_tree.png"
+        )
+    elif task_tree and opt_task_tree:
+        UniqueDotExporter(task_tree).to_picture(
+            Path(save_folder_path) / "task_tree.png"
+        )
+        UniqueDotExporter(opt_task_tree).to_picture(
+            Path(save_folder_path) / "opt_task_tree.png"
+        )
+    else:
+        raise ValueError("Either task_tree or opt_task_tree must be provided.")
 
 
-def visualize_graph(G: nx.DiGraph, save_folder_path="assets/results", is_display=False):
+def visualize_graph(G: nx.DiGraph, save_folder_path):
     pos = nx.spring_layout(G, k=0.5)  # Adjusting the k value for layout optimization
     plt.figure(figsize=(10, 8))  # Adjust the figure size to make it more readable
 
@@ -82,10 +96,6 @@ def visualize_graph(G: nx.DiGraph, save_folder_path="assets/results", is_display
 
     # Save the plot to a file
     plt.savefig(Path(save_folder_path) / "task_graph.png")
-
-    # Display the plot
-    if is_display:
-        plt.show()
 
 
 def plot_gantt_chart(root: Node, save_folder_path, is_display=False):

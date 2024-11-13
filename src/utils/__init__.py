@@ -1,5 +1,5 @@
 from .task_generator import main
-from .util import ASSET_PATH, LOG_PATH, PROMPT_PATH, ROOT_PATH, TASK_PATH
+from .util import LOG_PATH, PROMPT_PATH, ROOT_PATH, TASK_PATH, VIS_PATH
 from .visualizer import visualize
 
 __all__ = [
@@ -7,7 +7,7 @@ __all__ = [
     "visualize",
     "ROOT_PATH",
     "PROMPT_PATH",
-    "ASSET_PATH",
+    "VIS_PATH",
     "TASK_PATH",
     "LOG_PATH",
 ]
