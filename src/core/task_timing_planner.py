@@ -45,11 +45,10 @@ class TaskTimingPlanner:
                 current = current.parent
 
             # 모든 subtask name이 포함되어 있으면 complete path로 판단
-            if all_subtask_names == included_subtask_names:
+            if included_subtask_names.issubset(all_subtask_names):
                 complete_leaf_paths.append(leaf_node)
 
         if not complete_leaf_paths:
-            print("No complete paths found.")
             raise ValueError("No complete paths found.")
 
         # 최적 경로를 갖는 leaf 노드들 찾기

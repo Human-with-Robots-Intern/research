@@ -7,10 +7,11 @@ import json
 from pathlib import Path
 
 from core.task_timing_planner import TaskTimingPlanner
-from runner import execute_task, init_omnigibson
+
+# from runner import execute_task, init_omnigibson
 from src.core import Task, TaskGraphBuilder
-from utils import ROOT_PATH, main, visualize
-from utils.task_generator import generate_task
+from utils import ROOT_PATH, generate_task, visualize
+from utils.util import TASK_PATH
 
 
 def parse_arguments():
@@ -20,7 +21,7 @@ def parse_arguments():
         "-n",
         "--name",
         help="Select the goal [laundry, cook, toast, etc.]",
-        default="new",
+        default="make_coffee",
     )
     parser.add_argument(
         "-de",
@@ -39,9 +40,13 @@ def parse_arguments():
 
 def load_task_data(task_name: str) -> dict:
     """Load task data from a JSON file."""
-    if task_name == "all":
-        task_name = generate_task()
-    file_path = Path(ROOT_PATH) / f"assets/tasks/task_{task_name}.json"
+    if task_name == "new":
+        try:
+            task_name = generate_task()
+        except ValueError as e:
+            raise ValueError(f"Error generating task: {e}")
+
+    file_path = Path(TASK_PATH) / f"task_{task_name}.json"
 
     if not file_path.exists():
         raise FileNotFoundError(f"Task file not found: {file_path}")

@@ -1,0 +1,108 @@
+[
+    {
+        "Task": "Make Coffee",
+        "Subtasks": [
+            {
+                "Name": "Wait for Water to Boil",
+                "Repetition": 1,
+                "Type": "Monitoring",
+                "Executions": {
+                    "Objects": {},
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Uncontrollable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Boil Water",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Fill Kettle with Water",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "kettle": 1,
+                        "furniture_sink-zexzrc": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP kettle",
+                        "PLACE_ON_TOP furniture_sink-zexzrc"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Boil Water",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "kettle": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP kettle",
+                        "PLACE_ON_TOP stove",
+                        "TOGGLE_ON stove"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Fill Kettle with Water",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Brew Coffee",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "cup": 1,
+                        "coffee_ground": 1,
+                        "kettle": 1,
+                        "countertop-tpuwys": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF stove",
+                        "GRASP coffee_ground",
+                        "PLACE_ON_TOP cup",
+                        "GRASP kettle",
+                        "PLACE_ON_TOP cup",
+                        "PLACE_ON_TOP countertop-tpuwys"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 4
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Wait for Water to Boil",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]

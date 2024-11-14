@@ -22,18 +22,20 @@ def visualize(task_name, constraints, task_tree=None, opt_task_tree=None):
 
 def visualize_tree(task_tree, opt_task_tree, save_folder_path):
     """Export the visualizations of the complete and optimal task trees."""
-    if task_tree:
+
+    if task_tree and opt_task_tree:
+        print(f"{opt_task_tree=}")
+        UniqueDotExporter(task_tree).to_picture(
+            Path(save_folder_path) / "task_tree.png"
+        )
+        UniqueDotExporter(opt_task_tree).to_picture(
+            Path(save_folder_path) / "opt_task_tree.png"
+        )
+    elif task_tree:
         UniqueDotExporter(task_tree).to_picture(
             Path(save_folder_path) / "task_tree.png"
         )
     elif opt_task_tree:
-        UniqueDotExporter(opt_task_tree).to_picture(
-            Path(save_folder_path) / "opt_task_tree.png"
-        )
-    elif task_tree and opt_task_tree:
-        UniqueDotExporter(task_tree).to_picture(
-            Path(save_folder_path) / "task_tree.png"
-        )
         UniqueDotExporter(opt_task_tree).to_picture(
             Path(save_folder_path) / "opt_task_tree.png"
         )

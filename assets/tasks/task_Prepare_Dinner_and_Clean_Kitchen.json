@@ -1,0 +1,147 @@
+[
+    {
+        "Task": "Prepare Dinner and Clean Kitchen",
+        "Subtasks": [
+            {
+                "Name": "Retrieve Ingredients from Fridge",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "fridge-xyejdx": 1,
+                        "Ingredients": 1
+                    },
+                    "PrimitiveActions": [
+                        "OPEN fridge-xyejdx",
+                        "GRASP Ingredients",
+                        "CLOSE fridge-xyejdx"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Cook Ingredients",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Ingredients": 1,
+                        "stove": 1,
+                        "CookingPot": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Ingredients",
+                        "GRASP CookingPot",
+                        "PLACE_ON_TOP stove",
+                        "TOGGLE_ON stove"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Uncontrollable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Retrieve Ingredients from Fridge",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Serve Dinner",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Dinner": 1,
+                        "dining_table": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Dinner",
+                        "PLACE_ON_TOP dining_table"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Cook Ingredients",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Clean Kitchen Counter",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "countertop-tpuwys": 1,
+                        "cloth": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP cloth",
+                        "PLACE_ON_TOP countertop-tpuwys",
+                        "GRASP countertop-tpuwys",
+                        "PLACE_ON_TOP cloth"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 4
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Serve Dinner",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Load Dishwasher",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "dinner_plates": 1,
+                        "dishwasher-xlmier": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP dinner_plates",
+                        "OPEN dishwasher-xlmier",
+                        "PLACE_INSIDE dishwasher-xlmier",
+                        "CLOSE dishwasher-xlmier"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Clean Kitchen Counter",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ],
+                "InvalidActions": [
+                    "NAVIGATE_TO dinner_plates",
+                    "NAVIGATE_TO dishwasher-xlmier"
+                ]
+            }
+        ]
+    }
+]

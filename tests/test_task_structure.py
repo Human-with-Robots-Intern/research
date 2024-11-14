@@ -66,31 +66,6 @@ class TestTaskSystem(TestCase):
         self.assertTrue(graph.has_edge("Toggle_on Toaster", "Toggle_off Toaster"))
         logger.info("test_task_graph passed.")
 
-    # def test_scheduler_simulation(self):
-    #     tasks = Task.parse_instruction(self.json_data)
-    #     subtasks = tasks[0].subtasks
-
-    #     # 서브태스크를 기반으로 스케줄 생성
-    #     task_plan = [
-    #         ScheduledTask(
-    #             name=subtask.name, start=0, end=0, duration=subtask.duration.interval
-    #         )
-    #         for subtask in subtasks
-    #     ]
-
-    #     scheduler = Scheduler(task_plan)
-
-    #     # 스케줄 시뮬레이션
-    #     simulated_plan = scheduler.simulate_task_plan()
-
-    #     self.assertEqual(len(simulated_plan), 4)  # 4개의 서브태스크 스케줄 확인
-    #     self.assertGreater(
-    #         simulated_plan[0].end, simulated_plan[0].start
-    #     )  # 종료 시간 > 시작 시간 확인
-    #     self.assertGreater(
-    #         simulated_plan[-1].end, simulated_plan[-2].end
-    #     )  # 각 서브태스크가 순차적으로 실행됨을 확인
-
 
 if __name__ == "__main__":
     try:
