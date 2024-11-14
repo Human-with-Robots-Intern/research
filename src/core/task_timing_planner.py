@@ -15,7 +15,6 @@ class TaskTimingPlanner:
         self.task_tree = self.tree_builder.build_tree()
 
     def get_task_trees(self) -> Node:
-        self._print_plan(self.task_tree)
         opt_task_tree = self._get_optimal_tree()
         self._print_plan(opt_task_tree)
         return self.task_tree, opt_task_tree

@@ -2,12 +2,9 @@ import argparse
 import json
 from pathlib import Path
 
-from core.task_timing_planner import TaskTimingPlanner
-
 # from runner import execute_task, init_omnigibson
-from src.core import Task, TaskGraphBuilder
-from utils import ROOT_PATH, generate_task, visualize
-from utils.util import TASK_PATH
+from core import Agent, Task, TaskGraphBuilder, TaskTimingPlanner
+from utils import TASK_PATH, generate_task, visualize
 
 
 def parse_arguments():
@@ -71,8 +68,10 @@ def main():
     task_name, task_data = load_task_data(args.name)
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
     # env, agent = init_omnigibson()
+    dummy_agent = Agent(None, None)
+
     task_timing_planner = TaskTimingPlanner(
-        agent=1, tasks=tasks, constraints=task_graph
+        agent=dummy_agent, tasks=tasks, constraints=task_graph
     )
     task_trees = task_timing_planner.get_task_trees()
 

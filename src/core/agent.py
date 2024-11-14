@@ -1,16 +1,17 @@
+import json
+from pathlib import Path
+
 import numpy as np
 from scipy.stats import norm
+
+from utils import KNOWLEDGE_PATH
 
 
 class Agent:
     def __init__(self, robot, config=None):
         self.robot = robot
-        self.task_knowledge = dict()
-        self.action_knowledge = dict()
-        self.position = "Somewhere"
-        if config is None:
-            config = Config()
-        self.config = config
+        self.knowledge = json.load(open(Path(KNOWLEDGE_PATH) / "knowledge.json", "r"))
+        self.config = config or Config()
 
     def bayesian_estimation(self, dist, elapsed_time, obs_var=0.001):
         prior_mean, prior_variance = dist.mean(), dist.var()
