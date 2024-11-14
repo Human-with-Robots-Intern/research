@@ -91,6 +91,9 @@ class TaskTreeBuilder:
             return
 
         if time_slot > 0:
+            # TODO subtask 소요 시간을 agent로부터 받아와야 함
+            # Run subtask and update knowledge
+            subtask.duration = self.agent.run_subtask(subtask)
             # 시간 슬롯 내에서 서브태스크 처리
             parent_node, wait_time, remaining_subtasks = (
                 self.slot_handler.handle_time_slots(
