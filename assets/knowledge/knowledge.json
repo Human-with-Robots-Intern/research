@@ -1,5 +1,5 @@
 {
-    "PremitiveActions": {
+    "Valid_actions": {
         "GRASP": 1,
         "PLACE_INSIDE": 1,
         "PLACE_ON_TOP": 1,
@@ -8,5 +8,6 @@
         "OPEN": 1,
         "CLOSE": 1
     },
+    "Invalid_actions": {},
     "Subtask": {}
 }

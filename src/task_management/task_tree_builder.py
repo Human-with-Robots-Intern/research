@@ -9,7 +9,7 @@ from task_management.rule import ConstraintHandler, SlotHandler
 
 class TaskTree:
     def __init__(self, agent: "Agent"):
-        self.agent = 1
+        self.agent = agent
         self.root_node = Node(
             name="Init",
             start=0,

@@ -10,6 +10,7 @@ from core.task_timing_planner import TaskTimingPlanner
 from runner import execute_task, init_omnigibson
 from src.core import Task, TaskGraphBuilder
 from utils import ROOT_PATH, main, visualize
+from utils.task_generator import generate_task
 
 
 def parse_arguments():
@@ -39,7 +40,7 @@ def parse_arguments():
 def load_task_data(task_name: str) -> dict:
     """Load task data from a JSON file."""
     if task_name == "all":
-        task_name = main()
+        task_name = generate_task()
     file_path = Path(ROOT_PATH) / f"assets/tasks/task_{task_name}.json"
 
     if not file_path.exists():
@@ -69,17 +70,14 @@ def main():
     task_name, task_data = load_task_data(args.name)
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
     # env, agent = init_omnigibson()
-    task_timing_planner = TaskTimingPlanner(1, tasks, task_graph)
+    task_timing_planner = TaskTimingPlanner(
+        agent=1, tasks=tasks, constraints=task_graph
+    )
     task_trees = task_timing_planner.get_task_trees()
 
     # execute_task(env)
     if args.visualize:
         visualize(task_name, task_graph, *task_trees)
-
-    # task_plans to schedule & simulate it
-    # opt_task_plan = convert_tree_to_schedule(opt_task_plans)
-    # simulated_task_plan = simulate_task_plan(opt_task_plan)
-    # agent.estimate_tasks(opt_task_plan, simulated_task_plan)
 
 
 if __name__ == "__main__":
