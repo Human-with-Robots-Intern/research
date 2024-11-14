@@ -1,7 +1,3 @@
-# main.py
-
-# main.py
-
 import argparse
 import json
 from pathlib import Path
@@ -21,7 +17,7 @@ def parse_arguments():
         "-n",
         "--name",
         help="Select the goal [laundry, cook, toast, etc.]",
-        default="make_coffee",
+        default="Prepare_Coffee",
     )
     parser.add_argument(
         "-de",

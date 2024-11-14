@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 def initialize_openai() -> openai.OpenAI:
     """Load OpenAI API key from environment variables and initialize the client."""
-    load_dotenv()
+    # load_dotenv()
     openai_api_key = os.environ.get("OPENAI_API_KEY")
     if not openai_api_key:
         logger.error("OPENAI_API_KEY not found in environment variables.")
@@ -27,6 +28,9 @@ def initialize_openai() -> openai.OpenAI:
 
 
 client = initialize_openai()
+
+# Task cache for deduplication
+task_cache = {}
 
 
 def load_prompt(file_path: Path) -> str:
@@ -113,32 +117,22 @@ def validate_actions(
 
 
 def regenerate_invalid_subtasks(
-    invalid_subtasks: List[Dict[str, Any]],
-    full_prompt: List[Dict[str, str]],
-    knowledge: Dict[str, Any],
+    invalid_subtasks: List[Dict[str, Any]], knowledge: Dict[str, Any]
 ) -> List[Dict[str, Any]]:
     """Regenerate invalid subtasks."""
-    new_subtasks = []
+    regenerated_subtasks = []
     valid_actions = list(knowledge.get("Valid_actions", {}).keys())
+
     for subtask in invalid_subtasks:
         invalid_actions = subtask.get("InvalidActions", [])
-        regenerate_prompt = full_prompt + [
+        regenerate_prompt = [
             {
                 "role": "user",
                 "content": (
-                    "The following subtask contains disallowed actions:\n"
-                    f"Disallowed actions: {', '.join(invalid_actions)}\n"
-                    f"Allowed actions: {', '.join(valid_actions)}\n"
-                    "Please modify the subtask to include only valid actions.\n"
-                    "Keep the existing structure and content as much as possible and make only necessary changes.\n"
-                    "\n[Subtask]\n"
+                    f"The subtask contains invalid actions: {', '.join(invalid_actions)}.\n"
+                    f"Valid actions are: {', '.join(valid_actions)}.\n"
+                    "Please correct the invalid actions in the subtask below:\n"
                     f"{json.dumps(subtask, indent=4, ensure_ascii=False)}\n"
-                    "\n[Instructions]\n"
-                    "- Replace invalid actions in 'PrimitiveActions' with valid ones.\n"
-                    "- Maintain the order and logic of actions as much as possible.\n"
-                    "- Update 'Objects' if necessary.\n"
-                    "- Return the result in JSON format.\n"
-                    "- Do not include unnecessary comments or additional text in the output.\n"
                 ),
             }
         ]
@@ -149,13 +143,86 @@ def regenerate_invalid_subtasks(
             regenerated_content = response.choices[0].message.content.strip()
             regenerated_content = regenerated_content.strip("```json").strip("```")
             new_subtask = json.loads(regenerated_content)
-            new_subtasks.append(new_subtask)
-            logger.info(f"Successfully regenerated subtask '{subtask['Name']}'.")
+            regenerated_subtasks.append(new_subtask)
         except Exception as e:
-            logger.error(
-                f"Error occurred while regenerating subtask '{subtask['Name']}': {e}"
+            logger.error(f"Error during subtask regeneration: {e}")
+
+    return regenerated_subtasks
+
+
+def regenerate_subtasks_parallel(
+    invalid_subtasks: List[Dict[str, Any]], knowledge: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """Regenerate invalid subtasks in parallel."""
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        results = executor.map(
+            lambda subtask: regenerate_invalid_subtasks([subtask], knowledge),
+            invalid_subtasks,
+        )
+    return [subtask for result in results for subtask in result]
+
+
+def cached_generate_and_validate_task(
+    full_prompt: List[Dict[str, str]], knowledge: Dict[str, Any]
+) -> Optional[List[Dict[str, Any]]]:
+    """Check cache before generating tasks."""
+    prompt_hash = hash(json.dumps(full_prompt, sort_keys=True))
+    if prompt_hash in task_cache:
+        logger.info("Using cached result.")
+        return task_cache[prompt_hash]
+
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o", messages=full_prompt
             )
-    return new_subtasks
+            output_content = response.choices[0].message.content.strip()
+
+            if "```json" in output_content:
+                output_content = output_content.strip("```json").strip("```")
+
+            output = json.loads(output_content)
+
+            if validate_output_format(output):
+                task_cache[prompt_hash] = output
+                return output
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decoding failed: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+
+    logger.error("Failed to generate valid output after retries.")
+    return None
+
+
+def generate_task():
+    """Main function to generate tasks based on user input."""
+    prompt_file_path = Path(PROMPT_PATH) / "e2e_generator.txt"
+    knowledge_file_path = Path(KNOWLEDGE_PATH) / "knowledge.json"
+    examples_prompt = load_prompt(prompt_file_path)
+    knowledge = load_knowledge(knowledge_file_path)
+
+    user_input = input("Please enter the instructions: ").strip()
+    if not user_input:
+        logger.error("User input cannot be empty.")
+        raise ValueError("User input cannot be empty.")
+
+    full_prompt = [
+        {"role": "system", "content": examples_prompt},
+        {"role": "user", "content": f"# [Input]\n\n{user_input}"},
+    ]
+
+    output = cached_generate_and_validate_task(full_prompt, knowledge)
+
+    if output and validate_output_format(output):
+        sanitized_name = sanitize_file_name(output[0].get("Task", "output"))
+        output_file_path = Path(TASK_PATH) / f"task_{sanitized_name}.json"
+        save_to_file(output, output_file_path)
+        return sanitized_name
+    else:
+        logger.error("Failed to generate output.")
+        raise ValueError("Task generation failed.")
 
 
 def save_to_file(data: Any, file_path: Path) -> None:
@@ -168,109 +235,6 @@ def save_to_file(data: Any, file_path: Path) -> None:
     except IOError as e:
         logger.error(f"Error occurred while saving file: {e}")
         raise
-
-
-def is_valid_output(output: List[Dict[str, Any]]) -> bool:
-    """Validate if the output has a valid structure."""
-    if not validate_output_format(output):
-        return False
-    for task in output:
-        if not task["Subtasks"]:
-            return False
-    return True
-
-
-def generate_and_validate_task(
-    full_prompt: List[Dict[str, str]], knowledge: Dict[str, Any]
-) -> Optional[List[Dict[str, Any]]]:
-    """Generate tasks and validate their format and actions."""
-    max_retries = 5
-    for attempt in range(1, max_retries + 1):
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o", messages=full_prompt
-            )
-            output_content = response.choices[0].message.content.strip()
-            output_content = output_content.strip("```json").strip("```")
-            output = json.loads(output_content)
-
-            if not validate_output_format(output):
-                logger.warning(f"Attempt {attempt}: Output format is invalid.")
-                full_prompt.append(
-                    {
-                        "role": "user",
-                        "content": (
-                            "The output format does not match the required format.\n"
-                            "Please strictly follow the format and guidelines provided in the examples.\n"
-                            "Do not include any additional text or explanations.\n"
-                            "Return the result in the specified JSON format.\n"
-                        ),
-                    }
-                )
-                continue
-
-            valid_subtasks, invalid_subtasks = validate_actions(output, knowledge)
-            if invalid_subtasks:
-                logger.info("Invalid actions detected. Regenerating subtasks...")
-                regenerated_subtasks = regenerate_invalid_subtasks(
-                    invalid_subtasks, full_prompt, knowledge
-                )
-                for task in output:
-                    task["Subtasks"] = valid_subtasks + regenerated_subtasks
-
-            return output
-        except json.JSONDecodeError as e:
-            logger.error(f"Attempt {attempt}: Failed to parse JSON: {e}")
-            full_prompt.append(
-                {
-                    "role": "user",
-                    "content": (
-                        "The output could not be parsed as valid JSON.\n"
-                        "Return only the JSON output in the specified format without any additional text or explanations.\n"
-                        "Do not use code blocks or markdown formatting.\n"
-                    ),
-                }
-            )
-            continue
-        except Exception as e:
-            logger.error(f"Attempt {attempt}: Error occurred: {e}")
-            return None
-    logger.error(f"Failed to generate valid output after {max_retries} attempts.")
-    return None
-
-
-def generate_task():
-    """Main function to generate tasks based on user input."""
-    # Load prompt template and knowledge base
-    prompt_file_path = Path(PROMPT_PATH) / "e2e_generator.txt"
-    knowledge_file_path = Path(KNOWLEDGE_PATH) / "knowledge.json"
-    examples_prompt = load_prompt(prompt_file_path)
-    knowledge = load_knowledge(knowledge_file_path)
-
-    # Get user input
-    user_input = input("Please enter the instructions: ").strip()
-    if not user_input:
-        logger.error("User input cannot be empty.")
-        raise ValueError("User input cannot be empty.")
-
-    # Construct the prompt
-    full_prompt = [
-        {"role": "system", "content": examples_prompt},
-        {"role": "user", "content": f"# [Input]\n\n{user_input}"},
-    ]
-
-    # Generate and validate tasks
-    output = generate_and_validate_task(full_prompt, knowledge)
-
-    # Save final validated output
-    if output and is_valid_output(output):
-        sanitized_name = sanitize_file_name(output[0].get("Task", "output"))
-        output_file_path = Path(TASK_PATH) / f"task_{sanitized_name}.json"
-        save_to_file(output, output_file_path)
-        return sanitized_name
-    else:
-        logger.error("Failed to generate output.")
-        raise ValueError("Task generation failed.")
 
 
 if __name__ == "__main__":

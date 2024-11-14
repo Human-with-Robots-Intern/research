@@ -1,3 +1,4 @@
+import copy
 from typing import List, Optional, Tuple
 
 import networkx as nx
@@ -14,7 +15,10 @@ class TaskTimingPlanner:
         self.task_tree = self.tree_builder.build_tree()
 
     def get_task_trees(self) -> Node:
-        return self.task_tree, self._get_optimal_tree()
+        self._print_plan(self.task_tree)
+        opt_task_tree = self._get_optimal_tree()
+        self._print_plan(opt_task_tree)
+        return self.task_tree, opt_task_tree
 
     def _get_optimal_tree(self) -> Node:
         """Traverse self.task_tree to find the optimal path and return it
@@ -22,8 +26,8 @@ class TaskTimingPlanner:
         Returns:
             Node: Node from self.task_tree with only the optimal path left
         """
-
-        leaf_nodes = self._get_leaf_nodes(self.task_tree)
+        task_tree = copy.deepcopy(self.task_tree)
+        leaf_nodes = self._get_leaf_nodes(task_tree)
 
         all_subtask_names = {
             subtask.name for task in self.tasks for subtask in task.subtasks
@@ -45,7 +49,7 @@ class TaskTimingPlanner:
                 current = current.parent
 
             # 모든 subtask name이 포함되어 있으면 complete path로 판단
-            if included_subtask_names.issubset(all_subtask_names):
+            if included_subtask_names == all_subtask_names:
                 complete_leaf_paths.append(leaf_node)
 
         if not complete_leaf_paths:
@@ -79,8 +83,8 @@ class TaskTimingPlanner:
                 return node
 
         # Step 7: Get the filtered tree containing only the optimal paths
-        filtered_tree_root = prune_tree(self.task_tree)
-        self._print_plan(filtered_tree_root)
+        filtered_tree_root = prune_tree(task_tree)
+
         return filtered_tree_root
 
     # 모든 leaf 노드 찾기

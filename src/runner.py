@@ -29,8 +29,8 @@ file_handler = logging.FileHandler(f"{log_path}/{__name__}.log", "a")
 file_handler.setFormatter(
     logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 )
-
 log.addHandler(file_handler)
+
 gm.USE_GPU_DYNAMICS = False
 gm.ENABLE_FLATCACHE = True
 

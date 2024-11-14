@@ -1,0 +1,143 @@
+[
+    {
+        "Task": "Prepare Coffee",
+        "Subtasks": [
+            {
+                "Name": "Boil Water",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "furniture_sink-zexzrc": 1,
+                        "kettle": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO furniture_sink-zexzrc",
+                        "GRASP kettle",
+                        "NAVIGATE_TO stove",
+                        "PLACE_ON_TOP stove",
+                        "TOGGLE_ON stove"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Brew Coffee",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "coffee_mug": 1,
+                        "coffee_grounds": 1,
+                        "kettle": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF stove",
+                        "NAVIGATE_TO coffee_grounds",
+                        "GRASP coffee_grounds",
+                        "PLACE_ON_TOP coffee_mug"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 4
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Boil Water",
+                        "Interval": 5,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Serve Coffee",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "coffee_mug": 1,
+                        "breakfast_table-skczfi": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP coffee_mug",
+                        "NAVIGATE_TO breakfast_table-skczfi",
+                        "PLACE_ON_TOP breakfast_table-skczfi"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Brew Coffee",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "Task": "Wash Dishes",
+        "Subtasks": [
+            {
+                "Name": "Gather Dishes",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "dish": 1,
+                        "sink": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO dish",
+                        "GRASP dish",
+                        "NAVIGATE_TO furniture_sink-zexzrc",
+                        "PLACE_INSIDE furniture_sink-zexzrc"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Wash Dishes",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "dish": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO dish",
+                        "GRASP dish",
+                        "NAVIGATE_TO water_source",
+                        "PLACE_INSIDE water_source"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Gather Dishes",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]
