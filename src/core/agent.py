@@ -6,6 +6,7 @@ from typing import Any, Dict
 import numpy as np
 from scipy.stats import norm
 
+from core.task import Subtask
 from utils import KNOWLEDGE_PATH
 
 # Assume Subtask, Duration, and other dependencies are imported
@@ -67,7 +68,7 @@ class Agent:
             json.dump(self.knowledge, f, indent=4, ensure_ascii=False)
         print("Knowledge saved successfully.")
 
-    def adjust_task_duration(self, subtask: "Subtask") -> float:
+    def get_task_duration(self, subtask: Subtask) -> float:
         """
         Adjust the expected duration of a subtask based on the agent's knowledge
         """
@@ -75,10 +76,9 @@ class Agent:
         # agent가 알고 있는 subtask의 정보가 있으면 그 정보를 사용
         if subtask_data:
             expected_duration = subtask_data.get("expected_duration")
-            variance = subtask_data.get("variance", 1.0)
         else:
             # If no prior knowledge, calculate from actions
-            expected_duration = self.calculate_subtask_duration_from_actions(subtask)
+            expected_duration = self._calculate_subtask_duration_from_actions(subtask)
             variance = 1.0  # Initial variance
             # Save new knowledge
             self.knowledge.setdefault("Subtask", {})[subtask.name] = {
@@ -90,7 +90,7 @@ class Agent:
 
         return expected_duration
 
-    def calculate_subtask_duration_from_actions(self, subtask: "Subtask") -> float:
+    def _calculate_subtask_duration_from_actions(self, subtask: "Subtask") -> float:
         """
         Calculate the subtask duration by summing the durations of its primitive actions
         """
@@ -106,6 +106,7 @@ class Agent:
         return total_duration
 
     def update_task_knowledge(self, subtask: "Subtask", actual_duration: float) -> None:
+        # env에서 직접 agent의 task 수행 이후 update와 관련있는 코드
         """
         Update the knowledge based on the result of the subtask execution
         """
@@ -141,36 +142,36 @@ class Agent:
         # Save knowledge
         self._save_knowledge()
 
-    def run_subtask(self, subtask: "Subtask") -> float:
-        """
-        Execute the subtask and update the knowledge
-        """
-        print(f"Executing subtask: {subtask.name}")
-        # Get expected duration from knowledge
-        expected_duration = self.adjust_task_duration(subtask)
+    # def run_subtask(self, subtask: "Subtask") -> float:
+    #     """
+    #     Execute the subtask and update the knowledge
+    #     """
+    #     print(f"Executing subtask: {subtask.name}")
+    #     # Get expected duration from knowledge
+    #     expected_duration = self.adjust_task_duration(subtask)
 
-        # Simulate actual duration (this would be replaced with real execution in practice)
-        actual_duration = np.random.normal(loc=expected_duration, scale=1.0)
-        actual_duration = max(actual_duration, 0.1)  # Ensure positive duration
+    #     # Simulate actual duration (this would be replaced with real execution in practice)
+    #     actual_duration = np.random.normal(loc=expected_duration, scale=1.0)
+    #     actual_duration = max(actual_duration, 0.1)  # Ensure positive duration
 
-        print(f"  - Expected duration: {expected_duration:.2f}")
-        print(f"  - Actual duration: {actual_duration:.2f}")
+    #     print(f"  - Expected duration: {expected_duration:.2f}")
+    #     print(f"  - Actual duration: {actual_duration:.2f}")
 
-        # Update knowledge with actual duration
-        self.update_task_knowledge(subtask, actual_duration)
+    #     # Update knowledge with actual duration
+    #     self.update_task_knowledge(subtask, actual_duration)
 
-        return actual_duration
+    #     return actual_duration
 
-    def validate_action(self, action_name: str) -> bool:
-        """
-        Check if the given action is in Valid_actions
-        """
-        return action_name in self.knowledge.get("Valid_actions", {})
+    # def _validate_action(self, action_name: str) -> bool:
+    #     """
+    #     Check if the given action is in Valid_actions
+    #     """
+    #     return action_name in self.knowledge.get("Valid_actions", {})
 
-    def add_invalid_action(self, action_name: str) -> None:
-        """
-        Add an invalid action to Invalid_actions
-        """
-        invalid_actions = self.knowledge.setdefault("Invalid_actions", {})
-        invalid_actions[action_name] = invalid_actions.get(action_name, 0) + 1
-        self._save_knowledge()
+    # def _add_invalid_action(self, action_name: str) -> None:
+    #     """
+    #     Add an invalid action to Invalid_actions
+    #     """
+    #     invalid_actions = self.knowledge.setdefault("Invalid_actions", {})
+    #     invalid_actions[action_name] = invalid_actions.get(action_name, 0) + 1
+    #     self._save_knowledge()

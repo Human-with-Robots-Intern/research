@@ -4,6 +4,7 @@ import networkx as nx
 from anytree import Node
 
 from archive.task import Subtask, Task
+from core.agent import Agent
 from task_management.rule import ConstraintHandler, SlotHandler
 
 
@@ -50,7 +51,7 @@ class TaskTree:
 class TaskTreeBuilder:
     def __init__(
         self,
-        agent: "Agent",
+        agent: Agent,
         tasks: List[Task],
         constraints: nx.DiGraph,
     ):
@@ -91,9 +92,8 @@ class TaskTreeBuilder:
             return
 
         if time_slot > 0:
-            # TODO subtask 소요 시간을 agent로부터 받아와야 함
             # Run subtask and update knowledge
-            subtask.duration = self.agent.run_subtask(subtask)
+            subtask.duration = self.agent.get_task_duration(subtask)
             # 시간 슬롯 내에서 서브태스크 처리
             parent_node, wait_time, remaining_subtasks = (
                 self.slot_handler.handle_time_slots(
