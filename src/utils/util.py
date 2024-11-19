@@ -2,6 +2,11 @@ import os
 import signal
 
 ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+KNOWLEDGE_PATH = os.path.join(ROOT_PATH, "assets", "knowledge")
+PROMPT_PATH = os.path.join(ROOT_PATH, "assets", "prompts")
+VIS_PATH = os.path.join(ROOT_PATH, "assets", "results")
+TASK_PATH = os.path.join(ROOT_PATH, "assets", "tasks")
+LOG_PATH = os.path.join(ROOT_PATH, "logs")
 
 
 # with timeout(seconds=timeout_seconds):

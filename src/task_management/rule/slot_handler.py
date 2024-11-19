@@ -2,12 +2,11 @@ from typing import Callable, List, Tuple
 
 from anytree import Node
 
-from concept.task import Subtask
+from archive.task import Subtask
 
 
 class SlotHandler:
-    def __init__(self, constraint_handler, process_subtask_callback: Callable):
-        self.constraint_handler = constraint_handler
+    def __init__(self, process_subtask_callback: Callable):
         self.process_subtask_callback = process_subtask_callback
 
     def handle_time_slots(
@@ -16,12 +15,12 @@ class SlotHandler:
         subtask: Subtask,
         remaining_subtasks: List[Subtask],
         time_slot: int,
+        get_expandable_subtasks: Callable[[Node, List[Subtask]], List[Subtask]],
     ) -> Tuple[Node, int, List[Subtask]]:
-
-        available_subtasks = self.constraint_handler.get_expandable_subtasks(
-            parent_node, remaining_subtasks
-        )
-
+        """
+        주어진 시간 슬롯 내에서 실행 가능한 서브태스크를 처리합니다.
+        """
+        available_subtasks = get_expandable_subtasks(parent_node, remaining_subtasks)
         time_spent = 0
 
         for available_subtask in available_subtasks:
@@ -37,10 +36,16 @@ class SlotHandler:
 
         return parent_node, time_slot - time_spent, remaining_subtasks
 
-    def compress_time_slots(self, parent_node: Node, subtask: Subtask):
-        time_slots_urgencies = self.constraint_handler._get_time_slot_and_urgency(
-            parent_node, subtask
-        )
+    def compress_time_slots(
+        self,
+        parent_node: Node,
+        subtask: Subtask,
+        get_time_slot_and_urgency: Callable[[Node, Subtask], List[Tuple[int, bool]]],
+    ) -> Tuple[int, bool]:
+        """
+        서브태스크에 대한 시간 슬롯과 긴급성을 계산하고 압축합니다.
+        """
+        time_slots_urgencies = get_time_slot_and_urgency(parent_node, subtask)
 
         fill_time_slot_urgencies = [
             (time_slot, urgency)

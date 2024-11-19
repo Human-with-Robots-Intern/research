@@ -54,7 +54,6 @@ configs/
 
 # OmniGibson / Simulation specific
 log_*/
-assets/
 data/
 dataset/
 examples/train/models/
@@ -69,3 +68,4 @@ omnigibson/utils/data_utils/mesh_decimation/final_videos/
 # My code
 archive/
 scripts/
+*.dot

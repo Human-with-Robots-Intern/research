@@ -1,36 +1,49 @@
-import os
 from datetime import datetime
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import networkx as nx
 from anytree import Node
 from anytree.exporter import UniqueDotExporter
 
-from concept.schedule import convert_tree_to_schedule
+from src.utils import VIS_PATH
 
 
-def visualize(task_name, constraints, task_plans, opt_task_plans):
-    save_path = "assets/results/"
+# from src.core.schedule import convert_tree_to_schedule
+def visualize(task_name, constraints, task_tree=None, opt_task_tree=None):
     folder_name = datetime.now().strftime("%Y-%m-%d_%H") + f"_{task_name}"
-    save_folder_path = os.path.join(save_path, folder_name)
-    os.makedirs(
-        save_folder_path, exist_ok=True
-    )  # Create the folder if it doesn't exist
+    save_folder_path = Path(VIS_PATH) / folder_name
+    save_folder_path.mkdir(exist_ok=True)  # Create the folder if it doesn't exist
 
     visualize_graph(constraints, save_folder_path)
-    visualize_tree(task_plans, opt_task_plans, save_folder_path)
-    plot_gantt_chart(opt_task_plans, save_folder_path)
+    visualize_tree(task_tree, opt_task_tree, save_folder_path)
+    # plot_gantt_chart(opt_task_plans, save_folder_path)
 
 
-def visualize_tree(tree, opt_tree, save_folder_path):
+def visualize_tree(task_tree, opt_task_tree, save_folder_path):
     """Export the visualizations of the complete and optimal task trees."""
-    UniqueDotExporter(tree).to_picture(os.path.join(save_folder_path, "task_tree.png"))
-    UniqueDotExporter(opt_tree).to_picture(
-        os.path.join(save_folder_path, "opt_task_tree.png")
-    )
+
+    if task_tree and opt_task_tree:
+
+        UniqueDotExporter(task_tree).to_picture(
+            Path(save_folder_path) / "task_tree.png"
+        )
+        UniqueDotExporter(opt_task_tree).to_picture(
+            Path(save_folder_path) / "opt_task_tree.png"
+        )
+    elif task_tree:
+        UniqueDotExporter(task_tree).to_picture(
+            Path(save_folder_path) / "task_tree.png"
+        )
+    elif opt_task_tree:
+        UniqueDotExporter(opt_task_tree).to_picture(
+            Path(save_folder_path) / "opt_task_tree.png"
+        )
+    else:
+        raise ValueError("Either task_tree or opt_task_tree must be provided.")
 
 
-def visualize_graph(G, save_folder_path="assets/results", is_display=False):
+def visualize_graph(G: nx.DiGraph, save_folder_path):
     pos = nx.spring_layout(G, k=0.5)  # Adjusting the k value for layout optimization
     plt.figure(figsize=(10, 8))  # Adjust the figure size to make it more readable
 
@@ -84,11 +97,7 @@ def visualize_graph(G, save_folder_path="assets/results", is_display=False):
     plt.title("Directed Acyclic Graph (DAG) with Edge Info")
 
     # Save the plot to a file
-    plt.savefig(os.path.join(save_folder_path, "task_graph.png"))
-
-    # Display the plot
-    if is_display:
-        plt.show()
+    plt.savefig(Path(save_folder_path) / "task_graph.png")
 
 
 def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
