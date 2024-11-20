@@ -6,8 +6,15 @@
         "TOGGLE_ON": 1,
         "TOGGLE_OFF": 1,
         "OPEN": 1,
-        "CLOSE": 1
+        "CLOSE": 1,
+        "NAVIGATE_TO": 1.0
     },
     "Invalid_actions": {},
-    "Subtask": {}
+    "Subtask": {
+        "Brew Coffee": {
+            "expected_duration": 4.0,
+            "variance": 1.0,
+            "occurrences": 0
+        }
+    }
 }

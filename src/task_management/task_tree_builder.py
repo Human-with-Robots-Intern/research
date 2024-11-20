@@ -93,7 +93,7 @@ class TaskTreeBuilder:
 
         if time_slot > 0:
             # Run subtask and update knowledge
-            subtask.duration = self.agent.get_task_duration(subtask)
+            subtask.duration.interval = self.agent.get_task_duration(subtask)
             # 시간 슬롯 내에서 서브태스크 처리
             parent_node, wait_time, remaining_subtasks = (
                 self.slot_handler.handle_time_slots(

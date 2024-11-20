@@ -4,6 +4,7 @@ from pathlib import Path
 
 # from runner import execute_task, init_omnigibson
 from core import Agent, Task, TaskGraphBuilder, TaskTimingPlanner
+from runner import execute_task, init_omnigibson
 from utils import TASK_PATH, generate_task, visualize
 
 
@@ -67,15 +68,14 @@ def main():
 
     task_name, task_data = load_task_data(args.name)
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
-    # env, agent = init_omnigibson()
-    dummy_agent = Agent(None, None)
+    env, agent = init_omnigibson()
 
     task_timing_planner = TaskTimingPlanner(
-        agent=dummy_agent, tasks=tasks, constraints=task_graph
+        agent=agent, tasks=tasks, constraints=task_graph
     )
     task_trees = task_timing_planner.get_task_trees()
 
-    # execute_task(env)
+    execute_task(env)
     if args.visualize:
         visualize(task_name, task_graph, *task_trees)
 

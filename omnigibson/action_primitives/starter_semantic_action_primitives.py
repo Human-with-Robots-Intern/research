@@ -384,6 +384,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             StarterSemanticActionPrimitiveSet.TOGGLE_ON: self._toggle_on,
             StarterSemanticActionPrimitiveSet.TOGGLE_OFF: self._toggle_off,
         }
+        print(self.robot)
         # Validate the robot
         if isinstance(self.robot, LocomotionRobot):
             assert isinstance(

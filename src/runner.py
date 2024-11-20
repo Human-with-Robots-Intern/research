@@ -31,9 +31,6 @@ file_handler.setFormatter(
 )
 log.addHandler(file_handler)
 
-gm.USE_GPU_DYNAMICS = False
-gm.ENABLE_FLATCACHE = True
-
 
 def _load_config():
     # # Load the config
@@ -65,6 +62,7 @@ def init_omnigibson():
     # Initialize environment and agent
     env = og.Environment(configs=_load_config())
     agent = Agent(env.robots[0])
+
     return env, agent
 
 

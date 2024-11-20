@@ -5,11 +5,12 @@ import networkx as nx
 import numpy as np
 from anytree import AsciiStyle, Node, RenderTree
 
+from core import Agent, Task
 from task_management import TaskTreeBuilder
 
 
 class TaskTimingPlanner:
-    def __init__(self, agent: "Agent", tasks: List["Task"], constraints: nx.DiGraph):
+    def __init__(self, agent: Agent, tasks: List[Task], constraints: nx.DiGraph):
         self.tasks = tasks
         self.tree_builder = TaskTreeBuilder(agent, self.tasks, constraints)
         self.task_tree = self.tree_builder.build_tree()
