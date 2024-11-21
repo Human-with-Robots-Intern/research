@@ -1,12 +1,12 @@
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import torch as th
 import yaml
 
 import omnigibson as og
-from core.agent import Agent
+from core import Agent
 from omnigibson.action_primitives.action_primitive_set_base import (
     ActionPrimitiveErrorGroup,
 )
@@ -16,17 +16,14 @@ from omnigibson.action_primitives.starter_semantic_action_primitives import (
 )
 from omnigibson.macros import gm
 from omnigibson.utils.ui_utils import create_module_logger
-from utils.util import ROOT_PATH
+from utils.constants import LOG_PATH
 
 gm.USE_GPU_DYNAMICS = False
 gm.ENABLE_FLATCACHE = True
 
 log = create_module_logger(module_name=__name__)
 
-log_path = Path(ROOT_PATH) / "logs"
-log_path.mkdir(parents=True, exist_ok=True)
-
-file_handler = logging.FileHandler(f"{log_path}/{__name__}.log", "a")
+file_handler = logging.FileHandler(f"{LOG_PATH}/{__name__}.log", "a")
 file_handler.setFormatter(
     logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 )
@@ -62,13 +59,8 @@ def _load_config():
 def init_omnigibson():
     # Initialize environment and agent
     env = og.Environment(configs=_load_config())
-    # 로봇에 시간 업데이트 기능을 달아야 하는데, 상속을 받아서 구현해야 하는 것 같다.
-    # 왜냐면, 소요 시간 추정이라는 추가 기능과 로봇 자체 기능을 동일 인터페이스로 제공해야 하기 때문이다.
-    # omnigibson 클래스를 상속 코드는 아래와 같다.
 
-    agent = env.robots[0]
-    
-    sys.exit(1)
+    agent = Agent(env.robots[0])
 
     return env, agent
 

@@ -7,9 +7,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import openai
-from dotenv import load_dotenv
 
-from utils.util import KNOWLEDGE_PATH, PROMPT_PATH, TASK_PATH
+from utils.constants import KNOWLEDGE_PATH, PROMPT_PATH, TASK_PATH
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)

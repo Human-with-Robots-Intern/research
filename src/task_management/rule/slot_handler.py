@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from typing import Callable, List, Tuple
 
 from anytree import Node
 
-from archive.task import Subtask
+from core import Subtask
 
 
 class SlotHandler:

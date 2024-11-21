@@ -6,12 +6,7 @@ from typing import Any, Dict
 import numpy as np
 from scipy.stats import norm
 
-from core.task import Subtask
-from utils import KNOWLEDGE_PATH
-
-# Assume Subtask, Duration, and other dependencies are imported
-# from appropriate modules, e.g., from core.task import Subtask, Duration
-# from utils import KNOWLEDGE_PATH
+from utils.constants import KNOWLEDGE_PATH
 
 
 @dataclass
@@ -33,16 +28,16 @@ class Agent:
         self.robot = robot  # Agent's robot information
         if use_knowledge:
             self.config = Config()  # Configuration values
-            self.knowledge = self._load_knowledge()  # Load knowledge
+            self.knowledge = self._load_knowledge(KNOWLEDGE_PATH)  # Load knowledge
         else:
             self.knowledge = {}
 
-    def _load_knowledge(self) -> Dict[str, Any]:
+    def _load_knowledge(self, knowledge_path) -> Dict[str, Any]:
         """
         Load the knowledge file
         """
         try:
-            with open(self.knowledge_path / "knowledge.json", "r") as f:
+            with open(knowledge_path / "knowledge.json", "r") as f:
                 return json.load(f)
         except FileNotFoundError:
             print("Knowledge file not found. Initializing empty knowledge.")
@@ -60,16 +55,16 @@ class Agent:
                 "Subtask": {},
             }
 
-    def _save_knowledge(self) -> None:
+    def _save_knowledge(self, knowledge_path) -> None:
         """
         Save the knowledge file
         """
-        self.knowledge_path.mkdir(parents=True, exist_ok=True)
-        with open(self.knowledge_path / "knowledge.json", "w") as f:
+        knowledge_path.mkdir(parents=True, exist_ok=True)
+        with open(knowledge_path / "knowledge.json", "w") as f:
             json.dump(self.knowledge, f, indent=4, ensure_ascii=False)
         print("Knowledge saved successfully.")
 
-    def get_task_duration(self, subtask: Subtask) -> float:
+    def get_task_duration(self, subtask: "Subtask") -> float:  # type: ignore
         """
         Adjust the expected duration of a subtask based on the agent's knowledge
         """
@@ -87,11 +82,11 @@ class Agent:
                 "variance": variance,
                 "occurrences": 0,
             }
-            self._save_knowledge()
+            self._save_knowledge(KNOWLEDGE_PATH)
 
         return expected_duration
 
-    def _calculate_subtask_duration_from_actions(self, subtask: "Subtask") -> float:
+    def _calculate_subtask_duration_from_actions(self, subtask: "Subtask") -> float:  # type: ignore
         """
         Calculate the subtask duration by summing the durations of its primitive actions
         """
@@ -102,11 +97,11 @@ class Agent:
                 # If action duration is unknown, assume a default value (e.g., 1)
                 action_duration = 1.0
                 self.knowledge["Valid_actions"][action.split()[0]] = action_duration
-                self._save_knowledge()
+                self._save_knowledge(KNOWLEDGE_PATH)
             total_duration += action_duration
         return total_duration
 
-    def update_task_knowledge(self, subtask: "Subtask", actual_duration: float) -> None:
+    def update_task_knowledge(self, subtask: "Subtask", actual_duration: float) -> None:  # type: ignore
         # env에서 직접 agent의 task 수행 이후 update와 관련있는 코드
         """
         Update the knowledge based on the result of the subtask execution
@@ -141,4 +136,4 @@ class Agent:
         print(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
 
         # Save knowledge
-        self._save_knowledge()
+        self._save_knowledge(KNOWLEDGE_PATH)

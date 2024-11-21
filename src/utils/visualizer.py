@@ -6,10 +6,9 @@ import networkx as nx
 from anytree import Node
 from anytree.exporter import UniqueDotExporter
 
-from src.utils import VIS_PATH
+from utils.constants import VIS_PATH
 
 
-# from src.core.schedule import convert_tree_to_schedule
 def visualize(task_name, constraints, task_tree=None, opt_task_tree=None):
     folder_name = datetime.now().strftime("%Y-%m-%d_%H") + f"_{task_name}"
     save_folder_path = Path(VIS_PATH) / folder_name

@@ -5,12 +5,11 @@ import networkx as nx
 import numpy as np
 from anytree import AsciiStyle, Node, RenderTree
 
-from core import Agent, Task
 from task_management import TaskTreeBuilder
 
 
 class TaskTimingPlanner:
-    def __init__(self, agent: Agent, tasks: List[Task], constraints: nx.DiGraph):
+    def __init__(self, agent: "Agent", tasks: List["Task"], constraints: nx.DiGraph):  # type: ignore
         self.tasks = tasks
         self.tree_builder = TaskTreeBuilder(agent, self.tasks, constraints)
         self.task_tree = self.tree_builder.build_tree()
@@ -88,7 +87,7 @@ class TaskTimingPlanner:
         return filtered_tree_root
 
     # 모든 leaf 노드 찾기
-    def _get_leaf_nodes(self, node):
+    def _get_leaf_nodes(self, node: Node) -> List[Node]:
         if not node.children:
             return [node]
         else:
