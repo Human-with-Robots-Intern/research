@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+import sys
 
 import torch as th
 import yaml
@@ -61,7 +62,13 @@ def _load_config():
 def init_omnigibson():
     # Initialize environment and agent
     env = og.Environment(configs=_load_config())
-    agent = Agent(env.robots[0])
+    # 로봇에 시간 업데이트 기능을 달아야 하는데, 상속을 받아서 구현해야 하는 것 같다.
+    # 왜냐면, 소요 시간 추정이라는 추가 기능과 로봇 자체 기능을 동일 인터페이스로 제공해야 하기 때문이다.
+    # omnigibson 클래스를 상속 코드는 아래와 같다.
+
+    agent = env.robots[0]
+    
+    sys.exit(1)
 
     return env, agent
 

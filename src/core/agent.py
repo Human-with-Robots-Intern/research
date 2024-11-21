@@ -25,16 +25,17 @@ class Agent:
     def __init__(
         self,
         robot: Any,
-        knowledge_path: Path = Path(KNOWLEDGE_PATH),
-        config=None,
+        use_knowledge: bool = True,
     ):
         """
         Initialize the Agent class
         """
         self.robot = robot  # Agent's robot information
-        self.knowledge_path = knowledge_path  # Knowledge file path
-        self.config = config or Config()  # Configuration values
-        self.knowledge = self._load_knowledge()  # Load knowledge
+        if use_knowledge:
+            self.config = Config()  # Configuration values
+            self.knowledge = self._load_knowledge()  # Load knowledge
+        else:
+            self.knowledge = {}
 
     def _load_knowledge(self) -> Dict[str, Any]:
         """
@@ -141,37 +142,3 @@ class Agent:
 
         # Save knowledge
         self._save_knowledge()
-
-    # def run_subtask(self, subtask: "Subtask") -> float:
-    #     """
-    #     Execute the subtask and update the knowledge
-    #     """
-    #     print(f"Executing subtask: {subtask.name}")
-    #     # Get expected duration from knowledge
-    #     expected_duration = self.adjust_task_duration(subtask)
-
-    #     # Simulate actual duration (this would be replaced with real execution in practice)
-    #     actual_duration = np.random.normal(loc=expected_duration, scale=1.0)
-    #     actual_duration = max(actual_duration, 0.1)  # Ensure positive duration
-
-    #     print(f"  - Expected duration: {expected_duration:.2f}")
-    #     print(f"  - Actual duration: {actual_duration:.2f}")
-
-    #     # Update knowledge with actual duration
-    #     self.update_task_knowledge(subtask, actual_duration)
-
-    #     return actual_duration
-
-    # def _validate_action(self, action_name: str) -> bool:
-    #     """
-    #     Check if the given action is in Valid_actions
-    #     """
-    #     return action_name in self.knowledge.get("Valid_actions", {})
-
-    # def _add_invalid_action(self, action_name: str) -> None:
-    #     """
-    #     Add an invalid action to Invalid_actions
-    #     """
-    #     invalid_actions = self.knowledge.setdefault("Invalid_actions", {})
-    #     invalid_actions[action_name] = invalid_actions.get(action_name, 0) + 1
-    #     self._save_knowledge()
