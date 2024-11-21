@@ -41,7 +41,7 @@ def load_task_data(task_name: str) -> dict:
         except ValueError as e:
             raise ValueError(f"Error generating task: {e}")
 
-    file_path = Path(TASK_PATH) / f"task_{task_name}.json"
+    file_path = Path(TASK_PATH) / f"{task_name}.json"
 
     if not file_path.exists():
         raise FileNotFoundError(f"Task file not found: {file_path}")

@@ -1,9 +1,9 @@
 {
     "Valid_actions": {
         "GRASP": {
-            "expected_duration": 3.5396730105082193,
-            "variance": 0.05555555555555555,
-            "occurrences": 17
+            "expected_duration": 5.492793929576874,
+            "variance": 0.05,
+            "occurrences": 19
         },
         "PLACE_INSIDE": {
             "expected_duration": 1.0,

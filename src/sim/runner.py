@@ -75,6 +75,9 @@ def execute_task(env, agent):
         controller.apply_primitive_action(
             StarterSemanticActionPrimitiveSet.GRASP, apple
         )
+        controller.apply_primitive_action(
+            StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, table
+        )
     except ActionPrimitiveErrorGroup as e:
         log.error(f"Failed to execute action primitives: {e}")
 
