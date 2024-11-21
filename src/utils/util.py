@@ -1,5 +1,6 @@
-
 import signal
+import time
+from functools import wraps
 
 
 class timeout:
@@ -16,3 +17,16 @@ class timeout:
 
     def __exit__(self, type, value, traceback):
         signal.alarm(0)
+
+
+def timeit(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        func(*args, **kwargs)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"Time taken for {func.__name__}: {elapsed_time:.2f} seconds")
+        return elapsed_time
+
+    return wrapper

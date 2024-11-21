@@ -16,7 +16,7 @@ class Config:
     obs_variance: float = 1.0  # Observation variance
 
 
-class Agent:
+class BayesianAgent:
     def __init__(
         self,
         robot: Any,
@@ -25,12 +25,33 @@ class Agent:
         """
         Initialize the Agent class
         """
-        self.robot = robot  # Agent's robot information
+        self.robot_attribute = robot  # Agent's robot information
         if use_knowledge:
             self.config = Config()  # Configuration values
             self.knowledge = self._load_knowledge(KNOWLEDGE_PATH)  # Load knowledge
         else:
             self.knowledge = {}
+
+    def reset_knowledge_to_gaussian(self):
+        """
+        Reset the knowledge base, initializing all expected durations with a Gaussian distribution.
+        """
+
+        def initialize_gaussian(mean: float = 1.0, variance: float = 1.0):
+            return {
+                "expected_duration": np.random.normal(mean, np.sqrt(variance)),
+                "variance": variance,
+                "occurrences": 0,
+            }
+
+        for action in self.knowledge.get("Valid_actions", {}).keys():
+            self.knowledge["Valid_actions"][action] = initialize_gaussian()
+
+        for subtask in self.knowledge.get("Subtask", {}).keys():
+            self.knowledge["Subtask"][subtask] = initialize_gaussian()
+
+        print("Knowledge successfully reset to Gaussian.")
+        self._save_knowledge(KNOWLEDGE_PATH)
 
     def _load_knowledge(self, knowledge_path) -> Dict[str, Any]:
         """
@@ -92,7 +113,9 @@ class Agent:
         """
         total_duration = 0.0
         for action in subtask.execution.primitive_actions:
-            action_duration = self.knowledge["Valid_actions"].get(action.split()[0])
+            action_duration = self.knowledge["Valid_actions"].get(action.split()[0])[
+                "expected_duration"
+            ]
             if action_duration is None:
                 # If action duration is unknown, assume a default value (e.g., 1)
                 action_duration = 1.0
@@ -132,6 +155,45 @@ class Agent:
         subtask_data["occurrences"] = occurrences
 
         print(f"Updated Knowledge for {subtask.name}:")
+        print(f"  - Duration: {prior_mean:.2f} -> {updated_mean:.2f}")
+        print(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
+
+        # Save knowledge
+        self._save_knowledge(KNOWLEDGE_PATH)
+
+    def update_primitive_action_knowledge(
+        self, action: str, actual_duration: float
+    ) -> None:
+        """
+        Update the knowledge based on the result of the primitive action execution
+        """
+        print(f"{self.knowledge=}")
+        # Retrieve or initialize action data
+        action_data = self.knowledge.setdefault("Valid_actions", {}).setdefault(
+            action,
+            {"expected_duration": actual_duration, "variance": 1.0, "occurrences": 0},
+        )
+        print(f"{action_data=}")
+        # Prior data
+        prior_mean = action_data["expected_duration"]
+        prior_variance = action_data["variance"]
+
+        # Bayesian update
+        obs_variance = self.config.obs_variance
+        updated_mean = (
+            prior_mean / prior_variance + actual_duration / obs_variance
+        ) / (1 / prior_variance + 1 / obs_variance)
+        updated_variance = 1 / (1 / prior_variance + 1 / obs_variance)
+
+        # Update occurrences
+        occurrences = action_data["occurrences"] + 1
+
+        # Update knowledge
+        action_data["expected_duration"] = updated_mean
+        action_data["variance"] = updated_variance
+        action_data["occurrences"] = occurrences
+
+        print(f"Updated Knowledge for action '{action}':")
         print(f"  - Duration: {prior_mean:.2f} -> {updated_mean:.2f}")
         print(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
 

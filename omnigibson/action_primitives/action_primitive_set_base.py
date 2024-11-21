@@ -3,7 +3,6 @@ from abc import ABCMeta, abstractmethod
 from enum import IntEnum
 from typing import List
 
-
 from future.utils import with_metaclass
 
 REGISTERED_PRIMITIVE_SETS = {}
@@ -39,7 +38,9 @@ class ActionPrimitiveErrorGroup(ValueError):
         self._exceptions = tuple(exceptions)
         submessages = [f"Attempt {i}: {e}" for i, e in enumerate(exceptions)]
         submessages = "\n\n".join(submessages)
-        message = "An error occurred during each attempt of this action.\n\n" + submessages
+        message = (
+            "An error occurred during each attempt of this action.\n\n" + submessages
+        )
         super().__init__(message)
 
     @property

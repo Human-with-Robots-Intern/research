@@ -1,18 +1,50 @@
 {
     "Valid_actions": {
-        "GRASP": 1,
-        "PLACE_INSIDE": 1,
-        "PLACE_ON_TOP": 1,
-        "TOGGLE_ON": 1,
-        "TOGGLE_OFF": 1,
-        "OPEN": 1,
-        "CLOSE": 1,
-        "NAVIGATE_TO": 1.0
+        "GRASP": {
+            "expected_duration": 3.5396730105082193,
+            "variance": 0.05555555555555555,
+            "occurrences": 17
+        },
+        "PLACE_INSIDE": {
+            "expected_duration": 1.0,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "PLACE_ON_TOP": {
+            "expected_duration": 1.0,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "TOGGLE_ON": {
+            "expected_duration": 1.0,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "TOGGLE_OFF": {
+            "expected_duration": 1.0,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "OPEN": {
+            "expected_duration": 1.0,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "CLOSE": {
+            "expected_duration": 1.0,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "NAVIGATE_TO": {
+            "expected_duration": 1.0,
+            "variance": 1.0,
+            "occurrences": 0
+        }
     },
     "Invalid_actions": {},
     "Subtask": {
         "Brew Coffee": {
-            "expected_duration": 4.0,
+            "expected_duration": 1.0,
             "variance": 1.0,
             "occurrences": 0
         }
