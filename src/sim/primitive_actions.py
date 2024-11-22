@@ -16,9 +16,6 @@ class CustomActionPrimitives(StarterSemanticActionPrimitives):
     def robot(self):
         return self.bayesian_agent.robot_attribute
 
-    # primitive action 수행하는데 걸리는 시간
-    # 1. 이동 시간은 고려에서 배제해야 함
-
     def apply_primitive_action(self, prim, *args, attempts=4):
         @timeit
         def _execute_controller(ctrl_gen, env):

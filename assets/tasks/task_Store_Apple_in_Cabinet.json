@@ -1,0 +1,55 @@
+[
+    {
+        "Task": "Store Apple in Cabinet",
+        "Subtasks": [
+            {
+                "Name": "Open Bottom Cabinet",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "bottom_cabinet-bamfsz_0": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO bottom_cabinet-bamfsz_0",
+                        "OPEN bottom_cabinet-bamfsz_0"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Place Apple Inside Cabinet",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "apple": 1,
+                        "bottom_cabinet-bamfsz_0": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO apple",
+                        "GRASP apple",
+                        "NAVIGATE_TO bottom_cabinet-bamfsz_0",
+                        "PLACE_INSIDE bottom_cabinet-bamfsz_0"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Open Bottom Cabinet",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]

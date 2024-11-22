@@ -4,7 +4,7 @@ from pathlib import Path
 
 # from runner import execute_task, init_omnigibson
 from core import Task, TaskGraphBuilder, TaskTimingPlanner
-from sim.runner import execute_task, init_omnigibson
+from sim.runner import execute_subtask, init_omnigibson
 from utils import generate_task, visualize
 from utils.constants import TASK_PATH
 
@@ -67,19 +67,28 @@ def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
 
+    #  ========= Initialization =========
+    # 명령 -> task.json
     task_name, task_data = load_task_data(args.name)
+    # task.json -> task, task_graph (task, constraints 객체로 변환)
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
+    # omnigibson 환경 로드
     env, agent = init_omnigibson()
 
+    #  ========= Task Scheduling =========
     task_timing_planner = TaskTimingPlanner(
         agent=agent, tasks=tasks, constraints=task_graph
     )
 
-    task_trees = task_timing_planner.get_task_trees()
+    task_tree, opt_task_tree = task_timing_planner.get_task_trees()
 
-    execute_task(env, agent)
+    #  ========= Task Execution =========
+    for subtask in opt_task_tree:
+        execute_subtask(env, agent, subtask)
+
+    # Result Visualization
     if args.visualize:
-        visualize(task_name, task_graph, *task_trees)
+        visualize(task_name, task_graph, task_tree, opt_task_tree)
 
 
 if __name__ == "__main__":

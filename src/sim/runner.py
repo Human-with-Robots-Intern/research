@@ -36,13 +36,13 @@ def _load_config():
     config = yaml.load(open(config_filename, "r"), Loader=yaml.FullLoader)
 
     # Update it to run a grocery shopping task
-    config["scene"]["not_load_object_categories"] = [
-        "ceilings",
-        "pot_plant",
-        "straight_chair",
-    ]
-    config["scene"]["load_room_types"] = ["living_room"]
-    config["scene"]["load_room_instances"] = ["living_room_0"]
+    # config["scene"]["not_load_object_categories"] = [
+    #     "ceilings",
+    #     "pot_plant",
+    #     "straight_chair",
+    # ]
+    # config["scene"]["load_room_types"] = ["living_room"]
+    # config["scene"]["load_room_instances"] = ["living_room_0"]
     config["objects"] = [
         {
             "type": "DatasetObject",
@@ -65,7 +65,7 @@ def init_omnigibson():
     return env, agent
 
 
-def execute_task(env, agent):
+def execute_subtask(env, agent, subtask):
     controller = CustomActionPrimitives(env, agent)
 
     table = env.scene.object_registry("name", "breakfast_table_skczfi_0")

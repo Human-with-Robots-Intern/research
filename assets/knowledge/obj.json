@@ -1,0 +1,220 @@
+{
+    "bedroom_0": {
+        "door-ktydvs": {
+            "instances": [
+                "door-ktydvs_0"
+            ],
+            "possible_actions": [
+                "OPEN",
+                "CLOSE"
+            ]
+        },
+        "bottom_cabinet-dajebq": {
+            "instances": [
+                "bottom_cabinet-dajebq_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "electric_switch-wseglt": {
+            "instances": [
+                "electric_switch-wseglt_0"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        }
+    },
+    "kitchen_0": {
+        "bottom_cabinet-bamfsz": {
+            "instances": [
+                "bottom_cabinet-bamfsz_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "bottom_cabinet-slgzfc": {
+            "instances": [
+                "bottom_cabinet-slgzfc_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "top_cabinet-fqhdne": {
+            "instances": [
+                "top_cabinet-fqhdne_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "top_cabinet-lsyzkh": {
+            "instances": [
+                "top_cabinet-lsyzkh_0",
+                "top_cabinet-lsyzkh_1",
+                "top_cabinet-lsyzkh_2",
+                "top_cabinet-lsyzkh_3"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "electric_switch-wseglt": {
+            "instances": [
+                "electric_switch-wseglt_0"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        }
+    },
+    "entryway_0": {
+        "bottom_cabinet-slgzfc": {
+            "instances": [
+                "bottom_cabinet-slgzfc_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "door-lvgliq": {
+            "instances": [
+                "door-lvgliq_0"
+            ],
+            "possible_actions": [
+                "OPEN",
+                "CLOSE"
+            ]
+        },
+        "electric_switch-wseglt": {
+            "instances": [
+                "electric_switch-wseglt_0"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        }
+    },
+    "living_room_0": {
+        "bottom_cabinet-bamfsz": {
+            "instances": [
+                "bottom_cabinet-bamfsz_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "bottom_cabinet-jhymlr": {
+            "instances": [
+                "bottom_cabinet-jhymlr_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "breakfast_table-skczfi": {
+            "instances": [
+                "breakfast_table-skczfi_0",
+                "breakfast_table-skczfi_1"
+            ],
+            "possible_actions": [
+                "PLACE_ON_TOP"
+            ]
+        },
+        "coffee_table-fqluyq": {
+            "instances": [
+                "coffee_table-fqluyq_0"
+            ],
+            "possible_actions": [
+                "PLACE_ON_TOP"
+            ]
+        },
+        "floor_lamp-vdxlda": {
+            "instances": [
+                "floor_lamp-vdxlda_0"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        },
+        "sofa-mnfbbh": {
+            "instances": [
+                "sofa-mnfbbh_0"
+            ],
+            "possible_actions": [
+                "PLACE_ON_TOP"
+            ]
+        },
+        "table_lamp-xbfgjc": {
+            "instances": [
+                "table_lamp-xbfgjc_0"
+            ],
+            "possible_actions": [
+                "PLACE_ON_TOP",
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        },
+        "electric_switch-wseglt": {
+            "instances": [
+                "electric_switch-wseglt_0",
+                "electric_switch-wseglt_1"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        }
+    },
+    "bathroom_0": {
+        "door-ktydvs": {
+            "instances": [
+                "door-ktydvs_0"
+            ],
+            "possible_actions": [
+                "OPEN",
+                "CLOSE"
+            ]
+        },
+        "electric_switch-wseglt": {
+            "instances": [
+                "electric_switch-wseglt_0"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        }
+    }
+}
