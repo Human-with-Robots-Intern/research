@@ -4,9 +4,12 @@ from pathlib import Path
 
 # from runner import execute_task, init_omnigibson
 from core import Task, TaskGraphBuilder, TaskTimingPlanner
+from omnigibson.utils.ui_utils import create_module_logger
 from sim.runner import execute_subtask, init_omnigibson
 from utils import generate_task, visualize
 from utils.constants import TASK_PATH
+
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 def parse_arguments():
@@ -81,10 +84,12 @@ def main():
     )
 
     task_tree, opt_task_tree = task_timing_planner.get_task_trees()
-
+    log.debug(f"Tasks: {tasks}")
+    log.debug(f"Task Tree: {opt_task_tree.leaves[0]}")
     #  ========= Task Execution =========
-    for subtask in opt_task_tree:
-        execute_subtask(env, agent, subtask)
+    execute_subtask(env, agent, None)
+    # for subtask in opt_task_tree:
+    #     execute_subtask(env, agent, subtask)
 
     # Result Visualization
     if args.visualize:

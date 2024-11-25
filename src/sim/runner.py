@@ -16,18 +16,11 @@ from omnigibson.action_primitives.starter_semantic_action_primitives import (
 from omnigibson.macros import gm
 from omnigibson.utils.ui_utils import create_module_logger
 from sim.primitive_actions import CustomActionPrimitives
-from utils.constants import LOG_PATH
 
 gm.USE_GPU_DYNAMICS = False
 gm.ENABLE_FLATCACHE = True
 
-log = create_module_logger(module_name=__name__)
-
-file_handler = logging.FileHandler(f"{LOG_PATH}/{__name__}.log", "a")
-file_handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-)
-log.addHandler(file_handler)
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 def _load_config():
@@ -36,13 +29,13 @@ def _load_config():
     config = yaml.load(open(config_filename, "r"), Loader=yaml.FullLoader)
 
     # Update it to run a grocery shopping task
-    # config["scene"]["not_load_object_categories"] = [
-    #     "ceilings",
-    #     "pot_plant",
-    #     "straight_chair",
-    # ]
-    # config["scene"]["load_room_types"] = ["living_room"]
-    # config["scene"]["load_room_instances"] = ["living_room_0"]
+    config["scene"]["not_load_object_categories"] = [
+        "ceilings",
+        "pot_plant",
+        "straight_chair",
+    ]
+    config["scene"]["load_room_types"] = ["living_room"]
+    config["scene"]["load_room_instances"] = ["living_room_0"]
     config["objects"] = [
         {
             "type": "DatasetObject",

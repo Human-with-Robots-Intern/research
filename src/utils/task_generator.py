@@ -197,10 +197,8 @@ def cached_generate_and_validate_task(
 
 def generate_task():
     """Main function to generate tasks based on user input."""
-    prompt_file_path = Path(PROMPT_PATH) / "e2e_generator.txt"
-    knowledge_file_path = Path(KNOWLEDGE_PATH) / "knowledge.json"
-    examples_prompt = load_prompt(prompt_file_path)
-    knowledge = load_knowledge(knowledge_file_path)
+    examples_prompt = load_prompt(Path(PROMPT_PATH) / "e2e_generator.txt")
+    knowledge = load_knowledge(Path(KNOWLEDGE_PATH) / "knowledge.json")
 
     user_input = input("Please enter the instructions: ").strip()
     if not user_input:

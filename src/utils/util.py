@@ -26,7 +26,7 @@ def timeit(func):
         func(*args, **kwargs)
         end_time = time.time()
         elapsed_time = end_time - start_time
-        print(f"Time taken for {func.__name__}: {elapsed_time:.2f} seconds")
+
         return elapsed_time
 
     return wrapper

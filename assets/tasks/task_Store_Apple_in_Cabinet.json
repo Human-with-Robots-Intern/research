@@ -4,7 +4,7 @@
         "Subtasks": [
             {
                 "Name": "Open Bottom Cabinet",
-                "Repetition": 1,
+                "Repetition": 10,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
