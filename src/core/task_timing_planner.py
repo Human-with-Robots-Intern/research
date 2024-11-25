@@ -37,7 +37,7 @@ class TaskTimingPlanner:
         self._print_plan(opt_task_tree)
         return self.task_tree, opt_task_tree
 
-    def convert_to_tasks(self, opt_task_tree: Node) -> List["Subtask"]:  # type: ignore
+    def convert_to_tasks(self, opt_task_tree: Node) -> List["Subtask"]:
         """
         Convert the optimal task tree back into a list of subtasks.
 
@@ -47,15 +47,21 @@ class TaskTimingPlanner:
         Returns:
             List[Subtask]: A list of subtasks extracted from the optimal task tree.
         """
-        all_subtask_names = tasks_to_subtasks(self.tasks, mode="name")
+        all_subtasks = tasks_to_subtasks(self.tasks)
+        all_subtask_names = [subtask.name for subtask in all_subtasks]
         log.debug(f"All subtask names: {all_subtask_names}")
 
         subtasks_in_plan = []
         for node in opt_task_tree.leaves[0].path[1:]:
             if node.name in all_subtask_names:
-                subtasks_in_plan.append(node.name)
+                # Find the subtask object with the same name as node.name
+                matching_subtask = next(
+                    (subtask for subtask in all_subtasks if subtask.name == node.name), None
+                )
+                if matching_subtask:
+                    subtasks_in_plan.append(matching_subtask)
 
-        log.info(f"Subtasks in optimal plan: {subtasks_in_plan}")
+        log.info(f"Subtasks in optimal plan: {[subtask.name for subtask in subtasks_in_plan]}")
         return subtasks_in_plan
 
     def _get_optimal_tree(self) -> Node:
