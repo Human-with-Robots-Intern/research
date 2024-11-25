@@ -33,6 +33,12 @@ def parse_arguments():
         help="Enable visualization of the task plan",
         action="store_true",
     )
+    parser.add_argument(
+        "-r",
+        "--reset",
+        help="Reset the knowledge base to Gaussian",
+        action="store_true",
+    )
     return parser.parse_args()
 
 
@@ -77,6 +83,8 @@ def main():
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
     # omnigibson 환경 로드
     env, agent = init_omnigibson()
+    if args.reset:
+        agent.reset_knowledge_to_gaussian()
 
     #  ========= Task Scheduling =========
     task_timing_planner = TaskTimingPlanner(

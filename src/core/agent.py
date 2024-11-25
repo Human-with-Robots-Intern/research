@@ -1,12 +1,14 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import numpy as np
-from scipy.stats import norm
 
+from omnigibson.utils.ui_utils import create_module_logger
 from utils.constants import KNOWLEDGE_PATH
+
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 @dataclass
@@ -17,121 +19,217 @@ class Config:
 
 
 class BayesianAgent:
-    def __init__(
-        self,
-        robot: Any,
-        use_knowledge: bool = True,
-    ):
-        """
-        Initialize the Agent class
-        """
-        self.robot_attribute = robot  # Agent's robot information
-        if use_knowledge:
-            self.config = Config()  # Configuration values
-            self.knowledge = self._load_knowledge(KNOWLEDGE_PATH)  # Load knowledge
-        else:
-            self.knowledge = {}
-
-    def reset_knowledge_to_gaussian(self):
-        """
-        Reset the knowledge base, initializing all expected durations with a Gaussian distribution.
-        """
-
-        def initialize_gaussian(mean: float = 1.0, variance: float = 1.0):
-            return {
-                "expected_duration": np.random.normal(mean, np.sqrt(variance)),
-                "variance": variance,
+    DEFAULT_KNOWLEDGE = {
+        "Valid_actions": {
+            "GRASP": {"expected_duration": 1.0, "variance": 1.0, "occurrences": 0},
+            "PLACE_INSIDE": {
+                "expected_duration": 1.0,
+                "variance": 1.0,
                 "occurrences": 0,
-            }
+            },
+            "PLACE_ON_TOP": {
+                "expected_duration": 1.0,
+                "variance": 1.0,
+                "occurrences": 0,
+            },
+            "TOGGLE_ON": {"expected_duration": 1.0, "variance": 1.0, "occurrences": 0},
+            "TOGGLE_OFF": {"expected_duration": 1.0, "variance": 1.0, "occurrences": 0},
+            "OPEN": {"expected_duration": 1.0, "variance": 1.0, "occurrences": 0},
+            "CLOSE": {"expected_duration": 1.0, "variance": 1.0, "occurrences": 0},
+        },
+        "Invalid_actions": {},
+        "Subtask": {},
+    }
 
-        for action in self.knowledge.get("Valid_actions", {}).keys():
-            self.knowledge["Valid_actions"][action] = initialize_gaussian()
-
-        for subtask in self.knowledge.get("Subtask", {}).keys():
-            self.knowledge["Subtask"][subtask] = initialize_gaussian()
-
-        print("Knowledge successfully reset to Gaussian.")
-        self._save_knowledge(KNOWLEDGE_PATH)
-
-    def _load_knowledge(self, knowledge_path) -> Dict[str, Any]:
+    def __init__(self, robot: Any, use_knowledge: bool = True):
         """
-        Load the knowledge file
+        Initialize the BayesianAgent.
+
+        Args:
+            robot (Any): Robot information associated with the agent.
+            use_knowledge (bool): Whether to use stored knowledge. Defaults to True.
         """
-        try:
-            with open(knowledge_path / "knowledge.json", "r") as f:
-                return json.load(f)
-        except FileNotFoundError:
-            print("Knowledge file not found. Initializing empty knowledge.")
-            return {
-                "Valid_actions": {
-                    "GRASP": 1,
-                    "PLACE_INSIDE": 1,
-                    "PLACE_ON_TOP": 1,
-                    "TOGGLE_ON": 1,
-                    "TOGGLE_OFF": 1,
-                    "OPEN": 1,
-                    "CLOSE": 1,
-                },
+        self.robot_attribute = robot
+        self.config = Config()
+        if use_knowledge:
+            self.knowledge = self._load_knowledge(KNOWLEDGE_PATH)
+        else:
+            self.knowledge = {
+                "Valid_actions": {},
                 "Invalid_actions": {},
                 "Subtask": {},
             }
 
-    def _save_knowledge(self, knowledge_path) -> None:
+    @staticmethod
+    def _initialize_gaussian(
+        mean: float = 1.0, variance: float = 1.0
+    ) -> Dict[str, Any]:
         """
-        Save the knowledge file
+        Initialize a Gaussian distribution for expected durations.
+
+        Args:
+            mean (float): Mean of the Gaussian distribution. Defaults to 1.0.
+            variance (float): Variance of the Gaussian distribution. Defaults to 1.0.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing expected duration, variance, and occurrences.
+        """
+        return {
+            "expected_duration": np.random.normal(mean, np.sqrt(variance)),
+            "variance": variance,
+            "occurrences": 0,
+        }
+
+    def reset_knowledge_to_gaussian(self) -> None:
+        """
+        Reset the knowledge base, initializing all expected durations with a Gaussian distribution.
+        """
+        for action in self.knowledge.get("Valid_actions", {}).keys():
+            self.knowledge["Valid_actions"][action] = self._initialize_gaussian()
+
+        for subtask in self.knowledge.get("Subtask", {}).keys():
+            self.knowledge["Subtask"][subtask] = self._initialize_gaussian()
+
+        log.info("Knowledge successfully reset to Gaussian.")
+        self._save_knowledge(KNOWLEDGE_PATH)
+
+    def _load_knowledge(self, knowledge_path: Path) -> Dict[str, Any]:
+        """
+        Load the knowledge file.
+
+        Args:
+            knowledge_path (Path): Path to the knowledge directory.
+
+        Returns:
+            Dict[str, Any]: Loaded knowledge dictionary.
+        """
+        knowledge_file = knowledge_path / "knowledge.json"
+        if knowledge_file.exists():
+            try:
+                with knowledge_file.open("r") as f:
+                    knowledge = json.load(f)
+                log.info("Knowledge loaded successfully.")
+                return knowledge
+            except json.JSONDecodeError as e:
+                log.error(f"Error decoding knowledge file: {e}")
+        else:
+            log.warning("Knowledge file not found. Initializing default knowledge.")
+
+        # Return default knowledge if file not found or error occurs
+        return self.DEFAULT_KNOWLEDGE.copy()
+
+    def _save_knowledge(self, knowledge_path: Path) -> None:
+        """
+        Save the knowledge file.
+
+        Args:
+            knowledge_path (Path): Path to the knowledge directory.
         """
         knowledge_path.mkdir(parents=True, exist_ok=True)
-        with open(knowledge_path / "knowledge.json", "w") as f:
-            json.dump(self.knowledge, f, indent=4, ensure_ascii=False)
-        print("Knowledge saved successfully.")
+        knowledge_file = knowledge_path / "knowledge.json"
+        try:
+            with knowledge_file.open("w") as f:
+                json.dump(self.knowledge, f, indent=4, ensure_ascii=False)
+            log.info("Knowledge saved successfully.")
+        except Exception as e:
+            log.error(f"Error saving knowledge: {e}")
 
-    def get_task_duration(self, subtask: "Subtask") -> float:  # type: ignore
+    def _get_subtask_duration(self, subtask: "Subtask") -> float:
         """
-        Adjust the expected duration of a subtask based on the agent's knowledge
+        Get the expected duration of a subtask based on the agent's knowledge.
+
+        Args:
+            subtask (Subtask): The subtask whose duration is to be retrieved.
+
+        Returns:
+            float: The expected duration of the subtask.
         """
-        subtask_data = self.knowledge.get("Subtask", {}).get(subtask.name)
-        # agent가 알고 있는 subtask의 정보가 있으면 그 정보를 사용
+        subtask_name = subtask.name
+        subtask_data = self.knowledge.get("Subtask", {}).get(subtask_name)
+
         if subtask_data:
             expected_duration = subtask_data.get("expected_duration")
+            log.info(
+                f"Using known duration for subtask '{subtask_name}': {expected_duration}"
+            )
         else:
             # If no prior knowledge, calculate from actions
             expected_duration = self._calculate_subtask_duration_from_actions(subtask)
             variance = 1.0  # Initial variance
             # Save new knowledge
-            self.knowledge.setdefault("Subtask", {})[subtask.name] = {
+            self.knowledge.setdefault("Subtask", {})[subtask_name] = {
                 "expected_duration": expected_duration,
                 "variance": variance,
                 "occurrences": 0,
             }
+            log.info(
+                f"Estimated duration for new subtask '{subtask_name}': {expected_duration}"
+            )
             self._save_knowledge(KNOWLEDGE_PATH)
 
         return expected_duration
 
-    def _calculate_subtask_duration_from_actions(self, subtask: "Subtask") -> float:  # type: ignore
+    def adjust_subtask_duration(self, tasks: List["Task"]) -> List["Task"]:
         """
-        Calculate the subtask duration by summing the durations of its primitive actions
+        Adjust the duration intervals of subtasks in the given tasks based on the agent's knowledge.
+
+        Args:
+            tasks (List[Task]): List of tasks whose subtasks' durations are to be adjusted.
+
+        Returns:
+            List[Task]: The list of tasks with adjusted subtask durations.
+        """
+        for task in tasks:
+            for subtask in task.subtasks:
+                subtask.duration.interval = self._get_subtask_duration(subtask)
+        return tasks
+
+    def _calculate_subtask_duration_from_actions(self, subtask: "Subtask") -> float:
+        """
+        Calculate the subtask duration by summing the durations of its primitive actions.
+
+        Args:
+            subtask (Subtask): The subtask whose duration is to be calculated.
+
+        Returns:
+            float: The calculated expected duration of the subtask.
         """
         total_duration = 0.0
-        for action in subtask.execution.primitive_actions:
-            action_duration = self.knowledge["Valid_actions"].get(action.split()[0])[
-                "expected_duration"
-            ]
-            if action_duration is None:
-                # If action duration is unknown, assume a default value (e.g., 1)
+        for action_str in subtask.execution.primitive_actions:
+            action_name = action_str.split()[0]
+            action_data = self.knowledge.get("Valid_actions", {}).get(action_name)
+
+            if action_data and "expected_duration" in action_data:
+                action_duration = action_data["expected_duration"]
+            else:
+                # If action duration is unknown, assume a default value (e.g., 1.0)
                 action_duration = 1.0
-                self.knowledge["Valid_actions"][action.split()[0]] = action_duration
+                # Initialize the action in knowledge
+                self.knowledge.setdefault("Valid_actions", {})[action_name] = {
+                    "expected_duration": action_duration,
+                    "variance": 1.0,
+                    "occurrences": 0,
+                }
+                log.warning(
+                    f"Action '{action_name}' unknown. Assuming default duration {action_duration}."
+                )
                 self._save_knowledge(KNOWLEDGE_PATH)
+
             total_duration += action_duration
+
         return total_duration
 
-    def update_task_knowledge(self, subtask: "Subtask", actual_duration: float) -> None:  # type: ignore
-        # env에서 직접 agent의 task 수행 이후 update와 관련있는 코드
+    def update_task_knowledge(self, subtask: "Subtask", actual_duration: float) -> None:
         """
-        Update the knowledge based on the result of the subtask execution
+        Update the knowledge based on the result of the subtask execution.
+
+        Args:
+            subtask (Subtask): The subtask that was executed.
+            actual_duration (float): The actual duration of the subtask execution.
         """
-        # Retrieve or initialize subtask data
+        subtask_name = subtask.name
         subtask_data = self.knowledge.setdefault("Subtask", {}).setdefault(
-            subtask.name,
+            subtask_name,
             {"expected_duration": actual_duration, "variance": 1.0, "occurrences": 0},
         )
 
@@ -154,26 +252,28 @@ class BayesianAgent:
         subtask_data["variance"] = updated_variance
         subtask_data["occurrences"] = occurrences
 
-        print(f"Updated Knowledge for {subtask.name}:")
-        print(f"  - Duration: {prior_mean:.2f} -> {updated_mean:.2f}")
-        print(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
+        log.info(f"Updated knowledge for subtask '{subtask_name}':")
+        log.info(f"  - Duration: {prior_mean:.2f} -> {updated_mean:.2f}")
+        log.info(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
 
         # Save knowledge
         self._save_knowledge(KNOWLEDGE_PATH)
 
     def update_primitive_action_knowledge(
-        self, action: str, actual_duration: float
+        self, action_name: str, actual_duration: float
     ) -> None:
         """
-        Update the knowledge based on the result of the primitive action execution
+        Update the knowledge based on the result of the primitive action execution.
+
+        Args:
+            action_name (str): The name of the action that was executed.
+            actual_duration (float): The actual duration of the action execution.
         """
-        print(f"{self.knowledge=}")
-        # Retrieve or initialize action data
         action_data = self.knowledge.setdefault("Valid_actions", {}).setdefault(
-            action,
+            action_name,
             {"expected_duration": actual_duration, "variance": 1.0, "occurrences": 0},
         )
-        print(f"{action_data=}")
+
         # Prior data
         prior_mean = action_data["expected_duration"]
         prior_variance = action_data["variance"]
@@ -193,9 +293,9 @@ class BayesianAgent:
         action_data["variance"] = updated_variance
         action_data["occurrences"] = occurrences
 
-        print(f"Updated Knowledge for action '{action}':")
-        print(f"  - Duration: {prior_mean:.2f} -> {updated_mean:.2f}")
-        print(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
+        log.info(f"Updated knowledge for action '{action_name}':")
+        log.info(f"  - Duration: {prior_mean:.2f} -> {updated_mean:.2f}")
+        log.info(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
 
         # Save knowledge
         self._save_knowledge(KNOWLEDGE_PATH)

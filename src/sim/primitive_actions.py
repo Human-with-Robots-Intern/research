@@ -3,7 +3,7 @@ import time
 from omnigibson.action_primitives.starter_semantic_action_primitives import (
     StarterSemanticActionPrimitives,
 )
-from utils import timeit
+from utils.util import timeit
 
 
 class CustomActionPrimitives(StarterSemanticActionPrimitives):
