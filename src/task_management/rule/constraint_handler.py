@@ -3,8 +3,6 @@ from xml.dom import Node
 
 import networkx as nx
 
-from core.task import Subtask
-
 
 class ConstraintHandler:
     """constraint graph를 통한 subtask 제약 조건 처리"""
@@ -12,7 +10,7 @@ class ConstraintHandler:
     def __init__(self, constraints: nx.DiGraph):
         self.constraints = constraints
 
-    def validate_constraints(self, parent_node: Node, subtask: Subtask) -> bool:
+    def validate_constraints(self, parent_node: Node, subtask: "Subtask") -> bool:  # type: ignore
         """
         서브태스크가 모든 제약 조건을 만족하는지 확인
         """
@@ -28,17 +26,16 @@ class ConstraintHandler:
             for time_slot, is_urgency in time_slots
         )
 
-    def get_initial_subtasks(self, subtasks: List[Subtask]) -> List[Subtask]:
+    def get_initial_subtasks(self, subtasks: List["Subtask"]) -> List["Subtask"]:  # type: ignore
         """시작 제약 조건이 존재하지 않는 서브태스크를 반환합니다."""
-        # TODO 시작 task가 decompose된 경우도 고려되는가?
         initial_nodes = {
             node for node, in_degree in self.constraints.in_degree() if in_degree == 0
         }
         return [subtask for subtask in subtasks if subtask.name in initial_nodes]
 
     def get_expandable_subtasks(
-        self, parent_node: Node, remaining_subtasks: List[Subtask]
-    ) -> List[Subtask]:
+        self, parent_node: Node, remaining_subtasks: List["Subtask"]  # type: ignore
+    ) -> List["Subtask"]:  # type: ignore
         """
         실행 가능한 서브태스크를 반환합니다.
         """
@@ -50,7 +47,7 @@ class ConstraintHandler:
         return eligible_subtasks
 
     def get_time_slot_and_urgency(
-        self, parent_node: Node, subtask: Subtask
+        self, parent_node: Node, subtask: "Subtask"  # type: ignore
     ) -> List[Tuple[int, bool]]:
         """서브태스크에 대한 시간 슬롯과 긴급성을 계산."""
         constraint_nodes = self._get_constraint_nodes(parent_node, subtask.name)
@@ -82,7 +79,7 @@ class ConstraintHandler:
         return constraint_nodes
 
     def _calculate_time_slot_for_constraint(
-        self, parent_node: Node, constraint_node: Node, subtask: Subtask
+        self, parent_node: Node, constraint_node: Node, subtask: "Subtask"  # type: ignore
     ) -> Tuple[int, bool]:
         """단일 제약 노드에 대한 시간 슬롯을 계산"""
         constraint_info = self.constraints.get_edge_data(

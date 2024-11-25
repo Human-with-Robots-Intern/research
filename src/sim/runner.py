@@ -1,38 +1,26 @@
 import logging
+import sys
 from pathlib import Path
 
 import torch as th
 import yaml
 
 import omnigibson as og
-from core.agent import Agent
+from core import BayesianAgent
 from omnigibson.action_primitives.action_primitive_set_base import (
     ActionPrimitiveErrorGroup,
 )
 from omnigibson.action_primitives.starter_semantic_action_primitives import (
-    StarterSemanticActionPrimitives,
     StarterSemanticActionPrimitiveSet,
 )
 from omnigibson.macros import gm
 from omnigibson.utils.ui_utils import create_module_logger
-from utils.util import ROOT_PATH
+from sim.primitive_actions import CustomActionPrimitives
 
 gm.USE_GPU_DYNAMICS = False
 gm.ENABLE_FLATCACHE = True
 
-log = create_module_logger(module_name=__name__)
-
-log_path = Path(ROOT_PATH) / "logs"
-log_path.mkdir(parents=True, exist_ok=True)
-
-file_handler = logging.FileHandler(f"{log_path}/{__name__}.log", "a")
-file_handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-)
-log.addHandler(file_handler)
-
-gm.USE_GPU_DYNAMICS = False
-gm.ENABLE_FLATCACHE = True
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 def _load_config():
@@ -64,26 +52,25 @@ def _load_config():
 def init_omnigibson():
     # Initialize environment and agent
     env = og.Environment(configs=_load_config())
-    agent = Agent(env.robots[0])
+
+    agent = BayesianAgent(env.robots[0])
+
     return env, agent
 
 
-def _execute_controller(ctrl_gen, env):
-    for action in ctrl_gen:
-        env.step(action)
+def execute_subtask(env, agent, subtask):
+    controller = CustomActionPrimitives(env, agent)
 
-
-def execute_task(env):
-    controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
     table = env.scene.object_registry("name", "breakfast_table_skczfi_0")
     apple = env.scene.object_registry("name", "apple")
 
     try:
-        _execute_controller(
-            controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple),
-            env,
+        controller.apply_primitive_action(
+            StarterSemanticActionPrimitiveSet.GRASP, apple
         )
-
+        controller.apply_primitive_action(
+            StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, table
+        )
     except ActionPrimitiveErrorGroup as e:
         log.error(f"Failed to execute action primitives: {e}")
 

@@ -7,79 +7,226 @@ Translate the human's natural instruction into a structured JSON format, adherin
 # [CONTEXT]
 ## Environment:
 You operate in a household setting, interacting with common household objects.
-bedroom_0
-    bed-zrumze: 1
-    door-ktydvs: 1
-    bottom_cabinet-dajebq: 1
-    picture-etixod: 1
-    window-ulnafj: 1
-    floors-ucjdgj: 2
-    ceilings-zlhppj: 2
-    electric_switch-wseglt: 1
-    
-kitchen_0
-    bottom_cabinet-bamfsz: 1
-    bottom_cabinet-slgzfc: 1
-    countertop-tpuwys: 1
-    dishwasher-xlmier: 1
-    fridge-xyejdx: 1
-    public_trash_can-zotrbg: 1
-    microwave-abzvij: 1
-    oven-wuinhm: 1
-    furniture_sink-zexzrc: 1
-    top_cabinet-fqhdne: 1
-    top_cabinet-lsyzkh: 4
-    window-ithrgo: 1
-    floors-ifmioj: 2
-    ceilings-yimfml: 2
-    electric_switch-wseglt: 1
-
-entryway_0
-    bottom_cabinet-slgzfc: 1
-    door-lvgliq: 1
-    floors-gjemfr: 2
-    ceilings-rhfker: 2
-    electric_switch-wseglt: 1
-
-living_room_0
-    carpet-ctclvd: 1
-    countertop-tpuwys: 1
-    bottom_cabinet-bamfsz: 1
-    bottom_cabinet-jhymlr: 1
-    breakfast_table-skczfi: 2
-    coffee_table-fqluyq: 1
-    floor_lamp-vdxlda: 1
-    laptop-nvulcs: 1
-    loudspeaker-bmpdyv: 1
-    pot_plant-jatssq: 2
-    pot_plant-udqjui: 1
-    shelf-njwsoa: 2
-    shelf-owvfik: 1
-    sofa-mnfbbh: 1
-    standing_tv-udotid: 1
-    ottoman-ycfbsd: 1
-    straight_chair-amgwaw: 3
-    straight_chair-eospnr: 2
-    swivel_chair-qtqitn: 1
-    table_lamp-xbfgjc: 1
-    picture-hhxttu: 1
-    picture-jpfyrq: 1
-    window-ithrgo: 2
-    floors-ptwlei: 2
-    ceilings-phrrml: 2
-    electric_switch-wseglt: 2
-
-bathroom_0
-    carpet-ctclvd: 1
-    door-ktydvs: 1
-    mirror-pevdqu: 1
-    shower_stall-invgma: 1
-    pedestal_sink-ksecxq: 1
-    toilet-vtqdev: 1
-    towel_rack-kqrmrh: 2
-    floors-avvnuv: 2
-    ceilings-jfsbfp: 2
-    electric_switch-wseglt: 1
+{
+    "bedroom_0": {
+        "door-ktydvs": {
+            "instances": [
+                "door-ktydvs_0"
+            ],
+            "possible_actions": [
+                "OPEN",
+                "CLOSE"
+            ]
+        },
+        "bottom_cabinet-dajebq": {
+            "instances": [
+                "bottom_cabinet-dajebq_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "electric_switch-wseglt": {
+            "instances": [
+                "electric_switch-wseglt_0"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        }
+    },
+    "kitchen_0": {
+        "bottom_cabinet-bamfsz": {
+            "instances": [
+                "bottom_cabinet-bamfsz_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "bottom_cabinet-slgzfc": {
+            "instances": [
+                "bottom_cabinet-slgzfc_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "top_cabinet-fqhdne": {
+            "instances": [
+                "top_cabinet-fqhdne_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "top_cabinet-lsyzkh": {
+            "instances": [
+                "top_cabinet-lsyzkh_0",
+                "top_cabinet-lsyzkh_1",
+                "top_cabinet-lsyzkh_2",
+                "top_cabinet-lsyzkh_3"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "electric_switch-wseglt": {
+            "instances": [
+                "electric_switch-wseglt_0"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        }
+    },
+    "entryway_0": {
+        "bottom_cabinet-slgzfc": {
+            "instances": [
+                "bottom_cabinet-slgzfc_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "door-lvgliq": {
+            "instances": [
+                "door-lvgliq_0"
+            ],
+            "possible_actions": [
+                "OPEN",
+                "CLOSE"
+            ]
+        },
+        "electric_switch-wseglt": {
+            "instances": [
+                "electric_switch-wseglt_0"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        }
+    },
+    "living_room_0": {
+        "bottom_cabinet-bamfsz": {
+            "instances": [
+                "bottom_cabinet-bamfsz_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "bottom_cabinet-jhymlr": {
+            "instances": [
+                "bottom_cabinet-jhymlr_0"
+            ],
+            "possible_actions": [
+                "GRASP",
+                "OPEN",
+                "CLOSE",
+                "PLACE_INSIDE"
+            ]
+        },
+        "breakfast_table-skczfi": {
+            "instances": [
+                "breakfast_table-skczfi_0",
+                "breakfast_table-skczfi_1"
+            ],
+            "possible_actions": [
+                "PLACE_ON_TOP"
+            ]
+        },
+        "coffee_table-fqluyq": {
+            "instances": [
+                "coffee_table-fqluyq_0"
+            ],
+            "possible_actions": [
+                "PLACE_ON_TOP"
+            ]
+        },
+        "floor_lamp-vdxlda": {
+            "instances": [
+                "floor_lamp-vdxlda_0"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        },
+        "sofa-mnfbbh": {
+            "instances": [
+                "sofa-mnfbbh_0"
+            ],
+            "possible_actions": [
+                "PLACE_ON_TOP"
+            ]
+        },
+        "table_lamp-xbfgjc": {
+            "instances": [
+                "table_lamp-xbfgjc_0"
+            ],
+            "possible_actions": [
+                "PLACE_ON_TOP",
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        },
+        "electric_switch-wseglt": {
+            "instances": [
+                "electric_switch-wseglt_0",
+                "electric_switch-wseglt_1"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        }
+    },
+    "bathroom_0": {
+        "door-ktydvs": {
+            "instances": [
+                "door-ktydvs_0"
+            ],
+            "possible_actions": [
+                "OPEN",
+                "CLOSE"
+            ]
+        },
+        "electric_switch-wseglt": {
+            "instances": [
+                "electric_switch-wseglt_0"
+            ],
+            "possible_actions": [
+                "TOGGLE_ON",
+                "TOGGLE_OFF"
+            ]
+        }
+    }
+}
 
 ## Definitions:
 - Task: The main goal or objective derived from the human instruction.

@@ -4,14 +4,14 @@ from pathlib import Path
 import networkx as nx
 from anytree import Node
 
-from utils.util import ROOT_PATH
+from utils.constants import TASK_PATH
 
 
 # Assuming Task, Subtask, and TemporalConstraint classes are defined
 class TaskGenerator:
     def setUp(self):
         # JSON 데이터 로드
-        file_path = Path(ROOT_PATH) / f"assets/tasks/task_new.json"
+        file_path = TASK_PATH / f"task_new.json"
 
         with open(file_path, "r") as file:
             self.json_data = json.load(file)

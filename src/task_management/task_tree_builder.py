@@ -1,15 +1,16 @@
-from typing import List, Tuple
+from typing import List
 
 import networkx as nx
 from anytree import Node
 
-from archive.task import Subtask, Task
+from omnigibson.utils.ui_utils import create_module_logger
 from task_management.rule import ConstraintHandler, SlotHandler
+
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class TaskTree:
-    def __init__(self, agent: "Agent"):
-        self.agent = agent
+    def __init__(self):  # type: ignore
         self.root_node = Node(
             name="Init",
             start=0,
@@ -19,7 +20,7 @@ class TaskTree:
 
     def add_move_node(self, parent_node: Node, move_cost: int) -> Node:
         return Node(
-            name=f"Move ({parent_node.location} -> {self.agent})",
+            name=f"Move for {parent_node.name}",
             parent=parent_node,
             start=parent_node.end,
             end=parent_node.end + move_cost,
@@ -27,7 +28,7 @@ class TaskTree:
         )
 
     def add_wait_node(
-        self, parent_node: Node, subtask: Subtask, wait_time: int
+        self, parent_node: Node, subtask: "Subtask", wait_time: int  # type: ignore
     ) -> Node:
         return Node(
             name=f"Wait_for_{subtask.name}",
@@ -37,7 +38,7 @@ class TaskTree:
             duration=wait_time,
         )
 
-    def add_subtask_node(self, parent_node: Node, subtask: Subtask) -> Node:
+    def add_subtask_node(self, parent_node: Node, subtask: "Subtask") -> Node:  # type: ignore
         return Node(
             name=subtask.name,
             parent=parent_node,
@@ -50,17 +51,15 @@ class TaskTree:
 class TaskTreeBuilder:
     def __init__(
         self,
-        agent: "Agent",
-        tasks: List[Task],
+        agent: "Agent",  # type: ignore
+        tasks: List["Task"],  # type: ignore
         constraints: nx.DiGraph,
     ):
-        # TODO Util the Agent Knowledge
-        """이 단계에서 Agent의 Knowledge를 활용할 수 있어야 함"""
+        self.tree = TaskTree()
         self.agent = agent
         self.tasks = tasks
         self.constraint_handler = ConstraintHandler(constraints)
         self.slot_handler = SlotHandler(self._node_expansion)
-        self.tree = TaskTree(agent)
 
     def build_tree(self) -> Node:
         subtasks = [subtask for task in self.tasks for subtask in task.subtasks]
@@ -71,7 +70,7 @@ class TaskTreeBuilder:
         return self.tree.root_node
 
     def _node_expansion(
-        self, parent_node: Node, subtask: Subtask, subtasks: List[Subtask]
+        self, parent_node: Node, subtask: "Subtask", subtasks: List["Subtask"]  # type: ignore
     ) -> None:
         remaining_subtasks = subtasks[:]
         remaining_subtasks.remove(subtask)
@@ -87,13 +86,16 @@ class TaskTreeBuilder:
             subtask,
             self.constraint_handler.get_time_slot_and_urgency,
         )
+
         if time_slot is None:
             return
 
         if time_slot > 0:
-            # TODO subtask 소요 시간을 agent로부터 받아와야 함
-            # Run subtask and update knowledge
-            subtask.duration = self.agent.run_subtask(subtask)
+            # agent의 지식을 활용하여 서브태스크의 예상 소요 시간 로드
+            subtask.duration.interval = self.agent.get_task_duration(subtask)
+            log.info(
+                f"Estimated duration for {subtask.name}: {subtask.duration.interval}"
+            )
             # 시간 슬롯 내에서 서브태스크 처리
             parent_node, wait_time, remaining_subtasks = (
                 self.slot_handler.handle_time_slots(

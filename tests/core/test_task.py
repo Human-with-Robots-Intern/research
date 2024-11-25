@@ -3,8 +3,8 @@ import logging
 from pathlib import Path
 from unittest import TestCase, main
 
-from src.core.task import ScheduledTask, Subtask, Task, TaskGraphBuilder
-from src.utils import ROOT_PATH
+from core.task import Task, TaskGraphBuilder
+from utils.constants import TASK_PATH
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class TestTaskSystem(TestCase):
     def setUp(self):
         # JSON 데이터 로드
-        file_path = Path(ROOT_PATH) / f"assets/tasks/task_new.json"
+        file_path = Path(TASK_PATH) / f"task_new.json"
 
         with open(file_path, "r") as file:
             self.json_data = json.load(file)

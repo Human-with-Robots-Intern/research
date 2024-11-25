@@ -7,9 +7,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import openai
-from dotenv import load_dotenv
 
-from utils.util import KNOWLEDGE_PATH, PROMPT_PATH, TASK_PATH
+from utils.constants import KNOWLEDGE_PATH, PROMPT_PATH, TASK_PATH
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
@@ -198,10 +197,8 @@ def cached_generate_and_validate_task(
 
 def generate_task():
     """Main function to generate tasks based on user input."""
-    prompt_file_path = Path(PROMPT_PATH) / "e2e_generator.txt"
-    knowledge_file_path = Path(KNOWLEDGE_PATH) / "knowledge.json"
-    examples_prompt = load_prompt(prompt_file_path)
-    knowledge = load_knowledge(knowledge_file_path)
+    examples_prompt = load_prompt(Path(PROMPT_PATH) / "e2e_generator.txt")
+    knowledge = load_knowledge(Path(KNOWLEDGE_PATH) / "knowledge.json")
 
     user_input = input("Please enter the instructions: ").strip()
     if not user_input:
@@ -217,7 +214,7 @@ def generate_task():
 
     if output and validate_output_format(output):
         sanitized_name = sanitize_file_name(output[0].get("Task", "output"))
-        output_file_path = Path(TASK_PATH) / f"task_{sanitized_name}.json"
+        output_file_path = Path(TASK_PATH) / f"{sanitized_name}.json"
         save_to_file(output, output_file_path)
         return sanitized_name
     else:

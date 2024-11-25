@@ -3,13 +3,13 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 from anytree import Node
 from anytree.exporter import UniqueDotExporter
 
-from src.utils import VIS_PATH
+from utils.constants import VIS_PATH
 
 
-# from src.core.schedule import convert_tree_to_schedule
 def visualize(task_name, constraints, task_tree=None, opt_task_tree=None):
     folder_name = datetime.now().strftime("%Y-%m-%d_%H") + f"_{task_name}"
     save_folder_path = Path(VIS_PATH) / folder_name
@@ -17,7 +17,7 @@ def visualize(task_name, constraints, task_tree=None, opt_task_tree=None):
 
     visualize_graph(constraints, save_folder_path)
     visualize_tree(task_tree, opt_task_tree, save_folder_path)
-    # plot_gantt_chart(opt_task_plans, save_folder_path)
+    plot_gantt_chart(opt_task_tree, save_folder_path)
 
 
 def visualize_tree(task_tree, opt_task_tree, save_folder_path):
@@ -100,39 +100,32 @@ def visualize_graph(G: nx.DiGraph, save_folder_path):
     plt.savefig(Path(save_folder_path) / "task_graph.png")
 
 
-def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
+def plot_gantt_chart(opt_task_tree, save_folder_path, is_display=False):
     """
     Plot a Gantt chart for the given task tree, visualizing each path as a separate subplot.
 
     Args:
-        root (Node): The root of the filtered task tree.
+        opt_task_tree (Node): The root of the filtered task tree.
         save_folder_path (str): The path where the plot will be saved.
         is_display (bool): Whether to display the plot after saving.
     """
-    schedules = convert_tree_to_schedule(root)
 
-    # Number of subplots needed
-    n_plots = len(schedules)
+    # 모든 리프 노드를 순회
+    leaf_nodes = opt_task_tree.leaves
+    n_plots = len(leaf_nodes)
 
-    # Create subplots
+    # 서브플롯 생성
     fig, axs = plt.subplots(n_plots, 1, figsize=(24, 4 * n_plots))
+    axs = np.atleast_1d(axs)  # Ensure axs is always iterable
 
-    if n_plots == 1:
-        axs = [axs]  # Ensure axs is a list even when there's only one plot
+    for idx, leaf_node in enumerate(leaf_nodes):
+        # 각 리프에서 루트까지의 경로 추출
+        tasks = [node.name for node in leaf_node.path]
+        start_times = [node.start for node in leaf_node.path]
+        durations = [node.end - node.start for node in leaf_node.path]  # Duration 계산
 
-    for i, schedule in enumerate(schedules):
-        tasks = []
-        start_times = []
-        durations = []
-
-        # 노드에 있는 시작, 끝, duration 시간 리스트로 뺌
-        for subtask in schedule:
-            tasks.append(subtask.name)
-            start_times.append(subtask.start)
-            durations.append(subtask.duration)
-
-        # Plot the Gantt chart for the current path
-        ax = axs[i]
+        # 현재 경로의 Gantt 차트 그리기
+        ax = axs[idx]
         y_pos = range(len(tasks))
         bars = ax.barh(
             y_pos, durations, left=start_times, align="center", color="skyblue"
@@ -141,9 +134,9 @@ def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
         ax.set_yticklabels(tasks)
         ax.invert_yaxis()
         ax.set_xlabel("Time")
-        ax.set_title(f"Gantt Chart of Path {i+1}")
+        ax.set_title(f"Task Schedule")
 
-        # Add text labels for start and end times
+        # 시작/종료 시간 레이블 추가
         for j, bar in enumerate(bars):
             end_time = start_times[j] + durations[j]
             ax.text(
@@ -157,11 +150,13 @@ def plot_gantt_chart(root: Node, save_folder_path, is_display=False):
                 weight="bold",
             )
 
-    plt.tight_layout()
+    plt.tight_layout()  # 반복문 밖에서 호출
 
-    # Save the plot to a file
-    plt.savefig(os.path.join(save_folder_path, "task_schedule_paths.png"))
+    # 파일 저장
+    save_path = Path(save_folder_path) / "task_schedule_paths.png"
+    plt.savefig(save_path)
 
+    # 플롯 표시 여부
     if is_display:
         plt.show()
     else:

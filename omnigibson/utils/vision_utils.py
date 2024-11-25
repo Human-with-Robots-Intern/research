@@ -10,6 +10,8 @@ try:
     import accimage
 except ImportError:
     accimage = None
+except ModuleNotFoundError:
+    accimage = None
 
 
 class RandomScale:
@@ -69,7 +71,9 @@ class Remapper:
     """
 
     def __init__(self):
-        self.key_array = th.empty(0, dtype=th.int32, device="cuda")  # Initialize the key_array as empty
+        self.key_array = th.empty(
+            0, dtype=th.int32, device="cuda"
+        )  # Initialize the key_array as empty
         self.known_ids = set()
         self.warning_printed = set()
 
@@ -105,7 +109,12 @@ class Remapper:
         if image_max_key > key_array_max_key:
             prev_key_array = self.key_array.clone()
             # We build a new key array and use max int32 as the default value.
-            self.key_array = th.full((image_max_key + 1,), th.iinfo(th.int32).max, dtype=th.int32, device="cuda")
+            self.key_array = th.full(
+                (image_max_key + 1,),
+                th.iinfo(th.int32).max,
+                dtype=th.int32,
+                device="cuda",
+            )
             # Copy the previous key array into the new key array
             self.key_array[: len(prev_key_array)] = prev_key_array
 
@@ -116,7 +125,9 @@ class Remapper:
             for key in new_keys:
                 label = old_mapping[key]
                 new_key = next((k for k, v in new_mapping.items() if v == label), None)
-                assert new_key is not None, f"Could not find a new key for label {label} in new_mapping!"
+                assert (
+                    new_key is not None
+                ), f"Could not find a new key for label {label} in new_mapping!"
                 self.key_array[key] = new_key
 
         # For all the values that exist in the image but not in old_mapping.keys(), we map them to whichever key in
@@ -124,14 +135,20 @@ class Remapper:
         # show up in the old_mapping, i.e. particle systems.
         for key in th.unique(image) if image_keys is None else image_keys:
             if key.item() not in old_mapping.keys():
-                new_key = next((k for k, v in new_mapping.items() if v == "unlabelled"), None)
-                assert new_key is not None, f"Could not find a new key for label 'unlabelled' in new_mapping!"
+                new_key = next(
+                    (k for k, v in new_mapping.items() if v == "unlabelled"), None
+                )
+                assert (
+                    new_key is not None
+                ), f"Could not find a new key for label 'unlabelled' in new_mapping!"
                 self.key_array[key] = new_key
 
         # Apply remapping
         remapped_img = self.key_array[image]
         # Make sure all values are correctly remapped and not equal to the default value
-        assert th.all(remapped_img != th.iinfo(th.int32).max), "Not all keys in the image are in the key array!"
+        assert th.all(
+            remapped_img != th.iinfo(th.int32).max
+        ), "Not all keys in the image are in the key array!"
         remapped_labels = {}
         for key in th.unique(remapped_img):
             remapped_labels[key.item()] = new_mapping[key.item()]
@@ -244,7 +261,9 @@ def colorize_bboxes_3d(bbox_3d_data, rgb_image, camera_params):
         # Iterate over each set of 8 points (each bounding box)
         for i in range(0, len(all_image_points), 8):
             image_points = all_image_points[i : i + 8]
-            image_points[:, 1] = height - image_points[:, 1]  # Flip Y-axis to match image coordinates
+            image_points[:, 1] = (
+                height - image_points[:, 1]
+            )  # Flip Y-axis to match image coordinates
 
             # Use a distinct color for each bounding box
             line_color = box_colors[i // 8]
@@ -252,7 +271,12 @@ def colorize_bboxes_3d(bbox_3d_data, rgb_image, camera_params):
             # Draw lines for each connection
             for start, end in connections:
                 draw.line(
-                    (image_points[start][0], image_points[start][1], image_points[end][0], image_points[end][1]),
+                    (
+                        image_points[start][0],
+                        image_points[start][1],
+                        image_points[end][0],
+                        image_points[end][1],
+                    ),
                     fill=line_color,
                     width=2,
                 )

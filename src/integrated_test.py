@@ -3,8 +3,13 @@ import json
 from pathlib import Path
 
 # from runner import execute_task, init_omnigibson
-from core import Agent, Task, TaskGraphBuilder, TaskTimingPlanner
-from utils import TASK_PATH, generate_task, visualize
+from core import Task, TaskGraphBuilder, TaskTimingPlanner
+from omnigibson.utils.ui_utils import create_module_logger
+from sim.runner import execute_subtask, init_omnigibson
+from utils import generate_task, visualize
+from utils.constants import TASK_PATH
+
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 def parse_arguments():
@@ -39,7 +44,7 @@ def load_task_data(task_name: str) -> dict:
         except ValueError as e:
             raise ValueError(f"Error generating task: {e}")
 
-    file_path = Path(TASK_PATH) / f"task_{task_name}.json"
+    file_path = Path(TASK_PATH) / f"{task_name}.json"
 
     if not file_path.exists():
         raise FileNotFoundError(f"Task file not found: {file_path}")
@@ -65,19 +70,29 @@ def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
 
+    #  ========= Initialization =========
+    # 명령 -> task.json
     task_name, task_data = load_task_data(args.name)
+    # task.json -> task, task_graph (task, constraints 객체로 변환)
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
-    # env, agent = init_omnigibson()
-    dummy_agent = Agent(None, None)
+    # omnigibson 환경 로드
+    env, agent = init_omnigibson()
 
+    #  ========= Task Scheduling =========
     task_timing_planner = TaskTimingPlanner(
-        agent=dummy_agent, tasks=tasks, constraints=task_graph
+        agent=agent, tasks=tasks, constraints=task_graph
     )
-    task_trees = task_timing_planner.get_task_trees()
 
-    # execute_task(env)
+    task_tree, opt_task_tree = task_timing_planner.get_task_trees()
+    scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
+    #  ========= Task Execution =========
+    execute_subtask(env, agent, None)
+    # for scheduled_subtask in scheduled_subtasks:
+    #     execute_subtask(env, agent, scheduled_subtask)
+
+    # Result Visualization
     if args.visualize:
-        visualize(task_name, task_graph, *task_trees)
+        visualize(task_name, task_graph, task_tree, opt_task_tree)
 
 
 if __name__ == "__main__":

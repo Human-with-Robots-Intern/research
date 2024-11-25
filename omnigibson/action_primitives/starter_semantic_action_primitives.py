@@ -329,7 +329,7 @@ class PlanningContext(object):
 
 
 class StarterSemanticActionPrimitiveSet(IntEnum):
-    _init_ = "value __doc__"
+    _init_ = "value __doc__ "
     GRASP = auto(), "Grasp an object"
     PLACE_ON_TOP = auto(), "Place the currently grasped object on top of another object"
     PLACE_INSIDE = auto(), "Place the currently grasped object inside another object"
@@ -384,6 +384,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             StarterSemanticActionPrimitiveSet.TOGGLE_ON: self._toggle_on,
             StarterSemanticActionPrimitiveSet.TOGGLE_OFF: self._toggle_off,
         }
+
         # Validate the robot
         if isinstance(self.robot, LocomotionRobot):
             assert isinstance(

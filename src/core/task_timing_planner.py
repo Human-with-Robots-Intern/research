@@ -9,7 +9,7 @@ from task_management import TaskTreeBuilder
 
 
 class TaskTimingPlanner:
-    def __init__(self, agent: "Agent", tasks: List["Task"], constraints: nx.DiGraph):
+    def __init__(self, agent: "Agent", tasks: List["Task"], constraints: nx.DiGraph):  # type: ignore
         self.tasks = tasks
         self.tree_builder = TaskTreeBuilder(agent, self.tasks, constraints)
         self.task_tree = self.tree_builder.build_tree()
@@ -18,6 +18,14 @@ class TaskTimingPlanner:
         opt_task_tree = self._get_optimal_tree()
         self._print_plan(opt_task_tree)
         return self.task_tree, opt_task_tree
+
+    def convert_to_tasks(self, opt_task_tree: "Node"):
+        all_subtask_names = {
+            subtask.name for task in self.tasks for subtask in task.subtasks
+        }
+
+        for node in list(opt_task_tree.leaves[0].path)[1:]:
+            print(node.name, node.duration, node.start, node.end)
 
     def _get_optimal_tree(self) -> Node:
         """Traverse self.task_tree to find the optimal path and return it
@@ -87,7 +95,7 @@ class TaskTimingPlanner:
         return filtered_tree_root
 
     # 모든 leaf 노드 찾기
-    def _get_leaf_nodes(self, node):
+    def _get_leaf_nodes(self, node: Node) -> List[Node]:
         if not node.children:
             return [node]
         else:
