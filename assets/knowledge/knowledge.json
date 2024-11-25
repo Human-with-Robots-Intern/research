@@ -1,9 +1,9 @@
 {
     "Valid_actions": {
         "GRASP": {
-            "expected_duration": 27.381183087825775,
-            "variance": 0.08333333333333333,
-            "occurrences": 10
+            "expected_duration": 29.278490066528317,
+            "variance": 0.06666666666666667,
+            "occurrences": 13
         },
         "PLACE_INSIDE": {
             "expected_duration": 1.0,
@@ -11,9 +11,9 @@
             "occurrences": 0
         },
         "PLACE_ON_TOP": {
-            "expected_duration": 13.504179755846659,
-            "variance": 0.16666666666666666,
-            "occurrences": 5
+            "expected_duration": 14.14702047620501,
+            "variance": 0.14285714285714285,
+            "occurrences": 6
         },
         "TOGGLE_ON": {
             "expected_duration": 1.0,

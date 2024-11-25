@@ -7,8 +7,7 @@ from task_management.rule import ConstraintHandler, SlotHandler
 
 
 class TaskTree:
-    def __init__(self, agent: "Agent"):  # type: ignore
-        self.agent = agent
+    def __init__(self):  # type: ignore
         self.root_node = Node(
             name="Init",
             start=0,
@@ -18,7 +17,7 @@ class TaskTree:
 
     def add_move_node(self, parent_node: Node, move_cost: int) -> Node:
         return Node(
-            name=f"Move ({parent_node.location} -> {self.agent})",
+            name=f"Move for {parent_node.name}",
             parent=parent_node,
             start=parent_node.end,
             end=parent_node.end + move_cost,
@@ -53,13 +52,11 @@ class TaskTreeBuilder:
         tasks: List["Task"],  # type: ignore
         constraints: nx.DiGraph,
     ):
-        # TODO Util the Agent Knowledge
-        """이 단계에서 Agent의 Knowledge를 활용할 수 있어야 함"""
+        self.tree = TaskTree()
         self.agent = agent
         self.tasks = tasks
         self.constraint_handler = ConstraintHandler(constraints)
         self.slot_handler = SlotHandler(self._node_expansion)
-        self.tree = TaskTree(agent)
 
     def build_tree(self) -> Node:
         subtasks = [subtask for task in self.tasks for subtask in task.subtasks]
@@ -86,6 +83,7 @@ class TaskTreeBuilder:
             subtask,
             self.constraint_handler.get_time_slot_and_urgency,
         )
+
         if time_slot is None:
             return
 

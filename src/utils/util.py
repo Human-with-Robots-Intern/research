@@ -1,3 +1,4 @@
+import json
 import signal
 import time
 from functools import wraps
@@ -30,9 +31,6 @@ def timeit(func):
         return elapsed_time
 
     return wrapper
-
-
-import json
 
 
 # JSON Task Plan을 Python 코드로 변환하는 함수

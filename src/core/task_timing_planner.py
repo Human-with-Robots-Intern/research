@@ -19,6 +19,11 @@ class TaskTimingPlanner:
         self._print_plan(opt_task_tree)
         return self.task_tree, opt_task_tree
 
+    def convert_to_tasks(self, opt_task_tree: "Node"):
+        tasks = self.tasks
+        for node in list(opt_task_tree.leaves[0].path)[1:]:
+            print(node.name, node.duration, node.start, node.end)
+
     def _get_optimal_tree(self) -> Node:
         """Traverse self.task_tree to find the optimal path and return it
 

@@ -84,12 +84,11 @@ def main():
     )
 
     task_tree, opt_task_tree = task_timing_planner.get_task_trees()
-    log.debug(f"Tasks: {tasks}")
-    log.debug(f"Task Tree: {opt_task_tree.leaves[0]}")
+    scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
     #  ========= Task Execution =========
     execute_subtask(env, agent, None)
-    # for subtask in opt_task_tree:
-    #     execute_subtask(env, agent, subtask)
+    # for scheduled_subtask in scheduled_subtasks:
+    #     execute_subtask(env, agent, scheduled_subtask)
 
     # Result Visualization
     if args.visualize:

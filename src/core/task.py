@@ -271,18 +271,3 @@ class TaskGraphBuilder:
                     else:
                         raise ValueError("Constrained Node does not exist")
         return self.graph
-
-
-# class ScheduledTask:
-#     def __init__(self, name, start, end, duration, subtask=None):
-#         self.name = name
-#         self.start = start
-#         self.end = end
-#         self.duration = duration
-#         self.subtask = subtask
-
-#     def __repr__(self):
-#         return (
-#             f"ScheduledTask(name={self.name}, "
-#             f"subtask={self.subtask}, start={self.start}, end={self.end}, duration={self.duration})"
-#         )

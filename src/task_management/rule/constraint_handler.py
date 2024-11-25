@@ -28,7 +28,6 @@ class ConstraintHandler:
 
     def get_initial_subtasks(self, subtasks: List["Subtask"]) -> List["Subtask"]:  # type: ignore
         """시작 제약 조건이 존재하지 않는 서브태스크를 반환합니다."""
-        # TODO 시작 task가 decompose된 경우도 고려되는가?
         initial_nodes = {
             node for node, in_degree in self.constraints.in_degree() if in_degree == 0
         }
