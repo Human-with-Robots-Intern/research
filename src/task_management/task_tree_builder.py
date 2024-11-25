@@ -1,9 +1,12 @@
-from typing import List, Tuple
+from typing import List
 
 import networkx as nx
 from anytree import Node
 
+from omnigibson.utils.ui_utils import create_module_logger
 from task_management.rule import ConstraintHandler, SlotHandler
+
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class TaskTree:
@@ -90,7 +93,9 @@ class TaskTreeBuilder:
         if time_slot > 0:
             # agent의 지식을 활용하여 서브태스크의 예상 소요 시간 로드
             subtask.duration.interval = self.agent.get_task_duration(subtask)
-
+            log.info(
+                f"Estimated duration for {subtask.name}: {subtask.duration.interval}"
+            )
             # 시간 슬롯 내에서 서브태스크 처리
             parent_node, wait_time, remaining_subtasks = (
                 self.slot_handler.handle_time_slots(

@@ -20,7 +20,10 @@ class TaskTimingPlanner:
         return self.task_tree, opt_task_tree
 
     def convert_to_tasks(self, opt_task_tree: "Node"):
-        tasks = self.tasks
+        all_subtask_names = {
+            subtask.name for task in self.tasks for subtask in task.subtasks
+        }
+
         for node in list(opt_task_tree.leaves[0].path)[1:]:
             print(node.name, node.duration, node.start, node.end)
 

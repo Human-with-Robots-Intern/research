@@ -1,5 +1,5 @@
 from .task_generator import generate_task
-from .util import convert_to_tasks, timeit
+from .util import timeit
 from .visualizer import visualize
 
-__all__ = ["generate_task", "visualize", "timeit", "convert_to_tasks"]
+__all__ = ["generate_task", "visualize", "timeit"]
