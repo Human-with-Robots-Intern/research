@@ -56,12 +56,15 @@ class TaskTimingPlanner:
             if node.name in all_subtask_names:
                 # Find the subtask object with the same name as node.name
                 matching_subtask = next(
-                    (subtask for subtask in all_subtasks if subtask.name == node.name), None
+                    (subtask for subtask in all_subtasks if subtask.name == node.name),
+                    None,
                 )
                 if matching_subtask:
                     subtasks_in_plan.append(matching_subtask)
 
-        log.info(f"Subtasks in optimal plan: {[subtask.name for subtask in subtasks_in_plan]}")
+        log.info(
+            f"Subtasks in optimal plan: {[subtask.name for subtask in subtasks_in_plan]}"
+        )
         return subtasks_in_plan
 
     def _get_optimal_tree(self) -> Node:
