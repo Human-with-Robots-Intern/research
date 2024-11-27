@@ -8,11 +8,11 @@
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "bottom_cabinet-bamfsz_0": 1
+                        "bottom_cabinet_bamfsz_0": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO bottom_cabinet-bamfsz_0",
-                        "OPEN bottom_cabinet-bamfsz_0"
+                        "NAVIGATE_TO bottom_cabinet_bamfsz_0",
+                        "OPEN bottom_cabinet_bamfsz_0"
                     ]
                 },
                 "Duration": {
@@ -28,13 +28,13 @@
                 "Executions": {
                     "Objects": {
                         "apple": 1,
-                        "bottom_cabinet-bamfsz_0": 1
+                        "bottom_cabinet_bamfsz_0": 1
                     },
                     "PrimitiveActions": [
                         "NAVIGATE_TO apple",
                         "GRASP apple",
-                        "NAVIGATE_TO bottom_cabinet-bamfsz_0",
-                        "PLACE_INSIDE bottom_cabinet-bamfsz_0"
+                        "NAVIGATE_TO bottom_cabinet_bamfsz_0",
+                        "PLACE_INSIDE bottom_cabinet_bamfsz_0"
                     ]
                 },
                 "Duration": {

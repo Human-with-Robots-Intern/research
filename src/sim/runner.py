@@ -52,6 +52,7 @@ def _load_config():
 def init_omnigibson():
     # Initialize environment and agent
     env = og.Environment(configs=_load_config())
+    env.scene.object_registry("name", "apple")
 
     agent = BayesianAgent(env.robots[0])
 
@@ -73,8 +74,7 @@ def execute_subtask(env, agent, subtask):
 
     # Parse execution details
     execution = subtask.execution
-    objects = execution.objects
-    primitive_actions = execution.primitive_actions
+    objects, primitive_actions = execution.objects, execution.primitive_actions
 
     # Build a mapping from object names to Omnigibson objects
     object_registry = {}
@@ -87,7 +87,9 @@ def execute_subtask(env, agent, subtask):
 
     # Define action mapping to Omnigibson action primitives
     action_mapping = {
-        "NAVIGATE_TO": lambda target_obj: agent.navigate_to(target_obj),
+        "NAVIGATE_TO": lambda target_obj: controller.apply_ref(
+            StarterSemanticActionPrimitiveSet.NAVIGATE_TO, target_obj
+        ),
         "GRASP": lambda target_obj: controller.apply_ref(
             StarterSemanticActionPrimitiveSet.GRASP, target_obj
         ),
@@ -122,15 +124,23 @@ def execute_subtask(env, agent, subtask):
 
         action_type, target_name = parts
         target_obj = object_registry.get(target_name)
-
+        
         if action_type in action_mapping:
             log.info(f"Performing action: {action_type} on {target_name}")
-            success = action_mapping[action_type](target_obj)
-            if not success:
-                log.error(f"Action '{action_type}' on '{target_name}' failed.")
-                return False  # Stop execution if any action fails
+
+            # 실행된 제너레이터의 최종 결과를 success로 받음
+            generator = action_mapping[action_type](target_obj)
+            try:
+                for result in generator:
+                    pass
+                success = True  # 제너레이터가 정상적으로 완료되면 성공
+            except StopIteration:
+                success = True
+            except Exception as e:
+                log.error(f"Error executing action '{action_type}': {e}")
+                success = False
         else:
             log.warning(f"Unknown action type: {action_type}. Skipping.")
 
     log.info(f"Successfully executed Subtask: {subtask.name}")
-    return True
+    return success

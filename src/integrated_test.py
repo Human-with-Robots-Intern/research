@@ -19,7 +19,7 @@ def parse_arguments():
         "-n",
         "--name",
         help="Select the goal [laundry, cook, toast, etc.]",
-        default="Prepare_Coffee",
+        default="task_Store_Apple_in_Cabinet",
     )
     parser.add_argument(
         "-de",
@@ -95,6 +95,8 @@ def main():
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
 
     #  ========= Task Execution =========
+    import sys
+
     try:
         for scheduled_subtask in scheduled_subtasks:
             execute_subtask(env, agent, scheduled_subtask)

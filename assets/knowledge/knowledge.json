@@ -62,6 +62,11 @@
             "expected_duration": 31.844205319881436,
             "variance": 1.0,
             "occurrences": 0
+        },
+        "Open Bottom Cabinet": {
+            "expected_duration": 2.0,
+            "variance": 1.0,
+            "occurrences": 0
         }
     }
 }
