@@ -1,5 +1,6 @@
 import logging
 import sys
+import time
 from pathlib import Path
 
 import torch as th
@@ -55,7 +56,7 @@ def init_omnigibson():
     env.scene.object_registry("name", "apple")
 
     agent = BayesianAgent(env.robots[0])
-
+    time.sleep(5)
     return env, agent
 
 
@@ -87,28 +88,28 @@ def execute_subtask(env, agent, subtask):
 
     # Define action mapping to Omnigibson action primitives
     action_mapping = {
-        "NAVIGATE_TO": lambda target_obj: controller.apply_ref(
+        "NAVIGATE_TO": lambda target_obj: controller.apply_primitive_action(
             StarterSemanticActionPrimitiveSet.NAVIGATE_TO, target_obj
         ),
-        "GRASP": lambda target_obj: controller.apply_ref(
+        "GRASP": lambda target_obj: controller.apply_primitive_action(
             StarterSemanticActionPrimitiveSet.GRASP, target_obj
         ),
-        "PLACE_INSIDE": lambda target_obj: controller.apply_ref(
+        "PLACE_INSIDE": lambda target_obj: controller.apply_primitive_action(
             StarterSemanticActionPrimitiveSet.PLACE_INSIDE, target_obj
         ),
-        "PLACE_ON_TOP": lambda target_obj: controller.apply_ref(
+        "PLACE_ON_TOP": lambda target_obj: controller.apply_primitive_action(
             StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, target_obj
         ),
-        "OPEN": lambda target_obj: controller.apply_ref(
+        "OPEN": lambda target_obj: controller.apply_primitive_action(
             StarterSemanticActionPrimitiveSet.OPEN, target_obj
         ),
-        "CLOSE": lambda target_obj: controller.apply_ref(
+        "CLOSE": lambda target_obj: controller.apply_primitive_action(
             StarterSemanticActionPrimitiveSet.CLOSE, target_obj
         ),
-        "TOGGLE_ON": lambda target_obj: controller.apply_ref(
+        "TOGGLE_ON": lambda target_obj: controller.apply_primitive_action(
             StarterSemanticActionPrimitiveSet.TOGGLE_ON, target_obj
         ),
-        "TOGGLE_OFF": lambda target_obj: controller.apply_ref(
+        "TOGGLE_OFF": lambda target_obj: controller.apply_primitive_action(
             StarterSemanticActionPrimitiveSet.TOGGLE_OFF, target_obj
         ),
         # 필요한 경우 다른 액션을 추가할 수 있습니다.
@@ -124,7 +125,7 @@ def execute_subtask(env, agent, subtask):
 
         action_type, target_name = parts
         target_obj = object_registry.get(target_name)
-        
+
         if action_type in action_mapping:
             log.info(f"Performing action: {action_type} on {target_name}")
 

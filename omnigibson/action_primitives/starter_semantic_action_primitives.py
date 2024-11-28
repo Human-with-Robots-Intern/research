@@ -132,13 +132,8 @@ m.MAX_ALLOWED_JOINT_ERROR_FOR_LINEAR_MOTION = math.radians(
 )  # Default : math.radians(45)
 m.TIME_BEFORE_JOINT_STUCK_CHECK = 1.0
 
-log = create_module_logger(module_name=__name__)
-log.setLevel(logging.DEBUG)
-# file_handler = logging.FileHandler(f"./src/simulation/logs/{__name__}.log", "a")
-# file_handler.setFormatter(
-#     logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-# )
-# log.addHandler(file_handler)
+log = create_module_logger(module_name=__name__, is_file_handler=True)
+
 
 SEARCHED = []
 
@@ -687,6 +682,9 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             try:
                 # TODO: This needs to be fixed. Many assumptions (None relevant joint, 3 waypoints, etc.)
                 if should_open:
+                    log.debug(
+                        f"get_grasp_position_for_open inputs : {self.robot, obj, should_open, None}"
+                    )
                     grasp_data = get_grasp_position_for_open(
                         self.robot, obj, should_open, None
                     )
@@ -2156,6 +2154,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 if not self._test_pose(
                     pose_2d, context, pose_on_obj=pose_on_obj, **kwargs
                 ):
+                    indented_print("test pose return False")
                     continue
 
                 indented_print("Found valid position near object.")
