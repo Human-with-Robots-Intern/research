@@ -1,3 +1,4 @@
+import argparse
 import os
 
 import yaml
@@ -19,12 +20,8 @@ def execute_controller(ctrl_gen, env):
         env.step(action)
 
 
-def main():
-    """
-    Demonstrates how to use the action primitives to pick and place an object in a crowded scene.
+def init_scene():
 
-    It loads Rs_int with a robot, and the robot picks and places an apple.
-    """
     # Load the config
     config_filename = os.path.join(og.example_config_path, "fetch_primitives.yaml")
     config = yaml.load(open(config_filename, "r"), Loader=yaml.FullLoader)
@@ -47,59 +44,114 @@ def main():
     env = og.Environment(configs=config)
     scene = env.scene
     robot = env.robots[0]
+    return env, scene
+
+
+def main():
+    """
+    Demonstrates how to use the action primitives to pick and place an object in a crowded scene.
+
+    It loads Rs_int with a robot, and the robot picks and places an apple.
+    """
+
+    parser = argparse.ArgumentParser(description="안녕? 액션을 테스팅해보자!")
+    parser.add_argument(
+        "-c",
+        "--case",
+        type=int,
+        choices=[1, 2, 3],
+        default=3,
+        help=(
+            "Choose a case:\n"
+            "  1) pick & place\n"
+            "  2) open & close\n"
+            "  3) on & off"
+        ),
+    )
+    args = parser.parse_args()  # ArgumentParser 객체의 parse_args 호출로 인수 파싱
+
+    env, scene = init_scene()
 
     # Allow user to move camera more easily
     og.sim.enable_viewer_camera_teleoperation()
 
     controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
-    cabinet = scene.object_registry("name", "bottom_cabinet_bamfsz_0")
-    switch = scene.object_registry("name", "bottom_cabinet_bamfsz_0")
-    apple = scene.object_registry("name", "apple")
 
-    # # Pick and Place
-    # print("Executing controller")
-    # execute_controller(
-    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple), env
-    # )
-    # print("Finished executing grasp")
+    # match-case 구조
+    match args.case:  # 이제 args.case가 정상적으로 참조 가능
+        case 1:
+            apple = scene.object_registry("name", "apple")
+            # Pick and Place
+            print("Executing controller: Grasp")
+            execute_controller(
+                controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple),
+                env,
+            )
+            print("Finished executing grasp")
 
-    # # Place on cabinet
-    # print("Executing controller")
-    # execute_controller(
-    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, cabinet),
-    #     env,
-    # )
-    # print("Finished executing place")
+            cabinet = scene.object_registry("name", "cabinet")
+            print("Executing controller: Place on Top")
+            execute_controller(
+                controller.apply_ref(
+                    StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, cabinet
+                ),
+                env,
+            )
+            print("Finished executing place")
 
-    # Open Close
-    print("Executing controller")
-    execute_controller(
-        controller.apply_ref(StarterSemanticActionPrimitiveSet.OPEN, cabinet), env
-    )
-    print("Finished executing grasp")
+        case 2:
+            cabinet = scene.object_registry("name", "bottom_cabinet_bamfsz_0")
+            # Open Close
+            print("Executing controller: Open")
+            execute_controller(
+                controller.apply_ref(StarterSemanticActionPrimitiveSet.OPEN, cabinet),
+                env,
+            )
+            print("Finished executing open")
 
-    # Place on cabinet
-    print("Executing controller")
-    execute_controller(
-        controller.apply_ref(StarterSemanticActionPrimitiveSet.CLOSE, cabinet),
-        env,
-    )
-    print("Finished executing place")
+            print("Executing controller: Close")
+            execute_controller(
+                controller.apply_ref(StarterSemanticActionPrimitiveSet.CLOSE, cabinet),
+                env,
+            )
+            print("Finished executing close")
 
-    # switch on off
-    # print("Executing controller")
-    # execute_controller(
-    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.TOGGLE_ON, switch), env
-    # )
-    # print("Finished executing grasp")
+        case 3:
+            objs = [
+                "electric_switch_wseglt_1",
+                "electric_switch_wseglt_2",
+                "floor_lamp_vdxlda_0",
+                "laptop_nvulcs_0",
+                "loudspeaker_bmpdyv_0",
+                "standing_tv_udotid_0",
+                "table_lamp_xbfgjc_0",
+            ]
 
-    # # Place on cabinet
-    # print("Executing controller")
-    # execute_controller(
-    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.TOGGLE_OFF, switch),
-    #     env,
-    # )
-    # print("Finished executing place")
+            for obj_name in objs:
+                obj = scene.object_registry("name", obj_name)
+                # Switch On Off
+                print("Executing controller: Toggle On")
+                execute_controller(
+                    controller.apply_ref(
+                        StarterSemanticActionPrimitiveSet.TOGGLE_OFF, obj
+                    ),
+                    env,
+                )
+                print("Finished executing on")
+
+                print("Executing controller: Toggle Off")
+                execute_controller(
+                    controller.apply_ref(
+                        StarterSemanticActionPrimitiveSet.TOGGLE_ON, obj
+                    ),
+                    env,
+                )
+                print("Finished executing off")
+
+        case _:
+            print(
+                "Invalid case selected. This should not happen due to argparse validation."
+            )
 
 
 if __name__ == "__main__":
