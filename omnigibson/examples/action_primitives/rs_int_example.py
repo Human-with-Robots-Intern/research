@@ -52,23 +52,54 @@ def main():
     og.sim.enable_viewer_camera_teleoperation()
 
     controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
-    cabinet = scene.object_registry("name", "bottom_cabinet_slgzfc_0")
+    cabinet = scene.object_registry("name", "bottom_cabinet_bamfsz_0")
+    switch = scene.object_registry("name", "bottom_cabinet_bamfsz_0")
     apple = scene.object_registry("name", "apple")
 
-    # Grasp apple
+    # # Pick and Place
+    # print("Executing controller")
+    # execute_controller(
+    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple), env
+    # )
+    # print("Finished executing grasp")
+
+    # # Place on cabinet
+    # print("Executing controller")
+    # execute_controller(
+    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, cabinet),
+    #     env,
+    # )
+    # print("Finished executing place")
+
+    # Open Close
     print("Executing controller")
     execute_controller(
-        controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple), env
+        controller.apply_ref(StarterSemanticActionPrimitiveSet.OPEN, cabinet), env
     )
     print("Finished executing grasp")
 
     # Place on cabinet
     print("Executing controller")
     execute_controller(
-        controller.apply_ref(StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, cabinet),
+        controller.apply_ref(StarterSemanticActionPrimitiveSet.CLOSE, cabinet),
         env,
     )
     print("Finished executing place")
+
+    # switch on off
+    # print("Executing controller")
+    # execute_controller(
+    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.TOGGLE_ON, switch), env
+    # )
+    # print("Finished executing grasp")
+
+    # # Place on cabinet
+    # print("Executing controller")
+    # execute_controller(
+    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.TOGGLE_OFF, switch),
+    #     env,
+    # )
+    # print("Finished executing place")
 
 
 if __name__ == "__main__":

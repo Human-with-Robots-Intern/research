@@ -65,7 +65,7 @@ m.DEFAULT_BODY_OFFSET_FROM_FLOOR = 0.01
 # 로봇의 선형이동 속도
 m.KP_LIN_VEL = {
     Tiago: 0.3,
-    Fetch: 1.25,  # default : 0.2
+    Fetch: 1.0,  # default : 0.2
     Stretch: 0.5,
     Turtlebot: 0.3,
     Husky: 0.05,
@@ -77,7 +77,7 @@ m.KP_LIN_VEL = {
 # 로봇의 각속도
 m.KP_ANGLE_VEL = {
     Tiago: 0.2,
-    Fetch: 0.75,  # default : 0.1
+    Fetch: 0.7,  # default : 0.1
     Stretch: 0.7,
     Turtlebot: 0.2,
     Husky: 0.05,
@@ -132,13 +132,8 @@ m.MAX_ALLOWED_JOINT_ERROR_FOR_LINEAR_MOTION = math.radians(
 )  # Default : math.radians(45)
 m.TIME_BEFORE_JOINT_STUCK_CHECK = 1.0
 
-log = create_module_logger(module_name=__name__)
-log.setLevel(logging.DEBUG)
-# file_handler = logging.FileHandler(f"./src/simulation/logs/{__name__}.log", "a")
-# file_handler.setFormatter(
-#     logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-# )
-# log.addHandler(file_handler)
+log = create_module_logger(module_name=__name__, is_file_handler=True)
+
 
 SEARCHED = []
 
@@ -368,10 +363,10 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             task_relevant_objects_only (bool): Whether to only consider objects relevant to the task
               when computing the action space. Defaults to False.
         """
-        log.warning(
-            "The StarterSemanticActionPrimitive is a work-in-progress and is only provided as an example. "
-            "It currently only works with Fetch and Tiago with their JointControllers set to delta mode."
-        )
+        # log.warning(
+        #     "The StarterSemanticActionPrimitive is a work-in-progress and is only provided as an example. "
+        #     "It currently only works with Fetch and Tiago with their JointControllers set to delta mode."
+        # )
         super().__init__(env)
         self.controller_functions = {
             StarterSemanticActionPrimitiveSet.GRASP: self._grasp,
@@ -687,6 +682,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             try:
                 # TODO: This needs to be fixed. Many assumptions (None relevant joint, 3 waypoints, etc.)
                 if should_open:
+
                     grasp_data = get_grasp_position_for_open(
                         self.robot, obj, should_open, None
                     )
@@ -973,6 +969,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
 
         # Put the hand in the toggle marker.
         toggle_state = obj.states[object_states.ToggledOn]
+        log.debug(f"{toggle_state=}, {toggle_state.__dict__}")
         toggle_position = toggle_state.get_link_position()
         yield from self._navigate_if_needed(obj, toggle_position)
 
@@ -1883,7 +1880,6 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         indented_print(f"Navigation plan has {len(plan)} steps")
         for i, pose_2d in enumerate(plan):
             indented_print(f"Executing navigation plan step {i + 1}/{len(plan)}")
-            log.info(f"{self.robot.get_position_orientation()[0]} -> {pose_2d}")
 
             low_precision = True if i < len(plan) - 1 else False
             # Orient 조정 및 Move Execution
@@ -2156,6 +2152,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 if not self._test_pose(
                     pose_2d, context, pose_on_obj=pose_on_obj, **kwargs
                 ):
+                    indented_print("test pose return False")
                     continue
 
                 indented_print("Found valid position near object.")

@@ -22,7 +22,6 @@ import omnigibson as og
 import omnigibson.lazy as lazy
 import omnigibson.utils.transform_utils as T
 from omnigibson.macros import gm
-from utils.constants import LOG_PATH
 
 
 def print_icon():
@@ -259,12 +258,16 @@ def create_module_logger(module_name, is_file_handler=False):
     Returns:
         Logger: Created logger for the module
     """
+
     logger = logging.getLogger(module_name)
     if is_file_handler:
         logger.setLevel("DEBUG")
-        file_handler = logging.FileHandler(f"{LOG_PATH}/{module_name}.log", "a")
+        file_handler = logging.FileHandler(
+            f"{ Path(__file__).resolve().parent.parent.parent}/logs/{module_name}.log",
+            "a",
+        )
         file_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         )
         logger.addHandler(file_handler)
     return logger

@@ -1,9 +1,9 @@
 {
     "Valid_actions": {
         "GRASP": {
-            "expected_duration": 29.278490066528317,
-            "variance": 0.06666666666666667,
-            "occurrences": 13
+            "expected_duration": 29.761274814605716,
+            "variance": 0.034482758620689655,
+            "occurrences": 27
         },
         "PLACE_INSIDE": {
             "expected_duration": 1.0,
@@ -11,9 +11,9 @@
             "occurrences": 0
         },
         "PLACE_ON_TOP": {
-            "expected_duration": 14.14702047620501,
-            "variance": 0.14285714285714285,
-            "occurrences": 6
+            "expected_duration": 18.544577900568644,
+            "variance": 0.06666666666666667,
+            "occurrences": 14
         },
         "TOGGLE_ON": {
             "expected_duration": 1.0,
@@ -45,6 +45,26 @@
     "Subtask": {
         "Brew Coffee": {
             "expected_duration": 1.0,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Bottom Cabinet_part_1": {
+            "expected_duration": 2.0,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Bottom Cabinet_part_2": {
+            "expected_duration": 2.0,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Place Apple Inside Cabinet": {
+            "expected_duration": 31.844205319881436,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Bottom Cabinet": {
+            "expected_duration": 2.0,
             "variance": 1.0,
             "occurrences": 0
         }

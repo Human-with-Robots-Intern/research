@@ -33,6 +33,19 @@ def timeit(func):
     return wrapper
 
 
+def tasks_to_subtasks(tasks, mode="all"):
+    subtasks = []
+    if mode == "all":
+        for task in tasks:
+            subtasks.extend(task.subtasks)
+    elif mode == "name":
+        for task in tasks:
+            subtasks.extend([subtask.name for subtask in task.subtasks])
+            subtasks = set(subtasks)
+
+    return subtasks
+
+
 # JSON Task Plan을 Python 코드로 변환하는 함수
 def json_to_code(task_plan):
     code_snippets = []

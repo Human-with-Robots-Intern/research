@@ -19,7 +19,7 @@ def parse_arguments():
         "-n",
         "--name",
         help="Select the goal [laundry, cook, toast, etc.]",
-        default="Prepare_Coffee",
+        default="task_Store_Apple_in_Cabinet",
     )
     parser.add_argument(
         "-de",
@@ -31,6 +31,12 @@ def parse_arguments():
         "-v",
         "--visualize",
         help="Enable visualization of the task plan",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-r",
+        "--reset",
+        help="Reset the knowledge base to Gaussian",
         action="store_true",
     )
     return parser.parse_args()
@@ -77,6 +83,8 @@ def main():
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
     # omnigibson 환경 로드
     env, agent = init_omnigibson()
+    if args.reset:
+        agent.reset_knowledge_to_gaussian()
 
     #  ========= Task Scheduling =========
     task_timing_planner = TaskTimingPlanner(
@@ -85,10 +93,13 @@ def main():
 
     task_tree, opt_task_tree = task_timing_planner.get_task_trees()
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
+
     #  ========= Task Execution =========
-    execute_subtask(env, agent, None)
-    # for scheduled_subtask in scheduled_subtasks:
-    #     execute_subtask(env, agent, scheduled_subtask)
+    try:
+        for scheduled_subtask in scheduled_subtasks:
+            execute_subtask(env, agent, scheduled_subtask)
+    except Exception as e:
+        log.error(f"Error executing task: {e}")
 
     # Result Visualization
     if args.visualize:

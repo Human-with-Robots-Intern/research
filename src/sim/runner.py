@@ -1,5 +1,6 @@
 import logging
 import sys
+import time
 from pathlib import Path
 
 import torch as th
@@ -29,13 +30,13 @@ def _load_config():
     config = yaml.load(open(config_filename, "r"), Loader=yaml.FullLoader)
 
     # Update it to run a grocery shopping task
-    config["scene"]["not_load_object_categories"] = [
-        "ceilings",
-        "pot_plant",
-        "straight_chair",
-    ]
-    config["scene"]["load_room_types"] = ["living_room"]
-    config["scene"]["load_room_instances"] = ["living_room_0"]
+    # config["scene"]["not_load_object_categories"] = [
+    #     "ceilings",
+    #     "pot_plant",
+    #     "straight_chair",
+    # ]
+    # config["scene"]["load_room_types"] = ["living_room"]
+    # config["scene"]["load_room_instances"] = ["living_room_0"]
     config["objects"] = [
         {
             "type": "DatasetObject",
@@ -52,26 +53,95 @@ def _load_config():
 def init_omnigibson():
     # Initialize environment and agent
     env = og.Environment(configs=_load_config())
+    env.scene.object_registry("name", "apple")
 
     agent = BayesianAgent(env.robots[0])
-
+    time.sleep(5)
     return env, agent
 
 
 def execute_subtask(env, agent, subtask):
+    """
+    Execute a given subtask in the Omnigibson environment using action primitives.
+
+    Args:
+        env: Omnigibson environment instance.
+        agent: The agent executing the subtask.
+        subtask: Subtask object containing execution details.
+    """
+    log.info(f"Executing Subtask: {subtask.name}")
+
     controller = CustomActionPrimitives(env, agent)
 
-    table = env.scene.object_registry("name", "breakfast_table_skczfi_0")
-    apple = env.scene.object_registry("name", "apple")
+    # Parse execution details
+    execution = subtask.execution
+    objects, primitive_actions = execution.objects, execution.primitive_actions
 
-    try:
-        controller.apply_primitive_action(
-            StarterSemanticActionPrimitiveSet.GRASP, apple
-        )
-        controller.apply_primitive_action(
-            StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, table
-        )
-    except ActionPrimitiveErrorGroup as e:
-        log.error(f"Failed to execute action primitives: {e}")
+    # Build a mapping from object names to Omnigibson objects
+    object_registry = {}
+    for obj_name in objects:
+        og_obj = env.scene.object_registry("name", obj_name)
+        if og_obj is None:
+            log.error(f"Object '{obj_name}' not found in the environment.")
+            return False
+        object_registry[obj_name] = og_obj
 
-    og.clear()
+    # Define action mapping to Omnigibson action primitives
+    action_mapping = {
+        "NAVIGATE_TO": lambda target_obj: controller.apply_primitive_action(
+            StarterSemanticActionPrimitiveSet.NAVIGATE_TO, target_obj
+        ),
+        "GRASP": lambda target_obj: controller.apply_primitive_action(
+            StarterSemanticActionPrimitiveSet.GRASP, target_obj
+        ),
+        "PLACE_INSIDE": lambda target_obj: controller.apply_primitive_action(
+            StarterSemanticActionPrimitiveSet.PLACE_INSIDE, target_obj
+        ),
+        "PLACE_ON_TOP": lambda target_obj: controller.apply_primitive_action(
+            StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, target_obj
+        ),
+        "OPEN": lambda target_obj: controller.apply_primitive_action(
+            StarterSemanticActionPrimitiveSet.OPEN, target_obj
+        ),
+        "CLOSE": lambda target_obj: controller.apply_primitive_action(
+            StarterSemanticActionPrimitiveSet.CLOSE, target_obj
+        ),
+        "TOGGLE_ON": lambda target_obj: controller.apply_primitive_action(
+            StarterSemanticActionPrimitiveSet.TOGGLE_ON, target_obj
+        ),
+        "TOGGLE_OFF": lambda target_obj: controller.apply_primitive_action(
+            StarterSemanticActionPrimitiveSet.TOGGLE_OFF, target_obj
+        ),
+        # 필요한 경우 다른 액션을 추가할 수 있습니다.
+    }
+
+    # Execute each primitive action
+    for action_str in primitive_actions:
+        # Split action into type and target
+        parts = action_str.split(" ", 1)
+        if len(parts) != 2:
+            log.warning(f"Invalid action format: {action_str}. Skipping.")
+            raise ValueError(f"Invalid action format: {action_str}")
+
+        action_type, target_name = parts
+        target_obj = object_registry.get(target_name)
+
+        if action_type in action_mapping:
+            log.info(f"Performing action: {action_type} on {target_name}")
+
+            # 실행된 제너레이터의 최종 결과를 success로 받음
+            generator = action_mapping[action_type](target_obj)
+            try:
+                for result in generator:
+                    pass
+                success = True  # 제너레이터가 정상적으로 완료되면 성공
+            except StopIteration:
+                success = True
+            except Exception as e:
+                log.error(f"Error executing action '{action_type}': {e}")
+                success = False
+        else:
+            log.warning(f"Unknown action type: {action_type}. Skipping.")
+
+    log.info(f"Successfully executed Subtask: {subtask.name}")
+    return success
