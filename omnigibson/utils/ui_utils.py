@@ -267,7 +267,7 @@ def create_module_logger(module_name, is_file_handler=False):
             "a",
         )
         file_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         )
         logger.addHandler(file_handler)
     return logger

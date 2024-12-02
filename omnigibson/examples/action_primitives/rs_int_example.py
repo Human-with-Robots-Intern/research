@@ -53,9 +53,25 @@ def main():
 
     controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
     cabinet = scene.object_registry("name", "bottom_cabinet_bamfsz_0")
+    switch = scene.object_registry("name", "bottom_cabinet_bamfsz_0")
     apple = scene.object_registry("name", "apple")
 
-    # Grasp apple
+    # # Pick and Place
+    # print("Executing controller")
+    # execute_controller(
+    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple), env
+    # )
+    # print("Finished executing grasp")
+
+    # # Place on cabinet
+    # print("Executing controller")
+    # execute_controller(
+    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.PLACE_ON_TOP, cabinet),
+    #     env,
+    # )
+    # print("Finished executing place")
+
+    # Open Close
     print("Executing controller")
     execute_controller(
         controller.apply_ref(StarterSemanticActionPrimitiveSet.OPEN, cabinet), env
@@ -69,6 +85,21 @@ def main():
         env,
     )
     print("Finished executing place")
+
+    # switch on off
+    # print("Executing controller")
+    # execute_controller(
+    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.TOGGLE_ON, switch), env
+    # )
+    # print("Finished executing grasp")
+
+    # # Place on cabinet
+    # print("Executing controller")
+    # execute_controller(
+    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.TOGGLE_OFF, switch),
+    #     env,
+    # )
+    # print("Finished executing place")
 
 
 if __name__ == "__main__":

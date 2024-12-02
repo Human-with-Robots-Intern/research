@@ -7,6 +7,9 @@ NOTE: convention for quaternions is (x, y, z, w)
 import math
 from typing import List, Optional, Tuple
 
+from omnigibson.utils.ui_utils import create_module_logger
+
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 import torch as th
 
 PI = math.pi
@@ -80,7 +83,9 @@ def dot(v1, v2, dim=-1, keepdim=False):
 
 
 @th.jit.script
-def unit_vector(data: th.Tensor, dim: Optional[int] = None, out: Optional[th.Tensor] = None) -> th.Tensor:
+def unit_vector(
+    data: th.Tensor, dim: Optional[int] = None, out: Optional[th.Tensor] = None
+) -> th.Tensor:
     """
     Returns tensor normalized by length, i.e. Euclidean norm, along axis.
 
@@ -291,7 +296,10 @@ def quat_slerp(quat0, quat1, frac, shortestpath=True, eps=1.0e-15):
     where_small_angle = abs(angle) < eps
 
     isin = 1.0 / th.sin(angle)
-    val = quat0 * th.sin((1.0 - frac) * angle) * isin + quat1 * th.sin(frac * angle) * isin
+    val = (
+        quat0 * th.sin((1.0 - frac) * angle) * isin
+        + quat1 * th.sin(frac * angle) * isin
+    )
 
     # Filter edge cases
     val = th.where(
@@ -352,7 +360,9 @@ def quat2mat(quaternion):
     xy, xz, yz = x * y, x * z, y * z
     xw, yw, zw = x * w, y * w, z * w
 
-    rotation_matrix = th.empty(quaternion.shape[:-1] + (3, 3), dtype=quaternion.dtype, device=quaternion.device)
+    rotation_matrix = th.empty(
+        quaternion.shape[:-1] + (3, 3), dtype=quaternion.dtype, device=quaternion.device
+    )
 
     rotation_matrix[..., 0, 0] = 1 - 2 * (yy + zz)
     rotation_matrix[..., 0, 1] = 2 * (xy - zw)
@@ -453,7 +463,9 @@ def mat2pose(hmat):
             - (th.tensor) (x,y,z) position array in cartesian coordinates
             - (th.tensor) (x,y,z,w) orientation array in quaternion form
     """
-    assert th.allclose(hmat[:3, :3].det(), th.tensor(1.0)), "Rotation matrix must not be scaled"
+    assert th.allclose(
+        hmat[:3, :3].det(), th.tensor(1.0)
+    ), "Rotation matrix must not be scaled"
     pos = hmat[:3, 3]
     orn = mat2quat(hmat[:3, :3])
     return pos, orn
@@ -536,14 +548,24 @@ def quat2euler(q):
     qx, qy, qz, qw = 0, 1, 2, 3
     # roll (x-axis rotation)
     sinr_cosp = 2.0 * (q[:, qw] * q[:, qx] + q[:, qy] * q[:, qz])
-    cosr_cosp = q[:, qw] * q[:, qw] - q[:, qx] * q[:, qx] - q[:, qy] * q[:, qy] + q[:, qz] * q[:, qz]
+    cosr_cosp = (
+        q[:, qw] * q[:, qw]
+        - q[:, qx] * q[:, qx]
+        - q[:, qy] * q[:, qy]
+        + q[:, qz] * q[:, qz]
+    )
     roll = th.atan2(sinr_cosp, cosr_cosp)
     # pitch (y-axis rotation)
     sinp = 2.0 * (q[:, qw] * q[:, qy] - q[:, qz] * q[:, qx])
     pitch = th.where(th.abs(sinp) >= 1, copysign(math.pi / 2.0, sinp), th.asin(sinp))
     # yaw (z-axis rotation)
     siny_cosp = 2.0 * (q[:, qw] * q[:, qz] + q[:, qx] * q[:, qy])
-    cosy_cosp = q[:, qw] * q[:, qw] + q[:, qx] * q[:, qx] - q[:, qy] * q[:, qy] - q[:, qz] * q[:, qz]
+    cosy_cosp = (
+        q[:, qw] * q[:, qw]
+        + q[:, qx] * q[:, qx]
+        - q[:, qy] * q[:, qy]
+        - q[:, qz] * q[:, qz]
+    )
     yaw = th.atan2(siny_cosp, cosy_cosp)
 
     euler = th.stack([roll, pitch, yaw], dim=-1) % (2 * math.pi)
@@ -642,7 +664,9 @@ def quat2axisangle(quat):
     # Create return array
     ret = th.zeros_like(quat)[:, :3]
     idx = th.nonzero(den).reshape(-1)
-    ret[idx, :] = (quat[idx, :3] * 2.0 * th.acos(quat[idx, 3]).unsqueeze(-1)) / den[idx].unsqueeze(-1)
+    ret[idx, :] = (quat[idx, :3] * 2.0 * th.acos(quat[idx, 3]).unsqueeze(-1)) / den[
+        idx
+    ].unsqueeze(-1)
 
     # Reshape and return output
     ret = ret.reshape(
@@ -680,7 +704,11 @@ def axisangle2quat(vec, eps=1e-6):
     # Grab indexes where angle is not zero an convert the input to its quaternion form
     idx = angle.reshape(-1) > eps  # th.nonzero(angle).reshape(-1)
     quat[idx, :] = th.cat(
-        [vec[idx, :] * th.sin(angle[idx, :] / 2.0) / angle[idx, :], th.cos(angle[idx, :] / 2.0)], dim=-1
+        [
+            vec[idx, :] * th.sin(angle[idx, :] / 2.0) / angle[idx, :],
+            th.cos(angle[idx, :] / 2.0),
+        ],
+        dim=-1,
     )
 
     # Reshape and return output
@@ -927,7 +955,9 @@ def rotation_matrix(angle: float, direction: th.Tensor) -> th.Tensor:
 
 
 @th.jit.script
-def transformation_matrix(angle: float, direction: th.Tensor, point: Optional[th.Tensor] = None) -> th.Tensor:
+def transformation_matrix(
+    angle: float, direction: th.Tensor, point: Optional[th.Tensor] = None
+) -> th.Tensor:
     """
     Returns a 4x4 homogeneous transformation matrix to rotate about axis defined by point and direction.
 
@@ -1053,7 +1083,9 @@ def get_orientation_error(desired, current):
 
     cc = quat_conjugate(current)
     q_r = quat_multiply(desired, cc)
-    return (q_r[:, 0:3] * th.sign(q_r[:, 3]).unsqueeze(-1)).reshape(list(input_shape) + [3])
+    return (q_r[:, 0:3] * th.sign(q_r[:, 3]).unsqueeze(-1)).reshape(
+        list(input_shape) + [3]
+    )
 
 
 @th.jit.script
@@ -1106,7 +1138,9 @@ def get_pose_error(target_pose, current_pose):
     r1d = target_pose[:3, 0]
     r2d = target_pose[:3, 1]
     r3d = target_pose[:3, 2]
-    rot_err = 0.5 * (th.linalg.cross(r1, r1d) + th.linalg.cross(r2, r2d) + th.linalg.cross(r3, r3d))
+    rot_err = 0.5 * (
+        th.linalg.cross(r1, r1d) + th.linalg.cross(r2, r2d) + th.linalg.cross(r3, r3d)
+    )
 
     error[:3] = pos_err
     error[3:] = rot_err
@@ -1273,8 +1307,12 @@ def integer_spiral_coordinates(n: int) -> Tuple[int, int]:
     # https://www.reddit.com/r/askmath/comments/18vqorf/find_the_nth_coordinate_of_a_square_spiral/
     # https://oeis.org/A174344
     m = math.floor(math.sqrt(n))
-    x = ((-1) ** m) * ((n - m * (m + 1)) * (math.floor(2 * math.sqrt(n)) % 2) - math.ceil(m / 2))
-    y = ((-1) ** (m + 1)) * ((n - m * (m + 1)) * (math.floor(2 * math.sqrt(n) + 1) % 2) + math.ceil(m / 2))
+    x = ((-1) ** m) * (
+        (n - m * (m + 1)) * (math.floor(2 * math.sqrt(n)) % 2) - math.ceil(m / 2)
+    )
+    y = ((-1) ** (m + 1)) * (
+        (n - m * (m + 1)) * (math.floor(2 * math.sqrt(n) + 1) % 2) + math.ceil(m / 2)
+    )
     return int(x), int(y)
 
 
@@ -1298,13 +1336,17 @@ def random_quaternion(num_quaternions: int = 1) -> th.Tensor:
     t1 = 2 * th.pi * rand[:, 1]
     t2 = 2 * th.pi * rand[:, 2]
 
-    quaternions = th.stack([r1 * th.sin(t1), r1 * th.cos(t1), r2 * th.sin(t2), r2 * th.cos(t2)], dim=1)
+    quaternions = th.stack(
+        [r1 * th.sin(t1), r1 * th.cos(t1), r2 * th.sin(t2), r2 * th.cos(t2)], dim=1
+    )
 
     return quaternions
 
 
 @th.jit.script
-def transform_points(points: th.Tensor, matrix: th.Tensor, translate: bool = True) -> th.Tensor:
+def transform_points(
+    points: th.Tensor, matrix: th.Tensor, translate: bool = True
+) -> th.Tensor:
     """
     Returns points rotated by a homogeneous
     transformation matrix.
