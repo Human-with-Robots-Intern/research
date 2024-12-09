@@ -100,6 +100,7 @@ m.MAX_STEPS_FOR_GRASP_OR_RELEASE = 250  # Default : 250
 m.MAX_STEPS_FOR_WAYPOINT_NAVIGATION = 500
 
 m.MAX_ATTEMPTS_FOR_OPEN_CLOSE = 20
+m.MAX_ATTEMPTS_FOR_TOGGLE = 20
 m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_WITH_OBJECT_AND_PREDICATE = 30  # Default : 20
 m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_NEAR_OBJECT = 300  # Default : 200
 m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_IN_ROOM = 60
@@ -964,25 +965,50 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         yield from self._toggle(obj, False)
 
     def _toggle(self, obj, value):
+        if self._get_obj_in_hand():
+            raise ActionPrimitiveError(
+                ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
+                "Cannot toggle an object while holding an object",
+                {"object in hand": self._get_obj_in_hand().name},
+            )
+
+        if object_states.ToggledOn not in obj.states:
+            raise ActionPrimitiveError(
+                ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
+                "The target object is not toggleable.",
+                {"target object": obj.name},
+            )
+
         if obj.states[object_states.ToggledOn].get_value() == value:
+            # 이미 원하는 상태이면 아무 것도 하지 않습니다.
             return
 
-        # Put the hand in the toggle marker.
+        # 추적 대상 업데이트
+        self._tracking_object = obj
+
+        # 토글 마커의 위치와 방향 가져오기
         toggle_state = obj.states[object_states.ToggledOn]
-        log.debug(f"{toggle_state=}, {toggle_state.__dict__}")
-        toggle_position = toggle_state.get_link_position()
-        yield from self._navigate_if_needed(obj, toggle_position)
+        toggle_position, toggle_orientation = (
+            toggle_state.link.get_position_orientation()
+        )
+        toggle_pose = (toggle_position, toggle_orientation)
 
-        # Just keep the current hand orientation.
-        hand_orientation = self.robot.eef_links[self.arm].get_position_orientation()[1]
-        desired_hand_pose = (toggle_position, hand_orientation)
+        # 접근 위치 네비게이션 -> 손 이동 -> 손 정밀 이동
+        yield from self._navigate_if_needed(obj, pose_on_obj=toggle_pose)
+        yield from self._move_hand(toggle_pose, stop_if_stuck=True)
+        yield from self._move_hand_linearly_cartesian(toggle_pose, stop_if_stuck=True)
+        # 토글
+        obj.states[object_states.ToggledOn].set_value(value)
 
-        yield from self._move_hand(desired_hand_pose)
+        # 로봇 안정화, 손 리셋
+        yield from self._settle_robot()
+        yield from self._reset_hand()
 
+        # 토글이 성공적으로 변경되었는지 확인
         if obj.states[object_states.ToggledOn].get_value() != value:
             raise ActionPrimitiveError(
                 ActionPrimitiveError.Reason.POST_CONDITION_ERROR,
-                "The object did not toggle as expected - maybe try again",
+                "물체가 예상대로 토글되지 않았습니다. 다시 시도해보세요.",
                 {
                     "target object": obj.name,
                     "is it currently toggled on": obj.states[
@@ -2345,6 +2371,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 - 4-array: (x,y,z,w) Quaternion orientation in the world frame
         """
         body_pose = self.robot.get_position_orientation()
+
         return T.relative_pose_transform(*pose, *body_pose)
 
     def _get_hand_pose_for_object_pose(self, desired_pose):
