@@ -69,3 +69,4 @@ omnigibson/utils/data_utils/mesh_decimation/final_videos/
 archive/
 scripts/
 *.dot
+./temp_env.yml

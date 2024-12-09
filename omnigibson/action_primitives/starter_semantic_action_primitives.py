@@ -988,56 +988,20 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
 
         # 토글 마커의 위치와 방향 가져오기
         toggle_state = obj.states[object_states.ToggledOn]
-        toggle_position = toggle_state.link.get_position()
-        toggle_orientation = toggle_state.link.get_orientation()
+        toggle_position, toggle_orientation = (
+            toggle_state.link.get_position_orientation()
+        )
+        toggle_pose = (toggle_position, toggle_orientation)
 
-        # 손의 방향을 토글 마커와 일치시키기
-        desired_hand_orientation = toggle_orientation
-
-        # 토글 노말 벡터 계산 (토글 링크의 x축 기준)
-        toggle_normal = T.quat2mat(toggle_orientation)[:, 0]  # x축
-
-        # 접근 위치 계산 (토글 노말 반대 방향으로 일정 거리 이동)
-        approach_distance = 0.2  # 20 cm
-        approach_position = toggle_position - toggle_normal * approach_distance
-        approach_pose = (approach_position, desired_hand_orientation)
-
-        # 접근 위치로 네비게이션
-        yield from self._navigate_if_needed(obj, pose_on_obj=approach_pose)
-
-        # 접근 위치가 로봇의 작업 범위 내에 있는지 확인
-        if not self._target_in_reach_of_robot(approach_pose):
-            # 접근 거리를 줄여서 다시 시도
-            approach_distance = 0.15  # 15 cm
-            approach_position = toggle_position - toggle_normal * approach_distance
-            approach_pose = (approach_position, desired_hand_orientation)
-            if not self._target_in_reach_of_robot(approach_pose):
-                # 여전히 도달할 수 없다면 에러 발생
-                raise ActionPrimitiveError(
-                    ActionPrimitiveError.Reason.PLANNING_ERROR,
-                    "토글 마커의 접근 위치에 도달할 수 없습니다.",
-                    {"target pose": approach_pose},
-                )
-
-        # 손을 접근 위치로 이동
-        yield from self._move_hand(approach_pose, stop_if_stuck=True)
-
-        # 손을 토글 위치로 직선 이동
-        target_pose = (toggle_position, desired_hand_orientation)
-        yield from self._move_hand_linearly_cartesian(target_pose, stop_if_stuck=True)
-
-        # 객체의 상태를 직접 변경하여 토글
+        # 접근 위치 네비게이션 -> 손 이동 -> 손 정밀 이동
+        yield from self._navigate_if_needed(obj, pose_on_obj=toggle_pose)
+        yield from self._move_hand(toggle_pose, stop_if_stuck=True)
+        yield from self._move_hand_linearly_cartesian(toggle_pose, stop_if_stuck=True)
+        # 토글
         obj.states[object_states.ToggledOn].set_value(value)
 
-        # 로봇 안정화
+        # 로봇 안정화, 손 리셋
         yield from self._settle_robot()
-
-        # 손을 접근 위치로 되돌림
-        yield from self._move_hand_linearly_cartesian(
-            approach_pose, ignore_failure=True
-        )
-
-        # 팔을 원래 위치로 리셋
         yield from self._reset_hand()
 
         # 토글이 성공적으로 변경되었는지 확인

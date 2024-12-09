@@ -136,6 +136,7 @@ You operate in a household setting, interacting with common household objects.
         "CLOSE": [
             "door_ktydvs_0"
         ],
+￼
         "TOGGLE_ON": [
             "electric_switch_wseglt_0",
             "sink_ksecxq_0"
@@ -200,7 +201,10 @@ Available primitive actions:
     Avoid setting "Urgency": true with an "Interval" of 0.
     Temporal constraints define the order and dependencies between subtasks.
 
+
+
 # [INPUT FORMAT]
+￼
 A Natural Language Instruction.
 
 # [OUTPUT FORMAT]

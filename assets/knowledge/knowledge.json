@@ -1,70 +1,110 @@
 {
     "Valid_actions": {
         "GRASP": {
-            "expected_duration": 29.761274814605716,
-            "variance": 0.034482758620689655,
-            "occurrences": 27
+            "expected_duration": 1.3830937989758394,
+            "variance": 1.0,
+            "occurrences": 0
         },
         "PLACE_INSIDE": {
-            "expected_duration": 1.0,
+            "expected_duration": 1.0419118403565597,
             "variance": 1.0,
             "occurrences": 0
         },
         "PLACE_ON_TOP": {
-            "expected_duration": 18.544577900568644,
-            "variance": 0.06666666666666667,
-            "occurrences": 14
+            "expected_duration": -0.6904793308517674,
+            "variance": 1.0,
+            "occurrences": 0
         },
         "TOGGLE_ON": {
-            "expected_duration": 1.0,
+            "expected_duration": -0.4451541384721185,
             "variance": 1.0,
             "occurrences": 0
         },
         "TOGGLE_OFF": {
-            "expected_duration": 1.0,
-            "variance": 1.0,
-            "occurrences": 0
+            "expected_duration": 0.6090584183921373,
+            "variance": 0.5,
+            "occurrences": 1
         },
         "OPEN": {
-            "expected_duration": 1.0,
+            "expected_duration": 0.6022512955354843,
             "variance": 1.0,
             "occurrences": 0
         },
         "CLOSE": {
-            "expected_duration": 1.0,
+            "expected_duration": 1.6983042274337925,
             "variance": 1.0,
             "occurrences": 0
         },
         "NAVIGATE_TO": {
-            "expected_duration": 1.0,
-            "variance": 1.0,
-            "occurrences": 0
+            "expected_duration": 15.44501318359099,
+            "variance": 0.5,
+            "occurrences": 1
         }
     },
     "Invalid_actions": {},
     "Subtask": {
         "Brew Coffee": {
-            "expected_duration": 1.0,
+            "expected_duration": 0.6157318895163066,
             "variance": 1.0,
             "occurrences": 0
         },
         "Open Bottom Cabinet_part_1": {
-            "expected_duration": 2.0,
+            "expected_duration": 1.3552917531039101,
             "variance": 1.0,
             "occurrences": 0
         },
         "Open Bottom Cabinet_part_2": {
-            "expected_duration": 2.0,
+            "expected_duration": 0.44337387560038843,
             "variance": 1.0,
             "occurrences": 0
         },
         "Place Apple Inside Cabinet": {
-            "expected_duration": 31.844205319881436,
+            "expected_duration": -0.3452441728454094,
             "variance": 1.0,
             "occurrences": 0
         },
         "Open Bottom Cabinet": {
-            "expected_duration": 2.0,
+            "expected_duration": 1.904985102246333,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Living Room Switch 1": {
+            "expected_duration": 1.6149691278859355,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Living Room Switch 2": {
+            "expected_duration": 1.6149691278859355,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Pick Apple": {
+            "expected_duration": 2.724217654561143,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Place Apple in Cabinet": {
+            "expected_duration": 4.68359121891114,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Move Floor Lamp": {
+            "expected_duration": 31.582640835306055,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Move Loudspeaker": {
+            "expected_duration": 31.582640835306055,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Move Table Lamp": {
+            "expected_duration": 31.582640835306055,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Move Standing TV": {
+            "expected_duration": 31.582640835306055,
             "variance": 1.0,
             "occurrences": 0
         }
