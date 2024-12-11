@@ -70,3 +70,4 @@ archive/
 scripts/
 *.dot
 ./temp_env.yml
+sync_repos.sh
