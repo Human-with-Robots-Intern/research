@@ -25,7 +25,8 @@ class DifferentialDriveController(LocomotionController):
     ):
         """
         Args:
-            wheel_radius (float): radius of the wheels (both assumed to be same radius)
+            wheel_radius (float): radius ofiveController),
+            ), "StarterSemanticActionPrimitives  the wheels (both assumed to be same radius)
             wheel_axle_length (float): perpendicular distance between the two wheels
             control_freq (int): controller loop frequency
             control_limits (Dict[str, Tuple[Array[float], Array[float]]]): The min/max limits to the outputted

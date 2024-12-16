@@ -137,7 +137,8 @@ def _launch_app():
     exp_path = os.environ["EXP_PATH"]
     kit_file = Path(__file__).parent / kit_file_name
     kit_file_target = Path(exp_path) / kit_file_name
-
+    print("여기가 문제얘요!!")
+    print(kit_file,kit_file_target)
     try:
         shutil.copy(kit_file, kit_file_target)
     except Exception as e:

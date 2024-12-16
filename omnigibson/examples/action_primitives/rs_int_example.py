@@ -9,6 +9,9 @@ from omnigibson.action_primitives.starter_semantic_action_primitives import (
     StarterSemanticActionPrimitiveSet,
 )
 from omnigibson.macros import gm
+from omnigibson.utils.ui_utils import create_module_logger
+
+log = create_module_logger(__name__, True)
 
 # Don't use GPU dynamics and use flatcache for performance boost
 # gm.USE_GPU_DYNAMICS = True
@@ -38,6 +41,7 @@ def init_scene():
             "position": [-0.3, -1.1, 0.5],
             "orientation": [0, 0, 0, 1],
         },
+        
     ]
 
     # Load the environment
@@ -71,9 +75,12 @@ def main():
     args = parser.parse_args()  # ArgumentParser 객체의 parse_args 호출로 인수 파싱
 
     env, scene = init_scene()
-
+    
+    log.debug("env : {env}")
+    log.debug(f"env : {env}")
+    log.debug(f"{env=}")
     # Allow user to move camera more easily
-    og.sim.enable_viewer_camera_teleoperation()
+    
 
     controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
 
@@ -88,6 +95,9 @@ def main():
                 env,
             )
             print("Finished executing grasp")
+
+
+
 
             cabinet = scene.object_registry("name", "cabinet")
             print("Executing controller: Place on Top")
@@ -130,23 +140,23 @@ def main():
             for obj_name in objs:
                 obj = scene.object_registry("name", obj_name)
                 # Switch On Off
-                print("Executing controller: Toggle On")
+                print("Executing controller: Toggle Off")
                 execute_controller(
                     controller.apply_ref(
                         StarterSemanticActionPrimitiveSet.TOGGLE_OFF, obj
                     ),
                     env,
                 )
-                print("Finished executing on")
+                print("Finished executing off")
 
-                print("Executing controller: Toggle Off")
+                print("Executing controller: Toggle On")
                 execute_controller(
                     controller.apply_ref(
                         StarterSemanticActionPrimitiveSet.TOGGLE_ON, obj
                     ),
                     env,
                 )
-                print("Finished executing off")
+                print("Finished executing on")
 
         case _:
             print(

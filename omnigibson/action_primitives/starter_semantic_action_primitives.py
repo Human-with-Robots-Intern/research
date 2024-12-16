@@ -965,6 +965,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         yield from self._toggle(obj, False)
 
     def _toggle(self, obj, value):
+        print("qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq")
         if self._get_obj_in_hand():
             raise ActionPrimitiveError(
                 ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
@@ -2168,7 +2169,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                     ]
                 )
                 # pose_2d 위치가 obj_rooms에 속하지 않으면 다시 샘플링
-                if (
+                if(
                     self.env.scene._seg_map.get_room_instance_by_point(pose_2d[:2])
                     not in obj_rooms
                 ):

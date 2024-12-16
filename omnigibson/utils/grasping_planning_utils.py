@@ -301,10 +301,10 @@ def grasp_position_for_open_on_prismatic_joint(
     )
     grasp_quat_in_bbox_frame = T.quat_inverse(th.tensor(joint_orientation))
 
-    log.debug(f"bbox pose : {bbox_center_in_world},{bbox_quat_in_world}")
-    log.debug(
-        f"grasp pose in bbox : {grasp_position_in_bbox_frame},{grasp_quat_in_bbox_frame}"
-    )
+    # log.debug(f"bbox pose : {bbox_center_in_world},{bbox_quat_in_world}")
+    # log.debug(
+    #     f"grasp pose in bbox : {grasp_position_in_bbox_frame},{grasp_quat_in_bbox_frame}"
+    # )
 
     grasp_pose_in_world_frame = T.pose_transform(
         bbox_center_in_world,
