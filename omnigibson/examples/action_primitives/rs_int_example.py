@@ -89,7 +89,7 @@ def main():
             )
             print("Finished executing grasp")
 
-            cabinet = scene.object_registry("name", "cabinet")
+            cabinet = scene.object_registry("name", "bottom_cabinet_bamfsz_0")
             print("Executing controller: Place on Top")
             execute_controller(
                 controller.apply_ref(

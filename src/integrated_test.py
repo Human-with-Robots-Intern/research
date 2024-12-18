@@ -42,7 +42,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def load_task_data(task_name: str) -> dict:
+def load_task_data(task_name: str) -> tuple:
     """Load task data from a JSON file."""
     if task_name == "new":
         try:
@@ -59,7 +59,7 @@ def load_task_data(task_name: str) -> dict:
         return task_name, json.load(file)
 
 
-def load_tasks_and_constraints(task_data: dict, enable_decomposition: bool):
+def load_tasks_and_constraints(task_data: list[dict], enable_decomposition: bool):
     """Parse tasks and build task graph."""
     tasks = Task.parse_instruction(task_data)
     if enable_decomposition:
@@ -87,9 +87,7 @@ def main():
         agent.reset_knowledge_to_gaussian()
 
     #  ========= Task Scheduling =========
-    task_timing_planner = TaskTimingPlanner(
-        agent=agent, tasks=tasks, constraints=task_graph
-    )
+    task_timing_planner = TaskTimingPlanner(agent=agent, tasks=tasks, constraints=task_graph)
 
     task_tree, opt_task_tree = task_timing_planner.get_task_trees()
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
