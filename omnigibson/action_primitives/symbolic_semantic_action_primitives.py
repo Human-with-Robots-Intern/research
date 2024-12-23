@@ -206,30 +206,36 @@ class SymbolicSemanticActionPrimitives(StarterSemanticActionPrimitives):
                 {"object in hand": self._get_obj_in_hand()},
             )
 
-        if object_states.ToggledOn not in obj.states:
+        #if object_states.ToggledOn not in obj.states:
+        if object_states.ToggledChange not in obj.states:
             raise ActionPrimitiveError(
                 ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
                 "The target object is not toggleable.",
                 {"target object": obj.name},
             )
 
-        if obj.states[object_states.ToggledOn].get_value() == value:
+        #if obj.states[object_states.ToggledOn].get_value() == value:
+        if obj.states[object_states.ToggledChange].get_value() == value:
             return
 
         # Call the setter
-        obj.states[object_states.ToggledOn].set_value(value)
+        #obj.states[object_states.ToggledOn].set_value(value)
+        obj.states[object_states.ToggledChange].set_value(value)
+        print("switch turn on/off value : ", value)
 
         # Yield some actions
         yield from self._settle_robot()
 
         # Check that it actually happened
-        if obj.states[object_states.ToggledOn].get_value() != value:
+        #if obj.states[object_states.ToggledOn].get_value() != value:
+        if obj.states[object_states.ToggledChange].get_value() != value:
             raise ActionPrimitiveError(
                 ActionPrimitiveError.Reason.POST_CONDITION_ERROR,
                 "The object did not toggle as expected - maybe try again",
                 {
                     "target object": obj.name,
-                    "is it currently toggled on": obj.states[object_states.ToggledOn].get_value(),
+                    #"is it currently toggled on": obj.states[object_states.ToggledOn].get_value(),
+                    "is it currently toggled on": obj.states[object_states.ToggledChange].get_value(),
                 },
             )
 

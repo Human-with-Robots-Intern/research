@@ -9,6 +9,9 @@ from omnigibson.action_primitives.starter_semantic_action_primitives import (
     StarterSemanticActionPrimitiveSet,
 )
 from omnigibson.macros import gm
+from omnigibson.utils.ui_utils import create_module_logger
+
+log = create_module_logger(__name__, True)
 
 # Don't use GPU dynamics and use flatcache for performance boost
 # gm.USE_GPU_DYNAMICS = True
@@ -29,6 +32,7 @@ def init_scene():
     # Update it to run a grocery shopping task
     config["scene"]["scene_model"] = "Rs_int"
     config["scene"]["not_load_object_categories"] = ["ceilings"]
+    
     config["objects"] = [
         {
             "type": "DatasetObject",
@@ -71,7 +75,10 @@ def main():
     args = parser.parse_args()  # ArgumentParser 객체의 parse_args 호출로 인수 파싱
 
     env, scene = init_scene()
-
+    
+    log.debug("env : {env}")
+    log.debug(f"env : {env}")
+    log.debug(f"{env=}")
     # Allow user to move camera more easily
     og.sim.enable_viewer_camera_teleoperation()
 
@@ -87,9 +94,9 @@ def main():
                 controller.apply_ref(StarterSemanticActionPrimitiveSet.GRASP, apple),
                 env,
             )
-            print("Finished executing grasp")
-
-            cabinet = scene.object_registry("name", "cabinet")
+            print("Finished executing grasp")             
+            
+            cabinet = scene.object_registry("name", "bottom_cabinet_bamfsz_0")
             print("Executing controller: Place on Top")
             execute_controller(
                 controller.apply_ref(
@@ -129,25 +136,26 @@ def main():
 
             for obj_name in objs:
                 obj = scene.object_registry("name", obj_name)
-                # Switch On Off
+                # Toggle On Off
+                
                 print("Executing controller: Toggle On")
-                execute_controller(
-                    controller.apply_ref(
-                        StarterSemanticActionPrimitiveSet.TOGGLE_OFF, obj
-                    ),
-                    env,
-                )
-                print("Finished executing on")
-
-                print("Executing controller: Toggle Off")
                 execute_controller(
                     controller.apply_ref(
                         StarterSemanticActionPrimitiveSet.TOGGLE_ON, obj
                     ),
                     env,
                 )
+                print("Finished executing on")
+                
+                print("Executing controller: Toggle Off")
+                execute_controller(
+                    controller.apply_ref(
+                        StarterSemanticActionPrimitiveSet.TOGGLE_OFF, obj
+                    ),
+                    env,
+                )
                 print("Finished executing off")
-
+                
         case _:
             print(
                 "Invalid case selected. This should not happen due to argparse validation."

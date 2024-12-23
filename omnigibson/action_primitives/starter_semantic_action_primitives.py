@@ -53,11 +53,16 @@ from omnigibson.utils.motion_planning_utils import (
     plan_base_motion,
     set_base_and_detect_collision,
 )
+
+from omnigibson.object_states.toggle_test import ToggledChange
+from omnigibson.object_states.toggle import ToggledOn
+
 from omnigibson.utils.object_state_utils import sample_cuboid_for_predicate
 from omnigibson.utils.python_utils import multi_dim_linspace
 from omnigibson.utils.ui_utils import create_module_logger
-
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 m = create_module_macros(module_path=__file__)
+log.debug(f"{m=}, {m.__dict__}")
 
 
 m.DEFAULT_BODY_OFFSET_FROM_FLOOR = 0.01
@@ -133,7 +138,7 @@ m.MAX_ALLOWED_JOINT_ERROR_FOR_LINEAR_MOTION = math.radians(
 )  # Default : math.radians(45)
 m.TIME_BEFORE_JOINT_STUCK_CHECK = 1.0
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+
 
 
 SEARCHED = []
@@ -606,7 +611,8 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         action = StarterSemanticActionPrimitiveSet(action_idx)
         return self.apply_ref(action, target_obj)
 
-    def apply_ref(self, prim, *args, attempts=4):
+    def apply_ref(self, prim, *args, attempts=10):
+        #한번 켤 때 4번 시도는 너무 적어서 attempts를 10으로 바꿈
         """
         Yields action for robot to execute the primitive with the given arguments.
 
@@ -960,59 +966,73 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
 
     def _toggle_on(self, obj):
         yield from self._toggle(obj, True)
+        print("Print : def _toggle_on")
 
     def _toggle_off(self, obj):
         yield from self._toggle(obj, False)
+        print("print : def _toggle_off")
 
     def _toggle(self, obj, value):
+        print("print : def _toggle")
         if self._get_obj_in_hand():
             raise ActionPrimitiveError(
                 ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
                 "Cannot toggle an object while holding an object",
                 {"object in hand": self._get_obj_in_hand().name},
             )
+        print("print : _get_obj_in_hand")
 
-        if object_states.ToggledOn not in obj.states:
+        #if object_states.ToggledOn not in obj.states:
+        if object_states.ToggledChange not in obj.states:
             raise ActionPrimitiveError(
                 ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
                 "The target object is not toggleable.",
                 {"target object": obj.name},
             )
+        print("print : wanted toggle value = ", value) #원하는 값 (T/F)
+        print("print : current toggle value = ", obj.states[object_states.ToggledChange].get_value()) #현재 값 (T/F)
 
-        if obj.states[object_states.ToggledOn].get_value() == value:
-            # 이미 원하는 상태이면 아무 것도 하지 않습니다.
+        #if obj.states[object_states.ToggledOn].get_value() == value:
+        if obj.states[object_states.ToggledChange].get_value() == value:
+            # 이미 원하는 상태이면 아무 것도 하지 않습니다. (현재 값 == 원하는 값)
             return
 
         # 추적 대상 업데이트
         self._tracking_object = obj
 
         # 토글 마커의 위치와 방향 가져오기
-        toggle_state = obj.states[object_states.ToggledOn]
+        #toggle_state = obj.states[object_states.ToggledOn]
+        toggle_state = obj.states[object_states.ToggledChange]
         toggle_position, toggle_orientation = (
             toggle_state.link.get_position_orientation()
         )
         toggle_pose = (toggle_position, toggle_orientation)
+        
 
-        # 접근 위치 네비게이션 -> 손 이동 -> 손 정밀 이동
+        # 접근 위치 네비게이션 -> 손 이동 -> 손 정밀 
+        # 이동
         yield from self._navigate_if_needed(obj, pose_on_obj=toggle_pose)
         yield from self._move_hand(toggle_pose, stop_if_stuck=True)
         yield from self._move_hand_linearly_cartesian(toggle_pose, stop_if_stuck=True)
         # 토글
-        obj.states[object_states.ToggledOn].set_value(value)
+        #obj.states[object_states.ToggledOn].set_value(value)
+        obj.states[object_states.ToggledChange].set_value(value)
 
         # 로봇 안정화, 손 리셋
         yield from self._settle_robot()
         yield from self._reset_hand()
 
         # 토글이 성공적으로 변경되었는지 확인
-        if obj.states[object_states.ToggledOn].get_value() != value:
+        #if obj.states[object_states.ToggledOn].get_value() != value:
+        if obj.states[object_states.ToggledChange].get_value() != value:
             raise ActionPrimitiveError(
                 ActionPrimitiveError.Reason.POST_CONDITION_ERROR,
                 "물체가 예상대로 토글되지 않았습니다. 다시 시도해보세요.",
                 {
                     "target object": obj.name,
                     "is it currently toggled on": obj.states[
-                        object_states.ToggledOn
+                        #object_states.ToggledOn
+                        object_states.ToggledChange
                     ].get_value(),
                 },
             )
@@ -2168,7 +2188,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                     ]
                 )
                 # pose_2d 위치가 obj_rooms에 속하지 않으면 다시 샘플링
-                if (
+                if(
                     self.env.scene._seg_map.get_room_instance_by_point(pose_2d[:2])
                     not in obj_rooms
                 ):

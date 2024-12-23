@@ -31,6 +31,7 @@ from omnigibson.object_states.saturated import Saturated
 from omnigibson.object_states.sliceable import SliceableRequirement
 from omnigibson.object_states.slicer_active import SlicerActive
 from omnigibson.object_states.temperature import Temperature
+from omnigibson.object_states.toggle_test import ToggledChange
 from omnigibson.object_states.toggle import ToggledOn
 from omnigibson.object_states.touching import Touching
 from omnigibson.object_states.under import Under

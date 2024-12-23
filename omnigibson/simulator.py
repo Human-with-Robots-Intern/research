@@ -137,7 +137,9 @@ def _launch_app():
     exp_path = os.environ["EXP_PATH"]
     kit_file = Path(__file__).parent / kit_file_name
     kit_file_target = Path(exp_path) / kit_file_name
-
+    #print("여기가 문제얘요!!")
+    #print(kit_file,kit_file_target)
+    #이 print문 무엇 때문에 추가되었는지 몰라서 남겨둡니다.(제가 안 했음)
     try:
         shutil.copy(kit_file, kit_file_target)
     except Exception as e:
