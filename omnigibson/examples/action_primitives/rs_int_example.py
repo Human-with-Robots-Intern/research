@@ -12,6 +12,9 @@ from omnigibson.macros import gm
 from omnigibson.utils.ui_utils import create_module_logger
 
 log = create_module_logger(__name__, True)
+from omnigibson.utils.ui_utils import create_module_logger
+
+log = create_module_logger(__name__, True)
 
 # Don't use GPU dynamics and use flatcache for performance boost
 # gm.USE_GPU_DYNAMICS = True
@@ -42,6 +45,7 @@ def init_scene():
             "position": [-0.3, -1.1, 0.5],
             "orientation": [0, 0, 0, 1],
         },
+        
     ]
 
     # Load the environment
@@ -79,8 +83,12 @@ def main():
     log.debug("env : {env}")
     log.debug(f"env : {env}")
     log.debug(f"{env=}")
+    
+    log.debug("env : {env}")
+    log.debug(f"env : {env}")
+    log.debug(f"{env=}")
     # Allow user to move camera more easily
-    og.sim.enable_viewer_camera_teleoperation()
+    
 
     controller = StarterSemanticActionPrimitives(env, enable_head_tracking=False)
 
