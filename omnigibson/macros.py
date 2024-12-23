@@ -165,6 +165,7 @@ def create_module_macros(module_path):
     # Trim the .py, and anything before and including omnigibson/, and split into its appropriate parts
     try:
         subsections = module_path.with_suffix("").relative_to(omnigibson_path).parts
+
     except ValueError:
         raise ValueError(
             "module_path is expected to be a filepath including the omnigibson root directory, got: {module_path}!"

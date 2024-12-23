@@ -1008,7 +1008,6 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         )
         toggle_pose = (toggle_position, toggle_orientation)
         
-
         # 접근 위치 네비게이션 -> 손 이동 -> 손 정밀 
         # 이동
         yield from self._navigate_if_needed(obj, pose_on_obj=toggle_pose)
