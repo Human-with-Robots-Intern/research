@@ -142,7 +142,7 @@ def main():
                 print("Executing controller: Toggle On")
                 execute_controller(
                     controller.apply_ref(
-                        StarterSemanticActionPrimitiveSet.TOGGLE_OFF, obj
+                        StarterSemanticActionPrimitiveSet.TOGGLE_ON, obj
                     ),
                     env,
                 )
@@ -150,26 +150,26 @@ def main():
                 if obj.states[object_states.ToggledOn].get_value() == True :
                     intensity_light = 1e4
 
-                light = scene.object_registry("name", "light")
-                light._light_link.set_attribute("inputs:intensity", intensity_light)
+                    light = scene.object_registry("name", "light")
+                    light._light_link.set_attribute("inputs:intensity", intensity_light)
                
                 print("Finished executing on")
-
+                '''
                 print("Executing controller: Toggle Off")
                 execute_controller(
                     controller.apply_ref(
-                        StarterSemanticActionPrimitiveSet.TOGGLE_ON, obj
+                        StarterSemanticActionPrimitiveSet.TOGGLE_OFF, obj
                     ),
                     env,
                 )
                 if obj.states[object_states.ToggledOn].get_value() == False :
                     intensity_light = 0
 
-                light = scene.object_registry("name", "light")
-                light._light_link.set_attribute("inputs:intensity", intensity_light)
+                    light = scene.object_registry("name", "light")
+                    light._light_link.set_attribute("inputs:intensity", intensity_light)
                 
                 print("Finished executing off")
-
+                '''
         case _:
             print(
                 "Invalid case selected. This should not happen due to argparse validation."
