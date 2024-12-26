@@ -606,7 +606,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         action = StarterSemanticActionPrimitiveSet(action_idx)
         return self.apply_ref(action, target_obj)
 
-    def apply_ref(self, prim, *args, attempts=4):
+    def apply_ref(self, prim, *args, attempts=10):
         """
         Yields action for robot to execute the primitive with the given arguments.
 
@@ -987,18 +987,44 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         self._tracking_object = obj
 
         # 토글 마커의 위치와 방향 가져오기
-        toggle_state = obj.states[object_states.ToggledOn]
+        print("print : position & orientation of obj = ", obj.get_position_orientation())
         toggle_position, toggle_orientation = (
-            toggle_state.link.get_position_orientation()
+            obj.get_position_orientation()
         )
         toggle_pose = (toggle_position, toggle_orientation)
+        print("print : toggle_position = ", toggle_position)
+
+        
+        #로봇 end effector (새로 추가)
+        finger_position = th.Tensor([0.0, 0.0, 0.0],)
+        print("print : finger_position = ", finger_position)
+
+        for scene in og.sim.scenes:
+            for robot in scene.robots:
+                if isinstance(robot, ManipulationRobot):
+                    for finger_links in robot.finger_links.values():
+                        for link in finger_links:
+                            finger_absolute_position = link.scaled_transform
+                            finger_position = finger_absolute_position[:3, 3]
+        
+        print("print : finger_position = ", finger_position)
+
 
         # 접근 위치 네비게이션 -> 손 이동 -> 손 정밀 이동
         yield from self._navigate_if_needed(obj, pose_on_obj=toggle_pose)
+        print("print : correct 1")
         yield from self._move_hand(toggle_pose, stop_if_stuck=True)
-        yield from self._move_hand_linearly_cartesian(toggle_pose, stop_if_stuck=True)
-        # 토글
-        obj.states[object_states.ToggledOn].set_value(value)
+        print("print : correct 2")
+        #yield from self._move_hand_linearly_cartesian(toggle_pose, stop_if_stuck=True)
+        print("print : correct 3")
+
+        # 토글 (마지막줄 빼고 새로 추가)
+        contact_Radius = 1.1
+        distance = th.norm(finger_position - toggle_position)
+        print("print : distance = ", distance)
+        if distance < contact_Radius:
+            if obj is not None:
+                obj.states[object_states.ToggledOn].set_value(value)
 
         # 로봇 안정화, 손 리셋
         yield from self._settle_robot()

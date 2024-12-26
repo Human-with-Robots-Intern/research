@@ -4,6 +4,7 @@ import os
 import yaml
 
 import omnigibson as og
+from omnigibson import object_states
 from omnigibson.action_primitives.starter_semantic_action_primitives import (
     StarterSemanticActionPrimitives,
     StarterSemanticActionPrimitiveSet,
@@ -38,6 +39,14 @@ def init_scene():
             "position": [-0.3, -1.1, 0.5],
             "orientation": [0, 0, 0, 1],
         },
+        dict(
+            type="LightObject",
+            light_type="Sphere",
+            name="light",
+            radius=1,
+            intensity=0,
+            position=[-0.3, -1.1, 3.0],
+        ),
     ]
 
     # Load the environment
@@ -89,7 +98,7 @@ def main():
             )
             print("Finished executing grasp")
 
-            cabinet = scene.object_registry("name", "cabinet")
+            cabinet = scene.object_registry("name", "bottom_cabinet_bamfsz_0")
             print("Executing controller: Place on Top")
             execute_controller(
                 controller.apply_ref(
@@ -120,11 +129,11 @@ def main():
             objs = [
                 "electric_switch_wseglt_1",
                 "electric_switch_wseglt_2",
-                "floor_lamp_vdxlda_0",
-                "laptop_nvulcs_0",
-                "loudspeaker_bmpdyv_0",
-                "standing_tv_udotid_0",
-                "table_lamp_xbfgjc_0",
+                #"floor_lamp_vdxlda_0",
+                #"laptop_nvulcs_0",
+                #"loudspeaker_bmpdyv_0",
+                #"standing_tv_udotid_0",
+                #"table_lamp_xbfgjc_0",
             ]
 
             for obj_name in objs:
@@ -133,21 +142,34 @@ def main():
                 print("Executing controller: Toggle On")
                 execute_controller(
                     controller.apply_ref(
-                        StarterSemanticActionPrimitiveSet.TOGGLE_OFF, obj
-                    ),
-                    env,
-                )
-                print("Finished executing on")
-
-                print("Executing controller: Toggle Off")
-                execute_controller(
-                    controller.apply_ref(
                         StarterSemanticActionPrimitiveSet.TOGGLE_ON, obj
                     ),
                     env,
                 )
-                print("Finished executing off")
 
+                if obj.states[object_states.ToggledOn].get_value() == True :
+                    intensity_light = 1e4
+
+                    light = scene.object_registry("name", "light")
+                    light._light_link.set_attribute("inputs:intensity", intensity_light)
+               
+                print("Finished executing on")
+                '''
+                print("Executing controller: Toggle Off")
+                execute_controller(
+                    controller.apply_ref(
+                        StarterSemanticActionPrimitiveSet.TOGGLE_OFF, obj
+                    ),
+                    env,
+                )
+                if obj.states[object_states.ToggledOn].get_value() == False :
+                    intensity_light = 0
+
+                    light = scene.object_registry("name", "light")
+                    light._light_link.set_attribute("inputs:intensity", intensity_light)
+                
+                print("Finished executing off")
+                '''
         case _:
             print(
                 "Invalid case selected. This should not happen due to argparse validation."
