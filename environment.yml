@@ -24,7 +24,10 @@ dependencies:
 
   # Simulation and robotics libraries
   - gymnasium>=0.28.1
-  - opencv>=4.8.1
+  - opencv
+  - omnigibson
+
+  # Other utilities and libraries
   - h5py
   - trimesh
   - rtree
