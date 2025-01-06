@@ -1,6 +1,6 @@
 import heapq
 import math
-
+import sys, io
 import torch as th
 
 import omnigibson as og
@@ -12,6 +12,21 @@ from omnigibson.utils.control_utils import IKSolver
 from omnigibson.utils.sim_utils import prim_paths_to_rigid_prims
 from omnigibson.utils.ui_utils import create_module_logger
 from omnigibson.utils.usd_utils import GripperRigidContactAPI
+
+
+class StreamCapturer(io.TextIOBase):
+    def __init__(self, original_stream, log_file):
+        self.original_stream = original_stream
+        self.log_file = open(log_file, "w")
+
+    def write(self, message):
+        self.original_stream.write(message)  # 터미널에 출력
+        self.log_file.write(message)  # 로그 파일에 저장
+
+    def flush(self):
+        self.original_stream.flush()
+        self.log_file.flush()
+
 
 # Create module logger
 logger = create_module_logger(module_name=__name__)
