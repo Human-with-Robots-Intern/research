@@ -1227,6 +1227,99 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
     #             },
     #         )
 
+    # grasp 응용 toggle
+    def _toggle(self, obj, value):
+        # Update the tracking to track the object.
+        self._tracking_object = obj
+
+        # Don't do anything if the object is already grasped.
+        obj_in_hand = self._get_obj_in_hand()
+        if obj_in_hand is not None:
+            if obj_in_hand == obj:
+                return
+            else:
+                raise ActionPrimitiveError(
+                    ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
+                    "Cannot grasp when your hand is already full",
+                    {
+                        "target object": obj.name,
+                        "object currently in hand": obj_in_hand.name,
+                    },
+                )
+
+        if object_states.ToggledOn not in obj.states:
+            raise ActionPrimitiveError(
+                ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
+                "The target object is not toggleable.",
+                {"target object": obj.name},
+            )
+
+        # Open the hand first
+        indented_print("Opening hand before grasping")
+        yield from self._execute_release()
+
+        # Allow grasping from suboptimal extents if we've tried enough times.
+        indented_print("Sampling grasp pose")
+        grasp_poses = get_grasp_poses_for_object_sticky(obj)
+        grasp_pose, object_direction = random.choice(grasp_poses)
+
+        # Prepare data for the approach later.
+        approach_pos = grasp_pose[0] + object_direction * m.GRASP_APPROACH_DISTANCE
+        approach_pose = (approach_pos, grasp_pose[1])
+
+        # If the grasp pose is too far, navigate.
+        indented_print("Navigating to grasp pose if needed")
+        yield from self._navigate_if_needed(obj, pose_on_obj=grasp_pose)
+
+        indented_print("Moving hand to grasp pose")
+        yield from self._move_hand(grasp_pose)
+
+        # We can pre-grasp in sticky grasping mode.
+        indented_print("Pregrasp squeeze")
+        yield from self._execute_grasp()
+
+        # Since the grasp pose is slightly off the object, we want to move towards the object, around 5cm.
+        # 잡는 자세가 물체에서 약간 떨어져 있기 때문에 물체를 향해 약 5cm 정도 이동하려고 합니다.
+        # It's okay if we can't go all the way because we run into the object.
+        # 물체에 부딪혀서 끝까지 갈 수 없어도 괜찮습니다.
+        indented_print("Performing grasp approach")
+        yield from self._move_hand_linearly_cartesian(
+            approach_pose, stop_on_contact=True
+        )
+
+        # Step once to update
+        empty_action = self._empty_action()
+        yield self._postprocess_action(empty_action)
+
+        # 여기까지는 navigate하는 거
+
+        # 이제 toggle하는 것. 충격량 일단 이용해보기.
+        if not obj.has_state(ToggledOn):
+            obj.add_state(ToggledOn)
+            toggle_state = obj.states[ToggledOn].get_value()
+
+        if toggle_state == value:
+            return
+        else:
+            obj.states[ToggledOn].set_value(value)
+
+        # 로봇 안정화, 손 리셋
+        yield from self._settle_robot()
+        yield from self._reset_hand()
+
+        # 토글이 성공적으로 변경되었는지 확인
+        if obj.states[object_states.ToggledOn].get_value() != value:
+            raise ActionPrimitiveError(
+                ActionPrimitiveError.Reason.POST_CONDITION_ERROR,
+                "물체가 예상대로 토글되지 않았습니다. 다시 시도해보세요.",
+                {
+                    "target object": obj.name,
+                    "is it currently toggled on": obj.states[
+                        object_states.ToggledOn
+                    ].get_value(),
+                },
+            )
+
     def _place_with_predicate(self, obj, predicate):
         """
         Yields action for the robot to navigate to the object if needed, then to place it
