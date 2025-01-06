@@ -22,7 +22,7 @@ def parse_arguments():
         default="task_Store_Apple_in_Cabinet",
     )
     parser.add_argument(
-        "-de",
+        "-d",
         "--decomposition",
         help="Enable or disable decomposition",
         action="store_true",
@@ -87,7 +87,9 @@ def main():
         agent.reset_knowledge_to_gaussian()
 
     #  ========= Task Scheduling =========
-    task_timing_planner = TaskTimingPlanner(agent=agent, tasks=tasks, constraints=task_graph)
+    task_timing_planner = TaskTimingPlanner(
+        agent=agent, tasks=tasks, constraints=task_graph
+    )
 
     task_tree, opt_task_tree = task_timing_planner.get_task_trees()
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
