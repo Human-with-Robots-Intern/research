@@ -36,9 +36,9 @@
             "occurrences": 0
         },
         "NAVIGATE_TO": {
-            "expected_duration": 15.44501318359099,
-            "variance": 0.5,
-            "occurrences": 1
+            "expected_duration": 16.993781976062206,
+            "variance": 0.3333333333333333,
+            "occurrences": 2
         }
     },
     "Invalid_actions": {},
