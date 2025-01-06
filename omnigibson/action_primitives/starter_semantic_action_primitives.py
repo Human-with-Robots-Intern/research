@@ -50,8 +50,11 @@ from omnigibson.object_states.toggle import ToggledOn
 
 from omnigibson.object_states.open_state import _get_relevant_joints
 from omnigibson.utils.constants import JointAxis, JointType
-from omnigibson.examples.action_primitives.toggle_states_example import (
+from omnigibson.examples.action_primitives.toggle_states_functions import (
     get_toggle_position,
+)
+from omnigibson.examples.action_primitives.grasp_for_toggle_functions import (
+    get_grasp_poses_for_object_sticky_for_toggle,
 )
 
 from omnigibson.utils.motion_planning_utils import (
@@ -1260,11 +1263,19 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
 
         # Allow grasping from suboptimal extents if we've tried enough times.
         indented_print("Sampling grasp pose")
-        grasp_poses = get_grasp_poses_for_object_sticky(obj)
+        grasp_poses = get_grasp_poses_for_object_sticky_for_toggle(obj)
         grasp_pose, object_direction = random.choice(grasp_poses)
 
+        print(
+            "print : grasp_poses = ", grasp_poses
+        )  # print : grasp_poses =  [((tensor([1.4369, 1.4559, 1.3651]), tensor([0.0000, 0.7071, 0.0000, 0.7071])), tensor([ 0.,  0., -1.]))]
+        print(
+            "print : grasp_pose = ", grasp_pose
+        )  # print : grasp_pose =  (tensor([1.4369, 1.4559, 1.3651]), tensor([0.0000, 0.7071, 0.0000, 0.7071]))
+        print("print : object_direction = ", object_direction)
         # Prepare data for the approach later.
         approach_pos = grasp_pose[0] + object_direction * m.GRASP_APPROACH_DISTANCE
+        print("print: approach_pos = ", approach_pos)
         approach_pose = (approach_pos, grasp_pose[1])
 
         # If the grasp pose is too far, navigate.
