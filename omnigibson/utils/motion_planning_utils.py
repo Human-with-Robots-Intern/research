@@ -1,6 +1,8 @@
 import heapq
+import io
 import math
-import sys, io
+import sys
+
 import torch as th
 
 import omnigibson as og
@@ -221,7 +223,7 @@ def plan_base_motion(
     si.setMotionValidator(CustomMotionValidator(si, space))
     # TODO: Try changing to RRTConnect in the future. Currently using RRT because movement is not direction invariant. Can change to RRTConnect
     # possibly if hasSymmetricInterpolate is set to False for the state space. Doc here https://ompl.kavrakilab.org/classompl_1_1base_1_1StateSpace.html
-    planner = ompl_geo.RRTConnect(si)
+    planner = ompl_geo.RRT(si)
     ss.setPlanner(planner)
 
     start = create_state(space, start_conf[0], start_conf[1], start_conf[2])

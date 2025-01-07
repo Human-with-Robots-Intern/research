@@ -11,11 +11,12 @@ from utils.constants import VIS_PATH
 
 
 def visualize(task_name, constraints, task_tree=None, opt_task_tree=None):
-    folder_name = datetime.now().strftime("%Y-%m-%d_%H") + f"_{task_name}"
+    folder_name = task_name
     save_folder_path = Path(VIS_PATH) / folder_name
     save_folder_path.mkdir(exist_ok=True)  # Create the folder if it doesn't exist
 
     visualize_graph(constraints, save_folder_path)
+
     visualize_tree(task_tree, opt_task_tree, save_folder_path)
     plot_gantt_chart(opt_task_tree, save_folder_path)
 

@@ -3,6 +3,7 @@ import logging
 import os
 import re
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -16,56 +17,44 @@ logger = logging.getLogger(__name__)
 
 
 def initialize_openai() -> openai.OpenAI:
-    """Load OpenAI API key from environment variables and initialize the client."""
-    # load_dotenv()
+    """Initialize OpenAI API client."""
     openai_api_key = os.environ.get("OPENAI_API_KEY")
     if not openai_api_key:
         logger.error("OPENAI_API_KEY not found in environment variables.")
         raise EnvironmentError("OPENAI_API_KEY not found in environment variables.")
-    client = openai.OpenAI(api_key=openai_api_key)
-    return client
+    return openai.OpenAI(api_key=openai_api_key)
 
 
 client = initialize_openai()
 
 # Task cache for deduplication
-task_cache = {}
+task_cache: Dict[int, List[Dict[str, Any]]] = {}
 
 
-def load_prompt(file_path: Path) -> str:
-    """Load prompt examples and context from the specified file."""
+def load_file(file_path: Path, file_type: str) -> Any:
+    """Load content from the specified file."""
     if not file_path.exists():
-        logger.error(f"Prompt file not found: {file_path}")
-        raise FileNotFoundError(f"Prompt file not found: {file_path}")
+        logger.error(f"{file_type.capitalize()} file not found: {file_path}")
+        raise FileNotFoundError(f"{file_type.capitalize()} file not found: {file_path}")
     with open(file_path, "r", encoding="utf-8") as file:
-        return file.read()
-
-
-def load_knowledge(file_path: Path) -> Dict[str, Any]:
-    """Load knowledge base from the specified JSON file."""
-    if not file_path.exists():
-        logger.error(f"Knowledge file not found: {file_path}")
-        raise FileNotFoundError(f"Knowledge file not found: {file_path}")
-    with open(file_path, "r", encoding="utf-8") as file:
-        return json.load(file)
+        return json.load(file) if file_type == "json" else file.read()
 
 
 def sanitize_file_name(file_name: str) -> str:
-    """Convert a file name to a safe format."""
-    return re.sub(r"[^\w\-_\.]", "_", file_name)
+    """Sanitize file name to ensure compatibility."""
+    return datetime.now().strftime("%Y-%m-%d_%H_%M_") + re.sub(
+        r"[^\w\-_\.]+", "_", file_name
+    )
 
 
 def validate_output_format(output: Any) -> bool:
-    """Validate if the output adheres to the required format."""
+    """Validate the format of the generated task output."""
     if not isinstance(output, list):
         return False
     for task in output:
         if not isinstance(task, dict) or not {"Task", "Subtasks"}.issubset(task):
             return False
-        subtasks = task.get("Subtasks", [])
-        if not isinstance(subtasks, list):
-            return False
-        for subtask in subtasks:
+        for subtask in task.get("Subtasks", []):
             required_keys = {
                 "Name",
                 "Repetition",
@@ -85,13 +74,13 @@ def validate_output_format(output: Any) -> bool:
     return True
 
 
-def validate_actions(
+def classify_subtasks(
     output: List[Dict[str, Any]], knowledge: Dict[str, Any]
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """Validate actions in the output and classify them into valid and invalid subtasks."""
-    invalid_subtasks = []
-    valid_subtasks = []
+    """Classify subtasks into valid and invalid based on knowledge."""
+    invalid_subtasks, valid_subtasks = [], []
     valid_actions = set(knowledge.get("Valid_actions", {}).keys())
+
     for task in output:
         for subtask in task.get("Subtasks", []):
             primitive_actions = subtask.get("Executions", {}).get(
@@ -106,21 +95,22 @@ def validate_actions(
             ]
             if invalid_actions:
                 logger.debug(
-                    f"Invalid actions found in subtask '{subtask['Name']}': {invalid_actions}"
+                    f"Invalid actions in subtask '{subtask['Name']}': {invalid_actions}"
                 )
                 subtask["InvalidActions"] = invalid_actions
                 invalid_subtasks.append(subtask)
             else:
                 valid_subtasks.append(subtask)
+
     return valid_subtasks, invalid_subtasks
 
 
 def regenerate_invalid_subtasks(
     invalid_subtasks: List[Dict[str, Any]], knowledge: Dict[str, Any]
 ) -> List[Dict[str, Any]]:
-    """Regenerate invalid subtasks."""
+    """Regenerate invalid subtasks using OpenAI API."""
     regenerated_subtasks = []
-    valid_actions = list(knowledge.get("Valid_actions", {}).keys())
+    valid_actions = ", ".join(knowledge.get("Valid_actions", {}).keys())
 
     for subtask in invalid_subtasks:
         invalid_actions = subtask.get("InvalidActions", [])
@@ -129,7 +119,7 @@ def regenerate_invalid_subtasks(
                 "role": "user",
                 "content": (
                     f"The subtask contains invalid actions: {', '.join(invalid_actions)}.\n"
-                    f"Valid actions are: {', '.join(valid_actions)}.\n"
+                    f"Valid actions are: {valid_actions}.\n"
                     "Please correct the invalid actions in the subtask below:\n"
                     f"{json.dumps(subtask, indent=4, ensure_ascii=False)}\n"
                 ),
@@ -161,16 +151,16 @@ def regenerate_subtasks_parallel(
     return [subtask for result in results for subtask in result]
 
 
-def cached_generate_and_validate_task(
+def cached_generate_task(
     full_prompt: List[Dict[str, str]], knowledge: Dict[str, Any]
 ) -> Optional[List[Dict[str, Any]]]:
-    """Check cache before generating tasks."""
+    """Generate tasks using OpenAI API with caching."""
     prompt_hash = hash(json.dumps(full_prompt, sort_keys=True))
     if prompt_hash in task_cache:
         logger.info("Using cached result.")
         return task_cache[prompt_hash]
 
-    max_retries = 3
+    max_retries = 5
     for attempt in range(1, max_retries + 1):
         try:
             response = client.chat.completions.create(
@@ -196,9 +186,9 @@ def cached_generate_and_validate_task(
 
 
 def generate_task():
-    """Main function to generate tasks based on user input."""
-    examples_prompt = load_prompt(Path(PROMPT_PATH) / "e2e_generator.txt")
-    knowledge = load_knowledge(Path(KNOWLEDGE_PATH) / "knowledge.json")
+    """Generate tasks based on user input and knowledge base."""
+    examples_prompt = load_file(Path(PROMPT_PATH) / "e2e_generator_ver3.txt", "txt")
+    knowledge = load_file(Path(KNOWLEDGE_PATH) / "knowledge.json", "json")
 
     user_input = input("Please enter the instructions: ").strip()
     if not user_input:
@@ -210,11 +200,14 @@ def generate_task():
         {"role": "user", "content": f"# [Input]\n\n{user_input}"},
     ]
 
-    output = cached_generate_and_validate_task(full_prompt, knowledge)
+    output = cached_generate_task(full_prompt, knowledge)
 
     if output and validate_output_format(output):
-        sanitized_name = sanitize_file_name(output[0].get("Task", "output"))
-        output_file_path = Path(TASK_PATH) / f"{sanitized_name}.json"
+        task_numbers = len(output)
+        subtask_numbers = sum(len(task.get("Subtasks", [])) for task in output)
+        output_file_name = f"{task_numbers}tasks_{subtask_numbers}subtasks.json"
+        sanitized_name = sanitize_file_name(output_file_name)
+        output_file_path = Path(TASK_PATH) / sanitized_name
         save_to_file(output, output_file_path)
         return sanitized_name
     else:
@@ -223,7 +216,7 @@ def generate_task():
 
 
 def save_to_file(data: Any, file_path: Path) -> None:
-    """Save JSON data to the specified file."""
+    """Save data to a JSON file."""
     os.makedirs(file_path.parent, exist_ok=True)
     try:
         with open(file_path, "w", encoding="utf-8") as file:
