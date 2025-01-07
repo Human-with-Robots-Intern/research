@@ -2,6 +2,8 @@ import gymnasium as gym
 import numpy as np
 import torch as th
 
+from scipy.spatial.transform import Rotation as R
+
 import omnigibson as og
 import omnigibson.lazy as lazy
 import omnigibson.utils.transform_utils as T
@@ -12,6 +14,8 @@ from omnigibson.utils.constants import JointAxis, JointType
 
 from omnigibson.utils.python_utils import multi_dim_linspace
 from omnigibson.utils.ui_utils import create_module_logger
+
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 def interpolate_waypoints_toggle(start_pose, end_pose, num_waypoints="default"):
@@ -41,7 +45,7 @@ def interpolate_waypoints_toggle(start_pose, end_pose, num_waypoints="default"):
     #     ).item()
 
     num_waypoints = th.max(
-        th.tensor([2, int(max(travel_distance, 0) / 0.01) + 1])
+        th.tensor([2, int(max(travel_distance, 0) / 0.02) + 1])
     ).item()
     print("print : num_waypoints = ", num_waypoints)
 
@@ -92,12 +96,28 @@ def get_toggle_position(robot, toggle_obj, num_waypoints="default"):
     waypoint_start_pose = toggle_position + T.quat2euler(waypoint_start_offset)
     waypoint_end_pose = toggle_position
     waypoint_start = [waypoint_start_pose, waypoint_start_offset]
-    waypoint_end = toggle_pose
+    rotate = R.from_quat(toggle_pose[1])
+    rotate_vector = rotate.apply(th.tensor([0.0, 1.0, 0.0]))
+    print("print : rotate = ", rotate)
+    print("print : rotate_orientation = ", rotate_vector)
+    waypoint_end = (
+        toggle_pose[0],
+        toggle_pose[1],
+    )
+    print("print : toggle_pose = ", toggle_pose)
+    print("print : waypoint_end = ", waypoint_end)
+    end_position = toggle_pose[0] - th.tensor(0.15 * rotate_vector, dtype=th.float32)
+
+    waypoint_end = (end_position, toggle_pose[1])
+    print("print : waypoint_end = ", waypoint_end)
 
     # 경로 계산: 시작점과 끝점 사이의 waypoint를 생성
     waypoints, travel_distance = interpolate_waypoints_toggle(
         waypoint_start, waypoint_end, num_waypoints=num_waypoints
     )
+
+    waypoints.append(toggle_pose)
+
     print("print : waypoints", waypoints)
 
     pos_change = th.norm(toggle_position - waypoint_end_pose).item()
@@ -107,7 +127,7 @@ def get_toggle_position(robot, toggle_obj, num_waypoints="default"):
         waypoints,
         toggle_orientation,
         # pos_change,
-        travel_distance,
+        # travel_distance,
     )
 
 

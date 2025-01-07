@@ -619,7 +619,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         action = StarterSemanticActionPrimitiveSet(action_idx)
         return self.apply_ref(action, target_obj)
 
-    def apply_ref(self, prim, *args, attempts=10):
+    def apply_ref(self, prim, *args, attempts=20):
         """
         Yields action for robot to execute the primitive with the given arguments.
 
@@ -1133,14 +1133,30 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         self._tracking_object = obj
         og.sim.step()
 
-        max_attempts_for_toggle = 20
+        max_attempts_for_toggle = 5
+        log.debug(
+            f"---------------------------------------------------------------------------------------------------------"
+        )
+        log.debug(
+            f"robot_arm_eef_start = : {self.robot.eef_links[self.arm].get_position_orientation()}"
+        )
 
         for _ in range(max_attempts_for_toggle):
+            trial = 0
+            trial += 1
             try:
+                log.debug(f"{obj}, trial = {trial}")
                 toggle_data = get_toggle_position(
                     self.robot,
                     obj,
                     None,
+                )
+
+                start_pos, start_orn = self.robot.eef_links[
+                    self.arm
+                ].get_position_orientation()
+                log.debug(
+                    f"robot_arm_eef_end = : {self.robot.eef_links[self.arm].get_position_orientation()}"
                 )
 
                 if toggle_data is None:
@@ -1152,14 +1168,20 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                     )
                 (
                     toggle_pose,
-                    target_poses,
+                    waypoints,
                     object_direction,
                     # pos_change,
-                    travel_distance,
                 ) = toggle_data
                 # if abs(pos_change) < 0.1:
                 #     indented_print("Yaw change is small and done,", pos_change)
                 #     return
+
+                contact_Radius = 0.15
+                distance = th.norm(start_pos - toggle_pose[0])
+                log.debug(f"distance : {distance}")
+
+                log.debug(f"second_last_waypoints = {waypoints[-2]}")
+                log.debug(f"last_waypoints = {waypoints[-1]}")
 
                 object_direction_euler = T.quat2euler(object_direction)
                 # Prepare data for the approach later.
@@ -1174,36 +1196,76 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
 
                 # If the toggle pose is too far, navigate
                 yield from self._navigate_if_needed(obj, pose_on_obj=toggle_pose)
+                log.debug(f"아니")
+                log.debug(f"distance : {distance}")
+                if distance < contact_Radius:
+                    log.debug(f"detect")
+                    break
 
                 yield from self._move_hand(toggle_pose, stop_if_stuck=True)
+                log.debug(f"어디서")
+                log.debug(f"distance : {distance}")
+                if distance < contact_Radius:
+                    log.debug(f"detect")
+                    break
+                # yield from self._navigate_if_needed(obj, pose_on_obj=approach_pose)
 
-                yield from self._navigate_if_needed(obj, pose_on_obj=approach_pose)
-
-                yield from self._move_hand_linearly_cartesian(
-                    approach_pose,
-                    ignore_failure=False,
-                    stop_on_contact=True,
-                    stop_if_stuck=True,
-                )
+                # yield from self._move_hand_linearly_cartesian(
+                #     approach_pose,
+                #     ignore_failure=False,
+                #     stop_on_contact=True,
+                #     stop_if_stuck=True,
+                # )
 
                 # Step once to update
                 empty_action = self._empty_action()
                 yield self._postprocess_action(empty_action)
+                log.debug(f"실패")
+                log.debug(f"distance : {distance}")
+                if distance < contact_Radius:
+                    log.debug(f"detect")
+                    break
 
-                for i, target_pose in enumerate(target_poses):
+                for i, target_pose in enumerate(waypoints):
                     yield from self._move_hand_linearly_cartesian(
                         target_pose, ignore_failure=False, stop_if_stuck=True
                     )
+                log.debug(f"하는")
+                log.debug(f"distance : {distance}")
+                if distance < contact_Radius:
+                    log.debug(f"detect")
+                    break
 
                 yield from self._move_hand_linearly_cartesian(
                     self.robot.eef_links[self.arm].get_position_orientation(),
                     ignore_failure=True,
                     stop_if_stuck=True,
                 )
+                log.debug(f"거야")
+                log.debug(f"distance : {distance}")
+                if distance < contact_Radius:
+                    log.debug(f"detect")
+                    break
 
             except ActionPrimitiveError as e:
                 indented_print(e)
                 yield from self._move_base_backward()
+
+        if distance < contact_Radius:
+            if obj is not None:
+                obj.states[object_states.ToggledOn].set_value(value)
+                if "electric_switch" in obj.name:
+                    light_name = f"light_{obj.name}"
+                    if obj.states[object_states.ToggledOn].get_value() == True:
+                        intensity_light = 1e6
+                    elif obj.states[object_states.ToggledOn].get_value() == False:
+                        intensity_light = 2.3e2
+                    for scene in og.sim.scenes:
+                        light = scene.object_registry("name", light_name)
+                        light._light_link.set_attribute(
+                            "inputs:intensity", intensity_light
+                        )
+                log.debug(f"Toggle 성공")
 
         # 로봇 안정화, 손 리셋
         yield from self._settle_robot()

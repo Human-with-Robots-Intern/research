@@ -13,6 +13,8 @@ from omnigibson.action_primitives.starter_semantic_action_primitives import (
 from omnigibson.macros import gm
 from omnigibson.utils.ui_utils import create_module_logger
 
+from omnigibson.objects.stateful_object import StatefulObject
+
 # Don't use GPU dynamics and use flatcache for performance boost
 # gm.USE_GPU_DYNAMICS = True
 # gm.ENABLE_FLATCACHE = True
@@ -38,9 +40,9 @@ def init_scene():
         "rocking_chair",
         "straight_chair",
         "floor_lamp",
-        # "pool_table",
         "breakfast_table",  # 이게 모서리에 있는 테이블
-        "coffee_table",  # 이거 세개중에 있음. 이게 가운데 있는 테이블
+        # "coffee_table",  # 이게 가운데 있는 테이블
+        "pot_plant",
     ]
     config["objects"] = [
         {
@@ -68,6 +70,15 @@ def init_scene():
             color=[0, 1, 0],
             intensity=2.3e2,
             position=[-2.0167, 0.3387, 1.6003],
+        ),
+        dict(
+            type="LightObject",
+            light_type="Sphere",
+            name="light_electric_switch_wseglt_4",
+            radius=0.1,
+            color=[0, 1, 0],
+            intensity=2.3e2,
+            position=[1.4368, 3.2528, 1.8003],
         ),
     ]
 
@@ -116,7 +127,22 @@ def main():
     switch2 = scene.object_registry("name", "electric_switch_wseglt_2")
     apple = scene.object_registry("name", "apple")
     cabinet = scene.object_registry("name", "bottom_cabinet_bamfsz_0")
+    oven = scene.object_registry("name", "oven_wuinhm_0")
+    switch4 = scene.object_registry("name", "electric_switch_wseglt_4")
+    window1 = scene.object_registry("name", "window_ithrgo_0")
 
+    # execute_controller(
+    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.OPEN, window1),
+    #     env,
+    # )
+    # execute_controller(
+    #     controller.apply_ref(StarterSemanticActionPrimitiveSet.TOGGLE_ON, oven),
+    #     env,
+    # )
+    execute_controller(
+        controller.apply_ref(StarterSemanticActionPrimitiveSet.TOGGLE_ON, switch4),
+        env,
+    )
     execute_controller(
         controller.apply_ref(StarterSemanticActionPrimitiveSet.TOGGLE_ON, switch1),
         env,
