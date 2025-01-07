@@ -2,6 +2,7 @@ import argparse
 import os
 
 import yaml
+import torch as th
 
 import omnigibson as og
 from omnigibson import object_states
@@ -10,6 +11,8 @@ from omnigibson.action_primitives.starter_semantic_action_primitives import (
     StarterSemanticActionPrimitiveSet,
 )
 from omnigibson.macros import gm
+
+import time
 
 # Don't use GPU dynamics and use flatcache for performance boost
 # gm.USE_GPU_DYNAMICS = True
@@ -29,7 +32,15 @@ def init_scene():
 
     # Update it to run a grocery shopping task
     config["scene"]["scene_model"] = "Rs_int"
-    config["scene"]["not_load_object_categories"] = ["ceilings"]
+    config["scene"]["not_load_object_categories"] = [
+        "ceilings",
+        "rocking_chair",
+        "straight_chair",
+        "floor_lamp",
+        # "pool_table",
+        "breakfast_table",
+        # "coffee_table",
+    ]
     config["objects"] = [
         {
             "type": "DatasetObject",
@@ -42,10 +53,18 @@ def init_scene():
         dict(
             type="LightObject",
             light_type="Sphere",
-            name="light",
-            radius=1,
-            intensity=0,
-            position=[-0.3, -1.1, 3.0],
+            name="light_electric_switch_wseglt_1",
+            radius=0.1,
+            intensity=2.3e2,
+            position=[1.4368, 1.4528, 1.8003],
+        ),
+        dict(
+            type="LightObject",
+            light_type="Sphere",
+            name="light_electric_switch_wseglt_2",
+            radius=0.1,
+            intensity=2.3e2,
+            position=[-2.0167, 0.3387, 1.6003],
         ),
     ]
 
@@ -117,7 +136,7 @@ def main():
                 env,
             )
             print("Finished executing open")
-
+            time.sleep(2)
             print("Executing controller: Close")
             execute_controller(
                 controller.apply_ref(StarterSemanticActionPrimitiveSet.CLOSE, cabinet),
@@ -127,13 +146,13 @@ def main():
 
         case 3:
             objs = [
+                # "electric_switch_wseglt_2",
+                # "floor_lamp_vdxlda_0",
+                # "laptop_nvulcs_0",
+                "loudspeaker_bmpdyv_0",
                 "electric_switch_wseglt_1",
-                "electric_switch_wseglt_2",
-                #"floor_lamp_vdxlda_0",
-                #"laptop_nvulcs_0",
-                #"loudspeaker_bmpdyv_0",
-                #"standing_tv_udotid_0",
-                #"table_lamp_xbfgjc_0",
+                # "standing_tv_udotid_0",
+                # "table_lamp_xbfgjc_0",
             ]
 
             for obj_name in objs:
@@ -147,14 +166,8 @@ def main():
                     env,
                 )
 
-                if obj.states[object_states.ToggledOn].get_value() == True :
-                    intensity_light = 1e4
-
-                    light = scene.object_registry("name", "light")
-                    light._light_link.set_attribute("inputs:intensity", intensity_light)
-               
                 print("Finished executing on")
-                '''
+                """
                 print("Executing controller: Toggle Off")
                 execute_controller(
                     controller.apply_ref(
@@ -162,14 +175,9 @@ def main():
                     ),
                     env,
                 )
-                if obj.states[object_states.ToggledOn].get_value() == False :
-                    intensity_light = 0
-
-                    light = scene.object_registry("name", "light")
-                    light._light_link.set_attribute("inputs:intensity", intensity_light)
                 
                 print("Finished executing off")
-                '''
+                """
         case _:
             print(
                 "Invalid case selected. This should not happen due to argparse validation."

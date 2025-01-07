@@ -2,9 +2,16 @@ import torch as th
 
 import omnigibson as og
 from omnigibson.object_states.aabb import AABB
-from omnigibson.object_states.adjacency import HorizontalAdjacency, VerticalAdjacency, flatten_planes
+from omnigibson.object_states.adjacency import (
+    HorizontalAdjacency,
+    VerticalAdjacency,
+    flatten_planes,
+)
 from omnigibson.object_states.kinematics_mixin import KinematicsMixin
-from omnigibson.object_states.object_state_base import BooleanStateMixin, RelativeObjectState
+from omnigibson.object_states.object_state_base import (
+    BooleanStateMixin,
+    RelativeObjectState,
+)
 from omnigibson.object_states.pose import Pose
 from omnigibson.utils.constants import PrimType
 from omnigibson.utils.object_state_utils import m as os_m
@@ -49,8 +56,12 @@ class Inside(RelativeObjectState, KinematicsMixin, BooleanStateMixin):
         inner_object_pos = (aabb_lower + aabb_upper) / 2.0
         outer_object_aabb_lo, outer_object_aabb_hi = other.states[AABB].get_value()
 
+        print("print : Inner object AABB:", aabb_lower, aabb_upper)
+        print("print : Outer object AABB:", outer_object_aabb_lo, outer_object_aabb_hi)
+
         if not (
-            th.le(outer_object_aabb_lo, inner_object_pos).all() and th.le(inner_object_pos, outer_object_aabb_hi).all()
+            th.le(outer_object_aabb_lo, inner_object_pos).all()
+            and th.le(inner_object_pos, outer_object_aabb_hi).all()
         ):
             return False
 
@@ -65,13 +76,15 @@ class Inside(RelativeObjectState, KinematicsMixin, BooleanStateMixin):
 
         # First, check if the body can be found on both sides in Z
         on_both_sides_Z = (
-            other in vertical_adjacency.negative_neighbors and other in vertical_adjacency.positive_neighbors
+            other in vertical_adjacency.negative_neighbors
+            and other in vertical_adjacency.positive_neighbors
         )
         if on_both_sides_Z:
             # If the object is on both sides of Z, we already found 1 axis, so just
             # find another axis where the object is on both sides.
             on_both_sides_in_any_axis = any(
-                other in adjacency_list.positive_neighbors and other in adjacency_list.negative_neighbors
+                other in adjacency_list.positive_neighbors
+                and other in adjacency_list.negative_neighbors
                 for adjacency_list in flatten_planes(horizontal_adjacency)
             )
             return on_both_sides_in_any_axis
