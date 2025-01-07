@@ -50,7 +50,7 @@ from omnigibson.object_states.toggle import ToggledOn
 
 from omnigibson.object_states.open_state import _get_relevant_joints
 from omnigibson.utils.constants import JointAxis, JointType
-from omnigibson.examples.action_primitives.toggle_states_functions import (
+from omnigibson.examples.action_primitives.toggle_by_open_functions import (
     get_toggle_position,
 )
 from omnigibson.examples.action_primitives.grasp_for_toggle_functions import (
@@ -975,11 +975,9 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
 
     def _toggle_on(self, obj):
         yield from self._toggle(obj, True)
-        # yield from self._toggle(obj, True, True)
 
     def _toggle_off(self, obj):
         yield from self._toggle(obj, False)
-        # yield from self._toggle(obj, True, False)
 
     # def _toggle(self, obj, value):
     #     if self._get_obj_in_hand():
@@ -1109,146 +1107,16 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
     #     return distance < target_distance
 
     # 이거는 open_y_close 응용해서 한거
-    # def _toggle(self, obj, should_toggle, value):
-    #     # Update the tracking to track the eef.
-    #     self._tracking_object = self.robot
-
-    #     if self._get_obj_in_hand():
-    #         raise ActionPrimitiveError(
-    #             ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
-    #             "Cannot toggle an object while holding an object",
-    #             {"object in hand": self._get_obj_in_hand().name},
-    #         )
-
-    #     if object_states.ToggledOn not in obj.states:
-    #         raise ActionPrimitiveError(
-    #             ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
-    #             "The target object is not toggleable.",
-    #             {"target object": obj.name},
-    #         )
-
-    #     if obj.states[object_states.ToggledOn].get_value() == value:
-    #         # 이미 원하는 상태이면 아무 것도 하지 않습니다.
-    #         return
-
-    #     # 추적 대상 업데이트
-    #     self._tracking_object = obj
-    #     og.sim.step()
-
-    #     max_attempts_for_toggle = 20
-    #     should_toggle = True  # (이거 어차피 안 쓰이는 변수)
-
-    #     for _ in range(max_attempts_for_toggle):
-    #         try:
-    #             toggle_data = get_toggle_position(
-    #                 self.robot,
-    #                 obj,
-    #                 should_toggle,
-    #                 None,
-    #             )
-
-    #             if toggle_data is None:
-    #                 # We were trying to do something but didn't have the data.
-    #                 raise ActionPrimitiveError(
-    #                     ActionPrimitiveError.Reason.SAMPLING_ERROR,
-    #                     "Could not sample toggle position for target object",
-    #                     {"target object": obj.name},
-    #                 )
-
-    #             (
-    #                 relevant_joint,
-    #                 toggle_pose,
-    #                 target_poses,
-    #                 object_direction,
-    #                 toggle_required,
-    #                 pos_change,
-    #             ) = toggle_data
-    #             if abs(pos_change) < 0.1:
-    #                 indented_print("Yaw change is small and done,", pos_change)
-    #                 return
-
-    #             # Prepare data for the approach later.
-    #             approach_pos = (
-    #                 toggle_pose[0] + object_direction * m.OPEN_GRASP_APPROACH_DISTANCE
-    #             )
-    #             approach_pose = (approach_pos, toggle_pose[1])
-
-    #             # toggle_pose = obj.get_position_orientation()
-    #             # toggle_position, toggle_orientation = toggle_pose
-
-    #             # If the toggle pose is too far, navigate
-    #             yield from self._navigate_if_needed(obj, pose_on_obj=toggle_pose)
-
-    #             yield from self._move_hand(toggle_pose, stop_if_stuck=True)
-
-    #             yield from self._navigate_if_needed(obj, pose_on_obj=approach_pose)
-
-    #             yield from self._move_hand_linearly_cartesian(
-    #                 approach_pose,
-    #                 ignore_failure=False,
-    #                 stop_on_contact=True,
-    #                 stop_if_stuck=True,
-    #             )
-
-    #             # Step once to update
-    #             empty_action = self._empty_action()
-    #             yield self._postprocess_action(empty_action)
-
-    #             for i, target_pose in enumerate(target_poses):
-    #                 yield from self._move_hand_linearly_cartesian(
-    #                     target_pose, ignore_failure=False, stop_if_stuck=True
-    #                 )
-
-    #             yield from self._move_hand_linearly_cartesian(
-    #                 self.robot.eef_links[self.arm].get_position_orientation(),
-    #                 ignore_failure=True,
-    #                 stop_if_stuck=True,
-    #             )
-
-    #         except ActionPrimitiveError as e:
-    #             indented_print(e)
-    #             if should_toggle:
-    #                 yield from self._execute_release()
-    #                 yield from self._move_base_backward()
-    #             else:
-    #                 yield from self._move_hand_backward()
-
-    #     # 로봇 안정화, 손 리셋
-    #     yield from self._settle_robot()
-    #     yield from self._reset_hand()
-
-    #     # 토글이 성공적으로 변경되었는지 확인
-    #     if obj.states[object_states.ToggledOn].get_value() != value:
-    #         raise ActionPrimitiveError(
-    #             ActionPrimitiveError.Reason.POST_CONDITION_ERROR,
-    #             "물체가 예상대로 토글되지 않았습니다. 다시 시도해보세요.",
-    #             {
-    #                 "target object": obj.name,
-    #                 "is it currently toggled on": obj.states[
-    #                     object_states.ToggledOn
-    #                 ].get_value(),
-    #             },
-    #         )
-
-    # grasp 응용 toggle
     def _toggle(self, obj, value):
-        # Update the tracking to track the object.
-        self._tracking_object = obj
+        # Update the tracking to track the eef.
+        self._tracking_object = self.robot
 
-        # Don't do anything if the object is already grasped.
-        obj_in_hand = self._get_obj_in_hand()
-        if obj_in_hand is not None:
-            if obj_in_hand == obj:
-                return
-            else:
-                raise ActionPrimitiveError(
-                    ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
-                    "Cannot grasp when your hand is already full",
-                    {
-                        "target object": obj.name,
-                        "object currently in hand": obj_in_hand.name,
-                    },
-                )
+        if self._get_obj_in_hand():
+            raise ActionPrimitiveError(
+                ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
+                "Cannot toggle an object while holding an object",
+                {"object in hand": self._get_obj_in_hand().name},
+            )
 
         if object_states.ToggledOn not in obj.states:
             raise ActionPrimitiveError(
@@ -1257,62 +1125,85 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 {"target object": obj.name},
             )
 
-        # Open the hand first
-        indented_print("Opening hand before grasping")
-        yield from self._execute_release()
-
-        # Allow grasping from suboptimal extents if we've tried enough times.
-        indented_print("Sampling grasp pose")
-        grasp_poses = get_grasp_poses_for_object_sticky_for_toggle(obj)
-        grasp_pose, object_direction = random.choice(grasp_poses)
-
-        print(
-            "print : grasp_poses = ", grasp_poses
-        )  # print : grasp_poses =  [((tensor([1.4369, 1.4559, 1.3651]), tensor([0.0000, 0.7071, 0.0000, 0.7071])), tensor([ 0.,  0., -1.]))]
-        print(
-            "print : grasp_pose = ", grasp_pose
-        )  # print : grasp_pose =  (tensor([1.4369, 1.4559, 1.3651]), tensor([0.0000, 0.7071, 0.0000, 0.7071]))
-        print("print : object_direction = ", object_direction)
-        # Prepare data for the approach later.
-        approach_pos = grasp_pose[0] + object_direction * m.GRASP_APPROACH_DISTANCE
-        print("print: approach_pos = ", approach_pos)
-        approach_pose = (approach_pos, grasp_pose[1])
-
-        # If the grasp pose is too far, navigate.
-        indented_print("Navigating to grasp pose if needed")
-        yield from self._navigate_if_needed(obj, pose_on_obj=grasp_pose)
-
-        indented_print("Moving hand to grasp pose")
-        yield from self._move_hand(grasp_pose)
-
-        # We can pre-grasp in sticky grasping mode.
-        indented_print("Pregrasp squeeze")
-        yield from self._execute_grasp()
-
-        # Since the grasp pose is slightly off the object, we want to move towards the object, around 5cm.
-        # 잡는 자세가 물체에서 약간 떨어져 있기 때문에 물체를 향해 약 5cm 정도 이동하려고 합니다.
-        # It's okay if we can't go all the way because we run into the object.
-        # 물체에 부딪혀서 끝까지 갈 수 없어도 괜찮습니다.
-        indented_print("Performing grasp approach")
-        yield from self._move_hand_linearly_cartesian(
-            approach_pose, stop_on_contact=True
-        )
-
-        # Step once to update
-        empty_action = self._empty_action()
-        yield self._postprocess_action(empty_action)
-
-        # 여기까지는 navigate하는 거
-
-        # 이제 toggle하는 것. 충격량 일단 이용해보기.
-        if not obj.has_state(ToggledOn):
-            obj.add_state(ToggledOn)
-            toggle_state = obj.states[ToggledOn].get_value()
-
-        if toggle_state == value:
+        if obj.states[object_states.ToggledOn].get_value() == value:
+            # 이미 원하는 상태이면 아무 것도 하지 않습니다.
             return
-        else:
-            obj.states[ToggledOn].set_value(value)
+
+        # 추적 대상 업데이트
+        self._tracking_object = obj
+        og.sim.step()
+
+        max_attempts_for_toggle = 20
+
+        for _ in range(max_attempts_for_toggle):
+            try:
+                toggle_data = get_toggle_position(
+                    self.robot,
+                    obj,
+                    None,
+                )
+
+                if toggle_data is None:
+                    # We were trying to do something but didn't have the data.
+                    raise ActionPrimitiveError(
+                        ActionPrimitiveError.Reason.SAMPLING_ERROR,
+                        "Could not sample toggle position for target object",
+                        {"target object": obj.name},
+                    )
+                (
+                    toggle_pose,
+                    target_poses,
+                    object_direction,
+                    # pos_change,
+                    travel_distance,
+                ) = toggle_data
+                # if abs(pos_change) < 0.1:
+                #     indented_print("Yaw change is small and done,", pos_change)
+                #     return
+
+                object_direction_euler = T.quat2euler(object_direction)
+                # Prepare data for the approach later.
+                approach_pos = (
+                    toggle_pose[0]
+                    + object_direction_euler * m.OPEN_GRASP_APPROACH_DISTANCE
+                )
+                approach_pose = (approach_pos, toggle_pose[1])
+
+                # toggle_pose = obj.get_position_orientation()
+                # toggle_position, toggle_orientation = toggle_pose
+
+                # If the toggle pose is too far, navigate
+                yield from self._navigate_if_needed(obj, pose_on_obj=toggle_pose)
+
+                yield from self._move_hand(toggle_pose, stop_if_stuck=True)
+
+                yield from self._navigate_if_needed(obj, pose_on_obj=approach_pose)
+
+                yield from self._move_hand_linearly_cartesian(
+                    approach_pose,
+                    ignore_failure=False,
+                    stop_on_contact=True,
+                    stop_if_stuck=True,
+                )
+
+                # Step once to update
+                empty_action = self._empty_action()
+                yield self._postprocess_action(empty_action)
+
+                for i, target_pose in enumerate(target_poses):
+                    yield from self._move_hand_linearly_cartesian(
+                        target_pose, ignore_failure=False, stop_if_stuck=True
+                    )
+
+                yield from self._move_hand_linearly_cartesian(
+                    self.robot.eef_links[self.arm].get_position_orientation(),
+                    ignore_failure=True,
+                    stop_if_stuck=True,
+                )
+
+            except ActionPrimitiveError as e:
+                indented_print(e)
+                yield from self._move_base_backward()
 
         # 로봇 안정화, 손 리셋
         yield from self._settle_robot()
@@ -1330,6 +1221,123 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                     ].get_value(),
                 },
             )
+
+    # # grasp 응용 toggle
+    # def _toggle(self, obj, value):
+    #     # Update the tracking to track the object.
+    #     self._tracking_object = obj
+
+    #     # Don't do anything if the object is already grasped.
+    #     obj_in_hand = self._get_obj_in_hand()
+    #     if obj_in_hand is not None:
+    #         if obj_in_hand == obj:
+    #             return
+    #         else:
+    #             raise ActionPrimitiveError(
+    #                 ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
+    #                 "Cannot grasp when your hand is already full",
+    #                 {
+    #                     "target object": obj.name,
+    #                     "object currently in hand": obj_in_hand.name,
+    #                 },
+    #             )
+
+    #     if object_states.ToggledOn not in obj.states:
+    #         raise ActionPrimitiveError(
+    #             ActionPrimitiveError.Reason.PRE_CONDITION_ERROR,
+    #             "The target object is not toggleable.",
+    #             {"target object": obj.name},
+    #         )
+
+    #     # Open the hand first
+    #     indented_print("Opening hand before grasping")
+    #     yield from self._execute_release()
+
+    #     # Allow grasping from suboptimal extents if we've tried enough times.
+    #     indented_print("Sampling grasp pose")
+    #     grasp_poses = get_grasp_poses_for_object_sticky_for_toggle(obj)
+    #     grasp_pose, object_direction = random.choice(grasp_poses)
+
+    #     # Prepare data for the approach later.
+    #     approach_pos = grasp_pose[0] + object_direction * m.GRASP_APPROACH_DISTANCE
+    #     approach_pose = (approach_pos, grasp_pose[1])
+
+    #     print("print : grasp_poses = ", grasp_poses)
+    #     print("print : approach_poses = ", approach_pose)
+    #     start_pos, start_orn = self.robot.eef_links[self.arm].get_position_orientation()
+    #     print("print : start_pos = ", start_pos)
+    #     distance = th.norm(approach_pose[0] - start_pos)
+
+    #     # If the grasp pose is too far, navigate.
+    #     indented_print("Navigating to grasp pose if needed")
+    #     yield from self._navigate_if_needed(obj, pose_on_obj=grasp_pose)
+
+    #     indented_print("Moving hand to grasp pose")
+    #     yield from self._move_hand(grasp_pose)
+
+    #     yield from self._move_base_backward()
+    #     yield from self._move_hand_backward()
+
+    #     # We can pre-grasp in sticky grasping mode.
+    #     indented_print("Pregrasp squeeze")
+    #     yield from self._execute_grasp()
+
+    #     # # Since the grasp pose is slightly off the object, we want to move towards the object, around 5cm.
+    #     # # 잡는 자세가 물체에서 약간 떨어져 있기 때문에 물체를 향해 약 5cm 정도 이동하려고 합니다.
+    #     # # It's okay if we can't go all the way because we run into the object.
+    #     # # 물체에 부딪혀서 끝까지 갈 수 없어도 괜찮습니다.
+    #     # indented_print("Performing grasp approach")
+    #     # yield from self._move_hand_linearly_cartesian(
+    #     #     approach_pose, stop_on_contact=True
+    #     # )
+
+    #     # Step once to update
+    #     empty_action = self._empty_action()
+    #     yield self._postprocess_action(empty_action)
+
+    #     # 여기까지는 navigate하는 거
+
+    #     # # 이제 toggle하는 것. 충격량 일단 이용해보기.
+    #     # if not obj.state(ToggledOn):
+    #     #     obj.add_state(ToggledOn)
+    #     #     toggle_state = obj.states[ToggledOn].get_value()
+
+    #     # if toggle_state == value:
+    #     #     return
+    #     # else:
+    #     #     obj.states[ToggledOn].set_value(value)
+
+    #     contact_Radius = 0.1
+    #     print("print : distance = ", distance)
+    #     log.debug(f"distance : {distance}")
+    #     if distance < contact_Radius:
+    #         if obj is not None:
+    #             obj.states[object_states.ToggledOn].set_value(value)
+    #             if "electric_switch" in obj.name:
+    #                 light_name = f"light_{obj.name}"
+    #                 if obj.states[object_states.ToggledOn].get_value() == True:
+    #                     intensity_light = 1e6
+    #                 elif obj.states[object_states.ToggledOn].get_value() == False:
+    #                     intensity_light = 2.3e2
+    #                 light = og.sim.scene.object_registry("name", light_name)
+    #                 light._light_link.set_attribute("inputs:intensity", intensity_light)
+
+    #     # 로봇 안정화, 손 리셋
+    #     yield from self._settle_robot()
+    #     yield from self._reset_hand()
+
+    #     # 토글이 성공적으로 변경되었는지 확인
+    #     if obj.states[object_states.ToggledOn].get_value() != value:
+    #         raise ActionPrimitiveError(
+    #             ActionPrimitiveError.Reason.POST_CONDITION_ERROR,
+    #             "물체가 예상대로 토글되지 않았습니다. 다시 시도해보세요.",
+    #             {
+    #                 "target object": obj.name,
+    #                 "is it currently toggled on": obj.states[
+    #                     object_states.ToggledOn
+    #                 ].get_value(),
+    #             },
+    #         )
 
     def _place_with_predicate(self, obj, predicate):
         """
@@ -2280,13 +2288,10 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         """
         if pose_on_obj is not None:
             if self._target_in_reach_of_robot(pose_on_obj):
-                print("print : 문제 nevigate1")
                 # No need to navigate.
                 return
         elif self._target_in_reach_of_robot(obj.get_position_orientation()):
-            print("print : 문제 nevigate2")
             return
-        print("print : 문제 nevigate3")
         yield from self._navigate_to_obj(obj, pose_on_obj=pose_on_obj, **kwargs)
 
     def _navigate_to_obj(self, obj, pose_on_obj=None, **kwargs):
