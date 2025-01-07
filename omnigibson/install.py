@@ -84,7 +84,9 @@ def _rename_if_necessary(filename: Path):
     """
     # Rename the file if the system's GLIBC version is older than the one used in the NVIDIA PyPI packages
     if platform.system() == "Linux" and _is_glibc_older():
-        new_filename = filename.with_name(filename.name.replace("manylinux_2_34", "manylinux_2_31"))
+        new_filename = filename.with_name(
+            filename.name.replace("manylinux_2_34", "manylinux_2_31")
+        )
         shutil.move(filename, new_filename)
         return new_filename
 
@@ -98,12 +100,17 @@ def _is_glibc_older():
         dist_info = subprocess.check_output(["ldd", "--version"]).decode("utf-8")
         if any(version in dist_info for version in ["2.31", "2.32", "2.33"]):
             return True
-        elif any(version in dist_info for version in ["2.34", "2.35", "2.36", "2.37", "2.38", "2.39"]):
+        elif any(
+            version in dist_info
+            for version in ["2.34", "2.35", "2.36", "2.37", "2.38", "2.39"]
+        ):
             return False
         else:
             raise ValueError("Incompatible GLIBC version")
     except subprocess.CalledProcessError:
-        raise ValueError("Failed to check GLIBC version. `ldd` was not accessible. Try running it yourself to see why.")
+        raise ValueError(
+            "Failed to check GLIBC version. `ldd` was not accessible. Try running it yourself to see why."
+        )
 
 
 def _pip_install(filenames: List[Path]):
@@ -186,7 +193,9 @@ def _setup_unix_conda_env(isaac_sim_path: Path, conda_prefix: Path):
         f.write(f"source {isaac_sim_path}/setup_conda_env.sh\n")
 
     # Create deactivation script
-    with open(conda_prefix / "etc" / "conda" / "deactivate.d" / "env_vars.sh", "w") as f:
+    with open(
+        conda_prefix / "etc" / "conda" / "deactivate.d" / "env_vars.sh", "w"
+    ) as f:
         f.write("#!/bin/sh\n")
         f.write("export LD_LIBRARY_PATH=$LD_LIBRARY_PATH_OLD\n")
         f.write("export PYTHONPATH=$PYTHONPATH_OLD\n")
@@ -217,7 +226,9 @@ def _launcher_based_install(isaac_sim_path: Optional[Path]):
         isaac_version_tuple = tuple(map(int, isaac_version_str.split(".")[:3]))
 
     if isaac_version_tuple not in ((4, 0, 0), (4, 1, 0)):
-        click.echo(f"Isaac Sim version {isaac_version_str} is not supported by OmniGibson.")
+        click.echo(
+            f"Isaac Sim version {isaac_version_str} is not supported by OmniGibson."
+        )
         return False
 
     # Update conda environment files to point to the specified Isaac Sim installation
@@ -244,8 +255,12 @@ def _pip_based_install():
 
             # Download all required packages
             package_filenames = []
-            for package in tqdm.tqdm(ISAAC_SIM_PACKAGES, desc="Downloading Isaac Sim packages"):
-                package_filenames.append(_download_isaac_sim_package(package, temp_dir_path))
+            for package in tqdm.tqdm(
+                ISAAC_SIM_PACKAGES, desc="Downloading Isaac Sim packages"
+            ):
+                package_filenames.append(
+                    _download_isaac_sim_package(package, temp_dir_path)
+                )
 
             # Install the packages
             click.echo("Installing Isaac Sim packages...")
@@ -265,7 +280,9 @@ def attempt_launcher_install(isaac_sim_path: Optional[Path]):
     click.echo("Checking for an existing launcher-based Isaac Sim installation...")
     success = _launcher_based_install(isaac_sim_path)
     if success:
-        click.echo("Successfully found and attached to launcher-based Isaac Sim installation.")
+        click.echo(
+            "Successfully found and attached to launcher-based Isaac Sim installation."
+        )
     else:
         click.echo("We did not find a compatible Isaac Sim installed via the launcher.")
     return success
@@ -294,15 +311,26 @@ def attempt_pip_install():
 )
 @click.option(
     "--isaac-sim-path",
-    type=click.Path(exists=True, dir_okay=True, file_okay=False, writable=True, readable=True, path_type=Path),
+    type=click.Path(
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+        writable=True,
+        readable=True,
+        path_type=Path,
+    ),
     default=None,
     help="Path to the existing launcher-based Isaac Sim installation directory, to force the setup script to use it",
 )
-def setup_omnigibson(install_datasets: bool, launcher_install: bool, isaac_sim_path: Optional[Path]):
+def setup_omnigibson(
+    install_datasets: bool, launcher_install: bool, isaac_sim_path: Optional[Path]
+):
     # Check that we are in a conda environment
     if "CONDA_PREFIX" not in os.environ:
         click.echo("Please run this script from within a conda environment.")
-        click.echo("You can create one by running `conda create -n omnigibson python=3.10`.")
+        click.echo(
+            "You can create one by running `conda create -n omnigibson python=3.10`."
+        )
         return
 
     # Check that the current interpreter is Python 3.10
@@ -311,79 +339,100 @@ def setup_omnigibson(install_datasets: bool, launcher_install: bool, isaac_sim_p
         return
 
     # Check that we do not have an EXP_PATH, CARB_APP_PATH or ISAAC_PATH set
-    if any(env_var in os.environ for env_var in ["EXP_PATH", "CARB_APP_PATH", "ISAAC_PATH"]):
+    if any(
+        env_var in os.environ for env_var in ["EXP_PATH", "CARB_APP_PATH", "ISAAC_PATH"]
+    ):
         click.echo(
             "Please unset the EXP_PATH, CARB_APP_PATH and ISAAC_PATH environment variables before running this script."
         )
-        click.echo("These can stem from a dirty environment from an existing Isaac Sim installation.")
-        click.echo("We recommend starting a new conda environment and running this script there.")
-        click.echo("You can do this by running `conda create -n omnigibson python=3.10`.")
+        click.echo(
+            "These can stem from a dirty environment from an existing Isaac Sim installation."
+        )
+        click.echo(
+            "We recommend starting a new conda environment and running this script there."
+        )
+        click.echo(
+            "You can do this by running `conda create -n omnigibson python=3.10`."
+        )
         return
 
     # Check if the isaacsim package is already installed
-    try:
-        os.environ["OMNI_KIT_ACCEPT_EULA"] = "YES"
-        import isaacsim
+    # try:
+    #     os.environ["OMNI_KIT_ACCEPT_EULA"] = "YES"
+    #     import isaacsim
 
-        click.echo("Isaac Sim is already installed via pip in your current env.")
-        click.echo("If you need to download the datasets, please run omnigibson/download_datasets.py.")
-        return
-    except ImportError:
-        pass
+    #     click.echo("Isaac Sim is already installed via pip in your current env.")
+    #     click.echo("If you need to download the datasets, please run omnigibson/download_datasets.py.")
+    #     return
+    # except ImportError:
+    #     pass
 
     # Do the actual work
-    if launcher_install:
-        if not attempt_launcher_install(isaac_sim_path):
-            click.echo("Failed to hook environment up to launcher-based Isaac Sim installation.")
-            click.echo("Please make sure you have installed Isaac Sim correctly before running this setup script.")
-            return
-    else:
-        if not attempt_pip_install():
-            click.echo("Failed to install Isaac Sim. Please check the installation requirements and try again.")
-            return
+    # if launcher_install:
+    #     if not attempt_launcher_install(isaac_sim_path):
+    #         click.echo(
+    #             "Failed to hook environment up to launcher-based Isaac Sim installation."
+    #         )
+    #         click.echo(
+    #             "Please make sure you have installed Isaac Sim correctly before running this setup script."
+    #         )
+    #         return
+    # else:
+    #     if not attempt_pip_install():
+    #         click.echo(
+    #             "Failed to install Isaac Sim. Please check the installation requirements and try again."
+    #         )
+    #         return
 
     # Try to resolve the bug that occurs when `cryptography` is imported from Isaac Sim.
     # This is a known issue on Windows and the workaround is removing the copy of cryptography
     # shipped with Isaac Sim, usually included in the omni.kit.cloud package.
-    cryptography_path = Path(os.environ["ISAAC_PATH"]) / "exts/omni.pip.cloud/pip_prebundle/cryptography"
+    cryptography_path = (
+        Path(os.environ["ISAAC_PATH"])
+        / "exts/omni.pip.cloud/pip_prebundle/cryptography"
+    )
     if cryptography_path.exists():
         shutil.rmtree(str(cryptography_path))
 
     click.echo("Isaac Sim has been successfully installed.")
 
-    # Now prompt the user to install the dataset and assets
-    if install_datasets:
-        click.echo("We will now install the datasets.")
+    # # Now prompt the user to install the dataset and assets
+    # if install_datasets:
+    #     click.echo("We will now install the datasets.")
 
-        # We import these now to avoid OmniGibson imports before torch is installed etc.
-        from omnigibson.macros import gm
-        from omnigibson.utils.asset_utils import download_assets, download_og_dataset
+    #     # We import these now to avoid OmniGibson imports before torch is installed etc.
+    #     from omnigibson.macros import gm
+    #     from omnigibson.utils.asset_utils import download_assets, download_og_dataset
 
-        # Only execute if the dataset path or asset path does not exist
-        dataset_exists, assets_exist = os.path.exists(gm.DATASET_PATH), os.path.exists(gm.ASSET_PATH)
-        if not (dataset_exists and assets_exist):
-            # Ask user which dataset to install
-            click.echo(f"OmniGibson will now install data under the following locations:")
-            click.echo(f"    dataset (~25GB): {gm.DATASET_PATH}")
-            click.echo(f"    assets (~2.5GB): {gm.ASSET_PATH}")
-            click.echo(
-                f"If you want to install data under a different path, please change the DATA_PATH variable in omnigibson/macros.py and "
-                f"rerun omnigibson/download_datasets.py."
-            )
-            if click.confirm("Do you want to continue?", default=True):
-                # Only download if the dataset path doesn't exist
-                if not dataset_exists:
-                    click.echo("Downloading dataset...")
-                    download_og_dataset()
+    #     # Only execute if the dataset path or asset path does not exist
+    #     dataset_exists, assets_exist = os.path.exists(gm.DATASET_PATH), os.path.exists(
+    #         gm.ASSET_PATH
+    #     )
+    #     if not (dataset_exists and assets_exist):
+    #         # Ask user which dataset to install
+    #         click.echo(
+    #             f"OmniGibson will now install data under the following locations:"
+    #         )
+    #         click.echo(f"    dataset (~25GB): {gm.DATASET_PATH}")
+    #         click.echo(f"    assets (~2.5GB): {gm.ASSET_PATH}")
+    #         click.echo(
+    #             f"If you want to install data under a different path, please change the DATA_PATH variable in omnigibson/macros.py and "
+    #             f"rerun omnigibson/download_datasets.py."
+    #         )
+    #         if click.confirm("Do you want to continue?", default=True):
+    #             # Only download if the dataset path doesn't exist
+    #             if not dataset_exists:
+    #                 click.echo("Downloading dataset...")
+    #                 download_og_dataset()
 
-                # Only download if the asset path doesn't exist
-                if not assets_exist:
-                    click.echo("Downloading assets...")
-                    download_assets()
-    else:
-        click.echo(
-            "You chose not to install dataset for now. You can install it later by running python omnigibson/download_datasets.py."
-        )
+    #             # Only download if the asset path doesn't exist
+    #             if not assets_exist:
+    #                 click.echo("Downloading assets...")
+    #                 download_assets()
+    # else:
+    #     click.echo(
+    #         "You chose not to install dataset for now. You can install it later by running python omnigibson/download_datasets.py."
+    #     )
 
     click.echo(
         "\nOmniGibson setup completed! You can now run your experiments. "
@@ -392,11 +441,11 @@ def setup_omnigibson(install_datasets: bool, launcher_install: bool, isaac_sim_p
         "guide for working with OmniGibson APIs."
     )
 
-    # If this is a launcher install, we need to tell the user to deactivate and reactivate
-    if launcher_install:
-        click.echo(
-            "IMPORTANT: Please deactivate and reactivate your conda environment to ensure the Isaac Sim environment variables are set correctly."
-        )
+    # # If this is a launcher install, we need to tell the user to deactivate and reactivate
+    # if launcher_install:
+    #     click.echo(
+    #         "IMPORTANT: Please deactivate and reactivate your conda environment to ensure the Isaac Sim environment variables are set correctly."
+    #     )
 
 
 if __name__ == "__main__":

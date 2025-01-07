@@ -133,6 +133,9 @@ def get_grasp_position_for_open(
         grasp_required: a boolean indicating whether a grasp is required for the opening/closing based on which side of the joint we are
         required_pos_change: the required change in position of the joint to open/close
     """
+    print("print : target_obj = ", target_obj)
+    print("print : metadata 속성 = ", target_obj.metadata)
+    print("print joint에 내용이 있는지 ", target_obj.joints)
     # Pick a moving link of the object.
     if relevant_joint is not None:
         relevant_joints = [relevant_joint]
@@ -188,11 +191,11 @@ def grasp_position_for_open_on_prismatic_joint(
     Computes the grasp position for opening or closing a prismatic joint.
 
     Args:
-      robot: the robot object
-      target_obj: the object to open
-      relevant_joint: the prismatic joint to open
-      should_open: a boolean indicating whether we are opening or closing
-      num_waypoints: the number of waypoints to interpolate between the start and end poses (default is "default")
+      robot: the robot object 로봇 객체
+      target_obj: the object to open 물체 객체
+      relevant_joint: the prismatic joint to open open과관련된joint
+      should_open: a boolean indicating whether we are opening or closing 열지말지 boolean값으로
+      num_waypoints: the number of waypoints to interpolate between the start and end poses (default is "default") 시작점 끝점 사이 경로점 개수 (기본값은 "default")
 
     Returns:
       Tuple, containing:
@@ -200,7 +203,7 @@ def grasp_position_for_open_on_prismatic_joint(
         waypoints: the interpolated waypoints between the start and end poses
         approach_direction_in_world_frame: the approach direction in the world frame
         grasp_required: a boolean indicating whether a grasp is required for the opening/closing based on which side of the joint we are
-        required_pos_change: the required change in position of the joint to open/close
+        required_pos_change: the required change in position of the joint to open/close joint변화량
     """
     link_name = relevant_joint.body1.split("/")[-1]
 
@@ -214,11 +217,14 @@ def grasp_position_for_open_on_prismatic_joint(
 
     # Match the push axis to one of the bb axes.
     # joint_orientation=array([ 0, 0, -0.70710677,  0.70710677])
+    # joint의 로컬 회전 속성을 가져와서(쿼터니언) Isaac SDK안의 함수를 이용하여 numpy array로 변환
+    # [w,x,y,z] -> [x,y,z,w]로 변환
     joint_orientation = lazy.omni.isaac.core.utils.rotations.gf_quat_to_np_array(
         relevant_joint.get_attribute("physics:localRot0")
     )[[1, 2, 3, 0]]
 
     # push_axis: 0.9999999657714582, type : <class 'float'>
+    # x축 기준으로 회전시켜서 벡터 방향 구함.
     push_axis = T.quat_apply(
         th.tensor(joint_orientation), th.tensor([1, 0, 0], dtype=th.float32)
     )
@@ -226,12 +232,15 @@ def grasp_position_for_open_on_prismatic_joint(
     # Make sure we're aligned with aa bb axis.
     assert math.isclose(th.max(th.abs(push_axis)).item(), 1.0, rel_tol=1e-7)
 
+    # 벡터 방향 중 가장 절대값을 구하고 그 중 가장 큰 값의 인덱스를 반환
     push_axis_idx = th.argmax(th.abs(push_axis))  # push_axis_idx=tensor(1)
     canonical_push_axis = th.eye(3)[
         push_axis_idx
     ]  # canonical_push_axis=tensor([0., 1., 0.])
 
     # TODO: Need to figure out how to get the correct push direction.
+    # sign이 push_axis의 부호를 반환, 양수면 그대로 쓰고 음수면 -1을 곱해줌.
+    # -> open이면 원래대로 쓰고 close면 -1을 곱해줌. 반대방향.
     push_direction = (
         th.sign(push_axis[push_axis_idx])
         if should_open
@@ -239,18 +248,24 @@ def grasp_position_for_open_on_prismatic_joint(
     )  # push_direction=tensor(-1., dtype=torch.float64)
 
     # canonical_push_direction=tensor([-0., -1., -0.])
+    # 어느 축 어느 방향으로 밀건지 결정
     canonical_push_direction = canonical_push_axis * push_direction
 
     # canonical_push_bi_direction=[tensor([0., 1., 0.]), tensor([-0., -1., -0.])], <class 'list'>
     # close_distance=0.19896256923675537, <class 'float'>
+    # 양쪽 방향 값을 한번에 갖고 있음.
     canonical_push_bi_direction = [canonical_push_axis, -canonical_push_axis]
+    # 해당 물체에서 여는 방향의 길이의 절반을 구함.(아마 이거리정도 열듯)
     close_distance = bbox_extent_in_link_frame[push_axis_idx].item() / 2
 
     # Pick the closer of the two faces along the push axis as our favorite.
     try:
         # points_along_push_axis가 tensor일 경우 / list인 경우
+        # canonical_push_bi_direction이 2개의 tensor로 되어있어서 하나로 합쳐줌. 그리고 여닫을 길이를 곱함.
         points_along_push_axis = th.stack(canonical_push_bi_direction) * close_distance
         # points_along_push_axis = [direction * close_distance for direction in canonical_push_bi_direction]
+        # _get_closest_point_to_point_in_world_frame 함수를 통해 가장 가까운 점을 찾음.
+        # return값은 가장 가까운 점의 인덱스, arbitrary frame에서 가장 가까운 점의 벡터, world frame에서 가장 가까운 점의 벡터
         (
             push_axis_closer_side_idx,
             center_of_selected_surface_along_push_axis,
@@ -265,40 +280,51 @@ def grasp_position_for_open_on_prismatic_joint(
 
         raise e
 
+    # 방향이 어느쪽인지 판단
     push_axis_closer_side_sign = 1 if push_axis_closer_side_idx == 0 else -1
 
     # Pick the other axes.
+    # 움직이는 방향 축을 제외한 나머지 축을 구함.
     all_axes = list(set(range(3)) - {push_axis_idx.item()})
 
+    # 왜 이름을 x,y로 지었는지 모르겠지만 아무튼 남은 축을 x,y,z축 순서로 정렬(이 중 2개 축만 있음) 후 x,y로 이름 붙임
     x_axis_idx, y_axis_idx = tuple(sorted(all_axes))
     canonical_x_axis = th.eye(3)[x_axis_idx]
     canonical_y_axis = th.eye(3)[y_axis_idx]
 
     # Find the correct side of the lateral axis & go some distance along that direction.
+    # [1,1,0] 방향의 꼭짓점 좌표
     min_lateral_pos_wrt_surface_center = (
         (canonical_x_axis + canonical_y_axis) * -bbox_extent_in_link_frame / 2
     )
+    # [-1,-1,0] 방향의 꼭짓점 좌표
     max_lateral_pos_wrt_surface_center = (
         (canonical_x_axis + canonical_y_axis) * bbox_extent_in_link_frame / 2
     )
+    # 두 꼭짓점의 차이를 구함. 대충 대각선 벡터
     diff_lateral_pos_wrt_surface_center = (
         max_lateral_pos_wrt_surface_center - min_lateral_pos_wrt_surface_center
     )
+    # 이동 범위 지정. 주어진 비율에 따라 위에서 구한 대각선 벡터 중 허용되는 범위가 나옴
     bound_lo, bound_hi = (
         m.PRISMATIC_JOINT_FRACTION_ACROSS_SURFACE_AXIS_BOUNDS[0]
         * diff_lateral_pos_wrt_surface_center,
         m.PRISMATIC_JOINT_FRACTION_ACROSS_SURFACE_AXIS_BOUNDS[1]
         * diff_lateral_pos_wrt_surface_center,
     )
+    # 0~1 사이의 랜덤 값을 이용하여 위에서 구한 범위 중 하나를 랜덤으로 선택
     sampled_lateral_pos_wrt_min = (
         th.rand(bound_lo.size()) * (bound_hi - bound_lo) + bound_lo
     )
+    # 랜덤으로 선택된 값과 최소값을 더함
     lateral_pos_wrt_surface_center = (
         min_lateral_pos_wrt_surface_center + sampled_lateral_pos_wrt_min
     )
+    # 저 평면에서 수직방향(당기고 미는 방향)으로 이동할 벡터
     grasp_position_in_bbox_frame = (
         center_of_selected_surface_along_push_axis + lateral_pos_wrt_surface_center
     )
+    # 로컬 회전 값의 역행렬을 구함
     grasp_quat_in_bbox_frame = T.quat_inverse(th.tensor(joint_orientation))
 
     log.debug(f"bbox pose : {bbox_center_in_world},{bbox_quat_in_world}")
@@ -306,6 +332,7 @@ def grasp_position_for_open_on_prismatic_joint(
         f"grasp pose in bbox : {grasp_position_in_bbox_frame},{grasp_quat_in_bbox_frame}"
     )
 
+    # 지역 좌표계에서 전역 좌표계로 변환
     grasp_pose_in_world_frame = T.pose_transform(
         bbox_center_in_world,
         bbox_quat_in_world,
@@ -315,27 +342,38 @@ def grasp_position_for_open_on_prismatic_joint(
     log.debug(f"{grasp_pose_in_world_frame=}")
 
     # Now apply the grasp offset.
+    # 로봇 팔에서 finger_legnth를 가져와서 물체에 다가갈 때 거리를 설정. 정확히 적용될 수 있도록 0.05의 여유를 추가
     dist_from_grasp_pos = robot.finger_lengths[robot.default_arm] + 0.05
+    # offset을 지역좌표계에서. (바운딩 박스에서 손잡이까지의 벡터 + 손잡이에서 손끝까지의 거리), (grasp_quat_in_bbox_frame)
     offset_grasp_pose_in_bbox_frame = (
         grasp_position_in_bbox_frame
         + canonical_push_axis * push_axis_closer_side_sign * dist_from_grasp_pos,
         grasp_quat_in_bbox_frame,
     )
+
+    # offset을 전역좌표계에서
     offset_grasp_pose_in_world_frame = T.pose_transform(
         bbox_center_in_world, bbox_quat_in_world, *offset_grasp_pose_in_bbox_frame
     )
 
     # To compute the rotation position, we want to decide how far along the rotation axis we'll go.
+    # open이면 조인트를 최대값으로 close면 최소값으로 설정
     target_joint_pos = (
         relevant_joint.upper_limit if should_open else relevant_joint.lower_limit
     )
+    # 현재 조인트의 위치
     current_joint_pos = relevant_joint.get_state()[0][0]
 
+    # joint를 목표 위치로 이동시키는 벡터
     required_pos_change = target_joint_pos - current_joint_pos
+
+    # 손이 목표 위치니까 열어야 하는 만큼 손이 이동하면 손잡이에 닿음.
     push_vector_in_bbox_frame = canonical_push_direction * abs(required_pos_change)
+    # 로봇이 처음 grap하는 위치 벡터(손잡이 위치) + 목표 위치까지 이동하는 벡터
     target_hand_pos_in_bbox_frame = (
         grasp_position_in_bbox_frame + push_vector_in_bbox_frame
     )
+    # 손의 목표 위치와 방향을 지역 좌표계에서 전역 좌표계로 변환
     target_hand_pose_in_world_frame = T.pose_transform(
         bbox_center_in_world,
         bbox_quat_in_world,
@@ -345,11 +383,13 @@ def grasp_position_for_open_on_prismatic_joint(
     log.debug(f"{target_hand_pose_in_world_frame=}")
 
     # Compute the approach direction.
+    # 로봇이 접근해야 할 벡터. open할 때의 방향과 object의 방향을 합쳐서 계산(전역 좌표계)
     approach_direction_in_world_frame = T.quat_apply(
         bbox_quat_in_world, canonical_push_axis * -push_axis_closer_side_sign
     )
 
     # Decide whether a grasp is required. If approach direction and displacement are similar, no need to grasp.
+    # 손잡이 이동 방향과 로봇 이동 방향이 같으면(내적>0) grasp가 필요없음. 내적<0이면 grasp가 필요함(반대방향)
     grasp_required = (
         th.dot(
             push_vector_in_bbox_frame, canonical_push_axis * -push_axis_closer_side_sign
@@ -357,18 +397,23 @@ def grasp_position_for_open_on_prismatic_joint(
         < 0
     )
 
+    # waypoint. 물체를 잡는 위치와 목표 위치 간의 이동 경로 상의 중간 지점들.
+    # 여는거면 접근 방향에 -를 붙이고 닫는 거면 +를 붙임. waypoint는 0.05씩 이동
     waypoint_start_offset = (
         -0.05 * approach_direction_in_world_frame
         if should_open
         else 0.05 * approach_direction_in_world_frame
     )
+    # grasp 위치의 전역 좌표 + (-접근 방향*로봇 손가락 길이) + waypoint 시작 위치
+    # 로봇의 손가락 길이를 고려해 물체에서 적당한 거리에서 멈추기 위함.
     waypoint_start_pose = (
         grasp_pose_in_world_frame[0]
-        + -1
+        + -1.5
         * approach_direction_in_world_frame
         * (robot.finger_lengths[robot.default_arm] + waypoint_start_offset),
         grasp_pose_in_world_frame[1],
     )
+    # 목표 위치의 전역 좌표 + (-접근 방향*로봇 손가락 길이)
     waypoint_end_pose = (
         target_hand_pose_in_world_frame[0]
         + -1
@@ -380,6 +425,7 @@ def grasp_position_for_open_on_prismatic_joint(
     log.debug(f"{waypoint_start_pose=}, {type(waypoint_start_pose)}")
     log.debug(f"{waypoint_end_pose=}, {type(waypoint_end_pose)}")
 
+    # 시작점, 끝점, 생성할 점 개수를 이용하여 로봇 이동 경로 점의 list. (position, orientation)
     waypoints = interpolate_waypoints(
         waypoint_start_pose, waypoint_end_pose, num_waypoints=num_waypoints
     )

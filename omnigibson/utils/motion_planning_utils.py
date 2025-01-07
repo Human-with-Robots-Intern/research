@@ -1,6 +1,6 @@
 import heapq
 import math
-
+import sys, io
 import torch as th
 
 import omnigibson as og
@@ -12,6 +12,21 @@ from omnigibson.utils.control_utils import IKSolver
 from omnigibson.utils.sim_utils import prim_paths_to_rigid_prims
 from omnigibson.utils.ui_utils import create_module_logger
 from omnigibson.utils.usd_utils import GripperRigidContactAPI
+
+
+class StreamCapturer(io.TextIOBase):
+    def __init__(self, original_stream, log_file):
+        self.original_stream = original_stream
+        self.log_file = open(log_file, "w")
+
+    def write(self, message):
+        self.original_stream.write(message)  # 터미널에 출력
+        self.log_file.write(message)  # 로그 파일에 저장
+
+    def flush(self):
+        self.original_stream.flush()
+        self.log_file.flush()
+
 
 # Create module logger
 logger = create_module_logger(module_name=__name__)
@@ -206,7 +221,7 @@ def plan_base_motion(
     si.setMotionValidator(CustomMotionValidator(si, space))
     # TODO: Try changing to RRTConnect in the future. Currently using RRT because movement is not direction invariant. Can change to RRTConnect
     # possibly if hasSymmetricInterpolate is set to False for the state space. Doc here https://ompl.kavrakilab.org/classompl_1_1base_1_1StateSpace.html
-    planner = ompl_geo.RRT(si)
+    planner = ompl_geo.RRTConnect(si)
     ss.setPlanner(planner)
 
     start = create_state(space, start_conf[0], start_conf[1], start_conf[2])

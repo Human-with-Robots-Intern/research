@@ -13,11 +13,11 @@ dependencies:
   - pyyaml~=6.0.1
 
   # PyTorch and GPU dependencies
-  - cuda-toolkit=12.1
+  # - cuda-toolkit=12.1 # 아마 omnigibson과 관련 없는 애 같음 다른 방법으로 cuda 설치할 것
   - pytorch=2.4.0
   - torchvision=0.19.0
   - torchaudio=2.4.0
-  - pytorch-cuda=12.1 
+  - pytorch-cuda=12.4
 
   # Simulation and robotics libraries
   - gymnasium>=0.28.1
