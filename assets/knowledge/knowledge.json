@@ -1,110 +1,1080 @@
 {
     "Valid_actions": {
         "GRASP": {
-            "expected_duration": 1.3830937989758394,
+            "expected_duration": 2.0033073721155934,
             "variance": 1.0,
             "occurrences": 0
         },
         "PLACE_INSIDE": {
-            "expected_duration": 1.0419118403565597,
+            "expected_duration": 0.8191204639582728,
             "variance": 1.0,
             "occurrences": 0
         },
         "PLACE_ON_TOP": {
-            "expected_duration": -0.6904793308517674,
+            "expected_duration": 0.745085692193471,
             "variance": 1.0,
             "occurrences": 0
         },
         "TOGGLE_ON": {
-            "expected_duration": -0.4451541384721185,
+            "expected_duration": 1.026829434600699,
             "variance": 1.0,
             "occurrences": 0
         },
         "TOGGLE_OFF": {
-            "expected_duration": 0.6090584183921373,
-            "variance": 0.5,
-            "occurrences": 1
+            "expected_duration": -2.677862411303602,
+            "variance": 1.0,
+            "occurrences": 0
         },
         "OPEN": {
-            "expected_duration": 0.6022512955354843,
+            "expected_duration": -0.6361892149873793,
             "variance": 1.0,
             "occurrences": 0
         },
         "CLOSE": {
-            "expected_duration": 1.6983042274337925,
+            "expected_duration": 0.9978897039614293,
             "variance": 1.0,
             "occurrences": 0
         },
         "NAVIGATE_TO": {
-            "expected_duration": 15.44501318359099,
-            "variance": 0.5,
-            "occurrences": 1
+            "expected_duration": 0.29012116166388524,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "USE": {
+            "expected_duration": 2.844461023611299,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "POUR": {
+            "expected_duration": 2.125182477173407,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "FOLD": {
+            "expected_duration": 0.36118858390732056,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "TAKE": {
+            "expected_duration": 1.5381560449301612,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "ORGANIZE": {
+            "expected_duration": 1.196938097867744,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "SPRAY": {
+            "expected_duration": -0.023635866044152465,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "WIPE": {
+            "expected_duration": -1.0962407105207457,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "REMOVE": {
+            "expected_duration": 3.1616744974987787,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "SWEEP": {
+            "expected_duration": 0.4941272694865465,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "WATER": {
+            "expected_duration": -0.2546766413371251,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "MOP": {
+            "expected_duration": -0.1261495356028388,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "SCRUB": {
+            "expected_duration": 2.5748774064258058,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "CHOP": {
+            "expected_duration": 0.1852985696657402,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "FILL": {
+            "expected_duration": 3.568552361294667,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "PLACINSIDE": {
+            "expected_duration": 1.1875827585159002,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "CLEAN": {
+            "expected_duration": 1.0763736307302865,
+            "variance": 1.0,
+            "occurrences": 0
         }
     },
     "Invalid_actions": {},
     "Subtask": {
         "Brew Coffee": {
-            "expected_duration": 0.6157318895163066,
+            "expected_duration": 0.4809406867623476,
             "variance": 1.0,
             "occurrences": 0
         },
         "Open Bottom Cabinet_part_1": {
-            "expected_duration": 1.3552917531039101,
+            "expected_duration": 1.9941377477175544,
             "variance": 1.0,
             "occurrences": 0
         },
         "Open Bottom Cabinet_part_2": {
-            "expected_duration": 0.44337387560038843,
+            "expected_duration": -0.872052697233435,
             "variance": 1.0,
             "occurrences": 0
         },
         "Place Apple Inside Cabinet": {
-            "expected_duration": -0.3452441728454094,
+            "expected_duration": 1.7389633735109258,
             "variance": 1.0,
             "occurrences": 0
         },
         "Open Bottom Cabinet": {
-            "expected_duration": 1.904985102246333,
+            "expected_duration": 0.5146091928550234,
             "variance": 1.0,
             "occurrences": 0
         },
         "Turn Off Living Room Switch 1": {
-            "expected_duration": 1.6149691278859355,
+            "expected_duration": 0.6619159002687388,
             "variance": 1.0,
             "occurrences": 0
         },
         "Turn Off Living Room Switch 2": {
-            "expected_duration": 1.6149691278859355,
+            "expected_duration": -0.5129070304001462,
             "variance": 1.0,
             "occurrences": 0
         },
         "Pick Apple": {
-            "expected_duration": 2.724217654561143,
+            "expected_duration": 1.9992138054250541,
             "variance": 1.0,
             "occurrences": 0
         },
         "Place Apple in Cabinet": {
-            "expected_duration": 4.68359121891114,
+            "expected_duration": 1.4207645007464684,
             "variance": 1.0,
             "occurrences": 0
         },
         "Move Floor Lamp": {
-            "expected_duration": 31.582640835306055,
+            "expected_duration": 0.41020159918011856,
             "variance": 1.0,
             "occurrences": 0
         },
         "Move Loudspeaker": {
-            "expected_duration": 31.582640835306055,
+            "expected_duration": 1.3388677234151793,
             "variance": 1.0,
             "occurrences": 0
         },
         "Move Table Lamp": {
-            "expected_duration": 31.582640835306055,
+            "expected_duration": -1.7756154831582984,
             "variance": 1.0,
             "occurrences": 0
         },
         "Move Standing TV": {
-            "expected_duration": 31.582640835306055,
+            "expected_duration": 0.9203682889850996,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Toggle on Living Room Switch": {
+            "expected_duration": 0.9820682284850515,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Pick and Place Apple on Cabinet": {
+            "expected_duration": 1.8557379629929314,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Window 1 in Living Room": {
+            "expected_duration": 0.5065875555543596,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Window 2 in Living Room": {
+            "expected_duration": 1.0524758252084536,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn On Electric Switch 1 in Living Room": {
+            "expected_duration": -0.07235923596318039,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Windows for Ventilation": {
+            "expected_duration": 1.2962328706963993,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Cook Dinner": {
+            "expected_duration": 1.8501372908824376,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Set the Dinner Table": {
+            "expected_duration": 1.1811754267377423,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash Dishes": {
+            "expected_duration": 0.10650581093903311,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Window in Kitchen": {
+            "expected_duration": 3.3370418549137897,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Start Cooking": {
+            "expected_duration": 1.774195172548791,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Set the Table": {
+            "expected_duration": 2.0199493872725185,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash Dishes in Sink": {
+            "expected_duration": -0.900672915889845,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Windows for Air Circulation_part_1": {
+            "expected_duration": 0.5736931665029659,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Windows for Air Circulation_part_2": {
+            "expected_duration": 1.0394689324342068,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Retrieve Apple from Cabinet": {
+            "expected_duration": 1.0840998615839026,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Place Apple on Table": {
+            "expected_duration": -0.5833737098440828,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn On Floor Lamp": {
+            "expected_duration": 0.763870100838725,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Windows_part_1": {
+            "expected_duration": -0.3178275434307982,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Windows_part_2": {
+            "expected_duration": -0.25236467367768056,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Start Washing Machine": {
+            "expected_duration": 2.1256165428252594,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Dry Dishes": {
+            "expected_duration": 0.6854683810937412,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Place Dinnerware on Table": {
+            "expected_duration": -0.8218286793209983,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Load Dishwasher": {
+            "expected_duration": 0.6268017477772748,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Start Dishwasher": {
+            "expected_duration": 0.5459882586693995,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Clean Kitchen Counter": {
+            "expected_duration": 1.3189687144668647,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Clean Living Room": {
+            "expected_duration": 0.5838722062590938,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Water Plants in Living Room": {
+            "expected_duration": 0.2273765275907117,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Dust Surfaces": {
+            "expected_duration": 0.9598161803348294,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Laundry": {
+            "expected_duration": 2.1733197427798414,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Fold Laundry": {
+            "expected_duration": 1.1532210572925352,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare Coffee": {
+            "expected_duration": -1.195758853782392,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Take Out Trash": {
+            "expected_duration": 0.32112627412496786,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Reorganize Bookshelf": {
+            "expected_duration": -0.5564584222097679,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare Dinner": {
+            "expected_duration": 0.05738493479434903,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Set Table for Dinner": {
+            "expected_duration": 0.7705223085499743,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wipe Kitchen Counter": {
+            "expected_duration": 0.7335506091419255,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Clean Bathroom": {
+            "expected_duration": 2.036556789864334,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Change Bed Sheets": {
+            "expected_duration": 0.7684772326762567,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Feed the Pet": {
+            "expected_duration": 0.2862314783212333,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Organize Closet": {
+            "expected_duration": 0.31112545799117863,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Vacuum Bedroom": {
+            "expected_duration": 2.8463081966071355,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Mop Kitchen Floor": {
+            "expected_duration": 1.5101320807298053,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Polish Furniture": {
+            "expected_duration": 0.37952176800069914,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Organize Pantry": {
+            "expected_duration": 0.46133839975586965,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Living Room Windows_part_1": {
+            "expected_duration": -0.6679288828608632,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Living Room Windows_part_2": {
+            "expected_duration": -0.7168441564943044,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Toggle On Floor Lamp": {
+            "expected_duration": 1.2527706863378416,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Kitchen Fridge": {
+            "expected_duration": 2.2961512412620255,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare Ingredients for Cooking": {
+            "expected_duration": 0.5907068988582012,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Bedroom Window": {
+            "expected_duration": 1.0335057947089417,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Organize Living Room Cabinets": {
+            "expected_duration": 2.040811877239573,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Shut All Windows": {
+            "expected_duration": -0.17855295330446985,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Finish by Turning Off Floor Lamp": {
+            "expected_duration": 1.9562299240614327,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Sweep Living Room": {
+            "expected_duration": 1.963220130535436,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Dust Furniture": {
+            "expected_duration": 1.516883397824278,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Water Plants": {
+            "expected_duration": 1.2106956235711013,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Organize Bookshelf": {
+            "expected_duration": 1.3006294449789833,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare Tea": {
+            "expected_duration": 2.0552698729488847,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Mop Floors": {
+            "expected_duration": -1.320932447174732,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn On Living Room Lamps_part_1": {
+            "expected_duration": 1.6843584759650043,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn On Living Room Lamps_part_2": {
+            "expected_duration": 1.7888291922185255,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Bathroom Sink": {
+            "expected_duration": 2.286481035547471,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Entryway Door": {
+            "expected_duration": -0.09762625183819629,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Apples": {
+            "expected_duration": 1.2076907913207533,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Living Room Cabinet": {
+            "expected_duration": 1.353358277253047,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Living Room Windows_part_1": {
+            "expected_duration": -0.4981028859115757,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Living Room Windows_part_2": {
+            "expected_duration": 2.4721311592355066,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Laptop": {
+            "expected_duration": 0.772064671196817,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Fridge": {
+            "expected_duration": 0.9035969278553838,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Retrieve Items from Fridge_part_1": {
+            "expected_duration": 1.8934295107724028,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Retrieve Items from Fridge_part_2": {
+            "expected_duration": 1.897245464738027,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off TV": {
+            "expected_duration": 0.7338165358247026,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Items on Floor_part_1": {
+            "expected_duration": 1.4629891486279405,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Items on Floor_part_2": {
+            "expected_duration": 1.2374468544889599,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Items on Floor_part_3": {
+            "expected_duration": 0.8123103875836055,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Vacuum Carpet": {
+            "expected_duration": 1.451664765358222,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Lights": {
+            "expected_duration": 1.7684949241565033,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Fridge": {
+            "expected_duration": 0.16122386026589897,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Store Dishes_part_1": {
+            "expected_duration": 0.5867992787590282,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Store Dishes_part_2": {
+            "expected_duration": 1.0840096224329536,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Store Dishes_part_3": {
+            "expected_duration": 1.1408365972569747,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Store Dishes_part_4": {
+            "expected_duration": 1.554492257614807,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Store Dishes_part_5": {
+            "expected_duration": 1.3563205130778584,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Clean Sink": {
+            "expected_duration": -0.6364696665458887,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Organize Pantry_part_1": {
+            "expected_duration": 1.794081508244115,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Organize Pantry_part_2": {
+            "expected_duration": 0.04932394876378121,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Organize Pantry_part_3": {
+            "expected_duration": 2.7638179635330893,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wipe Counters": {
+            "expected_duration": 0.023127953295173587,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Door": {
+            "expected_duration": 1.238745614458379,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Scrub Shower": {
+            "expected_duration": 1.4400188806170264,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Mop Floor": {
+            "expected_duration": 0.015714091113582684,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Light": {
+            "expected_duration": 1.0005749816963998,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Apples_part_1": {
+            "expected_duration": 1.587175934956237,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Apples_part_2": {
+            "expected_duration": 0.20316425298938667,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Apples_part_3": {
+            "expected_duration": 1.140259467121112,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Apples_part_4": {
+            "expected_duration": -0.4964335785470375,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Apples_part_5": {
+            "expected_duration": 2.209266852705955,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Loudspeaker": {
+            "expected_duration": 0.3510543731248057,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Toggle Off TV": {
+            "expected_duration": 0.715893519497953,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Switch Off Floor Lamp": {
+            "expected_duration": 0.3313601451332282,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Microwave": {
+            "expected_duration": -0.868152982459296,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Sink": {
+            "expected_duration": 2.778414520250738,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Oven": {
+            "expected_duration": 2.5422259142745247,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Kitchen Window": {
+            "expected_duration": 1.023670137930051,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Entry Door": {
+            "expected_duration": 0.9931696130601009,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Bathroom Door": {
+            "expected_duration": 0.8348807552135235,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Entryway Lights": {
+            "expected_duration": -0.26551442096324207,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Entryway Cabinet": {
+            "expected_duration": 1.629172416293418,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Books on Floor": {
+            "expected_duration": 0.519840116276516,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Vacuum Floor": {
+            "expected_duration": 1.502524288531541,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Sweep Floor": {
+            "expected_duration": 0.5324814568499419,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Empty Trash": {
+            "expected_duration": 0.904453039073793,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Make Bed": {
+            "expected_duration": 2.99374508938324,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Organize Wardrobe": {
+            "expected_duration": 0.03595843992159631,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Dust Shelves": {
+            "expected_duration": -0.6314107418274335,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Windows in Living Room_part_1": {
+            "expected_duration": 0.8560102829316782,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Windows in Living Room_part_2": {
+            "expected_duration": 1.360667610740596,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Cabinet_part_1": {
+            "expected_duration": 0.7087692926011726,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Cabinet_part_2": {
+            "expected_duration": 0.9199684774287514,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Dim Floor Lamp": {
+            "expected_duration": 0.09081405417881783,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Windows in Kitchen": {
+            "expected_duration": 1.9320389729104601,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Oven": {
+            "expected_duration": 2.2574759268538536,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Microwave": {
+            "expected_duration": 3.1987314629824706,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Electric Switch in Entryway": {
+            "expected_duration": 0.3671438135323015,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Close Cabinet in Entryway": {
+            "expected_duration": -0.23280407509079115,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn On Entryway Light": {
+            "expected_duration": 0.3217980292554362,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Secure Windows": {
+            "expected_duration": 1.255916958830619,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 1.1": {
+            "expected_duration": 1.1797761372931805,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 1.2": {
+            "expected_duration": 1.1737092487564442,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 1.3": {
+            "expected_duration": 1.468640702173055,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 1.4": {
+            "expected_duration": -1.2804409990469718,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 2.1": {
+            "expected_duration": 3.3222762429452763,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 2.2": {
+            "expected_duration": -0.44653104882530203,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 2.3": {
+            "expected_duration": 0.03256654369740264,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 2.4": {
+            "expected_duration": 1.9664678145391221,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 3.1": {
+            "expected_duration": 1.178237461621606,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 3.2": {
+            "expected_duration": 1.664424719976184,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 3.3": {
+            "expected_duration": 1.6282217700922974,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Subtask 3.4": {
+            "expected_duration": 1.9159282436993603,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Pick Up Toys_part_1": {
+            "expected_duration": -0.5112427795058689,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Pick Up Toys_part_2": {
+            "expected_duration": 2.586235181112063,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Chop Vegetables": {
+            "expected_duration": 0.9822513328663829,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Boil Water": {
+            "expected_duration": 0.8014781253783436,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Cook Rice": {
+            "expected_duration": 0.31609533366599185,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Arrange Closet": {
+            "expected_duration": 0.6789724073998507,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Clean Mirror": {
+            "expected_duration": 0.15003529214866407,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Unload Dishwasher": {
+            "expected_duration": 1.6569726168685421,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Scattered Items_part_1": {
+            "expected_duration": 2.6477014022972174,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Scattered Items_part_2": {
+            "expected_duration": 0.467624144452905,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Scattered Items_part_3": {
+            "expected_duration": 1.3753332737922115,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Scattered Items_part_4": {
+            "expected_duration": 1.7188300509452379,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Collect Scattered Items_part_5": {
+            "expected_duration": 0.3996909759409455,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wipe Surfaces": {
+            "expected_duration": 1.695235956606481,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Organize Books": {
+            "expected_duration": 1.0691968401261973,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Windows_part_1": {
+            "expected_duration": 2.5879751757060134,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Open Windows_part_2": {
+            "expected_duration": 1.2125782842963222,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Put away Dishes_part_1": {
+            "expected_duration": 1.7215438725948893,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Put away Dishes_part_2": {
+            "expected_duration": 2.037736364351641,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Put away Dishes_part_3": {
+            "expected_duration": 0.905021433800256,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Put away Dishes_part_4": {
+            "expected_duration": -0.66273532215566,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Put away Dishes_part_5": {
+            "expected_duration": -0.7882759048088095,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wipe Countertops": {
+            "expected_duration": 2.508236541183455,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Refrigerate Groceries": {
+            "expected_duration": -0.3053408158268496,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Make the Bed": {
+            "expected_duration": 2.9030883122073634,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Fold Clothes_part_1": {
+            "expected_duration": 1.762126134000018,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Fold Clothes_part_2": {
+            "expected_duration": 2.6189666265672757,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Fold Clothes_part_3": {
+            "expected_duration": 0.15264496253031523,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Fold Clothes_part_4": {
+            "expected_duration": 1.0485981675985439,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Fold Clothes_part_5": {
+            "expected_duration": 1.8345272416208656,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Organize Desk": {
+            "expected_duration": 1.3275094670024206,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare Ingredients": {
+            "expected_duration": 1.0632670430546665,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Cook Steak": {
+            "expected_duration": 1.9615319997158127,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Monitor Steak Cooking": {
+            "expected_duration": 1.1460385361508318,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Finalize Cooking": {
+            "expected_duration": 0.7486857406648602,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Load Laundry": {
+            "expected_duration": 1.0875959863284645,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Monitor Washing": {
+            "expected_duration": 2.6063314079037454,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Unload Laundry": {
+            "expected_duration": 1.54180719391158,
             "variance": 1.0,
             "occurrences": 0
         }

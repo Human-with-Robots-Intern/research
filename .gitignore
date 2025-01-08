@@ -35,7 +35,6 @@ pip-log.txt
 .venv/
 env/
 venv/
-configs/
 
 # IDE / Editor
 .vscode/
@@ -71,3 +70,5 @@ scripts/
 *.dot
 ./temp_env.yml
 sync_repos.sh
+setup.py
+llm_as_a_judge.py

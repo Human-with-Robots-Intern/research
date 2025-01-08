@@ -3,6 +3,10 @@ import signal
 import time
 from functools import wraps
 
+from omnigibson.utils.ui_utils import create_module_logger
+
+log = create_module_logger(module_name=__name__, is_file_handler=True)
+
 
 class timeout:
     def __init__(self, seconds=1, error_message="Timeout"):
@@ -24,11 +28,11 @@ def timeit(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         start_time = time.time()
-        func(*args, **kwargs)
+        results = func(*args, **kwargs)
         end_time = time.time()
         elapsed_time = end_time - start_time
-
-        return elapsed_time
+        log.warning(f"Elapsed time: {elapsed_time:.2f} seconds")
+        return results
 
     return wrapper
 
@@ -40,8 +44,9 @@ def tasks_to_subtasks(tasks, mode="all"):
             subtasks.extend(task.subtasks)
     elif mode == "name":
         for task in tasks:
+            print(subtasks)
             subtasks.extend([subtask.name for subtask in task.subtasks])
-            subtasks = set(subtasks)
+    subtasks = set(subtasks)
 
     return subtasks
 

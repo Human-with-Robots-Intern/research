@@ -1,8 +1,8 @@
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 
-# from runner import execute_task, init_omnigibson
 from core import Task, TaskGraphBuilder, TaskTimingPlanner
 from omnigibson.utils.ui_utils import create_module_logger
 from sim.runner import execute_subtask, init_omnigibson
@@ -15,51 +15,74 @@ log = create_module_logger(module_name=__name__, is_file_handler=True)
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Task Scheduler")
+    parser.add_argument("-n", help="Select the natural instruction")
     parser.add_argument(
-        "-n",
-        "--name",
-        help="Select the goal [laundry, cook, toast, etc.]",
-        default="task_Store_Apple_in_Cabinet",
-    )
-    parser.add_argument(
-        "-de",
+        "-d",
         "--decomposition",
         help="Enable or disable decomposition",
+        default=True,
         action="store_true",
     )
     parser.add_argument(
         "-v",
         "--visualize",
         help="Enable visualization of the task plan",
+        default=True,
         action="store_true",
     )
     parser.add_argument(
         "-r",
         "--reset",
+        default=True,
         help="Reset the knowledge base to Gaussian",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-o",
+        "--omnigibson",
+        help="Run omnigibson",
+        default=False,
         action="store_true",
     )
     return parser.parse_args()
 
 
-def load_task_data(task_name: str) -> dict:
+def load_task_data():
     """Load task data from a JSON file."""
-    if task_name == "new":
+    task_files = list(TASK_PATH.glob("*.json"))
+
+    print("Select a file from the list below:")
+    print("0. new instruction")
+    for idx, file in enumerate(task_files, start=1):
+        print(f"{idx}. {file.name}")
+
+    while True:
         try:
-            task_name = generate_task()
+            choice = int(input("Enter the number of your choice: "))
+
+            if choice == 0:
+                target_task_name = generate_task()
+                break
+            elif 1 <= choice <= len(task_files):
+                target_task_name = task_files[choice - 1].name
+                break
+            else:
+                print(
+                    f"Invalid choice. Please select a number between 0 and {len(task_files)}."
+                )
         except ValueError as e:
-            raise ValueError(f"Error generating task: {e}")
+            print(f"Invalid input. Please enter a number. Error: {e}")
 
-    file_path = Path(TASK_PATH) / f"{task_name}.json"
+    target_task_path = TASK_PATH / target_task_name
 
-    if not file_path.exists():
-        raise FileNotFoundError(f"Task file not found: {file_path}")
+    if not target_task_path.exists():
+        raise FileNotFoundError(f"Task file not found: {target_task_path}")
 
-    with open(file_path, "r") as file:
-        return task_name, json.load(file)
+    with open(target_task_path, "r") as file:
+        return target_task_name, json.load(file)
 
 
-def load_tasks_and_constraints(task_data: dict, enable_decomposition: bool):
+def load_tasks_and_constraints(task_data, enable_decomposition):
     """Parse tasks and build task graph."""
     tasks = Task.parse_instruction(task_data)
     if enable_decomposition:
@@ -76,32 +99,35 @@ def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
 
-    #  ========= Initialization =========
-    # 명령 -> task.json
-    task_name, task_data = load_task_data(args.name)
-    # task.json -> task, task_graph (task, constraints 객체로 변환)
-    tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
-    # omnigibson 환경 로드
-    env, agent = init_omnigibson()
-    if args.reset:
-        agent.reset_knowledge_to_gaussian()
+    # Load task data
+    task_name, task_data = load_task_data()
 
-    #  ========= Task Scheduling =========
+    # Parse tasks and build graph
+    tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
+
+    # Initialize OmniGibson environment
+    agent, env = None, None
+    if args.omnigibson:
+        env, agent = init_omnigibson()
+        if args.reset:
+            agent.reset_knowledge_to_gaussian()
+
+    # Task scheduling
     task_timing_planner = TaskTimingPlanner(
         agent=agent, tasks=tasks, constraints=task_graph
     )
-
     task_tree, opt_task_tree = task_timing_planner.get_task_trees()
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
 
-    #  ========= Task Execution =========
-    try:
-        for scheduled_subtask in scheduled_subtasks:
-            execute_subtask(env, agent, scheduled_subtask)
-    except Exception as e:
-        log.error(f"Error executing task: {e}")
+    # Task execution
+    if args.omnigibson and env:
+        try:
+            for scheduled_subtask in scheduled_subtasks:
+                execute_subtask(env, agent, scheduled_subtask)
+        except Exception as e:
+            log.error(f"Error executing task: {e}")
 
-    # Result Visualization
+    # Result visualization
     if args.visualize:
         visualize(task_name, task_graph, task_tree, opt_task_tree)
 

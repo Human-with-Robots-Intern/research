@@ -1,0 +1,260 @@
+[
+    {
+        "Task": "Do Laundry",
+        "Subtasks": [
+            {
+                "Name": "Collect Clothes",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "laundry_hamper": 1,
+                        "clothes": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO laundry_hamper",
+                        "GRASP clothes",
+                        "NAVIGATE_TO washing_machine",
+                        "PLACE_INSIDE washing_machine"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Start Washing Machine",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "washing_machine": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_ON washing_machine"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Collect Clothes",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Wait for Laundry",
+                "Repetition": 1,
+                "Type": "Monitoring",
+                "Executions": {
+                    "Objects": {},
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Uncontrollable",
+                    "Interval": 30
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Start Washing Machine",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "Task": "Cook Steak",
+        "Subtasks": [
+            {
+                "Name": "Prepare Ingredients",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "fridge_xyejdx": 1,
+                        "Steak": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO fridge_xyejdx",
+                        "OPEN fridge_xyejdx",
+                        "GRASP Steak",
+                        "CLOSE fridge_xyejdx"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Cook Steak",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "frying_pan": 1,
+                        "Steak": 1,
+                        "stove": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO frying_pan",
+                        "PLACE_ON_TOP stove",
+                        "PLACE_ON_TOP frying_pan",
+                        "GRASP Steak",
+                        "PLACE_ON_TOP frying_pan",
+                        "TOGGLE_ON stove"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Prepare Ingredients",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Wait for Steak to Cook",
+                "Repetition": 1,
+                "Type": "Monitoring",
+                "Executions": {
+                    "Objects": {},
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Uncontrollable",
+                    "Interval": 10
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Cook Steak",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Finish Cooking Steak",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "frying_pan": 1,
+                        "stove": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF stove",
+                        "GRASP frying_pan",
+                        "PLACE_ON_TOP stove"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Wait for Steak to Cook",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "Task": "Wash Dishes",
+        "Subtasks": [
+            {
+                "Name": "Gather Dishes",
+                "Repetition": 3,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Dish": 1,
+                        "sink_zexzrc": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Dish",
+                        "GRASP Dish",
+                        "NAVIGATE_TO sink_zexzrc",
+                        "PLACE_INSIDE sink_zexzrc"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Wash Dishes",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "sink_zexzrc": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_ON sink_zexzrc"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Gather Dishes",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Finish Washing Dishes",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "sink_zexzrc": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF sink_zexzrc"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Wash Dishes",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]

@@ -1196,14 +1196,14 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
 
                 # If the toggle pose is too far, navigate
                 yield from self._navigate_if_needed(obj, pose_on_obj=toggle_pose)
-                log.debug(f"아니")
+                # log.debug(f"아니")
                 log.debug(f"distance : {distance}")
                 if distance < contact_Radius:
                     log.debug(f"detect")
                     break
 
                 yield from self._move_hand(toggle_pose, stop_if_stuck=True)
-                log.debug(f"어디서")
+                # log.debug(f"어디서")
                 log.debug(f"distance : {distance}")
                 if distance < contact_Radius:
                     log.debug(f"detect")
@@ -1220,7 +1220,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 # Step once to update
                 empty_action = self._empty_action()
                 yield self._postprocess_action(empty_action)
-                log.debug(f"실패")
+                # log.debug(f"실패")
                 log.debug(f"distance : {distance}")
                 if distance < contact_Radius:
                     log.debug(f"detect")
@@ -1230,7 +1230,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                     yield from self._move_hand_linearly_cartesian(
                         target_pose, ignore_failure=False, stop_if_stuck=True
                     )
-                log.debug(f"하는")
+                # log.debug(f"하는")
                 log.debug(f"distance : {distance}")
                 if distance < contact_Radius:
                     log.debug(f"detect")
@@ -1241,7 +1241,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                     ignore_failure=True,
                     stop_if_stuck=True,
                 )
-                log.debug(f"거야")
+                # log.debug(f"거야")
                 log.debug(f"distance : {distance}")
                 if distance < contact_Radius:
                     log.debug(f"detect")

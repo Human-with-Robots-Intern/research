@@ -6,7 +6,7 @@ from anytree import AsciiStyle, Node, RenderTree
 
 from omnigibson.utils.ui_utils import create_module_logger
 from task_management.task_tree_builder import TaskTreeBuilder
-from utils.util import tasks_to_subtasks
+from utils.util import tasks_to_subtasks, timeit
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -22,10 +22,14 @@ class TaskTimingPlanner:
             constraints (nx.DiGraph): A directed graph representing task constraints.
         """
         self.agent = agent
-        self.tasks = self.agent.adjust_subtask_duration(tasks)
+        if agent:
+            self.tasks = self.agent.adjust_subtask_duration(tasks)
+        else:
+            self.tasks = tasks
         self.tree_builder = TaskTreeBuilder(constraints)
         self.task_tree = self.tree_builder.build_tree(self.tasks)
 
+    @timeit
     def get_task_trees(self) -> tuple[Node, Node]:
         """
         Get the full task tree and the optimal task tree.
@@ -35,6 +39,7 @@ class TaskTimingPlanner:
         """
         opt_task_tree = self._get_optimal_tree()
         self._print_plan(opt_task_tree)
+        
         return self.task_tree, opt_task_tree
 
     def convert_to_tasks(self, opt_task_tree: Node) -> List["Subtask"]:
