@@ -129,11 +129,11 @@ def main():
             objs = [
                 "electric_switch_wseglt_1",
                 "electric_switch_wseglt_2",
-                #"floor_lamp_vdxlda_0",
-                #"laptop_nvulcs_0",
-                #"loudspeaker_bmpdyv_0",
-                #"standing_tv_udotid_0",
-                #"table_lamp_xbfgjc_0",
+                # "floor_lamp_vdxlda_0",
+                # "laptop_nvulcs_0",
+                # "loudspeaker_bmpdyv_0",
+                # "standing_tv_udotid_0",
+                # "table_lamp_xbfgjc_0",
             ]
 
             for obj_name in objs:
@@ -147,14 +147,15 @@ def main():
                     env,
                 )
 
-                if obj.states[object_states.ToggledOn].get_value() == True :
+                if obj.states[object_states.ToggledOn].get_value() == True:
                     intensity_light = 1e4
 
                     light = scene.object_registry("name", "light")
                     light._light_link.set_attribute("inputs:intensity", intensity_light)
-               
+                    env.step()
+
                 print("Finished executing on")
-                '''
+                """
                 print("Executing controller: Toggle Off")
                 execute_controller(
                     controller.apply_ref(
@@ -169,7 +170,7 @@ def main():
                     light._light_link.set_attribute("inputs:intensity", intensity_light)
                 
                 print("Finished executing off")
-                '''
+                """
         case _:
             print(
                 "Invalid case selected. This should not happen due to argparse validation."

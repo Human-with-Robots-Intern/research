@@ -5,7 +5,7 @@ from pathlib import Path
 # from runner import execute_task, init_omnigibson
 from core import Task, TaskGraphBuilder, TaskTimingPlanner
 from omnigibson.utils.ui_utils import create_module_logger
-from sim.runner import execute_subtask, init_omnigibson
+from research.src.sim.runner_omnigibson import execute_subtask, init_omnigibson
 from utils import generate_task, visualize
 from utils.constants import TASK_PATH
 
