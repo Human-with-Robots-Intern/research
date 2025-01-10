@@ -6,6 +6,7 @@ from pathlib import Path
 from core import Task, TaskGraphBuilder, TaskTimingPlanner
 from omnigibson.utils.ui_utils import create_module_logger
 from sim.runner import execute_subtask, init_omnigibson
+from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import generate_task, visualize
 from utils.constants import TASK_PATH
 
@@ -38,9 +39,9 @@ def parse_arguments():
         action="store_true",
     )
     parser.add_argument(
-        "-o",
-        "--omnigibson",
-        help="Run omnigibson",
+        "-s",
+        "--simulation",
+        help="select simulation(o: omnigibson / a: ai2thor)",
         default=False,
         action="store_true",
     )
@@ -94,6 +95,15 @@ def load_tasks_and_constraints(task_data, enable_decomposition):
 
     return tasks, task_graph
 
+def check_simulation():
+
+    print("Select a simulation from the list below:")
+    print("o: omnigibson")
+    print("a: ai2thor")
+    
+    choice = str(input("Enter the alphabet of your choice: "))
+    
+    return choice
 
 def main():
     """Main entry point for the Task Scheduler."""
@@ -101,14 +111,19 @@ def main():
 
     # Load task data
     task_name, task_data = load_task_data()
+    sim_name = check_simulation()
 
     # Parse tasks and build graph
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
 
-    # Initialize OmniGibson environment
+    # Initialize OmniGibson or ai2thor environment
     agent, env = None, None
-    if args.omnigibson:
+    if sim_name == 'o': # To initialize with OmniGibson
         env, agent = init_omnigibson()
+        if args.reset:
+            agent.reset_knowledge_to_gaussian()
+    if sim_name == 'a': # To initialize with ai2thor
+        controller = init_ai2thor()
         if args.reset:
             agent.reset_knowledge_to_gaussian()
 
@@ -120,12 +135,19 @@ def main():
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
 
     # Task execution
-    if args.omnigibson and env:
+    if sim_name == 'o' and env:
         try:
             for scheduled_subtask in scheduled_subtasks:
                 execute_subtask(env, agent, scheduled_subtask)
         except Exception as e:
             log.error(f"Error executing task: {e}")
+    if sim_name == 'a' and controller:
+        try:
+            for scheduled_subtask in scheduled_subtasks:
+                execute_subtask(controller, scheduled_subtask)
+        except Exception as e:
+            log.error(f"Error executing task: {e}")
+
 
     # Result visualization
     if args.visualize:

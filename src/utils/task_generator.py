@@ -67,6 +67,7 @@ def validate_output_format(output: Any) -> bool:
                 return False
             executions = subtask.get("Executions", {})
             if not isinstance(executions, dict) or not {
+                ## 여기 한 번 체크 이소민
                 "Objects",
                 "PrimitiveActions",
             }.issubset(executions):
@@ -187,7 +188,7 @@ def cached_generate_task(
 
 def generate_task():
     """Generate tasks based on user input and knowledge base."""
-    examples_prompt = load_file(Path(PROMPT_PATH) / "e2e_generator_ver3.txt", "txt")
+    examples_prompt = load_file(Path(PROMPT_PATH) / "e2e_generator_ver4.txt", "txt")
     knowledge = load_file(Path(KNOWLEDGE_PATH) / "knowledge.json", "json")
 
     user_input = input("Please enter the instructions: ").strip()
