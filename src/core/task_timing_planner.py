@@ -29,7 +29,6 @@ class TaskTimingPlanner:
         self.tree_builder = TaskTreeBuilder(constraints)
         self.task_tree = self.tree_builder.build_tree(self.tasks)
 
-    @timeit
     def get_task_trees(self) -> tuple[Node, Node]:
         """
         Get the full task tree and the optimal task tree.
@@ -39,7 +38,7 @@ class TaskTimingPlanner:
         """
         opt_task_tree = self._get_optimal_tree()
         self._print_plan(opt_task_tree)
-        
+
         return self.task_tree, opt_task_tree
 
     def convert_to_tasks(self, opt_task_tree: Node) -> List["Subtask"]:
@@ -164,9 +163,7 @@ class TaskTimingPlanner:
             ):
                 included_subtask_names.add(current.name)
             current = current.parent
-        log.debug(
-            f"Included subtask names for leaf '{leaf_node.name}': {included_subtask_names}"
-        )
+
         return included_subtask_names
 
     def _print_plan(self, tree_root: Node) -> None:

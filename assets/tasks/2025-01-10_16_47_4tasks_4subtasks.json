@@ -1,0 +1,105 @@
+[
+    {
+        "Task": "Laundry Task",
+        "Subtasks": [
+            {
+                "Name": "Start Laundry Machine",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "laundry": 1,
+                        "laundry_machine": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP laundry",
+                        "PLACE_INSIDE laundry_machine",
+                        "TOGGLE_ON laundry_machine"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Cook Steak",
+        "Subtasks": [
+            {
+                "Name": "Prepare and Cook Steak",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Steak": 1,
+                        "stove": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Steak",
+                        "PLACE_ON_TOP stove",
+                        "TOGGLE_ON stove"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Uncontrollable",
+                    "Interval": 10
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Set Table",
+        "Subtasks": [
+            {
+                "Name": "Set Table for Meal",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "plate": 1,
+                        "cutlery": 1,
+                        "breakfast_table-skczfi": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO plate",
+                        "GRASP plate",
+                        "NAVIGATE_TO breakfast_table-skczfi",
+                        "PLACE_ON_TOP breakfast_table-skczfi",
+                        "NAVIGATE_TO cutlery",
+                        "GRASP cutlery",
+                        "NAVIGATE_TO breakfast_table-skczfi",
+                        "PLACE_ON_TOP breakfast_table-skczfi"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Wash Dishes",
+        "Subtasks": [
+            {
+                "Name": "Impossible: Dishes not in environment",
+                "Repetition": 3,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {},
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 0
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]

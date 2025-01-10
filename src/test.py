@@ -1,5 +1,6 @@
 import argparse
 import json
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -15,7 +16,7 @@ log = create_module_logger(module_name=__name__, is_file_handler=True)
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Task Scheduler")
-    parser.add_argument("-n", help="Select the natural instruction")
+
     parser.add_argument(
         "-d",
         "--decomposition",
@@ -49,7 +50,7 @@ def parse_arguments():
 
 def load_task_data():
     """Load task data from a JSON file."""
-    task_files = list(TASK_PATH.glob("*.json"))
+    task_files = sorted(TASK_PATH.glob("*.json"), key=lambda p: p.name)
 
     print("Select a file from the list below:")
     print("0. new instruction")
@@ -104,6 +105,7 @@ def main():
 
     # Parse tasks and build graph
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
+    visualize(task_name, task_graph)
 
     # Initialize OmniGibson environment
     agent, env = None, None
@@ -113,10 +115,13 @@ def main():
             agent.reset_knowledge_to_gaussian()
 
     # Task scheduling
+    start_time = time.time()
     task_timing_planner = TaskTimingPlanner(
         agent=agent, tasks=tasks, constraints=task_graph
     )
     task_tree, opt_task_tree = task_timing_planner.get_task_trees()
+    elapsed_time = time.time() - start_time
+    log.info(f"Task {task_name} scheduled in {elapsed_time:.2f} seconds")
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
 
     # Task execution

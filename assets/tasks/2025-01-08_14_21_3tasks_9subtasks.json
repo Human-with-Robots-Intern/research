@@ -1,0 +1,253 @@
+[
+    {
+        "Task": "Clean Living Room",
+        "Subtasks": [
+            {
+                "Name": "Vacuum Floor",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Vacuum Cleaner": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Vacuum Cleaner",
+                        "GRASP Vacuum Cleaner",
+                        "TOGGLE_ON Vacuum Cleaner",
+                        "NAVIGATE_TO Living Room Floor",
+                        "TOGGLE_OFF Vacuum Cleaner",
+                        "PLACE_ON_TOP Storage Area"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 4
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Dust Shelves",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Duster": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Duster",
+                        "GRASP Duster",
+                        "NAVIGATE_TO Shelves",
+                        "CLEAN Shelves"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Vacuum Floor",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Organize Magazine Rack",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Magazine": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Magazine Rack",
+                        "ORGANIZE Magazine"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Dust Shelves",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "Task": "Prepare Dinner",
+        "Subtasks": [
+            {
+                "Name": "Chop Vegetables",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Vegetable": 3,
+                        "Knife": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Vegetable",
+                        "GRASP Vegetable",
+                        "NAVIGATE_TO Cutting Board",
+                        "SLICE Vegetable"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Boil Water",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Pot": 1,
+                        "Stove": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Pot",
+                        "GRASP Pot",
+                        "NAVIGATE_TO Sink",
+                        "FILL_WITH Water",
+                        "NAVIGATE_TO Stove",
+                        "PLACE_ON_TOP Stove",
+                        "TOGGLE_ON Stove"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Chop Vegetables",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Cook Pasta",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Pasta": 1,
+                        "Pot": 1,
+                        "Stove": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Pasta",
+                        "GRASP Pasta",
+                        "NAVIGATE_TO Pot",
+                        "PLACE_INSIDE Pot",
+                        "STIR Pot"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 8
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Boil Water",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "Task": "Do Laundry",
+        "Subtasks": [
+            {
+                "Name": "Load Washing Machine",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Laundry": 1,
+                        "Washing Machine": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Laundry Basket",
+                        "GRASP Laundry",
+                        "NAVIGATE_TO Washing Machine",
+                        "PLACE_INSIDE Washing Machine"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Add Detergent",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Detergent": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Detergent",
+                        "GRASP Detergent",
+                        "POUR Detergent in Washing Machine"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Load Washing Machine",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Start Washing Machine",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Washing Machine": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_ON Washing Machine"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Add Detergent",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]
