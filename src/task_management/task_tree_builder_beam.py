@@ -82,9 +82,8 @@ class TaskTreeBuilder:
             beam_width (int): The number of top nodes to expand at each level.
         """
         self.tree = TaskTree()
-        self.constraint_handler = ConstraintHandler(constraints)
         self.beam_width = beam_width
-
+        self.constraint_handler = ConstraintHandler(constraints)
         self.slot_handler = SlotHandler(self._node_expansion)
         self.counter = itertools.count()
 
@@ -216,7 +215,7 @@ class TaskTreeBuilder:
         Returns:
             int: The calculated cost.
         """
-        # Example cost function: duration + soft constraint penalty
+        # 노드의 누적 시간 낮고, 
         duration_cost = subtask.duration.interval
         soft_constraint_penalty = 0
         soft_constraint_penalty = self.constraint_handler.get_soft_constraint_penalty(
@@ -224,5 +223,5 @@ class TaskTreeBuilder:
         )
         conflict_penalty = self.constraint_handler.get_conflict_penalty(node, subtask)
         soft_constraint_penalty += conflict_penalty
-        # self.constraint_handler.get_soft_constraint_penalty(node, subtask)
+
         return duration_cost + soft_constraint_penalty

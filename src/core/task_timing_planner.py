@@ -5,7 +5,7 @@ import networkx as nx
 from anytree import AsciiStyle, Node, RenderTree
 
 from omnigibson.utils.ui_utils import create_module_logger
-from task_management.task_tree_builder import TaskTreeBuilder
+from task_management.task_tree_builder_beam import TaskTreeBuilder
 from utils.util import tasks_to_subtasks, timeit
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
