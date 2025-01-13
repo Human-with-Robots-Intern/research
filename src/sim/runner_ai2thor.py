@@ -4,13 +4,15 @@ from pathlib import Path
 
 from ai2thor.controller import Controller
 
-from handlers.arm_handler import ArmHandler
-from handlers.camera_handler import CameraHandler
-from handlers.interaction_handler import InteractionHandler
-from handlers.move_handler import MoveHandler
-from handlers.navigation_handler import NavigationHandler
+from ithor.handlers.arm_handler import ArmHandler
+from ithor.handlers.camera_handler import CameraHandler
+from ithor.handlers.interaction_handler import InteractionHandler
+from ithor.handlers.move_handler import MoveHandler
+from ithor.handlers.navigation_handler import NavigationHandler
 
-from handlers.action import Action
+from ithor.handlers.action import Action
+
+from ithor.utils.constants import *
 
 import numpy as np
 import math
@@ -42,8 +44,39 @@ def create_module_logger(module_name, is_file_handler=False):
         logger.addHandler(file_handler)
     return logger
 
-log_file = open("logs/ai2thor.log.txt", "w", buffering=1)
+
+log_file = open("logs/ai2thor_log.txt", "w", buffering=1)
 log = create_module_logger(module_name=__name__, is_file_handler=True)
+
+def get_environment(controller):  # 최종 환경 추출
+    scene_name = controller.step("Pass").metadata["sceneName"]
+    objs = controller.step("Pass").metadata["objects"]
+    openable = []
+    toggleable = []
+    pickupable = []
+    for obj in objs:
+        if obj["openable"]:
+            openable.append(obj["objectType"])
+        if obj["toggleable"]:
+            toggleable.append(obj["objectType"])
+        if obj["pickupable"]:
+            pickupable.append(obj["objectType"])
+
+    openable = list(set(openable))
+    toggleable = list(set(toggleable))
+    pickupable = list(set(pickupable))
+
+    env = {
+        scene_name: {
+            "OPEN": openable,
+            "CLOSE": openable,
+            "TOGGLE_ON": toggleable,
+            "TOGGLE_OFF": toggleable,
+            "GRASP": pickupable
+        }
+    }
+
+    return env # prompt 에 쓸 땐 str(env)로 바꿔줘야함
 
 def init_ai2thor():
     controller = Controller(
@@ -59,9 +92,11 @@ def init_ai2thor():
         renderThirdPartyCameras=False,
         fieldOfView=60,
     )
-    
 
-    return controller
+    env = get_environment(controller)
+
+    return env, controller
+
 
 def find_objID(controller, obj_type):  ## object type과 object id를 매칭
     for obj in controller.last_event.metadata["objects"]:
@@ -69,11 +104,13 @@ def find_objID(controller, obj_type):  ## object type과 object id를 매칭
             return obj["objectId"]
     return None
 
+
 def last_action_success(controller):  ## 마지막 행동이 성공했는지 확인
     if controller.last_event.metadata["lastActionSuccess"]:
         return "success\n"
     else:
         return "failure\n"
+
 
 def execute_subtask(controller, subtask):
     """
@@ -103,7 +140,9 @@ def execute_subtask(controller, subtask):
     # "PLACE_INSIDE washing_machine"
     for obj_name in objects:
         ai2thor_obj = list(
-        set(obj["objectType"] for obj in controller.step("Pass").metadata["objects"])
+            set(
+                obj["objectType"] for obj in controller.step("Pass").metadata["objects"]
+            )
         )
         if ai2thor_obj is None:
             log_file.write(f"Object '{obj_name}' not found in the environment.")

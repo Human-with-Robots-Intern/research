@@ -186,11 +186,15 @@ def cached_generate_task(
     return None
 
 
-def generate_task():
+def generate_task(env):
     """Generate tasks based on user input and knowledge base."""
-    examples_prompt = load_file(Path(PROMPT_PATH) / "e2e_generator_ver4.txt", "txt")
+    file_name = "thor_e2e_generator_ver1.txt"
+    examples_prompt = load_file(Path(PROMPT_PATH) / file_name, "txt")
     knowledge = load_file(Path(KNOWLEDGE_PATH) / "knowledge.json", "json")
-
+    if "thor" in file_name:
+        # `env` 부분 수정
+        examples_prompt = examples_prompt.replace("f{env}", str(env))
+        
     user_input = input("Please enter the instructions: ").strip()
     if not user_input:
         logger.error("User input cannot be empty.")

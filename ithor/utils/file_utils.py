@@ -3,7 +3,7 @@ import json
 import math
 from pathlib import Path
 
-from utils.constants import OBJECTS_INFO_PATH
+from ..utils.constants import OBJECTS_INFO_PATH
 
 
 def save_the_agent_knowledge(scene_name: str, agent_knowledge: dict):

@@ -1,7 +1,7 @@
 from collections import deque
 
-from utils.constants import GRID_SIZE
-from utils.math_utils import (
+from ..utils.constants import GRID_SIZE
+from ..utils.math_utils import (
     closest_position,
     quantize_position,
     calculate_rotation_angle,

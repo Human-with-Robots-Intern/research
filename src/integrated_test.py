@@ -28,7 +28,7 @@ def parse_arguments():
         "-v",
         "--visualize",
         help="Enable visualization of the task plan",
-        default=True,
+        default=False,
         action="store_true",
     )
     parser.add_argument(
@@ -48,7 +48,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def load_task_data():
+def load_task_data(env):
     """Load task data from a JSON file."""
     task_files = list(TASK_PATH.glob("*.json"))
 
@@ -62,7 +62,7 @@ def load_task_data():
             choice = int(input("Enter the number of your choice: "))
 
             if choice == 0:
-                target_task_name = generate_task()
+                target_task_name = generate_task(env)
                 break
             elif 1 <= choice <= len(task_files):
                 target_task_name = task_files[choice - 1].name
@@ -95,37 +95,41 @@ def load_tasks_and_constraints(task_data, enable_decomposition):
 
     return tasks, task_graph
 
+
 def check_simulation():
 
     print("Select a simulation from the list below:")
     print("o: omnigibson")
     print("a: ai2thor")
-    
+
     choice = str(input("Enter the alphabet of your choice: "))
-    
+
     return choice
+
 
 def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
 
-    # Load task data
-    task_name, task_data = load_task_data()
     sim_name = check_simulation()
+    agent, env = None, None
+    if sim_name == "o":  # To initialize with OmniGibson
+        env, agent = init_omnigibson()
+        if args.reset:
+            agent.reset_knowledge_to_gaussian()
+    if sim_name == "a":  # To initialize with ai2thor
+        env, controller = init_ai2thor()
+
+    # Load task data
+    task_name, task_data = load_task_data(env)
 
     # Parse tasks and build graph
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
 
     # Initialize OmniGibson or ai2thor environment
-    agent, env = None, None
-    if sim_name == 'o': # To initialize with OmniGibson
-        env, agent = init_omnigibson()
-        if args.reset:
-            agent.reset_knowledge_to_gaussian()
-    if sim_name == 'a': # To initialize with ai2thor
-        controller = init_ai2thor()
-        if args.reset:
-            agent.reset_knowledge_to_gaussian()
+
+    # if args.reset:
+    #     agent.reset_knowledge_to_gaussian()
 
     # Task scheduling
     task_timing_planner = TaskTimingPlanner(
@@ -135,19 +139,18 @@ def main():
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
 
     # Task execution
-    if sim_name == 'o' and env:
+    if sim_name == "o" and env:
         try:
             for scheduled_subtask in scheduled_subtasks:
                 execute_subtask(env, agent, scheduled_subtask)
         except Exception as e:
             log.error(f"Error executing task: {e}")
-    if sim_name == 'a' and controller:
+    if sim_name == "a" and controller:
         try:
             for scheduled_subtask in scheduled_subtasks:
                 execute_subtask(controller, scheduled_subtask)
         except Exception as e:
             log.error(f"Error executing task: {e}")
-
 
     # Result visualization
     if args.visualize:

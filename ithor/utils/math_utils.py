@@ -2,7 +2,7 @@
 
 import math
 
-from utils.constants import GRID_SIZE
+from ..utils.constants import GRID_SIZE
 
 
 def closest_grid_point(pos):

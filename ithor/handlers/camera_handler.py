@@ -1,5 +1,5 @@
 # camera_handler.py
-from concepts.camera_views import EgocentricView, ThirdPersonView, TopDownView
+from ..concepts.camera_views import EgocentricView, ThirdPersonView, TopDownView
 
 
 class CameraHandler:
