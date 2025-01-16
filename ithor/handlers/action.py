@@ -1,4 +1,5 @@
 from ..utils.constants import GRID_SIZE
+from .navigation_handler import NavigationHandler
 
 import time
 
@@ -9,33 +10,100 @@ import time
 # toggle
 # open
 # close
+
+
 class Action:
     def __init__(self, controller, camera_handler, log_file):
         self.controller = controller
         self.camera_handler = camera_handler
         self.grid_size = GRID_SIZE
         self.log_file = log_file
+        self.navi = NavigationHandler(controller, self.camera_handler)
 
     def last_action_success(self, controller):  ## 마지막 행동이 성공했는지 확인
         if controller.last_event.metadata["lastActionSuccess"]:
             return "success\n"
         else:
             return "failure. " + controller.last_event.metadata["errorMessage"] + "\n"
+        
+    def get_parent_receptacle(self, object_id: str):
+        
+        # 해당 object의 부모 receptacle을 찾는 로직 구현
+        object_metadata = self.controller.last_event.metadata["objects"]
+        print("뭐1")
+
+        # 예시로 object의 metadata에서 parent receptacle을 가져오는 코드 작성
+        # 실제로는 controller의 메타데이터나 객체 속성에 따라 다를 수 있음
+        for obj in object_metadata:
+            if obj["objectId"] == object_id:
+                if "parentReceptacles" in obj:
+                    parent_receptacle_ids = obj["parentReceptacles"]
+                    print(f"{parent_receptacle_ids=}")
+                    break
+        print("뭐2")
+        # for rec in parent_receptacle_ids:
+        #     for obj in object_metadata:
+        #         if obj["objectId"] == rec and obj["visible"]:
+        #             print("visible 이 아니야?")
+        #             parent_receptacle_id = rec
+        #             break
+        parent_receptacle_id = parent_receptacle_ids[0]
+        print(f"{parent_receptacle_id=}")
+        print("뭐3")
+        return parent_receptacle_id
 
     def pickup(self, object_id: str):
         # 물체 앞으로 갔으니 강제로 물체 집게 함.
-        self.controller.step(
+        result = self.controller.step(
             action="PickupObject",
             objectId=object_id,
-            forceAction=True,
+            forceAction=False,
             manualInteract=False,
         )
-        # log_file 에 기록
-        self.log_file.write(self.last_action_success(self.controller))
+        print(f"결과= {result.metadata['lastActionSuccess']}")
+        # 물체를 집은 후의 결과 처리
+        if result.metadata["lastActionSuccess"]:
+            # 물체를 성공적으로 집었다면
+            self.log_file.write(self.last_action_success(self.controller))
+            self.controller.step(action="Pass")
+            self.camera_handler.update_view()
+            time.sleep(0.3)
+            return True
+        else:
+            # 물체를 집지 못한 경우, parent receptacle을 열고 다시 시도
+            receptacle_id = self.get_parent_receptacle(object_id)
+            print(f"{receptacle_id=}")
+            
+            if receptacle_id:
+                # parent receptacle을 열기
+                self.navi.move_to(receptacle_id)
+                self.open(receptacle_id)
+                time.sleep(0.5)  
 
-        self.controller.step(action="Pass")
-        self.camera_handler.update_view()
-        time.sleep(0.3)
+                # 물체를 다시 집기 시도
+                # 아니 왜 계란 못집냐고
+                # 나이프도 못집고
+                # plate도 못집음
+                # Egg|-02.04|+00.81|+01.24 must have the property CanPickup to be picked up.
+                # Plate|+00.96|+01.65|-02.61 must have the property CanPickup to be picked up.
+                result = self.controller.step(
+                    action="PickupObject",
+                    objectId=object_id,
+                    forceAction=True,
+                    manualInteract=False,
+                )
+                print(result.metadata["lastActionSuccess"])
+                print(result.metadata["errorMessage"])
+                if result.metadata["lastActionSuccess"]:
+                    # 물체를 성공적으로 집었으면 receptacle을 다시 닫기
+                    self.close(receptacle_id)
+                    return True
+                else:
+                    self.log_file.write(f"Failed to pick up object {object_id} even after opening the receptacle.")
+                    return False
+            else:
+                self.log_file.write(f"No parent receptacle found for object {object_id}.")
+                return False
 
     def slice(self, object_id: str):
         self.controller.step(action="SliceObject", objectId=object_id)

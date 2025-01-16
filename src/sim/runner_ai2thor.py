@@ -48,12 +48,15 @@ def create_module_logger(module_name, is_file_handler=False):
 log_file = open("logs/ai2thor_log.txt", "w", buffering=1)
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
+
 def get_environment(controller):  # 최종 환경 추출
     scene_name = controller.step("Pass").metadata["sceneName"]
     objs = controller.step("Pass").metadata["objects"]
     openable = []
     toggleable = []
     pickupable = []
+    receptacle = []
+
     for obj in objs:
         if obj["openable"]:
             openable.append(obj["objectType"])
@@ -61,10 +64,13 @@ def get_environment(controller):  # 최종 환경 추출
             toggleable.append(obj["objectType"])
         if obj["pickupable"]:
             pickupable.append(obj["objectType"])
+        if obj["receptacle"]:
+            receptacle.append(obj["objectType"])
 
     openable = list(set(openable))
     toggleable = list(set(toggleable))
     pickupable = list(set(pickupable))
+    receptacle = list(set(receptacle))
 
     env = {
         scene_name: {
@@ -72,11 +78,13 @@ def get_environment(controller):  # 최종 환경 추출
             "CLOSE": openable,
             "TOGGLE_ON": toggleable,
             "TOGGLE_OFF": toggleable,
-            "GRASP": pickupable
+            "GRASP": pickupable,
+            "RECEPTACLE": receptacle,
         }
     }
 
-    return env # prompt 에 쓸 땐 str(env)로 바꿔줘야함
+    return env  # prompt 에 쓸 땐 str(env)로 바꿔줘야함
+
 
 def init_ai2thor():
     controller = Controller(
@@ -172,12 +180,14 @@ def execute_subtask(controller, subtask):
 
         action_type, target_name = parts
         target_obj = object_registry.get(target_name)
-
+        target_obj_ID = find_objID(controller, target_name.lower())
+        print(f"{action_type=}")
+        print(f"{target_obj_ID=}")
         if action_type in action_mapping:
             log.info(f"Performing action: {action_type} on {target_name}")
 
             # 실행된 제너레이터의 최종 결과를 success로 받음
-            generator = action_mapping[action_type](target_obj)
+            generator = action_mapping[action_type](target_obj_ID)
             try:
                 for result in generator:
                     pass

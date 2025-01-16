@@ -105,14 +105,16 @@ class NavigationHandler:
 
         # Calculate steps needed to reach the clamped angle
         steps = int(
-            (clamped_angle - current_pitch) / 30
+            (clamped_angle - current_pitch) / 15
         )  # Assuming each step adjusts by 30 degrees
         # Adjust the camera pitch in steps
         for _ in range(abs(steps)):
             if steps > 0:  # Need to look up
                 self.controller.step(action="LookUp")
+                self.controller.step("Pass")
             elif steps < 0:  # Need to look down
                 self.controller.step(action="LookDown")
+                self.controller.step("Pass")
 
             # Update view after each step
             self.camera_handler.update_view()
