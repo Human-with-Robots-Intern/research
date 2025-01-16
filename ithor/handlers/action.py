@@ -25,12 +25,11 @@ class Action:
             return "success\n"
         else:
             return "failure. " + controller.last_event.metadata["errorMessage"] + "\n"
-        
+
     def get_parent_receptacle(self, object_id: str):
-        
+
         # 해당 object의 부모 receptacle을 찾는 로직 구현
         object_metadata = self.controller.last_event.metadata["objects"]
-        print("뭐1")
 
         # 예시로 object의 metadata에서 parent receptacle을 가져오는 코드 작성
         # 실제로는 controller의 메타데이터나 객체 속성에 따라 다를 수 있음
@@ -38,18 +37,15 @@ class Action:
             if obj["objectId"] == object_id:
                 if "parentReceptacles" in obj:
                     parent_receptacle_ids = obj["parentReceptacles"]
-                    print(f"{parent_receptacle_ids=}")
                     break
-        print("뭐2")
         # for rec in parent_receptacle_ids:
         #     for obj in object_metadata:
         #         if obj["objectId"] == rec and obj["visible"]:
         #             print("visible 이 아니야?")
         #             parent_receptacle_id = rec
         #             break
+        # 어차피 한 개만 들어감 parent_receptacle 에
         parent_receptacle_id = parent_receptacle_ids[0]
-        print(f"{parent_receptacle_id=}")
-        print("뭐3")
         return parent_receptacle_id
 
     def pickup(self, object_id: str):
@@ -60,7 +56,6 @@ class Action:
             forceAction=False,
             manualInteract=False,
         )
-        print(f"결과= {result.metadata['lastActionSuccess']}")
         # 물체를 집은 후의 결과 처리
         if result.metadata["lastActionSuccess"]:
             # 물체를 성공적으로 집었다면
@@ -72,13 +67,12 @@ class Action:
         else:
             # 물체를 집지 못한 경우, parent receptacle을 열고 다시 시도
             receptacle_id = self.get_parent_receptacle(object_id)
-            print(f"{receptacle_id=}")
-            
+
             if receptacle_id:
                 # parent receptacle을 열기
                 self.navi.move_to(receptacle_id)
                 self.open(receptacle_id)
-                time.sleep(0.5)  
+                time.sleep(0.5)
 
                 # 물체를 다시 집기 시도
                 # 아니 왜 계란 못집냐고
@@ -92,17 +86,19 @@ class Action:
                     forceAction=True,
                     manualInteract=False,
                 )
-                print(result.metadata["lastActionSuccess"])
-                print(result.metadata["errorMessage"])
                 if result.metadata["lastActionSuccess"]:
                     # 물체를 성공적으로 집었으면 receptacle을 다시 닫기
                     self.close(receptacle_id)
                     return True
                 else:
-                    self.log_file.write(f"Failed to pick up object {object_id} even after opening the receptacle.")
+                    self.log_file.write(
+                        f"Failed to pick up object {object_id} even after opening the receptacle."
+                    )
                     return False
             else:
-                self.log_file.write(f"No parent receptacle found for object {object_id}.")
+                self.log_file.write(
+                    f"No parent receptacle found for object {object_id}."
+                )
                 return False
 
     def slice(self, object_id: str):

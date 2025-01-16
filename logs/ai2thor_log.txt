@@ -1,6 +1,0 @@
-Executing Subtask: Prepare Table with Available Itemssuccess
-Failed to pick up object Plate|+00.96|+01.65|-02.61 even after opening the receptacle.failure. Can't place an object if Agent isn't holding anything
-Alternative Action: Drop: failure. InvalidOperationException: Nothing is in the agent's hand to drop!. trace:   at UnityStandardAssets.Characters.FirstPerson.PhysicsRemoteFPSAgentController.DropHeldObject (System.Boolean forceAction, System.Boolean autoSimulation) [0x0000e] in <40d6a6c54fa349fab67f7470c3432f83>:0 
-  at UnityStandardAssets.Characters.FirstPerson.PhysicsRemoteFPSAgentController.DropHandObject (System.Boolean forceAction, System.Boolean autoSimulation) [0x00000] in <40d6a6c54fa349fab67f7470c3432f83>:0 
-  at (wrapper managed-to-native) System.Reflection.MonoMethod.InternalInvoke(System.Reflection.MonoMethod,object,object[],System.Exception&)
-  at System.Reflection.MonoMethod.Invoke (System.Object obj, System.Reflection.BindingFlags invokeAttr, System.Reflection.Binder binder, System.Object[] parameters, System.Globalization.CultureInfo culture) [0x00032] in <695d1cc93cca45069c528c15c9fdd749>:0 

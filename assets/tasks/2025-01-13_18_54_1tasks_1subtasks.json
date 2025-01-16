@@ -1,0 +1,21 @@
+[
+    {
+        "Task": "Wash Dishes",
+        "Subtasks": [
+            {
+                "Name": "Impossible: dished not in environment",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {},
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 0
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]

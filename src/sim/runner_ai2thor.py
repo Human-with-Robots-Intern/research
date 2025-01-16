@@ -1,3 +1,5 @@
+import json
+import os
 import random
 import logging
 from pathlib import Path
@@ -18,6 +20,8 @@ import numpy as np
 import math
 import time
 import re
+
+from utils.constants import KNOWLEDGE_PATH
 
 
 def create_module_logger(module_name, is_file_handler=False):
@@ -53,9 +57,13 @@ def get_environment(controller):  # 최종 환경 추출
     scene_name = controller.step("Pass").metadata["sceneName"]
     objs = controller.step("Pass").metadata["objects"]
     openable = []
+    openableID = []
     toggleable = []
+    toggleableID = []
     pickupable = []
+    pickupableID = []
     receptacle = []
+    receptacleID = []
 
     for obj in objs:
         if obj["openable"]:
@@ -72,16 +80,33 @@ def get_environment(controller):  # 최종 환경 추출
     pickupable = list(set(pickupable))
     receptacle = list(set(receptacle))
 
+    for obj in openable:
+        openable_ids = controller.step(action="ObjectTypeToObjectIds", objectType=obj).metadata["actionReturn"]
+        openableID.extend(openable_ids)
+    for obj in toggleable:
+        toggleable_ids = controller.step(action="ObjectTypeToObjectIds", objectType=obj).metadata["actionReturn"]
+        toggleableID.extend(toggleable_ids)
+    for obj in pickupable:
+        pickupable_ids = controller.step(action="ObjectTypeToObjectIds", objectType=obj).metadata["actionReturn"]
+        pickupableID.extend(pickupable_ids)
+    for obj in receptacle:
+        receptacle_ids = controller.step(action="ObjectTypeToObjectIds", objectType=obj).metadata["actionReturn"]
+        receptacleID.extend(receptacle_ids)
     env = {
         scene_name: {
-            "OPEN": openable,
-            "CLOSE": openable,
-            "TOGGLE_ON": toggleable,
-            "TOGGLE_OFF": toggleable,
-            "GRASP": pickupable,
-            "RECEPTACLE": receptacle,
+            "OPEN": openableID,
+            "CLOSE": openableID,
+            "TOGGLE_ON": toggleableID,
+            "TOGGLE_OFF": toggleableID,
+            "GRASP": pickupableID,
+            "RECEPTACLE": receptacleID,
         }
     }
+
+    print(f"{env=}")
+
+    with open(KNOWLEDGE_PATH / "ithor_environment.json", "w") as f:
+        json.dump(env, f)
 
     return env  # prompt 에 쓸 땐 str(env)로 바꿔줘야함
 

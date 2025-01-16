@@ -102,7 +102,7 @@ def check_simulation():
     print("o: omnigibson")
     print("a: ai2thor")
 
-    choice = str(input("Enter the alphabet of your choice: "))
+    choice = str(input("Enter the alphabet of your choice: ")).lower()
 
     return choice
 
