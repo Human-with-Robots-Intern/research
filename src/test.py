@@ -1,14 +1,11 @@
 import argparse
 import json
 import time
-from datetime import datetime
-from pathlib import Path
 
 from core import Task, TaskGraphBuilder, TaskTimingPlanner
-from utils.util import create_module_logger
-from sim.runner import execute_subtask, init_omnigibson
 from utils import generate_task, visualize
 from utils.constants import TASK_PATH
+from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -109,10 +106,6 @@ def main():
 
     # Initialize OmniGibson environment
     agent, env = None, None
-    if args.omnigibson:
-        env, agent = init_omnigibson()
-        if args.reset:
-            agent.reset_knowledge_to_gaussian()
 
     # Task scheduling
     start_time = time.time()
@@ -123,14 +116,6 @@ def main():
     elapsed_time = time.time() - start_time
     log.info(f"Task {task_name} scheduled in {elapsed_time:.2f} seconds")
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
-
-    # Task execution
-    if args.omnigibson and env:
-        try:
-            for scheduled_subtask in scheduled_subtasks:
-                execute_subtask(env, agent, scheduled_subtask)
-        except Exception as e:
-            log.error(f"Error executing task: {e}")
 
     # Result visualization
     if args.visualize:
