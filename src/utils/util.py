@@ -3,9 +3,9 @@ import signal
 import time
 from functools import wraps
 
-from omnigibson.utils.ui_utils import create_module_logger
+# from omnigibson.utils.ui_utils import create_module_logger
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+# log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class timeout:
@@ -31,7 +31,7 @@ def timeit(func):
         results = func(*args, **kwargs)
         end_time = time.time()
         elapsed_time = end_time - start_time
-        log.warning(f"Elapsed time: {elapsed_time:.2f} seconds")
+        # log.warning(f"Elapsed time: {elapsed_time:.2f} seconds")
         return results
 
     return wrapper

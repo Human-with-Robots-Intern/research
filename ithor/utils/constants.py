@@ -3,7 +3,7 @@
 # test.py
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-SCENE_NAME = "FloorPlan1_physics"
+SCENE_NAME = "FloorPlan1"
 GRID_SIZE = 0.125
 
 # MoveHandler.py

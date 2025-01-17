@@ -1,0 +1,92 @@
+[
+    {
+        "Task": "Wash Dish Three Times",
+        "Subtasks": [
+            {
+                "Name": "Wash Dish",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "DishSponge": 1,
+                        "Plate": 1,
+                        "SinkBasin": 1,
+                        "SoapBottle": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP DishSponge",
+                        "GRASP SoapBottle",
+                        "NAVIGATE_TO SinkBasin",
+                        "TOGGLE_ON Faucet",
+                        "PLACE_INSIDE SinkBasin",
+                        "PLACE_ON_TOP Plate",
+                        "PLACE_ON_TOP DishSponge",
+                        "PLACE_ON_TOP SoapBottle"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Repeat Washing Process",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "DishSponge": 1,
+                        "Plate": 1,
+                        "SinkBasin": 1,
+                        "SoapBottle": 1
+                    },
+                    "PrimitiveActions": [
+                        "PLACE_ON_TOP Plate",
+                        "PLACE_ON_TOP DishSponge",
+                        "PLACE_ON_TOP SoapBottle"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Wash Dish",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Final Wash",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "DishSponge": 1,
+                        "Plate": 1,
+                        "SinkBasin": 1,
+                        "SoapBottle": 1
+                    },
+                    "PrimitiveActions": [
+                        "PLACE_ON_TOP Plate",
+                        "PLACE_ON_TOP DishSponge",
+                        "PLACE_ON_TOP SoapBottle"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Repeat Washing Process",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]

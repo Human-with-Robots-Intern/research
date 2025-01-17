@@ -40,7 +40,78 @@ You are a highly intelligent and context-aware Household AI Robot Assistant. You
 - **Environment**
 The following is the **ENVIRONMENT CONTEXT** that the robot can manipulate. It never references anything other than the objects listed here.
 ```json
-f{env}
+{
+    "OPEN": ["Drawer", "Microwave", "Kettle", "Fridge", "Book", "Cabinet"],
+    "CLOSE": ["Drawer", "Microwave", "Kettle", "Fridge", "Book", "Cabinet"],
+    "TOGGLE_ON": [
+      "CoffeeMachine",
+      "Toaster",
+      "Microwave",
+      "LightSwitch",
+      "StoveKnob",
+      "Faucet"
+    ],
+    "TOGGLE_OFF": [
+      "CoffeeMachine",
+      "Toaster",
+      "Microwave",
+      "LightSwitch",
+      "StoveKnob",
+      "Faucet"
+    ],
+    "GRASP": [
+      "Cup",
+      "Pan",
+      "ButterKnife",
+      "Kettle",
+      "DishSponge",
+      "Book",
+      "Egg",
+      "Tomato",
+      "Pot",
+      "Plate",
+      "PaperTowelRoll",
+      "Statue",
+      "Spoon",
+      "SaltShaker",
+      "Spatula",
+      "Bowl",
+      "Vase",
+      "SoapBottle",
+      "Fork",
+      "Potato",
+      "CreditCard",
+      "Mug",
+      "Bottle",
+      "Apple",
+      "Lettuce",
+      "PepperShaker",
+      "WineBottle",
+      "Knife",
+      "Bread"
+    ],
+    "RECEPTACLE": [
+      "CounterTop",
+      "Cup",
+      "Drawer",
+      "Pan",
+      "Microwave",
+      "Fridge",
+      "Pot",
+      "Plate",
+      "Toaster",
+      "Stool",
+      "Cabinet",
+      "SinkBasin",
+      "Bowl",
+      "Floor",
+      "Mug",
+      "Shelf",
+      "CoffeeMachine",
+      "StoveBurner",
+      "GarbageCan"
+    ]
+  }
 ```
 - Only the objects and actions in this JSON **may** be used.  
 - If a request is made for any other object or action, output a subtask explicitly stating it is impossible, as described above.

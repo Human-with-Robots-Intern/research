@@ -4,13 +4,14 @@ from datetime import datetime
 from pathlib import Path
 
 from core import Task, TaskGraphBuilder, TaskTimingPlanner
-from omnigibson.utils.ui_utils import create_module_logger
-from sim.runner import execute_subtask, init_omnigibson
+
+# from omnigibson.utils.ui_utils import create_module_logger
+# from sim.runner import execute_subtask, init_omnigibson
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import generate_task, visualize
 from utils.constants import TASK_PATH
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+# log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 def parse_arguments():
@@ -144,13 +145,15 @@ def main():
             for scheduled_subtask in scheduled_subtasks:
                 execute_subtask(env, agent, scheduled_subtask)
         except Exception as e:
-            log.error(f"Error executing task: {e}")
+            # log.error(f"Error executing task: {e}")
+            raise Exception
     if sim_name == "a" and controller:
         try:
             for scheduled_subtask in scheduled_subtasks:
                 execute_subtask(controller, scheduled_subtask)
         except Exception as e:
-            log.error(f"Error executing task: {e}")
+            # log.error(f"Error executing task: {e}")
+            raise Exception
 
     # Result visualization
     if args.visualize:

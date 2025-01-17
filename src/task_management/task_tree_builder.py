@@ -3,11 +3,11 @@ from typing import List
 import networkx as nx
 from anytree import Node
 
-from omnigibson.utils.ui_utils import create_module_logger
+# from omnigibson.utils.ui_utils import create_module_logger
 from task_management.rule import ConstraintHandler, SlotHandler
 from utils.util import tasks_to_subtasks
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+# log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class TaskTree:
@@ -40,7 +40,7 @@ class TaskTree:
             end=parent_node.end + move_cost,
             duration=move_cost,
         )
-        log.debug(f"Added move node: {move_node.name} with duration {move_cost}")
+        # log.debug(f"Added move node: {move_node.name} with duration {move_cost}")
         return move_node
 
     def add_wait_node(
@@ -64,7 +64,7 @@ class TaskTree:
             end=parent_node.end + wait_time,
             duration=wait_time,
         )
-        log.debug(f"Added wait node: {wait_node.name} with duration {wait_time}")
+        # log.debug(f"Added wait node: {wait_node.name} with duration {wait_time}")
         return wait_node
 
     def add_subtask_node(self, parent_node: Node, subtask: "Subtask") -> Node:  # type: ignore
@@ -85,9 +85,9 @@ class TaskTree:
             end=parent_node.end + subtask.duration.interval,
             duration=subtask.duration.interval,
         )
-        log.debug(
-            f"Added subtask node: {subtask.name} with duration {subtask.duration.interval}"
-        )
+        # log.debug(
+        #     f"Added subtask node: {subtask.name} with duration {subtask.duration.interval}"
+        # )
         return subtask_node
 
 
@@ -115,7 +115,7 @@ class TaskTreeBuilder:
         """
         subtasks = tasks_to_subtasks(tasks)
         initial_subtasks = self.constraint_handler.get_initial_subtasks(subtasks)
-        log.info(f"Initial subtasks: {[subtask.name for subtask in initial_subtasks]}")
+        # log.info(f"Initial subtasks: {[subtask.name for subtask in initial_subtasks]}")
 
         for initial_subtask in initial_subtasks:
             self._node_expansion(self.tree.root_node, initial_subtask, subtasks)
@@ -148,12 +148,12 @@ class TaskTreeBuilder:
             subtask,
             self.constraint_handler.get_time_slot_and_urgency,
         )
-        log.info(f"Time slot for {subtask.name}: {time_slot}")
+        # log.info(f"Time slot for {subtask.name}: {time_slot}")
 
         if time_slot is None:
-            log.warning(
-                f"No available time slot for subtask '{subtask.name}'. Skipping."
-            )
+            # log.warning(
+            #     f"No available time slot for subtask '{subtask.name}'. Skipping."
+            # )
             return
 
         if time_slot > 0:
@@ -179,9 +179,9 @@ class TaskTreeBuilder:
         expandable_subtasks = self.constraint_handler.get_expandable_subtasks(
             parent_node, remaining_subtasks
         )
-        log.debug(
-            f"Expandable subtasks from '{subtask.name}': {[s.name for s in expandable_subtasks]}"
-        )
+        # log.debug(
+        #     f"Expandable subtasks from '{subtask.name}': {[s.name for s in expandable_subtasks]}"
+        # )
 
         for next_subtask in expandable_subtasks:
             self._node_expansion(parent_node, next_subtask, remaining_subtasks)
@@ -199,5 +199,5 @@ class TaskTreeBuilder:
         """
         # Placeholder implementation; replace with actual environment-based calculation
         move_cost = 0
-        log.debug(f"Calculated move cost to '{subtask.name}': {move_cost}")
+        # log.debug(f"Calculated move cost to '{subtask.name}': {move_cost}")
         return move_cost

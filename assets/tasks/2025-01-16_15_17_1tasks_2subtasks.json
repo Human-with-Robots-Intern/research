@@ -1,0 +1,54 @@
+[
+    {
+        "Task": "Wash Mugs",
+        "Subtasks": [
+            {
+                "Name": "Grasp Mug",
+                "Repetition": 3,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Mug": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Mug"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Clean Mug",
+                "Repetition": 3,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Mug": 1,
+                        "Faucet": 1,
+                        "DishSponge": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_ON Faucet",
+                        "GRASP DishSponge",
+                        "TOGGLE_OFF Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Grasp Mug",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    }
+]

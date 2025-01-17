@@ -1,0 +1,78 @@
+[
+    {
+        "Task": "Cook Egg Fry",
+        "Subtasks": [
+            {
+                "Name": "Prepare to fry egg",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Egg": 1,
+                        "Pan": 1,
+                        "StoveKnob": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Pan",
+                        "PLACE_ON_TOP StoveBurner",
+                        "Mornitoring Egg"
+                        "TOGGLE_ON StoveKnob"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Crack and cook egg",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Egg": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Egg",
+                        "PLACE_ON_TOP Pan"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Prepare to fry egg",
+                        "Interval": 1,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Turn off stove after cooking egg",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "StoveKnob": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF StoveKnob"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Crack and cook egg",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    }
+]

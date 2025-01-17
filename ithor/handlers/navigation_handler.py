@@ -124,13 +124,12 @@ class NavigationHandler:
 
         start = quantize_position(start)
         end = quantize_position(end)
-
         if start == end:
             return [start]
-
+        while not self.is_reachable(start):
+            start = quantize_position(self.adjust_to_nearest_reachable(start))
         while not self.is_reachable(end):
             end = quantize_position(self.adjust_to_nearest_reachable(end))
-
         q = deque()
         q.append([start])
         visited = set()
@@ -143,13 +142,12 @@ class NavigationHandler:
                 continue
 
             visited.add(pos)
-
             for neighbor in self.neighbors.get(pos, []):
                 if neighbor == end:
                     return path + [neighbor]
                 if neighbor not in visited:
                     q.append(path + [neighbor])
-
+        # return last_valid_path
         raise Exception(f"No path found between {start} and {end}. Check reachability.")
 
     def is_reachable(self, target_position):

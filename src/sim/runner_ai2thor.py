@@ -6,10 +6,7 @@ from pathlib import Path
 
 from ai2thor.controller import Controller
 
-from ithor.handlers.arm_handler import ArmHandler
 from ithor.handlers.camera_handler import CameraHandler
-from ithor.handlers.interaction_handler import InteractionHandler
-from ithor.handlers.move_handler import MoveHandler
 from ithor.handlers.navigation_handler import NavigationHandler
 
 from ithor.handlers.action import Action
@@ -49,7 +46,7 @@ def create_module_logger(module_name, is_file_handler=False):
     return logger
 
 
-log_file = open("logs/ai2thor_log.txt", "w", buffering=1)
+log_file = open(Path.cwd() / Path("logs/ai2thor_log.txt"), "w", buffering=1)
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
@@ -80,18 +77,33 @@ def get_environment(controller):  # 최종 환경 추출
     pickupable = list(set(pickupable))
     receptacle = list(set(receptacle))
 
+    objs = []
+
     for obj in openable:
-        openable_ids = controller.step(action="ObjectTypeToObjectIds", objectType=obj).metadata["actionReturn"]
+        openable_ids = controller.step(
+            action="ObjectTypeToObjectIds", objectType=obj
+        ).metadata["actionReturn"]
         openableID.extend(openable_ids)
+        objs.extend(openable_ids)
     for obj in toggleable:
-        toggleable_ids = controller.step(action="ObjectTypeToObjectIds", objectType=obj).metadata["actionReturn"]
+        toggleable_ids = controller.step(
+            action="ObjectTypeToObjectIds", objectType=obj
+        ).metadata["actionReturn"]
         toggleableID.extend(toggleable_ids)
+        objs.extend(toggleable_ids)
     for obj in pickupable:
-        pickupable_ids = controller.step(action="ObjectTypeToObjectIds", objectType=obj).metadata["actionReturn"]
+        pickupable_ids = controller.step(
+            action="ObjectTypeToObjectIds", objectType=obj
+        ).metadata["actionReturn"]
         pickupableID.extend(pickupable_ids)
+        objs.extend(pickupable_ids)
     for obj in receptacle:
-        receptacle_ids = controller.step(action="ObjectTypeToObjectIds", objectType=obj).metadata["actionReturn"]
+        receptacle_ids = controller.step(
+            action="ObjectTypeToObjectIds", objectType=obj
+        ).metadata["actionReturn"]
         receptacleID.extend(receptacle_ids)
+        objs.extend(receptacle_ids)
+    # breakable 추가하기
     env = {
         scene_name: {
             "OPEN": openableID,
@@ -103,12 +115,16 @@ def get_environment(controller):  # 최종 환경 추출
         }
     }
 
-    print(f"{env=}")
+    objs = list(set(objs))
 
-    with open(KNOWLEDGE_PATH / "ithor_environment.json", "w") as f:
+    with open(
+        KNOWLEDGE_PATH
+        / f"{controller.last_event.metadata['sceneName']}_environment.json",
+        "w",
+    ) as f:
         json.dump(env, f)
 
-    return env  # prompt 에 쓸 땐 str(env)로 바꿔줘야함
+    return env, objs  # prompt 에 쓸 땐 str(env)로 바꿔줘야함
 
 
 def init_ai2thor():

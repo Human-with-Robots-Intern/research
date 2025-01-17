@@ -4,11 +4,11 @@ from typing import List, Optional
 import networkx as nx
 from anytree import AsciiStyle, Node, RenderTree
 
-from omnigibson.utils.ui_utils import create_module_logger
+# from omnigibson.utils.ui_utils import create_module_logger
 from task_management.task_tree_builder import TaskTreeBuilder
 from utils.util import tasks_to_subtasks, timeit
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+# log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class TaskTimingPlanner:
@@ -39,7 +39,7 @@ class TaskTimingPlanner:
         """
         opt_task_tree = self._get_optimal_tree()
         self._print_plan(opt_task_tree)
-        
+
         return self.task_tree, opt_task_tree
 
     def convert_to_tasks(self, opt_task_tree: Node) -> List["Subtask"]:
@@ -54,7 +54,7 @@ class TaskTimingPlanner:
         """
         all_subtasks = tasks_to_subtasks(self.tasks)
         all_subtask_names = [subtask.name for subtask in all_subtasks]
-        log.debug(f"All subtask names: {all_subtask_names}")
+        # log.debug(f"All subtask names: {all_subtask_names}")
 
         subtasks_in_plan = []
         for node in opt_task_tree.leaves[0].path[1:]:
@@ -67,9 +67,9 @@ class TaskTimingPlanner:
                 if matching_subtask:
                     subtasks_in_plan.append(matching_subtask)
 
-        log.info(
-            f"Subtasks in optimal plan: {[subtask.name for subtask in subtasks_in_plan]}"
-        )
+        # log.info(
+        #     f"Subtasks in optimal plan: {[subtask.name for subtask in subtasks_in_plan]}"
+        # )
         return subtasks_in_plan
 
     def _get_optimal_tree(self) -> Node:
@@ -82,7 +82,7 @@ class TaskTimingPlanner:
         task_tree_copy = copy.deepcopy(self.task_tree)
         leaf_nodes = self._get_leaf_nodes(task_tree_copy)
         all_subtask_names = set(tasks_to_subtasks(self.tasks, mode="name"))
-        log.debug(f"All subtask names: {all_subtask_names}")
+        # log.debug(f"All subtask names: {all_subtask_names}")
 
         # Find leaf nodes whose paths include all subtask names
         complete_leaf_paths = []
@@ -164,9 +164,9 @@ class TaskTimingPlanner:
             ):
                 included_subtask_names.add(current.name)
             current = current.parent
-        log.debug(
-            f"Included subtask names for leaf '{leaf_node.name}': {included_subtask_names}"
-        )
+        # log.debug(
+        #     f"Included subtask names for leaf '{leaf_node.name}': {included_subtask_names}"
+        # )
         return included_subtask_names
 
     def _print_plan(self, tree_root: Node) -> None:
@@ -179,4 +179,4 @@ class TaskTimingPlanner:
         print(RenderTree(tree_root, style=AsciiStyle()).by_attr())
         total_time_cost = tree_root.leaves[0].end
         print(f"Total time cost: {total_time_cost}")
-        log.info(f"Optimal plan total time cost: {total_time_cost}")
+        # log.info(f"Optimal plan total time cost: {total_time_cost}")

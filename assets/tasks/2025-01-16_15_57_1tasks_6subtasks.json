@@ -1,0 +1,146 @@
+[
+    {
+        "Task": "Wash the Dishes",
+        "Subtasks": [
+            {
+                "Name": "Grasp DishSponge",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "DishSponge": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP DishSponge"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Grasp SoapBottle",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "SoapBottle": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP SoapBottle"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Grasp DishSponge",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Pour Soap on DishSponge",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "SoapBottle": 1,
+                        "DishSponge": 1
+                    },
+                    "PrimitiveActions": [
+                        "PLACE_ON_TOP DishSponge"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Grasp SoapBottle",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Turn on Faucet",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_ON Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Pour Soap on DishSponge",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Wash Dishes",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "DishSponge": 1,
+                        "SinkBasin": 1
+                    },
+                    "PrimitiveActions": [
+                        "PLACE_INSIDE SinkBasin"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn on Faucet",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Turn off Faucet",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Wash Dishes",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    }
+]

@@ -5,10 +5,10 @@ from typing import Any, Dict, List
 
 import numpy as np
 
-from omnigibson.utils.ui_utils import create_module_logger
+# from omnigibson.utils.ui_utils import create_module_logger
 from utils.constants import KNOWLEDGE_PATH
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+# log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 @dataclass
@@ -90,7 +90,7 @@ class BayesianAgent:
         for subtask in self.knowledge.get("Subtask", {}).keys():
             self.knowledge["Subtask"][subtask] = self._initialize_gaussian()
 
-        log.info("Knowledge successfully reset to Gaussian.")
+        # log.info("Knowledge successfully reset to Gaussian.")
         self._save_knowledge(KNOWLEDGE_PATH)
 
     def _load_knowledge(self, knowledge_path: Path) -> Dict[str, Any]:
@@ -108,12 +108,14 @@ class BayesianAgent:
             try:
                 with knowledge_file.open("r") as f:
                     knowledge = json.load(f)
-                log.info("Knowledge loaded successfully.")
+                # log.info("Knowledge loaded successfully.")
                 return knowledge
             except json.JSONDecodeError as e:
-                log.error(f"Error decoding knowledge file: {e}")
+                # log.error(f"Error decoding knowledge file: {e}")
+                raise json.JSONDecodeError
         else:
-            log.warning("Knowledge file not found. Initializing default knowledge.")
+            # log.warning("Knowledge file not found. Initializing default knowledge.")
+            pass
 
         # Return default knowledge if file not found or error occurs
         return self.DEFAULT_KNOWLEDGE.copy()
@@ -130,9 +132,10 @@ class BayesianAgent:
         try:
             with knowledge_file.open("w") as f:
                 json.dump(self.knowledge, f, indent=4, ensure_ascii=False)
-            log.info("Knowledge saved successfully.")
+            # log.info("Knowledge saved successfully.")
         except Exception as e:
-            log.error(f"Error saving knowledge: {e}")
+            # log.error(f"Error saving knowledge: {e}")
+            raise Exception
 
     def _get_subtask_duration(self, subtask: "Subtask") -> float:
         """
@@ -149,9 +152,9 @@ class BayesianAgent:
 
         if subtask_data:
             expected_duration = subtask_data.get("expected_duration")
-            log.info(
-                f"Using known duration for subtask '{subtask_name}': {expected_duration}"
-            )
+            # log.info(
+            #     f"Using known duration for subtask '{subtask_name}': {expected_duration}"
+            # )
         else:
             # If no prior knowledge, calculate from actions
             expected_duration = self._calculate_subtask_duration_from_actions(subtask)
@@ -162,9 +165,9 @@ class BayesianAgent:
                 "variance": variance,
                 "occurrences": 0,
             }
-            log.info(
-                f"Estimated duration for new subtask '{subtask_name}': {expected_duration}"
-            )
+            # log.info(
+            #     f"Estimated duration for new subtask '{subtask_name}': {expected_duration}"
+            # )
             self._save_knowledge(KNOWLEDGE_PATH)
 
         return expected_duration
@@ -210,9 +213,9 @@ class BayesianAgent:
                     "variance": 1.0,
                     "occurrences": 0,
                 }
-                log.warning(
-                    f"Action '{action_name}' unknown. Assuming default duration {action_duration}."
-                )
+                # log.warning(
+                #     f"Action '{action_name}' unknown. Assuming default duration {action_duration}."
+                # )
                 self._save_knowledge(KNOWLEDGE_PATH)
 
             total_duration += action_duration
@@ -252,9 +255,9 @@ class BayesianAgent:
         subtask_data["variance"] = updated_variance
         subtask_data["occurrences"] = occurrences
 
-        log.info(f"Updated knowledge for subtask '{subtask_name}':")
-        log.info(f"  - Duration: {prior_mean:.2f} -> {updated_mean:.2f}")
-        log.info(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
+        # log.info(f"Updated knowledge for subtask '{subtask_name}':")
+        # log.info(f"  - Duration: {prior_mean:.2f} -> {updated_mean:.2f}")
+        # log.info(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
 
         # Save knowledge
         self._save_knowledge(KNOWLEDGE_PATH)
@@ -293,12 +296,13 @@ class BayesianAgent:
         action_data["variance"] = updated_variance
         action_data["occurrences"] = occurrences
 
-        log.info(f"Updated knowledge for action '{action_name}':")
-        log.info(f"  - Duration: {prior_mean:.2f} -> {updated_mean:.2f}")
-        log.info(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
+        # log.info(f"Updated knowledge for action '{action_name}':")
+        # log.info(f"  - Duration: {prior_mean:.2f} -> {updated_mean:.2f}")
+        # log.info(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
 
         # Save knowledge
         self._save_knowledge(KNOWLEDGE_PATH)
+
 
 # TODO 이 로직을 재사용해야해. 작업 예상시간 넘으면 재추정해야하거든.
 # def run_task(self, task_info):

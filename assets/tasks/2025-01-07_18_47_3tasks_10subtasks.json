@@ -193,8 +193,8 @@
                         "sink_zexzrc": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Dish",
-                        "GRASP Dish",
+                        "NAVIGATE_TO Dish_01",
+                        "GRASP Dish_01",
                         "NAVIGATE_TO sink_zexzrc",
                         "PLACE_INSIDE sink_zexzrc"
                     ]
@@ -207,7 +207,7 @@
             },
             {
                 "Name": "Wash Dishes",
-                "Repetition": 1,
+                "Repetition": 3,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {

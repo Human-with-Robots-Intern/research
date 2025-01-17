@@ -38,13 +38,6 @@ class Action:
                 if "parentReceptacles" in obj:
                     parent_receptacle_ids = obj["parentReceptacles"]
                     break
-        # for rec in parent_receptacle_ids:
-        #     for obj in object_metadata:
-        #         if obj["objectId"] == rec and obj["visible"]:
-        #             print("visible 이 아니야?")
-        #             parent_receptacle_id = rec
-        #             break
-        # 어차피 한 개만 들어감 parent_receptacle 에
         parent_receptacle_id = parent_receptacle_ids[0]
         return parent_receptacle_id
 
@@ -187,3 +180,31 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
+
+    def mornitoring(self, object_id: str):
+        # object를 바라보게 하고 다시 돌아봐야함
+        agent_position = self.navi.get_agent_position()
+        object_position = self.navi.get_object_position(object_id)
+
+        obj_angle, degree = self.navi.agent_rotate_angle(
+            agent_position, object_position
+        )
+        for _ in range(3):  # 그냥 회전하는거 잘 보고싶어서 세 번에 나누어서 회전
+            # 일단 회전하고
+            self.controller.step(action="RotateRight", degrees=degree)
+            success = self.controller.last_event.metadata["lastActionSuccess"]
+            # 실패하면 움직여서 다시 한 번 더 도전. 여기는 while문을 써야할까?
+            if not success:
+                self.move_in_direction(-obj_angle, 0.2)
+                self.controller.step(action="RotateRight", degrees=degree)
+                self.camera_handler.update_view()
+            self.controller.step(action="Pass")
+            self.camera_handler.update_view()
+            time.sleep(0.2)
+        time.sleep(1)
+        for _ in range(3):
+            self.controller.step(action="RotateLeft", degrees=degree)
+            self.camera_handler.update_view()
+            time.sleep(0.2)
+        self.controller.step("Pass")
+        time.sleep(1)

@@ -1,0 +1,176 @@
+[
+    {
+        "Task": "Wash plate and move it back three times",
+        "Subtasks": [
+            {
+                "Name": "Grasp Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Navigate to SinkBasin",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {},
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO SinkBasin"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Grasp Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Place Plate in SinkBasin",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "PLACE_INSIDE SinkBasin"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Navigate to SinkBasin",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Wash Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1,
+                        "DishSponge": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_ON Faucet",
+                        "GRASP DishSponge"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Place Plate in SinkBasin",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Turn off Faucet",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Wash Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Place Plate on CounterTop",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate",
+                        "PLACE_ON_TOP CounterTop"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn off Faucet",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Move Plate back to SinkBasin and CounterTop two more times",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate",
+                        "PLACE_INSIDE SinkBasin",
+                        "GRASP Plate",
+                        "PLACE_ON_TOP CounterTop",
+                        "GRASP Plate",
+                        "PLACE_INSIDE SinkBasin",
+                        "GRASP Plate",
+                        "PLACE_ON_TOP CounterTop"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 4
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Place Plate on CounterTop",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    }
+]
