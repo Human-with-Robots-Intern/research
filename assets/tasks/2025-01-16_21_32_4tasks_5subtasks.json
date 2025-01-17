@@ -1,0 +1,123 @@
+[
+    {
+        "Task": "Wash Dishes",
+        "Subtasks": [
+            {
+                "Name": "Impossible: wash not in environment",
+                "Repetition": 4,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {},
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 0
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Wash a Dish",
+        "Subtasks": [
+            {
+                "Name": "Impossible: wash not in environment",
+                "Repetition": 3,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {},
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 0
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Wash Vegetables",
+        "Subtasks": [
+            {
+                "Name": "Impossible: wash not in environment",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Tomato": 1,
+                        "Potato": 1
+                    },
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 0
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Cook Egg Fry",
+        "Subtasks": [
+            {
+                "Name": "Cook Egg Fry",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Egg": 1,
+                        "Pan": 1,
+                        "StoveKnob": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Egg",
+                        "GRASP Egg",
+                        "NAVIGATE_TO Pan",
+                        "PLACE_INSIDE Pan",
+                        "NAVIGATE_TO StoveKnob",
+                        "TOGGLE_ON StoveKnob"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Finish Cooking Egg Fry",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Pan": 1,
+                        "Egg": 1,
+                        "StoveKnob": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF StoveKnob",
+                        "NAVIGATE_TO Pan",
+                        "GRASP Pan",
+                        "NAVIGATE_TO Plate_aaa",
+                        "PLACE_ON_TOP Plate_aaa"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Cook Egg Fry",
+                        "Interval": 5,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    }
+]

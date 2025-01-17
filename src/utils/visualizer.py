@@ -11,13 +11,15 @@ from utils.constants import VIS_PATH
 
 
 def visualize(task_name, constraints, task_tree=None, opt_task_tree=None):
-    folder_name = datetime.now().strftime("%Y-%m-%d_%H") + f"_{task_name}"
+    folder_name = task_name
     save_folder_path = Path(VIS_PATH) / folder_name
     save_folder_path.mkdir(exist_ok=True)  # Create the folder if it doesn't exist
 
     visualize_graph(constraints, save_folder_path)
-    visualize_tree(task_tree, opt_task_tree, save_folder_path)
-    plot_gantt_chart(opt_task_tree, save_folder_path)
+    if task_tree:
+        visualize_tree(task_tree, opt_task_tree, save_folder_path)
+        if opt_task_tree:
+            plot_gantt_chart(opt_task_tree, save_folder_path)
 
 
 def visualize_tree(task_tree, opt_task_tree, save_folder_path):
@@ -39,8 +41,6 @@ def visualize_tree(task_tree, opt_task_tree, save_folder_path):
         UniqueDotExporter(opt_task_tree).to_picture(
             Path(save_folder_path) / "opt_task_tree.png"
         )
-    else:
-        raise ValueError("Either task_tree or opt_task_tree must be provided.")
 
 
 def visualize_graph(G: nx.DiGraph, save_folder_path):

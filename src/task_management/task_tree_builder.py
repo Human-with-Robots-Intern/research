@@ -3,11 +3,11 @@ from typing import List
 import networkx as nx
 from anytree import Node
 
-from omnigibson.utils.ui_utils import create_module_logger
+from utils.util import create_module_logger
 from task_management.rule import ConstraintHandler, SlotHandler
 from utils.util import tasks_to_subtasks
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+log = create_module_logger(module_name=__name__, is_file_handler=False)
 
 
 class TaskTree:
@@ -115,7 +115,7 @@ class TaskTreeBuilder:
         """
         subtasks = tasks_to_subtasks(tasks)
         initial_subtasks = self.constraint_handler.get_initial_subtasks(subtasks)
-        log.info(f"Initial subtasks: {[subtask.name for subtask in initial_subtasks]}")
+        # log.info(f"Initial subtasks: {[subtask.name for subtask in initial_subtasks]}")
 
         for initial_subtask in initial_subtasks:
             self._node_expansion(self.tree.root_node, initial_subtask, subtasks)

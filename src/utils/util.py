@@ -1,7 +1,37 @@
 import json
+import logging
 import signal
 import time
 from functools import wraps
+from pathlib import Path
+
+
+def create_module_logger(module_name, is_file_handler=False):
+    """
+    Creates and returns a logger for logging statements from the module represented by @module_name
+
+    Args:
+    module_name (str): Module to create the logger for. Should be the module's `__name__` variable
+
+    Returns:
+        Logger: Created logger for the module
+    """
+
+    logger = logging.getLogger(module_name)
+    if is_file_handler:
+        logger.setLevel("DEBUG")
+        file_handler = logging.FileHandler(
+            f"{ Path(__file__).resolve().parent.parent.parent}/logs/{module_name}.log",
+            "a",
+        )
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        )
+        logger.addHandler(file_handler)
+    return logger
+
+
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class timeout:
@@ -24,11 +54,11 @@ def timeit(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         start_time = time.time()
-        func(*args, **kwargs)
+        results = func(*args, **kwargs)
         end_time = time.time()
         elapsed_time = end_time - start_time
-
-        return elapsed_time
+        log.warning(f"Elapsed time: {elapsed_time:.2f} seconds")
+        return results
 
     return wrapper
 
@@ -40,8 +70,9 @@ def tasks_to_subtasks(tasks, mode="all"):
             subtasks.extend(task.subtasks)
     elif mode == "name":
         for task in tasks:
+            print(subtasks)
             subtasks.extend([subtask.name for subtask in task.subtasks])
-            subtasks = set(subtasks)
+    subtasks = set(subtasks)
 
     return subtasks
 

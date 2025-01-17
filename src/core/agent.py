@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 
-from omnigibson.utils.ui_utils import create_module_logger
+from utils.util import create_module_logger
 from utils.constants import KNOWLEDGE_PATH
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
@@ -299,3 +299,51 @@ class BayesianAgent:
 
         # Save knowledge
         self._save_knowledge(KNOWLEDGE_PATH)
+
+# TODO 이 로직을 재사용해야해. 작업 예상시간 넘으면 재추정해야하거든.
+# def run_task(self, task_info):
+#         print("\n===================================")
+#         print(f"Task {task_info.idx + 1}: {task_info.plan_task.name}")
+#         print("-----------------------------------")
+#         print(
+#             f"  - Planned Task Schedule Info: {task_info.plan_task.start:.2f} ~ {task_info.plan_task.end:.2f} ({task_info.plan_task.duration:.2f})"
+#         )
+#         print(
+#             f"  - Noise Task Schedule Info: {task_info.sim_task.start:.2f} ~ {task_info.sim_task.end:.2f} ({task_info.sim_task.duration:.2f})"
+#         )
+#         print("-----------------------------------")
+
+#         task_duration_dist = norm(
+#             loc=task_info.plan_task.duration, scale=(task_info.plan_task.duration / 2)
+#         )
+#         t_c = task_info.start_time
+
+#         while True:
+#             t_c += self.config.interval
+#             elapsed_time = t_c - task_info.start_time
+
+#             if task_duration_dist.cdf(elapsed_time) >= self.config.criteria:
+#                 print(f"   [Time: {t_c:.2f}] Elapsed: {elapsed_time:.2f}", end="")
+#                 task_duration_dist = self.bayesian_estimation(
+#                     task_duration_dist, elapsed_time
+#                 )
+
+#             if task_info.sim_task.end <= t_c:
+#                 print(f"   [Time: {t_c:.2f}] Elapsed: {elapsed_time:.2f}", end="")
+#                 task_duration_dist = self.bayesian_estimation(
+#                     task_duration_dist, elapsed_time
+#                 )
+
+#                 if task_info.plan_task is not None:
+#                     pass
+
+#                 print("\n-----------------------------------")
+#                 print(f"   Planned Task Duration: {task_info.plan_task.duration:.2f}")
+#                 print(f"   Real Task Duration: {task_info.sim_task.duration:.2f}")
+#                 print(
+#                     f"   Duration updated: {task_info.plan_task.duration:.2f} -> {task_duration_dist.mean():.2f}"
+#                 )
+#                 print("===================================")
+#                 break
+
+#         return t_c
