@@ -1,3 +1,5 @@
+import itertools
+from queue import PriorityQueue
 from typing import List
 
 import networkx as nx
@@ -21,27 +23,6 @@ class TaskTree:
             end=0,
             duration=0,
         )
-
-    def add_move_node(self, parent_node: Node, move_cost: int) -> Node:
-        """
-        Add a move node to the task tree.
-
-        Args:
-            parent_node (Node): The parent node to attach the move node to.
-            move_cost (int): The cost (duration) of the move.
-
-        Returns:
-            Node: The newly created move node.
-        """
-        move_node = Node(
-            name=f"Move for {parent_node.name}",
-            parent=parent_node,
-            start=parent_node.end,
-            end=parent_node.end + move_cost,
-            duration=move_cost,
-        )
-        log.debug(f"Added move node: {move_node.name} with duration {move_cost}")
-        return move_node
 
     def add_wait_node(
         self, parent_node: Node, subtask_name: str, wait_time: int
@@ -92,20 +73,23 @@ class TaskTree:
 
 
 class TaskTreeBuilder:
-    def __init__(self, constraints: nx.DiGraph):
+    def __init__(self, constraints: nx.DiGraph, beam_width: int = 3):
         """
-        Initialize the TaskTreeBuilder.
+        Initialize the TaskTreeBuilder with Beam Search.
 
         Args:
-            constraints (nx.DiGraph): A directed graph representing task constraints.
+            constraints (nx.DiGraph): Directed graph representing task constraints.
+            beam_width (int): The number of top nodes to expand at each level.
         """
         self.tree = TaskTree()
+        self.beam_width = beam_width
         self.constraint_handler = ConstraintHandler(constraints)
         self.slot_handler = SlotHandler(self._node_expansion)
+        self.counter = itertools.count()
 
     def build_tree(self, tasks: List["Task"]) -> Node:  # type: ignore
         """
-        Build the task tree based on the given tasks and constraints.
+        Build the task tree using Beam Search.
 
         Args:
             tasks (List[Task]): A list of tasks to build the tree from.
@@ -115,33 +99,54 @@ class TaskTreeBuilder:
         """
         subtasks = tasks_to_subtasks(tasks)
         initial_subtasks = self.constraint_handler.get_initial_subtasks(subtasks)
-        # log.info(f"Initial subtasks: {[subtask.name for subtask in initial_subtasks]}")
 
-        for initial_subtask in initial_subtasks:
-            self._node_expansion(self.tree.root_node, initial_subtask, subtasks)
+        # Priority queue for beam search
+        current_level = PriorityQueue()
+        counter = itertools.count()  # Unique ID generator for tie-breaking
+        current_level.put((0, next(counter), self.tree.root_node))  # (cost, id, node)
+
+        while not current_level.empty():
+            next_level = PriorityQueue()
+
+            # Process current level's nodes
+            for _ in range(min(self.beam_width, current_level.qsize())):
+                _, _, parent_node = current_level.get()
+
+                # Expand subtasks for each node
+                for subtask in initial_subtasks:
+                    if not self._can_expand_node(parent_node, subtask, subtasks):
+                        continue
+
+                    self._node_expansion(
+                        parent_node, subtask, subtasks, next_level, counter
+                    )
+
+            # Limit to top-k nodes for the next level
+            current_level = PriorityQueue()
+            for _ in range(min(self.beam_width, next_level.qsize())):
+                cost, id, node = next_level.get()
+                current_level.put((cost, id, node))
 
         return self.tree.root_node
 
     def _node_expansion(
-        self, parent_node: Node, subtask: "Subtask", subtasks: List["Subtask"]  # type: ignore
+        self,
+        parent_node: Node,
+        subtask: "Subtask",
+        remaining_subtasks: List["Subtask"],
+        next_level: PriorityQueue,
+        counter: itertools.count,
     ) -> None:
         """
-        Recursively expand nodes in the task tree.
+        Expand a node in the task tree using SlotHandler and add it to the next level.
 
         Args:
             parent_node (Node): The parent node to expand from.
             subtask (Subtask): The subtask to process.
-            subtasks (List[Subtask]): Remaining subtasks to consider.
+            remaining_subtasks (List[Subtask]): Remaining subtasks to consider.
+            next_level (PriorityQueue): Priority queue for the next level.
+            counter (itertools.count): Unique counter for generating IDs.
         """
-        remaining_subtasks = subtasks.copy()
-        remaining_subtasks.remove(subtask)
-
-        # TODO: Calculate move cost using RRT or other path planning methods
-        move_cost = self._calculate_move_cost(parent_node, subtask)
-
-        if move_cost > 0:
-            parent_node = self.tree.add_move_node(parent_node, move_cost)
-
         # Handle time slots
         time_slot, _ = self.slot_handler.compress_time_slots(
             parent_node,
@@ -157,7 +162,6 @@ class TaskTreeBuilder:
             return
 
         if time_slot > 0:
-            # Handle subtasks within the time slot
             parent_node, wait_time, remaining_subtasks = (
                 self.slot_handler.handle_time_slots(
                     parent_node,
@@ -173,31 +177,51 @@ class TaskTreeBuilder:
                 )
 
         # Add subtask node
-        parent_node = self.tree.add_subtask_node(parent_node, subtask)
+        new_node = self.tree.add_subtask_node(parent_node, subtask)
 
-        # Process expandable subtasks
-        expandable_subtasks = self.constraint_handler.get_expandable_subtasks(
-            parent_node, remaining_subtasks
-        )
-        log.debug(
-            f"Expandable subtasks from '{subtask.name}': {[s.name for s in expandable_subtasks]}"
-        )
+        # Calculate cost and add to next level with unique ID
+        cost = self._evaluate_node(new_node, subtask)
+        next_level.put((cost, next(counter), new_node))
 
-        for next_subtask in expandable_subtasks:
-            self._node_expansion(parent_node, next_subtask, remaining_subtasks)
-
-    def _calculate_move_cost(self, parent_node: Node, subtask: "Subtask") -> int:  # type: ignore
+    def _can_expand_node(
+        self, parent_node: Node, subtask: "Subtask", subtasks: List["Subtask"]
+    ) -> bool:
         """
-        Calculate the move cost to the subtask's location.
+        Check if a node can be expanded based on constraints.
 
         Args:
-            parent_node (Node): The current node in the task tree.
-            subtask (Subtask): The subtask to move to.
+            parent_node (Node): Current parent node.
+            subtask (Subtask): Subtask to check.
+            subtasks (List[Subtask]): List of remaining subtasks.
 
         Returns:
-            int: The calculated move cost.
+            bool: True if the node can be expanded, False otherwise.
         """
-        # Placeholder implementation; replace with actual environment-based calculation
-        move_cost = 0
-        log.debug(f"Calculated move cost to '{subtask.name}': {move_cost}")
-        return move_cost
+        time_slot, _ = self.slot_handler.compress_time_slots(
+            parent_node,
+            subtask,
+            self.constraint_handler.get_time_slot_and_urgency,
+        )
+        return time_slot is not None
+
+    def _evaluate_node(self, node: Node, subtask: "Subtask") -> int:
+        """
+        Evaluate the cost of a node.
+
+        Args:
+            node (Node): The node to evaluate.
+            subtask (Subtask): The associated subtask.
+
+        Returns:
+            int: The calculated cost.
+        """
+        # 노드의 누적 시간 낮고, 
+        duration_cost = subtask.duration.interval
+        soft_constraint_penalty = 0
+        soft_constraint_penalty = self.constraint_handler.get_soft_constraint_penalty(
+            node, subtask
+        )
+        conflict_penalty = self.constraint_handler.get_conflict_penalty(node, subtask)
+        soft_constraint_penalty += conflict_penalty
+
+        return duration_cost + soft_constraint_penalty
