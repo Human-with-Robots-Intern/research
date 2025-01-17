@@ -3,7 +3,7 @@ from typing import List
 import networkx as nx
 from anytree import Node
 
-from omnigibson.utils.ui_utils import create_module_logger
+from utils.util import create_module_logger
 from task_management.rule import ConstraintHandler, SlotHandler
 from utils.util import tasks_to_subtasks
 

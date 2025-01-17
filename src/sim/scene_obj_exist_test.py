@@ -5,7 +5,7 @@ import yaml
 import omnigibson as og
 from omnigibson.macros import gm
 from omnigibson.robots.manipulation_robot import ManipulationRobot
-from omnigibson.utils.ui_utils import create_module_logger
+from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
