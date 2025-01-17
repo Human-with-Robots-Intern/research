@@ -210,6 +210,7 @@ def execute_subtask(controller, subtask):
     }
 
     # Execute each primitive action
+    time = 0
     for action_str in primitive_actions:
         # Split action into type and target
         parts = action_str.split(" ", 1)
@@ -218,7 +219,7 @@ def execute_subtask(controller, subtask):
             raise ValueError(f"Invalid action format: {action_str}")
 
         action_type, target_name = parts
-        target_obj = object_registry.get(target_name)
+        # subtask 의 obj 명이 ID가 아니라 name으로 출력돼서 필요한 줄.
         target_obj_ID = find_objID(controller, target_name.lower())
         print(f"{action_type=}")
         print(f"{target_obj_ID=}")
@@ -227,17 +228,19 @@ def execute_subtask(controller, subtask):
 
             # 실행된 제너레이터의 최종 결과를 success로 받음
             generator = action_mapping[action_type](target_obj_ID)
+            time+=generator
+            print(f"{time=}")
             try:
                 for result in generator:
                     pass
                 success = True  # 제너레이터가 정상적으로 완료되면 성공
             except StopIteration:
                 success = True
-            except Exception as e:
-                log.error(f"Error executing action '{action_type}': {e}")
-                success = False
+            # except Exception as e:
+            #     log.error(f"Error executing action '{action_type}': {e}")
+            #     success = False
         else:
             log.warning(f"Unknown action type: {action_type}. Skipping.")
-
+    print(f"걸린시간 = {time}")
     log.info(f"Successfully executed Subtask: {subtask.name}")
     return success

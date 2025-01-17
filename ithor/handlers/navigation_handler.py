@@ -4,7 +4,6 @@ from ..utils.constants import GRID_SIZE
 from ..utils.math_utils import (
     closest_position,
     quantize_position,
-    calculate_rotation_angle,
 )
 
 import math
@@ -78,6 +77,8 @@ class NavigationHandler:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.2)
+
+        return round(len(path) * 0.1, 2)
 
     def adjust_camera_to_object(self, object):
         """

@@ -43,6 +43,7 @@ class Action:
 
     def pickup(self, object_id: str):
         # 물체 앞으로 갔으니 강제로 물체 집게 함.
+        elapsed_time = 0
         result = self.controller.step(
             action="PickupObject",
             objectId=object_id,
@@ -56,23 +57,20 @@ class Action:
             self.controller.step(action="Pass")
             self.camera_handler.update_view()
             time.sleep(0.3)
-            return True
+            elapsed_time+=1
+            return elapsed_time
         else:
             # 물체를 집지 못한 경우, parent receptacle을 열고 다시 시도
             receptacle_id = self.get_parent_receptacle(object_id)
 
             if receptacle_id:
                 # parent receptacle을 열기
-                self.navi.move_to(receptacle_id)
+                elapsed_time+=self.navi.move_to(receptacle_id)
                 self.open(receptacle_id)
+                elapsed_time+=1
                 time.sleep(0.5)
 
                 # 물체를 다시 집기 시도
-                # 아니 왜 계란 못집냐고
-                # 나이프도 못집고
-                # plate도 못집음
-                # Egg|-02.04|+00.81|+01.24 must have the property CanPickup to be picked up.
-                # Plate|+00.96|+01.65|-02.61 must have the property CanPickup to be picked up.
                 result = self.controller.step(
                     action="PickupObject",
                     objectId=object_id,
@@ -82,7 +80,8 @@ class Action:
                 if result.metadata["lastActionSuccess"]:
                     # 물체를 성공적으로 집었으면 receptacle을 다시 닫기
                     self.close(receptacle_id)
-                    return True
+                    elapsed_time+=1
+                    return elapsed_time
                 else:
                     self.log_file.write(
                         f"Failed to pick up object {object_id} even after opening the receptacle."
@@ -100,8 +99,10 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
+        return 1
 
     def put(self, target_id: str):
+        elapsed_time = 1
         # 집어넣는거
         self.controller.step(
             action="PutObject",
@@ -116,6 +117,7 @@ class Action:
         if not self.controller.last_event.metadata["lastActionSuccess"]:
             self.controller.step("MoveAhead")
             self.controller.step(action="DropHandObject", forceAction=True)
+            elapsed_time+=1
         self.log_file.write(
             "Alternative Action: Drop: " + self.last_action_success(self.controller)
         )
@@ -123,6 +125,8 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
+        elapsed_time+=1
+        return elapsed_time
 
     def drop(self):
         self.controller.step(action="DropHandObject", forceAction=False)
@@ -140,6 +144,7 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
+        return 1
 
     def toggleon(self, object_id: str):
         self.controller.step(action="ToggleObjectOn", objectId=object_id)
@@ -147,6 +152,7 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
+        return 1
 
     def toggleoff(self, object_id: str):
         self.controller.step(action="ToggleObjectOff", objectId=object_id)
@@ -154,12 +160,15 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
+        return 1
 
     def open(self, object_id: str):
+        elapsed_time = 0
         # 일단 두 발자국 물러나기
         for i in range(2):
             self.controller.step(action="MoveBack", moveMagnitude=None)
             self.controller.step(action="Pass")
+            elapsed_time += 0.1
         self.camera_handler.update_view()
         time.sleep(0.1)
 
@@ -171,6 +180,8 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
+        elapsed_time +=1
+        return elapsed_time
 
     def close(self, object_id: str):
         self.controller.step(
@@ -180,6 +191,7 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
+        return 1
 
     def mornitoring(self, object_id: str):
         # object를 바라보게 하고 다시 돌아봐야함
@@ -208,3 +220,4 @@ class Action:
             time.sleep(0.2)
         self.controller.step("Pass")
         time.sleep(1)
+        return 0.1
