@@ -5,9 +5,8 @@ from typing import List, Tuple
 import networkx as nx
 from anytree import Node
 
-from utils.util import create_module_logger
 from task_management.rule import ConstraintHandler, SlotHandler
-from utils.util import tasks_to_subtasks
+from utils.util import create_module_logger, tasks_to_subtasks
 
 log = create_module_logger(module_name=__name__, is_file_handler=False)
 
