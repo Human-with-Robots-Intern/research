@@ -219,45 +219,28 @@ class BayesianAgent:
 
         return total_duration
 
-    def update_task_knowledge(self, subtask: "Subtask", actual_duration: float) -> None:
-        """
-        Update the knowledge based on the result of the subtask execution.
+    def update_observation_data(self, actual_duration: float, estimate, ground_truth):
+        # prior_data
+        prior_mean = estimate[0]
+        prior_variance = estimate[1]
+        cooking_data = actual_duration / ground_truth
 
-        Args:
-            subtask (Subtask): The subtask that was executed.
-            actual_duration (float): The actual duration of the subtask execution.
-        """
-        subtask_name = subtask.name
-        subtask_data = self.knowledge.setdefault("Subtask", {}).setdefault(
-            subtask_name,
-            {"expected_duration": actual_duration, "variance": 1.0, "occurrences": 0},
+        # bayesian estimate
+        a = 1
+        time_observation = actual_duration
+        likelihood_epsilon = a(prior_mean - time_observation) ^ 2
+        posterior_mean = (
+            prior_variance * cooking_data + likelihood_epsilon * prior_mean
+        ) / (likelihood_epsilon + prior_variance)
+        posterior_variance = (likelihood_epsilon * prior_variance) / (
+            likelihood_epsilon + prior_variance
         )
 
-        # Prior data
-        prior_mean = subtask_data["expected_duration"]
-        prior_variance = subtask_data["variance"]
+        # posterior_data
+        estimate[0] = posterior_mean
+        estimate[1] = posterior_variance
 
-        # Bayesian update
-        obs_variance = self.config.obs_variance
-        updated_mean = (
-            prior_mean / prior_variance + actual_duration / obs_variance
-        ) / (1 / prior_variance + 1 / obs_variance)
-        updated_variance = 1 / (1 / prior_variance + 1 / obs_variance)
-
-        # Update occurrences
-        occurrences = subtask_data["occurrences"] + 1
-
-        # Update knowledge
-        subtask_data["expected_duration"] = updated_mean
-        subtask_data["variance"] = updated_variance
-        subtask_data["occurrences"] = occurrences
-
-        log.info(f"Updated knowledge for subtask '{subtask_name}':")
-        log.info(f"  - Duration: {prior_mean:.2f} -> {updated_mean:.2f}")
-        log.info(f"  - Variance: {prior_variance:.2f} -> {updated_variance:.2f}")
-
-        # Save knowledge
-        self._save_knowledge(KNOWLEDGE_PATH)
+        return estimate
 
     def update_primitive_action_knowledge(
         self, action_name: str, actual_duration: float
@@ -299,6 +282,7 @@ class BayesianAgent:
 
         # Save knowledge
         self._save_knowledge(KNOWLEDGE_PATH)
+
 
 # TODO 이 로직을 재사용해야해. 작업 예상시간 넘으면 재추정해야하거든.
 # def run_task(self, task_info):
