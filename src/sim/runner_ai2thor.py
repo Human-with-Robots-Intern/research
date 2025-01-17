@@ -142,9 +142,7 @@ def init_ai2thor():
         fieldOfView=60,
     )
 
-    env = get_environment(controller)
-
-    return env, controller
+    return controller
 
 
 def find_objID(controller, obj_type):  ## object type과 object id를 매칭
