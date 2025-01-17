@@ -1,6 +1,6 @@
 import itertools
 from queue import PriorityQueue
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import networkx as nx
 from anytree import Node
@@ -12,202 +12,324 @@ log = create_module_logger(module_name=__name__, is_file_handler=False)
 
 
 class TaskTree:
+    """
+    Manages a tree of tasks (subtasks or wait nodes).
+    """
+
     def __init__(self):
         """
-        Initialize the TaskTree with a root node.
+        Initialize with a root node (start=0, end=0, duration=0).
         """
-        self.root_node = Node(
-            name="Init",
-            start=0,
-            end=0,
-            duration=0,
-        )
+        self.root_node = Node(name="Init", start=0, end=0, duration=0)
 
-    def add_wait_node(
-        self, parent_node: Node, subtask_name: str, wait_time: int
-    ) -> Node:
+    def add_wait_node(self, parent: Node, subtask_name: str, wait_time: int) -> Node:
         """
-        Add a wait node to the task tree.
+        Insert a 'wait' node under the given parent node.
+
+        Args:
+            parent (Node): The parent node.
+            subtask_name (str): Name of the subtask to wait for (for logging).
+            wait_time (int): Amount of time to wait.
+
+        Returns:
+            Node: The created wait node.
         """
         wait_node = Node(
             name=f"Wait for {subtask_name}",
-            parent=parent_node,
-            start=parent_node.end,
-            end=parent_node.end + wait_time,
+            parent=parent,
+            start=parent.end,
+            end=parent.end + wait_time,
             duration=wait_time,
         )
-        log.debug(f"Added wait node: {wait_node.name} with duration {wait_time}")
+        log.debug(f"Added wait node: {wait_node.name}, duration={wait_time}")
         return wait_node
 
-    def add_subtask_node(self, parent_node: Node, subtask: "Subtask") -> Node:  # type: ignore
+    def add_subtask_node(self, parent: Node, subtask: "Subtask") -> Node:
         """
-        Add a subtask node to the task tree.
+        Insert a subtask node under the given parent node.
+
+        Args:
+            parent (Node): The parent node to attach the subtask node.
+            subtask (Subtask): The subtask object (must have .name, .duration.interval).
+
+        Returns:
+            Node: The newly created subtask node.
         """
         subtask_node = Node(
             name=subtask.name,
-            parent=parent_node,
-            start=parent_node.end,
-            end=parent_node.end + subtask.duration.interval,
+            parent=parent,
+            start=parent.end,
+            end=parent.end + subtask.duration.interval,
             duration=subtask.duration.interval,
         )
         log.debug(
-            f"Added subtask node: {subtask.name} with duration {subtask.duration.interval}"
+            f"Added subtask node: {subtask.name}, duration={subtask.duration.interval}"
         )
         return subtask_node
 
 
 class TaskTreeBuilder:
+    """
+    Builds a TaskTree using Beam Search, limited by 'beam_width' at each level.
+    """
+
     def __init__(self, constraints: nx.DiGraph, beam_width: int = 3):
         """
-        Initialize the TaskTreeBuilder with Beam Search.
-
         Args:
             constraints (nx.DiGraph): Directed graph representing task constraints.
-            beam_width (int): The number of top nodes to expand at each level.
+            beam_width (int): Number of top candidates to keep each level (the 'beam').
         """
         self.tree = TaskTree()
         self.beam_width = beam_width
         self.constraint_handler = ConstraintHandler(constraints)
-        self.slot_handler = SlotHandler(self._node_expansion_with_cost)
+        self.slot_handler = SlotHandler(self._expand_node_with_cost)
 
-        # [추가] best_solution 관리를 위해 추가
-        self.best_solution_node = None
-        self.best_makespan = float("inf")
+        # Optionally track the "best" solution (if implementing isComplete checks).
+        self.best_plan: Optional[Node] = None
+        self.best_makespan: float = float("inf")
 
-    def build_tree(self, tasks: List["Task"]) -> Node:  # type: ignore
+    def build_tree(self, tasks: List["Task"]) -> Node:
         """
-        Build the task tree using Beam Search.
+        Build the tree via Beam Search. Returns the tree's root or (optionally)
+        some best-solution node if you track it.
 
         Args:
-            tasks (List[Task]): A list of tasks to build the tree from.
+            tasks (List[Task]): The list of high-level tasks to plan.
 
         Returns:
-            Node: The root node of the built task tree.
+            Node: The root node of the built tree (or a best-solution node).
         """
-        # 1) 초기 Subtasks 추출
-        subtasks = tasks_to_subtasks(tasks)
-        initial_subtasks = self.constraint_handler.get_initial_subtasks(subtasks)
+        # 1) Convert tasks -> subtasks
+        all_subtasks = tasks_to_subtasks(tasks)
 
-        # 2) 초기 상태(= 트리의 루트 노드) 우선순위 큐에 삽입
-        #    여기서 우선순위는 0으로 두고, tie-break 용 id는 counter로 생성
-        pq_current_level = PriorityQueue()
-        counter = itertools.count()
-        init_cost = 0  # 루트 노드의 코스트는 0으로 가정
-        pq_current_level.put((init_cost, next(counter), self.tree.root_node))
+        # 2) Identify initial subtasks (no dependencies, etc.)
+        initial_subtasks = self.constraint_handler.get_initial_subtasks(all_subtasks)
 
-        # 3) 빔 서치 루프
-        while not pq_current_level.empty():
-            # 이번 레벨의 상태들을 모두 꺼내서 확장
-            current_level_list = []
-            while not pq_current_level.empty():
-                current_level_list.append(pq_current_level.get())
+        # 3) Initialize the queue with root node at cost=0
+        current_candidate_subtasks_queue = self._init_queue_with_root()
 
-            # 다음 레벨 후보를 담을 우선순위 큐
-            pq_next_level = PriorityQueue()
+        # 4) Beam Search loop
+        while not current_candidate_subtasks_queue.empty():
+            # 4-1) Gather all states in current "level"
+            # Root Node
+            current_candidate_subtasks = self._drain_queue(
+                current_candidate_subtasks_queue
+            )
 
-            # (A) 이번 레벨의 각 상태(노드)에 대해 확장 시도
-            for cost_val, _, parent_node in current_level_list:
+            # 4-2) Expand each node at this level
+            next_candidate_subtasks_queue = self._simulate_subtask_expansion(
+                current_candidate_subtasks, initial_subtasks, all_subtasks
+            )
 
-                # [추가] 만약 모든 Subtask가 끝났다는 로직이 있다면, 여기에 배치
-                # isComplete() 같은 함수를 만들 수도 있음.
-                # 여기서는 "더 이상 확장할 subtask가 없다면"을 체크 예시:
-                # if self.constraint_handler.check_all_subtasks_done(parent_node, subtasks):
-                #    if parent_node.end < self.best_makespan:
-                #        self.best_makespan = parent_node.end
-                #        self.best_solution_node = parent_node
-                #    continue
+            # 4-3) Keep only top 'beam_width' for the next iteration
+            current_candidate_subtasks_queue = self._prune_to_beam(
+                next_candidate_subtasks_queue
+            )
 
-                # (B) 현재 노드에서 확장할 수 있는 subtask를 순회
-                for subtask in initial_subtasks:
-                    # 확장 가능 여부
-                    if not self._can_expand_node(parent_node, subtask, subtasks):
-                        continue
-                    # 실제 확장 수행 => 자식 상태(노드) 생성
-                    new_cost, new_node = self._node_expansion_with_cost(
-                        parent_node, subtask, subtasks
-                    )
-                    if new_node is None:
-                        continue
+        # 5) Return final result (root or best_node)
+        return self._final_node()
 
-                    # (C) 새로 만들어진 노드를 next_level 후보에 삽입
-                    pq_next_level.put((new_cost, next(counter), new_node))
+    # --------------------------------------------------------------------------
+    # Internal Beam Search Helpers
+    # --------------------------------------------------------------------------
 
-            # (D) next_level 후보 중 상위 beam_width만 다음 루프에서 사용
-            pq_current_level = PriorityQueue()
-            for _ in range(min(self.beam_width, pq_next_level.qsize())):
-                cost, uid, node = pq_next_level.get()
-                pq_current_level.put((cost, uid, node))
+    def _simulate_subtask_expansion(
+        self,
+        parent_candidates: List[Tuple[int, int, Node]],
+        child_candidates: List["Subtask"],
+        all_subtasks: List["Subtask"],
+    ) -> PriorityQueue:
+        """부모노드를 확장하여 후보 서브태스크(자식 노드 후보)를 생성하고, 이를 다음 레벨의 노드로 확장한다.
 
-        # 4) 빔 서치 종료 후, root_node 반환 (또는 best_solution_node)
-        #    연구 목적에 따라, self.best_solution_node가 있다면 그걸 리턴해도 됨.
-        return self.tree.root_node
+        Args:
+            current_nodes (List[Tuple[int, int, Node]]): _description_
+            candidate_subtasks (List[&quot;Subtask&quot;]): _description_
+            all_subtasks (List[&quot;Subtask&quot;]): _description_
 
-    def _node_expansion_with_cost(
-        self, parent_node: Node, subtask: "Subtask", remaining_subtasks: List["Subtask"]
-    ) -> Tuple[int, Node or None]:
+        Returns:
+            PriorityQueue: _description_
         """
-        Expand a node in the task tree (with cost evaluation).
+        pq_next = PriorityQueue()
+        uid_counter = itertools.count()
+
+        for accumulated_cost, _, parent_candidate in parent_candidates:
+            # (1) Check if node is complete -> update best_node/best_makespan
+            if self.check_all_subtasks_done(parent_candidate, all_subtasks):
+                self._update_best_solution(parent_candidate)
+                continue  # No need to expand further
+
+            # (2) Otherwise, expand
+            for child_candidate in child_candidates:
+                # Separation Interval이 없는 경우, 확장하지 않는다.
+                if not self._can_expand(
+                    parent_candidate, child_candidate, all_subtasks
+                ):
+                    continue
+
+                # 자식 노드 추가
+                new_cost, new_child = self._expand_node_with_cost(
+                    parent_candidate, child_candidate, all_subtasks
+                )
+
+                if new_child is None:
+                    continue
+
+                new_cost = accumulated_cost + self._compute_cost(
+                    new_child, child_candidate
+                )
+                pq_next.put((new_cost, next(uid_counter), new_child))
+
+        return pq_next
+
+    def _expand_node_with_cost(
+        self, parent_node: Node, subtask: "Subtask", all_subtasks: List["Subtask"]
+    ) -> Tuple[int, Optional[Node]]:
         """
-        # 1) SlotHandler로 time slot 체크
+        Attempt to expand 'parent_node' by adding 'subtask' as a child node.
+        Includes time-slot handling, wait node insertion, cost calculation, etc.
+
+        Returns:
+            Tuple[int, Optional[Node]]:
+            - cost (int): The cost for the newly created node.
+            - new_node (Node or None): The resulting node, or None if expansion fails.
+        """
+        # (1) Check time slots feasibility
         time_slot, _ = self.slot_handler.compress_time_slots(
             parent_node, subtask, self.constraint_handler.get_time_slot_and_urgency
         )
         if time_slot is None:
-            log.warning(
-                f"No available time slot for subtask '{subtask.name}'. Skipping."
-            )
+            log.warning(f"No time slot for '{subtask.name}', skipping.")
             return (999999, None)
 
-        # 2) 대기 시간 등 처리
+        # (2) Handle waiting if needed
         if time_slot > 0:
-            (updated_parent, wait_time, updated_subtasks) = (
+            updated_parent, wait_time, remaining_subtasks = (
                 self.slot_handler.handle_time_slots(
                     parent_node,
                     subtask,
-                    remaining_subtasks,
+                    all_subtasks,
                     time_slot,
                     self.constraint_handler.get_expandable_subtasks,
                 )
             )
-            # 대기가 필요하면 기다린 후에 subtask 노드 추가
             if wait_time > 0:
                 updated_parent = self.tree.add_wait_node(
                     updated_parent, subtask.name, wait_time
                 )
-            parent_node = updated_parent
-            new_subtasks = updated_subtasks
-        else:
-            # time_slot == 0이라면 바로 시작 가능
-            new_subtasks = remaining_subtasks
 
-        # 3) Subtask 노드 추가
+            parent_node = updated_parent
+            effective_subtasks = remaining_subtasks
+        else:
+            effective_subtasks = all_subtasks
+
+        # (3) Add subtask node
         new_node = self.tree.add_subtask_node(parent_node, subtask)
 
-        # 4) 비용 계산
-        cost_val = self._evaluate_node(new_node, subtask)
-
+        # (4) Compute cost
+        cost_val = self._compute_cost(new_node, subtask)
         return (cost_val, new_node)
 
-    def _can_expand_node(
-        self, parent_node: Node, subtask: "Subtask", subtasks: List["Subtask"]
+    def _compute_cost(self, node: Node, subtask: "Subtask") -> int:
+        """
+        Compute cost for the newly created node.
+        You may add penalties for conflicts, etc.
+
+        Args:
+            node (Node): The newly created node.
+            subtask (Subtask): The subtask that led to this node.
+
+        Returns:
+            int: The cost (lower is better).
+        """
+        duration_cost = subtask.duration.interval
+        # e.g. extra penalties:
+        # soft_constraint_penalty = self.constraint_handler.get_soft_constraint_penalty(node, subtask)
+        # conflict_penalty = self.constraint_handler.get_conflict_penalty(node, subtask)
+        # total_penalty = soft_constraint_penalty + conflict_penalty
+        return duration_cost  # + total_penalty
+
+    def _can_expand(
+        self,
+        parent_node: Node,
+        child_candidate: "Subtask",
     ) -> bool:
         """
-        Check if we can expand this parent_node with the given subtask.
+        Check basic feasibility (time slot, constraints) for expansion.
         """
         time_slot, _ = self.slot_handler.compress_time_slots(
-            parent_node, subtask, self.constraint_handler.get_time_slot_and_urgency
+            parent_node,
+            child_candidate,
+            self.constraint_handler.get_time_slot_and_urgency,
         )
         return time_slot is not None
 
-    def _evaluate_node(self, node: Node, subtask: "Subtask") -> int:
+    # --------------------------------------------------------------------------
+    # Utilities for PriorityQueue Handling
+    # --------------------------------------------------------------------------
+    def _init_queue_with_root(self) -> PriorityQueue:
         """
-        Evaluate the cost of the newly created node.
+        Create a priority queue with the root node at cost=0.
         """
-        duration_cost = subtask.duration.interval
-        # soft_constraint_penalty = self.constraint_handler.get_soft_constraint_penalty(
-        #     node, subtask
-        # )
-        # conflict_penalty = self.constraint_handler.get_conflict_penalty(node, subtask)
-        # total_penalty = soft_constraint_penalty + conflict_penalty
-        total_penalty = 0
-        return duration_cost + total_penalty
+        pq = PriorityQueue()
+        uid_counter = itertools.count()
+        root_cost = 0
+        pq.put((root_cost, next(uid_counter), self.tree.root_node))
+        return pq
+
+    def _drain_queue(self, pq: PriorityQueue) -> List[Tuple[int, int, Node]]:
+        """
+        Pop all items from a priority queue and return as a list.
+        """
+        items = []
+        while not pq.empty():
+            items.append(pq.get())
+        return items
+
+    def _prune_to_beam(self, pq_next: PriorityQueue) -> PriorityQueue:
+        """
+        Take top 'beam_width' items from pq_next and return a new PQ.
+        """
+        pq_result = PriorityQueue()
+        for _ in range(min(self.beam_width, pq_next.qsize())):
+            cost_val, uid, nd = pq_next.get()
+            pq_result.put((cost_val, uid, nd))
+        return pq_result
+
+    def _final_node(self) -> Node:
+        """
+        Return the final node.
+        If you track best_node, you might return that. Otherwise, return the root.
+        """
+        # if self.best_node:
+        #     return self.best_node
+        return self.tree.root_node
+
+    def _update_best_solution(self, node: Node):
+        """
+        If node.end < self.best_makespan, update best_makespan and best_node.
+        """
+        if node.end < self.best_makespan:
+            self.best_makespan = node.end
+            self.best_plan = node
+            log.info(f"New best solution: end={self.best_makespan}, node={node.name}")
+
+    # -------------------------------
+    #  "Completed" check
+    # -------------------------------
+    def check_all_subtasks_done(
+        self, node: Node, all_subtasks: List["Subtask"]
+    ) -> bool:
+        """
+        Check if 'node' (and its ancestors) contain all subtasks from all_subtasks.
+        Simplest approach: collect names of subtask nodes, compare with all_subtasks list.
+        """
+        # 1) Gather the set of subtask names completed so far
+        completed_names = set()
+        for ancestor in node.path:  # node + all parents up to root
+            # Exclude wait nodes
+            if not ancestor.name.startswith("Wait for ") and ancestor.name != "Init":
+                completed_names.add(ancestor.name)
+
+        # 2) Compare with the total subtask names in 'all_subtasks'
+        required_names = set(s.name for s in all_subtasks)
+        return completed_names == required_names

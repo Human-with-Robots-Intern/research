@@ -1,10 +1,10 @@
 [
     {
-        "Task": "Wash Plates",
+        "Task": "Wash the Dishes",
         "Subtasks": [
             {
-                "Name": "Wash Plate_aaa",
-                "Repetition": 5,
+                "Name": "Wash Dish 1",
+                "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
@@ -13,26 +13,22 @@
                     "PrimitiveActions": [
                         "NAVIGATE_TO Plate_aaa",
                         "GRASP Plate_aaa",
-                        "PLACE_ON_TOP SinkBasin",
+                        "NAVIGATE_TO Faucet",
                         "TOGGLE_ON Faucet",
+                        "PLACE_ON_TOP SinkBasin",
                         "TOGGLE_OFF Faucet",
                         "PLACE_ON_TOP CounterTop"
                     ]
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 2
+                    "Interval": 5
                 },
                 "TemporalConstraints": []
-            }
-        ]
-    },
-    {
-        "Task": "Wash Plate multiple times",
-        "Subtasks": [
+            },
             {
-                "Name": "Wash Plate_bbb multiple times",
-                "Repetition": 3,
+                "Name": "Wash Dish 2",
+                "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
@@ -41,15 +37,40 @@
                     "PrimitiveActions": [
                         "NAVIGATE_TO Plate_bbb",
                         "GRASP Plate_bbb",
-                        "PLACE_ON_TOP SinkBasin",
+                        "NAVIGATE_TO Faucet",
                         "TOGGLE_ON Faucet",
+                        "PLACE_ON_TOP SinkBasin",
                         "TOGGLE_OFF Faucet",
                         "PLACE_ON_TOP CounterTop"
                     ]
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 2
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Wash Dish 3",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate_ccc": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Plate_ccc",
+                        "GRASP Plate_ccc",
+                        "NAVIGATE_TO Faucet",
+                        "TOGGLE_ON Faucet",
+                        "PLACE_ON_TOP SinkBasin",
+                        "TOGGLE_OFF Faucet",
+                        "PLACE_ON_TOP CounterTop"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
                 },
                 "TemporalConstraints": []
             }

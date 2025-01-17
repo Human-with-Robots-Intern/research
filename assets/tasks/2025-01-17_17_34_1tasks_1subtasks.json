@@ -1,24 +1,25 @@
 [
     {
-        "Task": "Wash a plate three times",
+        "Task": "Wash Plates",
         "Subtasks": [
             {
-                "Name": "Wash a plate",
+                "Name": "Wash Plate_aaa",
                 "Repetition": 3,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Plate": 1,
-                        "DishSponge": 1
+                        "Plate_aaa": 1
                     },
                     "PrimitiveActions": [
-                        "GRASP Plate",
-                        "NAVIGATE_TO SinkBasin",
+                        "NAVIGATE_TO Plate_aaa",
+                        "GRASP Plate_aaa",
+                        "NAVIGATE_TO Faucet",
                         "TOGGLE_ON Faucet",
+                        "PLACE_INSIDE SinkBasin",
                         "GRASP DishSponge",
-                        "PLACE_ON_TOP Plate",
-                        "PLACE_ON_TOP SinkBasin",
-                        "TOGGLE_OFF Faucet"
+                        "PLACE_ON_TOP Plate_aaa",
+                        "TOGGLE_OFF Faucet",
+                        "PLACE_ON_TOP CounterTop"
                     ]
                 },
                 "Duration": {

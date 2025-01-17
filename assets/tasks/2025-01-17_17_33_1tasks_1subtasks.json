@@ -1,29 +1,10 @@
 [
     {
-        "Task": "Wash Objects",
+        "Task": "Wash a dish",
         "Subtasks": [
             {
-                "Name": "Impossible: wash not in environment",
+                "Name": "Wash Plate_aaa",
                 "Repetition": 1,
-                "Type": "Interaction",
-                "Executions": {
-                    "Objects": {},
-                    "PrimitiveActions": []
-                },
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 0
-                },
-                "TemporalConstraints": []
-            }
-        ]
-    },
-    {
-        "Task": "Wash Dishes",
-        "Subtasks": [
-            {
-                "Name": "Wash Plate",
-                "Repetition": 3,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
@@ -32,12 +13,11 @@
                     "PrimitiveActions": [
                         "NAVIGATE_TO Plate_aaa",
                         "GRASP Plate_aaa",
-                        "NAVIGATE_TO Faucet",
-                        "TOGGLE_ON Faucet",
+                        "NAVIGATE_TO SinkBasin",
                         "PLACE_ON_TOP SinkBasin",
+                        "TOGGLE_ON Faucet",
                         "TOGGLE_OFF Faucet",
                         "GRASP Plate_aaa",
-                        "NAVIGATE_TO CounterTop",
                         "PLACE_ON_TOP CounterTop"
                     ]
                 },

@@ -31,7 +31,8 @@ class SlotHandler:
                     parent_node, available_subtask, remaining_subtasks
                 )
                 time_spent += available_subtask.duration.interval
-                remaining_subtasks.remove(available_subtask)
+                # * DO NOT Erase bellow line
+                # remaining_subtasks.remove(available_subtask)
 
                 if time_spent >= time_slot:
                     break
