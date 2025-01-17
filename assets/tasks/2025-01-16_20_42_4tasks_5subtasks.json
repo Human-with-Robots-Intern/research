@@ -1,0 +1,145 @@
+[
+    {
+        "Task": "Wash Dishes",
+        "Subtasks": [
+            {
+                "Name": "Wash Plate",
+                "Repetition": 4,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate_aaa": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Plate_aaa",
+                        "GRASP Plate_aaa",
+                        "NAVIGATE_TO SinkBasin",
+                        "PLACE_ON_TOP SinkBasin"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 4
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Wash Dish",
+        "Subtasks": [
+            {
+                "Name": "Wash Plate multiple times",
+                "Repetition": 3,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate_aaa": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Plate_aaa",
+                        "GRASP Plate_aaa",
+                        "NAVIGATE_TO SinkBasin",
+                        "PLACE_ON_TOP SinkBasin"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Wash Potato and Mug",
+        "Subtasks": [
+            {
+                "Name": "Wash Potato and Mug",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Potato": 1,
+                        "Mug": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Potato",
+                        "GRASP Potato",
+                        "NAVIGATE_TO SinkBasin",
+                        "PLACE_ON_TOP SinkBasin",
+                        "NAVIGATE_TO Mug",
+                        "GRASP Mug",
+                        "NAVIGATE_TO SinkBasin",
+                        "PLACE_ON_TOP SinkBasin"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Cook Egg Fry",
+        "Subtasks": [
+            {
+                "Name": "Prepare to Cook Egg Fry",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Egg": 1,
+                        "Pan": 1,
+                        "StoveKnob": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Egg",
+                        "GRASP Egg",
+                        "NAVIGATE_TO Pan",
+                        "PLACE_ON_TOP Pan",
+                        "NAVIGATE_TO StoveKnob",
+                        "TOGGLE_ON StoveKnob"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Cook and Serve Egg Fry",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Pan": 1,
+                        "Plate_aaa": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF StoveKnob",
+                        "NAVIGATE_TO Pan",
+                        "GRASP Pan",
+                        "NAVIGATE_TO Plate_aaa",
+                        "PLACE_ON_TOP Plate_aaa"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Prepare to Cook Egg Fry",
+                        "Interval": 5,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]

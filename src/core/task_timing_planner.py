@@ -4,8 +4,8 @@ from typing import List, Optional
 import networkx as nx
 from anytree import AsciiStyle, Node, RenderTree
 
-# from omnigibson.utils.ui_utils import create_module_logger
-from task_management.task_tree_builder import TaskTreeBuilder
+from utils.util import create_module_logger
+from task_management.task_tree_builder_beam import TaskTreeBuilder
 from utils.util import tasks_to_subtasks, timeit
 
 # log = create_module_logger(module_name=__name__, is_file_handler=True)
@@ -29,7 +29,6 @@ class TaskTimingPlanner:
         self.tree_builder = TaskTreeBuilder(constraints)
         self.task_tree = self.tree_builder.build_tree(self.tasks)
 
-    @timeit
     def get_task_trees(self) -> tuple[Node, Node]:
         """
         Get the full task tree and the optimal task tree.
@@ -39,6 +38,7 @@ class TaskTimingPlanner:
         """
         opt_task_tree = self._get_optimal_tree()
         self._print_plan(opt_task_tree)
+
 
         return self.task_tree, opt_task_tree
 
@@ -164,9 +164,7 @@ class TaskTimingPlanner:
             ):
                 included_subtask_names.add(current.name)
             current = current.parent
-        # log.debug(
-        #     f"Included subtask names for leaf '{leaf_node.name}': {included_subtask_names}"
-        # )
+
         return included_subtask_names
 
     def _print_plan(self, tree_root: Node) -> None:

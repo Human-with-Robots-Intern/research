@@ -96,19 +96,6 @@ The following is the **ENVIRONMENT CONTEXT** that the robot can manipulate. robo
       "Knife",
       "Bread"
     ],
-    "BREAK": [
-      "WineBottle|-01.00|+01.65|-02.58",
-      "Mug|-01.76|+00.90|-00.62",
-      "Egg|-02.04|+00.81|+01.24",
-      "Window|-02.23|+01.43|-01.20",
-      "Statue|+01.96|+00.18|-02.54",
-      "Bottle|+01.54|+00.89|-02.54",
-      "Bowl|+00.27|+01.10|-00.75",
-      "Plate|+00.96|+01.65|-02.61",
-      "Cup|+00.37|+01.64|-02.58",
-      "Vase|+01.56|+00.56|-02.50",
-      "Vase|+01.99|+00.56|-02.49"
-    ],
     "RECEPTACLE": [
       "CounterTop",
       "Mug",

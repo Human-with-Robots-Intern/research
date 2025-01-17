@@ -45,50 +45,59 @@ class SlotHandler:
         get_time_slot_and_urgency: Callable[[Node, Subtask], List[Tuple[int, bool]]],
     ) -> Tuple[int, bool]:
         """
-        서브태스크에 대한 시간 슬롯과 긴급성을 계산하고 압축합니다.
+        select the time slot and urgency of the subtask among the available time slots.
+
+        Args:
+            parent_node (Node): Parent node to expand from.
+            subtask (Subtask): Child subtask to process.
+            get_time_slot_and_urgency (Callable[[Node, Subtask], List[Tuple[int, bool]]]):
+                Function to get time slot and urgency of the subtask.
+
+        Returns:
+            Tuple[int, bool]: Time slot and urgency of the subtask.
         """
         time_slots_urgencies = get_time_slot_and_urgency(parent_node, subtask)
 
-        fill_time_slot_urgencies = [
+        urgent_time_slots = [
             (time_slot, urgency)
             for time_slot, urgency in time_slots_urgencies
             if urgency and time_slot > 0
         ]
 
-        fill_time_slot_not_urgencies = [
+        non_urgent_time_slots = [
             (time_slot, urgency)
             for time_slot, urgency in time_slots_urgencies
             if not urgency and time_slot > 0
         ]
 
-        expandable_slot = [
+        expandable_slots = [
             (time_slot, urgency)
             for time_slot, urgency in time_slots_urgencies
             if (urgency and time_slot == 0) or (not urgency and time_slot <= 0)
         ]
 
-        if len(fill_time_slot_urgencies) > 1:
-            if len(set(fill_time_slot_urgencies)) == 1:
-                return fill_time_slot_urgencies[0]
+        if len(urgent_time_slots) > 1:
+            if len(set(urgent_time_slots)) == 1:
+                return urgent_time_slots[0]
             else:
                 return None, None
 
-        elif fill_time_slot_urgencies and fill_time_slot_not_urgencies:
-            urgency_true_slot = fill_time_slot_urgencies[0][0]
-            max_not_urgent_slot = max(
-                time_slot for time_slot, _ in fill_time_slot_not_urgencies
+        elif urgent_time_slots and non_urgent_time_slots:
+            first_urgent_time_slot = urgent_time_slots[0][0]
+            max_non_urgent_time_slot = max(
+                time_slot for time_slot, _ in non_urgent_time_slots
             )
-            if urgency_true_slot > max_not_urgent_slot:
-                return fill_time_slot_urgencies[0]
+            if first_urgent_time_slot > max_non_urgent_time_slot:
+                return urgent_time_slots[0]
             else:
                 return None, None
 
-        elif fill_time_slot_urgencies:
-            return fill_time_slot_urgencies[0]
-        elif fill_time_slot_not_urgencies:
-            return max(fill_time_slot_not_urgencies)
+        elif urgent_time_slots:
+            return urgent_time_slots[0]
+        elif non_urgent_time_slots:
+            return max(non_urgent_time_slots)
 
-        elif expandable_slot:
-            return expandable_slot[0]
+        elif expandable_slots:
+            return expandable_slots[0]
 
         return None, None

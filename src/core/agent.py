@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 
-# from omnigibson.utils.ui_utils import create_module_logger
+from utils.util import create_module_logger
 from utils.constants import KNOWLEDGE_PATH
 
 # log = create_module_logger(module_name=__name__, is_file_handler=True)

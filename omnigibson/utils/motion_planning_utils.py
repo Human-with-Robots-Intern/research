@@ -319,7 +319,7 @@ def plan_arm_motion(robot, end_conf, context, planning_time=15.0, torso_fixed=Tr
     ss.setStateValidityChecker(ob.StateValidityCheckerFn(state_valid_fn))
 
     si = ss.getSpaceInformation()
-    planner = ompl_geo.BITstar(si)
+    planner = ompl_geo.RRTConnect(si)
     ss.setPlanner(planner)
 
     start_conf = robot.get_joint_positions()[joint_control_idx]

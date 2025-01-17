@@ -1,0 +1,105 @@
+[
+    {
+        "Task": "Wash Plates",
+        "Subtasks": [
+            {
+                "Name": "Wash Plate (Plate_aaa)",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate_aaa": 1,
+                        "DishSponge": 1,
+                        "SoapBottle": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate_aaa",
+                        "NAVIGATE_TO SinkBasin",
+                        "GRASP DishSponge",
+                        "GRASP SoapBottle",
+                        "TOGGLE_ON Faucet",
+                        "PLACE_ON_TOP Plate_aaa",
+                        "PLACE_ON_TOP DishSponge",
+                        "PLACE_ON_TOP SoapBottle",
+                        "TOGGLE_OFF Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Wash Plate (Plate_bbb)",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate_bbb": 1,
+                        "DishSponge": 1,
+                        "SoapBottle": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate_bbb",
+                        "NAVIGATE_TO SinkBasin",
+                        "GRASP DishSponge",
+                        "GRASP SoapBottle",
+                        "TOGGLE_ON Faucet",
+                        "PLACE_ON_TOP Plate_bbb",
+                        "PLACE_ON_TOP DishSponge",
+                        "PLACE_ON_TOP SoapBottle",
+                        "TOGGLE_OFF Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Wash Plate (Plate_ccc)",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate_ccc": 1,
+                        "DishSponge": 1,
+                        "SoapBottle": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate_ccc",
+                        "NAVIGATE_TO SinkBasin",
+                        "GRASP DishSponge",
+                        "GRASP SoapBottle",
+                        "TOGGLE_ON Faucet",
+                        "PLACE_ON_TOP Plate_ccc",
+                        "PLACE_ON_TOP DishSponge",
+                        "PLACE_ON_TOP SoapBottle",
+                        "TOGGLE_OFF Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Impossible: Fourth plate not in environment",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {},
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 0
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]

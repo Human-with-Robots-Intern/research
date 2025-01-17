@@ -15,7 +15,7 @@ from omnigibson.action_primitives.starter_semantic_action_primitives import (
     StarterSemanticActionPrimitiveSet,
 )
 from omnigibson.macros import gm
-from omnigibson.utils.ui_utils import create_module_logger
+from utils.util import create_module_logger
 from sim.primitive_actions import CustomActionPrimitives
 
 gm.USE_GPU_DYNAMICS = False
