@@ -112,14 +112,16 @@ def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
 
-    sim_name = check_simulation()
-    agent, env = None, None
-    if sim_name == "o":  # To initialize with OmniGibson
-        env, agent = init_omnigibson()
-        if args.reset:
-            agent.reset_knowledge_to_gaussian()
-    if sim_name == "a":  # To initialize with ai2thor
-        env, controller = init_ai2thor()
+    # sim_name = check_simulation()
+    # agent, env = None, None
+    # if sim_name == "o":  # To initialize with OmniGibson
+        # env, agent = init_omnigibson()
+    #     if args.reset:
+    #         agent.reset_knowledge_to_gaussian()
+    # if sim_name == "a":  # To initialize with ai2thor
+    #     env, controller = init_ai2thor()
+
+    env, controller = init_ai2thor()
 
     # Load task data
     task_name, task_data = load_task_data(env)
@@ -139,21 +141,21 @@ def main():
     task_tree, opt_task_tree = task_timing_planner.get_task_trees()
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
 
-    # Task execution
-    if sim_name == "o" and env:
-        try:
-            for scheduled_subtask in scheduled_subtasks:
-                execute_subtask(env, agent, scheduled_subtask)
-        except Exception as e:
-            # log.error(f"Error executing task: {e}")
-            raise Exception
-    if sim_name == "a" and controller:
-        try:
-            for scheduled_subtask in scheduled_subtasks:
-                execute_subtask(controller, scheduled_subtask)
-        except Exception as e:
-            # log.error(f"Error executing task: {e}")
-            raise Exception
+    # # Task execution
+    # if sim_name == "o" and env:
+    #     try:
+    #         for scheduled_subtask in scheduled_subtasks:
+    #             execute_subtask(env, agent, scheduled_subtask)
+    #     except Exception as e:
+    #         # log.error(f"Error executing task: {e}")
+    #         raise Exception
+    # if sim_name == "a" and controller:
+    try:
+        for scheduled_subtask in scheduled_subtasks:
+            execute_subtask(controller, scheduled_subtask)
+    except Exception as e:
+        # log.error(f"Error executing task: {e}")
+        raise Exception
 
     # Result visualization
     if args.visualize:

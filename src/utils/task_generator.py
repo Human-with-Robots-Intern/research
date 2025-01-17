@@ -57,7 +57,7 @@ def validate_output_format(output: Any) -> bool:
         for subtask in task.get("Subtasks", []):
             required_keys = {
                 "Name",
-                # "Repetition",
+                "Repetition",
                 "Type",
                 "Executions",
                 "Duration",
@@ -67,7 +67,6 @@ def validate_output_format(output: Any) -> bool:
                 return False
             executions = subtask.get("Executions", {})
             if not isinstance(executions, dict) or not {
-                ## 여기 한 번 체크 이소민
                 "Objects",
                 "PrimitiveActions",
             }.issubset(executions):
@@ -188,7 +187,7 @@ def cached_generate_task(
 
 def generate_task(env):
     """Generate tasks based on user input and knowledge base."""
-    file_name = "e2e_generator_ver5.txt"
+    file_name = "thor_e2e_generator_ver1.txt"
     examples_prompt = load_file(Path(PROMPT_PATH) / file_name, "txt")
     knowledge = load_file(Path(KNOWLEDGE_PATH) / "knowledge.json", "json")
     if "thor" in file_name:
