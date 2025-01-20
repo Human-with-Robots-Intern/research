@@ -56,7 +56,7 @@ def load_task_data():
 
     while True:
         try:
-            choice = int(input("Enter the number of your choice: "))
+            choice = 7  # int(input("Enter the number of your choice: "))
 
             if choice == 0:
                 target_task_name = generate_task()
@@ -115,6 +115,7 @@ def main():
     task_tree, opt_task_tree = task_timing_planner.get_task_trees()
     elapsed_time = time.time() - start_time
     log.info(f"Task {task_name} scheduled in {elapsed_time:.2f} seconds")
+    # Scheduling 결과 sequence of subtasks
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
 
     # Result visualization
