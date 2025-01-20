@@ -34,16 +34,30 @@ class TaskTree:
         log.debug(f"Added wait node: {wait_node.name}, duration={wait_time}")
         return wait_node
 
-    def add_subtask_node(self, parent: Node, subtask: "Subtask") -> Node:
+    def add_subtask_node(
+        self, parent: Node, subtask: "Subtask", navigate_time: int = 0
+    ) -> Node:
+        """
+        Add a subtask node to the tree, considering navigate time.
+
+        Args:
+            parent (Node): Parent node.
+            subtask (Subtask): Subtask to add.
+            navigate_time (int): Time taken to navigate to this subtask.
+
+        Returns:
+            Node: The newly added subtask node.
+        """
         subtask_node = Node(
             name=subtask.name,
             parent=parent,
             start=parent.end,
-            end=parent.end + subtask.duration.interval,
-            duration=subtask.duration.interval,
+            end=parent.end + navigate_time + subtask.duration.interval,
+            duration=subtask.duration.interval + navigate_time,
         )
         log.debug(
-            f"Added subtask node: {subtask.name}, duration={subtask.duration.interval}"
+            f"Added subtask node: {subtask.name}, navigate_time={navigate_time}, "
+            f"start={subtask_node.start}, end={subtask_node.end}"
         )
         return subtask_node
 
@@ -71,11 +85,9 @@ class TaskTreeBuilder:
         self._counter = itertools.count()  # Tie-breaking을 위한 카운터.
 
     def build_tree(self, tasks: List[Any]) -> Node:
-        # Convert tasks -> subtasks.
         all_subtasks = tasks_to_subtasks(tasks)
         self.subtasks_info = copy.deepcopy(all_subtasks)
 
-        # Start with the root node and initialize the queue.
         current_node = self.tree.root_node
         remaining_subtasks = all_subtasks
 
@@ -103,21 +115,16 @@ class TaskTreeBuilder:
         remaining_subtasks: List[Any],
         temporal_constraint: Tuple[int, bool] = None,
     ) -> List[Tuple[int, int, Any, List[Any]]]:
-        """
-        Simulate up to 'simulation_depth' expansions from the given parent_node.
-        Use the time slot to schedule maximum subtasks.
-        """
         queue = PriorityQueue()
         queue.put((0, 0, next(self._counter), parent_node, remaining_subtasks))
         separation_interval, is_time_critical = temporal_constraint
 
         simulated_paths = []
-        visited_nodes = set()  # Prevent duplicate expansions
+        visited_nodes = set()
 
         while not queue.empty():
             total_cost, current_depth, _, current_node, remaining_subtasks = queue.get()
 
-            # Create a unique identifier for the node and its state
             state_id = (id(current_node), tuple(sub.name for sub in remaining_subtasks))
             if state_id in visited_nodes:
                 continue
@@ -186,59 +193,43 @@ class TaskTreeBuilder:
             remaining_subtasks, (separation_interval, is_time_critical)
         )
 
-        if is_time_critical:
-            for i, scheduled_subtask in enumerate(scheduled_subtasks):
-                navigate_time = (
-                    self._calc_navigate_time(
-                        scheduled_subtasks[i - 1], scheduled_subtask
-                    )
-                    if i > 0
-                    else 0
-                )
-                current_node = self.tree.add_subtask_node(
-                    current_node, scheduled_subtask
-                )
+        for i, scheduled_subtask in enumerate(scheduled_subtasks):
+            # Navigate time only if not the first task
+            navigate_time = (
+                self._calc_navigate_time(scheduled_subtasks[i - 1], scheduled_subtask)
+                if i > 0
+                else 0
+            )
+            current_node = self.tree.add_subtask_node(
+                current_node, scheduled_subtask, navigate_time=navigate_time
+            )
+            separation_interval -= scheduled_subtask.duration.interval + navigate_time
 
-                # Reduce separation interval by task duration + navigate time
-                separation_interval -= (
-                    scheduled_subtask.duration.interval + navigate_time
-                )
+        # Add wait node if separation_interval remains
+        if separation_interval > 0 and is_time_critical:
+            log.debug(
+                f"Adding wait node for critical time slot, remaining separation_interval: {separation_interval}"
+            )
+            current_node = self.tree.add_wait_node(
+                parent=current_node,
+                subtask_name="Time-Critical Wait",
+                wait_time=separation_interval,
+            )
 
-            if separation_interval > 0:
-                current_node = self.tree.add_wait_node(
-                    parent=current_node,
-                    subtask_name="Time-Critical Wait",
-                    wait_time=separation_interval,
-                )
-
-            if updated_remaining:
-                next_subtask = updated_remaining[0]
-                cost, child_node, updated_remaining = self._expand_node(
-                    current_node, next_subtask, updated_remaining, current_depth
-                )
-                if child_node:
-                    simulated_paths.append(
-                        (
-                            total_cost + cost,
-                            current_depth + 1,
-                            next_subtask,
-                            updated_remaining,
-                        )
+        # Expand to the next subtask if applicable
+        if updated_remaining:
+            next_subtask = updated_remaining[0]
+            cost, child_node, updated_remaining = self._expand_node(
+                current_node, next_subtask, updated_remaining, current_depth
+            )
+            if child_node:
+                simulated_paths.append(
+                    (
+                        total_cost + cost,
+                        current_depth + 1,
+                        next_subtask,
+                        updated_remaining,
                     )
-        else:
-            for i, scheduled_subtask in enumerate(scheduled_subtasks):
-                navigate_time = (
-                    self._calc_navigate_time(
-                        scheduled_subtasks[i - 1], scheduled_subtask
-                    )
-                    if i > 0
-                    else 0
-                )
-                current_node = self.tree.add_subtask_node(
-                    current_node, scheduled_subtask
-                )
-                separation_interval -= (
-                    scheduled_subtask.duration.interval + navigate_time
                 )
 
     def fill_time_slot(
@@ -254,7 +245,7 @@ class TaskTreeBuilder:
         scheduled_subtasks = []
 
         for i, task in enumerate(remaining_subtasks[:]):
-            # Calculate navigate time from the last scheduled task
+            # Navigate time only if there are scheduled subtasks
             navigate_time = (
                 self._calc_navigate_time(scheduled_subtasks[-1], task)
                 if scheduled_subtasks
@@ -269,22 +260,12 @@ class TaskTreeBuilder:
                 separation_interval -= total_time
                 remaining_subtasks.remove(task)
             else:
-                break  # No more tasks fit within the time slot
+                break
 
+        log.debug(
+            f"Remaining separation_interval after fill_time_slot: {separation_interval}"
+        )
         return scheduled_subtasks, remaining_subtasks
-
-    def _calculate_time_slot(self, node: Node) -> Tuple[int, bool]:
-        outgoing_time_slot, _ = self.constraint_handler.get_temporal_constraints(
-            node.name
-        )
-        outgoing_time_slot, incoming_time_slot = (
-            self.constraint_handler.get_temporal_constraints(node.name)
-        )
-        if not outgoing_time_slot:
-            log.warning(
-                f"No time slot available for node {node.name}. Defaulting to 0."
-            )
-        return outgoing_time_slot
 
     def _expand_node(
         self,
@@ -293,9 +274,6 @@ class TaskTreeBuilder:
         remaining_subtasks: List[Any],
         parent_depth: int,
     ) -> Tuple[int, Optional[Node], List[Any]]:
-        """
-        Attempt to expand 'parent_node' with 'child_candidate'.
-        """
         outgoing_time_slot, incoming_time_slot = (
             self.constraint_handler.get_temporal_constraints(child_candidate.name)
         )
@@ -306,46 +284,24 @@ class TaskTreeBuilder:
             )
             return (float("inf"), None, remaining_subtasks)
 
-        # 이동 시간 계산
         navigate_time = self._calc_navigate_time(parent_node, child_candidate)
-
-        # 새 노드 생성
         child_node = self.tree.add_subtask_node(parent_node, child_candidate)
         new_remaining_subtasks = [
             sub for sub in remaining_subtasks if sub.name != child_candidate.name
         ]
 
-        # 총 비용 계산 (이동 시간 포함)
         cost_val = (3 - parent_depth) * (
             child_candidate.duration.interval
             - outgoing_time_slot[0]
             + incoming_time_slot[0]
-            + navigate_time  # 이동 시간 포함
+            + navigate_time
         )
 
         return (cost_val, child_node, new_remaining_subtasks)
 
-    def _prune_simulated_paths(self, paths):
-        """
-        Prune the paths to the top `beam_width` paths and return the best path.
-        """
-        pruned_paths = sorted(paths, key=lambda x: (x[0], x[1]))[: self.beam_width]
-        return pruned_paths[0], pruned_paths
-
     def _calc_navigate_time(
         self, source_subtask: Node, target_subtask: "Subtask"
     ) -> float:
-        """
-        Calculate the navigation time from the source subtask's last destination
-        to the target subtask's first destination.
-
-        Args:
-            source_subtask (Node): The current task node (previous subtask).
-            target_subtask (Subtask): The next target subtask.
-
-        Returns:
-            float: Navigation time based on the predefined distance table.
-        """
         source_name = source_subtask.name
         source_subtask_info = next(
             (sub for sub in self.subtasks_info if sub.name == source_name), None
@@ -425,3 +381,56 @@ class TaskTreeBuilder:
             f"Navigation time from '{last_source_location}' to '{first_target_location}' is {move_time} seconds."
         )
         return move_time
+
+    def _calculate_time_slot(self, node: Node) -> Tuple[int, bool]:
+        """
+        Calculate the temporal constraint (time slot) for a given node.
+
+        Args:
+            node (Node): The current node.
+
+        Returns:
+            Tuple[int, bool]: A tuple containing the separation interval and whether it's time-critical.
+        """
+        try:
+            # Get temporal constraints from the constraint handler
+            outgoing_time_slot, incoming_time_slot = (
+                self.constraint_handler.get_temporal_constraints(node.name)
+            )
+
+            # Default to 0 if no outgoing time slot is found
+            if not outgoing_time_slot:
+                log.warning(
+                    f"No time slot available for node {node.name}. Defaulting to 0."
+                )
+                return 0, False
+
+            # Return the outgoing time slot and its critical status
+            return outgoing_time_slot[0], outgoing_time_slot[1]
+        except Exception as e:
+            log.error(f"Error calculating time slot for node {node.name}: {e}")
+            return 0, False
+
+    def _prune_simulated_paths(
+        self, paths: List[Tuple[int, int, Any, List[Any]]]
+    ) -> Tuple[Tuple[int, int, Any, List[Any]], List[Tuple[int, int, Any, List[Any]]]]:
+        """
+        Prune the paths to the top `beam_width` paths and return the best path.
+
+        Args:
+            paths (List[Tuple[int, int, Any, List[Any]]]): List of simulated paths with their costs.
+
+        Returns:
+            Tuple[Tuple[int, int, Any, List[Any]], List[Tuple[int, int, Any, List[Any]]]]:
+                - The best path based on cost.
+                - The pruned list of paths.
+        """
+        if not paths:
+            log.warning("No paths to prune.")
+            return None, []
+
+        # Sort paths by cost (paths[0]) and depth (paths[1]) for tie-breaking
+        pruned_paths = sorted(paths, key=lambda x: (x[0], x[1]))[: self.beam_width]
+
+        # Return the best path and the pruned list
+        return pruned_paths[0], pruned_paths
