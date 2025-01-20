@@ -3,19 +3,19 @@
         "Task": "Wash dish, egg, and potato",
         "Subtasks": [
             {
-                "Name": "Wash Plate_aaa",
+                "Name": "Wash Plate",
                 "Repetition": 2,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Plate_aaa": 1
+                        "Plate": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Plate_aaa",
-                        "GRASP Plate_aaa",
+                        "NAVIGATE_TO Plate",
+                        "GRASP Plate",
                         "NAVIGATE_TO Faucet",
                         "TOGGLE_ON Faucet",
-                        "PLACE_INSIDE Plate_aaa",
+                        "PLACE_INSIDE Plate",
                         "TOGGLE_OFF Faucet",
                         "PLACE_ON_TOP CounterTop"
                     ]

@@ -3,9 +3,10 @@ from typing import List
 import networkx as nx
 from anytree import Node
 
-from utils.util import create_module_logger
-from task_management.rule import ConstraintHandler, SlotHandler
-from utils.util import tasks_to_subtasks
+# from task_management.rule import ConstraintHandler, SlotHandler
+from task_management.rule.constraint_handler import ConstraintHandler
+from task_management.rule.slot_handler import SlotHandler
+from utils.util import create_module_logger, tasks_to_subtasks
 
 log = create_module_logger(module_name=__name__, is_file_handler=False)
 
@@ -146,7 +147,7 @@ class TaskTreeBuilder:
         time_slot, _ = self.slot_handler.compress_time_slots(
             parent_node,
             subtask,
-            self.constraint_handler.get_time_slot_and_urgency,
+            self.constraint_handler._get_time_slot_and_urgency,
         )
         log.info(f"Time slot for {subtask.name}: {time_slot}")
 

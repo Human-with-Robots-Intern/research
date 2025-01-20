@@ -202,7 +202,7 @@ class TaskTreeBuilder:
         time_slot, _ = self.slot_handler.compress_time_slots(
             parent_node,
             child_candidate,
-            self.constraint_handler.get_time_slot_and_urgency,
+            self.constraint_handler._get_time_slot_and_urgency,
         )
         if time_slot is None:
             log.warning(f"No time slot for '{child_candidate.name}', skipping.")
@@ -272,7 +272,7 @@ class TaskTreeBuilder:
         time_slot, _ = self.slot_handler.compress_time_slots(
             parent_node,
             child_candidate,
-            self.constraint_handler.get_time_slot_and_urgency,
+            self.constraint_handler._get_time_slot_and_urgency,
         )
         return time_slot is not None
 
