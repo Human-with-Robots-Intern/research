@@ -1,22 +1,38 @@
+Executing Subtask: Wash Eggsuccess
+success
+success
+success
+Alternative Action: Drop: success
+success
+failure. Can't place an object if Agent isn't holding anything
+Alternative Action: Drop: failure. InvalidOperationException: Nothing is in the agent's hand to drop!
+Executing Subtask: Wash Potatosuccess
+success
+success
+Alternative Action: Drop: success
+success
+failure. Can't place an object if Agent isn't holding anything
+Alternative Action: Drop: failure. InvalidOperationException: Nothing is in the agent's hand to drop!
+Executing Subtask: Prepare Egg Frysuccess
+success
+Alternative Action: Drop: success
+success
+success
+success
+Alternative Action: Drop: success
+Executing Subtask: Turn off stove after cookingsuccess
 Executing Subtask: Wash Plate_part_1success
 success
 success
 success
 Alternative Action: Drop: success
 success
-failure. NullReferenceException: Target object not found within the specified visibility.
+failure. Can't place an object if Agent isn't holding anything
 Alternative Action: Drop: failure. InvalidOperationException: Nothing is in the agent's hand to drop!
 Executing Subtask: Wash Plate_part_2success
 success
 success
 Alternative Action: Drop: success
 success
-failure. NullReferenceException: Target object not found within the specified visibility.
-Alternative Action: Drop: failure. InvalidOperationException: Nothing is in the agent's hand to drop!
-Executing Subtask: Wash Plate_part_3success
-success
-success
-Alternative Action: Drop: success
-success
-failure. NullReferenceException: Target object not found within the specified visibility.
+failure. Can't place an object if Agent isn't holding anything
 Alternative Action: Drop: failure. InvalidOperationException: Nothing is in the agent's hand to drop!

@@ -98,9 +98,8 @@ def load_task_data():
 
     with open(target_task_path, "r") as file:
         target_task = json.load(file)  # 일단 불러오기
-    target_task = check_place(target_task)
-    print(target_task)
-    return target_task_name, target_task
+    
+    return target_task_name, check_place(target_task)
 
 
 def load_tasks_and_constraints(task_data, enable_decomposition):
