@@ -56,8 +56,9 @@ def load_task_data():
 
     while True:
         try:
-            choice = 7  # int(input("Enter the number of your choice: "))
-
+            choice = int(input("Enter the number of your choice: "))
+            # 가장 마지막 파일 로드
+            # choice = len(task_files)
             if choice == 0:
                 target_task_name = generate_task()
                 break

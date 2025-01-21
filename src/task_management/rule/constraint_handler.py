@@ -12,17 +12,19 @@ class ConstraintHandler:
     def __init__(self, constraints: nx.DiGraph):
         self.constraints = constraints
 
-    def validate_constraints(self, parent_node: Node, subtask: "Subtask") -> bool:  # type: ignore
+    def validate_constraints(self, current_state: "Subtask", candidate_subtask: "Subtask") -> bool:  # type: ignore
         """
         서브태스크가 모든 제약 조건을 만족하는지 확인
         """
-        constraint_nodes = self._get_constraint_nodes(parent_node, subtask.name)
-        constraints = self._get_constraints(subtask.name)
+        constraint_subtasks = self._get_constraint_subtasks(
+            current_state, candidate_subtask.name
+        )
+        constraints = self._get_constraints(candidate_subtask.name)
 
-        if len(constraint_nodes) != len(constraints):
+        if len(constraint_subtasks) != len(constraints):
             return False
 
-        time_slots = self.get_time_slot_and_urgency(parent_node, subtask)
+        time_slots = self.get_time_slot_and_urgency(current_state, candidate_subtask)
         return all(
             time_slot >= 0 if is_urgency else True
             for time_slot, is_urgency in time_slots
@@ -36,35 +38,35 @@ class ConstraintHandler:
         return [subtask for subtask in subtasks if subtask.name in initial_nodes]
 
     def get_expandable_subtasks(
-        self, parent_node: Node, remaining_subtasks: List["Subtask"]  # type: ignore
+        self, state  # type: ignore
     ) -> List["Subtask"]:  # type: ignore
         """
         실행 가능한 서브태스크를 반환합니다.
         """
         eligible_subtasks = [
             subtask
-            for subtask in remaining_subtasks
-            if self.validate_constraints(parent_node, subtask)
+            for subtask in state.remaining_subtasks
+            if self.validate_constraints(state, subtask)
         ]
         return eligible_subtasks
 
     def get_time_slot_and_urgency(
-        self, parent_node: Node, subtask: "Subtask"  # type: ignore
+        self, current_state: Any, subtask: "Subtask"  # type: ignore
     ) -> List[Tuple[int, bool]]:
         """서브태스크에 대한 시간 슬롯과 긴급성을 계산."""
-        constraint_nodes = self._get_constraint_nodes(parent_node, subtask.name)
+        constraint_subtasks = self._get_constraint_subtasks(current_state, subtask.name)
 
-        if not constraint_nodes:
+        if not constraint_subtasks:
             return [(0, False)]
 
         time_slots = [
-            self._calculate_time_slot_for_constraint(parent_node, node, subtask)
-            for node in constraint_nodes
+            self._calculate_time_slot_for_constraint(current_state, node, subtask)
+            for node in constraint_subtasks
         ]
         return time_slots
 
     def get_temporal_constraints(
-        self, subtask_name: "Subtask"  # type: ignore
+        self, subtask_name: str, type: str  # type: ignore
     ) -> Tuple[Tuple[int, bool], Tuple[int, bool]]:
         """
         Calculate the time slot and urgency for a given subtask.
@@ -83,24 +85,25 @@ class ConstraintHandler:
                 log.debug(
                     f"No edges found for subtask {subtask_name}. Returning default (0, False)."
                 )
-                return 0, False
+                return 0, False, None
             return min(
                 [
-                    (data["info"]["Interval"], data["info"]["Urgency"])
-                    for _, _, data in edges
+                    (data["info"]["Interval"], data["info"]["Urgency"], v)
+                    for _, v, data in edges
                 ],
                 key=lambda x: x[0],
             )
 
         # Retrieve edges for outgoing and incoming constraints
-        out_edges = list(self.constraints.out_edges(subtask_name, data=True))
-        in_edges = list(self.constraints.in_edges(subtask_name, data=True))
+        if type == "out":
+            edges = list(self.constraints.out_edges(subtask_name, data=True))
+        elif type == "in":
+            edges = list(self.constraints.in_edges(subtask_name, data=True))
 
         # Calculate constraints
-        outgoing_time_slot = extract_constraints(out_edges)
-        incoming_time_slot = extract_constraints(in_edges)
+        time_slot = extract_constraints(edges)
 
-        return outgoing_time_slot, incoming_time_slot
+        return time_slot
 
     def _get_constraints(self, subtask_name: str) -> List[Tuple]:
         """주어진 서브태스크와 관련된 모든 제약 조건을 수집합니다."""
@@ -109,26 +112,28 @@ class ConstraintHandler:
             for u, v, data in self.constraints.in_edges(subtask_name, data=True)
         ]
 
-    def _get_constraint_nodes(self, parent_node: Node, subtask_name: str) -> List[Node]:
+    def _get_constraint_subtasks(
+        self, current_state: Any, subtask_name: str
+    ) -> List["Subtask"]:
         """subtask에 영향을 주는 제약 노드 반환"""
         constraint_nodes = [
-            node
+            done_subtask
             for source, _, _ in self.constraints.in_edges(subtask_name, data=True)
-            for node in parent_node.path
-            if node.name.startswith(source)
+            for done_subtask in current_state.partial_plan
+            if done_subtask.name.startswith(source)
         ]
         return constraint_nodes
 
     def _calculate_time_slot_for_constraint(
-        self, parent_node: Node, constraint_node: Node, subtask: "Subtask"  # type: ignore
+        self, current_state: Any, constraint_subtask: Node, subtask: "Subtask"  # type: ignore
     ) -> Tuple[int, bool]:
         """단일 제약 노드에 대한 시간 슬롯을 계산"""
         constraint_info = self.constraints.get_edge_data(
-            constraint_node.name, subtask.name
+            constraint_subtask.name, subtask.name
         )["info"]
         interval = constraint_info["Interval"]
         urgency = constraint_info["Urgency"]
 
-        time_slot = constraint_node.end + interval - parent_node.end
+        time_slot = interval
 
         return time_slot, urgency
