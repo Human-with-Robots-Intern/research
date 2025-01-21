@@ -119,6 +119,11 @@
             "expected_duration": 1.0763736307302865,
             "variance": 1.0,
             "occurrences": 0
+        },
+        "SLICE": {
+            "expected_duration": 1.0,
+            "variance": 1.0,
+            "occurrences": 0
         }
     },
     "Invalid_actions": {},
@@ -1104,6 +1109,51 @@
             "occurrences": 0
         },
         "Turn off stove after cooking": {
+            "expected_duration": -2.387741249639717,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash Plate": {
+            "expected_duration": 3.0029304264551726,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash a Plate": {
+            "expected_duration": 4.790151408671683,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare Egg for Cooking": {
+            "expected_duration": 5.680792837758775,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Cook and Complete Egg Fry": {
+            "expected_duration": -2.387741249639717,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash egg": {
+            "expected_duration": 5.080272570335567,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash potato": {
+            "expected_duration": 5.080272570335567,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare egg fry": {
+            "expected_duration": 6.680792837758775,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash Dish": {
+            "expected_duration": 5.080272570335567,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn off Stove after Cooking": {
             "expected_duration": -2.387741249639717,
             "variance": 1.0,
             "occurrences": 0

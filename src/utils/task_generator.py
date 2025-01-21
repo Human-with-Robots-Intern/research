@@ -187,7 +187,7 @@ def cached_generate_task(
 
 def generate_task():
     """Generate tasks based on user input and knowledge base."""
-    file_name = "thor_e2e_generator_ver1.txt"
+    file_name = "e2e_generator_ver5.txt"
     examples_prompt = load_file(Path(PROMPT_PATH) / file_name, "txt")
     knowledge = load_file(Path(KNOWLEDGE_PATH) / "knowledge.json", "json")
 

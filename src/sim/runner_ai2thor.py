@@ -206,6 +206,7 @@ def execute_subtask(controller, subtask):
         "CLOSE": lambda target_obj: Act.close(target_obj),
         "TOGGLE_ON": lambda target_obj: Act.toggleon(target_obj),
         "TOGGLE_OFF": lambda target_obj: Act.toggleoff(target_obj),
+        "SLICE": lambda target_obj: Act.slice(target_obj),
         # 필요한 경우 다른 액션을 추가할 수 있습니다.
     }
 
@@ -218,9 +219,8 @@ def execute_subtask(controller, subtask):
             log.warning(f"Invalid action format: {action_str}. Skipping.")
             raise ValueError(f"Invalid action format: {action_str}")
 
-        action_type, target_name = parts
+        action_type, target_obj_ID = parts
         # subtask 의 obj 명이 ID가 아니라 name으로 출력돼서 필요한 줄.
-        target_obj_ID = find_objID(controller, target_name.lower())
         print(f"{action_type=}")
         print(f"{target_obj_ID=}")
         if action_type in action_mapping:
@@ -243,6 +243,6 @@ def execute_subtask(controller, subtask):
             #     success = False
         else:
             log.warning(f"Unknown action type: {action_type}. Skipping.")
-    print(f"걸린시간 = {time}")
+    print(f"{subtask.name}의 걸린시간 = {round(time, 2)}")
     log.info(f"Successfully executed Subtask: {subtask.name}")
     return success

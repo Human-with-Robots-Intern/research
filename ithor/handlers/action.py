@@ -38,7 +38,10 @@ class Action:
                 if "parentReceptacles" in obj:
                     parent_receptacle_ids = obj["parentReceptacles"]
                     break
-        parent_receptacle_id = parent_receptacle_ids[0]
+        if parent_receptacle_ids:
+            parent_receptacle_id = parent_receptacle_ids[0]
+        else:
+            parent_receptacle_id = None
         return parent_receptacle_id
 
     def pickup(self, object_id: str):
@@ -88,10 +91,22 @@ class Action:
                     )
                     return False
             else:
-                self.log_file.write(
-                    f"No parent receptacle found for object {object_id}."
+                self.controller.step(
+                    action="PickupObject",
+                    objectId=object_id,
+                    forceAction=False,
+                    manualInteract=False,
                 )
-                return False
+                self.log_file.write(self.last_action_success(self.controller))
+                self.controller.step(action="Pass")
+                self.camera_handler.update_view()
+                time.sleep(0.3)
+                elapsed_time+=1
+                return elapsed_time
+                # self.log_file.write(
+                #     f"No parent receptacle found for object {object_id}."
+                # )
+                # return False
 
     def slice(self, object_id: str):
         self.controller.step(action="SliceObject", objectId=object_id)

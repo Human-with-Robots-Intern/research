@@ -76,7 +76,6 @@ def get_environment(controller):  # 최종 환경 추출
         objs.extend(receptacle_ids)
     # sliceable 추가하기
     env = {
-        scene_name: {
             "OPEN": openableID,
             "CLOSE": openableID,
             "TOGGLE_ON": toggleableID,
@@ -85,7 +84,6 @@ def get_environment(controller):  # 최종 환경 추출
             "SLICE": sliceableID,
             "RECEPTACLE": receptacleID,
         }
-    }
 
     objs = list(set(objs))
     with open(KNOWLEDGE_PATH / f"{scene_name}_environment.json", "w") as f:
@@ -128,7 +126,7 @@ if __name__ == "__main__":
     controller = Controller(
         agentMode="default",  # "default", "locobot", "drone", or "arm",
         massThreshold=0.04,  # 물리 엔진에서 물체를 움직이는 최소 질량
-        scene=SCENE_NAME,  # Scene 이름
+        scene="FloorPlan2_physics",  # Scene 이름
         gridSize=GRID_SIZE,  # Move Actions의 Mean
         movementGaussianSigma=0.005,  # Move Actions의 Sigma
         renderDepthImage=False,  # Depth Image 렌더링 여부 (오랜 시간 소요)

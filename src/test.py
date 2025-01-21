@@ -60,6 +60,9 @@ def check_place(tasks):
                 if i > 0 and "PLACE" in action and "NAVIGATE" not in actions[i - 1]:
                     to_obj = action.split(" ")[1]
                     updated_actions.append(f"NAVIGATE_TO {to_obj}")
+                if "PLACE" in action and "Sink" in action and "SinkBasin" not in action:
+                    to_obj = action.split(" ")[1]+"|SinkBasin"
+                    updated_actions.append(f"PLACE_INSIDE {to_obj}")
                 updated_actions.append(action)
             subtask["Executions"]["PrimitiveActions"] = updated_actions
     return tasks
@@ -98,7 +101,7 @@ def load_task_data():
 
     with open(target_task_path, "r") as file:
         target_task = json.load(file)  # 일단 불러오기
-    
+
     return target_task_name, check_place(target_task)
 
 
@@ -142,6 +145,7 @@ def main():
 
     # Task execution
     # try:
+    print(f"{scheduled_subtasks=}")
     for scheduled_subtask in scheduled_subtasks:
         print(f"{scheduled_subtask=}")
         execute_subtask(controller, scheduled_subtask)
