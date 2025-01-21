@@ -228,14 +228,16 @@ def execute_subtask(controller, subtask):
 
             # 실행된 제너레이터의 최종 결과를 success로 받음
             generator = action_mapping[action_type](target_obj_ID)
-            time+=generator
+            print(f"{generator=}")
+            time += generator
             print(f"{time=}")
-            try:
-                for result in generator:
-                    pass
-                success = True  # 제너레이터가 정상적으로 완료되면 성공
-            except StopIteration:
-                success = True
+            success = True
+            # try:
+            #     for result in generator:
+            #         pass
+            #     success = True  # 제너레이터가 정상적으로 완료되면 성공
+            # except StopIteration:
+            #     success = True
             # except Exception as e:
             #     log.error(f"Error executing action '{action_type}': {e}")
             #     success = False

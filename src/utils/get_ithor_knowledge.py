@@ -9,6 +9,7 @@ from ithor.utils.constants import *
 
 from utils.constants import KNOWLEDGE_PATH
 
+
 def get_environment(controller):  # 최종 환경 추출
     scene_name = controller.step("Pass").metadata["sceneName"]
     objs = controller.step("Pass").metadata["objects"]
@@ -18,8 +19,8 @@ def get_environment(controller):  # 최종 환경 추출
     toggleableID = []
     pickupable = []
     pickupableID = []
-    breakable = []
-    breakableID = []
+    sliceable = []
+    sliceableID = []
     receptacle = []
     receptacleID = []
 
@@ -30,15 +31,15 @@ def get_environment(controller):  # 최종 환경 추출
             toggleable.append(obj["objectType"])
         if obj["pickupable"]:
             pickupable.append(obj["objectType"])
-        if obj["breakable"]:
-            breakable.append(obj["objectType"])
+        if obj["sliceable"]:
+            sliceable.append(obj["objectType"])
         if obj["receptacle"]:
             receptacle.append(obj["objectType"])
 
     openable = list(set(openable))
     toggleable = list(set(toggleable))
     pickupable = list(set(pickupable))
-    breakable = list(set(breakable))
+    sliceable = list(set(sliceable))
     receptacle = list(set(receptacle))
 
     objs = []
@@ -61,19 +62,19 @@ def get_environment(controller):  # 최종 환경 추출
         ).metadata["actionReturn"]
         pickupableID.extend(pickupable_ids)
         objs.extend(pickupable_ids)
-    for obj in breakable:
-        breakable_ids = controller.step(
+    for obj in sliceable:
+        sliceable_ids = controller.step(
             action="ObjectTypeToObjectIds", objectType=obj
         ).metadata["actionReturn"]
-        breakableID.extend(breakable_ids)
-        objs.extend(breakable_ids)
+        sliceableID.extend(sliceable_ids)
+        objs.extend(sliceable_ids)
     for obj in receptacle:
         receptacle_ids = controller.step(
             action="ObjectTypeToObjectIds", objectType=obj
         ).metadata["actionReturn"]
         receptacleID.extend(receptacle_ids)
         objs.extend(receptacle_ids)
-    # breakable 추가하기
+    # sliceable 추가하기
     env = {
         scene_name: {
             "OPEN": openableID,
@@ -81,7 +82,7 @@ def get_environment(controller):  # 최종 환경 추출
             "TOGGLE_ON": toggleableID,
             "TOGGLE_OFF": toggleableID,
             "GRASP": pickupableID,
-            "BREAK": breakableID,
+            "SLICE": sliceableID,
             "RECEPTACLE": receptacleID,
         }
     }
@@ -89,7 +90,7 @@ def get_environment(controller):  # 최종 환경 추출
     objs = list(set(objs))
     with open(KNOWLEDGE_PATH / f"{scene_name}_environment.json", "w") as f:
         json.dump(env, f)
-    return env, objs# prompt 에 쓸 땐 str(env)로 바꿔줘야함
+    return env, objs  # prompt 에 쓸 땐 str(env)로 바꿔줘야함
 
 
 def get_move_time(controller, objs):
@@ -97,9 +98,17 @@ def get_move_time(controller, objs):
     move_time = {}
     camera_handler = CameraHandler(controller)
     Navi = NavigationHandler(controller, camera_handler)
-    
+
+    move_time["agent"] = {}
+    agent_pos = Navi.get_agent_position()
+    for to_obj in objs:
+        to_obj_pos = Navi.get_object_position(to_obj)
+        path = Navi.shortest_path(agent_pos, to_obj_pos)
+        time = round(len(path) * 0.1, 2)
+        move_time["agent"][to_obj] = time
+
     for obj1 in objs:
-        move_time[obj1]={}
+        move_time[obj1] = {}
         for obj2 in objs:
             print(f"{obj1} to {obj2}")
             obj1_pos = Navi.get_object_position(obj1)
@@ -107,12 +116,13 @@ def get_move_time(controller, objs):
             path = Navi.shortest_path(obj1_pos, obj2_pos)
             time = round(len(path) * 0.1, 2)
             print(f"{time=}")
-            move_time[obj1][obj2]=time
+            move_time[obj1][obj2] = time
 
-    scene_name = controller.last_event.metadata['sceneName']
+    scene_name = controller.last_event.metadata["sceneName"]
 
     with open(KNOWLEDGE_PATH / f"{scene_name}_navigation_time.json", "w") as f:
         json.dump(move_time, f)
+
 
 if __name__ == "__main__":
     controller = Controller(
