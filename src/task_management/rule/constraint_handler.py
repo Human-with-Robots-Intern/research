@@ -1,8 +1,9 @@
-from logging import log
 from typing import Any, List, Tuple
 from xml.dom import Node
 
 import networkx as nx
+
+from utils.util import log
 
 
 class ConstraintHandler:
@@ -79,9 +80,9 @@ class ConstraintHandler:
 
         def extract_constraints(edges: List[Tuple[Any, Any, dict]]) -> Tuple[int, bool]:
             if not edges:
-                # log.debug(
-                #     f"No edges found for subtask {subtask_name}. Returning default (0, False)."
-                # )
+                log.debug(
+                    f"No edges found for subtask {subtask_name}. Returning default (0, False)."
+                )
                 return 0, False
             return min(
                 [
