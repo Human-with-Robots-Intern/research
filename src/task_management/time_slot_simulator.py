@@ -1,11 +1,20 @@
-# time_slot_simulator.py
 import heapq
 from queue import PriorityQueue
-from typing import List, Tuple
+from typing import List, NamedTuple, Tuple
 
 from core.task import Subtask
 from task_management.cost_calculator import CostCalculator, NavigationManager
 from task_management.rule import ConstraintHandler
+
+
+class SimulationState(NamedTuple):
+    """
+    시뮬레이션 중 임시 상태.
+    """
+
+    name: str  # 마지막으로 실행된 Subtask 이름 (또는 "Init")
+    partial_plan: List[Subtask]
+    remaining_subtasks: List[Subtask]
 
 
 class TimeSlotSimulator:
@@ -39,13 +48,25 @@ class TimeSlotSimulator:
         Time Slot 내에서 subtask를 여러 개 배치해볼 수 있는 시나리오를 만든 뒤,
         (subtask_count, final_cost, new_depth, final_plan, remain)을 반환합니다.
 
-        원래 _simulate_time_slot_case 로직을 대부분 이곳에 옮김.
+        - subtask_count: 이 슬롯에서 배치된 서브태스크의 수
+        - final_cost: 현재까지의 총 비용 (누적)
+        - new_depth: 증가된 깊이
+        - final_plan: Time Slot 시뮬레이션 후의 부분 계획
+        - remain: Time Slot 시뮬레이션 후 남은 서브태스크들
         """
+
         slot_queue = PriorityQueue()
-        # slot_queue 항목: ((-subtask_count, slot_cost), order, leftover, global_cost, plan, remain)
+        # PriorityQueue stores items of the form:
+        # ((-subtask_count, slot_cost), order, leftover, global_cost, plan_so_far, remain_so_far)
+        # where:
+        #   - subtask_count = number of subtasks already placed into this slot
+        #   - slot_cost = local slot cost (if needed; here it’s just an incremental measure)
+        #   - leftover = how much time remains in this slot
+        #   - global_cost = total accumulated cost so far
+        #   - plan_so_far, remain_so_far = current partial plan & remaining subtasks
         slot_queue.put(
             (
-                (0, 0.0),  # subtask_count=0, slot 내 비용=0
+                (0, 0.0),  # subtask_count=0, slot_cost=0
                 0,  # tie-breaker order
                 separation_interval,
                 total_cost,
@@ -68,32 +89,38 @@ class TimeSlotSimulator:
             ) = slot_queue.get()
             subtask_count = -neg_count
 
-            # 현재 슬롯에서 배치 가능한 subtask 찾기
-            feasible_subtasks = self.constraint_handler.get_expandable_subtasks(
+            # 1) Create a local SimulationState and get feasible subtasks
+            local_state = SimulationState(
                 name=current_subtask_name,
                 partial_plan=plan_so_far,
                 remaining_subtasks=remain_so_far,
             )
 
+            feasible_subtasks = self.constraint_handler.get_expandable_subtasks(
+                local_state
+            )
+
+            # 2) Filter out the subtask that triggered this time slot (related_subtask_name)
+            #    because we don't want to place it inside its own slot
             expandables = []
             for candidate in feasible_subtasks:
-                # 해당 슬롯을 트리거한 subtask(related_subtask_name)는 slot 내부에서 배치하지 않음(기존 로직 유지)
                 if candidate.name == related_subtask_name:
                     continue
 
-                # 내비게이션 시간
+                # Calculate navigation time (from current_subtask_name to candidate)
                 nav_time = self.navigation_manager.calculate_navigation_time(
                     current_subtask_name, plan_so_far, candidate
                 )
                 total_dur = candidate.duration.interval + nav_time
 
+                # If the candidate fits into the leftover time
                 if total_dur <= leftover:
                     expandables.append((candidate, total_dur))
 
             if expandables:
-                # 슬롯 안에 더 배치
+                # 3) We can still place more subtasks inside this slot
                 for cand_subtask, actual_dur in expandables:
-                    new_global_cost = global_cost + actual_dur  # (기존 로직: 단순 누적)
+                    new_global_cost = global_cost + actual_dur  # Simple additive cost
                     new_leftover = leftover - actual_dur
                     new_plan = plan_so_far + [cand_subtask]
                     new_remain = [
@@ -112,7 +139,7 @@ class TimeSlotSimulator:
                         )
                     )
             else:
-                # 더 넣을 subtask가 없으면 leftover만큼 Wait 처리
+                # 4) No more subtasks can be placed -> fill leftover with a Wait subtask
                 if leftover > 0:
                     wait_sub = Subtask(
                         task_name=None,
@@ -143,7 +170,7 @@ class TimeSlotSimulator:
                         )
                     )
                 else:
-                    # leftover == 0
+                    # leftover == 0 -> no waiting needed
                     slot_scenarios.append(
                         (
                             subtask_count,
@@ -154,15 +181,18 @@ class TimeSlotSimulator:
                         )
                     )
 
-            # 슬롯 내부에서도 beam 폭 제한
+            # 5) Beam constraint inside the slot simulation
             if slot_queue.qsize() > (self.beam_width * 20):
                 temp_list = []
                 while not slot_queue.empty():
                     temp_list.append(slot_queue.get())
-                temp_list.sort(key=lambda x: x[0])  # (-(count), slot_cost) 기준
+                # Sort primarily by subtask_count (descending), then cost (ascending)
+                # Actually, our priority is stored as (-(subtask_count), slot_cost).
+                temp_list.sort(key=lambda x: x[0])  # Sort by ((-count, slot_cost), ...)
+                # Reinsert only top N
                 for item in temp_list[: self.beam_width * 10]:
                     slot_queue.put(item)
 
-        # (subtask_count 내림차순, cost 오름차순)으로 정렬
+        # 6) Sort final scenarios by (subtask_count desc, cost asc)
         slot_scenarios.sort(key=lambda x: (-x[0], x[1]))
         return slot_scenarios[: self.beam_width]
