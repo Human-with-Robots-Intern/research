@@ -1,214 +1,436 @@
+import copy
 import itertools
 from queue import PriorityQueue
-from typing import List, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    from task_management.subtask import Subtask
 
 import networkx as nx
 from anytree import Node
 
-from utils.util import create_module_logger
 from task_management.rule import ConstraintHandler, SlotHandler
-from utils.util import tasks_to_subtasks
+from utils.util import create_module_logger, load_navigation_times, tasks_to_subtasks
 
 log = create_module_logger(module_name=__name__, is_file_handler=False)
 
 
 class TaskTree:
-    def __init__(self):
-        """
-        Initialize the TaskTree with a root node.
-        """
-        self.root_node = Node(
-            name="Init",
-            start=0,
-            end=0,
-            duration=0,
-        )
+    """
+    Manages a tree of tasks (subtasks or wait nodes).
+    """
 
-    def add_wait_node(
-        self, parent_node: Node, subtask_name: str, wait_time: int
-    ) -> Node:
-        """
-        Add a wait node to the task tree.
-        """
+    def __init__(self):
+        self.root_node = Node(name="Init", start=0, end=0, duration=0)
+
+    def add_wait_node(self, parent: Node, subtask_name: str, wait_time: int) -> Node:
         wait_node = Node(
             name=f"Wait for {subtask_name}",
-            parent=parent_node,
-            start=parent_node.end,
-            end=parent_node.end + wait_time,
+            parent=parent,
+            start=parent.end,
+            end=parent.end + wait_time,
             duration=wait_time,
         )
-        log.debug(f"Added wait node: {wait_node.name} with duration {wait_time}")
+        log.debug(f"Added wait node: {wait_node.name}, duration={wait_time}")
         return wait_node
 
-    def add_subtask_node(self, parent_node: Node, subtask: "Subtask") -> Node:  # type: ignore
+    def add_subtask_node(
+        self, parent: Node, subtask: "Subtask", navigate_time: int = 0
+    ) -> Node:
         """
-        Add a subtask node to the task tree.
+        Add a subtask node to the tree, considering navigate time.
+
+        Args:
+            parent (Node): Parent node.
+            subtask (Subtask): Subtask to add.
+            navigate_time (int): Time taken to navigate to this subtask.
+
+        Returns:
+            Node: The newly added subtask node.
         """
         subtask_node = Node(
             name=subtask.name,
-            parent=parent_node,
-            start=parent_node.end,
-            end=parent_node.end + subtask.duration.interval,
-            duration=subtask.duration.interval,
+            parent=parent,
+            start=parent.end,
+            end=parent.end + navigate_time + subtask.duration.interval,
+            duration=subtask.duration.interval + navigate_time,
         )
         log.debug(
-            f"Added subtask node: {subtask.name} with duration {subtask.duration.interval}"
+            f"Added subtask node: {subtask.name}, navigate_time={navigate_time}, "
+            f"start={subtask_node.start}, end={subtask_node.end}"
         )
         return subtask_node
 
 
 class TaskTreeBuilder:
-    def __init__(self, constraints: nx.DiGraph, beam_width: int = 3):
-        """
-        Initialize the TaskTreeBuilder with Beam Search.
+    """
+    Builds a TaskTree using 3-step simulation to select the first subtask of the shortest path.
+    Includes tie-breaking to ensure consistent order for equal-cost paths.
+    """
 
-        Args:
-            constraints (nx.DiGraph): Directed graph representing task constraints.
-            beam_width (int): The number of top nodes to expand at each level.
-        """
+    def __init__(
+        self, constraints: nx.DiGraph, beam_width: int = 1, simulation_depth: int = 5
+    ):
         self.tree = TaskTree()
         self.beam_width = beam_width
+        self.simulation_depth = simulation_depth
+
         self.constraint_handler = ConstraintHandler(constraints)
-        self.slot_handler = SlotHandler(self._node_expansion_with_cost)
+        self.slot_handler = SlotHandler(self._expand_node)
+        self.navigation_times = load_navigation_times()
+        self.subtasks_info = None
 
-        # [추가] best_solution 관리를 위해 추가
-        self.best_solution_node = None
-        self.best_makespan = float("inf")
+        self.best_plan: Optional[Node] = None
+        self.best_makespan: float = float("inf")
+        self._counter = itertools.count()  # Tie-breaking을 위한 카운터.
 
-    def build_tree(self, tasks: List["Task"]) -> Node:  # type: ignore
-        """
-        Build the task tree using Beam Search.
+    def build_tree(self, tasks: List[Any]) -> Node:
+        all_subtasks = tasks_to_subtasks(tasks)
+        self.subtasks_info = copy.deepcopy(all_subtasks)
 
-        Args:
-            tasks (List[Task]): A list of tasks to build the tree from.
+        current_node = self.tree.root_node
+        remaining_subtasks = all_subtasks
 
-        Returns:
-            Node: The root node of the built task tree.
-        """
-        # 1) 초기 Subtasks 추출
-        subtasks = tasks_to_subtasks(tasks)
-        initial_subtasks = self.constraint_handler.get_initial_subtasks(subtasks)
+        while remaining_subtasks:
+            temporal_constraint = self._calculate_time_slot(current_node)
+            simulated_paths = self._simulate_expansion(
+                current_node, remaining_subtasks, temporal_constraint
+            )
 
-        # 2) 초기 상태(= 트리의 루트 노드) 우선순위 큐에 삽입
-        #    여기서 우선순위는 0으로 두고, tie-break 용 id는 counter로 생성
-        pq_current_level = PriorityQueue()
-        counter = itertools.count()
-        init_cost = 0  # 루트 노드의 코스트는 0으로 가정
-        pq_current_level.put((init_cost, next(counter), self.tree.root_node))
+            if not simulated_paths:
+                log.warning("No valid paths found. Stopping expansion.")
+                break
 
-        # 3) 빔 서치 루프
-        while not pq_current_level.empty():
-            # 이번 레벨의 상태들을 모두 꺼내서 확장
-            current_level_list = []
-            while not pq_current_level.empty():
-                current_level_list.append(pq_current_level.get())
+            shortest_path, _ = self._prune_simulated_paths(simulated_paths)
+            _, _, selected_subtask, updated_remaining = shortest_path
 
-            # 다음 레벨 후보를 담을 우선순위 큐
-            pq_next_level = PriorityQueue()
+            current_node = self.tree.add_subtask_node(current_node, selected_subtask)
+            remaining_subtasks = updated_remaining
 
-            # (A) 이번 레벨의 각 상태(노드)에 대해 확장 시도
-            for cost_val, _, parent_node in current_level_list:
-
-                # [추가] 만약 모든 Subtask가 끝났다는 로직이 있다면, 여기에 배치
-                # isComplete() 같은 함수를 만들 수도 있음.
-                # 여기서는 "더 이상 확장할 subtask가 없다면"을 체크 예시:
-                # if self.constraint_handler.check_all_subtasks_done(parent_node, subtasks):
-                #    if parent_node.end < self.best_makespan:
-                #        self.best_makespan = parent_node.end
-                #        self.best_solution_node = parent_node
-                #    continue
-
-                # (B) 현재 노드에서 확장할 수 있는 subtask를 순회
-                for subtask in initial_subtasks:
-                    # 확장 가능 여부
-                    if not self._can_expand_node(parent_node, subtask, subtasks):
-                        continue
-                    # 실제 확장 수행 => 자식 상태(노드) 생성
-                    new_cost, new_node = self._node_expansion_with_cost(
-                        parent_node, subtask, subtasks
-                    )
-                    if new_node is None:
-                        continue
-
-                    # (C) 새로 만들어진 노드를 next_level 후보에 삽입
-                    pq_next_level.put((new_cost, next(counter), new_node))
-
-            # (D) next_level 후보 중 상위 beam_width만 다음 루프에서 사용
-            pq_current_level = PriorityQueue()
-            for _ in range(min(self.beam_width, pq_next_level.qsize())):
-                cost, uid, node = pq_next_level.get()
-                pq_current_level.put((cost, uid, node))
-
-        # 4) 빔 서치 종료 후, root_node 반환 (또는 best_solution_node)
-        #    연구 목적에 따라, self.best_solution_node가 있다면 그걸 리턴해도 됨.
         return self.tree.root_node
 
-    def _node_expansion_with_cost(
-        self, parent_node: Node, subtask: "Subtask", remaining_subtasks: List["Subtask"]
-    ) -> Tuple[int, Node or None]:
-        """
-        Expand a node in the task tree (with cost evaluation).
-        """
-        # 1) SlotHandler로 time slot 체크
-        time_slot, _ = self.slot_handler.compress_time_slots(
-            parent_node, subtask, self.constraint_handler.get_time_slot_and_urgency
-        )
-        if time_slot is None:
-            log.warning(
-                f"No available time slot for subtask '{subtask.name}'. Skipping."
-            )
-            return (999999, None)
+    def _simulate_expansion(
+        self,
+        parent_node: Node,
+        remaining_subtasks: List[Any],
+        temporal_constraint: Tuple[int, bool] = None,
+    ) -> List[Tuple[int, int, Any, List[Any]]]:
+        queue = PriorityQueue()
+        queue.put((0, 0, next(self._counter), parent_node, remaining_subtasks))
+        separation_interval, is_time_critical = temporal_constraint
 
-        # 2) 대기 시간 등 처리
-        if time_slot > 0:
-            (updated_parent, wait_time, updated_subtasks) = (
-                self.slot_handler.handle_time_slots(
-                    parent_node,
-                    subtask,
+        simulated_paths = []
+        visited_nodes = set()
+
+        while not queue.empty():
+            total_cost, current_depth, _, current_node, remaining_subtasks = queue.get()
+
+            state_id = (id(current_node), tuple(sub.name for sub in remaining_subtasks))
+            if state_id in visited_nodes:
+                continue
+            visited_nodes.add(state_id)
+
+            if current_depth >= self.simulation_depth or not remaining_subtasks:
+                continue
+
+            if separation_interval > 0:
+                self._handle_time_slot_case(
+                    current_node,
                     remaining_subtasks,
-                    time_slot,
-                    self.constraint_handler.get_expandable_subtasks,
+                    simulated_paths,
+                    total_cost,
+                    current_depth,
+                    separation_interval,
+                    is_time_critical,
                 )
-            )
-            # 대기가 필요하면 기다린 후에 subtask 노드 추가
-            if wait_time > 0:
-                updated_parent = self.tree.add_wait_node(
-                    updated_parent, subtask.name, wait_time
+            else:
+                expandable_subtasks = self.constraint_handler.get_expandable_subtasks(
+                    current_node, remaining_subtasks
                 )
-            parent_node = updated_parent
-            new_subtasks = updated_subtasks
-        else:
-            # time_slot == 0이라면 바로 시작 가능
-            new_subtasks = remaining_subtasks
+                for expandable_subtask in expandable_subtasks:
+                    cost, child_node, updated_remaining = self._expand_node(
+                        current_node,
+                        expandable_subtask,
+                        remaining_subtasks,
+                        current_depth,
+                    )
+                    if child_node:
+                        queue.put(
+                            (
+                                total_cost + cost,
+                                current_depth + 1,
+                                next(self._counter),
+                                child_node,
+                                updated_remaining,
+                            )
+                        )
+                        if current_depth == 0:
+                            simulated_paths.append(
+                                (
+                                    total_cost + cost,
+                                    current_depth + 1,
+                                    expandable_subtask,
+                                    updated_remaining,
+                                )
+                            )
 
-        # 3) Subtask 노드 추가
-        new_node = self.tree.add_subtask_node(parent_node, subtask)
+        return simulated_paths
 
-        # 4) 비용 계산
-        cost_val = self._evaluate_node(new_node, subtask)
-
-        return (cost_val, new_node)
-
-    def _can_expand_node(
-        self, parent_node: Node, subtask: "Subtask", subtasks: List["Subtask"]
-    ) -> bool:
+    def _handle_time_slot_case(
+        self,
+        current_node,
+        remaining_subtasks,
+        simulated_paths,
+        total_cost,
+        current_depth,
+        separation_interval,
+        is_time_critical,
+    ):
         """
-        Check if we can expand this parent_node with the given subtask.
+        Handle cases where a time slot is available for subtasks.
         """
-        time_slot, _ = self.slot_handler.compress_time_slots(
-            parent_node, subtask, self.constraint_handler.get_time_slot_and_urgency
+        scheduled_subtasks, updated_remaining = self.fill_time_slot(
+            remaining_subtasks, (separation_interval, is_time_critical)
         )
-        return time_slot is not None
 
-    def _evaluate_node(self, node: Node, subtask: "Subtask") -> int:
+        for i, scheduled_subtask in enumerate(scheduled_subtasks):
+            # Navigate time only if not the first task
+            navigate_time = (
+                self._calc_navigate_time(scheduled_subtasks[i - 1], scheduled_subtask)
+                if i > 0
+                else 0
+            )
+            current_node = self.tree.add_subtask_node(
+                current_node, scheduled_subtask, navigate_time=navigate_time
+            )
+            separation_interval -= scheduled_subtask.duration.interval + navigate_time
+
+        # Add wait node if separation_interval remains
+        if separation_interval > 0 and is_time_critical:
+            log.debug(
+                f"Adding wait node for critical time slot, remaining separation_interval: {separation_interval}"
+            )
+            current_node = self.tree.add_wait_node(
+                parent=current_node,
+                subtask_name="Time-Critical Wait",
+                wait_time=separation_interval,
+            )
+
+        # Expand to the next subtask if applicable
+        if updated_remaining:
+            next_subtask = updated_remaining[0]
+            cost, child_node, updated_remaining = self._expand_node(
+                current_node, next_subtask, updated_remaining, current_depth
+            )
+            if child_node:
+                simulated_paths.append(
+                    (
+                        total_cost + cost,
+                        current_depth + 1,
+                        next_subtask,
+                        updated_remaining,
+                    )
+                )
+
+    def fill_time_slot(
+        self, remaining_subtasks: List[Any], temporal_constraint: Tuple[int, bool]
+    ) -> Tuple[List[Any], List[Any]]:
         """
-        Evaluate the cost of the newly created node.
+        Fill the given time slot with the maximum number of subtasks, considering navigate time.
         """
-        duration_cost = subtask.duration.interval
-        # soft_constraint_penalty = self.constraint_handler.get_soft_constraint_penalty(
-        #     node, subtask
-        # )
-        # conflict_penalty = self.constraint_handler.get_conflict_penalty(node, subtask)
-        # total_penalty = soft_constraint_penalty + conflict_penalty
-        total_penalty = 0
-        return duration_cost + total_penalty
+        separation_interval, _ = temporal_constraint
+        remaining_subtasks = sorted(
+            remaining_subtasks, key=lambda task: task.duration.interval
+        )
+        scheduled_subtasks = []
+
+        for i, task in enumerate(remaining_subtasks[:]):
+            # Navigate time only if there are scheduled subtasks
+            navigate_time = (
+                self._calc_navigate_time(scheduled_subtasks[-1], task)
+                if scheduled_subtasks
+                else 0
+            )
+
+            # Total time required for this task
+            total_time = task.duration.interval + navigate_time
+
+            if total_time <= separation_interval:
+                scheduled_subtasks.append(task)
+                separation_interval -= total_time
+                remaining_subtasks.remove(task)
+            else:
+                break
+
+        log.debug(
+            f"Remaining separation_interval after fill_time_slot: {separation_interval}"
+        )
+        return scheduled_subtasks, remaining_subtasks
+
+    def _expand_node(
+        self,
+        parent_node: Node,
+        child_candidate: Any,
+        remaining_subtasks: List[Any],
+        parent_depth: int,
+    ) -> Tuple[int, Optional[Node], List[Any]]:
+        outgoing_time_slot, incoming_time_slot = (
+            self.constraint_handler.get_temporal_constraints(child_candidate.name)
+        )
+
+        if outgoing_time_slot is None or incoming_time_slot is None:
+            log.warning(
+                f"Subtask '{child_candidate.name}' has no valid time slot. Skipping."
+            )
+            return (float("inf"), None, remaining_subtasks)
+
+        navigate_time = self._calc_navigate_time(parent_node, child_candidate)
+        child_node = self.tree.add_subtask_node(parent_node, child_candidate)
+        new_remaining_subtasks = [
+            sub for sub in remaining_subtasks if sub.name != child_candidate.name
+        ]
+
+        cost_val = (3 - parent_depth) * (
+            child_candidate.duration.interval
+            - outgoing_time_slot[0]
+            + incoming_time_slot[0]
+            + navigate_time
+        )
+
+        return (cost_val, child_node, new_remaining_subtasks)
+
+    def _calc_navigate_time(
+        self, source_subtask: Node, target_subtask: "Subtask"
+    ) -> float:
+        source_name = source_subtask.name
+        source_subtask_info = next(
+            (sub for sub in self.subtasks_info if sub.name == source_name), None
+        )
+        if not source_subtask_info:
+            log.warning(f"Source subtask '{source_name}' not found in subtasks_info.")
+            return float("inf")
+
+        source_actions = source_subtask_info.execution.primitive_actions
+        last_source_location = next(
+            (
+                action.split()[-1]
+                for action in reversed(source_actions)
+                if action.startswith("NAVIGATE_TO")
+            ),
+            None,
+        )
+        if not last_source_location:
+            log.warning(
+                f"No 'NAVIGATE_TO' action found in source subtask '{source_name}'."
+            )
+            return float("inf")
+
+        target_actions = target_subtask.execution.primitive_actions
+        first_target_location = next(
+            (
+                action.split()[-1]
+                for action in target_actions
+                if action.startswith("NAVIGATE_TO")
+            ),
+            None,
+        )
+        if not first_target_location:
+            log.warning(
+                f"No 'NAVIGATE_TO' action found in target subtask '{target_subtask.name}'."
+            )
+            return float("inf")
+
+        matched_source_key = next(
+            (
+                key
+                for key in self.navigation_times
+                if key.startswith(last_source_location)
+            ),
+            None,
+        )
+        if not matched_source_key:
+            log.warning(
+                f"No source key matched for '{source_name}' in navigation times."
+            )
+            return float("inf")
+
+        matched_target_key = next(
+            (
+                key
+                for key in self.navigation_times.get(matched_source_key, {})
+                if first_target_location in key
+            ),
+            None,
+        )
+        if not matched_target_key:
+            log.warning(
+                f"No target key matched for '{first_target_location}' under source key '{matched_source_key}'."
+            )
+            return float("inf")
+
+        move_time = self.navigation_times[matched_source_key].get(
+            matched_target_key, None
+        )
+        if move_time is None:
+            log.warning(
+                f"Navigation time from '{matched_source_key}' to '{matched_target_key}' not found. Defaulting to infinity."
+            )
+            return float("inf")
+
+        log.info(
+            f"Navigation time from '{last_source_location}' to '{first_target_location}' is {move_time} seconds."
+        )
+        return move_time
+
+    def _calculate_time_slot(self, node: Node) -> Tuple[int, bool]:
+        """
+        Calculate the temporal constraint (time slot) for a given node.
+
+        Args:
+            node (Node): The current node.
+
+        Returns:
+            Tuple[int, bool]: A tuple containing the separation interval and whether it's time-critical.
+        """
+        try:
+            # Get temporal constraints from the constraint handler
+            outgoing_time_slot, incoming_time_slot = (
+                self.constraint_handler.get_temporal_constraints(node.name)
+            )
+
+            # Default to 0 if no outgoing time slot is found
+            if not outgoing_time_slot:
+                log.warning(
+                    f"No time slot available for node {node.name}. Defaulting to 0."
+                )
+                return 0, False
+
+            # Return the outgoing time slot and its critical status
+            return outgoing_time_slot[0], outgoing_time_slot[1]
+        except Exception as e:
+            log.error(f"Error calculating time slot for node {node.name}: {e}")
+            return 0, False
+
+    def _prune_simulated_paths(
+        self, paths: List[Tuple[int, int, Any, List[Any]]]
+    ) -> Tuple[Tuple[int, int, Any, List[Any]], List[Tuple[int, int, Any, List[Any]]]]:
+        """
+        Prune the paths to the top `beam_width` paths and return the best path.
+
+        Args:
+            paths (List[Tuple[int, int, Any, List[Any]]]): List of simulated paths with their costs.
+
+        Returns:
+            Tuple[Tuple[int, int, Any, List[Any]], List[Tuple[int, int, Any, List[Any]]]]:
+                - The best path based on cost.
+                - The pruned list of paths.
+        """
+        if not paths:
+            log.warning("No paths to prune.")
+            return None, []
+
+        # Sort paths by cost (paths[0]) and depth (paths[1]) for tie-breaking
+        pruned_paths = sorted(paths, key=lambda x: (x[0], x[1]))[: self.beam_width]
+
+        # Return the best path and the pruned list
+        return pruned_paths[0], pruned_paths

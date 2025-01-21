@@ -5,6 +5,8 @@ import time
 from functools import wraps
 from pathlib import Path
 
+from utils.constants import KNOWLEDGE_PATH
+
 
 def create_module_logger(module_name, is_file_handler=False):
     """
@@ -61,6 +63,12 @@ def timeit(func):
         return results
 
     return wrapper
+
+
+def load_navigation_times():
+    with open(KNOWLEDGE_PATH / "FloorPlan1_navigation_time.json", "r") as f:
+        navigation_times = json.load(f)
+    return navigation_times
 
 
 def tasks_to_subtasks(tasks, mode="all"):
