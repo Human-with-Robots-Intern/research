@@ -1,8 +1,6 @@
 import argparse
 import json
 import time
-from datetime import datetime
-from pathlib import Path
 
 from core import Task, TaskGraphBuilder, TaskTimingPlanner
 from utils.util import create_module_logger
@@ -10,6 +8,7 @@ from utils.util import create_module_logger
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import generate_task, visualize
 from utils.constants import TASK_PATH
+from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -60,7 +59,7 @@ def load_task_data():
 
     while True:
         try:
-            choice = int(input("Enter the number of your choice: "))
+            choice = 7  # int(input("Enter the number of your choice: "))
 
             if choice == 0:
                 target_task_name = generate_task()
@@ -113,14 +112,15 @@ def main():
     
 
     # Task scheduling
-    # start_time = time.time()
-    # task_timing_planner = TaskTimingPlanner(
-    #     agent=agent, tasks=tasks, constraints=task_graph
-    # )
-    # task_tree, opt_task_tree = task_timing_planner.get_task_trees()
-    # elapsed_time = time.time() - start_time
-    # log.info(f"Task {task_name} scheduled in {elapsed_time:.2f} seconds")
-    # scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
+    start_time = time.time()
+    task_timing_planner = TaskTimingPlanner(
+        agent=agent, tasks=tasks, constraints=task_graph
+    )
+    task_tree, opt_task_tree = task_timing_planner.get_task_trees()
+    elapsed_time = time.time() - start_time
+    log.info(f"Task {task_name} scheduled in {elapsed_time:.2f} seconds")
+    # Scheduling 결과 sequence of subtasks
+    scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
 
     # Task execution
     try:
