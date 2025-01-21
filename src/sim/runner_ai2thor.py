@@ -224,7 +224,9 @@ def execute_subtask(controller, subtask):
         print(f"{action_type=}")
         print(f"{target_obj_ID=}")
         if action_type in action_mapping:
-            log.info(f"Performing action: {action_type} on {target_name}")
+            log.info(
+                f"Performing action: {action_type} on {target_obj_ID.split('|')[0]}"
+            )
 
             # 실행된 제너레이터의 최종 결과를 success로 받음
             generator = action_mapping[action_type](target_obj_ID)

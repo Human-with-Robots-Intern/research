@@ -1157,6 +1157,141 @@
             "expected_duration": -2.387741249639717,
             "variance": 1.0,
             "occurrences": 0
+        },
+        "Wash Tomato": {
+            "expected_duration": 5.080272570335567,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare and Cook Fried Egg": {
+            "expected_duration": 8.974221371538253,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare and cook Fried Egg": {
+            "expected_duration": 8.974221371538253,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash Apple": {
+            "expected_duration": 3.076965198219974,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Put Potato in Microwave": {
+            "expected_duration": 4.054491810039572,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Start Microwave": {
+            "expected_duration": 1.026829434600699,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Retrieve Cooked Potato from Microwave": {
+            "expected_duration": 0.7223523036433975,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare Potato in Microwave": {
+            "expected_duration": 5.081321244640271,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare Potato for heating": {
+            "expected_duration": 4.054491810039572,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Heat Potato in Microwave": {
+            "expected_duration": 1.026829434600699,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Retrieve heated Potato": {
+            "expected_duration": -0.3128545502139587,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash Plate_part_3": {
+            "expected_duration": 5.259041810338725,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Cook Egg": {
+            "expected_duration": 8.974221371538253,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn off Stove": {
+            "expected_duration": -2.677862411303602,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Place Potato in Microwave": {
+            "expected_duration": 4.054491810039572,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Start Microwave to Heat Potato": {
+            "expected_duration": 1.026829434600699,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Retrieve Heated Potato from Microwave": {
+            "expected_duration": -0.3128545502139587,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Place Potato in the Microwave": {
+            "expected_duration": 4.054491810039572,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Heat Potato with Microwave": {
+            "expected_duration": 1.026829434600699,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Cook Egg Fry": {
+            "expected_duration": 8.974221371538253,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Heat Potato": {
+            "expected_duration": 1.026829434600699,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Retrieve Heated Potato": {
+            "expected_duration": -0.3128545502139587,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash Plate using Faucet_part_1": {
+            "expected_duration": 5.080272570335567,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash Plate using Faucet_part_2": {
+            "expected_duration": 5.080272570335567,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Wash Plate using Faucet_part_3": {
+            "expected_duration": 5.080272570335567,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Retrieve Potato from Microwave": {
+            "expected_duration": -0.022733388550073674,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Prepare to Cook Egg": {
+            "expected_duration": 7.9742213715382535,
+            "variance": 1.0,
+            "occurrences": 0
         }
     }
 }
