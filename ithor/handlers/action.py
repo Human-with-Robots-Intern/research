@@ -56,11 +56,13 @@ class Action:
         # 물체를 집은 후의 결과 처리
         if result.metadata["lastActionSuccess"]:
             # 물체를 성공적으로 집었다면
-            self.log_file.write(self.last_action_success(self.controller))
+            self.log_file.write(
+                f"pickup {object_id}: " + self.last_action_success(self.controller)
+            )
             self.controller.step(action="Pass")
             self.camera_handler.update_view()
             time.sleep(0.3)
-            elapsed_time+=1
+            elapsed_time += 1
             return elapsed_time
         else:
             # 물체를 집지 못한 경우, parent receptacle을 열고 다시 시도
@@ -68,9 +70,9 @@ class Action:
 
             if receptacle_id:
                 # parent receptacle을 열기
-                elapsed_time+=self.navi.move_to(receptacle_id)
+                elapsed_time += self.navi.move_to(receptacle_id)
                 self.open(receptacle_id)
-                elapsed_time+=1
+                elapsed_time += 1
                 time.sleep(0.5)
 
                 # 물체를 다시 집기 시도
@@ -83,7 +85,7 @@ class Action:
                 if result.metadata["lastActionSuccess"]:
                     # 물체를 성공적으로 집었으면 receptacle을 다시 닫기
                     self.close(receptacle_id)
-                    elapsed_time+=1
+                    elapsed_time += 1
                     return elapsed_time
                 else:
                     self.log_file.write(
@@ -97,11 +99,13 @@ class Action:
                     forceAction=False,
                     manualInteract=False,
                 )
-                self.log_file.write(self.last_action_success(self.controller))
+                self.log_file.write(
+                    f"pickup {object_id}: " + self.last_action_success(self.controller)
+                )
                 self.controller.step(action="Pass")
                 self.camera_handler.update_view()
                 time.sleep(0.3)
-                elapsed_time+=1
+                elapsed_time += 1
                 return elapsed_time
                 # self.log_file.write(
                 #     f"No parent receptacle found for object {object_id}."
@@ -110,7 +114,9 @@ class Action:
 
     def slice(self, object_id: str):
         self.controller.step(action="SliceObject", objectId=object_id)
-        self.log_file.write(self.last_action_success(self.controller))
+        self.log_file.write(
+            f"slice {object_id}: " + self.last_action_success(self.controller)
+        )
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
@@ -126,13 +132,15 @@ class Action:
             placeStationary=True,
         )
         # log_file 에 기록
-        self.log_file.write(self.last_action_success(self.controller))
+        self.log_file.write(
+            f"put {target_id}: " + self.last_action_success(self.controller)
+        )
 
         # 실패하면 일단 손에서 버려. 그래야지 다음 행동에 문제가 되지 않을 듯. 근데 버리면 땅바닥에 굴러다니니깐 거슬릴 것 같은데
         if not self.controller.last_event.metadata["lastActionSuccess"]:
             self.controller.step("MoveAhead")
             self.controller.step(action="DropHandObject", forceAction=True)
-            elapsed_time+=1
+            elapsed_time += 1
         self.log_file.write(
             "Alternative Action: Drop: " + self.last_action_success(self.controller)
         )
@@ -140,7 +148,7 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        elapsed_time+=1
+        elapsed_time += 1
         return elapsed_time
 
     def drop(self):
@@ -155,7 +163,7 @@ class Action:
             step += 1
             if step == 10:
                 break
-        self.log_file.write(self.last_action_success(self.controller))
+        self.log_file.write(f"drop: " + self.last_action_success(self.controller))
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
@@ -163,7 +171,9 @@ class Action:
 
     def toggleon(self, object_id: str):
         self.controller.step(action="ToggleObjectOn", objectId=object_id)
-        self.log_file.write(self.last_action_success(self.controller))
+        self.log_file.write(
+            f"toggle on {object_id}: " + self.last_action_success(self.controller)
+        )
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
@@ -171,7 +181,9 @@ class Action:
 
     def toggleoff(self, object_id: str):
         self.controller.step(action="ToggleObjectOff", objectId=object_id)
-        self.log_file.write(self.last_action_success(self.controller))
+        self.log_file.write(
+            f"toggle off {object_id}: " + self.last_action_success(self.controller)
+        )
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
@@ -191,18 +203,22 @@ class Action:
         self.controller.step(
             action="OpenObject", objectId=object_id, openness=1, forceAction=False
         )
-        self.log_file.write(self.last_action_success(self.controller))
+        self.log_file.write(
+            f"open {object_id}: " + self.last_action_success(self.controller)
+        )
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        elapsed_time +=1
+        elapsed_time += 1
         return elapsed_time
 
     def close(self, object_id: str):
         self.controller.step(
             action="CloseObject", objectId=object_id, forceAction=False
         )
-        self.log_file.write(self.last_action_success(self.controller))
+        self.log_file.write(
+            f"close {object_id}: " + self.last_action_success(self.controller)
+        )
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
