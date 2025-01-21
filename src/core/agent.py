@@ -219,8 +219,9 @@ class BayesianAgent:
 
         return total_duration
 
-    def update_observation_data(self, actual_duration: float, estimate, ground_truth):
+    def update_observation_data(self, actual_duration: float, estimate, obj_name):
         # prior_data
+        ground_truth = obj_name # ground_truth가 있는 json 파일을 통해 해당 obj의 ground_truth를 불러온다. 
         prior_mean = estimate[0]
         prior_variance = estimate[1]
         cooking_data = actual_duration / ground_truth
@@ -228,19 +229,16 @@ class BayesianAgent:
         # bayesian estimate
         a = 1
         time_observation = actual_duration
-        likelihood_epsilon = a(prior_mean - time_observation) ^ 2
-        posterior_mean = (
-            prior_variance * cooking_data + likelihood_epsilon * prior_mean
-        ) / (likelihood_epsilon + prior_variance)
-        posterior_variance = (likelihood_epsilon * prior_variance) / (
-            likelihood_epsilon + prior_variance
-        )
+        likelihood_epsilon = a*(prior_mean - time_observation) ^ 2
+        posterior_mean = (prior_variance * cooking_data + likelihood_epsilon * prior_mean) / (likelihood_epsilon + prior_variance)
+        posterior_variance = (likelihood_epsilon * prior_variance) / (likelihood_epsilon + prior_variance)
 
         # posterior_data
         estimate[0] = posterior_mean
         estimate[1] = posterior_variance
 
         return estimate
+
 
     def update_primitive_action_knowledge(
         self, action_name: str, actual_duration: float
