@@ -87,7 +87,15 @@ class TaskTreeBuilder:
 
         while current_state.remaining_subtasks:
             # 1) 시뮬레이션(expansion)
-            simulated_paths = self._simulate_lookahead(current_state)
+            # 1) out-edge(temporal constraint)가 있는 경우: separation_interval > 0인 경우
+            time_slot = self.constraint_handler.get_temporal_constraints(
+                current_state.name, direction="out"
+            )
+
+            if time_slot[0] > 0:
+                simulated_paths = self._simulate_time_slot(current_state, time_slot)
+            else:
+                simulated_paths = self._simulate_lookahead(current_state)
 
             if not simulated_paths:
                 log.warning("No valid paths found. Stopping expansion.")
@@ -100,12 +108,12 @@ class TaskTreeBuilder:
                 break
 
             best_cost, best_depth, last_subtask, remain_after, plan_after = best_path
-            if not plan_after:
+            if not last_subtask:
                 log.warning("Best path has empty plan. Stopping.")
                 break
 
             # 첫 Subtask만 트리에 반영
-            chosen_subtask = plan_after[0]
+            chosen_subtask = last_subtask
             if chosen_subtask.name.startswith("Wait for"):
                 # Wait 노드인 경우 (예: 대기 지시 Subtask)
                 wait_time = chosen_subtask.duration
@@ -139,6 +147,57 @@ class TaskTreeBuilder:
     # ------------------------------------------------
     #   Lookahead (depth=simulation_depth)
     # ------------------------------------------------
+    def _simulate_time_slot(
+        self, current_state: SimulationState, temporal_constraint: float
+    ):
+        queue = PriorityQueue()
+        queue.put((0.0, 0, next(self._counter), current_state))
+
+        results: List[
+            Tuple[float, int, Optional[Subtask], List[Subtask], List[Subtask]]
+        ] = []
+
+        while not queue.empty():
+            curr_cost, curr_depth, _, curr_state = queue.get()
+
+            # depth 제한에 도달 -> 결과로 바로 저장
+            if curr_depth >= self.simulation_depth:
+                last_subtask = (
+                    curr_state.partial_plan[-1] if curr_state.partial_plan else None
+                )
+                results.append(
+                    (
+                        curr_cost,
+                        curr_depth,
+                        last_subtask,
+                        curr_state.remaining_subtasks,
+                        curr_state.partial_plan,
+                    )
+                )
+                continue
+        # Time-slot 필수 시뮬레이션
+        slot_scenarios = self.time_slot_simulator.simulate_time_slot(
+            total_cost=curr_cost,
+            current_depth=curr_depth,
+            current_subtask_name=curr_state.name,
+            partial_plan=curr_state.partial_plan,
+            remaining_subtasks=curr_state.remaining_subtasks,
+            temporal_constraint=temporal_constraint,
+        )
+        # slot_scenarios -> list of (subtask_count, final_cost, new_depth, final_plan, remain)
+        for scenario in slot_scenarios:
+            sub_count, sc_cost, sc_depth, sc_plan, sc_remain = scenario
+            last_sub = sc_plan[-1] if sc_plan else None
+            results.append((sc_cost, sc_depth, last_sub, sc_remain, sc_plan))
+
+            if sc_depth < self.simulation_depth:
+                new_state = SimulationState(
+                    name=last_sub.name if last_sub else curr_state.name,
+                    partial_plan=sc_plan,
+                    remaining_subtasks=sc_remain,
+                )
+                queue.put((sc_cost, sc_depth, next(self._counter), new_state))
+
     def _simulate_lookahead(
         self, init_state: SimulationState
     ) -> List[Tuple[float, int, Optional[Subtask], List[Subtask], List[Subtask]]]:
@@ -176,69 +235,35 @@ class TaskTreeBuilder:
                 )
                 continue
 
-            # 1) out-edge(temporal constraint)가 있는 경우: separation_interval > 0인 경우
-            separation_interval, is_time_critical, related_subtask = (
-                self.constraint_handler.get_temporal_constraints(
-                    curr_state.name, direction="out"
-                )
+            feasible_subtasks = self.constraint_handler.get_expandable_subtasks(
+                curr_state
             )
-
-            if separation_interval > 0:
-                # Time-slot 필수 시뮬레이션
-                slot_scenarios = self.time_slot_simulator.simulate_time_slot(
+            for feasible_subtask in feasible_subtasks:
+                cost_val, updated_remain = self._expand_subtask(
                     total_cost=curr_cost,
                     current_depth=curr_depth,
-                    current_subtask_name=curr_state.name,
-                    partial_plan=curr_state.partial_plan,
-                    remaining_subtasks=curr_state.remaining_subtasks,
-                    separation_interval=separation_interval,
-                    related_subtask_name=related_subtask,
+                    current_state=curr_state,
+                    candidate_subtask=feasible_subtask,
                 )
-                # slot_scenarios -> list of (subtask_count, final_cost, new_depth, final_plan, remain)
-                for scenario in slot_scenarios:
-                    sub_count, sc_cost, sc_depth, sc_plan, sc_remain = scenario
-                    last_sub = sc_plan[-1] if sc_plan else None
-                    results.append((sc_cost, sc_depth, last_sub, sc_remain, sc_plan))
+                new_cost = curr_cost + cost_val
+                new_depth = curr_depth + 1
+                new_plan = curr_state.partial_plan + [feasible_subtask]
 
-                    if sc_depth < self.simulation_depth:
-                        new_state = SimulationState(
-                            name=last_sub.name if last_sub else curr_state.name,
-                            partial_plan=sc_plan,
-                            remaining_subtasks=sc_remain,
-                        )
-                        queue.put((sc_cost, sc_depth, next(self._counter), new_state))
-
-            else:
-                # 2) 일반 확장: constraint 충족되는 subtasks 탐색
-                feasible_subtasks = self.constraint_handler.get_expandable_subtasks(
-                    curr_state
+                results.append(
+                    (
+                        new_cost,
+                        new_depth,
+                        feasible_subtask,
+                        updated_remain,
+                        new_plan,
+                    )
                 )
-                for feasible_subtask in feasible_subtasks:
-                    cost_val, updated_remain = self._expand_subtask(
-                        total_cost=curr_cost,
-                        current_depth=curr_depth,
-                        current_state=curr_state,
-                        candidate_subtask=feasible_subtask,
-                    )
-                    new_cost = curr_cost + cost_val
-                    new_depth = curr_depth + 1
-                    new_plan = curr_state.partial_plan + [feasible_subtask]
 
-                    results.append(
-                        (
-                            new_cost,
-                            new_depth,
-                            feasible_subtask,
-                            updated_remain,
-                            new_plan,
-                        )
+                if new_depth < self.simulation_depth:
+                    new_state = SimulationState(
+                        feasible_subtask.name, new_plan, updated_remain
                     )
-
-                    if new_depth < self.simulation_depth:
-                        new_state = SimulationState(
-                            feasible_subtask.name, new_plan, updated_remain
-                        )
-                        queue.put((new_cost, new_depth, next(self._counter), new_state))
+                    queue.put((new_cost, new_depth, next(self._counter), new_state))
 
         return results
 

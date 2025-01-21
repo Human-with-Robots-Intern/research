@@ -41,8 +41,7 @@ class TimeSlotSimulator:
         current_subtask_name: str,
         partial_plan: List[Subtask],
         remaining_subtasks: List[Subtask],
-        separation_interval: int,
-        related_subtask_name: str,
+        temporal_constraint: Tuple[int, bool, str],
     ) -> List[Tuple[int, float, int, List[Subtask], List[Subtask]]]:
         """
         Time Slot 내에서 subtask를 여러 개 배치해볼 수 있는 시나리오를 만든 뒤,
@@ -64,6 +63,7 @@ class TimeSlotSimulator:
         #   - leftover = how much time remains in this slot
         #   - global_cost = total accumulated cost so far
         #   - plan_so_far, remain_so_far = current partial plan & remaining subtasks
+        separation_interval, is_critical, related_subtask = temporal_constraint
         slot_queue.put(
             (
                 (0, 0.0),  # subtask_count=0, slot_cost=0
@@ -104,7 +104,7 @@ class TimeSlotSimulator:
             #    because we don't want to place it inside its own slot
             expandables = []
             for candidate in feasible_subtasks:
-                if candidate.name == related_subtask_name:
+                if candidate.name == related_subtask:
                     continue
 
                 # Calculate navigation time (from current_subtask_name to candidate)
@@ -144,9 +144,7 @@ class TimeSlotSimulator:
                     wait_sub = Subtask(
                         task_name=None,
                         name=(
-                            f"Wait for {related_subtask_name}"
-                            if related_subtask_name
-                            else "Idle"
+                            f"Wait for {related_subtask}" if related_subtask else "Idle"
                         ),
                         duration=leftover,
                         repetition=1,
@@ -157,6 +155,7 @@ class TimeSlotSimulator:
                     wait_cost_val = self.cost_calculator.calc_wait_cost(
                         current_depth, wait_sub
                     )
+                    # TODO cost를 계산하는데 global cost는 heuristic cost임.
                     final_cost = global_cost + wait_cost_val
                     final_plan = plan_so_far + [wait_sub]
 
@@ -182,7 +181,7 @@ class TimeSlotSimulator:
                     )
 
             # 5) Beam constraint inside the slot simulation
-            if slot_queue.qsize() > (self.beam_width * 20):
+            if slot_queue.qsize() > (self.beam_width):
                 temp_list = []
                 while not slot_queue.empty():
                     temp_list.append(slot_queue.get())
@@ -190,7 +189,7 @@ class TimeSlotSimulator:
                 # Actually, our priority is stored as (-(subtask_count), slot_cost).
                 temp_list.sort(key=lambda x: x[0])  # Sort by ((-count, slot_cost), ...)
                 # Reinsert only top N
-                for item in temp_list[: self.beam_width * 10]:
+                for item in temp_list[: self.beam_width]:
                     slot_queue.put(item)
 
         # 6) Sort final scenarios by (subtask_count desc, cost asc)
