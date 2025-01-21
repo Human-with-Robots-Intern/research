@@ -1,4 +1,5 @@
-from typing import List, Tuple
+from logging import log
+from typing import Any, List, Tuple
 from xml.dom import Node
 
 import networkx as nx
@@ -60,6 +61,45 @@ class ConstraintHandler:
             for node in constraint_nodes
         ]
         return time_slots
+
+    def get_temporal_constraints(
+        self, subtask_name: "Subtask"  # type: ignore
+    ) -> Tuple[Tuple[int, bool], Tuple[int, bool]]:
+        """
+        Calculate the time slot and urgency for a given subtask.
+
+        Args:
+            subtask_name (Subtask): The name of the subtask for which constraints are calculated.
+
+        Returns:
+            Tuple[Tuple[int, bool], Tuple[int, bool]]:
+                - Outgoing time slot and urgency.
+                - Incoming time slot and urgency.
+        """
+
+        def extract_constraints(edges: List[Tuple[Any, Any, dict]]) -> Tuple[int, bool]:
+            if not edges:
+                # log.debug(
+                #     f"No edges found for subtask {subtask_name}. Returning default (0, False)."
+                # )
+                return 0, False
+            return min(
+                [
+                    (data["info"]["Interval"], data["info"]["Urgency"])
+                    for _, _, data in edges
+                ],
+                key=lambda x: x[0],
+            )
+
+        # Retrieve edges for outgoing and incoming constraints
+        out_edges = list(self.constraints.out_edges(subtask_name, data=True))
+        in_edges = list(self.constraints.in_edges(subtask_name, data=True))
+
+        # Calculate constraints
+        outgoing_time_slot = extract_constraints(out_edges)
+        incoming_time_slot = extract_constraints(in_edges)
+
+        return outgoing_time_slot, incoming_time_slot
 
     def _get_constraints(self, subtask_name: str) -> List[Tuple]:
         """주어진 서브태스크와 관련된 모든 제약 조건을 수집합니다."""

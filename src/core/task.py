@@ -190,6 +190,7 @@ class Task:
         subtasks = [
             Subtask.from_dict(subtask_data, task_name)
             for subtask_data in task_data["Subtasks"]
+            if "impossible" not in subtask_data["Name"].lower()
         ]
         return cls(name=task_name, subtasks=subtasks)
 

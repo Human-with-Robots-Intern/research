@@ -3,11 +3,9 @@ import sys
 import time
 from pathlib import Path
 
+import omnigibson as og
 import torch as th
 import yaml
-
-import omnigibson as og
-from core import BayesianAgent
 from omnigibson.action_primitives.action_primitive_set_base import (
     ActionPrimitiveErrorGroup,
 )
@@ -15,8 +13,10 @@ from omnigibson.action_primitives.starter_semantic_action_primitives import (
     StarterSemanticActionPrimitiveSet,
 )
 from omnigibson.macros import gm
-from omnigibson.utils.ui_utils import create_module_logger
+
+from core import BayesianAgent
 from sim.primitive_actions import CustomActionPrimitives
+from utils.util import create_module_logger
 
 gm.USE_GPU_DYNAMICS = False
 gm.ENABLE_FLATCACHE = True
