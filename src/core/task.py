@@ -249,8 +249,9 @@ class TaskGraphBuilder:
         for task in tasks:
             for subtask in task.subtasks:
                 subtask_node = subtask.name
-                subtask_type = subtask.type
-                self.graph.add_node(subtask_node, subtask_type=subtask_type)
+                # subtask_type = subtask.type
+                subtask_duration = subtask.duration.interval
+                self.graph.add_node(subtask_node, time=subtask_duration)
 
                 for constraint in subtask.temporal_constraints:
                     if constraint.subtask:
@@ -271,4 +272,6 @@ class TaskGraphBuilder:
                             )
                     else:
                         raise ValueError("Constrained Node does not exist")
+        nx.write_gml(self.graph, "graph.gml")
         return self.graph
+    
