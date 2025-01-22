@@ -5,7 +5,7 @@ import time
 from functools import wraps
 from pathlib import Path
 
-from utils.constants import KNOWLEDGE_PATH
+from utils.constants import KNOWLEDGE_PATH, LOG_PATH
 
 
 def create_module_logger(module_name, is_file_handler=False):
@@ -23,7 +23,7 @@ def create_module_logger(module_name, is_file_handler=False):
     if is_file_handler:
         logger.setLevel("DEBUG")
         file_handler = logging.FileHandler(
-            f"{ Path(__file__).resolve().parent.parent.parent}/logs/{module_name}.log",
+            LOG_PATH / f"{module_name}.log",
             "a",
         )
         file_handler.setFormatter(
