@@ -8,17 +8,17 @@ from anytree import Node
 
 from core.task import Subtask
 from task_management.cost_calculator import CostCalculator, NavigationManager
-from task_management.rule import ConstraintHandler, SlotHandler
+from task_management.rule import ConstraintHandler
 
 # 모듈 분리된 클래스들
 from task_management.task_tree import TaskTree
-from task_management.time_slot_simulator import TimeSlotSimulator
+from task_management.time_slot_simulator import LeftoverManager
 from utils.util import create_module_logger, load_navigation_times, tasks_to_subtasks
 
 log = create_module_logger(module_name=__name__, is_file_handler=False)
 
 DEFAULT_SIMULATION_DEPTH = 3
-DEFAULT_BEAM_WIDTH = 2
+DEFAULT_BEAM_WIDTH = 1
 
 
 class SimulationState(NamedTuple):
@@ -48,7 +48,6 @@ class TaskTreeBuilder:
 
         # 핸들러
         self.constraint_handler = ConstraintHandler(constraints)
-        self.slot_handler = SlotHandler(self._expand_subtask)  # 필요시 사용
 
         # 부품 모듈들
         self.cost_calculator = CostCalculator(
@@ -58,15 +57,14 @@ class TaskTreeBuilder:
             navigation_times=load_navigation_times(),
             all_subtasks_info=[],  # 뒤에서 set
         )
-        self.time_slot_simulator = TimeSlotSimulator(
-            beam_width=self.beam_width,
+        self.subtasks_info = None  # 전체 Subtask 원본 보관
+        self._counter = itertools.count()  # tie-breaker for PriorityQueue ordering
+        self.leftover_manager = LeftoverManager(
             constraint_handler=self.constraint_handler,
             cost_calculator=self.cost_calculator,
             navigation_manager=self.navigation_manager,
+            counter=self._counter,
         )
-
-        self.subtasks_info = None  # 전체 Subtask 원본 보관
-        self._counter = itertools.count()  # tie-breaker for PriorityQueue ordering
 
     def build_tree(self, tasks: List[Subtask]) -> Node:
         """
@@ -93,54 +91,55 @@ class TaskTreeBuilder:
             )
 
             if time_slot[0] > 0:
-                simulated_paths = self._simulate_time_slot(current_state, time_slot)
+                best_path = self._simulate_time_slot(current_state, time_slot)
+                best_cost, best_count, last_subtask, remain_after, plan_after = (
+                    best_path
+                )
+                chosen_subtasks = [
+                    chosen_subtask
+                    for chosen_subtask in plan_after
+                    if chosen_subtask not in current_state.partial_plan
+                ]
             else:
-                simulated_paths = self._simulate_lookahead(current_state)
-
-            if not simulated_paths:
-                log.warning("No valid paths found. Stopping expansion.")
-                break
-
-            # 2) 후보들을 cost 오름차순 정렬 -> 상위 1개 선택
-            best_path, _ = self._prune_simulated_paths(simulated_paths)
-            if not best_path:
-                log.warning("All expansions invalid. Stopping.")
-                break
-
-            best_cost, best_depth, last_subtask, remain_after, plan_after = best_path
-            if not last_subtask:
-                log.warning("Best path has empty plan. Stopping.")
-                break
-
-            # 첫 Subtask만 트리에 반영
-            chosen_subtask = last_subtask
-            if chosen_subtask.name.startswith("Wait for"):
-                # Wait 노드인 경우 (예: 대기 지시 Subtask)
-                wait_time = chosen_subtask.duration
-                current_node = self.tree.add_wait_node(
-                    parent=current_node,
-                    subtask_name=chosen_subtask.name,
-                    wait_time=wait_time,
+                best_path = self._simulate_lookahead(current_state)
+                best_cost, best_depth, last_subtask, remain_after, plan_after = (
+                    best_path
                 )
-            else:
-                # 일반 subtask
-                nav_time = self.navigation_manager.calculate_navigation_time(
-                    current_state.name, current_state.partial_plan, chosen_subtask
-                )
-                current_node = self.tree.add_subtask_node(
-                    parent=current_node, subtask=chosen_subtask, navigate_time=nav_time
-                )
+                # 첫 Subtask만 트리에 반영
+                chosen_subtasks = [last_subtask]
+                if not last_subtask:
+                    log.warning("Best path has empty plan. Stopping.")
+                    break
+            for chosen_subtask in chosen_subtasks:
+                if chosen_subtask.name.startswith("Wait for"):
+                    # Wait 노드인 경우 (예: 대기 지시 Subtask)
+                    wait_time = chosen_subtask.duration
+                    current_node = self.tree.add_wait_node(
+                        parent=current_node,
+                        subtask_name=chosen_subtask.name,
+                        wait_time=wait_time,
+                    )
+                else:
+                    # 일반 subtask
+                    nav_time = self.navigation_manager.calculate_navigation_time(
+                        current_state.name, current_state.partial_plan, chosen_subtask
+                    )
+                    current_node = self.tree.add_subtask_node(
+                        parent=current_node,
+                        subtask=chosen_subtask,
+                        navigate_time=nav_time,
+                    )
 
-            # 3) state 갱신
-            new_remaining = [
-                s
-                for s in current_state.remaining_subtasks
-                if s.name != chosen_subtask.name
-            ]
-            new_plan = current_state.partial_plan + [chosen_subtask]
-            current_state = SimulationState(
-                chosen_subtask.name, new_plan, new_remaining
-            )
+                # 3) state 갱신
+                new_remaining = [
+                    s
+                    for s in current_state.remaining_subtasks
+                    if s.name != chosen_subtask.name
+                ]
+                new_plan = current_state.partial_plan + [chosen_subtask]
+                current_state = SimulationState(
+                    chosen_subtask.name, new_plan, new_remaining
+                )
 
         return self.tree.root_node
 
@@ -150,7 +149,18 @@ class TaskTreeBuilder:
     def _simulate_time_slot(
         self, current_state: SimulationState, temporal_constraint: float
     ):
+        """
+        init_state 부터 time_slot 채울 때까지 확장.
+        PriorityQueue 를 사용하여 cost 오름차순으로 탐색.
+
+        Returns:
+            List of tuples:
+                (total_cost, count, last_subtask, remaining_subtasks, partial_plan)
+        """
+        separation_interval, is_critical, related_subtask = temporal_constraint
+
         queue = PriorityQueue()
+        # total_cost, count, order, state
         queue.put((0.0, 0, next(self._counter), current_state))
 
         results: List[
@@ -158,45 +168,156 @@ class TaskTreeBuilder:
         ] = []
 
         while not queue.empty():
-            curr_cost, curr_depth, _, curr_state = queue.get()
+            print(next(self._counter))
+            curr_cost, curr_count, _, curr_state = queue.get()
+            leftover = separation_interval - curr_cost
 
-            # depth 제한에 도달 -> 결과로 바로 저장
-            if curr_depth >= self.simulation_depth:
-                last_subtask = (
-                    curr_state.partial_plan[-1] if curr_state.partial_plan else None
+            feasible_subtasks = self.constraint_handler.get_expandable_subtasks(
+                curr_state
+            )
+            expandable_subtasks = []
+
+            # 1) leftover 안에 들어갈 수 있는 subtask 목록 탐색
+            for feasible_subtask in feasible_subtasks:
+                if feasible_subtask.name == related_subtask:
+                    continue
+
+                # Calculate navigation time (from current_subtask_name to candidate)
+                nav_time = self.navigation_manager.calculate_navigation_time(
+                    curr_state.name, current_state.partial_plan, feasible_subtask
                 )
-                results.append(
-                    (
-                        curr_cost,
-                        curr_depth,
-                        last_subtask,
-                        curr_state.remaining_subtasks,
-                        curr_state.partial_plan,
+                return_nav_time = self.navigation_manager.calculate_navigation_time(
+                    curr_state.name, current_state.partial_plan, related_subtask
+                )
+                total_dur = feasible_subtask.duration.interval + nav_time
+                if is_critical:
+                    total_dur += return_nav_time
+
+                # leftover 안에 들어가는지 체크
+                if total_dur <= leftover:
+                    expandable_subtasks.append((feasible_subtask, total_dur))
+
+            if expandable_subtasks:
+                # 2) 더 들어갈 수 있는 subtask가 있으면 확장
+                for candidate_subtask, actual_dur in expandable_subtasks:
+                    new_cost = curr_cost + actual_dur
+                    new_count = curr_count + 1
+                    new_plan = curr_state.partial_plan + [candidate_subtask]
+                    new_remain = [
+                        r
+                        for r in curr_state.remaining_subtasks
+                        if r.name != candidate_subtask.name
+                    ]
+                    new_state = SimulationState(
+                        candidate_subtask.name, new_plan, new_remain
                     )
-                )
-                continue
-        # Time-slot 필수 시뮬레이션
-        slot_scenarios = self.time_slot_simulator.simulate_time_slot(
-            total_cost=curr_cost,
-            current_depth=curr_depth,
-            current_subtask_name=curr_state.name,
-            partial_plan=curr_state.partial_plan,
-            remaining_subtasks=curr_state.remaining_subtasks,
-            temporal_constraint=temporal_constraint,
-        )
-        # slot_scenarios -> list of (subtask_count, final_cost, new_depth, final_plan, remain)
-        for scenario in slot_scenarios:
-            sub_count, sc_cost, sc_depth, sc_plan, sc_remain = scenario
-            last_sub = sc_plan[-1] if sc_plan else None
-            results.append((sc_cost, sc_depth, last_sub, sc_remain, sc_plan))
 
-            if sc_depth < self.simulation_depth:
-                new_state = SimulationState(
-                    name=last_sub.name if last_sub else curr_state.name,
-                    partial_plan=sc_plan,
-                    remaining_subtasks=sc_remain,
-                )
-                queue.put((sc_cost, sc_depth, next(self._counter), new_state))
+                    queue.put((new_cost, new_count, next(self._counter), new_state))
+            else:
+                # 3) leftover가 남아 있는지?
+                if leftover > 0:
+                    # is_critical이면, 남은 시간을 기다리는 Subtask (Wait for related_subtask) 추가
+                    # leftover를 그냥 '기다리는 시간'으로 소비
+                    if is_critical:
+                        wait_sub = Subtask(
+                            task_name=None,
+                            name=(
+                                f"Wait for {related_subtask}"
+                                if related_subtask
+                                else "Idle"
+                            ),
+                            duration=leftover,
+                            repetition=1,
+                            type="Wait",
+                            execution=None,
+                            temporal_constraints=None,
+                        )
+                        new_cost = curr_cost + leftover  # 남은 시간을 대기하는 것이므로
+                        new_count = curr_count + 1
+
+                        new_plan = curr_state.partial_plan + [wait_sub]
+                        new_remain = (
+                            curr_state.remaining_subtasks
+                        )  # Wait는 새로운 subtask가 아니므로 remain 그대로
+
+                        new_state = SimulationState(wait_sub.name, new_plan, new_remain)
+
+                        results.append(
+                            (
+                                new_cost,
+                                new_count,
+                                new_state.name,
+                                new_state.remaining_subtasks,
+                                new_state.partial_plan,
+                            )
+                        )
+                    else:
+                        # is_critical이 아닌 경우
+                        # leftover란, 그저 related subtask가 시작할 수 있는 시간까지 남은 시간임
+                        # 위의 로직에서 leftover에 들어갈 수 있는 작은 subtask들을 대부분 찾았음.
+                        # 잔여 leftover 동안 가장 많은 subtask를 실행 할 수 있는 subtask 조합을 찾으면 됨
+                        # subtask들의 합이 leftover를 초과하는 것도 가능하되, 최소한으로 넘치게 채워야 함.
+
+                        if current_state.remaining_subtasks:
+                            best_combination, combo_cost, combo_count = (
+                                self.leftover_manager.find_best_combination(
+                                    curr_state=current_state,
+                                    leftover=leftover,
+                                    curr_cost=curr_cost,
+                                    curr_count=curr_count,
+                                )
+                            )
+                            if best_combination:
+                                new_cost = curr_cost + combo_cost
+                                new_count = combo_count
+                                new_plan = current_state.partial_plan + best_combination
+                                new_remain = [
+                                    r
+                                    for r in current_state.remaining_subtasks
+                                    if r not in best_combination
+                                ]
+                                new_state = SimulationState(
+                                    best_combination[-1].name, new_plan, new_remain
+                                )
+
+                                queue.put(
+                                    (
+                                        new_cost,
+                                        new_count,
+                                        next(self._counter),
+                                        new_state,
+                                    )
+                                )
+                        else:
+                            results.append(
+                                (
+                                    curr_cost,
+                                    curr_count,
+                                    curr_state.name,
+                                    curr_state.remaining_subtasks,
+                                    curr_state.partial_plan,
+                                )
+                            )
+
+                else:
+                    results.append(
+                        (
+                            curr_cost,
+                            curr_count,
+                            curr_state.name,
+                            curr_state.remaining_subtasks,
+                            curr_state.partial_plan,
+                        )
+                    )
+
+        best_candidates = sorted(results, key=lambda x: (x[0], -x[1]))[
+            : self.beam_width
+        ]
+        # 그 중 best 1개만 리턴
+        if not best_candidates:
+            return None  # or some default
+        best_path = best_candidates[0]  # (cost, count, last_subtask, remain, plan)
+        return best_path  # cost ascending, count descending
 
     def _simulate_lookahead(
         self, init_state: SimulationState
@@ -210,6 +331,7 @@ class TaskTreeBuilder:
                 (total_cost, depth, last_subtask, remaining_subtasks, partial_plan)
         """
         queue = PriorityQueue()
+        # total_cost, depth, order, state
         queue.put((0.0, 0, next(self._counter), init_state))
 
         results: List[
@@ -264,8 +386,15 @@ class TaskTreeBuilder:
                         feasible_subtask.name, new_plan, updated_remain
                     )
                     queue.put((new_cost, new_depth, next(self._counter), new_state))
+        if not results:
+            log.warning("No valid paths found. Stopping expansion.")
 
-        return results
+        # 2) 후보들을 cost 오름차순 정렬 -> 상위 1개 선택
+        best_path, _ = self._prune_simulated_paths(results)
+        if not best_path:
+            log.warning("All expansions invalid. Stopping.")
+
+        return best_path
 
     def _expand_subtask(
         self,

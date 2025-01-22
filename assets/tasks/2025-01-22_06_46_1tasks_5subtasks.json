@@ -1,0 +1,137 @@
+[
+    {
+        "Task": "Sequential Tasks with Intervals",
+        "Subtasks": [
+            {
+                "Name": "Prepare a Mug",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Mug": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Mug",
+                        "GRASP Mug",
+                        "PLACE_ON_TOP CounterTop"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Boil Water",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Pot": 1,
+                        "StoveKnob": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Pot",
+                        "GRASP Pot",
+                        "PLACE_ON_TOP StoveBurner",
+                        "TOGGLE_ON StoveKnob"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Prepare a Mug",
+                        "Interval": 1,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Prepare Tea Leaves",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Cabinet": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Cabinet",
+                        "OPEN Cabinet",
+                        "CLOSE Cabinet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Boil Water",
+                        "Interval": 2,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Combine Ingredients",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Mug": 1,
+                        "Pot": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Pot",
+                        "NAVIGATE_TO Mug",
+                        "PLACE_ON_TOP Mug"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Prepare Tea Leaves",
+                        "Interval": 1,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Clean Up",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "CounterTop": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO CounterTop",
+                        "PLACE_ON_TOP GarbageCan"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Combine Ingredients",
+                        "Interval": 5,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    }
+]

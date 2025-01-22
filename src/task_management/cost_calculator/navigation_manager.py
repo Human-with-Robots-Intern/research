@@ -31,6 +31,12 @@ class NavigationManager:
         """
         이동 시간 계산 메인 함수.
         """
+        if isinstance(candidate_subtask, str):
+            for subtask in self.subtasks_info:
+                if subtask.name == candidate_subtask:
+                    candidate_subtask = subtask
+                    break
+
         if current_subtask_name.startswith("Wait") or candidate_subtask.name.startswith(
             "Wait"
         ):
