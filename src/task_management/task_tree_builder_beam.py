@@ -170,7 +170,6 @@ class TaskTreeBuilder:
         ] = []
 
         while not queue.empty():
-            print(next(self._counter))
             curr_cost, curr_count, _, curr_state = queue.get()
             leftover = separation_interval - curr_cost
 

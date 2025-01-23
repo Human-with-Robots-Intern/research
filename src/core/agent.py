@@ -222,11 +222,49 @@ class BayesianAgent:
 
         return total_duration
 
-    def update_observation_data(self, actual_duration: float, estimate, obj_name):
-        # prior_data
-        ground_truth = obj_name # ground_truth가 있는 json 파일을 통해 해당 obj의 ground_truth를 불러온다. 
-        prior_mean = estimate[0]
-        prior_variance = estimate[1]
+
+    def monitering_timing(plan_about_time_critical):
+        # plan_about_time_critical : time-critical에 대한 planning
+        # 0.7 : monitering의 기준 timing
+        # 0.7이 되는 부분의 subtask 파악.
+        # 0.7에 subtask가 없으면 그 뒤에 있는거 제거
+        # 0.7에 stbtask가 있으면 그걸 포함하여 그 뒤에 있는 것 제거.
+        # 그리고 그 끝에 monitering 붙이기.
+        plan_about_time_critical = {"subtask1":3,"subtask2":4}
+        time_sum = 0
+        subtask = list(plan_about_time_critical.keys())
+        time = list(plan_about_time_critical.values())
+        monitering_time = 0.7 * sum(time)
+        replanning_list = []
+
+        for t in range(len(plan_about_time_critical)):
+            time_sum += time[t]
+            if time_sum > monitering_time:
+                replanning_list.append("monitering")
+                return replanning_list
+            else:
+                replanning_list.append(subtask[t])
+
+        return replanning_list
+
+
+            
+
+
+    def bayesian_estimate(self, actual_duration: float, subtask):
+        # actual_duration : monitering한 시간
+        # estimate : 원래 가지고 있던 값의 분포
+        # ground_truth : 해당 subtask의 ground_truth
+        # prior_mean/variance : 이전에 예상한 값의 분포
+        # cooking_data : subtask의 진행정도 // 여기에 noise를 주어야 한다.
+        #                   아니면 input값으로 cooking_data를 받기. 이거 받으려면 추가로 받아야 함.
+        # posterior_mean/variance : cooking_data를 받은 후 bayesian estimate를 통해 도출된 새로운 예상한 값의 분포.
+        subtask_name = subtask
+
+        ground_truth = 10 #나중에 subtask 이름에 따른 값으로 ground_truth.json 파일에서 불러와야 함.
+        estimate_load = self._load_knowledge(KNOWLEDGE_PATH)
+        prior_mean = estimate_load["Subtask"][subtask_name]["expected_duration"]
+        prior_variance = estimate_load["Subtask"][subtask_name]["variance"]
         cooking_data = actual_duration / ground_truth
 
         # bayesian estimate
@@ -237,10 +275,11 @@ class BayesianAgent:
         posterior_variance = (likelihood_epsilon * prior_variance) / (likelihood_epsilon + prior_variance)
 
         # posterior_data
-        estimate[0] = posterior_mean
-        estimate[1] = posterior_variance
+        estimate_load["Subtask"][subtask_name]["expected_duration"] = posterior_mean
+        estimate_load["Subtask"][subtask_name]["variance"] = posterior_variance
+        
+        self._save_knowledge(KNOWLEDGE_PATH)
 
-        return estimate
 
 
     def update_primitive_action_knowledge(
