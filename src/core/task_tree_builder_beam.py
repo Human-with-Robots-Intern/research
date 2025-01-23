@@ -6,28 +6,27 @@ from typing import List, NamedTuple, Optional, Tuple
 import networkx as nx
 from anytree import Node
 
-from core.task import Subtask
+from core.task import SchedulerState, Subtask
 from task_management.cost_calculator import CostCalculator, NavigationManager
 from task_management.rule import ConstraintHandler
-
-# 모듈 분리된 클래스들
 from task_management.task_tree import TaskTree
 from utils.constants import DEFAULT_BEAM_WIDTH, DEFAULT_SIMULATION_DEPTH
 from utils.task_io import load_navigation_times
-from utils.task_util import tasks_to_subtasks
 from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=False)
 
 
-class SimulationState(NamedTuple):
+class PQItem(NamedTuple):
     """
-    시뮬레이션 중 임시 상태.
+    PriorityQueue에 들어가는 아이템(스케줄 탐색 노드).
     """
 
-    name: str  # 마지막으로 실행된 Subtask 이름 (또는 "Init")
-    partial_plan: List[Subtask]
-    remaining_subtasks: List[Subtask]
+    heuristic_cost: float  # 누적 비용(오름차순 정렬 기준 1)
+    depth: int  # 현재 탐색 깊이(lookahead용)
+    leftover: float  # time_slot에서 남은 시간 (일반 케이스는 0.0)
+    tie_breaker: int  # 동일 우선순위 시 순서 결정 (itertools.count() 사용)
+    state: "SchedulerState"  # 스케줄링/시뮬레이션 상태 (current_state)
 
 
 class Scheduler:
@@ -37,7 +36,7 @@ class Scheduler:
 
     def __init__(
         self,
-        init_tasks: List[Subtask],
+        init_subtasks: List[Subtask],
         init_constraints: nx.DiGraph,
     ):
         self.tree = TaskTree()
@@ -45,98 +44,57 @@ class Scheduler:
         self.simulation_depth = DEFAULT_SIMULATION_DEPTH
 
         # 핸들러
-        self.subtasks_info = copy.deepcopy(tasks_to_subtasks(init_tasks))
+        self.subtasks_info = copy.deepcopy(init_subtasks)
         self.constraint_handler = ConstraintHandler(init_constraints)
 
         # 부품 모듈들
         self.cost_calculator = CostCalculator()
-        self.navigation_manager = NavigationManager(
+        self.nav_manager = NavigationManager(
             navigation_times=load_navigation_times(),
             all_subtasks_info=self.subtasks_info,
         )
 
         self._counter = itertools.count()  # tie-breaker for PriorityQueue ordering
 
-    def get_next_subtask(self, tasks: List[Subtask], constraints: nx.graph) -> Node:
+    def get_new_state(
+        self,
+        current_state: SchedulerState,
+        current_constraints: nx.graph,
+    ) -> Node:
+        """3-depth lookahead로 Subtask를 확정해 나가는 로직.
+
+        Args:
+            tasks (List[Subtask]): _description_
+            constraints (nx.graph): _description_
+
+        Returns:
+            Subtask
         """
-        전체 파이프라인:
-          1) 남은 Subtask가 있을 때까지:
-             - depth=3까지 lookahead
-             - cost 최소인 경로 선택 -> "첫 Subtask"만 Tree에 반영
+        self.constraint_handler.update_constraints(current_constraints)
 
+        separation_interval, _, _ = self.constraint_handler.get_temporal_constraints(
+            current_state.subtask.name, direction="out"
+        )
 
-          2) 최종 트리 반환
-        """
-        subtasks = tasks_to_subtasks(tasks)
-        current_node = self.tree.root_node
-        current_state = SimulationState("Init", [], subtasks)
+        if separation_interval > 0:
+            next_subtask = self._simulate_time_slot(current_state)
+        else:
+            next_subtask = self._simulate_lookahead(current_state)
 
-        while current_state.remaining_subtasks:
-            # 1) 시뮬레이션(expansion)
-            # 1) out-edge(temporal constraint)가 있는 경우: separation_interval > 0인 경우
-            time_slot = self.constraint_handler.get_temporal_constraints(
-                current_state.name, direction="out"
-            )
+        # 다음에 올 subtask 내부에 있는 navigation time을 계산
+        # "Navigate to"를 기준으로 판단할 것
+        nav_time = self.nav_manager.calc_time(current_state, next_subtask)
+        new_remaining = [
+            s for s in current_state.remaining_subtasks if s.name != next_subtask.name
+        ]
+        new_plan = current_state.completed_subtasks + [next_subtask]
 
-            if time_slot[0] > 0:
-                best_path = self._simulate_time_slot(current_state, time_slot)
-                best_cost, best_count, last_subtask, remain_after, plan_after = (
-                    best_path
-                )
-                chosen_subtasks = [
-                    chosen_subtask
-                    for chosen_subtask in plan_after
-                    if chosen_subtask not in current_state.partial_plan
-                ]
-            else:
-                best_path = self._simulate_lookahead(current_state)
-                best_cost, best_depth, last_subtask, remain_after, plan_after = (
-                    best_path
-                )
-                # 첫 Subtask만 트리에 반영
-                chosen_subtasks = [plan_after]
-                if not last_subtask:
-                    log.warning("Best path has empty plan. Stopping.")
-                    break
-            for chosen_subtask in chosen_subtasks:
-                if chosen_subtask.name.startswith("Wait for"):
-                    # Wait 노드인 경우 (예: 대기 지시 Subtask)
-                    wait_time = chosen_subtask.duration
-                    current_node = self.tree.add_wait_node(
-                        parent=current_node,
-                        subtask_name=chosen_subtask.name,
-                        wait_time=wait_time,
-                    )
-                else:
-                    # 일반 subtask
-                    nav_time = self.navigation_manager.calculate_navigation_time(
-                        current_state.name, current_state.partial_plan, chosen_subtask
-                    )
-                    current_node = self.tree.add_subtask_node(
-                        parent=current_node,
-                        subtask=chosen_subtask,
-                        navigate_time=nav_time,
-                    )
-
-                # 3) state 갱신
-                new_remaining = [
-                    s
-                    for s in current_state.remaining_subtasks
-                    if s.name != chosen_subtask.name
-                ]
-                new_plan = current_state.partial_plan + [chosen_subtask]
-                current_state = SimulationState(
-                    chosen_subtask.name, new_plan, new_remaining
-                )
-
-        return self.tree.root_node
+        return SchedulerState(next_subtask.name, new_plan, new_remaining)
 
     # ------------------------------------------------
     #   Lookahead (depth=simulation_depth)
     # ------------------------------------------------
-    def _simulate_time_slot(
-        self, current_state: SimulationState, temporal_constraint: float
-    ):
+    def _simulate_time_slot(self, current_state: SchedulerState):
         """
         init_state 부터 time_slot 채울 때까지 확장.
         PriorityQueue 를 사용하여 cost 오름차순으로 탐색.
@@ -145,11 +103,23 @@ class Scheduler:
             List of tuples:
                 (total_cost, count, last_subtask, remaining_subtasks, partial_plan)
         """
-        separation_interval, is_critical, related_subtask = temporal_constraint
+        separation_interval, is_critical, related_subtask = (
+            self.constraint_handler.get_temporal_constraints(
+                current_state.subtask, direction="out"
+            )
+        )
 
         queue = PriorityQueue()
         # total_cost, count, order, state
-        queue.put((0.0, 0, next(self._counter), current_state))
+        queue.put(
+            PQItem(
+                heuristic_cost=0.0,
+                depth=0,
+                leftover=separation_interval,
+                tie_breaker=next(self._counter),
+                state=current_state,
+            )
+        )
 
         results: List[
             Tuple[float, int, Optional[Subtask], List[Subtask], List[Subtask]]
@@ -170,11 +140,11 @@ class Scheduler:
                     continue
 
                 # Calculate navigation time (from current_subtask_name to candidate)
-                nav_time = self.navigation_manager.calculate_navigation_time(
-                    curr_state.name, current_state.partial_plan, feasible_subtask
+                nav_time = self.nav_manager.calc_time(
+                    curr_state.name, current_state.completed_subtasks, feasible_subtask
                 )
-                return_nav_time = self.navigation_manager.calculate_navigation_time(
-                    curr_state.name, current_state.partial_plan, related_subtask
+                return_nav_time = self.nav_manager.calc_time(
+                    curr_state.name, current_state.completed_subtasks, related_subtask
                 )
                 total_dur = feasible_subtask.duration.interval + nav_time
                 if is_critical:
@@ -195,7 +165,7 @@ class Scheduler:
                         for r in curr_state.remaining_subtasks
                         if r.name != candidate_subtask.name
                     ]
-                    new_state = SimulationState(
+                    new_state = SchedulerState(
                         candidate_subtask.name, new_plan, new_remain
                     )
 
@@ -215,7 +185,7 @@ class Scheduler:
                             ),
                             duration=leftover,
                             repetition=1,
-                            type="Wait",
+                            type="Monitor",
                             execution=None,
                             temporal_constraints=None,
                         )
@@ -227,15 +197,15 @@ class Scheduler:
                             curr_state.remaining_subtasks
                         )  # Wait는 새로운 subtask가 아니므로 remain 그대로
 
-                        new_state = SimulationState(wait_sub.name, new_plan, new_remain)
+                        new_state = SchedulerState(wait_sub.name, new_plan, new_remain)
 
                         results.append(
                             (
                                 new_cost,
                                 new_count,
-                                new_state.name,
+                                new_state.subtask,
                                 new_state.remaining_subtasks,
-                                new_state.partial_plan,
+                                new_state.completed_subtasks,
                             )
                         )
                     else:
@@ -257,13 +227,15 @@ class Scheduler:
                             if best_combination:
                                 new_cost = curr_cost + combo_cost
                                 new_count = combo_count
-                                new_plan = current_state.partial_plan + best_combination
+                                new_plan = (
+                                    current_state.completed_subtasks + best_combination
+                                )
                                 new_remain = [
                                     r
                                     for r in current_state.remaining_subtasks
                                     if r not in best_combination
                                 ]
-                                new_state = SimulationState(
+                                new_state = SchedulerState(
                                     best_combination[-1].name, new_plan, new_remain
                                 )
 
@@ -307,7 +279,7 @@ class Scheduler:
         return best_path  # cost ascending, count descending
 
     def _simulate_lookahead(
-        self, init_state: SimulationState
+        self, init_state: SchedulerState
     ) -> List[Tuple[float, int, Optional[Subtask], List[Subtask], List[Subtask]]]:
         """
         init_state 부터 depth=simulation_depth까지 확장.
@@ -319,7 +291,15 @@ class Scheduler:
         """
         queue = PriorityQueue()
         # total_cost, depth, order, state; depth가 3이고, total cost가 최소인 것을 가장 앞에 두는 자료구조
-        queue.put((0.0, 0, next(self._counter), init_state))
+        queue.put(
+            PQItem(
+                heuristic_cost=0.0,
+                depth=0,
+                leftover=0.0,  # 사용 안 함
+                tie_breaker=next(self._counter),
+                state=init_state,
+            )
+        )
 
         results: List[
             Tuple[float, int, Optional[Subtask], List[Subtask], List[Subtask]]
@@ -359,7 +339,7 @@ class Scheduler:
                 new_plan = curr_state.partial_plan + [feasible_subtask]
 
                 if new_depth < self.simulation_depth:
-                    new_state = SimulationState(
+                    new_state = SchedulerState(
                         feasible_subtask.name, new_plan, updated_remain
                     )
                     queue.put((new_cost, new_depth, next(self._counter), new_state))
@@ -387,7 +367,7 @@ class Scheduler:
         self,
         total_cost: float,
         current_depth: int,
-        current_state: SimulationState,
+        current_state: SchedulerState,
         candidate_subtask: Subtask,
     ) -> Tuple[float, List[Subtask]]:
         """
@@ -402,8 +382,8 @@ class Scheduler:
         )
 
         # Calculate navigation time
-        nav_time = self.navigation_manager.calculate_navigation_time(
-            current_state.name, current_state.partial_plan, candidate_subtask
+        nav_time = self.nav_manager.calc_time(
+            current_state.subtask, current_state.completed_subtasks, candidate_subtask
         )
 
         # Calculate heuristic cost

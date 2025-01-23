@@ -67,7 +67,7 @@ class LeftoverManager:
 
             # 확장
             for sub in remain_subs:
-                nav_time = self.navigation_manager.calculate_navigation_time(
+                nav_time = self.navigation_manager.calc_time(
                     curr_state.name, curr_state.partial_plan + chosen_subtasks, sub
                 )
                 dur = sub.duration.interval + nav_time
@@ -91,7 +91,7 @@ class LeftoverManager:
         # best_combination에 대해 실제 소요시간 계산
         total_cost_for_combo = 0.0
         for sub in best_combination:
-            nav_time = self.navigation_manager.calculate_navigation_time(
+            nav_time = self.navigation_manager.calc_time(
                 curr_state.name,
                 curr_state.partial_plan + best_combination,  # or chosen?
                 sub,

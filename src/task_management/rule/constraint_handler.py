@@ -143,20 +143,6 @@ class ConstraintHandler:
     def get_temporal_constraints(
         self, subtask_name: str, direction: str
     ) -> Tuple[Tuple[int, bool, Optional[str]], ...]:
-        """
-        Retrieves minimal (Interval, Urgency, neighbor_name) for incoming or
-        outgoing edges to a subtask. If multiple edges exist, the minimal
-        Interval is returned.
-
-        Args:
-            subtask_name (str): Name of the subtask of interest.
-            direction (str): 'in' for incoming edges or 'out' for outgoing edges.
-
-        Returns:
-            Tuple[Tuple[int, bool, Optional[str]], ...]:
-                A tuple of one or more (interval, urgency, neighbor_name).
-                If no edges exist, returns ((0, False, None),).
-        """
 
         def extract_constraints(
             edges: List[Tuple[Any, Any, dict]]

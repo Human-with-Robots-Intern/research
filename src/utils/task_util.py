@@ -13,12 +13,11 @@ def tasks_to_subtasks(tasks, mode="all"):
         for task in tasks:
             print(subtasks)
             subtasks.extend([subtask.name for subtask in task.subtasks])
-    subtasks = set(subtasks)
 
     return subtasks
 
 
-def adjust_subtask_duration(tasks: List["Task"]) -> List["Task"]:
+def adjust_subtasks_duration(subtasks: List[Subtask]) -> List[Subtask]:
     """
     Adjust the duration intervals of subtasks in the given tasks based on the agent's knowledge.
 
@@ -29,7 +28,7 @@ def adjust_subtask_duration(tasks: List["Task"]) -> List["Task"]:
         List[Task]: The list of tasks with adjusted subtask durations.
     """
 
-    def _get_subtask_duration(subtask: Subtask) -> float:
+    def _get_action_duration(subtask: Subtask) -> float:
         total_duration = 0.0
         for primitive_action in subtask.execution.primitive_actions:
             action_name = primitive_action.split()[0]
@@ -38,14 +37,14 @@ def adjust_subtask_duration(tasks: List["Task"]) -> List["Task"]:
                 raise ValueError(
                     f"Action '{action_name}' not found in the primitive action set."
                 )
+            if action_name not in {"NAVIGATE_TO", "MONITORING", "WAIT"}:
+                total_duration += PRIMITIVE_ACTION_DURATION
+        return total_duration
 
-            total_duration += PRIMITIVE_ACTION_DURATION
-            return total_duration
-
-    for task in tasks:
-        for subtask in task.subtasks:
-            subtask.duration.interval = _get_subtask_duration(subtask)
-    return tasks
+    for subtask in subtasks:
+        for subtask in subtask.subtasks:
+            subtask.duration.interval = _get_action_duration(subtask)
+    return subtasks
 
 
 def revision_primitive_actions(tasks):
@@ -79,7 +78,6 @@ def build_tasks_and_constraints(
     """
     tasks = Task.parse_instruction(task_data)
     tasks = revision_primitive_actions(tasks)
-    tasks = adjust_subtask_duration(tasks)
 
     if enable_decomposition:
         for task in tasks:
@@ -87,4 +85,5 @@ def build_tasks_and_constraints(
 
     task_graph_builder = TaskGraphBuilder()
     task_graph = task_graph_builder.build_graph(tasks)
-    return tasks, task_graph
+    subtasks = tasks_to_subtasks(tasks)
+    return subtasks, task_graph

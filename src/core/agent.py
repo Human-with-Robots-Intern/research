@@ -8,7 +8,7 @@ import numpy as np
 from utils.constants import KNOWLEDGE_PATH
 from utils.util import create_module_logger
 
-# log = create_module_logger(module_name=__name__, is_file_handler=True)
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 @dataclass
@@ -18,84 +18,64 @@ class Config:
     obs_variance: float = 1.0  # Observation variance
 
 
-class BayesianAgent:
-
-    @staticmethod
-    def _initialize_gaussian(
-        mean: float = 1.0, variance: float = 1.0
-    ) -> Dict[str, Any]:
-        """
-        Initialize a Gaussian distribution for expected durations.
-
-        Args:
-            mean (float): Mean of the Gaussian distribution. Defaults to 1.0.
-            variance (float): Variance of the Gaussian distribution. Defaults to 1.0.
-
-        Returns:
-            Dict[str, Any]: Dictionary containing expected duration, variance, and occurrences.
-        """
-        return {
-            "expected_duration": np.random.normal(mean, np.sqrt(variance)),
-            "variance": variance,
-            "occurrences": 0,
-        }
+class Agent:
+    def __init__(self):
+        self.knowledge = self._load_knowledge(KNOWLEDGE_PATH)
+        self.config = Config()
+        self.location = "agent"
 
     def reset_knowledge_to_gaussian(self) -> None:
         """
-        Reset the knowledge base, initializing all expected durations with a Gaussian distribution.
+        Reset the knowledge base:
+        every key (e.g. 'Brew Coffee') is re-initialized with a new Gaussian (mean=1, var=1).
         """
-        for action in self.knowledge.get("Valid_actions", {}).keys():
-            self.knowledge["Valid_actions"][action] = self._initialize_gaussian()
+        for key in self.knowledge.keys():
+            self.knowledge[key] = {
+                "expected_duration": 0,
+                "variance": 1,
+            }
 
-        for subtask in self.knowledge.get("Subtask", {}).keys():
-            self.knowledge["Subtask"][subtask] = self._initialize_gaussian()
-
-        # log.info("Knowledge successfully reset to Gaussian.")
         self._save_knowledge(KNOWLEDGE_PATH)
+        log.info("Knowledge reset to default Gaussian (mean=0, var=1).")
 
     def _load_knowledge(self, knowledge_path: Path) -> Dict[str, Any]:
         """
-        Load the knowledge file.
-
-        Args:
-            knowledge_path (Path): Path to the knowledge directory.
-
-        Returns:
-            Dict[str, Any]: Loaded knowledge dictionary.
+        Load the knowledge JSON file, which is assumed to have a structure like:
+        {
+            "Brew Coffee": {
+                "expected_duration": 0.48,
+                "variance": 1.0
+            },
+            "Boil Water": {
+                "expected_duration": 3.2,
+                "variance": 0.5
+            }
+        }
         """
-        knowledge_file = knowledge_path / "knowledge.json"
+        knowledge_file = knowledge_path / "bayesian_estimate.json"
         if knowledge_file.exists():
             try:
-                with knowledge_file.open("r") as f:
+                with knowledge_file.open("r", encoding="utf-8") as f:
                     knowledge = json.load(f)
-                # log.info("Knowledge loaded successfully.")
                 return knowledge
             except json.JSONDecodeError as e:
-                # log.error(f"Error decoding knowledge file: {e}")
-                raise json.JSONDecodeError
+                raise json.JSONDecodeError(
+                    f"Error decoding knowledge file: {e}", doc="", pos=0
+                )
         else:
-            # log.warning("Knowledge file not found. Initializing default knowledge.")
-            pass
-
-        # Return default knowledge if file not found or error occurs
-        return self.DEFAULT_KNOWLEDGE.copy()
+            raise FileNotFoundError(f"Knowledge file not found at {knowledge_file}.")
 
     def _save_knowledge(self, knowledge_path: Path) -> None:
         """
-        Save the knowledge file.
-
-        Args:
-            knowledge_path (Path): Path to the knowledge directory.
+        Save (overwrite) the knowledge JSON file.
         """
         knowledge_path.mkdir(parents=True, exist_ok=True)
-        knowledge_file = knowledge_path / "knowledge.json"
+        knowledge_file = knowledge_path / "bayesian_estimate.json"
         try:
-            with knowledge_file.open("w") as f:
+            with knowledge_file.open("w", encoding="utf-8") as f:
                 json.dump(self.knowledge, f, indent=4, ensure_ascii=False)
-            # log.info("Knowledge saved successfully.")
         except Exception as e:
-            # log.error(f"Error saving knowledge: {e}")
-            raise Exception
+            raise Exception(f"Error saving knowledge: {e}")
 
     def monitering_timing(plan_about_time_critical):
         # plan_about_time_critical : time-critical에 대한 planning
@@ -133,14 +113,14 @@ class BayesianAgent:
 
         ground_truth = 10  # 나중에 subtask 이름에 따른 값으로 ground_truth.json 파일에서 불러와야 함.
         estimate_load = self._load_knowledge(KNOWLEDGE_PATH)
-        prior_mean = estimate_load["Subtask"][subtask_name]["expected_duration"]
-        prior_variance = estimate_load["Subtask"][subtask_name]["variance"]
+        prior_mean = estimate_load[subtask_name]["expected_duration"]
+        prior_variance = estimate_load[subtask_name]["variance"]
         cooking_data = actual_duration / ground_truth
 
         # bayesian estimate
         a = 1
         time_observation = actual_duration
-        likelihood_epsilon = a * (prior_mean - time_observation) ^ 2
+        likelihood_epsilon = a * (prior_mean - time_observation) ** 2
         posterior_mean = (
             prior_variance * cooking_data + likelihood_epsilon * prior_mean
         ) / (likelihood_epsilon + prior_variance)
@@ -149,7 +129,7 @@ class BayesianAgent:
         )
 
         # posterior_data
-        estimate_load["Subtask"][subtask_name]["expected_duration"] = posterior_mean
-        estimate_load["Subtask"][subtask_name]["variance"] = posterior_variance
+        estimate_load[subtask_name]["expected_duration"] = posterior_mean
+        estimate_load[subtask_name]["variance"] = posterior_variance
 
         self._save_knowledge(KNOWLEDGE_PATH)

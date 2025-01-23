@@ -20,7 +20,7 @@ def list_task_files() -> list[Path]:
     return sorted(TASK_PATH.glob("*.json"), key=lambda p: p.name)
 
 
-def get_user_task_choice(task_files: list[Path]) -> str:
+def get_user_task_choice(task_files: list[Path], choice: int) -> str:
     """
     Prompt the user to select a task file by index or choose to create a new instruction.
 
@@ -34,8 +34,8 @@ def get_user_task_choice(task_files: list[Path]) -> str:
 
     while True:
         try:
-            choice = int(input("Enter the number of your choice: "))
-            # choice = len(task_files)  # If you want to skip user input, you could set a default here.
+            if not choice:
+                choice = int(input("Enter the number of your choice: "))
 
             if choice == 0:
                 return generate_task()

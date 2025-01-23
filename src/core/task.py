@@ -1,27 +1,7 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, NamedTuple, Optional
 
 import networkx as nx
 import numpy as np
-
-from utils.constants import PRIMITIVE_ACTION_DURATION, PRIMITIVE_ACTION_SET
-
-# class RoI:
-#     def __init__(self, room: str, asset: List[str], objects: Dict[str, int]) -> None:
-#         self.room = room
-#         self.asset = asset
-#         self.objects = objects
-
-#     def __repr__(self) -> str:
-#         return f"RoI(room={self.room}, asset={self.asset}, objects={self.objects})"
-
-
-#     @classmethod
-#     def from_dict(cls, data: Dict) -> "RoI":
-#         return cls(
-#             room=data["Room"],
-#             asset=data["Assets"],
-#             objects=data["Objects"],
-#         )
 
 
 class Duration:
@@ -276,3 +256,18 @@ class TaskGraphBuilder:
                         raise ValueError("Constrained Node does not exist")
         nx.write_gml(self.graph, "graph.gml")
         return self.graph
+
+
+class SchedulerState(NamedTuple):
+    """
+    시뮬레이션 중 임시 상태.
+    """
+
+    # 현재 subtask
+    subtask: Subtask
+    # 수행된 subtask들
+    completed_subtasks: List[Subtask]
+    # 남은 subtask들
+    remaining_subtasks: List[Subtask]
+    # 에이전트 위치
+    agent_location: str

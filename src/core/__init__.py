@@ -1,4 +1,4 @@
-from .agent import BayesianAgent
+from .agent import Agent
 from .task import Subtask, Task, TaskGraphBuilder
 
 __all__ = [
@@ -6,5 +6,5 @@ __all__ = [
     "Task",
     "TaskGraphBuilder",
     "TaskTimingPlanner",
-    "BayesianAgent",
+    "Agent",
 ]

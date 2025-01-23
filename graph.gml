@@ -3,47 +3,47 @@ graph [
   node [
     id 0
     label "Retrieve Tomato"
-    time 0.1
+    time 1
   ]
   node [
     id 1
     label "Retrieve Egg"
-    time 0.1
+    time 1
   ]
   node [
     id 2
     label "Retrieve Lettuce"
-    time 0.1
+    time 1
   ]
   node [
     id 3
     label "Boil Water"
-    time 0.1
+    time 5
   ]
   node [
     id 4
     label "Cook Pasta"
-    time 0.1
+    time 8
   ]
   node [
     id 5
     label "Saut&#233; Ingredients"
-    time 0.1
+    time 4
   ]
   node [
     id 6
     label "Add Seasoning"
-    time 0.1
+    time 1
   ]
   node [
     id 7
     label "Simmer Mixture"
-    time 0.1
+    time 10
   ]
   node [
     id 8
     label "Turn Off Stove"
-    time 0.1
+    time 0
   ]
   edge [
     source 0

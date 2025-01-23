@@ -2,7 +2,7 @@
 import logging
 from typing import Optional
 
-from core.task import Subtask
+from core.task import SchedulerState, Subtask
 
 log = logging.getLogger(__name__)
 
@@ -23,40 +23,35 @@ class NavigationManager:
         self.navigation_times = navigation_times
         self.subtasks_info = all_subtasks_info
 
-    def calculate_navigation_time(
-        self, current_subtask_name: str, partial_plan: list, candidate_subtask: Subtask
+    def calc_time(
+        self,
+        current_state: SchedulerState,
+        next_subtask: Subtask,
     ) -> float:
         """
-        이동 시간 계산 메인 함수.
+        subtask 내 Navigate_to 소요 시간 계산
         """
-        if isinstance(candidate_subtask, str):
-            for subtask in self.subtasks_info:
-                if subtask.name == candidate_subtask:
-                    candidate_subtask = subtask
-                    break
+        nav_time = 0.0
 
-        if current_subtask_name.startswith("Wait") or candidate_subtask.name.startswith(
-            "Wait"
-        ):
+        # Monitor는 Navigate_to가 없으므로 0.0 반환
+        if current_state.subtask.type == "Monitor":
             return 0.0
 
-        # Init
-        if current_subtask_name == "Init":
-            last_location = "agent"
-        else:
-            last_location = self._find_last_location(partial_plan) or "agent"
+        #
+        for primitive_action in next_subtask.execution.primitive_actions:
+            if primitive_action.startswith("NAVIGATE_TO"):
+                plan_so_far = current_state.completed_subtasks + [current_state.subtask]
+                last_location = self._find_last_location(plan_so_far)
+                target_location = self._find_target_location(next_subtask)
+                nav_time += self._lookup_navigation_time(last_location, target_location)
 
-        target_location = self._find_first_location(candidate_subtask)
-        if not target_location:
-            return 0.0
+        return
 
-        return self._lookup_navigation_time(last_location, target_location)
-
-    def _find_last_location(self, partial_plan: list) -> Optional[str]:
+    def _find_last_location(self, plan: list) -> Optional[str]:
         """
         partial_plan을 뒤에서부터 확인하여 NAVIGATE_TO가 마지막으로 등장한 위치를 찾는다.
         """
-        for subtask in reversed(partial_plan):
+        for subtask in reversed(plan):
             if subtask.name.startswith("Wait"):
                 continue
 
@@ -74,7 +69,7 @@ class NavigationManager:
                         return action.split()[-1]
         return None
 
-    def _find_first_location(self, subtask: Subtask) -> Optional[str]:
+    def _find_target_location(self, subtask: Subtask) -> Optional[str]:
         """
         subtask 내부의 primitive_actions 중 첫 NAVIGATE_TO 위치를 찾는다.
         """

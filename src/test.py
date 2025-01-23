@@ -3,16 +3,17 @@ import json
 import time
 from pathlib import Path
 
-from core.agent import BayesianAgent
-from sim.runner_ai2thor import init_ai2thor
+from core.agent import Agent
+from core.task import SchedulerState, Subtask
 from core.task_tree_builder_beam import Scheduler
+from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import visualize
 from utils.task_io import (
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file,
 )
-from utils.task_util import build_tasks_and_constraints
+from utils.task_util import adjust_subtasks_duration, build_tasks_and_constraints
 from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
@@ -59,25 +60,48 @@ def main():
         controller = init_ai2thor()
 
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files)
+    task_file_name = get_user_task_choice(task_files, choice=78)
 
     # Load the chosen task data
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
-    tasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
+    subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
+
     # Visualize the task graph if enabled
     if args.visualize:
         visualize(task_file_name, constraints)
 
-    agent = BayesianAgent()
+    agent = Agent()
 
-    scheduler = Scheduler(tasks, constraints)
-    while True:
-        scheduler.constraint_handler.update_constraints(constraints)
-        current_subtask = scheduler.get_next_subtask(tasks, constraints)
-        if current_subtask is None:
+    init_subtask = Subtask(
+        task_name=None,
+        name="Init",
+        duration=0.0,
+        repetition=1,
+        type=None,
+        execution=None,
+        temporal_constraints=None,
+    )
+
+    scheduler = Scheduler(subtasks, constraints)
+    current_state = SchedulerState(
+        subtask=init_subtask,
+        completed_subtasks=[],
+        remaining_subtasks=subtasks,
+        agent_location=agent.location,
+    )
+
+    while current_state.remaining_subtasks:
+
+        current_state = scheduler.get_new_state(current_state, constraints)
+        if current_state is None:
+            # 스케줄링 더 이상 불가
+            log.warning("No valid next subtask. Stopping.")
             break
+
+        if args.simulation:
+            execute_subtask(controller, current_state.subtask)
 
 
 if __name__ == "__main__":
