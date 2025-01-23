@@ -5,7 +5,7 @@ from pathlib import Path
 
 from core.agent import BayesianAgent
 from sim.runner_ai2thor import init_ai2thor
-from task_management.task_tree_builder_beam import Scheduler
+from core.task_tree_builder_beam import Scheduler
 from utils import visualize
 from utils.task_io import (
     get_user_task_choice,
