@@ -28,6 +28,9 @@ class ConstraintHandler:
         """
         self.constraints = constraints
 
+    def update_constraints(self, constraints: nx.DiGraph):
+        self.constraints = constraints
+
     def validate_constraints(
         self,
         current_state: "Subtask",  # or a more precise type if you have one

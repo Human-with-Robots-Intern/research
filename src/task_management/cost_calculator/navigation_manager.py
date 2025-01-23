@@ -21,9 +21,7 @@ class NavigationManager:
             all_subtasks_info: 전체 Subtask 정보 (네비게이션 위치 추적 등에 사용)
         """
         self.navigation_times = navigation_times
-        self.subtasks_info = (
-            all_subtasks_info  # build_tree 하기 전 전체 Subtask 복사본 등
-        )
+        self.subtasks_info = all_subtasks_info
 
     def calculate_navigation_time(
         self, current_subtask_name: str, partial_plan: list, candidate_subtask: Subtask

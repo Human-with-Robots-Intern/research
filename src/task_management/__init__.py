@@ -1,3 +1,3 @@
-from .task_tree_builder_beam import TaskTreeBuilder
+from .task_tree_builder_beam import Scheduler
 
-__all__ = ["TaskTreeBuilder"]
+__all__ = ["Scheduler"]

@@ -1,12 +1,18 @@
 import argparse
 import json
 import time
+from pathlib import Path
 
-from core import Task, TaskGraphBuilder, TaskTimingPlanner
 from core.agent import BayesianAgent
-from task_management.task_tree_builder_beam import TaskTreeBuilder
-from utils import generate_task, visualize
-from utils.constants import TASK_PATH
+from sim.runner_ai2thor import init_ai2thor
+from task_management.task_tree_builder_beam import Scheduler
+from utils import visualize
+from utils.task_io import (
+    get_user_task_choice,
+    list_task_files,
+    load_task_data_from_file,
+)
+from utils.task_util import build_tasks_and_constraints
 from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
@@ -40,111 +46,38 @@ def parse_arguments():
     parser.add_argument(
         "-s",
         "--simulation",
-        help="select simulation(o: omnigibson / a: ai2thor)",
-        default=False,
         action="store_true",
     )
     return parser.parse_args()
-
-
-def check_place(tasks):
-    # list-dict("Subtasks")-list-dict("Executions")-dict("PrimitiveActions")-list
-    for task in tasks:
-        for subtask in task["Subtasks"]:
-            actions = subtask["Executions"]["PrimitiveActions"]
-            updated_actions = []
-            for i, action in enumerate(actions):
-                if i > 0 and "PLACE" in action and "NAVIGATE" not in actions[i - 1]:
-                    to_obj = action.split(" ")[1]
-                    updated_actions.append(f"NAVIGATE_TO {to_obj}")
-                if "PLACE" in action and "Sink" in action and "SinkBasin" not in action:
-                    to_obj = action.split(" ")[1] + "|SinkBasin"
-                    updated_actions.append(f"PLACE_INSIDE {to_obj}")
-                updated_actions.append(action)
-            subtask["Executions"]["PrimitiveActions"] = updated_actions
-    return tasks
-
-
-def load_task_data():
-    """Load task data from a JSON file."""
-    task_files = sorted(TASK_PATH.glob("*.json"), key=lambda p: p.name)
-
-    print("Select a file from the list below:")
-    print("0. new instruction")
-    for idx, file in enumerate(task_files, start=1):
-        print(f"{idx}. {file.name}")
-
-    while True:
-        try:
-            choice = int(
-                input("Enter the number of your choice: ")
-            )  # choice = len(task_files)
-
-            if choice == 0:
-                target_task_name = generate_task()
-                break
-            elif 1 <= choice <= len(task_files):
-                target_task_name = task_files[choice - 1].name
-                break
-            else:
-                print(
-                    f"Invalid choice. Please select a number between 0 and {len(task_files)}."
-                )
-        except ValueError as e:
-            print(f"Invalid input. Please enter a number. Error: {e}")
-
-    target_task_path = TASK_PATH / target_task_name
-
-    if not target_task_path.exists():
-        raise FileNotFoundError(f"Task file not found: {target_task_path}")
-
-    with open(target_task_path, "r") as file:
-        target_task = json.load(file)  # 일단 불러오기
-
-    return target_task_name, check_place(target_task)
-
-
-def load_tasks_and_constraints(task_data, enable_decomposition):
-    """Parse tasks and build task graph."""
-    tasks = Task.parse_instruction(task_data)
-    if enable_decomposition:
-        for task in tasks:
-            task.decompose_subtasks()
-
-    task_graph_builder = TaskGraphBuilder()
-    task_graph = task_graph_builder.build_graph(tasks)
-
-    return tasks, task_graph
 
 
 def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
 
-    # Initialize ai2thor environment
-    controller = init_ai2thor()
+    if args.simulation:
+        controller = init_ai2thor()
 
-    # Load task data
-    task_name, task_data = load_task_data()
+    task_files = list_task_files()
+    task_file_name = get_user_task_choice(task_files)
 
-    # Parse tasks and build graph
-    tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
-    visualize(task_name, task_graph)
+    # Load the chosen task data
+    task_data = load_task_data_from_file(task_file_name)
+
+    # Build tasks and constraints
+    tasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
+    # Visualize the task graph if enabled
+    if args.visualize:
+        visualize(task_file_name, constraints)
 
     agent = BayesianAgent()
-    tasks = agent.adjust_subtask_duration(tasks)
 
-    tree_builder = TaskTreeBuilder()
+    scheduler = Scheduler(tasks, constraints)
     while True:
-        # constraints = agent.update(constraints)
-        # TODO build_tree input으로 제약 조건 받을 것
-        current_subtask = tree_builder.get_next_subtask(tasks, constraints)
-        # next_subtask가  AI2thor에서 실행하고서 경과된 시간
-        # if current_subtask.temporal_constraints[0].urgency:
-        #     elapsed_time_after_critical_start = 0
-        # elapsed_time_after_critical_start += execute_subtask(current_subtask)
-        # if current_subtask.type == "Monitoring":
-        #     agent.bayesian_estimate(elapsed_time_after_critical_start)
+        scheduler.constraint_handler.update_constraints(constraints)
+        current_subtask = scheduler.get_next_subtask(tasks, constraints)
+        if current_subtask is None:
+            break
 
 
 if __name__ == "__main__":

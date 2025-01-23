@@ -12,13 +12,12 @@ from task_management.rule import ConstraintHandler
 
 # 모듈 분리된 클래스들
 from task_management.task_tree import TaskTree
-from task_management.time_slot_simulator import LeftoverManager
-from utils.util import create_module_logger, load_navigation_times, tasks_to_subtasks
+from utils.constants import DEFAULT_BEAM_WIDTH, DEFAULT_SIMULATION_DEPTH
+from utils.task_io import load_navigation_times
+from utils.task_util import tasks_to_subtasks
+from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=False)
-
-DEFAULT_SIMULATION_DEPTH = 3
-DEFAULT_BEAM_WIDTH = 1
 
 
 class SimulationState(NamedTuple):
@@ -31,33 +30,31 @@ class SimulationState(NamedTuple):
     remaining_subtasks: List[Subtask]
 
 
-class TaskTreeBuilder:
+class Scheduler:
     """
     Beam Search(lookahead depth=3)로 Subtask를 확정해 나가는 로직.
     """
 
     def __init__(
         self,
-        constraints: nx.DiGraph,
-        beam_width: int = DEFAULT_BEAM_WIDTH,
-        simulation_depth: int = DEFAULT_SIMULATION_DEPTH,
+        init_tasks: List[Subtask],
+        init_constraints: nx.DiGraph,
     ):
         self.tree = TaskTree()
-        self.beam_width = beam_width
-        self.simulation_depth = simulation_depth
+        self.beam_width = DEFAULT_BEAM_WIDTH
+        self.simulation_depth = DEFAULT_SIMULATION_DEPTH
 
         # 핸들러
-        self.constraint_handler = ConstraintHandler(constraints)
+        self.subtasks_info = copy.deepcopy(tasks_to_subtasks(init_tasks))
+        self.constraint_handler = ConstraintHandler(init_constraints)
 
         # 부품 모듈들
-        self.cost_calculator = CostCalculator(
-            constraint_handler=self.constraint_handler
-        )
+        self.cost_calculator = CostCalculator()
         self.navigation_manager = NavigationManager(
             navigation_times=load_navigation_times(),
-            all_subtasks_info=[],  # 뒤에서 set
+            all_subtasks_info=self.subtasks_info,
         )
-        self.subtasks_info = None  # 전체 Subtask 원본 보관
+
         self._counter = itertools.count()  # tie-breaker for PriorityQueue ordering
 
     def get_next_subtask(self, tasks: List[Subtask], constraints: nx.graph) -> Node:
@@ -70,12 +67,7 @@ class TaskTreeBuilder:
 
           2) 최종 트리 반환
         """
-
         subtasks = tasks_to_subtasks(tasks)
-        self.subtasks_info = copy.deepcopy(subtasks)
-        # NavigationManager 설정
-        self.navigation_manager.subtasks_info = self.subtasks_info
-
         current_node = self.tree.root_node
         current_state = SimulationState("Init", [], subtasks)
 
@@ -84,7 +76,7 @@ class TaskTreeBuilder:
             # 1) out-edge(temporal constraint)가 있는 경우: separation_interval > 0인 경우
             time_slot = self.constraint_handler.get_temporal_constraints(
                 current_state.name, direction="out"
-            )  # queue pop 불필요??
+            )
 
             if time_slot[0] > 0:
                 best_path = self._simulate_time_slot(current_state, time_slot)

@@ -2,10 +2,7 @@
 from typing import Tuple
 
 from core.task import Subtask
-from task_management.rule import ConstraintHandler
 
-# 전역 상수를 그대로 사용할 수도 있지만,
-# 필요하다면 CostCalculator 내부 인자로 넘길 수 있습니다.
 COST_WEIGHT = 3
 
 
@@ -15,10 +12,7 @@ class CostCalculator:
     - Wait 시 발생하는 비용 계산
     """
 
-    def __init__(
-        self, constraint_handler: ConstraintHandler, cost_weight: int = COST_WEIGHT
-    ):
-        self.constraint_handler = constraint_handler
+    def __init__(self, cost_weight: int = COST_WEIGHT):
         self.cost_weight = cost_weight
 
     def calc_heuristic_cost(
