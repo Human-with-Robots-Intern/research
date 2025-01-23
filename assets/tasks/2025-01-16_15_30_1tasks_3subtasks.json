@@ -1,0 +1,82 @@
+[
+  {
+    "Task": "Wash Mugs",
+    "Subtasks": [
+      {
+        "Name": "Wash Mug",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mug": 1,
+            "DishSponge": 1,
+            "Faucet": 1
+          },
+          "PrimitiveActions": [
+            "TOGGLE_ON SinkBasin",
+            "NAVIGATE_TO Mug01",
+            "GRASP Mug",
+            "NAVIGATE_TO SinkBasin",
+            "PLACE_INSIDE SinkBasin",
+            "TOGGLE_OFF SinkBasin"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Wash Mug",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mug": 1,
+            "DishSponge": 1,
+            "Faucet": 1
+          },
+          "PrimitiveActions": [
+            "TOGGLE_ON SinkBasin",
+            "NAVIGATE_TO Mug02",
+            "GRASP Mug",
+            "NAVIGATE_TO SinkBasin",
+            "PLACE_INSIDE SinkBasin",
+            "TOGGLE_OFF SinkBasin"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Wash Mug",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mug": 1,
+            "DishSponge": 1,
+            "Faucet": 1
+          },
+          "PrimitiveActions": [
+            "TOGGLE_ON SinkBasin",
+            "NAVIGATE_TO Mug03",
+            "GRASP Mug",
+            "NAVIGATE_TO SinkBasin",
+            "PLACE_INSIDE SinkBasin",
+            "TOGGLE_OFF SinkBasin"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

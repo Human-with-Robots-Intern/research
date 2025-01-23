@@ -1,0 +1,32 @@
+[
+  {
+    "Task": "Wash Mugs",
+    "Subtasks": [
+      {
+        "Name": "Wash Mug",
+        "Repetition": 3,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mug": 1,
+            "DishSponge": 1,
+            "Faucet": 1
+          },
+          "PrimitiveActions": [
+            "TOGGLE_ON SinkBasin",
+            "NAVIGATE_TO Mug",
+            "GRASP Mug",
+            "NAVIGATE_TO SinkBasin",
+            "PLACE_INSIDE SinkBasin",
+            "TOGGLE_OFF SinkBasin"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

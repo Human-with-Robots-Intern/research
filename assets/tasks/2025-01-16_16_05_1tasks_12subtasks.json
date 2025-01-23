@@ -1,0 +1,294 @@
+[
+    {
+        "Task": "Wash Plates",
+        "Subtasks": [
+            {
+                "Name": "Grasp First Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Turn On Faucet for First Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_ON Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Grasp First Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Clean First Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1,
+                        "DishSponge": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP DishSponge",
+                        "PLACE_ON_TOP Plate"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn On Faucet for First Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Turn Off Faucet for First Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Clean First Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Grasp Second Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn Off Faucet for First Plate",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Turn On Faucet for Second Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_ON Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Grasp Second Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Clean Second Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1,
+                        "DishSponge": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP DishSponge",
+                        "PLACE_ON_TOP Plate"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn On Faucet for Second Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Turn Off Faucet for Second Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Clean Second Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Grasp Third Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn Off Faucet for Second Plate",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Turn On Faucet for Third Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_ON Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Grasp Third Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Clean Third Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1,
+                        "DishSponge": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP DishSponge",
+                        "PLACE_ON_TOP Plate"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Turn On Faucet for Third Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Turn Off Faucet for Third Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Clean Third Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    }
+]

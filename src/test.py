@@ -38,13 +38,31 @@ def parse_arguments():
         action="store_true",
     )
     parser.add_argument(
-        "-o",
-        "--omnigibson",
-        help="Run omnigibson",
+        "-s",
+        "--simulation",
+        help="select simulation(o: omnigibson / a: ai2thor)",
         default=False,
         action="store_true",
     )
     return parser.parse_args()
+
+
+def check_place(tasks):
+    # list-dict("Subtasks")-list-dict("Executions")-dict("PrimitiveActions")-list
+    for task in tasks:
+        for subtask in task["Subtasks"]:
+            actions = subtask["Executions"]["PrimitiveActions"]
+            updated_actions = []
+            for i, action in enumerate(actions):
+                if i > 0 and "PLACE" in action and "NAVIGATE" not in actions[i - 1]:
+                    to_obj = action.split(" ")[1]
+                    updated_actions.append(f"NAVIGATE_TO {to_obj}")
+                if "PLACE" in action and "Sink" in action and "SinkBasin" not in action:
+                    to_obj = action.split(" ")[1] + "|SinkBasin"
+                    updated_actions.append(f"PLACE_INSIDE {to_obj}")
+                updated_actions.append(action)
+            subtask["Executions"]["PrimitiveActions"] = updated_actions
+    return tasks
 
 
 def load_task_data():
@@ -81,7 +99,9 @@ def load_task_data():
         raise FileNotFoundError(f"Task file not found: {target_task_path}")
 
     with open(target_task_path, "r") as file:
-        return target_task_name, json.load(file)
+        target_task = json.load(file)  # 일단 불러오기
+
+    return target_task_name, check_place(target_task)
 
 
 def load_tasks_and_constraints(task_data, enable_decomposition):
@@ -100,6 +120,9 @@ def load_tasks_and_constraints(task_data, enable_decomposition):
 def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
+
+    # Initialize ai2thor environment
+    controller = init_ai2thor()
 
     # Load task data
     task_name, task_data = load_task_data()

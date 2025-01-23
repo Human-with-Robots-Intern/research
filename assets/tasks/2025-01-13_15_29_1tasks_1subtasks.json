@@ -1,0 +1,39 @@
+[
+  {
+    "Task": "Set Up Table",
+    "Subtasks": [
+      {
+        "Name": "Prepare Table with Available Items",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Plate": 1,
+            "Fork": 1,
+            "Knife": 1,
+            "Spoon": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Plate",
+            "GRASP Plate",
+            "PLACE_ON_TOP CounterTop",
+            "NAVIGATE_TO Fork",
+            "GRASP Fork",
+            "PLACE_ON_TOP CounterTop",
+            "NAVIGATE_TO Knife",
+            "GRASP Knife",
+            "PLACE_ON_TOP CounterTop",
+            "NAVIGATE_TO Spoon",
+            "GRASP Spoon",
+            "PLACE_ON_TOP CounterTop"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

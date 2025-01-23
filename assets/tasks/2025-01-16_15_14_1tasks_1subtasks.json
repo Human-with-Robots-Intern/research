@@ -1,0 +1,26 @@
+[
+    {
+        "Task": "Wash Plates",
+        "Subtasks": [
+            {
+                "Name": "Wash Plates",
+                "Repetition": 3,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate",
+                        "PLACE_ON_TOP SinkBasin"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]
