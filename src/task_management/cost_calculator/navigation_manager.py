@@ -45,7 +45,7 @@ class NavigationManager:
                 target_location = self._find_target_location(next_subtask)
                 nav_time += self._lookup_navigation_time(last_location, target_location)
 
-        return
+        return nav_time
 
     def _find_last_location(self, plan: list) -> Optional[str]:
         """

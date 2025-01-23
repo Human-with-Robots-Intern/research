@@ -38,17 +38,17 @@ class Execution:
 
 class TemporalConstraint:
     def __init__(
-        self, constraint_type: str, subtask: str, interval: int, urgency: bool
+        self, constraint_type: str, subtask: str, interval: int, is_critical: bool
     ):
         self.type = constraint_type
         self.subtask = subtask
         self.interval = interval
-        self.urgency = urgency
+        self.is_critical = is_critical
 
     def __repr__(self):
         return (
             f"TemporalConstraint(type={self.type}, subtask={self.subtask}, "
-            f"interval={self.interval}, urgency={self.urgency})"
+            f"interval={self.interval}, is_critical={self.is_critical})"
         )
 
     @classmethod
@@ -57,7 +57,7 @@ class TemporalConstraint:
             constraint_type=data["Type"],
             subtask=data["Subtask"],
             interval=data["Interval"],
-            urgency=data["Urgency"],
+            is_critical=data["Urgency"],
         )
 
 
@@ -150,7 +150,7 @@ class Subtask:
                     constraint_type="After",
                     subtask=f"{self.name}_part_{part_index}",
                     interval=0,
-                    urgency=False,
+                    is_critical=False,
                 )
             ]
 
@@ -215,7 +215,7 @@ class Task:
                             constraint_type=constraint.type,
                             subtask=last_decomposed_part.name,
                             interval=constraint.interval,
-                            urgency=constraint.urgency,
+                            is_critical=constraint.is_critical,
                         )
                     )
                 else:
@@ -241,7 +241,7 @@ class TaskGraphBuilder:
                             "info": {
                                 "Type": constraint.type,
                                 "Interval": constraint.interval,
-                                "Urgency": constraint.urgency,
+                                "IsCritical": constraint.is_critical,
                             }
                         }
                         if constraint.type == "Before":

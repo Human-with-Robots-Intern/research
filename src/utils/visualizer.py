@@ -62,9 +62,9 @@ def visualize_graph(G: nx.DiGraph, save_folder_path):
         for node in G.nodes
     ]
 
-    # Assign colors to edges based on urgency
+    # Assign colors to edges based on is_critical attribute
     edge_colors = [
-        "red" if data["info"]["Urgency"] else "blue"
+        "red" if data["info"]["IsCritical"] else "blue"
         for _, _, data in G.edges(data=True)
     ]
 
@@ -90,7 +90,7 @@ def visualize_graph(G: nx.DiGraph, save_folder_path):
 
     # Add a legend to the plot
     plt.legend(
-        [red_edge, blue_edge], ["Urgent", "Not Urgent"], loc="best", frameon=True
+        [red_edge, blue_edge], ["Critical", "Not Critical"], loc="best", frameon=True
     )
 
     # Set the title of the plot

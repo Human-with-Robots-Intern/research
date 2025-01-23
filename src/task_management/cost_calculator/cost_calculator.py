@@ -12,28 +12,30 @@ class CostCalculator:
     - Wait 시 발생하는 비용 계산
     """
 
-    def __init__(self, cost_weight: int = COST_WEIGHT):
-        self.cost_weight = cost_weight
+    def __init__(self, constraint_handler):
+        self.constraint_handler = constraint_handler
+        self.cost_weight = COST_WEIGHT
 
     def calc_heuristic_cost(
         self,
         current_depth: int,
         subtask: Subtask,
         navigate_time: float,
-        incoming_ts: Tuple[int, bool, str],
-        outgoing_ts: Tuple[int, bool, str],
     ) -> float:
         """
         기존 코드의 휴리스틱 공식:
           cost_val = (cost_weight - current_depth) * (
-              subtask.duration.interval + navigate_time + (incoming_ts[0] - outgoing_ts[0])
-          )
+        subtask.duration.interval + navigate_time + (incoming_ts[0] - outgoing_ts[0])
         """
-        in_separation, _, _ = incoming_ts
-        out_separation, _, _ = outgoing_ts
-        time_diff = in_separation - out_separation
+        in_time_slot = self.constraint_handler.get_temporal_constraints(
+            subtask.name, "in"
+        )
+        out_time_slot = self.constraint_handler.get_temporal_constraints(
+            subtask.name, "out"
+        )
+        time_diff = in_time_slot.interval - out_time_slot.interval
 
-        factor = max(self.cost_weight - current_depth, 1)  # -1 곱할 것 그리고 최대 찾기
+        factor = -1 * max(self.cost_weight - current_depth, 1)
         cost_val = factor * (subtask.duration.interval + navigate_time + time_diff)
         return cost_val
 
