@@ -3,6 +3,11 @@ import json
 import time
 
 from core import Task, TaskGraphBuilder, TaskTimingPlanner
+from core.agent import BayesianAgent
+from utils.util import create_module_logger
+
+# from sim.runner import execute_subtask, init_omnigibson
+from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import generate_task, visualize
 from utils.constants import TASK_PATH
 from utils.util import create_module_logger
@@ -36,13 +41,31 @@ def parse_arguments():
         action="store_true",
     )
     parser.add_argument(
-        "-o",
-        "--omnigibson",
-        help="Run omnigibson",
+        "-s",
+        "--simulation",
+        help="select simulation(o: omnigibson / a: ai2thor)",
         default=False,
         action="store_true",
     )
     return parser.parse_args()
+
+
+def check_place(tasks):
+    # list-dict("Subtasks")-list-dict("Executions")-dict("PrimitiveActions")-list
+    for task in tasks:
+        for subtask in task["Subtasks"]:
+            actions = subtask["Executions"]["PrimitiveActions"]
+            updated_actions = []
+            for i, action in enumerate(actions):
+                if i > 0 and "PLACE" in action and "NAVIGATE" not in actions[i - 1]:
+                    to_obj = action.split(" ")[1]
+                    updated_actions.append(f"NAVIGATE_TO {to_obj}")
+                if "PLACE" in action and "Sink" in action and "SinkBasin" not in action:
+                    to_obj = action.split(" ")[1] + "|SinkBasin"
+                    updated_actions.append(f"PLACE_INSIDE {to_obj}")
+                updated_actions.append(action)
+            subtask["Executions"]["PrimitiveActions"] = updated_actions
+    return tasks
 
 
 def load_task_data():
@@ -56,9 +79,8 @@ def load_task_data():
 
     while True:
         try:
-            # choice = int(input("Enter the number of your choice: "))
-            # 가장 마지막 파일 로드
-            choice = len(task_files)
+            choice = int(input("Enter the number of your choice: "))
+
             if choice == 0:
                 target_task_name = generate_task()
                 break
@@ -78,7 +100,9 @@ def load_task_data():
         raise FileNotFoundError(f"Task file not found: {target_task_path}")
 
     with open(target_task_path, "r") as file:
-        return target_task_name, json.load(file)
+        target_task = json.load(file)  # 일단 불러오기
+
+    return target_task_name, check_place(target_task)
 
 
 def load_tasks_and_constraints(task_data, enable_decomposition):
@@ -98,16 +122,16 @@ def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
 
+    # Initialize ai2thor environment
+    controller = init_ai2thor()
+
     # Load task data
     task_name, task_data = load_task_data()
 
     # Parse tasks and build graph
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
     visualize(task_name, task_graph)
-
-    # Initialize OmniGibson environment
-    agent, env = None, None
-
+    agent = BayesianAgent(None)
     # Task scheduling
     start_time = time.time()
     task_timing_planner = TaskTimingPlanner(
@@ -118,6 +142,16 @@ def main():
     log.info(f"Task {task_name} scheduled in {elapsed_time:.2f} seconds")
     # Scheduling 결과 sequence of subtasks
     scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
+
+    # Task execution
+    # try:
+    print(f"{scheduled_subtasks=}")
+    for scheduled_subtask in scheduled_subtasks:
+        print(f"{scheduled_subtask=}")
+        execute_subtask(controller, scheduled_subtask)
+    # except Exception as e:
+    #     # log.error(f"Error executing task: {e}")
+    #     raise Exception
 
     # Result visualization
     if args.visualize:

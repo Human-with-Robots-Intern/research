@@ -72,9 +72,11 @@ class TaskTreeBuilder:
           1) 남은 Subtask가 있을 때까지:
              - depth=3까지 lookahead
              - cost 최소인 경로 선택 -> "첫 Subtask"만 Tree에 반영
-             - state 업데이트
+
+
           2) 최종 트리 반환
         """
+
         subtasks = tasks_to_subtasks(tasks)
         self.subtasks_info = copy.deepcopy(subtasks)
         # NavigationManager 설정
@@ -88,7 +90,7 @@ class TaskTreeBuilder:
             # 1) out-edge(temporal constraint)가 있는 경우: separation_interval > 0인 경우
             time_slot = self.constraint_handler.get_temporal_constraints(
                 current_state.name, direction="out"
-            )
+            )  # queue pop 불필요??
 
             if time_slot[0] > 0:
                 best_path = self._simulate_time_slot(current_state, time_slot)
@@ -106,7 +108,7 @@ class TaskTreeBuilder:
                     best_path
                 )
                 # 첫 Subtask만 트리에 반영
-                chosen_subtasks = [last_subtask]
+                chosen_subtasks = [plan_after]
                 if not last_subtask:
                     log.warning("Best path has empty plan. Stopping.")
                     break
@@ -168,7 +170,6 @@ class TaskTreeBuilder:
         ] = []
 
         while not queue.empty():
-            print(next(self._counter))
             curr_cost, curr_count, _, curr_state = queue.get()
             leftover = separation_interval - curr_cost
 
@@ -331,7 +332,7 @@ class TaskTreeBuilder:
                 (total_cost, depth, last_subtask, remaining_subtasks, partial_plan)
         """
         queue = PriorityQueue()
-        # total_cost, depth, order, state
+        # total_cost, depth, order, state; depth가 3이고, total cost가 최소인 것을 가장 앞에 두는 자료구조
         queue.put((0.0, 0, next(self._counter), init_state))
 
         results: List[
@@ -371,21 +372,21 @@ class TaskTreeBuilder:
                 new_depth = curr_depth + 1
                 new_plan = curr_state.partial_plan + [feasible_subtask]
 
-                results.append(
-                    (
-                        new_cost,
-                        new_depth,
-                        feasible_subtask,
-                        updated_remain,
-                        new_plan,
-                    )
-                )
-
                 if new_depth < self.simulation_depth:
                     new_state = SimulationState(
                         feasible_subtask.name, new_plan, updated_remain
                     )
                     queue.put((new_cost, new_depth, next(self._counter), new_state))
+                else:
+                    results.append(
+                        (
+                            new_cost,
+                            new_depth,
+                            feasible_subtask,
+                            updated_remain,
+                            new_plan,
+                        )
+                    )
         if not results:
             log.warning("No valid paths found. Stopping expansion.")
 
@@ -405,7 +406,7 @@ class TaskTreeBuilder:
     ) -> Tuple[float, List[Subtask]]:
         """
         Subtask 확장 시 비용 계산(heuristic) 후, remaining_subtasks 갱신.
-        """
+        """  # TODO 복수의 time constraint handle
         # Get constraints for candidate_subtask
         incoming_ts = self.constraint_handler.get_temporal_constraints(
             candidate_subtask.name, direction="in"

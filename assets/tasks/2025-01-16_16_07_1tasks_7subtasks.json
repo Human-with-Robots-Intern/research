@@ -1,0 +1,168 @@
+[
+    {
+        "Task": "Wash Plate Three Times",
+        "Subtasks": [
+            {
+                "Name": "Grasp Plate",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Toggle On Faucet",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_ON Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Grasp Plate",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Wash Plate Under Faucet - First Cycle",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "PLACE_ON_TOP SinkBasin"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Toggle On Faucet",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Wash Plate Under Faucet - Second Cycle",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "PLACE_ON_TOP SinkBasin"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Wash Plate Under Faucet - First Cycle",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Wash Plate Under Faucet - Third Cycle",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "PLACE_ON_TOP SinkBasin"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 3
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Wash Plate Under Faucet - Second Cycle",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Toggle Off Faucet",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Wash Plate Under Faucet - Third Cycle",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            },
+            {
+                "Name": "Place Washed Plate on CounterTop",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "PLACE_ON_TOP CounterTop"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Toggle Off Faucet",
+                        "Interval": 0,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    }
+]

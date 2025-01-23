@@ -1,0 +1,103 @@
+[
+    {
+        "Task": "Wash a plate three times",
+        "Subtasks": [
+            {
+                "Name": "Wash Plate - First Time",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1,
+                        "Faucet": 1,
+                        "DishSponge": 1,
+                        "SoapBottle": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Plate",
+                        "GRASP Plate",
+                        "NAVIGATE_TO SinkBasin",
+                        "PLACE_INSIDE Plate",
+                        "TOGGLE_ON Faucet",
+                        "GRASP SoapBottle",
+                        "PLACE_ON_TOP SinkBasin",
+                        "GRASP DishSponge",
+                        "PLACE_ON_TOP Plate",
+                        "TOGGLE_OFF Faucet",
+                        "GRASP Plate",
+                        "NAVIGATE_TO CounterTop",
+                        "PLACE_ON_TOP Plate"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Wash Plate - Second Time",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1,
+                        "Faucet": 1,
+                        "DishSponge": 1,
+                        "SoapBottle": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Plate",
+                        "GRASP Plate",
+                        "NAVIGATE_TO SinkBasin",
+                        "PLACE_INSIDE Plate",
+                        "TOGGLE_ON Faucet",
+                        "GRASP SoapBottle",
+                        "PLACE_ON_TOP SinkBasin",
+                        "GRASP DishSponge",
+                        "PLACE_ON_TOP Plate",
+                        "TOGGLE_OFF Faucet",
+                        "GRASP Plate",
+                        "NAVIGATE_TO CounterTop",
+                        "PLACE_ON_TOP Plate"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Wash Plate - Third Time",
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1,
+                        "Faucet": 1,
+                        "DishSponge": 1,
+                        "SoapBottle": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Plate",
+                        "GRASP Plate",
+                        "NAVIGATE_TO SinkBasin",
+                        "PLACE_INSIDE Plate",
+                        "TOGGLE_ON Faucet",
+                        "GRASP SoapBottle",
+                        "PLACE_ON_TOP SinkBasin",
+                        "GRASP DishSponge",
+                        "PLACE_ON_TOP Plate",
+                        "TOGGLE_OFF Faucet",
+                        "GRASP Plate",
+                        "NAVIGATE_TO CounterTop",
+                        "PLACE_ON_TOP Plate"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]
