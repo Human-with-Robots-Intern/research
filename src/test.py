@@ -3,6 +3,8 @@ import json
 import time
 
 from core import Task, TaskGraphBuilder, TaskTimingPlanner
+from core.agent import BayesianAgent
+from task_management.task_tree_builder_beam import TaskTreeBuilder
 from utils import generate_task, visualize
 from utils.constants import TASK_PATH
 from utils.util import create_module_logger
@@ -56,9 +58,10 @@ def load_task_data():
 
     while True:
         try:
-            # choice = int(input("Enter the number of your choice: "))
-            # 가장 마지막 파일 로드
-            choice = len(task_files)
+            choice = int(
+                input("Enter the number of your choice: ")
+            )  # choice = len(task_files)
+
             if choice == 0:
                 target_task_name = generate_task()
                 break
@@ -105,23 +108,20 @@ def main():
     tasks, task_graph = load_tasks_and_constraints(task_data, args.decomposition)
     visualize(task_name, task_graph)
 
-    # Initialize OmniGibson environment
-    agent, env = None, None
+    agent = BayesianAgent()
+    tasks = agent.adjust_subtask_duration(tasks)
 
-    # Task scheduling
-    start_time = time.time()
-    task_timing_planner = TaskTimingPlanner(
-        agent=agent, tasks=tasks, constraints=task_graph
-    )
-    task_tree, opt_task_tree = task_timing_planner.get_task_trees()
-    elapsed_time = time.time() - start_time
-    log.info(f"Task {task_name} scheduled in {elapsed_time:.2f} seconds")
-    # Scheduling 결과 sequence of subtasks
-    scheduled_subtasks = task_timing_planner.convert_to_tasks(opt_task_tree)
-
-    # Result visualization
-    if args.visualize:
-        visualize(task_name, task_graph, task_tree, opt_task_tree)
+    tree_builder = TaskTreeBuilder()
+    while True:
+        # constraints = agent.update(constraints)
+        # TODO build_tree input으로 제약 조건 받을 것
+        current_subtask = tree_builder.get_next_subtask(tasks, constraints)
+        # next_subtask가  AI2thor에서 실행하고서 경과된 시간
+        # if current_subtask.temporal_constraints[0].urgency:
+        #     elapsed_time_after_critical_start = 0
+        # elapsed_time_after_critical_start += execute_subtask(current_subtask)
+        # if current_subtask.type == "Monitoring":
+        #     agent.bayesian_estimate(elapsed_time_after_critical_start)
 
 
 if __name__ == "__main__":

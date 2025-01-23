@@ -4,9 +4,8 @@ from typing import List, Optional
 import networkx as nx
 from anytree import AsciiStyle, Node, RenderTree
 
-from utils.util import create_module_logger
 from task_management.task_tree_builder_beam import TaskTreeBuilder
-from utils.util import tasks_to_subtasks, timeit
+from utils.util import create_module_logger, tasks_to_subtasks, timeit
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -27,7 +26,7 @@ class TaskTimingPlanner:
         else:
             self.tasks = tasks
         self.tree_builder = TaskTreeBuilder(constraints)
-        self.task_tree = self.tree_builder.build_tree(self.tasks)
+        self.task_tree = self.tree_builder.get_next_subtask(self.tasks)
 
     def get_task_trees(self) -> tuple[Node, Node]:
         """

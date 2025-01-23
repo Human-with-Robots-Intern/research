@@ -5,8 +5,8 @@ from typing import Any, Dict, List
 
 import numpy as np
 
-from utils.util import create_module_logger
 from utils.constants import KNOWLEDGE_PATH
+from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -145,27 +145,20 @@ class BayesianAgent:
             float: The expected duration of the subtask.
         """
         subtask_name = subtask.name
-        subtask_data = self.knowledge.get("Subtask", {}).get(subtask_name)
 
-        if subtask_data:
-            expected_duration = subtask_data.get("expected_duration")
-            log.info(
-                f"Using known duration for subtask '{subtask_name}': {expected_duration}"
-            )
-        else:
-            # If no prior knowledge, calculate from actions
-            expected_duration = self._calculate_subtask_duration_from_actions(subtask)
-            variance = 1.0  # Initial variance
-            # Save new knowledge
-            self.knowledge.setdefault("Subtask", {})[subtask_name] = {
-                "expected_duration": expected_duration,
-                "variance": variance,
-                "occurrences": 0,
-            }
-            log.info(
-                f"Estimated duration for new subtask '{subtask_name}': {expected_duration}"
-            )
-            self._save_knowledge(KNOWLEDGE_PATH)
+        # If no prior knowledge, calculate from actions
+        expected_duration = self._calculate_subtask_duration_from_actions(subtask)
+        variance = 1.0  # Initial variance
+        # Save new knowledge
+        self.knowledge.setdefault("Subtask", {})[subtask_name] = {
+            "expected_duration": expected_duration,
+            "variance": variance,
+            "occurrences": 0,
+        }
+        log.info(
+            f"Estimated duration for new subtask '{subtask_name}': {expected_duration}"
+        )
+        self._save_knowledge(KNOWLEDGE_PATH)
 
         return expected_duration
 
@@ -199,21 +192,18 @@ class BayesianAgent:
             action_name = action_str.split()[0]
             action_data = self.knowledge.get("Valid_actions", {}).get(action_name)
 
-            if action_data and "expected_duration" in action_data:
-                action_duration = action_data["expected_duration"]
-            else:
-                # If action duration is unknown, assume a default value (e.g., 1.0)
-                action_duration = 1.0
-                # Initialize the action in knowledge
-                self.knowledge.setdefault("Valid_actions", {})[action_name] = {
-                    "expected_duration": action_duration,
-                    "variance": 1.0,
-                    "occurrences": 0,
-                }
-                log.warning(
-                    f"Action '{action_name}' unknown. Assuming default duration {action_duration}."
-                )
-                self._save_knowledge(KNOWLEDGE_PATH)
+            # If action duration is unknown, assume a default value (e.g., 1.0)
+            action_duration = 1.0
+            # Initialize the action in knowledge
+            self.knowledge.setdefault("Valid_actions", {})[action_name] = {
+                "expected_duration": action_duration,
+                "variance": 1.0,
+                "occurrences": 0,
+            }
+            log.warning(
+                f"Action '{action_name}' unknown. Assuming default duration {action_duration}."
+            )
+            self._save_knowledge(KNOWLEDGE_PATH)
 
             total_duration += action_duration
 
@@ -221,7 +211,7 @@ class BayesianAgent:
 
     def update_observation_data(self, actual_duration: float, estimate, obj_name):
         # prior_data
-        ground_truth = obj_name # ground_truth가 있는 json 파일을 통해 해당 obj의 ground_truth를 불러온다. 
+        ground_truth = obj_name  # ground_truth가 있는 json 파일을 통해 해당 obj의 ground_truth를 불러온다.
         prior_mean = estimate[0]
         prior_variance = estimate[1]
         cooking_data = actual_duration / ground_truth
@@ -229,16 +219,19 @@ class BayesianAgent:
         # bayesian estimate
         a = 1
         time_observation = actual_duration
-        likelihood_epsilon = a*(prior_mean - time_observation) ^ 2
-        posterior_mean = (prior_variance * cooking_data + likelihood_epsilon * prior_mean) / (likelihood_epsilon + prior_variance)
-        posterior_variance = (likelihood_epsilon * prior_variance) / (likelihood_epsilon + prior_variance)
+        likelihood_epsilon = a * (prior_mean - time_observation) ^ 2
+        posterior_mean = (
+            prior_variance * cooking_data + likelihood_epsilon * prior_mean
+        ) / (likelihood_epsilon + prior_variance)
+        posterior_variance = (likelihood_epsilon * prior_variance) / (
+            likelihood_epsilon + prior_variance
+        )
 
         # posterior_data
         estimate[0] = posterior_mean
         estimate[1] = posterior_variance
 
         return estimate
-
 
     def update_primitive_action_knowledge(
         self, action_name: str, actual_duration: float

@@ -59,14 +59,8 @@ class TaskTreeBuilder:
         )
         self.subtasks_info = None  # 전체 Subtask 원본 보관
         self._counter = itertools.count()  # tie-breaker for PriorityQueue ordering
-        self.leftover_manager = LeftoverManager(
-            constraint_handler=self.constraint_handler,
-            cost_calculator=self.cost_calculator,
-            navigation_manager=self.navigation_manager,
-            counter=self._counter,
-        )
 
-    def build_tree(self, tasks: List[Subtask]) -> Node:
+    def get_next_subtask(self, tasks: List[Subtask], constraints: nx.graph) -> Node:
         """
         전체 파이프라인:
           1) 남은 Subtask가 있을 때까지:

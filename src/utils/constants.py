@@ -9,3 +9,17 @@ PROMPT_PATH = ROOT_PATH / "assets" / "prompts"
 VIS_PATH = ROOT_PATH / "assets" / "results"
 TASK_PATH = ROOT_PATH / "assets" / "tasks"
 LOG_PATH = ROOT_PATH / "logs"
+
+PRIMITIVE_ACTION_SET = {
+    "NAVIGATE_TO",
+    "GRASP"
+    "PLACE_INSIDE"
+    "PLACE_ON_TOP"
+    "OPEN"
+    "CLOSE"
+    "TOGGLE_ON"
+    "TOGGLE_OFF"
+    "SLICE"
+    "MONITORING"
+    "WAIT",
+}
