@@ -5,9 +5,9 @@ from typing import List, NamedTuple, Optional
 
 import networkx as nx
 
+from core.constraint_handler import ConstraintHandler, TimeSlot
 from core.task import SchedulerState, Subtask
 from task_management.cost_calculator import CostCalculator, NavigationManager
-from task_management import ConstraintHandler 
 from task_management.task_tree import TaskTree
 from utils.constants import DEFAULT_BEAM_WIDTH, DEFAULT_SIMULATION_DEPTH
 from utils.task_io import load_navigation_times
@@ -101,7 +101,7 @@ class Scheduler:
     def _simulate_time_slot(
         self,
         init_state: SchedulerState,
-        separation_interval: ,
+        separation_interval: TimeSlot,
     ) -> Optional[SimulationState]:
         """
         separation_interval 시간 동안 실행할 수 있는 Subtask들을

@@ -100,7 +100,7 @@ class ConstraintHandler:
         incoming_nodes = {u for u, _ in self.constraints.in_edges(subtask_name)}
         return [
             done_subtask
-            for done_subtask in current_state.partial_plan
+            for done_subtask in current_state.completed_subtasks
             if done_subtask.name in incoming_nodes
         ]
 

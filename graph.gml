@@ -51,7 +51,7 @@ graph [
     info [
       Type "After"
       Interval 2
-      Urgency 0
+      IsCritical 0
     ]
   ]
   edge [
@@ -60,7 +60,7 @@ graph [
     info [
       Type "After"
       Interval 2
-      Urgency 0
+      IsCritical 0
     ]
   ]
   edge [
@@ -69,7 +69,7 @@ graph [
     info [
       Type "After"
       Interval 3
-      Urgency 1
+      IsCritical 1
     ]
   ]
   edge [
@@ -78,7 +78,7 @@ graph [
     info [
       Type "After"
       Interval 1
-      Urgency 1
+      IsCritical 1
     ]
   ]
   edge [
@@ -87,7 +87,7 @@ graph [
     info [
       Type "After"
       Interval 10
-      Urgency 1
+      IsCritical 1
     ]
   ]
 ]
