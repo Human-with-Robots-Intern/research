@@ -1,4 +1,4 @@
-from ..utils.constants import GRID_SIZE
+from ..utils.constants import GRID_SIZE, SMOOTH_LEVEL
 from .navigation_handler import NavigationHandler
 
 import time
@@ -232,21 +232,27 @@ class Action:
         obj_angle, degree = self.navi.agent_rotate_angle(
             agent_position, object_position
         )
-        for _ in range(3):  # 그냥 회전하는거 잘 보고싶어서 세 번에 나누어서 회전
-            # 일단 회전하고
-            self.controller.step(action="RotateRight", degrees=degree)
-            success = self.controller.last_event.metadata["lastActionSuccess"]
-            # 실패하면 움직여서 다시 한 번 더 도전. 여기는 while문을 써야할까?
-            if not success:
-                self.move_in_direction(-obj_angle, 0.2)
+        if degree != 0:
+            for _ in range(
+                SMOOTH_LEVEL
+            ):  # 그냥 회전하는거 잘 보고싶어서 세 번에 나누어서 회전
+                # 일단 회전하고
                 self.controller.step(action="RotateRight", degrees=degree)
+                success = self.controller.last_event.metadata["lastActionSuccess"]
+                # 실패하면 움직여서 다시 한 번 더 도전. 여기는 while문을 써야할까?
+                if not success:
+                    self.move_in_direction(-obj_angle, 0.2)
+                    self.controller.step(
+                        action="RotateRight", degrees=degree / SMOOTH_LEVEL
+                    )
+                    self.camera_handler.update_view()
+                self.controller.step(action="Pass")
                 self.camera_handler.update_view()
-            self.controller.step(action="Pass")
-            self.camera_handler.update_view()
-            time.sleep(0.2)
+                time.sleep(0.2)
+
         time.sleep(1)
-        for _ in range(3):
-            self.controller.step(action="RotateLeft", degrees=degree)
+        for _ in range(SMOOTH_LEVEL):
+            self.controller.step(action="RotateLeft", degrees=degree / SMOOTH_LEVEL)
             self.camera_handler.update_view()
             time.sleep(0.2)
         self.controller.step("Pass")
