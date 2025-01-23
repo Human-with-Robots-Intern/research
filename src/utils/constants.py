@@ -9,3 +9,6 @@ PROMPT_PATH = ROOT_PATH / "assets" / "prompts"
 VIS_PATH = ROOT_PATH / "assets" / "results"
 TASK_PATH = ROOT_PATH / "assets" / "tasks"
 LOG_PATH = ROOT_PATH / "logs"
+
+## action 걸리는 시간
+

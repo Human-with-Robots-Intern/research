@@ -45,79 +45,150 @@ The following is the **ENVIRONMENT CONTEXT** that the robot can manipulate. robo
 ```json
 
 {
-    "OPEN": ["Drawer", "Microwave", "Pot", "Fridge", "Book", "Cabinet"],
-    "CLOSE": ["Drawer", "Microwave", "Pot", "Fridge", "Book", "Cabinet"],
+    "OPEN": [
+      "Microwave|-00.24|+01.69|-02.53",
+      "Fridge|-02.10|+00.00|+01.07",
+      "Book|+00.15|+01.10|+00.62",
+      "Drawer|-01.56|+00.66|-00.20",
+      "Drawer|+00.95|+00.83|-02.20",
+      "Drawer|+00.95|+00.56|-02.20",
+      "Drawer|-01.56|+00.84|+00.20",
+      "Drawer|+00.95|+00.22|-02.20",
+      "Drawer|+00.95|+00.71|-02.20",
+      "Drawer|+00.95|+00.39|-02.20",
+      "Drawer|-01.56|+00.33|-00.20",
+      "Drawer|-01.56|+00.84|-00.20",
+      "Cabinet|+00.68|+00.50|-02.20",
+      "Cabinet|-01.18|+00.50|-02.20",
+      "Cabinet|-01.55|+00.50|+00.38",
+      "Cabinet|+00.72|+02.02|-02.46",
+      "Cabinet|-01.85|+02.02|+00.38",
+      "Cabinet|+00.68|+02.02|-02.46",
+      "Cabinet|-01.55|+00.50|-01.97",
+      "Cabinet|-01.69|+02.02|-02.46",
+      "Cabinet|-00.73|+02.02|-02.46",
+      "Kettle|+01.04|+00.90|-02.60"
+    ],
+    "CLOSE": [
+      "Microwave|-00.24|+01.69|-02.53",
+      "Fridge|-02.10|+00.00|+01.07",
+      "Book|+00.15|+01.10|+00.62",
+      "Drawer|-01.56|+00.66|-00.20",
+      "Drawer|+00.95|+00.83|-02.20",
+      "Drawer|+00.95|+00.56|-02.20",
+      "Drawer|-01.56|+00.84|+00.20",
+      "Drawer|+00.95|+00.22|-02.20",
+      "Drawer|+00.95|+00.71|-02.20",
+      "Drawer|+00.95|+00.39|-02.20",
+      "Drawer|-01.56|+00.33|-00.20",
+      "Drawer|-01.56|+00.84|-00.20",
+      "Cabinet|+00.68|+00.50|-02.20",
+      "Cabinet|-01.18|+00.50|-02.20",
+      "Cabinet|-01.55|+00.50|+00.38",
+      "Cabinet|+00.72|+02.02|-02.46",
+      "Cabinet|-01.85|+02.02|+00.38",
+      "Cabinet|+00.68|+02.02|-02.46",
+      "Cabinet|-01.55|+00.50|-01.97",
+      "Cabinet|-01.69|+02.02|-02.46",
+      "Cabinet|-00.73|+02.02|-02.46",
+      "Kettle|+01.04|+00.90|-02.60"
+    ],
     "TOGGLE_ON": [
-      "CoffeeMachine",
-      "Toaster",
-      "Microwave",
-      "LightSwitch",
-      "StoveKnob",
-      "Faucet"
+      "LightSwitch|+02.33|+01.31|-00.16",
+      "StoveKnob|-00.02|+00.88|-02.19",
+      "Microwave|-00.24|+01.69|-02.53",
+      "Toaster|-01.84|+00.90|+00.13",
+      "CoffeeMachine|-01.98|+00.90|-00.19",
+      "Faucet|-02.15|+00.91|-01.50"
     ],
     "TOGGLE_OFF": [
-      "CoffeeMachine",
-      "Toaster",
-      "Microwave",
-      "LightSwitch",
-      "StoveKnob",
-      "Faucet"
+      "LightSwitch|+02.33|+01.31|-00.16",
+      "StoveKnob|-00.02|+00.88|-02.19",
+      "Microwave|-00.24|+01.69|-02.53",
+      "Toaster|-01.84|+00.90|+00.13",
+      "CoffeeMachine|-01.98|+00.90|-00.19",
+      "Faucet|-02.15|+00.91|-01.50"
     ],
     "GRASP": [
-      "Mug",
-      "Pan",
-      "ButterKnife",
-      "Pot",
-      "DishSponge",
-      "Book",
-      "Egg",
-      "Tomato",
-      "Pot",
-      "Plate_aaa",
-      "Plate_bbb",
-      "Plate_ccc",
-      "PaperTowelRoll",
-      "Statue",
-      "Spoon",
-      "SaltShaker",
-      "Spatula",
-      "Bowl",
-      "Vase",
-      "SoapBottle",
-      "Fork",
-      "Potato",
-      "CreditCard",
-      "Mug",
-      "Bottle",
-      "Apple",
-      "Lettuce",
-      "PepperShaker",
-      "WineBottle",
-      "Knife",
-      "Bread"
+      "Vase|+01.56|+00.56|-02.50",
+      "Vase|+01.99|+00.56|-02.49",
+      "Pan|+00.72|+00.90|-02.42",
+      "Cup|+00.37|+01.64|-02.58",
+      "PepperShaker|+00.30|+00.90|-02.47",
+      "Potato|-01.66|+00.93|-02.15",
+      "Bread|-00.52|+01.17|-00.03",
+      "CreditCard|-00.46|+01.10|+00.87",
+      "Statue|+01.96|+00.18|-02.54",
+      "Plate|+00.96|+01.65|-02.61",
+      "Spatula|+00.38|+00.91|-02.33",
+      "Knife|-01.70|+00.79|-00.22",
+      "Bottle|+01.54|+00.89|-02.54",
+      "Tomato|-00.39|+01.14|-00.81",
+      "Kettle|+01.04|+00.90|-02.60",
+      "Mug|-01.76|+00.90|-00.62",
+      "WineBottle|-01.00|+01.65|-02.58",
+      "Lettuce|-01.81|+00.97|-00.94",
+      "Apple|-00.47|+01.15|+00.48",
+      "Bowl|+00.27|+01.10|-00.75",
+      "Spoon|+00.98|+00.77|-02.29",
+      "Egg|-02.04|+00.81|+01.24",
+      "Fork|+00.95|+00.77|-02.37",
+      "PaperTowelRoll|-02.06|+01.01|-00.81",
+      "SaltShaker|+00.35|+00.90|-02.57",
+      "SoapBottle|-01.99|+00.90|-02.03",
+      "Pot|-01.22|+00.90|-02.36",
+      "ButterKnife|-00.41|+01.11|-00.46",
+      "Book|+00.15|+01.10|+00.62"
+    ],
+    "SLICE": [
+      "Tomato|-00.39|+01.14|-00.81",
+      "Apple|-00.47|+01.15|+00.48",
+      "Potato|-01.66|+00.93|-02.15",
+      "Bread|-00.52|+01.17|-00.03",
+      "Lettuce|-01.81|+00.97|-00.94",
+      "Egg|-02.04|+00.81|+01.24"
     ],
     "RECEPTACLE": [
-      "CounterTop",
-      "Mug",
-      "Drawer",
-      "Pan",
-      "Microwave",
-      "Fridge",
-      "Pot",
-      "Plate_aaa",
-      "Plate_bbb",
-      "Plate_ccc",
-      "Toaster",
-      "Stool",
-      "Cabinet",
-      "SinkBasin",
-      "Bowl",
-      "Floor",
-      "Mug",
-      "Shelf",
-      "CoffeeMachine",
-      "StoveBurner",
-      "GarbageCan"
+      "Pan|+00.72|+00.90|-02.42",
+      "Cup|+00.37|+01.64|-02.58",
+      "GarbageCan|-01.94|00.00|+02.03",
+      "Shelf|+01.75|+00.17|-02.56",
+      "Shelf|+01.75|+00.88|-02.56",
+      "Shelf|+01.75|+00.55|-02.56",
+      "Stool|+00.70|+00.00|-00.51",
+      "Stool|+00.74|+00.00|+00.56",
+      "Plate|+00.96|+01.65|-02.61",
+      "Cabinet|+00.68|+00.50|-02.20",
+      "Cabinet|-01.18|+00.50|-02.20",
+      "Cabinet|-01.55|+00.50|+00.38",
+      "Cabinet|+00.72|+02.02|-02.46",
+      "Cabinet|-01.85|+02.02|+00.38",
+      "Cabinet|+00.68|+02.02|-02.46",
+      "Cabinet|-01.55|+00.50|-01.97",
+      "Cabinet|-01.69|+02.02|-02.46",
+      "Cabinet|-00.73|+02.02|-02.46",
+      "Mug|-01.76|+00.90|-00.62",
+      "Microwave|-00.24|+01.69|-02.53",
+      "Sink|-01.90|+00.97|-01.50|SinkBasin",
+      "Toaster|-01.84|+00.90|+00.13",
+      "Bowl|+00.27|+01.10|-00.75",
+      "Drawer|-01.56|+00.66|-00.20",
+      "Drawer|+00.95|+00.83|-02.20",
+      "Drawer|+00.95|+00.56|-02.20",
+      "Drawer|-01.56|+00.84|+00.20",
+      "Drawer|+00.95|+00.22|-02.20",
+      "Drawer|+00.95|+00.71|-02.20",
+      "Drawer|+00.95|+00.39|-02.20",
+      "Drawer|-01.56|+00.33|-00.20",
+      "Drawer|-01.56|+00.84|-00.20",
+      "CounterTop|+00.69|+00.95|-02.48",
+      "CounterTop|-00.08|+01.15|00.00",
+      "CounterTop|-01.87|+00.95|-01.21",
+      "CoffeeMachine|-01.98|+00.90|-00.19",
+      "Floor|+00.00|+00.00|+00.00",
+      "Fridge|-02.10|+00.00|+01.07",
+      "Pot|-01.22|+00.90|-02.36",
+      "StoveBurner|-00.04|+00.92|-02.37"
     ]
 }
 
@@ -134,7 +205,7 @@ The following is the **ENVIRONMENT CONTEXT** that the robot can manipulate. robo
   *(Each action is valid only if the object is listed under that action in the Environment Context.)*
   ```
   NAVIGATE_TO <object>, GRASP <object>, PLACE_ON_TOP <object>, PLACE_INSIDE <object>,
-  OPEN <object>, CLOSE <object>, TOGGLE_ON <object>, TOGGLE_OFF <object>
+  OPEN <object>, CLOSE <object>, TOGGLE_ON <object>, TOGGLE_OFF <object>, SLICE <obj>
   ```
   Each action is only valid if that object appears under the corresponding action list in the Environment Context. Do not reference or create new objects, actions, or object names.
 - **Repetition**: Tasks involving multiple identical objects are handled via the `Repetition` field.
@@ -239,8 +310,9 @@ Return a **JSON array**, where each element represents a main **Task**:
    - You can have multiple object types in one subtask if the user’s instruction lumps them together (e.g., “Put Bread and Tomato on the table”).  
    - If the user wants multiple **identical** objects, use `"Repetition"` to show repeated execution.
 3. **Primitive Actions**  
-   - Valid actions are: `NAVIGATE_TO <object>`, `GRASP <object>`, `PLACE_ON_TOP <object>`, `PLACE_INSIDE <object>`, `OPEN <object>`, `CLOSE <object>`, `TOGGLE_ON <object>`, `TOGGLE_OFF <object>`.
+   - Valid actions are: `NAVIGATE_TO <object>`, `GRASP <object>`, `PLACE_ON_TOP <object>`, `PLACE_INSIDE <object>`, `OPEN <object>`, `CLOSE <object>`, `TOGGLE_ON <object>`, `TOGGLE_OFF <object>`, `SLICE <object>`.
    - Maintain sequence and logical flow of actions.
+   - The 'PLACE_ON_TOP' and 'PLACE_INSIDE' actions must be performed after the object's 'GRASP' action (impossible example: 'GRASP Tomato' -> 'PLACE_INSIDE SinkBasin' -> 'PLACE_ON_TOP CounterTop' // possible example: 'GRASP Tomato' -> 'PLACE_INSIDE SinkBasin' -> 'GRASP Tomato' -> 'PLACE_ON_TOP CounterTop')
 4. **Impossible Handling**  
    - When encountering a non-existent object or action, generate a subtask named `"Impossible: <object> not in environment"`.  
    - Do **not** produce any further actions for that object.
@@ -335,14 +407,14 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Fridge": 1,
-                        "Bread": 1
+                        "Fridge|-02.10|+00.00|+01.07": 1,
+                        "Bread|-00.52|+01.17|-00.03": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Fridge",
-                        "OPEN Fridge",
-                        "GRASP Bread",
-                        "CLOSE Fridge"
+                        "NAVIGATE_TO Fridge|-02.10|+00.00|+01.07",
+                        "OPEN Fridge|-02.10|+00.00|+01.07",
+                        "GRASP Bread|-00.52|+01.17|-00.03",
+                        "CLOSE Fridge|-02.10|+00.00|+01.07"
                     ]
                 },
                 "Duration": {
@@ -357,14 +429,14 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Bread": 1,
-                        "Microwave": 1
+                        "Bread|-00.52|+01.17|-00.03": 1,
+                        "Microwave|-00.24|+01.69|-02.53": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Microwave",
-                        "OPEN Microwave",
-                        "PLACE_INSIDE Microwave",
-                        "CLOSE Microwave"
+                        "NAVIGATE_TO Microwave|-00.24|+01.69|-02.53",
+                        "OPEN Microwave|-00.24|+01.69|-02.53",
+                        "PLACE_INSIDE Microwave|-00.24|+01.69|-02.53",
+                        "CLOSE Microwave|-00.24|+01.69|-02.53"
                     ]
                 },
                 "Duration": {
@@ -386,10 +458,10 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Microwave": 1
+                        "Microwave|-00.24|+01.69|-02.53": 1
                     },
                     "PrimitiveActions": [
-                        "TOGGLE_ON Microwave"
+                        "TOGGLE_ON Microwave|-00.24|+01.69|-02.53"
                     ]
                 },
                 "Duration": {
@@ -411,14 +483,15 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Bread": 1,
-                        "Microwave": 1
+                        "Bread|-00.52|+01.17|-00.03": 1,
+                        "Microwave|-00.24|+01.69|-02.53": 1
                     },
                     "PrimitiveActions": [
-                        "TOGGLE_OFF Microwave",
-                        "OPEN Microwave",
-                        "GRASP Bread",
-                        "CLOSE Microwave"
+                        "NAVIGATE_TO Microwave|-00.24|+01.69|-02.53",
+                        "TOGGLE_OFF Microwave|-00.24|+01.69|-02.53",
+                        "OPEN Microwave|-00.24|+01.69|-02.53",
+                        "GRASP Bread|-00.52|+01.17|-00.03",
+                        "CLOSE Microwave|-00.24|+01.69|-02.53"
                     ]
                 },
                 "Duration": {
@@ -445,19 +518,19 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Plate_aaa": 1,
-                        "Tomato": 1,
-                        "CounterTop": 1
+                        "Plate|+00.96|+01.65|-02.61": 1,
+                        "Tomato|-00.39|+01.14|-00.81": 1,
+                        "CounterTop|-00.08|+01.15|00.00": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Plate_aaa",
-                        "GRASP Plate_aaa",
-                        "NAVIGATE_TO CounterTop",
-                        "PLACE_ON_TOP CounterTop",
-                        "NAVIGATE_TO Tomato",
-                        "GRASP Tomato",
-                        "NAVIGATE_TO CounterTop",
-                        "PLACE_ON_TOP CounterTop"
+                        "NAVIGATE_TO Plate|+00.96|+01.65|-02.61",
+                        "GRASP Plate|+00.96|+01.65|-02.61",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00",
+                        "NAVIGATE_TO Tomato|-00.39|+01.14|-00.81",
+                        "GRASP Tomato|-00.39|+01.14|-00.81",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
                     ]
                 },
                 "Duration": {
@@ -472,14 +545,14 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Bread": 1,
-                        "Plate_aaa": 1
+                        "Bread|-00.52|+01.17|-00.03": 1,
+                        "Plate|+00.96|+01.65|-02.61": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Bread",
-                        "GRASP Bread",
-                        "NAVIGATE_TO Plate_aaa",
-                        "PLACE_ON_TOP Plate_aaa"
+                        "NAVIGATE_TO Bread|-00.52|+01.17|-00.03",
+                        "GRASP Bread|-00.52|+01.17|-00.03",
+                        "NAVIGATE_TO Plate|+00.96|+01.65|-02.61",
+                        "PLACE_ON_TOP Plate|+00.96|+01.65|-02.61"
                     ]
                 },
                 "Duration": {
@@ -511,82 +584,55 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
 ### **Example 2**  
 **Input**:  
 ```
-"prepare a Cup of tea."
+"put tomato and apple in fridge and put book in shelf"
 ```
 
 **Output**:
 ```json
 [
     {
-        "Task": "Prepare Tea",
+        "Task": "Store Tomato, Apple, Book and Turn Off Lights",
         "Subtasks": [
             {
-                "Name": "Boil Water",
+                "Name": "Put Tomato in Fridge",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "SinkBasin": 1,
-                        "Pot": 1,
-                        "StoveKnob" : 1
+                        "Tomato|-00.39|+01.14|-00.81": 1,
+                        "Fridge|-02.10|+00.00|+01.07": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO SinkBasin",
-                        "GRASP Pot",
-                        "NAVIGATE_TO StoveKnob",
-                        "PLACE_ON_TOP StoveKnob",
-                        "TOGGLE_ON StoveKnob"
+                        "NAVIGATE_TO Tomato|-00.39|+01.14|-00.81",
+                        "GRASP Tomato|-00.39|+01.14|-00.81",
+                        "NAVIGATE_TO Fridge|-02.10|+00.00|+01.07",
+                        "OPEN Fridge|-02.10|+00.00|+01.07",
+                        "PLACE_INSIDE Fridge|-02.10|+00.00|+01.07",
+                        "CLOSE Fridge|-02.10|+00.00|+01.07"
                     ]
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 5
+                    "Interval": 2
                 },
                 "TemporalConstraints": []
             },
             {
-                "Name": "Steep Tea Bag",
+                "Name": "Put Apple in Fridge",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Mug": 1,
-                        "tea_bag": 1,
-                        "Pot": 1
+                        "Apple|-00.47|+01.15|+00.48": 1,
+                        "Fridge|-02.10|+00.00|+01.07": 1
                     },
                     "PrimitiveActions": [
-                        "TOGGLE_OFF StoveKnob",
-                        "NAVIGATE_TO tea_bag",
-                        "GRASP tea_bag",
-                        "PLACE_ON_TOP Mug"
-                    ]
-                },
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 3
-                },
-                "TemporalConstraints": [
-                    {
-                        "Type": "After",
-                        "Subtask": "Boil Water",
-                        "Interval": 5,
-                        "Urgency": false
-                    }
-                ]
-            },
-            {
-                "Name": "Serve Tea",
-                "Repetition": 1,
-                "Type": "Interaction",
-                "Executions": {
-                    "Objects": {
-                        "Mug": 1,
-                        "CounterTop": 1
-                    },
-                    "PrimitiveActions": [
-                        "GRASP Mug",
-                        "NAVIGATE_TO CounterTop",
-                        "PLACE_ON_TOP CounterTop"
+                        "NAVIGATE_TO Apple|-00.47|+01.15|+00.48",
+                        "GRASP Apple|-00.47|+01.15|+00.48",
+                        "NAVIGATE_TO Fridge|-02.10|+00.00|+01.07",
+                        "OPEN Fridge|-02.10|+00.00|+01.07",
+                        "PLACE_INSIDE Fridge|-02.10|+00.00|+01.07",
+                        "CLOSE Fridge|-02.10|+00.00|+01.07"
                     ]
                 },
                 "Duration": {
@@ -596,14 +642,37 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "TemporalConstraints": [
                     {
                         "Type": "After",
-                        "Subtask": "Steep Tea Bag",
+                        "Subtask": "Put Tomato in Fridge",
                         "Interval": 0,
                         "Urgency": false
                     }
                 ]
+            },
+            {
+                "Name": "Put Book in shelf",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Book|+00.15|+01.10|+00.62": 1,
+                        "Shelf|+01.75|+00.88|-02.56": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Book|+00.15|+01.10|+00.62",
+                        "GRASP Book|+00.15|+01.10|+00.62",
+                        "NAVIGATE_TO Shelf|+01.75|+00.88|-02.56",
+                        "PLACE_INSIDE Shelf|+01.75|+00.88|-02.56"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
             }
         ]
     }
+
 ]
 ```
 
@@ -627,16 +696,18 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Tomato": 1
+                        "Tomato|-00.39|+01.14|-00.81": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Tomato",
-                        "GRASP Tomato",
-                        "NAVIGATE_TO Faucet",
-                        "TOGGLE_ON Faucet",
-                        "PLACE_INSIDE Tomato",
-                        "TOGGLE_OFF Faucet",
-                        "PLACE_ON_TOP CounterTop"
+                        "NAVIGATE_TO Tomato|-00.39|+01.14|-00.81",
+                        "GRASP Tomato|-00.39|+01.14|-00.81",
+                        "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+                        "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
+                        "PLACE_INSIDE Tomato|-00.39|+01.14|-00.81",
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+                        "GRASP Tomato|-00.39|+01.14|-00.81",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
                     ]
                 },
                 "Duration": {
@@ -651,15 +722,17 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Potato": 1
+                        "Potato|-01.66|+00.93|-02.15": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Potato",
-                        "GRASP Potato",
-                        "NAVIGATE_TO Faucet",
-                        "TOGGLE_ON Faucet",
-                        "TOGGLE_OFF Faucet",
-                        "PLACE_ON_TOP CounterTop"
+                        "NAVIGATE_TO Potato|-01.66|+00.93|-02.15",
+                        "GRASP Potato|-01.66|+00.93|-02.15",
+                        "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+                        "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+                        "GRASP Potato|-01.66|+00.93|-02.15",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
                     ]
                 },
                 "Duration": {
@@ -674,16 +747,18 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Egg": 1
+                        "Egg|-02.04|+00.81|+01.24": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Egg",
-                        "GRASP Egg",
-                        "NAVIGATE_TO Faucet",
-                        "TOGGLE_ON Faucet",
-                        
-                        "TOGGLE_OFF Faucet",
-                        "PLACE_ON_TOP CounterTop"
+                        "NAVIGATE_TO Egg|-02.04|+00.81|+01.24",
+                        "GRASP Egg|-02.04|+00.81|+01.24",
+                        "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+                        "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
+                        "PLACE_INSINDE Sink|-01.90|+00.97|-01.50|SinkBasin",
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+                        "GRASP Egg|-02.04|+00.81|+01.24",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
                     ]
                 },
                 "Duration": {
@@ -703,18 +778,20 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Egg": 1,
-                        "Pan": 1
+                        "Egg|-02.04|+00.81|+01.24": 1,
+                        "Pan|+00.72|+00.90|-02.42": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Pan",
-                        "GRASP Pan",
-                        "PLACE_ON_TOP StoveBurner",
-                        "NAVIGATE_TO StoveKnob",
-                        "TOGGLE_ON StoveKnob",
-                        "NAVIGATE_TO Egg",
-                        "GRASP Egg",
-                        "PLACE_ON_TOP Pan"
+                        "NAVIGATE_TO Pan|+00.72|+00.90|-02.42",
+                        "GRASP Pan|+00.72|+00.90|-02.42",
+                        "NAVIGATE_TO StoveBurner|-00.04|+00.92|-02.37",
+                        "PLACE_ON_TOP StoveBurner|-00.04|+00.92|-02.37",
+                        "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
+                        "TOGGLE_ON StoveKnob|-00.02|+00.88|-02.19",
+                        "NAVIGATE_TO Egg|-02.04|+00.81|+01.24",
+                        "GRASP Egg|-02.04|+00.81|+01.24",
+                        "PLACE_ON_TOP Pan|+00.72|+00.90|-02.42",
+                        "SLICE Egg|-02.04|+00.81|+01.24"
                     ]
                 },
                 "Duration": {
@@ -729,11 +806,11 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "StoveKnob": 1
+                        "StoveKnob|-00.02|+00.88|-02.19": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO StoveKnob",
-                        "TOGGLE_OFF StoveKnob"
+                        "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
+                        "TOGGLE_OFF StoveKnob|-00.02|+00.88|-02.19"
                     ]
                 },
                 "Duration": {
@@ -793,11 +870,11 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Apple": 1
+            "Apple|-00.47|+01.15|+00.48": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Apple",
-            "GRASP Apple"
+            "NAVIGATE_TO Apple|-00.47|+01.15|+00.48",
+            "GRASP Apple|-00.47|+01.15|+00.48"
           ]
         },
         "Duration": {

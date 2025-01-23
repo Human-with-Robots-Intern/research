@@ -1,0 +1,23 @@
+[
+    {
+        "Task": "Wash Plates",
+        "Subtasks": [
+            {
+                "Name": "Impossible: Plate washing not in environment",
+                "Repetition": 3,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 0
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]
