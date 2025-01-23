@@ -2,7 +2,9 @@ from typing import Any, List, Optional, Tuple
 
 import networkx as nx
 
-from utils.util import log
+from utils.util import create_module_logger
+
+log = create_module_logger(module_name=__name__, is_file_handler=False)
 
 
 class ConstraintHandler:

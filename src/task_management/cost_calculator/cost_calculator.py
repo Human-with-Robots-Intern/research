@@ -39,7 +39,7 @@ class CostCalculator:
         out_separation, _, _ = outgoing_ts
         time_diff = in_separation - out_separation
 
-        factor = max(self.cost_weight - current_depth, 1)
+        factor = max(self.cost_weight - current_depth, 1)  # -1 곱할 것 그리고 최대 찾기
         cost_val = factor * (subtask.duration.interval + navigate_time + time_diff)
         return cost_val
 

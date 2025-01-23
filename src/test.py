@@ -61,7 +61,7 @@ def check_place(tasks):
                     to_obj = action.split(" ")[1]
                     updated_actions.append(f"NAVIGATE_TO {to_obj}")
                 if "PLACE" in action and "Sink" in action and "SinkBasin" not in action:
-                    to_obj = action.split(" ")[1]+"|SinkBasin"
+                    to_obj = action.split(" ")[1] + "|SinkBasin"
                     updated_actions.append(f"PLACE_INSIDE {to_obj}")
                 updated_actions.append(action)
             subtask["Executions"]["PrimitiveActions"] = updated_actions
@@ -154,8 +154,8 @@ def main():
     #     raise Exception
 
     # Result visualization
-    # if args.visualize:
-    #     visualize(task_name, task_graph, task_tree, opt_task_tree)
+    if args.visualize:
+        visualize(task_name, task_graph, task_tree, opt_task_tree)
 
 
 if __name__ == "__main__":

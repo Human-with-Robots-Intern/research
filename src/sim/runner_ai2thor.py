@@ -161,40 +161,33 @@ def last_action_success(controller):  ## 마지막 행동이 성공했는지 확
 
 def execute_subtask(controller, subtask):
     """
-    Execute a given subtask in the Omnigibson environment using action primitives.
-
     Args:
-        env: Omnigibson environment instance.
-        agent: The agent executing the subtask.
         subtask: Subtask object containing execution details.
     """
     camera_handler = CameraHandler(controller)
     Navi = NavigationHandler(controller, camera_handler)
     Act = Action(controller, camera_handler, log_file)
 
-    log_file.write(f"Executing Subtask: {subtask.name}")
+    log_file.write(f"Executing Subtask: {subtask.name}\n")
 
     # Parse execution details
     execution = subtask.execution
     objects, primitive_actions = execution.objects, execution.primitive_actions
 
-    # Build a mapping from object names to Omnigibson objects
     object_registry = {}
 
     # "NAVIGATE_TO laundry_hamper",
     # "GRASP clothes",
     # "NAVIGATE_TO washing_machine",
     # "PLACE_INSIDE washing_machine"
-    for obj_name in objects:
+    for obj_id in objects:
         ai2thor_obj = list(
-            set(
-                obj["objectType"] for obj in controller.step("Pass").metadata["objects"]
-            )
+            set(obj["objectId"] for obj in controller.step("Pass").metadata["objects"])
         )
         if ai2thor_obj is None:
-            log_file.write(f"Object '{obj_name}' not found in the environment.")
+            log_file.write(f"Object '{obj_id}' not found in the environment.")
             return False
-        object_registry[obj_name] = ai2thor_obj
+        object_registry[obj_id] = ai2thor_obj
 
     # Define action mapping to Omnigibson action primitives
     action_mapping = {
@@ -233,18 +226,7 @@ def execute_subtask(controller, subtask):
             print(f"{generator=}")
             time += generator
             print(f"{time=}")
-            success = True
-            # try:
-            #     for result in generator:
-            #         pass
-            #     success = True  # 제너레이터가 정상적으로 완료되면 성공
-            # except StopIteration:
-            #     success = True
-            # except Exception as e:
-            #     log.error(f"Error executing action '{action_type}': {e}")
-            #     success = False
         else:
             log.warning(f"Unknown action type: {action_type}. Skipping.")
     print(f"{subtask.name}의 걸린시간 = {round(time, 2)}")
     log.info(f"Successfully executed Subtask: {subtask.name}")
-    return success
