@@ -1,5 +1,5 @@
 # cost_calculator.py
-from typing import Tuple
+from typing import Any, Tuple
 
 from core.task import Subtask
 
@@ -18,7 +18,7 @@ class CostCalculator:
 
     def calc_heuristic_cost(
         self,
-        current_depth: int,
+        current_node: Any,
         subtask: Subtask,
         navigate_time: float,
     ) -> float:
@@ -35,7 +35,7 @@ class CostCalculator:
         )
         time_diff = in_time_slot.interval - out_time_slot.interval
 
-        factor = -1 * max(self.cost_weight - current_depth, 1)
+        factor = -1 * max(self.cost_weight - current_node.depth, 1)
         cost_val = factor * (subtask.duration.interval + navigate_time + time_diff)
         return cost_val
 

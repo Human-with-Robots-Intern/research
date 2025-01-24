@@ -60,7 +60,7 @@ def main():
         controller = init_ai2thor()
 
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=78)
+    task_file_name = get_user_task_choice(task_files, choice=1)
 
     # Load the chosen task data
     task_data = load_task_data_from_file(task_file_name)
@@ -79,7 +79,7 @@ def main():
         name="Init",
         duration=0.0,
         repetition=1,
-        type=None,
+        type="Init",
         execution=None,
         temporal_constraints=None,
     )
@@ -89,7 +89,7 @@ def main():
         subtask=init_subtask,
         completed_subtasks=[],
         remaining_subtasks=subtasks,
-        agent_location=agent.location,
+        agent_location="agent",
     )
 
     while current_state.remaining_subtasks:
@@ -102,6 +102,13 @@ def main():
 
         if args.simulation:
             execute_subtask(controller, current_state.subtask)
+
+    if args.visualize:
+        visualize(
+            task_file_name,
+            constraints,
+            current_state.completed_subtasks + [current_state.subtask],
+        )
 
 
 if __name__ == "__main__":

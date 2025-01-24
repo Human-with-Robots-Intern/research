@@ -22,7 +22,6 @@ class Agent:
     def __init__(self):
         self.knowledge = self._load_knowledge(KNOWLEDGE_PATH)
         self.config = Config()
-        self.location = "agent"
 
     def reset_knowledge_to_gaussian(self) -> None:
         """

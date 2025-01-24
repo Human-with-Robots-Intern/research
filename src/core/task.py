@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Dict, List, NamedTuple, Optional
 
 import networkx as nx
@@ -257,15 +258,14 @@ class TaskGraphBuilder:
         nx.write_gml(self.graph, "graph.gml")
         return self.graph
 
-
-class SchedulerState(NamedTuple):
+@dataclass
+class SchedulerState:
     """
     시뮬레이션 중 임시 상태.
     """
-
     # 현재 subtask
     subtask: Subtask
-    # 수행된 subtask들
+    # 수행된 subtask들 (현재 subtask 제외)
     completed_subtasks: List[Subtask]
     # 남은 subtask들
     remaining_subtasks: List[Subtask]

@@ -5,10 +5,13 @@ from typing import List, NamedTuple, Optional
 
 import networkx as nx
 
-from core.constraint_handler import ConstraintHandler, TimeSlot
 from core.task import SchedulerState, Subtask
-from task_management.cost_calculator import CostCalculator, NavigationManager
-from task_management.task_tree import TaskTree
+from task_management import (
+    ConstraintHandler,
+    CostCalculator,
+    NavigationManager,
+    TimeSlot,
+)
 from utils.constants import DEFAULT_BEAM_WIDTH, DEFAULT_SIMULATION_DEPTH
 from utils.task_io import load_navigation_times
 from utils.util import create_module_logger
@@ -16,10 +19,10 @@ from utils.util import create_module_logger
 log = create_module_logger(module_name=__name__, is_file_handler=False)
 
 
-class SimulationState(NamedTuple):
+class SimulationNode(NamedTuple):
     """
     우선순위 큐에서 사용할 탐색 노드.
-    - heuristic_cost: 지금까지 누적된 비용 (낮을수록 우선)
+    - heuristic_cost: 지금까지 누적된 비용 (높을수록 우선)
     - depth: 현재 탐색 깊이
     - leftover: time_slot 등에서 남은 시간(필요하면 사용)
     - tie_breaker: 우선순위가 같을 때 순서 결정용
@@ -28,7 +31,7 @@ class SimulationState(NamedTuple):
 
     heuristic_cost: float
     depth: int
-    leftover: float
+    elapsed_time: float
     tie_breaker: int
     state: SchedulerState
 
@@ -47,7 +50,7 @@ class Scheduler:
         beam_width: int = DEFAULT_BEAM_WIDTH,
         simulation_depth: int = DEFAULT_SIMULATION_DEPTH,
     ):
-        self.tree = TaskTree()
+
         self.beam_width = beam_width
         self.simulation_depth = simulation_depth
 
@@ -77,21 +80,30 @@ class Scheduler:
         self.constraint_handler.constraints = current_constraints
 
         # 간단히, candidate_subtask의 out-edge 중 최소 interval만 사용
-        temporal_constraint = self.constraint_handler.get_temporal_constraints(
-            current_state.subtask.name,
-            direction="out",
+        temporal_constraint: TimeSlot = (
+            self.constraint_handler.get_temporal_constraints(
+                current_state.subtask.name,
+                direction="out",
+            )
         )
 
         if temporal_constraint.interval > 0:
-            best_result = self._simulate_time_slot(current_state, temporal_constraint)
+            best_node = self._simulate_time_slot(current_state, temporal_constraint)
         else:
-            best_result = self._simulate_lookahead(current_state)
+            best_node = self._simulate_lookahead(current_state)
 
-        if not best_result:
+        if not best_node:
             log.warning("No valid next step found.")
             return None
 
-        final_state = best_result.state
+        final_state = best_node.state
+        nav_time = self.nav_manager.compute_navigation_time(
+            best_node, best_node.state.completed_subtasks[-1]
+        )
+
+        final_state.subtask.duration.interval = (
+            best_node.state.subtask.duration.interval + nav_time
+        )
 
         return final_state
 
@@ -100,86 +112,153 @@ class Scheduler:
     # ------------------------------------------------
     def _simulate_time_slot(
         self,
-        init_state: SchedulerState,
-        separation_interval: TimeSlot,
-    ) -> Optional[SimulationState]:
+        current_state: SchedulerState,
+        temporal_constraint: TimeSlot,
+    ) -> Optional[SimulationNode]:
         """
         separation_interval 시간 동안 실행할 수 있는 Subtask들을
         우선순위 큐로 탐색. (여기서는 간단히 모든 조합이 아닌,
         '하나씩'만 골라보는 방식)
         """
         queue = PriorityQueue()
-        # 초기 상태 삽입
+        # 초기 상태
         queue.put(
-            SimulationState(
+            SimulationNode(
                 heuristic_cost=0.0,
                 depth=0,
-                leftover=separation_interval,
+                elapsed_time=0.0,
                 tie_breaker=next(self._counter),
-                state=init_state,
+                state=current_state,
             )
         )
 
-        best_solutions = []
+        collected_solutions: List[SimulationNode] = []
+
+        separation_interval = temporal_constraint.interval
+        is_critical = temporal_constraint.is_critical
+        related_subtask_name = temporal_constraint.related_subtask_name
 
         while not queue.empty():
-            current_node = queue.get()
-            curr_cost = current_node.heuristic_cost
-            curr_depth = current_node.depth
-            leftover = current_node.leftover
-            curr_state = current_node.state
+            curr_node = queue.get()
 
-            # 현재 leftover에서 실행 가능한 subtask 조회
-            feasible_subtasks = self.constraint_handler.get_expandable_subtasks(
-                curr_state
+            curr_heuristic_cost = curr_node.heuristic_cost
+            curr_depth = curr_node.depth
+            curr_elapsed_time = curr_node.elapsed_time
+            leftover = separation_interval - curr_elapsed_time
+
+            if curr_depth >= self.simulation_depth:
+                # 탐색 제한 도달
+                collected_solutions.append(curr_node)
+                continue
+
+            # 현재 상태에서 실행 가능한 subtask들
+            expandable_subtasks = self.constraint_handler.get_expandable_subtasks(
+                curr_node
             )
-            expanded_any = False
+            if not expandable_subtasks:
+                # feasible subtask가 없으므로, 더 이상 확장 불가
+                collected_solutions.append(curr_node)
+                continue
 
-            for sub in feasible_subtasks:
-                nav_time = self.nav_manager.calc_time(curr_state, sub)
-                total_dur = sub.duration.interval + nav_time
-                if total_dur <= leftover:
-                    # 확장 가능
-                    new_cost = curr_cost + total_dur
-                    new_depth = curr_depth + 1
-                    new_leftover = leftover - total_dur
+            # 각 candidate에 대해 확장
+            is_expanded_curr_step = False
+            for expandable_subtask in expandable_subtasks:
+                if expandable_subtask.name == related_subtask_name:
+                    # critical -> leftover == 0이어야 실행 가능
+                    if is_critical and leftover != 0:
+                        continue
+                    # non-critical -> leftover <= 0이어야 실행 가능
+                    if (not is_critical) and leftover > 0:
+                        continue
+                nav_time = self.nav_manager.compute_navigation_time(
+                    curr_node, expandable_subtask
+                )
+                sub_duration = expandable_subtask.duration.interval + nav_time
+                if sub_duration > leftover and leftover > 0:
+                    # separation_interval 내에 실행 불가
+                    continue
 
-                    # partial_plan + sub
-                    updated_plan = curr_state.completed_subtasks + [sub]
-                    updated_remain = [
-                        r for r in curr_state.remaining_subtasks if r.name != sub.name
-                    ]
-                    new_scheduler_state = SchedulerState(
-                        sub.name, updated_plan, updated_remain
+                new_heuristic_cost = self.cost_calculator.calc_heuristic_cost(
+                    curr_node, expandable_subtask, nav_time
+                )
+                new_heuristic_cost = curr_heuristic_cost + new_heuristic_cost
+                new_depth = curr_depth + 1
+                new_elapsed_time = curr_elapsed_time + sub_duration
+                updated_completed = curr_node.state.completed_subtasks + [
+                    curr_node.state.subtask
+                ]
+                new_remain_subtasks = [
+                    r
+                    for r in curr_node.state.remaining_subtasks
+                    if r.name != expandable_subtask.name
+                ]
+
+                new_scheduler_state = SchedulerState(
+                    expandable_subtask,
+                    updated_completed,
+                    new_remain_subtasks,
+                    curr_node.state.agent_location,
+                )
+
+                queue.put(
+                    SimulationNode(
+                        heuristic_cost=new_heuristic_cost,
+                        depth=new_depth,
+                        elapsed_time=new_elapsed_time,
+                        tie_breaker=next(self._counter),
+                        state=new_scheduler_state,
                     )
+                )
+                is_expanded_curr_step = True
+            if is_critical and leftover > 0 and not is_expanded_curr_step:
+                wait_sub = Subtask(
+                    task_name=None,
+                    name=(f"Wait for {related_subtask_name}"),
+                    duration=leftover,
+                    repetition=1,
+                    type="Wait",
+                    execution=None,
+                    temporal_constraints=None,
+                )
 
-                    queue.put(
-                        SimulationState(
-                            heuristic_cost=new_cost,
-                            depth=new_depth,
-                            leftover=new_leftover,
-                            tie_breaker=next(self._counter),
-                            state=new_scheduler_state,
-                        )
+                new_heuristic_cost = curr_heuristic_cost + leftover
+                new_elapsed_time = curr_elapsed_time + leftover
+                new_depth = curr_depth + 1
+
+                # "부모 node"에서 completed_subtasks 가져오기
+                new_completed_subtasks = curr_node.state.completed_subtasks + [
+                    curr_node.state.subtask,
+                    wait_sub,
+                ]
+                new_remain_subtasks = curr_node.state.remaining_subtasks
+
+                new_scheduler_state = SchedulerState(
+                    subtask=wait_sub,
+                    completed_subtasks=new_completed_subtasks,
+                    remaining_subtasks=new_remain_subtasks,
+                    agent_location=curr_node.state.agent_location,
+                )
+
+                queue.put(
+                    SimulationNode(
+                        heuristic_cost=new_heuristic_cost,
+                        depth=new_depth,
+                        elapsed_time=new_elapsed_time,
+                        tie_breaker=next(self._counter),
+                        state=new_scheduler_state,
                     )
-                    expanded_any = True
+                )
 
-            if not expanded_any:
-                # 더 이상 확장 불가능 -> 현 상태를 결과로 기록
-                best_solutions.append(current_node)
-
-        if not best_solutions:
+        if not collected_solutions:
             return None
 
-        # 비용 오름차순, depth 내림차순 등으로 정렬
-        sorted_candidates = sorted(
-            best_solutions, key=lambda x: (x.heuristic_cost, -x.depth)
+        # 비용 오름차순으로 정렬 -> 상위 beam_width만 추려서, 그중 최대 cost를 best
+        sorted_paths = sorted(
+            collected_solutions, key=lambda x: x.heuristic_cost, reverse=True
         )
-        # beam_width 만큼만 추림
-        pruned = sorted_candidates[: self.beam_width]
 
-        # 그중 cost 최소, depth 최대인 것을 베스트로 선정
-        best_result = pruned[0]
+        best_result = sorted_paths[0] if sorted_paths else None
+
         return best_result
 
     # ------------------------------------------------
@@ -187,8 +266,8 @@ class Scheduler:
     # ------------------------------------------------
     def _simulate_lookahead(
         self,
-        init_state: SchedulerState,
-    ) -> Optional[SimulationState]:
+        init_state: SchedulerState,  # subtask, completed_subtasks, remaining_subtasks (subtask는 부모 노드, completed_subtasks는 부모 노드의 completed_subtasks (subtask 제외), remaining_subtasks는 부모 노드의 remaining_subtasks)
+    ) -> Optional[SimulationNode]:
         """
         lookahead(깊이=simulation_depth)까지 확장하는
         Beam Search 예시.
@@ -196,73 +275,80 @@ class Scheduler:
         queue = PriorityQueue()
         # 초기 상태
         queue.put(
-            SimulationState(
+            SimulationNode(
                 heuristic_cost=0.0,
                 depth=0,
-                leftover=0.0,  # 여기서는 사용 안 함
+                elapsed_time=0.0,
                 tie_breaker=next(self._counter),
                 state=init_state,
             )
         )
 
-        final_results: List[SimulationState] = []
+        collected_solutions: List[SimulationNode] = []
 
         while not queue.empty():
-            current_node = queue.get()
-            curr_cost = current_node.heuristic_cost
-            curr_depth = current_node.depth
-            curr_state = current_node.state
+            curr_node = queue.get()
+            curr_heuristic = curr_node.heuristic_cost
+            curr_depth = curr_node.depth
+            curr_elapsed_time = curr_node.elapsed_time
 
             if curr_depth >= self.simulation_depth:
                 # 탐색 제한 도달
-                final_results.append(current_node)
+                collected_solutions.append(curr_node)
                 continue
 
             # 현재 상태에서 실행 가능한 subtask들
             feasible_subtasks = self.constraint_handler.get_expandable_subtasks(
-                curr_state
+                curr_node
             )
             if not feasible_subtasks:
-                # 더 이상 확장 불가
-                final_results.append(current_node)
+                # feasible subtask가 없으므로, 더 이상 확장 불가
+                collected_solutions.append(curr_node)
                 continue
 
             # 각 candidate에 대해 확장
             for sub in feasible_subtasks:
-                nav_time = self.nav_manager.calc_time(curr_state, sub)
-                cost_val = self.cost_calculator.calc_heuristic_cost(
-                    curr_state, sub, nav_time
+                nav_time = self.nav_manager.compute_navigation_time(curr_node, sub)
+                sub_duration = sub.duration.interval + nav_time
+
+                new_heuristic = self.cost_calculator.calc_heuristic_cost(
+                    curr_node, sub, nav_time
                 )
-
-                new_cost = curr_cost + cost_val
+                new_heuristic += curr_heuristic
                 new_depth = curr_depth + 1
-
-                updated_plan = curr_state.completed_subtasks + [sub]
-                updated_remain = [
-                    r for r in curr_state.remaining_subtasks if r.name != sub.name
+                new_elapsed_time = curr_elapsed_time + sub_duration
+                updated_completed = curr_node.state.completed_subtasks + [
+                    curr_node.state.subtask
                 ]
+                updated_remain = [
+                    r for r in curr_node.state.remaining_subtasks if r.name != sub.name
+                ]
+
                 new_scheduler_state = SchedulerState(
-                    sub.name,
-                    updated_plan,
+                    sub,
+                    updated_completed,
                     updated_remain,
+                    curr_node.state.agent_location,
                 )
 
                 queue.put(
-                    SimulationState(
-                        heuristic_cost=new_cost,
+                    SimulationNode(
+                        heuristic_cost=new_heuristic,
                         depth=new_depth,
-                        leftover=0.0,
+                        elapsed_time=new_elapsed_time,
                         tie_breaker=next(self._counter),
                         state=new_scheduler_state,
                     )
                 )
 
-        if not final_results:
+        if not collected_solutions:
             return None
 
-        # 비용 오름차순으로 정렬 -> 상위 beam_width만 추려서, 그중 최소 cost를 best
-        sorted_paths = sorted(final_results, key=lambda x: x.heuristic_cost)
-        pruned = sorted_paths[: self.beam_width]
-        best_result = pruned[0] if pruned else None
+        # 비용 오름차순으로 정렬 -> 상위 beam_width만 추려서, 그중 최대 cost를 best
+        sorted_paths = sorted(
+            collected_solutions, key=lambda x: x.heuristic_cost, reverse=True
+        )
+
+        best_result = sorted_paths[0] if sorted_paths else None
 
         return best_result

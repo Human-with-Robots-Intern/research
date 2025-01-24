@@ -77,14 +77,14 @@ class ConstraintHandler:
         time_slots = self._get_time_slot(current_state, candidate_subtask)
         return all((ts.interval >= 0) if ts.is_critical else True for ts in time_slots)
 
-    def get_expandable_subtasks(self, state: Any) -> List["Subtask"]:
+    def get_expandable_subtasks(self, node: Any) -> List["Subtask"]:
         """
         현재 상태에서 (모든 제약이 충족되어) 바로 실행 가능한 서브태스크들을 반환.
         """
         return [
             subtask
-            for subtask in state.remaining_subtasks
-            if self.validate_candidate_subtask(state, subtask)
+            for subtask in node.state.remaining_subtasks
+            if self.validate_candidate_subtask(node.state, subtask)
         ]
 
     # -----------------------------------------------------------------------
