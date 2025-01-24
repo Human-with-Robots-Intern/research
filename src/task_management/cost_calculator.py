@@ -33,9 +33,9 @@ class CostCalculator:
         out_time_slot = self.constraint_handler.get_temporal_constraints(
             subtask.name, "out"
         )
-        time_diff = in_time_slot.interval - out_time_slot.interval
+        time_diff = out_time_slot.interval - in_time_slot.interval
 
-        factor = -1 * max(self.cost_weight - current_node.depth, 1)
+        factor = max(self.cost_weight - current_node.depth, 1)
         cost_val = factor * (subtask.duration.interval + navigate_time + time_diff)
         return cost_val
 
