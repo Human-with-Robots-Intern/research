@@ -152,6 +152,7 @@ class Scheduler:
         separation_interval = temporal_constraint.interval
         is_critical = temporal_constraint.is_critical
         related_subtask_name = temporal_constraint.related_subtask_name
+        have_critical = False
 
         while not queue.empty():
             curr_node = queue.get()
@@ -178,13 +179,7 @@ class Scheduler:
             # 각 candidate에 대해 확장
             is_expanded_curr_step = False
             for sub in expandable_subtasks:
-                if sub.name == related_subtask_name:
-                    # critical -> leftover == 0이어야 실행 가능
-                    if is_critical and leftover != 0:
-                        continue
-                    # non-critical -> leftover <= 0이어야 실행 가능
-                    if (not is_critical) and leftover > 0:
-                        continue
+                ############이거의 위치가 아래에서 위로 가지고 왔더니 time-critical 조건은 맞췄어요. 이유는.. 아마도 time 추가를 한 다음에 timeover여부를 결정해서 그런 것 같아요. 
                 nav_time, agent_location = self.nav_manager.compute_navigation_time(
                     curr_node, sub
                 )
@@ -193,10 +188,50 @@ class Scheduler:
                 )
                 copied_sub = copy.deepcopy(sub)
                 copied_sub.duration.interval += nav_time
+                #################
 
-                if copied_sub.duration.interval > leftover and leftover > 0 and is_critical:
-                    # separation_interval 내에 실행 불가
-                    continue
+                if sub.name == related_subtask_name:
+                    # critical -> leftover >= 0이어야 실행 가능
+                    ######### 여기는 부등호로 바꿨어요
+                    # is_critical 상황 종료 -> have_critical = False
+                    if is_critical and leftover <= 0:
+                        have_critical = False
+                        continue
+                    # non-critical -> leftover <= 0이어야 실행 가능
+                    if (not is_critical) and leftover > 0:
+                        continue
+
+                    # 지금 subtask가 is_critical인 것보다 이전에 진행하던 작업이 is_critical인게 중요해서 밑에 추가해줬어요.
+                    # 쓰다가 깨달았는데 is_critical인 상황을 벗어나면 다시 업데이트하는 것도 반영해줘야 할 것 같아요.
+                    if copied_sub.duration.interval < leftover and leftover > 0 and have_critical:
+                        if is_critical and leftover > 0 and not is_expanded_curr_step:
+                            wait_sub = Subtask(
+                            task_name=None,
+                            name=(f"Wait for {related_subtask_name}"),
+                            duration=leftover,
+                            repetition=1,
+                            type="Wait",
+                            execution=None,
+                            temporal_constraints=None,
+                        )
+                        # separation_interval 내에 실행 불가
+                        continue
+
+                    if is_critical:
+                        have_critical = True
+                    else:
+                        have_critical = False
+
+                # ############
+                # nav_time, agent_location = self.nav_manager.compute_navigation_time(
+                #     curr_node, sub
+                # )
+                # new_heuristic_cost = self.cost_calculator.calc_heuristic_cost(
+                #     curr_node, sub, nav_time
+                # )
+                # copied_sub = copy.deepcopy(sub)
+                # copied_sub.duration.interval += nav_time
+                # ##################
 
                 new_heuristic_cost += curr_heuristic_cost
                 new_depth = curr_depth + 1
