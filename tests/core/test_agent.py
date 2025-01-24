@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from core.agent import BayesianAgent
+from core.agent import Agent
 
 
 class TestBayesianAgent(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestBayesianAgent(unittest.TestCase):
         tasks = [mock_task]
 
         # Initialize the BayesianAgent
-        agent = BayesianAgent(robot=None, use_knowledge=False)
+        agent = Agent(robot=None, use_knowledge=False)
 
         # Call the load_ method
         result = agent.load_(tasks)

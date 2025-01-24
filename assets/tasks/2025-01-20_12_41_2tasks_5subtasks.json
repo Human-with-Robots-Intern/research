@@ -15,7 +15,7 @@
             "GRASP Plate",
             "NAVIGATE_TO Faucet",
             "TOGGLE_ON Faucet",
-            "PLACE_INSIDE Sinkbasin",
+            "PLACE_INSIDE SinkBasin",
             "TOGGLE_OFF Faucet",
             "PLACE_ON_TOP CounterTop"
           ]
@@ -39,7 +39,7 @@
             "GRASP Egg",
             "NAVIGATE_TO Faucet",
             "TOGGLE_ON Faucet",
-            "PLACE_INSIDE Sinkbasin",
+            "PLACE_INSIDE SinkBasin",
             "TOGGLE_OFF Faucet",
             "PLACE_ON_TOP CounterTop"
           ]
@@ -63,7 +63,7 @@
             "GRASP Potato",
             "NAVIGATE_TO Faucet",
             "TOGGLE_ON Faucet",
-            "PLACE_INSIDE Sinkbasin",
+            "PLACE_INSIDE SinkBasin",
             "TOGGLE_OFF Faucet",
             "PLACE_ON_TOP CounterTop"
           ]
@@ -107,7 +107,7 @@
           {
             "Type": "After",
             "Subtask": "Wash Egg",
-            "Interval": 0,
+            "Interval": 5,
             "Urgency": false
           }
         ]
@@ -120,7 +120,10 @@
           "Objects": {
             "StoveKnob": 1
           },
-          "PrimitiveActions": ["NAVIGATE_TO StoveKnob", "TOGGLE_OFF StoveKnob"]
+          "PrimitiveActions": [
+            "NAVIGATE_TO StoveKnob",
+            "TOGGLE_OFF StoveKnob"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
