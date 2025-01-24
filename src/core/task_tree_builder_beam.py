@@ -70,10 +70,10 @@ class Scheduler:
         self, state: SchedulerState, node: SimulationNode
     ) -> SchedulerState:
         completed_subtask = node.state.completed_subtasks[1]
-        completed_subtasks = node.state.completed_subtasks + [completed_subtask]
+        completed_subtasks = state.completed_subtasks + [completed_subtask]
         remaining_subtasks = [
             remaining_subtask
-            for remaining_subtask in node.state.remaining_subtasks
+            for remaining_subtask in state.remaining_subtasks
             if remaining_subtask.name != completed_subtask.name
         ]
         return SchedulerState(
