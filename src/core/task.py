@@ -1,25 +1,8 @@
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import Dict, List, NamedTuple, Optional
 
 import networkx as nx
 import numpy as np
-
-# class RoI:
-#     def __init__(self, room: str, asset: List[str], objects: Dict[str, int]) -> None:
-#         self.room = room
-#         self.asset = asset
-#         self.objects = objects
-
-#     def __repr__(self) -> str:
-#         return f"RoI(room={self.room}, asset={self.asset}, objects={self.objects})"
-
-
-#     @classmethod
-#     def from_dict(cls, data: Dict) -> "RoI":
-#         return cls(
-#             room=data["Room"],
-#             asset=data["Assets"],
-#             objects=data["Objects"],
-#         )
 
 
 class Duration:
@@ -56,17 +39,17 @@ class Execution:
 
 class TemporalConstraint:
     def __init__(
-        self, constraint_type: str, subtask: str, interval: int, urgency: bool
+        self, constraint_type: str, subtask: str, interval: int, is_critical: bool
     ):
         self.type = constraint_type
         self.subtask = subtask
         self.interval = interval
-        self.urgency = urgency
+        self.is_critical = is_critical
 
     def __repr__(self):
         return (
             f"TemporalConstraint(type={self.type}, subtask={self.subtask}, "
-            f"interval={self.interval}, urgency={self.urgency})"
+            f"interval={self.interval}, is_critical={self.is_critical})"
         )
 
     @classmethod
@@ -75,7 +58,7 @@ class TemporalConstraint:
             constraint_type=data["Type"],
             subtask=data["Subtask"],
             interval=data["Interval"],
-            urgency=data["Urgency"],
+            is_critical=data["Urgency"],
         )
 
 
@@ -168,7 +151,7 @@ class Subtask:
                     constraint_type="After",
                     subtask=f"{self.name}_part_{part_index}",
                     interval=0,
-                    urgency=False,
+                    is_critical=False,
                 )
             ]
 
@@ -233,7 +216,7 @@ class Task:
                             constraint_type=constraint.type,
                             subtask=last_decomposed_part.name,
                             interval=constraint.interval,
-                            urgency=constraint.urgency,
+                            is_critical=constraint.is_critical,
                         )
                     )
                 else:
@@ -249,8 +232,9 @@ class TaskGraphBuilder:
         for task in tasks:
             for subtask in task.subtasks:
                 subtask_node = subtask.name
-                subtask_type = subtask.type
-                self.graph.add_node(subtask_node, subtask_type=subtask_type)
+                # subtask_type = subtask.type
+                subtask_duration = subtask.duration.interval
+                self.graph.add_node(subtask_node, time=subtask_duration)
 
                 for constraint in subtask.temporal_constraints:
                     if constraint.subtask:
@@ -258,7 +242,7 @@ class TaskGraphBuilder:
                             "info": {
                                 "Type": constraint.type,
                                 "Interval": constraint.interval,
-                                "Urgency": constraint.urgency,
+                                "IsCritical": constraint.is_critical,
                             }
                         }
                         if constraint.type == "Before":
@@ -271,4 +255,20 @@ class TaskGraphBuilder:
                             )
                     else:
                         raise ValueError("Constrained Node does not exist")
+        nx.write_gml(self.graph, "graph.gml")
         return self.graph
+
+
+class SchedulerState(NamedTuple):
+    """
+    시뮬레이션 중 임시 상태.
+    """
+
+    # 현재 subtask
+    subtask: Subtask
+    # 수행된 subtask들 (현재 subtask 제외)
+    completed_subtasks: List[Subtask]
+    # 남은 subtask들
+    remaining_subtasks: List[Subtask]
+    # 에이전트 위치
+    agent_location: str

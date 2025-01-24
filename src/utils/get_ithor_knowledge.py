@@ -1,12 +1,10 @@
 import json
+
 from ai2thor.controller import Controller
 
 from ithor.handlers.camera_handler import CameraHandler
 from ithor.handlers.navigation_handler import NavigationHandler
-
 from ithor.utils.constants import *
-
-
 from utils.constants import KNOWLEDGE_PATH
 
 
@@ -76,14 +74,14 @@ def get_environment(controller):  # 최종 환경 추출
         objs.extend(receptacle_ids)
     # sliceable 추가하기
     env = {
-            "OPEN": openableID,
-            "CLOSE": openableID,
-            "TOGGLE_ON": toggleableID,
-            "TOGGLE_OFF": toggleableID,
-            "GRASP": pickupableID,
-            "SLICE": sliceableID,
-            "RECEPTACLE": receptacleID,
-        }
+        "OPEN": openableID,
+        "CLOSE": openableID,
+        "TOGGLE_ON": toggleableID,
+        "TOGGLE_OFF": toggleableID,
+        "GRASP": pickupableID,
+        "SLICE": sliceableID,
+        "RECEPTACLE": receptacleID,
+    }
 
     objs = list(set(objs))
     with open(KNOWLEDGE_PATH / f"{scene_name}_environment.json", "w") as f:
