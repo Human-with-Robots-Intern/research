@@ -87,7 +87,7 @@ def main():
     scheduler = Scheduler(subtasks, constraints)
     current_state = SchedulerState(
         subtask=init_subtask,
-        completed_subtasks=[],
+        completed_subtasks=[init_subtask],
         remaining_subtasks=subtasks,
         agent_location="agent",
     )

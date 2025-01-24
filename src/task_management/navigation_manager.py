@@ -56,13 +56,11 @@ class NavigationManager:
         # If the subtask type is Monitor or no movement needed, return 0 immediately
         if next_subtask.type == "Monitor":
             return 0.0
-
+        start_location = None
         # 1) Ensure we have a known robot location
         start_location = self._ensure_agent_location(current_node)
         if start_location is None:
-            # If still None, default to "HomeBase" or any fallback
             start_location = "agent"
-            current_node.state.agent_location = start_location
 
         nav_time_total = 0.0
         current_source = start_location
@@ -80,9 +78,8 @@ class NavigationManager:
                 nav_time_total += step_time
                 current_source = target_loc
 
-        # 4) Update the robot's final location
-        current_node.state.agent_location = current_source
-        return nav_time_total
+        # 4) Update the current location in the state
+        return nav_time_total, current_source
 
     # ----------------------------------------------------------------------
     #  Internal Helpers

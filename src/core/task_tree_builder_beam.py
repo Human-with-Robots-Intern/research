@@ -32,6 +32,7 @@ class SimulationNode(NamedTuple):
     heuristic_cost: float
     depth: int
     elapsed_time: float
+    agent_location: str
     tie_breaker: int
     state: SchedulerState
 
@@ -97,13 +98,6 @@ class Scheduler:
             return None
 
         final_state = best_node.state
-        nav_time = self.nav_manager.compute_navigation_time(
-            best_node, best_node.state.completed_subtasks[-1]
-        )
-
-        final_state.subtask.duration.interval = (
-            best_node.state.subtask.duration.interval + nav_time
-        )
 
         return final_state
 
@@ -162,39 +156,35 @@ class Scheduler:
 
             # 각 candidate에 대해 확장
             is_expanded_curr_step = False
-            for expandable_subtask in expandable_subtasks:
-                if expandable_subtask.name == related_subtask_name:
+            for sub in expandable_subtasks:
+                if sub.name == related_subtask_name:
                     # critical -> leftover == 0이어야 실행 가능
                     if is_critical and leftover != 0:
                         continue
                     # non-critical -> leftover <= 0이어야 실행 가능
                     if (not is_critical) and leftover > 0:
                         continue
-                nav_time = self.nav_manager.compute_navigation_time(
-                    curr_node, expandable_subtask
+                nav_time, agent_location = self.nav_manager.compute_navigation_time(
+                    curr_node, sub
                 )
-                sub_duration = expandable_subtask.duration.interval + nav_time
+                sub_duration = sub.duration.interval + nav_time
                 if sub_duration > leftover and leftover > 0:
                     # separation_interval 내에 실행 불가
                     continue
 
                 new_heuristic_cost = self.cost_calculator.calc_heuristic_cost(
-                    curr_node, expandable_subtask, nav_time
+                    curr_node, sub, nav_time
                 )
                 new_heuristic_cost = curr_heuristic_cost + new_heuristic_cost
                 new_depth = curr_depth + 1
                 new_elapsed_time = curr_elapsed_time + sub_duration
-                updated_completed = curr_node.state.completed_subtasks + [
-                    curr_node.state.subtask
-                ]
+                updated_completed = curr_node.state.completed_subtasks + [sub]
                 new_remain_subtasks = [
-                    r
-                    for r in curr_node.state.remaining_subtasks
-                    if r.name != expandable_subtask.name
+                    r for r in curr_node.state.remaining_subtasks if r.name != sub.name
                 ]
 
                 new_scheduler_state = SchedulerState(
-                    expandable_subtask,
+                    sub,
                     updated_completed,
                     new_remain_subtasks,
                     curr_node.state.agent_location,
@@ -226,10 +216,7 @@ class Scheduler:
                 new_depth = curr_depth + 1
 
                 # "부모 node"에서 completed_subtasks 가져오기
-                new_completed_subtasks = curr_node.state.completed_subtasks + [
-                    curr_node.state.subtask,
-                    wait_sub,
-                ]
+                new_completed_subtasks = curr_node.state.completed_subtasks + [wait_sub]
                 new_remain_subtasks = curr_node.state.remaining_subtasks
 
                 new_scheduler_state = SchedulerState(
@@ -288,6 +275,7 @@ class Scheduler:
 
         while not queue.empty():
             curr_node = queue.get()
+
             curr_heuristic = curr_node.heuristic_cost
             curr_depth = curr_node.depth
             curr_elapsed_time = curr_node.elapsed_time
@@ -308,7 +296,9 @@ class Scheduler:
 
             # 각 candidate에 대해 확장
             for sub in feasible_subtasks:
-                nav_time = self.nav_manager.compute_navigation_time(curr_node, sub)
+                nav_time, agent_location = self.nav_manager.compute_navigation_time(
+                    curr_node, sub
+                )
                 sub_duration = sub.duration.interval + nav_time
 
                 new_heuristic = self.cost_calculator.calc_heuristic_cost(
@@ -317,9 +307,7 @@ class Scheduler:
                 new_heuristic += curr_heuristic
                 new_depth = curr_depth + 1
                 new_elapsed_time = curr_elapsed_time + sub_duration
-                updated_completed = curr_node.state.completed_subtasks + [
-                    curr_node.state.subtask
-                ]
+                updated_completed = curr_node.state.completed_subtasks + [sub]
                 updated_remain = [
                     r for r in curr_node.state.remaining_subtasks if r.name != sub.name
                 ]
