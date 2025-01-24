@@ -179,7 +179,7 @@ class Scheduler:
             # 각 candidate에 대해 확장
             is_expanded_curr_step = False
             for sub in expandable_subtasks:
-                ############이거의 위치가 아래에서 위로 가지고 왔더니 time-critical 조건은 맞췄어요. 이유는.. 아마도 time 추가를 한 다음에 timeover여부를 결정해서 그런 것 같아요. 
+                ############이거의 위치가 아래에서 위로 가지고 왔더니 time-critical 조건은 맞췄어요. 이유는.. 아마도 time 추가를 한 다음에 timeover여부를 결정해서 그런 것 같아요.
                 nav_time, agent_location = self.nav_manager.compute_navigation_time(
                     curr_node, sub
                 )
@@ -188,6 +188,7 @@ class Scheduler:
                 )
                 copied_sub = copy.deepcopy(sub)
                 copied_sub.duration.interval += nav_time
+                ## nav_time제거시 알맞게 나옴. 여러 json파일을 돌려보면 확실하게 알수 있을 것이라 판단(즉, 현재 상태에서 다른 로직은 다 맞고 여기에 waitng과 monitering만 추가하면 된다고 생각함.)
                 #################
 
                 if sub.name == related_subtask_name:
@@ -204,16 +205,6 @@ class Scheduler:
                     # 지금 subtask가 is_critical인 것보다 이전에 진행하던 작업이 is_critical인게 중요해서 밑에 추가해줬어요.
                     # 쓰다가 깨달았는데 is_critical인 상황을 벗어나면 다시 업데이트하는 것도 반영해줘야 할 것 같아요.
                     if copied_sub.duration.interval < leftover and leftover > 0 and have_critical:
-                        if is_critical and leftover > 0 and not is_expanded_curr_step:
-                            wait_sub = Subtask(
-                            task_name=None,
-                            name=(f"Wait for {related_subtask_name}"),
-                            duration=leftover,
-                            repetition=1,
-                            type="Wait",
-                            execution=None,
-                            temporal_constraints=None,
-                        )
                         # separation_interval 내에 실행 불가
                         continue
 
