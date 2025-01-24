@@ -91,7 +91,7 @@ def main():
         remaining_subtasks=subtasks,
         agent_location="agent",
     )
-
+    result_schedule = []
     while current_state.remaining_subtasks:
 
         current_state = scheduler.get_new_state(current_state, constraints)
@@ -103,11 +103,13 @@ def main():
         if args.simulation:
             execute_subtask(controller, current_state.subtask)
 
+        result_schedule.append(current_state.subtask)
+
     if args.visualize:
         visualize(
             task_file_name,
             constraints,
-            current_state.completed_subtasks + [current_state.subtask],
+            result_schedule,
         )
 
 

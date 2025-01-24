@@ -66,9 +66,26 @@ class Scheduler:
 
         self._counter = itertools.count()  # tie-breaker용
 
+    def extract_state(
+        self, state: SchedulerState, node: SimulationNode
+    ) -> SchedulerState:
+        completed_subtask = node.state.completed_subtasks[1]
+        completed_subtasks = node.state.completed_subtasks + [completed_subtask]
+        remaining_subtasks = [
+            remaining_subtask
+            for remaining_subtask in node.state.remaining_subtasks
+            if remaining_subtask.name != completed_subtask.name
+        ]
+        return SchedulerState(
+            subtask=node.state.completed_subtasks[1],
+            completed_subtasks=completed_subtasks,
+            remaining_subtasks=remaining_subtasks,
+            agent_location=node.state.agent_location,
+        )
+
     def get_new_state(
         self,
-        current_state: SchedulerState,
+        parent_state: SchedulerState,
         current_constraints: nx.DiGraph,
     ) -> Optional[SchedulerState]:
         """
@@ -83,23 +100,21 @@ class Scheduler:
         # 간단히, candidate_subtask의 out-edge 중 최소 interval만 사용
         temporal_constraint: TimeSlot = (
             self.constraint_handler.get_temporal_constraints(
-                current_state.subtask.name,
+                parent_state.subtask.name,
                 direction="out",
             )
         )
 
         if temporal_constraint.interval > 0:
-            best_node = self._simulate_time_slot(current_state, temporal_constraint)
+            child_node = self._simulate_time_slot(parent_state, temporal_constraint)
         else:
-            best_node = self._simulate_lookahead(current_state)
+            child_node = self._simulate_lookahead(parent_state)
 
-        if not best_node:
+        if not child_node:
             log.warning("No valid next step found.")
             return None
 
-        final_state = best_node.state
-
-        return final_state
+        return self.extract_state(parent_state, child_node)
 
     # ------------------------------------------------
     #   1) Time Slot 기반 간단 탐색
@@ -122,6 +137,7 @@ class Scheduler:
                 depth=0,
                 elapsed_time=0.0,
                 tie_breaker=next(self._counter),
+                agent_location=current_state.agent_location,
                 state=current_state,
             )
         )
@@ -167,24 +183,26 @@ class Scheduler:
                 nav_time, agent_location = self.nav_manager.compute_navigation_time(
                     curr_node, sub
                 )
-                sub_duration = sub.duration.interval + nav_time
-                if sub_duration > leftover and leftover > 0:
+                copied_sub = copy.deepcopy(sub)
+                copied_sub.duration.interval += nav_time
+
+                if copied_sub.duration.interval > leftover and leftover > 0:
                     # separation_interval 내에 실행 불가
                     continue
 
                 new_heuristic_cost = self.cost_calculator.calc_heuristic_cost(
                     curr_node, sub, nav_time
                 )
-                new_heuristic_cost = curr_heuristic_cost + new_heuristic_cost
+                new_heuristic_cost += curr_heuristic_cost
                 new_depth = curr_depth + 1
-                new_elapsed_time = curr_elapsed_time + sub_duration
+                new_elapsed_time = curr_elapsed_time + copied_sub.duration.interval
                 updated_completed = curr_node.state.completed_subtasks + [sub]
                 new_remain_subtasks = [
                     r for r in curr_node.state.remaining_subtasks if r.name != sub.name
                 ]
 
                 new_scheduler_state = SchedulerState(
-                    sub,
+                    copied_sub,
                     updated_completed,
                     new_remain_subtasks,
                     curr_node.state.agent_location,
@@ -302,21 +320,22 @@ class Scheduler:
                 nav_time, agent_location = self.nav_manager.compute_navigation_time(
                     curr_node, sub
                 )
-                sub_duration = sub.duration.interval + nav_time
+                copied_sub = copy.deepcopy(sub)
+                copied_sub.duration.interval += nav_time
 
                 new_heuristic = self.cost_calculator.calc_heuristic_cost(
                     curr_node, sub, nav_time
                 )
                 new_heuristic += curr_heuristic
                 new_depth = curr_depth + 1
-                new_elapsed_time = curr_elapsed_time + sub_duration
+                new_elapsed_time = curr_elapsed_time + copied_sub.duration.interval
                 updated_completed = curr_node.state.completed_subtasks + [sub]
                 updated_remain = [
                     r for r in curr_node.state.remaining_subtasks if r.name != sub.name
                 ]
 
                 new_scheduler_state = SchedulerState(
-                    sub,
+                    copied_sub,
                     updated_completed,
                     updated_remain,
                     curr_node.state.agent_location,
