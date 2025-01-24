@@ -1292,6 +1292,46 @@
             "expected_duration": 7.9742213715382535,
             "variance": 1.0,
             "occurrences": 0
+        },
+        "Retrieve Tomato": {
+            "expected_duration": 2.6551290227535285,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Retrieve Egg": {
+            "expected_duration": 2.6551290227535285,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Retrieve Lettuce": {
+            "expected_duration": 2.6551290227535285,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Cook Pasta": {
+            "expected_duration": 1.0352068538573562,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Sauté Ingredients": {
+            "expected_duration": 3.328635387636835,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Add Seasoning": {
+            "expected_duration": 3.328635387636835,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Simmer Mixture": {
+            "expected_duration": 1.026829434600699,
+            "variance": 1.0,
+            "occurrences": 0
+        },
+        "Turn Off Stove": {
+            "expected_duration": -2.677862411303602,
+            "variance": 1.0,
+            "occurrences": 0
         }
     }
 }
