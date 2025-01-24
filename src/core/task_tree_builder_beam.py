@@ -153,7 +153,6 @@ class Scheduler:
         실행할 수 있는 Subtask들을 우선순위 큐로 탐색.
         (예: 'Critical'이면 꼭 이 시간 안에 끝내야 한다, 등)
         """
-        from queue import PriorityQueue
 
         queue = PriorityQueue()
         # 초기 노드
@@ -172,6 +171,9 @@ class Scheduler:
         separation_interval = temporal_constraint.interval
         is_critical = temporal_constraint.is_critical
         related_subtask_name = temporal_constraint.related_subtask_name
+
+        if is_critical:
+            print(11111)
 
         while not queue.empty():
             curr_node = queue.get()
