@@ -1,6 +1,7 @@
 from typing import Any, List, NamedTuple, Optional, Tuple  # NamedTuple 임포트 추가
 
 import networkx as nx
+import numpy as np
 
 from core.task import Subtask
 from utils.util import create_module_logger
@@ -57,25 +58,51 @@ class ConstraintHandler:
     def validate_candidate_subtask(
         self, current_state: Any, candidate_subtask: Subtask
     ) -> bool:
-        """
-        1. candidate_subtask로 들어오는 모든 제약(엣지)을 확인.
-        2. 현재 실행된 partial_plan 상에서 해당 제약을 만족하는 서브태스크가 모두 존재하는지 확인(개수 비교).
-        3. 긴급(IsCritical)한 제약이면 interval(=time_slot)이 0 이상이어야 함.
-        """
-        # 1) partial_plan 중 candidate_subtask의 선행서브태스크로 연결된 것들
+        # (1) candidate_subtask의 선행 서브태스크가 완료되었는지
         constraint_subtasks = self._get_constraint_subtasks(
             current_state, candidate_subtask.name
         )
-        # 2) candidate_subtask의 실제 모든 incoming constraints
-        all_incoming = self.get_incoming_constraints(candidate_subtask.name)
+        # (2) 실제 incoming constraints
+        all_incoming_time_slots = self.get_incoming_constraints(candidate_subtask.name)
 
-        # 선행 서브태스크 개수 vs. incoming edge 개수 비교
-        if len(constraint_subtasks) != len(all_incoming):
+        if len(constraint_subtasks) != len(all_incoming_time_slots):
             return False
 
-        # 3) 긴급 제약의 interval 체크
-        time_slots = self._get_time_slot(current_state, candidate_subtask)
-        return all((ts.interval >= 0) if ts.is_critical else True for ts in time_slots)
+        return self.valid_time_slot(current_state, all_incoming_time_slots)
+
+    def valid_time_slot(self, current_state: Any, time_slots: List[TimeSlot]) -> bool:
+        """
+        critical -> 새 subtask 시작 시간 == (선행 end_time + interval)
+        non-critical -> 새 subtask 시작 시간 >= (선행 end_time + interval)
+        """
+        new_subtask_start = current_state.current_time
+
+        for ts in time_slots:
+            # 현재 completed_subtasks는 [CompletedEntry(subtask, start_time, end_time), ...]
+            pred_entry = next(
+                (
+                    ce
+                    for ce in current_state.completed_subtasks
+                    if ce.subtask.name == ts.related_subtask_name
+                ),
+                None,
+            )
+            if not pred_entry:
+                return False
+
+            pred_end_time = pred_entry.end_time
+            required_start = pred_end_time + ts.interval
+
+            if ts.is_critical:
+                # critical => ==
+                if new_subtask_start == required_start:
+                    return False
+            else:
+                # non-critical => >=
+                if new_subtask_start < required_start:
+                    return False
+
+        return True
 
     def get_expandable_subtasks(self, node: Any) -> List["Subtask"]:
         """
@@ -94,38 +121,18 @@ class ConstraintHandler:
         self, current_state: Any, subtask_name: str
     ) -> List[Subtask]:
         """
-        current_state.partial_plan 중 subtask_name으로 들어오는
-        선행노드(=incoming edge)와 이름이 정확히 일치하는 서브태스크를 반환.
+        'subtask_name'의 선행 서브태스크(그래프 기준) 중
+        이미 완료된 Subtask를 찾는다.
         """
         incoming_nodes = {u for u, _ in self.constraints.in_edges(subtask_name)}
+        # completed_subtasks => List[CompletedEntry]
+        # CompletedEntry.subtask 가 실제 Subtask 객체
+
         return [
-            done_subtask
-            for done_subtask in current_state.completed_subtasks
-            if done_subtask.name in incoming_nodes
+            ce.subtask
+            for ce in current_state.completed_subtasks
+            if ce.subtask.name in incoming_nodes
         ]
-
-    def _get_time_slot(self, current_state: Any, subtask: Subtask) -> List[TimeSlot]:
-        """
-        subtask로 들어오는 모든 엣지에 대해 TimeSlot 리스트를 구성.
-        - partial_plan에 해당 선행 서브태스크가 없으면 디폴트 TimeSlot(0, False, None)을 반환.
-        """
-        constraint_subtasks = self._get_constraint_subtasks(current_state, subtask.name)
-        if not constraint_subtasks:
-            return [TimeSlot(0, False, None)]
-
-        time_slots: List[TimeSlot] = []
-        for predecessor in constraint_subtasks:
-            info = self.constraints.get_edge_data(predecessor.name, subtask.name)
-            if not info:
-                # 엣지 데이터가 없으면 디폴트
-                time_slots.append(TimeSlot(0, False, None))
-                continue
-
-            interval = info["info"]["Interval"]
-            is_critical = info["info"]["IsCritical"]
-            time_slots.append(TimeSlot(interval, is_critical, predecessor.name))
-
-        return time_slots
 
     def get_incoming_constraints(self, subtask_name: str) -> List[TimeSlot]:
         """

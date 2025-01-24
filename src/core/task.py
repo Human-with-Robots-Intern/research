@@ -259,6 +259,16 @@ class TaskGraphBuilder:
         return self.graph
 
 
+class CompletedEntry(NamedTuple):
+    """
+    완료된 Subtask에 대해, (Subtask, start_time, end_time)을 함께 저장
+    """
+
+    subtask: Subtask
+    start_time: float
+    end_time: float
+
+
 class SchedulerState(NamedTuple):
     """
     스케쥴 정보를 담는 NamedTuple
@@ -266,9 +276,11 @@ class SchedulerState(NamedTuple):
 
     # 현재 subtask
     subtask: Subtask
-    # 수행된 subtask들 (현재 subtask 제외)
-    completed_subtasks: List[Subtask]
+    # 수행된 subtask들 (현재 subtask 포함)
+    completed_subtasks: List[CompletedEntry]
     # 남은 subtask들
     remaining_subtasks: List[Subtask]
     # 에이전트 위치
     agent_location: str
+    # 스케쥴상 시간
+    current_time: float

@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 
 from core.agent import Agent
-from core.task import SchedulerState, Subtask
+from core.task import CompletedEntry, SchedulerState, Subtask
 from core.task_tree_builder_beam import Scheduler
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import visualize
@@ -83,14 +83,22 @@ def main():
         execution=None,
         temporal_constraints=None,
     )
+    init_completed = CompletedEntry(
+        subtask=init_subtask,
+        start_time=0.0,
+        end_time=0.0,
+    )
 
-    scheduler = Scheduler(subtasks, constraints)
     current_state = SchedulerState(
         subtask=init_subtask,
-        completed_subtasks=[init_subtask],
+        completed_subtasks=[init_completed],
         remaining_subtasks=subtasks,
         agent_location="agent",
+        current_time=0.0,  # 시작 시간을 0으로 둠
     )
+
+    scheduler = Scheduler(subtasks, constraints)
+
     result_schedule = []
 
     while current_state.remaining_subtasks:

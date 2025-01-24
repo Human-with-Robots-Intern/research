@@ -5,7 +5,7 @@ from typing import List, NamedTuple, Optional
 
 import networkx as nx
 
-from core.task import SchedulerState, Subtask
+from core.task import CompletedEntry, SchedulerState, Subtask
 from task_management import (
     ConstraintHandler,
     CostCalculator,
@@ -68,25 +68,43 @@ class Scheduler:
     def extract_state(
         self, parent_state: SchedulerState, child_state: SchedulerState
     ) -> SchedulerState:
-        parent_completed_set = {s.name for s in parent_state.completed_subtasks}
+        # 부모 노드에 있던 subtask 이름 집합
+        parent_completed_set = {
+            ce.subtask.name for ce in parent_state.completed_subtasks
+        }
+        # 자식 노드의 completed_subtasks (List[CompletedEntry])
         child_plan = child_state.completed_subtasks
-        # 3) 자식 노드에서 새로 추가된 subtask들 (이전에는 없던 것)
-        new_subtasks = [s for s in child_plan if s.name not in parent_completed_set]
 
-        new_completed_subtask = new_subtasks[0]
-        new_completed_subtasks = parent_state.completed_subtasks + [
-            new_completed_subtask
+        # 자식 노드에서 새로 추가된 CompletedEntry들(=부모엔 없던 subtask)
+        new_entries = [
+            ce for ce in child_plan if ce.subtask.name not in parent_completed_set
         ]
+        if not new_entries:
+            # 새로 추가된 subtask가 없다면, 그냥 child_state 그대로 반환 or 예외 처리
+            return child_state
+
+        # 가장 최근(마지막) CompletedEntry 하나만 선택 or 여러개?
+        # 여기서는 하나만 있다고 가정
+        new_entry = new_entries[
+            0
+        ]  # CompletedEntry(subtask=..., start_time=..., end_time=...)
+        new_subtask = new_entry.subtask
+
+        # 부모 노드의 completed_subtasks에 새 entry 추가
+        new_completed_subtasks = parent_state.completed_subtasks + [new_entry]
+
+        # remaining_subtasks에서 이 subtask 제거
         new_remaining_subtasks = [
-            remaining_subtask
-            for remaining_subtask in parent_state.remaining_subtasks
-            if remaining_subtask.name != new_completed_subtask.name
+            r for r in parent_state.remaining_subtasks if r.name != new_subtask.name
         ]
+
+        # 이제 새 SchedulerState 생성
         return SchedulerState(
-            subtask=new_completed_subtask,
+            subtask=new_subtask,  # 새로 완료된 subtask
             completed_subtasks=new_completed_subtasks,
             remaining_subtasks=new_remaining_subtasks,
             agent_location=child_state.agent_location,
+            current_time=new_entry.end_time,
         )
 
     def get_new_state(
@@ -131,19 +149,21 @@ class Scheduler:
         temporal_constraint: TimeSlot,
     ) -> Optional[SimulationNode]:
         """
-        separation_interval 시간 동안 실행할 수 있는 Subtask들을
-        우선순위 큐로 탐색. (여기서는 간단히 모든 조합이 아닌,
-        '하나씩'만 골라보는 방식)
+        separation_interval(temporal_constraint.interval) 시간 동안
+        실행할 수 있는 Subtask들을 우선순위 큐로 탐색.
+        (예: 'Critical'이면 꼭 이 시간 안에 끝내야 한다, 등)
         """
+        from queue import PriorityQueue
+
         queue = PriorityQueue()
-        # 초기 상태
+        # 초기 노드
         queue.put(
             SimulationNode(
                 heuristic_cost=0.0,
                 depth=0,
                 elapsed_time=0.0,
                 tie_breaker=next(self._counter),
-                state=current_state,
+                state=current_state,  # state는 SchedulerState
             )
         )
 
@@ -159,10 +179,13 @@ class Scheduler:
             curr_heuristic_cost = curr_node.heuristic_cost
             curr_depth = curr_node.depth
             curr_elapsed_time = curr_node.elapsed_time
+
+            # "현재 시점" 가져오기
+            curr_state = curr_node.state
             leftover = separation_interval - curr_elapsed_time
 
             if curr_depth >= self.simulation_depth:
-                # 탐색 제한 도달
+                # 탐색 제한
                 collected_solutions.append(curr_node)
                 continue
 
@@ -171,48 +194,82 @@ class Scheduler:
                 curr_node
             )
             if not expandable_subtasks:
-                # feasible subtask가 없으므로, 더 이상 확장 불가
+                # 더 이상 확장 불가
                 collected_solutions.append(curr_node)
                 continue
 
-            # 각 candidate에 대해 확장
-            is_expanded_curr_step = False
+            filtered_expandable_subtasks = []
+            # Critical/Non-Critical leftover 조건 걸러내기
             for sub in expandable_subtasks:
                 if sub.name == related_subtask_name:
-                    # critical -> leftover == 0이어야 실행 가능
+                    # critical -> leftover == 0
                     if is_critical and leftover != 0:
                         continue
-                    # non-critical -> leftover <= 0이어야 실행 가능
+                    # non-critical -> leftover <= 0
                     if (not is_critical) and leftover > 0:
                         continue
+                filtered_expandable_subtasks.append(sub)
+
+            is_expanded_curr_step = False
+
+            for sub in filtered_expandable_subtasks:
                 nav_time, agent_location = self.nav_manager.compute_navigation_time(
                     curr_node, sub
                 )
-                new_heuristic_cost = self.cost_calculator.calc_heuristic_cost(
-                    curr_node, sub, nav_time
-                )
+
                 copied_sub = copy.deepcopy(sub)
                 copied_sub.duration.interval += nav_time
 
-                if copied_sub.duration.interval > leftover and leftover > 0 and is_critical:
-                    # separation_interval 내에 실행 불가
+                # 실행 시간
+                sub_start_time = curr_state.current_time
+
+                sub_end_time = sub_start_time + copied_sub.duration.interval
+                # 새 CompletedEntry
+                new_completed_entry = CompletedEntry(
+                    subtask=copied_sub,
+                    start_time=sub_start_time,
+                    end_time=sub_end_time,
+                )
+
+                # separation_interval 내에 실행 불가(critical 한정) 체크
+                if (
+                    copied_sub.duration.interval > leftover
+                    and leftover > 0
+                    and is_critical
+                ):
                     continue
 
-                new_heuristic_cost += curr_heuristic_cost
+                # 비용 계산
+                new_heuristic = self.cost_calculator.calc_heuristic_cost(
+                    curr_node, sub, nav_time
+                )
+                new_heuristic_cost = curr_heuristic_cost + new_heuristic
+
                 new_depth = curr_depth + 1
                 new_elapsed_time = curr_elapsed_time + copied_sub.duration.interval
-                updated_completed = curr_node.state.completed_subtasks + [copied_sub]
-                new_remain_subtasks = [
-                    r
-                    for r in curr_node.state.remaining_subtasks
-                    if r.name != copied_sub.name
+
+                # completed_subtasks 갱신 (Subtask 객체 자체에는 시간 안 넣음)
+                new_completed_entry = CompletedEntry(
+                    subtask=copied_sub,
+                    start_time=sub_start_time,
+                    end_time=sub_end_time,
+                )
+                updated_completed = curr_state.completed_subtasks + [
+                    new_completed_entry
                 ]
 
+                # remaining_subtasks에서 이번에 쓴 sub 빼기
+                new_remain_subtasks = [
+                    r for r in curr_state.remaining_subtasks if r.name != sub.name
+                ]
+
+                # 새 SchedulerState
                 new_scheduler_state = SchedulerState(
-                    copied_sub,
-                    updated_completed,
-                    new_remain_subtasks,
-                    agent_location,
+                    subtask=copied_sub,
+                    completed_subtasks=updated_completed,
+                    remaining_subtasks=new_remain_subtasks,
+                    agent_location=agent_location,
+                    current_time=sub_end_time,  # 현재 시간 = sub_end_time
                 )
 
                 queue.put(
@@ -225,10 +282,12 @@ class Scheduler:
                     )
                 )
                 is_expanded_curr_step = True
-            if is_critical and leftover > 0 and not is_expanded_curr_step:
+
+            # 만약 leftover > 0 & critical 이거나, 아무것도 확장 못 했다면 "Wait Subtask" 추가
+            if (leftover > 0 and is_critical) or not is_expanded_curr_step:
                 wait_sub = Subtask(
                     task_name=None,
-                    name=(f"Wait for {related_subtask_name}"),
+                    name=f"Wait for {related_subtask_name}",
                     duration=leftover,
                     repetition=1,
                     type="Wait",
@@ -240,15 +299,23 @@ class Scheduler:
                 new_elapsed_time = curr_elapsed_time + leftover
                 new_depth = curr_depth + 1
 
-                # "부모 node"에서 completed_subtasks 가져오기
-                new_completed_subtasks = curr_node.state.completed_subtasks + [wait_sub]
-                new_remain_subtasks = curr_node.state.remaining_subtasks
+                # Wait subtask 의 start/end 계산
+                wait_start_time = curr_state.current_time
+                wait_end_time = wait_start_time + leftover
+
+                wait_entry = CompletedEntry(
+                    subtask=wait_sub,
+                    start_time=wait_start_time,
+                    end_time=wait_end_time,
+                )
+                new_completed_subtasks = curr_state.completed_subtasks + [wait_entry]
 
                 new_scheduler_state = SchedulerState(
                     subtask=wait_sub,
                     completed_subtasks=new_completed_subtasks,
-                    remaining_subtasks=new_remain_subtasks,
-                    agent_location=curr_node.state.agent_location,
+                    remaining_subtasks=curr_state.remaining_subtasks,  # 대기만 했으니 남은거 그대로
+                    agent_location=curr_state.agent_location,
+                    current_time=wait_end_time,
                 )
 
                 queue.put(
@@ -264,11 +331,10 @@ class Scheduler:
         if not collected_solutions:
             return None
 
-        # 비용 오름차순으로 정렬 -> 상위 beam_width만 추려서, 그중 최대 cost를 best
+        # 비용 기준 내림차순 정렬 -> 첫 번째를 best
         sorted_paths = sorted(
             collected_solutions, key=lambda x: x.heuristic_cost, reverse=True
         )
-
         best_result = sorted_paths[0] if sorted_paths else None
 
         return best_result
@@ -301,6 +367,7 @@ class Scheduler:
         while not queue.empty():
             curr_node = queue.get()
 
+            curr_state = curr_node.state
             curr_heuristic = curr_node.heuristic_cost
             curr_depth = curr_node.depth
             curr_elapsed_time = curr_node.elapsed_time
@@ -324,16 +391,29 @@ class Scheduler:
                 nav_time, agent_location = self.nav_manager.compute_navigation_time(
                     curr_node, sub
                 )
+                # 실행 시간 계산
+                sub_start_time = curr_state.current_time
+                sub_end_time = sub_start_time + sub.duration.interval + nav_time
+
                 new_heuristic = self.cost_calculator.calc_heuristic_cost(
                     curr_node, sub, nav_time
                 )
                 copied_sub = copy.deepcopy(sub)
                 copied_sub.duration.interval += nav_time
 
+                # 새 CompletedEntry
+                new_completed_entry = CompletedEntry(
+                    subtask=copied_sub,
+                    start_time=sub_start_time,
+                    end_time=sub_end_time,
+                )
+
                 new_heuristic += curr_heuristic
                 new_depth = curr_depth + 1
                 new_elapsed_time = curr_elapsed_time + copied_sub.duration.interval
-                updated_completed = curr_node.state.completed_subtasks + [copied_sub]
+                updated_completed = curr_node.state.completed_subtasks + [
+                    new_completed_entry
+                ]
                 updated_remain = [
                     r
                     for r in curr_node.state.remaining_subtasks
@@ -345,6 +425,7 @@ class Scheduler:
                     updated_completed,
                     updated_remain,
                     agent_location,
+                    current_time=sub_end_time,
                 )
 
                 queue.put(
