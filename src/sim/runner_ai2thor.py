@@ -49,6 +49,7 @@ def create_module_logger(module_name, is_file_handler=False):
 log_file = open(Path.cwd() / Path("logs/ai2thor_log.txt"), "w", buffering=1)
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
+
 def init_ai2thor():
     controller = Controller(
         agentMode="default",  # "default", "locobot", "drone", or "arm",
@@ -116,7 +117,7 @@ def execute_subtask(controller, subtask):
             return False
         object_registry[obj_id] = ai2thor_obj
 
-    # Define action mapping to Omnigibson action primitives
+    # Define action mapping to ai2thor action primitives
     action_mapping = {
         "NAVIGATE_TO": lambda target_obj: Navi.move_to(target_obj),
         "GRASP": lambda target_obj: Act.pickup(target_obj),
@@ -129,7 +130,6 @@ def execute_subtask(controller, subtask):
         "SLICE": lambda target_obj: Act.slice(target_obj),
         "Mornitoring": lambda target_obj: Act.mornitoring(target_obj),
         "Wait": lambda wait_time: time.sleep(wait_time)
-        # 필요한 경우 다른 액션을 추가할 수 있습니다.
     }
 
     # Execute each primitive action
@@ -148,12 +148,8 @@ def execute_subtask(controller, subtask):
             )
             # 총 걸린시간 계산
             elapsed_time += action_mapping[action_type](target_obj_ID)
-            # mornitoring 이 나오면 현재까지 걸린 시간/groundtruth 해서 return 하기
-            if action_type == "Mornitoring":
-                progress = elapsed_time/ground_truth
-                return progress
-            print(f"{elapsed_time=}")
         else:
             log.warning(f"Unknown action type: {action_type}. Skipping.")
     print(f"{subtask.name}의 걸린시간 = {round(elapsed_time, 2)}")
     log.info(f"Successfully executed Subtask: {subtask.name}")
+    return elapsed_time
