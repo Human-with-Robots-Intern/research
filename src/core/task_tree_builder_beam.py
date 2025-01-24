@@ -195,6 +195,7 @@ class Scheduler:
                         heuristic_cost=new_heuristic_cost,
                         depth=new_depth,
                         elapsed_time=new_elapsed_time,
+                        agent_location=agent_location,
                         tie_breaker=next(self._counter),
                         state=new_scheduler_state,
                     )
@@ -231,6 +232,7 @@ class Scheduler:
                         heuristic_cost=new_heuristic_cost,
                         depth=new_depth,
                         elapsed_time=new_elapsed_time,
+                        agent_location=curr_node.state.agent_location,
                         tie_breaker=next(self._counter),
                         state=new_scheduler_state,
                     )
@@ -267,6 +269,7 @@ class Scheduler:
                 depth=0,
                 elapsed_time=0.0,
                 tie_breaker=next(self._counter),
+                agent_location=init_state.agent_location,
                 state=init_state,
             )
         )
@@ -324,6 +327,7 @@ class Scheduler:
                         heuristic_cost=new_heuristic,
                         depth=new_depth,
                         elapsed_time=new_elapsed_time,
+                        agent_location=agent_location,
                         tie_breaker=next(self._counter),
                         state=new_scheduler_state,
                     )
