@@ -194,7 +194,7 @@ class Scheduler:
                 copied_sub = copy.deepcopy(sub)
                 copied_sub.duration.interval += nav_time
 
-                if copied_sub.duration.interval > leftover and leftover > 0:
+                if copied_sub.duration.interval > leftover and leftover > 0 and is_critical:
                     # separation_interval 내에 실행 불가
                     continue
 
