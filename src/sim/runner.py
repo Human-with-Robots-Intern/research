@@ -14,7 +14,7 @@ from omnigibson.action_primitives.starter_semantic_action_primitives import (
 )
 from omnigibson.macros import gm
 
-from core import BayesianAgent
+from core import Agent
 from sim.primitive_actions import CustomActionPrimitives
 from utils.util import create_module_logger
 
@@ -55,7 +55,7 @@ def init_omnigibson():
     env = og.Environment(configs=_load_config())
     env.scene.object_registry("name", "apple")
 
-    agent = BayesianAgent(env.robots[0])
+    agent = Agent(env.robots[0])
     time.sleep(5)
     return env, agent
 

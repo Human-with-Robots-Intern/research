@@ -10,5 +10,22 @@ VIS_PATH = ROOT_PATH / "assets" / "results"
 TASK_PATH = ROOT_PATH / "assets" / "tasks"
 LOG_PATH = ROOT_PATH / "logs"
 
-## action 걸리는 시간
+PRIMITIVE_ACTION_SET = {
+    "NAVIGATE_TO",
+    "GRASP",
+    "PLACE_INSIDE",
+    "PLACE_ON_TOP",
+    "OPEN",
+    "CLOSE",
+    "TOGGLE_ON",
+    "TOGGLE_OFF",
+    "SLICE",
+    "MONITORING",
+    "WAIT",
+}
 
+PRIMITIVE_ACTION_DURATION = 0.1
+MONITORING_DURATION = 0.1
+
+DEFAULT_SIMULATION_DEPTH = 3
+DEFAULT_BEAM_WIDTH = 1
