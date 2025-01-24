@@ -32,7 +32,6 @@ class SimulationNode(NamedTuple):
     heuristic_cost: float
     depth: int
     elapsed_time: float
-    agent_location: str
     tie_breaker: int
     state: SchedulerState
 
@@ -67,20 +66,27 @@ class Scheduler:
         self._counter = itertools.count()  # tie-breaker용
 
     def extract_state(
-        self, state: SchedulerState, node: SimulationNode
+        self, parent_state: SchedulerState, child_state: SchedulerState
     ) -> SchedulerState:
-        completed_subtask = node.state.completed_subtasks[1]
-        completed_subtasks = state.completed_subtasks + [completed_subtask]
-        remaining_subtasks = [
+        parent_completed_set = {s.name for s in parent_state.completed_subtasks}
+        child_plan = child_state.completed_subtasks
+        # 3) 자식 노드에서 새로 추가된 subtask들 (이전에는 없던 것)
+        new_subtasks = [s for s in child_plan if s.name not in parent_completed_set]
+
+        new_completed_subtask = new_subtasks[0]
+        new_completed_subtasks = parent_state.completed_subtasks + [
+            new_completed_subtask
+        ]
+        new_remaining_subtasks = [
             remaining_subtask
-            for remaining_subtask in state.remaining_subtasks
-            if remaining_subtask.name != completed_subtask.name
+            for remaining_subtask in parent_state.remaining_subtasks
+            if remaining_subtask.name != new_completed_subtask.name
         ]
         return SchedulerState(
-            subtask=node.state.completed_subtasks[1],
-            completed_subtasks=completed_subtasks,
-            remaining_subtasks=remaining_subtasks,
-            agent_location=node.state.agent_location,
+            subtask=new_completed_subtask,
+            completed_subtasks=new_completed_subtasks,
+            remaining_subtasks=new_remaining_subtasks,
+            agent_location=child_state.agent_location,
         )
 
     def get_new_state(
@@ -114,7 +120,7 @@ class Scheduler:
             log.warning("No valid next step found.")
             return None
 
-        return self.extract_state(parent_state, child_node)
+        return self.extract_state(parent_state, child_node.state)
 
     # ------------------------------------------------
     #   1) Time Slot 기반 간단 탐색
@@ -137,7 +143,6 @@ class Scheduler:
                 depth=0,
                 elapsed_time=0.0,
                 tie_breaker=next(self._counter),
-                agent_location=current_state.agent_location,
                 state=current_state,
             )
         )
@@ -183,6 +188,9 @@ class Scheduler:
                 nav_time, agent_location = self.nav_manager.compute_navigation_time(
                     curr_node, sub
                 )
+                new_heuristic_cost = self.cost_calculator.calc_heuristic_cost(
+                    curr_node, sub, nav_time
+                )
                 copied_sub = copy.deepcopy(sub)
                 copied_sub.duration.interval += nav_time
 
@@ -190,22 +198,21 @@ class Scheduler:
                     # separation_interval 내에 실행 불가
                     continue
 
-                new_heuristic_cost = self.cost_calculator.calc_heuristic_cost(
-                    curr_node, sub, nav_time
-                )
                 new_heuristic_cost += curr_heuristic_cost
                 new_depth = curr_depth + 1
                 new_elapsed_time = curr_elapsed_time + copied_sub.duration.interval
-                updated_completed = curr_node.state.completed_subtasks + [sub]
+                updated_completed = curr_node.state.completed_subtasks + [copied_sub]
                 new_remain_subtasks = [
-                    r for r in curr_node.state.remaining_subtasks if r.name != sub.name
+                    r
+                    for r in curr_node.state.remaining_subtasks
+                    if r.name != copied_sub.name
                 ]
 
                 new_scheduler_state = SchedulerState(
                     copied_sub,
                     updated_completed,
                     new_remain_subtasks,
-                    curr_node.state.agent_location,
+                    agent_location,
                 )
 
                 queue.put(
@@ -213,7 +220,6 @@ class Scheduler:
                         heuristic_cost=new_heuristic_cost,
                         depth=new_depth,
                         elapsed_time=new_elapsed_time,
-                        agent_location=agent_location,
                         tie_breaker=next(self._counter),
                         state=new_scheduler_state,
                     )
@@ -250,7 +256,6 @@ class Scheduler:
                         heuristic_cost=new_heuristic_cost,
                         depth=new_depth,
                         elapsed_time=new_elapsed_time,
-                        agent_location=curr_node.state.agent_location,
                         tie_breaker=next(self._counter),
                         state=new_scheduler_state,
                     )
@@ -287,7 +292,6 @@ class Scheduler:
                 depth=0,
                 elapsed_time=0.0,
                 tie_breaker=next(self._counter),
-                agent_location=init_state.agent_location,
                 state=init_state,
             )
         )
@@ -320,25 +324,27 @@ class Scheduler:
                 nav_time, agent_location = self.nav_manager.compute_navigation_time(
                     curr_node, sub
                 )
-                copied_sub = copy.deepcopy(sub)
-                copied_sub.duration.interval += nav_time
-
                 new_heuristic = self.cost_calculator.calc_heuristic_cost(
                     curr_node, sub, nav_time
                 )
+                copied_sub = copy.deepcopy(sub)
+                copied_sub.duration.interval += nav_time
+
                 new_heuristic += curr_heuristic
                 new_depth = curr_depth + 1
                 new_elapsed_time = curr_elapsed_time + copied_sub.duration.interval
-                updated_completed = curr_node.state.completed_subtasks + [sub]
+                updated_completed = curr_node.state.completed_subtasks + [copied_sub]
                 updated_remain = [
-                    r for r in curr_node.state.remaining_subtasks if r.name != sub.name
+                    r
+                    for r in curr_node.state.remaining_subtasks
+                    if r.name != copied_sub.name
                 ]
 
                 new_scheduler_state = SchedulerState(
                     copied_sub,
                     updated_completed,
                     updated_remain,
-                    curr_node.state.agent_location,
+                    agent_location,
                 )
 
                 queue.put(
@@ -346,7 +352,6 @@ class Scheduler:
                         heuristic_cost=new_heuristic,
                         depth=new_depth,
                         elapsed_time=new_elapsed_time,
-                        agent_location=agent_location,
                         tie_breaker=next(self._counter),
                         state=new_scheduler_state,
                     )
