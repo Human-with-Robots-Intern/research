@@ -261,7 +261,7 @@ class TaskGraphBuilder:
 
 class SchedulerState(NamedTuple):
     """
-    시뮬레이션 중 임시 상태.
+    스케쥴 정보를 담는 NamedTuple
     """
 
     # 현재 subtask

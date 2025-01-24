@@ -92,6 +92,7 @@ def main():
         agent_location="agent",
     )
     result_schedule = []
+
     while current_state.remaining_subtasks:
 
         current_state = scheduler.get_new_state(current_state, constraints)

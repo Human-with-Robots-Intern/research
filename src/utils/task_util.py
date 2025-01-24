@@ -42,8 +42,8 @@ def adjust_subtasks_duration(subtasks: List[Subtask]) -> List[Subtask]:
         return total_duration
 
     for subtask in subtasks:
-        for subtask in subtask.subtasks:
-            subtask.duration.interval = _get_action_duration(subtask)
+
+        subtask.duration.interval = _get_action_duration(subtask)
     return subtasks
 
 
@@ -86,4 +86,5 @@ def build_tasks_and_constraints(
     task_graph_builder = TaskGraphBuilder()
     task_graph = task_graph_builder.build_graph(tasks)
     subtasks = tasks_to_subtasks(tasks)
+    subtasks = adjust_subtasks_duration(subtasks)
     return subtasks, task_graph
