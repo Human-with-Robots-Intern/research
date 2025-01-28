@@ -1,6 +1,6 @@
 from typing import List
 
-from core.task import Subtask, Task, TaskGraphBuilder
+from core.task import CompletedEntry, SchedulerState, Subtask, Task, TaskGraphBuilder
 from utils.constants import PRIMITIVE_ACTION_DURATION, PRIMITIVE_ACTION_SET
 
 
@@ -88,3 +88,29 @@ def build_tasks_and_constraints(
     subtasks = tasks_to_subtasks(tasks)
     subtasks = adjust_subtasks_duration(subtasks)
     return subtasks, task_graph
+
+
+def get_init_state(subtasks: List[Subtask]) -> SchedulerState:
+    init_subtask = Subtask(
+        task_name=None,
+        name="Init",
+        duration=0.0,
+        repetition=1,
+        type="Init",
+        execution=None,
+        temporal_constraints=None,
+    )
+    init_completed = CompletedEntry(
+        subtask=init_subtask,
+        start_time=0.0,
+        end_time=0.0,
+    )
+
+    init_state = SchedulerState(
+        subtask=init_subtask,
+        completed_subtasks=[init_completed],
+        remaining_subtasks=subtasks,
+        agent_location="agent",
+        current_time=0,
+    )
+    return init_state

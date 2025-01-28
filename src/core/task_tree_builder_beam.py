@@ -19,21 +19,7 @@ from utils.util import create_module_logger
 log = create_module_logger(module_name=__name__, is_file_handler=False)
 
 
-class SimulationNode(NamedTuple):
-    """
-    우선순위 큐에서 사용할 탐색 노드.
-    - heuristic_cost: 지금까지 누적된 비용 (높을수록 우선)
-    - depth: 현재 탐색 깊이
-    - leftover: time_slot 등에서 남은 시간(필요하면 사용)
-    - tie_breaker: 우선순위가 같을 때 순서 결정용
-    - state: 실제 스케줄 상태 (SchedulerState)
-    """
 
-    heuristic_cost: float
-    depth: int
-    elapsed_time: float
-    tie_breaker: int
-    state: SchedulerState
 
 
 class Scheduler:
@@ -45,7 +31,6 @@ class Scheduler:
 
     def __init__(
         self,
-        init_subtasks: List[Subtask],
         init_constraints: nx.DiGraph,
         beam_width: int = DEFAULT_BEAM_WIDTH,
         simulation_depth: int = DEFAULT_SIMULATION_DEPTH,
@@ -54,14 +39,9 @@ class Scheduler:
         self.beam_width = beam_width
         self.simulation_depth = simulation_depth
 
-        self.subtasks_info = copy.deepcopy(init_subtasks)
         self.constraint_handler = ConstraintHandler(init_constraints)
-
         self.cost_calculator = CostCalculator(self.constraint_handler)
-        self.nav_manager = NavigationManager(
-            navigation_times=load_navigation_times(),
-            all_subtasks_info=self.subtasks_info,
-        )
+        self.nav_manager = NavigationManager()
 
         self._counter = itertools.count()  # tie-breaker용
 
@@ -107,7 +87,7 @@ class Scheduler:
             current_time=new_entry.end_time,
         )
 
-    def get_new_state(
+    def get_next_state(
         self,
         parent_state: SchedulerState,
         current_constraints: nx.DiGraph,
@@ -121,7 +101,7 @@ class Scheduler:
         # 제약 갱신
         self.constraint_handler.constraints = current_constraints
 
-        # 간단히, candidate_subtask의 out-edge 중 최소 interval만 사용
+        # candidate_subtask의 out-edge 중 최소 interval만 사용
         temporal_constraint: TimeSlot = (
             self.constraint_handler.get_temporal_constraints(
                 parent_state.subtask.name,
@@ -451,3 +431,27 @@ class Scheduler:
         best_result = sorted_paths[0] if sorted_paths else None
 
         return best_result
+
+    def extract_state(
+        self, parent_state: SchedulerState, child_state: SchedulerState
+    ) -> SchedulerState:
+        parent_completed_set = {s.name for s in parent_state.completed_subtasks}
+        child_plan = child_state.completed_subtasks
+        # 3) 자식 노드에서 새로 추가된 subtask들 (이전에는 없던 것)
+        new_subtasks = [s for s in child_plan if s.name not in parent_completed_set]
+
+        new_completed_subtask = new_subtasks[0]
+        new_completed_subtasks = parent_state.completed_subtasks + [
+            new_completed_subtask
+        ]
+        new_remaining_subtasks = [
+            remaining_subtask
+            for remaining_subtask in parent_state.remaining_subtasks
+            if remaining_subtask.name != new_completed_subtask.name
+        ]
+        return SchedulerState(
+            subtask=new_completed_subtask,
+            completed_subtasks=new_completed_subtasks,
+            remaining_subtasks=new_remaining_subtasks,
+            agent_location=child_state.agent_location,
+        )

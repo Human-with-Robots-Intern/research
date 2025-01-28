@@ -3,6 +3,7 @@ import logging
 from typing import Any, List, Optional
 
 from core.task import Subtask
+from utils.task_io import load_navigation_times
 
 log = logging.getLogger(__name__)
 
@@ -15,27 +16,8 @@ class NavigationManager:
     - Looks up travel times from a navigation time table (dictionary).
     """
 
-    def __init__(self, navigation_times: dict, all_subtasks_info: list):
-        """
-        Args:
-            navigation_times:
-                A nested dictionary with structure:
-                {
-                  "HomeBase": {
-                      "Kitchen": 5.0,
-                      "LivingRoom": 3.0
-                  },
-                  "Kitchen": {
-                      "LivingRoom": 2.0,
-                      ...
-                  },
-                  ...
-                }
-            all_subtasks_info:
-                A list of all Subtask objects (if needed for advanced logic).
-        """
-        self.navigation_times = navigation_times
-        self.subtasks_info = all_subtasks_info
+    def __init__(self):
+        self.navigation_times = load_navigation_times()
 
     def compute_navigation_time(
         self, current_node: Any, next_subtask: Subtask

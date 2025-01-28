@@ -9,12 +9,6 @@ from utils.util import create_module_logger
 log = create_module_logger(module_name=__name__, is_file_handler=False)
 
 
-class TimeSlot(NamedTuple):
-    interval: int
-    is_critical: bool
-    related_subtask_name: Optional[str]
-
-
 class ConstraintHandler:
     def __init__(self, constraints: nx.DiGraph):
         self.constraints = constraints
