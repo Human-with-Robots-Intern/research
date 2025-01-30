@@ -4,6 +4,7 @@ import networkx as nx
 import numpy as np
 
 from core.task import Subtask
+from utils.dataclass import TimeSlot
 from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=False)

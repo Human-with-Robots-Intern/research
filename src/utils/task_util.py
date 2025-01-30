@@ -1,7 +1,8 @@
 from typing import List
 
-from core.task import CompletedEntry, SchedulerState, Subtask, Task, TaskGraphBuilder
+from core.task import Subtask, Task, TaskGraphBuilder
 from utils.constants import PRIMITIVE_ACTION_DURATION, PRIMITIVE_ACTION_SET
+from utils.dataclass import CompletedEntry, SchedulerState
 
 
 def tasks_to_subtasks(tasks, mode="all"):

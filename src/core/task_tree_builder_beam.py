@@ -1,25 +1,17 @@
 import copy
 import itertools
 from queue import PriorityQueue
-from typing import List, NamedTuple, Optional
+from typing import List, Optional
 
 import networkx as nx
 
-from core.task import CompletedEntry, SchedulerState, Subtask
-from task_management import (
-    ConstraintHandler,
-    CostCalculator,
-    NavigationManager,
-    TimeSlot,
-)
+from core.task import Subtask
+from task_management import ConstraintHandler, CostCalculator, NavigationManager
 from utils.constants import DEFAULT_BEAM_WIDTH, DEFAULT_SIMULATION_DEPTH
-from utils.task_io import load_navigation_times
+from utils.dataclass import CompletedEntry, SchedulerState, SimulationNode, TimeSlot
 from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=False)
-
-
-
 
 
 class Scheduler:
@@ -140,7 +132,7 @@ class Scheduler:
             SimulationNode(
                 heuristic_cost=0.0,
                 depth=0,
-                elapsed_time=0.0,
+                leftover=0.0,
                 tie_breaker=next(self._counter),
                 state=current_state,  # state는 SchedulerState
             )
@@ -152,15 +144,12 @@ class Scheduler:
         is_critical = temporal_constraint.is_critical
         related_subtask_name = temporal_constraint.related_subtask_name
 
-        if is_critical:
-            print(11111)
-
         while not queue.empty():
             curr_node = queue.get()
 
             curr_heuristic_cost = curr_node.heuristic_cost
             curr_depth = curr_node.depth
-            curr_elapsed_time = curr_node.elapsed_time
+            curr_elapsed_time = curr_node.leftover
 
             # "현재 시점" 가져오기
             curr_state = curr_node.state
@@ -258,7 +247,7 @@ class Scheduler:
                     SimulationNode(
                         heuristic_cost=new_heuristic_cost,
                         depth=new_depth,
-                        elapsed_time=new_elapsed_time,
+                        leftover=new_elapsed_time,
                         tie_breaker=next(self._counter),
                         state=new_scheduler_state,
                     )
@@ -304,7 +293,7 @@ class Scheduler:
                     SimulationNode(
                         heuristic_cost=new_heuristic_cost,
                         depth=new_depth,
-                        elapsed_time=new_elapsed_time,
+                        leftover=new_elapsed_time,
                         tie_breaker=next(self._counter),
                         state=new_scheduler_state,
                     )
@@ -338,7 +327,7 @@ class Scheduler:
             SimulationNode(
                 heuristic_cost=0.0,
                 depth=0,
-                elapsed_time=0.0,
+                leftover=0.0,
                 tie_breaker=next(self._counter),
                 state=init_state,
             )
@@ -352,7 +341,7 @@ class Scheduler:
             curr_state = curr_node.state
             curr_heuristic = curr_node.heuristic_cost
             curr_depth = curr_node.depth
-            curr_elapsed_time = curr_node.elapsed_time
+            curr_elapsed_time = curr_node.leftover
 
             if curr_depth >= self.simulation_depth:
                 # 탐색 제한 도달
@@ -406,15 +395,15 @@ class Scheduler:
                     copied_sub,
                     updated_completed,
                     updated_remain,
+                    sub_end_time,
                     agent_location,
-                    current_time=sub_end_time,
                 )
 
                 queue.put(
                     SimulationNode(
                         heuristic_cost=new_heuristic,
                         depth=new_depth,
-                        elapsed_time=new_elapsed_time,
+                        leftover=new_elapsed_time,
                         tie_breaker=next(self._counter),
                         state=new_scheduler_state,
                     )
@@ -431,27 +420,3 @@ class Scheduler:
         best_result = sorted_paths[0] if sorted_paths else None
 
         return best_result
-
-    def extract_state(
-        self, parent_state: SchedulerState, child_state: SchedulerState
-    ) -> SchedulerState:
-        parent_completed_set = {s.name for s in parent_state.completed_subtasks}
-        child_plan = child_state.completed_subtasks
-        # 3) 자식 노드에서 새로 추가된 subtask들 (이전에는 없던 것)
-        new_subtasks = [s for s in child_plan if s.name not in parent_completed_set]
-
-        new_completed_subtask = new_subtasks[0]
-        new_completed_subtasks = parent_state.completed_subtasks + [
-            new_completed_subtask
-        ]
-        new_remaining_subtasks = [
-            remaining_subtask
-            for remaining_subtask in parent_state.remaining_subtasks
-            if remaining_subtask.name != new_completed_subtask.name
-        ]
-        return SchedulerState(
-            subtask=new_completed_subtask,
-            completed_subtasks=new_completed_subtasks,
-            remaining_subtasks=new_remaining_subtasks,
-            agent_location=child_state.agent_location,
-        )

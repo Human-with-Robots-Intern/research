@@ -4,7 +4,6 @@ import time
 from pathlib import Path
 
 from core.agent import Agent
-from core.task import CompletedEntry, SchedulerState, Subtask
 from core.task_tree_builder_beam import Scheduler
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import visualize
