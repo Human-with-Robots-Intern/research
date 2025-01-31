@@ -45,7 +45,7 @@ graph [
     info [
       Type "After"
       Interval 5
-      IsCritical 0
+      IsCritical 1
     ]
   ]
   edge [

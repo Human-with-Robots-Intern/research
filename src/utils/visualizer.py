@@ -174,6 +174,7 @@ def make_gantt_data(completed_subtasks: List[Subtask]) -> List[dict]:
     for st in completed_subtasks:
         if not st.duration:
             continue
+
         duration = st.duration.interval
         start = current_time
         end = start + duration

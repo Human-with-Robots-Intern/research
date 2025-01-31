@@ -36,13 +36,5 @@ class CostCalculator:
         time_diff = out_time_slot.interval - in_time_slot.interval
 
         factor = max(self.cost_weight - current_node.depth, 1)
-        cost_val = factor * (subtask.duration.interval + navigate_time + time_diff)
+        cost_val = factor * (subtask.duration.interval + time_diff + navigate_time)
         return cost_val
-
-    def calc_wait_cost(self, current_depth: int, wait_subtask: Subtask) -> float:
-        """
-        Wait 노드 비용 계산.
-        (원 코드에서는 단순히 wait_subtask.duration 사용.
-         필요하다면 (cost_weight - depth) * duration 등으로 커스터마이징 가능)
-        """
-        return wait_subtask.duration
