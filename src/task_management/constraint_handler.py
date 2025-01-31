@@ -55,64 +55,6 @@ class ConstraintHandler:
         )
         return TimeSlot(*min_edge)
 
-    from typing import Any, List, Optional, Tuple
-
-
-import networkx as nx
-
-from core.task import Subtask
-from task_management.navigation_manager import NavigationManager
-from utils.dataclass import SchedulerState, SimulationNode, TimeSlot
-from utils.util import create_module_logger
-
-log = create_module_logger(module_name=__name__, is_file_handler=False)
-
-
-class ConstraintHandler:
-    def __init__(self, constraints: nx.DiGraph, navigation_manager: NavigationManager):
-        """
-        constraints: nx.DiGraph
-          - 각 edge(u->v)에 "info": {"Interval": float, "IsCritical": bool}가 존재
-        """
-        self.constraints = constraints
-        self.nav_manager = navigation_manager
-
-    def get_temporal_constraints(self, subtask_name: str, direction: str) -> TimeSlot:
-        """
-        subtask_name 기준으로 in/out 방향의 모든 엣지 중,
-        'Interval'이 가장 작은 엣지를 찾아 TimeSlot(NamedTuple)으로 반환.
-        엣지가 없다면 TimeSlot(0, False, None)을 반환.
-        """
-        if direction == "out":
-            edges = list(self.constraints.out_edges(subtask_name, data=True))
-        elif direction == "in":
-            edges = list(self.constraints.in_edges(subtask_name, data=True))
-        else:
-            raise ValueError("direction must be either 'in' or 'out'.")
-
-        if not edges:
-            log.debug(
-                f"No {direction} edges found for subtask {subtask_name}. "
-                "Returning default TimeSlot(0, False, None)."
-            )
-            return TimeSlot(0, False, None)
-
-        # interval이 가장 작은 엣지를 선택
-        min_edge = min(
-            (
-                (
-                    data["info"]["Interval"],
-                    data["info"]["IsCritical"],
-                    (
-                        v if direction == "out" else u
-                    ),  # out이면 (subtask -> v), in이면 (u -> subtask)
-                )
-                for u, v, data in edges
-            ),
-            key=lambda x: x[0],  # interval 기준 최소값
-        )
-        return TimeSlot(*min_edge)
-
     def get_feasible_subtasks(
         self,
         node: SimulationNode,
