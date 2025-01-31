@@ -21,10 +21,22 @@ class ConstraintHandler:
 
     def get_temporal_constraints(self, subtask_name: str, direction: str) -> TimeSlot:
         """
-        subtask_name 기준으로 in/out 방향의 모든 엣지 중,
-        'Interval'이 가장 작은 엣지를 찾아 TimeSlot(NamedTuple)으로 반환.
-        엣지가 없다면 TimeSlot(0, False, None)을 반환.
+        subtask_name 기준으로 in/out 방향의 모든 엣지를 확인하여,
+        Critical/Non-critical 간 '압축' 로직으로 Interval을 계산한 뒤,
+        TimeSlot(NamedTuple: (Interval, IsCritical, LinkedSubtask)) 형태로 반환.
+
+        - Critical 엣지가 여러 개 있으면 모두 같은 Interval이어야 함
+        (서로 다르면 충돌로 간주 -> TimeSlot(0, False, None) 반환)
+        - Non-critical 엣지는 Interval 중 최댓값을 취함
+        - Critical과 Non-critical이 동시에 존재한다면,
+        Critical interval >= Non-critical 최댓값 이어야 함
+        (그렇지 않으면 충돌로 간주 -> TimeSlot(0, False, None) 반환)
+        - 반환 시, LinkedSubtask(세 번째 필드)는
+        실제 어느 엣지를 기준으로 할지 애매할 수 있으므로
+        여기서는 (critical이 있으면 그 첫 번째, non-critical이면 최댓값 가진 것)만 예시로 취함.
+        - 엣지가 전혀 없으면 TimeSlot(0, False, None)을 반환.
         """
+
         if direction == "out":
             edges = list(self.constraints.out_edges(subtask_name, data=True))
         elif direction == "in":
@@ -39,21 +51,61 @@ class ConstraintHandler:
             )
             return TimeSlot(0, False, None)
 
-        # interval이 가장 작은 엣지를 선택
-        min_edge = min(
-            (
-                (
-                    data["info"]["Interval"],
-                    data["info"]["IsCritical"],
-                    (
-                        v if direction == "out" else u
-                    ),  # out이면 (subtask -> v), in이면 (u -> subtask)
+        critical_intervals = []
+        non_critical_intervals = []
+
+        # 1) Critical / Non-critical 엣지를 구분하여 수집
+        for u, v, data in edges:
+            interval = data["info"]["Interval"]
+            is_crit = data["info"]["IsCritical"]
+            # direction = 'out' 이면 (subtask_name -> v), 'in'이면 (u -> subtask_name)이므로
+            linked_subtask = v if direction == "out" else u
+
+            if is_crit:
+                critical_intervals.append((interval, linked_subtask))
+            else:
+                non_critical_intervals.append((interval, linked_subtask))
+
+        # 2) Critical 엣지 처리
+        if critical_intervals:
+            # 여러 Critical Interval이 있으면 모두 같아야 함
+            distinct_crit_vals = {t[0] for t in critical_intervals}
+            if len(distinct_crit_vals) > 1:
+                # 서로 다른 값이 존재 -> 충돌
+                log.debug(
+                    f"[get_temporal_constraints] Multiple distinct critical intervals found "
+                    f"for subtask {subtask_name}: {distinct_crit_vals}. "
+                    "Returning TimeSlot(0, False, None)."
                 )
-                for u, v, data in edges
-            ),
-            key=lambda x: x[0],  # interval 기준 최소값
-        )
-        return TimeSlot(*min_edge)
+                return TimeSlot(0, False, None)
+
+            # critical_intervals는 모두 같은 interval이므로 아무거나 취함
+            crit_interval, crit_linked = critical_intervals[0]
+
+            # 3) Non-critical 엣지도 있으면 최댓값 추출
+            if non_critical_intervals:
+                max_noncrit_interval, max_noncrit_linked = max(
+                    non_critical_intervals, key=lambda x: x[0]
+                )
+                # Critical interval >= Non-critical의 최댓값이어야 모순 없음
+                if crit_interval < max_noncrit_interval:
+                    log.debug(
+                        f"[get_temporal_constraints] Critical interval {crit_interval} < "
+                        f"max non-critical {max_noncrit_interval}, conflict. "
+                        "Returning TimeSlot(0, False, None)."
+                    )
+                    return TimeSlot(0, False, None)
+                # 정상이라면, critical interval 그대로 사용
+                return TimeSlot(crit_interval, True, crit_linked)
+            else:
+                # Non-critical 엣지가 없으면, critical interval 그대로 반환
+                return TimeSlot(crit_interval, True, crit_linked)
+
+        # 4) Critical 엣지가 없는 경우 -> Non-critical 최댓값만 있으면 됨
+        else:
+            # Non-critical만 있으므로, Interval 중 최댓값을 취한다
+            max_interval, max_linked = max(non_critical_intervals, key=lambda x: x[0])
+            return TimeSlot(max_interval, False, max_linked)
 
     def get_feasible_subtasks(
         self,
@@ -168,11 +220,7 @@ class ConstraintHandler:
 
         # 종합
         if only_crit_time is not None:
-            # critical
-            # 만약 critical 시점이 noncrit_earliest보다 작으면 모순
-            # 왜냐면, noncrit_earliest 이후에는 언제든 가능해야 하는데
-            if only_crit_time < non_critical_earliest:
-                return (None, False)
+
             return (only_crit_time, True)
         else:
             # critical 없음 -> noncrit_earliest 이후면 언제든

@@ -44,7 +44,7 @@ graph [
     target 4
     info [
       Type "After"
-      Interval 5
+      Interval 10
       IsCritical 1
     ]
   ]
