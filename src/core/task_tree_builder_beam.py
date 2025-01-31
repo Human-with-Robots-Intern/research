@@ -5,7 +5,7 @@ from typing import List, Optional
 
 import networkx as nx
 
-from core.task import Duration, Subtask
+from core.task import Duration, Execution, Subtask
 from task_management import ConstraintHandler, CostCalculator, NavigationManager
 from utils.constants import DEFAULT_BEAM_WIDTH, DEFAULT_SIMULATION_DEPTH
 from utils.dataclass import CompletedEntry, SchedulerState, SimulationNode
@@ -84,9 +84,6 @@ class Scheduler:
                 best_solutions.append(curr_node)
                 continue
 
-            if curr_state.subtask.name == "Wash Egg":
-                print(11111)
-
             # 1) 현재 시점에 "즉시 실행 가능한" 서브태스크 찾기
             # 제약에 들어갈 수 있는 서브태스크인지 확인 필요
             feasible_subs, not_yet_feasible_subs = (
@@ -94,10 +91,14 @@ class Scheduler:
             )
 
             # --- (2) 실행 가능한 서브태스크가 없다면 => '대기(Wait)' 로직 ---
-
             for sub, earliest_start_time, is_critical in sorted(
                 not_yet_feasible_subs, key=lambda x: x[1]
             ):
+                if curr_state.subtask.name.startswith(
+                    "Wash Egg"
+                ) and sub.name.startswith("Prepare"):
+                    print("Wash Egg")
+                    print(sub.name)
                 # 각 서브태스크별 earliest_time만 뽑아서 최솟값 찾기
                 wait_time = earliest_start_time - curr_state.current_time
 
@@ -110,7 +111,9 @@ class Scheduler:
                     duration=Duration(interval=wait_time, type="Controllable"),
                     repetition=1,
                     type="Wait",
-                    execution=None,
+                    execution=Execution(
+                        objects=None, primitive_actions=[f"Wait {wait_time}"]
+                    ),
                     temporal_constraints=None,
                 )
 

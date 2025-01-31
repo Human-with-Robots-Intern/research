@@ -134,7 +134,7 @@ class ConstraintHandler:
 
             if is_exact:
                 nav_time, _ = self.nav_manager.compute_navigation_time(node, sub)
-                earliest_start -= nav_time
+
                 # Critical => current_time == earliest_start일 때만 지금 실행 가능
                 if abs(current_time - earliest_start) < 1e-9:
                     feasible_subtasks.append(sub)
