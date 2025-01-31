@@ -91,52 +91,48 @@ class Scheduler:
             )
 
             # --- (2) 실행 가능한 서브태스크가 없다면 => '대기(Wait)' 로직 ---
-            if not feasible_subs:
-                if not_yet_feasible_subs:
-                    # 각 서브태스크별 earliest_time만 뽑아서 최솟값 찾기
-                    next_start_constraints = min(
-                        not_yet_feasible_subs, key=lambda x: x[1]
+
+            if not_yet_feasible_subs:
+                # 각 서브태스크별 earliest_time만 뽑아서 최솟값 찾기
+                next_start_constraints = min(not_yet_feasible_subs, key=lambda x: x[1])
+                next_start_time = next_start_constraints[1]
+                wait_time = next_start_time - curr_state.current_time
+
+                if wait_time > 0:
+                    wait_sub = Subtask(
+                        task_name=None,
+                        name="Wait for " + str(next_start_constraints[0].name),
+                        duration=Duration(interval=wait_time, type="Controllable"),
+                        repetition=1,
+                        type="Wait",
+                        execution=None,
+                        temporal_constraints=None,
                     )
-                    next_start_time = next_start_constraints[1]
-                    wait_time = next_start_time - curr_state.current_time
-
-                    if wait_time > 0:
-                        wait_sub = Subtask(
-                            task_name=None,
-                            name="Wait for " + str(next_start_constraints[0].name),
-                            duration=Duration(interval=wait_time, type="Controllable"),
-                            repetition=1,
-                            type="Wait",
-                            execution=None,
-                            temporal_constraints=None,
-                        )
-                        new_completed = curr_state.completed_subtasks + [
-                            CompletedEntry(
-                                subtask=wait_sub,
-                                start_time=curr_state.current_time,
-                                end_time=curr_state.current_time + wait_time,
-                            )
-                        ]
-                        # 대기 분량만큼 시간만 업데이트한 새 상태
-                        new_state = SchedulerState(
+                    new_completed = curr_state.completed_subtasks + [
+                        CompletedEntry(
                             subtask=wait_sub,
-                            completed_subtasks=new_completed,
-                            remaining_subtasks=curr_state.remaining_subtasks,
-                            current_time=curr_state.current_time + wait_time,
-                            agent_location=curr_state.agent_location,
+                            start_time=curr_state.current_time,
+                            end_time=curr_state.current_time + wait_time,
                         )
+                    ]
+                    # 대기 분량만큼 시간만 업데이트한 새 상태
+                    new_state = SchedulerState(
+                        subtask=wait_sub,
+                        completed_subtasks=new_completed,
+                        remaining_subtasks=curr_state.remaining_subtasks,
+                        current_time=curr_state.current_time + wait_time,
+                        agent_location=curr_state.agent_location,
+                    )
 
-                        new_cost = curr_heuristic + wait_time
+                    new_cost = curr_heuristic + wait_time
 
-                        new_node = SimulationNode(
-                            heuristic_cost=new_cost,
-                            depth=curr_depth + 1,
-                            tie_breaker=next(counter),
-                            state=new_state,
-                        )
-                        queue.put(new_node)
-                # 다른 서브태스크가 전혀 없어서 not_yet_feasible_subs도 비었다면 => 확장 불가
-                continue
+                    new_node = SimulationNode(
+                        heuristic_cost=new_cost,
+                        depth=curr_depth + 1,
+                        tie_breaker=next(counter),
+                        state=new_state,
+                    )
+                    queue.put(new_node)
 
             # --- (3) 실행 가능한 각 서브태스크 확장 ---
             expanded_nodes: List[SimulationNode] = []
@@ -194,12 +190,12 @@ class Scheduler:
                 else:
                     break
 
-        # --- (5) 모두 확장 완료 후, best_solutions에서 비용 최소 해를 선정 ---
+        # --- (5) 모두 확장 완료 후, best_solutions에서 비용 최대 해를 선정 ---
         if not best_solutions:
             return None
 
         best_solutions.sort(key=lambda nd: nd.heuristic_cost, reverse=True)
-        best_node = best_solutions[0]  # 최소 비용 해
+        best_node = best_solutions[0]  # 최대 비용 해
         return best_node.state
 
     def _extract_state(

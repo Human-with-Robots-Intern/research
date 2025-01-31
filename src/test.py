@@ -77,15 +77,18 @@ def main():
 
     result_schedule = []
     current_state = get_init_state(subtasks)
-
-    while current_state.remaining_subtasks:
+    is_end = False
+    while not is_end:
         next_state = scheduler.get_next_state(current_state, constraints)
 
         if args.simulation:
             execute_subtask(controller, current_state.subtask)
 
-        result_schedule.append(current_state.subtask)
         current_state = next_state
+        result_schedule.append(current_state.subtask)
+        if not current_state.remaining_subtasks:
+            is_end = True
+
         if current_state is None:
             log.error("No feasible solution found.")
             break
