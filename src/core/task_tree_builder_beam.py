@@ -5,7 +5,7 @@ from typing import List, Optional
 
 import networkx as nx
 
-from core.task import Subtask
+from core.task import Duration, Subtask
 from task_management import ConstraintHandler, CostCalculator, NavigationManager
 from utils.constants import DEFAULT_BEAM_WIDTH, DEFAULT_SIMULATION_DEPTH
 from utils.dataclass import CompletedEntry, SchedulerState, SimulationNode
@@ -26,9 +26,9 @@ class Scheduler:
         self.beam_width = beam_width
         self.simulation_depth = simulation_depth
 
-        self.constraint_handler = ConstraintHandler(init_constraints)
-        self.cost_calculator = CostCalculator(self.constraint_handler)
         self.nav_manager = NavigationManager()
+        self.constraint_handler = ConstraintHandler(init_constraints, self.nav_manager)
+        self.cost_calculator = CostCalculator(self.constraint_handler)
 
         self._counter = itertools.count()  # tie-breaker용
 
@@ -85,8 +85,9 @@ class Scheduler:
                 continue
 
             # 1) 현재 시점에 "즉시 실행 가능한" 서브태스크 찾기
+            # 제약에 들어갈 수 있는 서브태스크인지 확인 필요
             feasible_subs, not_yet_feasible_subs = (
-                self.constraint_handler.get_feasible_subtasks(curr_state)
+                self.constraint_handler.get_feasible_subtasks(curr_node)
             )
 
             # --- (2) 실행 가능한 서브태스크가 없다면 => '대기(Wait)' 로직 ---
@@ -102,8 +103,8 @@ class Scheduler:
                     if wait_time > 0:
                         wait_sub = Subtask(
                             task_name=None,
-                            name="Wait for" + str(next_start_constraints[0].name),
-                            duration=wait_time,
+                            name="Wait for " + str(next_start_constraints[0].name),
+                            duration=Duration(interval=wait_time, type="Controllable"),
                             repetition=1,
                             type="Wait",
                             execution=None,
@@ -146,8 +147,6 @@ class Scheduler:
                 )
                 copied_sub = copy.deepcopy(candidate_sub)
 
-                # 서브태스크 실제 실행 시간 = subtask.duration + nav_time
-                # (주의: subtask.duration 자체를 덮어쓰지 않는 편이 안전)
                 exec_time = candidate_sub.duration.interval + nav_time
                 start_time = curr_state.current_time
                 end_time = start_time + exec_time

@@ -6,8 +6,8 @@ import numpy as np
 
 
 class Duration:
-    def __init__(self, duration_type: str, interval: int):
-        self.type = duration_type
+    def __init__(self, type: str, interval: int):
+        self.type = type
         self.interval = interval
 
     def __repr__(self):
@@ -16,7 +16,7 @@ class Duration:
     @classmethod
     def from_dict(cls, data: Dict) -> "Duration":
         return cls(
-            duration_type=data["Type"],
+            type=data["Type"],
             interval=data["Interval"],
         )
 
@@ -132,7 +132,7 @@ class Subtask:
                 type=self.type,
                 repetition=1,
                 duration=Duration(
-                    duration_type=self.duration.type,
+                    type=self.duration.type,
                     interval=self.duration.interval,
                 ),
                 execution=self.execution,
@@ -257,6 +257,3 @@ class TaskGraphBuilder:
                         raise ValueError("Constrained Node does not exist")
         nx.write_gml(self.graph, "graph.gml")
         return self.graph
-
-
-
