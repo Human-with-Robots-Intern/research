@@ -1,8 +1,28 @@
 from typing import List
 
 from core.task import Subtask, Task, TaskGraphBuilder
-from utils.constants import PRIMITIVE_ACTION_DURATION, PRIMITIVE_ACTION_SET
+from utils.constants import PRIMITIVE_ACTION_DURATION, PRIMITIVE_ACTION_SET, KNOWLEDGE_PATH
+from 
 
+## 유사도 검사를 위한 import
+import json
+import requests
+
+API_URL = (
+    "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+)
+api_token = "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"
+headers = {"Authorization": f"Bearer {api_token}"}
+
+
+def query(payload):
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response.json()
+
+def load_object_Ids():
+    with open(KNOWLEDGE_PATH / "FloorPlan1_physics_environment.json", "r") as f:
+        objectIds = json.load(f)
+    return objectIds
 
 def tasks_to_subtasks(tasks, mode="all"):
     subtasks = []
@@ -46,7 +66,7 @@ def adjust_subtasks_duration(subtasks: List[Subtask]) -> List[Subtask]:
         subtask.duration.interval = _get_action_duration(subtask)
     return subtasks
 
-
+## sinkbasin 이랑 navgate_to 추가
 def revision_primitive_actions(tasks):
     """Check and revision if the PLACE action is followed by a NAVIGATE action."""
     for task in tasks:
@@ -64,6 +84,30 @@ def revision_primitive_actions(tasks):
             subtask.execution.primitive_actions = updated_actions
     return tasks
 
+def check_obj_id(tasks):
+    objectIds = load_object_Ids()
+    for task in tasks:
+        for subtask in task.subtasks:
+            actions = subtask.execution.primitive_actions
+            for i, action in enumerate(actions):
+                step = action.split(" ")[0] ## action 이름
+                to_obj = action.split(" ")[1] ## object의 이름
+                if to_obj not in objectIds[step]:
+                    # 유사도 검사
+                    data = query(
+                                    {
+                                        "inputs": {
+                                            "source_sentence": f"{to_obj}",
+                                            "sentences": objectIds[step],
+                                        }
+                                    }
+                                )
+                    # 가장 유사한 object의 index
+                    idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[0][0]
+                    real_obj_id = objectIds[step][idx]
+                    
+                
+    return tasks
 
 def build_tasks_and_constraints(
     task_data: dict, enable_decomposition: bool
@@ -78,6 +122,7 @@ def build_tasks_and_constraints(
     """
     tasks = Task.parse_instruction(task_data)
     tasks = revision_primitive_actions(tasks)
+    tasks = check_obj_id(tasks)
 
     if enable_decomposition:
         for task in tasks:
