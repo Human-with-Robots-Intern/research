@@ -1,21 +1,20 @@
-from typing import Any, List, NamedTuple, Optional, Tuple  # NamedTuple 임포트 추가
+from typing import Any, List, Optional, Tuple
 
 import networkx as nx
 
 from core.task import Subtask
+from utils.dataclass import SchedulerState, TimeSlot
 from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=False)
 
 
-class TimeSlot(NamedTuple):
-    interval: int
-    is_critical: bool
-    related_subtask_name: Optional[str]
-
-
 class ConstraintHandler:
     def __init__(self, constraints: nx.DiGraph):
+        """
+        constraints: nx.DiGraph
+          - 각 edge(u->v)에 "info": {"Interval": float, "IsCritical": bool}가 존재
+        """
         self.constraints = constraints
 
     def get_temporal_constraints(self, subtask_name: str, direction: str) -> TimeSlot:
@@ -54,181 +53,119 @@ class ConstraintHandler:
         )
         return TimeSlot(*min_edge)
 
-    def validate_candidate_subtask(
-        self, current_state: Any, candidate_subtask: Subtask
-    ) -> bool:
+    def get_feasible_subtasks(
+        self,
+        state: "SchedulerState",
+    ) -> Tuple[List["Subtask"], List[Tuple["Subtask", float, bool]]]:
         """
-        1. candidate_subtask로 들어오는 모든 제약(엣지)을 확인.
-        2. 현재 실행된 partial_plan 상에서 해당 제약을 만족하는 서브태스크가 모두 존재하는지 확인(개수 비교).
-        3. 긴급(IsCritical)한 제약이면 interval(=time_slot)이 0 이상이어야 함.
-        """
-        # 1) partial_plan 중 candidate_subtask의 선행서브태스크로 연결된 것들
-        constraint_subtasks = self._get_constraint_subtasks(
-            current_state, candidate_subtask.name
-        )
-        # 2) candidate_subtask의 실제 모든 incoming constraints
-        all_incoming = self.get_incoming_constraints(candidate_subtask.name)
+        현재 스케줄 상태(state)에서,
+        아직 실행 안 된 서브태스크들을 돌면서
+        - 지금 당장(current_time) 실행 가능한 서브태스크들의 목록 (feasible)
+        - 아직 시간이 안 되어 대기해야 하는 서브태스크들 목록 (not_yet)
+          --> (Subtask, earliest_start, is_critical)
 
-        # 선행 서브태스크 개수 vs. incoming edge 개수 비교
-        if len(constraint_subtasks) != len(all_incoming):
-            return False
+        return (feasible_subtasks, not_yet_list)
+        """
+        feasible_subtasks: List["Subtask"] = []
+        not_yet_list: List[Tuple["Subtask", float, bool]] = []
 
-        # 3) 긴급 제약의 interval 체크
-        time_slots = self._get_time_slot(current_state, candidate_subtask)
-        return all((ts.interval >= 0) if ts.is_critical else True for ts in time_slots)
+        current_time = state.current_time
+        candidates = state.remaining_subtasks
 
-    def get_expandable_subtasks(self, node: Any) -> List["Subtask"]:
-        """
-        현재 상태에서 (모든 제약이 충족되어) 바로 실행 가능한 서브태스크들을 반환.
-        """
-        return [
-            subtask
-            for subtask in node.state.remaining_subtasks
-            if self.validate_candidate_subtask(node.state, subtask)
-        ]
-
-    # -----------------------------------------------------------------------
-    #  Private helpers
-    # -----------------------------------------------------------------------
-    def _get_constraint_subtasks(
-        self, current_state: Any, subtask_name: str
-    ) -> List[Subtask]:
-        """
-        current_state.partial_plan 중 subtask_name으로 들어오는
-        선행노드(=incoming edge)와 이름이 정확히 일치하는 서브태스크를 반환.
-        """
-        incoming_nodes = {u for u, _ in self.constraints.in_edges(subtask_name)}
-        return [
-            done_subtask
-            for done_subtask in current_state.completed_subtasks
-            if done_subtask.name in incoming_nodes
-        ]
-
-    def _get_time_slot(self, current_state: Any, subtask: Subtask) -> List[TimeSlot]:
-        """
-        subtask로 들어오는 모든 엣지에 대해 TimeSlot 리스트를 구성.
-        - partial_plan에 해당 선행 서브태스크가 없으면 디폴트 TimeSlot(0, False, None)을 반환.
-        """
-        constraint_subtasks = self._get_constraint_subtasks(current_state, subtask.name)
-        if not constraint_subtasks:
-            return [TimeSlot(0, False, None)]
-
-        time_slots: List[TimeSlot] = []
-        for predecessor in constraint_subtasks:
-            info = self.constraints.get_edge_data(predecessor.name, subtask.name)
-            if not info:
-                # 엣지 데이터가 없으면 디폴트
-                time_slots.append(TimeSlot(0, False, None))
+        for sub in candidates:
+            earliest_start, is_exact = self._calc_earliest_start(state, sub)
+            if earliest_start is None:
+                # 전혀 실행 불가능(=선행 미완료 or Critical 충돌 등)
                 continue
 
-            interval = info["info"]["Interval"]
-            is_critical = info["info"]["IsCritical"]
-            time_slots.append(TimeSlot(interval, is_critical, predecessor.name))
-
-        return time_slots
-
-    def get_incoming_constraints(self, subtask_name: str) -> List[TimeSlot]:
-        """
-        subtask_name으로 들어오는 모든 엣지 정보를 TimeSlot 리스트로 반환.
-        (interval, is_critical, 선행노드명)
-        """
-        return [
-            TimeSlot(
-                data["info"]["Interval"],
-                data["info"]["IsCritical"],
-                u,  # u->v 형태에서 u가 선행
-            )
-            for u, v, data in self.constraints.in_edges(subtask_name, data=True)
-        ]
-
-    def compress_time_slots(
-        self,
-        current_state: Any,
-        subtask: Subtask,
-    ) -> Tuple[Optional[int], Optional[bool]]:
-        """
-        여러 constraints(TimeSlot) 중 하나를 선택하는 로직.
-        우선순위(긴급/비긴급)와 interval 값에 따라 하나의 (interval, is_critical) 쌍을 결정하거나,
-        모호/충돌 시 (None, None)을 반환한다.
-
-        1) 여러 critical(critical) time_slots가 존재하는데 interval이 제각각이면 -> 충돌 => (None, None)
-           - 만약 interval 값이 전부 동일하면 그중 하나 선택.
-
-        2) critical time_slot과 non_critical time_slot이 동시에 존재할 때:
-           - critical의 interval이 non_critical 중 최댓값보다 크면 critical 선택.
-           - 그렇지 않으면 충돌 => (None, None)
-
-        3) critical time_slot만 있다면, 그 하나를 선택.
-
-        4) non_critical time_slot만 있다면, interval이 가장 큰 것을 선택.
-
-        5) 그 외(음수나 0 등으로 바로 실행가능하다고 해석) 'expandable'한 time_slots가 있다면, 첫 번째를 선택.
-
-        6) 아무것도 만족하지 못하면 => (None, None)
-        """
-
-        # 예: get_time_slots는 subtask로 들어오는 모든 constraint를
-        # TimeSlot(interval, is_critical, related_subtask_name) 형태로 반환한다고 가정
-        time_slots = self._get_time_slots(current_state, subtask)
-
-        # (interval, is_critical) 형태로 필드를 추출
-        # 여기서는 subtask_name은 우선 사용하지 않는다고 가정
-        raw_slots = [(ts.interval, ts.is_critical) for ts in time_slots]
-
-        # 1) 긴급(critical) & interval > 0
-        critical_time_slots = [
-            (interval, crit) for interval, crit in raw_slots if crit and interval > 0
-        ]
-        # 2) 비긴급(non-critical) & interval > 0
-        not_critical_time_slots = [
-            (interval, crit)
-            for interval, crit in raw_slots
-            if not crit and interval > 0
-        ]
-        # 3) 즉시/여유 허용 (여기서는 interval <= 0 은 '지체 없이 실행 가능' 등으로 해석)
-        expandable_slots = [
-            (interval, crit)
-            for interval, crit in raw_slots
-            if (crit and interval == 0) or (not crit and interval <= 0)
-        ]
-
-        # --- 판단 로직 ---
-
-        # A. 긴급 time_slot이 여러 개 있는지?
-        if len(critical_time_slots) > 1:
-            # 모두 interval이 같은지 체크
-            unique_intervals = {slot[0] for slot in critical_time_slots}
-            if len(unique_intervals) == 1:
-                # 예: 모두 interval=5, is_critical=True라면 -> pick
-                return critical_time_slots[0]
+            if is_exact:
+                # Critical => current_time == earliest_start일 때만 지금 실행 가능
+                if abs(current_time - earliest_start) < 1e-9:
+                    feasible_subtasks.append(sub)
+                elif current_time < earliest_start:
+                    # 대기 필요
+                    not_yet_list.append((sub, earliest_start, True))
+                else:
+                    # 이미 시간을 넘겼다면 실행 불가
+                    pass
             else:
-                # 긴급인데 interval이 다르다면 충돌 -> None
-                return None, None
+                # Non-critical => current_time >= earliest_start이면 바로 실행 가능
+                if current_time >= earliest_start - 1e-9:
+                    feasible_subtasks.append(sub)
+                else:
+                    # 아직 시간을 만족 못함
+                    not_yet_list.append((sub, earliest_start, False))
 
-        # B. 긴급과 비긴급이 모두 있는 경우
-        elif critical_time_slots and not_critical_time_slots:
-            # critical는 하나뿐이므로 critical_time_slots[0]
-            critical_interval, _ = critical_time_slots[0]
-            max_not_critical_interval = max(
-                interval for interval, _ in not_critical_time_slots
+        return feasible_subtasks, not_yet_list
+
+    def _calc_earliest_start(
+        self, state: "SchedulerState", sub: "Subtask"
+    ) -> Tuple[Optional[float], bool]:
+        """
+        sub(후행 서브태스크)에 대한
+         - 모든 선행(in-edge) 확인 -> interval, is_critical
+         - 선행이 아직 완료 안 됐으면 (None, False)
+         - Critical 여러 개면 모두 같은 시점이어야 -> 하나로 확정, 다르면 불가
+         - Non-critical은 '선행종료+interval' 중 가장 큰 값
+         - Critical과 Non-critical이 동시에 있으면
+           critical_time >= max(non_critical_times) 이어야
+         - 최종 (earliest_start, is_exact)을 반환:
+           -> earliest_start가 None이면 '전혀 불가능'
+           -> is_exact=True이면 '정확히 earliest_start'에만 가능
+              False면 'earliest_start 이후' 언제든 가능
+        """
+        print(sub)
+        in_edges = list(self.constraints.in_edges(sub.name, data=True))
+        if not in_edges:
+            # 선행이 전혀 없는 경우 -> 아무때나 가능
+            return (0.0, False)
+
+        critical_times = []
+        non_critical_earliest = 0.0
+
+        for pred_name, _, edge_data in in_edges:
+            info = edge_data["info"]
+            interval = info["Interval"]
+            is_crit = info["IsCritical"]
+
+            # 선행 Subtask 완료 기록 탐색
+            pred_entry = next(
+                (ce for ce in state.completed_subtasks if ce.subtask.name == pred_name),
+                None,
             )
-            if critical_interval > max_not_critical_interval:
-                return critical_time_slots[0]  # 긴급 선택
+            if not pred_entry:
+                # 아직 선행이 완료 안 됨 => 현재로선 실행 불가
+                return (None, False)
+
+            candidate_start = pred_entry.end_time + interval
+            if is_crit:
+                critical_times.append(candidate_start)
             else:
-                # 더 큰 비긴급이 존재 or 비교 불가 -> 충돌
-                return None, None
+                # Non-critical이면 최대값을 기록
+                if candidate_start > non_critical_earliest:
+                    non_critical_earliest = candidate_start
 
-        # C. 긴급만 있다면 (1개), 그거 선택
-        elif critical_time_slots:
-            return critical_time_slots[0]
+        # Critical 여러 개 -> 모두 같은 시점이어야
+        if len(critical_times) > 1:
+            # unique set으로 비교
+            unique_crit = set(critical_times)
+            if len(unique_crit) != 1:
+                # 서로 다른 시점을 요구 = 모순
+                return (None, False)
+            only_crit_time = next(iter(unique_crit))  # 그 하나
+        elif len(critical_times) == 1:
+            only_crit_time = critical_times[0]
+        else:
+            only_crit_time = None
 
-        # D. 비긴급만 있다면, 그 중 interval이 가장 큰 것
-        elif not_critical_time_slots:
-            return max(not_critical_time_slots, key=lambda x: x[0])
-
-        # E. 둘 다 없고 expandable만 있다면, 첫 번째 하나를 선택 (또는 다른 로직)
-        elif expandable_slots:
-            return expandable_slots[0]
-
-        # F. 아무것도 없으면 (None, None)
-        return None, None
+        # 종합
+        if only_crit_time is not None:
+            # critical
+            # 만약 critical 시점이 noncrit_earliest보다 작으면 모순
+            # 왜냐면, noncrit_earliest 이후에는 언제든 가능해야 하는데
+            if only_crit_time < non_critical_earliest:
+                return (None, False)
+            return (only_crit_time, True)
+        else:
+            # critical 없음 -> noncrit_earliest 이후면 언제든
+            return (non_critical_earliest, False)
