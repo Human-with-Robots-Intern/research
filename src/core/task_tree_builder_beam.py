@@ -5,24 +5,27 @@ from typing import List, Optional
 
 import networkx as nx
 
+from core.agent import Agent
 from core.task import Duration, Execution, Subtask
 from task_management import ConstraintHandler, CostCalculator, NavigationManager
 from utils.constants import DEFAULT_BEAM_WIDTH, DEFAULT_SIMULATION_DEPTH
 from utils.dataclass import CompletedEntry, SchedulerState, SimulationNode
+from utils.task_util import get_monitoring_subtask
 from utils.util import create_module_logger
 
-log = create_module_logger(module_name=__name__, is_file_handler=False)
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class Scheduler:
 
     def __init__(
         self,
+        agent: Agent,
         init_constraints: nx.DiGraph,
         beam_width: int = DEFAULT_BEAM_WIDTH,
         simulation_depth: int = DEFAULT_SIMULATION_DEPTH,
     ):
-
+        self.agent = agent
         self.beam_width = beam_width
         self.simulation_depth = simulation_depth
 
@@ -37,14 +40,10 @@ class Scheduler:
         parent_state: SchedulerState,
         current_constraints: nx.DiGraph,
     ) -> Optional[SchedulerState]:
-        """
-        1) 현재 Subtask에 대한 out-edge(temporal constraint) 확인.
-        2) separation_interval > 0이면 time_slot 기반 탐색(_simulate_time_slot),
-           아니면 lookahead 기반 탐색(_simulate_lookahead).
-        3) 탐색 결과 중 '다음으로 실행할 Subtask'를 골라 SchedulerState로 반환.
-        """
+
         # 제약 갱신
         self.constraint_handler.constraints = current_constraints
+
         child_state = self._simulate_beam_search(parent_state)
 
         if not child_state:
@@ -68,6 +67,25 @@ class Scheduler:
             state=init_state,
         )
         queue.put(init_node)
+
+        # Bayesian 
+        outgoing_time_slot = self.constraint_handler.get_temporal_constraints(
+            init_state.subtask.name, "out"
+        )
+        if outgoing_time_slot.is_critical:
+            monitoring_trigger_sub_name = init_state.subtask.name
+            monitoring_end_sub_name = outgoing_time_slot.related_subtask_name
+            monitoring_timing = (
+                init_state.current_time + outgoing_time_slot.interval * 0.7
+            )
+            monitoring_subtask = get_monitoring_subtask()
+            log.debug(f"{monitoring_trigger_sub_name} -> {monitoring_end_sub_name}")
+            log.debug(f"current time {init_state.current_time}")
+            log.debug(f"Monitoring added at {monitoring_timing}")
+            log.debug(f"Monitoring subtask: {monitoring_subtask}")
+
+            # monitoring timing이 도래하면, 반드시 monitoring subtask를 수행해야 함.
+            # subtask_start_time < monitering_time < subtask_end_time 일 때 해당 subtask 대신 monitering subtask를 넣고 싶어.
 
         best_solutions = []
 
@@ -94,11 +112,7 @@ class Scheduler:
             for sub, earliest_start_time, is_critical in sorted(
                 not_yet_feasible_subs, key=lambda x: x[1]
             ):
-                if curr_state.subtask.name.startswith(
-                    "Wash Egg"
-                ) and sub.name.startswith("Prepare"):
-                    print("Wash Egg")
-                    print(sub.name)
+
                 # 각 서브태스크별 earliest_time만 뽑아서 최솟값 찾기
                 wait_time = earliest_start_time - curr_state.current_time
 
@@ -200,13 +214,13 @@ class Scheduler:
                     break
 
         # --- (5) 모두 확장 완료 후, best_solutions에서 비용 최대 해를 선정 ---
-        log.info(f"Found {len(best_solutions)} solutions.")
 
         if not best_solutions:
             return None
 
         best_solutions.sort(key=lambda nd: nd.heuristic_cost, reverse=True)
         best_node = best_solutions[0]  # 최대 비용 해
+
         return best_node.state
 
     def _extract_state(
