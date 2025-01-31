@@ -180,7 +180,7 @@ class Scheduler:
             for sub in expandable_subtasks:
                 if sub.name == related_subtask_name:
                     # critical -> leftover == 0이어야 실행 가능
-                    if is_critical and leftover != 0:
+                    if is_critical and leftover >= 0:
                         continue
                     # non-critical -> leftover <= 0이어야 실행 가능
                     if (not is_critical) and leftover > 0:
@@ -194,7 +194,11 @@ class Scheduler:
                 copied_sub = copy.deepcopy(sub)
                 copied_sub.duration.interval += nav_time
 
-                if copied_sub.duration.interval > leftover and leftover > 0 and is_critical:
+                if (
+                    copied_sub.duration.interval > leftover
+                    and leftover > 0
+                    and is_critical
+                ):
                     # separation_interval 내에 실행 불가
                     continue
 
@@ -225,6 +229,7 @@ class Scheduler:
                     )
                 )
                 is_expanded_curr_step = True
+
             if is_critical and leftover > 0 and not is_expanded_curr_step:
                 wait_sub = Subtask(
                     task_name=None,
@@ -270,7 +275,7 @@ class Scheduler:
         )
 
         best_result = sorted_paths[0] if sorted_paths else None
-
+        
         return best_result
 
     # ------------------------------------------------

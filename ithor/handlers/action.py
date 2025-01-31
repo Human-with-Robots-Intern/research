@@ -120,7 +120,8 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        return 1
+        elapsed_time = 1
+        return elapsed_time
 
     def put(self, target_id: str):
         elapsed_time = 1
@@ -141,9 +142,9 @@ class Action:
             self.controller.step("MoveAhead")
             self.controller.step(action="DropHandObject", forceAction=True)
             elapsed_time += 1
-        self.log_file.write(
-            "Alternative Action: Drop: " + self.last_action_success(self.controller)
-        )
+            self.log_file.write(
+                "Alternative Action: Drop: " + self.last_action_success(self.controller)
+            )
 
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
@@ -167,7 +168,8 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        return 1
+        elapsed_time = 1
+        return elapsed_time
 
     def toggleon(self, object_id: str):
         self.controller.step(action="ToggleObjectOn", objectId=object_id)
@@ -177,7 +179,8 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        return 1
+        elapsed_time = 1
+        return elapsed_time
 
     def toggleoff(self, object_id: str):
         self.controller.step(action="ToggleObjectOff", objectId=object_id)
@@ -187,7 +190,8 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        return 1
+        elapsed_time = 1
+        return elapsed_time
 
     def open(self, object_id: str):
         elapsed_time = 0
@@ -222,7 +226,8 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        return 1
+        elapsed_time = 1
+        return elapsed_time
 
     def mornitoring(self, object_id: str):
         # object를 바라보게 하고 다시 돌아봐야함
@@ -257,4 +262,9 @@ class Action:
             time.sleep(0.2)
         self.controller.step("Pass")
         time.sleep(1)
-        return 0.1
+        elapsed_time = 0.1
+        return elapsed_time
+
+    def wait(self, wait_time):
+        time.sleep(wait_time)
+        return wait_time
