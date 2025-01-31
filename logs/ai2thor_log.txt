@@ -1,0 +1,33 @@
+Executing Subtask: Wash Plate_part_1
+open Cabinet|+00.72|+02.02|-02.46: success
+close Cabinet|+00.72|+02.02|-02.46: success
+toggle on Faucet|-02.15|+00.91|-01.50: success
+put Sink|-01.90|+00.97|-01.50|SinkBasin: success
+toggle off Faucet|-02.15|+00.91|-01.50: success
+put CounterTop|+00.69|+00.95|-02.48: failure. Can't place an object if Agent isn't holding anything
+Alternative Action: Drop: failure. InvalidOperationException: Nothing is in the agent's hand to drop!
+Executing Subtask: Wash Egg
+open Fridge|-02.10|+00.00|+01.07: success
+close Fridge|-02.10|+00.00|+01.07: success
+toggle on Faucet|-02.15|+00.91|-01.50: success
+put Sink|-01.90|+00.97|-01.50|SinkBasin: success
+toggle off Faucet|-02.15|+00.91|-01.50: success
+put CounterTop|+00.69|+00.95|-02.48: failure. Can't place an object if Agent isn't holding anything
+Alternative Action: Drop: failure. InvalidOperationException: Nothing is in the agent's hand to drop!
+Executing Subtask: Wait for Prepare Egg Fry
+Executing Subtask: Prepare Egg Fry
+pickup Pan|+00.72|+00.90|-02.42: success
+put StoveBurner|-00.47|+00.92|-02.58: success
+toggle on StoveKnob|-00.48|+00.88|-02.19: success
+pickup Egg|-02.04|+00.81|+01.24: success
+put Pan|+00.72|+00.90|-02.42: success
+Executing Subtask: Wash Potato
+pickup Potato|-01.66|+00.93|-02.15: success
+toggle on Faucet|-02.15|+00.91|-01.50: success
+put Sink|-01.90|+00.97|-01.50|SinkBasin: success
+toggle off Faucet|-02.15|+00.91|-01.50: success
+put CounterTop|+00.69|+00.95|-02.48: failure. Can't place an object if Agent isn't holding anything
+Alternative Action: Drop: failure. InvalidOperationException: Nothing is in the agent's hand to drop!
+Executing Subtask: Wait for Turn off stove after cooking
+Executing Subtask: Turn off stove after cooking
+toggle off StoveKnob|-00.48|+00.88|-02.19: success

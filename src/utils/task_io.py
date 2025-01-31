@@ -6,7 +6,7 @@ from utils.task_generator import generate_task
 
 
 def load_navigation_times():
-    with open(KNOWLEDGE_PATH / "FloorPlan1_navigation_time.json", "r") as f:
+    with open(KNOWLEDGE_PATH / "FloorPlan1_physics_navigation_time.json", "r") as f:
         navigation_times = json.load(f)
     return navigation_times
 
@@ -20,7 +20,7 @@ def list_task_files() -> list[Path]:
     return sorted(TASK_PATH.glob("*.json"), key=lambda p: p.name)
 
 
-def get_user_task_choice(task_files: list[Path], choice: int=None) -> str:
+def get_user_task_choice(task_files: list[Path], choice: int = None) -> str:
     """
     Prompt the user to select a task file by index or choose to create a new instruction.
 

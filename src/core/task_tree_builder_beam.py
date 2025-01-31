@@ -5,7 +5,7 @@ from typing import List, Optional
 
 import networkx as nx
 
-from core.task import Duration, Subtask
+from core.task import Duration, Subtask, Execution
 from task_management import ConstraintHandler, CostCalculator, NavigationManager
 from utils.constants import DEFAULT_BEAM_WIDTH, DEFAULT_SIMULATION_DEPTH
 from utils.dataclass import CompletedEntry, SchedulerState, SimulationNode
@@ -110,7 +110,7 @@ class Scheduler:
                     duration=Duration(interval=wait_time, type="Controllable"),
                     repetition=1,
                     type="Wait",
-                    execution=None,
+                    execution=Execution(objects=None, primitive_actions=[f"Wait {wait_time}"]),
                     temporal_constraints=None,
                 )
 

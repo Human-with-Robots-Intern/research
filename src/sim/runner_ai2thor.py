@@ -90,6 +90,8 @@ def execute_subtask(controller, subtask):
     camera_handler = CameraHandler(controller)
     Navi = NavigationHandler(controller, camera_handler)
     Act = Action(controller, camera_handler, log_file)
+
+    # Skip the Init subtask
     if subtask.name == "Init":
         return
 
@@ -98,9 +100,11 @@ def execute_subtask(controller, subtask):
     # Parse execution details
     execution = subtask.execution
     print(f"{subtask=}")
-    objects, primitive_actions = execution.objects, execution.primitive_actions
 
-    ground_truth = 10
+    ## Wait의 형식을 맞춰주든가 여기서 처리를 하든가 해야함
+    primitive_actions = execution.primitive_actions
+    objects = execution.objects
+
     # Read JSON file
     # with open(KNOWLEDGE_PATH / "knowledge.json", "r") as file:
     #     knowledge = json.load(file)
@@ -111,14 +115,18 @@ def execute_subtask(controller, subtask):
     # "GRASP clothes",
     # "NAVIGATE_TO washing_machine",
     # "PLACE_INSIDE washing_machine"
-    for obj_id in objects:
-        ai2thor_obj = list(
-            set(obj["objectId"] for obj in controller.step("Pass").metadata["objects"])
-        )
-        if ai2thor_obj is None:
-            log_file.write(f"Object '{obj_id}' not found in the environment.")
-            return False
-        object_registry[obj_id] = ai2thor_obj
+    if objects is not None:
+        for obj_id in objects:
+            ai2thor_obj = list(
+                set(
+                    obj["objectId"]
+                    for obj in controller.step("Pass").metadata["objects"]
+                )
+            )
+            if ai2thor_obj is None:
+                log_file.write(f"Object '{obj_id}' not found in the environment.")
+                return False
+            object_registry[obj_id] = ai2thor_obj
 
     # Define action mapping to ai2thor action primitives
     action_mapping = {
@@ -132,7 +140,7 @@ def execute_subtask(controller, subtask):
         "TOGGLE_OFF": lambda target_obj: Act.toggleoff(target_obj),
         "SLICE": lambda target_obj: Act.slice(target_obj),
         "Mornitoring": lambda target_obj: Act.mornitoring(target_obj),
-        "Wait": lambda wait_time: time.sleep(wait_time)
+        "Wait": lambda duration: Act.wait(round(float(duration), 2)),
     }
 
     # Execute each primitive action
@@ -145,7 +153,6 @@ def execute_subtask(controller, subtask):
             raise ValueError(f"Invalid action format: {action_str}")
 
         action_type, target_obj_ID = parts
-        print(f"{target_obj_ID=}")
         if action_type in action_mapping:
             log.info(
                 f"Performing action: {action_type} on {target_obj_ID.split('|')[0]}"

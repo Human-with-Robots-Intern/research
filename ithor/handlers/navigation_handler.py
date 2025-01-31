@@ -1,4 +1,4 @@
-from collections import deque
+import heapq
 
 from ..utils.constants import GRID_SIZE, SMOOTH_LEVEL
 from ..utils.math_utils import (
@@ -53,7 +53,6 @@ class NavigationHandler:
         # Move agent step by step along the path
 
         for position in path:
-            print(f"teleport {position}")
             self.teleport_to_position(position)
             self.camera_handler.update_view()
 
@@ -241,7 +240,6 @@ class NavigationHandler:
         dz = position[2] - current_position[2]
 
         rotation_angle = 0
-        print(f"{current_rotation=}")
         if dx > 0 and dz == 0:  # x 방향으로 증가
             if abs(current_rotation - 90) > 2:
                 rotation_angle = 90 - current_rotation

@@ -46,6 +46,7 @@ def parse_arguments():
     parser.add_argument(
         "-s",
         "--simulation",
+        # default=True,
         action="store_true",
     )
     return parser.parse_args()

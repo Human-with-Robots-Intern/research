@@ -35,8 +35,9 @@ class Action:
         # 실제로는 controller의 메타데이터나 객체 속성에 따라 다를 수 있음
         for obj in object_metadata:
             if obj["objectId"] == object_id:
-                if "parentReceptacles" in obj:
+                if  obj["parentReceptacles"] is not []:
                     parent_receptacle_ids = obj["parentReceptacles"]
+                    print(parent_receptacle_ids)
                     break
         if parent_receptacle_ids:
             parent_receptacle_id = parent_receptacle_ids[0]
@@ -265,6 +266,6 @@ class Action:
         elapsed_time = 0.1
         return elapsed_time
 
-    def wait(self, wait_time):
+    def wait(self, wait_time=0.5):
         time.sleep(wait_time)
         return wait_time

@@ -19,7 +19,7 @@ tasks = [
         "Task": "Wash dish, egg, and potato.",
         "Subtasks": [
             {
-                "Name": "Wash Plate",
+                "Name": "Wash dish",
                 "Repetition": 2,
                 "Type": "Interaction",
                 "Executions": {
@@ -213,7 +213,6 @@ objectIds = {
         "CreditCard|-00.46|+01.10|+00.87",
         "Statue|+01.96|+00.18|-02.54",
         "Plate|+00.96|+01.65|-02.61",
-        "DishSponge|-01.94|+00.75|-01.71",
         "Spatula|+00.38|+00.91|-02.33",
         "Knife|-01.70|+00.79|-00.22",
         "Bottle|+01.54|+00.89|-02.54",
@@ -303,11 +302,12 @@ def check_obj_id(tasks):
                 if step == "NAVIGATE_TO":
                     if to_obj not in all_object_ids:
                         print(f"{to_obj} 안맞음")
+                        print(f"{subtask['Name'], to_obj}")
                         # 유사도 검사
                         data = query(
                             {
                                 "inputs": {
-                                    "source_sentence": f"{to_obj}",
+                                    "source_sentence": f"{subtask['Name'], to_obj}",
                                     "sentences": list(all_object_ids),
                                 }
                             }
