@@ -259,16 +259,4 @@ class TaskGraphBuilder:
         return self.graph
 
 
-class SchedulerState(NamedTuple):
-    """
-    스케쥴 정보를 담는 NamedTuple
-    """
 
-    # 현재 subtask
-    subtask: Subtask
-    # 수행된 subtask들 (현재 subtask 제외)
-    completed_subtasks: List[Subtask]
-    # 남은 subtask들
-    remaining_subtasks: List[Subtask]
-    # 에이전트 위치
-    agent_location: str

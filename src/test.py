@@ -4,7 +4,6 @@ import time
 from pathlib import Path
 
 from core.agent import Agent
-from core.task import SchedulerState, Subtask
 from core.task_tree_builder_beam import Scheduler
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import visualize
@@ -13,7 +12,7 @@ from utils.task_io import (
     list_task_files,
     load_task_data_from_file,
 )
-from utils.task_util import adjust_subtasks_duration, build_tasks_and_constraints
+from utils.task_util import build_tasks_and_constraints, get_init_state
 from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
@@ -74,37 +73,22 @@ def main():
 
     agent = Agent()
 
-    init_subtask = Subtask(
-        task_name=None,
-        name="Init",
-        duration=0.0,
-        repetition=1,
-        type="Init",
-        execution=None,
-        temporal_constraints=None,
-    )
+    scheduler = Scheduler(constraints)
 
-    scheduler = Scheduler(subtasks, constraints)
-    current_state = SchedulerState(
-        subtask=init_subtask,
-        completed_subtasks=[init_subtask],
-        remaining_subtasks=subtasks,
-        agent_location="agent",
-    )
     result_schedule = []
+    current_state = get_init_state(subtasks)
 
     while current_state.remaining_subtasks:
-
-        current_state = scheduler.get_new_state(current_state, constraints)
-        if current_state is None:
-            # 스케줄링 더 이상 불가
-            log.warning("No valid next subtask. Stopping.")
-            break
+        next_state = scheduler.get_next_state(current_state, constraints)
 
         if args.simulation:
             execute_subtask(controller, current_state.subtask)
 
         result_schedule.append(current_state.subtask)
+        current_state = next_state
+        if current_state is None:
+            log.error("No feasible solution found.")
+            break
 
     if args.visualize:
         visualize(
