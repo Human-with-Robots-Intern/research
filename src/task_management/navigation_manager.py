@@ -1,8 +1,10 @@
 # navigation_manager.py
+import copy
 import logging
 from typing import Any, List, Optional
 
 from core.task import Subtask
+from utils.dataclass import SimulationNode
 from utils.task_io import load_navigation_times
 
 log = logging.getLogger(__name__)
@@ -37,7 +39,7 @@ class NavigationManager:
         """
         # If the subtask type is Monitor or no movement needed, return 0 immediately
         if next_subtask.type == "Monitor":
-            return 0.0
+            return 0.0, current_node.state.agent_location
         start_location = None
         # 1) Ensure we have a known robot location
         start_location = self._ensure_agent_location(current_node)
@@ -49,7 +51,7 @@ class NavigationManager:
 
         # 2) If no primitive_actions or no NAVIGATE_TO, no nav time needed
         if not next_subtask.execution or not next_subtask.execution.primitive_actions:
-            return 0.0
+            return 0.0, current_node.state.agent_location
 
         # 3) Accumulate travel time for each NAVIGATE_TO
         for action in next_subtask.execution.primitive_actions:

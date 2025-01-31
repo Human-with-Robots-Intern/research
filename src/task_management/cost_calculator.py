@@ -36,5 +36,5 @@ class CostCalculator:
         time_diff = out_time_slot.interval - in_time_slot.interval
 
         factor = max(self.cost_weight - current_node.depth, 1)
-        cost_val = factor * (subtask.duration.interval + navigate_time + time_diff)
+        cost_val = factor * (subtask.duration.interval + time_diff + navigate_time)
         return cost_val

@@ -86,6 +86,9 @@ def main():
 
         result_schedule.append(current_state.subtask)
         current_state = next_state
+        if current_state is None:
+            log.error("No feasible solution found.")
+            break
 
     if args.visualize:
         visualize(

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import List, NamedTuple, Optional
 
 from core.task import Subtask
@@ -34,14 +35,12 @@ class SimulationNode(NamedTuple):
     우선순위 큐에서 사용할 탐색 노드.
     - heuristic_cost: 지금까지 누적된 비용 (높을수록 우선)
     - depth: 현재 탐색 깊이
-    - leftover : 남은 TimeSlot 시간
     - tie_breaker: 우선순위가 같을 때 순서 결정용
     - state: 실제 스케줄 상태 (SchedulerState)
     """
 
     heuristic_cost: float
     depth: int
-    leftover: float
     tie_breaker: int
     state: SchedulerState
 
