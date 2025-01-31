@@ -84,12 +84,14 @@ class Agent:
         # monitering_time은 기존 전체 시간의 0.7배
         # monitering_time이 지나기 전까지의 subtask들을 붙인다.
         # wait는 원래 subtask의 urgency에 맞춰서 채워넣기.
+        """
         subtasks = {
             "navigate": 3,
             "pickup": 2,
             "drop": 5
         }
         urgency_time = 10
+        """
         ####################################
         time_sum = 0
         subtask_during_time_critical = list(subtasks.key())

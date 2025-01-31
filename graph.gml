@@ -30,6 +30,16 @@ graph [
     label "Turn off stove after cooking"
     time 0
   ]
+  node [
+    id 6
+    label "Prepare cooking potato"
+    time 10
+  ]
+  node [
+    id 7
+    label "Turn off stove after cooking potato"
+    time 0
+  ]
   edge [
     source 0
     target 1
@@ -49,8 +59,26 @@ graph [
     ]
   ]
   edge [
+    source 3
+    target 6
+    info [
+      Type "After"
+      Interval 5
+      IsCritical 0
+    ]
+  ]
+  edge [
     source 4
     target 5
+    info [
+      Type "After"
+      Interval 10
+      IsCritical 1
+    ]
+  ]
+  edge [
+    source 6
+    target 7
     info [
       Type "After"
       Interval 10
