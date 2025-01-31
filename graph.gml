@@ -44,8 +44,8 @@ graph [
     target 4
     info [
       Type "After"
-      Interval 5
-      IsCritical 0
+      Interval 10
+      IsCritical 1
     ]
   ]
   edge [

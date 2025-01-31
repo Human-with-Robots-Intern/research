@@ -49,7 +49,7 @@ class Scheduler:
 
         if not child_state:
             log.warning("No valid next step found.")
-            return None
+            raise ValueError("No valid next step found.")
 
         return self._extract_state(parent_state, child_state)
 
@@ -84,6 +84,9 @@ class Scheduler:
                 best_solutions.append(curr_node)
                 continue
 
+            if curr_state.subtask.name == "Wash Egg":
+                print(11111)
+
             # 1) 현재 시점에 "즉시 실행 가능한" 서브태스크 찾기
             # 제약에 들어갈 수 있는 서브태스크인지 확인 필요
             feasible_subs, not_yet_feasible_subs = (
@@ -92,47 +95,50 @@ class Scheduler:
 
             # --- (2) 실행 가능한 서브태스크가 없다면 => '대기(Wait)' 로직 ---
 
-            if not_yet_feasible_subs:
+            for sub, earliest_start_time, is_critical in sorted(
+                not_yet_feasible_subs, key=lambda x: x[1]
+            ):
                 # 각 서브태스크별 earliest_time만 뽑아서 최솟값 찾기
-                next_start_constraints = min(not_yet_feasible_subs, key=lambda x: x[1])
-                next_start_time = next_start_constraints[1]
-                wait_time = next_start_time - curr_state.current_time
+                wait_time = earliest_start_time - curr_state.current_time
 
-                if wait_time > 0:
-                    wait_sub = Subtask(
-                        task_name=None,
-                        name="Wait for " + str(next_start_constraints[0].name),
-                        duration=Duration(interval=wait_time, type="Controllable"),
-                        repetition=1,
-                        type="Wait",
-                        execution=None,
-                        temporal_constraints=None,
-                    )
-                    new_completed = curr_state.completed_subtasks + [
-                        CompletedEntry(
-                            subtask=wait_sub,
-                            start_time=curr_state.current_time,
-                            end_time=curr_state.current_time + wait_time,
-                        )
-                    ]
-                    # 대기 분량만큼 시간만 업데이트한 새 상태
-                    new_state = SchedulerState(
+                if wait_time <= 1e-9:
+                    continue
+
+                wait_sub = Subtask(
+                    task_name=None,
+                    name="Wait for " + sub.name,
+                    duration=Duration(interval=wait_time, type="Controllable"),
+                    repetition=1,
+                    type="Wait",
+                    execution=None,
+                    temporal_constraints=None,
+                )
+
+                new_completed = curr_state.completed_subtasks + [
+                    CompletedEntry(
                         subtask=wait_sub,
-                        completed_subtasks=new_completed,
-                        remaining_subtasks=curr_state.remaining_subtasks,
-                        current_time=curr_state.current_time + wait_time,
-                        agent_location=curr_state.agent_location,
+                        start_time=curr_state.current_time,
+                        end_time=curr_state.current_time + wait_time,
                     )
+                ]
+                # 대기 분량만큼 시간만 업데이트한 새 상태
+                new_state = SchedulerState(
+                    subtask=wait_sub,
+                    completed_subtasks=new_completed,
+                    remaining_subtasks=curr_state.remaining_subtasks,
+                    current_time=curr_state.current_time + wait_time,
+                    agent_location=curr_state.agent_location,
+                )
 
-                    new_cost = curr_heuristic + wait_time
+                new_cost = curr_heuristic + wait_time
 
-                    new_node = SimulationNode(
-                        heuristic_cost=new_cost,
-                        depth=curr_depth + 1,
-                        tie_breaker=next(counter),
-                        state=new_state,
-                    )
-                    queue.put(new_node)
+                new_node = SimulationNode(
+                    heuristic_cost=new_cost,
+                    depth=curr_depth + 1,
+                    tie_breaker=next(counter),
+                    state=new_state,
+                )
+                queue.put(new_node)
 
             # --- (3) 실행 가능한 각 서브태스크 확장 ---
             expanded_nodes: List[SimulationNode] = []
@@ -191,6 +197,8 @@ class Scheduler:
                     break
 
         # --- (5) 모두 확장 완료 후, best_solutions에서 비용 최대 해를 선정 ---
+        log.info(f"Found {len(best_solutions)} solutions.")
+
         if not best_solutions:
             return None
 
