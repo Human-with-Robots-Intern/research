@@ -90,11 +90,14 @@ def execute_subtask(controller, subtask):
     camera_handler = CameraHandler(controller)
     Navi = NavigationHandler(controller, camera_handler)
     Act = Action(controller, camera_handler, log_file)
+    if subtask.name == "Init":
+        return
 
     log_file.write(f"Executing Subtask: {subtask.name}\n")
 
     # Parse execution details
     execution = subtask.execution
+    print(f"{subtask=}")
     objects, primitive_actions = execution.objects, execution.primitive_actions
 
     ground_truth = 10
@@ -142,6 +145,7 @@ def execute_subtask(controller, subtask):
             raise ValueError(f"Invalid action format: {action_str}")
 
         action_type, target_obj_ID = parts
+        print(f"{target_obj_ID=}")
         if action_type in action_mapping:
             log.info(
                 f"Performing action: {action_type} on {target_obj_ID.split('|')[0]}"

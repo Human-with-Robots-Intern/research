@@ -20,7 +20,7 @@ def list_task_files() -> list[Path]:
     return sorted(TASK_PATH.glob("*.json"), key=lambda p: p.name)
 
 
-def get_user_task_choice(task_files: list[Path], choice: int) -> str:
+def get_user_task_choice(task_files: list[Path], choice: int=None) -> str:
     """
     Prompt the user to select a task file by index or choose to create a new instruction.
 

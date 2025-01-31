@@ -2,11 +2,12 @@ from typing import List
 
 from core.task import Subtask, Task, TaskGraphBuilder
 from utils.constants import PRIMITIVE_ACTION_DURATION, PRIMITIVE_ACTION_SET, KNOWLEDGE_PATH
-from 
 
 ## 유사도 검사를 위한 import
 import json
 import requests
+
+from utils.dataclass import CompletedEntry, SchedulerState
 
 API_URL = (
     "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
@@ -22,7 +23,7 @@ def query(payload):
 def load_object_Ids():
     with open(KNOWLEDGE_PATH / "FloorPlan1_physics_environment.json", "r") as f:
         objectIds = json.load(f)
-    return objectIdsfrom utils.dataclass import CompletedEntry, SchedulerState
+    return objectIds
 
 
 def tasks_to_subtasks(tasks, mode="all"):
@@ -87,27 +88,73 @@ def revision_primitive_actions(tasks):
 
 def check_obj_id(tasks):
     objectIds = load_object_Ids()
+    all_object_ids = set()
+    for key in objectIds:
+        all_object_ids.update(objectIds[key])
+
     for task in tasks:
         for subtask in task.subtasks:
             actions = subtask.execution.primitive_actions
             for i, action in enumerate(actions):
-                step = action.split(" ")[0] ## action 이름
-                to_obj = action.split(" ")[1] ## object의 이름
-                if to_obj not in objectIds[step]:
-                    # 유사도 검사
-                    data = query(
-                                    {
-                                        "inputs": {
-                                            "source_sentence": f"{to_obj}",
-                                            "sentences": objectIds[step],
-                                        }
+                step = action.split(" ")[0]  ## action 이름
+                to_obj = action.split(" ")[1]  ## object의 이름
+                if step == "NAVIGATE_TO":
+                    if to_obj not in all_object_ids:
+                        print(f"{to_obj} 안맞음")
+                        # 유사도 검사
+                        data = query(
+                            {
+                                "inputs": {
+                                    "source_sentence": f"{to_obj}",
+                                    "sentences": list(all_object_ids),
+                                }
+                            }
+                        )
+                        # 가장 유사한 object의 index
+                        idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[0][
+                            0
+                        ]
+                        real_obj_id = list(all_object_ids)[idx]
+                        actions[i] = f"{step} {real_obj_id}"
+                        print(actions[i])
+                    elif step in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
+                        if to_obj not in objectIds["RECEPTACLE"]:
+                            print(f"{to_obj} 안맞음")
+                            # 유사도 검사
+                            data = query(
+                                {
+                                    "inputs": {
+                                        "source_sentence": f"{to_obj}",
+                                        "sentences": objectIds["RECEPTACLE"],
                                     }
-                                )
-                    # 가장 유사한 object의 index
-                    idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[0][0]
-                    real_obj_id = objectIds[step][idx]
-                    
-                
+                                }
+                            )
+                            # 가장 유사한 object의 index
+                            idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[0][
+                                0
+                            ]
+                            real_obj_id = objectIds["RECEPTACLE"][idx]
+                            actions[i] = f"{step} {real_obj_id}"
+                            print(actions[i])
+                    else:
+                        if to_obj not in objectIds[step]:
+                            print(f"{to_obj} 안맞음")
+                            # 유사도 검사
+                            data = query(
+                                {
+                                    "inputs": {
+                                        "source_sentence": f"{to_obj}",
+                                        "sentences": objectIds[step],
+                                    }
+                                }
+                            )
+                            # 가장 유사한 object의 index
+                            idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[0][
+                                0
+                            ]
+                            real_obj_id = objectIds[step][idx]
+                            actions[i] = f"{step} {real_obj_id}"
+                            print(actions[i])
     return tasks
 
 def build_tasks_and_constraints(
