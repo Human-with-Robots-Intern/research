@@ -2,33 +2,28 @@ graph [
   directed 1
   node [
     id 0
-    label "Wash Plate_part_1"
-    time 4
+    label "Prepare Egg for Cooking"
+    time 5
   ]
   node [
     id 1
-    label "Wash Plate_part_2"
-    time 4
+    label "Cook the Egg"
+    time 5
   ]
   node [
     id 2
-    label "Wash Egg"
-    time 2
+    label "Finish Cooking and Turn Off Stove"
+    time 1
   ]
   node [
     id 3
-    label "Wash Potato"
-    time 2
+    label "Wash Edible Vegetable"
+    time 5
   ]
   node [
     id 4
-    label "Prepare Egg Fry"
-    time 10
-  ]
-  node [
-    id 5
-    label "Turn off stove after cooking"
-    time 0
+    label "Wash Lettuce"
+    time 5
   ]
   edge [
     source 0
@@ -40,20 +35,11 @@ graph [
     ]
   ]
   edge [
-    source 2
-    target 4
+    source 1
+    target 2
     info [
       Type "After"
-      Interval 10
-      IsCritical 1
-    ]
-  ]
-  edge [
-    source 4
-    target 5
-    info [
-      Type "After"
-      Interval 10
+      Interval 5
       IsCritical 1
     ]
   ]
