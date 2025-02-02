@@ -70,13 +70,13 @@ def main():
 
     agent = Agent()
 
-    scheduler = Scheduler(agent, constraints)
+    scheduler = Scheduler(agent)
 
     result_schedule = []
-    current_state = get_init_state(subtasks)
+    current_state = get_init_state(subtasks, constraints)
     is_end = False
     while not is_end:
-        next_state = scheduler.get_next_state(current_state, constraints)
+        next_state = scheduler.get_next_state(current_state)
 
         if args.simulation:
             execute_subtask(controller, current_state.subtask)

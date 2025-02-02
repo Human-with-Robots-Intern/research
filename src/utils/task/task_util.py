@@ -1,5 +1,7 @@
 from typing import List
 
+from networkx import DiGraph
+
 from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
 from scheduler.dataclass import CompletedEntry, SchedulerState
 from utils.constants import (
@@ -95,7 +97,7 @@ def build_tasks_and_constraints(
     return subtasks, task_graph
 
 
-def get_init_state(subtasks: List[Subtask]) -> SchedulerState:
+def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerState:
     init_subtask = Subtask(
         task_name=None,
         name="Init",
@@ -115,13 +117,14 @@ def get_init_state(subtasks: List[Subtask]) -> SchedulerState:
         subtask=init_subtask,
         completed_subtasks=[init_completed],
         remaining_subtasks=subtasks,
+        constraints=constraints,
         agent_location="agent",
         current_time=0,
     )
     return init_state
 
 
-def get_monitoring_subtask() -> SchedulerState:
+def get_monitoring_subtask() -> Subtask:
     monitoring_subtask = Subtask(
         task_name=None,
         name="Monitoring",

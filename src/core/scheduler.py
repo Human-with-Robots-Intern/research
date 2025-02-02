@@ -21,7 +21,6 @@ class Scheduler:
     def __init__(
         self,
         agent: Agent,
-        init_constraints: nx.DiGraph,
         beam_width: int = DEFAULT_BEAM_WIDTH,
         simulation_depth: int = DEFAULT_SIMULATION_DEPTH,
     ):
@@ -30,7 +29,7 @@ class Scheduler:
         self.simulation_depth = simulation_depth
 
         self.nav_manager = NavigationManager()
-        self.constraint_handler = ConstraintHandler(init_constraints, self.nav_manager)
+        self.constraint_handler = ConstraintHandler(self.nav_manager)
         self.cost_calculator = HeuristicManager(self.constraint_handler)
 
         self._counter = itertools.count()  # tie-breaker용
@@ -38,11 +37,7 @@ class Scheduler:
     def get_next_state(
         self,
         parent_state: SchedulerState,
-        current_constraints: nx.DiGraph,
     ) -> Optional[SchedulerState]:
-
-        # 제약 갱신
-        self.constraint_handler.constraints = current_constraints
 
         child_state = self._simulate_beam_search(parent_state)
 
@@ -92,7 +87,7 @@ class Scheduler:
             for candidate_sub in feasible_subs:
                 # Critical constraint에 의해 Monitoring subtask로 쪼개지는 경우가 결정 됨.
                 out_slot = self.constraint_handler.get_temporal_constraints(
-                    curr_state.subtask.name, "out"
+                    curr_state.subtask.name, curr_state.constraints, "out"
                 )
                 if out_slot.is_critical:
                     # time-critical인 경우 -> 반드시 분할
@@ -174,6 +169,7 @@ class Scheduler:
                 subtask=wait_sub,
                 completed_subtasks=new_completed,
                 remaining_subtasks=curr_state.remaining_subtasks,
+                constraints=curr_state.constraints,
                 current_time=curr_state.current_time + wait_time,
                 agent_location=curr_state.agent_location,
             )
@@ -236,6 +232,7 @@ class Scheduler:
             subtask=copied_sub,
             completed_subtasks=new_completed,
             remaining_subtasks=new_remaining,
+            constraints=curr_state.constraints,
             current_time=end_time,
             agent_location=new_location,
         )
@@ -365,6 +362,7 @@ class Scheduler:
             subtask=sub_remain,  # 마지막으로 완료된 subtask
             completed_subtasks=final_completed,
             remaining_subtasks=new_remaining,
+            constraints=curr_state.constraints,
             current_time=remain_end,
             agent_location=new_location,
         )
@@ -406,6 +404,7 @@ class Scheduler:
             subtask=new_subtask,
             completed_subtasks=new_completed_subtasks,
             remaining_subtasks=new_remaining_subtasks,
+            constraints=child_state.constraints,
             agent_location=child_state.agent_location,
             current_time=new_entry.end_time,
         )

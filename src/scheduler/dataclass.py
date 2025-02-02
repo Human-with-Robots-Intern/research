@@ -1,5 +1,7 @@
 from typing import List, NamedTuple, Optional
 
+from networkx import DiGraph
+
 from core.task import Subtask
 
 
@@ -24,6 +26,8 @@ class SchedulerState(NamedTuple):
     completed_subtasks: List[CompletedEntry]
     # 남은 subtask들
     remaining_subtasks: List[Subtask]
+    # 현재 constraint
+    constraints: DiGraph
     # 현재 절대 시간 및 위치
     current_time: float
     # 현재 agent 위치

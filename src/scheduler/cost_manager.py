@@ -32,10 +32,10 @@ class HeuristicManager:
         subtask.duration.interval + navigate_time + (incoming_ts[0] - outgoing_ts[0])
         """
         in_time_slot = self.constraint_handler.get_temporal_constraints(
-            subtask.name, "in"
+            subtask.name, current_node.state.constraints, "in"
         )
         out_time_slot = self.constraint_handler.get_temporal_constraints(
-            subtask.name, "out"
+            subtask.name, current_node.state.constraints, "out"
         )
         time_diff = out_time_slot.interval - in_time_slot.interval
 
