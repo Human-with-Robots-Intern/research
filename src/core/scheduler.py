@@ -57,7 +57,7 @@ class Scheduler:
     ) -> Optional[SchedulerState]:
 
         queue = PriorityQueue()
-        counter = itertools.count()  # tie-breaker(동점자 처리용)
+        counter = itertools.count()
 
         init_node = SimulationNode(
             heuristic_cost=0.0,
@@ -66,26 +66,6 @@ class Scheduler:
             state=init_state,
         )
         queue.put(init_node)
-
-        # Bayesian
-        outgoing_time_slot = self.constraint_handler.get_temporal_constraints(
-            init_state.subtask.name, "out"
-        )
-        if outgoing_time_slot.is_critical:
-            monitoring_trigger_sub_name = init_state.subtask.name
-            monitoring_end_sub_name = outgoing_time_slot.related_subtask_name
-            monitoring_timing = (
-                init_state.current_time + outgoing_time_slot.interval * 0.7
-            )
-            monitoring_subtask = get_monitoring_subtask()
-            log.debug(f"{monitoring_trigger_sub_name} -> {monitoring_end_sub_name}")
-            log.debug(f"current time {init_state.current_time}")
-            log.debug(f"Monitoring added at {monitoring_timing}")
-            log.debug(f"Monitoring subtask: {monitoring_subtask}")
-
-            # monitoring timing이 도래하면, 반드시 monitoring subtask를 수행해야 함.
-            # subtask_start_time < monitering_time < subtask_end_time 일 때 해당 subtask 대신 monitering subtask를 넣고 싶어.
-
         best_solutions = []
 
         while not queue.empty():
@@ -107,7 +87,7 @@ class Scheduler:
                 self.constraint_handler.get_feasible_subtasks(curr_node)
             )
 
-            # --- (2) 실행 가능한 서브태스크가 없다면 => '대기(Wait)' 로직 ---
+            # --- (2) 즉시 실행 어려운 경우가 있다면, => '대기(Wait)' 로직 ---
             for sub, earliest_start_time, is_critical in sorted(
                 not_yet_feasible_subs, key=lambda x: x[1]
             ):
@@ -156,7 +136,7 @@ class Scheduler:
                 )
                 queue.put(new_node)
 
-            # --- (3) 실행 가능한 각 서브태스크 확장 ---
+            # --- (3) 즉시 실행 가능한 각 서브태스크 확장 ---
             expanded_nodes: List[SimulationNode] = []
             for candidate_sub in feasible_subs:
                 # 이동 시간(nav_time) 계산
@@ -213,7 +193,6 @@ class Scheduler:
                     break
 
         # --- (5) 모두 확장 완료 후, best_solutions에서 비용 최대 해를 선정 ---
-
         if not best_solutions:
             return None
 
