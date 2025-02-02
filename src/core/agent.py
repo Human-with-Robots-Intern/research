@@ -76,23 +76,26 @@ class Agent:
         except Exception as e:
             raise Exception(f"Error saving knowledge: {e}")
 
-    def monitering_timing(plan_about_time_critical):
+    def monitoring_timing(plan_about_time_critical):
         # plan_about_time_critical : time-critical에 대한 planning
-        # 0.7 : monitering의 기준 timing
+        # 0.7 : monitoring의 기준 timing
         # 0.7이 되는 부분의 subtask 파악.
         # 0.7 기준 그 전에 오는 subtask만 추가.
-        # 시간 넘으면 monitering 붙이기.
-        plan_about_time_critical = {"subtask1":3,"subtask2":4} ##예시_이거에 맞춰서 입력 형식 보내거나 두 값을 보내주어야 함.
+        # 시간 넘으면 monitoring 붙이기.
+        plan_about_time_critical = {
+            "subtask1": 3,
+            "subtask2": 4,
+        }  ##예시_이거에 맞춰서 입력 형식 보내거나 두 값을 보내주어야 함.
         time_sum = 0
         subtask = list(plan_about_time_critical.keys())
         time = list(plan_about_time_critical.values())
-        monitering_time = 0.7 * sum(time)
+        monitoring_time = 0.7 * sum(time)
         replanning_list = []
 
         for t in range(len(plan_about_time_critical)):
             time_sum += time[t]
-            if time_sum > monitering_time:
-                replanning_list.append("monitering")
+            if time_sum > monitoring_time:
+                replanning_list.append("monitoring")
                 return replanning_list
             else:
                 replanning_list.append(subtask[t])
@@ -100,7 +103,7 @@ class Agent:
         return replanning_list
 
     def bayesian_estimate(self, actual_duration: float, subtask):
-        # actual_duration : monitering한 시간
+        # actual_duration : monitoring한 시간
         # ground_truth : 해당 subtask의 ground_truth
         # prior_mean/variance : 이전에 예상한 값의 분포
         # cooking_data : subtask의 진행정도 // 여기에 noise를 주어야 한다.
@@ -112,16 +115,21 @@ class Agent:
         estimate_load = self._load_knowledge(KNOWLEDGE_PATH)
         prior_mean = estimate_load[subtask_name]["expected_duration"]
         prior_variance = estimate_load[subtask_name]["variance"]
-       
 
         # bayesian estimate
         a = 1
-        likelihood_epsilon_square = a*(prior_mean - actual_duration)** 2
+        likelihood_epsilon_square = a * (prior_mean - actual_duration) ** 2
         cooking_data_real = actual_duration / ground_truth
-        cooking_data_with_noise = np.random.normal(loc=cooking_data_real, scale=likelihood_epsilon_square)
-        posterior_mean = (prior_variance * cooking_data_with_noise + likelihood_epsilon_square * prior_mean) / (likelihood_epsilon_square + prior_variance)
-        posterior_variance = (likelihood_epsilon_square * prior_variance) / (likelihood_epsilon_square + prior_variance)
-
+        cooking_data_with_noise = np.random.normal(
+            loc=cooking_data_real, scale=likelihood_epsilon_square
+        )
+        posterior_mean = (
+            prior_variance * cooking_data_with_noise
+            + likelihood_epsilon_square * prior_mean
+        ) / (likelihood_epsilon_square + prior_variance)
+        posterior_variance = (likelihood_epsilon_square * prior_variance) / (
+            likelihood_epsilon_square + prior_variance
+        )
 
         # posterior_data
         estimate_load[subtask_name]["expected_duration"] = posterior_mean

@@ -1,7 +1,11 @@
 from typing import List
 
-from core.task import Subtask, Task, TaskGraphBuilder
-from utils.constants import PRIMITIVE_ACTION_DURATION, PRIMITIVE_ACTION_SET
+from core.task import Execution, Subtask, Task, TaskGraphBuilder
+from utils.constants import (
+    MONITORING_DURATION,
+    PRIMITIVE_ACTION_DURATION,
+    PRIMITIVE_ACTION_SET,
+)
 from utils.dataclass import CompletedEntry, SchedulerState
 
 
@@ -12,7 +16,7 @@ def tasks_to_subtasks(tasks, mode="all"):
             subtasks.extend(task.subtasks)
     elif mode == "name":
         for task in tasks:
-            print(subtasks)
+            # print(subtasks)
             subtasks.extend([subtask.name for subtask in task.subtasks])
 
     return subtasks
@@ -115,3 +119,19 @@ def get_init_state(subtasks: List[Subtask]) -> SchedulerState:
         current_time=0,
     )
     return init_state
+
+
+def get_monitoring_subtask() -> SchedulerState:
+    monitoring_subtask = Subtask(
+        task_name=None,
+        name="Monitoring",
+        duration=MONITORING_DURATION,
+        repetition=1,
+        type="Monitoring",
+        execution=Execution(
+            objects=None, primitive_actions=[f"Monitoring {MONITORING_DURATION}"]
+        ),
+        temporal_constraints=None,
+    )
+
+    return monitoring_subtask
