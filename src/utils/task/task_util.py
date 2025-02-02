@@ -1,12 +1,12 @@
 from typing import List
 
 from core.task import Execution, Subtask, Task, TaskGraphBuilder
+from scheduler.dataclass import CompletedEntry, SchedulerState
 from utils.constants import (
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
 )
-from utils.dataclass import CompletedEntry, SchedulerState
 
 
 def tasks_to_subtasks(tasks, mode="all"):
@@ -102,7 +102,7 @@ def get_init_state(subtasks: List[Subtask]) -> SchedulerState:
         duration=0.0,
         repetition=1,
         type="Init",
-        execution=None,
+        execution=Execution(objects=[], primitive_actions=[f"Monitoring 0"]),
         temporal_constraints=None,
     )
     init_completed = CompletedEntry(
@@ -129,7 +129,7 @@ def get_monitoring_subtask() -> SchedulerState:
         repetition=1,
         type="Monitoring",
         execution=Execution(
-            objects=None, primitive_actions=[f"Monitoring {MONITORING_DURATION}"]
+            objects=[], primitive_actions=[f"Monitoring {MONITORING_DURATION}"]
         ),
         temporal_constraints=None,
     )

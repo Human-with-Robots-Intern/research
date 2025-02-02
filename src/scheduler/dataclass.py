@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import List, NamedTuple, Optional
 
 from core.task import Subtask
@@ -40,7 +39,7 @@ class SimulationNode(NamedTuple):
     - state: 실제 스케줄 상태 (SchedulerState)
     """
 
-    heuristic: float
+    heuristic_cost: float
     depth: int
     tie_breaker: int
     state: SchedulerState

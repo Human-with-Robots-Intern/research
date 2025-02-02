@@ -7,11 +7,10 @@ import networkx as nx
 
 from core.agent import Agent
 from core.task import Duration, Execution, Subtask
-from task_management import ConstraintHandler, CostCalculator, NavigationManager
-from utils.constants import DEFAULT_BEAM_WIDTH, DEFAULT_SIMULATION_DEPTH
-from utils.dataclass import CompletedEntry, SchedulerState, SimulationNode
-from utils.task_util import get_monitoring_subtask
-from utils.util import create_module_logger
+from scheduler import ConstraintHandler, HeuristicManager, NavigationManager
+from scheduler.dataclass import CompletedEntry, SchedulerState, SimulationNode
+from utils import DEFAULT_BEAM_WIDTH, DEFAULT_SIMULATION_DEPTH, create_module_logger
+from utils.task import get_monitoring_subtask
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -31,7 +30,7 @@ class Scheduler:
 
         self.nav_manager = NavigationManager()
         self.constraint_handler = ConstraintHandler(init_constraints, self.nav_manager)
-        self.cost_calculator = CostCalculator(self.constraint_handler)
+        self.cost_calculator = HeuristicManager(self.constraint_handler)
 
         self._counter = itertools.count()  # tie-breaker용
 
@@ -68,7 +67,7 @@ class Scheduler:
         )
         queue.put(init_node)
 
-        # Bayesian 
+        # Bayesian
         outgoing_time_slot = self.constraint_handler.get_temporal_constraints(
             init_state.subtask.name, "out"
         )
