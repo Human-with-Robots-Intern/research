@@ -27,6 +27,7 @@ class SchedulerState(NamedTuple):
     remaining_subtasks: List[Subtask]
     # 현재 절대 시간 및 위치
     current_time: float
+    # 현재 agent 위치
     agent_location: str
 
 
@@ -39,7 +40,7 @@ class SimulationNode(NamedTuple):
     - state: 실제 스케줄 상태 (SchedulerState)
     """
 
-    heuristic_cost: float
+    heuristic: float
     depth: int
     tie_breaker: int
     state: SchedulerState

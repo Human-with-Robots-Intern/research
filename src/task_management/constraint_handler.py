@@ -39,15 +39,12 @@ class ConstraintHandler:
 
         if direction == "out":
             edges = list(self.constraints.out_edges(subtask_name, data=True))
-        elif direction == "in":
+        else:  # direction == "in"
             edges = list(self.constraints.in_edges(subtask_name, data=True))
-        else:
-            raise ValueError("direction must be either 'in' or 'out'.")
 
         if not edges:
             log.debug(
-                f"No {direction} edges found for subtask {subtask_name}. "
-                "Returning default TimeSlot(0, False, None)."
+                f"No {direction} edges found for {subtask_name}, returning default TimeSlot(0, False, None)."
             )
             return TimeSlot(0, False, None)
 
