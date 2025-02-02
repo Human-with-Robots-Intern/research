@@ -76,26 +76,23 @@ class Agent:
         except Exception as e:
             raise Exception(f"Error saving knowledge: {e}")
 
-    def monitoring_timing(plan_about_time_critical):
+    def monitering_timing(plan_about_time_critical):
         # plan_about_time_critical : time-critical에 대한 planning
-        # 0.7 : monitoring의 기준 timing
+        # 0.7 : monitering의 기준 timing
         # 0.7이 되는 부분의 subtask 파악.
         # 0.7 기준 그 전에 오는 subtask만 추가.
-        # 시간 넘으면 monitoring 붙이기.
-        plan_about_time_critical = {
-            "subtask1": 3,
-            "subtask2": 4,
-        }  ##예시_이거에 맞춰서 입력 형식 보내거나 두 값을 보내주어야 함.
+        # 시간 넘으면 monitering 붙이기.
+        plan_about_time_critical = {"subtask1":3,"subtask2":4} ##예시_이거에 맞춰서 입력 형식 보내거나 두 값을 보내주어야 함.
         time_sum = 0
         subtask = list(plan_about_time_critical.keys())
         time = list(plan_about_time_critical.values())
-        monitoring_time = 0.7 * sum(time)
+        monitering_time = 0.7 * sum(time)
         replanning_list = []
 
         for t in range(len(plan_about_time_critical)):
             time_sum += time[t]
-            if time_sum > monitoring_time:
-                replanning_list.append("monitoring")
+            if time_sum > monitering_time:
+                replanning_list.append("monitering")
                 return replanning_list
             else:
                 replanning_list.append(subtask[t])
@@ -103,13 +100,12 @@ class Agent:
         return replanning_list
 
     def bayesian_estimate(self, actual_duration: float, subtask):
-        # actual_duration : monitoring한 시간
+        # actual_duration : monitering한 시간
         # ground_truth : 해당 subtask의 ground_truth
         # prior_mean/variance : 이전에 예상한 값의 분포
         # cooking_data : subtask의 진행정도 // 여기에 noise를 주어야 한다.
         # posterior_mean/variance : cooking_data를 받은 후 bayesian estimate를 통해 도출된 새로운 예상한 값의 분포.
         # knowledge.json 파일에서 불러오고 업데이트.
-        subtask_name = subtask
 
         ground_truth = 10  # 나중에 subtask 이름에 따른 값으로 ground_truth.json 파일에서 불러와야 함.
         estimate_load = self._load_knowledge(KNOWLEDGE_PATH)

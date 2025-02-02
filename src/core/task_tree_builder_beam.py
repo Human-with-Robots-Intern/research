@@ -68,25 +68,6 @@ class Scheduler:
         )
         queue.put(init_node)
 
-        # Bayesian 
-        outgoing_time_slot = self.constraint_handler.get_temporal_constraints(
-            init_state.subtask.name, "out"
-        )
-        if outgoing_time_slot.is_critical:
-            monitoring_trigger_sub_name = init_state.subtask.name
-            monitoring_end_sub_name = outgoing_time_slot.related_subtask_name
-            monitoring_timing = (
-                init_state.current_time + outgoing_time_slot.interval * 0.7
-            )
-            monitoring_subtask = get_monitoring_subtask()
-            log.debug(f"{monitoring_trigger_sub_name} -> {monitoring_end_sub_name}")
-            log.debug(f"current time {init_state.current_time}")
-            log.debug(f"Monitoring added at {monitoring_timing}")
-            log.debug(f"Monitoring subtask: {monitoring_subtask}")
-
-            # monitoring timing이 도래하면, 반드시 monitoring subtask를 수행해야 함.
-            # subtask_start_time < monitering_time < subtask_end_time 일 때 해당 subtask 대신 monitering subtask를 넣고 싶어.
-
         best_solutions = []
 
         while not queue.empty():
@@ -103,59 +84,57 @@ class Scheduler:
                 continue
 
             # 1) 현재 시점에 "즉시 실행 가능한" 서브태스크 찾기
-            # 제약에 들어갈 수 있는 서브태스크인지 확인 필요
             feasible_subs, not_yet_feasible_subs = (
-                self.constraint_handler.get_feasible_subtasks(curr_node)
+                self.constraint_handler.get_feasible_subtasks(curr_state)
             )
 
             # --- (2) 실행 가능한 서브태스크가 없다면 => '대기(Wait)' 로직 ---
-            for sub, earliest_start_time, is_critical in sorted(
-                not_yet_feasible_subs, key=lambda x: x[1]
-            ):
-
-                # 각 서브태스크별 earliest_time만 뽑아서 최솟값 찾기
-                wait_time = earliest_start_time - curr_state.current_time
-
-                if wait_time <= 1e-9:
-                    continue
-
-                wait_sub = Subtask(
-                    task_name=None,
-                    name="Wait for " + sub.name,
-                    duration=Duration(interval=wait_time, type="Controllable"),
-                    repetition=1,
-                    type="Wait",
-                    execution=Execution(
-                        objects=None, primitive_actions=[f"Wait {wait_time}"]
-                    ),
-                    temporal_constraints=None,
-                )
-
-                new_completed = curr_state.completed_subtasks + [
-                    CompletedEntry(
-                        subtask=wait_sub,
-                        start_time=curr_state.current_time,
-                        end_time=curr_state.current_time + wait_time,
+            if not feasible_subs:
+                if not_yet_feasible_subs:
+                    # 각 서브태스크별 earliest_time만 뽑아서 최솟값 찾기
+                    next_start_constraints = min(
+                        not_yet_feasible_subs, key=lambda x: x[1]
                     )
-                ]
-                # 대기 분량만큼 시간만 업데이트한 새 상태
-                new_state = SchedulerState(
-                    subtask=wait_sub,
-                    completed_subtasks=new_completed,
-                    remaining_subtasks=curr_state.remaining_subtasks,
-                    current_time=curr_state.current_time + wait_time,
-                    agent_location=curr_state.agent_location,
-                )
+                    next_start_time = next_start_constraints[1]
+                    wait_time = next_start_time - curr_state.current_time
 
-                new_cost = curr_heuristic + wait_time
+                    if wait_time > 0:
+                        wait_sub = Subtask(
+                            task_name=None,
+                            name="Wait for" + str(next_start_constraints[0].name),
+                            duration=wait_time,
+                            repetition=1,
+                            type="Wait",
+                            execution=None,
+                            temporal_constraints=None,
+                        )
+                        new_completed = curr_state.completed_subtasks + [
+                            CompletedEntry(
+                                subtask=wait_sub,
+                                start_time=curr_state.current_time,
+                                end_time=curr_state.current_time + wait_time,
+                            )
+                        ]
+                        # 대기 분량만큼 시간만 업데이트한 새 상태
+                        new_state = SchedulerState(
+                            subtask=wait_sub,
+                            completed_subtasks=new_completed,
+                            remaining_subtasks=curr_state.remaining_subtasks,
+                            current_time=curr_state.current_time + wait_time,
+                            agent_location=curr_state.agent_location,
+                        )
 
-                new_node = SimulationNode(
-                    heuristic_cost=new_cost,
-                    depth=curr_depth + 1,
-                    tie_breaker=next(counter),
-                    state=new_state,
-                )
-                queue.put(new_node)
+                        new_cost = curr_heuristic + wait_time
+
+                        new_node = SimulationNode(
+                            heuristic_cost=new_cost,
+                            depth=curr_depth + 1,
+                            tie_breaker=next(counter),
+                            state=new_state,
+                        )
+                        queue.put(new_node)
+                # 다른 서브태스크가 전혀 없어서 not_yet_feasible_subs도 비었다면 => 확장 불가
+                continue
 
             # --- (3) 실행 가능한 각 서브태스크 확장 ---
             expanded_nodes: List[SimulationNode] = []
