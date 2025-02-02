@@ -1,6 +1,6 @@
 from typing import List
 
-from core.task import Execution, Subtask, Task, TaskGraphBuilder
+from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
 from scheduler.dataclass import CompletedEntry, SchedulerState
 from utils.constants import (
     MONITORING_DURATION,
@@ -99,7 +99,7 @@ def get_init_state(subtasks: List[Subtask]) -> SchedulerState:
     init_subtask = Subtask(
         task_name=None,
         name="Init",
-        duration=0.0,
+        duration=Duration(interval=0, type="Init"),
         repetition=1,
         type="Init",
         execution=Execution(objects=[], primitive_actions=[f"Monitoring 0"]),
@@ -125,9 +125,9 @@ def get_monitoring_subtask() -> SchedulerState:
     monitoring_subtask = Subtask(
         task_name=None,
         name="Monitoring",
-        duration=MONITORING_DURATION,
+        duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
         repetition=1,
-        type="Monitoring",
+        type="Monitor",
         execution=Execution(
             objects=[], primitive_actions=[f"Monitoring {MONITORING_DURATION}"]
         ),

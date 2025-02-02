@@ -3,14 +3,14 @@ import argparse
 from core.agent import Agent
 from core.scheduler import Scheduler
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
-from utils import visualize
-from utils.task.task_io import (
+from utils import create_module_logger, visualize
+from utils.task import (
+    build_tasks_and_constraints,
+    get_init_state,
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file,
 )
-from utils.task.task_util import build_tasks_and_constraints, get_init_state
-from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
