@@ -83,6 +83,7 @@ def main():
 
         current_state = next_state
         result_schedule.append(current_state.subtask)
+
         if not current_state.remaining_subtasks:
             is_end = True
 

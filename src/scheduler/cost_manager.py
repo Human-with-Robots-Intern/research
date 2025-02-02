@@ -2,6 +2,7 @@ import logging
 from typing import Any, Optional
 
 from core.task import Subtask
+from scheduler.dataclass import SimulationNode
 from utils.task import load_navigation_times
 
 log = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ class NavigationManager:
         self.navigation_times = load_navigation_times()
 
     def compute_navigation_time(
-        self, current_node: Any, next_subtask: Subtask
+        self, current_node: SimulationNode, next_subtask: Subtask
     ) -> float:
         """
         Compute how long the robot will spend navigating in 'next_subtask'.
@@ -101,7 +102,7 @@ class NavigationManager:
     # ----------------------------------------------------------------------
     #  Internal Helpers
     # ----------------------------------------------------------------------
-    def _ensure_agent_location(self, current_node: Any) -> Optional[str]:
+    def _ensure_agent_location(self, current_node: SimulationNode) -> Optional[str]:
         """
         Check if 'current_node.state.agent_location' is already known.
         If None or empty, try to deduce it by looking at the most recent
