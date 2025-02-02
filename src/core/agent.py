@@ -81,7 +81,10 @@ class Agent:
         # 0.7이 되는 부분의 subtask 파악.
         # 0.7 기준 그 전에 오는 subtask만 추가.
         # 시간 넘으면 monitering 붙이기.
-        plan_about_time_critical = {"subtask1":3,"subtask2":4} ##예시_이거에 맞춰서 입력 형식 보내거나 두 값을 보내주어야 함.
+        plan_about_time_critical = {
+            "subtask1": 3,
+            "subtask2": 4,
+        }  ##예시_이거에 맞춰서 입력 형식 보내거나 두 값을 보내주어야 함.
         time_sum = 0
         subtask = list(plan_about_time_critical.keys())
         time = list(plan_about_time_critical.values())
@@ -108,8 +111,8 @@ class Agent:
 
         ground_truth = 10  # 나중에 subtask 이름에 따른 값으로 ground_truth.json 파일에서 불러와야 함.
         estimate_load = self._load_knowledge(KNOWLEDGE_PATH)
-        prior_mean = estimate_load[subtask_name]["expected_duration"]
-        prior_variance = estimate_load[subtask_name]["variance"]
+        prior_mean = estimate_load[subtask.name]["expected_duration"]
+        prior_variance = estimate_load[subtask.name]["variance"]
 
         # bayesian estimate
         a = 1
@@ -127,7 +130,7 @@ class Agent:
         )
 
         # posterior_data
-        estimate_load[subtask_name]["expected_duration"] = posterior_mean
-        estimate_load[subtask_name]["variance"] = posterior_variance
+        estimate_load[subtask.name]["expected_duration"] = posterior_mean
+        estimate_load[subtask.name]["variance"] = posterior_variance
 
         self._save_knowledge(KNOWLEDGE_PATH)
