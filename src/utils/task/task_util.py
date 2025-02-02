@@ -1,3 +1,4 @@
+import copy
 from typing import List
 
 from networkx import DiGraph
@@ -138,3 +139,26 @@ def get_monitoring_subtask() -> Subtask:
     )
 
     return monitoring_subtask
+
+
+def make_early_subtask(original_sub: Subtask, early_exec_time: float) -> Subtask:
+    early_sub = copy.deepcopy(original_sub)
+    early_sub.name += "_early"
+    early_sub.duration.interval = early_exec_time
+    early_sub.type = "EARLY"
+    return early_sub
+
+
+def make_monitoring_subtask(original_sub: Subtask) -> Subtask:
+    mon_sub = get_monitoring_subtask()
+    mon_sub.name = original_sub.name + "_monitoring"
+    mon_sub.type = "MONITORING"
+    return mon_sub
+
+
+def make_remain_subtask(original_sub: Subtask, remain_duration: float) -> Subtask:
+    remain_sub = copy.deepcopy(original_sub)
+    remain_sub.name += "_remain"
+    remain_sub.duration.interval = remain_duration
+    remain_sub.type = "REMAIN"
+    return remain_sub
