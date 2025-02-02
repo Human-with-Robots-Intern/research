@@ -1,12 +1,11 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import numpy as np
 
-from utils.constants import KNOWLEDGE_PATH
-from utils.util import create_module_logger
+from utils import KNOWLEDGE_PATH, create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 

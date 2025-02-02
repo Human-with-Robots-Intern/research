@@ -1,8 +1,6 @@
-from dataclasses import dataclass
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, Optional
 
 import networkx as nx
-import numpy as np
 
 
 class Duration:

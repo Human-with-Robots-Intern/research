@@ -1,12 +1,15 @@
+import copy
 from typing import List
 
-from core.task import Execution, Subtask, Task, TaskGraphBuilder
+from networkx import DiGraph
+
+from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
+from scheduler.dataclass import CompletedEntry, SchedulerState
 from utils.constants import (
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
 )
-from utils.dataclass import CompletedEntry, SchedulerState
 
 
 def tasks_to_subtasks(tasks, mode="all"):
@@ -95,14 +98,14 @@ def build_tasks_and_constraints(
     return subtasks, task_graph
 
 
-def get_init_state(subtasks: List[Subtask]) -> SchedulerState:
+def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerState:
     init_subtask = Subtask(
         task_name=None,
         name="Init",
-        duration=0.0,
+        duration=Duration(interval=0, type="Init"),
         repetition=1,
         type="Init",
-        execution=None,
+        execution=Execution(objects=[], primitive_actions=[f"Monitoring 0"]),
         temporal_constraints=None,
     )
     init_completed = CompletedEntry(
@@ -115,23 +118,47 @@ def get_init_state(subtasks: List[Subtask]) -> SchedulerState:
         subtask=init_subtask,
         completed_subtasks=[init_completed],
         remaining_subtasks=subtasks,
+        constraints=constraints,
         agent_location="agent",
         current_time=0,
     )
     return init_state
 
 
-def get_monitoring_subtask() -> SchedulerState:
+def get_monitoring_subtask() -> Subtask:
     monitoring_subtask = Subtask(
         task_name=None,
         name="Monitoring",
-        duration=MONITORING_DURATION,
+        duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
         repetition=1,
-        type="Monitoring",
+        type="Monitor",
         execution=Execution(
-            objects=None, primitive_actions=[f"Monitoring {MONITORING_DURATION}"]
+            objects=[], primitive_actions=[f"Monitoring {MONITORING_DURATION}"]
         ),
         temporal_constraints=None,
     )
 
     return monitoring_subtask
+
+
+def make_early_subtask(original_sub: Subtask, early_exec_time: float) -> Subtask:
+    early_sub = copy.deepcopy(original_sub)
+    early_sub.name += "_early"
+    early_sub.duration.interval = early_exec_time
+    early_sub.type = "EARLY"
+    return early_sub
+
+
+def make_monitoring_subtask(original_sub: Subtask) -> Subtask:
+    mon_sub = get_monitoring_subtask()
+    mon_sub.name = original_sub.name + "_monitoring"
+    mon_sub.type = "MONITORING"
+    return mon_sub
+
+
+def make_remain_subtask(original_sub: Subtask, remain_duration: float) -> Subtask:
+    remain_sub = copy.deepcopy(original_sub)
+    remain_sub.name += "_remain"
+    remain_sub.duration.interval = remain_duration
+    remain_sub.type = "REMAIN"
+    return remain_sub

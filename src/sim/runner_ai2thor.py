@@ -1,23 +1,19 @@
 import json
+import logging
+import math
 import os
 import random
-import logging
+import re
+import time
 from pathlib import Path
 
+import numpy as np
 from ai2thor.controller import Controller
 
+from ithor.handlers.action import Action
 from ithor.handlers.camera_handler import CameraHandler
 from ithor.handlers.navigation_handler import NavigationHandler
-
-from ithor.handlers.action import Action
-
 from ithor.utils.constants import *
-
-import numpy as np
-import math
-import time
-import re
-
 from utils.constants import KNOWLEDGE_PATH
 
 
@@ -46,7 +42,7 @@ def create_module_logger(module_name, is_file_handler=False):
     return logger
 
 
-log_file = open(Path.cwd() / Path("logs/ai2thor_log.txt"), "w", buffering=1)
+log_file = open(Path.cwd() / Path("logs/ai2thor_log.log"), "w", buffering=1)
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 

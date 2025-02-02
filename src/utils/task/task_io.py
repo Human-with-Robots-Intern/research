@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from utils.constants import KNOWLEDGE_PATH, TASK_PATH
-from utils.task_generator import generate_task
+from utils.task.task_generator import generate_task
 
 
 def load_navigation_times():
