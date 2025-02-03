@@ -107,7 +107,7 @@ class ConstraintHandler:
 
     def get_feasible_subtasks(
         self,
-        node: SimulationNode,
+        curr_node: SimulationNode,
     ) -> Tuple[List["Subtask"], List[Tuple["Subtask", float, bool]]]:
         """
         현재 스케줄 상태(state)에서,
@@ -121,18 +121,21 @@ class ConstraintHandler:
         feasible_subtasks: List["Subtask"] = []
         not_yet_list: List[Tuple["Subtask", float, bool]] = []
 
-        current_time = node.state.current_time
-        candidates = node.state.remaining_subtasks
-        constraints = node.state.constraints
+        current_time = curr_node.state.current_time
+        candidates = curr_node.state.remaining_subtasks
+        constraints = curr_node.state.constraints
 
         for sub in candidates:
-            earliest_start, is_exact = self._calc_earliest_start(node, sub, constraints)
+            earliest_start, is_exact = self._calc_earliest_start(
+                curr_node, sub, constraints
+            )
             if earliest_start is None:
                 # 전혀 실행 불가능(=선행 미완료 or Critical 충돌 등)
+                log.debug("Error occurred while calculating earliest start time.")
                 continue
 
             if is_exact:
-                nav_time, _ = self.nav_manager.compute_navigation_time(node, sub)
+                nav_time, _ = self.nav_manager.compute_navigation_time(curr_node, sub)
 
                 # Critical => current_time == earliest_start일 때만 지금 실행 가능
                 if abs(current_time - earliest_start) < 1e-9:
@@ -150,6 +153,10 @@ class ConstraintHandler:
                 else:
                     # 아직 시간을 만족 못함
                     not_yet_list.append((sub, earliest_start, False))
+        if not feasible_subtasks and not not_yet_list:
+            log.debug(
+                f"No feasible subtasks found by node.state : {curr_node.state.subtask.name}"
+            )
 
         return feasible_subtasks, not_yet_list
 
