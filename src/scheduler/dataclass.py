@@ -26,6 +26,8 @@ class SchedulerState(NamedTuple):
     completed_subtasks: List[CompletedEntry]
     # 남은 subtask들
     remaining_subtasks: List[Subtask]
+    # 즉시 수행할 monitoring subtask
+    pending_monitoring: Optional[Subtask]
     # 현재 constraint
     constraints: DiGraph
     # 현재 절대 시간 및 위치

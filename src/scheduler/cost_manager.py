@@ -3,11 +3,10 @@ from typing import Any, Optional
 
 from core.task import Subtask
 from scheduler.dataclass import SimulationNode
+from utils.constants import SIMULATION_DEPTH
 from utils.task import load_navigation_times
 
 log = logging.getLogger(__name__)
-
-COST_WEIGHT = 3
 
 
 class HeuristicManager:
@@ -18,7 +17,7 @@ class HeuristicManager:
 
     def __init__(self, constraint_handler):
         self.constraint_handler = constraint_handler
-        self.cost_weight = COST_WEIGHT
+        self.cost_weight = SIMULATION_DEPTH
 
     def calc_heuristic_cost(
         self,
@@ -40,7 +39,8 @@ class HeuristicManager:
         time_diff = out_time_slot.interval - in_time_slot.interval
 
         factor = max(self.cost_weight - current_node.depth, 1)
-        cost_val = factor * (subtask.duration.interval + time_diff + navigate_time)
+        # Priority queue는 작은 값이 높은 우선 순위이므로 -1을 곱해줌
+        cost_val = -1 * factor * (subtask.duration.interval + time_diff + navigate_time)
         return cost_val
 
 
