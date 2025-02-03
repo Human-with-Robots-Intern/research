@@ -76,26 +76,30 @@ def main():
     current_state = get_init_state(subtasks, constraints)
     is_end = False
     while not is_end:
+        # 다음 상태를 먼저 구해온다
         next_state = scheduler.get_next_state(current_state)
 
+        # 만약 next_state가 None이면, 더 이상 진행 불가하므로 에러 처리
+        if next_state is None:
+            log.error("No feasible solution found.")
+            break
+
+        # 지금의 current_state를 바탕으로 시뮬레이션 실행
         if args.simulation:
             execute_subtask(controller, current_state.subtask)
 
+        # current_state를 next_state로 넘기고
         current_state = next_state
+
+        # 스케줄 결과에 현재 서브태스크를 추가
         result_schedule.append(current_state.subtask)
 
-        visualize(
-            task_file_name,
-            current_state.constraints,
-            result_schedule,
-        )
+        # 시각화 실행
+        visualize(task_file_name, current_state.constraints, result_schedule)
 
+        # 남은 서브태스크가 없으면 종료
         if not current_state.remaining_subtasks:
             is_end = True
-
-        if current_state is None:
-            log.error("No feasible solution found.")
-            break
 
 
 if __name__ == "__main__":
