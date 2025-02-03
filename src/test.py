@@ -84,19 +84,18 @@ def main():
         current_state = next_state
         result_schedule.append(current_state.subtask)
 
+        visualize(
+            task_file_name,
+            current_state.constraints,
+            result_schedule,
+        )
+
         if not current_state.remaining_subtasks:
             is_end = True
 
         if current_state is None:
             log.error("No feasible solution found.")
             break
-
-    if args.visualize:
-        visualize(
-            task_file_name,
-            constraints,
-            result_schedule,
-        )
 
 
 if __name__ == "__main__":

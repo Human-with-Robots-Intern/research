@@ -19,7 +19,7 @@ def tasks_to_subtasks(tasks, mode="all"):
             subtasks.extend(task.subtasks)
     elif mode == "name":
         for task in tasks:
-            # print(subtasks)
+
             subtasks.extend([subtask.name for subtask in task.subtasks])
 
     return subtasks
@@ -118,6 +118,7 @@ def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerSt
         subtask=init_subtask,
         completed_subtasks=[init_completed],
         remaining_subtasks=subtasks,
+        pending_monitoring=None,
         constraints=constraints,
         agent_location="agent",
         current_time=0,
@@ -145,14 +146,16 @@ def make_early_subtask(original_sub: Subtask, early_exec_time: float) -> Subtask
     early_sub = copy.deepcopy(original_sub)
     early_sub.name += "_early"
     early_sub.duration.interval = early_exec_time
-    early_sub.type = "EARLY"
+    early_sub.type = "Interaction"
+    early_sub.decomposed = True
     return early_sub
 
 
 def make_monitoring_subtask(original_sub: Subtask) -> Subtask:
     mon_sub = get_monitoring_subtask()
-    mon_sub.name = original_sub.name + "_monitoring"
-    mon_sub.type = "MONITORING"
+    mon_sub.name = f"Monitoring for {original_sub.name}"
+    mon_sub.type = "Monitoring"
+    mon_sub.decomposed = True
     return mon_sub
 
 
@@ -160,5 +163,6 @@ def make_remain_subtask(original_sub: Subtask, remain_duration: float) -> Subtas
     remain_sub = copy.deepcopy(original_sub)
     remain_sub.name += "_remain"
     remain_sub.duration.interval = remain_duration
-    remain_sub.type = "REMAIN"
+    remain_sub.type = "Interaction"
+    remain_sub.decomposed = True
     return remain_sub
