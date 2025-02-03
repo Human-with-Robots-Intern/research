@@ -118,6 +118,7 @@ class ConstraintHandler:
 
         return (feasible_subtasks, not_yet_list)
         """
+
         feasible_subtasks: List["Subtask"] = []
         not_yet_list: List[Tuple["Subtask", float, bool]] = []
 
@@ -131,11 +132,10 @@ class ConstraintHandler:
             )
             if earliest_start is None:
                 # 전혀 실행 불가능(=선행 미완료 or Critical 충돌 등)
-                log.debug("Error occurred while calculating earliest start time.")
+
                 continue
 
             if is_exact:
-                nav_time, _ = self.nav_manager.compute_navigation_time(curr_node, sub)
 
                 # Critical => current_time == earliest_start일 때만 지금 실행 가능
                 if abs(current_time - earliest_start) < 1e-9:
@@ -153,15 +153,11 @@ class ConstraintHandler:
                 else:
                     # 아직 시간을 만족 못함
                     not_yet_list.append((sub, earliest_start, False))
-        if not feasible_subtasks and not not_yet_list:
-            log.debug(
-                f"No feasible subtasks found by node.state : {curr_node.state.subtask.name}"
-            )
 
         return feasible_subtasks, not_yet_list
 
     def _calc_earliest_start(
-        self, node: SimulationNode, sub: "Subtask", constraints: nx.DiGraph
+        self, curr_node: SimulationNode, sub: "Subtask", constraints: nx.DiGraph
     ) -> Tuple[Optional[float], bool]:
         """
         sub(후행 서브태스크)에 대한
@@ -194,7 +190,7 @@ class ConstraintHandler:
             pred_entry = next(
                 (
                     ce
-                    for ce in node.state.completed_subtasks
+                    for ce in curr_node.state.completed_subtasks
                     if ce.subtask.name == pred_name
                 ),
                 None,
