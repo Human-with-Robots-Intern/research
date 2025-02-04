@@ -151,9 +151,9 @@ def make_early_subtask(original_sub: Subtask, early_exec_time: float) -> Subtask
     return early_sub
 
 
-def make_monitoring_subtask(original_sub: Subtask) -> Subtask:
+def make_monitoring_subtask(original_sub_name: str) -> Subtask:
     mon_sub = get_monitoring_subtask()
-    mon_sub.name = f"Monitoring for {original_sub.name}"
+    mon_sub.name = f"Monitoring for {original_sub_name}"
     mon_sub.type = "Monitoring"
     mon_sub.decomposed = True
     return mon_sub
