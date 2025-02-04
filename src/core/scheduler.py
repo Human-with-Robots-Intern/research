@@ -66,19 +66,22 @@ class Scheduler:
         while not queue.empty():
             curr_node = queue.get()
             curr_state = curr_node.state
-            curr_heuristic = curr_node.heuristic_cost
             curr_depth = curr_node.depth
 
-            # 만약 이미 모든 서브태스크를 끝냈거나(remaining_subtasks가 없음)
-            # 혹은 depth가 한계(simulation_depth) 도달하면
-            # 더 이상 확장하지 않고 best_solutions에 저장
+            expanded_nodes: List[SimulationNode] = []
+
+            # 직전 subtask가 time-critical 제약을 시작한다면, monitoring subtask가 추가되어야 함.
+            out_slot = self.constraint_handler.get_temporal_constraints(
+                curr_state.subtask.name, curr_state.constraints, "out"
+            )
+
+            # 만약 이미 모든 서브태스크를 끝냈거나, 시뮬레이션 깊이에 도달했다면
             if not curr_state.remaining_subtasks or curr_depth >= self.simulation_depth:
                 best_solutions.append(curr_node)
                 continue
 
             # 1) 현재 시점에 "즉시 실행 가능한" 서브태스크 찾기
             # 제약에 들어갈 수 있는 서브태스크인지 확인 필요
-
             feasible_subs, not_yet_feasible_subs = (
                 self.constraint_handler.get_feasible_subtasks(curr_node)
             )
@@ -88,40 +91,50 @@ class Scheduler:
                 feasible_subs = [curr_state.pending_monitoring]
                 not_yet_feasible_subs = []
 
-            # 2) 아직 시작 시간이 되지 않은 서브태스크(not_yet_feasible_subs)에 대해,
-            #    일반 Wait 혹은 partial Wait를 고려
-            self._expand_wait_subtasks(not_yet_feasible_subs, curr_node, queue, counter)
-            # self._expand_wait_subtasks_with_monitoring(
-            #     not_yet_feasible_subs, curr_node, queue, counter
-            # )
-
-            # --- (3) 즉시 실행 가능한 각 서브태스크 확장 ---
-            expanded_nodes: List[SimulationNode] = []
+            # --- (2) 즉시 실행 가능한 각 서브태스크 확장 ---
             for candidate_sub in feasible_subs:
-                # Critical constraint에 의해 Monitoring subtask로 쪼개지는 경우가 결정 됨.
-                out_slot = self.constraint_handler.get_temporal_constraints(
-                    curr_state.subtask.name, curr_state.constraints, "out"
-                )
+                # TODO 급조된 분기 로직이라... 맞는지 모르겠음
                 if (
                     out_slot.is_critical
                     and not candidate_sub.decomposed
                     and not curr_node.state.subtask.decomposed
                 ):
-                    # TODO 쪼개진 subtask는 feasible, not_yet_feasible에 포함시켜야 함.
-                    # time-critical인 경우 -> 반드시 분할
+                    # time-critical인 경우 -> monitoring subtask으로 분할
                     new_node = self._expand_subtask_with_monitoring(
                         curr_node,
                         candidate_sub,
                         counter,
                     )
                 else:
-
+                    # time-critical이 아닌 경우 -> 일반적인 subtask 실행
                     new_node = self._expand_subtask_wo_monitoring(
                         curr_node,
                         candidate_sub,
                         counter,
                     )
-                expanded_nodes.append(new_node)
+
+            # (3) 아직 시작 시간이 되지 않은 서브태스크(not_yet_feasible_subs)에 대해, wait 고려
+            # is_critical : candidate_sub에 time_critical 제약이 있는지 여부
+            for (
+                candidate_sub,
+                earliest_start_time,
+                is_critical,
+            ) in sorted(not_yet_feasible_subs, key=lambda x: x[1]):
+                if (
+                    out_slot.is_critical
+                    and not candidate_sub.decomposed
+                    and not curr_node.state.subtask.decomposed
+                ):
+                    # time-critical인 경우 -> monitoring subtask으로 분할
+                    new_node = self._expand_wait_subtasks_with_monitoring(
+                        curr_node, candidate_sub, counter, earliest_start_time
+                    )
+                else:
+                    new_node = self._expand_wait_subtasks(
+                        curr_node, candidate_sub, counter, earliest_start_time
+                    )
+
+            expanded_nodes.append(new_node)
 
             # --- (4) Beam pruning: 상위 K개만 큐에 삽입 (비용 기준) ---
             expanded_nodes.sort(key=lambda nd: nd.heuristic_cost)
@@ -141,184 +154,6 @@ class Scheduler:
 
         return best_node.state
 
-    def _expand_wait_subtasks_with_monitoring(
-        self,
-        not_yet_feasible_subs: List,
-        curr_node: SimulationNode,
-        queue: PriorityQueue,
-        counter: itertools.count,
-    ):
-        """
-        아직 earliest_start_time이 도래하지 않은 서브태스크에 대해
-        1) 일반 Wait (earliest_start_time까지)
-        2) time-critical이면 모니터링 시점에 맞춘 partial Wait
-        등을 고려하여 노드를 확장.
-        """
-        for sub, earliest_start_time, is_critical in sorted(
-            not_yet_feasible_subs, key=lambda x: x[1]
-        ):
-            curr_state = curr_node.state
-            wait_time = earliest_start_time - curr_state.current_time
-            if wait_time > 1e-9:
-                # (A) 기본 Wait 노드 확장
-                wait_node = self._create_wait_node(curr_node, sub, wait_time, counter)
-                queue.put(wait_node)
-
-            # (B) time-critical 서브태스크라면 => monitoring timing 고려
-            if is_critical:
-                nav_time, _ = self.nav_manager.compute_navigation_time(curr_node, sub)
-                # subtask 본격 시작 시점 = earliest_start_time
-                # 전체 소요시간 = nav_time + sub.duration.interval
-                # 모니터링 시점 = earliest_start_time + BAYESIAN_CRITERIA * (nav_time + duration)
-                # (단, actual 시뮬레이션에서는 eariler start ~ monitoring_timing 사이에
-                #  실제 작업이 어느 정도 진행 가능한지 등 세부 로직 추가 고려 필요)
-                monitoring_timing = earliest_start_time + BAYESIAN_CRITERIA * (
-                    nav_time + sub.duration.interval
-                )
-
-                partial_wait_time = monitoring_timing - curr_state.current_time
-                # partial_wait_time이 valid하고, 모니터링 시점이 subtask가 완전히 끝나기 전이라면
-                # 부분 대기(Partial Wait)를 고려
-                total_end = earliest_start_time + nav_time + sub.duration.interval
-                if partial_wait_time > 1e-9 and monitoring_timing < total_end:
-                    # partial wait 노드 생성
-                    partial_wait_node = self._create_wait_node(
-                        curr_node, sub, partial_wait_time, counter, tag="(Monitor)"
-                    )
-                    queue.put(partial_wait_node)
-
-                    # 필요하다면 partial_wait_node 상태에서 곧바로 모니터링 서브태스크 확장을
-                    # 연결해줄 수도 있음 (예시):
-                    mon_node = self._expand_subtask_with_monitoring(
-                        partial_wait_node, sub, counter
-                    )
-                    if mon_node is not None:
-                        queue.put(mon_node)
-
-    def _expand_wait_subtasks(
-        self,
-        not_yet_feasible_subs: List,
-        curr_node: SimulationNode,
-        queue: PriorityQueue,
-        counter: itertools.count,
-    ):
-        """
-        아직 earliest_start_time이 도래하지 않은 Subtask에 대해
-        'Wait Subtask'를 생성하여 해당 시간을 대기하는 노드를 확장
-        """
-        curr_state = curr_node.state
-        curr_heuristic = curr_node.heuristic_cost
-        curr_depth = curr_node.depth
-
-        for sub, earliest_start_time, is_critical in sorted(
-            not_yet_feasible_subs, key=lambda x: x[1]
-        ):
-            wait_time = earliest_start_time - curr_state.current_time
-            if wait_time <= 1e-9:
-                continue
-
-            wait_sub = Subtask(
-                task_name=None,
-                name=f"Wait for {sub.name}",
-                duration=Duration(interval=wait_time, type="Controllable"),
-                repetition=1,
-                type="Wait",
-                execution=Execution(
-                    objects=None, primitive_actions=[f"Wait {wait_time}"]
-                ),
-                temporal_constraints=None,
-            )
-
-            new_completed = curr_state.completed_subtasks + [
-                CompletedEntry(
-                    subtask=wait_sub,
-                    start_time=curr_state.current_time,
-                    end_time=curr_state.current_time + wait_time,
-                )
-            ]
-            new_state = SchedulerState(
-                subtask=wait_sub,
-                completed_subtasks=new_completed,
-                remaining_subtasks=curr_state.remaining_subtasks,
-                pending_monitoring=None,
-                constraints=curr_state.constraints,
-                current_time=curr_state.current_time + wait_time,
-                agent_location=curr_state.agent_location,
-            )
-            new_heuristic = self.cost_calculator.calc_heuristic_cost(
-                curr_node, wait_sub, 0
-            )
-            new_cost = curr_heuristic + new_heuristic
-            new_node = SimulationNode(
-                heuristic_cost=new_cost,
-                depth=curr_depth + 1,
-                tie_breaker=next(counter),
-                state=new_state,
-            )
-            queue.put(new_node)
-
-    def _expand_subtask_wo_monitoring(
-        self,
-        curr_node: SimulationNode,
-        candidate_sub: Subtask,
-        counter: int,
-    ) -> SimulationNode:
-        """
-        Subtask 1개에 포함된 기존 primitive action 전체를 수행하는 노드 확장
-        (Monitoring subtask에 의해 쪼개지지 않는 경우?!)
-        """
-        curr_state = curr_node.state
-        curr_heuristic = curr_node.heuristic_cost
-        curr_depth = curr_node.depth
-
-        # subtask 수행 시간 계산 (이동 시간 포함)
-        nav_time, new_location = self.nav_manager.compute_navigation_time(
-            curr_node, candidate_sub
-        )
-        exec_time = candidate_sub.duration.interval + nav_time
-        start_time = curr_state.current_time
-        end_time = start_time + exec_time
-
-        # 원본 데이터 값 임의 수정 방지용 subtask 객체 복사
-        copied_sub = copy.deepcopy(candidate_sub)
-        copied_sub.duration.interval = exec_time
-
-        # Heuristic cost 계산
-        new_heuristic_cost = self.cost_calculator.calc_heuristic_cost(
-            curr_node, candidate_sub, nav_time
-        )
-        new_cost = curr_heuristic + new_heuristic_cost
-
-        # 완료 정보 업데이트
-        new_completed = curr_state.completed_subtasks + [
-            CompletedEntry(
-                subtask=copied_sub,
-                start_time=start_time,
-                end_time=end_time,
-            )
-        ]
-        new_remaining = [
-            r for r in curr_state.remaining_subtasks if r.name != candidate_sub.name
-        ]
-
-        new_state = SchedulerState(
-            subtask=copied_sub,
-            completed_subtasks=new_completed,
-            remaining_subtasks=new_remaining,
-            pending_monitoring=None,
-            constraints=curr_state.constraints,
-            current_time=end_time,
-            agent_location=new_location,
-        )
-
-        new_node = SimulationNode(
-            heuristic_cost=new_cost,
-            depth=curr_depth + 1,
-            tie_breaker=next(counter),
-            state=new_state,
-        )
-        return new_node
-
     def _expand_subtask_with_monitoring(
         self,
         curr_node: SimulationNode,
@@ -332,9 +167,14 @@ class Scheduler:
         """
 
         curr_state = curr_node.state
-        curr_constraints = curr_state.constraints
+
         curr_depth = curr_node.depth
         curr_heuristic = curr_node.heuristic_cost
+        curr_constraints = curr_state.constraints
+
+        _, _, related_sub_name = self.constraint_handler.get_temporal_constraints(
+            curr_state.subtask.name, curr_constraints, "out"
+        )
 
         # (1) 이동 시간 계산
         nav_time, new_location = self.nav_manager.compute_navigation_time(
@@ -365,7 +205,7 @@ class Scheduler:
         remain_dur = subtask_end_time - monitoring_timing
 
         early_sub = make_early_subtask(candidate_sub, early_dur)
-        mon_sub = make_monitoring_subtask(curr_node.state.subtask)
+        mon_sub = make_monitoring_subtask(related_sub_name)
         remain_sub = make_remain_subtask(candidate_sub, remain_dur)
 
         # DAG에 add_node
@@ -438,6 +278,213 @@ class Scheduler:
 
         return new_node
 
+    def _expand_subtask_wo_monitoring(
+        self,
+        curr_node: SimulationNode,
+        candidate_sub: Subtask,
+        counter: int,
+    ) -> SimulationNode:
+        """
+        Subtask 1개에 포함된 기존 primitive action 전체를 수행하는 노드 확장
+        (Monitoring subtask에 의해 쪼개지지 않는 경우?!)
+        """
+        curr_state = curr_node.state
+        curr_heuristic = curr_node.heuristic_cost
+        curr_depth = curr_node.depth
+
+        # subtask 수행 시간 계산 (이동 시간 포함)
+        nav_time, new_location = self.nav_manager.compute_navigation_time(
+            curr_node, candidate_sub
+        )
+        exec_time = candidate_sub.duration.interval + nav_time
+        start_time = curr_state.current_time
+        end_time = start_time + exec_time
+
+        # 원본 데이터 값 임의 수정 방지용 subtask 객체 복사
+        copied_sub = copy.deepcopy(candidate_sub)
+        copied_sub.duration.interval = exec_time
+
+        # Heuristic cost 계산
+        new_heuristic_cost = self.cost_calculator.calc_heuristic_cost(
+            curr_node, candidate_sub, nav_time
+        )
+        new_cost = curr_heuristic + new_heuristic_cost
+
+        # 완료 정보 업데이트
+        new_completed = curr_state.completed_subtasks + [
+            CompletedEntry(
+                subtask=copied_sub,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        ]
+        new_remaining = [
+            r for r in curr_state.remaining_subtasks if r.name != candidate_sub.name
+        ]
+
+        new_state = SchedulerState(
+            subtask=copied_sub,
+            completed_subtasks=new_completed,
+            remaining_subtasks=new_remaining,
+            pending_monitoring=None,
+            constraints=curr_state.constraints,
+            current_time=end_time,
+            agent_location=new_location,
+        )
+
+        new_node = SimulationNode(
+            heuristic_cost=new_cost,
+            depth=curr_depth + 1,
+            tie_breaker=next(counter),
+            state=new_state,
+        )
+        return new_node
+
+    def _expand_wait_subtasks_with_monitoring(
+        self,
+        curr_node: SimulationNode,
+        candidate_sub: Subtask,
+        counter: itertools.count,
+        earliest_start_time: float,
+    ):
+        """
+        아직 earliest_start_time이 도래하지 않은 서브태스크에 대해
+        1) 일반 Wait (earliest_start_time까지)
+        2) time-critical이면 모니터링 시점에 맞춘 partial Wait
+        등을 고려하여 노드를 확장.
+        """
+
+        curr_state = curr_node.state
+
+        curr_depth = curr_node.depth
+        curr_heuristic = curr_node.heuristic_cost
+        curr_constraints = curr_state.constraints
+
+        _, _, related_sub_name = self.constraint_handler.get_temporal_constraints(
+            curr_state.subtask.name, curr_constraints, "out"
+        )
+
+        # (1) 이동 시간 계산
+        nav_time, new_location = self.nav_manager.compute_navigation_time(
+            curr_node, candidate_sub
+        )
+
+        # (2) 실제 Subtask 실행 시간
+        # TODO Wait는 목표 subtask 위치까지 가서 기다려야 하는거 아니야? Nav time이 필요한지 확인
+        monitoring_timing = (
+            curr_state.current_time
+            + (earliest_start_time - curr_state.current_time) * BAYESIAN_CRITERIA
+        )
+
+        wait_duration = (
+            monitoring_timing - curr_state.current_time - MONITORING_DURATION
+        )
+
+        wait_sub = Subtask(
+            task_name=None,
+            name=f"Wait for {candidate_sub.name}",
+            duration=Duration(interval=wait_duration, type="Controllable"),
+            repetition=1,
+            type="Wait",
+            execution=Execution(
+                objects=None, primitive_actions=[f"Wait {wait_duration}"]
+            ),
+            temporal_constraints=None,
+        )
+
+        mon_sub = make_monitoring_subtask(related_sub_name)
+
+        # (8) early_sub 1-step 실행: 실제로 early_sub만 실행 (나머지는 이후에 Beam Search 확장을 통해 실행)
+        start_time = curr_state.current_time
+        end_time = (
+            start_time + wait_sub.duration.interval
+        )  # early_sub 실행 시간 (nav_time 포함)
+        step_cost = self.cost_calculator.calc_heuristic_cost(
+            curr_node, wait_sub, nav_time
+        )
+        new_cost = curr_heuristic + step_cost
+
+        completed_entry = CompletedEntry(
+            subtask=wait_sub,
+            start_time=start_time,
+            end_time=end_time,
+        )
+        new_remaining = curr_state.remaining_subtasks + [mon_sub]
+        new_completed = curr_state.completed_subtasks + [completed_entry]
+
+        # (9) 새 SchedulerState 생성: constraints는 업데이트된 new_constraints를 사용
+        new_state = SchedulerState(
+            subtask=wait_sub,
+            completed_subtasks=new_completed,
+            remaining_subtasks=new_remaining,
+            pending_monitoring=mon_sub,
+            constraints=curr_state.constraints,
+            current_time=end_time,
+            agent_location=new_location,
+        )
+
+        new_node = SimulationNode(
+            heuristic_cost=new_cost,
+            depth=curr_depth + 1,
+            tie_breaker=next(counter),
+            state=new_state,
+        )
+
+        return new_node
+
+    def _expand_wait_subtasks(
+        self,
+        curr_node: SimulationNode,
+        candidate_sub: Subtask,
+        counter: itertools.count,
+        earliest_start_time: float,
+    ):
+        """
+        아직 earliest_start_time이 도래하지 않은 Subtask에 대해
+        'Wait Subtask'를 생성하여 해당 시간을 대기하는 노드를 확장
+        """
+        curr_state = curr_node.state
+        curr_heuristic = curr_node.heuristic_cost
+        curr_depth = curr_node.depth
+
+        wait_time = earliest_start_time - curr_state.current_time
+
+        wait_sub = Subtask(
+            task_name=None,
+            name=f"Wait for {candidate_sub.name}",
+            duration=Duration(interval=wait_time, type="Controllable"),
+            repetition=1,
+            type="Wait",
+            execution=Execution(objects=None, primitive_actions=[f"Wait {wait_time}"]),
+            temporal_constraints=None,
+        )
+
+        new_completed = curr_state.completed_subtasks + [
+            CompletedEntry(
+                subtask=wait_sub,
+                start_time=curr_state.current_time,
+                end_time=curr_state.current_time + wait_time,
+            )
+        ]
+        new_state = SchedulerState(
+            subtask=wait_sub,
+            completed_subtasks=new_completed,
+            remaining_subtasks=curr_state.remaining_subtasks,
+            pending_monitoring=None,
+            constraints=curr_state.constraints,
+            current_time=curr_state.current_time + wait_time,
+            agent_location=curr_state.agent_location,
+        )
+
+        new_node = SimulationNode(
+            heuristic_cost=curr_heuristic
+            + self.cost_calculator.calc_heuristic_cost(curr_node, wait_sub, 0),
+            depth=curr_depth + 1,
+            tie_breaker=next(counter),
+            state=new_state,
+        )
+        return new_node
+
     def _extract_state(
         self, parent_state: SchedulerState, child_state: SchedulerState
     ) -> Optional[SchedulerState]:
@@ -446,28 +493,61 @@ class Scheduler:
         """
         if child_state is None:
             return None
-        if "early" in child_state.subtask.name:
-            log.debug(f"Early subtask: {child_state.subtask.name}")
+
+        # 이전 상태에서 이미 완료된 서브태스크 이름 집합
         parent_completed_set = {
             ce.subtask.name for ce in parent_state.completed_subtasks
         }
+        # 새로운 상태에서 완료된 서브태스크 리스트
         child_plan = child_state.completed_subtasks
 
+        # 새로운 상태에서 완료된 서브태스크 중, 이번에 새로 추가된 subtask만 추출
         new_entries = [
             ce for ce in child_plan if ce.subtask.name not in parent_completed_set
         ]
         if not new_entries:
             return child_state
 
+        # 새로 추가된 subtask 중 첫 번째 것만 가져옴
         new_entry = new_entries[0]
         new_subtask = new_entry.subtask
         new_completed_subtasks = parent_state.completed_subtasks + [new_entry]
 
-        # additional_remaining_subtasks에서 중복 제거된 이름 저장
-        additional_remaining_subtasks = [
-            new_entry.subtask for new_entry in new_entries[1:]
-        ]
+        # 만약 이번에 새로 추가되는 subtask가 time critical을 시작한다면, 부모의 제약 조건을 사용.
+        if not new_subtask.decomposed:
+            new_constraints = parent_state.constraints
+            new_remaining_subtasks = [
+                r for r in parent_state.remaining_subtasks if r.name != new_subtask.name
+            ]
 
+        else:
+            new_constraints = child_state.constraints
+            additional_remaining_subtasks = [
+                new_entry.subtask for new_entry in new_entries[1:]
+            ]
+
+            # 최종 결과 리스트
+            new_remaining_subtasks = []
+
+            # 중복 방지를 위한 집합
+            added_names = set()
+
+            for new_completed_sub in new_completed_subtasks:
+                added_names.add(new_completed_sub.subtask.name)
+
+            # 1️⃣ child_state.remaining_subtasks에서 중복되지 않는 값 추가
+            for sub in child_state.remaining_subtasks:
+                if sub.name not in added_names:
+                    new_remaining_subtasks.append(sub)
+                    added_names.add(sub.name)
+
+            # 2️⃣ additional_remaining_subtasks에서도 유니크한 값 추가
+            for sub in additional_remaining_subtasks:
+                if sub.name not in added_names:
+                    new_remaining_subtasks.append(sub)
+                    added_names.add(sub.name)  # 추가된 이름을 중복 방지 집합에 저장
+
+        # pending_monitoring이 있었는데, 새로 추가된 subtask가 monitoring이었다면 제거
         if (
             parent_state.pending_monitoring is not None
             and new_subtask.name == parent_state.pending_monitoring.name
@@ -477,92 +557,15 @@ class Scheduler:
             # 그 외의 경우는 기존 자식 state의 pending_monitoring 그대로
             next_pending_monitoring = child_state.pending_monitoring
 
-        # 최종 결과 리스트
-        new_remaining_subtasks = []
-
-        # 중복 방지를 위한 집합
-        added_names = set()
-
-        for new_completed_sub in new_completed_subtasks:
-            added_names.add(new_completed_sub.subtask.name)
-
-        # 1️⃣ child_state.remaining_subtasks에서 중복되지 않는 값 추가
-        for sub in child_state.remaining_subtasks:
-            if sub.name not in added_names:
-                new_remaining_subtasks.append(sub)
-                added_names.add(sub.name)
-
-        # 2️⃣ additional_remaining_subtasks에서도 유니크한 값 추가
-        for sub in additional_remaining_subtasks:
-            if sub.name not in added_names:
-                new_remaining_subtasks.append(sub)
-                added_names.add(sub.name)  # 추가된 이름을 중복 방지 집합에 저장
-
         # parent_state에 pending_monitoring이 있었다면 그대로 가져감
         next_state = SchedulerState(
             subtask=new_subtask,
             completed_subtasks=new_completed_subtasks,
             remaining_subtasks=new_remaining_subtasks,
             pending_monitoring=next_pending_monitoring,
-            constraints=child_state.constraints,
+            constraints=new_constraints,
             agent_location=child_state.agent_location,
             current_time=new_entry.end_time,
         )
 
         return next_state
-
-    def _create_wait_node(
-        self,
-        curr_node: SimulationNode,
-        target_sub: Subtask,
-        wait_time: float,
-        counter: itertools.count,
-        tag: str = "",
-    ) -> SimulationNode:
-        """
-        wait_time만큼 대기하는 Wait Subtask를 만든 뒤, 새로운 SimulationNode를 반환.
-        """
-        curr_state = curr_node.state
-        curr_heuristic = curr_node.heuristic_cost
-        curr_depth = curr_node.depth
-
-        wait_sub = Subtask(
-            task_name=None,
-            name=f"Wait for {target_sub.name}{tag}",
-            duration=Duration(interval=wait_time, type="Controllable"),
-            repetition=1,
-            type="Wait",
-            execution=Execution(objects=None, primitive_actions=[f"Wait {wait_time}"]),
-            temporal_constraints=None,
-        )
-        # pending_monitoring은 그대로 유지
-        pending_m = curr_state.pending_monitoring
-
-        # 완료 리스트 업데이트
-        new_completed = curr_state.completed_subtasks + [
-            CompletedEntry(
-                subtask=wait_sub,
-                start_time=curr_state.current_time,
-                end_time=curr_state.current_time + wait_time,
-            )
-        ]
-        # remaining_subtasks는 변경 없음
-        new_state = SchedulerState(
-            subtask=wait_sub,
-            completed_subtasks=new_completed,
-            remaining_subtasks=curr_state.remaining_subtasks,
-            pending_monitoring=pending_m,
-            constraints=curr_state.constraints,
-            current_time=curr_state.current_time + wait_time,
-            agent_location=curr_state.agent_location,
-        )
-        # 비용 계산
-        new_heuristic = self.cost_calculator.calc_heuristic_cost(curr_node, wait_sub, 0)
-        new_cost = curr_heuristic + new_heuristic
-        new_node = SimulationNode(
-            heuristic_cost=new_cost,
-            depth=curr_depth + 1,
-            tie_breaker=next(counter),
-            state=new_state,
-        )
-        return new_node
