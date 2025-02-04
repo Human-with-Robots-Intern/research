@@ -1,8 +1,6 @@
-from dataclasses import dataclass
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, Optional
 
 import networkx as nx
-import numpy as np
 
 
 class Duration:
@@ -72,6 +70,7 @@ class Subtask:
         execution: Execution,
         duration: Duration,
         temporal_constraints: Optional[List[TemporalConstraint]] = None,
+        decomposed: bool = False,
     ):
         self.task_name = task_name
         self.name = name
@@ -80,6 +79,7 @@ class Subtask:
         self.execution = execution
         self.duration = duration
         self.temporal_constraints = temporal_constraints or []
+        self.decomposed = decomposed
 
     def __repr__(self):
         return f"Subtask({self.name}, duration={self.duration}, constraints={self.temporal_constraints})"

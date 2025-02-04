@@ -1,19 +1,16 @@
 import argparse
-import json
-import time
-from pathlib import Path
 
 from core.agent import Agent
-from core.task_tree_builder_beam import Scheduler
+from core.scheduler import Scheduler
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
-from utils import visualize
-from utils.task_io import (
+from utils import create_module_logger, visualize
+from utils.task import (
+    build_tasks_and_constraints,
+    get_init_state,
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file,
 )
-from utils.task_util import build_tasks_and_constraints, get_init_state
-from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -59,7 +56,7 @@ def main():
         controller = init_ai2thor()
 
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files)
+    task_file_name = get_user_task_choice(task_files, choice=1)
 
     # Load the chosen task data
     task_data = load_task_data_from_file(task_file_name)
@@ -73,32 +70,30 @@ def main():
 
     agent = Agent()
 
-    scheduler = Scheduler(constraints)
+    scheduler = Scheduler(agent)
 
     result_schedule = []
-    current_state = get_init_state(subtasks)
+    current_state = get_init_state(subtasks, constraints)
     is_end = False
     while not is_end:
-        next_state = scheduler.get_next_state(current_state, constraints)
+
+        next_state = scheduler.get_next_state(current_state)
+
+        if next_state is None:
+            log.error("No feasible solution found.")
+            break
 
         if args.simulation:
             execute_subtask(controller, current_state.subtask)
 
         current_state = next_state
+
         result_schedule.append(current_state.subtask)
+
+        visualize(task_file_name, current_state.constraints, result_schedule)
+
         if not current_state.remaining_subtasks:
             is_end = True
-
-        if current_state is None:
-            log.error("No feasible solution found.")
-            break
-
-    if args.visualize:
-        visualize(
-            task_file_name,
-            constraints,
-            result_schedule,
-        )
 
 
 if __name__ == "__main__":

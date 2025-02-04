@@ -1,12 +1,11 @@
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import numpy as np
 
-from utils.constants import KNOWLEDGE_PATH
-from utils.util import create_module_logger
+from utils import KNOWLEDGE_PATH, create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -82,7 +81,10 @@ class Agent:
         # 0.7이 되는 부분의 subtask 파악.
         # 0.7 기준 그 전에 오는 subtask만 추가.
         # 시간 넘으면 monitering 붙이기.
-        plan_about_time_critical = {"subtask1":3,"subtask2":4} ##예시_이거에 맞춰서 입력 형식 보내거나 두 값을 보내주어야 함.
+        plan_about_time_critical = {
+            "subtask1": 3,
+            "subtask2": 4,
+        }  ##예시_이거에 맞춰서 입력 형식 보내거나 두 값을 보내주어야 함.
         time_sum = 0
         subtask = list(plan_about_time_critical.keys())
         time = list(plan_about_time_critical.values())
@@ -106,25 +108,29 @@ class Agent:
         # cooking_data : subtask의 진행정도 // 여기에 noise를 주어야 한다.
         # posterior_mean/variance : cooking_data를 받은 후 bayesian estimate를 통해 도출된 새로운 예상한 값의 분포.
         # knowledge.json 파일에서 불러오고 업데이트.
-        subtask_name = subtask
 
         ground_truth = 10  # 나중에 subtask 이름에 따른 값으로 ground_truth.json 파일에서 불러와야 함.
         estimate_load = self._load_knowledge(KNOWLEDGE_PATH)
-        prior_mean = estimate_load[subtask_name]["expected_duration"]
-        prior_variance = estimate_load[subtask_name]["variance"]
-       
+        prior_mean = estimate_load[subtask.name]["expected_duration"]
+        prior_variance = estimate_load[subtask.name]["variance"]
 
         # bayesian estimate
         a = 1
-        likelihood_epsilon_square = a*(prior_mean - actual_duration)** 2
+        likelihood_epsilon_square = a * (prior_mean - actual_duration) ** 2
         cooking_data_real = actual_duration / ground_truth
-        cooking_data_with_noise = np.random.normal(loc=cooking_data_real, scale=likelihood_epsilon_square)
-        posterior_mean = (prior_variance * cooking_data_with_noise + likelihood_epsilon_square * prior_mean) / (likelihood_epsilon_square + prior_variance)
-        posterior_variance = (likelihood_epsilon_square * prior_variance) / (likelihood_epsilon_square + prior_variance)
-
+        cooking_data_with_noise = np.random.normal(
+            loc=cooking_data_real, scale=likelihood_epsilon_square
+        )
+        posterior_mean = (
+            prior_variance * cooking_data_with_noise
+            + likelihood_epsilon_square * prior_mean
+        ) / (likelihood_epsilon_square + prior_variance)
+        posterior_variance = (likelihood_epsilon_square * prior_variance) / (
+            likelihood_epsilon_square + prior_variance
+        )
 
         # posterior_data
-        estimate_load[subtask_name]["expected_duration"] = posterior_mean
-        estimate_load[subtask_name]["variance"] = posterior_variance
+        estimate_load[subtask.name]["expected_duration"] = posterior_mean
+        estimate_load[subtask.name]["variance"] = posterior_variance
 
         self._save_knowledge(KNOWLEDGE_PATH)

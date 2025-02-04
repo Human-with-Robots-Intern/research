@@ -167,7 +167,7 @@ def cached_generate_task(
                 model="gpt-4o", messages=full_prompt
             )
             output_content = response.choices[0].message.content.strip()
-            print(output_content)
+
             if "```json" in output_content:
                 output_content = output_content.strip("```json").strip("```")
 
