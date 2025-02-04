@@ -9,7 +9,28 @@ from utils.constants import (
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
+    KNOWLEDGE_PATH
 )
+
+## 유사도 검사를 위한 import
+import json
+import requests
+
+API_URL = (
+    "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+)
+api_token = "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"
+headers = {"Authorization": f"Bearer {api_token}"}
+
+
+def query(payload):
+    response = requests.post(API_URL, headers=headers, json=payload)
+    return response.json()
+
+def load_object_Ids():
+    with open(KNOWLEDGE_PATH / "FloorPlan1_physics_environment.json", "r") as f:
+        objectIds = json.load(f)
+    return objectIds
 
 
 def tasks_to_subtasks(tasks, mode="all"):
@@ -72,6 +93,76 @@ def revision_primitive_actions(tasks):
             subtask.execution.primitive_actions = updated_actions
     return tasks
 
+def check_obj_id(tasks):
+    objectIds = load_object_Ids()
+    all_object_ids = set()
+    for key in objectIds:
+        all_object_ids.update(objectIds[key])
+
+    for task in tasks:
+        for subtask in task.subtasks:
+            actions = subtask.execution.primitive_actions
+            for i, action in enumerate(actions):
+                step = action.split(" ")[0]  ## action 이름
+                to_obj = action.split(" ")[1]  ## object의 이름
+                if step == "NAVIGATE_TO":
+                    if to_obj not in all_object_ids:
+                        print(f"{to_obj} 안맞음")
+                        # 유사도 검사
+                        data = query(
+                            {
+                                "inputs": {
+                                    "source_sentence": f"{to_obj}",
+                                    "sentences": list(all_object_ids),
+                                }
+                            }
+                        )
+                        # 가장 유사한 object의 index
+                        idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[0][
+                            0
+                        ]
+                        real_obj_id = list(all_object_ids)[idx]
+                        actions[i] = f"{step} {real_obj_id}"
+                        print(actions[i])
+                elif step in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
+                    if to_obj not in objectIds["RECEPTACLE"]:
+                        print(f"{to_obj} 안맞음")
+                        # 유사도 검사
+                        data = query(
+                            {
+                                "inputs": {
+                                    "source_sentence": f"{to_obj}",
+                                    "sentences": objectIds["RECEPTACLE"],
+                                }
+                            }
+                        )
+                        # 가장 유사한 object의 index
+                        idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[0][
+                            0
+                        ]
+                        real_obj_id = objectIds["RECEPTACLE"][idx]
+                        actions[i] = f"{step} {real_obj_id}"
+                        print(actions[i])
+                else:
+                    if to_obj not in objectIds[step]:
+                        print(f"{to_obj} 안맞음")
+                        # 유사도 검사
+                        data = query(
+                            {
+                                "inputs": {
+                                    "source_sentence": f"{to_obj}",
+                                    "sentences": objectIds[step],
+                                }
+                            }
+                        )
+                        # 가장 유사한 object의 index
+                        idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[0][
+                            0
+                        ]
+                        real_obj_id = objectIds[step][idx]
+                        actions[i] = f"{step} {real_obj_id}"
+                        print(actions[i])
+    return tasks
 
 def build_tasks_and_constraints(
     task_data: dict, enable_decomposition: bool
@@ -85,6 +176,7 @@ def build_tasks_and_constraints(
     :return: A tuple containing the list of Task objects and the task graph/constraints.
     """
     tasks = Task.parse_instruction(task_data)
+    tasks = check_obj_id(tasks)
     tasks = revision_primitive_actions(tasks)
 
     if enable_decomposition:
