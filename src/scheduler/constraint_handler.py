@@ -4,7 +4,7 @@ import networkx as nx
 
 from core.task import Subtask
 from scheduler.cost_manager import NavigationManager
-from scheduler.dataclass import SimulationNode, TimeSlot
+from scheduler.dataclass import Candidate, SimulationNode, TemporalConstraint
 from utils import create_module_logger
 
 log = create_module_logger(module_name=__name__)
@@ -20,7 +20,7 @@ class ConstraintHandler:
 
     def get_temporal_constraints(
         self, subtask_name: str, constraints: nx.DiGraph, direction: str
-    ) -> TimeSlot:
+    ) -> TemporalConstraint:
         """
         주어진 서브태스크의 in/out 방향 엣지들을 확인하여,
         Critical/Non-critical 간 압축 로직으로 Interval을 계산한 뒤,
@@ -42,7 +42,7 @@ class ConstraintHandler:
         )
 
         if not edges:
-            return TimeSlot(0, False, None)
+            return TemporalConstraint(0, False, None)
 
         critical_intervals = []
         non_critical_intervals = []
@@ -65,7 +65,7 @@ class ConstraintHandler:
                 log.debug(
                     f"Conflict: multiple critical intervals for '{subtask_name}': {distinct_crit_vals}"
                 )
-                return TimeSlot(0, False, None)
+                return TemporalConstraint(0, False, None)
 
             crit_interval, crit_linked = critical_intervals[0]
 
@@ -77,16 +77,16 @@ class ConstraintHandler:
                     log.debug(
                         f"Conflict: critical interval {crit_interval} < non-critical max {max_noncrit_interval}"
                     )
-                    return TimeSlot(0, False, None)
-            return TimeSlot(crit_interval, True, crit_linked)
+                    return TemporalConstraint(0, False, None)
+            return TemporalConstraint(crit_interval, True, crit_linked)
         else:
             max_interval, max_linked = max(non_critical_intervals, key=lambda x: x[0])
-            return TimeSlot(max_interval, False, max_linked)
+            return TemporalConstraint(max_interval, False, max_linked)
 
     def get_feasible_subtasks(
         self,
         curr_node: SimulationNode,
-    ) -> Tuple[List["Subtask"], List[Tuple["Subtask", float, bool]]]:
+    ) -> Tuple[List[Candidate], List[Candidate]]:
         """
         현재 스케줄 상태(state)에서,
         - 지금 당장 실행 가능한 서브태스크 목록 (feasible)
@@ -106,14 +106,14 @@ class ConstraintHandler:
                 curr_node, sub, constraints
             )
             if earliest_start is None:
-                log.debug(f"Subtask '{sub.name}' 실행 불가: 선행 미완료 또는 충돌\n")
+                log.debug(f"Subtask '{sub.name}' 실행 불가: 선행 미완료\n")
                 continue
 
             if is_exact:
                 if abs(current_time - earliest_start) < 1e-9:
-                    feasible_subtasks.append(sub)
+                    feasible_subtasks.append(Candidate(sub, earliest_start, True))
                 elif current_time < earliest_start:
-                    not_yet_list.append((sub, earliest_start, True))
+                    not_yet_list.append(Candidate(sub, earliest_start, True))
                 else:
                     log.error(
                         f"Subtask '{sub.name}'의 시간 창을 놓쳤음 (현재 시간: {current_time})\n"
@@ -121,11 +121,10 @@ class ConstraintHandler:
                     return [], []
             else:
                 if current_time >= earliest_start - 1e-9:
-                    feasible_subtasks.append(sub)
+                    feasible_subtasks.append(Candidate(sub, earliest_start, False))
                 else:
-                    not_yet_list.append((sub, earliest_start, False))
+                    not_yet_list.append(Candidate(sub, earliest_start, False))
 
-        log.debug(f"Feasible subtasks: {[s.name for s in feasible_subtasks]}")
         return feasible_subtasks, not_yet_list
 
     def _calc_earliest_start(

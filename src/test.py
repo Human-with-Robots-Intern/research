@@ -4,6 +4,7 @@ from core.agent import Agent
 from core.scheduler import Scheduler
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import create_module_logger, visualize
+from utils.constants import LOG_ROUND
 from utils.task import (
     build_tasks_and_constraints,
     get_init_state,
@@ -94,6 +95,11 @@ def main():
 
         if not current_state.remaining_subtasks:
             is_end = True
+
+    for subtask in current_state.completed_subtasks:
+        log.info(
+            f"{subtask.subtask.name} ({round(subtask.start_time, LOG_ROUND)} ~ {round(subtask.end_time,LOG_ROUND)})"
+        )
 
 
 if __name__ == "__main__":
