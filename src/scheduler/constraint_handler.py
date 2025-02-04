@@ -132,11 +132,9 @@ class ConstraintHandler:
             )
             if earliest_start is None:
                 # 전혀 실행 불가능(=선행 미완료 or Critical 충돌 등)
-
                 continue
 
             if is_exact:
-
                 # Critical => current_time == earliest_start일 때만 지금 실행 가능
                 if abs(current_time - earliest_start) < 1e-9:
                     feasible_subtasks.append(sub)
@@ -213,7 +211,7 @@ class ConstraintHandler:
             unique_crit = set(critical_times)
             if len(unique_crit) != 1:
                 # 서로 다른 시점을 요구 = 모순
-                return (None, False)
+                raise ValueError("Multiple distinct critical times found, conflict.")
             only_crit_time = next(iter(unique_crit))  # 그 하나
         elif len(critical_times) == 1:
             only_crit_time = critical_times[0]
@@ -222,7 +220,6 @@ class ConstraintHandler:
 
         # 종합
         if only_crit_time is not None:
-
             return (only_crit_time, True)
         else:
             # critical 없음 -> noncrit_earliest 이후면 언제든

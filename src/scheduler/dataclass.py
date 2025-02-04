@@ -27,6 +27,7 @@ class SchedulerState(NamedTuple):
     # 남은 subtask들
     remaining_subtasks: List[Subtask]
     # 즉시 수행할 monitoring subtask
+    # TODO Pending Monitoring이 필요해? 제약 조건으로 할당 가능한거 아닌가?
     pending_monitoring: Optional[Subtask]
     # 현재 constraint
     constraints: DiGraph
