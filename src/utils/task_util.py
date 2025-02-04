@@ -169,8 +169,8 @@ def build_tasks_and_constraints(
     :return: A tuple containing the list of Task objects and the task graph/constraints.
     """
     tasks = Task.parse_instruction(task_data)
-    tasks = revision_primitive_actions(tasks)
     tasks = check_obj_id(tasks)
+    tasks = revision_primitive_actions(tasks)
 
     if enable_decomposition:
         for task in tasks:
