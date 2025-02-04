@@ -1,12 +1,9 @@
-from datetime import datetime
 from pathlib import Path
 from typing import List
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-from anytree import Node
-from anytree.exporter import UniqueDotExporter
 
 from core.task import Subtask
 from utils.constants import VIS_PATH
@@ -84,13 +81,6 @@ def visualize_graph(G: nx.DiGraph, save_folder_path, is_display=False):
         plt.close()
 
 
-from pathlib import Path
-from typing import List, Optional
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-
 def plot_gantt_chart(
     completed_subtasks: List[Subtask], save_folder_path: str, is_display: bool = False
 ):
@@ -146,7 +136,9 @@ def plot_gantt_chart(
     plt.tight_layout()
 
     # 3) 파일 저장
-    save_path = Path(save_folder_path) / "task_schedule_gantt.png"
+    save_path = (
+        Path(save_folder_path) / f"task_schedule_gantt_{len(completed_subtasks)}.png"
+    )
     plt.savefig(save_path)
 
     if is_display:

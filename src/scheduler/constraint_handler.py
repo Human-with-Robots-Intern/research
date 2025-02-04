@@ -1,25 +1,26 @@
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import networkx as nx
 
 from core.task import Subtask
-from task_management.navigation_manager import NavigationManager
-from utils.dataclass import SchedulerState, SimulationNode, TimeSlot
-from utils.util import create_module_logger
+from scheduler.cost_manager import NavigationManager
+from scheduler.dataclass import SimulationNode, TimeSlot
+from utils import create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=False)
 
 
 class ConstraintHandler:
-    def __init__(self, constraints: nx.DiGraph, navigation_manager: NavigationManager):
+    def __init__(self, navigation_manager: NavigationManager):
         """
         constraints: nx.DiGraph
           - 각 edge(u->v)에 "info": {"Interval": float, "IsCritical": bool}가 존재
         """
-        self.constraints = constraints
         self.nav_manager = navigation_manager
 
-    def get_temporal_constraints(self, subtask_name: str, direction: str) -> TimeSlot:
+    def get_temporal_constraints(
+        self, subtask_name: str, constraints: nx.DiGraph, direction: str
+    ) -> TimeSlot:
         """
         subtask_name 기준으로 in/out 방향의 모든 엣지를 확인하여,
         Critical/Non-critical 간 '압축' 로직으로 Interval을 계산한 뒤,
@@ -38,16 +39,13 @@ class ConstraintHandler:
         """
 
         if direction == "out":
-            edges = list(self.constraints.out_edges(subtask_name, data=True))
-        elif direction == "in":
-            edges = list(self.constraints.in_edges(subtask_name, data=True))
-        else:
-            raise ValueError("direction must be either 'in' or 'out'.")
+            edges = list(constraints.out_edges(subtask_name, data=True))
+        else:  # direction == "in"
+            edges = list(constraints.in_edges(subtask_name, data=True))
 
         if not edges:
             log.debug(
-                f"No {direction} edges found for subtask {subtask_name}. "
-                "Returning default TimeSlot(0, False, None)."
+                f"No {direction} edges found for {subtask_name}, returning default TimeSlot(0, False, None)."
             )
             return TimeSlot(0, False, None)
 
@@ -109,7 +107,7 @@ class ConstraintHandler:
 
     def get_feasible_subtasks(
         self,
-        node: SimulationNode,
+        curr_node: SimulationNode,
     ) -> Tuple[List["Subtask"], List[Tuple["Subtask", float, bool]]]:
         """
         현재 스케줄 상태(state)에서,
@@ -120,21 +118,23 @@ class ConstraintHandler:
 
         return (feasible_subtasks, not_yet_list)
         """
+
         feasible_subtasks: List["Subtask"] = []
         not_yet_list: List[Tuple["Subtask", float, bool]] = []
 
-        current_time = node.state.current_time
-        candidates = node.state.remaining_subtasks
+        current_time = curr_node.state.current_time
+        candidates = curr_node.state.remaining_subtasks
+        constraints = curr_node.state.constraints
 
         for sub in candidates:
-            earliest_start, is_exact = self._calc_earliest_start(node, sub)
+            earliest_start, is_exact = self._calc_earliest_start(
+                curr_node, sub, constraints
+            )
             if earliest_start is None:
                 # 전혀 실행 불가능(=선행 미완료 or Critical 충돌 등)
                 continue
 
             if is_exact:
-                nav_time, _ = self.nav_manager.compute_navigation_time(node, sub)
-
                 # Critical => current_time == earliest_start일 때만 지금 실행 가능
                 if abs(current_time - earliest_start) < 1e-9:
                     feasible_subtasks.append(sub)
@@ -155,7 +155,7 @@ class ConstraintHandler:
         return feasible_subtasks, not_yet_list
 
     def _calc_earliest_start(
-        self, node: SimulationNode, sub: "Subtask"
+        self, curr_node: SimulationNode, sub: "Subtask", constraints: nx.DiGraph
     ) -> Tuple[Optional[float], bool]:
         """
         sub(후행 서브태스크)에 대한
@@ -171,7 +171,7 @@ class ConstraintHandler:
               False면 'earliest_start 이후' 언제든 가능
         """
 
-        in_edges = list(self.constraints.in_edges(sub.name, data=True))
+        in_edges = list(constraints.in_edges(sub.name, data=True))
         if not in_edges:
             # 선행이 전혀 없는 경우 -> 아무때나 가능
             return (0.0, False)
@@ -188,7 +188,7 @@ class ConstraintHandler:
             pred_entry = next(
                 (
                     ce
-                    for ce in node.state.completed_subtasks
+                    for ce in curr_node.state.completed_subtasks
                     if ce.subtask.name == pred_name
                 ),
                 None,
@@ -211,7 +211,7 @@ class ConstraintHandler:
             unique_crit = set(critical_times)
             if len(unique_crit) != 1:
                 # 서로 다른 시점을 요구 = 모순
-                return (None, False)
+                raise ValueError("Multiple distinct critical times found, conflict.")
             only_crit_time = next(iter(unique_crit))  # 그 하나
         elif len(critical_times) == 1:
             only_crit_time = critical_times[0]
@@ -220,7 +220,6 @@ class ConstraintHandler:
 
         # 종합
         if only_crit_time is not None:
-
             return (only_crit_time, True)
         else:
             # critical 없음 -> noncrit_earliest 이후면 언제든

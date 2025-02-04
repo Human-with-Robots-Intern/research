@@ -1,13 +1,47 @@
-# navigation_manager.py
-import copy
 import logging
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from core.task import Subtask
-from utils.dataclass import SimulationNode
-from utils.task_io import load_navigation_times
+from scheduler.dataclass import SimulationNode
+from utils.constants import SIMULATION_DEPTH
+from utils.task import load_navigation_times
 
 log = logging.getLogger(__name__)
+
+
+class HeuristicManager:
+    """
+    - Subtask 실행 시 발생하는 휴리스틱 비용 계산
+    - Wait 시 발생하는 비용 계산
+    """
+
+    def __init__(self, constraint_handler):
+        self.constraint_handler = constraint_handler
+        self.cost_weight = SIMULATION_DEPTH
+
+    def calc_heuristic_cost(
+        self,
+        current_node: Any,
+        subtask: Subtask,
+        navigate_time: float,
+    ) -> float:
+        """
+        기존 코드의 휴리스틱 공식:
+          cost_val = (cost_weight - current_depth) * (
+        subtask.duration.interval + navigate_time + (incoming_ts[0] - outgoing_ts[0])
+        """
+        in_time_slot = self.constraint_handler.get_temporal_constraints(
+            subtask.name, current_node.state.constraints, "in"
+        )
+        out_time_slot = self.constraint_handler.get_temporal_constraints(
+            subtask.name, current_node.state.constraints, "out"
+        )
+        time_diff = out_time_slot.interval - in_time_slot.interval
+
+        factor = max(self.cost_weight - current_node.depth, 1)
+        # Priority queue는 작은 값이 높은 우선 순위이므로 -1을 곱해줌
+        cost_val = -1 * factor * (subtask.duration.interval + time_diff + navigate_time)
+        return cost_val
 
 
 class NavigationManager:
@@ -22,7 +56,7 @@ class NavigationManager:
         self.navigation_times = load_navigation_times()
 
     def compute_navigation_time(
-        self, current_node: Any, next_subtask: Subtask
+        self, current_node: SimulationNode, next_subtask: Subtask
     ) -> float:
         """
         Compute how long the robot will spend navigating in 'next_subtask'.
@@ -68,7 +102,7 @@ class NavigationManager:
     # ----------------------------------------------------------------------
     #  Internal Helpers
     # ----------------------------------------------------------------------
-    def _ensure_agent_location(self, current_node: Any) -> Optional[str]:
+    def _ensure_agent_location(self, current_node: SimulationNode) -> Optional[str]:
         """
         Check if 'current_node.state.agent_location' is already known.
         If None or empty, try to deduce it by looking at the most recent
