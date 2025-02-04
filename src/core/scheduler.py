@@ -124,6 +124,9 @@ class Scheduler:
             feasible_subs, not_yet_feasible_subs = (
                 self.constraint_handler.get_feasible_subtasks(curr_node)
             )
+            if len(feasible_subs) == 0 and len(not_yet_feasible_subs) == 0:
+                # 해당 branch는 infeasible
+                continue  # => 이 노드는 확장 안 하고 skip
             log.debug(
                 f"[_simulate_beam_search] feasible_subs={[sub.name for sub in feasible_subs]}, "
                 f"not_yet_feasible_subs={[f'{sub[0].name}:{sub[1]}' for sub in not_yet_feasible_subs]}"

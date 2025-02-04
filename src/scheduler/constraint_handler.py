@@ -177,6 +177,7 @@ class ConstraintHandler:
                     log.debug(
                         f"Subtask '{sub.name}' missed its exact time window (current_time: {current_time})."
                     )
+                    return [], []
             else:
                 if current_time >= earliest_start - 1e-9:
                     log.debug(
