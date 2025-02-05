@@ -62,9 +62,7 @@ class ConstraintHandler:
         if critical_intervals:
             distinct_crit_vals = {t[0] for t in critical_intervals}
             if len(distinct_crit_vals) > 1:
-                log.debug(
-                    f"Conflict: multiple critical intervals for '{subtask_name}': {distinct_crit_vals}"
-                )
+
                 return TemporalConstraint(0, False, None)
 
             crit_interval, crit_linked = critical_intervals[0]
@@ -74,9 +72,7 @@ class ConstraintHandler:
                     non_critical_intervals, key=lambda x: x[0]
                 )
                 if crit_interval < max_noncrit_interval:
-                    log.debug(
-                        f"Conflict: critical interval {crit_interval} < non-critical max {max_noncrit_interval}"
-                    )
+
                     return TemporalConstraint(0, False, None)
             return TemporalConstraint(crit_interval, True, crit_linked)
         else:
@@ -140,7 +136,7 @@ class ConstraintHandler:
             * earliest_start가 None이면 실행 불가능
             * is_exact가 True면 정확히 그 시간에만 실행 가능
         """
-        log.debug(f"_calc_earliest_start: subtask '{sub.name}'")
+
         in_edges = list(constraints.in_edges(sub.name, data=True))
 
         if not in_edges:
