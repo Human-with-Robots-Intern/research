@@ -4,6 +4,7 @@ from core.agent import Agent
 from core.scheduler import Scheduler
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import create_module_logger, visualize
+from utils.constants import LOG_ROUND
 from utils.task import (
     build_tasks_and_constraints,
     get_init_state,
@@ -71,7 +72,7 @@ def main():
 
     agent = Agent()
 
-    scheduler = Scheduler(agent)
+    scheduler = Scheduler()
 
     result_schedule = []
     current_state = get_init_state(subtasks, constraints)
@@ -85,8 +86,10 @@ def main():
             break
 
         if args.simulation:
-            execute_subtask(controller, current_state.subtask)
+            execute_subtask(controller, next_state.subtask)
 
+        if next_state.subtask.type == "Monitor":
+            agent.bayesian_estimate(next_state)
         current_state = next_state
 
         result_schedule.append(current_state.subtask)
@@ -95,6 +98,11 @@ def main():
 
         if not current_state.remaining_subtasks:
             is_end = True
+
+    for subtask in current_state.completed_subtasks:
+        log.info(
+            f"{subtask.subtask.name} ({round(subtask.start_time, LOG_ROUND)} ~ {round(subtask.end_time,LOG_ROUND)})"
+        )
 
 
 if __name__ == "__main__":

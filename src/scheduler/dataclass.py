@@ -14,6 +14,9 @@ class CompletedEntry(NamedTuple):
     start_time: float
     end_time: float
 
+    def __repr__(self):
+        return f"({self.subtask.name}, {self.start_time} ~ {self.end_time})"
+
 
 class SchedulerState(NamedTuple):
     """
@@ -26,9 +29,6 @@ class SchedulerState(NamedTuple):
     completed_subtasks: List[CompletedEntry]
     # 남은 subtask들
     remaining_subtasks: List[Subtask]
-    # 즉시 수행할 monitoring subtask
-    # TODO Pending Monitoring이 필요해? 제약 조건으로 할당 가능한거 아닌가?
-    pending_monitoring: Optional[Subtask]
     # 현재 constraint
     constraints: DiGraph
     # 현재 절대 시간 및 위치
@@ -52,7 +52,25 @@ class SimulationNode(NamedTuple):
     state: SchedulerState
 
 
-class TimeSlot(NamedTuple):
+class TemporalConstraint(NamedTuple):
+    # 해당 subtask에서 in/out하는 제약 시간
     interval: int
+    # 해당 subtask에서 in/out하는 제약 critical한지 여부
     is_critical: bool
+    # 해당 subtask에서 in/out하는 제약과 연결된 subtask 이름
     related_subtask_name: Optional[str]
+
+    def __repr__(self):
+        return f"({self.related_subtask_name}, {self.interval}, {self.is_critical}, )"
+
+
+class Candidate(NamedTuple):
+
+    subtask: Subtask
+    # subtask의 시작 시간
+    earliest_start: float
+    # subtask이 critical인지 여부
+    is_critical: bool
+
+    def __repr__(self):
+        return f"({self.subtask.name}, {self.earliest_start}, {self.is_critical})"

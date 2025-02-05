@@ -2,11 +2,12 @@ import logging
 from typing import Any, Optional
 
 from core.task import Subtask
-from scheduler.dataclass import SimulationNode
+from scheduler.dataclass import Candidate, SimulationNode
 from utils.constants import SIMULATION_DEPTH
 from utils.task import load_navigation_times
+from utils.util import create_module_logger
 
-log = logging.getLogger(__name__)
+log = create_module_logger(__name__)
 
 
 class HeuristicManager:
@@ -21,8 +22,8 @@ class HeuristicManager:
 
     def calc_heuristic_cost(
         self,
-        current_node: Any,
-        subtask: Subtask,
+        current_node: SimulationNode,
+        candidate: Candidate,
         navigate_time: float,
     ) -> float:
         """
@@ -30,18 +31,69 @@ class HeuristicManager:
           cost_val = (cost_weight - current_depth) * (
         subtask.duration.interval + navigate_time + (incoming_ts[0] - outgoing_ts[0])
         """
-        in_time_slot = self.constraint_handler.get_temporal_constraints(
-            subtask.name, current_node.state.constraints, "in"
-        )
-        out_time_slot = self.constraint_handler.get_temporal_constraints(
-            subtask.name, current_node.state.constraints, "out"
-        )
-        time_diff = out_time_slot.interval - in_time_slot.interval
+        bonus = 0
+        # 첫번째 확장에서는 모니터링과 타이밍이 도래한 critical subtask를 우선적으로 실행
+        # if current_node.depth == 0:
+        if candidate.subtask.type == "Monitor":
+            bonus += 1000
+        # 현재 시간과 candidate subtask의 시작 시간이 같고, critical인 경우
+        if (
+            abs(candidate.earliest_start - current_node.state.current_time) < 1e-9
+            and candidate.is_critical
+        ):
+            bonus += 1000
 
-        factor = max(self.cost_weight - current_node.depth, 1)
-        # Priority queue는 작은 값이 높은 우선 순위이므로 -1을 곱해줌
-        cost_val = -1 * factor * (subtask.duration.interval + time_diff + navigate_time)
+        # 이전 실행에 가까울수록 높은 우선 순위를 부여
+        factor = -max(self.cost_weight - current_node.depth, 1)
+
+        # 현재 노드의 in/out 타임 슬롯을 가져옴
+        in_time_slot = self.constraint_handler.get_temporal_constraints(
+            candidate.subtask.name, current_node.state.constraints, "in"
+        )
+        # 병렬 작업은 빠르게 시작해야 함
+        out_time_slot = self.constraint_handler.get_temporal_constraints(
+            candidate.subtask.name, current_node.state.constraints, "out"
+        )
+        # 병렬이 끝나는 것은 느리게, 병렬 시작은 빠르게
+        time_diff = in_time_slot.interval - out_time_slot.interval
+
+        # Priority queue는 작은 값이 높은 우선 순위
+        cost_val = (
+            factor * (candidate.subtask.duration.interval + navigate_time + time_diff)
+            - self._find_parallel_window(current_node)
+            - bonus
+        )
+
+        # 최소값 반환
         return cost_val
+
+    def _find_parallel_window(self, current_node: SimulationNode) -> float:
+        """
+        (예시) 이미 '진행 중'인 Uncontrollable 서브태스크가 있으면,
+        그 작업의 남은 시간을 병렬 구간으로 보고 반환한다.
+        - 여기서는 단순히 'type이 Uncontrollable이고 end_time > 현재'인 서브태스크 중 최댓값을 찾는 예시
+        """
+
+        now = current_node.state.current_time
+        max_remaining = 0.0
+
+        # completed_subtasks는 '이미 끝난' 작업이라는 점에서 'in-progress' 확인이 애매하지만,
+        # 만약 "끝나지 않은" subtask를 별도 관리한다면 여기서 참조.
+
+        for ce in current_node.state.completed_subtasks:
+            temporal_constraint = self.constraint_handler.get_temporal_constraints(
+                ce.subtask.name, current_node.state.constraints, "out"
+            )
+            parallel_window_end_time_candidate = (
+                ce.end_time + temporal_constraint.interval
+            )
+            if parallel_window_end_time_candidate > now:
+                # 아직 종료 안 되었다고 가정
+                remaining = ce.end_time - now
+                if remaining > max_remaining:
+                    max_remaining = remaining
+
+        return max_remaining
 
 
 class NavigationManager:
@@ -123,7 +175,7 @@ class NavigationManager:
         # If not found, return None
         return None
 
-    def _find_last_location(self, current_node: Any) -> Optional[str]:
+    def _find_last_location(self, current_node: SimulationNode) -> Optional[str]:
         """
         Traverse completed_subtasks (and current subtask) from the end,
         searching for the last NAVIGATE_TO action. Return its target location.
