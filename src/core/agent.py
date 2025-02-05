@@ -5,6 +5,8 @@ from typing import Any, Dict
 
 import numpy as np
 
+from scheduler.constraint_handler import ConstraintHandler
+from scheduler.dataclass import SchedulerState
 from utils import KNOWLEDGE_PATH, create_module_logger
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
@@ -19,8 +21,9 @@ class Config:
 
 class Agent:
     def __init__(self):
-        self.knowledge = self._load_knowledge(KNOWLEDGE_PATH)
+        self.knowledge = self._load_knowledge()
         self.config = Config()
+        self.constraint_handler = ConstraintHandler()
 
     def reset_knowledge_to_gaussian(self) -> None:
         """
@@ -33,10 +36,12 @@ class Agent:
                 "variance": 1,
             }
 
-        self._save_knowledge(KNOWLEDGE_PATH)
+        self._save_knowledge()
         log.info("Knowledge reset to default Gaussian (mean=0, var=1).")
 
-    def _load_knowledge(self, knowledge_path: Path) -> Dict[str, Any]:
+    def _load_knowledge(
+        self, file_name: str = "bayesian_estimate.json"
+    ) -> Dict[str, Any]:
         """
         Load the knowledge JSON file, which is assumed to have a structure like:
         {
@@ -50,7 +55,8 @@ class Agent:
             }
         }
         """
-        knowledge_file = knowledge_path / "bayesian_estimate.json"
+        knowledge_file = KNOWLEDGE_PATH / file_name
+
         if knowledge_file.exists():
             try:
                 with knowledge_file.open("r", encoding="utf-8") as f:
@@ -63,12 +69,12 @@ class Agent:
         else:
             raise FileNotFoundError(f"Knowledge file not found at {knowledge_file}.")
 
-    def _save_knowledge(self, knowledge_path: Path) -> None:
+    def _save_knowledge(self) -> None:
         """
         Save (overwrite) the knowledge JSON file.
         """
-        knowledge_path.mkdir(parents=True, exist_ok=True)
-        knowledge_file = knowledge_path / "bayesian_estimate.json"
+        KNOWLEDGE_PATH.mkdir(parents=True, exist_ok=True)
+        knowledge_file = KNOWLEDGE_PATH / "bayesian_estimate.json"
         try:
             with knowledge_file.open("w", encoding="utf-8") as f:
                 json.dump(self.knowledge, f, indent=4, ensure_ascii=False)
@@ -101,18 +107,29 @@ class Agent:
 
     #     return replanning_list
 
-    def bayesian_estimate(self, actual_duration: float, subtask):
-        # actual_duration : monitering한 시간
+    def bayesian_estimate(self, state: SchedulerState) -> None:
+        # actual_duration : monitoring한 시간
         # ground_truth : 해당 subtask의 ground_truth
         # prior_mean/variance : 이전에 예상한 값의 분포
         # cooking_data : subtask의 진행정도 // 여기에 noise를 주어야 한다.
         # posterior_mean/variance : cooking_data를 받은 후 bayesian estimate를 통해 도출된 새로운 예상한 값의 분포.
         # knowledge.json 파일에서 불러오고 업데이트.
+        subtask_name = state.subtask.name.split("for")[1].strip()
+        temporal_constraint = self.constraint_handler.get_temporal_constraints(
+            subtask_name, state.constraints, "in"
+        )
+        for ce in state.completed_subtasks:
+            if ce.subtask.name == temporal_constraint.related_subtask_name:
+                actual_duration = state.current_time - ce.end_time
+                break
 
-        ground_truth = 10  # 나중에 subtask 이름에 따른 값으로 ground_truth.json 파일에서 불러와야 함.
-        estimate_load = self._load_knowledge(KNOWLEDGE_PATH)
-        prior_mean = estimate_load[subtask.name]["expected_duration"]
-        prior_variance = estimate_load[subtask.name]["variance"]
+        ground_truth = self._load_knowledge("bayesian_ground_truth.json").get(
+            subtask_name
+        )
+
+        estimate_load = self._load_knowledge("bayesian_estimate.json")
+        prior_mean = estimate_load[subtask_name]["expected_duration"]
+        prior_variance = estimate_load[subtask_name]["variance"]
 
         # bayesian estimate
         a = 1
@@ -130,7 +147,7 @@ class Agent:
         )
 
         # posterior_data
-        estimate_load[subtask.name]["expected_duration"] = posterior_mean
-        estimate_load[subtask.name]["variance"] = posterior_variance
+        self.knowledge[subtask_name]["expected_duration"] = posterior_mean
+        self.knowledge[subtask_name]["variance"] = posterior_variance
 
-        self._save_knowledge(KNOWLEDGE_PATH)
+        self._save_knowledge()

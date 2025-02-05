@@ -35,16 +35,15 @@ class Scheduler:
 
     def __init__(
         self,
-        agent: Agent,
         beam_width: int = BEAM_WIDTH,
         simulation_depth: int = SIMULATION_DEPTH,
     ):
-        self.agent = agent
+
         self.beam_width = beam_width
         self.simulation_depth = simulation_depth
 
         self.nav_manager = NavigationManager()
-        self.constraint_handler = ConstraintHandler(self.nav_manager)
+        self.constraint_handler = ConstraintHandler()
         self.cost_calculator = HeuristicManager(self.constraint_handler)
 
         self._counter = itertools.count()  # tie-breaker용
@@ -610,6 +609,7 @@ class Scheduler:
             state=new_state,
         )
         return new_node
+
 
 # TODO Bayesian 연결하기
 # TODO Nav Time 무지성으로 넣은거 검토하기

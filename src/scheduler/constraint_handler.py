@@ -11,12 +11,12 @@ log = create_module_logger(module_name=__name__)
 
 
 class ConstraintHandler:
-    def __init__(self, navigation_manager: NavigationManager):
+    def __init__(self):
         """
         constraints: nx.DiGraph
           - 각 edge(u->v)에 "info": {"Interval": float, "IsCritical": bool}가 존재
         """
-        self.nav_manager = navigation_manager
+        pass
 
     def get_temporal_constraints(
         self, subtask_name: str, constraints: nx.DiGraph, direction: str

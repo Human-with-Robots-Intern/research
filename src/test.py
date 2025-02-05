@@ -71,7 +71,7 @@ def main():
 
     agent = Agent()
 
-    scheduler = Scheduler(agent)
+    scheduler = Scheduler()
 
     result_schedule = []
     current_state = get_init_state(subtasks, constraints)
@@ -85,8 +85,10 @@ def main():
             break
 
         if args.simulation:
-            execute_subtask(controller, current_state.subtask)
+            execute_subtask(controller, next_state.subtask)
 
+        if next_state.subtask.type == "Monitor":
+            agent.bayesian_estimate(next_state)
         current_state = next_state
 
         result_schedule.append(current_state.subtask)
