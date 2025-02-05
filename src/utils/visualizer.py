@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 
 from core.task import Subtask
-from utils.constants import VIS_PATH
+from utils.constants import BEAM_WIDTH, SIMULATION_DEPTH, VIS_PATH
 
 
 def visualize(task_name, constraints, plan=None):
@@ -137,7 +137,8 @@ def plot_gantt_chart(
 
     # 3) 파일 저장
     save_path = (
-        Path(save_folder_path) / f"task_schedule_gantt_{len(completed_subtasks)}.png"
+        Path(save_folder_path)
+        / f"{SIMULATION_DEPTH}_{BEAM_WIDTH}_task_schedule_gantt_{len(completed_subtasks)}.png"
     )
     plt.savefig(save_path)
 

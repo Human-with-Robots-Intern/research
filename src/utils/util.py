@@ -3,35 +3,56 @@ import signal
 import time
 from functools import wraps
 
+
+
 from utils.constants import LOG_PATH
+from colorlog import ColoredFormatter
 
-
-def create_module_logger(module_name, is_file_handler=False):
+def create_module_logger(module_name, is_file_handler=False, console_output=True):
     """
-    Creates and returns a logger for logging statements from the module represented by @module_name
-
-    Args:
-    module_name (str): Module to create the logger for. Should be the module's `__name__` variable
-
-    Returns:
-        Logger: Created logger for the module
+    module_name: 모듈 이름
+    is_file_handler: 파일 핸들러를 추가할지 여부 (파일에도 로그를 기록)
+    console_output: 콘솔에 로그를 출력할지 여부
     """
-
     logger = logging.getLogger(module_name)
+    logger.setLevel(logging.INFO)
+
+    # 부모 로거로 전파되지 않도록 설정
+    logger.propagate = False
+    # 기존 핸들러 제거 (중복 출력 방지)
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    # 콘솔 핸들러 추가 (옵션)
+    if console_output:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG)
+        console_formatter = ColoredFormatter(
+            "%(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s",
+            reset=True,
+            log_colors={
+                "DEBUG": "cyan",
+                "INFO": "white",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "red,bg_white",
+            },
+        )
+        console_handler.setFormatter(console_formatter)
+        logger.addHandler(console_handler)
+
+    # 파일 핸들러 추가 (옵션)
     if is_file_handler:
-        logger.setLevel("DEBUG")
         file_handler = logging.FileHandler(
             LOG_PATH / f"{module_name}.log",
-            "a",
+            mode="w",
         )
-        file_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-        )
+        file_handler.setLevel(logging.INFO)
+        file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
+
     return logger
-
-
-# log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class timeout:

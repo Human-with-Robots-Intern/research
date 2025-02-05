@@ -2,5 +2,13 @@
     "Brew Coffee": {
         "expected_duration": 0.4809406867623476,
         "variance": 1.0
+    },
+    "Prepare Egg Fry": {
+        "expected_duration": 1.2069615915108634,
+        "variance": 0.2620757079034178
+    },
+    "Turn off stove after cooking": {
+        "expected_duration": 0.010069120948132148,
+        "variance": 8.15289511863396e-05
     }
 }
