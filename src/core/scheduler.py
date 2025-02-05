@@ -213,7 +213,6 @@ class Scheduler:
         new_subtask = new_entry.subtask
         new_completed_subtasks = parent_state.completed_subtasks + [new_entry]
 
-        # TODO 흑흑 모니터링이 사라졌어요...
         if not new_subtask.decomposed:
             new_constraints = parent_state.constraints
             new_remaining_subtasks = [
@@ -611,6 +610,5 @@ class Scheduler:
         return new_node
 
 
-# TODO Bayesian 연결하기
 # TODO Nav Time 무지성으로 넣은거 검토하기
 # TODO Monitoring으로 분할될 때, Primitive Action 해결하기

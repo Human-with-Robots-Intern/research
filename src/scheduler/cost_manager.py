@@ -33,15 +33,15 @@ class HeuristicManager:
         """
         bonus = 0
         # 첫번째 확장에서는 모니터링과 타이밍이 도래한 critical subtask를 우선적으로 실행
-        # if current_node.depth == 0:
-        if candidate.subtask.type == "Monitor":
-            bonus += 1000
-        # 현재 시간과 candidate subtask의 시작 시간이 같고, critical인 경우
-        if (
-            abs(candidate.earliest_start - current_node.state.current_time) < 1e-9
-            and candidate.is_critical
-        ):
-            bonus += 1000
+        if current_node.depth == 0:
+            if candidate.subtask.type == "Monitor":
+                bonus += 1000
+            # 현재 시간과 candidate subtask의 시작 시간이 같고, critical인 경우
+            if (
+                abs(candidate.earliest_start - current_node.state.current_time) < 1e-9
+                and candidate.is_critical
+            ):
+                bonus += 1000
 
         # 이전 실행에 가까울수록 높은 우선 순위를 부여
         factor = -max(self.cost_weight - current_node.depth, 1)
@@ -55,7 +55,7 @@ class HeuristicManager:
             candidate.subtask.name, current_node.state.constraints, "out"
         )
         # 병렬이 끝나는 것은 느리게, 병렬 시작은 빠르게
-        time_diff = in_time_slot.interval - out_time_slot.interval
+        time_diff = out_time_slot.interval - in_time_slot.interval
 
         # Priority queue는 작은 값이 높은 우선 순위
         cost_val = (

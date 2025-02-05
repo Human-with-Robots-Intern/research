@@ -3,10 +3,10 @@ import signal
 import time
 from functools import wraps
 
-
+from colorlog import ColoredFormatter
 
 from utils.constants import LOG_PATH
-from colorlog import ColoredFormatter
+
 
 def create_module_logger(module_name, is_file_handler=False, console_output=True):
     """
