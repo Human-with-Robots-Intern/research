@@ -129,23 +129,27 @@ class ConstraintHandler:
             --> (Subtask, earliest_start, is_critical)
         """
         log.debug("get_feasible_subtasks: 시작")
-        feasible_subtasks: List["Subtask"] = []
-        not_yet_list: List[Tuple["Subtask", float, bool]] = []
+        feasible_candidates: List["Subtask"] = []
+        not_yet_candidates: List[Tuple["Subtask", float, bool]] = []
 
         current_time = curr_node.state.current_time
         remaining_subtasks = curr_node.state.remaining_subtasks
 
         for sub in remaining_subtasks:
-            earliest_start_time, is_critical = self._calc_earliest_start(curr_node, sub)
+            earliest_start_time, is_critical = self.get_earliest_start_time(
+                curr_node, sub
+            )
             if earliest_start_time is None:
                 log.debug(f"Subtask '{sub.name}' 실행 불가: 선행 미완료\n")
                 continue
 
             if is_critical:
                 if abs(current_time - earliest_start_time) < 1e-9:
-                    feasible_subtasks.append(Candidate(sub, earliest_start_time, True))
+                    feasible_candidates.append(
+                        Candidate(sub, True, earliest_start_time)
+                    )
                 elif current_time < earliest_start_time:
-                    not_yet_list.append(Candidate(sub, earliest_start_time, True))
+                    not_yet_candidates.append(Candidate(sub, True, earliest_start_time))
                 else:
                     log.error(
                         f"Subtask '{sub.name}'의 Critical Timing ({earliest_start_time})을 놓쳤음\n"
@@ -154,13 +158,27 @@ class ConstraintHandler:
                     return [], []
             else:
                 if current_time >= earliest_start_time - 1e-9:
-                    feasible_subtasks.append(Candidate(sub, earliest_start_time, False))
+                    feasible_candidates.append(
+                        Candidate(sub, False, earliest_start_time)
+                    )
                 else:
-                    not_yet_list.append(Candidate(sub, earliest_start_time, False))
+                    not_yet_candidates.append(
+                        Candidate(sub, False, earliest_start_time)
+                    )
+        not_yet_candidates = sorted(
+            filter(lambda x: x.is_critical, not_yet_candidates),
+            key=lambda x: x.earliest_start_time,
+        )
+        for candidate in feasible_candidates:
+            candidate.deadline = (
+                not_yet_candidates[0].earliest_start_time
+                if not_yet_candidates
+                else float("inf")
+            )
 
-        return feasible_subtasks, not_yet_list
+        return (feasible_candidates, not_yet_candidates)
 
-    def _calc_earliest_start(
+    def get_earliest_start_time(
         self, curr_node: SimulationNode, sub: "Subtask"
     ) -> Tuple[Optional[float], bool]:
         """
