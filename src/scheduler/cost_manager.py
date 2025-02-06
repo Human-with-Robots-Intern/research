@@ -31,20 +31,22 @@ class HeuristicManager:
         subtask.duration.interval + navigate_time + (incoming_ts[0] - outgoing_ts[0])
         """
 
-        # (1) 이전 실행에 가까울수록 높은 우선 순위를 부여
+        # * (1) 이전 실행에 가까울수록 높은 우선 순위를 부여
         factor = -max(self.cost_weight - current_node.depth, 1)
 
-        # (2) 시간 휴리스틱
+        # * (2) 시간 휴리스틱
         # 병렬을 닫는 작업은 느리게 시작해도 됨
-        in_time_slot = self.constraint_handler.get_temporal_constraints(
+        in_time_slot = self.constraint_handler.get_time_slots(
             candidate.subtask.name, current_node.state.constraints, "in"
         )
         # 병렬 작업은 빠르게 시작해야 함
-        out_time_slot = self.constraint_handler.get_temporal_constraints(
+        out_time_slot = self.constraint_handler.get_time_slots(
             candidate.subtask.name, current_node.state.constraints, "out"
         )
         # ! DO NOT FIX THIS HEURISTIC FORMULA
         time_diff = out_time_slot.interval - in_time_slot.interval
+
+        # * (3) 추가할 subtask가 critical 제약을 닫는 경우, 현재
 
         # Priority queue는 작은 값이 높은 우선 순위
         cost_val = factor * (

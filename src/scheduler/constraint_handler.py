@@ -20,7 +20,7 @@ class ConstraintHandler:
         """
         pass
 
-    def get_temporal_constraints(
+    def get_time_slots(
         self, subtask_name: str, constraints: DiGraph, direction: str
     ) -> TimeSlot:
         """
@@ -34,9 +34,6 @@ class ConstraintHandler:
           - Critical과 Non-critical이 동시에 존재하면 Critical interval >= Non-critical 최댓값이어야 함
           - 엣지가 없으면 TimeSlot(0, False, None)을 반환.
         """
-        log.debug(
-            f"get_temporal_constraints: subtask '{subtask_name}', direction '{direction}'"
-        )
 
         edges = (
             list(constraints.out_edges(subtask_name, data=True))
@@ -88,11 +85,9 @@ class ConstraintHandler:
     def get_actual_duration(
         self, curr_state: SchedulerState, subtask_name: str
     ) -> TimeSlot:
-        temporal_constraint = self.get_temporal_constraints(
-            subtask_name, curr_state.constraints, "in"
-        )
+        time_slot = self.get_time_slots(subtask_name, curr_state.constraints, "in")
         for ce in curr_state.completed_subtasks:
-            if ce.subtask.name == temporal_constraint.related_subtask_name:
+            if ce.subtask.name == time_slot.related_subtask_name:
                 actual_duration = curr_state.current_time - ce.end_time
                 break
         return actual_duration
@@ -111,12 +106,10 @@ class ConstraintHandler:
         # 만약 "끝나지 않은" subtask를 별도 관리한다면 여기서 참조.
 
         for ce in current_node.state.completed_subtasks:
-            temporal_constraint = self.constraint_handler.get_temporal_constraints(
+            time_slots = self.get_time_slots(
                 ce.subtask.name, current_node.state.constraints, "out"
             )
-            parallel_window_end_time_candidate = (
-                ce.end_time + temporal_constraint.interval
-            )
+            parallel_window_end_time_candidate = ce.end_time + time_slots.interval
             if parallel_window_end_time_candidate > now:
                 # 아직 종료 안 되었다고 가정
                 remaining = ce.end_time - now

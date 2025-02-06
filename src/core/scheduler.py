@@ -92,7 +92,7 @@ class Scheduler:
 
             curr_node = queue.get()
             curr_state, curr_depth = curr_node.state, curr_node.depth
-            curr_out_slot = self.constraint_handler.get_temporal_constraints(
+            curr_out_slot = self.constraint_handler.get_time_slots(
                 curr_state.subtask.name, curr_state.constraints, "out"
             )
 
@@ -340,7 +340,7 @@ class Scheduler:
         curr_state = curr_node.state
         curr_constraints = curr_state.constraints
 
-        _, _, related_sub_name = self.constraint_handler.get_temporal_constraints(
+        _, _, related_sub_name = self.constraint_handler.get_time_slots(
             curr_state.subtask.name, curr_constraints, "out"
         )
 
@@ -471,7 +471,7 @@ class Scheduler:
         curr_heuristic = curr_node.heuristic_cost
         curr_constraints = curr_state.constraints
 
-        _, _, related_sub_name = self.constraint_handler.get_temporal_constraints(
+        _, _, related_sub_name = self.constraint_handler.get_time_slots(
             curr_state.subtask.name, curr_constraints, "out"
         )
 
