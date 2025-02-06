@@ -4,11 +4,11 @@
         "variance": 1.0
     },
     "Prepare Egg Fry": {
-        "expected_duration": 0.6968258314561773,
-        "variance": 0.19270012456103885
+        "expected_duration": 1.260851425015186,
+        "variance": 0.15860933902626997
     },
     "Turn off stove after cooking": {
-        "expected_duration": 0.0101789509707595,
-        "variance": 8.15287731329818e-05
+        "expected_duration": 0.010171974769213646,
+        "variance": 8.152742115336019e-05
     }
 }

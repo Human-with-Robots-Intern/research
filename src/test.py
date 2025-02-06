@@ -95,11 +95,10 @@ def main():
         current_state = next_state
 
         result_schedule.append(current_state.subtask)
-        visualize(task_file_name, current_state.constraints, result_schedule)
 
         if not current_state.remaining_subtasks:
             is_end = True
-
+    visualize(task_file_name, current_state.constraints, result_schedule)
     for subtask in current_state.completed_subtasks:
         log.info(
             f"{subtask.subtask.name} ({round(subtask.start_time, LOG_ROUND)} ~ {round(subtask.end_time,LOG_ROUND)})"

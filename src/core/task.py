@@ -82,7 +82,7 @@ class Subtask:
         self.decomposed = decomposed
 
     def __repr__(self):
-        return f"Subtask({self.name}, duration={self.duration}, constraints={self.temporal_constraints})"
+        return f"Subtask({self.name})"
 
     @classmethod
     def from_dict(cls, subtask_data: Dict, task_name: str) -> "Subtask":

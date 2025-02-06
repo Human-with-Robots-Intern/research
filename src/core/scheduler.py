@@ -113,9 +113,9 @@ class Scheduler:
 
             log.warning(
                 f"========================================\n"
-                f"Depth = {curr_depth+1}\n"
+                f"Depth = {curr_depth+1} / Current Time : {round(curr_state.current_time,2)}\n"
                 f"Completed_subs ={[ce.subtask.name for ce in curr_state.completed_subtasks]}\n"
-                f"(Current Time : {round(curr_state.current_time,2)}, Out_{curr_out_slot})\n\n"
+                f"Remaining_subs ={[r.name for r in curr_state.remaining_subtasks]}\n\n"
                 f"Feasible_subs={[candidate for candidate in feasible_candidate]},\n"
                 f"Not_yet_feasible_subs={[candidate for candidate in not_yet_feasible_candidate]}\n"
                 f"==================================================\n"
@@ -130,8 +130,8 @@ class Scheduler:
             for candidate in feasible_candidate:
                 if (
                     curr_out_slot.is_critical
-                    and not candidate.subtask.decomposed
                     and not curr_node.state.subtask.decomposed
+                    and not candidate.subtask.decomposed
                 ):
                     # 직전 subtask가 time-critical을 시작하는 경우 -> monitoring subtask으로 분할
                     new_node = self._expand_subtask_with_monitoring(
@@ -149,19 +149,20 @@ class Scheduler:
                 expanded_nodes.append(new_node)
 
             # (3) 아직 시작 시간이 되지 않은 서브태스크(not_yet_feasible_subs)에 대해, wait 고려
-            for candidate in sorted(
-                not_yet_feasible_candidate, key=lambda x: x.earliest_start
-            ):
+
+            for candidate in not_yet_feasible_candidate:
                 if (
                     curr_out_slot.is_critical
                     and not candidate.subtask.decomposed
                     and not curr_node.state.subtask.decomposed
                 ):
-                    new_node = self._expand_wait_subtasks_with_monitoring(
+                    # 모니터링 직전까지 대기 추가
+                    new_node = self._expand_wait_subtask_for_monitoring(
                         curr_node, candidate, counter
                     )
                 else:
-                    new_node = self._expand_wait_subtasks(curr_node, candidate, counter)
+                    # 모니터링 직후 혹은 일반적인 대기 추가
+                    new_node = self._expand_wait_subtask(curr_node, candidate, counter)
                 expanded_nodes.append(new_node)
 
             # --- (4) Local Beam pruning: 상위 K개만 큐에 삽입 (비용 기준) ---
@@ -192,7 +193,7 @@ class Scheduler:
         """
         beam search로 확장된 state(자식)에서 '새로 실행된 1-step'만 parent_state에 반영
         """
-
+        # ! Roll-back 잘 되고 있는지 보기!
         if child_state is None:
             log.error("[_extract_state] child_state is None\n")
             return None
@@ -209,8 +210,8 @@ class Scheduler:
         # 새로 추가된 subtask 중 첫 번째 것만 가져옴
         new_entry = new_entries[0]
         new_completed_schedule = parent_state.completed_subtasks + [new_entry]
-
         new_subtask = new_entry.subtask
+
         if not new_subtask.decomposed:
             # 동적으로 Wait, Monitoring 생성된 경우
             new_constraints = parent_state.constraints
@@ -239,6 +240,10 @@ class Scheduler:
                 if sub.name not in added_names:
                     new_remaining_subtasks.append(sub)
                     added_names.add(sub.name)
+
+        log.info(f"{parent_completed=}")
+        log.info(f"{child_completed=}")
+        log.info(f"{new_remaining_subtasks=}")
 
         next_state = SchedulerState(
             subtask=new_subtask,
@@ -288,15 +293,13 @@ class Scheduler:
 
         early_candidate = Candidate(
             subtask=early_sub,
-            earliest_start=candidate.earliest_start,  # 실행 즉시 시작
+            earliest_start_time=candidate.earliest_start_time,  # 실행 즉시 시작
             is_critical=candidate.is_critical,
         )
 
         # ! Monitoring을 위한 Early Subtask 소요 시간은 아는데, 이동 시간 포함하여 계산할 수 있나? 어긋 날수도...?
         # ! 0.7 Bayesian Timing에 아직 Navigate 중 일수도 있잖아...
-        step_cost = self.cost_calculator.calc_heuristic_cost(
-            curr_node, early_candidate, 0
-        )
+        step_cost = self.cost_calculator.calc_heuristic(curr_node, early_candidate, 0)
 
         new_cost = curr_heuristic + step_cost
 
@@ -337,6 +340,7 @@ class Scheduler:
     ):
         # TODO Monitoring으로 분할될 때, Primitive Action 해결하기
         # TODO 모니터링에서 바라볼 오브젝트
+        # ! 제약까지 전부 다 복사되는지 확인하기
         curr_state = curr_node.state
         curr_constraints = curr_state.constraints
 
@@ -412,7 +416,7 @@ class Scheduler:
         copied_sub = copy.deepcopy(candidate.subtask)
         copied_sub.duration.interval = exec_time
 
-        new_heuristic_cost = self.cost_calculator.calc_heuristic_cost(
+        new_heuristic_cost = self.cost_calculator.calc_heuristic(
             curr_node, candidate, nav_time
         )
 
@@ -453,7 +457,7 @@ class Scheduler:
         )
         return new_node
 
-    def _expand_wait_subtasks_with_monitoring(
+    def _expand_wait_subtask_for_monitoring(
         self,
         curr_node: SimulationNode,
         candidate: Candidate,
@@ -481,7 +485,8 @@ class Scheduler:
 
         monitoring_timing = (
             curr_state.current_time
-            + (candidate.earliest_start - curr_state.current_time) * BAYESIAN_CRITERIA
+            + (candidate.earliest_start_time - curr_state.current_time)
+            * BAYESIAN_CRITERIA
         )
         wait_duration = (
             monitoring_timing - curr_state.current_time - MONITORING_DURATION
@@ -503,15 +508,14 @@ class Scheduler:
 
         start_time = curr_state.current_time
         end_time = start_time + wait_sub.duration.interval
+
         wait_candidate = Candidate(
             subtask=wait_sub,
-            earliest_start=candidate.earliest_start,  # 실행 즉시 시작
+            earliest_start_time=candidate.earliest_start_time,  # 실행 즉시 시작
             is_critical=False,
         )
 
-        step_cost = self.cost_calculator.calc_heuristic_cost(
-            curr_node, wait_candidate, 0
-        )
+        step_cost = self.cost_calculator.calc_heuristic(curr_node, wait_candidate, 0)
         new_cost = curr_heuristic + step_cost
 
         completed_entry = CompletedEntry(
@@ -532,8 +536,8 @@ class Scheduler:
         )
 
         log.info(
-            f"[_expand_wait_subtasks_with_monitoring], Score = {round(new_cost,LOG_ROUND)}\n"
-            f"*{wait_sub.name} (earliest_start={round(candidate.earliest_start,LOG_ROUND)})\n"
+            f"[_expand_wait_subtasks_with_monitoring],\nScore = {round(new_cost,LOG_ROUND)}\n"
+            f"*{wait_sub.name} (earliest_start={round(candidate.earliest_start_time,LOG_ROUND)})\n"
             f"Interval = {round(start_time,LOG_ROUND)} ~ {round(end_time,LOG_ROUND)} ({round(wait_duration,LOG_ROUND)})\n"
             f"remaining_subtasks = {[r.name for r in new_remaining]}\n"
         )
@@ -546,7 +550,7 @@ class Scheduler:
         )
         return new_node
 
-    def _expand_wait_subtasks(
+    def _expand_wait_subtask(
         self,
         curr_node: SimulationNode,
         candidate: Candidate,
@@ -565,7 +569,7 @@ class Scheduler:
             curr_node, candidate.subtask
         )
         wait_start_time = curr_state.current_time
-        wait_duration = candidate.earliest_start - curr_state.current_time
+        wait_duration = candidate.earliest_start_time - curr_state.current_time
 
         wait_sub = Subtask(
             task_name=None,
@@ -597,19 +601,19 @@ class Scheduler:
 
         wait_candidate = Candidate(
             subtask=wait_sub,
-            earliest_start=candidate.earliest_start,  # 실행 즉시 시작
+            earliest_start_time=candidate.earliest_start_time,
             is_critical=False,
         )
 
-        step_cost = self.cost_calculator.calc_heuristic_cost(
+        new_heuristic = self.cost_calculator.calc_heuristic(
             curr_node, wait_candidate, 0
         )
 
-        new_cost = curr_heuristic + step_cost
+        new_cost = curr_heuristic + new_heuristic
 
         log.info(
             f"[_expand_wait_subtasks]\n"
-            f"*{wait_sub.name}Score = {round(new_cost,LOG_ROUND)} (earliest_start={round(candidate.earliest_start,LOG_ROUND)})\n"
+            f"*{wait_sub.name  }Score = {round(new_cost,LOG_ROUND)} (earliest_start={round(candidate.earliest_start_time,LOG_ROUND)}, is_critical={candidate.is_critical})\n"
             f"Interval = {round(wait_start_time,LOG_ROUND)} ~ {round(wait_start_time+wait_duration,LOG_ROUND)} ({round(wait_duration,LOG_ROUND)})\n"
             f"remaining_subtasks = {[r.name for r in curr_state.remaining_subtasks]}\n"
         )
