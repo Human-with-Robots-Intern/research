@@ -19,7 +19,7 @@ class HeuristicManager:
         self.constraint_handler = constraint_handler
         self.cost_weight = SIMULATION_DEPTH
 
-    def calc_heuristic_cost(
+    def calc_heuristic(
         self,
         current_node: SimulationNode,
         candidate: Candidate,
@@ -45,16 +45,41 @@ class HeuristicManager:
         )
         # ! DO NOT FIX THIS HEURISTIC FORMULA
         time_diff = out_time_slot.interval - in_time_slot.interval
-
-        # * (3) 추가할 subtask가 critical 제약을 닫는 경우, 현재
-
-        # Priority queue는 작은 값이 높은 우선 순위
-        cost_val = factor * (
+        base_heuristic = factor * (
             candidate.subtask.duration.interval + navigate_time + time_diff
         )
 
+        # * (3) 추가할 subtask가 critical 제약을 닫는 경우, cost에 더 큰 가중치 부여
+        bonus, penalty = 0, 0
+        # 현재 시간이 critical인 candidate subtask의 시작 시간일 때
+        if (
+            current_node.state.current_time == candidate.earliest_start_time
+            and candidate.is_critical
+        ):
+            bonus -= 1000
+
+        # * (4) 추가할 subtask의 종료시간이 critical timing을 위반하는 경우 패널티, 추가된 wait가 critical timing을 지키는 경우 보너스
+
+        # 추가할 subtask의 종료시간이 critical timing을 위반하는 경우 패널티, 추가된 wait가 critical timing을 지키는 경우 보너스
+        # Given (Current Time : 17.66, Critical Timing : 19.3)
+        # *Wash Potato,  Interval = 17.66 ~ 26.26 (8.6)
+        # *Wash Plate_part_1_remain, Interval = 17.66 ~ 28.0 (10.34)
+        # *Wait for Prepare Egg Fry Interval = 17.66 ~ 19.3 (1.64)
+        # 이 중 Wait for Prepare Egg Fry는 critical timing을 지키고 있으므로 보너스
+
+        if (
+            current_node.state.current_time
+            + candidate.subtask.duration.interval
+            + navigate_time
+            > candidate.deadline
+        ):
+            penalty += 100000
+
+        # Priority queue는 작은 값이 높은 우선 순위
+        heuristic_cost = base_heuristic + bonus + penalty
+
         # 최소값 반환
-        return cost_val
+        return heuristic_cost
 
 
 class NavigationManager:
