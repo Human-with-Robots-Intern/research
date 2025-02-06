@@ -120,11 +120,6 @@ class Scheduler:
                 f"Not_yet_feasible_subs={[candidate for candidate in not_yet_feasible_candidate]}\n"
                 f"==================================================\n"
             )
-            # * 가장 최근에 완료된 subtask의 out slot이 Critical인 경우,
-            # * 연관 Critical subtask, Monitoring subtask는 earliest start timing이 되었을 때 도래해야만 함
-            # * 휴리스틱 값을 어떻게 줄지, 아니면 예외 케이스를 둬야 할까?
-
-            # * 또한 Timing 도래 전, 최대한 subtask를 배치한다음 가장 작은 Wait를 선택해야 하는데 이건 어떻게 하지?
 
             # --- (2) 즉시 실행 가능한 각 서브태스크 확장 ---
             for candidate in feasible_candidate:
@@ -241,10 +236,6 @@ class Scheduler:
                     new_remaining_subtasks.append(sub)
                     added_names.add(sub.name)
 
-        log.info(f"{parent_completed=}")
-        log.info(f"{child_completed=}")
-        log.info(f"{new_remaining_subtasks=}")
-
         next_state = SchedulerState(
             subtask=new_subtask,
             completed_subtasks=new_completed_schedule,
@@ -340,7 +331,7 @@ class Scheduler:
     ):
         # TODO Monitoring으로 분할될 때, Primitive Action 해결하기
         # TODO 모니터링에서 바라볼 오브젝트
-        # ! 제약까지 전부 다 복사되는지 확인하기
+
         curr_state = curr_node.state
         curr_constraints = curr_state.constraints
 
@@ -368,8 +359,8 @@ class Scheduler:
         if new_constraints.has_node(candidate.subtask.name):
             new_constraints.remove_node(candidate.subtask.name)
 
-        early_dur = monitoring_timing - subtask_start_time
-        remain_dur = subtask_end_time - monitoring_timing
+        early_dur = round(monitoring_timing - subtask_start_time, LOG_ROUND)
+        remain_dur = round(subtask_end_time - monitoring_timing, LOG_ROUND)
 
         early_sub = make_early_subtask(candidate.subtask, early_dur)
         mon_sub = make_monitoring_subtask(related_sub_name)
@@ -379,11 +370,24 @@ class Scheduler:
         new_constraints.add_node(mon_sub.name)
         new_constraints.add_node(remain_sub.name)
 
+        new_constraints.remove_edge(curr_node.state.subtask.name, related_sub_name)
         new_constraints.add_edge(
-            early_sub.name, mon_sub.name, info={"Interval": 0, "IsCritical": True}
+            curr_node.state.subtask.name,
+            mon_sub.name,
+            info={"Interval": early_dur, "IsCritical": True},
         )
         new_constraints.add_edge(
-            mon_sub.name, remain_sub.name, info={"Interval": 0, "IsCritical": False}
+            mon_sub.name,
+            related_sub_name,
+            info={"Interval": remain_dur, "IsCritical": True},
+        )
+        new_constraints.add_edge(
+            early_sub.name,
+            remain_sub.name,
+            info={
+                "Interval": round(monitoring_timing - subtask_start_time, LOG_ROUND),
+                "IsCritical": False,
+            },
         )
 
         in_edges = curr_constraints.in_edges(candidate.subtask.name, data=True)
@@ -536,7 +540,7 @@ class Scheduler:
         )
 
         log.info(
-            f"[_expand_wait_subtasks_with_monitoring],\nScore = {round(new_cost,LOG_ROUND)}\n"
+            f"[_expand_wait_subtasks_with_monitoring], Score = {round(new_cost,LOG_ROUND)}\n"
             f"*{wait_sub.name} (earliest_start={round(candidate.earliest_start_time,LOG_ROUND)})\n"
             f"Interval = {round(start_time,LOG_ROUND)} ~ {round(end_time,LOG_ROUND)} ({round(wait_duration,LOG_ROUND)})\n"
             f"remaining_subtasks = {[r.name for r in new_remaining]}\n"
@@ -613,7 +617,7 @@ class Scheduler:
 
         log.info(
             f"[_expand_wait_subtasks]\n"
-            f"*{wait_sub.name  }Score = {round(new_cost,LOG_ROUND)} (earliest_start={round(candidate.earliest_start_time,LOG_ROUND)}, is_critical={candidate.is_critical})\n"
+            f"*{wait_sub.name}, Score = {round(new_cost,LOG_ROUND)} (earliest_start={round(candidate.earliest_start_time,LOG_ROUND)}, is_critical={candidate.is_critical})\n"
             f"Interval = {round(wait_start_time,LOG_ROUND)} ~ {round(wait_start_time+wait_duration,LOG_ROUND)} ({round(wait_duration,LOG_ROUND)})\n"
             f"remaining_subtasks = {[r.name for r in curr_state.remaining_subtasks]}\n"
         )
