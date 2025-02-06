@@ -1,11 +1,13 @@
 from typing import List, Optional, Tuple
 
 import networkx as nx
+from networkx import DiGraph
 
 from core.task import Subtask
 from scheduler.cost_manager import NavigationManager
-from scheduler.dataclass import Candidate, SimulationNode, TemporalConstraint
+from scheduler.dataclass import Candidate, SchedulerState, SimulationNode, TimeSlot
 from utils import create_module_logger
+from utils.constants import LOG_ROUND
 
 log = create_module_logger(module_name=__name__)
 
@@ -19,8 +21,8 @@ class ConstraintHandler:
         pass
 
     def get_temporal_constraints(
-        self, subtask_name: str, constraints: nx.DiGraph, direction: str
-    ) -> TemporalConstraint:
+        self, subtask_name: str, constraints: DiGraph, direction: str
+    ) -> TimeSlot:
         """
         주어진 서브태스크의 in/out 방향 엣지들을 확인하여,
         Critical/Non-critical 간 압축 로직으로 Interval을 계산한 뒤,
@@ -35,14 +37,16 @@ class ConstraintHandler:
         log.debug(
             f"get_temporal_constraints: subtask '{subtask_name}', direction '{direction}'"
         )
+
         edges = (
             list(constraints.out_edges(subtask_name, data=True))
             if direction == "out"
             else list(constraints.in_edges(subtask_name, data=True))
         )
 
+        # 주어진 subtask에 제약이 없는 경우
         if not edges:
-            return TemporalConstraint(0, False, None)
+            return TimeSlot(0, False, None)
 
         critical_intervals = []
         non_critical_intervals = []
@@ -58,28 +62,70 @@ class ConstraintHandler:
             else:
                 non_critical_intervals.append((interval, linked_subtask))
 
+        # ? Critical과 Non-critical이 함께 있을 때, Critical이 Non-critical보다 늦어야 하는 경우만 커버되는거 아님?
+        # ? 예외 케이스가 있잖아. Non-critical이 더 늦고, Critical이 더 빠르게 시작해야 하는 경우는 커버가 되긴 하니?
+        # ? 근데, 무조건 Critical이 중요하니까 Critical을 반드시 따라야 한다고 생각 해야 할 것 같다. 왜냐면 Critical은 실패 가능성이 높은 작업이니까.
         # Critical 엣지 처리
         if critical_intervals:
             distinct_crit_vals = {t[0] for t in critical_intervals}
+            # Critical 엣지가 여러 개면 모두 같은 Interval이어야 함
             if len(distinct_crit_vals) > 1:
-
-                return TemporalConstraint(0, False, None)
+                return TimeSlot(0, False, None)
 
             crit_interval, crit_linked = critical_intervals[0]
 
             if non_critical_intervals:
-                max_noncrit_interval, _ = max(
+                max_non_crit_interval, _ = max(
                     non_critical_intervals, key=lambda x: x[0]
                 )
-                if crit_interval < max_noncrit_interval:
-
-                    return TemporalConstraint(0, False, None)
-            return TemporalConstraint(crit_interval, True, crit_linked)
+                if crit_interval < max_non_crit_interval:
+                    return TimeSlot(0, False, None)
+            return TimeSlot(crit_interval, True, crit_linked)
         else:
             max_interval, max_linked = max(non_critical_intervals, key=lambda x: x[0])
-            return TemporalConstraint(max_interval, False, max_linked)
+            return TimeSlot(max_interval, False, max_linked)
 
-    def get_feasible_subtasks(
+    def get_actual_duration(
+        self, curr_state: SchedulerState, subtask_name: str
+    ) -> TimeSlot:
+        temporal_constraint = self.get_temporal_constraints(
+            subtask_name, curr_state.constraints, "in"
+        )
+        for ce in curr_state.completed_subtasks:
+            if ce.subtask.name == temporal_constraint.related_subtask_name:
+                actual_duration = curr_state.current_time - ce.end_time
+                break
+        return actual_duration
+
+    def find_parallel_window(self, current_node: SimulationNode) -> float:
+        """
+        (예시) 이미 '진행 중'인 Uncontrollable 서브태스크가 있으면,
+        그 작업의 남은 시간을 병렬 구간으로 보고 반환한다.
+        - 여기서는 단순히 'type이 Uncontrollable이고 end_time > 현재'인 서브태스크 중 최댓값을 찾는 예시
+        """
+
+        now = current_node.state.current_time
+        max_remaining = 0.0
+
+        # completed_subtasks는 '이미 끝난' 작업이라는 점에서 'in-progress' 확인이 애매하지만,
+        # 만약 "끝나지 않은" subtask를 별도 관리한다면 여기서 참조.
+
+        for ce in current_node.state.completed_subtasks:
+            temporal_constraint = self.constraint_handler.get_temporal_constraints(
+                ce.subtask.name, current_node.state.constraints, "out"
+            )
+            parallel_window_end_time_candidate = (
+                ce.end_time + temporal_constraint.interval
+            )
+            if parallel_window_end_time_candidate > now:
+                # 아직 종료 안 되었다고 가정
+                remaining = ce.end_time - now
+                if remaining > max_remaining:
+                    max_remaining = remaining
+
+        return max_remaining
+
+    def get_feasible_candidates(
         self,
         curr_node: SimulationNode,
     ) -> Tuple[List[Candidate], List[Candidate]]:
@@ -94,37 +140,35 @@ class ConstraintHandler:
         not_yet_list: List[Tuple["Subtask", float, bool]] = []
 
         current_time = curr_node.state.current_time
-        candidates = curr_node.state.remaining_subtasks
-        constraints = curr_node.state.constraints
+        remaining_subtasks = curr_node.state.remaining_subtasks
 
-        for sub in candidates:
-            earliest_start, is_exact = self._calc_earliest_start(
-                curr_node, sub, constraints
-            )
-            if earliest_start is None:
+        for sub in remaining_subtasks:
+            earliest_start_time, is_critical = self._calc_earliest_start(curr_node, sub)
+            if earliest_start_time is None:
                 log.debug(f"Subtask '{sub.name}' 실행 불가: 선행 미완료\n")
                 continue
 
-            if is_exact:
-                if abs(current_time - earliest_start) < 1e-9:
-                    feasible_subtasks.append(Candidate(sub, earliest_start, True))
-                elif current_time < earliest_start:
-                    not_yet_list.append(Candidate(sub, earliest_start, True))
+            if is_critical:
+                if abs(current_time - earliest_start_time) < 1e-9:
+                    feasible_subtasks.append(Candidate(sub, earliest_start_time, True))
+                elif current_time < earliest_start_time:
+                    not_yet_list.append(Candidate(sub, earliest_start_time, True))
                 else:
                     log.error(
-                        f"Subtask '{sub.name}'의 시간 창을 놓쳤음 (현재 시간: {current_time})\n"
+                        f"Subtask '{sub.name}'의 Critical Timing ({earliest_start_time})을 놓쳤음\n"
+                        f"현재 시간: {round(current_time, LOG_ROUND)}\n"
                     )
                     return [], []
             else:
-                if current_time >= earliest_start - 1e-9:
-                    feasible_subtasks.append(Candidate(sub, earliest_start, False))
+                if current_time >= earliest_start_time - 1e-9:
+                    feasible_subtasks.append(Candidate(sub, earliest_start_time, False))
                 else:
-                    not_yet_list.append(Candidate(sub, earliest_start, False))
+                    not_yet_list.append(Candidate(sub, earliest_start_time, False))
 
         return feasible_subtasks, not_yet_list
 
     def _calc_earliest_start(
-        self, curr_node: SimulationNode, sub: "Subtask", constraints: nx.DiGraph
+        self, curr_node: SimulationNode, sub: "Subtask"
     ) -> Tuple[Optional[float], bool]:
         """
         서브태스크 'sub'의 선행 조건을 기반으로 earliest_start을 계산.
@@ -136,8 +180,9 @@ class ConstraintHandler:
             * earliest_start가 None이면 실행 불가능
             * is_exact가 True면 정확히 그 시간에만 실행 가능
         """
+        curr_constraints = curr_node.state.constraints
 
-        in_edges = list(constraints.in_edges(sub.name, data=True))
+        in_edges = list(curr_constraints.in_edges(sub.name, data=True))
 
         if not in_edges:
             return (0.0, False)
@@ -150,6 +195,7 @@ class ConstraintHandler:
             interval = info["Interval"]
             is_crit = info["IsCritical"]
 
+            # 선행 서브태스크의 완료 정보 확인 (Dependency)
             pred_entry = next(
                 (
                     ce
@@ -167,14 +213,17 @@ class ConstraintHandler:
             else:
                 non_critical_earliest = max(non_critical_earliest, candidate_start)
 
+        # ? Critical과 Non-critical이 함께 있을 때, Critical이 Non-critical보다 늦어야 하는 경우만 커버되는거 아님?
+        # ? 예외 케이스가 있잖아. Non-critical이 더 늦고, Critical이 더 빠르게 시작해야 하는 경우는 커버가 되긴 하니?
+        # ? 근데, 무조건 Critical이 중요하니까 Critical을 반드시 따라야 한다고 생각 해야 할 것 같다. 왜냐면 Critical은 실패 가능성이 높은 작업이니까.
         if critical_times:
-            unique_crit = set(critical_times)
-            if len(unique_crit) != 1:
+            unique_critical = set(critical_times)
+            if len(unique_critical) != 1:
                 log.error(
-                    f"Conflict: multiple distinct critical times for '{sub.name}': {unique_crit}\n"
+                    f"Conflict: multiple distinct critical times for '{sub.name}': {unique_critical}\n"
                 )
                 raise ValueError("Multiple distinct critical times found, conflict.")
-            only_crit_time = unique_crit.pop()
+            only_crit_time = unique_critical.pop()
             return (only_crit_time, True)
         else:
             return (non_critical_earliest, False)
