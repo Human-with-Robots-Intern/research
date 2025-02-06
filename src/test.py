@@ -76,6 +76,7 @@ def main():
     result_schedule = []
     current_state = get_init_state(subtasks, constraints)
     is_end = False
+
     while not is_end:
 
         next_state = scheduler.get_next_state(current_state)
@@ -87,12 +88,13 @@ def main():
         if args.simulation:
             execute_subtask(controller, next_state.subtask)
 
+        # TODO Simulation 수행 결과값을 얻어야 함. 지금은 스케쥴러에서 줌
         if next_state.subtask.type == "Monitor":
             agent.bayesian_estimate(next_state)
+
         current_state = next_state
 
         result_schedule.append(current_state.subtask)
-
         visualize(task_file_name, current_state.constraints, result_schedule)
 
         if not current_state.remaining_subtasks:

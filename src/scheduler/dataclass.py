@@ -52,7 +52,11 @@ class SimulationNode(NamedTuple):
     state: SchedulerState
 
 
-class TemporalConstraint(NamedTuple):
+class TimeSlot(NamedTuple):
+    """
+    Subtask 간의 제약 시간을 저장하는 NamedTuple
+    """
+
     # 해당 subtask에서 in/out하는 제약 시간
     interval: int
     # 해당 subtask에서 in/out하는 제약 critical한지 여부
@@ -65,6 +69,9 @@ class TemporalConstraint(NamedTuple):
 
 
 class Candidate(NamedTuple):
+    """
+    Subtask의 실행 가능 여부를 판단하기 위한 NamedTuple
+    """
 
     subtask: Subtask
     # subtask의 시작 시간
