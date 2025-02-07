@@ -1,8 +1,11 @@
+from dataclasses import dataclass
 from typing import List, NamedTuple, Optional
 
 from networkx import DiGraph
 
 from core.task import Subtask
+
+# ! 대부분 모두 NamedTuple일 필요가 있는지 확인 필요
 
 
 class CompletedEntry(NamedTuple):
@@ -52,7 +55,11 @@ class SimulationNode(NamedTuple):
     state: SchedulerState
 
 
-class TemporalConstraint(NamedTuple):
+class TimeSlot(NamedTuple):
+    """
+    Subtask 간의 제약 시간을 저장하는 NamedTuple
+    """
+
     # 해당 subtask에서 in/out하는 제약 시간
     interval: int
     # 해당 subtask에서 in/out하는 제약 critical한지 여부
@@ -61,16 +68,22 @@ class TemporalConstraint(NamedTuple):
     related_subtask_name: Optional[str]
 
     def __repr__(self):
-        return f"({self.related_subtask_name}, {self.interval}, {self.is_critical}, )"
+        return f"({self.related_subtask_name}, {self.interval}, {self.is_critical})"
 
 
-class Candidate(NamedTuple):
+@dataclass
+class Candidate:
+    """
+    Subtask의 실행 가능 여부를 판단하기 위한 NamedTuple
+    """
 
     subtask: Subtask
-    # subtask의 시작 시간
-    earliest_start: float
     # subtask이 critical인지 여부
     is_critical: bool
+    # subtask의 시작 시간
+    earliest_start_time: float
+    # 고려할 데드라인
+    deadline: float = float("inf")
 
     def __repr__(self):
-        return f"({self.subtask.name}, {self.earliest_start}, {self.is_critical})"
+        return f"({self.subtask.name},earliest_start_time = {self.earliest_start_time}, deadline = {self.deadline})"
