@@ -385,7 +385,9 @@ class Scheduler:
             early_sub.name,
             remain_sub.name,
             info={
-                "Interval": round(monitoring_timing - subtask_start_time, LOG_ROUND),
+                "Interval": monitoring_timing
+                - subtask_start_time
+                + MONITORING_DURATION,
                 "IsCritical": False,
             },
         )
@@ -540,8 +542,8 @@ class Scheduler:
         )
 
         log.info(
-            f"[_expand_wait_subtasks_with_monitoring], Score = {round(new_cost,LOG_ROUND)}\n"
-            f"*{wait_sub.name} (earliest_start={round(candidate.earliest_start_time,LOG_ROUND)})\n"
+            f"[_expand_wait_subtasks_with_monitoring]\n"
+            f"*{wait_sub.name}, Score = {round(new_cost,LOG_ROUND)} (earliest_start={round(candidate.earliest_start_time,LOG_ROUND)})\n"
             f"Interval = {round(start_time,LOG_ROUND)} ~ {round(end_time,LOG_ROUND)} ({round(wait_duration,LOG_ROUND)})\n"
             f"remaining_subtasks = {[r.name for r in new_remaining]}\n"
         )
