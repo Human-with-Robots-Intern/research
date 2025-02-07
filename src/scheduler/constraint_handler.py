@@ -170,7 +170,8 @@ class ConstraintHandler:
             * is_exact가 True면 정확히 그 시간에만 실행 가능
         """
         curr_constraints = curr_node.state.constraints
-
+        if sub.name.startswith("Prepare"):
+            pass
         in_edges = list(curr_constraints.in_edges(sub.name, data=True))
 
         if not in_edges:

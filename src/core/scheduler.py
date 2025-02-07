@@ -25,6 +25,7 @@ from utils.task.task_util import (
     make_monitoring_subtask,
     make_remain_subtask,
 )
+from utils.visualizer import visualize_graph
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -130,7 +131,9 @@ class Scheduler:
                 f"Not_yet_feasible_subs={[candidate for candidate in not_yet_feasible_candidate]}\n"
                 f"==================================================\n"
             )
-
+            visualize_graph(
+                curr_node.state.constraints, "assets/results/debug", is_display=True
+            )
             # (3) 아직 시작 시간이 되지 않은 서브태스크(not_yet_feasible_subs)에 대해, wait 고려
             if feasible_candidates == []:
                 for candidate in not_yet_feasible_candidate:
@@ -148,6 +151,11 @@ class Scheduler:
                         curr_node,
                         candidate,
                         counter,
+                    )
+                    visualize_graph(
+                        new_node.state.constraints,
+                        "assets/results/debug",
+                        is_display=True,
                     )
                 else:
                     # 직전 subtask가 time-critical을 시작하지 않는 경우 -> 일반적인 subtask 실행
@@ -377,6 +385,7 @@ class Scheduler:
             related_sub_name,
             info={"Interval": remain_dur, "IsCritical": True},
         )
+
         new_constraints.add_edge(
             early_sub.name,
             remain_sub.name,
@@ -395,6 +404,7 @@ class Scheduler:
             new_constraints.add_edge(pred, early_sub.name, info=data.get("info", {}))
         for _, succ, data in out_edges:
             new_constraints.add_edge(remain_sub.name, succ, info=data.get("info", {}))
+
         return early_sub, mon_sub, remain_sub, new_constraints
 
     def _expand_subtask_wo_monitoring(

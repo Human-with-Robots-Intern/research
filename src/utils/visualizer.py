@@ -19,7 +19,7 @@ def visualize(task_name, constraints, plan=None):
         plot_gantt_chart(plan, save_folder_path)
 
 
-def visualize_graph(G: nx.DiGraph, save_folder_path, is_display=False):
+def visualize_graph(G: nx.DiGraph, save_folder_path="debug", is_display=False):
     pos = nx.spring_layout(G, k=0.5)  # Adjusting the k value for layout optimization
     plt.figure(figsize=(10, 8))  # Adjust the figure size to make it more readable
 
