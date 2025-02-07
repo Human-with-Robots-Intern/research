@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional
+from typing import Optional
 
 from core.task import Subtask
 from scheduler.dataclass import Candidate, SimulationNode
@@ -12,15 +12,14 @@ log = create_module_logger(__name__)
 
 class HeuristicManager:
     """
-    - Subtask 실행 시 발생하는 휴리스틱 비용 계산
-    - Wait 시 발생하는 비용 계산
+    - Subtask (wait, monitoring 포함) 실행 시 발생하는 휴리스틱 비용 계산
     """
 
     def __init__(self, constraint_handler):
         self.constraint_handler = constraint_handler
         self.cost_weight = SIMULATION_DEPTH
 
-    def calc_heuristic_cost(
+    def calc_heuristic(
         self,
         current_node: SimulationNode,
         candidate: Candidate,
@@ -31,69 +30,56 @@ class HeuristicManager:
           cost_val = (cost_weight - current_depth) * (
         subtask.duration.interval + navigate_time + (incoming_ts[0] - outgoing_ts[0])
         """
-        bonus = 0
-        # 첫번째 확장에서는 모니터링과 타이밍이 도래한 critical subtask를 우선적으로 실행
-        # if current_node.depth == 0:
-        if candidate.subtask.type == "Monitor":
-            bonus += 1000
-        # 현재 시간과 candidate subtask의 시작 시간이 같고, critical인 경우
-        if (
-            abs(candidate.earliest_start - current_node.state.current_time) < 1e-9
-            and candidate.is_critical
-        ):
-            bonus += 1000
 
-        # 이전 실행에 가까울수록 높은 우선 순위를 부여
+        # * (1) 이전 실행에 가까울수록 높은 우선 순위를 부여
         factor = -max(self.cost_weight - current_node.depth, 1)
 
-        # 현재 노드의 in/out 타임 슬롯을 가져옴
-        in_time_slot = self.constraint_handler.get_temporal_constraints(
+        # * (2) 시간 휴리스틱
+        # 병렬을 닫는 작업은 느리게 시작해도 됨
+        in_time_slot = self.constraint_handler.get_time_slots(
             candidate.subtask.name, current_node.state.constraints, "in"
         )
         # 병렬 작업은 빠르게 시작해야 함
-        out_time_slot = self.constraint_handler.get_temporal_constraints(
+        out_time_slot = self.constraint_handler.get_time_slots(
             candidate.subtask.name, current_node.state.constraints, "out"
         )
-        # 병렬이 끝나는 것은 느리게, 병렬 시작은 빠르게
-        time_diff = in_time_slot.interval - out_time_slot.interval
-
-        # Priority queue는 작은 값이 높은 우선 순위
-        cost_val = (
-            factor * (candidate.subtask.duration.interval + navigate_time + time_diff)
-            - self._find_parallel_window(current_node)
-            - bonus
+        # ! DO NOT FIX THIS HEURISTIC FORMULA
+        time_diff = out_time_slot.interval - in_time_slot.interval
+        base_heuristic = factor * (
+            candidate.subtask.duration.interval + navigate_time + time_diff
         )
 
+        # * (3) 추가할 subtask가 critical 제약을 닫는 경우, cost에 더 큰 가중치 부여
+        bonus, penalty = 0, 0
+        # 현재 시간이 critical인 candidate subtask의 시작 시간일 때
+        if (
+            current_node.state.current_time == candidate.earliest_start_time
+            and candidate.is_critical
+        ):
+            bonus -= 1000
+
+        # * (4) 추가할 subtask의 종료시간이 critical timing을 위반하는 경우 패널티, 추가된 wait가 critical timing을 지키는 경우 보너스
+
+        # 추가할 subtask의 종료시간이 critical timing을 위반하는 경우 패널티, 추가된 wait가 critical timing을 지키는 경우 보너스
+        # Given (Current Time : 17.66, Critical Timing : 19.3)
+        # *Wash Potato,  Interval = 17.66 ~ 26.26 (8.6)
+        # *Wash Plate_part_1_remain, Interval = 17.66 ~ 28.0 (10.34)
+        # *Wait for Prepare Egg Fry Interval = 17.66 ~ 19.3 (1.64)
+        # 이 중 Wait for Prepare Egg Fry는 critical timing을 지키고 있으므로 보너스
+
+        if (
+            current_node.state.current_time
+            + candidate.subtask.duration.interval
+            + navigate_time
+            > candidate.deadline
+        ):
+            penalty += 100000
+
+        # Priority queue는 작은 값이 높은 우선 순위
+        heuristic_cost = base_heuristic + bonus + penalty
+
         # 최소값 반환
-        return cost_val
-
-    def _find_parallel_window(self, current_node: SimulationNode) -> float:
-        """
-        (예시) 이미 '진행 중'인 Uncontrollable 서브태스크가 있으면,
-        그 작업의 남은 시간을 병렬 구간으로 보고 반환한다.
-        - 여기서는 단순히 'type이 Uncontrollable이고 end_time > 현재'인 서브태스크 중 최댓값을 찾는 예시
-        """
-
-        now = current_node.state.current_time
-        max_remaining = 0.0
-
-        # completed_subtasks는 '이미 끝난' 작업이라는 점에서 'in-progress' 확인이 애매하지만,
-        # 만약 "끝나지 않은" subtask를 별도 관리한다면 여기서 참조.
-
-        for ce in current_node.state.completed_subtasks:
-            temporal_constraint = self.constraint_handler.get_temporal_constraints(
-                ce.subtask.name, current_node.state.constraints, "out"
-            )
-            parallel_window_end_time_candidate = (
-                ce.end_time + temporal_constraint.interval
-            )
-            if parallel_window_end_time_candidate > now:
-                # 아직 종료 안 되었다고 가정
-                remaining = ce.end_time - now
-                if remaining > max_remaining:
-                    max_remaining = remaining
-
-        return max_remaining
+        return heuristic_cost
 
 
 class NavigationManager:

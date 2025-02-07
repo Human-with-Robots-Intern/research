@@ -114,15 +114,11 @@ class Agent:
         # cooking_data : subtask의 진행정도 // 여기에 noise를 주어야 한다.
         # posterior_mean/variance : cooking_data를 받은 후 bayesian estimate를 통해 도출된 새로운 예상한 값의 분포.
         # knowledge.json 파일에서 불러오고 업데이트.
-        subtask_name = state.subtask.name.split("for")[1].strip()
-        temporal_constraint = self.constraint_handler.get_temporal_constraints(
-            subtask_name, state.constraints, "in"
-        )
-        for ce in state.completed_subtasks:
-            if ce.subtask.name == temporal_constraint.related_subtask_name:
-                actual_duration = state.current_time - ce.end_time
-                break
 
+        subtask_name = state.subtask.name.split("for")[1].strip()
+        actual_duration = self.constraint_handler.get_actual_duration(
+            curr_state=state, subtask_name=subtask_name
+        )
         ground_truth = self._load_knowledge("bayesian_ground_truth.json").get(
             subtask_name
         )
