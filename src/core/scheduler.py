@@ -329,7 +329,7 @@ class Scheduler:
         curr_state = curr_node.state
         curr_constraints = curr_state.constraints
 
-        _, _, related_sub_name = self.constraint_handler.get_time_slots(
+        interval, _, related_sub_name = self.constraint_handler.get_time_slots(
             curr_state.subtask.name, curr_constraints, "out"
         )
 
@@ -354,7 +354,9 @@ class Scheduler:
             new_constraints.remove_node(candidate.subtask.name)
 
         early_dur = monitoring_timing - subtask_start_time
-        remain_dur = subtask_end_time - monitoring_timing
+        remain_dur = (
+            subtask_start_time + interval - monitoring_timing - MONITORING_DURATION
+        )
 
         early_sub = make_early_subtask(candidate.subtask, early_dur)
         mon_sub = make_monitoring_subtask(related_sub_name)

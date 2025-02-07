@@ -61,29 +61,6 @@ class ConstraintHandler:
                 non_critical_intervals.append((interval, linked_subtask))
                 return TimeSlot(interval, False, linked_subtask)
 
-        # ? Critical과 Non-critical이 함께 있을 때, Critical이 Non-critical보다 늦어야 하는 경우만 커버되는거 아님?
-        # ? 예외 케이스가 있잖아. Non-critical이 더 늦고, Critical이 더 빠르게 시작해야 하는 경우는 커버가 되긴 하니?
-        # ? 근데, 무조건 Critical이 중요하니까 Critical을 반드시 따라야 한다고 생각 해야 할 것 같다. 왜냐면 Critical은 실패 가능성이 높은 작업이니까.
-        # Critical 엣지 처리
-        # if critical_intervals:
-        #     distinct_crit_vals = {t[0] for t in critical_intervals}
-        #     # Critical 엣지가 여러 개면 모두 같은 Interval이어야 함
-        #     if len(distinct_crit_vals) > 1:
-        #         return TimeSlot(0, False, None)
-
-        #     crit_interval, crit_linked = critical_intervals[0]
-
-        #     if non_critical_intervals:
-        #         max_non_crit_interval, _ = max(
-        #             non_critical_intervals, key=lambda x: x[0]
-        #         )
-        #         if crit_interval < max_non_crit_interval:
-        #             return TimeSlot(0, False, None)
-        #     return TimeSlot(crit_interval, True, crit_linked)
-        # else:
-        #     max_interval, max_linked = max(non_critical_intervals, key=lambda x: x[0])
-        #     return TimeSlot(max_interval, False, max_linked)
-
     def get_actual_duration(
         self, curr_state: SchedulerState, subtask_name: str
     ) -> TimeSlot:
