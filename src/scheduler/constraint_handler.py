@@ -23,43 +23,58 @@ class ConstraintHandler:
     def get_time_slots(
         self, subtask_name: str, constraints: DiGraph, direction: str
     ) -> TimeSlot:
-        """
-        주어진 서브태스크의 in/out 방향 엣지들을 확인하여,
-        Critical/Non-critical 간 압축 로직으로 Interval을 계산한 뒤,
-        TimeSlot(NamedTuple: (Interval, IsCritical, LinkedSubtask)) 형태로 반환.
-
-        조건:
-          - Critical 엣지가 여러 개면 모두 같은 Interval이어야 함 (다르면 충돌로 간주)
-          - Non-critical 엣지는 Interval 중 최댓값을 사용
-          - Critical과 Non-critical이 동시에 존재하면 Critical interval >= Non-critical 최댓값이어야 함
-          - 엣지가 없으면 TimeSlot(0, False, None)을 반환.
-        """
-
         edges = (
             list(constraints.out_edges(subtask_name, data=True))
             if direction == "out"
             else list(constraints.in_edges(subtask_name, data=True))
         )
 
-        # 주어진 subtask에 제약이 없는 경우
         if not edges:
             return TimeSlot(0, False, None)
 
         critical_intervals = []
         non_critical_intervals = []
+        linked_subtasks = []  # 여러 개일 수 있음
 
-        # Critical / Non-critical 엣지 구분
+        # 1) 모든 엣지를 순회하며 Critical/Non-critical 분류
         for u, v, data in edges:
             interval = data["info"]["Interval"]
             is_crit = data["info"]["IsCritical"]
             linked_subtask = v if direction == "out" else u
+            linked_subtasks.append(linked_subtask)
 
             if is_crit:
-                critical_intervals.append((interval, linked_subtask))
-                return TimeSlot(interval, True, linked_subtask)
+                critical_intervals.append(interval)
             else:
-                non_critical_intervals.append((interval, linked_subtask))
-                return TimeSlot(interval, False, linked_subtask)
+                non_critical_intervals.append(interval)
+
+        # 2) Critical 엣지 있으면
+        if critical_intervals:
+            # - 모두 같은 interval인지 체크
+            unique_crit = set(critical_intervals)
+            if len(unique_crit) != 1:
+                raise ValueError(
+                    f"Conflict: multiple distinct critical intervals found: {unique_crit}"
+                )
+
+            critical_val = unique_crit.pop()  # 유일한 critical interval
+            # - non-critical과도 비교해서, critical_val >= max(non_critical)을 만족해야 함
+            if non_critical_intervals:
+                noncrit_max = max(non_critical_intervals)
+                if critical_val < noncrit_max:
+                    raise ValueError(
+                        f"Constraint conflict: critical_val({critical_val}) < noncrit_max({noncrit_max})"
+                    )
+
+            # 3) TimeSlot에 반환: critical_val, is_critical=True
+            return TimeSlot(
+                critical_val, True, None
+            )  # linked_subtask는 여러 개 가능하므로 상황에 따라 처리
+
+        # 4) Critical이 하나도 없으면 → non-critical 최댓값
+        else:
+            max_noncrit = max(non_critical_intervals)
+            return TimeSlot(max_noncrit, False, None)
 
     def get_actual_duration(
         self, curr_state: SchedulerState, subtask_name: str
