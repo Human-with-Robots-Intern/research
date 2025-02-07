@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 
 from core.task import Subtask
-from utils.constants import BEAM_WIDTH, SIMULATION_DEPTH, VIS_PATH
+from utils.constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH, VIS_PATH
 
 
 def visualize(task_name, constraints, plan=None):
@@ -24,7 +24,10 @@ def visualize_graph(G: nx.DiGraph, save_folder_path, is_display=False):
     plt.figure(figsize=(10, 8))  # Adjust the figure size to make it more readable
 
     # Define edge labels based on the Interval attribute from edge data
-    edge_labels = {(u, v): f"{d['info']['Interval']}" for u, v, d in G.edges(data=True)}
+    edge_labels = {
+        (u, v): f"{round(d['info']['Interval'], LOG_ROUND)}"
+        for u, v, d in G.edges(data=True)
+    }
 
     # Define a color map for different subtask types
     color_map = {

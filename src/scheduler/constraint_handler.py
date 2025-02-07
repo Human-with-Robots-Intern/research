@@ -9,7 +9,7 @@ from scheduler.dataclass import Candidate, SchedulerState, SimulationNode, TimeS
 from utils import create_module_logger
 from utils.constants import LOG_ROUND
 
-log = create_module_logger(module_name=__name__)
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class ConstraintHandler:
@@ -152,8 +152,7 @@ class ConstraintHandler:
                     not_yet_candidates.append(Candidate(sub, True, earliest_start_time))
                 else:
                     log.error(
-                        f"Subtask '{sub.name}'의 Critical Timing ({earliest_start_time})을 놓쳤음\n"
-                        f"현재 시간: {round(current_time, LOG_ROUND)}\n"
+                        f"현재 {round(current_time, LOG_ROUND)}에서 '{sub.name}'의 Critical Timing ({earliest_start_time})을 놓쳤음\n"
                     )
                     return [], []
             else:
