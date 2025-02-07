@@ -108,6 +108,7 @@ class Scheduler:
                 nav_time, _ = self.nav_manager.compute_navigation_time(
                     curr_node, feasible_candidate.subtask
                 )
+                current_time = curr_state.current_time  
                 if (
                     feasible_candidate.deadline
                     < curr_state.current_time
@@ -329,8 +330,13 @@ class Scheduler:
         curr_state = curr_node.state
         curr_constraints = curr_state.constraints
 
-        _, _, related_sub_name = self.constraint_handler.get_time_slots(
+        critical_interval, _, related_sub_name = self.constraint_handler.get_time_slots(
             curr_state.subtask.name, curr_constraints, "out"
+        )
+        print(
+            self.constraint_handler.get_time_slots(
+                curr_state.subtask.name, curr_constraints, "out"
+            )
         )
 
         # 이동 시간
@@ -354,7 +360,7 @@ class Scheduler:
             new_constraints.remove_node(candidate.subtask.name)
 
         early_dur = monitoring_timing - subtask_start_time
-        remain_dur = subtask_end_time - monitoring_timing
+        remain_dur = critical_interval + curr_state.current_time - monitoring_timing
 
         early_sub = make_early_subtask(candidate.subtask, early_dur)
         mon_sub = make_monitoring_subtask(related_sub_name)
@@ -379,9 +385,7 @@ class Scheduler:
             early_sub.name,
             remain_sub.name,
             info={
-                "Interval": monitoring_timing
-                - subtask_start_time
-                + MONITORING_DURATION,
+                "Interval": 0,
                 "IsCritical": False,
             },
         )
