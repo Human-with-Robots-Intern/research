@@ -107,7 +107,7 @@
           {
             "Type": "After",
             "Subtask": "Wash Egg",
-            "Interval": 10,
+            "Interval": 20,
             "Urgency": true
           }
         ]
@@ -133,7 +133,7 @@
           {
             "Type": "After",
             "Subtask": "Prepare Egg Fry",
-            "Interval": 10,
+            "Interval": 20,
             "Urgency": true
           }
         ]

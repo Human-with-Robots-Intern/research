@@ -35,51 +35,57 @@ class HeuristicManager:
         factor = -max(self.cost_weight - current_node.depth, 1)
 
         # * (2) 시간 휴리스틱
-        # 병렬을 닫는 작업은 느리게 시작해도 됨
+        # Dependency를 끝내는 작업은 느리게 시작해야 됨
         in_time_slot = self.constraint_handler.get_time_slots(
             candidate.subtask.name, current_node.state.constraints, "in"
         )
-        # 병렬 작업은 빠르게 시작해야 함
+        in_time_slot_critical = 0
+        if in_time_slot.is_critical:
+            in_time_slot_critical = in_time_slot.interval
+        # Dependency를 시작하는 작업은 빠르게 시작해야 됨
         out_time_slot = self.constraint_handler.get_time_slots(
             candidate.subtask.name, current_node.state.constraints, "out"
         )
         # ! DO NOT FIX THIS HEURISTIC FORMULA
-        time_diff = out_time_slot.interval - in_time_slot.interval
+        time_diff = out_time_slot.interval + in_time_slot_critical
         base_heuristic = factor * (
             candidate.subtask.duration.interval + navigate_time + time_diff
         )
+        
+        return base_heuristic
 
-        # * (3) 추가할 subtask가 critical 제약을 닫는 경우, cost에 더 큰 가중치 부여
-        bonus, penalty = 0, 0
-        # 현재 시간이 critical인 candidate subtask의 시작 시간일 때
-        if (
-            current_node.state.current_time == candidate.earliest_start_time
-            and candidate.is_critical
-        ):
-            bonus -= 1000
+        # # * (3) 추가할 subtask가 dependency를 끝내는 경우, cost에 더 큰 가중치 부여
+        # bonus, penalty = 0, 0
+        # # 현재 시간이 critical인 candidate subtask의 시작 시간일 때
+        # if (
+        #     current_node.state.current_time == candidate.earliest_start_time
+        #     and candidate.is_critical
+        # ):
+        #     bonus -= 1000
+        
+        # # ! Critical Subtask에 대한 Navigate 시간 고려
 
-        # * (4) 추가할 subtask의 종료시간이 critical timing을 위반하는 경우 패널티, 추가된 wait가 critical timing을 지키는 경우 보너스
+        # # * (4) 추가할 subtask의 종료시간이 critical timing을 위반하는 경우 패널티, 추가된 wait가 critical timing을 지키는 경우 보너스
 
-        # 추가할 subtask의 종료시간이 critical timing을 위반하는 경우 패널티, 추가된 wait가 critical timing을 지키는 경우 보너스
-        # Given (Current Time : 17.66, Critical Timing : 19.3)
-        # *Wash Potato,  Interval = 17.66 ~ 26.26 (8.6)
-        # *Wash Plate_part_1_remain, Interval = 17.66 ~ 28.0 (10.34)
-        # *Wait for Prepare Egg Fry Interval = 17.66 ~ 19.3 (1.64)
-        # 이 중 Wait for Prepare Egg Fry는 critical timing을 지키고 있으므로 보너스
+        # # 추가할 subtask의 종료시간이 critical timing을 위반하는 경우 패널티, 추가된 wait가 critical timing을 지키는 경우 보너스
+        # # Given (Current Time : 17.66, Critical Timing : 19.3)
+        # # *Wash Potato,  Interval = 17.66 ~ 26.26 (8.6)
+        # # *Wash Plate_part_1_remain, Interval = 17.66 ~ 28.0 (10.34)
+        # # *Wait for Prepare Egg Fry Interval = 17.66 ~ 19.3 (1.64)
+        # # 이 중 Wait for Prepare Egg Fry는 critical timing을 지키고 있으므로 보너스
+        # if (
+        #     current_node.state.current_time
+        #     + candidate.subtask.duration.interval
+        #     + navigate_time
+        #     > candidate.deadline
+        # ):
+        #     penalty += 100000
 
-        if (
-            current_node.state.current_time
-            + candidate.subtask.duration.interval
-            + navigate_time
-            > candidate.deadline
-        ):
-            penalty += 100000
-
-        # Priority queue는 작은 값이 높은 우선 순위
-        heuristic_cost = base_heuristic + bonus + penalty
+        # # Priority queue는 작은 값이 높은 우선 순위
+        # heuristic_cost = base_heuristic + bonus + penalty
 
         # 최소값 반환
-        return heuristic_cost
+        # return heuristic_cost
 
 
 class NavigationManager:

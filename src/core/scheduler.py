@@ -33,13 +33,13 @@ class Scheduler:
 
     def __init__(
         self,
-        beam_width: int = BEAM_WIDTH,
+        search_width: int = BEAM_WIDTH,
         simulation_depth: int = SIMULATION_DEPTH,
     ):
 
-        self.beam_width = beam_width
+        self.search = search_width
         self.simulation_depth = simulation_depth
-        log.info(f"{RED}{beam_width=}, {simulation_depth=}{RESET}")
+        log.info(f"{RED}{search_width=}, {simulation_depth=}{RESET}")
 
         self.nav_manager = NavigationManager()
         self.constraint_handler = ConstraintHandler()
@@ -51,9 +51,8 @@ class Scheduler:
         self,
         parent_state: SchedulerState,
     ) -> Optional[SchedulerState]:
-        """Get the next state by running beam search from the given parent_state."""
 
-        child_state = self._simulate_beam_search(parent_state)
+        child_state = self._simulate_search(parent_state)
 
         if child_state is None:
             log.error("[get_next_state] No child_state found (No feasible solution).")
@@ -68,11 +67,10 @@ class Scheduler:
 
         return new_state
 
-    def _simulate_beam_search(
+    def _simulate_search(
         self,
         init_state: SchedulerState,
     ) -> Optional[SchedulerState]:
-        """Run a beam search from init_state to find the best next step."""
 
         queue = PriorityQueue()
         counter = itertools.count()
@@ -103,11 +101,23 @@ class Scheduler:
 
             # 1) 현재 시점에 "실행 가능한" 서브태스크 찾기
             # subtask, earliest_start, is_critical 반환
-            feasible_candidate, not_yet_feasible_candidate = (
+            feasible_candidates, not_yet_feasible_candidate = (
                 self.constraint_handler.get_feasible_candidates(curr_node)
             )
+            for feasible_candidate in feasible_candidates:
+                nav_time, _ = self.nav_manager.compute_navigation_time(
+                    curr_node, feasible_candidate.subtask
+                )
+                if (
+                    feasible_candidate.deadline
+                    < curr_state.current_time
+                    + nav_time
+                    + curr_state.subtask.duration.interval
+                ):
+                    feasible_candidates.remove(feasible_candidate)
+                    continue
 
-            if len(feasible_candidate) == 0 and len(not_yet_feasible_candidate) == 0:
+            if len(feasible_candidates) == 0 and len(not_yet_feasible_candidate) == 0:
                 # 해당 branch는 infeasible
                 continue  # => 이 노드는 확장 안 하고 skip
 
@@ -116,18 +126,23 @@ class Scheduler:
                 f"Depth = {curr_depth+1} / Current Time : {round(curr_state.current_time,2)}\n"
                 f"Completed_subs ={[ce.subtask.name for ce in curr_state.completed_subtasks]}\n"
                 f"Remaining_subs ={[r.name for r in curr_state.remaining_subtasks]}\n\n"
-                f"Feasible_subs={[candidate for candidate in feasible_candidate]},\n"
+                f"Feasible_subs={[candidate for candidate in feasible_candidates]},\n"
                 f"Not_yet_feasible_subs={[candidate for candidate in not_yet_feasible_candidate]}\n"
                 f"==================================================\n"
             )
 
+            # (3) 아직 시작 시간이 되지 않은 서브태스크(not_yet_feasible_subs)에 대해, wait 고려
+            if feasible_candidates == []:
+                for candidate in not_yet_feasible_candidate:
+                    new_node = self._expand_wait_subtask(curr_node, candidate, counter)
+                    expanded_nodes.append(new_node)
+            ##########################
+
             # --- (2) 즉시 실행 가능한 각 서브태스크 확장 ---
-            for candidate in feasible_candidate:
-                if (
-                    curr_out_slot.is_critical
-                    and not curr_node.state.subtask.decomposed
-                    and not candidate.subtask.decomposed
-                ):
+            for candidate in feasible_candidates:
+                # ! 현재 simulating할, subtask가 critical 상황에 존재하는지 기준으로 분기할 것
+                # ! Candidate.deadline 변수를 이용할것
+                if candidate.deadline != float("inf"):
                     # 직전 subtask가 time-critical을 시작하는 경우 -> monitoring subtask으로 분할
                     new_node = self._expand_subtask_with_monitoring(
                         curr_node,
@@ -143,41 +158,22 @@ class Scheduler:
                     )
                 expanded_nodes.append(new_node)
 
-            # (3) 아직 시작 시간이 되지 않은 서브태스크(not_yet_feasible_subs)에 대해, wait 고려
-
-            for candidate in not_yet_feasible_candidate:
-                if (
-                    curr_out_slot.is_critical
-                    and not candidate.subtask.decomposed
-                    and not curr_node.state.subtask.decomposed
-                ):
-                    # 모니터링 직전까지 대기 추가
-                    new_node = self._expand_wait_subtask_for_monitoring(
-                        curr_node, candidate, counter
-                    )
-                else:
-                    # 모니터링 직후 혹은 일반적인 대기 추가
-                    new_node = self._expand_wait_subtask(curr_node, candidate, counter)
-                expanded_nodes.append(new_node)
-
             # --- (4) Local Beam pruning: 상위 K개만 큐에 삽입 (비용 기준) ---
             expanded_nodes.sort(key=lambda nd: nd.heuristic_cost)
             for i, nd in enumerate(expanded_nodes):
-                if i < self.beam_width:
+                if i < self.search:
                     queue.put(nd)
                 else:
                     break
 
         if not best_solutions:
-            log.error(
-                "[_simulate_beam_search] best_solutions is empty -> No feasible\n"
-            )
+            log.error("[_simulate_search] best_solutions is empty -> No feasible\n")
             return None
 
         best_solutions.sort(key=lambda nd: nd.heuristic_cost)
         best_node = best_solutions[0]
         log.debug(
-            f"[_simulate_beam_search] Found best_node with Subtask={best_node.state.subtask.name}, "
+            f"[_simulate_search] Found best_node with Subtask={best_node.state.subtask.name}, "
             f"Cost={best_node.heuristic_cost}\n"
         )
         return best_node.state
@@ -185,9 +181,7 @@ class Scheduler:
     def _extract_state(
         self, parent_state: SchedulerState, child_state: SchedulerState
     ) -> Optional[SchedulerState]:
-        """
-        beam search로 확장된 state(자식)에서 '새로 실행된 1-step'만 parent_state에 반영
-        """
+
         # ! Roll-back 잘 되고 있는지 보기!
         if child_state is None:
             log.error("[_extract_state] child_state is None\n")
@@ -359,8 +353,8 @@ class Scheduler:
         if new_constraints.has_node(candidate.subtask.name):
             new_constraints.remove_node(candidate.subtask.name)
 
-        early_dur = round(monitoring_timing - subtask_start_time, LOG_ROUND)
-        remain_dur = round(subtask_end_time - monitoring_timing, LOG_ROUND)
+        early_dur = monitoring_timing - subtask_start_time
+        remain_dur = subtask_end_time - monitoring_timing
 
         early_sub = make_early_subtask(candidate.subtask, early_dur)
         mon_sub = make_monitoring_subtask(related_sub_name)
