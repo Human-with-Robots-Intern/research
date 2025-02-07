@@ -9,7 +9,7 @@ from utils.constants import (
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
-    KNOWLEDGE_PATH
+    KNOWLEDGE_PATH,
 )
 
 ## 유사도 검사를 위한 import
@@ -26,6 +26,7 @@ headers = {"Authorization": f"Bearer {api_token}"}
 def query(payload):
     response = requests.post(API_URL, headers=headers, json=payload)
     return response.json()
+
 
 def load_object_Ids():
     with open(KNOWLEDGE_PATH / "FloorPlan1_physics_environment.json", "r") as f:
@@ -93,6 +94,7 @@ def revision_primitive_actions(tasks):
             subtask.execution.primitive_actions = updated_actions
     return tasks
 
+
 def check_obj_id(tasks):
     objectIds = load_object_Ids()
     all_object_ids = set()
@@ -118,9 +120,9 @@ def check_obj_id(tasks):
                             }
                         )
                         # 가장 유사한 object의 index
-                        idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[0][
+                        idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[
                             0
-                        ]
+                        ][0]
                         real_obj_id = list(all_object_ids)[idx]
                         actions[i] = f"{step} {real_obj_id}"
                         print(actions[i])
@@ -137,9 +139,9 @@ def check_obj_id(tasks):
                             }
                         )
                         # 가장 유사한 object의 index
-                        idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[0][
+                        idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[
                             0
-                        ]
+                        ][0]
                         real_obj_id = objectIds["RECEPTACLE"][idx]
                         actions[i] = f"{step} {real_obj_id}"
                         print(actions[i])
@@ -156,13 +158,14 @@ def check_obj_id(tasks):
                             }
                         )
                         # 가장 유사한 object의 index
-                        idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[0][
+                        idx = sorted(enumerate(data), key=lambda x: x[1], reverse=True)[
                             0
-                        ]
+                        ][0]
                         real_obj_id = objectIds[step][idx]
                         actions[i] = f"{step} {real_obj_id}"
                         print(actions[i])
     return tasks
+
 
 def build_tasks_and_constraints(
     task_data: dict, enable_decomposition: bool
@@ -225,7 +228,7 @@ def get_monitoring_subtask() -> Subtask:
         repetition=1,
         type="Monitor",
         execution=Execution(
-            objects=[], primitive_actions=[f"Monitoring {MONITORING_DURATION}"]
+            objects=[], primitive_actions=[f"Mornitoring {MONITORING_DURATION}"]
         ),
         temporal_constraints=None,
     )

@@ -156,7 +156,7 @@ def execute_subtask(controller, subtask):
             # 총 걸린시간 계산
             elapsed_time += action_mapping[action_type](target_obj_ID)
         else:
-            log.warning(f"Unknown action type: {action_type}. Skipping.")
+            log.warning(f"Unknown action type: {action_type}. Skipping {action_str} in {subtask.name}.")
     print(f"{subtask.name}의 걸린시간 = {round(elapsed_time, 2)}")
     log.info(f"Successfully executed Subtask: {subtask.name}")
     return elapsed_time
