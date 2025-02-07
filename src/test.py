@@ -89,8 +89,8 @@ def main():
             execute_subtask(controller, next_state.subtask)
 
         # TODO Simulation 수행 결과값을 얻어야 함. 지금은 스케쥴러에서 줌
-        if next_state.subtask.type == "Monitor":
-            agent.bayesian_estimate(next_state)
+        # if next_state.subtask.type == "Monitor":
+        #     agent.bayesian_estimate(next_state)
 
         current_state = next_state
 
