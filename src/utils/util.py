@@ -46,7 +46,7 @@ def create_module_logger(module_name, is_file_handler=False, console_output=True
         file_handler = logging.FileHandler(
             # LOG_PATH / f"{module_name}.log"
             LOG_PATH / "all.log",
-            mode="a",
+            mode="w",
         )
         file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")

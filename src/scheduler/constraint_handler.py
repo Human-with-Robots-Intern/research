@@ -32,8 +32,7 @@ class ConstraintHandler:
         if not edges:
             return TimeSlot(0, False, None)
 
-        critical_intervals = []
-        non_critical_intervals = []
+        time_slots = []
         linked_subtasks = []  # 여러 개일 수 있음
 
         # 1) 모든 엣지를 순회하며 Critical/Non-critical 분류
@@ -44,33 +43,10 @@ class ConstraintHandler:
             linked_subtasks.append(linked_subtask)
 
             if is_crit:
-                critical_intervals.append(interval)
+                time_slots.append(TimeSlot(interval, True, linked_subtask))
             else:
-                non_critical_intervals.append((interval, linked_subtask))
-                return TimeSlot(interval, False, linked_subtask)
-        
-        # ? Critical과 Non-critical이 함께 있을 때, Critical이 Non-critical보다 늦어야 하는 경우만 커버되는거 아님?
-        # ? 예외 케이스가 있잖아. Non-critical이 더 늦고, Critical이 더 빠르게 시작해야 하는 경우는 커버가 되긴 하니?
-        # ? 근데, 무조건 Critical이 중요하니까 Critical을 반드시 따라야 한다고 생각 해야 할 것 같다. 왜냐면 Critical은 실패 가능성이 높은 작업이니까.
-        # Critical 엣지 처리
-        # if critical_intervals:
-        #     distinct_crit_vals = {t[0] for t in critical_intervals}
-        #     # Critical 엣지가 여러 개면 모두 같은 Interval이어야 함
-        #     if len(distinct_crit_vals) > 1:
-        #         return TimeSlot(0, False, None)
-
-        #     crit_interval, crit_linked = critical_intervals[0]
-
-        #     if non_critical_intervals:
-        #         max_non_crit_interval, _ = max(
-        #             non_critical_intervals, key=lambda x: x[0]
-        #         )
-        #         if crit_interval < max_non_crit_interval:
-        #             return TimeSlot(0, False, None)
-        #     return TimeSlot(crit_interval, True, crit_linked)
-        # else:
-        #     max_interval, max_linked = max(non_critical_intervals, key=lambda x: x[0])
-        #     return TimeSlot(max_interval, False, max_linked)
+                time_slots.append(TimeSlot(interval, False, linked_subtask))
+            return max(time_slots, key=lambda x: x.interval)
 
     def get_actual_duration(
         self, curr_state: SchedulerState, subtask_name: str
@@ -81,32 +57,6 @@ class ConstraintHandler:
                 actual_duration = curr_state.current_time - ce.end_time
                 break
         return actual_duration
-
-    def find_parallel_window(self, current_node: SimulationNode) -> float:
-        """
-        (예시) 이미 '진행 중'인 Uncontrollable 서브태스크가 있으면,
-        그 작업의 남은 시간을 병렬 구간으로 보고 반환한다.
-        - 여기서는 단순히 'type이 Uncontrollable이고 end_time > 현재'인 서브태스크 중 최댓값을 찾는 예시
-        """
-
-        now = current_node.state.current_time
-        max_remaining = 0.0
-
-        # completed_subtasks는 '이미 끝난' 작업이라는 점에서 'in-progress' 확인이 애매하지만,
-        # 만약 "끝나지 않은" subtask를 별도 관리한다면 여기서 참조.
-
-        for ce in current_node.state.completed_subtasks:
-            time_slots = self.get_time_slots(
-                ce.subtask.name, current_node.state.constraints, "out"
-            )
-            parallel_window_end_time_candidate = ce.end_time + time_slots.interval
-            if parallel_window_end_time_candidate > now:
-                # 아직 종료 안 되었다고 가정
-                remaining = ce.end_time - now
-                if remaining > max_remaining:
-                    max_remaining = remaining
-
-        return max_remaining
 
     def get_feasible_candidates(
         self,
@@ -160,9 +110,12 @@ class ConstraintHandler:
         )
         for candidate in feasible_candidates:
             candidate.deadline = (
-                not_yet_candidates[0].earliest_start_time
-                if not_yet_candidates
-                else float("inf")
+                (
+                    not_yet_candidates[0].earliest_start_time
+                    if not_yet_candidates
+                    else float("inf")
+                ),
+                not_yet_candidates[0].subtask.name if not_yet_candidates else None,
             )
 
         return (feasible_candidates, not_yet_candidates)
@@ -181,8 +134,7 @@ class ConstraintHandler:
             * is_exact가 True면 정확히 그 시간에만 실행 가능
         """
         curr_constraints = curr_node.state.constraints
-        if sub.name.startswith("Prepare"):
-            pass
+
         in_edges = list(curr_constraints.in_edges(sub.name, data=True))
 
         if not in_edges:

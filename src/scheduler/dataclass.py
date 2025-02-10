@@ -68,7 +68,7 @@ class TimeSlot(NamedTuple):
     related_subtask_name: Optional[str]
 
     def __repr__(self):
-        return f"({self.related_subtask_name}, {self.interval}, {self.is_critical})"
+        return f"({self.interval}, {self.is_critical}, {self.related_subtask_name},)"
 
 
 @dataclass
@@ -86,4 +86,4 @@ class Candidate:
     deadline: float = float("inf")
 
     def __repr__(self):
-        return f"({self.subtask.name},earliest_start_time = {self.earliest_start_time}, deadline = {self.deadline})"
+        return f"({self.subtask.name}; duration : {self.subtask.duration.interval}, earliest_start_time = {self.earliest_start_time}, deadline = {self.deadline}, is_critical = {self.is_critical})"

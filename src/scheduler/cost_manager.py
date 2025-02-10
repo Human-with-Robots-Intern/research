@@ -39,29 +39,32 @@ class HeuristicManager:
         in_time_slot = self.constraint_handler.get_time_slots(
             candidate.subtask.name, current_node.state.constraints, "in"
         )
-        in_time_slot_critical = 0
-        if in_time_slot.is_critical:
-            in_time_slot_critical = in_time_slot.interval
-        # Dependency를 시작하는 작업은 빠르게 시작해야 됨
         out_time_slot = self.constraint_handler.get_time_slots(
             candidate.subtask.name, current_node.state.constraints, "out"
         )
+        # in_time_slot_critical = 0
+        # if in_time_slot.is_critical:
+        #     in_time_slot_critical = in_time_slot.interval
+        # Dependency를 시작하는 작업은 빠르게 시작해야 됨
+
         # ! DO NOT FIX THIS HEURISTIC FORMULA
-        time_diff = out_time_slot.interval + in_time_slot_critical
+
+        time_diff = out_time_slot.interval + in_time_slot.interval
         base_heuristic = factor * (
             candidate.subtask.duration.interval + navigate_time + time_diff
         )
 
-        return base_heuristic
+        bonus, penalty = 0, 0
+        # 현재 시간이 critical인 candidate subtask의 시작 시간일 때
+        if (
+            current_node.state.current_time == candidate.earliest_start_time
+            and candidate.is_critical
+        ):
+            bonus -= 1000
+
+        return base_heuristic + bonus + penalty
 
         # # * (3) 추가할 subtask가 dependency를 끝내는 경우, cost에 더 큰 가중치 부여
-        # bonus, penalty = 0, 0
-        # # 현재 시간이 critical인 candidate subtask의 시작 시간일 때
-        # if (
-        #     current_node.state.current_time == candidate.earliest_start_time
-        #     and candidate.is_critical
-        # ):
-        #     bonus -= 1000
 
         # # ! Critical Subtask에 대한 Navigate 시간 고려
 
