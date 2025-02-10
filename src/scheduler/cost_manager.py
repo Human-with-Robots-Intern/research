@@ -7,6 +7,8 @@ from utils.constants import SIMULATION_DEPTH
 from utils.task import load_navigation_times
 from utils.util import create_module_logger
 
+import math
+
 log = create_module_logger(__name__)
 
 
@@ -32,7 +34,7 @@ class HeuristicManager:
         """
 
         # * (1) 이전 실행에 가까울수록 높은 우선 순위를 부여
-        factor = -max(self.cost_weight - current_node.depth, 1)
+        factor = -math.exp(max(self.cost_weight - current_node.depth, 1))
 
         # * (2) 시간 휴리스틱
         # Dependency를 끝내는 작업은 느리게 시작해야 됨
@@ -43,26 +45,30 @@ class HeuristicManager:
             candidate.subtask.name, current_node.state.constraints, "out"
         )
 
-        # in_time_slot_critical = 0
-        # if in_time_slot.is_critical:
-        #     in_time_slot_critical = in_time_slot.interval * 1000
+        in_time_slot_critical = 0
+        if in_time_slot.is_critical:
+            in_time_slot_critical = in_time_slot.interval
         # Dependency를 시작하는 작업은 빠르게 시작해야 됨
 
         # ! DO NOT FIX THIS HEURISTIC FORMULA
 
-        time_diff = out_time_slot.interval + in_time_slot.interval
+        time_diff = out_time_slot.interval + in_time_slot_critical
         base_heuristic = factor * (
-            candidate.subtask.duration.interval + navigate_time + time_diff
+            candidate.subtask.duration.interval + navigate_time + math.exp(time_diff)
         )
 
         bonus, penalty = 0, 0
-        # 현재 시간이 critical인 candidate subtask의 시작 시간일 때
-        if (
-            current_node.state.current_time == candidate.earliest_start_time
-            and candidate.is_critical
-        ):
-            bonus -= 1000
-
+        # # 현재 시간이 critical인 candidate subtask의 시작 시간일 때
+        # if (
+        #     current_node.state.current_time == candidate.earliest_start_time
+        #     and candidate.is_critical
+        # ):
+        #     bonus -= 1000
+        print(candidate.subtask.name)
+        if "Monitoring" in candidate.subtask.name:
+            bonus -= math.exp(candidate.deadline.due_date - current_node.state.current_time)
+            
+        print(bonus)
         return base_heuristic + bonus + penalty
 
         # # * (3) 추가할 subtask가 dependency를 끝내는 경우, cost에 더 큰 가중치 부여
