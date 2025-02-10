@@ -13,7 +13,7 @@ from scheduler.dataclass import (
     TimeSlot,
 )
 from utils import create_module_logger
-from utils.constants import LOG_ROUND
+from utils.constants import EPSILON, LOG_ROUND
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -74,7 +74,7 @@ class ConstraintHandler:
         - 아직 시간이 안 되어 대기해야 하는 서브태스크 목록 (not_yet)
             --> (Subtask, earliest_start, is_critical)
         """
-        log.debug("get_feasible_subtasks: 시작")
+
         feasible_candidates: List["Subtask"] = []
         not_yet_candidates: List[Tuple["Subtask", float, bool]] = []
 
@@ -90,7 +90,7 @@ class ConstraintHandler:
                 continue
 
             if is_critical:
-                if abs(current_time - earliest_start_time) < 1e-9:
+                if abs(current_time - earliest_start_time) < EPSILON:
                     feasible_candidates.append(
                         Candidate(sub, True, earliest_start_time)
                     )
@@ -102,7 +102,7 @@ class ConstraintHandler:
                     )
                     return [], []
             else:
-                if current_time >= earliest_start_time - 1e-9:
+                if current_time >= earliest_start_time - EPSILON:
                     feasible_candidates.append(
                         Candidate(sub, False, earliest_start_time)
                     )
@@ -161,6 +161,7 @@ class ConstraintHandler:
                 None,
             )
             if not pred_entry:
+                # 아직 선행 완료 X -> 실행 불가능
                 return (None, False)
 
             candidate_start = pred_entry.end_time + interval
@@ -173,13 +174,25 @@ class ConstraintHandler:
         # ? 예외 케이스가 있잖아. Non-critical이 더 늦고, Critical이 더 빠르게 시작해야 하는 경우는 커버가 되긴 하니?
         # ? 근데, 무조건 Critical이 중요하니까 Critical을 반드시 따라야 한다고 생각 해야 할 것 같다. 왜냐면 Critical은 실패 가능성이 높은 작업이니까.
         if critical_times:
-            unique_critical = set(critical_times)
-            if len(unique_critical) != 1:
-                log.error(
-                    f"Conflict: multiple distinct critical times for '{sub.name}': {unique_critical}\n"
-                )
-                raise ValueError("Multiple distinct critical times found, conflict.")
-            only_crit_time = unique_critical.pop()
-            return (only_crit_time, True)
+            first_crit = critical_times[0]
+            for ct in critical_times[1:]:
+                # Critical Time이 다 같아야 함
+                if abs(first_crit - ct) > EPSILON:
+                    log.error(
+                        f"[get_earliest_start_time] Multiple distinct critical times for '{sub.name}' → conflict.\n",
+                        f"critical_times={critical_times}\n",
+                    )
+                    # 실행 불가능 처리
+                    return (None, False)
+            # Critical time이 non-critical earliest보다 더 이른지, 늦은지
+            # 만약 non-critical보다 빨라야 하는데 더 늦거나, 반대 상황이면 모순
+            # if first_crit < non_critical_earliest - EPSILON:
+            #     log.error(
+            #         f"[get_earliest_start_time] Critical time < non_critical_earliest => conflict\n"
+            #         f"crit={first_crit}, non_crit={non_critical_earliest}\n"
+            #     )
+            #     return (None, False)
+
+            return (first_crit, True)
         else:
             return (non_critical_earliest, False)
