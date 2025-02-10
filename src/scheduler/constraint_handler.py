@@ -179,19 +179,10 @@ class ConstraintHandler:
                 # Critical Time이 다 같아야 함
                 if abs(first_crit - ct) > EPSILON:
                     log.error(
-                        f"[get_earliest_start_time] Multiple distinct critical times for '{sub.name}' → conflict.\n",
-                        f"critical_times={critical_times}\n",
+                        f"[get_earliest_start_time] Multiple distinct critical times for '{sub.name}' → conflict.{critical_times}\n",
                     )
-                    # 실행 불가능 처리
+
                     return (None, False)
-            # Critical time이 non-critical earliest보다 더 이른지, 늦은지
-            # 만약 non-critical보다 빨라야 하는데 더 늦거나, 반대 상황이면 모순
-            # if first_crit < non_critical_earliest - EPSILON:
-            #     log.error(
-            #         f"[get_earliest_start_time] Critical time < non_critical_earliest => conflict\n"
-            #         f"crit={first_crit}, non_crit={non_critical_earliest}\n"
-            #     )
-            #     return (None, False)
 
             return (first_crit, True)
         else:

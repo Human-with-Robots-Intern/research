@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Optional
 
 from core.task import Subtask
@@ -6,8 +7,6 @@ from scheduler.dataclass import Candidate, SimulationNode
 from utils.constants import SIMULATION_DEPTH
 from utils.task import load_navigation_times
 from utils.util import create_module_logger
-
-import math
 
 log = create_module_logger(__name__)
 
@@ -57,19 +56,7 @@ class HeuristicManager:
             candidate.subtask.duration.interval + navigate_time + math.exp(time_diff)
         )
 
-        bonus, penalty = 0, 0
-        # # 현재 시간이 critical인 candidate subtask의 시작 시간일 때
-        # if (
-        #     current_node.state.current_time == candidate.earliest_start_time
-        #     and candidate.is_critical
-        # ):
-        #     bonus -= 1000
-        print(candidate.subtask.name)
-        if "Monitoring" in candidate.subtask.name:
-            bonus -= math.exp(candidate.deadline.due_date - current_node.state.current_time)
-            
-        print(bonus)
-        return base_heuristic + bonus + penalty
+        return base_heuristic
 
         # # * (3) 추가할 subtask가 dependency를 끝내는 경우, cost에 더 큰 가중치 부여
 
