@@ -51,7 +51,7 @@ class HeuristicManager:
         base_heuristic = factor * (
             candidate.subtask.duration.interval + navigate_time + time_diff
         )
-        
+
         return base_heuristic
 
         # # * (3) 추가할 subtask가 dependency를 끝내는 경우, cost에 더 큰 가중치 부여
@@ -62,7 +62,7 @@ class HeuristicManager:
         #     and candidate.is_critical
         # ):
         #     bonus -= 1000
-        
+
         # # ! Critical Subtask에 대한 Navigate 시간 고려
 
         # # * (4) 추가할 subtask의 종료시간이 critical timing을 위반하는 경우 패널티, 추가된 wait가 critical timing을 지키는 경우 보너스
