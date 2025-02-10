@@ -34,6 +34,7 @@ class HeuristicManager:
 
         # * (1) 이전 실행에 가까울수록 높은 우선 순위를 부여
         factor = -math.exp(max(self.cost_weight - current_node.depth, 1))
+        #factor = -max(self.cost_weight - current_node.depth, 1)
 
         # * (2) 시간 휴리스틱
         # Dependency를 끝내는 작업은 느리게 시작해야 됨

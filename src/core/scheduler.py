@@ -113,8 +113,8 @@ class Scheduler:
                 feasible_candidates, key=lambda x: x.earliest_start_time, reverse=True
             ):
 
-                if candidate.subtask.name == "Prepare Potato":
-                    print("debug")
+                # if candidate.subtask.name == "Prepare Potato":
+                #     print("debug")
 
                 # (A) critical이고, 지금 당장(earliest_start == current_time)에 실행해야 하는 경우
                 if (

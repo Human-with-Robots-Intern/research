@@ -110,12 +110,16 @@ class ConstraintHandler:
                     not_yet_candidates.append(
                         Candidate(sub, False, earliest_start_time)
                     )
-        not_yet_candidates = sorted(
+        not_yet_candidates_for_deadline = sorted(
             filter(lambda x: x.is_critical, not_yet_candidates),
             key=lambda x: x.earliest_start_time,
         )
         for candidate in feasible_candidates:
-            next_candidate = not_yet_candidates[0] if not_yet_candidates else None
+            next_candidate = (
+                not_yet_candidates_for_deadline[0]
+                if not_yet_candidates_for_deadline
+                else None
+            )
             candidate.deadline = Deadline(
                 next_candidate.earliest_start_time if next_candidate else float("inf"),
                 next_candidate.subtask.name if next_candidate else None,

@@ -57,7 +57,7 @@ def main():
         controller = init_ai2thor()
 
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=4)
+    task_file_name = get_user_task_choice(task_files, choice=1)
 
     # Load the chosen task data
     task_data = load_task_data_from_file(task_file_name)
@@ -78,7 +78,8 @@ def main():
     is_end = False
 
     while not is_end:
-
+        if current_state.subtask.name == "Wait for Turn off stove after cooking":
+            print("debug")
         next_state = scheduler.get_next_state(current_state)
 
         if next_state is None:
@@ -93,12 +94,13 @@ def main():
         #     agent.bayesian_estimate(next_state)
 
         current_state = next_state
-
+        
         result_schedule.append(current_state.subtask)
 
         if not current_state.remaining_subtasks:
             is_end = True
     visualize(task_file_name, current_state.constraints, result_schedule)
+
     for subtask in current_state.completed_subtasks:
         log.info(
             f"{subtask.subtask.name} ({round(subtask.start_time, LOG_ROUND)} ~ {round(subtask.end_time,LOG_ROUND)})"
