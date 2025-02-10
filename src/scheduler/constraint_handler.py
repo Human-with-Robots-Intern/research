@@ -5,7 +5,13 @@ from networkx import DiGraph
 
 from core.task import Subtask
 from scheduler.cost_manager import NavigationManager
-from scheduler.dataclass import Candidate, SchedulerState, SimulationNode, TimeSlot
+from scheduler.dataclass import (
+    Candidate,
+    Deadline,
+    SchedulerState,
+    SimulationNode,
+    TimeSlot,
+)
 from utils import create_module_logger
 from utils.constants import LOG_ROUND
 
@@ -46,11 +52,11 @@ class ConstraintHandler:
                 time_slots.append(TimeSlot(interval, True, linked_subtask))
             else:
                 time_slots.append(TimeSlot(interval, False, linked_subtask))
-            return max(time_slots, key=lambda x: x.interval)
+        return max(time_slots, key=lambda x: x.interval)
 
     def get_actual_duration(
         self, curr_state: SchedulerState, subtask_name: str
-    ) -> TimeSlot:
+    ) -> float:
         time_slot = self.get_time_slots(subtask_name, curr_state.constraints, "in")
         for ce in curr_state.completed_subtasks:
             if ce.subtask.name == time_slot.related_subtask_name:
@@ -109,13 +115,10 @@ class ConstraintHandler:
             key=lambda x: x.earliest_start_time,
         )
         for candidate in feasible_candidates:
-            candidate.deadline = (
-                (
-                    not_yet_candidates[0].earliest_start_time
-                    if not_yet_candidates
-                    else float("inf")
-                ),
-                not_yet_candidates[0].subtask.name if not_yet_candidates else None,
+            next_candidate = not_yet_candidates[0] if not_yet_candidates else None
+            candidate.deadline = Deadline(
+                next_candidate.earliest_start_time if next_candidate else float("inf"),
+                next_candidate.subtask.name if next_candidate else None,
             )
 
         return (feasible_candidates, not_yet_candidates)

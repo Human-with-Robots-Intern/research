@@ -108,7 +108,7 @@ class Scheduler:
                     curr_node, feasible_candidate.subtask
                 )
                 if not (
-                    feasible_candidate.deadline[0]
+                    feasible_candidate.deadline.due_date
                     < curr_state.current_time
                     + nav_time
                     + feasible_candidate.subtask.duration.interval
@@ -143,7 +143,7 @@ class Scheduler:
             for candidate in feasible_candidates:
                 # 추가할 subtask에 고려할 deadline이 존재하는 경우
                 if (
-                    candidate.deadline[0] != float("inf")
+                    candidate.deadline.due_date != float("inf")
                     and not curr_node.state.subtask.decomposed
                 ):
                     # 직전 subtask가 time-critical을 시작하는 경우 -> monitoring subtask으로 분할
@@ -256,7 +256,7 @@ class Scheduler:
         curr_depth = curr_node.depth
         curr_heuristic = curr_node.heuristic_cost
 
-        deadline, linked_sub_name = deadline
+        deadline, linked_sub_name = deadline.due_date, deadline.subtask_name
         old_name = candidate.subtask.name
 
         # constraints 그래프를 deep copy하여 수정합니다.
@@ -485,11 +485,11 @@ class Scheduler:
             is_critical=False,
         )
 
-        # new_heuristic = self.cost_calculator.calc_heuristic(
-        #     curr_node, wait_candidate, 0
-        # )
+        new_heuristic = self.cost_calculator.calc_heuristic(
+            curr_node, wait_candidate, 0
+        )
 
-        new_cost = curr_heuristic + wait_duration
+        new_cost = curr_heuristic + new_heuristic
 
         log.info(
             f"[_expand_wait_subtasks]\n"

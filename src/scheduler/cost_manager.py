@@ -42,9 +42,10 @@ class HeuristicManager:
         out_time_slot = self.constraint_handler.get_time_slots(
             candidate.subtask.name, current_node.state.constraints, "out"
         )
+
         # in_time_slot_critical = 0
         # if in_time_slot.is_critical:
-        #     in_time_slot_critical = in_time_slot.interval
+        #     in_time_slot_critical = in_time_slot.interval * 1000
         # Dependency를 시작하는 작업은 빠르게 시작해야 됨
 
         # ! DO NOT FIX THIS HEURISTIC FORMULA
