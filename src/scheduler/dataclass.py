@@ -49,10 +49,10 @@ class SimulationNode(NamedTuple):
     - state: 실제 스케줄 상태 (SchedulerState)
     """
 
-    parent_node: Optional["SimulationNode"]
     heuristic_cost: float
     depth: int
     tie_breaker: int
+    parent_node: Optional["SimulationNode"]
     state: SchedulerState
 
 
