@@ -52,6 +52,7 @@ class SimulationNode(NamedTuple):
     heuristic_cost: float
     depth: int
     tie_breaker: int
+    parent_node: Optional["SimulationNode"]
     state: SchedulerState
 
 

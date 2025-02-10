@@ -12,20 +12,12 @@ from scheduler.dataclass import (
     SimulationNode,
 )
 from utils import BEAM_WIDTH, SIMULATION_DEPTH, create_module_logger
-from utils.constants import (
-    BAYESIAN_CRITERIA,
-    GREEN,
-    LOG_ROUND,
-    MONITORING_DURATION,
-    RED,
-    RESET,
-)
+from utils.constants import BAYESIAN_CRITERIA, LOG_ROUND, RED, RESET
 from utils.task.task_util import (
     make_early_subtask,
     make_monitoring_subtask,
     make_remain_subtask,
 )
-from utils.visualizer import visualize_graph
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -53,13 +45,13 @@ class Scheduler:
         parent_state: SchedulerState,
     ) -> Optional[SchedulerState]:
 
-        child_state = self._simulate_search(parent_state)
+        child_node = self._simulate_search(parent_state)
 
-        if child_state is None:
+        if child_node is None:
             log.error("[get_next_state] No child_state found (No feasible solution).")
             return None
 
-        new_state = self._extract_state(parent_state, child_state)
+        new_state = self._extract_state(child_node)
 
         if new_state is None:
             log.error(
@@ -77,6 +69,7 @@ class Scheduler:
         counter = itertools.count()
 
         init_node = SimulationNode(
+            parent_node=None,
             heuristic_cost=0.0,
             depth=0,
             tie_breaker=next(counter),
@@ -98,10 +91,10 @@ class Scheduler:
                 continue
 
             # 1) 현재 시점에 "실행 가능한" 서브태스크 찾기
-            # subtask, earliest_start, is_critical 반환
             feasible_candidates, not_yet_feasible_candidate = (
                 self.constraint_handler.get_feasible_candidates(curr_node)
             )
+            #
             filtered_candidates = []
             for feasible_candidate in feasible_candidates:
                 nav_time, _ = self.nav_manager.compute_navigation_time(
@@ -129,9 +122,7 @@ class Scheduler:
                 f"Not_yet_feasible_subs={[candidate for candidate in not_yet_feasible_candidate]}\n"
                 f"==================================================\n"
             )
-            visualize_graph(
-                curr_node.state.constraints, "assets/results/debug", is_display=False
-            )
+
             # (2) 아직 시작 시간이 되지 않은 서브태스크(not_yet_feasible_subs)에 대해, wait 고려
             if feasible_candidates == []:
                 for candidate in not_yet_feasible_candidate:
@@ -178,43 +169,41 @@ class Scheduler:
             f"[_simulate_search] Found best_node with Subtask={best_node.state.subtask.name}, "
             f"Cost={best_node.heuristic_cost}\n"
         )
-        return best_node.state
+        return best_node
 
-    def _extract_state(
-        self, parent_state: SchedulerState, child_state: SchedulerState
-    ) -> Optional[SchedulerState]:
+    def _extract_state(self, child_node: SimulationNode) -> Optional[SchedulerState]:
+        """
+        n-step lookahead로 탐색한 best_node(child_node)에서,
+        '첫 번째 step(깊이1)' 노드의 state만 추출해 반환한다.
 
-        # ! Roll-back 잘 되고 있는지 보기!
-        if child_state is None:
-            log.error("[_extract_state] child_state is None\n")
+        만약 'child_node'가 깊이 0(루트)라면, 실행할 step이 없으므로 그대로 반환.
+        """
+
+        if child_node is None:
+            log.error("[_extract_state] child_node is None\n")
             return None
 
-        parent_completed = [ce for ce in parent_state.completed_subtasks]
-        child_completed = [ce for ce in child_state.completed_subtasks]
-        new_entries = child_completed[len(parent_completed) :]
+        # 1) parent_node를 따라 루트까지 거슬러 올라가서 경로를 만들고 뒤집는다 (루트→자식 순서가 되도록).
+        path = []
+        curr = child_node
+        while curr is not None:
+            path.append(curr)
+            curr = curr.parent_node
+        path.reverse()  # 이제 path[0]이 '루트 노드', path[-1]이 'child_node' (깊이 n)
 
-        if not new_entries:
-            # 이미 완료된 것들만 존재하면 그대로 child_state를 반환
-            log.debug("[_extract_state] No new entries -> returning child_state\n")
-            return child_state
+        # 2) 깊이가 0(루트)만 있는 경우 → 실행할 step이 없음
+        if len(path) < 2:
+            # path 길이가 1이면 루트밖에 없는 상황이므로, 그대로 state 반환(혹은 None)
+            if path:
+                return path[0].state
+            return None
 
-        # 새로 추가된 subtask 중 첫 번째 것만 가져옴
-        new_entry = new_entries[0]
-        new_completed_schedule = parent_state.completed_subtasks + [new_entry]
-        new_subtask = new_entry.subtask
+        # 3) 첫 번째 step을 실행한 노드는 path[1] (깊이=1)
+        first_step_node = path[1]
 
-        next_state = SchedulerState(
-            subtask=new_subtask,
-            completed_subtasks=new_completed_schedule,
-            remaining_subtasks=new_remaining_subtasks,
-            constraints=new_constraints,
-            agent_location=child_state.agent_location,
-            current_time=new_entry.end_time,
-        )
+        # 이 노드의 state가 "부모 state + 1개 서브태스크"가 적용된 상태
+        return first_step_node.state
 
-        return next_state
-
-    # Helper function for _expand_subtask_with_monitoring
     def _expand_subtask_with_monitoring(
         self,
         curr_node: SimulationNode,
@@ -332,6 +321,7 @@ class Scheduler:
 
         # 새로운 SimulationNode 생성하여 반환
         new_node = SimulationNode(
+            parent_node=curr_node,
             heuristic_cost=new_cost,
             depth=curr_depth + 1,
             tie_breaker=next(counter),
@@ -394,6 +384,7 @@ class Scheduler:
         )
 
         new_node = SimulationNode(
+            parent_node=curr_node,
             heuristic_cost=new_cost,
             depth=curr_depth + 1,
             tie_breaker=next(counter),
@@ -470,6 +461,7 @@ class Scheduler:
         )
 
         new_node = SimulationNode(
+            parent_node=curr_node,
             heuristic_cost=new_cost,
             depth=curr_depth + 1,
             tie_breaker=next(counter),
