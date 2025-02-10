@@ -203,35 +203,6 @@ class Scheduler:
         new_completed_schedule = parent_state.completed_subtasks + [new_entry]
         new_subtask = new_entry.subtask
 
-        if not new_subtask.decomposed:
-            # 동적으로 Wait, Monitoring 생성된 경우
-            new_constraints = parent_state.constraints
-            new_remaining_subtasks = [
-                r for r in parent_state.remaining_subtasks if r.name != new_subtask.name
-            ]
-        else:
-            new_constraints = child_state.constraints
-            additional_remaining_subtasks = [
-                new_entry.subtask for new_entry in new_entries[1:]
-            ]
-            new_remaining_subtasks = []
-            added_names = set()
-
-            for new_completed_sub in new_completed_schedule:
-                added_names.add(new_completed_sub.subtask.name)
-
-            # child_state.remaining_subtasks 중 중복되지 않는 값만
-            for sub in child_state.remaining_subtasks:
-                if sub.name not in added_names:
-                    new_remaining_subtasks.append(sub)
-                    added_names.add(sub.name)
-
-            # 동시에 완료된 나머지 subtask
-            for sub in additional_remaining_subtasks:
-                if sub.name not in added_names:
-                    new_remaining_subtasks.append(sub)
-                    added_names.add(sub.name)
-
         next_state = SchedulerState(
             subtask=new_subtask,
             completed_subtasks=new_completed_schedule,
