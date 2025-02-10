@@ -94,7 +94,7 @@ class Scheduler:
             feasible_candidates, not_yet_feasible_candidate = (
                 self.constraint_handler.get_feasible_candidates(curr_node)
             )
-            #
+            
             filtered_candidates = []
             for feasible_candidate in feasible_candidates:
                 nav_time, _ = self.nav_manager.compute_navigation_time(
@@ -217,8 +217,8 @@ class Scheduler:
         curr_heuristic = curr_node.heuristic_cost
 
         deadline, linked_sub_name = deadline.due_date, deadline.subtask_name
-        old_name = candidate.subtask.name
 
+        old_name = candidate.subtask.name
         # constraints 그래프를 deep copy하여 수정합니다.
         new_constraints = copy.deepcopy(curr_state.constraints)
 
@@ -240,13 +240,18 @@ class Scheduler:
         total_exec_time = candidate.subtask.duration.interval + nav_time
 
         # monitoring 시작 시점을 Bayesian 기준에 따라 계산합니다.
-        monitoring_timing = subtask_start_time + (total_exec_time) * BAYESIAN_CRITERIA
+        monitoring_timing = subtask_start_time + total_exec_time * BAYESIAN_CRITERIA
 
         # early와 remain 서브태스크의 duration 계산
         early_dur = monitoring_timing - subtask_start_time
+        if early_dur < 0:
+            early_dur = 0
 
         # MONITORING_DURATION만큼 모니터링 후 남은 실행시간 계산
         remain_dur = total_exec_time - early_dur
+        if remain_dur <= 0:
+            # 이 상황이면 사실상 전체를 early_sub로만 처리
+            remain_dur = 0
 
         # 새로 생성되는 서브태스크들의 이름은 내부 함수에서 고유하게 생성하도록 합니다.
         early_sub = make_early_subtask(candidate.subtask, early_dur)
@@ -260,11 +265,13 @@ class Scheduler:
 
         # 1) 기존 candidate.subtask의 인엣지들을 새로 생성한 early_sub로 연결합니다.
         for pred, _, data in in_edges:
-            new_constraints.add_edge(pred, early_sub.name, info=data.get("info", {}))
+            info_copy = copy.deepcopy(data["info"])
+            new_constraints.add_edge(pred, early_sub.name, info=info_copy)
 
         # 2) 기존 candidate.subtask의 아웃엣지들을 새로 생성한 remain_sub로 연결합니다.
         for _, succ, data in out_edges:
-            new_constraints.add_edge(remain_sub.name, succ, info=data.get("info", {}))
+            info_copy = copy.deepcopy(data["info"])
+            new_constraints.add_edge(remain_sub.name, succ, info=info_copy)
 
         # 3) 내부 체인 연결: early_sub → mon_sub → remain_sub
         new_constraints.add_edge(
