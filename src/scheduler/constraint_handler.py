@@ -23,40 +23,28 @@ class ConstraintHandler:
     def get_time_slots(
         self, subtask_name: str, constraints: DiGraph, direction: str
     ) -> TimeSlot:
-        """
-        주어진 서브태스크의 in/out 방향 엣지들을 확인하여,
-        Critical/Non-critical 간 압축 로직으로 Interval을 계산한 뒤,
-        TimeSlot(NamedTuple: (Interval, IsCritical, LinkedSubtask)) 형태로 반환.
-
-        조건:
-          - Critical 엣지가 여러 개면 모두 같은 Interval이어야 함 (다르면 충돌로 간주)
-          - Non-critical 엣지는 Interval 중 최댓값을 사용
-          - Critical과 Non-critical이 동시에 존재하면 Critical interval >= Non-critical 최댓값이어야 함
-          - 엣지가 없으면 TimeSlot(0, False, None)을 반환.
-        """
-
         edges = (
             list(constraints.out_edges(subtask_name, data=True))
             if direction == "out"
             else list(constraints.in_edges(subtask_name, data=True))
         )
 
-        # 주어진 subtask에 제약이 없는 경우
         if not edges:
             return TimeSlot(0, False, None)
 
         critical_intervals = []
         non_critical_intervals = []
+        linked_subtasks = []  # 여러 개일 수 있음
 
-        # Critical / Non-critical 엣지 구분
+        # 1) 모든 엣지를 순회하며 Critical/Non-critical 분류
         for u, v, data in edges:
             interval = data["info"]["Interval"]
             is_crit = data["info"]["IsCritical"]
             linked_subtask = v if direction == "out" else u
+            linked_subtasks.append(linked_subtask)
 
             if is_crit:
-                critical_intervals.append((interval, linked_subtask))
-                return TimeSlot(interval, True, linked_subtask)
+                critical_intervals.append(interval)
             else:
                 non_critical_intervals.append((interval, linked_subtask))
                 return TimeSlot(interval, False, linked_subtask)
@@ -193,7 +181,8 @@ class ConstraintHandler:
             * is_exact가 True면 정확히 그 시간에만 실행 가능
         """
         curr_constraints = curr_node.state.constraints
-
+        if sub.name.startswith("Prepare"):
+            pass
         in_edges = list(curr_constraints.in_edges(sub.name, data=True))
 
         if not in_edges:
