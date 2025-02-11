@@ -12,7 +12,14 @@ from scheduler.dataclass import (
     SimulationNode,
 )
 from utils import BEAM_WIDTH, SIMULATION_DEPTH, create_module_logger
-from utils.constants import BAYESIAN_CRITERIA, EPSILON, LOG_ROUND, RED, RESET
+from utils.constants import (
+    BAYESIAN_CRITERIA,
+    EPSILON,
+    LOG_ROUND,
+    MONITORING_DURATION,
+    RED,
+    RESET,
+)
 from utils.task.task_util import split_subtask_for_monitoring
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
@@ -114,7 +121,8 @@ class Scheduler:
                     and abs(candidate.earliest_start_time - curr_state.current_time)
                     < EPSILON
                 ):
-                    # deadline & decomposed 여부에 따라 monitoring / non-monitoring 분할
+                    # 추가할 subtask가 critical 제약 내에 존재하는 경우 (데드라인)
+                    # 직전 서브테스크가 분할되지 않았을 때 Monitoring timing 결정
                     if (candidate.deadline.due_date != float("inf")) and (
                         not curr_node.state.subtask.decomposed
                     ):
@@ -129,7 +137,6 @@ class Scheduler:
                     if new_node is not None:
                         expanded_nodes.append(new_node)
                         is_expanded = True
-                        # critical은 한 번에 하나만 실행하고 break
                         break
 
                 # (B) critical이 아니거나, critical이어도 현재시각이 다를 경우
@@ -148,7 +155,6 @@ class Scheduler:
                     if new_node is not None:
                         expanded_nodes.append(new_node)
                         is_expanded = True
-                    # 여러 feasible candidate를 동시에 확장하고 싶다면 break 제거 가능
 
             # --- (2-2) 아직 시간 안 된 서브태스크들은 wait 추가 ---
             if not is_expanded:
@@ -216,22 +222,49 @@ class Scheduler:
         time-critical Subtask를 모니터링 분할로 처리:
         - early_sub (일정 구간) → monitoring_sub (0.1초) → remain_sub
         - 이동 시간(nav_time) 포함
+        - deadline 검사 시, (early+mon+remain) 총합이 deadline 안에 들어야 함
+        - Constraints 그래프 수정 시, old_name 제거 후
+          in_edges->early_sub, out_edges->remain_sub 연결,
+          early_sub->mon_sub->remain_sub 연결
         """
         curr_state = curr_node.state
         curr_depth = curr_node.depth
         curr_heuristic = curr_node.heuristic_cost
+        curr_time_slots = self.constraint_handler.get_time_slots(
+            curr_state.subtask.name,
+            curr_state.constraints,
+            "out",
+            is_critical=True,
+        )
+        # 부모 노드 (critical edge)의 가장 큰 시간 간격을 찾음
+        curr_time_slot = max(curr_time_slots, key=lambda x: x.interval)
 
-        deadline = candidate.deadline.due_date
+        # 가장 빨리 도래할 deadline 정보
+        deadline_due, deadline_sub_name = (
+            candidate.deadline.due_date,
+            candidate.deadline.subtask_name,
+        )
+        nav_time, _ = self.nav_manager.compute_total_navigation_time(
+            curr_node, candidate.subtask
+        )
+        # 1) 총 실행 시간 업데이트
+        exec_time = candidate.subtask.duration.interval + nav_time
+
+        # 2) Monitoring timing 계산
+        monitoring_timing = curr_time_slot.interval * BAYESIAN_CRITERIA
+
+        if monitoring_timing >= exec_time:
+            self._expand_subtask_wo_monitoring(curr_node, candidate)
 
         early_sub, mon_sub, remain_sub = split_subtask_for_monitoring(
             curr_node=curr_node,
             candidate=candidate,
+            early_cutoff=monitoring_timing,
             nav_manager=self.nav_manager,
-            ratio=BAYESIAN_CRITERIA,
         )
 
         # deadline 체크 시 이동시간도 포함하여 검사
-        if deadline < (curr_state.current_time + early_sub.duration.interval):
+        if deadline_due < (curr_state.current_time + early_sub.duration.interval):
             # deadline 넘어가면 확장 무의미
             return None
 
@@ -260,9 +293,37 @@ class Scheduler:
 
         # early_sub → mon_sub → remain_sub 연결
         new_constraints.add_node(early_sub.name)
-        new_constraints.add_node(mon_sub.name)
         new_constraints.add_node(remain_sub.name)
+        new_constraints.add_node(mon_sub.name)
 
+        new_constraints.add_edge(
+            curr_state.subtask.name,
+            mon_sub.name,
+            info={"Interval": early_sub.duration.interval, "IsCritical": True},
+        )
+        new_constraints.add_edge(
+            mon_sub.name,
+            deadline_sub_name,
+            info={
+                "Interval": deadline_due - early_sub.duration.interval,
+                "IsCritical": False,
+            },
+        )
+        new_constraints.add_edge(
+            curr_state.subtask.name,
+            mon_sub.name,
+            info={"Interval": monitoring_timing, "IsCritical": True},
+        )
+        new_constraints.add_edge(
+            mon_sub.name,
+            deadline_sub_name,
+            info={
+                "Interval": curr_time_slot.interval
+                - monitoring_timing
+                - MONITORING_DURATION,
+                "IsCritical": True,
+            },
+        )
         new_constraints.add_edge(
             early_sub.name, mon_sub.name, info={"Interval": 0, "IsCritical": True}
         )

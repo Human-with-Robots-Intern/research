@@ -19,15 +19,13 @@ log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class ConstraintHandler:
-    def __init__(self):
-        """
-        constraints: nx.DiGraph
-          - 각 edge(u->v)에 "info": {"Interval": float, "IsCritical": bool}가 존재
-        """
-        pass
 
     def get_time_slots(
-        self, subtask_name: str, constraints: DiGraph, direction: str
+        self,
+        subtask_name: str,
+        constraints: DiGraph,
+        direction: str,
+        is_critical: bool = True,
     ) -> TimeSlot:
         edges = (
             list(constraints.out_edges(subtask_name, data=True))
@@ -36,7 +34,7 @@ class ConstraintHandler:
         )
 
         if not edges:
-            return TimeSlot(0, False, None)
+            return [TimeSlot(0, False, None)]
 
         time_slots = []
         linked_subtasks = []  # 여러 개일 수 있음
@@ -52,17 +50,13 @@ class ConstraintHandler:
                 time_slots.append(TimeSlot(interval, True, linked_subtask))
             else:
                 time_slots.append(TimeSlot(interval, False, linked_subtask))
-        return max(time_slots, key=lambda x: x.interval)
+        filtered_slots = list(
+            filter(lambda x: x.is_critical == is_critical, time_slots)
+        )
+        if not filtered_slots:
+            return [TimeSlot(0, False, None)]
 
-    def get_actual_duration(
-        self, curr_state: SchedulerState, subtask_name: str
-    ) -> float:
-        time_slot = self.get_time_slots(subtask_name, curr_state.constraints, "in")
-        for ce in curr_state.completed_subtasks:
-            if ce.subtask.name == time_slot.related_subtask_name:
-                actual_duration = curr_state.current_time - ce.end_time
-                break
-        return actual_duration
+        return filtered_slots
 
     def get_feasible_candidates(
         self,
@@ -110,21 +104,9 @@ class ConstraintHandler:
                     not_yet_candidates.append(
                         Candidate(sub, False, earliest_start_time)
                     )
-        # feasible_candidates = self._assign_deadlines(feasible_candidates, not_yet_candidates)
-        not_yet_candidates_for_deadline = sorted(
-            filter(lambda x: x.is_critical, not_yet_candidates),
-            key=lambda x: x.earliest_start_time,
+        feasible_candidates = self._assign_deadlines(
+            feasible_candidates, not_yet_candidates
         )
-        for candidate in feasible_candidates:
-            next_candidate = (
-                not_yet_candidates_for_deadline[0]
-                if not_yet_candidates_for_deadline
-                else None
-            )
-            candidate.deadline = Deadline(
-                next_candidate.earliest_start_time if next_candidate else float("inf"),
-                next_candidate.subtask.name if next_candidate else None,
-            )
 
         return (feasible_candidates, not_yet_candidates)
 
@@ -191,18 +173,15 @@ class ConstraintHandler:
             else:
                 non_critical_earliest = max(non_critical_earliest, candidate_start)
 
-        # ? Critical과 Non-critical이 함께 있을 때, Critical이 Non-critical보다 늦어야 하는 경우만 커버되는거 아님?
-        # ? 예외 케이스가 있잖아. Non-critical이 더 늦고, Critical이 더 빠르게 시작해야 하는 경우는 커버가 되긴 하니?
-        # ? 근데, 무조건 Critical이 중요하니까 Critical을 반드시 따라야 한다고 생각 해야 할 것 같다. 왜냐면 Critical은 실패 가능성이 높은 작업이니까.
+        # ? Critical과 Non-critical이 함께 있을 때, Non-critical이 Critical보다 늦는 경우에는 Critical을 따름 (Critical이 더 중요함으로)
         if critical_times:
             first_crit = critical_times[0]
             for ct in critical_times[1:]:
                 # Critical Time이 다 같아야 함
                 if abs(first_crit - ct) > EPSILON:
                     log.error(
-                        f"[get_earliest_start_time] Multiple distinct critical times for '{sub.name}' → conflict.{critical_times}\n",
+                        f"[get_earliest_start_time]\nMultiple distinct critical times for '{sub.name}' → conflict.{critical_times}\n",
                     )
-
                     return (None, False)
 
             return (first_crit, True)

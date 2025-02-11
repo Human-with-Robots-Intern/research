@@ -131,73 +131,11 @@ def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerSt
     return init_state
 
 
-def get_monitoring_subtask() -> Subtask:
-    monitoring_subtask = Subtask(
-        task_name=None,
-        name="Monitoring",
-        duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
-        repetition=1,
-        type="Monitor",
-        execution=Execution(
-            objects=[], primitive_actions=[f"Monitoring {MONITORING_DURATION}"]
-        ),
-        temporal_constraints=None,
-    )
-
-    return monitoring_subtask
-
-
-def make_monitoring_subtask(original_sub_name: str) -> Subtask:
-    mon_sub = get_monitoring_subtask()
-    mon_sub.name = f"Monitoring for {original_sub_name}_{uuid.uuid4().hex[:8]}"
-    mon_sub.decomposed = True
-    return mon_sub
-
-
-# def get_monitoring_subtask(obj: str) -> Subtask:
-#     monitoring_subtask = Subtask(
-#         task_name=None,
-#         name="Monitoring",
-#         duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
-#         repetition=1,
-#         type="Monitor",
-#         execution=Execution(objects=[], primitive_actions=[f"Monitoring {obj}"]),
-#         temporal_constraints=None,
-#     )
-
-#     return monitoring_subtask
-
-
-# def make_monitoring_subtask(target_sub_name: str, obj: str) -> Subtask:
-#     mon_sub = get_monitoring_subtask(obj)
-#     mon_sub.name = f"Monitoring for {target_sub_name}_{obj}_{uuid.uuid4().hex[:8]}"
-#     mon_sub.decomposed = True
-#     return mon_sub
-
-
-# def make_early_subtask(original_sub: Subtask, early_exec_time: float) -> Subtask:
-#     early_sub = copy.deepcopy(original_sub)
-#     for primitive_action in early_sub.execution.primitive_actions:
-#         pass
-#     early_sub.name += "_early"
-#     early_sub.duration.interval = early_exec_time
-#     early_sub.decomposed = True
-#     return early_sub
-
-
-# def make_remain_subtask(original_sub: Subtask, remain_duration: float) -> Subtask:
-#     remain_sub = copy.deepcopy(original_sub)
-#     remain_sub.name += "_remain"
-#     remain_sub.duration.interval = remain_duration
-#     remain_sub.decomposed = True
-#     return remain_sub
-
-
 def split_subtask_for_monitoring(
     curr_node,
     candidate: Candidate,
+    early_cutoff: float,
     nav_manager,
-    ratio: float = 0.7,
 ):
     """
     서브태스크를 Early / Monitoring / Remain 으로 분할
@@ -205,17 +143,10 @@ def split_subtask_for_monitoring(
     - (2) Monitoring Subtask : 0.1초 (분할 없음)
     - (3) Remaining Subtask : 나머지 액션
     """
-    # 1) 원본 서브태스크 전체 액션 시간
-    total_time = sum_action_durations(curr_node, candidate.subtask, nav_manager)
-
-    # 2) early에 할당할 시간
-    monitoring_timing = total_time * ratio
 
     # 3) 실제로 액션 분할
     early_actions, early_time, remain_actions, remain_time = (
-        split_primitive_actions_by_time(
-            curr_node, candidate.subtask, monitoring_timing, nav_manager
-        )
+        split_primitive_actions_by_time(curr_node, candidate, early_cutoff, nav_manager)
     )
 
     # 4) Early 서브태스크
@@ -253,68 +184,40 @@ def split_subtask_for_monitoring(
 
 
 def split_primitive_actions_by_time(
-    curr_node: SimulationNode, subtask: Subtask, cutoff_time: float, nav_manager
+    curr_node: SimulationNode, candidate: Candidate, cutoff_time: float, nav_manager
 ) -> Tuple[List[str], float, List[str], float]:
     """
     Primitive Action을 "초반(cutoff_time)"과 "나머지"로 분할
-    - NAVIGATE_TO / WAIT 만 분할 가능
-    - MONITORING 은 분할 금지 (그대로 한 덩어리)
-    - 나머지 액션도 분할 안 함 (그대로 한 덩어리)
-    - 초반 시간이 남으면 leftover_time 만큼 WAIT 추가
-
-    Args:
-    - curr_node : 현재 시뮬레이션 노드
-    - subtask   : 분할 대상 서브태스크
-    - cutoff_time (float): 초반 실행 시간(예: total_time * 0.7)
-    - nav_manager : 이동 시간 계산에 사용
-
-    Returns:
-    - early_actions      : 초반 실행에 들어갈 액션 리스트
-    - early_total_time   : 초반 실행 시간 합
-    - remain_actions     : 나머지 액션 리스트
-    - remain_total_time  : 나머지 실행 시간 합
     """
-    # 분해 대상 action list
-    actions = subtask.execution.primitive_actions
-
+    actions = candidate.subtask.execution.primitive_actions
+    init_agent_loc = curr_node.state.agent_location  # 분할 전 위치 기억
+    agent_loc = curr_node.state.agent_location
     early_actions = []
     remain_actions = []
-
     time_used = 0.0
     i = 0
 
     while i < len(actions):
         action = actions[i]
-        # base_action, (obj_name), duration 추출
         tokens = action.split()
         base_action = tokens[0].upper()
 
         # (A) 액션 시간 계산
-        duration = 0.0
         if base_action == "NAVIGATE_TO":
-            # NAVIGATE_TO <object> [time]
             if len(tokens) == 3:
-                # 예: "NAVIGATE_TO COUNTERTOP 3.0"
                 duration = float(tokens[2])
             else:
-                # 시간이 명시 안된 경우 NavManager로 추정
-                duration = nav_manager.compute_specific_navigation_time(
-                    curr_node, tokens[1]
-                )
+                duration = nav_manager._lookup_navigation_time(agent_loc, tokens[1])
         elif base_action == "WAIT":
-            # WAIT [time]
             duration = float(tokens[1])
-
         elif base_action == "MONITORING":
-            # Monitoring은 분할 안 함
             duration = MONITORING_DURATION
         else:
-            # 나머지 액션은 기본 0.1초
             duration = PRIMITIVE_ACTION_DURATION
 
-        # (B) cutoff_time과 비교
+        # (B) cutoff_time 비교
         if time_used >= cutoff_time:
-            # 이미 초반 할당 시간 초과 → 남은 액션으로 이동
+            # 이미 early 구간을 채웠다면 남은 액션은 전부 remain
             remain_actions.append(action)
             i += 1
             continue
@@ -323,46 +226,49 @@ def split_primitive_actions_by_time(
 
         # (C) 분할 로직
         if duration <= leftover_for_early:
-            # 이 액션 전체를 early에 할당
+            # 액션 전부 early에 할당
             early_actions.append(action)
             time_used += duration
+
+            # NAVIGATE_TO 전체가 early에 들어간 경우 → 도착지 갱신
+            if base_action == "NAVIGATE_TO":
+                agent_loc = tokens[1]
             i += 1
         else:
-            # 만약 NAVIGATE_TO 또는 WAIT이라면, 분할 가능
+            # 부분 분할 (NAVIGATE_TO or WAIT)
             if base_action in ["NAVIGATE_TO", "WAIT"]:
-                # early portion
-                early_actions.append(
-                    f"{tokens[0]} {tokens[1]} {leftover_for_early}"
-                    if base_action == "NAVIGATE_TO" and len(tokens) >= 2
-                    else f"{base_action} {leftover_for_early}"
-                )
-                # remain portion
-                remain_time = duration - leftover_for_early
-
-                if base_action == "NAVIGATE_TO" and len(tokens) >= 2:
-                    # NAVIGATE_TO <object> remain_time
-                    object_name = tokens[1]
-                    remain_actions.append(f"NAVIGATE_TO {object_name}")
-                else:
-                    # WAIT remain_time
-                    remain_actions.append(f"WAIT {remain_time}")
+                # Early portion
+                if base_action == "NAVIGATE_TO":
+                    # e.g. "NAVIGATE_TO Table leftover_time"
+                    early_actions.append(
+                        f"{base_action} {tokens[1]} {leftover_for_early}"
+                    )
+                    # 나머지 시간은 remain
+                    remain_time = duration - leftover_for_early
+                    remain_actions.append(f"{base_action} {tokens[1]} {remain_time}")
+                    # 여기서는 도착 안 했으므로 location 갱신 X
+                else:  # WAIT
+                    early_actions.append(f"{base_action} {leftover_for_early}")
+                    remain_time = duration - leftover_for_early
+                    remain_actions.append(f"{base_action} {remain_time}")
 
                 time_used += leftover_for_early
                 i += 1
             else:
-                # 나머지 액션(GRASP 등)은 분할 불가 → 통째로 remain
+                # GRASP 등 분할 불가능 → 통째로 remain
                 remain_actions.append(action)
                 i += 1
 
-    # (D) 초반에 time_used < cutoff_time이면, 남은 부분만큼 WAIT 추가
+    # (D) early 구간이 cutoff_time에 못 미쳤다면 남은 부분 WAIT
     if time_used < cutoff_time:
         leftover_wait = cutoff_time - time_used
         early_actions.append(f"WAIT {leftover_wait}")
         time_used += leftover_wait
 
     early_total_time = time_used
+
     remain_total_time = (
-        sum_action_durations(curr_node, subtask, nav_manager) - time_used
+        sum_action_durations(curr_node, candidate.subtask, nav_manager) - time_used
     )
 
     return early_actions, early_total_time, remain_actions, remain_total_time
@@ -371,26 +277,73 @@ def split_primitive_actions_by_time(
 def sum_action_durations(
     curr_node: SimulationNode, subtask: Subtask, nav_manager
 ) -> float:
+    """
+    Compute the total execution time for all primitive actions in 'subtask',
+    WHILE temporarily updating 'curr_node.state.agent_location' for each NAVIGATE_TO.
+    At the end, restore the original location to avoid side-effects.
+
+    Warning:
+        - This approach modifies the node's agent_location during the calculation.
+        - Make sure this is safe in your search/plan context (e.g., if you're not branching from the same node afterward).
+    """
+
     total = 0.0
+    if not subtask.execution or not subtask.execution.primitive_actions:
+        return 0.0
+
     actions = subtask.execution.primitive_actions
+
+    # 2) 현재 location(로봇 위치)을 state에서 가져온다.
+    current_loc = curr_node.state.agent_location
+    if not current_loc:
+        current_loc = "agent"
+
+    # 3) 모든 액션 순회
     for action in actions:
         tokens = action.split()
+        if not tokens:
+            continue
+
         base_action = tokens[0].upper()
 
         if base_action == "NAVIGATE_TO":
-            if len(tokens) == 3:
-                # NAVIGATE_TO <object> <time>
-                dur = float(tokens[2])
+            # e.g. "NAVIGATE_TO Kitchen" or "NAVIGATE_TO Kitchen 3.0"
+            if len(tokens) >= 2:
+                target_loc = tokens[1]
             else:
-                # 시간이 명시 안됨 → 직접 계산
-                dur = nav_manager.compute_specific_navigation_time(curr_node, tokens[1])
-        elif base_action == "WAIT" and len(tokens) >= 2:
-            dur = float(tokens[1])
+                # 잘못된 형식
+                continue
+
+            # 이동 시간 결정
+            if len(tokens) == 3:
+                # NAVIGATE_TO Kitchen 3.0
+                try:
+                    dur = float(tokens[2])
+                except ValueError:
+                    dur = nav_manager._lookup_navigation_time(current_loc, target_loc)
+            else:
+                dur = nav_manager._lookup_navigation_time(current_loc, target_loc)
+
+            total += dur
+
+            current_loc = target_loc
+
+        elif base_action == "WAIT":
+            if len(tokens) >= 2:
+                try:
+                    dur = float(tokens[1])
+                except ValueError:
+                    dur = 0.0
+            else:
+                dur = 0.0
+            total += dur
+
         elif base_action == "MONITORING":
-            # e.g. "MONITORING <Obj>"
-            dur = MONITORING_DURATION
+            total += MONITORING_DURATION
+
         else:
-            # GRASP, PLACE_INSIDE 등
-            dur = PRIMITIVE_ACTION_DURATION
-        total += dur
+            # GRASP, PLACE 등
+            total += PRIMITIVE_ACTION_DURATION
+
+    # 4) 계산이 모두 끝난 후 total 반환
     return total

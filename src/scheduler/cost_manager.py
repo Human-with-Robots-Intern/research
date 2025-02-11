@@ -38,22 +38,21 @@ class HeuristicManager:
 
         # * (2) 시간 휴리스틱
         # Dependency를 끝내는 작업은 느리게 시작해야 됨
-        in_time_slot = self.constraint_handler.get_time_slots(
-            candidate.subtask.name, current_node.state.constraints, "in"
+        in_time_slots = self.constraint_handler.get_time_slots(
+            candidate.subtask.name, current_node.state.constraints, "in", True
         )
-        out_time_slot = self.constraint_handler.get_time_slots(
-            candidate.subtask.name, current_node.state.constraints, "out"
+        out_time_slots = self.constraint_handler.get_time_slots(
+            candidate.subtask.name, current_node.state.constraints, "out", True
         )
-
-        # Dependency를 시작하는 작업은 빠르게 시작해야 됨
-        in_time_slot_critical = 0
-        if in_time_slot.is_critical:
-            in_time_slot_critical = in_time_slot.interval
 
         # ! DO NOT FIX THIS HEURISTIC FORMULA
-        time_diff = out_time_slot.interval + in_time_slot_critical
         base_heuristic = factor * (
-            candidate.subtask.duration.interval + navigate_time + math.exp(time_diff)
+            candidate.subtask.duration.interval
+            + navigate_time
+            + math.exp(
+                max(out_time_slots, key=lambda x: x.interval).interval
+                + max(in_time_slots, key=lambda x: x.interval).interval
+            )
         )
 
         return base_heuristic
