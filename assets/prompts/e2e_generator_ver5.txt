@@ -148,6 +148,7 @@ The following is the **ENVIRONMENT CONTEXT** that the robot can manipulate. robo
       "Lettuce|-01.81|+00.97|-00.94",
       "Egg|-02.04|+00.81|+01.24"
     ],
+    "FILL": ["Pot|-01.22|+00.90|-02.36"]
     "RECEPTACLE": [
       "Pan|+00.72|+00.90|-02.42",
       "Cup|+00.37|+01.64|-02.58",
