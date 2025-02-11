@@ -106,11 +106,13 @@ class ConstraintHandler:
         # find next critical in not_yet
         crit_candidates = [c for c in not_yet if c.is_critical]
         crit_candidates.sort(key=lambda x: x.earliest_start_time)
+
         if not crit_candidates:
             # no upcoming critical
             for c in feasible:
                 c.deadline = Deadline(float("inf"), None)
             return feasible
+
         next_crit = crit_candidates[0]
         for c in feasible:
             c.deadline = Deadline(next_crit.earliest_start_time, next_crit.subtask.name)

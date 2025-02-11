@@ -172,7 +172,7 @@
             "Type": "After",
             "Subtask": "Wash Potato",
             "Interval": 20,
-            "Urgency": false
+            "Urgency": true
           }
         ]
       },
@@ -198,7 +198,7 @@
             "Type": "After",
             "Subtask": "Prepare Potato",
             "Interval": 20,
-            "Urgency": false
+            "Urgency": true
           }
         ]
       }

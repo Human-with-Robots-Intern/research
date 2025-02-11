@@ -131,48 +131,25 @@ def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerSt
     return init_state
 
 
-def get_monitoring_subtask() -> Subtask:
+def get_monitoring_subtask(obj: str) -> Subtask:
     monitoring_subtask = Subtask(
         task_name=None,
         name="Monitoring",
         duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
         repetition=1,
         type="Monitor",
-        execution=Execution(
-            objects=[], primitive_actions=[f"Monitoring {MONITORING_DURATION}"]
-        ),
+        execution=Execution(objects=[], primitive_actions=[f"Monitoring {obj}"]),
         temporal_constraints=None,
     )
 
     return monitoring_subtask
 
 
-def make_monitoring_subtask(original_sub_name: str) -> Subtask:
-    mon_sub = get_monitoring_subtask()
-    mon_sub.name = f"Monitoring for {original_sub_name}_{uuid.uuid4().hex[:8]}"
+def make_monitoring_subtask(target_sub_name: str, obj: str) -> Subtask:
+    mon_sub = get_monitoring_subtask(obj)
+    mon_sub.name = f"Monitoring for {target_sub_name}_{obj}_{uuid.uuid4().hex[:8]}"
     mon_sub.decomposed = True
     return mon_sub
-
-
-# def get_monitoring_subtask(obj: str) -> Subtask:
-#     monitoring_subtask = Subtask(
-#         task_name=None,
-#         name="Monitoring",
-#         duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
-#         repetition=1,
-#         type="Monitor",
-#         execution=Execution(objects=[], primitive_actions=[f"Monitoring {obj}"]),
-#         temporal_constraints=None,
-#     )
-
-#     return monitoring_subtask
-
-
-# def make_monitoring_subtask(target_sub_name: str, obj: str) -> Subtask:
-#     mon_sub = get_monitoring_subtask(obj)
-#     mon_sub.name = f"Monitoring for {target_sub_name}_{obj}_{uuid.uuid4().hex[:8]}"
-#     mon_sub.decomposed = True
-#     return mon_sub
 
 
 # def make_early_subtask(original_sub: Subtask, early_exec_time: float) -> Subtask:

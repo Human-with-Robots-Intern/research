@@ -3,6 +3,8 @@ import itertools
 from queue import PriorityQueue
 from typing import List, Optional
 
+import networkx as nx
+
 from core.task import Duration, Execution, Subtask
 from scheduler import ConstraintHandler, HeuristicManager, NavigationManager
 from scheduler.dataclass import (
@@ -24,6 +26,7 @@ class Scheduler:
         search_width: int = BEAM_WIDTH,
         simulation_depth: int = SIMULATION_DEPTH,
     ):
+
         self.search = search_width
         self.simulation_depth = simulation_depth
         log.info(f"{RED}{search_width=}, {simulation_depth=}{RESET}")
@@ -108,47 +111,17 @@ class Scheduler:
                 feasible_candidates, key=lambda x: x.earliest_start_time, reverse=True
             ):
 
-                # (A) critical이고, 지금 당장(earliest_start == current_time)에 실행해야 하는 경우
                 if (
                     candidate.is_critical
                     and abs(candidate.earliest_start_time - curr_state.current_time)
                     < EPSILON
                 ):
-                    # deadline & decomposed 여부에 따라 monitoring / non-monitoring 분할
-                    if (candidate.deadline.due_date != float("inf")) and (
-                        not curr_node.state.subtask.decomposed
-                    ):
-                        new_node = self._expand_subtask_with_monitoring(
-                            curr_node, candidate
-                        )
-                    else:
-                        new_node = self._expand_subtask_wo_monitoring(
-                            curr_node, candidate
-                        )
-
-                    if new_node is not None:
-                        expanded_nodes.append(new_node)
-                        is_expanded = True
-                        # critical은 한 번에 하나만 실행하고 break
-                        break
+                    # (A) 추가 되는 subtask가 즉시 실행되어야 하는 경우 (Monitoring, Critical End sub)
+                    pass
 
                 # (B) critical이 아니거나, critical이어도 현재시각이 다를 경우
                 else:
-                    if (candidate.deadline.due_date != float("inf")) and (
-                        not curr_node.state.subtask.decomposed
-                    ):
-                        new_node = self._expand_subtask_with_monitoring(
-                            curr_node, candidate
-                        )
-                    else:
-                        new_node = self._expand_subtask_wo_monitoring(
-                            curr_node, candidate
-                        )
-
-                    if new_node is not None:
-                        expanded_nodes.append(new_node)
-                        is_expanded = True
-                    # 여러 feasible candidate를 동시에 확장하고 싶다면 break 제거 가능
+                    pass
 
             # --- (2-2) 아직 시간 안 된 서브태스크들은 wait 추가 ---
             if not is_expanded:
@@ -178,6 +151,25 @@ class Scheduler:
             f"Cost={best_node.heuristic_cost}\n"
         )
         return best_node
+
+    # def _expand_subtask():
+    # # 가까운 critical subtask 도래 시점이 존재하고,
+    # if (candidate.deadline.due_date != float("inf")) and (
+    #     not curr_node.state.subtask.decomposed
+    # ):
+    #     new_node = self._expand_subtask_with_monitoring(
+    #         curr_node, candidate
+    #     )
+    # else:
+    #     new_node = self._expand_subtask_wo_monitoring(
+    #         curr_node, candidate
+    #     )
+
+    # if new_node is not None:
+    #     expanded_nodes.append(new_node)
+    #     is_expanded = True
+    #     # critical은 한 번에 하나만 실행하고 break
+    #     break
 
     def _extract_state(self, child_node: SimulationNode) -> Optional[SchedulerState]:
         """
@@ -221,7 +213,10 @@ class Scheduler:
         curr_depth = curr_node.depth
         curr_heuristic = curr_node.heuristic_cost
 
-        deadline = candidate.deadline.due_date
+        deadline_due, deadline_sub = (
+            candidate.deadline.due_date,
+            candidate.deadline.subtask_name,
+        )
 
         early_sub, mon_sub, remain_sub = split_subtask_for_monitoring(
             curr_node=curr_node,
@@ -231,7 +226,7 @@ class Scheduler:
         )
 
         # deadline 체크 시 이동시간도 포함하여 검사
-        if deadline < (curr_state.current_time + early_sub.duration.interval):
+        if deadline_due < (curr_state.current_time + early_sub.duration.interval):
             # deadline 넘어가면 확장 무의미
             return None
 
