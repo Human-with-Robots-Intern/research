@@ -78,8 +78,7 @@ def main():
     is_end = False
 
     while not is_end:
-        if current_state.subtask.name == "Wait for Turn off stove after cooking":
-            print("debug")
+
         next_state = scheduler.get_next_state(current_state)
 
         if next_state is None:
@@ -94,7 +93,7 @@ def main():
         #     agent.bayesian_estimate(next_state)
 
         current_state = next_state
-        
+
         result_schedule.append(current_state.subtask)
 
         if not current_state.remaining_subtasks:

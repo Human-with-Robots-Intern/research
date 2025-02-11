@@ -110,6 +110,7 @@ class ConstraintHandler:
                     not_yet_candidates.append(
                         Candidate(sub, False, earliest_start_time)
                     )
+        # feasible_candidates = self._assign_deadlines(feasible_candidates, not_yet_candidates)
         not_yet_candidates_for_deadline = sorted(
             filter(lambda x: x.is_critical, not_yet_candidates),
             key=lambda x: x.earliest_start_time,
@@ -126,6 +127,22 @@ class ConstraintHandler:
             )
 
         return (feasible_candidates, not_yet_candidates)
+
+    def _assign_deadlines(
+        self, feasible: List[Candidate], not_yet: List[Candidate]
+    ) -> List[Candidate]:
+        # find next critical in not_yet
+        crit_candidates = [c for c in not_yet if c.is_critical]
+        crit_candidates.sort(key=lambda x: x.earliest_start_time)
+        if not crit_candidates:
+            # no upcoming critical
+            for c in feasible:
+                c.deadline = Deadline(float("inf"), None)
+            return feasible
+        next_crit = crit_candidates[0]
+        for c in feasible:
+            c.deadline = Deadline(next_crit.earliest_start_time, next_crit.subtask.name)
+        return feasible
 
     def get_earliest_start_time(
         self, curr_node: SimulationNode, sub: "Subtask"

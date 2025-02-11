@@ -34,7 +34,7 @@ class HeuristicManager:
 
         # * (1) 이전 실행에 가까울수록 높은 우선 순위를 부여
         factor = -math.exp(max(self.cost_weight - current_node.depth, 1))
-        #factor = -max(self.cost_weight - current_node.depth, 1)
+        # factor = -max(self.cost_weight - current_node.depth, 1)
 
         # * (2) 시간 휴리스틱
         # Dependency를 끝내는 작업은 느리게 시작해야 됨
@@ -97,7 +97,23 @@ class NavigationManager:
     def __init__(self):
         self.navigation_times = load_navigation_times()
 
-    def compute_navigation_time(
+    def compute_specific_navigation_time(
+        self, current_node: SimulationNode, target_loc: str
+    ) -> float:
+        """
+        Compute how long the robot will spend navigating to 'target_loc'.
+        """
+        # If the subtask type is Monitor or no movement needed, return 0 immediately
+
+        start_location = None
+        # 1) Ensure we have a known robot location
+        start_location = self._ensure_agent_location(current_node)
+        if start_location is None:
+            start_location = "agent"
+        current_source = start_location
+        return self._lookup_navigation_time(current_source, target_loc)
+
+    def compute_total_navigation_time(
         self, current_node: SimulationNode, next_subtask: Subtask
     ) -> float:
         """
@@ -159,7 +175,7 @@ class NavigationManager:
         # Attempt to find from the plan's history
         found_loc = self._find_last_location(current_node)
         if found_loc:
-            current_node.state.agent_location = found_loc
+            # current_node.state.agent_location = found_loc
             return found_loc
 
         # If not found, return None

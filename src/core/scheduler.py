@@ -235,7 +235,7 @@ class Scheduler:
             candidate.deadline.due_date,
             candidate.deadline.subtask_name,
         )
-        nav_time, new_location = self.nav_manager.compute_navigation_time(
+        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
             curr_node, candidate.subtask
         )
 
@@ -246,6 +246,7 @@ class Scheduler:
 
         # 2) 모니터링 시점 분할 (early_dur, remain_dur)
         monitoring_timing = subtask_start_time + total_exec_time * BAYESIAN_CRITERIA
+
         early_dur = monitoring_timing - subtask_start_time
         if early_dur < 0:
             early_dur = 0
@@ -363,7 +364,7 @@ class Scheduler:
         curr_heuristic = curr_node.heuristic_cost
 
         # 이동 시간
-        nav_time, new_location = self.nav_manager.compute_navigation_time(
+        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
             curr_node, candidate.subtask
         )
 
@@ -441,7 +442,7 @@ class Scheduler:
         curr_heuristic = curr_node.heuristic_cost
 
         # 여기서는 nav_time을 거의 0으로 처리(Wait 위치 이동 없음 가정)
-        nav_time, new_location = self.nav_manager.compute_navigation_time(
+        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
             curr_node, candidate.subtask
         )
         wait_start_time = curr_state.current_time
