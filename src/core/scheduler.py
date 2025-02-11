@@ -110,18 +110,47 @@ class Scheduler:
             for candidate in sorted(
                 feasible_candidates, key=lambda x: x.earliest_start_time, reverse=True
             ):
-
+                if candidate.subtask.name.startswith("Prepare Egg Fry"):
+                    print("Prepare Egg Fry")
+                # (A) 추가 되는 subtask가 즉시 실행되어야 하는 경우 (Monitoring, Critical End sub) -> Critical 이므로, 반드시 1개만 존재
                 if (
                     candidate.is_critical
                     and abs(candidate.earliest_start_time - curr_state.current_time)
                     < EPSILON
                 ):
-                    # (A) 추가 되는 subtask가 즉시 실행되어야 하는 경우 (Monitoring, Critical End sub)
-                    pass
+                    # 추가할 subtask가 쪼개지지 않은 상태이면서, deadline이 존재하는 경우
+                    if (candidate.deadline.due_date != float("inf")) and (
+                        not candidate.subtask.decomposed
+                    ):
+                        new_node = self._expand_subtask_with_monitoring(
+                            curr_node, candidate
+                        )
+                    else:
+                        new_node = self._expand_subtask_wo_monitoring(
+                            curr_node, candidate
+                        )
 
-                # (B) critical이 아니거나, critical이어도 현재시각이 다를 경우
+                    if new_node is not None:
+                        expanded_nodes.append(new_node)
+                        is_expanded = True
+                        break
+
+                # B) 추가되는 subtask가 즉시 실행되지 않아도 되는 경우 (Non-critical) -> 여러 개 존재 가능
                 else:
-                    pass
+                    if (candidate.deadline.due_date != float("inf")) and (
+                        not candidate.subtask.decomposed
+                    ):
+                        new_node = self._expand_subtask_with_monitoring(
+                            curr_node, candidate
+                        )
+                    else:
+                        new_node = self._expand_subtask_wo_monitoring(
+                            curr_node, candidate
+                        )
+
+                    if new_node is not None:
+                        expanded_nodes.append(new_node)
+                        is_expanded = True
 
             # --- (2-2) 아직 시간 안 된 서브태스크들은 wait 추가 ---
             if not is_expanded:
@@ -154,22 +183,6 @@ class Scheduler:
 
     # def _expand_subtask():
     # # 가까운 critical subtask 도래 시점이 존재하고,
-    # if (candidate.deadline.due_date != float("inf")) and (
-    #     not curr_node.state.subtask.decomposed
-    # ):
-    #     new_node = self._expand_subtask_with_monitoring(
-    #         curr_node, candidate
-    #     )
-    # else:
-    #     new_node = self._expand_subtask_wo_monitoring(
-    #         curr_node, candidate
-    #     )
-
-    # if new_node is not None:
-    #     expanded_nodes.append(new_node)
-    #     is_expanded = True
-    #     # critical은 한 번에 하나만 실행하고 break
-    #     break
 
     def _extract_state(self, child_node: SimulationNode) -> Optional[SchedulerState]:
         """
@@ -206,18 +219,41 @@ class Scheduler:
     ) -> Optional[SimulationNode]:
         """
         time-critical Subtask를 모니터링 분할로 처리:
-        - early_sub (일정 구간) → monitoring_sub (0.1초) → remain_sub
+        - early_sub -(0, True) → monitoring_sub (0.1초) -(0, False)→ remain_sub
         - 이동 시간(nav_time) 포함
         """
         curr_state = curr_node.state
         curr_depth = curr_node.depth
         curr_heuristic = curr_node.heuristic_cost
 
-        deadline_due, deadline_sub = (
+        deadline_due, deadline_sub_name = (
             candidate.deadline.due_date,
             candidate.deadline.subtask_name,
         )
 
+        constraints_start_names = self.constraint_handler.get_time_slots(
+            deadline_sub_name, curr_state.constraints, "in"
+        )
+        critical_time_slots = [
+            slot for slot in constraints_start_names if slot.is_critical
+        ]
+
+        max_critical_time_slot = max(critical_time_slots, key=lambda x: x.interval)
+        critical_start_sub_name = max_critical_time_slot.related_subtask_name
+        max_critical_interval = max_critical_time_slot.interval
+
+        early_cutoff = max_critical_interval * BAYESIAN_CRITERIA
+
+        total_duration = (
+            self.nav_manager.compute_total_navigation_time(curr_node, candidate.subtask)
+            + candidate.subtask.duration.interval
+        )
+
+        #  cutoff 시간보다 subtask 전체의 실행시간이 짧은 경우, _expand_wo_subtask으로 처리
+        if early_cutoff > total_duration:
+            return self._expand_subtask_wo_monitoring(curr_node, candidate)
+
+        # 1) Split Subtasks 생성
         early_sub, mon_sub, remain_sub = split_subtask_for_monitoring(
             curr_node=curr_node,
             candidate=candidate,
@@ -265,6 +301,22 @@ class Scheduler:
             mon_sub.name, remain_sub.name, info={"Interval": 0, "IsCritical": False}
         )
 
+        new_constraints.add_edge(
+            critical_start_sub_name,
+            mon_sub.name,
+            info={"Interval": early_cutoff, "IsCritical": True},
+        )
+        new_constraints.add_edge(
+            mon_sub.name,
+            deadline_sub_name,
+            info={
+                "Interval": max_critical_interval
+                - early_cutoff
+                - mon_sub.duration.interval,
+                "IsCritical": True,
+            },
+        )
+
         # 5) 남은 Subtasks 갱신
         new_remaining = [r for r in curr_state.remaining_subtasks if r.name != old_name]
         new_remaining.extend([mon_sub, remain_sub])
@@ -281,9 +333,7 @@ class Scheduler:
         )
 
         new_completed = curr_state.completed_subtasks + [completed_entry]
-        _, new_location = self.nav_manager.compute_total_navigation_time(
-            curr_node, early_sub
-        )
+        new_location = self.nav_manager.get_last_location(curr_node, early_sub)
         # 9) 새 스케줄 상태 생성
         new_state = SchedulerState(
             subtask=early_sub,
@@ -325,12 +375,10 @@ class Scheduler:
         curr_depth = curr_node.depth
         curr_heuristic = curr_node.heuristic_cost
 
-        # 이동 시간
-        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
+        # 전체 실행시간
+        nav_time = self.nav_manager.compute_total_navigation_time(
             curr_node, candidate.subtask
         )
-
-        # 전체 실행시간
         exec_time = candidate.subtask.duration.interval + nav_time
         start_time = curr_state.current_time
         end_time = start_time + exec_time
@@ -345,7 +393,7 @@ class Scheduler:
 
         # 비용 계산
         new_heuristic_cost = self.cost_calculator.calc_heuristic(
-            curr_node, candidate, nav_time
+            curr_node, candidate, 0
         )
         new_cost = curr_heuristic + new_heuristic_cost
 
@@ -361,6 +409,8 @@ class Scheduler:
         new_remaining = [
             r for r in curr_state.remaining_subtasks if r.name != candidate.subtask.name
         ]
+
+        new_location = self.nav_manager.get_last_location(curr_node, candidate.subtask)
 
         new_state = SchedulerState(
             subtask=copied_sub,
@@ -403,9 +453,10 @@ class Scheduler:
         curr_heuristic = curr_node.heuristic_cost
 
         # 여기서는 nav_time을 거의 0으로 처리(Wait 위치 이동 없음 가정)
-        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
+        nav_time = self.nav_manager.compute_total_navigation_time(
             curr_node, candidate.subtask
         )
+        new_location = self.nav_manager.get_last_location(curr_node, candidate.subtask)
         wait_start_time = curr_state.current_time
 
         wait_duration = candidate.earliest_start_time - curr_state.current_time

@@ -110,7 +110,7 @@ class NavigationManager:
         """
         # If the subtask type is Monitor or no movement needed, return 0 immediately
         if next_subtask.type == "Monitor":
-            return 0.0, current_node.state.agent_location
+            return 0.0
         start_location = None
         # 1) Ensure we have a known robot location
         start_location = self._ensure_agent_location(current_node)
@@ -122,19 +122,32 @@ class NavigationManager:
 
         # 2) If no primitive_actions or no NAVIGATE_TO, no nav time needed
         if not next_subtask.execution or not next_subtask.execution.primitive_actions:
-            return 0.0, current_node.state.agent_location
+            return 0.0
 
         # 3) Accumulate travel time for each NAVIGATE_TO
         for action in next_subtask.execution.primitive_actions:
             if action.startswith("NAVIGATE_TO"):
                 # e.g. "NAVIGATE_TO Kitchen"
-                target_loc = action.split("NAVIGATE_TO", 1)[-1].strip()
+                target_loc = action.split("NAVIGATE_TO")[1].strip()
                 step_time = self._lookup_navigation_time(current_source, target_loc)
                 nav_time_total += step_time
                 current_source = target_loc
 
-        # 4) Update the current location in the state
-        return nav_time_total, current_source
+        return nav_time_total
+
+    def get_last_location(self, current_node: SimulationNode, subtask: Subtask) -> str:
+        plan = current_node.state.completed_subtasks
+        for ce in reversed(plan):
+            if (
+                not ce.subtask
+                or not ce.subtask.execution
+                or not ce.subtask.execution.primitive_actions
+            ):
+                continue
+            for action in reversed(ce.subtask.execution.primitive_actions):
+                if action.startswith("NAVIGATE_TO"):
+                    return action.split("NAVIGATE_TO")[1].strip()
+        return None
 
     # ----------------------------------------------------------------------
     #  Internal Helpers
@@ -164,14 +177,18 @@ class NavigationManager:
         Traverse completed_subtasks (and current subtask) from the end,
         searching for the last NAVIGATE_TO action. Return its target location.
         """
-        plan = current_node.state.completed_subtasks + [current_node.state.subtask]
+        plan = current_node.state.completed_subtasks
         # Traverse in reverse to find the most recent NAVIGATE_TO
-        for st in reversed(plan):
-            if not st or not st.execution or not st.execution.primitive_actions:
+        for ce in reversed(plan):
+            if (
+                not ce.subtask
+                or not ce.subtask.execution
+                or not ce.subtask.execution.primitive_actions
+            ):
                 continue
-            for action in reversed(st.execution.primitive_actions):
+            for action in reversed(ce.subtask.execution.primitive_actions):
                 if action.startswith("NAVIGATE_TO"):
-                    return action.split("NAVIGATE_TO", 1)[-1].strip()
+                    return action.split("NAVIGATE_TO")[1].strip()
         return None
 
     def _lookup_navigation_time(self, source: str, target: str) -> float:

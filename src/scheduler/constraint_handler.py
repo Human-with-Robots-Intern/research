@@ -19,6 +19,15 @@ log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class ConstraintHandler:
+    def get_critical_window(self, curr_node: SimulationNode) -> Tuple[float, float]:
+        subtask = curr_node.state.subtask
+        completed_subtasks = curr_node.state.completed_subtasks
+
+        for ce in completed_subtasks:
+            out_time_slots = self.get_time_slots(
+                ce.subtask.name, curr_node.state.constraints, "out"
+            )
+            out_critical_slots = [ts for ts in out_time_slots if ts.is_critical]
 
     def get_time_slots(
         self, subtask_name: str, constraints: DiGraph, direction: str

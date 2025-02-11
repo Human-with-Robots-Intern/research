@@ -1,3 +1,4 @@
+import uuid
 from typing import Dict, List, Optional
 
 import networkx as nx
@@ -235,7 +236,7 @@ class TaskGraphBuilder:
             for subtask in task.subtasks:
                 # 노드 추가
                 subtask_node = subtask.name
-                self.graph.add_node(subtask_node)
+                self.graph.add_node(subtask_node, type=subtask.type)
 
                 # 엣지 추가
                 for constraint in subtask.temporal_constraints:
@@ -258,40 +259,6 @@ class TaskGraphBuilder:
                     else:
                         raise ValueError("Constrained Node does not exist")
 
-        return self.decompose_by_monitoring(self.graph)
+        return self.graph
 
-    def decompose_by_monitoring(self, graph: nx.DiGraph):
-        critical_edges = [
-            (u, v, data)
-            for u, v, data in list(graph.edges(data=True))
-            if data["info"]["IsCritical"]
-        ]
-
-        for u, v, data in critical_edges:
-            critical_interval = data["info"]["Interval"]
-            one_interval = critical_interval * BAYESIAN_CRITERIA
-            another_interval = critical_interval - one_interval - MONITORING_DURATION
-            graph.remove_edge(u, v)
-            graph.add_edge(
-                u,
-                f"Monitor for {v}",
-                **{
-                    "info": {
-                        "Type": "After",
-                        "Interval": one_interval,
-                        "IsCritical": True,
-                    }
-                },
-            )
-            graph.add_edge(
-                f"Monitor for {v}",
-                v,
-                **{
-                    "info": {
-                        "Type": "After",
-                        "Interval": another_interval,
-                        "IsCritical": True,
-                    }
-                },
-            )
-        return graph
+    

@@ -25,9 +25,7 @@ def tasks_to_subtasks(tasks, mode="all"):
             subtasks.extend(task.subtasks)
     elif mode == "name":
         for task in tasks:
-
             subtasks.extend([subtask.name for subtask in task.subtasks])
-
     return subtasks
 
 
@@ -101,6 +99,7 @@ def build_tasks_and_constraints(
     task_graph = task_graph_builder.build_graph(tasks)
     subtasks = tasks_to_subtasks(tasks)
     subtasks = adjust_subtasks_duration(subtasks)
+    
     return subtasks, task_graph
 
 
@@ -111,7 +110,7 @@ def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerSt
         duration=Duration(interval=0, type="Init"),
         repetition=1,
         type="Init",
-        execution=Execution(objects=[], primitive_actions=[f"Monitoring 0"]),
+        execution=Execution(objects=[], primitive_actions=None),
         temporal_constraints=None,
     )
     init_completed = CompletedEntry(
@@ -131,43 +130,19 @@ def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerSt
     return init_state
 
 
-def get_monitoring_subtask(obj: str) -> Subtask:
+def make_monitoring_subtask(name: str, obj: str = None) -> Subtask:
+    monitoring_action = None if obj is None else [f"MONITORING {obj}"]
     monitoring_subtask = Subtask(
         task_name=None,
-        name="Monitoring",
+        name=name,
         duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
         repetition=1,
         type="Monitor",
-        execution=Execution(objects=[], primitive_actions=[f"Monitoring {obj}"]),
+        execution=Execution(objects=[], primitive_actions=monitoring_action),
         temporal_constraints=None,
+        decomposed=True,
     )
-
     return monitoring_subtask
-
-
-def make_monitoring_subtask(target_sub_name: str, obj: str) -> Subtask:
-    mon_sub = get_monitoring_subtask(obj)
-    mon_sub.name = f"Monitoring for {target_sub_name}_{obj}_{uuid.uuid4().hex[:8]}"
-    mon_sub.decomposed = True
-    return mon_sub
-
-
-# def make_early_subtask(original_sub: Subtask, early_exec_time: float) -> Subtask:
-#     early_sub = copy.deepcopy(original_sub)
-#     for primitive_action in early_sub.execution.primitive_actions:
-#         pass
-#     early_sub.name += "_early"
-#     early_sub.duration.interval = early_exec_time
-#     early_sub.decomposed = True
-#     return early_sub
-
-
-# def make_remain_subtask(original_sub: Subtask, remain_duration: float) -> Subtask:
-#     remain_sub = copy.deepcopy(original_sub)
-#     remain_sub.name += "_remain"
-#     remain_sub.duration.interval = remain_duration
-#     remain_sub.decomposed = True
-#     return remain_sub
 
 
 def split_subtask_for_monitoring(
