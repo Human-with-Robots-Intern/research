@@ -5,8 +5,6 @@ from networkx import DiGraph
 
 from core.task import Subtask
 
-# ! 대부분 모두 NamedTuple일 필요가 있는지 확인 필요
-
 
 class CompletedEntry(NamedTuple):
     """
