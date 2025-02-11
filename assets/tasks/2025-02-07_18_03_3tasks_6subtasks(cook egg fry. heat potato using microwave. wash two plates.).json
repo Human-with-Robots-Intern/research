@@ -136,7 +136,7 @@
                         "Type": "After",
                         "Subtask": "Start Microwave for Potato",
                         "Interval": 5,
-                        "Urgency": false
+                        "Urgency": true
                     }
                 ]
             }

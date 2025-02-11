@@ -459,7 +459,7 @@ class Scheduler:
             repetition=1,
             type="Wait",
             execution=Execution(
-                objects=None, primitive_actions=[f"Wait {wait_duration}"]
+                objects=None, primitive_actions=[f"NAVIGATE_TO {new_location}", f"Wait {wait_duration-nav_time}"]
             ),
             temporal_constraints=None,
         )

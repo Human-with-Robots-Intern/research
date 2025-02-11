@@ -44,7 +44,13 @@ class NavigationHandler:
         Moves the agent to the nearest reachable point near the specified object.
         """
         # Get current agent position
+
         agent_position = self.get_agent_position()
+
+        # 자르기
+        if " " in object_id:
+            object_id, stop_time = object_id.split(" ", 1)
+            print("stop_time 검출됨!!!!!!! ", stop_time)
 
         # Get object position from the object ID
         object_position = self.get_object_position(object_id)
@@ -52,16 +58,21 @@ class NavigationHandler:
         path = self.shortest_path(agent_position, object_position)
         # Move agent step by step along the path
 
+        elapsed_time = 0
+
         for position in path:
+            elapsed_time += 0.1
             self.teleport_to_position(position)
             self.camera_handler.update_view()
+            if "stop_time" in locals() and elapsed_time == float(stop_time):
+                break
 
         agent_position = self.get_agent_position()
         obj_angle, degree = self.agent_rotate_angle(
             agent_position, object_position
         )  # 회전각도 구하기
 
-        if degree != 0:
+        if degree != 0 and "stop_time" not in locals():
             for _ in range(SMOOTH_LEVEL):
                 # 일단 회전하고
                 self.controller.step(
@@ -75,7 +86,6 @@ class NavigationHandler:
                         action="RotateRight", degrees=degree / SMOOTH_LEVEL
                     )
                     self.camera_handler.update_view()
-                self.controller.step(action="Pass")
                 self.camera_handler.update_view()
 
         self.adjust_camera_to_object(object_id)
@@ -84,7 +94,7 @@ class NavigationHandler:
 
         time.sleep(0.2)
 
-        return round(len(path) * 0.1, 2)
+        return round(elapsed_time, 2)
 
     def adjust_camera_to_object(self, object):
         """
@@ -93,7 +103,7 @@ class NavigationHandler:
         agent_position = self.get_agent_position()
         object_position = self.get_object_position(object)
         # Calculate relative height and distance
-        height_diff = object_position[1] - agent_position[1]
+        height_diff = agent_position[1] - object_position[1]
         distance = (
             (object_position[0] - agent_position[0]) ** 2
             + (object_position[2] - agent_position[2]) ** 2
@@ -111,21 +121,16 @@ class NavigationHandler:
         current_pitch = self.controller.last_event.metadata["agent"]["cameraHorizon"]
 
         # Calculate steps needed to reach the clamped angle
-        steps = int(
-            (clamped_angle - current_pitch) / 15
-        )  # Assuming each step adjusts by 30 degrees
-        # Adjust the camera pitch in steps
-        for _ in range(abs(steps)):
-            if steps > 0:  # Need to look up
-                self.controller.step(action="LookUp")
-                self.controller.step("Pass")
-            elif steps < 0:  # Need to look down
-                self.controller.step(action="LookDown")
-                self.controller.step("Pass")
 
+        diff = clamped_angle - current_pitch
+        horizon = current_pitch
+        # Assuming each step adjusts by 30 degrees
+        # Adjust the camera pitch in steps
+        for _ in range(SMOOTH_LEVEL):
+            horizon += diff / SMOOTH_LEVEL
+            self.controller.step(action="Teleport", horizon=horizon)
             # Update view after each step
             self.camera_handler.update_view()
-            time.sleep(0.1)
 
     def shortest_path(self, start, end):
         start = quantize_position(start)
@@ -214,7 +219,7 @@ class NavigationHandler:
 
     def get_agent_position(self):
         event = self.controller.step(action="Pass")
-        agent_position = event.metadata["agent"]["position"]
+        agent_position = event.metadata["cameraPosition"]
 
         return tuple(agent_position.values())
 
@@ -266,9 +271,8 @@ class NavigationHandler:
                 )
                 self.controller.step(action="Pass")
                 self.camera_handler.update_view()
-                time.sleep(
-                    0.05
-                )  # 아니 얘 넣으니깐 왜 맨 뒤에 time.sleep(0.1이 느려지냐?)
+
+        time.sleep(0.1)
 
         updated_angle = self.get_agent_rotate()
 

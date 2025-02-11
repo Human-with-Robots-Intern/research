@@ -197,16 +197,16 @@ class Action:
     def open(self, object_id: str):
         elapsed_time = 0
         # 일단 두 발자국 물러나기
-        for i in range(2):
-            self.controller.step(action="MoveBack", moveMagnitude=None)
-            self.controller.step(action="Pass")
-            elapsed_time += 0.1
-        self.camera_handler.update_view()
-        time.sleep(0.1)
+        # for i in range(2):
+        #     self.controller.step(action="MoveBack", moveMagnitude=None)
+        #     self.controller.step(action="Pass")
+        #     elapsed_time += 0.1
+        # self.camera_handler.update_view()
+        # time.sleep(0.1)
 
         # 열기
         self.controller.step(
-            action="OpenObject", objectId=object_id, openness=1, forceAction=False
+            action="OpenObject", objectId=object_id, openness=1, forceAction=True
         )
         self.log_file.write(
             f"open {object_id}: " + self.last_action_success(self.controller)
@@ -254,18 +254,33 @@ class Action:
                     self.camera_handler.update_view()
                 self.controller.step(action="Pass")
                 self.camera_handler.update_view()
-                time.sleep(0.2)
+
+        self.navi.adjust_camera_to_object(object_id)
 
         time.sleep(1)
-        for _ in range(SMOOTH_LEVEL):
-            self.controller.step(action="RotateLeft", degrees=degree / SMOOTH_LEVEL)
-            self.camera_handler.update_view()
-            time.sleep(0.2)
+        if degree != 0:
+            for _ in range(SMOOTH_LEVEL):
+                self.controller.step(action="RotateLeft", degrees=degree / SMOOTH_LEVEL)
+                self.camera_handler.update_view()
         self.controller.step("Pass")
-        time.sleep(1)
+        time.sleep(0.1)
         elapsed_time = 0.1
         return elapsed_time
 
     def wait(self, wait_time=1):
         time.sleep(wait_time)
         return wait_time
+    
+    def fill(self, object_id: str):
+        self.controller.step(action="FillObjectWithLiquid",
+        objectId=object_id,
+        fillLiquid="water",
+        forceAction=True)
+        self.log_file.write(
+            f"fill {object_id} with water: " + self.last_action_success(self.controller)
+        )
+        self.controller.step(action="Pass")
+        self.camera_handler.update_view()
+        time.sleep(0.3)
+        elapsed_time = 1
+        return elapsed_time

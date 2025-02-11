@@ -138,6 +138,7 @@ def execute_subtask(controller, subtask):
         "SLICE": lambda target_obj: Act.slice(target_obj),
         "Monitoring": lambda target_obj: Act.monitoring(target_obj),
         "Wait": lambda duration: Act.wait(round(float(duration), 2)),
+        "FILL": lambda target_obj: Act.fill(target_obj),
     }
 
     # Execute each primitive action
