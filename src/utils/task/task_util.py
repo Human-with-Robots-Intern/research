@@ -220,7 +220,7 @@ def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerSt
     return init_state
 
 
-def get_monitoring_subtask() -> Subtask:
+def get_monitoring_subtask(obj:str) -> Subtask:
     monitoring_subtask = Subtask(
         task_name=None,
         name="Monitoring",
@@ -228,7 +228,7 @@ def get_monitoring_subtask() -> Subtask:
         repetition=1,
         type="Monitor",
         execution=Execution(
-            objects=[], primitive_actions=[f"Mornitoring {MONITORING_DURATION}"]
+            objects=[], primitive_actions=[f"Monitoring {obj}"]
         ),
         temporal_constraints=None,
     )
@@ -244,9 +244,9 @@ def make_early_subtask(original_sub: Subtask, early_exec_time: float) -> Subtask
     return early_sub
 
 
-def make_monitoring_subtask(original_sub_name: str) -> Subtask:
+def make_monitoring_subtask(original_sub_name: str, obj: str) -> Subtask:
 
-    mon_sub = get_monitoring_subtask()
+    mon_sub = get_monitoring_subtask(obj)
     mon_sub.name = f"Monitoring for {original_sub_name}"
     mon_sub.decomposed = True
     return mon_sub

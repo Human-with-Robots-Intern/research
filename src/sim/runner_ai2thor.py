@@ -95,8 +95,9 @@ def execute_subtask(controller, subtask):
 
     # Parse execution details
     execution = subtask.execution
+    print("====================================")
+    print("***********EXECUTION****************")
     print(f"{subtask=}")
-
     ## Wait의 형식을 맞춰주든가 여기서 처리를 하든가 해야함
     primitive_actions = execution.primitive_actions
     objects = execution.objects
@@ -135,7 +136,7 @@ def execute_subtask(controller, subtask):
         "TOGGLE_ON": lambda target_obj: Act.toggleon(target_obj),
         "TOGGLE_OFF": lambda target_obj: Act.toggleoff(target_obj),
         "SLICE": lambda target_obj: Act.slice(target_obj),
-        "Mornitoring": lambda target_obj: Act.mornitoring(target_obj),
+        "Monitoring": lambda target_obj: Act.monitoring(target_obj),
         "Wait": lambda duration: Act.wait(round(float(duration), 2)),
     }
 
@@ -159,4 +160,6 @@ def execute_subtask(controller, subtask):
             log.warning(f"Unknown action type: {action_type}. Skipping {action_str} in {subtask.name}.")
     print(f"{subtask.name}의 걸린시간 = {round(elapsed_time, 2)}")
     log.info(f"Successfully executed Subtask: {subtask.name}")
+    print("================END=================")
+    print("====================================")
     return elapsed_time

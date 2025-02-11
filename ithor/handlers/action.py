@@ -35,7 +35,7 @@ class Action:
         # 실제로는 controller의 메타데이터나 객체 속성에 따라 다를 수 있음
         for obj in object_metadata:
             if obj["objectId"] == object_id:
-                if  obj["parentReceptacles"] is not []:
+                if obj["parentReceptacles"] is not []:
                     parent_receptacle_ids = obj["parentReceptacles"]
                     print(parent_receptacle_ids)
                     break
@@ -230,7 +230,7 @@ class Action:
         elapsed_time = 1
         return elapsed_time
 
-    def mornitoring(self, object_id: str):
+    def monitoring(self, object_id: str):
         # object를 바라보게 하고 다시 돌아봐야함
         agent_position = self.navi.get_agent_position()
         object_position = self.navi.get_object_position(object_id)
@@ -239,11 +239,11 @@ class Action:
             agent_position, object_position
         )
         if degree != 0:
-            for _ in range(
-                SMOOTH_LEVEL
-            ):  # 그냥 회전하는거 잘 보고싶어서 세 번에 나누어서 회전
+            for _ in range(SMOOTH_LEVEL):  # 자연스럽게 회전하도록 나눠서 회전 시행
                 # 일단 회전하고
-                self.controller.step(action="RotateRight", degrees=degree)
+                self.controller.step(
+                    action="RotateRight", degrees=degree / SMOOTH_LEVEL
+                )
                 success = self.controller.last_event.metadata["lastActionSuccess"]
                 # 실패하면 움직여서 다시 한 번 더 도전. 여기는 while문을 써야할까?
                 if not success:
@@ -266,6 +266,6 @@ class Action:
         elapsed_time = 0.1
         return elapsed_time
 
-    def wait(self, wait_time=0.5):
+    def wait(self, wait_time=1):
         time.sleep(wait_time)
         return wait_time

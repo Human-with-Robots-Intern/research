@@ -1,0 +1,143 @@
+[
+    {
+        "Task": "Heat Potato using Microwave",
+        "Subtasks": [
+            {
+                "Name": "Put Potato in the Microwave",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Potato|-01.66|+00.93|-02.15": 1,
+                        "Microwave|-00.24|+01.69|-02.53": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Potato|-01.66|+00.93|-02.15",
+                        "GRASP Potato|-01.66|+00.93|-02.15",
+                        "NAVIGATE_TO Microwave|-00.24|+01.69|-02.53",
+                        "OPEN Microwave|-00.24|+01.69|-02.53",
+                        "PLACE_INSIDE Microwave|-00.24|+01.69|-02.53",
+                        "CLOSE Microwave|-00.24|+01.69|-02.53"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Start the Microwave",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Microwave|-00.24|+01.69|-02.53": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_ON Microwave|-00.24|+01.69|-02.53"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Put Potato in the Microwave",
+                        "Interval": 0,
+                        "Urgency": false
+                    }
+                ]
+            },
+            {
+                "Name": "Retrieve Potato from Microwave",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Potato|-01.66|+00.93|-02.15": 1,
+                        "Microwave|-00.24|+01.69|-02.53": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF Microwave|-00.24|+01.69|-02.53",
+                        "OPEN Microwave|-00.24|+01.69|-02.53",
+                        "GRASP Potato|-01.66|+00.93|-02.15",
+                        "CLOSE Microwave|-00.24|+01.69|-02.53"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Start the Microwave",
+                        "Interval": 5,
+                        "Urgency": false
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "Task": "Wash two plates",
+        "Subtasks": [
+            {
+                "Name": "Wash Plate",
+                "Repetition": 2,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Plate|+00.96|+01.65|-02.61": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Plate|+00.96|+01.65|-02.61",
+                        "GRASP Plate|+00.96|+01.65|-02.61",
+                        "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+                        "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
+                        "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+                        "GRASP Plate|+00.96|+01.65|-02.61",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Place Book on Shelf",
+        "Subtasks": [
+            {
+                "Name": "Put Book on Shelf",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Book|+00.15|+01.10|+00.62": 1,
+                        "Shelf|+01.75|+00.88|-02.56": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Book|+00.15|+01.10|+00.62",
+                        "GRASP Book|+00.15|+01.10|+00.62",
+                        "NAVIGATE_TO Shelf|+01.75|+00.88|-02.56",
+                        "PLACE_ON_TOP Shelf|+01.75|+00.88|-02.56"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]

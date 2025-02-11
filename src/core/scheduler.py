@@ -334,7 +334,7 @@ class Scheduler:
 
         curr_state = curr_node.state
         curr_constraints = curr_state.constraints
-
+        obj = curr_state.subtask.execution.primitive_actions[-1].split(" ")[-1]
         _, _, related_sub_name = self.constraint_handler.get_time_slots(
             curr_state.subtask.name, curr_constraints, "out"
         )
@@ -363,7 +363,7 @@ class Scheduler:
         remain_dur = round(subtask_end_time - monitoring_timing, LOG_ROUND)
 
         early_sub = make_early_subtask(candidate.subtask, early_dur)
-        mon_sub = make_monitoring_subtask(related_sub_name)
+        mon_sub = make_monitoring_subtask(related_sub_name, obj)
         remain_sub = make_remain_subtask(candidate.subtask, remain_dur)
 
         new_constraints.add_node(early_sub.name)
@@ -510,7 +510,8 @@ class Scheduler:
             temporal_constraints=None,
         )
 
-        mon_sub = make_monitoring_subtask(related_sub_name)
+        obj = curr_state.subtask.execution.primitive_actions[-1].split(" ")[-1]
+        mon_sub = make_monitoring_subtask(related_sub_name, obj)
 
         start_time = curr_state.current_time
         end_time = start_time + wait_sub.duration.interval
