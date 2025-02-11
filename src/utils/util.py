@@ -44,9 +44,9 @@ def create_module_logger(module_name, is_file_handler=False, console_output=True
     # 파일 핸들러 추가 (옵션)
     if is_file_handler:
         file_handler = logging.FileHandler(
-            # LOG_PATH / f"{module_name}.log"
+            # LOG_PATH / f"{module_name}.log",
             LOG_PATH / "all.log",
-            mode="a",
+            mode="w",
         )
         file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")

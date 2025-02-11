@@ -52,6 +52,7 @@ class SimulationNode(NamedTuple):
     heuristic_cost: float
     depth: int
     tie_breaker: int
+    parent_node: Optional["SimulationNode"]
     state: SchedulerState
 
 
@@ -68,7 +69,22 @@ class TimeSlot(NamedTuple):
     related_subtask_name: Optional[str]
 
     def __repr__(self):
-        return f"({self.related_subtask_name}, {self.interval}, {self.is_critical})"
+        return f"({self.interval}, {self.is_critical}, {self.related_subtask_name},)"
+
+
+@dataclass
+class Deadline:
+    """
+    Subtask의 데드라인을 저장하는 NamedTuple
+    """
+
+    # 해당 subtask의 데드라인 시간
+    due_date: float
+    # 해당 subtask의 이름
+    subtask_name: str
+
+    def __repr__(self):
+        return f"({self.subtask_name=}, {self.due_date=})"
 
 
 @dataclass
@@ -83,7 +99,7 @@ class Candidate:
     # subtask의 시작 시간
     earliest_start_time: float
     # 고려할 데드라인
-    deadline: float = float("inf")
+    deadline: Deadline = (None, None)
 
     def __repr__(self):
-        return f"({self.subtask.name},earliest_start_time = {self.earliest_start_time}, deadline = {self.deadline})"
+        return f"({self.subtask.name}; duration : {self.subtask.duration.interval}, earliest_start_time = {self.earliest_start_time}, deadline = {self.deadline}, is_critical = {self.is_critical})"

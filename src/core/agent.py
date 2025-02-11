@@ -147,3 +147,59 @@ class Agent:
         self.knowledge[subtask_name]["variance"] = posterior_variance
 
         self._save_knowledge()
+
+
+# def bayesian_estimate(self, state: SchedulerState) -> None:
+#         """
+#         Monitoring Subtask가 완료된 직후, 실제 실행 시간(actual_duration)을 기반으로
+#         Bayesian 업데이트를 수행한다.
+#         """
+#         # 모니터링 서브태스크인지 체크 (ex: type == "Monitor")
+#         if state.subtask.type != "Monitor":
+#             return  # Monitor가 아니면 업데이트 안 함
+
+#         # 실제 subtask_name 파싱
+#         # 예: "Monitor for Brew Coffee" -> "Brew Coffee"
+#         if "for" in state.subtask.name:
+#             subtask_name = state.subtask.name.split("for", 1)[1].strip()
+#         else:
+#             subtask_name = state.subtask.name
+
+#         # 실제 걸린 시간(이전 subtask 완료 시점 ~ 현재 시점)
+#         actual_duration = self.constraint_handler.get_actual_duration(
+#             curr_state=state, subtask_name=subtask_name
+#         )
+
+#         # ground truth
+#         ground_truth_dict = self._load_knowledge("bayesian_ground_truth.json")
+#         ground_truth = ground_truth_dict.get(subtask_name, 1.0)
+
+#         # prior
+#         estimate_load = self._load_knowledge("bayesian_estimate.json")
+#         prior_mean = estimate_load[subtask_name]["expected_duration"]
+#         prior_variance = estimate_load[subtask_name]["variance"]
+
+#         # bayesian update
+#         a = 1
+#         likelihood_epsilon_square = a * (prior_mean - actual_duration) ** 2
+#         cooking_data_real = actual_duration / ground_truth
+
+#         # 관측치에 노이즈 추가
+#         import numpy as np
+#         cooking_data_with_noise = np.random.normal(
+#             loc=cooking_data_real, scale=likelihood_epsilon_square
+#         )
+
+#         posterior_mean = (
+#             prior_variance * cooking_data_with_noise
+#             + likelihood_epsilon_square * prior_mean
+#         ) / (likelihood_epsilon_square + prior_variance)
+
+#         posterior_variance = (
+#             likelihood_epsilon_square * prior_variance
+#         ) / (likelihood_epsilon_square + prior_variance)
+
+#         # 저장
+#         self.knowledge[subtask_name]["expected_duration"] = posterior_mean
+#         self.knowledge[subtask_name]["variance"] = posterior_variance
+#         self._save_knowledge()
