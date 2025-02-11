@@ -5,7 +5,12 @@ from typing import List, Tuple
 from networkx import DiGraph
 
 from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
-from scheduler.dataclass import CompletedEntry, SchedulerState
+from scheduler.dataclass import (
+    Candidate,
+    CompletedEntry,
+    SchedulerState,
+    SimulationNode,
+)
 from utils.constants import (
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
@@ -142,16 +147,6 @@ def get_monitoring_subtask() -> Subtask:
     return monitoring_subtask
 
 
-def make_early_subtask(original_sub: Subtask, early_exec_time: float) -> Subtask:
-    early_sub = copy.deepcopy(original_sub)
-    for primitive_action in early_sub.execution.primitive_actions:
-        pass
-    early_sub.name += "_early"
-    early_sub.duration.interval = early_exec_time
-    early_sub.decomposed = True
-    return early_sub
-
-
 def make_monitoring_subtask(original_sub_name: str) -> Subtask:
     mon_sub = get_monitoring_subtask()
     mon_sub.name = f"Monitoring for {original_sub_name}_{uuid.uuid4().hex[:8]}"
@@ -159,79 +154,127 @@ def make_monitoring_subtask(original_sub_name: str) -> Subtask:
     return mon_sub
 
 
-def make_remain_subtask(original_sub: Subtask, remain_duration: float) -> Subtask:
-    remain_sub = copy.deepcopy(original_sub)
+# def get_monitoring_subtask(obj: str) -> Subtask:
+#     monitoring_subtask = Subtask(
+#         task_name=None,
+#         name="Monitoring",
+#         duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
+#         repetition=1,
+#         type="Monitor",
+#         execution=Execution(objects=[], primitive_actions=[f"Monitoring {obj}"]),
+#         temporal_constraints=None,
+#     )
+
+#     return monitoring_subtask
+
+
+# def make_monitoring_subtask(target_sub_name: str, obj: str) -> Subtask:
+#     mon_sub = get_monitoring_subtask(obj)
+#     mon_sub.name = f"Monitoring for {target_sub_name}_{obj}_{uuid.uuid4().hex[:8]}"
+#     mon_sub.decomposed = True
+#     return mon_sub
+
+
+# def make_early_subtask(original_sub: Subtask, early_exec_time: float) -> Subtask:
+#     early_sub = copy.deepcopy(original_sub)
+#     for primitive_action in early_sub.execution.primitive_actions:
+#         pass
+#     early_sub.name += "_early"
+#     early_sub.duration.interval = early_exec_time
+#     early_sub.decomposed = True
+#     return early_sub
+
+
+# def make_remain_subtask(original_sub: Subtask, remain_duration: float) -> Subtask:
+#     remain_sub = copy.deepcopy(original_sub)
+#     remain_sub.name += "_remain"
+#     remain_sub.duration.interval = remain_duration
+#     remain_sub.decomposed = True
+#     return remain_sub
+
+
+def split_subtask_for_monitoring(
+    curr_node,
+    candidate: Candidate,
+    nav_manager,
+    ratio: float = 0.7,
+):
+    """
+    서브태스크를 Early / Monitoring / Remain 으로 분할
+    - (1) Early Subtask : 초반 ratio 비율에 해당하는 시간의 Primitive Action들
+    - (2) Monitoring Subtask : 0.1초 (분할 없음)
+    - (3) Remaining Subtask : 나머지 액션
+    """
+    # 1) 원본 서브태스크 전체 액션 시간
+    total_time = sum_action_durations(curr_node, candidate.subtask, nav_manager)
+
+    # 2) early에 할당할 시간
+    monitoring_timing = total_time * ratio
+
+    # 3) 실제로 액션 분할
+    early_actions, early_time, remain_actions, remain_time = (
+        split_primitive_actions_by_time(
+            curr_node, candidate.subtask, monitoring_timing, nav_manager
+        )
+    )
+
+    # 4) Early 서브태스크
+    early_sub = copy.deepcopy(candidate.subtask)
+    early_sub.name += "_early"
+    early_sub.duration.interval = early_time
+    early_sub.execution.primitive_actions = early_actions
+    early_sub.decomposed = True
+
+    # 5) Monitoring 서브태스크(0.1초)
+    monitoring_obj = curr_node.state.subtask.execution.primitive_actions[-1].split(" ")[
+        -1
+    ]
+    related_subtask_name = candidate.deadline.subtask_name
+    monitor_sub = Subtask(
+        task_name=candidate.subtask.task_name,
+        name=f"Monitor for {related_subtask_name}_{uuid.uuid4().hex[:6]}",
+        duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
+        repetition=1,
+        type="Monitor",
+        execution=Execution(
+            objects=[], primitive_actions=[f"MONITORING {monitoring_obj}"]
+        ),
+        decomposed=True,
+    )
+
+    # 6) Remaining 서브태스크
+    remain_sub = copy.deepcopy(candidate.subtask)
     remain_sub.name += "_remain"
-    remain_sub.duration.interval = remain_duration
+    remain_sub.duration.interval = remain_time
+    remain_sub.execution.primitive_actions = remain_actions
     remain_sub.decomposed = True
-    return remain_sub
+
+    return early_sub, monitor_sub, remain_sub
 
 
-def sum_action_durations(curr_node, subtask: Subtask, nav_manager) -> float:
-    total = 0.0
-    actions = subtask.execution.primitive_actions
-    for action in actions:
-        tokens = action.split()
-        base_action = tokens[0].upper()
-
-        if base_action == "NAVIGATE_TO":
-            if len(tokens) == 3:
-                # NAVIGATE_TO <object> <time>
-                dur = float(tokens[2])
-            else:
-                # 시간이 명시 안됨 → 임의 값
-                dur = nav_manager.compute_specific_navigation_time(curr_node, tokens[1])
-
-        elif base_action == "WAIT":
-            if len(tokens) >= 2:
-                try:
-                    dur = float(tokens[1])
-                except:
-                    dur = DEFAULT_WAIT_DURATION
-            else:
-                dur = DEFAULT_WAIT_DURATION
-
-        elif base_action == "MONITORING":
-            # e.g. "MONITORING 0.1"
-            if len(tokens) >= 2:
-                try:
-                    dur = float(tokens[1])
-                except:
-                    dur = MONITORING_DURATION
-            else:
-                dur = MONITORING_DURATION
-
-        else:
-            # GRASP, PLACE_INSIDE 등
-            dur = PRIMITIVE_ACTION_DURATION
-
-        total += dur
-    return total
-
-
-################################################################################
-# (5) Primitive Action을 "초반(cutoff_time)"과 "나머지"로 분할
-#     - NAVIGATE_TO / WAIT 만 분할 가능
-#     - MONITORING 은 분할 금지 (그대로 한 덩어리)
-#     - 나머지 액션도 분할 안 함
-#     - 초반 시간이 남으면 leftover_time 만큼 WAIT 추가
-################################################################################
 def split_primitive_actions_by_time(
-    curr_node, subtask: Subtask, cutoff_time: float, nav_manager
+    curr_node: SimulationNode, subtask: Subtask, cutoff_time: float, nav_manager
 ) -> Tuple[List[str], float, List[str], float]:
     """
+    Primitive Action을 "초반(cutoff_time)"과 "나머지"로 분할
+    - NAVIGATE_TO / WAIT 만 분할 가능
+    - MONITORING 은 분할 금지 (그대로 한 덩어리)
+    - 나머지 액션도 분할 안 함 (그대로 한 덩어리)
+    - 초반 시간이 남으면 leftover_time 만큼 WAIT 추가
+
     Args:
-      - curr_node : 현재 시뮬레이션 노드(혹은 스케줄러 state)
-      - subtask   : 분할 대상 서브태스크
-      - cutoff_time (float): 초반 실행 시간(예: total_time * 0.7)
-      - nav_manager         : 이동 시간 계산에 사용
+    - curr_node : 현재 시뮬레이션 노드
+    - subtask   : 분할 대상 서브태스크
+    - cutoff_time (float): 초반 실행 시간(예: total_time * 0.7)
+    - nav_manager : 이동 시간 계산에 사용
 
     Returns:
-      - early_actions      : 초반 실행에 들어갈 액션 리스트
-      - early_total_time   : 초반 실행 시간 합
-      - remain_actions     : 나머지 액션 리스트
-      - remain_total_time  : 나머지 실행 시간 합
+    - early_actions      : 초반 실행에 들어갈 액션 리스트
+    - early_total_time   : 초반 실행 시간 합
+    - remain_actions     : 나머지 액션 리스트
+    - remain_total_time  : 나머지 실행 시간 합
     """
+    # 분해 대상 action list
     actions = subtask.execution.primitive_actions
 
     early_actions = []
@@ -242,6 +285,7 @@ def split_primitive_actions_by_time(
 
     while i < len(actions):
         action = actions[i]
+        # base_action, (obj_name), duration 추출
         tokens = action.split()
         base_action = tokens[0].upper()
 
@@ -258,6 +302,7 @@ def split_primitive_actions_by_time(
                     curr_node, tokens[1]
                 )
         elif base_action == "WAIT":
+            # WAIT [time]
             duration = float(tokens[1])
 
         elif base_action == "MONITORING":
@@ -297,7 +342,7 @@ def split_primitive_actions_by_time(
                 if base_action == "NAVIGATE_TO" and len(tokens) >= 2:
                     # NAVIGATE_TO <object> remain_time
                     object_name = tokens[1]
-                    remain_actions.append(f"NAVIGATE_TO {object_name} {remain_time}")
+                    remain_actions.append(f"NAVIGATE_TO {object_name}")
                 else:
                     # WAIT remain_time
                     remain_actions.append(f"WAIT {remain_time}")
@@ -323,58 +368,29 @@ def split_primitive_actions_by_time(
     return early_actions, early_total_time, remain_actions, remain_total_time
 
 
-################################################################################
-# (6) 서브태스크를 Early / Monitoring / Remain 으로 분할
-################################################################################
-def split_subtask_for_monitoring(
-    curr_node,
-    original_subtask: Subtask,
-    nav_manager,
-    ratio: float = 0.7,
-):
-    """
-    - (1) Early Subtask : 초반 ratio 비율에 해당하는 시간의 Primitive Action들
-    - (2) Monitoring Subtask : 0.1초 (분할 없음)
-    - (3) Remaining Subtask : 나머지 액션
-    """
-    # 1) 원본 서브태스크 전체 액션 시간
-    total_time = sum_action_durations(curr_node, original_subtask, nav_manager)
-    # 2) early에 할당할 시간
-    early_time = total_time * ratio
+def sum_action_durations(
+    curr_node: SimulationNode, subtask: Subtask, nav_manager
+) -> float:
+    total = 0.0
+    actions = subtask.execution.primitive_actions
+    for action in actions:
+        tokens = action.split()
+        base_action = tokens[0].upper()
 
-    # 3) 실제로 액션 분할
-    early_actions, used_time, remain_actions, remain_time = (
-        split_primitive_actions_by_time(
-            curr_node, original_subtask, early_time, nav_manager
-        )
-    )
-
-    # 4) Early 서브태스크
-    early_sub = copy.deepcopy(original_subtask)
-    early_sub.name += "_early"
-    early_sub.duration.interval = used_time
-    early_sub.execution.primitive_actions = early_actions
-    early_sub.decomposed = True
-
-    # 5) Monitoring 서브태스크(0.1초)
-    monitoring_duration = 0.1
-    monitor_sub = Subtask(
-        task_name=original_subtask.task_name,
-        name=f"Monitor for {original_subtask.name}_{uuid.uuid4().hex[:6]}",
-        duration=Duration(interval=monitoring_duration, type="Monitor"),
-        repetition=1,
-        type="Monitor",
-        execution=Execution(
-            objects=[], primitive_actions=[f"MONITORING {monitoring_duration}"]
-        ),
-        decomposed=True,
-    )
-
-    # 6) Remaining 서브태스크
-    remain_sub = copy.deepcopy(original_subtask)
-    remain_sub.name += "_remain"
-    remain_sub.duration.interval = remain_time
-    remain_sub.execution.primitive_actions = remain_actions
-    remain_sub.decomposed = True
-
-    return early_sub, monitor_sub, remain_sub
+        if base_action == "NAVIGATE_TO":
+            if len(tokens) == 3:
+                # NAVIGATE_TO <object> <time>
+                dur = float(tokens[2])
+            else:
+                # 시간이 명시 안됨 → 직접 계산
+                dur = nav_manager.compute_specific_navigation_time(curr_node, tokens[1])
+        elif base_action == "WAIT" and len(tokens) >= 2:
+            dur = float(tokens[1])
+        elif base_action == "MONITORING":
+            # e.g. "MONITORING <Obj>"
+            dur = MONITORING_DURATION
+        else:
+            # GRASP, PLACE_INSIDE 등
+            dur = PRIMITIVE_ACTION_DURATION
+        total += dur
+    return total

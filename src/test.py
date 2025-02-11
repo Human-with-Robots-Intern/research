@@ -57,7 +57,7 @@ def main():
         controller = init_ai2thor()
 
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=1)
+    task_file_name = get_user_task_choice(task_files)
 
     # Load the chosen task data
     task_data = load_task_data_from_file(task_file_name)
@@ -100,10 +100,12 @@ def main():
             is_end = True
     visualize(task_file_name, current_state.constraints, result_schedule)
 
-    for subtask in current_state.completed_subtasks:
+    for ce in current_state.completed_subtasks:
         log.info(
-            f"{subtask.subtask.name} ({round(subtask.start_time, LOG_ROUND)} ~ {round(subtask.end_time,LOG_ROUND)})"
+            f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
+        log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}")
+        log.info("\n")
 
 
 if __name__ == "__main__":
