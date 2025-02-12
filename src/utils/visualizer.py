@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from core.task import Subtask
 from utils.constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH, VIS_PATH
 
 
@@ -85,7 +84,7 @@ def visualize_graph(G: nx.DiGraph, save_folder_path="debug", is_display=False):
 
 
 def plot_gantt_chart(
-    completed_subtasks: List[Subtask], save_folder_path: str, is_display: bool = False
+    completed_subtasks: List, save_folder_path: str, is_display: bool = False
 ):
     """
     주어진 completed_subtasks를 순서대로 가정, Gantt 차트를 그린다.
@@ -151,7 +150,7 @@ def plot_gantt_chart(
         plt.close()
 
 
-def make_gantt_data(completed_subtasks: List[Subtask]) -> List[dict]:
+def make_gantt_data(completed_subtasks: List) -> List[dict]:
     """
     주어진 completed_subtasks를 순서대로 가정하고,
     Subtask마다 (start, end)를 누적 계산하여 반환.

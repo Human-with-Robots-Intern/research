@@ -1,6 +1,9 @@
+import uuid
 from typing import Dict, List, Optional
 
 import networkx as nx
+
+from utils.constants import BAYESIAN_CRITERIA, MONITORING_DURATION
 
 
 class Duration:
@@ -231,11 +234,11 @@ class TaskGraphBuilder:
     def build_graph(self, tasks: List[Task]):
         for task in tasks:
             for subtask in task.subtasks:
+                # 노드 추가
                 subtask_node = subtask.name
-                # subtask_type = subtask.type
-                subtask_duration = subtask.duration.interval
-                self.graph.add_node(subtask_node, time=subtask_duration)
+                self.graph.add_node(subtask_node, type=subtask.type)
 
+                # 엣지 추가
                 for constraint in subtask.temporal_constraints:
                     if constraint.subtask:
                         edge_data = {
@@ -255,5 +258,7 @@ class TaskGraphBuilder:
                             )
                     else:
                         raise ValueError("Constrained Node does not exist")
-        # nx.write_gml(self.graph, "graph.gml")
+
         return self.graph
+
+    

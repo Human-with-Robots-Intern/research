@@ -101,10 +101,12 @@ def main():
             is_end = True
     visualize(task_file_name, current_state.constraints, result_schedule)
 
-    for subtask in current_state.completed_subtasks:
+    for ce in current_state.completed_subtasks:
         log.info(
-            f"{subtask.subtask.name} ({round(subtask.start_time, LOG_ROUND)} ~ {round(subtask.end_time,LOG_ROUND)})"
+            f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
+        log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}")
+        log.info("\n")
 
 
 if __name__ == "__main__":
