@@ -40,6 +40,17 @@ def load_object_Ids():
     return objectIds
 
 
+def start_with_navigate_to(tasks):
+    for task in tasks:
+        for subtask in task.subtasks:
+            if "NAVIGATE_TO" not in subtask.execution.primitive_actions[0]:
+                obj = subtask.execution.primitive_actions[0].split(" ")[1]
+                action = "NAVIGATE_TO " + obj
+                subtask.execution.primitive_actions.insert(0, action)
+                continue
+    return tasks
+
+
 def tasks_to_subtasks(tasks, mode="all"):
     subtasks = []
     if mode == "all":
@@ -206,6 +217,7 @@ def build_tasks_and_constraints(
     task_graph = task_graph_builder.build_graph(tasks)
     subtasks = tasks_to_subtasks(tasks)
     subtasks = adjust_subtasks_duration(subtasks)
+    tasks = start_with_navigate_to(tasks)
 
     return subtasks, task_graph
 
