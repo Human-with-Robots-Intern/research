@@ -559,3 +559,7 @@ class Scheduler:
             tie_breaker=next(self._counter),
             state=new_state,
         )
+
+
+# TODO WAIT Partial Wait by Monitoring
+# TODO Wait하고 있을 때에는 ground truth값이 됐을 때 바로 그 wait를 종료하고 critical end subtask를 실행하면 좋을 것 같아요
