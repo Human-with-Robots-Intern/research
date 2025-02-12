@@ -94,7 +94,7 @@ class NavigationManager:
         """
         # If the subtask type is Monitor or no movement needed, return 0 immediately
         if next_subtask.type == "Monitor":
-            return 0.0
+            return 0.0, current_node.state.agent_location
         start_location = None
         # 1) Ensure we have a known robot location
         start_location = self._ensure_agent_location(current_node)
@@ -106,7 +106,7 @@ class NavigationManager:
 
         # 2) If no primitive_actions or no NAVIGATE_TO, no nav time needed
         if not next_subtask.execution or not next_subtask.execution.primitive_actions:
-            return 0.0
+            return 0.0, current_node.state.agent_location
 
         # 3) Accumulate travel time for each NAVIGATE_TO
         for action in next_subtask.execution.primitive_actions:
@@ -117,21 +117,7 @@ class NavigationManager:
                 nav_time_total += step_time
                 current_source = target_loc
 
-        return nav_time_total
-
-    def get_last_location(self, current_node: SimulationNode, subtask: Subtask) -> str:
-        plan = current_node.state.completed_subtasks
-        for ce in reversed(plan):
-            if (
-                not ce.subtask
-                or not ce.subtask.execution
-                or not ce.subtask.execution.primitive_actions
-            ):
-                continue
-            for action in reversed(ce.subtask.execution.primitive_actions):
-                if action.startswith("NAVIGATE_TO"):
-                    return action.split("NAVIGATE_TO")[1].strip()
-        return None
+        return nav_time_total, target_loc
 
     # ----------------------------------------------------------------------
     #  Internal Helpers
