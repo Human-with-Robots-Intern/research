@@ -76,22 +76,6 @@ class NavigationManager:
     def __init__(self):
         self.navigation_times = load_navigation_times()
 
-    def compute_specific_navigation_time(
-        self, current_node: SimulationNode, target_loc: str
-    ) -> float:
-        """
-        Compute how long the robot will spend navigating to 'target_loc'.
-        """
-        # If the subtask type is Monitor or no movement needed, return 0 immediately
-
-        start_location = None
-        # 1) Ensure we have a known robot location
-        start_location = self._ensure_agent_location(current_node)
-        if start_location is None:
-            start_location = "agent"
-        current_source = start_location
-        return self._lookup_navigation_time(current_source, target_loc)
-
     def compute_total_navigation_time(
         self, current_node: SimulationNode, next_subtask: Subtask
     ) -> float:
@@ -129,7 +113,7 @@ class NavigationManager:
             if action.startswith("NAVIGATE_TO"):
                 # e.g. "NAVIGATE_TO Kitchen"
                 target_loc = action.split("NAVIGATE_TO")[1].strip()
-                step_time = self._lookup_navigation_time(current_source, target_loc)
+                step_time = self.get_specific_nav_time(current_source, target_loc)
                 nav_time_total += step_time
                 current_source = target_loc
 
@@ -191,7 +175,7 @@ class NavigationManager:
                     return action.split("NAVIGATE_TO")[1].strip()
         return None
 
-    def _lookup_navigation_time(self, source: str, target: str) -> float:
+    def get_specific_nav_time(self, source: str, target: str) -> float:
         """
         Look up the travel time from 'source' to 'target' in navigation_times.
         If not found, return 0.0 and log a warning.

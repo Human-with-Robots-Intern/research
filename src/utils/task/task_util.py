@@ -99,7 +99,7 @@ def build_tasks_and_constraints(
     task_graph = task_graph_builder.build_graph(tasks)
     subtasks = tasks_to_subtasks(tasks)
     subtasks = adjust_subtasks_duration(subtasks)
-    
+
     return subtasks, task_graph
 
 
@@ -149,7 +149,7 @@ def split_subtask_for_monitoring(
     curr_node,
     candidate: Candidate,
     nav_manager,
-    ratio: float = 0.7,
+    early_cutoff: float,
 ):
     """
     서브태스크를 Early / Monitoring / Remain 으로 분할
@@ -157,16 +157,11 @@ def split_subtask_for_monitoring(
     - (2) Monitoring Subtask : 0.1초 (분할 없음)
     - (3) Remaining Subtask : 나머지 액션
     """
-    # 1) 원본 서브태스크 전체 액션 시간
-    total_time = sum_action_durations(curr_node, candidate.subtask, nav_manager)
-
-    # 2) early에 할당할 시간
-    monitoring_timing = total_time * ratio
 
     # 3) 실제로 액션 분할
     early_actions, early_time, remain_actions, remain_time = (
         split_primitive_actions_by_time(
-            curr_node, candidate.subtask, monitoring_timing, nav_manager
+            curr_node, candidate.subtask, early_cutoff, nav_manager
         )
     )
 
@@ -217,7 +212,7 @@ def split_primitive_actions_by_time(
     Args:
     - curr_node : 현재 시뮬레이션 노드
     - subtask   : 분할 대상 서브태스크
-    - cutoff_time (float): 초반 실행 시간(예: total_time * 0.7)
+    - cutoff_time (float): 초반 실행 시간
     - nav_manager : 이동 시간 계산에 사용
 
     Returns:
@@ -250,9 +245,13 @@ def split_primitive_actions_by_time(
                 duration = float(tokens[2])
             else:
                 # 시간이 명시 안된 경우 NavManager로 추정
-                duration = nav_manager.compute_specific_navigation_time(
-                    curr_node, tokens[1]
+                agent_loc = (
+                    curr_node.state.agent_location
+                    if curr_node.state.agent_location
+                    else "agent"
                 )
+                duration = nav_manager.get_specific_nav_time(agent_loc, tokens[1])
+                agent_loc = tokens[1]
         elif base_action == "WAIT":
             # WAIT [time]
             duration = float(tokens[1])
@@ -335,7 +334,13 @@ def sum_action_durations(
                 dur = float(tokens[2])
             else:
                 # 시간이 명시 안됨 → 직접 계산
-                dur = nav_manager.compute_specific_navigation_time(curr_node, tokens[1])
+                agent_loc = (
+                    curr_node.state.agent_location
+                    if curr_node.state.agent_location
+                    else "agent"
+                )
+                dur = nav_manager.get_specific_nav_time(agent_loc, tokens[1])
+                agent_loc = tokens[1]
         elif base_action == "WAIT" and len(tokens) >= 2:
             dur = float(tokens[1])
         elif base_action == "MONITORING":

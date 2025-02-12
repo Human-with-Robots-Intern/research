@@ -181,9 +181,6 @@ class Scheduler:
         )
         return best_node
 
-    # def _expand_subtask():
-    # # 가까운 critical subtask 도래 시점이 존재하고,
-
     def _extract_state(self, child_node: SimulationNode) -> Optional[SchedulerState]:
         """
         n-step lookahead로 탐색한 best_node(child_node)에서,
@@ -242,6 +239,11 @@ class Scheduler:
         critical_start_sub_name = max_critical_time_slot.related_subtask_name
         max_critical_interval = max_critical_time_slot.interval
 
+        for ce in curr_state.completed_subtasks:
+            if ce.subtask.name == critical_start_sub_name:
+                critical_start_time = ce.end_time
+                break
+
         early_cutoff = max_critical_interval * BAYESIAN_CRITERIA
 
         total_duration = (
@@ -250,7 +252,10 @@ class Scheduler:
         )
 
         #  cutoff 시간보다 subtask 전체의 실행시간이 짧은 경우, _expand_wo_subtask으로 처리
-        if early_cutoff > total_duration:
+        if (
+            critical_start_time + early_cutoff  # Monitoring 시작 시각
+            >= curr_state.current_time + total_duration  # subtask 종료 시각
+        ):
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
         # 1) Split Subtasks 생성
@@ -258,8 +263,14 @@ class Scheduler:
             curr_node=curr_node,
             candidate=candidate,
             nav_manager=self.nav_manager,
-            ratio=BAYESIAN_CRITERIA,
+            early_cutoff=early_cutoff,
         )
+        print(f"Critical Constraints : {critical_start_sub_name} ~ {deadline_sub_name}")
+        print(f"original execution time : {total_duration}")
+        print(f"early cutoff time : {early_cutoff}")
+        print(f"early_sub execution time : {early_sub.duration.interval}")
+        print(f"mon_sub execution time : {mon_sub.duration.interval}")
+        print(f"remain_sub execution time : {remain_sub.duration.interval}")
 
         # deadline 체크 시 이동시간도 포함하여 검사
         if deadline_due < (curr_state.current_time + early_sub.duration.interval):

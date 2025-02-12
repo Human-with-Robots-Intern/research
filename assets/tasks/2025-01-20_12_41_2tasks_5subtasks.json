@@ -101,7 +101,7 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 10
+          "Interval": 20
         },
         "TemporalConstraints": [
           {
