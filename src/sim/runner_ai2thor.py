@@ -136,8 +136,8 @@ def execute_subtask(controller, subtask):
         "TOGGLE_ON": lambda target_obj: Act.toggleon(target_obj),
         "TOGGLE_OFF": lambda target_obj: Act.toggleoff(target_obj),
         "SLICE": lambda target_obj: Act.slice(target_obj),
-        "Monitoring": lambda target_obj: Act.monitoring(target_obj),
-        "Wait": lambda duration: Act.wait(round(float(duration), 2)),
+        "MONITORING": lambda target_obj: Act.monitoring(target_obj),
+        "WAIT": lambda duration: Act.wait(round(float(duration), 2)),
         "FILL": lambda target_obj: Act.fill(target_obj),
     }
 
@@ -158,7 +158,9 @@ def execute_subtask(controller, subtask):
             # 총 걸린시간 계산
             elapsed_time += action_mapping[action_type](target_obj_ID)
         else:
-            log.warning(f"Unknown action type: {action_type}. Skipping {action_str} in {subtask.name}.")
+            log.warning(
+                f"Unknown action type: {action_type}. Skipping {action_str} in {subtask.name}."
+            )
     print(f"{subtask.name}의 걸린시간 = {round(elapsed_time, 2)}")
     log.info(f"Successfully executed Subtask: {subtask.name}")
     print("================END=================")

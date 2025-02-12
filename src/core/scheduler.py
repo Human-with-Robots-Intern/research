@@ -316,6 +316,8 @@ class Scheduler:
         ):
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
+        # monitoring 할 객체 뽑기
+
         # ------------------------------------------------------------------------
         # 1) Monitoring 서브태스크로 분할
         early_sub, mon_sub, remain_sub = split_subtask_for_monitoring(
@@ -513,7 +515,7 @@ class Scheduler:
                 objects=None,
                 primitive_actions=[
                     f"NAVIGATE_TO {new_location}",
-                    f"Wait {wait_duration - nav_time}",
+                    f"WAIT {wait_duration - nav_time}",
                 ],
             ),
             temporal_constraints=None,

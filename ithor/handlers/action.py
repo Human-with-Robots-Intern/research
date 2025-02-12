@@ -234,7 +234,7 @@ class Action:
         # object를 바라보게 하고 다시 돌아봐야함
         agent_position = self.navi.get_agent_position()
         object_position = self.navi.get_object_position(object_id)
-
+        print(f"모니터링 할거임 : {object_id} 쳐다볼거임")
         obj_angle, degree = self.navi.agent_rotate_angle(
             agent_position, object_position
         )
@@ -257,7 +257,7 @@ class Action:
 
         self.navi.adjust_camera_to_object(object_id)
 
-        time.sleep(1)
+        time.sleep(2)
         if degree != 0:
             for _ in range(SMOOTH_LEVEL):
                 self.controller.step(action="RotateLeft", degrees=degree / SMOOTH_LEVEL)

@@ -132,7 +132,7 @@ def check_obj_id(tasks):
                         print(actions[i])
                 elif step in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
                     if to_obj not in objectIds["RECEPTACLE"]:
-                        print(f"{to_obj} 안맞음")
+                        print(f"{to_obj} does not match")
                         # 유사도 검사
                         data = query(
                             {
@@ -170,6 +170,17 @@ def check_obj_id(tasks):
                         print(actions[i])
     return tasks
 
+def start_with_navigate_to(tasks):
+    for task in tasks:
+        for subtask in task.subtasks:
+            if "NAVIGATE_TO" not in subtask.execution.primitive_actions[0]:
+                obj = subtask.execution.primitive_actions[0].split(" ")[1]
+                action = "NAVIGATE_TO " + obj
+                subtask.execution.primitive_actions.insert(0, action)
+                continue
+    return tasks
+
+
 
 def build_tasks_and_constraints(
     task_data: dict, enable_decomposition: bool
@@ -185,6 +196,7 @@ def build_tasks_and_constraints(
     tasks = Task.parse_instruction(task_data)
     tasks = check_obj_id(tasks)
     tasks = revision_primitive_actions(tasks)
+    tasks = start_with_navigate_to(tasks)
 
     if enable_decomposition:
         for task in tasks:
@@ -268,8 +280,12 @@ def split_subtask_for_monitoring(
     early_sub.decomposed = True
 
     # 5) Monitoring 서브태스크(0.1초)
-    monitoring_obj = curr_node.state.subtask.execution.primitive_actions[-1].split(" ")[
-        -1
+    for subtask in curr_node[4].remaining_subtasks:
+        if candidate.deadline.subtask_name == subtask.name:
+            crit_subtask = subtask
+            break
+    monitoring_obj = crit_subtask.execution.primitive_actions[0].split(" ")[
+        1
     ]
     related_subtask_name = candidate.deadline.subtask_name
     monitor_sub = Subtask(
@@ -405,6 +421,10 @@ def split_primitive_actions_by_time(
         leftover_wait = cutoff_time - time_used
         early_actions.append(f"WAIT {leftover_wait}")
         time_used += leftover_wait
+    
+    if remain_actions != []:
+        obj = remain_actions[0].split(" ")[1]
+        remain_actions.insert(0, "NAVIGATE_TO " + obj)
 
     early_total_time = time_used
     remain_total_time = (
