@@ -1,9 +1,9 @@
 [
     {
-        "Task": "Cook an Egg",
+        "Task": "Cook Egg Fry",
         "Subtasks": [
             {
-                "Name": "Prepare Egg for Cooking",
+                "Name": "Prepare Egg Fry",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
@@ -16,6 +16,8 @@
                         "GRASP Pan|+00.72|+00.90|-02.42",
                         "NAVIGATE_TO StoveBurner|-00.04|+00.92|-02.37",
                         "PLACE_ON_TOP StoveBurner|-00.04|+00.92|-02.37",
+                        "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
+                        "TOGGLE_ON StoveKnob|-00.02|+00.88|-02.19",
                         "NAVIGATE_TO Egg|-02.04|+00.81|+01.24",
                         "GRASP Egg|-02.04|+00.81|+01.24",
                         "PLACE_ON_TOP Pan|+00.72|+00.90|-02.42",
@@ -24,38 +26,12 @@
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 5
+                    "Interval": 10
                 },
                 "TemporalConstraints": []
             },
             {
-                "Name": "Cook the Egg",
-                "Repetition": 1,
-                "Type": "Interaction",
-                "Executions": {
-                    "Objects": {
-                        "StoveKnob|-00.02|+00.88|-02.19": 1
-                    },
-                    "PrimitiveActions": [
-                        "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
-                        "TOGGLE_ON StoveKnob|-00.02|+00.88|-02.19"
-                    ]
-                },
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 5
-                },
-                "TemporalConstraints": [
-                    {
-                        "Type": "After",
-                        "Subtask": "Prepare Egg for Cooking",
-                        "Interval": 0,
-                        "Urgency": false
-                    }
-                ]
-            },
-            {
-                "Name": "Finish Cooking and Turn Off Stove",
+                "Name": "Turn Off Stove After Cooking",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
@@ -69,13 +45,13 @@
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 1
+                    "Interval": 0
                 },
                 "TemporalConstraints": [
                     {
                         "Type": "After",
-                        "Subtask": "Cook the Egg",
-                        "Interval": 5,
+                        "Subtask": "Prepare Egg Fry",
+                        "Interval": 10,
                         "Urgency": true
                     }
                 ]
@@ -86,73 +62,82 @@
         "Task": "Wash Dishes",
         "Subtasks": [
             {
-                "Name": "Impossible: dish not in environment",
-                "Repetition": 1,
+                "Name": "Wash Plate",
+                "Repetition": 2,
                 "Type": "Interaction",
                 "Executions": {
-                    "Objects": {},
-                    "PrimitiveActions": []
+                    "Objects": {
+                        "Plate|+00.96|+01.65|-02.61": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Plate|+00.96|+01.65|-02.61",
+                        "GRASP Plate|+00.96|+01.65|-02.61",
+                        "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+                        "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
+                        "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+                        "GRASP Plate|+00.96|+01.65|-02.61",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                    ]
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 0
+                    "Interval": 5
                 },
                 "TemporalConstraints": []
             }
         ]
     },
     {
-        "Task": "Wash Vegetables",
+        "Task": "Put Book on Shelf",
         "Subtasks": [
             {
-                "Name": "Wash Edible Vegetable",
+                "Name": "Place Book in Shelf",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Tomato|-00.39|+01.14|-00.81": 1
+                        "Book|+00.15|+01.10|+00.62": 1,
+                        "Shelf|+01.75|+00.55|-02.56": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Tomato|-00.39|+01.14|-00.81",
-                        "GRASP Tomato|-00.39|+01.14|-00.81",
-                        "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
-                        "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
-                        "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
-                        "GRASP Tomato|-00.39|+01.14|-00.81",
-                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
-                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
-                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                        "NAVIGATE_TO Book|+00.15|+01.10|+00.62",
+                        "GRASP Book|+00.15|+01.10|+00.62",
+                        "NAVIGATE_TO Shelf|+01.75|+00.55|-02.56",
+                        "PLACE_INSIDE Shelf|+01.75|+00.55|-02.56"
                     ]
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 5
+                    "Interval": 2
                 },
                 "TemporalConstraints": []
-            },
+            }
+        ]
+    },
+    {
+        "Task": "Throw Away Paper Towel",
+        "Subtasks": [
             {
-                "Name": "Wash Lettuce",
+                "Name": "Dispose of Paper Towel",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Lettuce|-01.81|+00.97|-00.94": 1
+                        "PaperTowelRoll|-02.06|+01.01|-00.81": 1,
+                        "GarbageCan|-01.94|00.00|+02.03": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Lettuce|-01.81|+00.97|-00.94",
-                        "GRASP Lettuce|-01.81|+00.97|-00.94",
-                        "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
-                        "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
-                        "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
-                        "GRASP Lettuce|-01.81|+00.97|-00.94",
-                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
-                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
-                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                        "NAVIGATE_TO PaperTowelRoll|-02.06|+01.01|-00.81",
+                        "GRASP PaperTowelRoll|-02.06|+01.01|-00.81",
+                        "NAVIGATE_TO GarbageCan|-01.94|00.00|+02.03",
+                        "PLACE_INSIDE GarbageCan|-01.94|00.00|+02.03"
                     ]
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 5
+                    "Interval": 2
                 },
                 "TemporalConstraints": []
             }

@@ -8,16 +8,16 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Plate": 1
+            "Plate|+00.96|+01.65|-02.61": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Plate",
-            "GRASP Plate",
-            "NAVIGATE_TO Faucet",
-            "TOGGLE_ON Faucet",
-            "PLACE_INSIDE SinkBasin",
-            "TOGGLE_OFF Faucet",
-            "PLACE_ON_TOP CounterTop"
+            "NAVIGATE_TO Plate|+00.96|+01.65|-02.61",
+            "GRASP Plate|+00.96|+01.65|-02.61",
+            "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+            "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
+            "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
+            "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+            "PLACE_ON_TOP CounterTop|+00.69|+00.95|-02.48"
           ]
         },
         "Duration": {
@@ -32,16 +32,16 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Egg": 1
+            "Egg|-02.04|+00.81|+01.24": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Egg",
-            "GRASP Egg",
-            "NAVIGATE_TO Faucet",
-            "TOGGLE_ON Faucet",
-            "PLACE_INSIDE SinkBasin",
-            "TOGGLE_OFF Faucet",
-            "PLACE_ON_TOP CounterTop"
+            "NAVIGATE_TO Egg|-02.04|+00.81|+01.24",
+            "GRASP Egg|-02.04|+00.81|+01.24",
+            "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+            "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
+            "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
+            "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+            "PLACE_ON_TOP CounterTop|+00.69|+00.95|-02.48"
           ]
         },
         "Duration": {
@@ -56,16 +56,16 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Potato": 1
+            "Potato|-01.66|+00.93|-02.15": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Potato",
-            "GRASP Potato",
-            "NAVIGATE_TO Faucet",
-            "TOGGLE_ON Faucet",
-            "PLACE_INSIDE SinkBasin",
-            "TOGGLE_OFF Faucet",
-            "PLACE_ON_TOP CounterTop"
+            "NAVIGATE_TO Potato|-01.66|+00.93|-02.15",
+            "GRASP Potato|-01.66|+00.93|-02.15",
+            "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+            "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
+            "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
+            "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+            "PLACE_ON_TOP CounterTop|+00.69|+00.95|-02.48"
           ]
         },
         "Duration": {
@@ -85,29 +85,29 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Egg": 1,
-            "Pan": 1
+            "Egg|-02.04|+00.81|+01.24": 1,
+            "Pan|+00.72|+00.90|-02.42": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Pan",
-            "GRASP Pan",
-            "PLACE_ON_TOP StoveBurner",
-            "NAVIGATE_TO StoveKnob",
-            "TOGGLE_ON StoveKnob",
-            "NAVIGATE_TO Egg",
-            "GRASP Egg",
-            "PLACE_ON_TOP Pan"
+            "NAVIGATE_TO Pan|+00.72|+00.90|-02.42",
+            "GRASP Pan|+00.72|+00.90|-02.42",
+            "PLACE_ON_TOP StoveBurner|-00.47|+00.92|-02.58",
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19",
+            "NAVIGATE_TO Egg|-02.04|+00.81|+01.24",
+            "GRASP Egg|-02.04|+00.81|+01.24",
+            "PLACE_ON_TOP Pan|+00.72|+00.90|-02.42"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 10
+          "Interval": 20
         },
         "TemporalConstraints": [
           {
             "Type": "After",
             "Subtask": "Wash Egg",
-            "Interval": 20,
+            "Interval": 100,
             "Urgency": true
           }
         ]
@@ -118,11 +118,11 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob": 1
+            "StoveKnob|-00.48|+00.88|-02.19": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob",
-            "TOGGLE_OFF StoveKnob"
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_OFF StoveKnob|-00.48|+00.88|-02.19"
           ]
         },
         "Duration": {
@@ -149,18 +149,18 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Egg": 1,
-            "Pan": 1
+            "Egg|-02.04|+00.81|+01.24": 1,
+            "Pan|+00.72|+00.90|-02.42": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Pan",
-            "GRASP Pan",
-            "PLACE_ON_TOP StoveBurner",
-            "NAVIGATE_TO StoveKnob",
-            "TOGGLE_ON StoveKnob",
-            "NAVIGATE_TO Egg",
-            "GRASP Egg",
-            "PLACE_ON_TOP Pan"
+            "NAVIGATE_TO Pan|+00.72|+00.90|-02.42",
+            "GRASP Pan|+00.72|+00.90|-02.42",
+            "PLACE_ON_TOP StoveBurner|-00.47|+00.92|-02.58",
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19",
+            "NAVIGATE_TO Egg|-02.04|+00.81|+01.24",
+            "GRASP Egg|-02.04|+00.81|+01.24",
+            "PLACE_ON_TOP Pan|+00.72|+00.90|-02.42"
           ]
         },
         "Duration": {
@@ -172,7 +172,7 @@
             "Type": "After",
             "Subtask": "Wash Potato",
             "Interval": 20,
-            "Urgency": false
+            "Urgency": true
           }
         ]
       },
@@ -182,11 +182,11 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob": 1
+            "StoveKnob|-00.48|+00.88|-02.19": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob",
-            "TOGGLE_OFF StoveKnob"
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_OFF StoveKnob|-00.48|+00.88|-02.19"
           ]
         },
         "Duration": {
@@ -198,7 +198,7 @@
             "Type": "After",
             "Subtask": "Prepare Potato",
             "Interval": 20,
-            "Urgency": false
+            "Urgency": true
           }
         ]
       }

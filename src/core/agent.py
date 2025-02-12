@@ -128,15 +128,16 @@ class Agent:
         prior_variance = estimate_load[subtask_name]["variance"]
 
         # bayesian estimate
-        a = 1
-        likelihood_epsilon_square = a * (prior_mean - actual_duration) ** 2
         cooking_data_real = actual_duration / ground_truth
-        cooking_data_with_noise = np.random.normal(
-            loc=cooking_data_real, scale=likelihood_epsilon_square
+        mean_log = np.log(cooking_data_real)
+        cooking_data_with_noise = np.random.lognormal(
+            mean=mean_log, sigma=0.015
         )
+        a = 1
+        likelihood_epsilon_square = a * (prior_mean - actual_duration/cooking_data_with_noise) ** 2
         posterior_mean = (
-            prior_variance * cooking_data_with_noise
-            + likelihood_epsilon_square * prior_mean
+            prior_variance * prior_mean
+            + likelihood_epsilon_square * actual_duration/cooking_data_with_noise
         ) / (likelihood_epsilon_square + prior_variance)
         posterior_variance = (likelihood_epsilon_square * prior_variance) / (
             likelihood_epsilon_square + prior_variance

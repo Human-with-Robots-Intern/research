@@ -19,12 +19,15 @@ log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 class ConstraintHandler:
-    def __init__(self):
-        """
-        constraints: nx.DiGraph
-          - 각 edge(u->v)에 "info": {"Interval": float, "IsCritical": bool}가 존재
-        """
-        pass
+    def get_critical_window(self, curr_node: SimulationNode) -> Tuple[float, float]:
+        subtask = curr_node.state.subtask
+        completed_subtasks = curr_node.state.completed_subtasks
+
+        for ce in completed_subtasks:
+            out_time_slots = self.get_time_slots(
+                ce.subtask.name, curr_node.state.constraints, "out"
+            )
+            out_critical_slots = [ts for ts in out_time_slots if ts.is_critical]
 
     def get_time_slots(
         self, subtask_name: str, constraints: DiGraph, direction: str
@@ -36,7 +39,7 @@ class ConstraintHandler:
         )
 
         if not edges:
-            return TimeSlot(0, False, None)
+            return [TimeSlot(0, False, None)]
 
         time_slots = []
         linked_subtasks = []  # 여러 개일 수 있음
@@ -52,17 +55,7 @@ class ConstraintHandler:
                 time_slots.append(TimeSlot(interval, True, linked_subtask))
             else:
                 time_slots.append(TimeSlot(interval, False, linked_subtask))
-        return max(time_slots, key=lambda x: x.interval)
-
-    def get_actual_duration(
-        self, curr_state: SchedulerState, subtask_name: str
-    ) -> float:
-        time_slot = self.get_time_slots(subtask_name, curr_state.constraints, "in")
-        for ce in curr_state.completed_subtasks:
-            if ce.subtask.name == time_slot.related_subtask_name:
-                actual_duration = curr_state.current_time - ce.end_time
-                break
-        return actual_duration
+        return time_slots
 
     def get_feasible_candidates(
         self,
@@ -110,21 +103,9 @@ class ConstraintHandler:
                     not_yet_candidates.append(
                         Candidate(sub, False, earliest_start_time)
                     )
-        # feasible_candidates = self._assign_deadlines(feasible_candidates, not_yet_candidates)
-        not_yet_candidates_for_deadline = sorted(
-            filter(lambda x: x.is_critical, not_yet_candidates),
-            key=lambda x: x.earliest_start_time,
+        feasible_candidates = self._assign_deadlines(
+            feasible_candidates, not_yet_candidates
         )
-        for candidate in feasible_candidates:
-            next_candidate = (
-                not_yet_candidates_for_deadline[0]
-                if not_yet_candidates_for_deadline
-                else None
-            )
-            candidate.deadline = Deadline(
-                next_candidate.earliest_start_time if next_candidate else float("inf"),
-                next_candidate.subtask.name if next_candidate else None,
-            )
 
         return (feasible_candidates, not_yet_candidates)
 
@@ -134,11 +115,13 @@ class ConstraintHandler:
         # find next critical in not_yet
         crit_candidates = [c for c in not_yet if c.is_critical]
         crit_candidates.sort(key=lambda x: x.earliest_start_time)
+
         if not crit_candidates:
             # no upcoming critical
             for c in feasible:
                 c.deadline = Deadline(float("inf"), None)
             return feasible
+
         next_crit = crit_candidates[0]
         for c in feasible:
             c.deadline = Deadline(next_crit.earliest_start_time, next_crit.subtask.name)

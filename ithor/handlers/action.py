@@ -1,4 +1,4 @@
-from ..utils.constants import GRID_SIZE
+from ..utils.constants import GRID_SIZE, SMOOTH_LEVEL
 from .navigation_handler import NavigationHandler
 
 import time
@@ -35,8 +35,9 @@ class Action:
         # 실제로는 controller의 메타데이터나 객체 속성에 따라 다를 수 있음
         for obj in object_metadata:
             if obj["objectId"] == object_id:
-                if "parentReceptacles" in obj:
+                if obj["parentReceptacles"] is not []:
                     parent_receptacle_ids = obj["parentReceptacles"]
+                    print(parent_receptacle_ids)
                     break
         if parent_receptacle_ids:
             parent_receptacle_id = parent_receptacle_ids[0]
@@ -120,7 +121,8 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        return 1
+        elapsed_time = 1
+        return elapsed_time
 
     def put(self, target_id: str):
         elapsed_time = 1
@@ -141,9 +143,9 @@ class Action:
             self.controller.step("MoveAhead")
             self.controller.step(action="DropHandObject", forceAction=True)
             elapsed_time += 1
-        self.log_file.write(
-            "Alternative Action: Drop: " + self.last_action_success(self.controller)
-        )
+            self.log_file.write(
+                "Alternative Action: Drop: " + self.last_action_success(self.controller)
+            )
 
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
@@ -167,7 +169,8 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        return 1
+        elapsed_time = 1
+        return elapsed_time
 
     def toggleon(self, object_id: str):
         self.controller.step(action="ToggleObjectOn", objectId=object_id)
@@ -177,7 +180,8 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        return 1
+        elapsed_time = 1
+        return elapsed_time
 
     def toggleoff(self, object_id: str):
         self.controller.step(action="ToggleObjectOff", objectId=object_id)
@@ -187,21 +191,22 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        return 1
+        elapsed_time = 1
+        return elapsed_time
 
     def open(self, object_id: str):
         elapsed_time = 0
         # 일단 두 발자국 물러나기
-        for i in range(2):
-            self.controller.step(action="MoveBack", moveMagnitude=None)
-            self.controller.step(action="Pass")
-            elapsed_time += 0.1
-        self.camera_handler.update_view()
-        time.sleep(0.1)
+        # for i in range(2):
+        #     self.controller.step(action="MoveBack", moveMagnitude=None)
+        #     self.controller.step(action="Pass")
+        #     elapsed_time += 0.1
+        # self.camera_handler.update_view()
+        # time.sleep(0.1)
 
         # 열기
         self.controller.step(
-            action="OpenObject", objectId=object_id, openness=1, forceAction=False
+            action="OpenObject", objectId=object_id, openness=1, forceAction=True
         )
         self.log_file.write(
             f"open {object_id}: " + self.last_action_success(self.controller)
@@ -222,33 +227,60 @@ class Action:
         self.controller.step(action="Pass")
         self.camera_handler.update_view()
         time.sleep(0.3)
-        return 1
+        elapsed_time = 1
+        return elapsed_time
 
-    def mornitoring(self, object_id: str):
+    def monitoring(self, object_id: str):
         # object를 바라보게 하고 다시 돌아봐야함
         agent_position = self.navi.get_agent_position()
         object_position = self.navi.get_object_position(object_id)
-
+        print(f"모니터링 할거임 : {object_id} 쳐다볼거임")
         obj_angle, degree = self.navi.agent_rotate_angle(
             agent_position, object_position
         )
-        for _ in range(3):  # 그냥 회전하는거 잘 보고싶어서 세 번에 나누어서 회전
-            # 일단 회전하고
-            self.controller.step(action="RotateRight", degrees=degree)
-            success = self.controller.last_event.metadata["lastActionSuccess"]
-            # 실패하면 움직여서 다시 한 번 더 도전. 여기는 while문을 써야할까?
-            if not success:
-                self.move_in_direction(-obj_angle, 0.2)
-                self.controller.step(action="RotateRight", degrees=degree)
+        if degree != 0:
+            for _ in range(SMOOTH_LEVEL):  # 자연스럽게 회전하도록 나눠서 회전 시행
+                # 일단 회전하고
+                self.controller.step(
+                    action="RotateRight", degrees=degree / SMOOTH_LEVEL
+                )
+                success = self.controller.last_event.metadata["lastActionSuccess"]
+                # 실패하면 움직여서 다시 한 번 더 도전. 여기는 while문을 써야할까?
+                if not success:
+                    self.move_in_direction(-obj_angle, 0.2)
+                    self.controller.step(
+                        action="RotateRight", degrees=degree / SMOOTH_LEVEL
+                    )
+                    self.camera_handler.update_view()
+                self.controller.step(action="Pass")
                 self.camera_handler.update_view()
-            self.controller.step(action="Pass")
-            self.camera_handler.update_view()
-            time.sleep(0.2)
-        time.sleep(1)
-        for _ in range(3):
-            self.controller.step(action="RotateLeft", degrees=degree)
-            self.camera_handler.update_view()
-            time.sleep(0.2)
+
+        self.navi.adjust_camera_to_object(object_id)
+
+        time.sleep(2)
+        if degree != 0:
+            for _ in range(SMOOTH_LEVEL):
+                self.controller.step(action="RotateLeft", degrees=degree / SMOOTH_LEVEL)
+                self.camera_handler.update_view()
         self.controller.step("Pass")
-        time.sleep(1)
-        return 0.1
+        time.sleep(0.1)
+        elapsed_time = 0.1
+        return elapsed_time
+
+    def wait(self, wait_time=1):
+        time.sleep(wait_time)
+        return wait_time
+    
+    def fill(self, object_id: str):
+        self.controller.step(action="FillObjectWithLiquid",
+        objectId=object_id,
+        fillLiquid="water",
+        forceAction=True)
+        self.log_file.write(
+            f"fill {object_id} with water: " + self.last_action_success(self.controller)
+        )
+        self.controller.step(action="Pass")
+        self.camera_handler.update_view()
+        time.sleep(0.3)
+        elapsed_time = 1
+        return elapsed_time

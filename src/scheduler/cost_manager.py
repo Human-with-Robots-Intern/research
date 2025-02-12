@@ -3,7 +3,7 @@ import math
 from typing import Optional
 
 from core.task import Subtask
-from scheduler.dataclass import Candidate, SimulationNode
+from scheduler.dataclass import Candidate, SimulationNode, TimeSlot
 from utils.constants import SIMULATION_DEPTH
 from utils.task import load_navigation_times
 from utils.util import create_module_logger
@@ -34,24 +34,30 @@ class HeuristicManager:
 
         # * (1) 이전 실행에 가까울수록 높은 우선 순위를 부여
         factor = -math.exp(max(self.cost_weight - current_node.depth, 1))
-        # factor = -max(self.cost_weight - current_node.depth, 1)
 
         # * (2) 시간 휴리스틱
         # Dependency를 끝내는 작업은 느리게 시작해야 됨
-        in_time_slot = self.constraint_handler.get_time_slots(
+        in_time_slots = self.constraint_handler.get_time_slots(
             candidate.subtask.name, current_node.state.constraints, "in"
         )
-        out_time_slot = self.constraint_handler.get_time_slots(
+
+        out_time_slots = self.constraint_handler.get_time_slots(
             candidate.subtask.name, current_node.state.constraints, "out"
         )
 
-        # Dependency를 시작하는 작업은 빠르게 시작해야 됨
-        in_time_slot_critical = 0
-        if in_time_slot.is_critical:
-            in_time_slot_critical = in_time_slot.interval
+        # * (3) 시간 슬롯 중 가장 큰 시간을 가진 TimeSlot을 찾아서 계산
+        in_time_slot = (
+            max(
+                list(filter(lambda x: x.is_critical, in_time_slots)),
+                key=lambda x: x.interval,
+            )
+            if list(filter(lambda x: x.is_critical, in_time_slots))
+            else TimeSlot(interval=0, is_critical=False, related_subtask_name=None)
+        )
+        out_time_slot = max(out_time_slots, key=lambda x: x.interval)
 
         # ! DO NOT FIX THIS HEURISTIC FORMULA
-        time_diff = out_time_slot.interval + in_time_slot_critical
+        time_diff = out_time_slot.interval + in_time_slot.interval
         base_heuristic = factor * (
             candidate.subtask.duration.interval + navigate_time + math.exp(time_diff)
         )
@@ -69,22 +75,6 @@ class NavigationManager:
 
     def __init__(self):
         self.navigation_times = load_navigation_times()
-
-    def compute_specific_navigation_time(
-        self, current_node: SimulationNode, target_loc: str
-    ) -> float:
-        """
-        Compute how long the robot will spend navigating to 'target_loc'.
-        """
-        # If the subtask type is Monitor or no movement needed, return 0 immediately
-
-        start_location = None
-        # 1) Ensure we have a known robot location
-        start_location = self._ensure_agent_location(current_node)
-        if start_location is None:
-            start_location = "agent"
-        current_source = start_location
-        return self._lookup_navigation_time(current_source, target_loc)
 
     def compute_total_navigation_time(
         self, current_node: SimulationNode, next_subtask: Subtask
@@ -122,13 +112,12 @@ class NavigationManager:
         for action in next_subtask.execution.primitive_actions:
             if action.startswith("NAVIGATE_TO"):
                 # e.g. "NAVIGATE_TO Kitchen"
-                target_loc = action.split("NAVIGATE_TO", 1)[-1].strip()
-                step_time = self._lookup_navigation_time(current_source, target_loc)
+                target_loc = action.split("NAVIGATE_TO")[1].strip()
+                step_time = self.get_specific_nav_time(current_source, target_loc)
                 nav_time_total += step_time
                 current_source = target_loc
 
-        # 4) Update the current location in the state
-        return nav_time_total, current_source
+        return nav_time_total, target_loc
 
     # ----------------------------------------------------------------------
     #  Internal Helpers
@@ -148,7 +137,6 @@ class NavigationManager:
         # Attempt to find from the plan's history
         found_loc = self._find_last_location(current_node)
         if found_loc:
-            # current_node.state.agent_location = found_loc
             return found_loc
 
         # If not found, return None
@@ -159,17 +147,21 @@ class NavigationManager:
         Traverse completed_subtasks (and current subtask) from the end,
         searching for the last NAVIGATE_TO action. Return its target location.
         """
-        plan = current_node.state.completed_subtasks + [current_node.state.subtask]
+        plan = current_node.state.completed_subtasks
         # Traverse in reverse to find the most recent NAVIGATE_TO
-        for st in reversed(plan):
-            if not st or not st.execution or not st.execution.primitive_actions:
+        for ce in reversed(plan):
+            if (
+                not ce.subtask
+                or not ce.subtask.execution
+                or not ce.subtask.execution.primitive_actions
+            ):
                 continue
-            for action in reversed(st.execution.primitive_actions):
+            for action in reversed(ce.subtask.execution.primitive_actions):
                 if action.startswith("NAVIGATE_TO"):
-                    return action.split("NAVIGATE_TO", 1)[-1].strip()
+                    return action.split("NAVIGATE_TO")[1].strip()
         return None
 
-    def _lookup_navigation_time(self, source: str, target: str) -> float:
+    def get_specific_nav_time(self, source: str, target: str) -> float:
         """
         Look up the travel time from 'source' to 'target' in navigation_times.
         If not found, return 0.0 and log a warning.

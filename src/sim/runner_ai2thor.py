@@ -46,83 +46,6 @@ log_file = open(Path.cwd() / Path("logs/ai2thor_log.log"), "w", buffering=1)
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
-def get_environment(controller):  # 최종 환경 추출
-    scene_name = controller.step("Pass").metadata["sceneName"]
-    objs = controller.step("Pass").metadata["objects"]
-    openable = []
-    openableID = []
-    toggleable = []
-    toggleableID = []
-    pickupable = []
-    pickupableID = []
-    receptacle = []
-    receptacleID = []
-
-    for obj in objs:
-        if obj["openable"]:
-            openable.append(obj["objectType"])
-        if obj["toggleable"]:
-            toggleable.append(obj["objectType"])
-        if obj["pickupable"]:
-            pickupable.append(obj["objectType"])
-        if obj["receptacle"]:
-            receptacle.append(obj["objectType"])
-
-    openable = list(set(openable))
-    toggleable = list(set(toggleable))
-    pickupable = list(set(pickupable))
-    receptacle = list(set(receptacle))
-
-    objs = []
-
-    for obj in openable:
-        openable_ids = controller.step(
-            action="ObjectTypeToObjectIds", objectType=obj
-        ).metadata["actionReturn"]
-        openableID.extend(openable_ids)
-        objs.extend(openable_ids)
-    for obj in toggleable:
-        toggleable_ids = controller.step(
-            action="ObjectTypeToObjectIds", objectType=obj
-        ).metadata["actionReturn"]
-        toggleableID.extend(toggleable_ids)
-        objs.extend(toggleable_ids)
-    for obj in pickupable:
-        pickupable_ids = controller.step(
-            action="ObjectTypeToObjectIds", objectType=obj
-        ).metadata["actionReturn"]
-        pickupableID.extend(pickupable_ids)
-        objs.extend(pickupable_ids)
-    for obj in receptacle:
-        receptacle_ids = controller.step(
-            action="ObjectTypeToObjectIds", objectType=obj
-        ).metadata["actionReturn"]
-        receptacleID.extend(receptacle_ids)
-        objs.extend(receptacle_ids)
-    # breakable 추가하기
-    env = {
-        scene_name: {
-            "OPEN": openableID,
-            "CLOSE": openableID,
-            "TOGGLE_ON": toggleableID,
-            "TOGGLE_OFF": toggleableID,
-            "GRASP": pickupableID,
-            "RECEPTACLE": receptacleID,
-        }
-    }
-
-    objs = list(set(objs))
-
-    with open(
-        KNOWLEDGE_PATH
-        / f"{controller.last_event.metadata['sceneName']}_environment.json",
-        "w",
-    ) as f:
-        json.dump(env, f)
-
-    return env, objs  # prompt 에 쓸 땐 str(env)로 바꿔줘야함
-
-
 def init_ai2thor():
     controller = Controller(
         agentMode="default",  # "default", "locobot", "drone", or "arm",
@@ -164,28 +87,45 @@ def execute_subtask(controller, subtask):
     Navi = NavigationHandler(controller, camera_handler)
     Act = Action(controller, camera_handler, log_file)
 
+    # Skip the Init subtask
+    if subtask.name == "Init":
+        return
+
     log_file.write(f"Executing Subtask: {subtask.name}\n")
 
     # Parse execution details
     execution = subtask.execution
-    objects, primitive_actions = execution.objects, execution.primitive_actions
+    print("====================================")
+    print("***********EXECUTION****************")
+    print(f"{subtask=}")
+    ## Wait의 형식을 맞춰주든가 여기서 처리를 하든가 해야함
+    primitive_actions = execution.primitive_actions
+    objects = execution.objects
 
+    # Read JSON file
+    # with open(KNOWLEDGE_PATH / "knowledge.json", "r") as file:
+    #     knowledge = json.load(file)
+    # ground_truth = knowledge["Subtasks"]["Prepare Egg Fry(subtask.name 이 맞음)"]["expected_duration"]
     object_registry = {}
 
     # "NAVIGATE_TO laundry_hamper",
     # "GRASP clothes",
     # "NAVIGATE_TO washing_machine",
     # "PLACE_INSIDE washing_machine"
-    for obj_id in objects:
-        ai2thor_obj = list(
-            set(obj["objectId"] for obj in controller.step("Pass").metadata["objects"])
-        )
-        if ai2thor_obj is None:
-            log_file.write(f"Object '{obj_id}' not found in the environment.")
-            return False
-        object_registry[obj_id] = ai2thor_obj
+    if objects is not None:
+        for obj_id in objects:
+            ai2thor_obj = list(
+                set(
+                    obj["objectId"]
+                    for obj in controller.step("Pass").metadata["objects"]
+                )
+            )
+            if ai2thor_obj is None:
+                log_file.write(f"Object '{obj_id}' not found in the environment.")
+                return False
+            object_registry[obj_id] = ai2thor_obj
 
-    # Define action mapping to Omnigibson action primitives
+    # Define action mapping to ai2thor action primitives
     action_mapping = {
         "NAVIGATE_TO": lambda target_obj: Navi.move_to(target_obj),
         "GRASP": lambda target_obj: Act.pickup(target_obj),
@@ -196,11 +136,13 @@ def execute_subtask(controller, subtask):
         "TOGGLE_ON": lambda target_obj: Act.toggleon(target_obj),
         "TOGGLE_OFF": lambda target_obj: Act.toggleoff(target_obj),
         "SLICE": lambda target_obj: Act.slice(target_obj),
-        # 필요한 경우 다른 액션을 추가할 수 있습니다.
+        "MONITORING": lambda target_obj: Act.monitoring(target_obj),
+        "WAIT": lambda duration: Act.wait(round(float(duration), 2)),
+        "FILL": lambda target_obj: Act.fill(target_obj),
     }
 
     # Execute each primitive action
-    time = 0
+    elapsed_time = 0
     for action_str in primitive_actions:
         # Split action into type and target
         parts = action_str.split(" ", 1)
@@ -209,20 +151,18 @@ def execute_subtask(controller, subtask):
             raise ValueError(f"Invalid action format: {action_str}")
 
         action_type, target_obj_ID = parts
-        # subtask 의 obj 명이 ID가 아니라 name으로 출력돼서 필요한 줄.
-        print(f"{action_type=}")
-        print(f"{target_obj_ID=}")
         if action_type in action_mapping:
             log.info(
                 f"Performing action: {action_type} on {target_obj_ID.split('|')[0]}"
             )
-
-            # 실행된 제너레이터의 최종 결과를 success로 받음
-            generator = action_mapping[action_type](target_obj_ID)
-            print(f"{generator=}")
-            time += generator
-            print(f"{time=}")
+            # 총 걸린시간 계산
+            elapsed_time += action_mapping[action_type](target_obj_ID)
         else:
-            log.warning(f"Unknown action type: {action_type}. Skipping.")
-    print(f"{subtask.name}의 걸린시간 = {round(time, 2)}")
+            log.warning(
+                f"Unknown action type: {action_type}. Skipping {action_str} in {subtask.name}."
+            )
+    print(f"{subtask.name}의 걸린시간 = {round(elapsed_time, 2)}")
     log.info(f"Successfully executed Subtask: {subtask.name}")
+    print("================END=================")
+    print("====================================")
+    return elapsed_time

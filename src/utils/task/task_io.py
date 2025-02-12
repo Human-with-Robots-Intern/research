@@ -6,7 +6,7 @@ from utils.task.task_generator import generate_task
 
 
 def load_navigation_times():
-    with open(KNOWLEDGE_PATH / "FloorPlan1_navigation_time.json", "r") as f:
+    with open(KNOWLEDGE_PATH / "FloorPlan1_physics_navigation_time.json", "r") as f:
         navigation_times = json.load(f)
     return navigation_times
 

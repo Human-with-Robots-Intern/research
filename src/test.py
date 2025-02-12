@@ -44,6 +44,7 @@ def parse_arguments():
     parser.add_argument(
         "-s",
         "--simulation",
+        # default=True,
         action="store_true",
     )
     return parser.parse_args()
@@ -64,7 +65,7 @@ def main():
 
     # Build tasks and constraints
     subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
-
+    
     # Visualize the task graph if enabled
     if args.visualize:
         visualize(task_file_name, constraints)
