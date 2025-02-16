@@ -17,6 +17,7 @@ from utils import BEAM_WIDTH, SIMULATION_DEPTH, create_module_logger
 from utils.constants import BAYESIAN_CRITERIA, EPSILON, LOG_ROUND, RED, RESET
 from utils.task.task_util import split_subtask_for_monitoring
 
+
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
@@ -324,11 +325,23 @@ class Scheduler:
             curr_node=curr_node,
             candidate=candidate,
             nav_manager=self.nav_manager,
-            early_cutoff=critical_start_time + early_cutoff - curr_state.current_time,
+            early_cutoff=early_cutoff,
         )
-
-        # 2) Deadline 체크
-        if deadline_due < (curr_state.current_time + early_sub.duration.interval):
+        print(f"Critical Constraints : {critical_start_sub_name} ~ {deadline_sub_name}")
+        print(f"original execution time : {total_duration}")
+        print(f"early cutoff time : {early_cutoff}")
+        print(f"early_sub execution time : {early_sub.duration.interval}")
+        print(f"mon_sub execution time : {mon_sub.duration.interval}")
+        print(f"remain_sub execution time : {remain_sub.duration.interval}")
+        
+        nav_start_to_critical_end = self.nav_manager.get_last_location(curr_node, early_sub)
+        nav_end_to_critical_end = candidate.subtask.execution.primitive_actions[0].split(" ")[-1]
+        primitive_0 = candidate.subtask.execution.primitive_actions[0]
+        nav_time_to_critical_end = self.nav_manager.get_specific_nav_time(nav_start_to_critical_end, nav_end_to_critical_end)
+        
+        # deadline 체크 시 이동시간도 포함하여 검사
+        if deadline_due < (curr_state.current_time + early_sub.duration.interval + nav_time_to_critical_end):
+            # deadline 넘어가면 확장 무의미
             return None
 
         # 3) Constraints 그래프 복제/수정
@@ -496,15 +509,23 @@ class Scheduler:
         curr_depth = curr_node.depth
         curr_heuristic = curr_node.heuristic_cost
 
-        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
-            curr_node, candidate.subtask
-        )
-
+        # 여기서는 nav_time을 거의 0으로 처리(Wait 위치 이동 없음 가정)
+        # nav_time = self.nav_manager.compute_total_navigation_time(
+        #     curr_node, candidate.subtask
+        # )
+        #new_location = self.nav_manager.get_last_location(curr_node, candidate.subtask)
         wait_start_time = curr_state.current_time
         wait_duration = candidate.earliest_start_time - curr_state.current_time
         if wait_duration < 0:
-            wait_duration = 0
+            wait_duration = 0  # 혹시 음수면 0으로
 
+
+
+        nav_start_to_critical_end = curr_node.state.agent_location
+        nav_end_to_critical_end = candidate.subtask.execution.primitive_actions[0].split(" ")[-1]
+        nav_time_to_critical_end = self.nav_manager.get_specific_nav_time(nav_start_to_critical_end, nav_end_to_critical_end)
+        new_location = nav_end_to_critical_end
+        
         wait_sub = Subtask(
             task_name=None,
             name=f"Wait for {candidate.subtask.name}",
@@ -515,7 +536,7 @@ class Scheduler:
                 objects=None,
                 primitive_actions=[
                     f"NAVIGATE_TO {new_location}",
-                    f"WAIT {wait_duration - nav_time}",
+                    f"Wait {wait_duration-nav_time_to_critical_end}",
                 ],
             ),
             temporal_constraints=None,
