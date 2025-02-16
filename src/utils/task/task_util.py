@@ -1,4 +1,5 @@
 import copy
+import json
 import uuid
 from typing import List, Tuple
 
@@ -12,6 +13,7 @@ from scheduler.dataclass import (
     SimulationNode,
 )
 from utils.constants import (
+    KNOWLEDGE_PATH,
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
@@ -91,10 +93,31 @@ def build_tasks_and_constraints(
     tasks = Task.parse_instruction(task_data)
     tasks = revision_primitive_actions(tasks)
 
+    knowledge_file = KNOWLEDGE_PATH / "bayesian_estimate.json"
+
+    if knowledge_file.exists():
+        try:
+            with knowledge_file.open("r", encoding="utf-8") as f:
+                bayesian_load = json.load(f)
+        except json.JSONDecodeError as e:
+            raise json.JSONDecodeError(
+                f"Error decoding knowledge file: {e}", doc="", pos=0
+            )
+    else:
+        raise FileNotFoundError(f"Knowledge file not found at {knowledge_file}.")
     if enable_decomposition:
         for task in tasks:
             task.decompose_subtasks()
-
+            for i in range(len(task.subtasks)):
+                print(task.subtasks[i])
+                temporal = task.subtasks[i].temporal_constraints
+                if temporal:
+                    if temporal[0].is_critical:
+                        subtask_name = task.subtasks[i].name
+                        temporal[0].interval = (
+                            bayesian_load[subtask_name]["expected_duration"]
+                        )
+                        print()
     task_graph_builder = TaskGraphBuilder()
     task_graph = task_graph_builder.build_graph(tasks)
     subtasks = tasks_to_subtasks(tasks)
@@ -273,6 +296,9 @@ def split_primitive_actions_by_time(
         leftover_for_early = cutoff_time - time_used
 
         # (C) 분할 로직
+        # critical_end = 
+        # duration_with_nav = duration + nav_manager.get_specific_nav_time(tokens[-1], critical_end)
+        # if duration_with_nav <= leftover_for_early:
         if duration <= leftover_for_early:
             # 이 액션 전체를 early에 할당
             early_actions.append(action)
