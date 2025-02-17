@@ -1,8 +1,11 @@
 import copy
+
+## 유사도 검사를 위한 import
 import json
 import uuid
 from typing import List, Tuple
 
+import requests
 from networkx import DiGraph
 
 from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
@@ -17,12 +20,7 @@ from utils.constants import (
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
-    KNOWLEDGE_PATH,
 )
-
-## 유사도 검사를 위한 import
-import json
-import requests
 
 API_URL = (
     "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
@@ -183,6 +181,7 @@ def check_obj_id(tasks):
                         print(actions[i])
     return tasks
 
+
 def start_with_navigate_to(tasks):
     for task in tasks:
         for subtask in task.subtasks:
@@ -192,7 +191,6 @@ def start_with_navigate_to(tasks):
                 subtask.execution.primitive_actions.insert(0, action)
                 continue
     return tasks
-
 
 
 def build_tasks_and_constraints(
@@ -213,6 +211,7 @@ def build_tasks_and_constraints(
 
     knowledge_file = KNOWLEDGE_PATH / "bayesian_estimate.json"
 
+    # Load the expected duration from the knowledge file
     if knowledge_file.exists():
         try:
             with knowledge_file.open("r", encoding="utf-8") as f:
@@ -223,19 +222,26 @@ def build_tasks_and_constraints(
             )
     else:
         raise FileNotFoundError(f"Knowledge file not found at {knowledge_file}.")
+
     if enable_decomposition:
         for task in tasks:
             task.decompose_subtasks()
-            for i in range(len(task.subtasks)):
-                print(task.subtasks[i])
-                temporal = task.subtasks[i].temporal_constraints
-                if temporal:
-                    if temporal[0].is_critical:
-                        subtask_name = task.subtasks[i].name
-                        temporal[0].interval = (
-                            bayesian_load[subtask_name]["expected_duration"]
-                        )
-                        print()
+            for subtask in task.subtasks:
+                for temporal_constraint in subtask.temporal_constraints:
+                    if temporal_constraint.is_critical:
+                        # Set the expected duration for critical subtasks
+                        if bayesian_load.get(subtask.name, None) is None:
+                            with open(knowledge_file, "w") as f:
+                                bayesian_load[subtask.name] = {
+                                    "expected_duration": 10.0,
+                                    "variance": 1.0,
+                                }
+                                json.dump(bayesian_load, f, indent=4)
+                        else:
+                            temporal_constraint.interval = bayesian_load[subtask.name][
+                                "expected_duration"
+                            ]
+
     task_graph_builder = TaskGraphBuilder()
     task_graph = task_graph_builder.build_graph(tasks)
     subtasks = tasks_to_subtasks(tasks)
@@ -319,9 +325,7 @@ def split_subtask_for_monitoring(
         if candidate.deadline.subtask_name == subtask.name:
             crit_subtask = subtask
             break
-    monitoring_obj = crit_subtask.execution.primitive_actions[0].split(" ")[
-        1
-    ]
+    monitoring_obj = crit_subtask.execution.primitive_actions[0].split(" ")[1]
     related_subtask_name = candidate.deadline.subtask_name
     monitor_sub = Subtask(
         task_name=candidate.subtask.task_name,
@@ -419,7 +423,7 @@ def split_primitive_actions_by_time(
         leftover_for_early = cutoff_time - time_used
 
         # (C) 분할 로직
-        # critical_end = 
+        # critical_end =
         # duration_with_nav = duration + nav_manager.get_specific_nav_time(tokens[-1], critical_end)
         # if duration_with_nav <= leftover_for_early:
         if duration <= leftover_for_early:
@@ -459,7 +463,7 @@ def split_primitive_actions_by_time(
         leftover_wait = cutoff_time - time_used
         early_actions.append(f"WAIT {leftover_wait}")
         time_used += leftover_wait
-    
+
     if remain_actions != []:
         obj = remain_actions[0].split(" ")[1]
         remain_actions.insert(0, "NAVIGATE_TO " + obj)

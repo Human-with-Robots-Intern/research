@@ -9,6 +9,10 @@ VIS_PATH = ROOT_PATH / "assets" / "results"
 TASK_PATH = ROOT_PATH / "assets" / "tasks"
 LOG_PATH = ROOT_PATH / "logs"
 
+PROMPT_FILE_PATH = "e2e_generator_ver5.txt"
+ESTIMATE_FILE_NAME = "bayesian_estimate.json"
+GROUND_TRUTH_FILE_NAME = "bayesian_ground_truth.json"
+
 # * 시뮬레이션 관련 상수
 PRIMITIVE_ACTION_SET = {
     "NAVIGATE_TO",
@@ -29,8 +33,8 @@ MONITORING_DURATION = 0.1
 
 
 # * 스케쥴러 관련
-SIMULATION_DEPTH = 10
-BEAM_WIDTH = 10
+SIMULATION_DEPTH = 3
+BEAM_WIDTH = 3
 
 EPSILON = 1e-3
 LARGE_NUMBER = 1e3
