@@ -111,7 +111,7 @@
                         "Type": "After",
                         "Subtask": "Wash Egg",
                         "Interval": 100,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             },
@@ -175,7 +175,7 @@
                         "Type": "After",
                         "Subtask": "Wash Potato",
                         "Interval": 20,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             },
@@ -638,7 +638,7 @@
                         "Type": "After",
                         "Subtask": "Heat Potato in Microwave",
                         "Interval": 10,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             }
@@ -797,7 +797,7 @@
                         "Type": "After",
                         "Subtask": "Start Microwave for Potato",
                         "Interval": 5,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             }

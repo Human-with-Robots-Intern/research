@@ -1,5 +1,6 @@
 import copy
 import itertools
+import uuid
 from queue import PriorityQueue
 from typing import List, Optional
 
@@ -14,7 +15,14 @@ from scheduler.dataclass import (
     SimulationNode,
 )
 from utils import BEAM_WIDTH, SIMULATION_DEPTH, create_module_logger
-from utils.constants import BAYESIAN_CRITERIA, EPSILON, LOG_ROUND, RED, RESET
+from utils.constants import (
+    BAYESIAN_CRITERIA,
+    EPSILON,
+    LOG_ROUND,
+    MONITORING_DURATION,
+    RED,
+    RESET,
+)
 from utils.task.task_util import split_subtask_for_monitoring
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
@@ -219,7 +227,7 @@ class Scheduler:
                 not_yet_candidates, key=lambda x: x.earliest_start_time
             )
             wait_candidate = sorted_not_yet[0]
-            wait_node = self._expand_wait_subtask(curr_node, wait_candidate)
+            wait_node = self._expand_single_wait(curr_node, wait_candidate)
             expanded_nodes.append(wait_node)
 
         return expanded_nodes
@@ -278,7 +286,9 @@ class Scheduler:
         """
         # Check if deadline is already violated
         if candidate.deadline.due_date < curr_node.state.current_time:
-            return None
+            raise ValueError(
+                f"[_expand_single_subtask] Deadline violation: {candidate.subtask.name}"
+            )
 
         # Decide if we need monitoring
         use_monitoring = self._should_expand_with_monitoring(curr_node, candidate)
@@ -287,6 +297,35 @@ class Scheduler:
             return self._expand_subtask_with_monitoring(curr_node, candidate)
         else:
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
+
+    def _expand_single_wait(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+    ) -> Optional[SimulationNode]:
+        """
+        Expands the given candidate subtask by deciding whether to split it
+        into a monitoring subtask or not.
+
+        Args:
+            curr_node (SimulationNode): The current node in the search tree.
+            candidate (Candidate): The subtask candidate to expand.
+
+        Returns:
+            Optional[SimulationNode]: The resulting child node if successful,
+            otherwise None.
+        """
+
+        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
+            curr_node, candidate.subtask
+        )
+
+        if nav_time > 0.1 and candidate.earliest_start_time > (
+            curr_node.state.current_time + nav_time + MONITORING_DURATION
+        ):
+            return self._expand_wait_with_monitoring(curr_node, candidate)
+        else:
+            return self._expand_wait_wo_monitoring(curr_node, candidate)
 
     def _expand_subtask_with_monitoring(
         self,
@@ -551,7 +590,7 @@ class Scheduler:
             state=new_state,
         )
 
-    def _expand_wait_subtask(
+    def _expand_wait_with_monitoring(
         self,
         curr_node: SimulationNode,
         candidate: Candidate,
@@ -573,18 +612,146 @@ class Scheduler:
         curr_depth = curr_node.depth
         curr_heuristic = curr_node.heuristic_cost
 
+        # Calculate wait duration
         wait_start_time = curr_state.current_time
         wait_duration = candidate.earliest_start_time - curr_state.current_time
-        if wait_duration < 0:
-            wait_duration = 0.0
 
-        # TODO WAIT Partial Wait by Monitoring (Wait 중 Monitoring 도래)
-        nav_start = curr_node.state.agent_location
-        nav_end = candidate.subtask.execution.primitive_actions[0].split(" ")[-1]
-        nav_time_to_critical_end = self.nav_manager.get_specific_nav_time(
-            nav_start, nav_end
+        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
+            curr_node, candidate.subtask
         )
-        new_location = nav_end
+
+        nav_action = [f"NAVIGATE_TO {new_location}"]
+        monitoring_action = (
+            [
+                f"MONITORING {candidate.subtask.execution.primitive_actions[0].split()[1]}"
+            ]
+            if nav_time > 0
+            else []
+        )
+
+        nav_before_wait_sub = Subtask(
+            task_name=None,
+            name=f"Navigate to {new_location}",
+            duration=Duration(interval=nav_time, type="Controllable"),
+            repetition=1,
+            type="Interaction",
+            execution=Execution(
+                objects=None,
+                primitive_actions=nav_action,
+            ),
+            temporal_constraints=None,
+        )
+
+        mon_sub = Subtask(
+            task_name=None,
+            name=f"Monitor for {candidate.subtask.name}_{uuid.uuid4().hex[:6]}",
+            duration=Duration(interval=MONITORING_DURATION, type="Controllable"),
+            repetition=1,
+            type="Wait",
+            execution=Execution(
+                objects=None,
+                primitive_actions=monitoring_action,
+            ),
+            temporal_constraints=None,
+        )
+
+        new_constraints = copy.deepcopy(curr_state.constraints)
+
+        # Add new subtask nodes
+        new_constraints.add_node(mon_sub.name)
+
+        new_constraints.add_edge(
+            curr_node.state.subtask.name,
+            mon_sub.name,
+            info={"Interval": nav_time, "IsCritical": True},
+        )
+
+        new_constraints.add_edge(
+            mon_sub.name,
+            candidate.subtask.name,
+            info={
+                "Interval": wait_duration - MONITORING_DURATION - nav_time,
+                "IsCritical": True,
+            },
+        )
+
+        # (D) Update "remaining subtasks"
+        new_remaining = [r for r in curr_state.remaining_subtasks]
+        new_remaining.extend([mon_sub])
+
+        # Mark the Wait subtask as completed
+        completed_entry = CompletedEntry(
+            subtask=nav_before_wait_sub,
+            start_time=wait_start_time,
+            end_time=wait_start_time + nav_time,
+        )
+        new_completed = curr_state.completed_subtasks + [completed_entry]
+
+        new_state = SchedulerState(
+            subtask=nav_before_wait_sub,
+            completed_subtasks=new_completed,
+            remaining_subtasks=new_remaining,
+            constraints=new_constraints,
+            current_time=wait_start_time + nav_time,
+            agent_location=new_location,
+        )
+
+        # Compute cost for Wait
+        wait_candidate = Candidate(
+            subtask=nav_before_wait_sub,
+            earliest_start_time=curr_node.state.current_time,
+            is_critical=False,
+        )
+
+        step_cost = self.cost_calculator.calc_heuristic(curr_node, wait_candidate, 0)
+        new_cost = curr_heuristic + step_cost
+
+        log.info(
+            f"[_expand_wait_with_monitoring] {nav_before_wait_sub .name}\n"
+            f"  -> Score={round(new_cost, LOG_ROUND)}, "
+            f"Interval={round(wait_start_time,2)}~{round(wait_start_time+wait_duration,2)}\n"
+            f"  -> remain={[r.name for r in curr_state.remaining_subtasks]}"
+        )
+
+        return SimulationNode(
+            parent_node=curr_node,
+            heuristic_cost=new_cost,
+            depth=curr_depth + 1,
+            tie_breaker=next(self._counter),
+            state=new_state,
+        )
+
+    def _expand_wait_wo_monitoring(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+    ) -> SimulationNode:
+        """
+        Inserts a single "Wait" action until the candidate's earliest_start_time.
+
+        - If earliest_start_time <= current_time, wait_duration becomes 0.
+        - This wait is modeled as a Subtask with type="Wait".
+
+        Args:
+            curr_node (SimulationNode): Current node in the search tree.
+            candidate (Candidate): The candidate subtask we're waiting for.
+
+        Returns:
+            SimulationNode: The child node representing the new state after waiting.
+        """
+        curr_state = curr_node.state
+        curr_depth = curr_node.depth
+        curr_heuristic = curr_node.heuristic_cost
+
+        # Calculate wait duration
+        wait_start_time = curr_state.current_time
+        wait_duration = candidate.earliest_start_time - curr_state.current_time
+
+        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
+            curr_node, candidate.subtask
+        )
+
+        wait_action = [f"Wait {wait_duration}"] if wait_duration > 0 else []
 
         wait_sub = Subtask(
             task_name=None,
@@ -594,10 +761,7 @@ class Scheduler:
             type="Wait",
             execution=Execution(
                 objects=None,
-                primitive_actions=[
-                    f"NAVIGATE_TO {new_location}",
-                    f"Wait {wait_duration - nav_time_to_critical_end}",
-                ],
+                primitive_actions=wait_action,
             ),
             temporal_constraints=None,
         )
@@ -622,14 +786,15 @@ class Scheduler:
         # Compute cost for Wait
         wait_candidate = Candidate(
             subtask=wait_sub,
-            earliest_start_time=new_state.current_time,
+            earliest_start_time=curr_node.state.current_time,
             is_critical=False,
         )
+
         step_cost = self.cost_calculator.calc_heuristic(curr_node, wait_candidate, 0)
         new_cost = curr_heuristic + step_cost
 
         log.info(
-            f"[_expand_wait_subtask] {wait_sub.name}\n"
+            f"[_expand_wait_wo_monitoring] {wait_sub.name}\n"
             f"  -> Score={round(new_cost, LOG_ROUND)}, "
             f"Interval={round(wait_start_time,2)}~{round(wait_start_time+wait_duration,2)}\n"
             f"  -> remain={[r.name for r in curr_state.remaining_subtasks]}"
@@ -674,6 +839,14 @@ class Scheduler:
         if candidate.subtask.decomposed:
             return False
 
+        # (3) Check if subtask is Critical Constraints End
+        in_time_slots = self.constraint_handler.get_time_slots(
+            candidate.subtask.name, curr_node.state.constraints, "in"
+        )
+
+        if any([slot.is_critical for slot in in_time_slots]):
+            return False
+
         # (3) Check if subtask ends before the monitoring cutoff
         curr_state = curr_node.state
         nav_time, _ = self.nav_manager.compute_total_navigation_time(
@@ -708,8 +881,3 @@ class Scheduler:
             return False
 
         return True
-
-
-# TODO Critical Subtask ground truth 도래시, 작업 종료 (예측값과 무관) 
-# TODO Subtask action 분할 시 (early, remain으로 나눠질 경우, 액션이 망가지는 경우 발생)
-# TODO 도래할 critical end subtask가 주어진 시간 내 도래할 수 없다면? -> Conflict?
