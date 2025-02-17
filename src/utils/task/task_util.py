@@ -1,7 +1,11 @@
 import copy
+
+## 유사도 검사를 위한 import
+import json
 import uuid
 from typing import List, Tuple
 
+import requests
 from networkx import DiGraph
 
 from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
@@ -12,15 +16,11 @@ from scheduler.dataclass import (
     SimulationNode,
 )
 from utils.constants import (
+    KNOWLEDGE_PATH,
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
-    KNOWLEDGE_PATH,
 )
-
-## 유사도 검사를 위한 import
-import json
-import requests
 
 API_URL = (
     "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
@@ -38,6 +38,17 @@ def load_object_Ids():
     with open(KNOWLEDGE_PATH / "FloorPlan1_physics_environment.json", "r") as f:
         objectIds = json.load(f)
     return objectIds
+
+
+def start_with_navigate_to(tasks):
+    for task in tasks:
+        for subtask in task.subtasks:
+            if "NAVIGATE_TO" not in subtask.execution.primitive_actions[0]:
+                obj = subtask.execution.primitive_actions[0].split(" ")[1]
+                action = "NAVIGATE_TO " + obj
+                subtask.execution.primitive_actions.insert(0, action)
+                continue
+    return tasks
 
 
 def tasks_to_subtasks(tasks, mode="all"):
@@ -170,6 +181,7 @@ def check_obj_id(tasks):
                         print(actions[i])
     return tasks
 
+
 def start_with_navigate_to(tasks):
     for task in tasks:
         for subtask in task.subtasks:
@@ -179,7 +191,6 @@ def start_with_navigate_to(tasks):
                 subtask.execution.primitive_actions.insert(0, action)
                 continue
     return tasks
-
 
 
 def build_tasks_and_constraints(
@@ -198,14 +209,44 @@ def build_tasks_and_constraints(
     tasks = revision_primitive_actions(tasks)
     tasks = start_with_navigate_to(tasks)
 
+    knowledge_file = KNOWLEDGE_PATH / "bayesian_estimate.json"
+
+    # Load the expected duration from the knowledge file
+    if knowledge_file.exists():
+        try:
+            with knowledge_file.open("r", encoding="utf-8") as f:
+                bayesian_load = json.load(f)
+        except json.JSONDecodeError as e:
+            raise json.JSONDecodeError(
+                f"Error decoding knowledge file: {e}", doc="", pos=0
+            )
+    else:
+        raise FileNotFoundError(f"Knowledge file not found at {knowledge_file}.")
+
     if enable_decomposition:
         for task in tasks:
             task.decompose_subtasks()
+            for subtask in task.subtasks:
+                for temporal_constraint in subtask.temporal_constraints:
+                    if temporal_constraint.is_critical:
+                        # Set the expected duration for critical subtasks
+                        if bayesian_load.get(subtask.name, None) is None:
+                            with open(knowledge_file, "w") as f:
+                                bayesian_load[subtask.name] = {
+                                    "expected_duration": 10.0,
+                                    "variance": 1.0,
+                                }
+                                json.dump(bayesian_load, f, indent=4)
+                        else:
+                            temporal_constraint.interval = bayesian_load[subtask.name][
+                                "expected_duration"
+                            ]
 
     task_graph_builder = TaskGraphBuilder()
     task_graph = task_graph_builder.build_graph(tasks)
     subtasks = tasks_to_subtasks(tasks)
     subtasks = adjust_subtasks_duration(subtasks)
+    tasks = start_with_navigate_to(tasks)
 
     return subtasks, task_graph
 
@@ -284,9 +325,7 @@ def split_subtask_for_monitoring(
         if candidate.deadline.subtask_name == subtask.name:
             crit_subtask = subtask
             break
-    monitoring_obj = crit_subtask.execution.primitive_actions[0].split(" ")[
-        1
-    ]
+    monitoring_obj = crit_subtask.execution.primitive_actions[0].split(" ")[1]
     related_subtask_name = candidate.deadline.subtask_name
     monitor_sub = Subtask(
         task_name=candidate.subtask.task_name,
@@ -384,6 +423,9 @@ def split_primitive_actions_by_time(
         leftover_for_early = cutoff_time - time_used
 
         # (C) 분할 로직
+        # critical_end =
+        # duration_with_nav = duration + nav_manager.get_specific_nav_time(tokens[-1], critical_end)
+        # if duration_with_nav <= leftover_for_early:
         if duration <= leftover_for_early:
             # 이 액션 전체를 early에 할당
             early_actions.append(action)
@@ -421,7 +463,7 @@ def split_primitive_actions_by_time(
         leftover_wait = cutoff_time - time_used
         early_actions.append(f"WAIT {leftover_wait}")
         time_used += leftover_wait
-    
+
     if remain_actions != []:
         obj = remain_actions[0].split(" ")[1]
         remain_actions.insert(0, "NAVIGATE_TO " + obj)

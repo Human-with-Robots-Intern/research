@@ -1,14 +1,46 @@
 {
-    "Brew Coffee": {
-        "expected_duration": 0.4809406867623476,
+    "Prepare Egg Fry": {
+        "expected_duration": 10.0,
         "variance": 1.0
     },
-    "Prepare Egg Fry": {
-        "expected_duration": 0.0,
-        "variance": 0.0
-    },
     "Turn off stove after cooking": {
-        "expected_duration": 0.0,
-        "variance": 0.0
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "Prepare Potato": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "Turn off stove after cooking potato": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "Turn off Stove after cooking": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "Turn Off Stove After Cooking": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "Retrieve Potato from Microwave and Place on Plate": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "Retrieve Potato from Microwave": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "Turn Off Stove After Boiling Potato": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "Turn Off Stove After Cooking Egg Fry": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "Turn off Stove after Boiling": {
+        "expected_duration": 10.0,
+        "variance": 1.0
     }
 }
