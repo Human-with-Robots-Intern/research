@@ -9,7 +9,13 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import openai
 
-from utils.constants import KNOWLEDGE_PATH, PROMPT_PATH, TASK_PATH
+from utils.constants import (
+    ESTIMATE_FILE_NAME,
+    KNOWLEDGE_PATH,
+    PROMPT_FILE_PATH,
+    PROMPT_PATH,
+    TASK_PATH,
+)
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
@@ -187,9 +193,9 @@ def cached_generate_task(
 
 def generate_task():
     """Generate tasks based on user input and knowledge base."""
-    file_name = "e2e_generator_ver5.txt"
-    examples_prompt = load_file(Path(PROMPT_PATH) / file_name, "txt")
-    knowledge = load_file(Path(KNOWLEDGE_PATH) / "bayesian_estimate.json", "json")
+
+    examples_prompt = load_file(Path(PROMPT_PATH) / PROMPT_FILE_PATH, "txt")
+    knowledge = load_file(Path(KNOWLEDGE_PATH) / ESTIMATE_FILE_NAME, "json")
 
     user_input = input("Please enter the instructions: ").strip()
     if not user_input:
@@ -206,11 +212,10 @@ def generate_task():
     if output and validate_output_format(output):
         task_numbers = len(output)
         subtask_numbers = sum(len(task.get("Subtasks", [])) for task in output)
-        output_file_name = f"{task_numbers}tasks_{subtask_numbers}subtasks.json"
-        sanitized_name = sanitize_file_name(output_file_name)
-        output_file_path = Path(TASK_PATH) / sanitized_name
+        output_file_name = f"_{task_numbers}tasks_{subtask_numbers}subtasks.json"
+        output_file_path = Path(TASK_PATH) / output_file_name
         save_to_file(output, output_file_path)
-        return sanitized_name
+        return output_file_name
     else:
         logger.error("Failed to generate output.")
         raise ValueError("Task generation failed.")
