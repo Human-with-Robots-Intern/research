@@ -107,7 +107,7 @@
           {
             "Type": "After",
             "Subtask": "Wash Egg",
-            "Interval": 40,
+            "Interval": 100,
             "Urgency": true
           }
         ]

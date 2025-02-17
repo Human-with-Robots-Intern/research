@@ -15,7 +15,7 @@ def create_module_logger(module_name, is_file_handler=False, console_output=True
     console_output: 콘솔에 로그를 출력할지 여부
     """
     logger = logging.getLogger(module_name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
 
     # 부모 로거로 전파되지 않도록 설정
     logger.propagate = False
@@ -44,11 +44,11 @@ def create_module_logger(module_name, is_file_handler=False, console_output=True
     # 파일 핸들러 추가 (옵션)
     if is_file_handler:
         file_handler = logging.FileHandler(
-            # LOG_PATH / f"{module_name}.log",
-            LOG_PATH / "all.log",
+            LOG_PATH / f"{module_name}.log",
+            # LOG_PATH / "all.log",
             mode="w",
         )
-        file_handler.setLevel(logging.INFO)
+        file_handler.setLevel(logging.DEBUG)
         file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
