@@ -380,6 +380,10 @@ def split_primitive_actions_by_time(
     time_used = 0.0
     i = 0
 
+    # grasp 가 존재하는지
+    exist_grasp = False
+    # grasp 뒤에 place 가 오는지, 초기값이 True인 이유는.. 초기에는 grasp가 없기 때문에..
+    exist_place_after_grasp = True
     while i < len(actions):
         action = actions[i]
         # base_action, (obj_name), duration 추출
@@ -395,11 +399,12 @@ def split_primitive_actions_by_time(
                 duration = float(tokens[2])
             else:
                 # 시간이 명시 안된 경우 NavManager로 추정
-                agent_loc = (
-                    curr_node.state.agent_location
-                    if curr_node.state.agent_location
-                    else "agent"
-                )
+                if i == 0:
+                    agent_loc = (
+                        curr_node.state.agent_location
+                        if curr_node.state.agent_location
+                        else "agent"
+                    )
                 duration = nav_manager.get_specific_nav_time(agent_loc, tokens[1])
                 agent_loc = tokens[1]
         elif base_action == "WAIT":
@@ -409,12 +414,16 @@ def split_primitive_actions_by_time(
         elif base_action == "MONITORING":
             # Monitoring은 분할 안 함
             duration = MONITORING_DURATION
+        elif base_action == "GRASP":
+            duration = PRIMITIVE_ACTION_DURATION
+            exist_grasp = True
+            exist_place_after_grasp = False
         else:
             # 나머지 액션은 기본 0.1초
             duration = PRIMITIVE_ACTION_DURATION
 
         # (B) cutoff_time과 비교
-        if time_used >= cutoff_time:
+        if time_used >= cutoff_time and exist_place_after_grasp:
             # 이미 초반 할당 시간 초과 → 남은 액션으로 이동
             remain_actions.append(action)
             i += 1
@@ -431,9 +440,21 @@ def split_primitive_actions_by_time(
             early_actions.append(action)
             time_used += duration
             i += 1
+            if "PLACE" in base_action and exist_grasp:
+                exist_place_after_grasp = True
+        elif (
+            duration > leftover_for_early
+            and not exist_grasp
+            and not exist_place_after_grasp
+        ):
+            early_actions.append(action)
+            time_used += duration
+            i += 1
+            if "PLACE" in base_action and exist_grasp:
+                exist_place_after_grasp = True
         else:
             # 만약 NAVIGATE_TO 또는 WAIT이라면, 분할 가능
-            if base_action in ["NAVIGATE_TO", "WAIT"]:
+            if base_action in ["NAVIGATE_TO", "WAIT"] and remain_actions == []:
                 # early portion
                 early_actions.append(
                     f"{tokens[0]} {tokens[1]} {leftover_for_early}"
@@ -455,7 +476,13 @@ def split_primitive_actions_by_time(
                 i += 1
             else:
                 # 나머지 액션(GRASP 등)은 분할 불가 → 통째로 remain
-                remain_actions.append(action)
+                # 한 개만 남는 경우 early 에 넣는게 더 효율적일 것 같음
+                if not (len(actions) - i - 1) and remain_actions == []:
+                    early_actions.append(action)
+                    time_used += duration
+                else:
+                    remain_actions.append(action)
+
                 i += 1
 
     # (D) 초반에 time_used < cutoff_time이면, 남은 부분만큼 WAIT 추가
@@ -464,7 +491,8 @@ def split_primitive_actions_by_time(
         early_actions.append(f"WAIT {leftover_wait}")
         time_used += leftover_wait
 
-    if remain_actions != []:
+    # remain_actions가 빈 action이 아니라면 navigate_to 추가하기
+    if remain_actions != [] and "NAVIGATE_TO" not in remain_actions[0]:
         obj = remain_actions[0].split(" ")[1]
         remain_actions.insert(0, "NAVIGATE_TO " + obj)
 
@@ -481,7 +509,7 @@ def sum_action_durations(
 ) -> float:
     total = 0.0
     actions = subtask.execution.primitive_actions
-    for action in actions:
+    for i, action in enumerate(actions):
         tokens = action.split()
         base_action = tokens[0].upper()
 
@@ -491,11 +519,12 @@ def sum_action_durations(
                 dur = float(tokens[2])
             else:
                 # 시간이 명시 안됨 → 직접 계산
-                agent_loc = (
-                    curr_node.state.agent_location
-                    if curr_node.state.agent_location
-                    else "agent"
-                )
+                if i == 0:
+                    agent_loc = (
+                        curr_node.state.agent_location
+                        if curr_node.state.agent_location
+                        else "agent"
+                    )
                 dur = nav_manager.get_specific_nav_time(agent_loc, tokens[1])
                 agent_loc = tokens[1]
         elif base_action == "WAIT" and len(tokens) >= 2:

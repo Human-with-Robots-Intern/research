@@ -116,7 +116,7 @@ class NavigationHandler:
             angle = 0  # Object is directly at the agent's position
 
         # Clamp the angle between 0 (looking straight) and 60 degrees
-        clamped_angle = max(0, min(60, angle))
+        clamped_angle = max(-30, min(60, angle))
         # Determine the current camera pitch
         current_pitch = self.controller.last_event.metadata["agent"]["cameraHorizon"]
 
@@ -227,7 +227,7 @@ class NavigationHandler:
         event = self.controller.step(action="Pass")
         for obj in event.metadata["objects"]:
             if obj["objectId"] == object_id:
-                return tuple(obj["position"].values())
+                return tuple(obj["axisAlignedBoundingBox"]["center"].values())
         return None
 
     def get_agent_rotate(self):

@@ -100,6 +100,9 @@ def execute_subtask(controller, subtask):
     print(f"{subtask=}")
     ## Wait의 형식을 맞춰주든가 여기서 처리를 하든가 해야함
     primitive_actions = execution.primitive_actions
+    print("<<<ACTIONS>>>")
+    for action in primitive_actions:
+        print(action)
     objects = execution.objects
 
     # Read JSON file

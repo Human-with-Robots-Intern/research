@@ -169,6 +169,12 @@ class NavigationManager:
         Note: If you need partial matching or fuzzy matching,
               adapt the dictionary access logic accordingly.
         """
+        # 공백이 있으면 obj stop_time 이렇게 되어있는거고, stop_time 이 결국 총 nav time 이 될 듯
+        if " " in source:
+            source = source.split(" ")[0]
+        if " " in target:
+            return float(target.split(" ")[1])
+        
         matched_source_key = next(
             (k for k in self.navigation_times if k.startswith(source)), None
         )
