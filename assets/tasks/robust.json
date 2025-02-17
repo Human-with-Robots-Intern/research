@@ -111,7 +111,7 @@
                         "Type": "After",
                         "Subtask": "Wash Egg",
                         "Interval": 100,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             },
@@ -175,7 +175,7 @@
                         "Type": "After",
                         "Subtask": "Wash Potato",
                         "Interval": 20,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             },
@@ -638,7 +638,7 @@
                         "Type": "After",
                         "Subtask": "Heat Potato in Microwave",
                         "Interval": 10,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             }
@@ -661,8 +661,7 @@
                         "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
                         "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
-                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
-                        "GRASP Fork|+00.95|+00.77|-02.37"
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50"
                     ]
                 },
                 "Duration": {
@@ -685,8 +684,7 @@
                         "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
                         "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
-                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
-                        "GRASP Spoon|+00.98|+00.77|-02.29"
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50"
                     ]
                 },
                 "Duration": {
@@ -797,7 +795,7 @@
                         "Type": "After",
                         "Subtask": "Start Microwave for Potato",
                         "Interval": 5,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             }
