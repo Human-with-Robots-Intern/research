@@ -382,7 +382,7 @@ class Scheduler:
         )
 
         # If there's enough time to monitor during waiting
-        if nav_time > 0.1 and candidate.earliest_start_time > (
+        if nav_time > 0.1 and candidate.is_critical and candidate.earliest_start_time > (
             curr_node.state.current_time + nav_time + MONITORING_DURATION
         ):
             log.debug("[_expand_single_wait] Using wait WITH monitoring.")
@@ -728,7 +728,7 @@ class Scheduler:
             name=f"Monitor for {candidate.subtask.name}_{uuid.uuid4().hex[:6]}",
             duration=Duration(interval=MONITORING_DURATION, type="Controllable"),
             repetition=1,
-            type="Wait",
+            type="Monitor",
             execution=Execution(
                 objects=None,
                 primitive_actions=monitoring_action,
