@@ -4,15 +4,15 @@
         "variance": 1.0
     },
     "Turn off stove after cooking": {
-        "expected_duration": 10.0,
+        "expected_duration": 20,
         "variance": 1.0
     },
     "Prepare Potato": {
-        "expected_duration": 10.0,
+        "expected_duration": 100.0,
         "variance": 1.0
     },
     "Turn off stove after cooking potato": {
-        "expected_duration": 10.0,
+        "expected_duration": 20,
         "variance": 1.0
     },
     "Turn off Stove after cooking": {
@@ -40,7 +40,7 @@
         "variance": 1.0
     },
     "Turn off Stove after Boiling": {
-        "expected_duration": 10.0,
+        "expected_duration": 15,
         "variance": 1.0
     }
 }
