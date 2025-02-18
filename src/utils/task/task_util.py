@@ -209,19 +209,31 @@ def build_tasks_and_constraints(
     tasks = revision_primitive_actions(tasks)
     tasks = start_with_navigate_to(tasks)
 
-    knowledge_file = KNOWLEDGE_PATH / "bayesian_estimate.json"
+    knowledge_file_bayesian = KNOWLEDGE_PATH / "bayesian_estimate.json"
+    knowledge_file_ground_truth = KNOWLEDGE_PATH / "bayesian_ground_truth.json"
 
     # Load the expected duration from the knowledge file
-    if knowledge_file.exists():
+    if knowledge_file_bayesian.exists():
         try:
-            with knowledge_file.open("r", encoding="utf-8") as f:
+            with knowledge_file_bayesian.open("r", encoding="utf-8") as f:
                 bayesian_load = json.load(f)
         except json.JSONDecodeError as e:
             raise json.JSONDecodeError(
                 f"Error decoding knowledge file: {e}", doc="", pos=0
             )
     else:
-        raise FileNotFoundError(f"Knowledge file not found at {knowledge_file}.")
+        raise FileNotFoundError(f"Knowledge file not found at {knowledge_file_bayesian}.")
+    
+    if knowledge_file_ground_truth.exists():
+        try:
+            with knowledge_file_ground_truth.open("r", encoding="utf-8") as f:
+                ground_truth_load = json.load(f)
+        except json.JSONDecodeError as e:
+            raise json.JSONDecodeError(
+                f"Error decoding knowledge file: {e}", doc="", pos=0
+            )
+    else:
+        raise FileNotFoundError(f"Knowledge file not found at {knowledge_file_ground_truth}.")
 
     if enable_decomposition:
         for task in tasks:
@@ -230,17 +242,27 @@ def build_tasks_and_constraints(
                 for temporal_constraint in subtask.temporal_constraints:
                     if temporal_constraint.is_critical:
                         # Set the expected duration for critical subtasks
-                        if bayesian_load.get(subtask.name, None) is None:
-                            with open(knowledge_file, "w") as f:
+                        # bayesian_estimate.json에 항목이 없으면 평균 10 분산 1로 저장
+                        # 항목이 있으면 critical의 interval값을 평균에 저장
+                        if subtask.name not in bayesian_load:
+                            with open(knowledge_file_bayesian, "w") as f:
+                                bayesian_load[subtask.name]["expected_duration"] = temporal_constraint.interval
+                                json.dump(bayesian_load, f, indent=4)
+                        else:
+                            with open(knowledge_file_bayesian, "w") as f:
                                 bayesian_load[subtask.name] = {
-                                    "expected_duration": 10.0,
+                                    "expected_duration": temporal_constraint.interval,
                                     "variance": 1.0,
                                 }
                                 json.dump(bayesian_load, f, indent=4)
-                        else:
-                            temporal_constraint.interval = bayesian_load[subtask.name][
-                                "expected_duration"
-                            ]
+
+
+                        # bayesian_ground_truth.json에 항목이 없으면 10으로 저장
+                        if subtask.name not in ground_truth_load:
+                            with open(knowledge_file_ground_truth, "w") as f:
+                                ground_truth_load[subtask.name] = 10
+                                json.dump(ground_truth_load, f, indent=4)
+
 
     task_graph_builder = TaskGraphBuilder()
     task_graph = task_graph_builder.build_graph(tasks)

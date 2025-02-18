@@ -9,6 +9,10 @@ from scheduler.constraint_handler import ConstraintHandler
 from scheduler.dataclass import SchedulerState
 from utils import KNOWLEDGE_PATH, create_module_logger
 
+from rapidfuzz import process
+from difflib import get_close_matches
+import re
+
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
@@ -73,7 +77,26 @@ class Agent:
         except Exception as e:
             raise Exception(f"Error saving knowledge: {e}")
 
-    def bayesian_estimate(self, state: SchedulerState) -> None:
+
+
+
+
+
+
+    def find_best_match(subtask_name, subtask_dict):
+        """
+        subtask_dict에서 subtask_name과 가장 유사한 subtask를 찾아 반환
+        """
+        subtask_names = list(subtask_dict.keys())  # 비교할 subtask 목록
+        best_match = process.extractOne(subtask_name, subtask_names)  # 가장 유사한 값 찾기
+
+        if best_match and best_match[1] > 70:  # 유사도가 70 이상이면 채택
+            return best_match[0]
+        else:
+            return subtask_name  # 유사한 값이 없으면 원본 유지
+    
+
+    def bayesian_estimate(self, state: SchedulerState, subtasks) -> None:
         """
         # actual_duration : monitoring한 시간
         # ground_truth : 해당 subtask의 ground_truth
@@ -84,16 +107,42 @@ class Agent:
         """
 
         subtask_name = state.subtask.name.split("for")[1].strip()
-        actual_duration = self.constraint_handler.get_actual_duration(
-            curr_state=state, subtask_name=subtask_name
-        )
-        ground_truth = self._load_knowledge("bayesian_ground_truth.json").get(
-            subtask_name
-        )
+        subtask_name = subtask_name.split("_")[0].strip()
+        #critical end의 subtask를 구함.
+        ###################이게 일정한 이름이 아님
+        ######그래서 자연어처리 query??? 를 통해 무엇인지 판단해줘야 함.
 
+        # subtask_name = "cooking potato"
+        
+        ########
+        subtasks = subtasks
         estimate_load = self._load_knowledge("bayesian_estimate.json")
-        prior_mean = estimate_load[subtask_name]["expected_duration"]
-        prior_variance = estimate_load[subtask_name]["variance"]
+
+        subtask_names = list(estimate_load.keys())
+
+        best_match = process.extractOne(subtask_name, subtask_names)
+        best_match_close = get_close_matches(subtask_name, subtask_names, n=1, cutoff=0)
+        actual_duration = 0
+
+        for subtask in subtasks:
+            if subtask.name == subtask_name:
+                temporal_constraints = subtask.temporal_constraints
+                start_subtask = temporal_constraints[0].subtask
+                break
+        
+        for ce in state.completed_subtasks:
+            if ce.subtask.name == start_subtask:
+                start_time = ce.end_time
+
+        # for ce in state.completed_subtasks:
+
+        actual_duration = state.current_time - start_time
+        
+        djfkdjfkdjf = self._load_knowledge("bayesian_ground_truth.json")
+        ground_truth = djfkdjfkdjf[best_match_close[0]]
+
+        prior_mean = estimate_load[best_match_close[0]]["expected_duration"]
+        prior_variance = estimate_load[best_match_close[0]]["variance"]
 
         # bayesian estimate
         cooking_data_real = actual_duration / ground_truth
@@ -112,8 +161,8 @@ class Agent:
         )
 
         # posterior_data
-        self.knowledge[subtask_name]["expected_duration"] = posterior_mean
-        self.knowledge[subtask_name]["variance"] = posterior_variance
+        self.knowledge[best_match_close[0]]["expected_duration"] = posterior_mean
+        self.knowledge[best_match_close[0]]["variance"] = posterior_variance
 
         self._save_knowledge()
 
