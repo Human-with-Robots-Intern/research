@@ -197,16 +197,15 @@ class Action:
     def open(self, object_id: str):
         elapsed_time = 0
         # 일단 두 발자국 물러나기
-        # for i in range(2):
-        #     self.controller.step(action="MoveBack", moveMagnitude=None)
-        #     self.controller.step(action="Pass")
-        #     elapsed_time += 0.1
-        # self.camera_handler.update_view()
-        # time.sleep(0.1)
+        for i in range(2):
+            self.controller.step(action="MoveBack", moveMagnitude=None)
+            self.controller.step(action="Pass")
+        self.camera_handler.update_view()
+        time.sleep(0.1)
 
         # 열기
         self.controller.step(
-            action="OpenObject", objectId=object_id, openness=1, forceAction=True
+            action="OpenObject", objectId=object_id, openness=1, forceAction=False
         )
         self.log_file.write(
             f"open {object_id}: " + self.last_action_success(self.controller)
