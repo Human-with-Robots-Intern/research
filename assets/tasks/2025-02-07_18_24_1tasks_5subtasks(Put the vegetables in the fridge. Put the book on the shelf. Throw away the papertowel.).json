@@ -94,12 +94,12 @@
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Book|+00.15|+01.10|+00.62": 1,
+                        "CreditCard|-00.46|+01.10|+00.87": 1,
                         "Shelf|+01.75|+00.88|-02.56": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Book|+00.15|+01.10|+00.62",
-                        "GRASP Book|+00.15|+01.10|+00.62",
+                        "NAVIGATE_TO CreditCard|-00.46|+01.10|+00.87",
+                        "GRASP CreditCard|-00.46|+01.10|+00.87",
                         "NAVIGATE_TO Shelf|+01.75|+00.88|-02.56",
                         "PLACE_ON_TOP Shelf|+01.75|+00.88|-02.56"
                     ]

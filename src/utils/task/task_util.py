@@ -99,8 +99,8 @@ def revision_primitive_actions(tasks):
             actions = subtask.execution.primitive_actions
             updated_actions = []
             for i, action in enumerate(actions):
-                if i > 0 and "PLACE" in action and "NAVIGATE" not in actions[i - 1]:
-                    to_obj = action.split(" ")[1]
+                to_obj = action.split(" ")[1]
+                if i > 0 and "PLACE" in action and f"NAVIGATE_TO {to_obj}" not in actions[i - 1]:
                     updated_actions.append(f"NAVIGATE_TO {to_obj}")
                 if "PLACE" in action and "Sink" in action and "SinkBasin" not in action:
                     to_obj = action.split(" ")[1] + "|SinkBasin"
@@ -466,7 +466,6 @@ def split_primitive_actions_by_time(
                 exist_place_after_grasp = True
         elif (
             duration > leftover_for_early
-            and not exist_grasp
             and not exist_place_after_grasp
         ):
             early_actions.append(action)
@@ -476,7 +475,7 @@ def split_primitive_actions_by_time(
                 exist_place_after_grasp = True
         else:
             # 만약 NAVIGATE_TO 또는 WAIT이라면, 분할 가능
-            if base_action in ["NAVIGATE_TO", "WAIT"] and remain_actions == []:
+            if base_action in ["NAVIGATE_TO", "WAIT"] and not exist_grasp and remain_actions == []:
                 # early portion
                 early_actions.append(
                     f"{tokens[0]} {tokens[1]} {leftover_for_early}"

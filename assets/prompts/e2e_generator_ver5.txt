@@ -314,6 +314,7 @@ Return a **JSON array**, where each element represents a main **Task**:
    - Valid actions are: `NAVIGATE_TO <object>`, `GRASP <object>`, `PLACE_ON_TOP <object>`, `PLACE_INSIDE <object>`, `OPEN <object>`, `CLOSE <object>`, `TOGGLE_ON <object>`, `TOGGLE_OFF <object>`, `SLICE <object>`.
    - Maintain sequence and logical flow of actions.
    - The 'PLACE_ON_TOP' and 'PLACE_INSIDE' actions must be performed after the object's 'GRASP' action (impossible example: 'GRASP Tomato' -> 'PLACE_INSIDE SinkBasin' -> 'PLACE_ON_TOP CounterTop' // possible example: 'GRASP Tomato' -> 'PLACE_INSIDE SinkBasin' -> 'GRASP Tomato' -> 'PLACE_ON_TOP CounterTop')
+   - “GRASP” must be followed by either "PLACE_ON_TOP" or "PLACE_INSINDE" at some point in the same task
 4. **Impossible Handling**  
    - When encountering a non-existent object or action, generate a subtask named `"Impossible: <object> not in environment"`.  
    - Do **not** produce any further actions for that object.
