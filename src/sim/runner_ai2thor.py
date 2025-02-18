@@ -10,6 +10,10 @@ from pathlib import Path
 import numpy as np
 from ai2thor.controller import Controller
 
+import sys
+sys.path.append('/home/bluebottle/workspace/research/ithor')  # ithor 폴더의 절대 경로
+import ai2thor
+
 from ithor.handlers.action import Action
 from ithor.handlers.camera_handler import CameraHandler
 from ithor.handlers.navigation_handler import NavigationHandler

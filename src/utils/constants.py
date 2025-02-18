@@ -33,13 +33,8 @@ MONITORING_DURATION = 0.1
 
 
 # * 스케쥴러 관련
-<<<<<<< Updated upstream
-SIMULATION_DEPTH = 3
-BEAM_WIDTH = 3
-=======
 SIMULATION_DEPTH = 4
 BEAM_WIDTH = 4
->>>>>>> Stashed changes
 
 EPSILON = 1e-3
 LARGE_NUMBER = 1e3
