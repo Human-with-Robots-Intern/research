@@ -138,6 +138,20 @@ class Action:
             f"put {target_id}: " + self.last_action_success(self.controller)
         )
 
+        if not self.controller.last_event.metadata["lastActionSuccess"]:
+            self.controller.step("MoveBack")
+            self.controller.step(
+                action="PutObject",
+                objectId=target_id,
+                forceAction=False,
+                placeStationary=True,
+            )
+            # log_file 에 기록
+        self.log_file.write(
+            f"put {target_id}: "
+            + self.last_action_success(self.controller)
+            + "(MoveBack)"
+        )
         # 실패하면 일단 손에서 버려. 그래야지 다음 행동에 문제가 되지 않을 듯. 근데 버리면 땅바닥에 굴러다니니깐 거슬릴 것 같은데
         if not self.controller.last_event.metadata["lastActionSuccess"]:
             self.controller.step("MoveAhead")
@@ -246,7 +260,7 @@ class Action:
                 success = self.controller.last_event.metadata["lastActionSuccess"]
                 # 실패하면 움직여서 다시 한 번 더 도전. 여기는 while문을 써야할까?
                 if not success:
-                    self.move_in_direction(-obj_angle, 0.2)
+                    self.navi.move_in_direction(-obj_angle, 0.2)
                     self.controller.step(
                         action="RotateRight", degrees=degree / SMOOTH_LEVEL
                     )
@@ -269,12 +283,14 @@ class Action:
     def wait(self, wait_time=1):
         time.sleep(wait_time)
         return wait_time
-    
+
     def fill(self, object_id: str):
-        self.controller.step(action="FillObjectWithLiquid",
-        objectId=object_id,
-        fillLiquid="water",
-        forceAction=True)
+        self.controller.step(
+            action="FillObjectWithLiquid",
+            objectId=object_id,
+            fillLiquid="water",
+            forceAction=True,
+        )
         self.log_file.write(
             f"fill {object_id} with water: " + self.last_action_success(self.controller)
         )

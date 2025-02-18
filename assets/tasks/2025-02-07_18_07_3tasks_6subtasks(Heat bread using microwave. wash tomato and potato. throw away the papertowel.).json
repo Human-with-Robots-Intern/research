@@ -65,7 +65,8 @@
                         "TOGGLE_OFF Microwave|-00.24|+01.69|-02.53",
                         "OPEN Microwave|-00.24|+01.69|-02.53",
                         "GRASP Bread|-00.52|+01.17|-00.03",
-                        "CLOSE Microwave|-00.24|+01.69|-02.53"
+                        "CLOSE Microwave|-00.24|+01.69|-02.53",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
                     ]
                 },
                 "Duration": {
