@@ -174,7 +174,6 @@ class Scheduler:
                     queue.put(nd)
 
                 else:
-
                     break
 
         # Choose the best among the best_solutions found
@@ -960,93 +959,3 @@ class Scheduler:
             f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} meets monitoring criteria."
         )
         return True
-
-    def _get_critical_start_info(self, curr_node: SimulationNode, candidate: Candidate):
-        """
-        도래할 deadline 정보를 보고, Critical constraints를 시작하는 subtask가 있다면 해당 제약정보를 반환.
-        Returns:
-            (critical_start_time: float, interval: float)
-        """
-
-        curr_state = curr_node.state
-        deadline_due, deadline_sub_name = (
-            candidate.deadline.due_date,
-            candidate.deadline.subtask_name,
-        )
-
-        critical_slots = [
-            slot
-            for slot in self.constraint_handler.get_time_slots(
-                deadline_sub_name, curr_state.constraints, "in"
-            )
-            if slot.is_critical
-        ]
-
-        if not critical_slots:
-            log.debug(
-                f"[_get_critical_start_info] No critical slots found for {deadline_sub_name}"
-            )
-            return None
-
-        critical_slot = max(critical_slots, key=lambda x: x.interval)
-        critical_start_sub_name = critical_slot.related_subtask_name
-        critical_interval = critical_slot.interval
-
-        # Find the time at which the critical subtask starts
-        critical_start_time = 0.0
-        for ce in curr_state.completed_subtasks:
-            if ce.subtask.name == critical_start_sub_name:
-                critical_start_time = ce.end_time
-                break
-        return critical_start_time, critical_interval
-
-    def _update_constraints_for_monitoring(
-        self,
-        constraints_graph: nx.DiGraph,
-        old_sub_name: str,
-        early_sub: Subtask,
-        mon_sub: Subtask,
-        remain_sub: Subtask,
-    ) -> nx.DiGraph:
-        """
-        모니터링 적용 시, old_sub를 분할한 뒤 constraints를 업데이트한다.
-        """
-        in_edges = (
-            list(constraints_graph.in_edges(old_sub_name, data=True))
-            if constraints_graph.has_node(old_sub_name)
-            else []
-        )
-        out_edges = (
-            list(constraints_graph.out_edges(old_sub_name, data=True))
-            if constraints_graph.has_node(old_sub_name)
-            else []
-        )
-
-        if constraints_graph.has_node(old_sub_name):
-            constraints_graph.remove_node(old_sub_name)
-
-        constraints_graph.add_node(early_sub.name)
-        constraints_graph.add_node(mon_sub.name)
-        constraints_graph.add_node(remain_sub.name)
-
-        # 원래 old_sub의 in-edge -> early_sub
-        for pred, _, data in in_edges:
-            constraints_graph.add_edge(
-                pred, early_sub.name, info=copy.deepcopy(data["info"])
-            )
-
-        # 원래 old_sub의 out-edge <- remain_sub
-        for _, succ, data in out_edges:
-            constraints_graph.add_edge(
-                remain_sub.name, succ, info=copy.deepcopy(data["info"])
-            )
-
-        # early_sub -> mon_sub -> remain_sub
-        constraints_graph.add_edge(
-            early_sub.name, mon_sub.name, info={"Interval": 0, "IsCritical": True}
-        )
-        constraints_graph.add_edge(
-            mon_sub.name, remain_sub.name, info={"Interval": 0, "IsCritical": False}
-        )
-
-        return constraints_graph

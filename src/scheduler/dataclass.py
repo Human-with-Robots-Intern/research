@@ -34,8 +34,10 @@ class SchedulerState(NamedTuple):
     constraints: DiGraph
     # 현재 절대 시간 및 위치
     current_time: float
-    # 현재 agent 위치
-    agent_location: str
+    # agent, object들의 위치
+    scene_positions: dict[str, list[float, float, float]]
+    # 현재 agent가 들고 있는 object
+    held_object: Optional[str]
 
 
 class SimulationNode(NamedTuple):
