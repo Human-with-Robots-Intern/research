@@ -1,17 +1,9 @@
 from typing import List, Optional, Tuple
 
-import networkx as nx
 from networkx import DiGraph
 
 from core.task import Subtask
-from scheduler.cost_manager import NavigationManager
-from scheduler.dataclass import (
-    Candidate,
-    Deadline,
-    SchedulerState,
-    SimulationNode,
-    TimeSlot,
-)
+from scheduler.dataclass import Candidate, Deadline, SimulationNode, TimeSlot
 from utils import create_module_logger
 from utils.constants import EPSILON, LOG_ROUND
 
@@ -145,6 +137,7 @@ class ConstraintHandler:
         in_edges = list(curr_constraints.in_edges(sub.name, data=True))
 
         if not in_edges:
+            # 선행이 전혀 없다면 0초부터 시작 가능
             return (0.0, False)
 
         critical_times = []
@@ -173,10 +166,11 @@ class ConstraintHandler:
                 critical_times.append(candidate_start)
             else:
                 non_critical_earliest = max(non_critical_earliest, candidate_start)
-
-        # ? Critical과 Non-critical이 함께 있을 때, Critical이 Non-critical보다 늦어야 하는 경우만 커버되는거 아님?
-        # ? 예외 케이스가 있잖아. Non-critical이 더 늦고, Critical이 더 빠르게 시작해야 하는 경우는 커버가 되긴 하니?
-        # ? 근데, 무조건 Critical이 중요하니까 Critical을 반드시 따라야 한다고 생각 해야 할 것 같다. 왜냐면 Critical은 실패 가능성이 높은 작업이니까.
+        log.debug(f"Critical Times: {critical_times}\n")
+        log.debug(f"Non-critical Earliest: {non_critical_earliest}\n")
+        # 이제 critical_starts가 비어있지 않다면,
+        # "Critical"이라는 것은 "이 특정 시각에 딱 시작"해야 한다는 정책
+        # 여러 critical edge가 서로 다른 시간을 요구하면 conflict
         if critical_times:
             first_crit = critical_times[0]
             for ct in critical_times[1:]:
@@ -185,7 +179,6 @@ class ConstraintHandler:
                     log.error(
                         f"[get_earliest_start_time] Multiple distinct critical times for '{sub.name}' → conflict.{critical_times}\n",
                     )
-
                     return (None, False)
 
             return (first_crit, True)

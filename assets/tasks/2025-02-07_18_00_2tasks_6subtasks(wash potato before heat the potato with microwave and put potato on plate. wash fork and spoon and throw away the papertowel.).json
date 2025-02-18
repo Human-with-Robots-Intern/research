@@ -135,8 +135,7 @@
                         "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
                         "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
-                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
-                        "GRASP Spoon|+00.98|+00.77|-02.29"
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50"
                     ]
                 },
                 "Duration": {

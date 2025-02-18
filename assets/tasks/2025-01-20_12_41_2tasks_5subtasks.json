@@ -91,7 +91,7 @@
           "PrimitiveActions": [
             "NAVIGATE_TO Pan|+00.72|+00.90|-02.42",
             "GRASP Pan|+00.72|+00.90|-02.42",
-            "PLACE_ON_TOP StoveBurner|-00.47|+00.92|-02.58",
+            "PLACE_ON_TOP StoveBurner|-00.04|+00.92|-02.37",
             "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
             "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19",
             "NAVIGATE_TO Egg|-02.04|+00.81|+01.24",
@@ -155,7 +155,7 @@
           "PrimitiveActions": [
             "NAVIGATE_TO Pan|+00.72|+00.90|-02.42",
             "GRASP Pan|+00.72|+00.90|-02.42",
-            "PLACE_ON_TOP StoveBurner|-00.47|+00.92|-02.58",
+            "PLACE_ON_TOP StoveBurner|-00.04|+00.92|-02.37",
             "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
             "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19",
             "NAVIGATE_TO Egg|-02.04|+00.81|+01.24",
@@ -171,7 +171,7 @@
           {
             "Type": "After",
             "Subtask": "Wash Potato",
-            "Interval": 20,
+            "Interval": 100,
             "Urgency": true
           }
         ]

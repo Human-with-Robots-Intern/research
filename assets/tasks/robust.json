@@ -17,6 +17,7 @@
                         "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
                         "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+                        "GRASP Plate|+00.96|+01.65|-02.61",
                         "PLACE_ON_TOP CounterTop|+00.69|+00.95|-02.48"
                     ]
                 },
@@ -41,6 +42,7 @@
                         "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
                         "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+                        "GRASP Egg|-02.04|+00.81|+01.24",
                         "PLACE_ON_TOP CounterTop|+00.69|+00.95|-02.48"
                     ]
                 },
@@ -65,6 +67,7 @@
                         "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
                         "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+                        "GRASP Potato|-01.66|+00.93|-02.15",
                         "PLACE_ON_TOP CounterTop|+00.69|+00.95|-02.48"
                     ]
                 },
@@ -91,7 +94,7 @@
                     "PrimitiveActions": [
                         "NAVIGATE_TO Pan|+00.72|+00.90|-02.42",
                         "GRASP Pan|+00.72|+00.90|-02.42",
-                        "PLACE_ON_TOP StoveBurner|-00.47|+00.92|-02.58",
+                        "PLACE_ON_TOP StoveBurner|-00.04|+00.92|-02.37",
                         "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
                         "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19",
                         "NAVIGATE_TO Egg|-02.04|+00.81|+01.24",
@@ -108,7 +111,7 @@
                         "Type": "After",
                         "Subtask": "Wash Egg",
                         "Interval": 100,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             },
@@ -155,7 +158,7 @@
                     "PrimitiveActions": [
                         "NAVIGATE_TO Pan|+00.72|+00.90|-02.42",
                         "GRASP Pan|+00.72|+00.90|-02.42",
-                        "PLACE_ON_TOP StoveBurner|-00.47|+00.92|-02.58",
+                        "PLACE_ON_TOP StoveBurner|-00.04|+00.92|-02.37",
                         "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
                         "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19",
                         "NAVIGATE_TO Egg|-02.04|+00.81|+01.24",
@@ -172,7 +175,7 @@
                         "Type": "After",
                         "Subtask": "Wash Potato",
                         "Interval": 20,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             },
@@ -635,7 +638,7 @@
                         "Type": "After",
                         "Subtask": "Heat Potato in Microwave",
                         "Interval": 10,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             }
@@ -658,8 +661,7 @@
                         "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
                         "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
-                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
-                        "GRASP Fork|+00.95|+00.77|-02.37"
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50"
                     ]
                 },
                 "Duration": {
@@ -682,8 +684,7 @@
                         "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
                         "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
-                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
-                        "GRASP Spoon|+00.98|+00.77|-02.29"
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50"
                     ]
                 },
                 "Duration": {
@@ -794,7 +795,7 @@
                         "Type": "After",
                         "Subtask": "Start Microwave for Potato",
                         "Interval": 5,
-                        "Urgency": true
+                        "Urgency": false
                     }
                 ]
             }
