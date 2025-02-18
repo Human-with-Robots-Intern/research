@@ -2,6 +2,7 @@ import copy
 
 ## 유사도 검사를 위한 import
 import json
+import time
 import uuid
 from typing import List, Tuple
 
@@ -99,8 +100,12 @@ def revision_primitive_actions(tasks):
             actions = subtask.execution.primitive_actions
             updated_actions = []
             for i, action in enumerate(actions):
-                if i > 0 and "PLACE" in action and "NAVIGATE" not in actions[i - 1]:
-                    to_obj = action.split(" ")[1]
+                to_obj = action.split(" ")[1]
+                if (
+                    i > 0
+                    and "PLACE" in action
+                    and f"NAVIGATE_TO {to_obj}" not in actions[i - 1]
+                ):
                     updated_actions.append(f"NAVIGATE_TO {to_obj}")
                 if "PLACE" in action and "Sink" in action and "SinkBasin" not in action:
                     to_obj = action.split(" ")[1] + "|SinkBasin"
@@ -240,20 +245,60 @@ def build_tasks_and_constraints(
         )
 
     if enable_decomposition:
+        nam_plus_subtask = []
+        nam_remain_subtask = []
+        nam_before_subtask = []
         for task in tasks:
             task.decompose_subtasks()
             for subtask in task.subtasks:
                 for temporal_constraint in subtask.temporal_constraints:
                     if temporal_constraint.is_critical:
+                        estimate_subtasks = query(
+                            {
+                                "inputs": {
+                                    "source_sentence": f"{subtask.name}",
+                                    "sentences": list(bayesian_load.keys()),
+                                }
+                            }
+                        )
+
+                        if "error" in estimate_subtasks:
+                            print(f"Error: {estimate_subtasks['error']}")
+                            # 모델 로딩 시간이 주어졌으므로 기다린 후 다시 시도
+                            estimated_time = estimate_subtasks.get("estimated_time", 0)
+                            print(
+                                f"Waiting for {estimated_time} seconds before retrying..."
+                            )
+                            time.sleep(estimated_time)  # 로딩 시간만큼 대기
+                            # 로딩 후 다시 쿼리 실행
+                            estimate_subtasks = query(
+                                {
+                                    "inputs": {
+                                        "source_sentence": f"{subtask.name}",
+                                        "sentences": list(bayesian_load.keys()),
+                                    }
+                                }
+                            )
+
+                        idx = sorted(
+                            enumerate(estimate_subtasks),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )[0][0]
+                        similar_subtask = list(bayesian_load.keys())[idx]
+                        if estimate_subtasks[idx] < 0.9:
+                            similar_subtask = subtask.name
                         # Set the expected duration for critical subtasks
                         # bayesian_estimate.json에 항목이 없으면 평균 10 분산 1로 저장
                         # 항목이 있으면 critical의 interval값을 평균에 저장
-                        if subtask.name not in bayesian_load:
+                        if similar_subtask in bayesian_load:
                             with open(knowledge_file_bayesian, "w") as f:
-                                bayesian_load[subtask.name][
+                                bayesian_load[similar_subtask][
                                     "expected_duration"
                                 ] = temporal_constraint.interval
                                 json.dump(bayesian_load, f, indent=4)
+                            nam_remain_subtask.append(similar_subtask)
+                            nam_before_subtask.append(subtask.name)
                         else:
                             with open(knowledge_file_bayesian, "w") as f:
                                 bayesian_load[subtask.name] = {
@@ -261,11 +306,14 @@ def build_tasks_and_constraints(
                                     "variance": 1.0,
                                 }
                                 json.dump(bayesian_load, f, indent=4)
+                            nam_plus_subtask.append(subtask.name)
+                            nam_remain_subtask.append(similar_subtask)
+                            nam_before_subtask.append(subtask.name)
 
                         # bayesian_ground_truth.json에 항목이 없으면 10으로 저장
-                        if subtask.name not in ground_truth_load:
+                        if similar_subtask not in ground_truth_load:
                             with open(knowledge_file_ground_truth, "w") as f:
-                                ground_truth_load[subtask.name] = 10
+                                ground_truth_load[similar_subtask] = 10
                                 json.dump(ground_truth_load, f, indent=4)
 
     task_graph_builder = TaskGraphBuilder()
@@ -471,11 +519,7 @@ def split_primitive_actions_by_time(
             i += 1
             if "PLACE" in base_action and exist_grasp:
                 exist_place_after_grasp = True
-        elif (
-            duration > leftover_for_early
-            and not exist_grasp
-            and not exist_place_after_grasp
-        ):
+        elif duration > leftover_for_early and not exist_place_after_grasp:
             early_actions.append(action)
             time_used += duration
             i += 1
@@ -483,7 +527,11 @@ def split_primitive_actions_by_time(
                 exist_place_after_grasp = True
         else:
             # 만약 NAVIGATE_TO 또는 WAIT이라면, 분할 가능
-            if base_action in ["NAVIGATE_TO", "WAIT"] and remain_actions == []:
+            if (
+                base_action in ["NAVIGATE_TO", "WAIT"]
+                and not exist_grasp
+                and remain_actions == []
+            ):
                 # early portion
                 early_actions.append(
                     f"{tokens[0]} {tokens[1]} {leftover_for_early}"

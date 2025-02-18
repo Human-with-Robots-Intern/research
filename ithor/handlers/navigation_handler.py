@@ -57,7 +57,7 @@ class NavigationHandler:
         # Find the shortest path to the closest reachable position near the object
         path = self.shortest_path(agent_position, object_position)
         # Move agent step by step along the path
-
+        print(f"경로!!!!! : {path}")
         elapsed_time = 0
 
         for position in path:
@@ -313,6 +313,36 @@ class NavigationHandler:
             degree += 360
 
         return object_angle, degree
+
+    def move_in_direction(self, angle: float, distance: float):
+
+        # Get the current agent position
+        agent_position = self.get_agent_position()
+        agent_rotation = self.get_agent_rotate()
+
+        # Convert angle to radians
+        angle_radians = math.radians(angle)
+
+        # Calculate new position based on angle and distance
+        new_x = agent_position[0] + distance * math.sin(angle_radians)
+        new_z = agent_position[2] + distance * math.cos(angle_radians)
+
+        quantized_position = quantize_position((new_x, agent_position[1], new_z))
+        # Teleport the agent to the new position
+        self.controller.step(
+            action="Teleport",
+            position=dict(
+                x=quantized_position[0],
+                y=agent_position[1],
+                z=quantized_position[2],
+            ),
+            rotation=dict(x=0, y=agent_rotation, z=0),
+            horizon=30,
+            standing=True,
+        )
+
+        self.controller.step(action="Pass")
+        self.camera_handler.update_view()
 
     def move_in_direction(self, angle: float, distance: float):
 

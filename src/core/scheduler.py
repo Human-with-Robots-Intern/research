@@ -364,14 +364,17 @@ class Scheduler:
             f"[_expand_single_wait] Checking wait-based expansion for subtask: {candidate.subtask.name}."
         )
 
-        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
-            curr_node, candidate.subtask
+        # nav_time, new_location = self.nav_manager.compute_total_navigation_time(
+        #     curr_node, candidate.subtask
+        # )
+        agent_location = curr_node.state.agent_location.split("|")[0]
+        target_location = list(candidate.subtask.execution.objects.keys())[0].split("|")[0]
+        nav_time = self.nav_manager.get_specific_nav_time(
+            agent_location, target_location
         )
 
         # If there's enough time to monitor during waiting
-        if nav_time > 0.1 and candidate.earliest_start_time > (
-            curr_node.state.current_time + nav_time + MONITORING_DURATION
-        ):
+        if nav_time > 0.1 and candidate.is_critical:
             log.debug("[_expand_single_wait] Using wait WITH monitoring.")
             return self._expand_wait_with_monitoring(curr_node, candidate)
         else:
@@ -684,11 +687,13 @@ class Scheduler:
         wait_start_time = curr_state.current_time
         wait_duration = candidate.earliest_start_time - curr_state.current_time
 
-        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
-            curr_node, candidate.subtask
+        agent_locating = curr_node.state.agent_location.split("|")[0]
+        target_location = list(candidate.subtask.execution.objects.keys())[0].split("|")[0]
+        nav_time = self.nav_manager.get_specific_nav_time(
+            agent_locating, target_location
         )
 
-        nav_action = [f"NAVIGATE_TO {new_location}"]
+        nav_action = [f"NAVIGATE_TO {target_location}"]
         monitoring_action = (
             [
                 f"MONITORING {candidate.subtask.execution.primitive_actions[0].split()[1]}"
@@ -699,7 +704,7 @@ class Scheduler:
 
         nav_before_wait_sub = Subtask(
             task_name=None,
-            name=f"Navigate to {new_location}",
+            name=f"Navigate to {target_location}",
             duration=Duration(interval=nav_time, type="Controllable"),
             repetition=1,
             type="Interaction",
@@ -715,7 +720,7 @@ class Scheduler:
             name=f"Monitor for {candidate.subtask.name}_{uuid.uuid4().hex[:6]}",
             duration=Duration(interval=MONITORING_DURATION, type="Controllable"),
             repetition=1,
-            type="Wait",
+            type="Monitor",
             execution=Execution(
                 objects=None,
                 primitive_actions=monitoring_action,
@@ -757,7 +762,7 @@ class Scheduler:
             remaining_subtasks=new_remaining,
             constraints=new_constraints,
             current_time=wait_start_time + nav_time,
-            agent_location=new_location,
+            agent_location=target_location,
         )
 
         wait_candidate = Candidate(
@@ -809,9 +814,7 @@ class Scheduler:
         wait_start_time = curr_state.current_time
         wait_duration = candidate.earliest_start_time - curr_state.current_time
 
-        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
-            curr_node, candidate.subtask
-        )
+        target_location = list(candidate.subtask.execution.objects.keys())[0].split("|")[0]
 
         wait_action = [f"Wait {wait_duration}"] if wait_duration > 0 else []
 
@@ -841,7 +844,7 @@ class Scheduler:
             remaining_subtasks=curr_state.remaining_subtasks,
             constraints=curr_state.constraints,
             current_time=wait_start_time + wait_duration,
-            agent_location=new_location,
+            agent_location=target_location,
         )
 
         wait_candidate = Candidate(

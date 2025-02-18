@@ -39,7 +39,6 @@
                         "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
                         "PLACE_ON_TOP Sink|-01.90|+00.97|-01.50|SinkBasin",
                         "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
-                        "FILL Pot|-01.22|+00.90|-02.36",
                         "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50"
                     ]
                 },
