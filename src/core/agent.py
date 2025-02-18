@@ -1,5 +1,7 @@
 import json
+import re
 from dataclasses import dataclass
+from difflib import get_close_matches
 from pathlib import Path
 from typing import Any, Dict
 
@@ -88,12 +90,12 @@ class Agent:
 
         subtask_name = state.subtask.name.split("for")[1].strip()
         subtask_name = subtask_name.split("_")[0].strip()
-        #critical end의 subtask를 구함.
+        # critical end의 subtask를 구함.
         ###################이게 일정한 이름이 아님
         ######그래서 자연어처리 query??? 를 통해 무엇인지 판단해줘야 함.
 
         # subtask_name = "cooking potato"
-        
+
         ########
         subtasks = subtasks
         estimate_load = self._load_knowledge("bayesian_estimate.json")
@@ -121,7 +123,7 @@ class Agent:
                 critical_interval = subtask.temporal_constraints[0].interval
                 start_subtask = temporal_constraints[0].subtask
                 break
-        
+
         for ce in state.completed_subtasks:
             if ce.subtask.name == start_subtask:
                 start_time = ce.end_time
