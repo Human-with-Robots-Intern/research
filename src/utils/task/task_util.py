@@ -222,8 +222,10 @@ def build_tasks_and_constraints(
                 f"Error decoding knowledge file: {e}", doc="", pos=0
             )
     else:
-        raise FileNotFoundError(f"Knowledge file not found at {knowledge_file_bayesian}.")
-    
+        raise FileNotFoundError(
+            f"Knowledge file not found at {knowledge_file_bayesian}."
+        )
+
     if knowledge_file_ground_truth.exists():
         try:
             with knowledge_file_ground_truth.open("r", encoding="utf-8") as f:
@@ -233,7 +235,9 @@ def build_tasks_and_constraints(
                 f"Error decoding knowledge file: {e}", doc="", pos=0
             )
     else:
-        raise FileNotFoundError(f"Knowledge file not found at {knowledge_file_ground_truth}.")
+        raise FileNotFoundError(
+            f"Knowledge file not found at {knowledge_file_ground_truth}."
+        )
 
     if enable_decomposition:
         for task in tasks:
@@ -246,7 +250,9 @@ def build_tasks_and_constraints(
                         # 항목이 있으면 critical의 interval값을 평균에 저장
                         if subtask.name not in bayesian_load:
                             with open(knowledge_file_bayesian, "w") as f:
-                                bayesian_load[subtask.name]["expected_duration"] = temporal_constraint.interval
+                                bayesian_load[subtask.name][
+                                    "expected_duration"
+                                ] = temporal_constraint.interval
                                 json.dump(bayesian_load, f, indent=4)
                         else:
                             with open(knowledge_file_bayesian, "w") as f:
@@ -256,13 +262,11 @@ def build_tasks_and_constraints(
                                 }
                                 json.dump(bayesian_load, f, indent=4)
 
-
                         # bayesian_ground_truth.json에 항목이 없으면 10으로 저장
                         if subtask.name not in ground_truth_load:
                             with open(knowledge_file_ground_truth, "w") as f:
                                 ground_truth_load[subtask.name] = 10
                                 json.dump(ground_truth_load, f, indent=4)
-
 
     task_graph_builder = TaskGraphBuilder()
     task_graph = task_graph_builder.build_graph(tasks)
@@ -273,7 +277,9 @@ def build_tasks_and_constraints(
     return subtasks, task_graph
 
 
-def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerState:
+def get_init_state(
+    subtasks: List[Subtask], constraints: DiGraph, scene_poses: dict
+) -> SchedulerState:
     init_subtask = Subtask(
         task_name=None,
         name="Init",
@@ -294,8 +300,9 @@ def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerSt
         completed_subtasks=[init_completed],
         remaining_subtasks=subtasks,
         constraints=constraints,
-        agent_location="agent",
         current_time=0,
+        scene_positions=scene_poses,
+        held_object=None,
     )
     return init_state
 

@@ -12,6 +12,7 @@ from utils.task import (
     list_task_files,
     load_task_data_from_file,
 )
+from utils.task.task_io import load_scene_positions
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -62,7 +63,7 @@ def main():
 
     # Load the chosen task data
     task_data = load_task_data_from_file(task_file_name)
-
+    scene_poses = load_scene_positions("FloorPlan1_positions.json")
     # Build tasks and constraints
     subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
 
@@ -75,7 +76,7 @@ def main():
     scheduler = Scheduler()
 
     result_schedule = []
-    current_state = get_init_state(subtasks, constraints)
+    current_state = get_init_state(subtasks, constraints, scene_poses)
     is_end = False
 
     while not is_end:
