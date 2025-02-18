@@ -7,7 +7,7 @@ from typing import List, Optional
 import networkx as nx
 
 from core.task import Duration, Execution, Subtask
-from scheduler import ConstraintHandler, HeuristicManager, NavigationManager
+from scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from scheduler.dataclass import (
     Candidate,
     CompletedEntry,
@@ -45,6 +45,7 @@ class Scheduler:
 
     def __init__(
         self,
+        nav_graph: dict,
         search_width: int = BEAM_WIDTH,
         simulation_depth: int = SIMULATION_DEPTH,
     ):
@@ -57,7 +58,7 @@ class Scheduler:
             f"{RED}[Scheduler Init] search_width={search_width}, simulation_depth={simulation_depth}{RESET}"
         )
 
-        self.nav_manager = NavigationManager()
+        self.nav_manager = ActionHandler(nav_graph)
         self.constraint_handler = ConstraintHandler()
         self.cost_calculator = HeuristicManager(self.constraint_handler)
 
@@ -76,7 +77,6 @@ class Scheduler:
             Optional[SchedulerState]: The next state after scheduling one subtask,
             or None if no feasible solution is found.
         """
-
         child_node = self._simulate_search(parent_state)
         if child_node is None:
             log.error("[get_next_state] No child_state found (No feasible solution).")

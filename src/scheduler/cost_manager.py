@@ -1,11 +1,8 @@
-import logging
 import math
-from typing import Optional
 
 from core.task import Subtask
 from scheduler.dataclass import Candidate, SimulationNode, TimeSlot
 from utils.constants import SIMULATION_DEPTH
-from utils.task import load_navigation_times
 from utils.util import create_module_logger
 
 log = create_module_logger(__name__)
@@ -65,7 +62,7 @@ class HeuristicManager:
         return base_heuristic
 
 
-class NavigationManager:
+class ActionHandler:
     """
     Manages navigation time calculations between locations for the robot.
     - Finds the robot's current location if not known.
@@ -73,133 +70,150 @@ class NavigationManager:
     - Looks up travel times from a navigation time table (dictionary).
     """
 
-    def __init__(self):
-        self.navigation_times = load_navigation_times()
+    def __init__(self, nav_graph):
+        self.nav_graph = nav_graph
 
     def compute_total_navigation_time(
         self, current_node: SimulationNode, next_subtask: Subtask
     ) -> float:
         """
-        Compute how long the robot will spend navigating in 'next_subtask'.
-        Steps:
-          1) Confirm the robot's current location from current_node.state.
-             If unknown, attempt to find it from completed_subtasks' NAVIGATE_TO history.
-          2) Parse all NAVIGATE_TO actions in 'next_subtask'.
-          3) For each NAVIGATE_TO action, look up travel time from the current location
-             to the target location, and accumulate.
-          4) Update current_node.state.agent_location at the end.
+        #     Compute how long the robot will spend navigating in 'next_subtask'.
+        #     Steps:
+        #       1) Confirm the robot's current location from current_node.state.
+        #          If unknown, attempt to find it from completed_subtasks' NAVIGATE_TO history.
+        #       2) Parse all NAVIGATE_TO actions in 'next_subtask'.
+        #       3) For each NAVIGATE_TO action, look up travel time from the current location
+        #          to the target location, and accumulate.
+        #       4) Update current_node.state.agent_location at the end.
 
-        Returns:
-            The total navigation time (float).
-        """
-        
-        # If the subtask type is Monitor or no movement needed, return 0 immediately
-        if next_subtask.type == "Monitor":
-            return 0.0, current_node.state.agent_location
-        start_location = None
-        # 1) Ensure we have a known robot location
-        start_location = self._ensure_agent_location(current_node)
-        if start_location is None:
-            start_location = "agent"
+        #     Returns:
+        #         The total navigation time (float).
+        #"""
 
-        nav_time_total = 0.0
-        current_source = start_location
+    # def compute_total_navigation_time(
+    #     self, current_node: SimulationNode, next_subtask: Subtask
+    # ) -> float:
+    #     """
+    #     Compute how long the robot will spend navigating in 'next_subtask'.
+    #     Steps:
+    #       1) Confirm the robot's current location from current_node.state.
+    #          If unknown, attempt to find it from completed_subtasks' NAVIGATE_TO history.
+    #       2) Parse all NAVIGATE_TO actions in 'next_subtask'.
+    #       3) For each NAVIGATE_TO action, look up travel time from the current location
+    #          to the target location, and accumulate.
+    #       4) Update current_node.state.agent_location at the end.
 
-        # 2) If no primitive_actions or no NAVIGATE_TO, no nav time needed
-        if not next_subtask.execution or not next_subtask.execution.primitive_actions:
-            return 0.0, current_node.state.agent_location
+    #     Returns:
+    #         The total navigation time (float).
+    #     """
 
-        # 3) Accumulate travel time for each NAVIGATE_TO
-        target_loc = current_source
-        for action in next_subtask.execution.primitive_actions:
-            if action.startswith("NAVIGATE_TO"):
-                # e.g. "NAVIGATE_TO Kitchen"
-                target_loc = action.split("NAVIGATE_TO")[1].strip()
-                step_time = self.get_specific_nav_time(current_source, target_loc)
-                nav_time_total += step_time
-                current_source = target_loc
+    #     # If the subtask type is Monitor or no movement needed, return 0 immediately
+    #     if next_subtask.type == "Monitor":
+    #         return 0.0, current_node.state.agent_location
+    #     start_location = None
+    #     # 1) Ensure we have a known robot location
+    #     start_location = self._ensure_agent_location(current_node)
+    #     if start_location is None:
+    #         start_location = "agent"
 
-        return nav_time_total, target_loc
+    #     nav_time_total = 0.0
+    #     current_source = start_location
 
-    # ----------------------------------------------------------------------
-    #  Internal Helpers
-    # ----------------------------------------------------------------------
-    def _ensure_agent_location(self, current_node: SimulationNode) -> Optional[str]:
-        """
-        Check if 'current_node.state.agent_location' is already known.
-        If None or empty, try to deduce it by looking at the most recent
-        NAVIGATE_TO in completed_subtasks + current_node.state.subtask.
-        Returns:
-            The (possibly updated) location string, or None if not found.
-        """
-        loc = current_node.state.agent_location
-        if loc:
-            return loc
+    #     # 2) If no primitive_actions or no NAVIGATE_TO, no nav time needed
+    #     if not next_subtask.execution or not next_subtask.execution.primitive_actions:
+    #         return 0.0, current_node.state.agent_location
 
-        # Attempt to find from the plan's history
-        found_loc = self._find_last_location(current_node)
-        if found_loc:
-            return found_loc
+    #     # 3) Accumulate travel time for each NAVIGATE_TO
+    #     target_loc = current_source
+    #     for action in next_subtask.execution.primitive_actions:
+    #         if action.startswith("NAVIGATE_TO"):
+    #             # e.g. "NAVIGATE_TO Kitchen"
+    #             target_loc = action.split("NAVIGATE_TO")[1].strip()
+    #             step_time = self.get_specific_nav_time(current_source, target_loc)
+    #             nav_time_total += step_time
+    #             current_source = target_loc
 
-        # If not found, return None
-        return None
+    #     return nav_time_total, target_loc
 
-    def _find_last_location(self, current_node: SimulationNode) -> Optional[str]:
-        """
-        Traverse completed_subtasks (and current subtask) from the end,
-        searching for the last NAVIGATE_TO action. Return its target location.
-        """
-        plan = current_node.state.completed_subtasks
-        # Traverse in reverse to find the most recent NAVIGATE_TO
-        for ce in reversed(plan):
-            if (
-                not ce.subtask
-                or not ce.subtask.execution
-                or not ce.subtask.execution.primitive_actions
-            ):
-                continue
-            for action in reversed(ce.subtask.execution.primitive_actions):
-                if action.startswith("NAVIGATE_TO"):
-                    return action.split("NAVIGATE_TO")[1].strip()
-        return None
+    # # ----------------------------------------------------------------------
+    # #  Internal Helpers
+    # # ----------------------------------------------------------------------
+    # def _ensure_agent_location(self, current_node: SimulationNode) -> Optional[str]:
+    #     """
+    #     Check if 'current_node.state.agent_location' is already known.
+    #     If None or empty, try to deduce it by looking at the most recent
+    #     NAVIGATE_TO in completed_subtasks + current_node.state.subtask.
+    #     Returns:
+    #         The (possibly updated) location string, or None if not found.
+    #     """
+    #     loc = current_node.state.agent_location
+    #     if loc:
+    #         return loc
 
-    def get_specific_nav_time(self, source: str, target: str) -> float:
-        """
-        Look up the travel time from 'source' to 'target' in navigation_times.
-        If not found, return 0.0 and log a warning.
+    #     # Attempt to find from the plan's history
+    #     found_loc = self._find_last_location(current_node)
+    #     if found_loc:
+    #         return found_loc
 
-        Note: If you need partial matching or fuzzy matching,
-              adapt the dictionary access logic accordingly.
-        """
-        # 공백이 있으면 obj stop_time 이렇게 되어있는거고, stop_time 이 결국 총 nav time 이 될 듯
-        if " " in source:
-            source = source.split(" ")[0]
-        if " " in target:
-            return float(target.split(" ")[1])
-        
-        matched_source_key = next(
-            (k for k in self.navigation_times if k.startswith(source)), None
-        )
-        if not matched_source_key:
-            log.warning(f"No source key matched for '{source}' in navigation times.")
-            return 0.0
+    #     # If not found, return None
+    #     return None
 
-        matched_target_key = next(
-            (k for k in self.navigation_times[matched_source_key] if target in k),
-            None,
-        )
-        if not matched_target_key:
-            log.warning(
-                f"No target key matched for '{target}' under '{matched_source_key}'."
-            )
-            return 0.0
+    # def _find_last_location(self, current_node: SimulationNode) -> Optional[str]:
+    #     """
+    #     Traverse completed_subtasks (and current subtask) from the end,
+    #     searching for the last NAVIGATE_TO action. Return its target location.
+    #     """
+    #     plan = current_node.state.completed_subtasks
+    #     # Traverse in reverse to find the most recent NAVIGATE_TO
+    #     for ce in reversed(plan):
+    #         if (
+    #             not ce.subtask
+    #             or not ce.subtask.execution
+    #             or not ce.subtask.execution.primitive_actions
+    #         ):
+    #             continue
+    #         for action in reversed(ce.subtask.execution.primitive_actions):
+    #             if action.startswith("NAVIGATE_TO"):
+    #                 return action.split("NAVIGATE_TO")[1].strip()
+    #     return None
 
-        move_time = self.navigation_times[matched_source_key].get(
-            matched_target_key, None
-        )
-        if move_time is None:
-            log.warning(
-                f"Navigation time from '{matched_source_key}' to '{matched_target_key}' not found."
-            )
-            return 0.0
-        return move_time
+    # def get_specific_nav_time(self, source: str, target: str) -> float:
+    #     """
+    #     Look up the travel time from 'source' to 'target' in navigation_times.
+    #     If not found, return 0.0 and log a warning.
+
+    #     Note: If you need partial matching or fuzzy matching,
+    #           adapt the dictionary access logic accordingly.
+    #     """
+    #     # 공백이 있으면 obj stop_time 이렇게 되어있는거고, stop_time 이 결국 총 nav time 이 될 듯
+    #     if " " in source:
+    #         source = source.split(" ")[0]
+    #     if " " in target:
+    #         return float(target.split(" ")[1])
+
+    #     matched_source_key = next(
+    #         (k for k in self.navigation_times if k.startswith(source)), None
+    #     )
+    #     if not matched_source_key:
+    #         log.warning(f"No source key matched for '{source}' in navigation times.")
+    #         return 0.0
+
+    #     matched_target_key = next(
+    #         (k for k in self.navigation_times[matched_source_key] if target in k),
+    #         None,
+    #     )
+    #     if not matched_target_key:
+    #         log.warning(
+    #             f"No target key matched for '{target}' under '{matched_source_key}'."
+    #         )
+    #         return 0.0
+
+    #     move_time = self.navigation_times[matched_source_key].get(
+    #         matched_target_key, None
+    #     )
+    #     if move_time is None:
+    #         log.warning(
+    #             f"Navigation time from '{matched_source_key}' to '{matched_target_key}' not found."
+    #         )
+    #         return 0.0
+    #     return move_time

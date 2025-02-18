@@ -2,6 +2,7 @@ import argparse
 
 from core.agent import Agent
 from core.scheduler import Scheduler
+from ithor.handlers.navigation_handler import build_navigation_graph
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import create_module_logger, visualize
 from utils.constants import LOG_ROUND
@@ -45,7 +46,7 @@ def parse_arguments():
     parser.add_argument(
         "-s",
         "--simulation",
-        # default=True,
+        default=True,
         action="store_true",
     )
     return parser.parse_args()
@@ -55,15 +56,16 @@ def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
 
-    if args.simulation:
-        controller = init_ai2thor()
-
-    task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files)
+    # Set up the AI2-THOR controller and navigation graph
+    controller = init_ai2thor()
+    nav_graph = build_navigation_graph(controller)
+    scene_poses = load_scene_positions("FloorPlan1_positions.json")
 
     # Load the chosen task data
+    task_files = list_task_files()
+    task_file_name = get_user_task_choice(task_files)
     task_data = load_task_data_from_file(task_file_name)
-    scene_poses = load_scene_positions("FloorPlan1_positions.json")
+
     # Build tasks and constraints
     subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
 
@@ -73,7 +75,7 @@ def main():
 
     agent = Agent()
 
-    scheduler = Scheduler()
+    scheduler = Scheduler(nav_graph)
 
     result_schedule = []
     current_state = get_init_state(subtasks, constraints, scene_poses)

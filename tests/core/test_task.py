@@ -57,9 +57,8 @@ class TestTaskSystem(TestCase):
         graph = task_graph.build_graph(tasks)
 
         # 그래프 노드 및 엣지 확인
-
         self.assertEqual(len(graph.nodes), 4)
-        self.assertEqual(len(graph.edges), 3)  # TemporalConstraints에 기반한 엣지 수
+        self.assertEqual(len(graph.edges), 3) # TemporalConstraints에 기반한 엣지 수
 
         # 특정 엣지 확인
         self.assertTrue(graph.has_edge("Place_in Bread Toaster", "Toggle_on Toaster"))

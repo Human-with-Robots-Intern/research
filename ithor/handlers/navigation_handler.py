@@ -1,50 +1,26 @@
 import heapq
+import math
+import time
 
-from ..utils.constants import GRID_SIZE, SMOOTH_LEVEL
+from ..utils.constants import SMOOTH_LEVEL
 from ..utils.math_utils import (
+    build_navigation_graph,
     closest_position,
     quantize_position,
 )
-
-import math
-import time
 
 
 class NavigationHandler:
     def __init__(self, controller, camera_handler):
         self.controller = controller
         self.camera_handler = camera_handler
-        self.grid_size = GRID_SIZE  # Ensure grid_size is defined
-        self.neighbors = self.init_neighbors()
-
-    def init_neighbors(self):  # 대각선 방향 없는 이웃좌표들
-        neighbors = dict()
-        positions = self.controller.step("GetReachablePositions").metadata[
-            "actionReturn"
-        ]
-        positions_tuple = [
-            quantize_position((p["x"], p["y"], p["z"])) for p in positions
-        ]
-
-        # Build neighbors with quantized positions
-        for position in positions_tuple:
-            position_neighbors = set()
-            for p in positions_tuple:
-                # Check that the position is not diagonal
-                if position != p:
-                    delta = tuple(abs(position[i] - p[i]) for i in range(3))
-                    if sum(delta) == self.grid_size:  # Ensure only one axis changes
-                        position_neighbors.add(p)
-            neighbors[position] = position_neighbors
-
-        return neighbors
+        self.neighbors = build_navigation_graph(controller)
 
     def move_to(self, object_id: str):
         """
         Moves the agent to the nearest reachable point near the specified object.
         """
         # Get current agent position
-
         agent_position = self.get_agent_position()
 
         # 자르기
@@ -55,7 +31,7 @@ class NavigationHandler:
         # Get object position from the object ID
         object_position = self.get_object_position(object_id)
         # Find the shortest path to the closest reachable position near the object
-        path = self.shortest_path(agent_position, object_position)
+        path = self.find_shortest_path(agent_position, object_position)
         # Move agent step by step along the path
         print(f"경로!!!!! : {path}")
         elapsed_time = 0
@@ -132,7 +108,7 @@ class NavigationHandler:
             # Update view after each step
             self.camera_handler.update_view()
 
-    def shortest_path(self, start, end):
+    def find_shortest_path(self, start, end):
         start = quantize_position(start)
         end = quantize_position(end)
 
@@ -144,9 +120,6 @@ class NavigationHandler:
             start = quantize_position(self.adjust_to_nearest_reachable(start))
         while not self.is_reachable(end):
             end = quantize_position(self.adjust_to_nearest_reachable(end))
-
-        # Define possible directions and corresponding angle
-        directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]  # (dx, dz)
 
         def calculate_direction(prev, current):
             """Calculate the direction vector (dx, dz) between two points."""
