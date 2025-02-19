@@ -121,111 +121,107 @@ class ActionHandler:
         current_node: SimulationNode,
         primitive_actions: list[str],
         cutoff_time: float,
-    ) -> Tuple[Subtask, Subtask]:
+    ) -> tuple[list[str], list[str], float, float]:
         """
-        1) simulate_actions()로 모든 액션에 대한 time_used를 구한다.
-        2) time_used <= cutoff_time → early, 그 외 → remain
-        3) 사후보정:
-        - early에 GRASP <obj>가 있는데, place가 안 끝난 경우
-            → remain에서 'NAVIGATE_TO ~' (장소) + 'PLACE_XXX <obj>' 등을
-            순서대로 가져와 early에 붙인다.
-        - 최종적으로 early 구간의 끝에서 held_object가 없도록 보장
+        1) time-based 분할 -> (early_actions, remain_actions)
+        2) 사후 보정: early에 GRASP한 오브젝트가 remain에서 Place되어야 하면 가져옴
+        3) 두 최종 리스트를 각각 재시뮬레이션하여 total duration 계산
+        4) (early_actions, remain_actions, early_duration, remain_duration) 반환
         """
-        # (1) 전체 액션 시뮬레이션
-        action_log_info = self.simulate_actions(current_node, primitive_actions)
 
-        # (2) time-based 분할
+        # (1) 전체 시퀀스 시뮬레이션
+        full_log = self.simulate_actions(current_node, primitive_actions)
+
         early_actions: list[str] = []
         remain_actions: list[str] = []
 
-        for result in action_log_info.results:
+        # time-based 분할
+        for result in full_log.results:
             if result.time_used <= cutoff_time:
                 early_actions.append(result.action_full_name)
             else:
                 remain_actions.append(result.action_full_name)
 
-        # (3) 사후 보정
-        #  3-1) early에서 grasp된 오브젝트를 찾는다
-        grasped_objs_in_early = []
-        placed_objs_in_early = set()
+        # (2) 사후 보정: early에서 pick된 오브젝트가 place 안 된 경우 → remain에서 place 가져오기
+        picked_objs_early = []
+        placed_objs_early = set()
         for ea in early_actions:
-            tokens = ea.split()
-            if not tokens:
+            ea_tokens = ea.split()
+            if not ea_tokens:
                 continue
-            base_action = tokens[0].upper()
-            if base_action == "GRASP" and len(tokens) >= 2:
-                obj_id = tokens[1]
-                grasped_objs_in_early.append(obj_id)
-            elif base_action in ["PLACE_INSIDE", "PLACE_ON_TOP"] and len(tokens) >= 2:
-                placed_objs_in_early.add(tokens[1])  # 이미 place 된 오브젝트
+            if ea_tokens[0].upper() == "GRASP" and len(ea_tokens) >= 2:
+                picked_objs_early.append(ea_tokens[1])
+            elif (
+                ea_tokens[0].upper() in ["PLACE_INSIDE", "PLACE_ON_TOP"]
+                and len(ea_tokens) >= 2
+            ):
+                placed_objs_early.add(ea_tokens[1])
 
-        # 결국 early에서 grasp한 오브젝트 중 place가 안 된 것만 다시 확인
-        # (Pick 했는데 아직 Place 안 된 오브젝트 목록)
+        # unplaced_objs = pick했지만 place되지 않은 오브젝트 목록
         unplaced_objs = [
-            obj for obj in grasped_objs_in_early if obj not in placed_objs_in_early
+            obj for obj in picked_objs_early if obj not in placed_objs_early
         ]
 
-        if not unplaced_objs:
-            # 만약 전부 early에서 pick~place가 끝났다면 추가 보정 없이 종료
-            return early_actions, remain_actions
+        # remain에서 Place를 찾으면, 해당 직전 Navigate도 함께 early로 옮긴다 (예시)
+        if unplaced_objs:
+            i = 0
+            while i < len(remain_actions):
+                ra = remain_actions[i]
+                r_tokens = ra.split()
+                if len(r_tokens) < 2:
+                    i += 1
+                    continue
+                base_action = r_tokens[0].upper()
+                obj_id = r_tokens[1]
 
-        #  3-2) remain_actions에서, 해당 오브젝트들에 대한 Navigate + Place를 순서대로 찾아서 early로 이동
-        #       (단순히 "PLACE_XXX <obj>" 직전의 "NAVIGATE_TO" 1개만 가져오는 로직 예시)
-        i = 0
-        while i < len(remain_actions):
-            ra = remain_actions[i]
-            tokens = ra.split()
-            if len(tokens) < 2:
-                i += 1
-                continue
+                if (
+                    base_action in ["PLACE_INSIDE", "PLACE_ON_TOP"]
+                    and obj_id in unplaced_objs
+                ):
+                    # 직전 navigate까지 옮기기
+                    if i - 1 >= 0:
+                        prev_act = remain_actions[i - 1]
+                        p_tokens = prev_act.split()
+                        if p_tokens and p_tokens[0].upper() == "NAVIGATE_TO":
+                            early_actions.append(prev_act)
+                            remain_actions.pop(i - 1)
+                            i -= 1
 
-            base_action = tokens[0].upper()
-            obj_id = tokens[1]
+                    early_actions.append(ra)
+                    remain_actions.pop(i)
 
-            # (A) 만약 PLACE_XXX이고, obj_id가 unplaced_objs에 있으면,
-            #     → 이 Place 액션과 바로 직전 Navigate를 early로 옮긴다.
-            if (
-                base_action in ["PLACE_INSIDE", "PLACE_ON_TOP"]
-                and obj_id in unplaced_objs
-            ):
-                # 1) Place 직전 Navigate가 있다면, 그것도 함께 이동 (OPTIONAL)
-                #    즉, (i-1)에 "NAVIGATE_TO ~"가 있으면 같이 옮긴다.
-                if i - 1 >= 0:
-                    prev_action = remain_actions[i - 1]
-                    prev_tokens = prev_action.split()
-                    if prev_tokens and prev_tokens[0].upper() == "NAVIGATE_TO":
-                        # early로 이동
-                        early_actions.append(prev_action)
-                        remain_actions.pop(i - 1)
-                        # pop 했으니 인덱스 조정
-                        i -= 1
-
-                # 2) Place 액션도 early로 옮긴다
-                early_actions.append(ra)
-                remain_actions.pop(i)
-
-                # 이제 obj_id는 place가 완료되었으므로, unplaced_objs에서 제거
-                if obj_id in unplaced_objs:
+                    # 이제 obj_id는 place 완료
                     unplaced_objs.remove(obj_id)
-                # i는 remain_actions.pop(i)로 인해 앞으로 당겨졌으니, 그대로
-                continue
+                    continue
+                i += 1
 
-            i += 1
+        # (3) 재시뮬레이션으로 각각의 total_duration 계산
+        early_duration = self._simulate_actions_for_duration(
+            current_node, early_actions
+        )
+        remain_duration = self._simulate_actions_for_duration(
+            current_node, remain_actions
+        )
 
-        # 이 시점에서, unplaced_objs가 비어 있지 않다면
-        # "remain에 해당 오브젝트의 place가 아예 없는" 경우이거나,
-        # "place를 위해 navigate가 다른 여러 개"인 복잡한 상황이 될 수 있음.
-        # 아래처럼 경고를 찍거나, 추가 로직을 넣을 수 있음.
-        for leftover_obj in unplaced_objs:
-            log.warning(
-                f"Object '{leftover_obj}' was grasped in early but not placed in remain."
-            )
+        # (4) 반환
+        return early_actions, remain_actions, early_duration, remain_duration
 
-        # 최종적으로 early 구간의 끝에서, pick~place가 완료되지 않은 오브젝트가 있어도
-        # "정책에 따라" 어떻게 처리할지 결정:
-        # - 여기서는 단순히 경고만 남김
+    def _simulate_actions_for_duration(
+        self, current_node: SimulationNode, actions: list[str]
+    ) -> float:
+        """
+        (단순 버전) 주어진 액션 시퀀스를
+        '초기 상태'(current_node)에서 시뮬레이션 → 최종 누적 시간을 반환
+        """
+        if not actions:
+            return 0.0
 
-        return early_actions, remain_actions
+        # node 복사
+        sim_node = copy.deepcopy(current_node)
+        log_info = self.simulate_actions(sim_node, actions)
+        if not log_info.results:
+            return 0.0
+        return log_info.results[-1].time_used
 
     def _find_shortest_path(
         self, start_pos: Tuple[float, float, float], end_pos: Tuple[float, float, float]
