@@ -310,6 +310,7 @@ def build_tasks_and_constraints(
                             nam_remain_subtask.append(similar_subtask)
                             nam_before_subtask.append(subtask.name)
 
+
                         # bayesian_ground_truth.json에 항목이 없으면 10으로 저장
                         if similar_subtask not in ground_truth_load:
                             with open(knowledge_file_ground_truth, "w") as f:
@@ -355,25 +356,10 @@ def get_init_state(
     return init_state
 
 
-def make_monitoring_subtask(name: str, obj: str = None) -> Subtask:
-    monitoring_action = None if obj is None else [f"MONITORING {obj}"]
-    monitoring_subtask = Subtask(
-        task_name=None,
-        name=name,
-        duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
-        repetition=1,
-        type="Monitor",
-        execution=Execution(objects=[], primitive_actions=monitoring_action),
-        temporal_constraints=None,
-        decomposed=True,
-    )
-    return monitoring_subtask
-
-
 def split_subtask_for_monitoring(
     curr_node,
     candidate: Candidate,
-    nav_manager,
+    action_handler,
     early_cutoff: float,
 ):
     """
@@ -386,7 +372,7 @@ def split_subtask_for_monitoring(
     # 3) 실제로 액션 분할
     early_actions, early_time, remain_actions, remain_time = (
         split_primitive_actions_by_time(
-            curr_node, candidate.subtask, early_cutoff, nav_manager
+            curr_node, candidate.subtask, early_cutoff, action_handler
         )
     )
 
@@ -427,7 +413,7 @@ def split_subtask_for_monitoring(
 
 
 def split_primitive_actions_by_time(
-    curr_node: SimulationNode, subtask: Subtask, cutoff_time: float, nav_manager
+    curr_node: SimulationNode, subtask: Subtask, cutoff_time: float, action_handler
 ) -> Tuple[List[str], float, List[str], float]:
     """
     Primitive Action을 "초반(cutoff_time)"과 "나머지"로 분할
@@ -482,7 +468,7 @@ def split_primitive_actions_by_time(
                         if curr_node.state.agent_location
                         else "agent"
                     )
-                duration = nav_manager.get_specific_nav_time(agent_loc, tokens[1])
+                duration = action_handler.get_specific_nav_time(agent_loc, tokens[1])
                 agent_loc = tokens[1]
         elif base_action == "WAIT":
             # WAIT [time]
@@ -509,9 +495,7 @@ def split_primitive_actions_by_time(
         leftover_for_early = cutoff_time - time_used
 
         # (C) 분할 로직
-        # critical_end =
-        # duration_with_nav = duration + nav_manager.get_specific_nav_time(tokens[-1], critical_end)
-        # if duration_with_nav <= leftover_for_early:
+
         if duration <= leftover_for_early:
             # 이 액션 전체를 early에 할당
             early_actions.append(action)
@@ -575,14 +559,14 @@ def split_primitive_actions_by_time(
 
     early_total_time = time_used
     remain_total_time = (
-        sum_action_durations(curr_node, subtask, nav_manager) - time_used
+        sum_action_durations(curr_node, subtask, action_handler) - time_used
     )
 
     return early_actions, early_total_time, remain_actions, remain_total_time
 
 
 def sum_action_durations(
-    curr_node: SimulationNode, subtask: Subtask, nav_manager
+    curr_node: SimulationNode, subtask: Subtask, action_handler
 ) -> float:
     total = 0.0
     actions = subtask.execution.primitive_actions
@@ -602,7 +586,7 @@ def sum_action_durations(
                         if curr_node.state.agent_location
                         else "agent"
                     )
-                dur = nav_manager.get_specific_nav_time(agent_loc, tokens[1])
+                dur = action_handler.get_specific_nav_time(agent_loc, tokens[1])
                 agent_loc = tokens[1]
         elif base_action == "WAIT" and len(tokens) >= 2:
             dur = float(tokens[1])

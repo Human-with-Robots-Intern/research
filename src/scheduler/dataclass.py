@@ -21,7 +21,7 @@ class CompletedEntry(NamedTuple):
 
 class SchedulerState(NamedTuple):
     """
-    스케쥴 정보를 담는 NamedTuple
+    현재 스케쥴 상태를 저장하는 dataclass
     """
 
     # 현재 subtask
@@ -32,10 +32,12 @@ class SchedulerState(NamedTuple):
     remaining_subtasks: List[Subtask]
     # 현재 constraint
     constraints: DiGraph
-    # 현재 절대 시간 및 위치
+    # 현재 절대 시간
     current_time: float
-    # agent, object들의 위치
+    # 현재 agent, object들의 position
     scene_positions: dict[str, list[float, float, float]]
+    # agent의 위치 (landmark)
+    agent_location: str
     # 현재 agent가 들고 있는 object
     held_object: Optional[str]
 

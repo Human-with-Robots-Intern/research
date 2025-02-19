@@ -4,8 +4,6 @@ import uuid
 from queue import PriorityQueue
 from typing import List, Optional
 
-import networkx as nx
-
 from core.task import Duration, Execution, Subtask
 from scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from scheduler.dataclass import (
@@ -58,7 +56,7 @@ class Scheduler:
             f"{RED}[Scheduler Init] search_width={search_width}, simulation_depth={simulation_depth}{RESET}"
         )
 
-        self.nav_manager = ActionHandler(nav_graph)
+        self.action_handler = ActionHandler(nav_graph)
         self.constraint_handler = ConstraintHandler()
         self.cost_calculator = HeuristicManager(self.constraint_handler)
 
@@ -367,10 +365,14 @@ class Scheduler:
         # nav_time, new_location = self.nav_manager.compute_total_navigation_time(
         #     curr_node, candidate.subtask
         # )
-        agent_location = curr_node.state.agent_location.split("|")[0]
-        target_location = list(candidate.subtask.execution.objects.keys())[0].split("|")[0]
-        nav_time = self.nav_manager.get_specific_nav_time(
-            agent_location, target_location
+        navigate_target = []
+        for primitive_action in candidate.subtask.execution.primitive_actions:
+            if primitive_action.startswith("NAVIGATE_TO"):
+                navigate_target.append(primitive_action)
+                break
+        # current_node의 agent 시점에서 candidate_subtask의 첫번째 navigate to 대상까지의 navigation time
+        nav_time, _, scene_positions, held_obj = (
+            self.action_handler.simulate_navigate_actions(curr_node, navigate_target)
         )
 
         # If there's enough time to monitor during waiting
@@ -443,7 +445,7 @@ class Scheduler:
         early_cutoff = max_critical_interval * BAYESIAN_CRITERIA
 
         # 4) Check if subtask ends before the monitoring cutoff => no need to split
-        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
+        nav_time, new_location = self.action_handler.compute_total_navigation_time(
             curr_node, candidate.subtask
         )
         total_duration = nav_time + candidate.subtask.duration.interval
@@ -460,7 +462,7 @@ class Scheduler:
         early_sub, mon_sub, remain_sub = split_subtask_for_monitoring(
             curr_node=curr_node,
             candidate=candidate,
-            nav_manager=self.nav_manager,
+            action_handler=self.action_handler,
             early_cutoff=early_cutoff,
         )
         log.debug(
@@ -470,7 +472,7 @@ class Scheduler:
 
         # Compute nav_time for early_sub specifically
         nav_time_early_sub, new_location_early_sub = (
-            self.nav_manager.compute_total_navigation_time(curr_node, early_sub)
+            self.action_handler.compute_total_navigation_time(curr_node, early_sub)
         )
 
         # (B) Check feasibility against deadline, including potential nav time
@@ -604,7 +606,7 @@ class Scheduler:
         curr_depth = curr_node.depth
         curr_heuristic = curr_node.heuristic_cost
 
-        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
+        nav_time, new_location = self.action_handler.compute_total_navigation_time(
             curr_node, candidate.subtask
         )
         exec_time = candidate.subtask.duration.interval + nav_time
@@ -688,8 +690,10 @@ class Scheduler:
         wait_duration = candidate.earliest_start_time - curr_state.current_time
 
         agent_locating = curr_node.state.agent_location.split("|")[0]
-        target_location = list(candidate.subtask.execution.objects.keys())[0].split("|")[0]
-        nav_time = self.nav_manager.get_specific_nav_time(
+        target_location = list(candidate.subtask.execution.objects.keys())[0].split(
+            "|"
+        )[0]
+        nav_time = self.action_handler.get_specific_nav_time(
             agent_locating, target_location
         )
 
@@ -814,7 +818,9 @@ class Scheduler:
         wait_start_time = curr_state.current_time
         wait_duration = candidate.earliest_start_time - curr_state.current_time
 
-        target_location = list(candidate.subtask.execution.objects.keys())[0].split("|")[0]
+        target_location = list(candidate.subtask.execution.objects.keys())[0].split(
+            "|"
+        )[0]
 
         wait_action = [f"Wait {wait_duration}"] if wait_duration > 0 else []
 
@@ -921,7 +927,7 @@ class Scheduler:
 
         # (4) Check if subtask ends before the monitoring cutoff
         curr_state = curr_node.state
-        nav_time, _ = self.nav_manager.compute_total_navigation_time(
+        nav_time, _ = self.action_handler.compute_total_navigation_time(
             curr_node, candidate.subtask
         )
         total_duration = nav_time + candidate.subtask.duration.interval
