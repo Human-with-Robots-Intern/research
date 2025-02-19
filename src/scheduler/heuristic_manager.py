@@ -53,7 +53,7 @@ class HeuristicManager:
         out_time_slot = max(out_time_slots, key=lambda x: x.interval)
 
         # ! DO NOT FIX THIS HEURISTIC FORMULA
-        time_diff = out_time_slot.interval + in_time_slot.interval
+        time_diff = out_time_slot.interval - in_time_slot.interval
         base_heuristic = factor * (
             candidate.subtask.duration.interval + math.exp(time_diff)
         )
