@@ -293,7 +293,9 @@ def build_tasks_and_constraints(
                         # 항목이 있으면 critical의 interval값을 평균에 저장
                         if similar_subtask in bayesian_load:
                             with open(knowledge_file_bayesian, "w") as f:
-                                temporal_constraint.interval = bayesian_load[similar_subtask]["expected_duration"]
+                                temporal_constraint.interval = bayesian_load[
+                                    similar_subtask
+                                ]["expected_duration"]
                                 json.dump(bayesian_load, f, indent=4)
                             nam_remain_subtask.append(similar_subtask)
                             nam_before_subtask.append(subtask.name)
@@ -351,6 +353,21 @@ def get_init_state(
         held_object=None,
     )
     return init_state
+
+
+def make_monitoring_subtask(name: str, obj: str = None) -> Subtask:
+    monitoring_action = None if obj is None else [f"MONITORING {obj}"]
+    monitoring_subtask = Subtask(
+        task_name=None,
+        name=f"Monitoring for {name}_{uuid.uuid4().hex[:8]}",
+        duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
+        repetition=1,
+        type="Monitor",
+        execution=Execution(objects=[], primitive_actions=monitoring_action),
+        temporal_constraints=None,
+        decomposed=True,
+    )
+    return monitoring_subtask
 
 
 def split_subtask_for_monitoring(
@@ -541,38 +558,3 @@ def split_primitive_actions_by_time(
     )
 
     return early_actions, early_total_time, remain_actions, remain_total_time
-
-
-def sum_action_durations(
-    curr_node: SimulationNode, subtask: Subtask, action_handler
-) -> float:
-    total = 0.0
-    actions = subtask.execution.primitive_actions
-    for i, action in enumerate(actions):
-        tokens = action.split()
-        base_action = tokens[0].upper()
-
-        if base_action == "NAVIGATE_TO":
-            if len(tokens) == 3:
-                # NAVIGATE_TO <object> <time>
-                dur = float(tokens[2])
-            else:
-                # 시간이 명시 안됨 → 직접 계산
-                if i == 0:
-                    agent_loc = (
-                        curr_node.state.agent_location
-                        if curr_node.state.agent_location
-                        else "agent"
-                    )
-                dur = action_handler.get_specific_nav_time(agent_loc, tokens[1])
-                agent_loc = tokens[1]
-        elif base_action == "WAIT" and len(tokens) >= 2:
-            dur = float(tokens[1])
-        elif base_action == "MONITORING":
-            # e.g. "MONITORING <Obj>"
-            dur = MONITORING_DURATION
-        else:
-            # GRASP, PLACE_INSIDE 등
-            dur = PRIMITIVE_ACTION_DURATION
-        total += dur
-    return total
