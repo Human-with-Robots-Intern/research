@@ -21,7 +21,6 @@ class HeuristicManager:
         self,
         current_node: SimulationNode,
         candidate: Candidate,
-        navigate_time: float,
     ) -> float:
         """
         기존 코드의 휴리스틱 공식:
@@ -56,7 +55,7 @@ class HeuristicManager:
         # ! DO NOT FIX THIS HEURISTIC FORMULA
         time_diff = out_time_slot.interval + in_time_slot.interval
         base_heuristic = factor * (
-            candidate.subtask.duration.interval + navigate_time + math.exp(time_diff)
+            candidate.subtask.duration.interval + math.exp(time_diff)
         )
 
         return base_heuristic
