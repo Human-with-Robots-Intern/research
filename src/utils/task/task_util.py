@@ -275,7 +275,7 @@ def build_tasks_and_constraints(
                         # 항목이 있으면 critical의 interval값을 평균에 저장
                         if similar_subtask in bayesian_load:
                             with open(knowledge_file_bayesian, "w") as f:
-                                bayesian_load[similar_subtask]["expected_duration"] = temporal_constraint.interval
+                                temporal_constraint.interval = bayesian_load[similar_subtask]["expected_duration"]
                                 json.dump(bayesian_load, f, indent=4)
                             nam_remain_subtask.append(similar_subtask)
                             nam_before_subtask.append(subtask.name)
