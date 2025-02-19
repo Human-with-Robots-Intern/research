@@ -5,7 +5,7 @@ from core.scheduler import Scheduler
 from ithor.handlers.navigation_handler import build_navigation_graph
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import create_module_logger, visualize
-from utils.constants import LOG_ROUND
+from utils.constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH
 from utils.task import (
     build_tasks_and_constraints,
     get_init_state,
@@ -46,7 +46,7 @@ def parse_arguments():
     parser.add_argument(
         "-s",
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
     )
     return parser.parse_args()
@@ -75,7 +75,7 @@ def main():
 
     agent = Agent()
 
-    scheduler = Scheduler(nav_graph)
+    scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph)
 
     result_schedule = []
     current_state = get_init_state(subtasks, constraints, scene_poses)
@@ -93,8 +93,8 @@ def main():
             execute_subtask(controller, next_state.subtask)
 
         # TODO Simulation 수행 결과값을 얻어야 함. 지금은 스케쥴러에서 줌
-        if next_state.subtask.type == "Monitor":
-            next_state = agent.bayesian_estimate(next_state, subtasks)
+        # if next_state.subtask.type == "Monitor":
+        #     next_state = agent.bayesian_estimate(next_state, subtasks)
 
         current_state = next_state
 
