@@ -4,7 +4,7 @@
         "variance": 1.0
     },
     "Turn off stove after cooking": {
-        "expected_duration": 20,
+        "expected_duration": 10,
         "variance": 1.0
     },
     "Prepare Potato": {
@@ -32,7 +32,7 @@
         "variance": 1.0
     },
     "Turn Off Stove After Boiling Potato": {
-        "expected_duration": 10.0,
+        "expected_duration": 30,
         "variance": 1.0
     },
     "Turn Off Stove After Cooking Egg Fry": {
@@ -40,7 +40,7 @@
         "variance": 1.0
     },
     "Turn off Stove after Boiling": {
-        "expected_duration": 15,
-        "variance": 1.0
+        "expected_duration": 10.000969739281484,
+        "variance": 0.009765235361630606
     }
 }
