@@ -696,21 +696,29 @@ class Scheduler:
             raise ValueError(
                 f"[_expand_wait_with_monitoring] Negative wait duration: {total_wait_duration}"
             )
-
-        partial_nav_time = (
-            int(
-                (candidate.earliest_start_time - curr_state.current_time)
-                // NAV_STEP_DURATION
-            )
-            * NAV_STEP_DURATION
+        target_obj = candidate.subtask.execution.primitive_actions[0].split()[1]
+        full_nav_time = self.action_handler.get_actions_info(
+            curr_node, [f"NAVIGATE_TO {target_obj}"]
+        ).action_duration
+        #!  Refactoring 필요
+        partial_nav_time = min(
+            (
+                int(
+                    (candidate.earliest_start_time - curr_state.current_time)
+                    // NAV_STEP_DURATION
+                )
+                * NAV_STEP_DURATION
+            ),
+            full_nav_time,
         )
-        log.warning(f"Partial Navigation Time: {partial_nav_time}")
+        log.warning(
+            f"Partial Navigation Time: {partial_nav_time} / {candidate.earliest_start_time - curr_state.current_time}"
+        )
         if partial_nav_time < 0:
             raise ValueError(
                 f"[_expand_wait_with_monitoring] Negative partial navigation time: {partial_nav_time}"
             )
 
-        target_obj = candidate.subtask.execution.primitive_actions[0].split()[1]
         nav_action = [f"NAVIGATE_TO {target_obj} {partial_nav_time}"]
         nav_action_info = self.action_handler.get_actions_info(curr_node, nav_action)
         nav_time = nav_action_info.time_used
