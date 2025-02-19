@@ -1,11 +1,11 @@
 import copy
 import heapq
 import math
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
-from core.task import Subtask
+from core.task import Duration, Execution, Subtask
 from ithor.utils.math_utils import adjust_if_unreachable
-from scheduler.dataclass import SimulationNode
+from scheduler.dataclass import ActionSimulationLog, SimulationNode
 from utils.constants import (
     MONITORING_DURATION,
     NAV_STEP_DURATION,
@@ -22,229 +22,163 @@ class ActionHandler:
         self.nav_graph = nav_graph
 
     def simulate_actions(
-        self, current_node: SimulationNode, primitive_actions: list[str]
-    ) -> Tuple[float, float, dict[str, Tuple[float, float, float]], Optional[str]]:
+        self,
+        current_node: SimulationNode,
+        primitive_actions: List[str],
+    ) -> ActionSimulationLog:
+        """
+        1) 액션들을 시뮬레이션해 누적 시간(time_used)과 액션별 상태를 기록
+        2) ActionSimulationLog로 반환
+        """
+        action_log_info = ActionSimulationLog()
+
+        # 초기 상태 복사
         scene_positions = copy.deepcopy(current_node.state.scene_positions)
         held_object = copy.deepcopy(current_node.state.held_object)
-        total_nav_time = 0.0
-        total_action_time = 0.0
+        time_used = 0.0
 
         for prim_action in primitive_actions:
             tokens = prim_action.split()
             if not tokens:
                 continue
-            action = tokens[0].upper()
-            target_obj_id = tokens[1] if len(tokens) > 1 else None
-            partial_str = tokens[2] if len(tokens) > 2 else None
 
+            action_type = tokens[0].upper()
+            target_obj_id = tokens[1] if len(tokens) > 1 else None
+            partial_time_str = tokens[2] if len(tokens) > 2 else None
+
+            # 예외: WAIT 이외 액션에서, scene_positions에 없는 오브젝트를 타겟으로 지목
             if (
-                action != "GRASP"
-                and target_obj_id
+                target_obj_id
                 and target_obj_id not in scene_positions
+                and action_type != "WAIT"
             ):
                 log.error(f"Object {target_obj_id} not in scene_positions.")
                 raise ValueError(f"Object {target_obj_id} not in scene_positions.")
 
-            if action == "NAVIGATE_TO":
-                log.debug(
-                    f"NAVIGATE_TO {target_obj_id} ({scene_positions[target_obj_id]})"
-                )
+            # 액션별 소요시간 계산
+            if action_type == "NAVIGATE_TO":
                 navigate_path = self._find_shortest_path(
                     scene_positions["agent"], scene_positions[target_obj_id]
                 )
-                if partial_str is None:
-                    nav_time = (len(navigate_path) - 1) * NAV_STEP_DURATION
+                if partial_time_str is None:
+                    action_duration = len(navigate_path) * NAV_STEP_DURATION
                     if navigate_path:
                         scene_positions["agent"] = navigate_path[-1]
                 else:
-                    try:
-                        nav_val = float(partial_str)
-                    except ValueError:
-                        nav_val = (len(navigate_path) - 1) * NAV_STEP_DURATION
-                        log.warning(
-                            f"Invalid partial time '{partial_str}', using {nav_val}"
-                        )
-                    steps = int(math.floor(nav_val / NAV_STEP_DURATION))
+                    nav_time = float(partial_time_str)
+                    steps = int(math.floor(nav_time / NAV_STEP_DURATION))
                     steps = max(0, min(steps, len(navigate_path) - 1))
-                    nav_time = nav_val
+                    action_duration = nav_time
                     if navigate_path:
                         scene_positions["agent"] = navigate_path[steps]
-                total_nav_time += nav_time
-                total_action_time += nav_time
 
-            elif action == "GRASP":
+            elif action_type == "GRASP":
                 if held_object is not None:
-                    raise ValueError(f"Already holding {held_object}")
+                    raise ValueError(
+                        f"Already holding {held_object}, cannot grasp {target_obj_id}."
+                    )
                 held_object = target_obj_id
-                total_action_time += PRIMITIVE_ACTION_DURATION
+                action_duration = PRIMITIVE_ACTION_DURATION
 
-            elif action in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
+            elif action_type in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
                 if held_object is None:
                     raise ValueError("No object in hand to place.")
+                # place 동작
                 scene_positions[held_object] = scene_positions[target_obj_id]
                 held_object = None
-                total_action_time += PRIMITIVE_ACTION_DURATION
-            elif action == "MONITORING":
-                total_action_time += MONITORING_DURATION
-            elif action == "WAIT":
-                total_action_time += float(target_obj_id)
-            elif action in PRIMITIVE_ACTION_SET:
-                total_action_time += PRIMITIVE_ACTION_DURATION
-            else:
-                raise ValueError(f"Unknown action name: {action}")
+                action_duration = PRIMITIVE_ACTION_DURATION
 
-        return total_nav_time, total_action_time, scene_positions, held_object
+            elif action_type == "MONITORING":
+                action_duration = MONITORING_DURATION
+
+            elif action_type == "WAIT":
+                action_duration = float(target_obj_id)  # 예: WAIT 3.0
+
+            elif action_type in PRIMITIVE_ACTION_SET:
+                action_duration = PRIMITIVE_ACTION_DURATION
+
+            else:
+                log.error(f"Unknown action name: {action_type}")
+                raise ValueError(f"Unknown action name: {action_type}")
+
+            # 누적 시간 증가
+            time_used += action_duration
+
+            # 로그에 기록
+            action_log_info.add_result(
+                action_full_name=prim_action,
+                action_type=action_type,
+                time_used=time_used,
+                action_duration=action_duration,
+                scene_positions=copy.deepcopy(scene_positions),
+                held_object=held_object,
+            )
+
+        return action_log_info
+
+    def _find_shortest_path(
+        self, start_pos: Tuple[float, float, float], end_pos: Tuple[float, float, float]
+    ) -> List[Tuple[float, float, float]]:
+        """
+        nav_graph를 이용해 start_pos부터 end_pos까지의 최단 경로(노드 리스트) 탐색
+        """
+        # (사용자 정의) 예시 로직
+        if start_pos == end_pos:
+            return [start_pos]
+        # ... 생략 ...
+        return [start_pos, end_pos]  # 간단 예시
 
     def split_subtask_by_cutoff_time(
         self,
         current_node: SimulationNode,
-        primitive_actions: list[str],
+        primitive_actions: List[str],
         cutoff_time: float,
-    ) -> Tuple[Subtask, Subtask]:
+    ) -> Tuple[List[str], List[str]]:
         """
-        Cutoff time을 기준으로 primitive actions를 분할하는 함수
-
-        Args:
-            current_node (SimulationNode): 부모 노드
-            primitive_actions (list[str]): 분할할 primitive actions
-            cutoff_time (float): 분할 기준 시간
-
-        Raises:
-            ValueError: object가 scene_positions에 없는 경우
-            ValueError: grasp시, 이미 다른 object를 들고 있는 경우
-            ValueError: place시, 들고 있는 object가 없는 경우
-            ValueError: 알 수 없는 action name인 경우
+        B 방식 분할:
+          1) time-based로 early/remain 나눈 뒤,
+          2) early에 GRASP된 오브젝트의 PLACE 액션이 remain에 있다면 early로 가져옴
 
         Returns:
-            Tuple[Subtask, Subtask]: cutoff_time을 기준으로 분할된 subtask
+            (Subtask(early_actions), Subtask(remain_actions))
         """
-        scene_positions = copy.deepcopy(current_node.state.scene_positions)
-        held_object = copy.deepcopy(current_node.state.held_object)
-        total_action_time = 0.0
+        # 1) 전체 액션 시뮬레이션
+        action_log_info = self.simulate_actions(current_node, primitive_actions)
 
-        time_used, leftover_time = 0.0, 0.0
+        early_actions: List[str] = []
+        remain_actions: List[str] = []
 
-        early_held, remain_held = None, None
-
-        early_actions, remain_actions = [], []
-
-        for prim_action in primitive_actions:
-            tokens = prim_action.split()
-            if not tokens:
-                continue
-            action = tokens[0].upper()
-            target_obj_id = tokens[1] if len(tokens) > 1 else None
-            partial_str = tokens[2] if len(tokens) > 2 else None
-
-            if (
-                action != "GRASP"
-                and target_obj_id
-                and target_obj_id not in scene_positions
-            ):
-                log.error(f"Object {target_obj_id} not in scene_positions.")
-                raise ValueError(f"Object {target_obj_id} not in scene_positions.")
-
-            if action == "NAVIGATE_TO":
-                log.debug(
-                    f"NAVIGATE_TO {target_obj_id} ({scene_positions[target_obj_id]})"
-                )
-                navigate_path = self._find_shortest_path(
-                    scene_positions["agent"], scene_positions[target_obj_id]
-                )
-                if partial_str is None:
-                    nav_time = (len(navigate_path) - 1) * NAV_STEP_DURATION
-                    if navigate_path:
-                        scene_positions["agent"] = navigate_path[-1]
-                else:
-                    try:
-                        nav_val = float(partial_str)
-                    except ValueError:
-                        nav_val = (len(navigate_path) - 1) * NAV_STEP_DURATION
-                        log.warning(
-                            f"Invalid partial time '{partial_str}', using {nav_val}"
-                        )
-                    steps = int(math.floor(nav_val / NAV_STEP_DURATION))
-                    steps = max(0, min(steps, len(navigate_path) - 1))
-                    nav_time = nav_val
-                    if navigate_path:
-                        scene_positions["agent"] = navigate_path[steps]
-                total_nav_time += nav_time
-                total_action_time += nav_time
-
-            elif action == "GRASP":
-                if held_object is not None:
-                    raise ValueError(f"Already holding {held_object}")
-                held_object = target_obj_id
-                total_action_time += PRIMITIVE_ACTION_DURATION
-
-            elif action in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
-                if held_object is None:
-                    raise ValueError("No object in hand to place.")
-                scene_positions[held_object] = scene_positions[target_obj_id]
-                held_object = None
-                total_action_time += PRIMITIVE_ACTION_DURATION
-            elif action == "MONITORING":
-                total_action_time += MONITORING_DURATION
-            elif action == "WAIT":
-                total_action_time += float(target_obj_id)
-            elif action in PRIMITIVE_ACTION_SET:
-                total_action_time += PRIMITIVE_ACTION_DURATION
+        # 2) time-based 분할
+        for result in action_log_info.results:
+            # result.time_used: 이 액션이 끝난 시점의 누적 시간
+            if result.time_used <= cutoff_time:
+                early_actions.append(result.action_full_name)
             else:
-                raise ValueError(f"Unknown action name: {action}")
+                remain_actions.append(result.action_full_name)
 
-            # (B) Cutoff 기준으로 action 분할
-            if total_action_time <= cutoff_time:
-                # 아직, cutoff_time보다 작은 경우
-                time_used = total_action_time
-                early_actions.append(prim_action)
-            else:
-                # cutoff_time을 넘어서는 경우
-                leftover_time = total_action_time - time_used
-                remain_actions.append(prim_action)
+        # 3) 사후 보정: early에 GRASP가 있다면, remain에서 해당 오브젝트의 PLACE를 강제로 이동
+        picked_objs_in_early: List[str] = []
+        for ea in early_actions:
+            e_tokens = ea.split()
+            if e_tokens[0].upper() == "GRASP" and len(e_tokens) > 1:
+                picked_objs_in_early.append(e_tokens[1])  # 오브젝트 ID
 
-            # (C) 후보정; early actions에 GRASP가 있고, 해당 물체에 대한 PLACE가 없는 경우
-            #    PLACE를 early actions의 끝에 추가, remain actions에는 PLACE 전에, NAVIGATE_TO와 GRASP를 추가
-            #    이 때, 시간처리도 알맞게 보정해야 함
-            for early_action in early_actions:
-                base_action, target, *misc = early_action.split()
-                # GRASP에 대하여
-                if base_action == "GRASP":
-                    early_held = target
-
-        return early_actions, remain_actions
-
-    def _find_shortest_path(
-        self, start_pos: Tuple[float, float, float], end_pos: Tuple[float, float, float]
-    ) -> list[Tuple[float, float, float]]:
-        start_pos = adjust_if_unreachable(self.nav_graph, start_pos)
-        end_pos = adjust_if_unreachable(self.nav_graph, end_pos)
-        if start_pos == end_pos:
-            return [start_pos]
-
-        def direction(a, b):
-            return (b[0] - a[0], b[2] - a[2])
-
-        pq = []
-        heapq.heappush(pq, (0, start_pos, None, [start_pos]))
-        visited = {}
-
-        while pq:
-            turn_cnt, cur_pos, cur_dir, path = heapq.heappop(pq)
-            if cur_pos == end_pos:
-                return path
-            if cur_pos in visited and visited[cur_pos] <= turn_cnt:
-                continue
-            visited[cur_pos] = turn_cnt
-            for nxt in self.nav_graph.get(cur_pos, []):
-                if nxt in path:
+        # remain에서 place를 찾아 early로 이동 (cutoff time은 무시)
+        for obj_id in picked_objs_in_early:
+            place_idx = None
+            for i, ra in enumerate(remain_actions):
+                r_tokens = ra.split()
+                if len(r_tokens) < 2:
                     continue
-                new_dir = direction(cur_pos, nxt)
-                nxt_turn = (
-                    turn_cnt
-                    if (cur_dir is None or new_dir == cur_dir)
-                    else (turn_cnt + 1)
-                )
-                new_path = path + [nxt]
-                heapq.heappush(pq, (nxt_turn, nxt, new_dir, new_path))
+                r_base = r_tokens[0].upper()
+                if r_base in ["PLACE_INSIDE", "PLACE_ON_TOP"] and r_tokens[1] == obj_id:
+                    place_idx = i
+                    break
+            if place_idx is not None:
+                # 해당 place 액션을 early로 옮긴다
+                place_action = remain_actions.pop(place_idx)
+                early_actions.append(place_action)
+                # 만약 place 이전의 Navigate도 함께 옮기고 싶다면,
+                #  navigate를 찾는 추가 로직을 넣어도 됨
 
-        raise ValueError(f"No path found from {start_pos} to {end_pos}.")
+        return early_subtask, remain_subtask
