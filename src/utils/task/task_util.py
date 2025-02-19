@@ -2,6 +2,7 @@ import copy
 
 ## 유사도 검사를 위한 import
 import json
+import time
 import uuid
 from typing import List, Tuple
 
@@ -21,9 +22,6 @@ from utils.constants import (
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
 )
-
-import time
-
 
 API_URL = (
     "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
@@ -256,25 +254,37 @@ def build_tasks_and_constraints(
                 for temporal_constraint in subtask.temporal_constraints:
                     if temporal_constraint.is_critical:
                         estimate_subtasks = query(
-                            {"inputs": {"source_sentence": f"{subtask.name}", "sentences": list(bayesian_load.keys()), }}
+                            {
+                                "inputs": {
+                                    "source_sentence": f"{subtask.name}",
+                                    "sentences": list(bayesian_load.keys()),
+                                }
+                            }
                         )
 
-                        if 'error' in estimate_subtasks:
+                        if "error" in estimate_subtasks:
                             print(f"Error: {estimate_subtasks['error']}")
                             # 모델 로딩 시간이 주어졌으므로 기다린 후 다시 시도
-                            estimated_time = estimate_subtasks.get('estimated_time', 0)
-                            print(f"Waiting for {estimated_time} seconds before retrying...")
+                            estimated_time = estimate_subtasks.get("estimated_time", 0)
+                            print(
+                                f"Waiting for {estimated_time} seconds before retrying..."
+                            )
                             time.sleep(estimated_time)  # 로딩 시간만큼 대기
                             # 로딩 후 다시 쿼리 실행
                             estimate_subtasks = query(
-                                {"inputs": {"source_sentence": f"{subtask.name}", "sentences": list(bayesian_load.keys()), }}
-    )
+                                {
+                                    "inputs": {
+                                        "source_sentence": f"{subtask.name}",
+                                        "sentences": list(bayesian_load.keys()),
+                                    }
+                                }
+                            )
 
-
-
-                        idx = sorted(enumerate(estimate_subtasks), key=lambda x: x[1], reverse=True)[
-                            0
-                        ][0]
+                        idx = sorted(
+                            enumerate(estimate_subtasks),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )[0][0]
                         similar_subtask = list(bayesian_load.keys())[idx]
                         if estimate_subtasks[idx] < 0.9:
                             similar_subtask = subtask.name
@@ -283,7 +293,9 @@ def build_tasks_and_constraints(
                         # 항목이 있으면 critical의 interval값을 평균에 저장
                         if similar_subtask in bayesian_load:
                             with open(knowledge_file_bayesian, "w") as f:
-                                temporal_constraint.interval = bayesian_load[similar_subtask]["expected_duration"]
+                                temporal_constraint.interval = bayesian_load[
+                                    similar_subtask
+                                ]["expected_duration"]
                                 json.dump(bayesian_load, f, indent=4)
                             nam_remain_subtask.append(similar_subtask)
                             nam_before_subtask.append(subtask.name)
@@ -297,7 +309,6 @@ def build_tasks_and_constraints(
                             nam_plus_subtask.append(subtask.name)
                             nam_remain_subtask.append(similar_subtask)
                             nam_before_subtask.append(subtask.name)
-
 
                         # bayesian_ground_truth.json에 항목이 없으면 10으로 저장
                         if similar_subtask not in ground_truth_load:
@@ -314,7 +325,9 @@ def build_tasks_and_constraints(
     return subtasks, task_graph
 
 
-def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerState:
+def get_init_state(
+    subtasks: List[Subtask], constraints: DiGraph, scene_poses: dict
+) -> SchedulerState:
     init_subtask = Subtask(
         task_name=None,
         name="Init",
@@ -335,8 +348,9 @@ def get_init_state(subtasks: List[Subtask], constraints: DiGraph) -> SchedulerSt
         completed_subtasks=[init_completed],
         remaining_subtasks=subtasks,
         constraints=constraints,
-        agent_location="agent",
         current_time=0,
+        scene_positions=scene_poses,
+        held_object=None,
     )
     return init_state
 
@@ -345,7 +359,7 @@ def make_monitoring_subtask(name: str, obj: str = None) -> Subtask:
     monitoring_action = None if obj is None else [f"MONITORING {obj}"]
     monitoring_subtask = Subtask(
         task_name=None,
-        name=name,
+        name=f"Monitoring for {name}_{uuid.uuid4().hex[:8]}",
         duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
         repetition=1,
         type="Monitor",
@@ -359,7 +373,7 @@ def make_monitoring_subtask(name: str, obj: str = None) -> Subtask:
 def split_subtask_for_monitoring(
     curr_node,
     candidate: Candidate,
-    nav_manager,
+    action_handler,
     early_cutoff: float,
 ):
     """
@@ -372,7 +386,7 @@ def split_subtask_for_monitoring(
     # 3) 실제로 액션 분할
     early_actions, early_time, remain_actions, remain_time = (
         split_primitive_actions_by_time(
-            curr_node, candidate.subtask, early_cutoff, nav_manager
+            curr_node, candidate.subtask, early_cutoff, action_handler
         )
     )
 
@@ -383,25 +397,6 @@ def split_subtask_for_monitoring(
     early_sub.execution.primitive_actions = early_actions
     early_sub.decomposed = True
 
-    # 5) Monitoring 서브태스크(0.1초)
-    for subtask in curr_node[4].remaining_subtasks:
-        if candidate.deadline.subtask_name == subtask.name:
-            crit_subtask = subtask
-            break
-    monitoring_obj = crit_subtask.execution.primitive_actions[0].split(" ")[1]
-    related_subtask_name = candidate.deadline.subtask_name
-    monitor_sub = Subtask(
-        task_name=candidate.subtask.task_name,
-        name=f"Monitor for {related_subtask_name}_{uuid.uuid4().hex[:6]}",
-        duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
-        repetition=1,
-        type="Monitor",
-        execution=Execution(
-            objects=[], primitive_actions=[f"MONITORING {monitoring_obj}"]
-        ),
-        decomposed=True,
-    )
-
     # 6) Remaining 서브태스크
     remain_sub = copy.deepcopy(candidate.subtask)
     remain_sub.name += "_remain"
@@ -409,11 +404,11 @@ def split_subtask_for_monitoring(
     remain_sub.execution.primitive_actions = remain_actions
     remain_sub.decomposed = True
 
-    return early_sub, monitor_sub, remain_sub
+    return early_sub, remain_sub
 
 
 def split_primitive_actions_by_time(
-    curr_node: SimulationNode, subtask: Subtask, cutoff_time: float, nav_manager
+    curr_node: SimulationNode, subtask: Subtask, cutoff_time: float, action_handler
 ) -> Tuple[List[str], float, List[str], float]:
     """
     Primitive Action을 "초반(cutoff_time)"과 "나머지"로 분할
@@ -468,7 +463,7 @@ def split_primitive_actions_by_time(
                         if curr_node.state.agent_location
                         else "agent"
                     )
-                duration = nav_manager.get_specific_nav_time(agent_loc, tokens[1])
+                duration = action_handler.get_specific_nav_time(agent_loc, tokens[1])
                 agent_loc = tokens[1]
         elif base_action == "WAIT":
             # WAIT [time]
@@ -495,9 +490,7 @@ def split_primitive_actions_by_time(
         leftover_for_early = cutoff_time - time_used
 
         # (C) 분할 로직
-        # critical_end =
-        # duration_with_nav = duration + nav_manager.get_specific_nav_time(tokens[-1], critical_end)
-        # if duration_with_nav <= leftover_for_early:
+
         if duration <= leftover_for_early:
             # 이 액션 전체를 early에 할당
             early_actions.append(action)
@@ -561,42 +554,7 @@ def split_primitive_actions_by_time(
 
     early_total_time = time_used
     remain_total_time = (
-        sum_action_durations(curr_node, subtask, nav_manager) - time_used
+        sum_action_durations(curr_node, subtask, action_handler) - time_used
     )
 
     return early_actions, early_total_time, remain_actions, remain_total_time
-
-
-def sum_action_durations(
-    curr_node: SimulationNode, subtask: Subtask, nav_manager
-) -> float:
-    total = 0.0
-    actions = subtask.execution.primitive_actions
-    for i, action in enumerate(actions):
-        tokens = action.split()
-        base_action = tokens[0].upper()
-
-        if base_action == "NAVIGATE_TO":
-            if len(tokens) == 3:
-                # NAVIGATE_TO <object> <time>
-                dur = float(tokens[2])
-            else:
-                # 시간이 명시 안됨 → 직접 계산
-                if i == 0:
-                    agent_loc = (
-                        curr_node.state.agent_location
-                        if curr_node.state.agent_location
-                        else "agent"
-                    )
-                dur = nav_manager.get_specific_nav_time(agent_loc, tokens[1])
-                agent_loc = tokens[1]
-        elif base_action == "WAIT" and len(tokens) >= 2:
-            dur = float(tokens[1])
-        elif base_action == "MONITORING":
-            # e.g. "MONITORING <Obj>"
-            dur = MONITORING_DURATION
-        else:
-            # GRASP, PLACE_INSIDE 등
-            dur = PRIMITIVE_ACTION_DURATION
-        total += dur
-    return total

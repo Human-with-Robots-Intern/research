@@ -1,9 +1,90 @@
-from dataclasses import dataclass
-from typing import List, NamedTuple, Optional
+from dataclasses import dataclass, field
+from typing import List, NamedTuple, Optional, Tuple
 
 from networkx import DiGraph
 
 from core.task import Subtask
+
+
+@dataclass
+class ActionResult:
+    action_full_name: str
+    action_type: str
+    time_used: float  # 누적 시간 (이 액션이 종료된 시점)
+    action_duration: float  # 이 액션에 걸린 소요 시간
+    scene_positions: dict[str, Tuple[float, float, float]]
+    held_object: Optional[str] = None
+
+    def __repr__(self):
+        return f"({self.action_full_name}, {self.action_type}, {self.time_used}, {self.action_duration}, {self.held_object})"
+
+
+@dataclass
+class ActionSimulationLog:
+    results: list[ActionResult] = field(default_factory=list)
+
+    def add_result(
+        self,
+        action_full_name: str,
+        action_type: str,
+        time_used: float,
+        action_duration: float,
+        scene_positions: dict[str, Tuple[float, float, float]],
+        held_object: Optional[str] = None,
+    ):
+        self.results.append(
+            ActionResult(
+                action_full_name=action_full_name,
+                action_type=action_type,
+                time_used=time_used,
+                action_duration=action_duration,
+                scene_positions=scene_positions,
+                held_object=held_object,
+            )
+        )
+
+    def total_navigate_duration(self) -> float:
+        """
+        action_type이 'NAVIGATE_TO'인 액션들만 골라서 action_duration의 합을 구한다.
+        """
+        total = 0.0
+        for result in self.results:
+            if result.action_type.upper() == "NAVIGATE_TO":
+                total += result.action_duration
+        return total
+
+    def total_time_used(self) -> float:
+        """
+        전체 액션 중 가장 마지막 액션의 time_used(누적 시간)를 반환.
+        없으면 0.0을 반환.
+        """
+        if not self.results:
+            return 0.0
+        # 마지막 ActionResult의 time_used가 전체 시뮬레이션 누적 시간
+        return self.results[-1].time_used
+
+    def filter_by_action_type(self, action_type: str) -> list[ActionResult]:
+        """
+        특정 action_type(대소문자 무관)에 해당하는 모든 ActionResult를 리스트로 반환.
+        """
+        atype_upper = action_type.upper()
+        return [res for res in self.results if res.action_type.upper() == atype_upper]
+
+    def count_actions(self, action_type: Optional[str] = None) -> int:
+        """
+        특정 action_type에 해당하는 액션의 개수를 세거나,
+        action_type이 None이면 전체 액션 개수를 반환한다.
+        """
+        if action_type is None:
+            return len(self.results)
+        atype_upper = action_type.upper()
+        return sum(1 for res in self.results if res.action_type.upper() == atype_upper)
+
+    def get_actions(self) -> List[str]:
+        """
+        모든 액션 이름을 리스트로 반환한다.
+        """
+        return [res.action_full_name for res in self.results]
 
 
 class CompletedEntry(NamedTuple):
@@ -21,7 +102,7 @@ class CompletedEntry(NamedTuple):
 
 class SchedulerState(NamedTuple):
     """
-    스케쥴 정보를 담는 NamedTuple
+    현재 스케쥴 상태를 저장하는 dataclass
     """
 
     # 현재 subtask
@@ -32,10 +113,14 @@ class SchedulerState(NamedTuple):
     remaining_subtasks: List[Subtask]
     # 현재 constraint
     constraints: DiGraph
-    # 현재 절대 시간 및 위치
+    # 현재 절대 시간
     current_time: float
-    # 현재 agent 위치
-    agent_location: str
+    # 현재 agent, object들의 position
+    scene_positions: dict[str, list[float, float, float]]
+    # 현재 agent가 들고 있는 object
+    held_object: Optional[str]
+    # agent의 위치 (landmark)
+    agent_location: str = None
 
 
 class SimulationNode(NamedTuple):

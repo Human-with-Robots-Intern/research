@@ -1,8 +1,6 @@
 import json
-import re
-from dataclasses import dataclass
+import time
 from difflib import get_close_matches
-from pathlib import Path
 from typing import Any, Dict
 
 import numpy as np
@@ -11,9 +9,6 @@ from scheduler.constraint_handler import ConstraintHandler
 from scheduler.dataclass import SchedulerState
 from utils import KNOWLEDGE_PATH, create_module_logger
 from utils.task import task_util
-
-import time
-
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -78,7 +73,6 @@ class Agent:
                 json.dump(self.knowledge, f, indent=4, ensure_ascii=False)
         except Exception as e:
             raise Exception(f"Error saving knowledge: {e}")
-    
 
     def bayesian_estimate(self, state: SchedulerState, subtasks) -> None:
         """
@@ -103,27 +97,36 @@ class Agent:
         subtask_names = list(estimate_load.keys())
 
         estimate_subtasks = task_util.query(
-                            {"inputs": {"source_sentence": f"{state.subtask.name}", "sentences": subtask_names, }}
-                        )
-        if 'error' in estimate_subtasks:
-                            print(f"Error: {estimate_subtasks['error']}")
-                            # 모델 로딩 시간이 주어졌으므로 기다린 후 다시 시도
-                            estimated_time = estimate_subtasks.get('estimated_time', 0)
-                            print(f"Waiting for {estimated_time} seconds before retrying...")
-                            time.sleep(estimated_time)  # 로딩 시간만큼 대기
-                            # 로딩 후 다시 쿼리 실행
-                            estimate_subtasks = task_util.query(
-                                {"inputs": {"source_sentence": f"{subtask.name}", "sentences": list(bayesian_load.keys()), }}
-    )
+            {
+                "inputs": {
+                    "source_sentence": f"{state.subtask.name}",
+                    "sentences": subtask_names,
+                }
+            }
+        )
+        if "error" in estimate_subtasks:
+            print(f"Error: {estimate_subtasks['error']}")
+            # 모델 로딩 시간이 주어졌으므로 기다린 후 다시 시도
+            estimated_time = estimate_subtasks.get("estimated_time", 0)
+            print(f"Waiting for {estimated_time} seconds before retrying...")
+            time.sleep(estimated_time)  # 로딩 시간만큼 대기
+            # 로딩 후 다시 쿼리 실행
+            estimate_subtasks = task_util.query(
+                {
+                    "inputs": {
+                        "source_sentence": f"{subtask.name}",
+                        "sentences": list(bayesian_load.keys()),
+                    }
+                }
+            )
 
-        idx = sorted(enumerate(estimate_subtasks), key=lambda x: x[1], reverse=True)[
+        idx = sorted(enumerate(estimate_subtasks), key=lambda x: x[1], reverse=True)[0][
             0
-        ][0]
+        ]
 
         similar_subtask = subtask_names[idx]
         if estimate_subtasks[idx] < 0.7:
             similar_subtask = state.subtask.name
-
 
         actual_duration = 0
 
@@ -134,17 +137,16 @@ class Agent:
                 start_subtask = temporal_constraints[0].subtask
                 break
 
-        for item in state.completed_subtasks:
-            itemsss = item[0].name
-            if item[0].name == start_subtask:
-                start_time = item[2]
+        # ? @okjy89 무슨 코드죠?
+        for ce in state.completed_subtasks:
+            if ce.subtask.name == start_subtask:
+                start_time = ce.start_time
                 break
 
         # for ce in state.completed_subtasks:
 
         actual_duration = state.current_time - start_time
-        
-        
+
         ground_truth = ground_truth_load[similar_subtask]
 
         prior_mean = critical_interval
@@ -173,18 +175,25 @@ class Agent:
         for subtask in subtasks:
             if subtask.name == subtask_name:
                 state.constraints.remove_edge(start_subtask, subtask.name)
-                state.constraints.add_edge(start_subtask, subtask.name, info={"Interval": posterior_mean, "IsCritical": True})
-                #monitoring에서 critical_end까지의 critical_interval = (원래 monitoring_interval) - (bayesian변화 차이)
+                state.constraints.add_edge(
+                    start_subtask,
+                    subtask.name,
+                    info={"Interval": posterior_mean, "IsCritical": True},
+                )
+                # monitoring에서 critical_end까지의 critical_interval = (원래 monitoring_interval) - (bayesian변화 차이)
                 monitoring_name = state.completed_subtasks[-1][0].name
                 monitoring_interval = posterior_mean - actual_duration
                 state.constraints.remove_edge(monitoring_name, subtask.name)
-                state.constraints.add_edge(monitoring_name, subtask.name, info={"Interval": monitoring_interval, "IsCritical": True})
+                state.constraints.add_edge(
+                    monitoring_name,
+                    subtask.name,
+                    info={"Interval": monitoring_interval, "IsCritical": True},
+                )
                 break
 
         self._save_knowledge()
 
         return state
-
 
 
 # def monitering_timing(plan_about_time_critical):
