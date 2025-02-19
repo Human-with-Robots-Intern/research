@@ -116,69 +116,149 @@ class ActionHandler:
 
         return action_log_info
 
-    def _find_shortest_path(
-        self, start_pos: Tuple[float, float, float], end_pos: Tuple[float, float, float]
-    ) -> List[Tuple[float, float, float]]:
-        """
-        nav_graph를 이용해 start_pos부터 end_pos까지의 최단 경로(노드 리스트) 탐색
-        """
-        # (사용자 정의) 예시 로직
-        if start_pos == end_pos:
-            return [start_pos]
-        # ... 생략 ...
-        return [start_pos, end_pos]  # 간단 예시
-
     def split_subtask_by_cutoff_time(
         self,
         current_node: SimulationNode,
-        primitive_actions: List[str],
+        primitive_actions: list[str],
         cutoff_time: float,
-    ) -> Tuple[List[str], List[str]]:
+    ) -> Tuple[Subtask, Subtask]:
         """
-        B 방식 분할:
-          1) time-based로 early/remain 나눈 뒤,
-          2) early에 GRASP된 오브젝트의 PLACE 액션이 remain에 있다면 early로 가져옴
-
-        Returns:
-            (Subtask(early_actions), Subtask(remain_actions))
+        1) simulate_actions()로 모든 액션에 대한 time_used를 구한다.
+        2) time_used <= cutoff_time → early, 그 외 → remain
+        3) 사후보정:
+        - early에 GRASP <obj>가 있는데, place가 안 끝난 경우
+            → remain에서 'NAVIGATE_TO ~' (장소) + 'PLACE_XXX <obj>' 등을
+            순서대로 가져와 early에 붙인다.
+        - 최종적으로 early 구간의 끝에서 held_object가 없도록 보장
         """
-        # 1) 전체 액션 시뮬레이션
+        # (1) 전체 액션 시뮬레이션
         action_log_info = self.simulate_actions(current_node, primitive_actions)
 
-        early_actions: List[str] = []
-        remain_actions: List[str] = []
+        # (2) time-based 분할
+        early_actions: list[str] = []
+        remain_actions: list[str] = []
 
-        # 2) time-based 분할
         for result in action_log_info.results:
-            # result.time_used: 이 액션이 끝난 시점의 누적 시간
             if result.time_used <= cutoff_time:
                 early_actions.append(result.action_full_name)
             else:
                 remain_actions.append(result.action_full_name)
 
-        # 3) 사후 보정: early에 GRASP가 있다면, remain에서 해당 오브젝트의 PLACE를 강제로 이동
-        picked_objs_in_early: List[str] = []
+        # (3) 사후 보정
+        #  3-1) early에서 grasp된 오브젝트를 찾는다
+        grasped_objs_in_early = []
+        placed_objs_in_early = set()
         for ea in early_actions:
-            e_tokens = ea.split()
-            if e_tokens[0].upper() == "GRASP" and len(e_tokens) > 1:
-                picked_objs_in_early.append(e_tokens[1])  # 오브젝트 ID
+            tokens = ea.split()
+            if not tokens:
+                continue
+            base_action = tokens[0].upper()
+            if base_action == "GRASP" and len(tokens) >= 2:
+                obj_id = tokens[1]
+                grasped_objs_in_early.append(obj_id)
+            elif base_action in ["PLACE_INSIDE", "PLACE_ON_TOP"] and len(tokens) >= 2:
+                placed_objs_in_early.add(tokens[1])  # 이미 place 된 오브젝트
 
-        # remain에서 place를 찾아 early로 이동 (cutoff time은 무시)
-        for obj_id in picked_objs_in_early:
-            place_idx = None
-            for i, ra in enumerate(remain_actions):
-                r_tokens = ra.split()
-                if len(r_tokens) < 2:
+        # 결국 early에서 grasp한 오브젝트 중 place가 안 된 것만 다시 확인
+        # (Pick 했는데 아직 Place 안 된 오브젝트 목록)
+        unplaced_objs = [
+            obj for obj in grasped_objs_in_early if obj not in placed_objs_in_early
+        ]
+
+        if not unplaced_objs:
+            # 만약 전부 early에서 pick~place가 끝났다면 추가 보정 없이 종료
+            return early_actions, remain_actions
+
+        #  3-2) remain_actions에서, 해당 오브젝트들에 대한 Navigate + Place를 순서대로 찾아서 early로 이동
+        #       (단순히 "PLACE_XXX <obj>" 직전의 "NAVIGATE_TO" 1개만 가져오는 로직 예시)
+        i = 0
+        while i < len(remain_actions):
+            ra = remain_actions[i]
+            tokens = ra.split()
+            if len(tokens) < 2:
+                i += 1
+                continue
+
+            base_action = tokens[0].upper()
+            obj_id = tokens[1]
+
+            # (A) 만약 PLACE_XXX이고, obj_id가 unplaced_objs에 있으면,
+            #     → 이 Place 액션과 바로 직전 Navigate를 early로 옮긴다.
+            if (
+                base_action in ["PLACE_INSIDE", "PLACE_ON_TOP"]
+                and obj_id in unplaced_objs
+            ):
+                # 1) Place 직전 Navigate가 있다면, 그것도 함께 이동 (OPTIONAL)
+                #    즉, (i-1)에 "NAVIGATE_TO ~"가 있으면 같이 옮긴다.
+                if i - 1 >= 0:
+                    prev_action = remain_actions[i - 1]
+                    prev_tokens = prev_action.split()
+                    if prev_tokens and prev_tokens[0].upper() == "NAVIGATE_TO":
+                        # early로 이동
+                        early_actions.append(prev_action)
+                        remain_actions.pop(i - 1)
+                        # pop 했으니 인덱스 조정
+                        i -= 1
+
+                # 2) Place 액션도 early로 옮긴다
+                early_actions.append(ra)
+                remain_actions.pop(i)
+
+                # 이제 obj_id는 place가 완료되었으므로, unplaced_objs에서 제거
+                if obj_id in unplaced_objs:
+                    unplaced_objs.remove(obj_id)
+                # i는 remain_actions.pop(i)로 인해 앞으로 당겨졌으니, 그대로
+                continue
+
+            i += 1
+
+        # 이 시점에서, unplaced_objs가 비어 있지 않다면
+        # "remain에 해당 오브젝트의 place가 아예 없는" 경우이거나,
+        # "place를 위해 navigate가 다른 여러 개"인 복잡한 상황이 될 수 있음.
+        # 아래처럼 경고를 찍거나, 추가 로직을 넣을 수 있음.
+        for leftover_obj in unplaced_objs:
+            log.warning(
+                f"Object '{leftover_obj}' was grasped in early but not placed in remain."
+            )
+
+        # 최종적으로 early 구간의 끝에서, pick~place가 완료되지 않은 오브젝트가 있어도
+        # "정책에 따라" 어떻게 처리할지 결정:
+        # - 여기서는 단순히 경고만 남김
+
+        return early_actions, remain_actions
+
+    def _find_shortest_path(
+        self, start_pos: Tuple[float, float, float], end_pos: Tuple[float, float, float]
+    ) -> list[Tuple[float, float, float]]:
+        start_pos = adjust_if_unreachable(self.nav_graph, start_pos)
+        end_pos = adjust_if_unreachable(self.nav_graph, end_pos)
+        if start_pos == end_pos:
+            return [start_pos]
+
+        def direction(a, b):
+            return (b[0] - a[0], b[2] - a[2])
+
+        pq = []
+        heapq.heappush(pq, (0, start_pos, None, [start_pos]))
+        visited = {}
+
+        while pq:
+            turn_cnt, cur_pos, cur_dir, path = heapq.heappop(pq)
+            if cur_pos == end_pos:
+                return path
+            if cur_pos in visited and visited[cur_pos] <= turn_cnt:
+                continue
+            visited[cur_pos] = turn_cnt
+            for nxt in self.nav_graph.get(cur_pos, []):
+                if nxt in path:
                     continue
-                r_base = r_tokens[0].upper()
-                if r_base in ["PLACE_INSIDE", "PLACE_ON_TOP"] and r_tokens[1] == obj_id:
-                    place_idx = i
-                    break
-            if place_idx is not None:
-                # 해당 place 액션을 early로 옮긴다
-                place_action = remain_actions.pop(place_idx)
-                early_actions.append(place_action)
-                # 만약 place 이전의 Navigate도 함께 옮기고 싶다면,
-                #  navigate를 찾는 추가 로직을 넣어도 됨
+                new_dir = direction(cur_pos, nxt)
+                nxt_turn = (
+                    turn_cnt
+                    if (cur_dir is None or new_dir == cur_dir)
+                    else (turn_cnt + 1)
+                )
+                new_path = path + [nxt]
+                heapq.heappush(pq, (nxt_turn, nxt, new_dir, new_path))
 
-        return early_subtask, remain_subtask
+        raise ValueError(f"No path found from {start_pos} to {end_pos}.")
