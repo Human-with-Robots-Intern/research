@@ -40,7 +40,7 @@
         "variance": 1.0
     },
     "Turn off Stove after Boiling": {
-        "expected_duration": 15,
+        "expected_duration": 10,
         "variance": 1.0
     }
 }
