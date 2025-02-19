@@ -16,8 +16,8 @@
         "variance": 1.0
     },
     "Turn off Stove after cooking": {
-        "expected_duration": 10.0,
-        "variance": 1.0
+        "expected_duration": 9.956380622472297,
+        "variance": 2.4424300132018876e-05
     },
     "Turn Off Stove After Cooking": {
         "expected_duration": 10.0,
