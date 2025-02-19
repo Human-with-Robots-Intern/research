@@ -12,8 +12,11 @@ class ActionResult:
     action_type: str
     time_used: float  # 누적 시간 (이 액션이 종료된 시점)
     action_duration: float  # 이 액션에 걸린 소요 시간
-    agent_position: dict[str, Tuple[float, float, float]]
+    scene_positions: dict[str, Tuple[float, float, float]]
     held_object: Optional[str] = None
+
+    def __repr__(self):
+        return f"({self.action_full_name}, {self.action_type}, {self.time_used}, {self.action_duration}, {self.held_object})"
 
 
 @dataclass
@@ -35,7 +38,7 @@ class ActionSimulationLog:
                 action_type=action_type,
                 time_used=time_used,
                 action_duration=action_duration,
-                agent_position=scene_positions,
+                scene_positions=scene_positions,
                 held_object=held_object,
             )
         )
@@ -76,6 +79,12 @@ class ActionSimulationLog:
             return len(self.results)
         atype_upper = action_type.upper()
         return sum(1 for res in self.results if res.action_type.upper() == atype_upper)
+
+    def get_actions(self) -> List[str]:
+        """
+        모든 액션 이름을 리스트로 반환한다.
+        """
+        return [res.action_full_name for res in self.results]
 
 
 class CompletedEntry(NamedTuple):
