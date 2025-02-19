@@ -61,14 +61,13 @@
         ]
       },
       {
-        "Name": "Retrieve Potato from Microwave and Place on Plate",
+        "Name": "Retrieve Potato from Microwave and Place on countertop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Potato|-01.66|+00.93|-02.15": 1,
-            "Microwave|-00.24|+01.69|-02.53": 1,
-            "Plate|+00.96|+01.65|-02.61": 1
+            "Microwave|-00.24|+01.69|-02.53": 1
           },
           "PrimitiveActions": [
             "TOGGLE_OFF Microwave|-00.24|+01.69|-02.53",
