@@ -4,7 +4,11 @@ import heapq
 import math
 from typing import Callable, Dict, List, Set, Tuple
 
+from utils.util import create_module_logger
+
 from ..utils.constants import GRID_SIZE
+
+log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 def build_navigation_graph(
@@ -35,28 +39,24 @@ def build_navigation_graph(
     return neighbors
 
 
-def _adjust_if_unreachable(
+def adjust_if_unreachable(
+    nav_graph: Dict[Tuple[float, float, float], Set[Tuple[float, float, float]]],
     pos: Tuple[float, float, float],
 ) -> Tuple[float, float, float]:
-
-    while not _is_reachable(pos):
-        pos = _adjust_to_reachable(pos)
-    return pos
-
-
-def _is_reachable(self, pos) -> bool:
-    # nav_graph에 키로 있으면 reachable이라 가정
-    pos = quantize_position(pos)
-    return pos in self.nav_graph
+    qpos = quantize_position(pos)
+    while qpos not in nav_graph:
+        qpos = _adjust_to_reachable(nav_graph, qpos)
+        log.debug(f"Adjusted to reachable position: {pos} -> {qpos}")
+    return qpos
 
 
-def _adjust_to_reachable(self, pos):
+def _adjust_to_reachable(nav_graph, pos):
     # unreachable이면 nav_graph 중 가장 가까운 위치로 보정
     pos = quantize_position(pos)
-    if pos in self.nav_graph:
+    if pos in nav_graph:
         return pos
     # 없으면 전체 노드 중 최단거리
-    all_reachable = list(self.nav_graph.keys())
+    all_reachable = list(nav_graph.keys())
     return closest_position(pos, all_reachable)
 
 

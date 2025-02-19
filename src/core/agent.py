@@ -7,6 +7,10 @@ import numpy as np
 from scheduler.constraint_handler import ConstraintHandler
 from scheduler.dataclass import SchedulerState
 from utils import KNOWLEDGE_PATH, create_module_logger
+from utils.task import task_util
+
+import time
+
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -87,11 +91,8 @@ class Agent:
         subtask_name = subtask_name.split("_")[0].strip()
         # critical end의 subtask를 구함.
         ###################이게 일정한 이름이 아님
-        ######그래서 자연어처리 query??? 를 통해 무엇인지 판단해줘야 함.
+        ######그래서 자연어처리 query를 통해 무엇인지 판단해줘야 함.
 
-        # subtask_name = "cooking potato"
-
-        ########
         subtasks = subtasks
         estimate_load = self._load_knowledge("bayesian_estimate.json")
         ground_truth_load = self._load_knowledge("bayesian_ground_truth.json")
@@ -101,6 +102,17 @@ class Agent:
         estimate_subtasks = task_util.query(
                             {"inputs": {"source_sentence": f"{state.subtask.name}", "sentences": subtask_names, }}
                         )
+        if 'error' in estimate_subtasks:
+                            print(f"Error: {estimate_subtasks['error']}")
+                            # 모델 로딩 시간이 주어졌으므로 기다린 후 다시 시도
+                            estimated_time = estimate_subtasks.get('estimated_time', 0)
+                            print(f"Waiting for {estimated_time} seconds before retrying...")
+                            time.sleep(estimated_time)  # 로딩 시간만큼 대기
+                            # 로딩 후 다시 쿼리 실행
+                            estimate_subtasks = task_util.query(
+                                {"inputs": {"source_sentence": f"{subtask.name}", "sentences": list(bayesian_load.keys()), }}
+    )
+
         idx = sorted(enumerate(estimate_subtasks), key=lambda x: x[1], reverse=True)[
             0
         ][0]
@@ -119,19 +131,21 @@ class Agent:
                 start_subtask = temporal_constraints[0].subtask
                 break
 
-        for ce in state.completed_subtasks:
-            if ce.subtask.name == start_subtask:
-                start_time = ce.end_time
+        for item in state.completed_subtasks:
+            itemsss = item[0].name
+            if item[0].name == start_subtask:
+                start_time = item[2]
+                break
 
         # for ce in state.completed_subtasks:
 
         actual_duration = state.current_time - start_time
         
         
-        ground_truth = ground_truth_load[subtask_name]
+        ground_truth = ground_truth_load[similar_subtask]
 
         prior_mean = critical_interval
-        prior_variance = estimate_load[subtask_name]["variance"]
+        prior_variance = estimate_load[similar_subtask]["variance"]
 
         # bayesian estimate
         cooking_data_real = actual_duration / ground_truth
@@ -150,13 +164,18 @@ class Agent:
         )
 
         # posterior_data
-        self.knowledge[subtask_name]["expected_duration"] = posterior_mean
-        self.knowledge[subtask_name]["variance"] = posterior_variance
+        self.knowledge[similar_subtask]["expected_duration"] = posterior_mean
+        self.knowledge[similar_subtask]["variance"] = posterior_variance
 
         for subtask in subtasks:
             if subtask.name == subtask_name:
                 state.constraints.remove_edge(start_subtask, subtask.name)
                 state.constraints.add_edge(start_subtask, subtask.name, info={"Interval": posterior_mean, "IsCritical": True})
+                #monitoring에서 critical_end까지의 critical_interval = (원래 monitoring_interval) - (bayesian변화 차이)
+                monitoring_name = state.completed_subtasks[-1][0].name
+                monitoring_interval = posterior_mean - actual_duration
+                state.constraints.remove_edge(monitoring_name, subtask.name)
+                state.constraints.add_edge(monitoring_name, subtask.name, info={"Interval": monitoring_interval, "IsCritical": True})
                 break
 
         self._save_knowledge()

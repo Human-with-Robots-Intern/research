@@ -1,0 +1,201 @@
+[
+  {
+    "Task": "Cook Egg Fry",
+    "Subtasks": [
+      {
+        "Name": "Prepare Egg Fry",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Egg|-02.04|+00.81|+01.24": 1,
+            "Pan|+00.72|+00.90|-02.42": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Pan|+00.72|+00.90|-02.42",
+            "GRASP Pan|+00.72|+00.90|-02.42",
+            "NAVIGATE_TO StoveBurner|-00.04|+00.92|-02.37",
+            "PLACE_ON_TOP StoveBurner|-00.04|+00.92|-02.37",
+            "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
+            "TOGGLE_ON StoveKnob|-00.02|+00.88|-02.19",
+            "NAVIGATE_TO Egg|-02.04|+00.81|+01.24",
+            "GRASP Egg|-02.04|+00.81|+01.24",
+            "PLACE_ON_TOP Pan|+00.72|+00.90|-02.42",
+            "SLICE Egg|-02.04|+00.81|+01.24"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 10
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Turn off Stove after cooking",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "StoveKnob|-00.02|+00.88|-02.19": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
+            "TOGGLE_OFF StoveKnob|-00.02|+00.88|-02.19"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 0
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Prepare Egg Fry",
+            "Interval": 10,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Heat Bread using Microwave",
+    "Subtasks": [
+      {
+        "Name": "Place Bread in Microwave",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Bread|-00.52|+01.17|-00.03": 1,
+            "Microwave|-00.24|+01.69|-02.53": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Bread|-00.52|+01.17|-00.03",
+            "GRASP Bread|-00.52|+01.17|-00.03",
+            "NAVIGATE_TO Microwave|-00.24|+01.69|-02.53",
+            "OPEN Microwave|-00.24|+01.69|-02.53",
+            "PLACE_INSIDE Microwave|-00.24|+01.69|-02.53",
+            "CLOSE Microwave|-00.24|+01.69|-02.53"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Start Microwave",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Microwave|-00.24|+01.69|-02.53": 1
+          },
+          "PrimitiveActions": ["TOGGLE_ON Microwave|-00.24|+01.69|-02.53"]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Bread in Microwave",
+            "Interval": 0,
+            "Urgency": false
+          }
+        ]
+      },
+      {
+        "Name": "Retrieve Bread from Microwave",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Bread|-00.52|+01.17|-00.03": 1,
+            "Microwave|-00.24|+01.69|-02.53": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Microwave|-00.24|+01.69|-02.53",
+            "TOGGLE_OFF Microwave|-00.24|+01.69|-02.53",
+            "OPEN Microwave|-00.24|+01.69|-02.53",
+            "GRASP Bread|-00.52|+01.17|-00.03",
+            "CLOSE Microwave|-00.24|+01.69|-02.53",
+            "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Start Microwave",
+            "Interval": 5,
+            "Urgency": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Make Coffee",
+    "Subtasks": [
+      {
+        "Name": "Prepare Coffee",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mug|-01.76|+00.90|-00.62": 1,
+            "CoffeeMachine|-01.98|+00.90|-00.19": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Mug|-01.76|+00.90|-00.62",
+            "GRASP Mug|-01.76|+00.90|-00.62",
+            "NAVIGATE_TO CoffeeMachine|-01.98|+00.90|-00.19",
+            "PLACE_ON_TOP CoffeeMachine|-01.98|+00.90|-00.19",
+            "TOGGLE_ON CoffeeMachine|-01.98|+00.90|-00.19"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 10
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Retrieve Coffee",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mug|-01.76|+00.90|-00.62": 1,
+            "CounterTop|-00.08|+01.15|00.00": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Mug|-01.76|+00.90|-00.62",
+            "GRASP Mug|-01.76|+00.90|-00.62",
+            "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+            "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 0
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Prepare Coffee",
+            "Interval": 5,
+            "Urgency": false
+          }
+        ]
+      }
+    ]
+  }
+]

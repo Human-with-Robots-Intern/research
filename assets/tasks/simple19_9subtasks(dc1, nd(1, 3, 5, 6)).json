@@ -59,11 +59,11 @@
         ]
     },
     {
-        "Task": "Wash Plates",
+        "Task": "Wash Dishes",
         "Subtasks": [
             {
-                "Name": "Wash Plate 1",
-                "Repetition": 1,
+                "Name": "Wash Plate",
+                "Repetition": 2,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
@@ -84,20 +84,6 @@
                 "Duration": {
                     "Type": "Controllable",
                     "Interval": 5
-                },
-                "TemporalConstraints": []
-            },
-            {
-                "Name": "Impossible: Second Plate not in environment",
-                "Repetition": 1,
-                "Type": "Interaction",
-                "Executions": {
-                    "Objects": {},
-                    "PrimitiveActions": []
-                },
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 0
                 },
                 "TemporalConstraints": []
             }
@@ -213,16 +199,28 @@
                 "TemporalConstraints": []
             },
             {
-                "Name": "Impossible: wash egg not in environment",
+                "Name": "Wash Lettuce",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
-                    "Objects": {},
-                    "PrimitiveActions": []
+                    "Objects": {
+                        "Lettuce|-01.81|+00.97|-00.94": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Lettuce|-01.81|+00.97|-00.94",
+                        "GRASP Lettuce|-01.81|+00.97|-00.94",
+                        "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+                        "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
+                        "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+                        "GRASP Lettuce|-01.81|+00.97|-00.94",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                    ]
                 },
                 "Duration": {
                     "Type": "Controllable",
-                    "Interval": 0
+                    "Interval": 5
                 },
                 "TemporalConstraints": []
             }

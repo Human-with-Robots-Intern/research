@@ -293,9 +293,7 @@ def build_tasks_and_constraints(
                         # 항목이 있으면 critical의 interval값을 평균에 저장
                         if similar_subtask in bayesian_load:
                             with open(knowledge_file_bayesian, "w") as f:
-                                bayesian_load[similar_subtask][
-                                    "expected_duration"
-                                ] = temporal_constraint.interval
+                                temporal_constraint.interval = bayesian_load[similar_subtask]["expected_duration"]
                                 json.dump(bayesian_load, f, indent=4)
                             nam_remain_subtask.append(similar_subtask)
                             nam_before_subtask.append(subtask.name)
@@ -309,7 +307,6 @@ def build_tasks_and_constraints(
                             nam_plus_subtask.append(subtask.name)
                             nam_remain_subtask.append(similar_subtask)
                             nam_before_subtask.append(subtask.name)
-
 
                         # bayesian_ground_truth.json에 항목이 없으면 10으로 저장
                         if similar_subtask not in ground_truth_load:
@@ -383,25 +380,6 @@ def split_subtask_for_monitoring(
     early_sub.execution.primitive_actions = early_actions
     early_sub.decomposed = True
 
-    # 5) Monitoring 서브태스크(0.1초)
-    for subtask in curr_node[4].remaining_subtasks:
-        if candidate.deadline.subtask_name == subtask.name:
-            crit_subtask = subtask
-            break
-    monitoring_obj = crit_subtask.execution.primitive_actions[0].split(" ")[1]
-    related_subtask_name = candidate.deadline.subtask_name
-    monitor_sub = Subtask(
-        task_name=candidate.subtask.task_name,
-        name=f"Monitor for {related_subtask_name}_{uuid.uuid4().hex[:6]}",
-        duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
-        repetition=1,
-        type="Monitor",
-        execution=Execution(
-            objects=[], primitive_actions=[f"MONITORING {monitoring_obj}"]
-        ),
-        decomposed=True,
-    )
-
     # 6) Remaining 서브태스크
     remain_sub = copy.deepcopy(candidate.subtask)
     remain_sub.name += "_remain"
@@ -409,7 +387,7 @@ def split_subtask_for_monitoring(
     remain_sub.execution.primitive_actions = remain_actions
     remain_sub.decomposed = True
 
-    return early_sub, monitor_sub, remain_sub
+    return early_sub, remain_sub
 
 
 def split_primitive_actions_by_time(

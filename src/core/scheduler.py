@@ -4,8 +4,10 @@ import uuid
 from queue import PriorityQueue
 from typing import List, Optional
 
+import networkx as nx
+
 from core.task import Duration, Execution, Subtask
-from scheduler import ActionHandler, ConstraintHandler, HeuristicManager
+from scheduler import ConstraintHandler, HeuristicManager, NavigationManager
 from scheduler.dataclass import (
     Candidate,
     CompletedEntry,
@@ -43,7 +45,6 @@ class Scheduler:
 
     def __init__(
         self,
-        nav_graph: dict,
         search_width: int = BEAM_WIDTH,
         simulation_depth: int = SIMULATION_DEPTH,
     ):
@@ -56,7 +57,7 @@ class Scheduler:
             f"{RED}[Scheduler Init] search_width={search_width}, simulation_depth={simulation_depth}{RESET}"
         )
 
-        self.action_handler = ActionHandler(nav_graph)
+        self.nav_manager = NavigationManager()
         self.constraint_handler = ConstraintHandler()
         self.cost_calculator = HeuristicManager(self.constraint_handler)
 
@@ -75,6 +76,7 @@ class Scheduler:
             Optional[SchedulerState]: The next state after scheduling one subtask,
             or None if no feasible solution is found.
         """
+
         child_node = self._simulate_search(parent_state)
         if child_node is None:
             log.error("[get_next_state] No child_state found (No feasible solution).")
@@ -172,6 +174,7 @@ class Scheduler:
                     queue.put(nd)
 
                 else:
+
                     break
 
         # Choose the best among the best_solutions found
@@ -365,14 +368,10 @@ class Scheduler:
         # nav_time, new_location = self.nav_manager.compute_total_navigation_time(
         #     curr_node, candidate.subtask
         # )
-        navigate_target = []
-        for primitive_action in candidate.subtask.execution.primitive_actions:
-            if primitive_action.startswith("NAVIGATE_TO"):
-                navigate_target.append(primitive_action)
-                break
-        # current_node의 agent 시점에서 candidate_subtask의 첫번째 navigate to 대상까지의 navigation time
-        nav_time, _, scene_positions, held_obj = (
-            self.action_handler.simulate_navigate_actions(curr_node, navigate_target)
+        agent_location = curr_node.state.agent_location.split("|")[0]
+        target_location = list(candidate.subtask.execution.objects.keys())[0].split("|")[0]
+        nav_time = self.nav_manager.get_specific_nav_time(
+            agent_location, target_location
         )
 
         # If there's enough time to monitor during waiting
@@ -445,7 +444,7 @@ class Scheduler:
         early_cutoff = max_critical_interval * BAYESIAN_CRITERIA
 
         # 4) Check if subtask ends before the monitoring cutoff => no need to split
-        nav_time, new_location = self.action_handler.compute_total_navigation_time(
+        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
             curr_node, candidate.subtask
         )
         total_duration = nav_time + candidate.subtask.duration.interval
@@ -462,7 +461,7 @@ class Scheduler:
         early_sub, mon_sub, remain_sub = split_subtask_for_monitoring(
             curr_node=curr_node,
             candidate=candidate,
-            action_handler=self.action_handler,
+            nav_manager=self.nav_manager,
             early_cutoff=early_cutoff,
         )
         log.debug(
@@ -472,7 +471,7 @@ class Scheduler:
 
         # Compute nav_time for early_sub specifically
         nav_time_early_sub, new_location_early_sub = (
-            self.action_handler.compute_total_navigation_time(curr_node, early_sub)
+            self.nav_manager.compute_total_navigation_time(curr_node, early_sub)
         )
 
         # (B) Check feasibility against deadline, including potential nav time
@@ -606,7 +605,7 @@ class Scheduler:
         curr_depth = curr_node.depth
         curr_heuristic = curr_node.heuristic_cost
 
-        nav_time, new_location = self.action_handler.compute_total_navigation_time(
+        nav_time, new_location = self.nav_manager.compute_total_navigation_time(
             curr_node, candidate.subtask
         )
         exec_time = candidate.subtask.duration.interval + nav_time
@@ -690,14 +689,14 @@ class Scheduler:
         wait_duration = candidate.earliest_start_time - curr_state.current_time
 
         agent_locating = curr_node.state.agent_location.split("|")[0]
-        target_location = list(candidate.subtask.execution.objects.keys())[0].split(
-            "|"
-        )[0]
-        nav_time = self.action_handler.get_specific_nav_time(
+        target_location_id = list(candidate.subtask.execution.objects.keys())[0]
+        target_location = target_location_id.split("|")[0]
+        
+        nav_time = self.nav_manager.get_specific_nav_time(
             agent_locating, target_location
         )
 
-        nav_action = [f"NAVIGATE_TO {target_location}"]
+        nav_action = [f"NAVIGATE_TO {target_location_id}"]
         monitoring_action = (
             [
                 f"MONITORING {candidate.subtask.execution.primitive_actions[0].split()[1]}"
@@ -818,9 +817,7 @@ class Scheduler:
         wait_start_time = curr_state.current_time
         wait_duration = candidate.earliest_start_time - curr_state.current_time
 
-        target_location = list(candidate.subtask.execution.objects.keys())[0].split(
-            "|"
-        )[0]
+        target_location = list(candidate.subtask.execution.objects.keys())[0].split("|")[0]
 
         wait_action = [f"Wait {wait_duration}"] if wait_duration > 0 else []
 
@@ -927,7 +924,7 @@ class Scheduler:
 
         # (4) Check if subtask ends before the monitoring cutoff
         curr_state = curr_node.state
-        nav_time, _ = self.action_handler.compute_total_navigation_time(
+        nav_time, _ = self.nav_manager.compute_total_navigation_time(
             curr_node, candidate.subtask
         )
         total_duration = nav_time + candidate.subtask.duration.interval
@@ -968,3 +965,93 @@ class Scheduler:
             f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} meets monitoring criteria."
         )
         return True
+
+    def _get_critical_start_info(self, curr_node: SimulationNode, candidate: Candidate):
+        """
+        도래할 deadline 정보를 보고, Critical constraints를 시작하는 subtask가 있다면 해당 제약정보를 반환.
+        Returns:
+            (critical_start_time: float, interval: float)
+        """
+
+        curr_state = curr_node.state
+        deadline_due, deadline_sub_name = (
+            candidate.deadline.due_date,
+            candidate.deadline.subtask_name,
+        )
+
+        critical_slots = [
+            slot
+            for slot in self.constraint_handler.get_time_slots(
+                deadline_sub_name, curr_state.constraints, "in"
+            )
+            if slot.is_critical
+        ]
+
+        if not critical_slots:
+            log.debug(
+                f"[_get_critical_start_info] No critical slots found for {deadline_sub_name}"
+            )
+            return None
+
+        critical_slot = max(critical_slots, key=lambda x: x.interval)
+        critical_start_sub_name = critical_slot.related_subtask_name
+        critical_interval = critical_slot.interval
+
+        # Find the time at which the critical subtask starts
+        critical_start_time = 0.0
+        for ce in curr_state.completed_subtasks:
+            if ce.subtask.name == critical_start_sub_name:
+                critical_start_time = ce.end_time
+                break
+        return critical_start_time, critical_interval
+
+    def _update_constraints_for_monitoring(
+        self,
+        constraints_graph: nx.DiGraph,
+        old_sub_name: str,
+        early_sub: Subtask,
+        mon_sub: Subtask,
+        remain_sub: Subtask,
+    ) -> nx.DiGraph:
+        """
+        모니터링 적용 시, old_sub를 분할한 뒤 constraints를 업데이트한다.
+        """
+        in_edges = (
+            list(constraints_graph.in_edges(old_sub_name, data=True))
+            if constraints_graph.has_node(old_sub_name)
+            else []
+        )
+        out_edges = (
+            list(constraints_graph.out_edges(old_sub_name, data=True))
+            if constraints_graph.has_node(old_sub_name)
+            else []
+        )
+
+        if constraints_graph.has_node(old_sub_name):
+            constraints_graph.remove_node(old_sub_name)
+
+        constraints_graph.add_node(early_sub.name)
+        constraints_graph.add_node(mon_sub.name)
+        constraints_graph.add_node(remain_sub.name)
+
+        # 원래 old_sub의 in-edge -> early_sub
+        for pred, _, data in in_edges:
+            constraints_graph.add_edge(
+                pred, early_sub.name, info=copy.deepcopy(data["info"])
+            )
+
+        # 원래 old_sub의 out-edge <- remain_sub
+        for _, succ, data in out_edges:
+            constraints_graph.add_edge(
+                remain_sub.name, succ, info=copy.deepcopy(data["info"])
+            )
+
+        # early_sub -> mon_sub -> remain_sub
+        constraints_graph.add_edge(
+            early_sub.name, mon_sub.name, info={"Interval": 0, "IsCritical": True}
+        )
+        constraints_graph.add_edge(
+            mon_sub.name, remain_sub.name, info={"Interval": 0, "IsCritical": False}
+        )
+
+        return constraints_graph

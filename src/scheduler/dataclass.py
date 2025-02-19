@@ -36,10 +36,10 @@ class SchedulerState(NamedTuple):
     current_time: float
     # 현재 agent, object들의 position
     scene_positions: dict[str, list[float, float, float]]
-    # agent의 위치 (landmark)
-    agent_location: str
     # 현재 agent가 들고 있는 object
     held_object: Optional[str]
+    # agent의 위치 (landmark)
+    agent_location: str = None
 
 
 class SimulationNode(NamedTuple):
