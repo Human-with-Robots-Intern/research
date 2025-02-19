@@ -46,7 +46,7 @@ def adjust_if_unreachable(
     qpos = quantize_position(pos)
     while qpos not in nav_graph:
         qpos = _adjust_to_reachable(nav_graph, qpos)
-        log.debug(f"Adjusted to reachable position: {pos} -> {qpos}")
+
     return qpos
 
 
