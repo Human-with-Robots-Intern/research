@@ -58,6 +58,7 @@ def main():
         controller = init_ai2thor()
 
     task_files = list_task_files()
+    
     task_file_name = get_user_task_choice(task_files)
 
     # Load the chosen task data
@@ -91,7 +92,7 @@ def main():
 
         # TODO Simulation 수행 결과값을 얻어야 함. 지금은 스케쥴러에서 줌
         if next_state.subtask.type == "Monitor":
-            agent.bayesian_estimate(next_state, subtasks)
+            next_state = agent.bayesian_estimate(next_state, subtasks)
 
         current_state = next_state
 

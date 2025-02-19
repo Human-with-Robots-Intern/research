@@ -10,6 +10,8 @@ import numpy as np
 from scheduler.constraint_handler import ConstraintHandler
 from scheduler.dataclass import SchedulerState
 from utils import KNOWLEDGE_PATH, create_module_logger
+from utils.task import task_util
+
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -74,20 +76,7 @@ class Agent:
                 json.dump(self.knowledge, f, indent=4, ensure_ascii=False)
         except Exception as e:
             raise Exception(f"Error saving knowledge: {e}")
-
-    def find_best_match(subtask_name, subtask_dict):
-        """
-        subtask_dict에서 subtask_name과 가장 유사한 subtask를 찾아 반환
-        """
-        subtask_names = list(subtask_dict.keys())  # 비교할 subtask 목록
-        best_match = process.extractOne(
-            subtask_name, subtask_names
-        )  # 가장 유사한 값 찾기
-
-        if best_match and best_match[1] > 70:  # 유사도가 70 이상이면 채택
-            return best_match[0]
-        else:
-            return subtask_name  # 유사한 값이 없으면 원본 유지
+    
 
     def bayesian_estimate(self, state: SchedulerState, subtasks) -> None:
         """
@@ -110,16 +99,28 @@ class Agent:
         ########
         subtasks = subtasks
         estimate_load = self._load_knowledge("bayesian_estimate.json")
+        ground_truth_load = self._load_knowledge("bayesian_ground_truth.json")
 
         subtask_names = list(estimate_load.keys())
 
-        best_match = process.extractOne(subtask_name, subtask_names)
-        best_match_close = get_close_matches(subtask_name, subtask_names, n=1, cutoff=0)
+        estimate_subtasks = task_util.query(
+                            {"inputs": {"source_sentence": f"{state.subtask.name}", "sentences": subtask_names, }}
+                        )
+        idx = sorted(enumerate(estimate_subtasks), key=lambda x: x[1], reverse=True)[
+            0
+        ][0]
+
+        similar_subtask = subtask_names[idx]
+        if estimate_subtasks[idx] < 0.7:
+            similar_subtask = state.subtask.name
+
+
         actual_duration = 0
 
         for subtask in subtasks:
             if subtask.name == subtask_name:
                 temporal_constraints = subtask.temporal_constraints
+                critical_interval = subtask.temporal_constraints[0].interval
                 start_subtask = temporal_constraints[0].subtask
                 break
 
@@ -130,12 +131,12 @@ class Agent:
         # for ce in state.completed_subtasks:
 
         actual_duration = state.current_time - start_time
+        
+        
+        ground_truth = ground_truth_load[subtask_name]
 
-        djfkdjfkdjf = self._load_knowledge("bayesian_ground_truth.json")
-        ground_truth = djfkdjfkdjf[best_match_close[0]]
-
-        prior_mean = estimate_load[best_match_close[0]]["expected_duration"]
-        prior_variance = estimate_load[best_match_close[0]]["variance"]
+        prior_mean = critical_interval
+        prior_variance = estimate_load[subtask_name]["variance"]
 
         # bayesian estimate
         cooking_data_real = actual_duration / ground_truth
@@ -154,10 +155,19 @@ class Agent:
         )
 
         # posterior_data
-        self.knowledge[best_match_close[0]]["expected_duration"] = posterior_mean
-        self.knowledge[best_match_close[0]]["variance"] = posterior_variance
+        self.knowledge[subtask_name]["expected_duration"] = posterior_mean
+        self.knowledge[subtask_name]["variance"] = posterior_variance
+
+        for subtask in subtasks:
+            if subtask.name == subtask_name:
+                state.constraints.remove_edge(start_subtask, subtask.name)
+                state.constraints.add_edge(start_subtask, subtask.name, info={"Interval": posterior_mean, "IsCritical": True})
+                break
 
         self._save_knowledge()
+
+        return state
+
 
 
 # def monitering_timing(plan_about_time_critical):
