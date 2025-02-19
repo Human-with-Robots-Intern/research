@@ -368,8 +368,8 @@ class Scheduler:
         # nav_time, new_location = self.nav_manager.compute_total_navigation_time(
         #     curr_node, candidate.subtask
         # )
-        agent_location = curr_node.state.agent_location
-        target_location = list(candidate.subtask.execution.objects.keys())[0]
+        agent_location = curr_node.state.agent_location.split("|")[0]
+        target_location = list(candidate.subtask.execution.objects.keys())[0].split("|")[0]
         nav_time = self.nav_manager.get_specific_nav_time(
             agent_location, target_location
         )
@@ -688,14 +688,15 @@ class Scheduler:
         wait_start_time = curr_state.current_time
         wait_duration = candidate.earliest_start_time - curr_state.current_time
 
-        agent_locating = curr_node.state.agent_location
-        target_location = list(candidate.subtask.execution.objects.keys())[0]
-
+        agent_locating = curr_node.state.agent_location.split("|")[0]
+        target_location_id = list(candidate.subtask.execution.objects.keys())[0]
+        target_location = target_location_id.split("|")[0]
+        
         nav_time = self.nav_manager.get_specific_nav_time(
             agent_locating, target_location
         )
 
-        nav_action = [f"NAVIGATE_TO {target_location}"]
+        nav_action = [f"NAVIGATE_TO {target_location_id}"]
         monitoring_action = (
             [
                 f"MONITORING {candidate.subtask.execution.primitive_actions[0].split()[1]}"
@@ -816,7 +817,7 @@ class Scheduler:
         wait_start_time = curr_state.current_time
         wait_duration = candidate.earliest_start_time - curr_state.current_time
 
-        target_location = list(candidate.subtask.execution.objects.keys())[0]
+        target_location = list(candidate.subtask.execution.objects.keys())[0].split("|")[0]
 
         wait_action = [f"Wait {wait_duration}"] if wait_duration > 0 else []
 
