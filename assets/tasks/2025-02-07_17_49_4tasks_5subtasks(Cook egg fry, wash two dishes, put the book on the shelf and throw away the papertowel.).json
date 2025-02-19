@@ -90,10 +90,10 @@
         ]
     },
     {
-        "Task": "Put Book on Shelf",
+        "Task": "Put CreditCard on Shelf",
         "Subtasks": [
             {
-                "Name": "Place Book in Shelf",
+                "Name": "Place CreditCard in Shelf",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {

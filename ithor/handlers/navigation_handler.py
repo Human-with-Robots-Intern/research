@@ -57,7 +57,13 @@ class NavigationHandler:
         # Find the shortest path to the closest reachable position near the object
         path = self.shortest_path(agent_position, object_position)
         # Move agent step by step along the path
+
+        # 현재 위치부터 시작하는 것을 그 다음부터 시작하도록 변경
+        if path:
+            path.pop(0)
+
         print(f"경로!!!!! : {path}")
+
         elapsed_time = 0
 
         for position in path:
@@ -139,10 +145,11 @@ class NavigationHandler:
         if start == end:
             return [start]
 
-        # Ensure start and end are reachable
-        while not self.is_reachable(start):
+        reachable_positions = set(self.get_reachable_positions())
+
+        if start not in reachable_positions:
             start = quantize_position(self.adjust_to_nearest_reachable(start))
-        while not self.is_reachable(end):
+        if end not in reachable_positions:
             end = quantize_position(self.adjust_to_nearest_reachable(end))
 
         # Define possible directions and corresponding angle
@@ -173,7 +180,9 @@ class NavigationHandler:
 
             # Explore neighbors
             for neighbor in self.neighbors.get(current_position, []):
-                if neighbor in path:  # Avoid cycles
+                if (
+                    neighbor in path or neighbor not in reachable_positions
+                ):  # Avoid cycles
                     continue
 
                 # Calculate direction to neighbor
@@ -340,36 +349,3 @@ class NavigationHandler:
             horizon=30,
             standing=True,
         )
-
-        self.controller.step(action="Pass")
-        self.camera_handler.update_view()
-
-    def move_in_direction(self, angle: float, distance: float):
-
-        # Get the current agent position
-        agent_position = self.get_agent_position()
-        agent_rotation = self.get_agent_rotate()
-
-        # Convert angle to radians
-        angle_radians = math.radians(angle)
-
-        # Calculate new position based on angle and distance
-        new_x = agent_position[0] + distance * math.sin(angle_radians)
-        new_z = agent_position[2] + distance * math.cos(angle_radians)
-
-        quantized_position = quantize_position((new_x, agent_position[1], new_z))
-        # Teleport the agent to the new position
-        self.controller.step(
-            action="Teleport",
-            position=dict(
-                x=quantized_position[0],
-                y=agent_position[1],
-                z=quantized_position[2],
-            ),
-            rotation=dict(x=0, y=agent_rotation, z=0),
-            horizon=30,
-            standing=True,
-        )
-
-        self.controller.step(action="Pass")
-        self.camera_handler.update_view()

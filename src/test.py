@@ -58,7 +58,7 @@ def main():
         controller = init_ai2thor()
 
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=16)
+    task_file_name = get_user_task_choice(task_files)
 
     # Load the chosen task data
     task_data = load_task_data_from_file(task_file_name)

@@ -100,7 +100,11 @@ def revision_primitive_actions(tasks):
             updated_actions = []
             for i, action in enumerate(actions):
                 to_obj = action.split(" ")[1]
-                if i > 0 and "PLACE" in action and f"NAVIGATE_TO {to_obj}" not in actions[i - 1]:
+                if (
+                    i > 0
+                    and "PLACE" in action
+                    and f"NAVIGATE_TO {to_obj}" not in actions[i - 1]
+                ):
                     updated_actions.append(f"NAVIGATE_TO {to_obj}")
                 if "PLACE" in action and "Sink" in action and "SinkBasin" not in action:
                     to_obj = action.split(" ")[1] + "|SinkBasin"
@@ -222,8 +226,10 @@ def build_tasks_and_constraints(
                 f"Error decoding knowledge file: {e}", doc="", pos=0
             )
     else:
-        raise FileNotFoundError(f"Knowledge file not found at {knowledge_file_bayesian}.")
-    
+        raise FileNotFoundError(
+            f"Knowledge file not found at {knowledge_file_bayesian}."
+        )
+
     if knowledge_file_ground_truth.exists():
         try:
             with knowledge_file_ground_truth.open("r", encoding="utf-8") as f:
@@ -233,7 +239,9 @@ def build_tasks_and_constraints(
                 f"Error decoding knowledge file: {e}", doc="", pos=0
             )
     else:
-        raise FileNotFoundError(f"Knowledge file not found at {knowledge_file_ground_truth}.")
+        raise FileNotFoundError(
+            f"Knowledge file not found at {knowledge_file_ground_truth}."
+        )
 
     if enable_decomposition:
         for task in tasks:
@@ -246,7 +254,9 @@ def build_tasks_and_constraints(
                         # 항목이 있으면 critical의 interval값을 평균에 저장
                         if subtask.name not in bayesian_load:
                             with open(knowledge_file_bayesian, "w") as f:
-                                bayesian_load[subtask.name]["expected_duration"] = temporal_constraint.interval
+                                bayesian_load[subtask.name][
+                                    "expected_duration"
+                                ] = temporal_constraint.interval
                                 json.dump(bayesian_load, f, indent=4)
                         else:
                             with open(knowledge_file_bayesian, "w") as f:
@@ -256,13 +266,11 @@ def build_tasks_and_constraints(
                                 }
                                 json.dump(bayesian_load, f, indent=4)
 
-
                         # bayesian_ground_truth.json에 항목이 없으면 10으로 저장
                         if subtask.name not in ground_truth_load:
                             with open(knowledge_file_ground_truth, "w") as f:
                                 ground_truth_load[subtask.name] = 10
                                 json.dump(ground_truth_load, f, indent=4)
-
 
     task_graph_builder = TaskGraphBuilder()
     task_graph = task_graph_builder.build_graph(tasks)
@@ -464,10 +472,7 @@ def split_primitive_actions_by_time(
             i += 1
             if "PLACE" in base_action and exist_grasp:
                 exist_place_after_grasp = True
-        elif (
-            duration > leftover_for_early
-            and not exist_place_after_grasp
-        ):
+        elif duration > leftover_for_early and not exist_place_after_grasp:
             early_actions.append(action)
             time_used += duration
             i += 1
@@ -475,7 +480,11 @@ def split_primitive_actions_by_time(
                 exist_place_after_grasp = True
         else:
             # 만약 NAVIGATE_TO 또는 WAIT이라면, 분할 가능
-            if base_action in ["NAVIGATE_TO", "WAIT"] and not exist_grasp and remain_actions == []:
+            if (
+                base_action in ["NAVIGATE_TO", "WAIT"]
+                and not exist_grasp
+                and remain_actions == []
+            ):
                 # early portion
                 early_actions.append(
                     f"{tokens[0]} {tokens[1]} {leftover_for_early}"
