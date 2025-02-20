@@ -133,11 +133,9 @@ class Agent:
         for subtask in subtasks:
             if subtask.name == subtask_name:
                 temporal_constraints = subtask.temporal_constraints
-                critical_interval = subtask.temporal_constraints[0].interval
                 start_subtask = temporal_constraints[0].subtask
                 break
 
-        # ? @okjy89 무슨 코드죠?
         for ce in state.completed_subtasks:
             if ce.subtask.name == start_subtask:
                 start_time = ce.start_time
@@ -149,7 +147,7 @@ class Agent:
 
         ground_truth = ground_truth_load[similar_subtask]
 
-        prior_mean = critical_interval
+        prior_mean = estimate_load[similar_subtask]["expected_duration"]
         prior_variance = estimate_load[similar_subtask]["variance"]
 
         # bayesian estimate
