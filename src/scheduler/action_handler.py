@@ -41,7 +41,7 @@ class ActionHandler:
         current_node: SimulationNode,
         primitive_actions: list[str],
         cutoff_time: float,
-    ) -> tuple[ActionResult, ActionResult]:
+    ) -> tuple[ActionSimulationLog, ActionSimulationLog]:
         """
         1) time-based 분할 -> (early_actions, remain_actions)
         2) 사후 보정: early에 GRASP한 오브젝트가 remain에서 Place되어야 하면 가져옴
@@ -87,6 +87,7 @@ class ActionHandler:
 
         # early에서 pick된 오브젝트가 monitoring timing 도래로,
         if unplaced_objs:
+            pre_cutoff_actions.append(f"NAVIGATE_TO {unplaced_objs[0]}")
             pre_cutoff_actions.append(f"PLACE_ON_TOP {unplaced_objs[0]}")
             post_cutoff_actions.insert(0, f"NAVIGATE_TO {unplaced_objs[0]}")
             post_cutoff_actions.insert(1, f"GRASP {unplaced_objs[0]}")
@@ -109,6 +110,9 @@ class ActionHandler:
         )
         log.debug(f"pre actions info: {pre_cutoff_actions_info}")
         log.debug(f"post actions info: {post_cutoff_actions_info}")
+
+        if not pre_cutoff_actions_info and post_cutoff_actions_info:
+            return (post_cutoff_actions_info, None)
 
         # (4) 반환
         return (pre_cutoff_actions_info, post_cutoff_actions_info)
@@ -245,4 +249,4 @@ class ActionHandler:
         raise ValueError(f"No path found from {start_pos} to {end_pos}.")
 
 
-# TODO Navigate to는 partial navigate to로 분할 가능
+# TODO Navigate to는 partial navigate to로 분할 가능해야 함
