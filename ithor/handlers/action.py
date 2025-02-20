@@ -3,15 +3,6 @@ from .navigation_handler import NavigationHandler
 
 import time
 
-
-# pick
-# drop 그냥 손에서 놓기
-# put 어디에다가 넣기
-# toggle
-# open
-# close
-
-
 class Action:
     def __init__(self, controller, camera_handler, log_file):
         self.controller = controller
@@ -39,6 +30,12 @@ class Action:
                     parent_receptacle_ids = obj["parentReceptacles"]
                     print(parent_receptacle_ids)
                     break
+# pick
+# drop 그냥 손에서 놓기
+# put 어디에다가 넣기
+# toggle
+# open
+# close
         if parent_receptacle_ids:
             parent_receptacle_id = parent_receptacle_ids[0]
         else:
