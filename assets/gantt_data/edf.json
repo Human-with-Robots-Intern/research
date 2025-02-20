@@ -1,0 +1,72 @@
+{
+  "simple1": {
+    "wash potato": { "scheduler": 3, "ai2thor": 11, "real_time": 1 },
+    "wash egg": { "scheduler": 7, "ai2thor": 11, "real_time": 1 },
+    "prepare cook potato": { "scheduler": 8, "ai2thor": 11, "real_time": 1 },
+    "prepare egg fry": { "scheduler": 2, "ai2thor": 11, "real_time": 1 },
+    "wait turn off cooking potato": {
+      "scheduler": 1,
+      "ai2thor": 11,
+      "real_time": 1
+    },
+    "wait turn off cooking egg": {
+      "scheduler": 3,
+      "ai2thor": 11,
+      "real_time": 1
+    },
+    "wash plate": { "scheduler": 2, "ai2thor": 11, "real_time": 1 },
+    "turn off cooking potato": {
+      "scheduler": 4,
+      "ai2thor": 11,
+      "real_time": 1
+    },
+    "turn off cooking egg": { "scheduler": 5, "ai2thor": 11, "real_time": 1 },
+    "wash plate2": { "scheduler": 2, "ai2thor": 11, "real_time": 1 },
+
+    "wash plate4": { "scheduler": 2, "ai2thor": 11, "real_time": 1 },
+
+    "wash plate3": { "scheduler": 2, "ai2thor": 11, "real_time": 1 },
+
+    "complete_schedule": [
+      "wash plate2",
+      "wash potato",
+      "wash egg",
+      "prepare cook potato",
+      "prepare egg fry",
+      "wait turn off cooking potato",
+      "wait turn off cooking egg",
+      "wash plate",
+      "turn off cooking potato",
+      "turn off cooking egg",
+      "wash plate4",
+      "wash plate3"
+    ],
+    "constraints": [
+      [
+        "wash egg",
+        "prepare egg fry",
+        "wait turn off cooking egg",
+        "turn off cooking egg"
+      ],
+      [
+        "wash potato",
+        "prepare cook potato",
+        "wait turn off cooking potato",
+        "turn off cooking potato"
+      ]
+    ]
+  },
+  "simple2": {
+    "prepare egg": { "scheduler": 10, "ai2thor": 11, "real_time": 1 },
+    "Wash Egg": { "scheduler": 10, "ai2thor": 11, "real_time": 1 },
+    "wash potato": { "scheduler": 10, "ai2thor": 11, "real_time": 1 },
+    "turn off the stove": { "scheduler": 10, "ai2thor": 11, "real_time": 1 },
+    "complete_schedule": [
+      "Wash Egg",
+      "prepare egg",
+      "wash potato",
+      "turn off the stove"
+    ],
+    "constraints": [["Wash Egg", "prepare egg", "turn off the stove"]]
+  }
+}
