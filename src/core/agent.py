@@ -115,7 +115,7 @@ class Agent:
                 {
                     "inputs": {
                         "source_sentence": f"{subtask.name}",
-                        "sentences": list(bayesian_load.keys()),
+                        "sentences": list(estimate_load.keys()),
                     }
                 }
             )
