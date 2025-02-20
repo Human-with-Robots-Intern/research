@@ -501,16 +501,14 @@ class Scheduler:
         # * 2) Calculate the early cutoff based on Bayesian criteria
         cutoff = max_critical_interval * BAYESIAN_CRITERIA
 
-        # * 3) Find the time at which the critical constraint starts
+        # * 3) Find monitoring obj and the time at which the critical constraint starts
         critical_constraint_start_time = 0.0
         critical_constraint_start_sub_objs = None
         for ce in curr_state.completed_subtasks:
             if ce.subtask.name == critical_start_sub_name:
                 critical_constraint_start_time = ce.end_time
-                # ? executions의 objects / action 중 무엇을 참조해야 하나? 뭐가 더 자연스럽지?
                 critical_constraint_start_sub_objs = ce.subtask.execution.objects
                 break
-
         expected_monitoring_start_timing = critical_constraint_start_time + cutoff
 
         # * 4) Check if the entire subtask ends before the monitoring cutoff
@@ -527,9 +525,15 @@ class Scheduler:
 
         # ! ------------------- Proceed with actual splitting -------------------
         # * (1) split_subtask_for_monitoring
+        # TODO : split_time을 expected_monitoring_start_timing - curr_state.current_time로 썼을 때, monitoring 시점이 2개가 생김
+        # split_time = expected_monitoring_start_timing - curr_state.current_time
+        split_time = cutoff
+
         pre_actions_info, post_actions_info = (
             self.action_handler.split_subtask_by_cutoff_time(
-                curr_node, candidate.subtask.execution.primitive_actions, cutoff
+                curr_node,
+                candidate.subtask.execution.primitive_actions,
+                split_time,
             )
         )
 
@@ -725,7 +729,6 @@ class Scheduler:
         new_scene_positions = nav_action_info.scene_positions
         new_held_obj = nav_action_info.held_object
 
-        # ? 정말 full로 navigate를 해야 하나? 어차피, 도래할 subtask의 첫 액션이 navigate인데,,,
         navigate_sub = Subtask(
             task_name=None,
             name=f"Navigate to {target_obj} during {partial_nav_time}",
