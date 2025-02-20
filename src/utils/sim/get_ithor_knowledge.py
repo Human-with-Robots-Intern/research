@@ -99,7 +99,7 @@ def get_move_time(controller, objs):
     agent_pos = Navi.get_agent_position()
     for to_obj in objs:
         to_obj_pos = Navi.get_object_position(to_obj)
-        path = Navi.shortest_path(agent_pos, to_obj_pos)
+        path = Navi.find_shortest_path(agent_pos, to_obj_pos)
         time = round(len(path) * 0.1, 2)
         move_time["agent"][to_obj] = time
 
@@ -109,7 +109,7 @@ def get_move_time(controller, objs):
             print(f"{obj1} to {obj2}")
             obj1_pos = Navi.get_object_position(obj1)
             obj2_pos = Navi.get_object_position(obj2)
-            path = Navi.shortest_path(obj1_pos, obj2_pos)
+            path = Navi.find_shortest_path(obj1_pos, obj2_pos)
             time = round(len(path) * 0.1, 2)
             print(f"{time=}")
             move_time[obj1][obj2] = time

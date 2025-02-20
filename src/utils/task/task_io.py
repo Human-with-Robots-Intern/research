@@ -62,3 +62,20 @@ def load_task_data_from_file(task_file_name: str) -> dict:
 
     with open(target_task_path, "r", encoding="utf-8") as file:
         return json.load(file)
+
+
+def load_scene_positions(
+    file_name: str,
+) -> dict[str, tuple[float, float, float]]:
+    """
+    Load scene positions from a JSON file.
+
+    :param file_path: Path to the JSON file containing scene positions.
+    :return: Dictionary containing scene positions.
+    """
+    file_path = KNOWLEDGE_PATH / file_name
+    with open(file_path, "r") as f:
+        scene_positions = json.load(f)
+    for key, value in scene_positions.items():
+        scene_positions[key] = tuple(value)
+    return scene_positions

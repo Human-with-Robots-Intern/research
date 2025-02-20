@@ -4,14 +4,14 @@ import math
 import os
 import random
 import re
+import sys
 import time
 from pathlib import Path
 
 import numpy as np
 from ai2thor.controller import Controller
 
-import sys
-sys.path.append('/home/bluebottle/workspace/research/ithor')  # ithor 폴더의 절대 경로
+sys.path.append("/home/bluebottle/workspace/research/ithor")  # ithor 폴더의 절대 경로
 import ai2thor
 
 from ithor.handlers.action import Action
