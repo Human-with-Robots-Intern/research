@@ -8,6 +8,7 @@ PROMPT_PATH = ROOT_PATH / "assets" / "prompts"
 VIS_PATH = ROOT_PATH / "assets" / "results"
 TASK_PATH = ROOT_PATH / "assets" / "tasks"
 LOG_PATH = ROOT_PATH / "logs"
+GANTT_PATH = ROOT_PATH / "assets" / "gantt_data"
 
 PROMPT_FILE_PATH = "e2e_generator_ver5.txt"
 ESTIMATE_FILE_NAME = "bayesian_estimate.json"

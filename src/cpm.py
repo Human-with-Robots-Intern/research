@@ -15,13 +15,16 @@ from utils.task import (
     get_init_state,
     get_user_task_choice,
     list_task_files,
-    load_task_data_from_file,
-    task_io
+    load_task_data_from_file
 )
+from utils.task.task_io import load_scene_positions
 from ithor.utils.math_utils import build_navigation_graph, adjust_if_unreachable
 
 import json
 from utils.constants import KNOWLEDGE_PATH
+from func_for_gantt import func_for_gantt
+import time
+
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
@@ -61,41 +64,54 @@ def parse_arguments():
 def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
-    held_object = None
-
-    # Set up the AI2-THOR controller and navigation graph
-    controller = init_ai2thor()
-    nav_graph = build_navigation_graph(controller)
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice= 1)
-    task_data = load_task_data_from_file(task_file_name)
 
-    # Build tasks and constraints
-    subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
-    edges = list(constraints.edges)
+    for i in range(len(task_files)):
+        j = i + 1
+        # 코드 실제 실행 시간 기준이 언제 인지. 일단은 파일 불러오기 전으로 함.
+        task_opening_time = time.time()
+        held_object = None
+        task_file_name = get_user_task_choice(task_files, choice= j)
+        task_data = load_task_data_from_file(task_file_name)
 
-    # Visualize the task graph if enabled
-    if args.visualize:
-        visualize(task_file_name, constraints)
+        # Set up the AI2-THOR controller and navigation graph
+        controller = init_ai2thor()
+        nav_graph = build_navigation_graph(controller)
+        scene_poses = load_scene_positions("FloorPlan1_positions.json")
 
-    agent = Agent()
+        # Build tasks and constraints
+        subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
+        edges = list(constraints.edges)
 
-    result_schedule = []
+        # Visualize the task graph if enabled
+        if args.visualize:
+            visualize(task_file_name, constraints)
 
-    critical_path, held_object = find_critical_path(edges, subtasks, held_object, nav_graph)
+        agent = Agent()
 
-    # 스케줄링 실행
-    result_schedule = schedule_with_cp_priority(edges, critical_path)
+        result_schedule = []
 
-    # 스케쥴링 끝난 거 앞에서 부터 시간 계산하기. 만약에 dependency가 지켜지지 않으면 wait넣기
-    total_time, schedule_subtask_time = last_calculte_schedule_and_time(result_schedule, subtasks, held_object, nav_graph)
-    print("total time = ", total_time)
-    print("schedul subtask time = ", schedule_subtask_time)
-    print("=== Combined single-scheduler with CP priority ===")
-    for step in result_schedule:
-        print(" -", step)
+        critical_path, held_object = find_critical_path(edges, subtasks, held_object, nav_graph)
+
+        # 스케줄링 실행
+        result_schedule = schedule_with_cp_priority(edges, critical_path)
+
+        # 스케쥴링 끝난 거 앞에서 부터 시간 계산하기. 만약에 dependency가 지켜지지 않으면 wait넣기
+        total_time, schedule_subtask_time = last_calculte_schedule_and_time(result_schedule, subtasks, held_object, nav_graph)
+        
+        
+        
+        print("=== Combined single-scheduler with CP priority ===")
+        for step in result_schedule:
+            print(" -", step)
+        final_schedule = {key: [value, 0, 0] for key, value in schedule_subtask_time.items()}
+
+        # subtask 하나하나의 task 실행시간이 필요한가...?
+        # 결과 기록 json파일에 형식 맞춰서 write하기.
+        func_for_gantt.write_gantt_file("cpm", task_file_name, final_schedule, edges)
+        print()
 
 def paths(edges):
     # 방향 그래프 생성
@@ -142,7 +158,7 @@ def find_critical_path(edges, subtasks, held_object, nav_graph):
 
 def action_duration(action, held_object, nav_graph):
 
-    scene_positions = task_io.load_scene_positions("FloorPlan1_positions.json")
+    scene_positions = load_scene_positions("FloorPlan1_positions.json")
 
     tokens = action.split()
     if not tokens:
@@ -262,7 +278,7 @@ def specific_nav_time(action, nav_graph) -> float:
     Note: If you need partial matching or fuzzy matching,
             adapt the dictionary access logic accordingly.
     """
-    scene_positions = task_io.load_scene_positions("FloorPlan1_positions.json")
+    scene_positions = load_scene_positions("FloorPlan1_positions.json")
     nav_time = None
     tokens = action.split()
     if not tokens:
@@ -394,12 +410,12 @@ def last_calculte_schedule_and_time(result_schedule, subtasks, held_object, nav_
                         schedule_subtask_and_time.update({f"wait_{result_schedule[i]}": wait_time})
                         # 전체 시간 update
                         total_time += (nav_time + wait_time)
-  
+ 
         # subtask 
         subtask_total_time, held_object = subtask_time(subtask, held_object, nav_graph)
         total_time += subtask_total_time
-        schedule_subtask_and_time.update({subtask.name : subtask.duration.interval})
-    
+        schedule_subtask_and_time.update({subtask.name : subtask_total_time})
+
     return total_time, schedule_subtask_and_time
 
 
