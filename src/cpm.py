@@ -2,19 +2,24 @@ import networkx as nx
 import heapq
 from collections import defaultdict
 import argparse
+import math
+from typing import Callable, Dict, List, Set, Tuple
 
 from core.agent import Agent
 from core.scheduler import Scheduler
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import create_module_logger, visualize
-from utils.constants import LOG_ROUND
+from utils.constants import PRIMITIVE_ACTION_DURATION, MONITORING_DURATION, NAV_STEP_DURATION, PRIMITIVE_ACTION_SET 
 from utils.task import (
     build_tasks_and_constraints,
     get_init_state,
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file,
+    task_io
 )
+from ithor.utils.math_utils import build_navigation_graph, adjust_if_unreachable
+
 import json
 from utils.constants import KNOWLEDGE_PATH
 
@@ -56,14 +61,15 @@ def parse_arguments():
 def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
+    held_object = None
 
-    if args.simulation:
-        controller = init_ai2thor()
-
-    task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice = 16)
+    # Set up the AI2-THOR controller and navigation graph
+    controller = init_ai2thor()
+    nav_graph = build_navigation_graph(controller)
 
     # Load the chosen task data
+    task_files = list_task_files()
+    task_file_name = get_user_task_choice(task_files, choice= 1)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
@@ -76,18 +82,17 @@ def main():
 
     agent = Agent()
 
-    scheduler = Scheduler()
-
     result_schedule = []
 
-    critical_path = find_critical_path(edges, subtasks)
+    critical_path, held_object = find_critical_path(edges, subtasks, held_object, nav_graph)
 
     # 스케줄링 실행
     result_schedule = schedule_with_cp_priority(edges, critical_path)
 
     # 스케쥴링 끝난 거 앞에서 부터 시간 계산하기. 만약에 dependency가 지켜지지 않으면 wait넣기
-    total_time, schedule_subtask_time = last_calculte_schedule_and_time(result_schedule, subtasks)
-
+    total_time, schedule_subtask_time = last_calculte_schedule_and_time(result_schedule, subtasks, held_object, nav_graph)
+    print("total time = ", total_time)
+    print("schedul subtask time = ", schedule_subtask_time)
     print("=== Combined single-scheduler with CP priority ===")
     for step in result_schedule:
         print(" -", step)
@@ -111,18 +116,16 @@ def paths(edges):
 
     return all_paths
 
-def find_critical_path(edges, subtasks):
+def find_critical_path(edges, subtasks, held_object, nav_graph):
     all_paths = paths(edges)
     total_time = []
     for path in all_paths:
         # 각 path의 실행시간 더하기 (subtask 시간 + interval(with nav))
         path_total_time = 0.0
-        start_location = None
         # path에 있는 subtask를 실행하는 시간을 더해서 해당 path의 실행 시간 구하기
         for i in range(len(path)):
             subtask = next((subtask for subtask in subtasks if subtask.name == path[i]), None)
-            subtask_total_time, last_location = subtask_time(subtask, start_location)
-            start_location = last_location
+            subtask_total_time, held_object = subtask_time(subtask, held_object, nav_graph)
             # # 이 subtask로 인해 추가되는 시간
             path_total_time += subtask_total_time
             # dependency의 interval 더해주기
@@ -135,49 +138,123 @@ def find_critical_path(edges, subtasks):
     # all_paths와 total_time에서 total_time이 있는 idx와 같은 위치의 all_paths 값을 불러와서 critical_path에 저장하기
     critical_path = all_paths[total_time.index(max(total_time))]
 
-    return critical_path
+    return critical_path, held_object
 
-def subtask_time(subtask, start_location):
-    # subtask 안에서 nav하는 시간
-    nav_time, last_location = subtask_nav_time(subtask, start_location)
-    # subtask 실행시간
-    subtask_interval = subtask.duration.interval
-    # 이 subtask로 인해 추가되는 시간
-    subtask_total_time = nav_time + subtask_interval
-    return subtask_total_time, last_location
+def action_duration(action, held_object, nav_graph):
 
-def subtask_nav_time(subtask, start_location):
-    # 1) Ensure we have a known robot location
-    if start_location is None:
-        #start_location = "agent"
-        start_location = subtask.execution.primitive_actions[0].split(" ")[1]
-        start_location = start_location.split("_")[0]
+    scene_positions = task_io.load_scene_positions("FloorPlan1_positions.json")
 
-    nav_time = 0.0
-    current_source = start_location
+    tokens = action.split()
+    if not tokens:
+        log.error(f"action is not in exist.")
+        raise ValueError(f"action is not in exist")
 
-    # 2) If no primitive_actions or no NAVIGATE_TO, no nav time needed
-    if not subtask.execution or not subtask.execution.primitive_actions:
-        return 0.0, start_location
+    action_type = tokens[0].upper()
+    target_obj_id = tokens[1] if len(tokens) > 1 else None
+    partial_time_str = tokens[2] if len(tokens) > 2 else None
 
-    # 3) Accumulate travel time for each NAVIGATE_TO
-    target_loc = current_source
-    for action in subtask.execution.primitive_actions:
-        if action.startswith("NAVIGATE_TO"):
-            # e.g. "NAVIGATE_TO Kitchen"
-            target_loc = action.split("NAVIGATE_TO")[1].strip()
-            step_time = specific_nav_time(source=current_source, target=target_loc)
-            nav_time += step_time
-            current_source = target_loc
+    # 예외: WAIT 이외 액션에서, scene_positions에 없는 오브젝트를 타겟으로 지목
+    if (
+        target_obj_id
+        and target_obj_id not in scene_positions
+        and action_type != "WAIT"
+    ):
+        log.error(f"Object {target_obj_id} not in scene_positions.")
+        raise ValueError(f"Object {target_obj_id} not in scene_positions.")
+
+    # 액션별 소요시간 계산
+    if action_type == "NAVIGATE_TO":
+        navigate_path = _find_short_path(
+            scene_positions["agent"], scene_positions[target_obj_id], nav_graph
+        )
+        if partial_time_str is None:
+            action_duration = len(navigate_path) * NAV_STEP_DURATION
+            if navigate_path:
+                scene_positions["agent"] = navigate_path[-1]
+        else:
+            nav_time = float(partial_time_str)
+            steps = int(math.floor(nav_time / NAV_STEP_DURATION))
+            steps = max(0, min(steps, len(navigate_path) - 1))
+            action_duration = nav_time
+            if navigate_path:
+                scene_positions["agent"] = navigate_path[steps]
+
+    elif action_type == "GRASP":
+        if held_object is not None:
+            raise ValueError(
+                f"Already holding {held_object}, cannot grasp {target_obj_id}."
+            )
+        held_object = target_obj_id
+        action_duration = PRIMITIVE_ACTION_DURATION
+
+    elif action_type in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
+        if held_object is None:
+            raise ValueError("No object in hand to place.")
+        # place 동작
+        scene_positions[held_object] = scene_positions[target_obj_id]
+        held_object = None
+        action_duration = PRIMITIVE_ACTION_DURATION
+
+    elif action_type == "MONITORING":
+        action_duration = MONITORING_DURATION
+
+    elif action_type == "WAIT":
+        action_duration = float(target_obj_id)  # 예: WAIT 3.0
+
+    elif action_type in PRIMITIVE_ACTION_SET:
+        action_duration = PRIMITIVE_ACTION_DURATION
+
+    else:
+        log.error(f"Unknown action name: {action_type}")
+        raise ValueError(f"Unknown action name: {action_type}")
     
-    return nav_time, target_loc
+    return action_duration, held_object
 
-def load_navigation_time():
-    with open(KNOWLEDGE_PATH / "FloorPlan1_physics_navigation_time.json", "r") as f:
-        navigation_times = json.load(f)
-    return navigation_times
+def _find_short_path(start_pos: Tuple[float, float, float], end_pos: Tuple[float, float, float]
+    , nav_graph):
 
-def specific_nav_time(source: str, target: str) -> float:
+        start_pos = adjust_if_unreachable(nav_graph, start_pos)
+        end_pos = adjust_if_unreachable(nav_graph, end_pos)
+        if start_pos == end_pos:
+            return [start_pos]
+
+        def direction(a, b):
+            return (b[0] - a[0], b[2] - a[2])
+
+        pq = []
+        heapq.heappush(pq, (0, start_pos, None, [start_pos]))
+        visited = {}
+
+        while pq:
+            turn_cnt, cur_pos, cur_dir, path = heapq.heappop(pq)
+            if cur_pos == end_pos:
+                return path
+            if cur_pos in visited and visited[cur_pos] <= turn_cnt:
+                continue
+            visited[cur_pos] = turn_cnt
+            for nxt in nav_graph.get(cur_pos, []):
+                if nxt in path:
+                    continue
+                new_dir = direction(cur_pos, nxt)
+                nxt_turn = (
+                    turn_cnt
+                    if (cur_dir is None or new_dir == cur_dir)
+                    else (turn_cnt + 1)
+                )
+                new_path = path + [nxt]
+                heapq.heappush(pq, (nxt_turn, nxt, new_dir, new_path))
+
+        raise ValueError(f"No path found from {start_pos} to {end_pos}.")
+
+def subtask_time(subtask, held_object, nav_graph):
+    subtask_total_time = 0.0
+    for action in subtask.execution.primitive_actions:
+        subtask_time, held_object = action_duration(action, held_object, nav_graph)
+        subtask_total_time += subtask_time
+    
+    return subtask_total_time, held_object
+
+def specific_nav_time(action, nav_graph) -> float:
     """
     Look up the travel time from 'source' to 'target' in navigation_times.
     If not found, return 0.0 and log a warning.
@@ -185,39 +262,40 @@ def specific_nav_time(source: str, target: str) -> float:
     Note: If you need partial matching or fuzzy matching,
             adapt the dictionary access logic accordingly.
     """
-    navigation_time = load_navigation_time()
-    # 공백이 있으면 obj stop_time 이렇게 되어있는거고, stop_time 이 결국 총 nav time 이 될 듯
-    if " " in source:
-        source = source.split(" ")[0]
-    if " " in target:
-        return float(target.split(" ")[1])
-    
-    matched_source_key = next(
-        (k for k in navigation_time if k.startswith(source)), None
-    )
-    if not matched_source_key:
-        log.warning(f"No source key matched for '{source}' in navigation times.")
-        return 0.0
+    scene_positions = task_io.load_scene_positions("FloorPlan1_positions.json")
+    nav_time = None
+    tokens = action.split()
+    if not tokens:
+        log.error(f"action is not in exist.")
+        raise ValueError(f"action is not in exist")
 
-    matched_target_key = next(
-        (k for k in navigation_time[matched_source_key] if target in k),
-        None,
-    )
-    if not matched_target_key:
-        log.warning(
-            f"No target key matched for '{target}' under '{matched_source_key}'."
-        )
-        return 0.0
+    action_type = tokens[0].upper()
+    target_obj_id = tokens[1] if len(tokens) > 1 else None
+    partial_time_str = tokens[2] if len(tokens) > 2 else None
 
-    move_time = navigation_time[matched_source_key].get(
-        matched_target_key, None
-    )
-    if move_time is None:
-        log.warning(
-            f"Navigation time from '{matched_source_key}' to '{matched_target_key}' not found."
+    if action_type == "NAVIGATE_TO":
+        navigate_path = _find_short_path(
+            scene_positions["agent"], scene_positions[target_obj_id], nav_graph
         )
-        return 0.0
-    return move_time
+        if partial_time_str is None:
+            action_duration = len(navigate_path) * NAV_STEP_DURATION
+            if navigate_path:
+                scene_positions["agent"] = navigate_path[-1]
+        else:
+            nav_time = float(partial_time_str)
+            steps = int(math.floor(nav_time / NAV_STEP_DURATION))
+            steps = max(0, min(steps, len(navigate_path) - 1))
+            action_duration = nav_time
+            if navigate_path:
+                scene_positions["agent"] = navigate_path[steps]
+
+    nav_time = action_duration
+    # if nav_time is None:
+    #     log.warning(
+    #         f"Navigation time from '{"agent"}' to '{target_obj_id}' not found."
+    #     )
+        # return 0.0
+    return nav_time
 
 def schedule_with_cp_priority(edges, critical_path):
     """
@@ -286,11 +364,10 @@ def schedule_with_cp_priority(edges, critical_path):
 
     return schedule
 
-def last_calculte_schedule_and_time(result_schedule, subtasks):
+def last_calculte_schedule_and_time(result_schedule, subtasks, held_object, nav_graph):
     # 스케쥴링 한 것 따라서 시간 순차적으로 더하기. 더할 때 dependency를 체크해서 아직 시간이 도달하지 않았다면 nav와 wait subtask 생성하기.
     total_time = 0
     schedule_subtask_and_time = {}
-    start_location = "agent"
     # subtask 하나 씩 구하기
     for i in range(len(result_schedule)):
         subtask = next((subtask for subtask in subtasks if subtask.name == result_schedule[i]), None)
@@ -309,26 +386,17 @@ def last_calculte_schedule_and_time(result_schedule, subtasks):
                     start_time_of_end_subtask = start_subtask_end_time + obj.interval
 
                     if start_time_of_end_subtask > total_time:
-                        start_subtask = next((subtask for subtask in subtasks if subtask.name == start_subtask_name), None)
-                        nav_start_location = start_subtask.execution.primitive_actions[0].split(" ")[1]
-                        nav_start_location = nav_start_location.split("_")[0]
-
-                        nav_end_location = subtask.execution.primitive_actions[0].split(" ")[1]
-                        nav_end_location = nav_end_location.split("_")[0]
                         # nav 시간 구하기. schedule_subtask_and_time에 nav_{result_schedule[i]} 넣기
-                        nav_time = specific_nav_time(nav_start_location, nav_end_location)
+                        nav_time = specific_nav_time(subtask.execution.primitive_actions[0], nav_graph)
                         schedule_subtask_and_time.update({f"nav_{result_schedule[i]}": nav_time})
                         # interval-nav시간 만큼 schedule_subtask_and_time에 wait_{result_schedule[i]} 넣기
                         wait_time = obj.interval - nav_time
                         schedule_subtask_and_time.update({f"wait_{result_schedule[i]}": wait_time})
                         # 전체 시간 update
                         total_time += (nav_time + wait_time)
-                        # 그리고 start_location을 end subtask의 시작 위치로 만들어줘야 함.
-                        start_location = nav_end_location
   
         # subtask 
-        subtask_total_time, last_location = subtask_time(subtask, start_location)
-        start_location = last_location
+        subtask_total_time, held_object = subtask_time(subtask, held_object, nav_graph)
         total_time += subtask_total_time
         schedule_subtask_and_time.update({subtask.name : subtask.duration.interval})
     

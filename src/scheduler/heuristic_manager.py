@@ -42,18 +42,18 @@ class HeuristicManager:
         )
 
         # * (3) 시간 슬롯 중 가장 큰 시간을 가진 TimeSlot을 찾아서 계산
-        in_time_slot = (
-            max(
-                list(filter(lambda x: x.is_critical, in_time_slots)),
-                key=lambda x: x.interval,
-            )
-            if list(filter(lambda x: x.is_critical, in_time_slots))
-            else TimeSlot(interval=0, is_critical=False, related_subtask_name=None)
-        )
+        # in_time_slot = (
+        #     max(
+        #         list(filter(lambda x: x.is_critical, in_time_slots)),
+        #         key=lambda x: x.interval,
+        #     )
+        #     if list(filter(lambda x: x.is_critical, in_time_slots))
+        #     else TimeSlot(interval=0, is_critical=False, related_subtask_name=None)
+        # )
         out_time_slot = max(out_time_slots, key=lambda x: x.interval)
 
         # ! DO NOT FIX THIS HEURISTIC FORMULA
-        time_diff = out_time_slot.interval - in_time_slot.interval
+        time_diff = out_time_slot.interval  # - in_time_slot.interval
         base_heuristic = factor * (
             candidate.subtask.duration.interval + math.exp(time_diff)
         )
