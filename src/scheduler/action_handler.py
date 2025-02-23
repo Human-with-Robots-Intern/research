@@ -68,31 +68,44 @@ class ActionHandler:
         # (2) 사후 보정: early에서 pick된 오브젝트가 place 안 된 경우 → remain에서 place 가져오기
         picked_objs_early = []
         last_place_action = None
+        is_place_after_grasp = True
         for pre_action in pre_cutoff_actions:
             pre_action_tokens = pre_action.split()
             if not pre_action_tokens:
                 continue
             if pre_action_tokens[0].upper() == "GRASP" and len(pre_action_tokens) >= 2:
                 picked_objs_early.append(pre_action_tokens[1])
+                is_place_after_grasp = False
             elif (
                 pre_action_tokens[0].upper() in ["PLACE_INSIDE", "PLACE_ON_TOP"]
                 and len(pre_action_tokens) >= 2
             ):
                 picked_objs_early.pop()
                 last_place_action = pre_action[0]
+                is_place_after_grasp = True
 
         # unplaced_objs = pick했지만 place되지 않은 오브젝트 목록
         unplaced_objs = copy.deepcopy(picked_objs_early)
         log.debug(f"Unplaced objects: {unplaced_objs}")
 
         # early에서 pick된 오브젝트가 monitoring timing 도래로,
-        if unplaced_objs:
-            pre_cutoff_actions.append(f"NAVIGATE_TO {unplaced_objs[0]}")
-            pre_cutoff_actions.append(f"PLACE_ON_TOP {unplaced_objs[0]}")
-            post_cutoff_actions.insert(0, f"NAVIGATE_TO {unplaced_objs[0]}")
-            post_cutoff_actions.insert(1, f"GRASP {unplaced_objs[0]}")
-            unplaced_objs.pop()
-            log.debug(f"update unplaced objects: {unplaced_objs}")
+        # if unplaced_objs:
+        #     pre_cutoff_actions.append(f"NAVIGATE_TO {unplaced_objs[0]}")
+        #     pre_cutoff_actions.append(f"PLACE_ON_TOP {unplaced_objs[0]}")
+        #     post_cutoff_actions.insert(0, f"NAVIGATE_TO {unplaced_objs[0]}")
+        #     post_cutoff_actions.insert(1, f"GRASP {unplaced_objs[0]}")
+        #     unplaced_objs.pop()
+        #     log.debug(f"update unplaced objects: {unplaced_objs}")
+        
+        if not is_place_after_grasp:
+            post_actions_copy = copy.deepcopy(post_cutoff_actions)
+            for action in post_actions_copy:
+                if "PLACE" in action:
+                    pre_cutoff_actions.append(post_cutoff_actions.pop(0))
+                    break
+                else:
+                    pre_cutoff_actions.append(post_cutoff_actions.pop(0))
+                       
 
         # (3) 재시뮬레이션으로 각각의 action 정보 반환
         log.debug(f"updated pre actions: {pre_cutoff_actions}")

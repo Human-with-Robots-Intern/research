@@ -526,7 +526,7 @@ class Scheduler:
         # ! ------------------- Proceed with actual splitting -------------------
         # * (1) split_subtask_for_monitoring
         # TODO : split_time을 expected_monitoring_start_timing - curr_state.current_time로 썼을 때, monitoring 시점이 2개가 생김
-        # split_time = expected_monitoring_start_timing - curr_state.current_time
+        split_time = expected_monitoring_start_timing - curr_state.current_time
         split_time = cutoff
 
         pre_actions_info, post_actions_info = (
