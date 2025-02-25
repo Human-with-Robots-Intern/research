@@ -81,7 +81,6 @@ def main():
         subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
 
         # Visualize the task graph if enabled
-        # ai2thor_time은 ai2thor에서 실행되는 시간
         if args.visualize:
             visualize(task_file_name, constraints)
 

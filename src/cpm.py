@@ -3,16 +3,13 @@ import heapq
 from collections import defaultdict
 import argparse
 import math
-from typing import Callable, Dict, List, Set, Tuple
+from typing import List, Dict, Tuple, Set, Optional
 
-from core.agent import Agent
-from core.scheduler import Scheduler
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import create_module_logger, visualize
 from utils.constants import PRIMITIVE_ACTION_DURATION, MONITORING_DURATION, NAV_STEP_DURATION, PRIMITIVE_ACTION_SET 
 from utils.task import (
     build_tasks_and_constraints,
-    get_init_state,
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file
@@ -20,12 +17,14 @@ from utils.task import (
 from utils.task.task_io import load_scene_positions
 from ithor.utils.math_utils import build_navigation_graph, adjust_if_unreachable
 
-import json
-from utils.constants import KNOWLEDGE_PATH
 from func_for_gantt import func_for_gantt
 import time
 
+from core.task import Subtask
 
+# TODO : nav_graph를 어떻게 설명해야할지 모르겠음. math_utils의 build_navigation_graph 이용. 
+
+# Set up logging configuration
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 def parse_arguments():
@@ -62,24 +61,35 @@ def parse_arguments():
     return parser.parse_args()
 
 def main():
-    """Main entry point for the Task Scheduler."""
+    """Main entry point for the Task Scheduler.
+
+    Side Effects:
+    - It interacts with the AI2-THOR environment to perform tasks.
+    - It writes the results of the task schedule to a Gantt chart file using the func_for_gantt module.
+    """
+
+    log.info("Starting task scheduling process...")
     args = parse_arguments()
 
     # Load the chosen task data
-    task_files = list_task_files()
+    task_files: List[str] = list_task_files()
 
     for i in range(len(task_files)):
         j = i + 1
         # 코드 실제 실행 시간 기준이 언제 인지. 일단은 파일 불러오기 전으로 함.
-        task_opening_time = time.time()
-        held_object = None
-        task_file_name = get_user_task_choice(task_files, choice= j)
+        # Track the time when the task starts
+        task_started_time = time.time()
+        # held_object : the object which the robot hold on its hand.
+        held_object : str | None = None
+        task_file_name : str = get_user_task_choice(task_files, choice= j)
         task_data = load_task_data_from_file(task_file_name)
 
+        log.info(f"Processing task : {task_file_name}")
+
         # Set up the AI2-THOR controller and navigation graph
+        log.info("Initializing AI2-THOR controller and navigation graph...")
         controller = init_ai2thor()
         nav_graph = build_navigation_graph(controller)
-        scene_poses = load_scene_positions("FloorPlan1_positions.json")
 
         # Build tasks and constraints
         subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
@@ -89,74 +99,139 @@ def main():
         if args.visualize:
             visualize(task_file_name, constraints)
 
-        agent = Agent()
+        result_schedule : List[str] = []
 
-        result_schedule = []
-
+        # Find the critical path
+        # held_object : str or None = target_obj_id
+        log.info("Finding the critical path...")
         critical_path, held_object = find_critical_path(edges, subtasks, held_object, nav_graph)
 
-        # 스케줄링 실행
+        # Schedule tasks with CP priority
+        log.info("Scheduling tasks with CP priority...")
         result_schedule = schedule_with_cp_priority(edges, critical_path)
 
-        # 스케쥴링 끝난 거 앞에서 부터 시간 계산하기. 만약에 dependency가 지켜지지 않으면 wait넣기
-        total_time, schedule_subtask_time = last_calculte_schedule_and_time(result_schedule, subtasks, held_object, nav_graph)
-        
-        
-        
-        print("=== Combined single-scheduler with CP priority ===")
-        for step in result_schedule:
-            print(" -", step)
-        final_schedule = {key: [value, 0, 0] for key, value in schedule_subtask_time.items()}
+        # schedule_subtask_time : Dict[str, float]
+        # Group scheduled subtasks and their times into a dict.
+        # If dependency is not finished, insert 'wait' and 'nav' subtasks
+        log.info("Calculating the total execution time and adjusting for dependencies...")
+        _, schedule_subtask_time = last_calculte_schedule_and_time(result_schedule, subtasks, held_object, nav_graph)
 
-        # subtask 하나하나의 task 실행시간이 필요한가...?
-        # 결과 기록 json파일에 형식 맞춰서 write하기.
-        func_for_gantt.write_gantt_file("cpm", task_file_name, final_schedule, edges)
-        print()
+        # Get total executed task of real_time
+        task_completed_time = time.time()
+        real_time : float = task_completed_time - task_started_time
 
-def paths(edges):
-    # 방향 그래프 생성
+        # Create a dictionary of subtasks Dict[subtask.name : str, subtask.execution : float]
+        subtask_dict = {st.name: st for st in subtasks}
+
+        # execute ai2thor time of each subtask 
+        ai2thor_time : List[str] = []
+        for i in range(len(schedule_subtask_time)):
+            subtask_name = list(schedule_subtask_time.keys())[i]
+            subtask = subtask_dict.get(subtask_name) 
+            if args.simulation:
+                log.info(f"Executing subtask: {subtask_name}")
+                ai2thor_time.append = execute_subtask(controller, subtask)
+            else:
+                ai2thor_time.append(0)
+        
+        log.debug("Task scheduling completed.")
+
+        # Final schedule with execution times
+        final_schedule : Dict[str, List[float]] = {key: [value, float(ai2thor_time[i])] for i, (key, value) in enumerate(schedule_subtask_time.items())}
+
+        # Write the schedule results to a Gantt chart file
+        log.info(f"Writing results to Gantt chart file for {task_file_name}")
+        func_for_gantt.write_gantt_file("cpm", task_file_name, final_schedule, real_time, edges)
+
+    log.debug("Every task scheduling process finished.")
+
+
+
+
+def paths(edges: List[Tuple[str, str]]) -> List[List[str]]:
+    """Find all paths. Path means the list what they have dependency. They have order.
+
+    Args:
+        edges (List[Tuple[str, str]]): A list of edges in the graph
+
+    Returns:
+        List[List[str]]: A list of all paths.
+    """
+    # Create directed graph
     G = nx.DiGraph(edges)
 
-    # 시작 노드 찾기 (들어오는 간선이 없는 노드)
+    # Find start nodes (nodes with outgoing edges)
     start_nodes = [node for node in G.nodes if G.in_degree(node) == 0]
 
-    # 끝 노드 찾기 (나가는 간선이 없는 노드)
+    # Find end nodes (nodes with incoming edges)
     end_nodes = [node for node in G.nodes if G.out_degree(node) == 0]
 
-    # 모든 경로 찾기
+    # Find all paths
     all_paths = []
     for start in start_nodes:
         for end in end_nodes:
             paths = list(nx.all_simple_paths(G, source=start, target=end))
             all_paths.extend(paths)
+    log.info(f"Total {len(all_paths)} paths found: {all_paths}")
 
     return all_paths
 
-def find_critical_path(edges, subtasks, held_object, nav_graph):
-    all_paths = paths(edges)
+def find_critical_path(edges: List[Tuple[str, str]], subtasks: List[Subtask], 
+                       held_object: Optional[str] , nav_graph: Dict[Tuple[float, float, float], Set[Tuple[float, float, float]]]
+                        )-> Tuple[List[str], Optional[str]]:
+    """Finds the critical path. The critical path is the path that takes the longest time.
+    The execution time includes the time for each subtask and the time for navigate subtask to subtask.
+
+    Args:
+        edges (List[Tuple[str, str]]): A list of edges in the graph
+        subtasks (List[Subtask]): All subtasks in the task
+        held_object (Optional[str]): the object which the robot hold on its hand.
+        nav_graph (Dict[Tuple[float, float, float], Set[Tuple[float, float, float]]]): 
+
+    Returns:
+        Tuple[List[str], Optional[str]]: critical_path and updated held_object
+    """
+    all_paths = paths(edges) # find all paths
+    log.debug(f"Found {len(all_paths)} paths.")
+
     total_time = []
     for path in all_paths:
-        # 각 path의 실행시간 더하기 (subtask 시간 + interval(with nav))
         path_total_time = 0.0
-        # path에 있는 subtask를 실행하는 시간을 더해서 해당 path의 실행 시간 구하기
+        
         for i in range(len(path)):
+            # get the total time of each path (subtask executed time + dependency interval(with nav))
+            # subtask executed time
             subtask = next((subtask for subtask in subtasks if subtask.name == path[i]), None)
             subtask_total_time, held_object = subtask_time(subtask, held_object, nav_graph)
-            # # 이 subtask로 인해 추가되는 시간
             path_total_time += subtask_total_time
-            # dependency의 interval 더해주기
-            temporal_constraints = subtask.temporal_constraints
-            for obj in temporal_constraints:
+            # the interval of dependency (navigate must done during )
+            # FIXME : nav time 구하고 dependency interval과 비교하기. 그중에 큰 걸 더한다.
+            #         (일반적으로 dependency interval > nav time 이어서 문제되지 않았다.)
+            for obj in subtask.temporal_constraints:
                     if hasattr(obj, 'interval') and obj.interval:
-                        if obj.interval:
                             path_total_time += obj.interval
+        log.info(f"Calculating total time for path: {path} = {path_total_time}")
         total_time.append(path_total_time)
-    # all_paths와 total_time에서 total_time이 있는 idx와 같은 위치의 all_paths 값을 불러와서 critical_path에 저장하기
-    critical_path = all_paths[total_time.index(max(total_time))]
+    # Find the path with the maximum total time
+    critical_path_idx = total_time.index(max(total_time))
+    critical_path = all_paths[critical_path_idx]
+    log.debug(f"Critical path found: {critical_path} with time {total_time[critical_path_idx]}")
 
     return critical_path, held_object
 
-def action_duration(action, held_object, nav_graph):
+def action_duration(action: str, held_object: Optional[str], 
+                    nav_graph: Dict[Tuple[float, float, float], Set[Tuple[float, float, float]]]) -> Tuple[float, Optional[str]]:
+    """ compute the duration about one action.
+
+    Args:
+        action (str): action_type target_obj_id partial_time_str
+        held_object (Optional[str]): the object which the robot hold on its hand.
+        nav_graph (Dict[Tuple[float, float, float], Set[Tuple[float, float, float]]]): _description_
+
+    Returns:
+        Tuple[float, Optional[str]]: action_duration, held_object
+    """
+    # HACK : action_handler의 def _simulate_actions와 거의 같다. 해당 함수를 최적화했으면 같은 방식으로 수정 요망.
 
     scene_positions = load_scene_positions("FloorPlan1_positions.json")
 
@@ -169,7 +244,7 @@ def action_duration(action, held_object, nav_graph):
     target_obj_id = tokens[1] if len(tokens) > 1 else None
     partial_time_str = tokens[2] if len(tokens) > 2 else None
 
-    # 예외: WAIT 이외 액션에서, scene_positions에 없는 오브젝트를 타겟으로 지목
+    # Occur Error: For actions other than WAIT, if the target object is not in scene_positions
     if (
         target_obj_id
         and target_obj_id not in scene_positions
@@ -178,7 +253,8 @@ def action_duration(action, held_object, nav_graph):
         log.error(f"Object {target_obj_id} not in scene_positions.")
         raise ValueError(f"Object {target_obj_id} not in scene_positions.")
 
-    # 액션별 소요시간 계산
+    # Calculate the duration for each action
+    # Action types : "NAVIGATE TO", "GRASP", "PLACE_INSIDE", "PLACE_ON_TOP", "MONITORING", "WAIT" and {PRIMITIVE_ACTION_SET}
     if action_type == "NAVIGATE_TO":
         navigate_path = _find_short_path(
             scene_positions["agent"], scene_positions[target_obj_id], nav_graph
@@ -196,6 +272,8 @@ def action_duration(action, held_object, nav_graph):
                 scene_positions["agent"] = navigate_path[steps]
 
     elif action_type == "GRASP":
+        # 지금 이 순간을 위해 main에서 부터 held_object를 데리고 옴...
+        # HACK : 위와 같은 이유로 불필요한 부분이 많아보임.
         if held_object is not None:
             raise ValueError(
                 f"Already holding {held_object}, cannot grasp {target_obj_id}."
@@ -224,13 +302,27 @@ def action_duration(action, held_object, nav_graph):
         log.error(f"Unknown action name: {action_type}")
         raise ValueError(f"Unknown action name: {action_type}")
     
+    log.info(f"Action {action_type} completed. Duration: {action_duration}. Held object: {held_object}")
+    
     return action_duration, held_object
 
 def _find_short_path(start_pos: Tuple[float, float, float], end_pos: Tuple[float, float, float]
-    , nav_graph):
+    , nav_graph: Dict[Tuple[float, float, float], Set[Tuple[float, float, float]]]
+    ) -> List[Tuple[str]]:
+        """find the shorsest path from current position to target object.
 
-        start_pos = adjust_if_unreachable(nav_graph, start_pos)
+        Args:
+            start_pos (Tuple[float, float, float]): "agent". You must put the position of agent.
+            end_pos (Tuple[float, float, float]): the position of target object.
+            nav_graph (Dict[Tuple[float, float, float], Set[Tuple[float, float, float]]]): _description_
+
+        Returns:
+            List[Tuple[str]]: The shortest path from current position to target object
+        """
+        # XXX : 지금 이 함수가 뭔지 잘 모르겠음. return값이 왜 저런지도 모르겠음. 근데 오늘은 여기까지.
+        # Adjust positions if it is unreachable
         end_pos = adjust_if_unreachable(nav_graph, end_pos)
+        # If start and end positions are the same, return the start position as the path
         if start_pos == end_pos:
             return [start_pos]
 
