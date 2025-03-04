@@ -3,322 +3,293 @@ import math
 import time
 
 from ..utils.constants import SMOOTH_LEVEL
-from ..utils.math_utils import (
-    build_navigation_graph,
-    closest_position,
-    quantize_position,
-)
+from ..utils.math_utils import build_navigation_graph, closest_position, quantize_position
 
 
 class NavigationHandler:
-    def __init__(self, controller, camera_handler):
+    def __init__(self, controller):
         self.controller = controller
-        self.camera_handler = camera_handler
         self.neighbors = build_navigation_graph(controller)
 
-    def move_to(self, object_id: str):
+    def adjust_camera_to_object(self, object_id):
         """
-        Moves the agent to the nearest reachable point near the specified object.
+        Adjusts the camera's pitch (horizon) to focus on the object within preset limits.
+
+        Args:
+            object_id (str): The identifier of the target object.
         """
-        # Get current agent position
-        agent_position = self.get_agent_position()
+        agent_pos = self.get_agent_position()
+        object_pos = self.get_object_position(object_id)
 
-        # 자르기
-        if " " in object_id:
-            object_id, stop_time = object_id.split(" ", 1)
-            print("stop_time 검출됨!!!!!!! ", stop_time)
+        # Calculate horizontal distance and height difference
+        horizontal_distance = math.hypot(object_pos[0] - agent_pos[0],
+                                         object_pos[2] - agent_pos[2])
+        height_diff = agent_pos[1] - object_pos[1]
 
-        # Get object position from the object ID
-        object_position = self.get_object_position(object_id)
-        # Find the shortest path to the closest reachable position near the object
-        path = self.find_shortest_path(agent_position, object_position)
-        # Move agent step by step along the path
+        # Calculate required pitch angle (in degrees)
+        angle = math.degrees(math.atan(height_diff / horizontal_distance)) if horizontal_distance > 0 else 0
 
-        # 현재 위치부터 시작하는 것을 그 다음부터 시작하도록 변경
-        if path:
-            path.pop(0)
-
-        print(f"경로!!!!! : {path}")
-
-        elapsed_time = 0
-
-        for position in path:
-            elapsed_time += 0.1
-            self.teleport_to_position(position)
-            self.camera_handler.update_view()
-            if "stop_time" in locals() and elapsed_time == float(stop_time):
-                break
-
-        agent_position = self.get_agent_position()
-        obj_angle, degree = self.agent_rotate_angle(
-            agent_position, object_position
-        )  # 회전각도 구하기
-
-        if degree != 0 and "stop_time" not in locals():
-            for _ in range(SMOOTH_LEVEL):
-                # 일단 회전하고
-                self.controller.step(
-                    action="RotateRight", degrees=degree / SMOOTH_LEVEL
-                )
-                success = self.controller.last_event.metadata["lastActionSuccess"]
-                # 실패하면 움직여서 다시 한 번 더 도전. 여기는 while문을 써야할까?
-                if not success:
-                    self.move_in_direction(-obj_angle, 0.2)
-                    self.controller.step(
-                        action="RotateRight", degrees=degree / SMOOTH_LEVEL
-                    )
-                    self.camera_handler.update_view()
-                self.camera_handler.update_view()
-
-        self.adjust_camera_to_object(object_id)
-        self.controller.step(action="Pass")
-        self.camera_handler.update_view()
-
-        time.sleep(0.2)
-
-        return round(elapsed_time, 2)
-
-    def adjust_camera_to_object(self, object):
-        """
-        Adjusts the camera's pitch (horizon) to focus on the object, within limits.
-        """
-        agent_position = self.get_agent_position()
-        object_position = self.get_object_position(object)
-        # Calculate relative height and distance
-        height_diff = agent_position[1] - object_position[1]
-        distance = (
-            (object_position[0] - agent_position[0]) ** 2
-            + (object_position[2] - agent_position[2]) ** 2
-        ) ** 0.5
-
-        # Calculate the required pitch angle in degrees
-        if distance > 0:  # Avoid division by zero
-            angle = math.degrees(math.atan(height_diff / distance))
-        else:
-            angle = 0  # Object is directly at the agent's position
-
-        # Clamp the angle between 0 (looking straight) and 60 degrees
+        # Clamp angle between -30 and 60 degrees
         clamped_angle = max(-30, min(60, angle))
-        # Determine the current camera pitch
         current_pitch = self.controller.last_event.metadata["agent"]["cameraHorizon"]
 
-        # Calculate steps needed to reach the clamped angle
-
         diff = clamped_angle - current_pitch
-        horizon = current_pitch
-        # Assuming each step adjusts by 30 degrees
-        # Adjust the camera pitch in steps
+        # Smoothly adjust camera pitch
         for _ in range(SMOOTH_LEVEL):
-            horizon += diff / SMOOTH_LEVEL
-            self.controller.step(action="Teleport", horizon=horizon)
-            # Update view after each step
-            self.camera_handler.update_view()
+            current_pitch += diff / SMOOTH_LEVEL
+            self.controller.step(action="Teleport", horizon=current_pitch)
 
     def find_shortest_path(self, start, end):
+        """
+        Finds the shortest path from start to end using a priority queue (A*-like).
+
+        Args:
+            start (tuple): Starting coordinates.
+            end (tuple): Destination coordinates.
+
+        Returns:
+            list: List of positions representing the path.
+        """
         start = quantize_position(start)
         end = quantize_position(end)
 
         if start == end:
             return [start]
 
-        reachable_positions = set(self.get_reachable_positions())
-
-        if start not in reachable_positions:
+        reachable = set(self.get_reachable_positions())
+        if start not in reachable:
             start = quantize_position(self.adjust_to_nearest_reachable(start))
-        if end not in reachable_positions:
+        if end not in reachable:
             end = quantize_position(self.adjust_to_nearest_reachable(end))
 
-        def calculate_direction(prev, current):
-            """Calculate the direction vector (dx, dz) between two points."""
-            dx = current[0] - prev[0]
-            dz = current[2] - prev[2]
-            return (dx, dz)
+        def calculate_direction(p1, p2):
+            return p2[0] - p1[0], p2[2] - p1[2]
 
-        # Priority queue: (turn_count, current_position, direction, path)
         pq = []
         heapq.heappush(pq, (0, start, None, [start]))
         visited = {}
 
         while pq:
-            turn_count, current_position, current_direction, path = heapq.heappop(pq)
-
-            # Check if we reached the end
-            if current_position == end:
+            turn_count, current, curr_dir, path = heapq.heappop(pq)
+            if current == end:
                 return path
 
-            # Avoid revisiting with worse or equal turn_count
-            if current_position in visited and visited[current_position] <= turn_count:
+            if current in visited and visited[current] <= turn_count:
                 continue
-            visited[current_position] = turn_count
+            visited[current] = turn_count
 
-            # Explore neighbors
-            for neighbor in self.neighbors.get(current_position, []):
-                if (
-                    neighbor in path or neighbor not in reachable_positions
-                ):  # Avoid cycles
+            for neighbor in self.neighbors.get(current, []):
+                if neighbor in path or neighbor not in reachable:
                     continue
 
-                # Calculate direction to neighbor
-                new_direction = calculate_direction(current_position, neighbor)
+                new_dir = calculate_direction(current, neighbor)
+                new_turn_count = turn_count if curr_dir is None or new_dir == curr_dir else turn_count + 1
 
-                # Calculate turns
-                if current_direction is None or new_direction == current_direction:
-                    new_turn_count = turn_count  # No turn
-                else:
-                    new_turn_count = turn_count + 1  # Turning required
-
-                # Add to priority queue
-                heapq.heappush(
-                    pq, (new_turn_count, neighbor, new_direction, path + [neighbor])
-                )
+                heapq.heappush(pq, (new_turn_count, neighbor, new_dir, path + [neighbor]))
 
         raise Exception(f"No path found between {start} and {end}. Check reachability.")
 
     def is_reachable(self, target_position):
         """
         Checks if the target position is reachable by the agent.
+
+        Args:
+            target_position (tuple): The target coordinates.
+
+        Returns:
+            bool: True if reachable, False otherwise.
         """
-        reachable_positions = self.get_reachable_positions()
-        target_position = quantize_position(target_position)
-        return target_position in reachable_positions
+        reachable = self.get_reachable_positions()
+        return quantize_position(target_position) in reachable
 
     def adjust_to_nearest_reachable(self, target_position):
         """
         Adjusts the target position to the nearest reachable point if it's unreachable.
+
+        Args:
+            target_position (tuple): The target coordinates.
+
+        Returns:
+            tuple: The nearest reachable position.
         """
-        reachable_positions = self.get_reachable_positions()
-        closest_reachable = closest_position(target_position, reachable_positions)
-        return closest_reachable
+        reachable = self.get_reachable_positions()
+        return closest_position(target_position, reachable)
 
     def get_reachable_positions(self):
-        """Returns all reachable positions for the agent, quantized to the grid."""
-        return [
-            quantize_position((p["x"], p["y"], p["z"]))
-            for p in self.controller.step("GetReachablePositions").metadata[
-                "actionReturn"
-            ]
-        ]
+        """
+        Returns all reachable positions for the agent, quantized to the grid.
+
+        Returns:
+            list: Reachable positions as tuples.
+        """
+        positions = self.controller.step("GetReachablePositions").metadata["actionReturn"]
+        return [quantize_position((p["x"], p["y"], p["z"])) for p in positions]
 
     def get_agent_position(self):
-        event = self.controller.step(action="Pass")
-        agent_position = event.metadata["cameraPosition"]
+        """
+        Retrieves the current position (camera) of the agent.
 
-        return tuple(agent_position.values())
+        Returns:
+            tuple: (x, y, z) coordinates of the agent.
+        """
+        event = self.controller.step(action="Pass")
+        pos = event.metadata["cameraPosition"]
+        return tuple(pos.values())
 
     def get_object_position(self, object_id):
+        """
+        Retrieves the position of an object given its ID.
+
+        Args:
+            object_id (str): The unique identifier of the object.
+
+        Returns:
+            tuple: (x, y, z) coordinates of the object's center, or None if not found.
+        """
         event = self.controller.step(action="Pass")
         for obj in event.metadata["objects"]:
             if obj["objectId"] == object_id:
-                return tuple(obj["axisAlignedBoundingBox"]["center"].values())
+                center = obj["axisAlignedBoundingBox"]["center"]
+                return tuple(center.values())
         return None
 
     def get_agent_rotate(self):
-        event = self.controller.step(action="Pass")
-        agent_angle = event.metadata["agent"]["rotation"]["y"]
+        """
+        Retrieves the current rotation angle (y-axis) of the agent.
 
-        return agent_angle
+        Returns:
+            float: The agent's rotation angle in degrees.
+        """
+        event = self.controller.step(action="Pass")
+        return event.metadata["agent"]["rotation"]["y"]
 
     def teleport_to_position(self, position):
+        """
+        Teleports the agent to a specified position with smooth rotation adjustment.
 
-        # 현재 위치
-        current_position = self.get_agent_position()
-        current_rotation = round(self.get_agent_rotate(), 1)
-        dx = position[0] - current_position[0]
-        dz = position[2] - current_position[2]
+        Args:
+            position (tuple): Target (x, y, z) coordinates.
+        """
+        current_pos = self.get_agent_position()
+        current_rot = round(self.get_agent_rotate(), 1)
+        dx = position[0] - current_pos[0]
+        dz = position[2] - current_pos[2]
 
-        rotation_angle = 0
-        if dx > 0 and dz == 0:  # x 방향으로 증가
-            if abs(current_rotation - 90) > 2:
-                rotation_angle = 90 - current_rotation
-        elif dx < 0 and dz == 0:  # x 방향으로 감소
-            if abs(current_rotation - 270) > 2:
-                rotation_angle = 270 - current_rotation
-        elif dx == 0 and dz > 0:  # z 방향으로 증가
-            if max(abs(current_rotation), abs(current_rotation - 360)) > 2:
-                rotation_angle = 360 - current_rotation
-        elif dx == 0 and dz < 0:  # z 방향으로 감소
-            if abs(current_rotation - 180) > 2:
-                rotation_angle = 180 - current_rotation
-        y = self.get_agent_rotate()
+        rotation_angle = self._compute_required_rotation(current_rot, dx, dz)
 
-        if rotation_angle < -180:
-            rotation_angle += 360
-        elif rotation_angle > 180:
-            rotation_angle -= 360
-
-        if rotation_angle != 0:
+        if rotation_angle:
             for _ in range(SMOOTH_LEVEL):
                 self.controller.step(
-                    action="RotateRight", degrees=rotation_angle / SMOOTH_LEVEL
+                    action="RotateRight",
+                    degrees=rotation_angle / SMOOTH_LEVEL
                 )
                 self.controller.step(action="Pass")
-                self.camera_handler.update_view()
-
         time.sleep(0.1)
-
         updated_angle = self.get_agent_rotate()
-
         self.controller.step(
             action="Teleport",
-            position=dict(
-                x=position[0],
-                y=position[1] + 0.05,
-                z=position[2],
-            ),
-            rotation=dict(x=0, y=updated_angle, z=0),
+            position={"x": position[0], "y": position[1] + 0.05, "z": position[2]},
+            rotation={"x": 0, "y": updated_angle, "z": 0},
             horizon=30,
             standing=True,
         )
         time.sleep(0.1)
 
-    def agent_rotate_angle(self, agent_position, object_position):
+    def _compute_required_rotation(self, current_rot, dx, dz):
+        """
+        Computes the rotation angle required based on directional differences.
+
+        Args:
+            current_rot (float): Current rotation angle of the agent.
+            dx (float): Difference in x-coordinate.
+            dz (float): Difference in z-coordinate.
+
+        Returns:
+            float: The computed rotation angle normalized to [-180, 180].
+        """
+        rotation_angle = 0
+        if dx > 0 and dz == 0:
+            if abs(current_rot - 90) > 2:
+                rotation_angle = 90 - current_rot
+        elif dx < 0 and dz == 0:
+            if abs(current_rot - 270) > 2:
+                rotation_angle = 270 - current_rot
+        elif dx == 0 and dz > 0:
+            if max(abs(current_rot), abs(current_rot - 360)) > 2:
+                rotation_angle = 360 - current_rot
+        elif dx == 0 and dz < 0:
+            if abs(current_rot - 180) > 2:
+                rotation_angle = 180 - current_rot
+
+        return self._normalize_angle(rotation_angle)
+
+    @staticmethod
+    def _normalize_angle(angle):
+        """
+        Normalizes an angle to the range [-180, 180].
+
+        Args:
+            angle (float): Angle in degrees.
+
+        Returns:
+            float: Normalized angle.
+        """
+        while angle < -180:
+            angle += 360
+        while angle > 180:
+            angle -= 360
+        return angle
+
+    def agent_rotate_angle(self, agent_pos, object_pos):
+        """
+        Calculates the angle difference between the agent's current forward direction and the direction to the object.
+
+        Args:
+            agent_pos (tuple): (x, y, z) of the agent.
+            object_pos (tuple): (x, y, z) of the object.
+
+        Returns:
+            tuple: (object_angle, degree) where object_angle is the angle from the agent's forward direction
+                   to the object (in degrees, normalized to [-180, 180]) and degree is the adjustment needed.
+        """
         agent_angle = self.get_agent_rotate()
+        dx = object_pos[0] - agent_pos[0]
+        dz = object_pos[2] - agent_pos[2]
 
-        dx = object_position[0] - agent_position[0]
-        dz = object_position[2] - agent_position[2]
-
-        object_angle = math.degrees(
-            math.atan2(dz, dx)
-        )  # 각도를 (-180, 180)로 반환, arctan(dz/dx)
-
-        # Calculate the angle difference to align object and agent
-        object_angle = (
-            90 - object_angle
-        ) % 360  # 이 부분에서 180도를 넘어서는 값을 0-360 범위로 맞춤
+        raw_angle = math.degrees(math.atan2(dz, dx))
+        # Adjust to a forward-facing frame: 90 degrees offset
+        object_angle = (90 - raw_angle) % 360
         if object_angle > 180:
-            object_angle -= 360  # -180 ~ 180 범위로 만들기
+            object_angle -= 360
 
         degree = object_angle - agent_angle
-        if degree > 180:
-            degree -= 360
-        elif degree < -180:
-            degree += 360
-
+        degree = self._normalize_angle(degree)
         return object_angle, degree
 
-    def move_in_direction(self, angle: float, distance: float):
+    def move_in_direction(self, angle, distance):
+        """
+        Moves the agent in a specified direction by a given distance.
+        (For example, move backward when rotating while holding an object.)
 
-        # Get the current agent position
-        agent_position = self.get_agent_position()
-        agent_rotation = self.get_agent_rotate()
+        Args:
+            angle (float): The angle between the agent and the object.
+            distance (float): The distance to move.
 
-        # Convert angle to radians
-        angle_radians = math.radians(angle)
+        Returns:
+            None
+        """
+        agent_pos = self.get_agent_position()
+        agent_rot = self.get_agent_rotate()
+        angle_rad = math.radians(angle)
 
-        # Calculate new position based on angle and distance
-        new_x = agent_position[0] + distance * math.sin(angle_radians)
-        new_z = agent_position[2] + distance * math.cos(angle_radians)
+        new_x = agent_pos[0] + distance * math.sin(angle_rad)
+        new_z = agent_pos[2] + distance * math.cos(angle_rad)
+        new_pos = quantize_position((new_x, agent_pos[1], new_z))
 
-        quantized_position = quantize_position((new_x, agent_position[1], new_z))
-        # Teleport the agent to the new position
         self.controller.step(
             action="Teleport",
-            position=dict(
-                x=quantized_position[0],
-                y=agent_position[1],
-                z=quantized_position[2],
-            ),
-            rotation=dict(x=0, y=agent_rotation, z=0),
+            position={"x": new_pos[0], "y": agent_pos[1], "z": new_pos[2]},
+            rotation={"x": 0, "y": agent_rot, "z": 0},
             horizon=30,
             standing=True,
         )

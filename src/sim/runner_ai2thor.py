@@ -1,56 +1,33 @@
-import json
-import logging
-import math
-import os
-import random
-import re
 import sys
-import time
-from pathlib import Path
-
-import numpy as np
 from ai2thor.controller import Controller
 
-sys.path.append("/home/bluebottle/workspace/research/ithor")  # ithor 폴더의 절대 경로
-import ai2thor
-
 from ithor.handlers.action import Action
-from ithor.handlers.camera_handler import CameraHandler
-from ithor.handlers.navigation_handler import NavigationHandler
 from ithor.utils.constants import *
-from utils.constants import KNOWLEDGE_PATH
+from utils.util import create_module_logger
 
-
-def create_module_logger(module_name, is_file_handler=False):
-    """
-    Creates and returns a logger for logging statements from the module represented by @module_name
-
-    Args:
-    module_name (str): Module to create the logger for. Should be the module's `__name__` variable
-
-    Returns:
-        Logger: Created logger for the module
-    """
-
-    logger = logging.getLogger(module_name)
-    if is_file_handler:
-        logger.setLevel("DEBUG")
-        file_handler = logging.FileHandler(
-            f"{ Path(__file__).resolve().parent.parent.parent}/logs/{module_name}.log",
-            "a",
-        )
-        file_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-        )
-        logger.addHandler(file_handler)
-    return logger
-
-
-log_file = open(Path.cwd() / Path("logs/ai2thor_log.log"), "w", buffering=1)
 log = create_module_logger(module_name=__name__, is_file_handler=True)
 
 
 def init_ai2thor():
+    """
+    Initializes the AI2-THOR controller with specified parameters.
+
+    Returns:
+        Controller: An instance of the AI2-THOR Controller class.
+
+    Parameters:
+        agentMode (str): The mode of the agent. Options are "default", "locobot", "drone", or "arm".
+        massThreshold (float): The minimum mass for objects to be moved by the physics engine.
+        scene (str): The name of the scene to load.
+        gridSize (float): The mean value for move actions.
+        movementGaussianSigma (float): The sigma value for move actions.
+        renderDepthImage (bool): Whether to render depth images (can be time-consuming).
+        renderInstanceSegmentation (bool): Whether to render instance segmentation (can be time-consuming).
+        width (int): The width of the screen.
+        height (int): The height of the screen.
+        renderThirdPartyCameras (bool): Whether to render third-party cameras.
+        fieldOfView (int): The field of view for the camera.
+    """
     controller = Controller(
         agentMode="default",  # "default", "locobot", "drone", or "arm",
         massThreshold=0.04,  # 물리 엔진에서 물체를 움직이는 최소 질량
@@ -68,57 +45,48 @@ def init_ai2thor():
     return controller
 
 
-def find_objID(controller, obj_type):  ## object type과 object id를 매칭
-    for obj in controller.last_event.metadata["objects"]:
-        if obj["objectType"].lower() == obj_type:
-            return obj["objectId"]
-    return None
-
-
-def last_action_success(controller):  ## 마지막 행동이 성공했는지 확인
-    if controller.last_event.metadata["lastActionSuccess"]:
-        return "success\n"
-    else:
-        return "failure\n"
-
-
 def execute_subtask(controller, subtask):
     """
+    Executes a given subtask using the provided AI2-THOR controller.
+
+        controller: An instance of the AI2-THOR controller used to interact with the environment.
+        subtask: A Subtask object containing execution details, including the name, execution plan, and primitive actions.
+
     Args:
-        subtask: Subtask object containing execution details.
+    subtask: Subtask object containing execution details.
+
+    Returns:
+        float: The total elapsed time taken to execute the subtask.
+
+    Raises:
+        ValueError: If an invalid action format is encountered in the primitive actions.
+
+    The function performs the following steps:
+    1. Initializes an Action object with the controller and log.
+    2. Skips execution if the subtask name is "Init".
+    3. Logs the subtask name and parses the execution details.
+    4. Iterates over the primitive actions and prints each action.
+    5. Registers objects in the environment if provided in the execution details.
+    6. Maps action types to corresponding AI2-THOR action primitives.
+    7. Executes each primitive action and calculates the total elapsed time.
+    8. Logs the total elapsed time and successful execution of the subtask.
     """
-    camera_handler = CameraHandler(controller)
-    Navi = NavigationHandler(controller, camera_handler)
-    Act = Action(controller, camera_handler, log_file)
+    act = Action(controller, log)
 
     # Skip the Init subtask
     if subtask.name == "Init":
         return
 
-    log_file.write(f"Executing Subtask: {subtask.name}\n")
-
+    log.info(f"Executing Subtask: {subtask.name}")
     # Parse execution details
     execution = subtask.execution
-    print("====================================")
-    print("***********EXECUTION****************")
-    print(f"{subtask=}")
-    ## Wait의 형식을 맞춰주든가 여기서 처리를 하든가 해야함
     primitive_actions = execution.primitive_actions
-    print("<<<ACTIONS>>>")
     for action in primitive_actions:
         print(action)
     objects = execution.objects
 
-    # Read JSON file
-    # with open(KNOWLEDGE_PATH / "knowledge.json", "r") as file:
-    #     knowledge = json.load(file)
-    # ground_truth = knowledge["Subtasks"]["Prepare Egg Fry(subtask.name 이 맞음)"]["expected_duration"]
     object_registry = {}
 
-    # "NAVIGATE_TO laundry_hamper",
-    # "GRASP clothes",
-    # "NAVIGATE_TO washing_machine",
-    # "PLACE_INSIDE washing_machine"
     if objects is not None:
         for obj_id in objects:
             ai2thor_obj = list(
@@ -128,24 +96,24 @@ def execute_subtask(controller, subtask):
                 )
             )
             if ai2thor_obj is None:
-                log_file.write(f"Object '{obj_id}' not found in the environment.")
+                log.warning(f"Object '{obj_id}' not found in the environment.\n")
                 return False
             object_registry[obj_id] = ai2thor_obj
 
     # Define action mapping to ai2thor action primitives
     action_mapping = {
-        "NAVIGATE_TO": lambda target_obj: Navi.move_to(target_obj),
-        "GRASP": lambda target_obj: Act.pickup(target_obj),
-        "PLACE_INSIDE": lambda target_obj: Act.put(target_obj),
-        "PLACE_ON_TOP": lambda target_obj: Act.put(target_obj),
-        "OPEN": lambda target_obj: Act.open(target_obj),
-        "CLOSE": lambda target_obj: Act.close(target_obj),
-        "TOGGLE_ON": lambda target_obj: Act.toggleon(target_obj),
-        "TOGGLE_OFF": lambda target_obj: Act.toggleoff(target_obj),
-        "SLICE": lambda target_obj: Act.slice(target_obj),
-        "MONITORING": lambda target_obj: Act.monitoring(target_obj),
-        "WAIT": lambda duration: Act.wait(round(float(duration), 2)),
-        "FILL": lambda target_obj: Act.fill(target_obj),
+        "NAVIGATE_TO": lambda target_obj: act.move_to(target_obj),
+        "GRASP": lambda target_obj: act.pickup(target_obj),
+        "PLACE_INSIDE": lambda target_obj: act.put(target_obj),
+        "PLACE_ON_TOP": lambda target_obj: act.put(target_obj),
+        "OPEN": lambda target_obj: act.open(target_obj),
+        "CLOSE": lambda target_obj: act.close(target_obj),
+        "TOGGLE_ON": lambda target_obj: act.toggleon(target_obj),
+        "TOGGLE_OFF": lambda target_obj: act.toggleoff(target_obj),
+        "SLICE": lambda target_obj: act.slice(target_obj),
+        "MONITORING": lambda target_obj: act.monitoring(target_obj),
+        "WAIT": lambda duration: act.wait(round(float(duration), 2)),
+        "FILL": lambda target_obj: act.fill(target_obj),
     }
 
     # Execute each primitive action
@@ -168,8 +136,6 @@ def execute_subtask(controller, subtask):
             log.warning(
                 f"Unknown action type: {action_type}. Skipping {action_str} in {subtask.name}."
             )
-    print(f"{subtask.name}의 걸린시간 = {round(elapsed_time, 2)}")
+    log.info(f"{subtask.name}의 걸린시간 = {round(elapsed_time, 2)}")
     log.info(f"Successfully executed Subtask: {subtask.name}")
-    print("================END=================")
-    print("====================================")
     return elapsed_time

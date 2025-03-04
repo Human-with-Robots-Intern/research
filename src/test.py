@@ -55,7 +55,7 @@ def parse_arguments():
 def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
-    
+
     # Set up the AI2-THOR controller and navigation graph
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
@@ -92,9 +92,8 @@ def main():
         if args.simulation:
             time = execute_subtask(controller, next_state.subtask)
 
-        # TODO Simulation 수행 결과값을 얻어야 함. 지금은 스케쥴러에서 줌
-        # if next_state.subtask.type == "Monitor":
-        #     next_state = agent.bayesian_estimate(next_state, subtasks)
+        if next_state.subtask.type == "Monitor":
+            next_state = agent.bayesian_estimate(next_state, subtasks)
 
         current_state = next_state
 
