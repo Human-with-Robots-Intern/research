@@ -44,7 +44,7 @@ class ActionHandler:
     ) -> tuple[ActionSimulationLog, ActionSimulationLog]:
         """
         1) time-based 분할 -> (early_actions, remain_actions)
-        2) 사후 보정: early에 GRASP한 오브젝트가 remain에서 Place되어야 하면 가져옴
+        2) 사후 보정: early에 GRASP한 오브젝트가 remain에서 Place되어야 하면 ramian[0]~Place action들을 early로 이관
         3) 두 최종 리스트를 각각 재시뮬레이션하여 total duration 계산
         4) (early_actions, remain_actions, early_duration, remain_duration) 반환
         """
@@ -65,7 +65,7 @@ class ActionHandler:
         log.debug(f"init pre actions: {pre_cutoff_actions}")
         log.debug(f"init post actions: {post_cutoff_actions}")
 
-        # (2) 사후 보정: early에서 pick된 오브젝트가 place 안 된 경우 → remain에서 place 가져오기
+        # (2) early에서 pick된 오브젝트가 place 안 된 경우 → obj 명 가져오기
         picked_objs_early = []
         last_place_action = None
         is_place_after_grasp = True
@@ -88,15 +88,7 @@ class ActionHandler:
         unplaced_objs = copy.deepcopy(picked_objs_early)
         log.debug(f"Unplaced objects: {unplaced_objs}")
 
-        # early에서 pick된 오브젝트가 monitoring timing 도래로,
-        # if unplaced_objs:
-        #     pre_cutoff_actions.append(f"NAVIGATE_TO {unplaced_objs[0]}")
-        #     pre_cutoff_actions.append(f"PLACE_ON_TOP {unplaced_objs[0]}")
-        #     post_cutoff_actions.insert(0, f"NAVIGATE_TO {unplaced_objs[0]}")
-        #     post_cutoff_actions.insert(1, f"GRASP {unplaced_objs[0]}")
-        #     unplaced_objs.pop()
-        #     log.debug(f"update unplaced objects: {unplaced_objs}")
-        
+        # (3) 사후 보정: pick 하고 place 까지 없으면 post 를 검사해서 0부터 place까지의 action들을 pre 에 넣음
         if not is_place_after_grasp:
             post_actions_copy = copy.deepcopy(post_cutoff_actions)
             for action in post_actions_copy:
@@ -105,7 +97,6 @@ class ActionHandler:
                     break
                 else:
                     pre_cutoff_actions.append(post_cutoff_actions.pop(0))
-                       
 
         # (3) 재시뮬레이션으로 각각의 action 정보 반환
         log.debug(f"updated pre actions: {pre_cutoff_actions}")
@@ -260,6 +251,3 @@ class ActionHandler:
                 heapq.heappush(pq, (nxt_turn, nxt, new_dir, new_path))
 
         raise ValueError(f"No path found from {start_pos} to {end_pos}.")
-
-
-# TODO Navigate to는 partial navigate to로 분할 가능해야 함

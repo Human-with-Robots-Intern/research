@@ -41,7 +41,10 @@ def load_object_Ids():
     return objectIds
 
 
-def start_with_navigate_to(tasks):
+def start_with_navigate_to(tasks:Task)->Task:
+    """
+        - 모든 subtask 는 NAVIGATE_TO obj_id 로 시작해야함
+    """
     for task in tasks:
         for subtask in task.subtasks:
             if "NAVIGATE_TO" not in subtask.execution.primitive_actions[0]:
@@ -93,8 +96,10 @@ def adjust_subtasks_duration(subtasks: List[Subtask]) -> List[Subtask]:
     return subtasks
 
 
-def revision_primitive_actions(tasks):
-    """Check and revision if the PLACE action is followed by a NAVIGATE action."""
+def revision_primitive_actions(tasks: Task)->Task:
+    """
+        - Check and revision if the PLACE action is followed by a NAVIGATE action.
+    """
     for task in tasks:
         for subtask in task.subtasks:
             actions = subtask.execution.primitive_actions
@@ -108,6 +113,7 @@ def revision_primitive_actions(tasks):
                 ):
                     updated_actions.append(f"NAVIGATE_TO {to_obj}")
                 if "PLACE" in action and "Sink" in action and "SinkBasin" not in action:
+                    # sink 에는 put action 불가하므로 sinkbasin을 추가해줌
                     to_obj = action.split(" ")[1] + "|SinkBasin"
                     updated_actions.append(f"PLACE_INSIDE {to_obj}")
                 updated_actions.append(action)
@@ -115,7 +121,11 @@ def revision_primitive_actions(tasks):
     return tasks
 
 
-def check_obj_id(tasks):
+def check_obj_id(tasks: Task)->Task:
+    """
+        - LLM 의 결과로 나온 plan 의 exeucution.primitive action의 obj_id 명이 scene 에 있는 obj_id로 되어있는지 check
+        - 맞지 않다면 scene 에 있는 obj_id 와 맞지 않는 obj_id를 sentence similarity model을 활용하여 가장 유사도가 높은 obj_id를 택해 바꿈
+    """
     objectIds = load_object_Ids()
     all_object_ids = set()
     for key in objectIds:
@@ -184,17 +194,6 @@ def check_obj_id(tasks):
                         real_obj_id = objectIds[step][idx]
                         actions[i] = f"{step} {real_obj_id}"
                         print(actions[i])
-    return tasks
-
-
-def start_with_navigate_to(tasks):
-    for task in tasks:
-        for subtask in task.subtasks:
-            if "NAVIGATE_TO" not in subtask.execution.primitive_actions[0]:
-                obj = subtask.execution.primitive_actions[0].split(" ")[1]
-                action = "NAVIGATE_TO " + obj
-                subtask.execution.primitive_actions.insert(0, action)
-                continue
     return tasks
 
 
@@ -416,6 +415,7 @@ def split_primitive_actions_by_time(
     - MONITORING 은 분할 금지 (그대로 한 덩어리)
     - 나머지 액션도 분할 안 함 (그대로 한 덩어리)
     - 초반 시간이 남으면 leftover_time 만큼 WAIT 추가
+    - grasp 만 들어가고 place는 안들어가면 grap이후부터 place 까지 초반으로
 
     Args:
     - curr_node : 현재 시뮬레이션 노드

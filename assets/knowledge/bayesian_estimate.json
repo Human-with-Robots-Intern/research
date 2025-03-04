@@ -1,7 +1,7 @@
 {
     "Prepare Egg Fry": {
-        "expected_duration": 9.717321595855744,
-        "variance": 0.0027885694952734766
+        "expected_duration": 10.147195785387488,
+        "variance": 0.0018210991376541405
     },
     "Turn off stove after cooking": {
         "expected_duration": 10.086826452093858,
@@ -12,8 +12,8 @@
         "variance": 0.034420717039708386
     },
     "Turn off stove after cooking potato": {
-        "expected_duration": 10.18164002525982,
-        "variance": 4.101737325146291e-05
+        "expected_duration": 10.114400057681317,
+        "variance": 4.0550129969498905e-05
     },
     "Turn off Stove after cooking": {
         "expected_duration": 9.956380622472297,

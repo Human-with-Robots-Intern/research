@@ -1,49 +1,79 @@
-from ..utils.constants import GRID_SIZE, SMOOTH_LEVEL
+from ..utils.constants import SMOOTH_LEVEL
 from .navigation_handler import NavigationHandler
-
 import time
 
-class Action:
-    def __init__(self, controller, camera_handler, log_file):
-        self.controller = controller
-        self.camera_handler = camera_handler
-        self.grid_size = GRID_SIZE
-        self.log_file = log_file
-        self.navi = NavigationHandler(controller, self.camera_handler)
 
-    def last_action_success(self, controller):  ## 마지막 행동이 성공했는지 확인
-        if controller.last_event.metadata["lastActionSuccess"]:
-            return "success\n"
+class Action:
+    """
+    Possible actions:
+        - pickup, slice, put, drop, toggleon, toggleoff, open, close,
+          monitoring, wait, fill, move to
+
+    Args:
+        controller: The AI2-THOR controller used to interact with the environment.
+        log (logging.Logger): Logger object for recording action execution details.
+
+    Returns (for all actions):
+        elapsed_time (float): Time taken to perform the action.
+    """
+
+    def __init__(self, controller, log):
+        self.controller = controller
+        self.navi = NavigationHandler(controller)
+        self.log = log
+
+    def success_log(self, result, action: str):
+        """
+        Log the result of an action.
+
+        Args:
+            result: The result from controller.step(action).
+            action (str): The action description for logging.
+        """
+        if result.metadata["lastActionSuccess"]:
+            self.log.debug(f"{action}: success")
         else:
-            return "failure. " + controller.last_event.metadata["errorMessage"] + "\n"
+            self.log.debug(f"{action}: failure. {result.metadata['errorMessage']}")
 
     def get_parent_receptacle(self, object_id: str):
+        """
+        Retrieve the parent receptacle of the specified object.
 
-        # 해당 object의 부모 receptacle을 찾는 로직 구현
+        Args:
+            object_id (str): The object identifier.
+
+        Returns:
+            The parent receptacle identifier, or None if not found.
+        """
         object_metadata = self.controller.last_event.metadata["objects"]
+        parent_receptacle_ids = None
 
-        # 예시로 object의 metadata에서 parent receptacle을 가져오는 코드 작성
-        # 실제로는 controller의 메타데이터나 객체 속성에 따라 다를 수 있음
         for obj in object_metadata:
             if obj["objectId"] == object_id:
-                if obj["parentReceptacles"] is not []:
+                if obj["parentReceptacles"]:
                     parent_receptacle_ids = obj["parentReceptacles"]
                     print(parent_receptacle_ids)
                     break
-# pick
-# drop 그냥 손에서 놓기
-# put 어디에다가 넣기
-# toggle
-# open
-# close
+
         if parent_receptacle_ids:
-            parent_receptacle_id = parent_receptacle_ids[0]
-        else:
-            parent_receptacle_id = None
-        return parent_receptacle_id
+            return parent_receptacle_ids[0]
+        return None
 
     def pickup(self, object_id: str):
-        # 물체 앞으로 갔으니 강제로 물체 집게 함.
+        """
+        Attempt to pick up the specified object.
+
+        Steps:
+            1. Attempt to pick up the object.
+            2. If pickup fails, retrieve the parent receptacle and open it,
+               then try picking up again and finally close the receptacle.
+
+        Args:
+            object_id (str): The identifier of the object to pick up.
+
+        Returns:
+            float: Elapsed time for the pickup action, or False on failure.
+        """
         elapsed_time = 0
         result = self.controller.step(
             action="PickupObject",
@@ -51,29 +81,20 @@ class Action:
             forceAction=False,
             manualInteract=False,
         )
-        # 물체를 집은 후의 결과 처리
+
         if result.metadata["lastActionSuccess"]:
-            # 물체를 성공적으로 집었다면
-            self.log_file.write(
-                f"pickup {object_id}: " + self.last_action_success(self.controller)
-            )
+            self.success_log(result, f"pickup {object_id}")
             self.controller.step(action="Pass")
-            self.camera_handler.update_view()
             time.sleep(0.3)
             elapsed_time += 1
             return elapsed_time
         else:
-            # 물체를 집지 못한 경우, parent receptacle을 열고 다시 시도
             receptacle_id = self.get_parent_receptacle(object_id)
-
             if receptacle_id:
-                # parent receptacle을 열기
-                elapsed_time += self.navi.move_to(receptacle_id)
+                elapsed_time += self.move_to(receptacle_id)
                 self.open(receptacle_id)
                 elapsed_time += 1
                 time.sleep(0.5)
-
-                # 물체를 다시 집기 시도
                 result = self.controller.step(
                     action="PickupObject",
                     objectId=object_id,
@@ -81,218 +102,312 @@ class Action:
                     manualInteract=False,
                 )
                 if result.metadata["lastActionSuccess"]:
-                    # 물체를 성공적으로 집었으면 receptacle을 다시 닫기
                     self.close(receptacle_id)
                     elapsed_time += 1
+                    self.log.debug(
+                        f"Pick up action after opening receptacle object was successful: "
+                        f"receptacle object {receptacle_id}"
+                    )
                     return elapsed_time
                 else:
-                    self.log_file.write(
+                    self.log.warning(
                         f"Failed to pick up object {object_id} even after opening the receptacle."
                     )
                     return False
             else:
-                self.controller.step(
+                result = self.controller.step(
                     action="PickupObject",
                     objectId=object_id,
                     forceAction=False,
                     manualInteract=False,
                 )
-                self.log_file.write(
-                    f"pickup {object_id}: " + self.last_action_success(self.controller)
-                )
+                self.success_log(result, f"pickup {object_id}")
                 self.controller.step(action="Pass")
-                self.camera_handler.update_view()
                 time.sleep(0.3)
                 elapsed_time += 1
                 return elapsed_time
-                # self.log_file.write(
-                #     f"No parent receptacle found for object {object_id}."
-                # )
-                # return False
 
     def slice(self, object_id: str):
-        self.controller.step(action="SliceObject", objectId=object_id)
-        self.log_file.write(
-            f"slice {object_id}: " + self.last_action_success(self.controller)
-        )
+        """
+        Slice the specified object.
+
+        Args:
+            object_id (str): The identifier of the object to slice.
+
+        Returns:
+            float: Elapsed time for the slice action.
+        """
+        result = self.controller.step(action="SliceObject", objectId=object_id)
+        self.success_log(result, f"slice {object_id}")
         self.controller.step(action="Pass")
-        self.camera_handler.update_view()
         time.sleep(0.3)
-        elapsed_time = 1
-        return elapsed_time
+        return 1
 
     def put(self, target_id: str):
+        """
+        Put the held object into the target container.
+
+        Steps:
+            1. Attempt to put the object.
+            2. If unsuccessful, move back and try again.
+            3. If still unsuccessful, drop the object.
+
+        Args:
+            target_id (str): The identifier of the target container.
+
+        Returns:
+            float: Elapsed time for the put action.
+        """
         elapsed_time = 1
-        # 집어넣는거
-        self.controller.step(
+        result = self.controller.step(
             action="PutObject",
             objectId=target_id,
             forceAction=False,
             placeStationary=True,
         )
-        # log_file 에 기록
-        self.log_file.write(
-            f"put {target_id}: " + self.last_action_success(self.controller)
-        )
+        self.success_log(result, f"put {target_id}")
 
-        if not self.controller.last_event.metadata["lastActionSuccess"]:
+        if not result.metadata["lastActionSuccess"]:
             self.controller.step("MoveBack")
-            self.controller.step(
+            result = self.controller.step(
                 action="PutObject",
                 objectId=target_id,
                 forceAction=False,
                 placeStationary=True,
             )
-            # log_file 에 기록
-        self.log_file.write(
-            f"put {target_id}: "
-            + self.last_action_success(self.controller)
-            + "(MoveBack)"
-        )
-        # 실패하면 일단 손에서 버려. 그래야지 다음 행동에 문제가 되지 않을 듯. 근데 버리면 땅바닥에 굴러다니니깐 거슬릴 것 같은데
+            self.success_log(result, f"MoveBack and put {target_id}")
+
         if not self.controller.last_event.metadata["lastActionSuccess"]:
             self.controller.step("MoveAhead")
-            self.controller.step(action="DropHandObject", forceAction=True)
+            result = self.controller.step(action="DropHandObject", forceAction=True)
             elapsed_time += 1
-            self.log_file.write(
-                "Alternative Action: Drop: " + self.last_action_success(self.controller)
-            )
-
+            self.success_log(result, "drop")
+            self.log.debug("Alternative Action: Drop")
         self.controller.step(action="Pass")
-        self.camera_handler.update_view()
         time.sleep(0.3)
         elapsed_time += 1
         return elapsed_time
 
     def drop(self):
+        """
+        Drop the held object.
+
+        Returns:
+            float: Elapsed time for the drop action.
+        """
         self.controller.step(action="DropHandObject", forceAction=False)
         step = 0
-        # 강제 액션을 false로 했기 때문에 물체를 조금씩 앞으로 이동시키면서 물체를 놓는 행동이 성공할 때까지 반복(10번 제한)
         while not self.controller.last_event.metadata["lastActionSuccess"]:
             self.controller.step(
                 action="MoveHeldObjectAhead", moveMagnitude=0.1, forceVisible=False
             )
-            self.controller.step(action="DropHandObject", forceAction=False)
+            result = self.controller.step(action="DropHandObject", forceAction=False)
             step += 1
             if step == 10:
                 break
-        self.log_file.write(f"drop: " + self.last_action_success(self.controller))
+        self.success_log(result, "drop")
         self.controller.step(action="Pass")
-        self.camera_handler.update_view()
         time.sleep(0.3)
-        elapsed_time = 1
-        return elapsed_time
+        return 1
 
     def toggleon(self, object_id: str):
-        self.controller.step(action="ToggleObjectOn", objectId=object_id)
-        self.log_file.write(
-            f"toggle on {object_id}: " + self.last_action_success(self.controller)
-        )
+        """
+        Toggle the specified object on.
+
+        Args:
+            object_id (str): The identifier of the object.
+
+        Returns:
+            float: Elapsed time for the toggle on action.
+        """
+        result = self.controller.step(action="ToggleObjectOn", objectId=object_id)
+        self.success_log(result, f"toggle on {object_id}")
         self.controller.step(action="Pass")
-        self.camera_handler.update_view()
         time.sleep(0.3)
-        elapsed_time = 1
-        return elapsed_time
+        return 1
 
     def toggleoff(self, object_id: str):
-        self.controller.step(action="ToggleObjectOff", objectId=object_id)
-        self.log_file.write(
-            f"toggle off {object_id}: " + self.last_action_success(self.controller)
-        )
+        """
+        Toggle the specified object off.
+
+        Args:
+            object_id (str): The identifier of the object.
+
+        Returns:
+            float: Elapsed time for the toggle off action.
+        """
+        result = self.controller.step(action="ToggleObjectOff", objectId=object_id)
+        self.success_log(result, f"toggle off {object_id}")
         self.controller.step(action="Pass")
-        self.camera_handler.update_view()
         time.sleep(0.3)
-        elapsed_time = 1
-        return elapsed_time
+        return 1
 
     def open(self, object_id: str):
+        """
+        Open the specified object (e.g., a container).
+
+        Args:
+            object_id (str): The identifier of the object to open.
+
+        Returns:
+            float: Elapsed time for the open action.
+        """
         elapsed_time = 0
-        # 일단 두 발자국 물러나기
-        for i in range(2):
+        for _ in range(2):
             self.controller.step(action="MoveBack", moveMagnitude=None)
             self.controller.step(action="Pass")
-        self.camera_handler.update_view()
         time.sleep(0.1)
-
-        # 열기
-        self.controller.step(
-            action="OpenObject", objectId=object_id, openness=1, forceAction=False
+        result = self.controller.step(
+            action="OpenObject",
+            objectId=object_id,
+            openness=1,
+            forceAction=False,
         )
-        self.log_file.write(
-            f"open {object_id}: " + self.last_action_success(self.controller)
-        )
+        self.success_log(result, f"open {object_id}")
         self.controller.step(action="Pass")
-        self.camera_handler.update_view()
         time.sleep(0.3)
         elapsed_time += 1
         return elapsed_time
 
     def close(self, object_id: str):
-        self.controller.step(
-            action="CloseObject", objectId=object_id, forceAction=False
+        """
+        Close the specified object.
+
+        Args:
+            object_id (str): The identifier of the object to close.
+
+        Returns:
+            float: Elapsed time for the close action.
+        """
+        result = self.controller.step(
+            action="CloseObject",
+            objectId=object_id,
+            forceAction=False,
         )
-        self.log_file.write(
-            f"close {object_id}: " + self.last_action_success(self.controller)
-        )
+        self.success_log(result, f"close {object_id}")
         self.controller.step(action="Pass")
-        self.camera_handler.update_view()
         time.sleep(0.3)
-        elapsed_time = 1
-        return elapsed_time
+        return 1
 
     def monitoring(self, object_id: str):
-        # object를 바라보게 하고 다시 돌아봐야함
+        """
+        Monitor a specified object by rotating the agent to face it,
+        adjusting the camera, and then rotating back.
+
+        Args:
+            object_id (str): The ID of the object to monitor.
+
+        Returns:
+            float: Elapsed time for the monitoring action.
+        """
         agent_position = self.navi.get_agent_position()
         object_position = self.navi.get_object_position(object_id)
-        print(f"모니터링 할거임 : {object_id} 쳐다볼거임")
+        print(f"Monitoring: focusing on {object_id}")
         obj_angle, degree = self.navi.agent_rotate_angle(
             agent_position, object_position
         )
+        result = None
         if degree != 0:
-            for _ in range(SMOOTH_LEVEL):  # 자연스럽게 회전하도록 나눠서 회전 시행
-                # 일단 회전하고
-                self.controller.step(
+            for _ in range(SMOOTH_LEVEL):
+                result = self.controller.step(
                     action="RotateRight", degrees=degree / SMOOTH_LEVEL
                 )
-                success = self.controller.last_event.metadata["lastActionSuccess"]
-                # 실패하면 움직여서 다시 한 번 더 도전. 여기는 while문을 써야할까?
-                if not success:
+                if not result.metadata["lastActionSuccess"]:
                     self.navi.move_in_direction(-obj_angle, 0.2)
-                    self.controller.step(
+                    result = self.controller.step(
                         action="RotateRight", degrees=degree / SMOOTH_LEVEL
                     )
-                    self.camera_handler.update_view()
                 self.controller.step(action="Pass")
-                self.camera_handler.update_view()
-
         self.navi.adjust_camera_to_object(object_id)
-
+        self.success_log(result, f"adjust camera to {object_id} for monitoring action")
         time.sleep(2)
         if degree != 0:
             for _ in range(SMOOTH_LEVEL):
                 self.controller.step(action="RotateLeft", degrees=degree / SMOOTH_LEVEL)
-                self.camera_handler.update_view()
         self.controller.step("Pass")
         time.sleep(0.1)
-        elapsed_time = 0.1
-        return elapsed_time
+        return 0.1
 
     def wait(self, wait_time=1):
+        """
+        Wait for the specified duration.
+
+        Args:
+            wait_time (float, optional): Duration in seconds. Defaults to 1.
+
+        Returns:
+            float: Elapsed time for the wait action.
+        """
         time.sleep(wait_time)
+        self.log.debug(f"wait: {wait_time}")
         return wait_time
 
     def fill(self, object_id: str):
-        self.controller.step(
+        """
+        Fill the specified object with water.
+
+        Args:
+            object_id (str): The identifier of the object to fill.
+
+        Returns:
+            float: Elapsed time for the fill action.
+        """
+        result = self.controller.step(
             action="FillObjectWithLiquid",
             objectId=object_id,
             fillLiquid="water",
             forceAction=True,
         )
-        self.log_file.write(
-            f"fill {object_id} with water: " + self.last_action_success(self.controller)
-        )
+        self.success_log(result, f"fill {object_id} with water")
         self.controller.step(action="Pass")
-        self.camera_handler.update_view()
         time.sleep(0.3)
-        elapsed_time = 1
-        return elapsed_time
+        return 1
+
+    def move_to(self, object_id: str):
+        """
+        Move the agent to the nearest reachable point near the specified object.
+
+        Args:
+            object_id (str): The identifier of the target object.
+
+        Returns:
+            float: Elapsed time for the move action.
+        """
+        agent_position = self.navi.get_agent_position()
+
+        if " " in object_id:
+            object_id, stop_time = object_id.split(" ", 1)
+
+        object_position = self.navi.get_object_position(object_id)
+        path = self.navi.find_shortest_path(agent_position, object_position)
+
+        if path:
+            path.pop(0)
+
+        elapsed_time = 0
+        for position in path:
+            elapsed_time += 0.1
+            self.navi.teleport_to_position(position)
+            if "stop_time" in locals() and elapsed_time == float(stop_time):
+                break
+
+        agent_position = self.navi.get_agent_position()
+        obj_angle, degree = self.navi.agent_rotate_angle(
+            agent_position, object_position
+        )
+        if degree != 0 and "stop_time" not in locals():
+            for _ in range(SMOOTH_LEVEL):
+                self.controller.step(
+                    action="RotateRight", degrees=degree / SMOOTH_LEVEL
+                )
+                success = self.controller.last_event.metadata["lastActionSuccess"]
+                if not success:
+                    self.navi.move_in_direction(-obj_angle, 0.2)
+                    self.controller.step(
+                        action="RotateRight", degrees=degree / SMOOTH_LEVEL
+                    )
+        self.navi.adjust_camera_to_object(object_id)
+        self.log.debug(f"move to {object_id}")
+        self.controller.step(action="Pass")
+        time.sleep(0.2)
+        return round(elapsed_time, 2)
