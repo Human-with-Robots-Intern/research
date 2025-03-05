@@ -11,15 +11,6 @@ log = create_module_logger(module_name=__name__, module_log=True)
 
 
 class ConstraintHandler:
-    def get_critical_window(self, curr_node: SimulationNode) -> Tuple[float, float]:
-        subtask = curr_node.state.subtask
-        completed_subtasks = curr_node.state.completed_subtasks
-
-        for ce in completed_subtasks:
-            out_time_slots = self.get_time_slots(
-                ce.subtask.name, curr_node.state.constraints, "out"
-            )
-            out_critical_slots = [ts for ts in out_time_slots if ts.is_critical]
 
     def get_time_slots(
         self, subtask_name: str, constraints: DiGraph, direction: str
@@ -163,11 +154,16 @@ class ConstraintHandler:
 
             candidate_start = pred_entry.end_time + interval
             if is_crit:
+                log.debug(
+                    f"[get_earliest_start_time] Critical Edge: {pred_name} → {sub.name} ({candidate_start})\n"
+                )
                 critical_times.append(candidate_start)
             else:
                 non_critical_earliest = max(non_critical_earliest, candidate_start)
-        log.debug(f"Critical Times: {critical_times}\n")
-        log.debug(f"Non-critical Earliest: {non_critical_earliest}\n")
+        log.debug(f"[get_earliest_start_time] Critical Times: {critical_times}\n")
+        log.debug(
+            f"[get_earliest_start_time] Non-critical Earliest: {non_critical_earliest}\n"
+        )
         # 이제 critical_starts가 비어있지 않다면,
         # "Critical"이라는 것은 "이 특정 시각에 딱 시작"해야 한다는 정책
         # 여러 critical edge가 서로 다른 시간을 요구하면 conflict
