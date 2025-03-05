@@ -24,7 +24,7 @@ from utils.constants import (
 from utils.task.task_util import make_monitoring_subtask
 from utils.util import create_module_logger
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+log = create_module_logger(module_name=__name__, module_log=True)
 
 
 class Scheduler:

@@ -7,7 +7,7 @@ from scheduler.dataclass import Candidate, Deadline, SimulationNode, TimeSlot
 from utils import create_module_logger
 from utils.constants import EPSILON, LOG_ROUND
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+log = create_module_logger(module_name=__name__, module_log=True)
 
 
 class ConstraintHandler:

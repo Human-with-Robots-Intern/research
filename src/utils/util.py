@@ -8,7 +8,7 @@ from colorlog import ColoredFormatter
 from utils.constants import LOG_PATH
 
 
-def create_module_logger(module_name, is_file_handler=False):
+def create_module_logger(module_name, module_log=False, all_log=True):
     """
     module_name: 모듈 이름
     is_file_handler: 파일 핸들러를 추가할지 여부 (파일에도 로그를 기록)
@@ -23,8 +23,6 @@ def create_module_logger(module_name, is_file_handler=False):
     if logger.hasHandlers():
         return logger
 
-    # 콘솔 핸들러 추가
-
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG)
     console_formatter = ColoredFormatter(
@@ -38,11 +36,23 @@ def create_module_logger(module_name, is_file_handler=False):
             "CRITICAL": "red,bg_white",
         },
     )
+    # 파일 핸들러 (all)
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
+    
+    
+    file_handler = logging.FileHandler(
+        LOG_PATH / "all.log",
+        mode="a",
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+
     # 파일 핸들러 추가
-    if is_file_handler:
+    if module_log:
         file_handler = logging.FileHandler(
             LOG_PATH / f"{module_name}.log",
             # LOG_PATH / "all.log",

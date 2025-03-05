@@ -7,7 +7,7 @@ from core.task import Task, TaskGraphBuilder
 from utils.constants import TASK_PATH
 from utils.util import create_module_logger
 
-logger = create_module_logger(__name__, is_file_handler=True)
+logger = create_module_logger(__name__, module_log=True)
 
 
 class TestTaskSystem(TestCase):

@@ -20,7 +20,7 @@ from utils.util import create_module_logger
 
 # Logging configuration
 
-logger = create_module_logger(__name__, is_file_handler=True)
+logger = create_module_logger(__name__, module_log=True)
 
 
 def initialize_openai() -> openai.OpenAI:

@@ -15,7 +15,7 @@ from utils.task import (
 )
 from utils.task.task_io import load_scene_positions
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+log = create_module_logger(module_name=__name__, module_log=True)
 
 
 def parse_arguments():

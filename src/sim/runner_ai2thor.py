@@ -6,7 +6,7 @@ from ithor.handlers.action import Action
 from ithor.utils.constants import *
 from utils.util import create_module_logger
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+log = create_module_logger(module_name=__name__, module_log=True)
 
 
 def init_ai2thor():
