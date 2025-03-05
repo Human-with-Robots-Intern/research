@@ -1,29 +1,34 @@
-import networkx as nx
-import heapq
-from collections import defaultdict
 import argparse
+import heapq
+import json
 import math
+from collections import defaultdict
 from typing import Callable, Dict, List, Set, Tuple
+
+import networkx as nx
 
 from core.agent import Agent
 from core.scheduler import Scheduler
+from ithor.utils.math_utils import adjust_if_unreachable, build_navigation_graph
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import create_module_logger, visualize
-from utils.constants import PRIMITIVE_ACTION_DURATION, MONITORING_DURATION, NAV_STEP_DURATION, PRIMITIVE_ACTION_SET 
+from utils.constants import (
+    KNOWLEDGE_PATH,
+    MONITORING_DURATION,
+    NAV_STEP_DURATION,
+    PRIMITIVE_ACTION_DURATION,
+    PRIMITIVE_ACTION_SET,
+)
 from utils.task import (
     build_tasks_and_constraints,
-    get_init_state,
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file,
-    task_io
+    task_io,
 )
-from ithor.utils.math_utils import build_navigation_graph, adjust_if_unreachable
-
-import json
-from utils.constants import KNOWLEDGE_PATH
 
 log = create_module_logger(module_name=__name__, is_file_handler=True)
+
 
 def parse_arguments():
     """Parse command-line arguments."""
@@ -58,6 +63,7 @@ def parse_arguments():
     )
     return parser.parse_args()
 
+
 def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
@@ -69,7 +75,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice= 1)
+    task_file_name = get_user_task_choice(task_files, choice=1)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
@@ -84,18 +90,23 @@ def main():
 
     result_schedule = []
 
-    critical_path, held_object = find_critical_path(edges, subtasks, held_object, nav_graph)
+    critical_path, held_object = find_critical_path(
+        edges, subtasks, held_object, nav_graph
+    )
 
     # 스케줄링 실행
     result_schedule = schedule_with_cp_priority(edges, critical_path)
 
     # 스케쥴링 끝난 거 앞에서 부터 시간 계산하기. 만약에 dependency가 지켜지지 않으면 wait넣기
-    total_time, schedule_subtask_time = last_calculte_schedule_and_time(result_schedule, subtasks, held_object, nav_graph)
+    total_time, schedule_subtask_time = last_calculte_schedule_and_time(
+        result_schedule, subtasks, held_object, nav_graph
+    )
     print("total time = ", total_time)
     print("schedul subtask time = ", schedule_subtask_time)
     print("=== Combined single-scheduler with CP priority ===")
     for step in result_schedule:
         print(" -", step)
+
 
 def paths(edges):
     # 방향 그래프 생성
@@ -116,6 +127,7 @@ def paths(edges):
 
     return all_paths
 
+
 def find_critical_path(edges, subtasks, held_object, nav_graph):
     all_paths = paths(edges)
     total_time = []
@@ -124,21 +136,26 @@ def find_critical_path(edges, subtasks, held_object, nav_graph):
         path_total_time = 0.0
         # path에 있는 subtask를 실행하는 시간을 더해서 해당 path의 실행 시간 구하기
         for i in range(len(path)):
-            subtask = next((subtask for subtask in subtasks if subtask.name == path[i]), None)
-            subtask_total_time, held_object = subtask_time(subtask, held_object, nav_graph)
+            subtask = next(
+                (subtask for subtask in subtasks if subtask.name == path[i]), None
+            )
+            subtask_total_time, held_object = subtask_time(
+                subtask, held_object, nav_graph
+            )
             # # 이 subtask로 인해 추가되는 시간
             path_total_time += subtask_total_time
             # dependency의 interval 더해주기
             temporal_constraints = subtask.temporal_constraints
             for obj in temporal_constraints:
-                    if hasattr(obj, 'interval') and obj.interval:
-                        if obj.interval:
-                            path_total_time += obj.interval
+                if hasattr(obj, "interval") and obj.interval:
+                    if obj.interval:
+                        path_total_time += obj.interval
         total_time.append(path_total_time)
     # all_paths와 total_time에서 total_time이 있는 idx와 같은 위치의 all_paths 값을 불러와서 critical_path에 저장하기
     critical_path = all_paths[total_time.index(max(total_time))]
 
     return critical_path, held_object
+
 
 def action_duration(action, held_object, nav_graph):
 
@@ -154,11 +171,7 @@ def action_duration(action, held_object, nav_graph):
     partial_time_str = tokens[2] if len(tokens) > 2 else None
 
     # 예외: WAIT 이외 액션에서, scene_positions에 없는 오브젝트를 타겟으로 지목
-    if (
-        target_obj_id
-        and target_obj_id not in scene_positions
-        and action_type != "WAIT"
-    ):
+    if target_obj_id and target_obj_id not in scene_positions and action_type != "WAIT":
         log.error(f"Object {target_obj_id} not in scene_positions.")
         raise ValueError(f"Object {target_obj_id} not in scene_positions.")
 
@@ -207,52 +220,56 @@ def action_duration(action, held_object, nav_graph):
     else:
         log.error(f"Unknown action name: {action_type}")
         raise ValueError(f"Unknown action name: {action_type}")
-    
+
     return action_duration, held_object
 
-def _find_short_path(start_pos: Tuple[float, float, float], end_pos: Tuple[float, float, float]
-    , nav_graph):
 
-        start_pos = adjust_if_unreachable(nav_graph, start_pos)
-        end_pos = adjust_if_unreachable(nav_graph, end_pos)
-        if start_pos == end_pos:
-            return [start_pos]
+def _find_short_path(
+    start_pos: Tuple[float, float, float],
+    end_pos: Tuple[float, float, float],
+    nav_graph,
+):
 
-        def direction(a, b):
-            return (b[0] - a[0], b[2] - a[2])
+    start_pos = adjust_if_unreachable(nav_graph, start_pos)
+    end_pos = adjust_if_unreachable(nav_graph, end_pos)
+    if start_pos == end_pos:
+        return [start_pos]
 
-        pq = []
-        heapq.heappush(pq, (0, start_pos, None, [start_pos]))
-        visited = {}
+    def direction(a, b):
+        return (b[0] - a[0], b[2] - a[2])
 
-        while pq:
-            turn_cnt, cur_pos, cur_dir, path = heapq.heappop(pq)
-            if cur_pos == end_pos:
-                return path
-            if cur_pos in visited and visited[cur_pos] <= turn_cnt:
+    pq = []
+    heapq.heappush(pq, (0, start_pos, None, [start_pos]))
+    visited = {}
+
+    while pq:
+        turn_cnt, cur_pos, cur_dir, path = heapq.heappop(pq)
+        if cur_pos == end_pos:
+            return path
+        if cur_pos in visited and visited[cur_pos] <= turn_cnt:
+            continue
+        visited[cur_pos] = turn_cnt
+        for nxt in nav_graph.get(cur_pos, []):
+            if nxt in path:
                 continue
-            visited[cur_pos] = turn_cnt
-            for nxt in nav_graph.get(cur_pos, []):
-                if nxt in path:
-                    continue
-                new_dir = direction(cur_pos, nxt)
-                nxt_turn = (
-                    turn_cnt
-                    if (cur_dir is None or new_dir == cur_dir)
-                    else (turn_cnt + 1)
-                )
-                new_path = path + [nxt]
-                heapq.heappush(pq, (nxt_turn, nxt, new_dir, new_path))
+            new_dir = direction(cur_pos, nxt)
+            nxt_turn = (
+                turn_cnt if (cur_dir is None or new_dir == cur_dir) else (turn_cnt + 1)
+            )
+            new_path = path + [nxt]
+            heapq.heappush(pq, (nxt_turn, nxt, new_dir, new_path))
 
-        raise ValueError(f"No path found from {start_pos} to {end_pos}.")
+    raise ValueError(f"No path found from {start_pos} to {end_pos}.")
+
 
 def subtask_time(subtask, held_object, nav_graph):
     subtask_total_time = 0.0
     for action in subtask.execution.primitive_actions:
         subtask_time, held_object = action_duration(action, held_object, nav_graph)
         subtask_total_time += subtask_time
-    
+
     return subtask_total_time, held_object
+
 
 def specific_nav_time(action, nav_graph) -> float:
     """
@@ -294,22 +311,23 @@ def specific_nav_time(action, nav_graph) -> float:
     #     log.warning(
     #         f"Navigation time from '{"agent"}' to '{target_obj_id}' not found."
     #     )
-        # return 0.0
+    # return 0.0
     return nav_time
+
 
 def schedule_with_cp_priority(edges, critical_path):
     """
-    edges         : List[Tuple[str, str]] 
+    edges         : List[Tuple[str, str]]
                    - (선행작업, 후행작업)
     critical_path : List[str]
                    - 가장 우선순위가 높은 순서대로 나열된 Critical Path 상의 작업들
-                   
+
     return        : List[str]
-                   - 모든 작업을 '의존성'을 지키며, Critical Path 작업은 
+                   - 모든 작업을 '의존성'을 지키며, Critical Path 작업은
                      가능한 한 먼저 실행하도록 우선순위를 적용한 스케줄 순서
     """
     # 1) 그래프(인접 리스트)와 진입차수(in_degree) 구성
-    graph = defaultdict(list)   # graph[A] = [B, C, ...] => A가 끝나야 시작 가능한 작업들
+    graph = defaultdict(list)  # graph[A] = [B, C, ...] => A가 끝나야 시작 가능한 작업들
     in_degree = defaultdict(int)
     tasks = set()
 
@@ -331,10 +349,10 @@ def schedule_with_cp_priority(edges, critical_path):
     cp_index_map = {}
     for i, t in enumerate(critical_path):
         cp_index_map[t] = i
-    
+
     # critical_path에 속하지 않은 작업들은 충분히 큰 우선순위(= CP 마지막 뒤)로 설정
     NOT_IN_CP_PRIORITY = len(critical_path) + 100
-    
+
     def get_cp_priority(task):
         return cp_index_map[task] if task in cp_index_map else NOT_IN_CP_PRIORITY
 
@@ -364,16 +382,20 @@ def schedule_with_cp_priority(edges, critical_path):
 
     return schedule
 
+
 def last_calculte_schedule_and_time(result_schedule, subtasks, held_object, nav_graph):
     # 스케쥴링 한 것 따라서 시간 순차적으로 더하기. 더할 때 dependency를 체크해서 아직 시간이 도달하지 않았다면 nav와 wait subtask 생성하기.
     total_time = 0
     schedule_subtask_and_time = {}
     # subtask 하나 씩 구하기
     for i in range(len(result_schedule)):
-        subtask = next((subtask for subtask in subtasks if subtask.name == result_schedule[i]), None)
+        subtask = next(
+            (subtask for subtask in subtasks if subtask.name == result_schedule[i]),
+            None,
+        )
         temporal_constraints = subtask.temporal_constraints
         for obj in temporal_constraints:
-            if hasattr(obj, 'interval') and obj.interval:
+            if hasattr(obj, "interval") and obj.interval:
                 if obj.interval:
                     # 앞에서 부터 숫자 더해서 start subtask 까지 더하고 거기에 interval을 추가. 현재 total time이랑 비교해서 interval이 더 크면 nav시간 구해서 nav subtask랑 wait subtask를 만들어서 추가.
                     start_subtask_name = obj.subtask
@@ -387,22 +409,26 @@ def last_calculte_schedule_and_time(result_schedule, subtasks, held_object, nav_
 
                     if start_time_of_end_subtask > total_time:
                         # nav 시간 구하기. schedule_subtask_and_time에 nav_{result_schedule[i]} 넣기
-                        nav_time = specific_nav_time(subtask.execution.primitive_actions[0], nav_graph)
-                        schedule_subtask_and_time.update({f"nav_{result_schedule[i]}": nav_time})
+                        nav_time = specific_nav_time(
+                            subtask.execution.primitive_actions[0], nav_graph
+                        )
+                        schedule_subtask_and_time.update(
+                            {f"nav_{result_schedule[i]}": nav_time}
+                        )
                         # interval-nav시간 만큼 schedule_subtask_and_time에 wait_{result_schedule[i]} 넣기
                         wait_time = obj.interval - nav_time
-                        schedule_subtask_and_time.update({f"wait_{result_schedule[i]}": wait_time})
+                        schedule_subtask_and_time.update(
+                            {f"wait_{result_schedule[i]}": wait_time}
+                        )
                         # 전체 시간 update
-                        total_time += (nav_time + wait_time)
-  
-        # subtask 
+                        total_time += nav_time + wait_time
+
+        # subtask
         subtask_total_time, held_object = subtask_time(subtask, held_object, nav_graph)
         total_time += subtask_total_time
-        schedule_subtask_and_time.update({subtask.name : subtask.duration.interval})
-    
+        schedule_subtask_and_time.update({subtask.name: subtask.duration.interval})
+
     return total_time, schedule_subtask_and_time
-
-
 
 
 if __name__ == "__main__":
