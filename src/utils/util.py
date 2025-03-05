@@ -46,7 +46,7 @@ def create_module_logger(module_name, module_log=False, all_log=True):
         mode="a",
     )
 
-    file_handler.setLevel(logging.INFO)
+    file_handler.setLevel(logging.DEBUG)
     file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
@@ -66,6 +66,35 @@ def create_module_logger(module_name, module_log=False, all_log=True):
     return logger
 
 
+def retry(retries=3, delay=1):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    print(f"Attempt {attempt + 1} failed: {e}")
+                    time.sleep(delay)
+            raise Exception(
+                f"Function '{func.__name__}' failed after {retries} retries."
+            )
+
+        return wrapper
+
+    return decorator
+
+
+def time_logger(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        print(f"Function '{func.__name__}' took {end_time - start_time:.4f} seconds.")
+        return result
+
+    return wrapper
+
+
 class timeout:
     def __init__(self, seconds=1, error_message="Timeout"):
         self.seconds = seconds
@@ -80,16 +109,3 @@ class timeout:
 
     def __exit__(self, type, value, traceback):
         signal.alarm(0)
-
-
-def timeit(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        results = func(*args, **kwargs)
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        # log.warning(f"Elapsed time: {elapsed_time:.2f} seconds")
-        return results
-
-    return wrapper
