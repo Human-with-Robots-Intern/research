@@ -214,11 +214,12 @@ class Scheduler:
         is_expanded = False
 
         # * (A) Expand feasible candidates:
-
+        # * Descending인 이유, Critical In 제약이 존재하는 subtask는 earliest_start_time이 0이 아닌 current_time과 근사한 경우임
         sorted_feasible = sorted(
-            feasible_candidates, key=lambda c: c.earliest_start_time, reverse=False
+            feasible_candidates, key=lambda c: c.earliest_start_time, reverse=True
         )
         for candidate in sorted_feasible:
+
             log.debug(
                 f"[_expand_candidates] Attempting to expand feasible subtask: {candidate.subtask.name}.\n"
             )
@@ -547,12 +548,15 @@ class Scheduler:
         early_sub.duration.interval = pre_actions_info.results[-1].time_used
         early_sub.decomposed = True
 
+        if early_sub.name.startswith("Wash Fork_early"):
+            pass
+
         remain_sub = copy.deepcopy(candidate.subtask)
         remain_sub.name += "_remain"
         remain_sub.execution.primitive_actions = post_actions_info.get_actions()
         remain_sub.duration.interval = post_actions_info.results[-1].time_used
         remain_sub.decomposed = True
-
+        
         monitoring_target_obj = list(critical_constraint_start_sub_objs.keys())[-1]
         mon_sub = make_monitoring_subtask(
             name=deadline_sub_name, obj=monitoring_target_obj
@@ -633,13 +637,14 @@ class Scheduler:
             info={"Interval": early_sub.duration.interval, "IsCritical": True},
         )
 
+        remain_critical_interval = (
+            max_critical_interval - early_sub.duration.interval - MONITORING_DURATION
+        )
         new_constraints.add_edge(
             mon_sub.name,
             deadline_sub_name,
             info={
-                "Interval": max_critical_interval
-                - early_sub.duration.interval
-                - MONITORING_DURATION,
+                "Interval": remain_critical_interval,
                 "IsCritical": True,
             },
         )
