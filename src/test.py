@@ -75,7 +75,7 @@ def main():
 
     agent = Agent()
 
-    scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph)
+    scheduler = Scheduler(5, 3, nav_graph)
 
     result_schedule = []
     current_state = get_init_state(subtasks, constraints, scene_poses)

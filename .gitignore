@@ -72,3 +72,4 @@ scripts/
 sync_repos.sh
 setup.py
 llm_as_a_judge.py
+assets/knowledge/bayesian_estimate.json
