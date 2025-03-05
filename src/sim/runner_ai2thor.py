@@ -1,4 +1,5 @@
 import sys
+
 from ai2thor.controller import Controller
 
 from ithor.handlers.action import Action

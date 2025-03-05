@@ -107,8 +107,7 @@ def main():
         log.info(
             f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
-        log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}")
-        log.info("\n")
+        log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
 
 
 if __name__ == "__main__":

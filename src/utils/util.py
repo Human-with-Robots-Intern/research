@@ -8,40 +8,35 @@ from colorlog import ColoredFormatter
 from utils.constants import LOG_PATH
 
 
-def create_module_logger(module_name, is_file_handler=False, console_output=True):
+def create_module_logger(module_name, is_file_handler=False):
     """
     module_name: 모듈 이름
     is_file_handler: 파일 핸들러를 추가할지 여부 (파일에도 로그를 기록)
     console_output: 콘솔에 로그를 출력할지 여부
     """
+    # 개별 로그 생성
     logger = logging.getLogger(module_name)
     logger.setLevel(logging.DEBUG)
 
-    # 부모 로거로 전파되지 않도록 설정
-    logger.propagate = False
-    # 기존 핸들러 제거 (중복 출력 방지)
-    if logger.hasHandlers():
-        logger.handlers.clear()
+    # 콘솔 핸들러 추가
 
-    # 콘솔 핸들러 추가 (옵션)
-    if console_output:
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.DEBUG)
-        console_formatter = ColoredFormatter(
-            "%(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s",
-            reset=True,
-            log_colors={
-                "DEBUG": "cyan",
-                "INFO": "white",
-                "WARNING": "yellow",
-                "ERROR": "red",
-                "CRITICAL": "red,bg_white",
-            },
-        )
-        console_handler.setFormatter(console_formatter)
-        logger.addHandler(console_handler)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    console_formatter = ColoredFormatter(
+        "%(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s",
+        reset=True,
+        log_colors={
+            "DEBUG": "cyan",
+            "INFO": "white",
+            "WARNING": "yellow",
+            "ERROR": "red",
+            "CRITICAL": "red,bg_white",
+        },
+    )
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
 
-    # 파일 핸들러 추가 (옵션)
+    # 파일 핸들러 추가
     if is_file_handler:
         file_handler = logging.FileHandler(
             LOG_PATH / f"{module_name}.log",
