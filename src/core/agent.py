@@ -410,7 +410,6 @@ class Agent:
             },
         )
 
-        # monitoring에서 critical_end까지의 critical_interval = (원래 monitoring_interval) - (bayesian변화 차이)
         nx.set_edge_attributes(
             state.constraints,
             {
