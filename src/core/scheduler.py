@@ -196,7 +196,7 @@ class Scheduler:
         """
         Expand the current node for both feasible and not-yet-feasible subtasks.
 
-        - Feasible candidates are sorted by earliest_start_time (descending),
+        - Feasible candidates are sorted by earliest_start_time (ascending),
           then expanded via `_expand_single_subtask`.
         - If no feasible expansion is done and we have not-yet-feasible tasks,
           we insert a single Wait expansion (the earliest not-yet-feasible candidate).
@@ -214,10 +214,9 @@ class Scheduler:
         is_expanded = False
 
         # * (A) Expand feasible candidates:
-        # *    Sort by earliest_start_time in descending order
-        # ? 왜 descending order로 정렬하는지?
+
         sorted_feasible = sorted(
-            feasible_candidates, key=lambda c: c.earliest_start_time, reverse=True
+            feasible_candidates, key=lambda c: c.earliest_start_time, reverse=False
         )
         for candidate in sorted_feasible:
             log.debug(
@@ -554,7 +553,6 @@ class Scheduler:
         remain_sub.duration.interval = post_actions_info.results[-1].time_used
         remain_sub.decomposed = True
 
-        # ? 너무 범용성 없는 코드인지 확인 필요
         monitoring_target_obj = list(critical_constraint_start_sub_objs.keys())[-1]
         mon_sub = make_monitoring_subtask(
             name=deadline_sub_name, obj=monitoring_target_obj
@@ -634,15 +632,19 @@ class Scheduler:
             mon_sub.name,
             info={"Interval": early_sub.duration.interval, "IsCritical": True},
         )
+
         new_constraints.add_edge(
             mon_sub.name,
             deadline_sub_name,
             info={
                 "Interval": max_critical_interval
                 - early_sub.duration.interval
-                - mon_sub.duration.interval,
+                - MONITORING_DURATION,
                 "IsCritical": True,
             },
+        )
+        log.debug(
+            f"[_expand_subtask_with_monitoring] monitoring for {deadline_sub_name}, {max_critical_interval}, {- early_sub.duration.interval - mon_sub.duration.interval}"
         )
 
         new_state = SchedulerState(
@@ -819,10 +821,6 @@ class Scheduler:
         depth = curr_node.depth
 
         total_wait_duration = candidate.earliest_start_time - curr_state.current_time
-        if total_wait_duration < 0:
-            raise ValueError(
-                f"[_expand_wait_with_monitoring] Negative wait duration: {total_wait_duration}"
-            )
 
         wait_sub = Subtask(
             task_name=None,
