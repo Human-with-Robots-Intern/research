@@ -17,6 +17,11 @@ def create_module_logger(module_name, is_file_handler=False):
     # 개별 로그 생성
     logger = logging.getLogger(module_name)
     logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+
+    # 기존 핸들러가 있는지 확인하여 중복 추가 방지
+    if logger.hasHandlers():
+        return logger
 
     # 콘솔 핸들러 추가
 

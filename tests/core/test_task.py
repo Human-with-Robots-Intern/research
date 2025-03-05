@@ -5,11 +5,9 @@ from unittest import TestCase, main
 
 from core.task import Task, TaskGraphBuilder
 from utils.constants import TASK_PATH
+from utils.util import create_module_logger
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+logger = create_module_logger(__name__, is_file_handler=True)
 
 
 class TestTaskSystem(TestCase):
@@ -58,7 +56,7 @@ class TestTaskSystem(TestCase):
 
         # 그래프 노드 및 엣지 확인
         self.assertEqual(len(graph.nodes), 4)
-        self.assertEqual(len(graph.edges), 3) # TemporalConstraints에 기반한 엣지 수
+        self.assertEqual(len(graph.edges), 3)  # TemporalConstraints에 기반한 엣지 수
 
         # 특정 엣지 확인
         self.assertTrue(graph.has_edge("Place_in Bread Toaster", "Toggle_on Toaster"))
