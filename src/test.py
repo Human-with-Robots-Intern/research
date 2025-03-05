@@ -93,7 +93,7 @@ def main():
             time = execute_subtask(controller, next_state.subtask)
 
         if next_state.subtask.type == "Monitor":
-            next_state = agent.bayesian_estimate(next_state, subtasks)
+            next_state = agent.bayesian_estimate(next_state)
 
         current_state = next_state
 
