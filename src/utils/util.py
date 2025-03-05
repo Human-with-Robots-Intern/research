@@ -37,16 +37,16 @@ def create_module_logger(module_name, module_log=False, all_log=True):
             "CRITICAL": "red,bg_white",
         },
     )
-    # 파일 핸들러 (all)
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
+    # 파일 핸들러 (all)
     file_handler = logging.FileHandler(
         LOG_PATH / "all_log" / f"{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.log",
         mode="a",
     )
 
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(logging.INFO)
     file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
