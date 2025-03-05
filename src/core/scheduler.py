@@ -432,7 +432,7 @@ class Scheduler:
         log.info(
             f"[_expand_subtask_wo_monitoring] Subtask {candidate.subtask.name}\n"
             f"  -> Score={round(new_cost, 2)}, Interval={round(start_time,2)}~{round(end_time,2)}\n"
-            f"  -> Updated remain={[r.name for r in new_remain]}"
+            f"  -> Updated remain={[r.name for r in new_remain]}\n"
         )
 
         return SimulationNode(
@@ -573,7 +573,7 @@ class Scheduler:
             log.debug(
                 f"[_expand_subtask_with_monitoring] Deadline {deadline_due} < "
                 f"earliest_finish_time {end_time}"
-                f"=> Infeasible."
+                f"=> Infeasible.\n"
             )
             return None
 
@@ -662,7 +662,7 @@ class Scheduler:
             f"[_expand_subtask_with_monitoring] Subtask {candidate.subtask.name} => early_sub: {early_sub.name}\n"
             f"  -> Score={round(new_cost, 2)}, "
             f"Interval={round(completed_entry.start_time,2)}~{round(completed_entry.end_time,2)}\n"
-            f"  -> Updated remain={[r.name for r in new_remain]}"
+            f"  -> Updated remain={[r.name for r in new_remain]}\n"
         )
         return SimulationNode(
             parent_node=curr_node,
@@ -787,7 +787,7 @@ class Scheduler:
             f"[_expand_wait_with_monitoring] Subtask {navigate_sub.name}\n"
             f"  -> Score={round(new_cost, 2)}, "
             f"Interval={round(start_time,2)}~{round(end_time,2)}\n"
-            f"  -> Updated remain={[r.name for r in new_remain]}"
+            f"  -> Updated remain={[r.name for r in new_remain]}\n"
         )
 
         return SimulationNode(
@@ -859,7 +859,7 @@ class Scheduler:
             f"[_expand_wait_wo_monitoring] WAIT subtask {candidate.subtask.name}\n"
             f"  -> Score={round(new_cost, 2)}, "
             f"Interval={round(start_time,2)}~{round(end_time,2)}\n"
-            f"  -> Updated remain={[r.name for r in curr_state.remaining_subtasks]}"
+            f"  -> Updated remain={[r.name for r in curr_state.remaining_subtasks]}\n"
         )
 
         return SimulationNode(
