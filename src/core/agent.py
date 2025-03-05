@@ -422,28 +422,4 @@ class Agent:
             },
         )
 
-        return statet(known_sub_name, {})
-        prior_mean = prior_data.get("expected_duration", 0.0)
-        prior_variance = prior_data.get("variance", 0.0)
-
-        # 6) Bayesian 업데이트 계산
-        posterior_mean, posterior_variance = self._bayesian_update(
-            prior_mean,
-            prior_variance,
-            elapsed_time,
-            ground_truth_value,
-            noise_sigma=0.015,
-        )
-
-        # 7) knowledge 및 constraints 업데이트
-        self._update_knowledge_and_constraints(
-            state,
-            known_sub_name,
-            posterior_mean,
-            posterior_variance,
-            critical_start_sub_name,
-            monitoring_target_sub_name,
-            critical_start_sub_end_time,
-        )
-
         return state
