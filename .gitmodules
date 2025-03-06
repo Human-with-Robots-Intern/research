@@ -1,0 +1,6 @@
+[submodule "src/baselines/DAG_EDF"]
+	path = src/baselines/DAG_EDF
+	url = https://github.com/Human-with-Robots-Intern/DAG_EDF.git
+[submodule "src/baselines/progprompt"]
+	path = src/baselines/progprompt
+	url = https://github.com/Human-with-Robots-Intern/progprompt.git
