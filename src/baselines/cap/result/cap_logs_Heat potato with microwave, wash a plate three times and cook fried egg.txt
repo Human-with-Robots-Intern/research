@@ -1,0 +1,46 @@
+pickup Potato|-01.66|+00.93|-02.15: success
+open Microwave|-00.24|+01.69|-02.53: success
+put Microwave|-00.24|+01.69|-02.53: success
+Alternative Action: Drop: success
+close Microwave|-00.24|+01.69|-02.53: success
+toggle on Microwave|-00.24|+01.69|-02.53: success
+toggle off Microwave|-00.24|+01.69|-02.53: success
+open Microwave|-00.24|+01.69|-02.53: success
+pickup Potato|-01.66|+00.93|-02.15: success
+put CounterTop|-00.08|+01.15|00.00: success
+Alternative Action: Drop: success
+open Cabinet|+00.72|+02.02|-02.46: success
+close Cabinet|+00.72|+02.02|-02.46: success
+toggle on Faucet|-02.15|+00.91|-01.50: success
+put Sink|-01.90|+00.97|-01.50|SinkBasin: success
+Alternative Action: Drop: success
+toggle off Faucet|-02.15|+00.91|-01.50: success
+pickup Plate|+00.96|+01.65|-02.61: success
+put CounterTop|-00.08|+01.15|00.00: success
+Alternative Action: Drop: success
+pickup Plate|+00.96|+01.65|-02.61: success
+toggle on Faucet|-02.15|+00.91|-01.50: success
+put Sink|-01.90|+00.97|-01.50|SinkBasin: success
+Alternative Action: Drop: success
+toggle off Faucet|-02.15|+00.91|-01.50: success
+pickup Plate|+00.96|+01.65|-02.61: success
+put CounterTop|-00.08|+01.15|00.00: success
+Alternative Action: Drop: success
+pickup Plate|+00.96|+01.65|-02.61: success
+toggle on Faucet|-02.15|+00.91|-01.50: success
+put Sink|-01.90|+00.97|-01.50|SinkBasin: success
+Alternative Action: Drop: success
+toggle off Faucet|-02.15|+00.91|-01.50: success
+pickup Plate|+00.96|+01.65|-02.61: success
+put CounterTop|-00.08|+01.15|00.00: success
+Alternative Action: Drop: success
+pickup Pan|+00.72|+00.90|-02.42: success
+put StoveBurner|-00.04|+00.92|-02.37: success
+Alternative Action: Drop: success
+open Fridge|-02.10|+00.00|+01.07: success
+close Fridge|-02.10|+00.00|+01.07: success
+put Pan|+00.72|+00.90|-02.42: success
+Alternative Action: Drop: success
+slice Egg|-02.04|+00.81|+01.24: success
+toggle on StoveKnob|-00.02|+00.88|-02.19: success
+toggle off StoveKnob|-00.02|+00.88|-02.19: success
