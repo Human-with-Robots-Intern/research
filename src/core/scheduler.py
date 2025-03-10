@@ -24,7 +24,7 @@ from utils.constants import (
 from utils.task.task_util import make_monitoring_subtask
 from utils.util import create_module_logger
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+log = create_module_logger(module_name=__name__, module_log=True)
 
 
 class Scheduler:
@@ -196,7 +196,7 @@ class Scheduler:
         """
         Expand the current node for both feasible and not-yet-feasible subtasks.
 
-        - Feasible candidates are sorted by earliest_start_time (descending),
+        - Feasible candidates are sorted by earliest_start_time (ascending),
           then expanded via `_expand_single_subtask`.
         - If no feasible expansion is done and we have not-yet-feasible tasks,
           we insert a single Wait expansion (the earliest not-yet-feasible candidate).
@@ -214,12 +214,12 @@ class Scheduler:
         is_expanded = False
 
         # * (A) Expand feasible candidates:
-        # *    Sort by earliest_start_time in descending order
-        # ? 왜 descending order로 정렬하는지?
+        # * Descending인 이유, Critical In 제약이 존재하는 subtask는 earliest_start_time이 0이 아닌 current_time과 근사한 경우임
         sorted_feasible = sorted(
             feasible_candidates, key=lambda c: c.earliest_start_time, reverse=True
         )
         for candidate in sorted_feasible:
+
             log.debug(
                 f"[_expand_candidates] Attempting to expand feasible subtask: {candidate.subtask.name}.\n"
             )
@@ -432,7 +432,7 @@ class Scheduler:
         log.info(
             f"[_expand_subtask_wo_monitoring] Subtask {candidate.subtask.name}\n"
             f"  -> Score={round(new_cost, 2)}, Interval={round(start_time,2)}~{round(end_time,2)}\n"
-            f"  -> Updated remain={[r.name for r in new_remain]}"
+            f"  -> Updated remain={[r.name for r in new_remain]}\n"
         )
 
         return SimulationNode(
@@ -548,13 +548,15 @@ class Scheduler:
         early_sub.duration.interval = pre_actions_info.results[-1].time_used
         early_sub.decomposed = True
 
+        if early_sub.name.startswith("Wash Fork_early"):
+            pass
+
         remain_sub = copy.deepcopy(candidate.subtask)
         remain_sub.name += "_remain"
         remain_sub.execution.primitive_actions = post_actions_info.get_actions()
         remain_sub.duration.interval = post_actions_info.results[-1].time_used
         remain_sub.decomposed = True
-
-        # ? 너무 범용성 없는 코드인지 확인 필요
+        
         monitoring_target_obj = list(critical_constraint_start_sub_objs.keys())[-1]
         mon_sub = make_monitoring_subtask(
             name=deadline_sub_name, obj=monitoring_target_obj
@@ -573,7 +575,7 @@ class Scheduler:
             log.debug(
                 f"[_expand_subtask_with_monitoring] Deadline {deadline_due} < "
                 f"earliest_finish_time {end_time}"
-                f"=> Infeasible."
+                f"=> Infeasible.\n"
             )
             return None
 
@@ -634,15 +636,20 @@ class Scheduler:
             mon_sub.name,
             info={"Interval": early_sub.duration.interval, "IsCritical": True},
         )
+
+        remain_critical_interval = (
+            max_critical_interval - early_sub.duration.interval - MONITORING_DURATION
+        )
         new_constraints.add_edge(
             mon_sub.name,
             deadline_sub_name,
             info={
-                "Interval": max_critical_interval
-                - early_sub.duration.interval
-                - mon_sub.duration.interval,
+                "Interval": remain_critical_interval,
                 "IsCritical": True,
             },
+        )
+        log.debug(
+            f"[_expand_subtask_with_monitoring] monitoring for {deadline_sub_name}, {max_critical_interval}, {- early_sub.duration.interval - mon_sub.duration.interval}"
         )
 
         new_state = SchedulerState(
@@ -662,7 +669,7 @@ class Scheduler:
             f"[_expand_subtask_with_monitoring] Subtask {candidate.subtask.name} => early_sub: {early_sub.name}\n"
             f"  -> Score={round(new_cost, 2)}, "
             f"Interval={round(completed_entry.start_time,2)}~{round(completed_entry.end_time,2)}\n"
-            f"  -> Updated remain={[r.name for r in new_remain]}"
+            f"  -> Updated remain={[r.name for r in new_remain]}\n"
         )
         return SimulationNode(
             parent_node=curr_node,
@@ -787,7 +794,7 @@ class Scheduler:
             f"[_expand_wait_with_monitoring] Subtask {navigate_sub.name}\n"
             f"  -> Score={round(new_cost, 2)}, "
             f"Interval={round(start_time,2)}~{round(end_time,2)}\n"
-            f"  -> Updated remain={[r.name for r in new_remain]}"
+            f"  -> Updated remain={[r.name for r in new_remain]}\n"
         )
 
         return SimulationNode(
@@ -819,10 +826,6 @@ class Scheduler:
         depth = curr_node.depth
 
         total_wait_duration = candidate.earliest_start_time - curr_state.current_time
-        if total_wait_duration < 0:
-            raise ValueError(
-                f"[_expand_wait_with_monitoring] Negative wait duration: {total_wait_duration}"
-            )
 
         wait_sub = Subtask(
             task_name=None,
@@ -859,7 +862,7 @@ class Scheduler:
             f"[_expand_wait_wo_monitoring] WAIT subtask {candidate.subtask.name}\n"
             f"  -> Score={round(new_cost, 2)}, "
             f"Interval={round(start_time,2)}~{round(end_time,2)}\n"
-            f"  -> Updated remain={[r.name for r in curr_state.remaining_subtasks]}"
+            f"  -> Updated remain={[r.name for r in curr_state.remaining_subtasks]}\n"
         )
 
         return SimulationNode(

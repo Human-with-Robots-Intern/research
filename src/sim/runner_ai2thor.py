@@ -1,11 +1,12 @@
 import sys
+
 from ai2thor.controller import Controller
 
 from ithor.handlers.action import Action
 from ithor.utils.constants import *
 from utils.util import create_module_logger
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+log = create_module_logger(module_name=__name__, module_log=True)
 
 
 def init_ai2thor():
@@ -108,8 +109,8 @@ def execute_subtask(controller, subtask):
         "PLACE_ON_TOP": lambda target_obj: act.put(target_obj),
         "OPEN": lambda target_obj: act.open(target_obj),
         "CLOSE": lambda target_obj: act.close(target_obj),
-        "TOGGLE_ON": lambda target_obj: act.toggleon(target_obj),
-        "TOGGLE_OFF": lambda target_obj: act.toggleoff(target_obj),
+        "TOGGLE_ON": lambda target_obj: act.toggle_on(target_obj),
+        "TOGGLE_OFF": lambda target_obj: act.toggle_off(target_obj),
         "SLICE": lambda target_obj: act.slice(target_obj),
         "MONITORING": lambda target_obj: act.monitoring(target_obj),
         "WAIT": lambda duration: act.wait(round(float(duration), 2)),

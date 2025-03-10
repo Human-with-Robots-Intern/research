@@ -1,9 +1,8 @@
 import copy
 import heapq
 import math
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
-from core.task import Duration, Execution, Subtask
 from ithor.utils.math_utils import adjust_if_unreachable
 from scheduler.dataclass import ActionResult, ActionSimulationLog, SimulationNode
 from utils.constants import (
@@ -14,7 +13,7 @@ from utils.constants import (
 )
 from utils.util import create_module_logger
 
-log = create_module_logger(__name__, is_file_handler=True)
+log = create_module_logger(__name__, module_log=True)
 
 
 class ActionHandler:

@@ -1,3 +1,4 @@
+import textwrap
 from pathlib import Path
 from typing import List
 
@@ -19,64 +20,79 @@ def visualize(task_name, constraints, plan=None):
 
 
 def visualize_graph(G: nx.DiGraph, save_folder_path="debug", is_display=False):
-    pos = nx.spring_layout(G, k=0.5)  # Adjusting the k value for layout optimization
-    plt.figure(figsize=(10, 8))  # Adjust the figure size to make it more readable
+    def wrap_label(label, width=10):
+        """너무 긴 라벨을 일정 너비로 줄바꿈해 반환"""
+        return "\n".join(textwrap.wrap(label, width=width))
 
-    # Define edge labels based on the Interval attribute from edge data
+    # Graphviz layout 사용 (dot, neato, twopi 등)
+    pos = nx.nx_agraph.graphviz_layout(G, prog="dot")
+
+    plt.figure(figsize=(10, 8))
+
+    # 노드 라벨 설정: G의 노드 정보에서 라벨을 가져오거나 노드ID를 사용
+    node_labels = {}
+    for node in G.nodes():
+        # 예: 노드에 'label' 키가 있다면 가져오고, 없으면 노드ID(str(node)) 사용
+        original_label = str(G.nodes[node].get("label", node))
+        node_labels[node] = wrap_label(original_label, width=10)
+
+    # 간선 라벨 설정
     edge_labels = {
-        (u, v): f"{round(d['info']['Interval'], LOG_ROUND)}"
-        for u, v, d in G.edges(data=True)
+        (u, v): f"{round(d['info']['Interval'], 2)}" for u, v, d in G.edges(data=True)
     }
 
-    # Define a color map for different subtask types
+    # 노드 색상 설정
     color_map = {
         "Monitoring": "pink",
         "Interaction": "lightblue",
     }
-
-    # Assign colors to nodes based on their subtask type
     node_colors = [
         color_map.get(G.nodes[node].get("subtask_type", "Interaction"), "gray")
         for node in G.nodes
     ]
 
-    # Assign colors to edges based on is_critical attribute
+    # 간선 색상 설정
     edge_colors = [
         "red" if data["info"]["IsCritical"] else "blue"
         for _, _, data in G.edges(data=True)
     ]
 
-    # Draw the nodes with specified attributes
+    # 1) 먼저 노드, 엣지만 그린다 (with_labels=False)
     nx.draw(
         G,
         pos,
-        with_labels=True,
+        with_labels=False,
         node_size=1500,
         node_color=node_colors,
-        font_size=10,
-        font_weight="bold",
         edge_color=edge_colors,
         arrows=True,
     )
 
-    # Draw edge labels with specified font color
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_color="black")
+    # 2) 줄바꿈된 라벨을 따로 그린다
+    nx.draw_networkx_labels(
+        G,
+        pos,
+        labels=node_labels,
+        font_size=8,
+        font_weight="bold",
+    )
 
-    # Create handles for legend items
+    # 3) 간선 라벨 (rotate=False로 세로 돌림 방지)
+    nx.draw_networkx_edge_labels(
+        G, pos, edge_labels=edge_labels, font_color="black", rotate=False
+    )
+
+    # 범례(예시)
     red_edge = plt.Line2D([0], [0], color="red", lw=2)
     blue_edge = plt.Line2D([0], [0], color="blue", lw=2)
-
-    # Add a legend to the plot
     plt.legend(
         [red_edge, blue_edge], ["Critical", "Not Critical"], loc="best", frameon=True
     )
 
-    # Set the title of the plot
     plt.title("Directed Acyclic Graph (DAG) with Edge Info")
 
-    # Save the plot to a file
+    # 결과 저장
     plt.savefig(Path(save_folder_path) / "task_graph.png")
-
     if is_display:
         plt.show()
     else:

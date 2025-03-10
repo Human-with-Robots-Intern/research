@@ -15,7 +15,7 @@ from utils.task import (
 )
 from utils.task.task_io import load_scene_positions
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+log = create_module_logger(module_name=__name__, module_log=True)
 
 
 def parse_arguments():
@@ -75,7 +75,7 @@ def main():
 
     agent = Agent()
 
-    scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph)
+    scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph=nav_graph)
 
     result_schedule = []
     current_state = get_init_state(subtasks, constraints, scene_poses)
@@ -93,7 +93,7 @@ def main():
             time = execute_subtask(controller, next_state.subtask)
 
         if next_state.subtask.type == "Monitor":
-            next_state = agent.bayesian_estimate(next_state, subtasks)
+            next_state = agent.bayesian_estimate(next_state)
 
         current_state = next_state
 
@@ -107,8 +107,7 @@ def main():
         log.info(
             f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
-        log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}")
-        log.info("\n")
+        log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
 
 
 if __name__ == "__main__":

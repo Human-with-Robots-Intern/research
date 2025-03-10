@@ -1,7 +1,8 @@
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 import json
 from collections import defaultdict
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 
 def find(parent, x):

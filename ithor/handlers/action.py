@@ -1,6 +1,7 @@
+import time
+
 from ..utils.constants import SMOOTH_LEVEL
 from .navigation_handler import NavigationHandler
-import time
 
 
 class Action:
@@ -210,7 +211,7 @@ class Action:
         time.sleep(0.3)
         return 1
 
-    def toggleon(self, object_id: str):
+    def toggle_on(self, object_id: str):
         """
         Toggle the specified object on.
 
@@ -226,7 +227,7 @@ class Action:
         time.sleep(0.3)
         return 1
 
-    def toggleoff(self, object_id: str):
+    def toggle_off(self, object_id: str):
         """
         Toggle the specified object off.
 

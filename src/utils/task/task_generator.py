@@ -16,10 +16,11 @@ from utils.constants import (
     PROMPT_PATH,
     TASK_PATH,
 )
+from utils.util import create_module_logger
 
 # Logging configuration
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+
+logger = create_module_logger(__name__, module_log=True)
 
 
 def initialize_openai() -> openai.OpenAI:

@@ -8,7 +8,7 @@ from utils.util import create_module_logger
 
 from ..utils.constants import GRID_SIZE
 
-log = create_module_logger(module_name=__name__, is_file_handler=True)
+log = create_module_logger(module_name=__name__, module_log=True)
 
 
 def build_navigation_graph(
