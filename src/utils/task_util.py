@@ -8,6 +8,12 @@ import json
 import requests
 
 # from utils.dataclass import CompletedEntry, SchedulerState
+from pathlib import Path
+
+# 프로젝트 루트 경로 설정
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+ASSETS_PATH = PROJECT_ROOT / Path("assets")
+
 
 API_URL = (
     "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
@@ -21,7 +27,8 @@ def query(payload):
     return response.json()
 
 def load_object_Ids():
-    with open("data/FloorPlan1_physics_environment.json", "r") as f:
+    object_file = ASSETS_PATH / Path("knowledge/FloorPlan1_physics_environment.json")
+    with open(object_file, "r") as f:
         objectIds = json.load(f)
     return objectIds
 
