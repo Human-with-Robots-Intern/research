@@ -10,6 +10,9 @@ import ast
 import astunparse
 from time import sleep
 
+import os
+base_dir = os.path.dirname(os.path.abspath(__file__))
+
 
 import numpy as np
 
@@ -19,7 +22,7 @@ client = OpenAI(
     api_key="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"
 )
 
-log_file = open("cap/result/cap_plan.txt", "w", buffering=1)
+log_file = open(os.path.join(base_dir, "../result/cap_plan.txt"), "w", buffering=1)
 
 
 class LMP:
@@ -384,7 +387,7 @@ class LMP_wrapper:
         return self.object_names[::]
 
     def get_obj_id(self, obj_name):
-        hmm = open("cap/hmm_log.txt", "w", buffering=1)
+        hmm = open("hmm_log.txt", "w", buffering=1)
         for obj in self.controller.last_event.metadata["objects"]:
             hmm.write(
                 f"{obj['objectType'].lower()} == {obj_name}: {obj['objectType'].lower() == obj_name}\n"
