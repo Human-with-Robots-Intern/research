@@ -51,7 +51,7 @@ def create_module_logger(module_name, is_file_handler=False):
     if is_file_handler:
         logger.setLevel("DEBUG")
         file_handler = logging.FileHandler(
-            f"{ Path(__file__).resolve().parent.parent}/logs/{module_name}.log",
+            f"{ Path(__file__).resolve().parent.parent.parent}/logs/{module_name}.log",
             "a",
         )
         file_handler.setFormatter(
