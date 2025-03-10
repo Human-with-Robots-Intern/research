@@ -1,0 +1,174 @@
+Starting simulation for task: Heat potato with Microwave. Wash a plate three times and cook fried egg
+Executing action: ['walk', 'potato']
+success
+Executing action: ['pickup', 'potato']
+success
+Executing action: ['walk', 'microwave']
+success
+State check:
+You see: Microwave is isToggledOff and isHeatSource and isClosed, Potato is isPickedUp, .  You have Potato. 
+assert('close' to 'Microwave')
+True
+State check:
+You see: Microwave is isToggledOff and isHeatSource and isClosed, Potato is isPickedUp, .  You have Potato. 
+assert('Microwave' is 'open')
+False
+Executing action: ['open', 'microwave']
+success
+State check:
+You see: Microwave is isToggledOff and isHeatSource and isClosed, Potato is isPickedUp
+put('Potato', 'Microwave')
+False
+Executing action: ['put', 'potato', 'microwave']
+success
+Alternative Action: Drop: success
+State check:
+You see: Microwave is isToggledOff and isHeatSource and isClosed, Potato is isPickedUp
+close('Microwave')
+True
+Executing action: ['close', 'microwave']
+success
+Executing action: ['toggleon', 'microwave']
+success
+State check:
+You see: Cabinet is isClosed, Microwave is isToggled and isHeatSource and isClosed, Cabinet holds WineBottle, Cabinet holds Cup, Microwave holds Potato. 
+assert('Potato' is 'cooked')
+False
+State check:
+You see: Cabinet is isClosed, Microwave is isToggled and isHeatSource and isClosed
+toggleoff('Microwave')
+True
+Executing action: ['toggleoff', 'microwave']
+success
+Executing action: ['open', 'microwave']
+success
+Executing action: ['pickup', 'potato']
+success
+Executing action: ['close', 'microwave']
+success
+Executing action: ['walk', 'countertop']
+success
+Executing action: ['put', 'potato', 'countertop']
+success
+Alternative Action: Drop: success
+Executing action: ['walk', 'plate']
+success
+Executing action: ['pickup', 'plate']
+success
+success
+Executing action: ['walk', 'faucet']
+success
+Executing action: ['toggleon', 'faucet']
+success
+Executing action: ['put', 'plate', 'sinkbasin']
+success
+Alternative Action: Drop: success
+Executing action: ['toggleoff', 'faucet']
+success
+Executing action: ['pickup', 'plate']
+success
+Executing action: ['toggleon', 'faucet']
+success
+Executing action: ['put', 'plate', 'sinkbasin']
+success
+Alternative Action: Drop: success
+Executing action: ['toggleoff', 'faucet']
+success
+Executing action: ['pickup', 'plate']
+success
+Executing action: ['toggleon', 'faucet']
+success
+Executing action: ['put', 'plate', 'sinkbasin']
+success
+Alternative Action: Drop: success
+Executing action: ['toggleoff', 'faucet']
+success
+Executing action: ['pickup', 'plate']
+success
+Executing action: ['walk', 'countertop']
+success
+Executing action: ['put', 'plate', 'countertop']
+success
+Alternative Action: Drop: success
+State check:
+You see: Plate, Potato is isCooked, CounterTop, Apple, Bread, Floor, ButterKnife, CounterTop holds Book, CounterTop holds Bowl, CounterTop holds CreditCard, CounterTop holds Apple, CounterTop holds Potato, CounterTop holds Bread, CounterTop holds ButterKnife, CounterTop holds Tomato, CounterTop holds Plate, Floor holds Stool, Floor holds Stool, Floor holds ShelvingUnit, Floor holds Fridge, Floor holds GarbageCan. 
+assert('Pan' on 'StoveBurner')
+False
+Executing action: ['walk', 'pan']
+success
+Executing action: ['pickup', 'pan']
+success
+Executing action: ['walk', 'stoveburner']
+success
+Executing action: ['put', 'pan', 'stoveburner']
+success
+Alternative Action: Drop: success
+State check:
+You see: 
+walk('StoveKnob')
+False
+Executing action: ['walk', 'stoveknob']
+success
+State check:
+You see: 
+toggleon('StoveKnob')
+False
+Executing action: ['toggleon', 'stoveknob']
+success
+State check:
+You see: 
+walk('Egg')
+False
+Executing action: ['walk', 'egg']
+success
+State check:
+You see: 
+pickup('Egg')
+False
+Executing action: ['pickup', 'egg']
+success
+success
+State check:
+You see: 
+walk('Pan')
+False
+Executing action: ['walk', 'pan']
+success
+State check:
+You see: Cabinet is isClosed, CounterTop, Drawer is isClosed, Pan, Egg is isPickedUp, SaltShaker, StoveBurner is isHeatSource, StoveKnob is isToggled, Spatula, PepperShaker, Floor, StoveKnob is isToggledOff, StoveBurner holds Pan, CounterTop holds Kettle, CounterTop holds PepperShaker, CounterTop holds Spatula, CounterTop holds SaltShaker, CounterTop holds Pan, Floor holds Stool, Floor holds Stool, Floor holds ShelvingUnit, Floor holds Fridge, Floor holds GarbageCan, CounterTop holds Toaster, CounterTop holds CoffeeMachine, CounterTop holds Mug, CounterTop holds Lettuce, CounterTop holds PaperTowelRoll, CounterTop holds Pot, CounterTop holds HousePlant, CounterTop holds SoapBottle.  You have Egg. 
+assert('Egg' in 'hand')
+True
+State check:
+You see: Cabinet is isClosed, CounterTop, Drawer is isClosed, Pan, Egg is isPickedUp, SaltShaker, StoveBurner is isHeatSource, StoveKnob is isToggled, Spatula, PepperShaker, Floor, StoveKnob is isToggledOff, StoveBurner holds Pan, CounterTop holds Kettle, CounterTop holds PepperShaker, CounterTop holds Spatula, CounterTop holds SaltShaker, CounterTop holds Pan, Floor holds Stool, Floor holds Stool, Floor holds ShelvingUnit, Floor holds Fridge, Floor holds GarbageCan, CounterTop holds Toaster, CounterTop holds CoffeeMachine, CounterTop holds Mug, CounterTop holds Lettuce, CounterTop holds PaperTowelRoll, CounterTop holds Pot, CounterTop holds HousePlant, CounterTop holds SoapBottle.  You have Egg. 
+assert('close' to 'Pan')
+False
+Executing action: ['walk', 'pan']
+success
+State check:
+You see: 
+put('Egg', 'Pan')
+False
+Executing action: ['put', 'egg', 'pan']
+success
+Alternative Action: Drop: success
+State check:
+You see: 
+slice('Egg')
+False
+Executing action: ['slice', 'egg']
+success
+State check:
+You see: 
+walk('StoveKnob')
+False
+Executing action: ['walk', 'stoveknob']
+success
+State check:
+You see: 
+toggleoff('StoveKnob')
+False
+Executing action: ['toggleoff', 'stoveknob']
+success
+
+
+elapsed_time=62.199999999999996
