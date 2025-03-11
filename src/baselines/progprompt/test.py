@@ -10,19 +10,18 @@ import numpy as np
 import openai
 import prior
 from ai2thor.controller import Controller
-from handlers.action import Action
+from ithor.handlers.action import Action
 
 # setting.json 에 ai2thor 위치 환경변수 추가한 상태로 해야함.
-from handlers.arm_handler import ArmHandler
-from handlers.camera_handler import CameraHandler
-from handlers.interaction_handler import InteractionHandler
-from handlers.move_handler import MoveHandler
-from handlers.navigation_handler import NavigationHandler
+from ithor.handlers.arm_handler import ArmHandler
+from ithor.handlers.camera_handler import CameraHandler
+from ithor.handlers.interaction_handler import InteractionHandler
+from ithor.handlers.move_handler import MoveHandler
+from ithor.handlers.navigation_handler import NavigationHandler
 from util.utils_execute import *
 
-from archive.teleoperation import Teleoperation
-from utils.constants import *
-from utils.file_utils import *
+from ithor.utils.constants import *
+from ithor.utils.file_utils import *
 
 
 def initialize_controller():
