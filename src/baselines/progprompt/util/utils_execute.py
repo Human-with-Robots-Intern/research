@@ -2,13 +2,13 @@ import random
 
 from ai2thor.controller import Controller
 
-from handlers.arm_handler import ArmHandler
-from handlers.camera_handler import CameraHandler
-from handlers.interaction_handler import InteractionHandler
-from handlers.move_handler import MoveHandler
-from handlers.navigation_handler import NavigationHandler
+from ithor.handlers.arm_handler import ArmHandler
+from ithor.handlers.camera_handler import CameraHandler
+from ithor.handlers.interaction_handler import InteractionHandler
+from ithor.handlers.move_handler import MoveHandler
+from ithor.handlers.navigation_handler import NavigationHandler
 
-from handlers.action import Action
+from ithor.handlers.action import Action
 
 import numpy as np
 import math
