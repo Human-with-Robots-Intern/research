@@ -94,7 +94,8 @@ def generate_plan(controller, args):
         # save generated plan
         line = {}
         print(f"Saving generated plan at: {task}.json\n")
-        with open(f"progprompt/result/plans_of_{task}.json", "w") as f:
+        plan_of_task_path = os.path.join(current_dir,f"result/plans_of_{task}.json")
+        with open(plan_of_task_path, "w") as f:
             for plan, task in zip(gen_plan, test_tasks):
                 line[task] = plan
             json.dump(line, f)
@@ -109,7 +110,7 @@ def planner_executer(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser() 
 
     parser.add_argument(
         "--prompt-task-examples",
@@ -132,16 +133,17 @@ if __name__ == "__main__":
         default="none",
         choices=["none", "no_comments", "no_feedback", "no_comments_feedback"],
     )
-    parser.add_argument("--openai-api-key", type=str, default="sk-xyz")
+    parser.add_argument("--openai-api-key", type=str, default="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")
 
     parser.add_argument(
         "--gpt-version",
         type=str,
         default="gpt-4o",
-        choices=["gpt-4o", "gpt-40-mini"],
+        choices=["gpt-4o", "gpt-4o-mini"],
     )
     parser.add_argument("--load-generated-plans", type=bool, default=False)
 
+    
     args = parser.parse_args()
     openai.api_key = args.openai_api_key
 
