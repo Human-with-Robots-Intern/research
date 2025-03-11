@@ -40,11 +40,7 @@ def initialize_controller(log_file):
     )
     camera_handler = CameraHandler(controller)
     Navi = NavigationHandler(controller)
-
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger(__name__)
-
-    Act = Action(controller, log=logger)
+    Act = Action(controller) # log 인자
 
     return controller, camera_handler, Navi, Act
 
