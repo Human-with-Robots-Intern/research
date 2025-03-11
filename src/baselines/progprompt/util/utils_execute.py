@@ -292,8 +292,8 @@ current_state_prompt = get_current_state_prompt()
 def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
     elapsed_time = 0
     camera_handler = CameraHandler(controller)
-    Navi = NavigationHandler(controller, camera_handler)
-    Act = Action(controller, Navi, camera_handler, log_file)
+    Navi = NavigationHandler(controller)
+    Act = Action(controller)
     ## gen plan 토대로 실행
     for task, plan in zip(test_tasks, gen_plan):
         log_file.write(f"Starting simulation for task: {task}\n")
@@ -384,7 +384,7 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                 match action[0]:
                     case "walk":
                         # move action
-                        elapsed_time += Navi.move_to(objID)
+                        elapsed_time += Act.move_to(objID)
                         # move_to 뒤에 바로 오는 log 기록은 살짝 무의미해 보임
                         log_file.write(last_action_success(controller))
                     case "pickup":
@@ -406,9 +406,9 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                     case "close":
                         # close action
                         elapsed_time += Act.close(objID)
-                    case "toggleon":
+                    case "toggle_on":
                         elapsed_time += Act.toggleon(objID)
-                    case "toggleoff":
+                    case "toggle_off":
                         elapsed_time += Act.toggleoff(objID)
                     case "fill":
                         liquid = find_objID(controller, action[2])
