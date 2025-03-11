@@ -2,72 +2,98 @@ Starting simulation for task: Heat potato with Microwave. Wash a plate three tim
 Executing action: ['walk', 'potato']
 success
 Executing action: ['pickup', 'potato']
-pickup Potato|-01.66|+00.93|-02.15: success
 Executing action: ['walk', 'microwave']
 success
 State check:
-You see: Microwave is isToggledOff and isHeatSource and isClosed, Potato is isPickedUp, .  You have Potato. 
+You see: Cabinet is isClosed, Potato is isPickedUp, Microwave is isToggledOff and isHeatSource and isClosed, Cabinet holds WineBottle, Cabinet holds Cup.  You have Potato. 
 assert('close' to 'Microwave')
 True
 State check:
-You see: Microwave is isToggledOff and isHeatSource and isClosed, Potato is isPickedUp, .  You have Potato. 
+You see: Cabinet is isClosed, Potato is isPickedUp, Microwave is isToggledOff and isHeatSource and isClosed, Cabinet holds WineBottle, Cabinet holds Cup.  You have Potato. 
 assert('Microwave' is 'open')
 False
 Executing action: ['open', 'microwave']
-open Microwave|-00.24|+01.69|-02.53: success
 State check:
-You see: Microwave is isToggledOff and isHeatSource and isClosed, Potato is isPickedUp
+You see: Cabinet is isClosed, Potato is isPickedUp, Microwave is isToggledOff and isHeatSource and isClosed
 put('Potato', 'Microwave')
 False
 Executing action: ['put', 'potato', 'microwave']
-put Microwave|-00.24|+01.69|-02.53: success
 State check:
-You see: Microwave is isToggledOff and isHeatSource and isClosed, Potato is isPickedUp
+You see: Cabinet is isClosed, Potato is isPickedUp, Microwave is isToggledOff and isHeatSource and isClosed
 close('Microwave')
 False
 Executing action: ['close', 'microwave']
-close Microwave|-00.24|+01.69|-02.53: success
 State check:
-You see: Microwave is isToggledOff and isHeatSource and isClosed, Potato is isPickedUp
+You see: Cabinet is isClosed, Potato is isPickedUp, Microwave is isToggledOff and isHeatSource and isClosed
 toggleon('Microwave')
 True
 Executing action: ['toggleon', 'microwave']
-toggle on Microwave|-00.24|+01.69|-02.53: success
+Invalid action
 State check:
-You see: Microwave is isToggled and isHeatSource and isClosed, CounterTop, Cabinet is isClosed, CounterTop holds Pan, CounterTop holds Kettle, CounterTop holds Spatula, CounterTop holds PepperShaker, CounterTop holds SaltShaker, Cabinet holds WineBottle, Cabinet holds Cup, Microwave holds Potato. 
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed, Cabinet holds WineBottle, Cabinet holds Cup, Microwave holds Potato. 
 assert('Potato' is 'cooked')
 False
 State check:
-You see: Microwave is isToggled and isHeatSource and isClosed, Cabinet is isClosed
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
 toggleoff('Microwave')
-True
+False
 Executing action: ['toggleoff', 'microwave']
-toggle off Microwave|-00.24|+01.69|-02.53: success
+Invalid action
+State check:
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
+open('Microwave')
+False
 Executing action: ['open', 'microwave']
-open Microwave|-00.24|+01.69|-02.53: success
+State check:
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
+pickup('Potato')
+False
 Executing action: ['pickup', 'potato']
-pickup Potato|-01.66|+00.93|-02.15: success
+State check:
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
+close('Microwave')
+False
 Executing action: ['close', 'microwave']
-close Microwave|-00.24|+01.69|-02.53: success
+State check:
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
+walk('CounterTop')
+False
 Executing action: ['walk', 'countertop']
 success
+State check:
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
+put('Potato', 'CounterTop')
+False
 Executing action: ['put', 'potato', 'countertop']
-put CounterTop|-00.08|+01.15|00.00: success
+State check:
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
+for _ in range(3):
+False
 Executing action: ['for', 'in', 'range']
 Invalid action
+State check:
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
+walk('Egg')
+False
 Executing action: ['walk', 'egg']
 success
+State check:
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
+pickup('Egg')
+False
 Executing action: ['pickup', 'egg']
-open Fridge|-02.10|+00.00|+01.07: success
-close Fridge|-02.10|+00.00|+01.07: success
+State check:
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
+walk('Pan')
+False
 Executing action: ['walk', 'pan']
 success
 State check:
-You see: Vase, StoveBurner is isHeatSource, Egg is isPickedUp, SaltShaker, Cabinet is isClosed, PepperShaker, Floor, ShelvingUnit, Spatula, Drawer is isClosed, Shelf, CounterTop, Pan, Kettle is isClosed, Drawer holds Spoon, Drawer holds Fork, CounterTop holds Pan, CounterTop holds Kettle, CounterTop holds Spatula, CounterTop holds PepperShaker, CounterTop holds SaltShaker, Floor holds Stool, Floor holds Stool, Floor holds ShelvingUnit, Floor holds Fridge, Floor holds GarbageCan, Shelf holds Bottle, Shelf holds Statue.  You have Egg. 
+You see: Drawer is isClosed, PepperShaker, SaltShaker, Egg is isPickedUp, ShelvingUnit, Cabinet is isClosed, StoveBurner is isHeatSource, Shelf, CounterTop, Spatula, Kettle is isClosed, Vase, Pan, Drawer holds Spoon, Drawer holds Fork, CounterTop holds Pan, CounterTop holds Kettle, CounterTop holds Spatula, CounterTop holds PepperShaker, CounterTop holds SaltShaker, Shelf holds Bottle.  You have Egg. 
 assert('Egg' in 'hand')
 True
 State check:
-You see: Vase, StoveBurner is isHeatSource, Egg is isPickedUp, SaltShaker, Cabinet is isClosed, PepperShaker, Floor, ShelvingUnit, Spatula, Drawer is isClosed, Shelf, CounterTop, Pan, Kettle is isClosed, Drawer holds Spoon, Drawer holds Fork, CounterTop holds Pan, CounterTop holds Kettle, CounterTop holds Spatula, CounterTop holds PepperShaker, CounterTop holds SaltShaker, Floor holds Stool, Floor holds Stool, Floor holds ShelvingUnit, Floor holds Fridge, Floor holds GarbageCan, Shelf holds Bottle, Shelf holds Statue.  You have Egg. 
+You see: Drawer is isClosed, PepperShaker, SaltShaker, Egg is isPickedUp, ShelvingUnit, Cabinet is isClosed, StoveBurner is isHeatSource, Shelf, CounterTop, Spatula, Kettle is isClosed, Vase, Pan, Drawer holds Spoon, Drawer holds Fork, CounterTop holds Pan, CounterTop holds Kettle, CounterTop holds Spatula, CounterTop holds PepperShaker, CounterTop holds SaltShaker, Shelf holds Bottle.  You have Egg. 
 assert('close' to 'Pan')
 False
 Executing action: ['walk', 'pan']
@@ -77,13 +103,11 @@ You see:
 put('Egg', 'Pan')
 False
 Executing action: ['put', 'egg', 'pan']
-put Pan|+00.72|+00.90|-02.42: success
 State check:
 You see: 
 slice('Egg')
 False
 Executing action: ['slice', 'egg']
-slice Egg|-02.04|+00.81|+01.24: success
 State check:
 You see: 
 walk('StoveKnob')
@@ -93,23 +117,7 @@ success
 State check:
 You see: 
 toggleon('StoveKnob')
-True
+False
 Executing action: ['toggleon', 'stoveknob']
-toggle on StoveKnob|-00.02|+00.88|-02.19: success
-State check:
-You see: StoveBurner is isHeatSource, StoveKnob is isToggled, SaltShaker, Cabinet is isClosed, PepperShaker, Floor, Spatula, Drawer is isClosed, StoveKnob is isToggledOff, CounterTop, CounterTop holds Pan, CounterTop holds Kettle, CounterTop holds PepperShaker, CounterTop holds Spatula, CounterTop holds SaltShaker, CounterTop holds EggCracked, Floor holds Stool, Floor holds Stool, Floor holds ShelvingUnit, Floor holds Fridge, Floor holds GarbageCan, CounterTop holds Toaster, CounterTop holds CoffeeMachine, CounterTop holds Mug, CounterTop holds Lettuce, CounterTop holds PaperTowelRoll, CounterTop holds Pot, CounterTop holds HousePlant, CounterTop holds SoapBottle. 
-assert('Egg' is 'cooked')
-False
-State check:
-You see: StoveBurner is isHeatSource, StoveKnob is isToggled, Cabinet is isClosed, Drawer is isClosed, StoveKnob is isToggledOff
-walk('StoveKnob')
-False
-Executing action: ['walk', 'stoveknob']
-success
-State check:
-You see: StoveBurner is isHeatSource, StoveKnob is isToggled, Cabinet is isClosed, Drawer is isClosed, StoveKnob is isToggledOff
-toggleoff('StoveKnob')
-True
-Executing action: ['toggleoff', 'stoveknob']
-toggle off StoveKnob|-00.02|+00.88|-02.19: success
-Total time spent : 31.0
+Invalid action
+Total time spent : 25.9
