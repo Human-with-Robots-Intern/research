@@ -9,6 +9,7 @@ import time
 import re
 
 from openai import OpenAI
+from utils.util import create_module_logger
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 from ithor.handlers.arm_handler import ArmHandler
@@ -18,10 +19,16 @@ from ithor.handlers.move_handler import MoveHandler
 from ithor.handlers.navigation_handler import NavigationHandler
 
 from ithor.handlers.action import Action
-
+from dotenv import load_dotenv
+load_dotenv()
+logger = create_module_logger(__name__, module_log=True)
+openai_api_key = os.environ.get("OPENAI_API_KEY")
+if not openai_api_key:
+    logger.error("OPENAI_API_KEY not found in environment variables.")
+    raise EnvironmentError("OPENAI_API_KEY not found in environment variables.")
 
 client = OpenAI(
-    api_key="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"
+    api_key=openai_api_key
 )
 
 
