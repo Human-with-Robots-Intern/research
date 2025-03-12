@@ -1,7 +1,7 @@
 import time
 from utils import create_module_logger
 
-from ..utils.constants import SMOOTH_LEVEL
+from utils.constants import SMOOTH_LEVEL
 from .navigation_handler import NavigationHandler
 
 

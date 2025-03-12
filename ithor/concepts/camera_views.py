@@ -1,7 +1,7 @@
 # camera_views.py
 import numpy as np
 
-from ..utils.constants import CAMERA_DISTANCE_BEHIND, CAMERA_HEIGHT_ABOVE
+from utils.constants import CAMERA_DISTANCE_BEHIND, CAMERA_HEIGHT_ABOVE
 
 
 class CameraView:

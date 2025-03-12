@@ -4,7 +4,7 @@ import math
 from typing import List, Optional, Tuple
 
 from utils.task import Duration, Execution, Subtask
-from ithor.utils.math_utils import adjust_if_unreachable
+from utils.math_utils import adjust_if_unreachable
 from utils.dataclass import ActionResult, ActionSimulationLog, SimulationNode
 from utils.constants import (
     MONITORING_DURATION,

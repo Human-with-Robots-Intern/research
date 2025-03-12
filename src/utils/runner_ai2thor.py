@@ -17,7 +17,7 @@ import ai2thor
 from ithor.handlers.action import Action
 from ithor.handlers.camera_handler import CameraHandler
 from ithor.handlers.navigation_handler import NavigationHandler
-from ithor.utils.constants import *
+from utils.constants import *
 from utils.constants import KNOWLEDGE_PATH
 
 def load_scene_positions(

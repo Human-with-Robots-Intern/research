@@ -12,7 +12,7 @@ from ai2thor.controller import Controller
 from util.utils_execute import *
 
 
-from ithor.utils.constants import *
+from utils.constants import *
 
 current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
 

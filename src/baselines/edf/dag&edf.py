@@ -14,7 +14,7 @@ ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 
 
 
-from ithor.utils.math_utils import build_navigation_graph
+from utils.math_utils import build_navigation_graph
 
 from utils.runner_ai2thor import init_ai2thor, load_scene_positions
 
