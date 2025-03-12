@@ -27,6 +27,7 @@ dependencies:
   # - gymnasium>=0.28.1
   # - opencv
   # - omnigibson
+  # - Ai2thor
 
   # Other utilities and libraries
   - h5py
@@ -36,6 +37,8 @@ dependencies:
   - progressbar
   - click
   - aenum~=3.1.15
+  - openai
+  - Shapely
 
   # Developer tools
   - black
@@ -47,6 +50,9 @@ dependencies:
   - nest-asyncio~=1.5.8
   - imageio~=2.33.1
   - imageio-ffmpeg~=0.4.9
+  - colorlog 
+  - pygraphviz
+  - Astunparse
 
   # Pip-only dependencies
   - pip
