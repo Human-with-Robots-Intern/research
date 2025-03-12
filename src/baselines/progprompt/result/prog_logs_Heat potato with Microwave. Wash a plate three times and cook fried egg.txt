@@ -5,32 +5,32 @@ Executing action: ['pickup', 'potato']
 Executing action: ['walk', 'microwave']
 success
 State check:
-You see: Cabinet is isClosed, Potato is isPickedUp, Microwave is isToggledOff and isHeatSource and isClosed, Cabinet holds WineBottle, Cabinet holds Cup.  You have Potato. 
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed, Cabinet holds Cup, Cabinet holds WineBottle. 
 assert('close' to 'Microwave')
 True
 State check:
-You see: Cabinet is isClosed, Potato is isPickedUp, Microwave is isToggledOff and isHeatSource and isClosed, Cabinet holds WineBottle, Cabinet holds Cup.  You have Potato. 
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed, Cabinet holds Cup, Cabinet holds WineBottle. 
 assert('Microwave' is 'open')
 False
 Executing action: ['open', 'microwave']
 State check:
-You see: Cabinet is isClosed, Potato is isPickedUp, Microwave is isToggledOff and isHeatSource and isClosed
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
 put('Potato', 'Microwave')
 False
 Executing action: ['put', 'potato', 'microwave']
 State check:
-You see: Cabinet is isClosed, Potato is isPickedUp, Microwave is isToggledOff and isHeatSource and isClosed
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
 close('Microwave')
 False
 Executing action: ['close', 'microwave']
 State check:
-You see: Cabinet is isClosed, Potato is isPickedUp, Microwave is isToggledOff and isHeatSource and isClosed
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed
 toggleon('Microwave')
 True
 Executing action: ['toggleon', 'microwave']
 Invalid action
 State check:
-You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed, Cabinet holds WineBottle, Cabinet holds Cup, Microwave holds Potato. 
+You see: Cabinet is isClosed, Microwave is isToggledOff and isHeatSource and isClosed, Cabinet holds Cup, Cabinet holds WineBottle. 
 assert('Potato' is 'cooked')
 False
 State check:
@@ -89,35 +89,7 @@ False
 Executing action: ['walk', 'pan']
 success
 State check:
-You see: Drawer is isClosed, PepperShaker, SaltShaker, Egg is isPickedUp, ShelvingUnit, Cabinet is isClosed, StoveBurner is isHeatSource, Shelf, CounterTop, Spatula, Kettle is isClosed, Vase, Pan, Drawer holds Spoon, Drawer holds Fork, CounterTop holds Pan, CounterTop holds Kettle, CounterTop holds Spatula, CounterTop holds PepperShaker, CounterTop holds SaltShaker, Shelf holds Bottle.  You have Egg. 
+You see: Kettle is isClosed, PepperShaker, Shelf, SaltShaker, CounterTop, Cabinet is isClosed, StoveBurner is isHeatSource, ShelvingUnit, Spatula, Pan, Vase, Drawer is isClosed, CounterTop holds Pan, CounterTop holds Kettle, CounterTop holds Spatula, CounterTop holds PepperShaker, CounterTop holds SaltShaker, Drawer holds Spoon, Drawer holds Fork, Shelf holds Bottle. 
 assert('Egg' in 'hand')
-True
-State check:
-You see: Drawer is isClosed, PepperShaker, SaltShaker, Egg is isPickedUp, ShelvingUnit, Cabinet is isClosed, StoveBurner is isHeatSource, Shelf, CounterTop, Spatula, Kettle is isClosed, Vase, Pan, Drawer holds Spoon, Drawer holds Fork, CounterTop holds Pan, CounterTop holds Kettle, CounterTop holds Spatula, CounterTop holds PepperShaker, CounterTop holds SaltShaker, Shelf holds Bottle.  You have Egg. 
-assert('close' to 'Pan')
 False
-Executing action: ['walk', 'pan']
-success
-State check:
-You see: 
-put('Egg', 'Pan')
-False
-Executing action: ['put', 'egg', 'pan']
-State check:
-You see: 
-slice('Egg')
-False
-Executing action: ['slice', 'egg']
-State check:
-You see: 
-walk('StoveKnob')
-False
-Executing action: ['walk', 'stoveknob']
-success
-State check:
-You see: 
-toggleon('StoveKnob')
-False
-Executing action: ['toggleon', 'stoveknob']
-Invalid action
-Total time spent : 25.9
+Executing action: ['walk', 'egg']
