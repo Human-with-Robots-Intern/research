@@ -34,17 +34,19 @@ def get_user_task_choice(task_files: list[Path], choice: int = None) -> str:
 
     while True:
         try:
+            choice = int(input("Enter the number of your choice: "))
+
             if not choice:
                 choice = int(input("Enter the number of your choice: "))
 
             if choice == 0:
                 return generate_task()
-            if 1 <= choice <= len(task_files):
+            elif 1 <= choice <= len(task_files):
                 return task_files[choice - 1].name
-
-            print(
-                f"Invalid choice. Please select a number between 0 and {len(task_files)}."
-            )
+            else:
+                print(
+                    f"Invalid choice. Please select a number between 0 and {len(task_files)}."
+                )
         except ValueError as exc:
             print(f"Invalid input. Please enter a number. Error: {exc}")
 
