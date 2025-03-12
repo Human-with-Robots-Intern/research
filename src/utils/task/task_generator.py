@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from dotenv import load_dotenv
 
 import openai
 
@@ -17,6 +18,9 @@ from utils.constants import (
     TASK_PATH,
 )
 from utils.util import create_module_logger
+
+# Accessing .env file
+load_dotenv()
 
 # Logging configuration
 
