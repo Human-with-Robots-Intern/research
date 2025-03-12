@@ -3,7 +3,6 @@ import heapq
 import math
 from typing import List, Tuple
 
-from ithor.utils.math_utils import adjust_if_unreachable
 from scheduler.dataclass import ActionResult, ActionSimulationLog, SimulationNode
 from utils.constants import (
     MONITORING_DURATION,
@@ -12,6 +11,7 @@ from utils.constants import (
     PRIMITIVE_ACTION_SET,
 )
 from utils.util import create_module_logger
+from utils.math_utils import adjust_if_unreachable
 
 log = create_module_logger(__name__, module_log=True)
 
