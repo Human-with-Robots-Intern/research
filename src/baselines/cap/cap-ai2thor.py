@@ -4,23 +4,25 @@ import time
 import threading
 import copy
 import logging
+import sys
 
 # import for ai2thor
 from ai2thor.controller import Controller
 
-# setting.json 에 ai2thor 위치 환경변수 추가한 상태로 해야함.
-from ithor.handlers.camera_handler import CameraHandler
-from ithor.handlers.navigation_handler import NavigationHandler
-from ithor.handlers.action import Action
-
-from ithor.utils.constants import *
-from ithor.utils.file_utils import *
+from utils.constants import *
+from utils.file_utils import *
 
 from pygments import highlight
 from pygments.lexers import PythonLexer
 from pygments.formatters import TerminalFormatter
 
 import baselines.cap.utils.LMPgen as gen
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+# setting.json 에 ai2thor 위치 환경변수 추가한 상태로 해야함.
+from ithor.handlers.camera_handler import CameraHandler
+from ithor.handlers.navigation_handler import NavigationHandler
+from ithor.handlers.action import Action
 
 
 def initialize_controller(log_file):
