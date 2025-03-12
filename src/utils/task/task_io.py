@@ -34,7 +34,7 @@ def get_user_task_choice(task_files: list[Path], choice: int = None) -> str:
 
     while True:
         try:
-            choice = int(input("Enter the number of your choice: "))
+            
 
             if not choice:
                 choice = int(input("Enter the number of your choice: "))
