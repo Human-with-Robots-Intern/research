@@ -14,6 +14,8 @@ from utils.task import (
     load_task_data_from_file,
 )
 from utils.task.task_io import load_scene_positions
+import time
+
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -78,36 +80,48 @@ def main():
     scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph=nav_graph)
 
     result_schedule = []
+
     current_state = get_init_state(subtasks, constraints, scene_poses)
     is_end = False
-
+    planning_time_start = time.time()
+ 
     while not is_end:
-
-        next_state = scheduler.get_next_state(current_state)
+        
+        next_state = scheduler.get_next_state(current_state)        
 
         if next_state is None:
             log.error("No feasible solution found.")
             break
 
         if args.simulation:
-            time = execute_subtask(controller, next_state.subtask)
-
+            action_time = execute_subtask(controller, next_state.subtask)
+        
+      
         if next_state.subtask.type == "Monitor":
+            
             next_state = agent.bayesian_estimate(next_state)
+        
+     
 
         current_state = next_state
 
-        result_schedule.append(current_state.subtask)
+        result_schedule.append(current_state.subtask)  
+
 
         if not current_state.remaining_subtasks:
             is_end = True
+    computation_time = time.time() - planning_time_start
     visualize(task_file_name, current_state.constraints, result_schedule)
+
+
+    print(f"planning time is : {computation_time:.2f}") 
+
 
     for ce in current_state.completed_subtasks:
         log.info(
             f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
-        log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
+        log.info(f"Primitive actions: {ce.subtask.execution.primitive_asctions}\n")
 
 
 if __name__ == "__main__":

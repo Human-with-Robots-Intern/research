@@ -9,6 +9,7 @@ import numpy as np
 
 from .constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH, VIS_PATH
 
+#VIS_PATH = ROOT_PATH / "assets" / "results"
 
 def visualize(task_name, constraints, plan=None):
     folder_name = task_name
