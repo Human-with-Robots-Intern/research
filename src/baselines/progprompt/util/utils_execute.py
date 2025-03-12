@@ -1,7 +1,16 @@
 import random
 
 from ai2thor.controller import Controller
+import os ,sys
 
+import numpy as np
+import math
+import time
+import re
+
+from openai import OpenAI
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 from ithor.handlers.arm_handler import ArmHandler
 from ithor.handlers.camera_handler import CameraHandler
 from ithor.handlers.interaction_handler import InteractionHandler
@@ -10,12 +19,6 @@ from ithor.handlers.navigation_handler import NavigationHandler
 
 from ithor.handlers.action import Action
 
-import numpy as np
-import math
-import time
-import re
-
-from openai import OpenAI
 
 client = OpenAI(
     api_key="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"

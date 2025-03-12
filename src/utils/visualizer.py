@@ -1,12 +1,13 @@
 import textwrap
 from pathlib import Path
 from typing import List
-
+import sys,os
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from utils.constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH, VIS_PATH
+
+from .constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH, VIS_PATH
 
 
 def visualize(task_name, constraints, plan=None):
