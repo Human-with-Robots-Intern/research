@@ -57,6 +57,7 @@ def parse_arguments():
 def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
+    approach_name = "dag_bayesian"
 
     # Set up the AI2-THOR controller and navigation graph
     controller = init_ai2thor()
@@ -72,8 +73,8 @@ def main():
     subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
 
     # Visualize the task graph if enabled
-    if args.visualize:
-        visualize(task_file_name, constraints)
+    if args.visualize: #True default, 현재는 변경 불가
+        visualize(task_file_name, constraints, approach= approach_name)
 
     agent = Agent()
 
@@ -111,7 +112,7 @@ def main():
         if not current_state.remaining_subtasks:
             is_end = True
     computation_time = time.time() - planning_time_start
-    visualize(task_file_name, current_state.constraints, result_schedule)
+    visualize(task_file_name, current_state.constraints, approach= approach_name , plan= result_schedule)
 
 
     print(f"planning time is : {computation_time:.2f}") 
@@ -121,7 +122,7 @@ def main():
         log.info(
             f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
-        log.info(f"Primitive actions: {ce.subtask.execution.primitive_asctions}\n")
+        log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
 
 
 if __name__ == "__main__":
