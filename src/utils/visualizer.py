@@ -13,8 +13,10 @@ from .constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH, VIS_PATH
 
 def visualize(task_name, constraints, plan=None):
     folder_name = task_name
-    save_folder_path = Path(VIS_PATH) / folder_name
-    save_folder_path.mkdir(exist_ok=True)  # Create the folder if it doesn't exist
+    task_folder_path = Path(VIS_PATH) / folder_name
+    task_folder_path.mkdir(exist_ok=True)  # Create the folder if it doesn't exist
+    save_folder_path = task_folder_path/ "metadata"
+    save_folder_path.mkdir(exist_ok=True)
 
     visualize_graph(constraints, save_folder_path)
     if plan:
