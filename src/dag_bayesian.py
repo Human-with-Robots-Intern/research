@@ -88,7 +88,7 @@ def main():
     current_state = get_init_state(subtasks, constraints, scene_poses)
     is_end = False
 
-    planning_time_start = time.time() 
+    computation_time_start = time.time() 
     while not is_end:
         
         next_state = scheduler.get_next_state(current_state)        
@@ -115,7 +115,7 @@ def main():
 
         if not current_state.remaining_subtasks:
             is_end = True
-    computation_time = time.time() - planning_time_start
+    computation_time = time.time() - computation_time_start
     visualize(approach_name, task_file_name, current_state.constraints , plan= result_schedule)
 
 

@@ -77,7 +77,7 @@ def parse_arguments():
 
 def main():
     """Main entry point for the Task Scheduler."""
-    approach_name = "cpm"
+    approach_name = "DAG OS Scheduling(cpm)"
     args = parse_arguments()
     held_object = None
 
@@ -108,9 +108,9 @@ def main():
 
     # 스케줄링 실행
     
-    planning_time_start = time.time() 
+    computation_time_start = time.time() 
     shedule_order = schedule_with_cp_priority(edges, critical_path)
-    computation_time = time.time() - planning_time_start
+    computation_time = time.time() - computation_time_start
 
     # 스케쥴링 끝난 거 앞에서 부터 시간 계산하기. 만약에 dependency가 지켜지지 않으면 wait넣기
     total_time, result_schedule_with_time = last_calculte_schedule_and_time(

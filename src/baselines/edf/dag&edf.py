@@ -6,8 +6,11 @@ import matplotlib.pyplot as plt
 import os
 import copy
 import heapq
+import time
 
 from pathlib import Path
+
+from utils.result_saver import result_save
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent  # 프로젝트 루트 경로
 ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
@@ -488,6 +491,7 @@ def get_init_state(
 def main():
 
     # Set up the AI2-THOR controller and navigation graph
+    approach_name="DAG + EDF"
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
     scene_poses = load_scene_positions("FloorPlan1_positions.json")
@@ -498,16 +502,20 @@ def main():
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
+
     subtasks, constraints = build_tasks_and_constraints(task_data, True)
 
+    computation_time_start = time.time()
     current_state = get_init_state(subtasks, constraints, scene_poses)
     result_schedule = []
-
     for _ in range(len(subtasks)):
         next_subtask = simulation_edf(current_state, nav_graph)
         if next_subtask is None:
             break
         current_state = update(current_state, next_subtask, nav_graph)
+    computation_time=time.time() - computation_time_start
+    
+    result_save(task_file_name, approach_name,result_schedule, computation_time)
 
     result_schedule = current_state.completed_subtasks
     result_schedule.pop(0)
