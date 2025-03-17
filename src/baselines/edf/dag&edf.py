@@ -515,11 +515,22 @@ def main():
         current_state = update(current_state, next_subtask, nav_graph)
     computation_time=time.time() - computation_time_start
     
-    result_save(task_file_name, approach_name,result_schedule, computation_time)
+    
 
     result_schedule = current_state.completed_subtasks
     result_schedule.pop(0)
+   
+
     gantt_chart(result_schedule)
+    # completed_Entry 객체를 Subtask객체로 변환.
+    # start_time과 end_time을 추출해서 Subtask 객체 안에 저장.
+    subtasks_with_time =[]
+    for st in result_schedule:        
+        st.subtask.start_time = st.start_time
+        st.subtask.end_time = st.end_time
+        subtasks_with_time.append(st.subtask)
+
+    result_save(task_file_name, approach_name, subtasks_with_time, computation_time)
 
 
 if __name__ == "__main__":
