@@ -1,5 +1,7 @@
 # Heat potato with microwave, wash a plate three times and cook fried egg.
-time.sleep(1)
+objects = ['tomato', 'potato', 'pan', 'stoveburner', 'stoveknob', 'faucet', 'fridge', 'apple', 'sinkbasin', 'drawer', 'book', 'coffeemachine', 'mug', 'egg', 'bread', 'microwave', 'plate', 'countertop', 'kettle',]
+
+# Heat potato with microwave
 potato_id = get_obj_id('potato')
 microwave_id = get_obj_id('microwave')
 move_to(potato_id)
@@ -9,76 +11,54 @@ open(microwave_id)
 put(microwave_id)
 close(microwave_id)
 toggleon(microwave_id)
-time.sleep(2)
+time.sleep(1)
 toggleoff(microwave_id)
 open(microwave_id)
 pickup(potato_id)
-countertop_id = get_obj_id('countertop')
-move_to(countertop_id)
-put(countertop_id)
+move_to(get_obj_id('countertop'))
+put(get_obj_id('countertop'))
 
+# Wash a plate three times
 plate_id = get_obj_id('plate')
 sinkbasin_id = get_obj_id('sinkbasin')
 faucet_id = get_obj_id('faucet')
+move_to(plate_id)
+pickup(plate_id)
+move_to(sinkbasin_id)
 for _ in range(3):
-    move_to(plate_id)
-    pickup(plate_id)
-    move_to(sinkbasin_id)
     toggleon(faucet_id)
     put(sinkbasin_id)
     toggleoff(faucet_id)
     pickup(plate_id)
-    move_to(countertop_id)
-    put(countertop_id)
+move_to(get_obj_id('countertop'))
+put(get_obj_id('countertop'))
 
+# Cook fried egg
 egg_id = get_obj_id('egg')
 pan_id = get_obj_id('pan')
 stoveburner_id = get_obj_id('stoveburner')
-if not parse_question('is pan on the stoveburner?'):
-    move_to(pan_id)
-    if parse_question('is anything in hand?'):
-        if parse_question(f"is {parse_question('what is in hand?')} a breakable?"):
-            move_to(countertop_id)
-        else:
-            drop()
-    pickup(pan_id)
-    move_to(stoveburner_id)
-    put(stoveburner_id)
+stoveknob_id = get_obj_id('stoveknob')
 move_to(egg_id)
-if parse_question('is anything in hand?'):
-    if parse_question(f"is {parse_question('what is in hand?')} a breakable?"):
-        move_to(countertop_id)
-    else:
-        drop()
 pickup(egg_id)
 move_to(pan_id)
 put(pan_id)
 slice(egg_id)
-if parse_question('is stoveburner toggled?'):
-    time.sleep(2)
-else:
-    stoveknob_id = get_obj_id('stoveknob')
+if not parse_question('is stoveburner toggled?'):
     toggleon(stoveknob_id)
-    time.sleep(2)
+time.sleep(2)
 toggleoff(stoveknob_id)[37m# define function: move_to(pan_id).[39;49;00m[37m[39;49;00m
 [34mdef[39;49;00m[37m [39;49;00m[32mmove_to[39;49;00m(pan_id):[37m[39;49;00m
+    [37m# Implementation to move to the specified pan_id[39;49;00m[37m[39;49;00m
     [34mpass[39;49;00m[37m[39;49;00m
 [37m# define function: toggleon(stoveknob_id).[39;49;00m[37m[39;49;00m
 [34mdef[39;49;00m[37m [39;49;00m[32mtoggleon[39;49;00m(stoveknob_id):[37m[39;49;00m
-    [37m# Code to toggle on the stove knob with the given ID[39;49;00m[37m[39;49;00m
+    [37m# Implementation to toggle on the stove knob[39;49;00m[37m[39;49;00m
     [34mpass[39;49;00m[37m[39;49;00m
 [37m# define function: toggleoff(stoveknob_id).[39;49;00m[37m[39;49;00m
 [34mdef[39;49;00m[37m [39;49;00m[32mtoggleoff[39;49;00m(stoveknob_id):[37m[39;49;00m
     [37m# Code to toggle off the stove knob using the given ID[39;49;00m[37m[39;49;00m
     [34mpass[39;49;00m[37m[39;49;00m
-# is pan on the stoveburner?.
-pan = get_obj_id('pan')
-stoveburner = get_obj_id('stoveburner')
-parentReceptacles = get_parentReceptacles(pan)
-ret_val = any("stoveburner".lower() in obj.lower() for obj in parentReceptacles)# is anything in hand?.
-obj_in_hand = get_obj_in_hand()
-ret_val = obj_in_hand is not None# is anything in hand?.
-ret_val = get_obj_in_hand() is not None# is stoveburner toggled?.
+# is stoveburner toggled?.
 stoveburner = get_obj_id('stoveburner')
 true_states = get_true_states(stoveburner)
 ret_val = any("toggle".lower() in state.lower() for state in true_states)

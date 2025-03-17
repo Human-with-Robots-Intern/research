@@ -1,0 +1,48 @@
+Starting simulation for task: Heat potato with Microwave. Wash a plate three times and cook fried egg
+Executing action: ['walk', 'potato']
+start_time: 0
+end_time: 2.5
+Executing action: ['pickup', 'potato']
+start_time: 2.5
+end_time: 2.5
+Executing action: ['walk', 'microwave']
+start_time: 2.5
+end_time: 3.6
+Executing action: ['open', 'microwave']
+start_time: 3.6
+end_time: 4.6
+Executing action: ['put', 'potato', 'microwave']
+start_time: 4.6
+end_time: 7.6
+Executing action: ['close', 'microwave']
+start_time: 7.6
+end_time: 8.6
+Executing action: ['toggleon', 'microwave']
+Executing action: ['toggleoff', 'microwave']
+Executing action: ['open', 'microwave']
+start_time: 8.6
+end_time: 9.6
+Executing action: ['pickup', 'potato']
+start_time: 9.6
+end_time: 9.6
+Executing action: ['close', 'microwave']
+start_time: 9.6
+end_time: 10.6
+Executing action: ['walk', 'countertop']
+start_time: 10.6
+end_time: 12.5
+Executing action: ['put', 'potato', 'countertop']
+start_time: 12.5
+end_time: 15.5
+Executing action: ['for', 'in', 'range']
+Executing action: ['walk', 'egg']
+start_time: 15.5
+end_time: 20.5
+Executing action: ['pickup', 'egg']
+start_time: 20.5
+end_time: 20.5
+Executing action: ['walk', 'pan']
+start_time: 20.5
+end_time: 25.4
+Executing action: ['walk', 'egg']
+start_time: 25.4

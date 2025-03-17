@@ -1,0 +1,72 @@
+Executing action: ['pickup']
+start_time: 0.0
+end_time: 8.81758999824524
+executionStatus: success
+Executing action: ['open']
+start_time: 8.817606925964355
+end_time: 9.291068315505981
+executionStatus: success
+Executing action: ['put']
+start_time: 9.291194438934326
+end_time: 9.674383640289307
+executionStatus: success
+Executing action: ['close']
+start_time: 9.674468278884888
+end_time: 10.015472650527954
+executionStatus: success
+Executing action: ['open']
+start_time: 11.016900777816772
+end_time: 11.56938910484314
+executionStatus: success
+Executing action: ['pickup']
+start_time: 11.569522857666016
+end_time: 15.889381408691406
+executionStatus: success
+Executing action: ['put']
+start_time: 15.897041320800781
+end_time: 16.259113788604736
+executionStatus: success
+Executing action: ['pickup']
+start_time: 16.270036220550537
+end_time: 27.926011085510254
+executionStatus: success
+Executing action: ['put']
+start_time: 27.92603087425232
+end_time: 28.313859701156616
+executionStatus: success
+Executing action: ['pickup']
+start_time: 28.314003229141235
+end_time: 32.51217174530029
+executionStatus: success
+Executing action: ['put']
+start_time: 32.512190103530884
+end_time: 32.858189821243286
+executionStatus: success
+Executing action: ['pickup']
+start_time: 32.85833191871643
+end_time: 37.0307981967926
+executionStatus: success
+Executing action: ['put']
+start_time: 37.030818462371826
+end_time: 37.39063858985901
+executionStatus: success
+Executing action: ['pickup']
+start_time: 37.39078378677368
+end_time: 41.477460861206055
+executionStatus: success
+Executing action: ['put']
+start_time: 41.485177755355835
+end_time: 41.8500542640686
+executionStatus: success
+Executing action: ['pickup']
+start_time: 41.86089062690735
+end_time: 59.31972312927246
+executionStatus: success
+Executing action: ['put']
+start_time: 59.31973838806152
+end_time: 59.67393159866333
+executionStatus: success
+Executing action: ['slice']
+start_time: 59.67406249046326
+end_time: 60.00965404510498
+executionStatus: success
