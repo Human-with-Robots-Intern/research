@@ -83,12 +83,12 @@ def main():
     scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph=nav_graph)
 
     result_schedule = []
-    execution_logs=[]
+   
 
     current_state = get_init_state(subtasks, constraints, scene_poses)
     is_end = False
-    planning_time_start = time.time()
- 
+
+    planning_time_start = time.time() 
     while not is_end:
         
         next_state = scheduler.get_next_state(current_state)        
@@ -99,12 +99,7 @@ def main():
 
         if args.simulation:
             action_time = execute_subtask(controller, next_state.subtask)
-            execution_logs.append({
-                "subtaskName": next_state.subtask.name,
-                "schedulerTime": round(time.time() - planning_time_start, LOG_ROUND),
-                "ai2thorTime": None,  
-                "realWorldTime": None 
-            })
+            
         
       
         if next_state.subtask.type == "Monitor":
@@ -124,7 +119,7 @@ def main():
     visualize(task_file_name, current_state.constraints , plan= result_schedule)
 
 
-    print(f"planning time is : {computation_time:.2f}") 
+    # print(f"planning time is : {computation_time:.2f}") 
 
 
     for ce in current_state.completed_subtasks:
@@ -135,7 +130,7 @@ def main():
 
   
 
-    result_save(task_file_name, approach_name,result_schedule,  execution_logs, computation_time)
+    result_save(task_file_name, approach_name,result_schedule, computation_time)
 
 if __name__ == "__main__":
     main()
