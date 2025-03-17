@@ -68,7 +68,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files)
+    task_file_name = get_user_task_choice(task_files, choice=4)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
@@ -76,7 +76,7 @@ def main():
 
     # Visualize the task graph if enabled
     if args.visualize: #True default, 현재는 변경 불가
-        visualize(task_file_name, constraints)
+        visualize(approach_name, task_file_name, constraints)
 
     agent = Agent()
 
@@ -96,11 +96,12 @@ def main():
         if next_state is None:
             log.error("No feasible solution found.")
             break
-
+        
+        
+   
         if args.simulation:
             action_time = execute_subtask(controller, next_state.subtask)
-            
-        
+
       
         if next_state.subtask.type == "Monitor":
             
@@ -109,8 +110,8 @@ def main():
      
 
         current_state = next_state
-
-        result_schedule.append(current_state.subtask)  
+        
+        
 
 
         if not current_state.remaining_subtasks:
@@ -126,7 +127,11 @@ def main():
         log.info(
             f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
+
         log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
+        ce.subtask.start_time = ce.start_time   
+        ce.subtask.end_time = ce.end_time
+        result_schedule.append(ce.subtask)
 
   
 

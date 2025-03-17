@@ -5,139 +5,145 @@
             "planName": "dag_bayesian",
             "subtasks": [
                 {
-                    "subtaskName": "Prepare Coffee",
+                    "subtaskName": "Init",
                     "startTime": null,
                     "endTime": null,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Prepare Coffee",
+                    "startTime": null,
+                    "endTime": 5.0,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Egg",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 5.0,
+                    "endTime": 16.5,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Prepare Egg Fry",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 16.5,
+                    "endTime": 30.8,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Fork_early",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 30.8,
+                    "endTime": 37.0,
                     "executionStatus": null
                 },
                 {
-                    "subtaskName": "Monitoring for Turn off Stove after cooking_1e20dcbf",
-                    "startTime": null,
-                    "endTime": null,
+                    "subtaskName": "Monitoring for Turn off Stove after cooking_97fbd31c",
+                    "startTime": 37.0,
+                    "endTime": 37.1,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Retrieve Coffee",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 37.1,
+                    "endTime": 40.8,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Turn off Stove after cooking",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 40.8,
+                    "endTime": 44.1,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Spoon",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 44.1,
+                    "endTime": 54.9,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Plate_part_1",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 54.9,
+                    "endTime": 69.1,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Plate_part_2",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 69.1,
+                    "endTime": 78.5,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Plate_part_3",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 78.5,
+                    "endTime": 87.9,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Lettuce",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 87.9,
+                    "endTime": 97.3,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Tomato",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 97.3,
+                    "endTime": 106.7,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Fork_remain",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 106.7,
+                    "endTime": 109.8,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Place Tomato in Fridge",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 109.8,
+                    "endTime": 115.4,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Place Lettuce in Fridge",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 115.4,
+                    "endTime": 122.3,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Place Bread in Microwave",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 122.3,
+                    "endTime": 129.9,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Start Microwave",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 129.9,
+                    "endTime": 131.0,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Place Potato in Fridge",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 131.0,
+                    "endTime": 138.6,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Retrieve Bread from Microwave",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 138.6,
+                    "endTime": 149.1,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Place CreditCard on Shelf",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 149.1,
+                    "endTime": 156.5,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Throw away Paper Towel",
-                    "startTime": null,
-                    "endTime": null,
+                    "startTime": 156.5,
+                    "endTime": 164.6,
                     "executionStatus": null
                 }
             ]
         }
     ],
-    "computationTime": 1.4642891883850098
+    "computationTime": 2.23
 }

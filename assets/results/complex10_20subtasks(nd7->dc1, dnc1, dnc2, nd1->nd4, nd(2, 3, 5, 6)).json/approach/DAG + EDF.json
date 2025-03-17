@@ -1,0 +1,10 @@
+{
+    "approach": "DAG + EDF",
+    "plans": [
+        {
+            "planName": "DAG + EDF",
+            "subtasks": []
+        }
+    ],
+    "computationTime": 0.56
+}

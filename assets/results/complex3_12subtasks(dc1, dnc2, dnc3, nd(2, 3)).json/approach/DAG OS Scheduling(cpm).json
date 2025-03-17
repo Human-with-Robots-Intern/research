@@ -1,0 +1,83 @@
+{
+    "approach": "DAG OS Scheduling(cpm)",
+    "plans": [
+        {
+            "planName": "DAG OS Scheduling(cpm)",
+            "subtasks": [
+                {
+                    "subtaskName": "Wash Plate_part_1",
+                    "startTime": null,
+                    "endTime": 16.2,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Plate_part_2",
+                    "startTime": 16.2,
+                    "endTime": 32.4,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Plate_part_3",
+                    "startTime": 32.4,
+                    "endTime": 48.6,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Prepare Egg Fry",
+                    "startTime": 48.6,
+                    "endTime": 69.2,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Prepare Coffee",
+                    "startTime": 69.2,
+                    "endTime": 75.1,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Put Potato in the Microwave",
+                    "startTime": 75.1,
+                    "endTime": 87.7,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Turn off Stove after cooking",
+                    "startTime": 87.7,
+                    "endTime": 91.9,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Retrieve Coffee",
+                    "startTime": 91.9,
+                    "endTime": 96.5,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Start the Microwave",
+                    "startTime": 96.5,
+                    "endTime": 100.5,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "nav",
+                    "startTime": 100.5,
+                    "endTime": 103.5,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "wait",
+                    "startTime": 103.5,
+                    "endTime": 105.5,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Retrieve Potato from Microwave",
+                    "startTime": 110.5,
+                    "endTime": 119.5,
+                    "executionStatus": null
+                }
+            ]
+        }
+    ],
+    "computationTime": 0.0
+}
