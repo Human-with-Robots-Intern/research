@@ -13,6 +13,7 @@ from util.utils_execute import *
 
 
 from utils.constants import *
+from utils.result_saver_llm import result_save_llm
 
 current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
 
@@ -79,6 +80,7 @@ def generate_plan(controller, args):
     # "Heat potato with Microwave"
     # "Wash a plate three times"
     gen_plan = []
+    computation_time_start = time.time()
     for task in test_tasks:
         print(f"Generating plan for: {task}\n")
         curr_prompt = f"{prompt}\ntask : {task}\n"  ## 주어진 정보 + 수행할 task 이어서 prompt 만듦
@@ -99,9 +101,15 @@ def generate_plan(controller, args):
             for plan, task in zip(gen_plan, test_tasks):
                 line[task] = plan
             json.dump(line, f)
+    computation_time = time.time() - computation_time_start
+
     prog_log_path = os.path.join(current_dir, f"result/prog_logs_{task}.txt")
     log_file = open(prog_log_path, "w", buffering=1)
+    approach_name = "progprompt"
+    result_path = os.path.join(current_dir, f"result/prog_result_{task}.json")
     simulate_execution(controller, test_tasks, gen_plan, log_file, args)
+    result_save_llm(approach_name,  prog_log_path, result_path, computation_time)
+ 
 
 
 def planner_executer(args):
