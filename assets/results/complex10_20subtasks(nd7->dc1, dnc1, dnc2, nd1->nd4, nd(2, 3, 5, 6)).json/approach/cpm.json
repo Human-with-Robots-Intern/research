@@ -1,0 +1,101 @@
+{
+    "approach": "cpm",
+    "plans": [
+        {
+            "planName": "cpm",
+            "subtasks": [
+                {
+                    "subtaskName": "Wash Plate_part_1",
+                    "startTime": null,
+                    "endTime": 16.2,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Plate_part_2",
+                    "startTime": 16.2,
+                    "endTime": 32.4,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Plate_part_3",
+                    "startTime": 32.4,
+                    "endTime": 48.6,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Prepare Coffee",
+                    "startTime": 48.6,
+                    "endTime": 54.5,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Egg",
+                    "startTime": 54.5,
+                    "endTime": 66.7,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Place Bread in Microwave",
+                    "startTime": 66.7,
+                    "endTime": 77.7,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Tomato",
+                    "startTime": 77.7,
+                    "endTime": 90.9,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Lettuce",
+                    "startTime": 90.9,
+                    "endTime": 104.4,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Retrieve Coffee",
+                    "startTime": 104.4,
+                    "endTime": 109.0,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Prepare Egg Fry",
+                    "startTime": 109.0,
+                    "endTime": 129.6,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Start Microwave",
+                    "startTime": 129.6,
+                    "endTime": 133.6,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Place Tomato in Fridge",
+                    "startTime": 133.6,
+                    "endTime": 140.2,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Place Lettuce in Fridge",
+                    "startTime": 140.2,
+                    "endTime": 147.1,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Turn off Stove after cooking",
+                    "startTime": 147.1,
+                    "endTime": 151.3,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Retrieve Bread from Microwave",
+                    "startTime": 151.3,
+                    "endTime": 160.3,
+                    "executionStatus": null
+                }
+            ]
+        }
+    ],
+    "computationTime": 1.4543533325195312e-05
+}

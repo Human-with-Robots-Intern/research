@@ -2,143 +2,142 @@
     "approach": "dag_bayesian",
     "plans": [
         {
-            "planName": "Our Approach (DAG + Bayesian)",
+            "planName": "dag_bayesian",
             "subtasks": [
                 {
                     "subtaskName": "Prepare Coffee",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Egg",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Prepare Egg Fry",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Fork_early",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
-                    "subtaskName": "Monitoring for Turn off Stove after cooking_e8cbf3ef",
+                    "subtaskName": "Monitoring for Turn off Stove after cooking_1e20dcbf",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Retrieve Coffee",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Turn off Stove after cooking",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Spoon",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Plate_part_1",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Plate_part_2",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Plate_part_3",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Lettuce",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Tomato",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Wash Fork_remain",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Place Tomato in Fridge",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Place Lettuce in Fridge",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Place Bread in Microwave",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Start Microwave",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Place Potato in Fridge",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Retrieve Bread from Microwave",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Place CreditCard on Shelf",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 },
                 {
                     "subtaskName": "Throw away Paper Towel",
                     "startTime": null,
                     "endTime": null,
-                    "executionStatus": "Success"
+                    "executionStatus": null
                 }
             ]
         }
     ],
-    "executionLogs": [],
-    "computationTime": 1.851205825805664
+    "computationTime": 1.4642891883850098
 }
