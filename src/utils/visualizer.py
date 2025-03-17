@@ -11,19 +11,19 @@ from .constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH, VIS_PATH
 
 #VIS_PATH = ROOT_PATH / "assets" / "results"
 
-def visualize(task_name, constraints, plan=None):
+def visualize(approach, task_name, constraints, plan=None):
     folder_name = task_name
     task_folder_path = Path(VIS_PATH) / folder_name
     task_folder_path.mkdir(exist_ok=True)  # Create the folder if it doesn't exist
     save_folder_path = task_folder_path/ "metadata"
     save_folder_path.mkdir(exist_ok=True)
 
-    visualize_graph(constraints, save_folder_path)
+    visualize_graph(approach, constraints, save_folder_path)
     if plan:
         plot_gantt_chart(plan, save_folder_path)
 
 
-def visualize_graph(G: nx.DiGraph, save_folder_path="debug", is_display=False):
+def visualize_graph(approach, G: nx.DiGraph, save_folder_path="debug", is_display=False):
     def wrap_label(label, width=10):
         """너무 긴 라벨을 일정 너비로 줄바꿈해 반환"""
         return "\n".join(textwrap.wrap(label, width=width))
@@ -96,7 +96,7 @@ def visualize_graph(G: nx.DiGraph, save_folder_path="debug", is_display=False):
     plt.title("Directed Acyclic Graph (DAG) with Edge Info")
 
     # 결과 저장
-    plt.savefig(Path(save_folder_path) / "task_graph.png")
+    plt.savefig(Path(save_folder_path) / f"{approach}task_graph.png")
     if is_display:
         plt.show()
     else:

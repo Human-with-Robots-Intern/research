@@ -116,7 +116,7 @@ def main():
         if not current_state.remaining_subtasks:
             is_end = True
     computation_time = time.time() - planning_time_start
-    visualize(task_file_name, current_state.constraints , plan= result_schedule)
+    visualize(approach_name, task_file_name, current_state.constraints , plan= result_schedule)
 
 
     # print(f"planning time is : {computation_time:.2f}") 

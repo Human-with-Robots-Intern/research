@@ -96,7 +96,7 @@ def main():
 
     # Visualize the task graph if enabled
     if args.visualize:
-        visualize(task_file_name, constraints)
+        visualize(approach_name, task_file_name, constraints)
 
     agent = Agent()
 
