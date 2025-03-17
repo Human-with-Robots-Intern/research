@@ -1,8 +1,11 @@
 import time
+from utils import create_module_logger
 
-from ..utils.constants import SMOOTH_LEVEL
+from utils.constants import SMOOTH_LEVEL
 from .navigation_handler import NavigationHandler
 
+
+log = create_module_logger(module_name=__name__, module_log=True)
 
 class Action:
     """
@@ -18,10 +21,10 @@ class Action:
         elapsed_time (float): Time taken to perform the action.
     """
 
-    def __init__(self, controller, log):
+    def __init__(self, controller):
         self.controller = controller
         self.navi = NavigationHandler(controller)
-        self.log = log
+
 
     def success_log(self, result, action: str):
         """
@@ -32,9 +35,9 @@ class Action:
             action (str): The action description for logging.
         """
         if result.metadata["lastActionSuccess"]:
-            self.log.debug(f"{action}: success")
+            log.debug(f"{action}: success")
         else:
-            self.log.debug(f"{action}: failure. {result.metadata['errorMessage']}")
+            log.debug(f"{action}: failure. {result.metadata['errorMessage']}")
 
     def get_parent_receptacle(self, object_id: str):
         """
@@ -105,13 +108,13 @@ class Action:
                 if result.metadata["lastActionSuccess"]:
                     self.close(receptacle_id)
                     elapsed_time += 1
-                    self.log.debug(
+                    log.debug(
                         f"Pick up action after opening receptacle object was successful: "
                         f"receptacle object {receptacle_id}"
                     )
                     return elapsed_time
                 else:
-                    self.log.warning(
+                    log.warning(
                         f"Failed to pick up object {object_id} even after opening the receptacle."
                     )
                     return False
@@ -183,7 +186,7 @@ class Action:
             result = self.controller.step(action="DropHandObject", forceAction=True)
             elapsed_time += 1
             self.success_log(result, "drop")
-            self.log.debug("Alternative Action: Drop")
+            log.debug("Alternative Action: Drop")
         self.controller.step(action="Pass")
         time.sleep(0.3)
         elapsed_time += 1
@@ -340,7 +343,7 @@ class Action:
             float: Elapsed time for the wait action.
         """
         time.sleep(wait_time)
-        self.log.debug(f"wait: {wait_time}")
+        log.debug(f"wait: {wait_time}")
         return wait_time
 
     def fill(self, object_id: str):
@@ -408,7 +411,7 @@ class Action:
                         action="RotateRight", degrees=degree / SMOOTH_LEVEL
                     )
         self.navi.adjust_camera_to_object(object_id)
-        self.log.debug(f"move to {object_id}")
+        log.debug(f"move to {object_id}")
         self.controller.step(action="Pass")
         time.sleep(0.2)
         return round(elapsed_time, 2)

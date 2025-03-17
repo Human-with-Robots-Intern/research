@@ -2,8 +2,8 @@ import heapq
 import math
 import time
 
-from ..utils.constants import SMOOTH_LEVEL
-from ..utils.math_utils import build_navigation_graph, closest_position, quantize_position
+from utils.constants import SMOOTH_LEVEL
+from utils.math_utils import build_navigation_graph, closest_position, quantize_position
 
 
 class NavigationHandler:

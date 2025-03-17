@@ -1,14 +1,7 @@
 import random
 
 from ai2thor.controller import Controller
-
-from handlers.arm_handler import ArmHandler
-from handlers.camera_handler import CameraHandler
-from handlers.interaction_handler import InteractionHandler
-from handlers.move_handler import MoveHandler
-from handlers.navigation_handler import NavigationHandler
-
-from handlers.action import Action
+import os ,sys
 
 import numpy as np
 import math
@@ -16,9 +9,26 @@ import time
 import re
 
 from openai import OpenAI
+from utils.util import create_module_logger
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
+from ithor.handlers.arm_handler import ArmHandler
+from ithor.handlers.camera_handler import CameraHandler
+from ithor.handlers.interaction_handler import InteractionHandler
+from ithor.handlers.move_handler import MoveHandler
+from ithor.handlers.navigation_handler import NavigationHandler
+
+from ithor.handlers.action import Action
+from dotenv import load_dotenv
+load_dotenv()
+logger = create_module_logger(__name__, module_log=True)
+openai_api_key = os.environ.get("OPENAI_API_KEY")
+if not openai_api_key:
+    logger.error("OPENAI_API_KEY not found in environment variables.")
+    raise EnvironmentError("OPENAI_API_KEY not found in environment variables.")
 
 client = OpenAI(
-    api_key="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"
+    api_key=openai_api_key
 )
 
 
@@ -292,8 +302,8 @@ current_state_prompt = get_current_state_prompt()
 def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
     elapsed_time = 0
     camera_handler = CameraHandler(controller)
-    Navi = NavigationHandler(controller, camera_handler)
-    Act = Action(controller, Navi, camera_handler, log_file)
+    Navi = NavigationHandler(controller)
+    Act = Action(controller)
     ## gen plan 토대로 실행
     for task, plan in zip(test_tasks, gen_plan):
         log_file.write(f"Starting simulation for task: {task}\n")
@@ -384,7 +394,7 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                 match action[0]:
                     case "walk":
                         # move action
-                        elapsed_time += Navi.move_to(objID)
+                        elapsed_time += Act.move_to(objID)
                         # move_to 뒤에 바로 오는 log 기록은 살짝 무의미해 보임
                         log_file.write(last_action_success(controller))
                     case "pickup":
@@ -406,9 +416,9 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                     case "close":
                         # close action
                         elapsed_time += Act.close(objID)
-                    case "toggleon":
+                    case "toggle_on":
                         elapsed_time += Act.toggleon(objID)
-                    case "toggleoff":
+                    case "toggle_off":
                         elapsed_time += Act.toggleoff(objID)
                     case "fill":
                         liquid = find_objID(controller, action[2])

@@ -2,10 +2,12 @@ import copy
 
 ## 유사도 검사를 위한 import
 import json
+import os
 import time
 import uuid
 from typing import List, Tuple
 
+from dotenv import load_dotenv
 import requests
 from networkx import DiGraph
 
@@ -22,13 +24,22 @@ from utils.constants import (
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
 )
+from utils.util import create_module_logger
 
 API_URL = (
     "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
 )
-api_token = "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"
-headers = {"Authorization": f"Bearer {api_token}"}
+#manage tokenwith .envs
+load_dotenv()
+logger = create_module_logger(__name__, module_log=True)
+huggingface_api_token = os.environ.get("HUGGINGFACE_API_TOKEN")
+if not huggingface_api_token:
+    logger.error("HUGGINGFACE_API_TOKEN not found in environment variables.")
+    raise EnvironmentError("HUGGINGFACE_API_TOKEN not found in environment variables.")
 
+api_token = huggingface_api_token
+headers = {"Authorization": f"Bearer {api_token}"}
+# api 
 
 def query(payload):
     response = requests.post(API_URL, headers=headers, json=payload)

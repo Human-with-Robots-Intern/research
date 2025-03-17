@@ -6,10 +6,15 @@ from collections import defaultdict
 from typing import Callable, Dict, List, Set, Tuple
 
 import networkx as nx
+import os, sys
 
+
+
+
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from core.agent import Agent
 from core.scheduler import Scheduler
-from ithor.utils.math_utils import adjust_if_unreachable, build_navigation_graph
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import create_module_logger, visualize
 from utils.constants import (
@@ -26,6 +31,8 @@ from utils.task import (
     load_task_data_from_file,
     task_io,
 )
+
+from utils.math_utils import adjust_if_unreachable, build_navigation_graph
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -75,9 +82,9 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=1)
+    task_file_name = get_user_task_choice(task_files, choice=1) # already chosen
     task_data = load_task_data_from_file(task_file_name)
-
+    
     # Build tasks and constraints
     subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
     edges = list(constraints.edges)

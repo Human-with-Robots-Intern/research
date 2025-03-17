@@ -3,15 +3,11 @@ import numpy as np
 import time
 import threading
 import copy
-
+import logging
+import sys
 
 # import for ai2thor
 from ai2thor.controller import Controller
-
-# setting.json 에 ai2thor 위치 환경변수 추가한 상태로 해야함.
-from handlers.camera_handler import CameraHandler
-from handlers.navigation_handler import NavigationHandler
-from handlers.action import Action
 
 from utils.constants import *
 from utils.file_utils import *
@@ -20,7 +16,13 @@ from pygments import highlight
 from pygments.lexers import PythonLexer
 from pygments.formatters import TerminalFormatter
 
-import utils.LMPgen as gen
+import baselines.cap.utils.LMPgen as gen
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+# setting.json 에 ai2thor 위치 환경변수 추가한 상태로 해야함.
+from ithor.handlers.camera_handler import CameraHandler
+from ithor.handlers.navigation_handler import NavigationHandler
+from ithor.handlers.action import Action
 
 
 def initialize_controller(log_file):
@@ -39,18 +41,18 @@ def initialize_controller(log_file):
         fieldOfView=60,
     )
     camera_handler = CameraHandler(controller)
-    Navi = NavigationHandler(controller, camera_handler, log_file)
-    Act = Action(controller, Navi, camera_handler, log_file)
+    Navi = NavigationHandler(controller)
+    Act = Action(controller) # log 인자
 
     return controller, camera_handler, Navi, Act
 
 
 ## LMP Prompts
 # 텍스트 파일 읽기
-prompt_scene_ui_path = "cap/data/prompt_scene_ui.txt"
-prompt_parse_obj_name_path = "cap/data/prompt_parse_obj_name.txt"
-prompt_parse_question_path = "cap/data/prompt_parse_question.txt"
-prompt_fgen_path = "cap/data/prompt_fgen.txt"
+prompt_scene_ui_path = "src/baselines/cap/data/prompt_scene_ui.txt"
+prompt_parse_obj_name_path = "src/baselines/cap/data/prompt_parse_obj_name.txt"
+prompt_parse_question_path = "src/baselines/cap/data/prompt_parse_question.txt"
+prompt_fgen_path = "src/baselines/cap/data/prompt_fgen.txt"
 
 
 def read_txt(file_path):
@@ -155,7 +157,7 @@ def setup_LMP(controller, Navi, Action, cfg_scene):
     for var_name, var_value in fixed_vars.items():
         vars_log.write(f"{var_name}: {var_value}\n")
 
-    variable_vars = {k: getattr(Navi, k) for k in ["move_to"]}
+    variable_vars = {k: getattr(Navi, k) for k in ["move_in_direction"]}
     variable_vars.update(
         {
             k: getattr(Action, k)
@@ -164,8 +166,8 @@ def setup_LMP(controller, Navi, Action, cfg_scene):
                 "slice",
                 "put",
                 "drop",
-                "toggleon",
-                "toggleoff",
+                "toggle_on",
+                "toggle_off",
                 "open",
                 "close",
             ]
@@ -224,7 +226,7 @@ if __name__ == "__main__":
         "Heat potato with microwave, wash a plate three times and cook fried egg"
     )
 
-    log_file = open(f"cap/result/cap_logs_{user_input}.txt", "w", buffering=1)
+    log_file = open(f"src/baselines/cap/result/cap_logs_{user_input}.txt", "w", buffering=1)
     controller, camera_handler, Navi, Acttion = initialize_controller(log_file)
 
     lmp_scene_ui = setup_LMP(controller, Navi, Acttion, cfg_scene)

@@ -12,8 +12,8 @@ from utils.constants import LOG_PATH
 def create_module_logger(module_name, module_log=False, all_log=True):
     """
     module_name: 모듈 이름
-    is_file_handler: 파일 핸들러를 추가할지 여부 (파일에도 로그를 기록)
-    console_output: 콘솔에 로그를 출력할지 여부
+    module_log: 파일 핸들러를 추가할지 여부 (파일에도 로그를 기록)
+    console_output: 콘솔에 로그를 출력할지 여부, 없어진 듯 하다
     """
     # 개별 로그 생성
     logger = logging.getLogger(module_name)

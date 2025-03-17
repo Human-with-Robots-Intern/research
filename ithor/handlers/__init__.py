@@ -1,4 +1,4 @@
-from ..utils.constants import (
+from src.utils.constants import (
     CAMERA_DISTANCE_BEHIND,
     CAMERA_HEIGHT_ABOVE,
     MOVE_STEP,

@@ -9,17 +9,30 @@ import shapely
 import ast
 import astunparse
 from time import sleep
+from utils.util import create_module_logger
+import os
+from dotenv import load_dotenv
+
+
 
 
 import numpy as np
 
 import json
+base_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv()
+
+logger = create_module_logger(__name__, module_log=True)
+openai_api_key = os.environ.get("OPENAI_API_KEY")
+if not openai_api_key:
+    logger.error("OPENAI_API_KEY not found in environment variables.")
+    raise EnvironmentError("OPENAI_API_KEY not found in environment variables.")
 
 client = OpenAI(
-    api_key="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"
+    api_key=openai_api_key 
 )
 
-log_file = open("cap/result/cap_plan.txt", "w", buffering=1)
+log_file = open(os.path.join(base_dir, "../result/cap_plan.txt"), "w", buffering=1)
 
 
 class LMP:
@@ -384,7 +397,7 @@ class LMP_wrapper:
         return self.object_names[::]
 
     def get_obj_id(self, obj_name):
-        hmm = open("cap/hmm_log.txt", "w", buffering=1)
+        hmm = open("hmm_log.txt", "w", buffering=1)
         for obj in self.controller.last_event.metadata["objects"]:
             hmm.write(
                 f"{obj['objectType'].lower()} == {obj_name}: {obj['objectType'].lower() == obj_name}\n"

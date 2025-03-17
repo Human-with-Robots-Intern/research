@@ -3,7 +3,7 @@ import sys
 from ai2thor.controller import Controller
 
 from ithor.handlers.action import Action
-from ithor.utils.constants import *
+from utils.constants import *
 from utils.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, module_log=True)

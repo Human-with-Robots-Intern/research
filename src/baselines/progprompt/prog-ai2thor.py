@@ -11,7 +11,10 @@ import openai
 from ai2thor.controller import Controller
 from util.utils_execute import *
 
+
 from utils.constants import *
+
+current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
 
 
 def initialize_controller():
@@ -45,7 +48,8 @@ def generate_plan(controller, args):
     prompt += f"\nobjects(name) = {obj}\n\n"
 
     # 미리 만들어둔 plan 함수를 prompt 에 추가함.
-    with open("progprompt/example_task.json", "r") as f:
+    example_task_path = os.path.join(current_dir, "example_task.json")
+    with open(example_task_path, "r") as f:
         tmp = json.load(f)
         prompt_egs = {}
         for k, v in tmp.items():
@@ -90,12 +94,13 @@ def generate_plan(controller, args):
         # save generated plan
         line = {}
         print(f"Saving generated plan at: {task}.json\n")
-        with open(f"progprompt/result/plans_of_{task}.json", "w") as f:
+        plan_of_task_path = os.path.join(current_dir,f"result/plans_of_{task}.json")
+        with open(plan_of_task_path, "w") as f:
             for plan, task in zip(gen_plan, test_tasks):
                 line[task] = plan
             json.dump(line, f)
-
-    log_file = open(f"progprompt/result/prog_logs_{task}.txt", "w", buffering=1)
+    prog_log_path = os.path.join(current_dir, f"result/prog_logs_{task}.txt")
+    log_file = open(prog_log_path, "w", buffering=1)
     simulate_execution(controller, test_tasks, gen_plan, log_file, args)
 
 
@@ -105,7 +110,7 @@ def planner_executer(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser() 
 
     parser.add_argument(
         "--prompt-task-examples",
@@ -128,19 +133,20 @@ if __name__ == "__main__":
         default="none",
         choices=["none", "no_comments", "no_feedback", "no_comments_feedback"],
     )
-    parser.add_argument("--openai-api-key", type=str, default="sk-xyz")
+    parser.add_argument("--openai-api-key", type=str, default="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")
 
     parser.add_argument(
         "--gpt-version",
         type=str,
         default="gpt-4o",
-        choices=["gpt-4o", "gpt-40-mini"],
+        choices=["gpt-4o", "gpt-4o-mini"],
     )
     parser.add_argument("--load-generated-plans", type=bool, default=False)
 
+    
     args = parser.parse_args()
     openai.api_key = args.openai_api_key
 
     planner_executer(args=args)
 
-# python ai2thor/prog-ai2thor.py --openai-api-key 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
+

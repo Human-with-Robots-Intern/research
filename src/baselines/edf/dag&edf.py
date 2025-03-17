@@ -7,11 +7,17 @@ import os
 import copy
 import heapq
 
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent  # 프로젝트 루트 경로
+ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 
 
-from ithor.utils.math_utils import build_navigation_graph
+
+from utils.math_utils import build_navigation_graph
 
 from utils.runner_ai2thor import init_ai2thor, load_scene_positions
+
 
 from utils.action_handler import ActionHandler
 from utils.task_util import build_tasks_and_constraints
@@ -431,7 +437,7 @@ def update(
 
 
 def list_task_files():
-    data_dir = "tasks"
+    data_dir = ASSETS_PATH / Path("tasks")
     return [f for f in os.listdir(data_dir) if f.endswith(".json")]
 
 
@@ -444,7 +450,8 @@ def get_user_task_choice(task_files):
 
 
 def load_task_data_from_file(task_file_name):
-    with open(f"tasks/{task_file_name}") as f:
+    task_file = ASSETS_PATH / Path(f"tasks/{task_file_name}")
+    with open(task_file, "r") as f:
         return json.load(f)
 
 

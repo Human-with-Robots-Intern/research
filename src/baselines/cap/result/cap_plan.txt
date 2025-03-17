@@ -5,8 +5,7 @@ microwave_id = get_obj_id('microwave')
 move_to(potato_id)
 pickup(potato_id)
 move_to(microwave_id)
-if parse_question('is microwave close?'):
-    open(microwave_id)
+open(microwave_id)
 put(microwave_id)
 close(microwave_id)
 toggleon(microwave_id)
@@ -39,7 +38,7 @@ if not parse_question('is pan on the stoveburner?'):
     move_to(pan_id)
     if parse_question('is anything in hand?'):
         if parse_question(f"is {parse_question('what is in hand?')} a breakable?"):
-            move_to(get_obj_id('countertop'))
+            move_to(countertop_id)
         else:
             drop()
     pickup(pan_id)
@@ -48,7 +47,7 @@ if not parse_question('is pan on the stoveburner?'):
 move_to(egg_id)
 if parse_question('is anything in hand?'):
     if parse_question(f"is {parse_question('what is in hand?')} a breakable?"):
-        move_to(get_obj_id('countertop'))
+        move_to(countertop_id)
     else:
         drop()
 pickup(egg_id)
@@ -61,17 +60,25 @@ else:
     stoveknob_id = get_obj_id('stoveknob')
     toggleon(stoveknob_id)
     time.sleep(2)
-toggleoff(stoveknob_id)# is microwave close?.
-microwave = get_obj_id('microwave')
-true_states = get_true_states(microwave)
-ret_val = not(any("open".lower() in state.lower() for state in true_states))# is pan on the stoveburner?.
+toggleoff(stoveknob_id)[37m# define function: move_to(pan_id).[39;49;00m[37m[39;49;00m
+[34mdef[39;49;00m[37m [39;49;00m[32mmove_to[39;49;00m(pan_id):[37m[39;49;00m
+    [34mpass[39;49;00m[37m[39;49;00m
+[37m# define function: toggleon(stoveknob_id).[39;49;00m[37m[39;49;00m
+[34mdef[39;49;00m[37m [39;49;00m[32mtoggleon[39;49;00m(stoveknob_id):[37m[39;49;00m
+    [37m# Code to toggle on the stove knob with the given ID[39;49;00m[37m[39;49;00m
+    [34mpass[39;49;00m[37m[39;49;00m
+[37m# define function: toggleoff(stoveknob_id).[39;49;00m[37m[39;49;00m
+[34mdef[39;49;00m[37m [39;49;00m[32mtoggleoff[39;49;00m(stoveknob_id):[37m[39;49;00m
+    [37m# Code to toggle off the stove knob using the given ID[39;49;00m[37m[39;49;00m
+    [34mpass[39;49;00m[37m[39;49;00m
+# is pan on the stoveburner?.
 pan = get_obj_id('pan')
 stoveburner = get_obj_id('stoveburner')
 parentReceptacles = get_parentReceptacles(pan)
 ret_val = any("stoveburner".lower() in obj.lower() for obj in parentReceptacles)# is anything in hand?.
-ret_val = get_obj_in_hand() is not None# is anything in hand?.
 obj_in_hand = get_obj_in_hand()
-ret_val = obj_in_hand is not None# is stoveburner toggled?.
+ret_val = obj_in_hand is not None# is anything in hand?.
+ret_val = get_obj_in_hand() is not None# is stoveburner toggled?.
 stoveburner = get_obj_id('stoveburner')
 true_states = get_true_states(stoveburner)
 ret_val = any("toggle".lower() in state.lower() for state in true_states)
