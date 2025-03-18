@@ -482,7 +482,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files)
+    task_file_name = get_user_task_choice(task_files, choice=4)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
