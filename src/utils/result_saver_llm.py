@@ -1,4 +1,5 @@
 import json
+import os
 import re
 
 def result_save_llm(approach, result_txt, json_output_path, computation_time):
@@ -14,7 +15,7 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
                 "executionStatus": None
             }
         ],
-        "computationTime": None,
+        "computationTime": computation_time,
         "schedulerTotalTime":None,        
         "ai2thorTotalTime": None,
         "realWorldTotalTime": None
@@ -24,7 +25,7 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
     current_action = None
     start_time, end_time = None, None
     execution_status = None
-    computation_time = None
+    last_end_time = 0
 
     for line in lines:
         line = line.strip()
@@ -35,8 +36,7 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
             if current_action:
                 current_action["startTime"] = start_time
                 current_action["endTime"] = end_time
-                current_action["executionStatus"] = execution_status         
-                
+                current_action["executionStatus"] = execution_status                
                 actions.append(current_action)
 
             # 새로운 액션 감지
@@ -55,6 +55,7 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
         # 종료 시간 감지
         elif line.startswith("end_time:"):
             end_time = float(line.split(":")[1].strip())
+            last_end_time = max(last_end_time, end_time)
 
         # 실행 상태 감지
         elif line.startswith("executionStatus:"):
@@ -72,10 +73,15 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
         actions.append(current_action)
 
     json_data["plans"][0]["actions"] = actions
-    json_data["computationTime"] = computation_time
-
+    json_data["plans"][0].pop("executionStatus", None) #마지막 executionStatus는 날리기 위함
+    json_data["ai2thorTotalTime"] = last_end_time
+    
     # JSON 파일로 저장
-    with open(json_output_path, "w") as f:
+    filename=f"{json_output_path}.json"
+    new_json_output_path = os.path.join( "assets", "results", json_output_path, filename)
+    os.makedirs(os.path.dirname(new_json_output_path), exist_ok=True)
+    with open(new_json_output_path, "w") as f:
         json.dump(json_data, f, indent=4)
+        
 
-    print(f"JSON file saved at {json_output_path}")
+    print(f"JSON file saved at {new_json_output_path}")
