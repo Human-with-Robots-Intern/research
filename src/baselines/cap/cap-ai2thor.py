@@ -49,8 +49,8 @@ def timed_action(log_file, action_name, action_func):
         end_time = time.time() - first_action_time
 
         # 액션 시간 및 실행 결과 로그
-        log_file.write(f"start_time: {start_time}\n")
-        log_file.write(f"end_time: {end_time}\n")
+        log_file.write(f"start_time: {round(start_time,2)}\n")
+        log_file.write(f"end_time: {round(end_time,2)}\n")
 
         # 여기서는 일단 항상 success라고 예시(실패 처리가 필요하면 따로 로직 추가)
         log_file.write(f"executionStatus: success\n")
@@ -285,8 +285,10 @@ if __name__ == "__main__":
     objs = list(
         set(obj["objectType"] for obj in controller.step("Pass").metadata["objects"])
     )
+    cap_log_path =f"src/baselines/cap/result/cap_logs_{user_input}.txt"
     computation_time_start = time.time()
     lmp_scene_ui(user_input, objects=f"{objs}")
     computation_time = time.time() - computation_time_start
+    result_path = f"cap_result_{user_input}.json"
 
-    result_save_llm(approach_name, prog_log_path, result_path, computation_time)
+    result_save_llm(approach_name, cap_log_path, result_path, computation_time)
