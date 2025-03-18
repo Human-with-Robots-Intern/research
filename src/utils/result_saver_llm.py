@@ -75,9 +75,9 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
     json_data["plans"][0]["actions"] = actions
     json_data["plans"][0].pop("executionStatus", None) #마지막 executionStatus는 날리기 위함
     json_data["ai2thorTotalTime"] = last_end_time
-    
+
     # JSON 파일로 저장
-    filename=f"{json_output_path}.json"
+    filename=f"{approach}.json"
     new_json_output_path = os.path.join( "assets", "results", json_output_path, filename)
     os.makedirs(os.path.dirname(new_json_output_path), exist_ok=True)
     with open(new_json_output_path, "w") as f:

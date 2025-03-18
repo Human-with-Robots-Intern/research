@@ -48,7 +48,7 @@ def result_save(task_name, approach_name, result_schedule, computation_time):
     result_data = {
         "approach": approach_name,
         "plans": plans,
-        "computationTime": round(computation_time, 2)
+        "computationTime": computation_time
     }
     
     # 결과 데이터를 approach_name.json 파일로 저장 (JSON 형식)
