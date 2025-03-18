@@ -26,7 +26,8 @@ from utils.action_handler import ActionHandler
 from utils.task_util import build_tasks_and_constraints
 from utils.make_gantt import gantt_chart
 from utils.dataclass import SimulationNode, Candidate, CompletedEntry, SchedulerState
-from utils.task import Subtask, Execution, Duration
+from core.task import Subtask, Execution, Duration
+from utils.task.task_io import list_task_files, get_user_task_choice, load_task_data_from_file
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState):
@@ -439,23 +440,6 @@ def update(
     return updated_state
 
 
-def list_task_files():
-    data_dir = ASSETS_PATH / Path("tasks")
-    return [f for f in os.listdir(data_dir) if f.endswith(".json")]
-
-
-def get_user_task_choice(task_files):
-    print("Available task files:")
-    for i, file in enumerate(task_files):
-        print(f"{i + 1}. {file}")
-    choice = int(input("Select a task file by number: ")) - 1
-    return task_files[choice]
-
-
-def load_task_data_from_file(task_file_name):
-    task_file = ASSETS_PATH / Path(f"tasks/{task_file_name}")
-    with open(task_file, "r") as f:
-        return json.load(f)
 
 
 def get_init_state(
