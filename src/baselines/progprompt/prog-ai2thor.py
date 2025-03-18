@@ -72,7 +72,10 @@ def generate_plan(controller, args):
             )
 
     test_tasks = [
-        "Heat potato with Microwave. Wash a plate three times and cook fried egg"
+        # "Heat potato with Microwave. Wash a plate three times and cook fried egg"
+        # "Wash_Tomato_and_Potato_and_egg_and_Cook_Egg_Fry"
+        #위의 두개가 계속 같은 reachbility error가 나서 다른 task로 대체함
+        "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple"
     ]
     # "toast the bread and put tomato in the fridge. put egg in the pan."
     # "pick the egg"
@@ -104,9 +107,10 @@ def generate_plan(controller, args):
     computation_time = time.time() - computation_time_start
 
     prog_log_path = os.path.join(current_dir, f"result/prog_logs_{task}.txt")
+    os.makedirs(os.path.dirname(prog_log_path), exist_ok=True)
     log_file = open(prog_log_path, "w", buffering=1)
     approach_name = "progprompt"
-    result_path = os.path.join(current_dir, f"result/prog_result_{task}.json")
+    result_path = f"prog_result_{task}"
     simulate_execution(controller, test_tasks, gen_plan, log_file, args)
     result_save_llm(approach_name,  prog_log_path, result_path, computation_time)
  
