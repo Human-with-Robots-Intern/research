@@ -1,5 +1,5 @@
 # Heat potato with microwave, wash a plate three times and cook fried egg.
-objects = ['tomato', 'potato', 'pan', 'stoveburner', 'stoveknob', 'faucet', 'fridge', 'apple', 'sinkbasin', 'drawer', 'book', 'coffeemachine', 'mug', 'egg', 'bread', 'microwave', 'plate', 'countertop', 'kettle',]
+objects = ['tomato', 'potato', 'pan', 'stoveburner', 'stoveknob', 'faucet', 'fridge', 'apple', 'sinkbasin', 'drawer', 'book', 'coffeemachine', 'mug', 'egg', 'bread', 'microwave', 'plate', 'countertop', 'kettle']
 
 # Heat potato with microwave
 potato_id = get_obj_id('potato')
@@ -7,11 +7,12 @@ microwave_id = get_obj_id('microwave')
 move_to(potato_id)
 pickup(potato_id)
 move_to(microwave_id)
-open(microwave_id)
+if parse_question('is microwave closed?'):
+    open(microwave_id)
 put(microwave_id)
 close(microwave_id)
 toggleon(microwave_id)
-time.sleep(1)
+time.sleep(2)
 toggleoff(microwave_id)
 open(microwave_id)
 pickup(potato_id)
@@ -40,6 +41,11 @@ stoveburner_id = get_obj_id('stoveburner')
 stoveknob_id = get_obj_id('stoveknob')
 move_to(egg_id)
 pickup(egg_id)
+if not parse_question('is pan on the stoveburner?'):
+    move_to(pan_id)
+    pickup(pan_id)
+    move_to(stoveburner_id)
+    put(stoveburner_id)
 move_to(pan_id)
 put(pan_id)
 slice(egg_id)
@@ -58,7 +64,14 @@ toggleoff(stoveknob_id)[37m# define function: move_to(pan_id).[39;49;00m[37m
 [34mdef[39;49;00m[37m [39;49;00m[32mtoggleoff[39;49;00m(stoveknob_id):[37m[39;49;00m
     [37m# Code to toggle off the stove knob using the given ID[39;49;00m[37m[39;49;00m
     [34mpass[39;49;00m[37m[39;49;00m
-# is stoveburner toggled?.
+# is microwave closed?.
+microwave = get_obj_id('microwave')
+true_states = get_true_states(microwave)
+ret_val = not(any("open".lower() in state.lower() for state in true_states))# is pan on the stoveburner?.
+pan = get_obj_id('pan')
+stoveburner = get_obj_id('stoveburner')
+parentReceptacles = get_parentReceptacles(pan)
+ret_val = any("stoveburner".lower() in obj.lower() for obj in parentReceptacles)# is stoveburner toggled?.
 stoveburner = get_obj_id('stoveburner')
 true_states = get_true_states(stoveburner)
 ret_val = any("toggle".lower() in state.lower() for state in true_states)

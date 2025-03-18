@@ -1,0 +1,115 @@
+{
+    "approach": "progprompt",
+    "plans": [
+        {
+            "planName": "progprompt",
+            "actions": [
+                {
+                    "Executing action": [
+                        "walk",
+                        "mug"
+                    ],
+                    "startTime": 0.0,
+                    "endTime": 1.5,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "pickup",
+                        "mug"
+                    ],
+                    "startTime": 1.5,
+                    "endTime": 1.5,
+                    "executionStatus": "failure"
+                },
+                {
+                    "Executing action": [
+                        "walk",
+                        "coffeemachine"
+                    ],
+                    "startTime": 1.5,
+                    "endTime": 2.5,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put",
+                        "mug",
+                        "coffeemachine"
+                    ],
+                    "startTime": 2.5,
+                    "endTime": 5.5,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "toggleon",
+                        "coffeemachine"
+                    ],
+                    "startTime": 5.5,
+                    "endTime": 5.5,
+                    "executionStatus": null
+                },
+                {
+                    "Executing action": [
+                        "toggleon",
+                        "coffeemachine"
+                    ],
+                    "startTime": 5.5,
+                    "endTime": 5.5,
+                    "executionStatus": null
+                },
+                {
+                    "Executing action": [
+                        "pickup",
+                        "mug"
+                    ],
+                    "startTime": 5.5,
+                    "endTime": 5.5,
+                    "executionStatus": "failure"
+                },
+                {
+                    "Executing action": [
+                        "walk",
+                        "countertop"
+                    ],
+                    "startTime": 5.5,
+                    "endTime": 7.4,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put",
+                        "mug",
+                        "countertop"
+                    ],
+                    "startTime": 7.4,
+                    "endTime": 10.4,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "walk",
+                        "apple"
+                    ],
+                    "startTime": 10.4,
+                    "endTime": 13.6,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "pickup",
+                        "apple"
+                    ],
+                    "startTime": 13.6,
+                    "endTime": 13.6,
+                    "executionStatus": "failure"
+                }
+            ]
+        }
+    ],
+    "computationTime": 5.6918065547943115,
+    "schedulerTotalTime": null,
+    "ai2thorTotalTime": 13.6,
+    "realWorldTotalTime": null
+}

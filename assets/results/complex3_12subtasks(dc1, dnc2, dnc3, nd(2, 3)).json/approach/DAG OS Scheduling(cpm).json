@@ -23,57 +23,57 @@
                     "executionStatus": null
                 },
                 {
-                    "subtaskName": "Prepare Egg Fry",
+                    "subtaskName": "Put Potato in the Microwave",
                     "startTime": 48.6,
-                    "endTime": 69.2,
+                    "endTime": 61.2,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Prepare Coffee",
-                    "startTime": 69.2,
-                    "endTime": 75.1,
+                    "startTime": 61.2,
+                    "endTime": 67.1,
                     "executionStatus": null
                 },
                 {
-                    "subtaskName": "Put Potato in the Microwave",
-                    "startTime": 75.1,
+                    "subtaskName": "Prepare Egg Fry",
+                    "startTime": 67.1,
                     "endTime": 87.7,
                     "executionStatus": null
                 },
                 {
-                    "subtaskName": "Turn off Stove after cooking",
+                    "subtaskName": "Start the Microwave",
                     "startTime": 87.7,
-                    "endTime": 91.9,
+                    "endTime": 91.7,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Retrieve Coffee",
-                    "startTime": 91.9,
-                    "endTime": 96.5,
-                    "executionStatus": null
-                },
-                {
-                    "subtaskName": "Start the Microwave",
-                    "startTime": 96.5,
-                    "endTime": 100.5,
+                    "startTime": 91.7,
+                    "endTime": 96.3,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "nav",
-                    "startTime": 100.5,
-                    "endTime": 103.5,
+                    "startTime": 96.3,
+                    "endTime": 99.5,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "wait",
-                    "startTime": 103.5,
-                    "endTime": 105.5,
+                    "startTime": 99.5,
+                    "endTime": 106.38,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Turn off Stove after cooking",
+                    "startTime": 116.47,
+                    "endTime": 120.67,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Retrieve Potato from Microwave",
-                    "startTime": 110.5,
-                    "endTime": 119.5,
+                    "startTime": 120.67,
+                    "endTime": 129.67,
                     "executionStatus": null
                 }
             ]

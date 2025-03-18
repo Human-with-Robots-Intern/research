@@ -1,0 +1,175 @@
+{
+    "approach": "Code as Policies",
+    "plans": [
+        {
+            "planName": "Code as Policies",
+            "actions": [
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 0.0,
+                    "endTime": 9.11,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "open"
+                    ],
+                    "startTime": 11.26,
+                    "endTime": 11.79,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 11.79,
+                    "endTime": 12.23,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "close"
+                    ],
+                    "startTime": 12.23,
+                    "endTime": 12.58,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "open"
+                    ],
+                    "startTime": 14.59,
+                    "endTime": 15.14,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 15.14,
+                    "endTime": 19.8,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 19.81,
+                    "endTime": 20.16,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 20.18,
+                    "endTime": 32.25,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 32.25,
+                    "endTime": 32.62,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 32.62,
+                    "endTime": 37.16,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 37.16,
+                    "endTime": 37.51,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 37.51,
+                    "endTime": 41.96,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 41.96,
+                    "endTime": 42.31,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 42.31,
+                    "endTime": 46.83,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 46.84,
+                    "endTime": 47.2,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 47.21,
+                    "endTime": 65.42,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 67.19,
+                    "endTime": 87.38,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 87.38,
+                    "endTime": 87.76,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 87.76,
+                    "endTime": 88.19,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "slice"
+                    ],
+                    "startTime": 88.19,
+                    "endTime": 88.54,
+                    "executionStatus": "success"
+                }
+            ],
+            "executionStatus": null
+        }
+    ],
+    "computationTime": null,
+    "schedulerTotalTime": null,
+    "ai2thorTotalTime": null,
+    "realWorldTotalTime": null
+}

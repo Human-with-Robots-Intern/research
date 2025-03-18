@@ -1,0 +1,119 @@
+{
+    "approach": "DAG + EDF",
+    "plans": [
+        {
+            "planName": "DAG + EDF",
+            "subtasks": [
+                {
+                    "subtaskName": "Prepare Coffee",
+                    "startTime": null,
+                    "endTime": 5.0,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "NAVIGATE_TO_Mug|-01.76|+00.90|-00.62",
+                    "startTime": 5.0,
+                    "endTime": 6.6,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "WAIT_for_Retrieve Coffee",
+                    "startTime": 6.6,
+                    "endTime": 10.0,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Retrieve Coffee",
+                    "startTime": 10.0,
+                    "endTime": 14.5,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Put Potato in the Microwave",
+                    "startTime": 14.5,
+                    "endTime": 22.1,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Start the Microwave",
+                    "startTime": 22.1,
+                    "endTime": 23.1,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "NAVIGATE_TO_CounterTop|-00.08|+01.15|00.00",
+                    "startTime": 23.1,
+                    "endTime": 24.1,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "WAIT_for_Retrieve Potato from Microwave",
+                    "startTime": 24.1,
+                    "endTime": 28.1,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Retrieve Potato from Microwave",
+                    "startTime": 28.1,
+                    "endTime": 34.1,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Fork",
+                    "startTime": 34.1,
+                    "endTime": 48.0,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Spoon",
+                    "startTime": 48.0,
+                    "endTime": 61.9,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Plate_part_1",
+                    "startTime": 61.9,
+                    "endTime": 77.0,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Plate_part_2",
+                    "startTime": 77.0,
+                    "endTime": 92.1,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Wash Plate_part_3",
+                    "startTime": 92.1,
+                    "endTime": 107.2,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Prepare Egg Fry",
+                    "startTime": 107.2,
+                    "endTime": 127.2,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "NAVIGATE_TO_StoveKnob|-00.02|+00.88|-02.19",
+                    "startTime": 127.2,
+                    "endTime": 130.4,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "WAIT_for_Turn off Stove after cooking",
+                    "startTime": 130.4,
+                    "endTime": 137.2,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Turn off Stove after cooking",
+                    "startTime": 137.2,
+                    "endTime": 141.4,
+                    "executionStatus": null
+                }
+            ]
+        }
+    ],
+    "computationTime": 0.23
+}
