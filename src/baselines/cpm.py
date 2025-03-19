@@ -69,7 +69,7 @@ def parse_arguments():
     parser.add_argument(
         "-s",
         "--simulation",
-        # default=True,
+        default=True,
         action="store_true",
     )
     return parser.parse_args()
@@ -108,7 +108,7 @@ def main():
 
     # 스케줄링 실행
     
-    computation_time_start = time.time() 
+    computation_time_start = time.time()
     shedule_order = schedule_with_cp_priority(edges, critical_path)
     computation_time = time.time() - computation_time_start
 
@@ -119,12 +119,9 @@ def main():
     simulationTime = 0
     for st in result_schedule_with_time:
 
-        if args.simulation: 
-            # 터미널에서 src/baselines/cpm.py -s 실행시 사용됨  
-           
-            subtask_time, is_subtask_success = execute_subtask(controller, st)           
-            
-
+        if args.simulation:
+            # 터미널에서 src/baselines/cpm.py -s 실행시 사용됨           
+            subtask_time, is_subtask_success = execute_subtask(controller, st)            
             simulationTime += subtask_time            
             st.is_subtask_success = is_subtask_success
       
@@ -136,7 +133,8 @@ def main():
     print("=== Combined single-scheduler with CP priority ===")
     for step in shedule_order:
         print(" -", step)
-    
+    if args.simulation: 
+        approach_name = f"{approach_name}_simulation"
     result_save(task_file_name, approach_name, result_schedule_with_time, computation_time, simulationTime)
 
 
@@ -460,22 +458,27 @@ def last_calculte_schedule_and_time(schedule_order, subtasks, held_object, nav_g
                             )
                             nav_execution_objects=subtask.execution.objects
                             nav_execution_primitive_actions=subtask.execution.primitive_actions[0]
+                            if isinstance(nav_execution_primitive_actions, str):
+                                nav_execution_primitive_actions = [nav_execution_primitive_actions] 
                             nav_execution=Execution(objects=nav_execution_objects, primitive_actions= nav_execution_primitive_actions)
                             nav_subtask = Subtask(task_name=task_name, name="nav",repetition= 1, type="interaction", execution=nav_execution, duration=nav_time)
                             
                             nav_subtask.start_time= total_time
                             nav_subtask.end_time = total_time+nav_time
+                            nav_subtask.executionStatus=True 
                             result_schedule_with_time.append(nav_subtask)
 
                             total_time = nav_subtask.end_time
 
                             if nav_time < needed_interval:
                                 wait_time = needed_interval - nav_time
-                                wait_subtask=Subtask(task_name=task_name,name="wait", repetition=1,type="interaction", execution=None, duration= wait_time)
+                                wait_execution = Execution(objects=None, primitive_actions=["WAIT 0.0"])
+                                wait_subtask=Subtask(task_name=task_name, name="wait", repetition=1,type="interaction", execution=wait_execution, duration= wait_time)
                                 wait_subtask.start_time = total_time
                                 wait_subtask.end_time = total_time+wait_time
                                 result_schedule_with_time.append(wait_subtask)
                                 total_time = wait_subtask.end_time
+                                wait_subtask.executionStatus=True
                             else:
                                 wait_time = 0.0
                             

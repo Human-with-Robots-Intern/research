@@ -1,3 +1,4 @@
+import argparse
 import heapq
 import json
 from typing import List, Optional, Tuple
@@ -10,6 +11,7 @@ import time
 
 from pathlib import Path
 
+from sim.runner_ai2thor import execute_subtask
 from utils.result_saver import result_save
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent  # 프로젝트 루트 경로
@@ -380,11 +382,12 @@ def update(
                     type="NAVIGATE",
                     execution=Execution(objects={}, primitive_actions=[nav_action]),
                     duration=Duration(type="NAVIGATE", interval=nav_time),
-                    temporal_constraints=[],
+                    temporal_constraints=[],                    
                 ),
                 start_time=new_current_time,
                 end_time=new_current_time + nav_time,
             )
+            nav_entry.subtask.executionStatus = True
             wait_entries.append(nav_entry)
             new_current_time += nav_time
 
@@ -406,6 +409,7 @@ def update(
                 start_time=new_current_time,
                 end_time=designated_start,
             )
+            wait_entry.subtask.executionStatus = True
             wait_entries.append(wait_entry)
             new_current_time = designated_start
 
@@ -440,8 +444,6 @@ def update(
     return updated_state
 
 
-
-
 def get_init_state(
     subtasks: List[Subtask], constraints: nx.DiGraph, scene_poses: dict
 ) -> SchedulerState:
@@ -472,17 +474,53 @@ def get_init_state(
     return init_state
 
 
+def parse_arguments():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description="Task Scheduler")
+
+    # 현재 미사용중인 argument들은 주석처리되었다.
+    # parser.add_argument(
+    #     "-d",
+    #     "--decomposition",
+    #     help="Enable or disable decomposition",
+    #     default=True,
+    #     action="store_true",
+    # )
+    # parser.add_argument(
+    #     "-v",
+    #     "--visualize",
+    #     help="Enable visualization of the task plan",
+    #     default=True,
+    #     action="store_true",
+    # )
+    # parser.add_argument(
+    #     "-r",
+    #     "--reset",
+    #     default=True,
+    #     help="Reset the knowledge base to Gaussian",
+    #     action="store_true",
+    # )
+    parser.add_argument(
+        "-s",
+        "--simulation",
+        default=True,
+        action="store_true",
+    )
+    return parser.parse_args()
+
+
 def main():
 
     # Set up the AI2-THOR controller and navigation graph
-    approach_name="DAG + EDF"
+    approach_name="DAG_EDF"
+    args = parse_arguments()
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
     scene_poses = load_scene_positions("FloorPlan1_positions.json")
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=4)
+    task_file_name = get_user_task_choice(task_files, choice=12)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
@@ -492,12 +530,25 @@ def main():
     computation_time_start = time.time()
     current_state = get_init_state(subtasks, constraints, scene_poses)
     result_schedule = []
+    total_simulation_execute_time = 0
+    simulationTime = 0
     for _ in range(len(subtasks)):
+        #next_subtask는 Subtask 객체이다.
         next_subtask = simulation_edf(current_state, nav_graph)
         if next_subtask is None:
             break
+        if args.simulation:
+            # 터미널에서 src/dag_bayesian.py -s 실행시 사용됨  
+            execute_time_start = time.time()   
+            subtask_time, executionStatus = execute_subtask(controller, next_subtask)
+            execute_time = time.time() - execute_time_start  
+            total_simulation_execute_time += execute_time
+
+            simulationTime += subtask_time            
+            next_subtask.executionStatus = executionStatus
+
         current_state = update(current_state, next_subtask, nav_graph)
-    computation_time=time.time() - computation_time_start
+    computation_time=time.time() - computation_time_start - total_simulation_execute_time
     
     
 
@@ -514,7 +565,9 @@ def main():
         st.subtask.end_time = st.end_time
         subtasks_with_time.append(st.subtask)
 
-    result_save(task_file_name, approach_name, subtasks_with_time, computation_time)
+    if args.simulation: 
+        approach_name = f"{approach_name}_simulation"
+    result_save(task_file_name, approach_name, subtasks_with_time, computation_time, simulationTime )
 
 
 if __name__ == "__main__":

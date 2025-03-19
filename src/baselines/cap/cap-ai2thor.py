@@ -52,8 +52,15 @@ def timed_action(log_file, action_name, action_func):
         log_file.write(f"start_time: {round(start_time,2)}\n")
         log_file.write(f"end_time: {round(end_time,2)}\n")
 
-        # 여기서는 일단 항상 success라고 예시(실패 처리가 필요하면 따로 로직 추가)
-        log_file.write(f"executionStatus: success\n")
+        # 
+        if controller.last_event.metadata["lastActionSuccess"]:
+            log_file.write(f"executionStatus: {True}\n")
+
+        else:
+            log_file.write(f"executionStatus: {False}\n")
+
+
+        
 
         return result
     return wrapper
@@ -213,7 +220,7 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
     for action_name in ["pickup", "slice", "put", "drop", 
                         "toggle_on", "toggle_off", "open", "close"]:
         original_func = variable_vars[action_name]
-        variable_vars[action_name] = timed_action(log_file, action_name, original_func)
+        variable_vars[action_name] = timed_action(log_file, action_name, original_func, controller)
 
 
 
@@ -264,11 +271,11 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
 
     return lmp_scene_ui
 
-
 if __name__ == "__main__":
     approach_name = "Code as Policies"   
     user_input = (
         # "Heat potato with microwave, wash a plate three times and cook fried egg" 
+        # "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple"
         "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple"
     )
 

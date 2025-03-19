@@ -143,7 +143,7 @@ def execute_subtask(controller, subtask):
             )
                 # TODO: log if the last primiive action was successful
         # e.g., 
-        # wirte code here
+        
         success = controller.last_event.metadata.get('lastActionSuccess', 'N/A')
         log.info(f"Action success: {action_str}: {success}")
         if success == False:

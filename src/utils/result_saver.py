@@ -15,26 +15,36 @@ def compose_plans(result_schedule, approach_name):
     현재 Subtask 클래스에는 startTime, endTime 속성이 없으므로 None으로 저장합니다.
     또한, updatedExpectedTime 속성이 있다면 포함하도록 처리합니다.
     """
+    success_count = 0
+    total_count = 0
+    subtasks = []
+    for st in result_schedule:  
+        execution_status = getattr(st, "executionStatus", None) # Subtask 객체에 is_subtask_success 속성이 있는 경우에만 저장
+        if execution_status is not None:
+            total_count += 1
+            if execution_status:
+                success_count += 1  
+        subtask = {
+            "subtaskName": st.name,
+            "startTime": round(st.start_time, 2) if st.start_time else None,
+            "endTime": round(st.end_time, 2) if st.end_time else None,
+            "executionStatus": execution_status,    
+            **({"updatedExpectedTime": st.updatedExpectedTime} if hasattr(st, "updatedExpectedTime") else {})
+        }
+        subtasks.append(subtask)
+
+
+    success_rate=round(success_count/total_count, 2) if total_count != 0 else None
     plans = [{
         "planName": approach_name,
-        "subtasks": [
-            {
-                "subtaskName": st.name,
-                "startTime": round(st.start_time, 2) if st.start_time else None,
-                "endTime": round(st.end_time, 2) if st.end_time else None,
-                "executionStatus": getattr(st, "is_subtask_success", None),    # Subtask 객체에 is_subtask_success 속성이 있는 경우에만 저장
-                **({"updatedExpectedTime": st.updatedExpectedTime} if hasattr(st, "updatedExpectedTime") else {})
-            } for st in result_schedule
-        ]
+        "subtasks": subtasks,
+        
     }]
-
-    return plans
+    return plans, success_rate
 
 
 def result_save(task_name, approach_name, result_schedule, computation_time, simulationTime= None):
-    """
-    결과 데이터를 지정된 폴더 구조에 JSON 파일(result_save.pt)로 저장합니다.
-    
+    """    
     Parameters:
         task_name (str): 태스크 이름
         approach_name (str): 적용한 접근 방식 (예, "dag_bayesian")
@@ -42,7 +52,7 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
         computation_time (float): 전체 계산 소요 시간
     """
 
-    plans = compose_plans(result_schedule,approach_name)
+    plans, success_rate= compose_plans(result_schedule,approach_name)
  
     save_folder_path = Path(RESULT_PATH) / task_name
     save_folder_path.mkdir(exist_ok=True, parents=True)
@@ -53,6 +63,8 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
         "plans": plans,
         "computationTime": computation_time,
         "simulationMakespan": simulationTime,
+        "success_rate": success_rate,
+        "timing_success_rate": None ,
     }
     
     # 결과 데이터를 approach_name.json 파일로 저장 (JSON 형식)
@@ -78,6 +90,8 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
             }
         ],
         "computationTime": computation_time,
+        "success_rate": None,
+        "timing_success_rate": None,
         "schedulerTotalTime":None,
         "simulationMakespan": None,
         "realWorldTotalTime": None
@@ -88,7 +102,8 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
     start_time, end_time = None, None
     execution_status = None
     last_end_time = 0
-
+    total_count = 0
+    success_count = 0
     for line in lines:
         line = line.strip()
 
@@ -122,6 +137,11 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
         # 실행 상태 감지
         elif line.startswith("executionStatus:"):
             execution_status = line.split(":")[1].strip()
+            if execution_status == "True":
+                success_count += 1
+            total_count += 1    
+             
+            
 
         # 총 실행 시간 감지
         elif line.startswith("Total time spent"):
@@ -137,6 +157,7 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
     json_data["plans"][0]["actions"] = actions
     json_data["plans"][0].pop("executionStatus", None) #마지막 executionStatus는 날리기 위함
     json_data["simulationMakespan"] = last_end_time
+    json_data["success_rate"] = round(success_count/total_count, 2) if total_count != 0 else None
 
     # JSON 파일로 저장
     filename=f"{approach}.json"

@@ -149,9 +149,9 @@ def find_objID(controller, obj_type):  ## object type과 object id를 매칭
 
 def last_action_success(controller):  ## 마지막 행동이 성공했는지 확인
     if controller.last_event.metadata["lastActionSuccess"]:
-        return "success\n"
+        return True
     else:
-        return "failure\n"
+        return False
 
 
 def see_have(controller):  ## assert 및 해야할 행동
