@@ -268,7 +268,8 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
 if __name__ == "__main__":
     approach_name = "Code as Policies"   
     user_input = (
-        "Heat potato with microwave, wash a plate three times and cook fried egg"
+        # "Heat potato with microwave, wash a plate three times and cook fried egg" 
+        "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple"
     )
 
     log_file = open(f"src/baselines/cap/result/cap_logs_{user_input}.txt", "w", buffering=1)
