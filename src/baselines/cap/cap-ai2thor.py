@@ -17,8 +17,8 @@ from pygments.lexers import PythonLexer
 from pygments.formatters import TerminalFormatter
 
 import baselines.cap.util.LMPgen as gen
-from utils.result_saver import result_save
-from utils.result_saver_llm import result_save_llm
+from utils.result_saver import result_save_llm
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 # setting.json 에 ai2thor 위치 환경변수 추가한 상태로 해야함.
