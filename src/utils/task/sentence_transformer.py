@@ -24,9 +24,7 @@ class SentenceSimilarityModel:
             cls(model_name)
         return cls._instance
 
-    def compute_cosine_similarity(
-        self, query_str: str, target_strs: list[str]
-    ) -> float:
+    def compute_cosine_similarity(self, query_str: str, target_str: str) -> float:
         """
         Compute the cosine similarity between two embedding vectors.
 
@@ -34,11 +32,10 @@ class SentenceSimilarityModel:
         :param vec2: Second embedding vector of shape (1, embedding_dim).
         :return: Cosine similarity score (float).
         """
-        # INFO     Computing cosine similarity between 'Turn off stove after cooking' and ['Brew Coffee']
-        log.info(f"Computing cosine similarity between '{query_str}' and {target_strs}")
+
         origin_vec = self.model.encode([query_str])
-        target_vecs = self.model.encode(target_strs)
+        target_vec = self.model.encode(target_str)
         return float(
-            np.dot(origin_vec, target_vecs)
-            / (np.linalg.norm(origin_vec) * np.linalg.norm(target_vecs))
+            np.dot(origin_vec, target_vec)
+            / (np.linalg.norm(origin_vec) * np.linalg.norm(target_vec))
         )
