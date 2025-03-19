@@ -7,7 +7,7 @@ from core.agent import Agent
 from core.scheduler import Scheduler
 from ithor.handlers.navigation_handler import build_navigation_graph
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
-from utils import create_module_logger, visualize
+from utils import create_module_logger
 from utils.constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH
 from utils.result_saver import result_save
 from utils.task import (
@@ -18,6 +18,7 @@ from utils.task import (
     load_task_data_from_file,
 )
 from utils.task.task_io import load_scene_positions
+from utils.viz.visualizer import visualize
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -80,7 +81,7 @@ def main():
     subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
 
     # Visualize the task graph if enabled
-    if args.visualize:  # True default, 현재는 변경 불가
+    if args.visualize:
         visualize(approach_name, task_file_name, constraints)
 
     agent = Agent()
@@ -104,7 +105,6 @@ def main():
             break
 
         if args.simulation:
-            # 터미널에서 src/dag_bayesian.py -s 실행시 사용됨
             execute_time_start = time.time()
             subtask_time, is_subtask_success = execute_subtask(
                 controller, next_state.subtask
@@ -129,9 +129,6 @@ def main():
     computation_time = (
         time.time() - computation_time_start - total_simulation_execute_time
     )
-    # 근데 이렇게 되면 computation time이 simulation 돌아가는 시간이 될텐데
-    # 그거 말고 schedule 뽑는데만 걸리는 시간은 어떻게 뽑지
-    # print(f"planning time is : {computation_time:.2f}")
 
     for ce in current_state.completed_subtasks:
         log.info(
