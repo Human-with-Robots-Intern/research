@@ -6,9 +6,10 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-from dotenv import load_dotenv
 
 import openai
+from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
 
 from utils.constants import (
     ESTIMATE_FILE_NAME,
@@ -17,6 +18,7 @@ from utils.constants import (
     PROMPT_PATH,
     TASK_PATH,
 )
+from utils.task.fewshot_retriever import generate_few_shot_prompts
 from utils.util import create_module_logger
 
 # Accessing .env file
@@ -37,6 +39,7 @@ def initialize_openai() -> openai.OpenAI:
 
 
 client = initialize_openai()
+
 
 # Task cache for deduplication
 task_cache: Dict[int, List[Dict[str, Any]]] = {}
@@ -196,13 +199,18 @@ def cached_generate_task(
     return None
 
 
-def generate_task():
+def generate_task(is_rag: bool = False) -> str:
     """Generate tasks based on user input and knowledge base."""
+    user_input = input("Please enter the instructions: ").strip()
 
     examples_prompt = load_file(Path(PROMPT_PATH) / PROMPT_FILE_PATH, "txt")
+    if is_rag:
+        retrieved_few_shot_prompts = generate_few_shot_prompts(user_input, top_k=5)
+        examples_prompt = examples_prompt.replace(
+            "<example>", retrieved_few_shot_prompts
+        )
     knowledge = load_file(Path(KNOWLEDGE_PATH) / ESTIMATE_FILE_NAME, "json")
 
-    user_input = input("Please enter the instructions: ").strip()
     if not user_input:
         logger.error("User input cannot be empty.")
         raise ValueError("User input cannot be empty.")

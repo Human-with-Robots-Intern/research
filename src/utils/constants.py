@@ -10,7 +10,7 @@ TASK_PATH = ROOT_PATH / "assets" / "tasks"
 LOG_PATH = ROOT_PATH / "logs"
 R_PATH = ROOT_PATH / "assets" / "results"
 RESULT_PATH = ROOT_PATH / "assets" / "results"
-PROMPT_FILE_PATH = "e2e_generator_ver5.txt"
+PROMPT_FILE_PATH = "jcci_prompt.txt"
 ESTIMATE_FILE_NAME = "bayesian_estimate.json"
 GROUND_TRUTH_FILE_NAME = "bayesian_ground_truth.json"
 
