@@ -87,7 +87,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice= 4 ) # already chosen
+    task_file_name = get_user_task_choice(task_files, choice= 12 ) # already chosen
     task_data = load_task_data_from_file(task_file_name)
     
     # Build tasks and constraints
@@ -116,16 +116,28 @@ def main():
     total_time, result_schedule_with_time = last_calculte_schedule_and_time(
         shedule_order, subtasks, held_object, nav_graph
     )
+    simulationTime = 0
+    for st in result_schedule_with_time:
+
+        if args.simulation: 
+            # 터미널에서 src/baselines/cpm.py -s 실행시 사용됨  
+           
+            subtask_time, is_subtask_success = execute_subtask(controller, st)           
+            
+
+            simulationTime += subtask_time            
+            st.is_subtask_success = is_subtask_success
+      
     
     print("total time = ", total_time)
     print("Schedule order with start and end times:")
-    for st in result_schedule_with_time:
+    for st in result_schedule_with_time: 
         print(f" - {st.name}: {st.start_time:.2f} ~ {st.end_time:.2f}")
     print("=== Combined single-scheduler with CP priority ===")
     for step in shedule_order:
         print(" -", step)
     
-    result_save(task_file_name, approach_name, result_schedule_with_time, computation_time)
+    result_save(task_file_name, approach_name, result_schedule_with_time, computation_time, simulationTime)
 
 
 def paths(edges):
