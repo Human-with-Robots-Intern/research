@@ -20,15 +20,16 @@ def compose_plans(result_schedule, approach_name):
                 "subtaskName": st.name,
                 "startTime": round(st.start_time, 2) if st.start_time else None,
                 "endTime": round(st.end_time, 2) if st.end_time else None,
-                "executionStatus": None,
+                "executionStatus": getattr(st, "is_subtask_success", None),    # Subtask 객체에 is_subtask_success 속성이 있는 경우에만 저장
                 **({"updatedExpectedTime": st.updatedExpectedTime} if hasattr(st, "updatedExpectedTime") else {})
             } for st in result_schedule
         ]
     }]
+
     return plans
 
 
-def result_save(task_name, approach_name, result_schedule, computation_time):
+def result_save(task_name, approach_name, result_schedule, computation_time, simulationTime= None):
     """
     결과 데이터를 지정된 폴더 구조에 JSON 파일(result_save.pt)로 저장합니다.
     
@@ -48,7 +49,8 @@ def result_save(task_name, approach_name, result_schedule, computation_time):
     result_data = {
         "approach": approach_name,
         "plans": plans,
-        "computationTime": computation_time
+        "computationTime": computation_time,
+        "simulationMakespan": simulationTime,
     }
     
     # 결과 데이터를 approach_name.json 파일로 저장 (JSON 형식)

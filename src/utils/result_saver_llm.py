@@ -16,8 +16,8 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
             }
         ],
         "computationTime": computation_time,
-        "schedulerTotalTime":None,        
-        "ai2thorTotalTime": None,
+        "schedulerTotalTime":None,
+        "simulationMakespan": None,
         "realWorldTotalTime": None
     }
 
@@ -63,7 +63,7 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
 
         # 총 실행 시간 감지
         elif line.startswith("Total time spent"):
-            ai2thor_time = float(line.split(":")[1].strip())
+            simulationMakespan = float(line.split(":")[1].strip())
 
     # 마지막 액션 저장 (루프가 종료된 후 마지막 액션을 추가해야 함)
     if current_action:
@@ -74,7 +74,7 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
 
     json_data["plans"][0]["actions"] = actions
     json_data["plans"][0].pop("executionStatus", None) #마지막 executionStatus는 날리기 위함
-    json_data["ai2thorTotalTime"] = last_end_time
+    json_data["simulationMakespan"] = last_end_time
 
     # JSON 파일로 저장
     filename=f"{approach}.json"
