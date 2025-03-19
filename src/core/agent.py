@@ -11,6 +11,7 @@ from scheduler.constraint_handler import ConstraintHandler
 from scheduler.dataclass import SchedulerState
 from utils import KNOWLEDGE_PATH, create_module_logger
 from utils.task import task_util
+from utils.task.sentence_transformer import SentenceSimilarityModel
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -19,6 +20,7 @@ class Agent:
     def __init__(self):
         self.knowledge = self._load_knowledge()
         self.constraint_handler = ConstraintHandler()
+        self.sentence_sim_model = SentenceSimilarityModel.get_instance()
 
     def reset_knowledge_to_gaussian(self) -> None:
         """
@@ -78,8 +80,8 @@ class Agent:
 
     def _call_sentence_sim_model(
         self,
-        target_sub_name: str,
-        sub_name_labels: List[str],
+        origin_sub_name: str,
+        sub_name_candidates: List[str],
     ) -> str:
         """
         문장 유사도 모델을 호출하여 가장 유사한 후보 sub_name을 반환합니다.
@@ -89,32 +91,22 @@ class Agent:
         - 최대 유사도가 0.7 미만이면 sub_name_labels 중 가장 유사한 sub_name 반환,
           그 이상이면 원본 그대로.
         """
-        query_payload = {
-            "inputs": {
-                "source_sentence": target_sub_name,
-                "sentences": sub_name_labels,
-            }
-        }
+        similarity_scores = [
+            self.sentence_sim_model.compute_cosine_similarity(
+                origin_sub_name, sub_name_candidate
+            )
+            for sub_name_candidate in sub_name_candidates
+        ]
 
-        # 1) 첫 모델 호출
-        similarity_scores = task_util.query(query_payload)
-
-        # 2) 모델 호출 오류 처리
-        if "error" in similarity_scores:
-            log.error(f"Sentence Sim Model Error: {similarity_scores['error']}")
-            # 모델 로딩 시간 고려하여 대기 후 재시도
-            time.sleep(similarity_scores.get("estimated_time", 0))
-            similarity_scores = task_util.query(query_payload)
-
-        # 3) 비어 있으면 그대로 반환
-        if not similarity_scores:
-            return target_sub_name
+        # # 3) 비어 있으면 그대로 반환
+        # if not similarity_scores:
+        #     return origin_sub_name
 
         # 4) 최대 유사도와 해당 인덱스를 찾음
         idx, max_score = max(enumerate(similarity_scores), key=lambda x: x[1])
 
         # 5) 점수가 0.7 미만이면 해당 sub_name 반환, 아니면 원본 그대로
-        return sub_name_labels[idx] if max_score < 0.7 else target_sub_name
+        return sub_name_candidates[idx] if max_score < 0.7 else origin_sub_name
 
     def _extract_monitoring_target_name(self, subtask_name: str) -> str:
         """
