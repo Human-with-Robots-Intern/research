@@ -12,13 +12,14 @@ import numpy as np
 from ai2thor.controller import Controller
 
 sys.path.append("/home/bluebottle/workspace/research/ithor")  # ithor 폴더의 절대 경로
-import ai2thor
+
 
 from ithor.handlers.action import Action
 from ithor.handlers.camera_handler import CameraHandler
 from ithor.handlers.navigation_handler import NavigationHandler
 from utils.constants import *
 from utils.constants import KNOWLEDGE_PATH
+
 
 def load_scene_positions(
     file_name: str,
@@ -35,6 +36,7 @@ def load_scene_positions(
     for key, value in scene_positions.items():
         scene_positions[key] = tuple(value)
     return scene_positions
+
 
 def create_module_logger(module_name, is_file_handler=False):
     """
