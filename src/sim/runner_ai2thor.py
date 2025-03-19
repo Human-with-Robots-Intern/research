@@ -9,7 +9,7 @@ from utils.util import create_module_logger
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
-def init_ai2thor():
+def init_ai2thor(platform = None):
     """
     Initializes the AI2-THOR controller with specified parameters.
 
@@ -41,9 +41,11 @@ def init_ai2thor():
         height=SCREEN_HEIGHT,
         renderThirdPartyCameras=False,
         fieldOfView=60,
+        platform=platform,
     )
 
     return controller
+
 
 
 def execute_subtask(controller, subtask):
@@ -72,7 +74,7 @@ def execute_subtask(controller, subtask):
     7. Executes each primitive action and calculates the total elapsed time.
     8. Logs the total elapsed time and successful execution of the subtask.
     """
-    act = Action(controller, log)
+    act = Action(controller)
 
     # Skip the Init subtask
     if subtask.name == "Init":
@@ -119,6 +121,7 @@ def execute_subtask(controller, subtask):
 
     # Execute each primitive action
     elapsed_time = 0
+    is_subtask_success = True
     for action_str in primitive_actions:
         # Split action into type and target
         parts = action_str.split(" ", 1)
@@ -131,12 +134,22 @@ def execute_subtask(controller, subtask):
             log.info(
                 f"Performing action: {action_type} on {target_obj_ID.split('|')[0]}"
             )
+
             # 총 걸린시간 계산
             elapsed_time += action_mapping[action_type](target_obj_ID)
         else:
             log.warning(
                 f"Unknown action type: {action_type}. Skipping {action_str} in {subtask.name}."
             )
+                # TODO: log if the last primiive action was successful
+        # e.g., 
+        # wirte code here
+        success = controller.last_event.metadata.get('lastActionSuccess', 'N/A')
+        log.info(f"Action success: {action_str}: {success}")
+        if success == False:
+            is_subtask_success = False
+        ####
+       
     log.info(f"{subtask.name}의 걸린시간 = {round(elapsed_time, 2)}")
     log.info(f"Successfully executed Subtask: {subtask.name}")
-    return elapsed_time
+    return elapsed_time, is_subtask_success
