@@ -9,166 +9,198 @@
                         "pickup"
                     ],
                     "startTime": 0.0,
-                    "endTime": 8.74,
+                    "endTime": 8.29,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "open"
                     ],
-                    "startTime": 10.0,
-                    "endTime": 10.55,
+                    "startTime": 9.91,
+                    "endTime": 10.41,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "put"
                     ],
-                    "startTime": 10.55,
-                    "endTime": 10.98,
+                    "startTime": 10.41,
+                    "endTime": 10.81,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "close"
                     ],
-                    "startTime": 10.98,
-                    "endTime": 11.33,
+                    "startTime": 10.81,
+                    "endTime": 11.14,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "open"
                     ],
-                    "startTime": 13.33,
-                    "endTime": 13.87,
+                    "startTime": 13.14,
+                    "endTime": 13.64,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "pickup"
                     ],
-                    "startTime": 13.87,
-                    "endTime": 18.17,
+                    "startTime": 13.64,
+                    "endTime": 17.77,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "put"
                     ],
-                    "startTime": 18.18,
-                    "endTime": 18.53,
+                    "startTime": 17.77,
+                    "endTime": 18.14,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "pickup"
                     ],
-                    "startTime": 18.54,
-                    "endTime": 29.37,
+                    "startTime": 18.15,
+                    "endTime": 29.25,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "put"
                     ],
-                    "startTime": 29.37,
-                    "endTime": 29.73,
+                    "startTime": 29.25,
+                    "endTime": 29.59,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "pickup"
                     ],
-                    "startTime": 29.73,
-                    "endTime": 33.89,
+                    "startTime": 29.59,
+                    "endTime": 33.48,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "put"
                     ],
-                    "startTime": 33.89,
-                    "endTime": 34.25,
+                    "startTime": 33.48,
+                    "endTime": 33.83,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "pickup"
                     ],
-                    "startTime": 34.25,
-                    "endTime": 38.22,
+                    "startTime": 33.83,
+                    "endTime": 37.86,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "put"
                     ],
-                    "startTime": 38.22,
-                    "endTime": 38.58,
+                    "startTime": 37.86,
+                    "endTime": 38.21,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "pickup"
                     ],
-                    "startTime": 38.58,
-                    "endTime": 42.67,
+                    "startTime": 38.21,
+                    "endTime": 42.07,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "put"
                     ],
-                    "startTime": 42.67,
-                    "endTime": 43.02,
+                    "startTime": 42.07,
+                    "endTime": 42.42,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "pickup"
                     ],
-                    "startTime": 43.03,
-                    "endTime": 60.01,
+                    "startTime": 42.42,
+                    "endTime": 46.36,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 46.36,
+                    "endTime": 46.71,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "pickup"
                     ],
-                    "startTime": 61.79,
-                    "endTime": 79.9,
+                    "startTime": 46.71,
+                    "endTime": 50.84,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "put"
                     ],
-                    "startTime": 79.9,
-                    "endTime": 80.25,
+                    "startTime": 50.84,
+                    "endTime": 51.22,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 55.54,
+                    "endTime": 60.76,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "put"
                     ],
-                    "startTime": 80.25,
-                    "endTime": 80.66,
+                    "startTime": 60.77,
+                    "endTime": 61.14,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 62.27,
+                    "endTime": 77.7,
+                    "executionStatus": "success"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 77.7,
+                    "endTime": 78.04,
                     "executionStatus": "success"
                 },
                 {
                     "Executing action": [
                         "slice"
                     ],
-                    "startTime": 80.66,
-                    "endTime": 80.99,
+                    "startTime": 78.04,
+                    "endTime": 78.37,
                     "executionStatus": "success"
                 }
             ]
         }
     ],
-    "computationTime": 96.92770552635193,
+    "computationTime": 103.30905866622925,
     "schedulerTotalTime": null,
-    "ai2thorTotalTime": 80.99,
+    "ai2thorTotalTime": 78.37,
     "realWorldTotalTime": null
 }

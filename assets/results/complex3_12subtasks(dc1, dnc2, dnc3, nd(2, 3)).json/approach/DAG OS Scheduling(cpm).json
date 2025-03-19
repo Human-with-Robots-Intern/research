@@ -61,23 +61,24 @@
                 {
                     "subtaskName": "wait",
                     "startTime": 99.5,
-                    "endTime": 106.38,
+                    "endTime": 105.87,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Turn off Stove after cooking",
-                    "startTime": 116.47,
-                    "endTime": 120.67,
+                    "startTime": 115.44,
+                    "endTime": 119.64,
                     "executionStatus": null
                 },
                 {
                     "subtaskName": "Retrieve Potato from Microwave",
-                    "startTime": 120.67,
-                    "endTime": 129.67,
+                    "startTime": 119.64,
+                    "endTime": 128.64,
                     "executionStatus": null
                 }
             ]
         }
     ],
-    "computationTime": 0.0
+    "computationTime": 1.2874603271484375e-05,
+    "simulationMakespan": null
 }
