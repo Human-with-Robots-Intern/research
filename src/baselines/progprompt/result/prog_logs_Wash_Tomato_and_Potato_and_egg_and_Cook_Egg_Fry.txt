@@ -1,0 +1,87 @@
+Starting simulation for task: Wash_Tomato_and_Potato_and_egg_and_Cook_Egg_Fry
+Executing action: ['walk', 'tomato']
+start_time:0 
+end_time: 1.5
+executionStatus: success
+Executing action: ['pickup', 'tomato']
+start_time:1.5 
+end_time: 1.5
+executionStatus: failure
+Executing action: ['walk', 'faucet']
+start_time:1.5 
+end_time: 2.8
+executionStatus: success
+Executing action: ['toggleon', 'faucet']
+start_time:2.8 
+Invalid action
+Executing action: ['walk', 'potato']
+start_time:2.8 
+end_time: 3.1
+executionStatus: success
+Executing action: ['pickup', 'potato']
+start_time:3.1 
+end_time: 3.1
+executionStatus: failure
+Executing action: ['walk', 'faucet']
+start_time:3.1 
+end_time: 3.5
+executionStatus: success
+Executing action: ['toggleon', 'faucet']
+start_time:3.5 
+Invalid action
+Executing action: ['walk', 'egg']
+start_time:3.5 
+end_time: 5.8
+executionStatus: success
+Executing action: ['pickup', 'egg']
+start_time:5.8 
+end_time: 5.8
+executionStatus: failure
+Executing action: ['walk', 'faucet']
+start_time:5.8 
+end_time: 12.0
+executionStatus: success
+Executing action: ['toggleon', 'faucet']
+start_time:12.0 
+Invalid action
+State check:
+You see: Window, Faucet is isToggledOff, SinkBasin, CounterTop, Lettuce, PaperTowelRoll, SoapBottle, CounterTop holds Toaster, CounterTop holds CoffeeMachine, CounterTop holds Mug, CounterTop holds Lettuce, CounterTop holds PaperTowelRoll, CounterTop holds Pot, CounterTop holds Potato, CounterTop holds HousePlant, CounterTop holds SoapBottle. 
+assert('Pan' on 'StoveBurner')
+False
+Executing action: ['walk', 'pan']
+start_time:12.0 
+end_time: 13.9
+executionStatus: success
+Executing action: ['pickup', 'pan']
+start_time:13.9 
+end_time: 13.9
+executionStatus: failure
+Executing action: ['walk', 'stoveburner']
+start_time:13.9 
+end_time: 15.1
+executionStatus: success
+Executing action: ['put', 'pan', 'stoveburner']
+start_time:15.1 
+end_time: 18.1
+executionStatus: success
+State check:
+You see: 
+walk('StoveKnob')
+False
+Executing action: ['walk', 'stoveknob']
+start_time:18.1 
+end_time: 18.1
+executionStatus: success
+State check:
+You see: 
+toggleon('StoveKnob')
+False
+Executing action: ['toggleon', 'stoveknob']
+start_time:18.1 
+Invalid action
+State check:
+You see: 
+walk('Egg')
+False
+Executing action: ['walk', 'egg']
+start_time:18.1 

@@ -390,13 +390,13 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                 objID = find_objID(controller, action[1])
 
                 # assert 먼저 해결
-
+                log_file.write(f"start_time:{str(round(elapsed_time,2))} \n")
                 match action[0]:
                     case "walk":
                         # move action
                         elapsed_time += Act.move_to(objID)
                         # move_to 뒤에 바로 오는 log 기록은 살짝 무의미해 보임
-                        log_file.write(last_action_success(controller))
+                        
                     case "pickup":
                         # pickup action
                         elapsed_time += Act.pickup(objID)
@@ -429,5 +429,7 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                     case _:
                         log_file.write("Invalid action\n")
                         break
+                log_file.write(f"end_time: {str(round(elapsed_time,2))}\n")
+                log_file.write(f"executionStatus: {last_action_success(controller)}")
     print(f"{round(elapsed_time, 2)=}")
     log_file.write(f"Total time spent : {round(elapsed_time, 2)}")

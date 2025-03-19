@@ -1,84 +1,28 @@
-# Heat potato with microwave, wash a plate three times and cook fried egg.
-time.sleep(1)
-potato_id = get_obj_id('potato')
-microwave_id = get_obj_id('microwave')
-move_to(potato_id)
-pickup(potato_id)
-move_to(microwave_id)
-open(microwave_id)
-put(microwave_id)
-close(microwave_id)
-toggleon(microwave_id)
-time.sleep(2)
-toggleoff(microwave_id)
-open(microwave_id)
-pickup(potato_id)
+# Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple.
+mug_id = get_obj_id('mug')
+move_to(mug_id)
+pickup(mug_id)
+
+coffee_machine_id = get_obj_id('coffee_machine')
+move_to(coffee_machine_id)
+
+put(coffee_machine_id)
+toggleon(coffee_machine_id)
+if not parse_question('is mug filled with coffee?'):
+  toggleon(coffee_machine_id)
+
+pickup(mug_id)
 countertop_id = get_obj_id('countertop')
 move_to(countertop_id)
 put(countertop_id)
 
-plate_id = get_obj_id('plate')
-sinkbasin_id = get_obj_id('sinkbasin')
-faucet_id = get_obj_id('faucet')
-for _ in range(3):
-    move_to(plate_id)
-    pickup(plate_id)
-    move_to(sinkbasin_id)
-    toggleon(faucet_id)
-    put(sinkbasin_id)
-    toggleoff(faucet_id)
-    pickup(plate_id)
-    move_to(countertop_id)
-    put(countertop_id)
-
-egg_id = get_obj_id('egg')
-pan_id = get_obj_id('pan')
-stoveburner_id = get_obj_id('stoveburner')
-if not parse_question('is pan on the stoveburner?'):
-    move_to(pan_id)
-    if parse_question('is anything in hand?'):
-        if parse_question(f"is {parse_question('what is in hand?')} a breakable?"):
-            move_to(countertop_id)
-        else:
-            drop()
-    pickup(pan_id)
-    move_to(stoveburner_id)
-    put(stoveburner_id)
-move_to(egg_id)
-if parse_question('is anything in hand?'):
-    if parse_question(f"is {parse_question('what is in hand?')} a breakable?"):
-        move_to(countertop_id)
-    else:
-        drop()
-pickup(egg_id)
-move_to(pan_id)
-put(pan_id)
-slice(egg_id)
-if parse_question('is stoveburner toggled?'):
-    time.sleep(2)
-else:
-    stoveknob_id = get_obj_id('stoveknob')
-    toggleon(stoveknob_id)
-    time.sleep(2)
-toggleoff(stoveknob_id)[37m# define function: move_to(pan_id).[39;49;00m[37m[39;49;00m
-[34mdef[39;49;00m[37m [39;49;00m[32mmove_to[39;49;00m(pan_id):[37m[39;49;00m
+apple_id = get_obj_id('apple')
+move_to(apple_id)
+pickup(apple_id)[37m# define function: move_to(apple_id).[39;49;00m[37m[39;49;00m
+[34mdef[39;49;00m[37m [39;49;00m[32mmove_to[39;49;00m(apple_id):[37m[39;49;00m
+    [37m# Implementation to move to the specified apple_id[39;49;00m[37m[39;49;00m
     [34mpass[39;49;00m[37m[39;49;00m
-[37m# define function: toggleon(stoveknob_id).[39;49;00m[37m[39;49;00m
-[34mdef[39;49;00m[37m [39;49;00m[32mtoggleon[39;49;00m(stoveknob_id):[37m[39;49;00m
-    [37m# Code to toggle on the stove knob with the given ID[39;49;00m[37m[39;49;00m
+[37m# define function: toggleon(coffee_machine_id).[39;49;00m[37m[39;49;00m
+[34mdef[39;49;00m[37m [39;49;00m[32mtoggleon[39;49;00m(coffee_machine_id):[37m[39;49;00m
+    [37m# Code to toggle on the coffee machine[39;49;00m[37m[39;49;00m
     [34mpass[39;49;00m[37m[39;49;00m
-[37m# define function: toggleoff(stoveknob_id).[39;49;00m[37m[39;49;00m
-[34mdef[39;49;00m[37m [39;49;00m[32mtoggleoff[39;49;00m(stoveknob_id):[37m[39;49;00m
-    [37m# Code to toggle off the stove knob using the given ID[39;49;00m[37m[39;49;00m
-    [34mpass[39;49;00m[37m[39;49;00m
-# is pan on the stoveburner?.
-pan = get_obj_id('pan')
-stoveburner = get_obj_id('stoveburner')
-parentReceptacles = get_parentReceptacles(pan)
-ret_val = any("stoveburner".lower() in obj.lower() for obj in parentReceptacles)# is anything in hand?.
-obj_in_hand = get_obj_in_hand()
-ret_val = obj_in_hand is not None# is anything in hand?.
-ret_val = get_obj_in_hand() is not None# is stoveburner toggled?.
-stoveburner = get_obj_id('stoveburner')
-true_states = get_true_states(stoveburner)
-ret_val = any("toggle".lower() in state.lower() for state in true_states)
