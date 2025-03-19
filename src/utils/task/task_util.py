@@ -42,7 +42,11 @@ headers = {"Authorization": f"Bearer {api_token}"}
 # api 
 
 def query(payload):
+    
+
     response = requests.post(API_URL, headers=headers, json=payload)
+    # print(f"response.status_code is {response.status_code}")
+    # print(response.text)
     return response.json()
 
 

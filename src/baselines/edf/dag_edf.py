@@ -6,8 +6,11 @@ import matplotlib.pyplot as plt
 import os
 import copy
 import heapq
+import time
 
 from pathlib import Path
+
+from utils.result_saver import result_save
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent  # 프로젝트 루트 경로
 ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
@@ -23,7 +26,8 @@ from utils.action_handler import ActionHandler
 from utils.task_util import build_tasks_and_constraints
 from utils.make_gantt import gantt_chart
 from utils.dataclass import SimulationNode, Candidate, CompletedEntry, SchedulerState
-from utils.task import Subtask, Execution, Duration
+from core.task import Subtask, Execution, Duration
+from utils.task.task_io import list_task_files, get_user_task_choice, load_task_data_from_file
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState):
@@ -436,23 +440,6 @@ def update(
     return updated_state
 
 
-def list_task_files():
-    data_dir = ASSETS_PATH / Path("tasks")
-    return [f for f in os.listdir(data_dir) if f.endswith(".json")]
-
-
-def get_user_task_choice(task_files):
-    print("Available task files:")
-    for i, file in enumerate(task_files):
-        print(f"{i + 1}. {file}")
-    choice = int(input("Select a task file by number: ")) - 1
-    return task_files[choice]
-
-
-def load_task_data_from_file(task_file_name):
-    task_file = ASSETS_PATH / Path(f"tasks/{task_file_name}")
-    with open(task_file, "r") as f:
-        return json.load(f)
 
 
 def get_init_state(
@@ -488,30 +475,46 @@ def get_init_state(
 def main():
 
     # Set up the AI2-THOR controller and navigation graph
+    approach_name="DAG + EDF"
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
     scene_poses = load_scene_positions("FloorPlan1_positions.json")
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files)
+    task_file_name = get_user_task_choice(task_files, choice=4)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
+
     subtasks, constraints = build_tasks_and_constraints(task_data, True)
 
+    computation_time_start = time.time()
     current_state = get_init_state(subtasks, constraints, scene_poses)
     result_schedule = []
-
     for _ in range(len(subtasks)):
         next_subtask = simulation_edf(current_state, nav_graph)
         if next_subtask is None:
             break
         current_state = update(current_state, next_subtask, nav_graph)
+    computation_time=time.time() - computation_time_start
+    
+    
 
     result_schedule = current_state.completed_subtasks
     result_schedule.pop(0)
+   
+
     gantt_chart(result_schedule)
+    # completed_Entry 객체를 Subtask객체로 변환.
+    # start_time과 end_time을 추출해서 Subtask 객체 안에 저장.
+    subtasks_with_time =[]
+    for st in result_schedule:        
+        st.subtask.start_time = st.start_time
+        st.subtask.end_time = st.end_time
+        subtasks_with_time.append(st.subtask)
+
+    result_save(task_file_name, approach_name, subtasks_with_time, computation_time)
 
 
 if __name__ == "__main__":

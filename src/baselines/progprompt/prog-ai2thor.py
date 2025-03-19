@@ -13,6 +13,7 @@ from util.utils_execute import *
 
 
 from utils.constants import *
+from utils.result_saver_llm import result_save_llm
 
 current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
 
@@ -71,7 +72,10 @@ def generate_plan(controller, args):
             )
 
     test_tasks = [
-        "Heat potato with Microwave. Wash a plate three times and cook fried egg"
+        # "Heat potato with Microwave. Wash a plate three times and cook fried egg"
+        # "Wash_Tomato_and_Potato_and_egg_and_Cook_Egg_Fry"
+        #위의 두개가 계속 같은 reachbility error가 나서 다른 task로 대체함
+        "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple"
     ]
     # "toast the bread and put tomato in the fridge. put egg in the pan."
     # "pick the egg"
@@ -79,6 +83,7 @@ def generate_plan(controller, args):
     # "Heat potato with Microwave"
     # "Wash a plate three times"
     gen_plan = []
+    computation_time_start = time.time()
     for task in test_tasks:
         print(f"Generating plan for: {task}\n")
         curr_prompt = f"{prompt}\ntask : {task}\n"  ## 주어진 정보 + 수행할 task 이어서 prompt 만듦
@@ -99,9 +104,16 @@ def generate_plan(controller, args):
             for plan, task in zip(gen_plan, test_tasks):
                 line[task] = plan
             json.dump(line, f)
+    computation_time = time.time() - computation_time_start
+
     prog_log_path = os.path.join(current_dir, f"result/prog_logs_{task}.txt")
+    os.makedirs(os.path.dirname(prog_log_path), exist_ok=True)
     log_file = open(prog_log_path, "w", buffering=1)
+    approach_name = "progprompt"
+    result_path = f"prog_result_{task}"
     simulate_execution(controller, test_tasks, gen_plan, log_file, args)
+    result_save_llm(approach_name,  prog_log_path, result_path, computation_time)
+ 
 
 
 def planner_executer(args):

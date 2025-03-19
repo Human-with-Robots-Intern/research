@@ -1,0 +1,68 @@
+Starting simulation for task: Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple
+Executing action: ['walk', 'mug']
+start_time:0 
+end_time: 1.5
+executionStatus: success
+Executing action: ['pickup', 'mug']
+start_time:1.5 
+end_time: 1.5
+executionStatus: failure
+Executing action: ['walk', 'coffeemachine']
+start_time:1.5 
+end_time: 2.5
+executionStatus: success
+Executing action: ['put', 'mug', 'coffeemachine']
+start_time:2.5 
+end_time: 5.5
+executionStatus: success
+Executing action: ['toggleon', 'coffeemachine']
+start_time:5.5 
+Invalid action
+State check:
+You see: Mug, CoffeeMachine is isToggledOff and isHeatSource, Toaster is isToggledOff and isHeatSource, PaperTowelRoll, CounterTop, Drawer is isClosed, Window, CounterTop holds Toaster, CounterTop holds CoffeeMachine, CounterTop holds Mug, CounterTop holds Lettuce, CounterTop holds PaperTowelRoll, CounterTop holds Pot, CounterTop holds Potato, CounterTop holds HousePlant, CounterTop holds SoapBottle. 
+assert('Coffee' in 'Mug')
+False
+Executing action: ['toggleon', 'coffeemachine']
+start_time:5.5 
+Invalid action
+State check:
+You see: CoffeeMachine is isToggledOff and isHeatSource, Window, CounterTop holds CoffeeMachine
+pickup('Mug')
+False
+Executing action: ['pickup', 'mug']
+start_time:5.5 
+end_time: 5.5
+executionStatus: failure
+State check:
+You see: CoffeeMachine is isToggledOff and isHeatSource, Window, CounterTop holds CoffeeMachine
+walk('CounterTop')
+False
+Executing action: ['walk', 'countertop']
+start_time:5.5 
+end_time: 7.4
+executionStatus: success
+State check:
+You see: CoffeeMachine is isToggledOff and isHeatSource, Window, CounterTop holds CoffeeMachine
+put('Mug', 'CounterTop')
+False
+Executing action: ['put', 'mug', 'countertop']
+start_time:7.4 
+end_time: 10.4
+executionStatus: success
+State check:
+You see: CoffeeMachine is isToggledOff and isHeatSource, Window, CounterTop holds CoffeeMachine
+walk('Apple')
+False
+Executing action: ['walk', 'apple']
+start_time:10.4 
+end_time: 13.6
+executionStatus: success
+State check:
+You see: CoffeeMachine is isToggledOff and isHeatSource, Window, CounterTop holds CoffeeMachine
+pickup('Apple')
+False
+Executing action: ['pickup', 'apple']
+start_time:13.6 
+end_time: 13.6
+executionStatus: failure
+Total time spent : 13.6

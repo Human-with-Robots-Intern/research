@@ -1,0 +1,96 @@
+{
+    "approach": "dag_bayesian",
+    "plans": [
+        {
+            "planName": "dag_bayesian",
+            "subtasks": [
+                {
+                    "subtaskName": "Init",
+                    "startTime": null,
+                    "endTime": null,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "Prepare Egg Fry",
+                    "startTime": null,
+                    "endTime": 20.0,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "Wash Plate_part_1_early",
+                    "startTime": 20.0,
+                    "endTime": 27.4,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "Monitoring for Turn off stove after cooking_e1ce132b",
+                    "startTime": 27.4,
+                    "endTime": 27.5,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 1.4000000000000001",
+                    "startTime": 27.5,
+                    "endTime": 28.9,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Monitoring for Turn off stove after cooking_89ae1915",
+                    "startTime": 28.9,
+                    "endTime": 29.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wait for Turn off stove after cooking",
+                    "startTime": 29.0,
+                    "endTime": 30.06,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Turn off stove after cooking",
+                    "startTime": 30.06,
+                    "endTime": 31.16,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plate_part_1_remain",
+                    "startTime": 31.16,
+                    "endTime": 36.46,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "Wash Plate_part_2",
+                    "startTime": 36.46,
+                    "endTime": 45.86,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "Place Potato in Microwave",
+                    "startTime": 45.86,
+                    "endTime": 52.76,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "Start Microwave for Potato",
+                    "startTime": 52.76,
+                    "endTime": 53.86,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wait for Retrieve Potato from Microwave",
+                    "startTime": 53.86,
+                    "endTime": 63.86,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Retrieve Potato from Microwave",
+                    "startTime": 63.86,
+                    "endTime": 71.06,
+                    "executionStatus": false
+                }
+            ]
+        }
+    ],
+    "computationTime": 2.988677740097046,
+    "simulationMakespan": 80.75999999999999
+}

@@ -18,17 +18,18 @@ def compose_plans(result_schedule, approach_name):
         "subtasks": [
             {
                 "subtaskName": st.name,
-                "startTime": None,
-                "endTime": None,
-                "executionStatus": None,
+                "startTime": round(st.start_time, 2) if st.start_time else None,
+                "endTime": round(st.end_time, 2) if st.end_time else None,
+                "executionStatus": getattr(st, "is_subtask_success", None),    # Subtask 객체에 is_subtask_success 속성이 있는 경우에만 저장
                 **({"updatedExpectedTime": st.updatedExpectedTime} if hasattr(st, "updatedExpectedTime") else {})
             } for st in result_schedule
         ]
     }]
+
     return plans
 
 
-def result_save(task_name, approach_name, result_schedule, execution_logs, computation_time):
+def result_save(task_name, approach_name, result_schedule, computation_time, simulationTime= None):
     """
     결과 데이터를 지정된 폴더 구조에 JSON 파일(result_save.pt)로 저장합니다.
     
@@ -36,7 +37,6 @@ def result_save(task_name, approach_name, result_schedule, execution_logs, compu
         task_name (str): 태스크 이름
         approach_name (str): 적용한 접근 방식 (예, "dag_bayesian")
         result_schedule (list): Subtask 객체들이 담긴 결과 일정 리스트
-        execution_logs (list): 실행 로그 리스트 
         computation_time (float): 전체 계산 소요 시간
     """
 
@@ -49,8 +49,8 @@ def result_save(task_name, approach_name, result_schedule, execution_logs, compu
     result_data = {
         "approach": approach_name,
         "plans": plans,
-        "executionLogs": execution_logs,
-        "computationTime": computation_time
+        "computationTime": computation_time,
+        "simulationMakespan": simulationTime,
     }
     
     # 결과 데이터를 approach_name.json 파일로 저장 (JSON 형식)

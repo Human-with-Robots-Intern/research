@@ -387,7 +387,7 @@ class Scheduler:
 
         # * (1) 실제 실행 시간
         last_action_info = self.action_handler.get_actions_info(curr_node, sub_actions)
-
+        # success = controller.last_event.metadata.get('lastActionSuccess', 'N/A')
         start_time = curr_state.current_time
         end_time = start_time + last_action_info.time_used
 
