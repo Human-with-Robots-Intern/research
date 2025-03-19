@@ -18,7 +18,7 @@ from utils.constants import (
     PROMPT_PATH,
     TASK_PATH,
 )
-from utils.task.fewshot_retriever import generate_few_shot_prompts
+from utils.task.few_shot_retriever import FewShotRetriever
 from utils.util import create_module_logger
 
 # Accessing .env file
