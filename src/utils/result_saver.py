@@ -62,7 +62,7 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
         "approach": approach_name,
         "plans": plans,
         "computationTime": computation_time,
-        "simulationMakespan": simulationTime,
+        "simulationMakespan": round(simulationTime, 2),
         "success_rate": success_rate,
         "timing_success_rate": None ,
     }

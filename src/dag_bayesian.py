@@ -91,7 +91,7 @@ def main():
 
 
     computation_time=0
-    total_simulation_execute_time = 0
+
     simulationTime = 0
     while not is_end:
         
@@ -101,20 +101,19 @@ def main():
 
         if next_state is None:
             log.error("No feasible solution found.")
-            break
-        
+            break      
         
    
         if args.simulation: 
             # 터미널에서 src/dag_bayesian.py -s 실행시 사용됨  
             execute_time_start = time.time()   
             subtask_time, executionStatus = execute_subtask(controller, next_state.subtask)
-            execute_time = time.time() - execute_time_start  
-            total_simulation_execute_time += execute_time
+            execute_time = time.time() - execute_time_start
+           
 
             simulationTime += subtask_time            
             next_state.completed_subtasks[-1].subtask.executionStatus = executionStatus
-      
+
       
         if next_state.subtask.type == "Monitor":            
             next_state = agent.bayesian_estimate(next_state)
@@ -123,7 +122,8 @@ def main():
 
         current_state = next_state
         
-
+        # simulation time 과 scheduler 상의 시간이 다른 원인은 
+        # schedueler 상에서 이동거리를 구할 떄 오차가 있지 않을 까?
 
         if not current_state.remaining_subtasks:
             is_end = True
@@ -134,6 +134,7 @@ def main():
             f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
         log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
+        # 지금 start time 과 end time은 scheduler가 계산 한 값이고 simulation을 실제 했을때의 시간이 아니다. 
         ce.subtask.start_time = round(ce.start_time, LOG_ROUND)
         ce.subtask.end_time = round(ce.end_time, LOG_ROUND)
 
