@@ -117,7 +117,8 @@ class Action:
                     log.warning(
                         f"Failed to pick up object {object_id} even after opening the receptacle."
                     )
-                    return False
+                    elapsed_time += 1
+                    return elapsed_time
             else:
                 result = self.controller.step(
                     action="PickupObject",
@@ -335,7 +336,6 @@ class Action:
     def wait(self, wait_time=1):
         """
         Wait for the specified duration.
-
         Args:
             wait_time (float, optional): Duration in seconds. Defaults to 1.
 
