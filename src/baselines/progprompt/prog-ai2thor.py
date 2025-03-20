@@ -110,7 +110,7 @@ def generate_plan(controller, args):
     os.makedirs(os.path.dirname(prog_log_path), exist_ok=True)
     log_file = open(prog_log_path, "w", buffering=1)
     approach_name = "progprompt"
-    result_path = f"prog_result_{task}"
+    result_path = f"{task}"
     simulate_execution(controller, test_tasks, gen_plan, log_file, args)
     result_save_llm(approach_name,  prog_log_path, result_path, computation_time)
  

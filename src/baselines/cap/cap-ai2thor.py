@@ -29,7 +29,7 @@ import time
 
 first_action_time = None 
 
-def timed_action(log_file, action_name, action_func):
+def timed_action(log_file, action_name, action_func, controller):
     """
     원래 action_func를 호출하기 직전/직후로 시간을 측정하고,
     result_save_llm가 파싱할 수 있는 포맷으로 로그를 남기는 래퍼 함수.
@@ -297,6 +297,6 @@ if __name__ == "__main__":
     computation_time_start = time.time()
     lmp_scene_ui(user_input, objects=f"{objs}")
     computation_time = time.time() - computation_time_start
-    result_path = f"cap_result_{user_input}.json"
+    result_path = f"{user_input}"
 
     result_save_llm(approach_name, cap_log_path, result_path, computation_time)
