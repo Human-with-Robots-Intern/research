@@ -1,0 +1,46 @@
+[
+    {
+        "Task": "Prepare Vegetables for Lunch",
+        "Subtasks": [
+            {
+                "Name": "Impossible: vegetables not in environment",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {},
+                    "PrimitiveActions": []
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 0
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Cook Egg Fry",
+        "Subtasks": [
+            {
+                "Name": "Slice Egg",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Egg": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Egg",
+                        "GRASP Egg",
+                        "SLICE Egg"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]

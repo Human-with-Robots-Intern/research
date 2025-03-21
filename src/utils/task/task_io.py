@@ -36,7 +36,6 @@ def get_user_task_choice(
 
     while True:
         try:
-
             if not choice:
                 choice = int(input("Enter the number of your choice: "))
 

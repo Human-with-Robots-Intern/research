@@ -25,7 +25,7 @@ from utils.util import create_module_logger
 
 load_dotenv()
 log = create_module_logger(__name__, module_log=True)
-sentence_sim_model = SentenceSimilarityModel().get_instance()
+sentence_sim_model = SentenceSimilarityModel.get_instance()
 
 
 def load_object_Ids():
@@ -179,7 +179,10 @@ def check_obj_id(tasks: List["Task"]) -> List["Task"]:
     def find_most_similar_object(target: str, candidates: List[str]) -> str:
         if not candidates:
             return target
-        sim_scores = sentence_sim_model.compute_cosine_similarity(target, candidates)
+        sim_scores = [
+            sentence_sim_model.compute_cosine_similarity(target, candidate)
+            for candidate in candidates
+        ]
         idx, _ = max(enumerate(sim_scores), key=lambda x: x[1])
         return candidates[idx]
 

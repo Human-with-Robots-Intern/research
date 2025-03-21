@@ -1,8 +1,6 @@
 import argparse
 import time
 
-from ai2thor.platform import CloudRendering
-
 from core.agent import Agent
 from core.scheduler import Scheduler
 from ithor.handlers.navigation_handler import build_navigation_graph
@@ -50,7 +48,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--rag",
-        default=True,
+        default=False,
         action="store_true",
     )
     parser.add_argument(
@@ -74,7 +72,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=11)
+    task_file_name = get_user_task_choice(task_files, choice=0, is_rag=args.rag)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
@@ -137,8 +135,6 @@ def main():
         log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
         ce.subtask.start_time = round(ce.start_time, LOG_ROUND)
         ce.subtask.end_time = round(ce.end_time, LOG_ROUND)
-
-        result_schedule.append(ce.subtask)
 
     visualize(
         approach_name, task_file_name, current_state.constraints, plan=result_schedule

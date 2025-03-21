@@ -15,7 +15,7 @@ class FewShotRetriever:
 
         :param model_name: Name of the sentence-transformers model to use.
         """
-        self.model = SentenceSimilarityModel().get_instance
+        self.model = SentenceSimilarityModel.get_instance()
 
     def semantic_search(
         self,
@@ -73,7 +73,7 @@ class FewShotRetriever:
 
         # Get top-k similar indices
         top_k_idx = self.semantic_search(input_nl, refer_nls, k=top_k)
-
+        print(f"{top_k_idx}")
         # Retrieve the corresponding references
         top_k_dict = {refer_nls[idx]: refer_dict[refer_nls[idx]] for idx in top_k_idx}
 
@@ -85,18 +85,18 @@ class FewShotRetriever:
                 few_shot_output = json.dumps(task_data, indent=4)
 
             few_shot_prompt += f"""
-        ### **Example {idx}**
-        
-        **Input**
-        ```
-        {task_nl}
-        ```
-        
-        **Output**
-        ```json
-        {few_shot_output}
-        ```
-        
-        ---
-        """
-            return few_shot_prompt
+### **Example {idx}**
+
+**Input**
+```
+{task_nl}
+```
+
+**Output**
+```json
+{few_shot_output}
+```
+
+---
+"""
+        return few_shot_prompt

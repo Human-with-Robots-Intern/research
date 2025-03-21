@@ -1,0 +1,114 @@
+{
+    "approach": "dag_bayesian",
+    "plans": [
+        {
+            "planName": "dag_bayesian",
+            "subtasks": [
+                {
+                    "subtaskName": "Prepare Egg Fry",
+                    "startTime": null,
+                    "endTime": 20.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Prepare Coffee",
+                    "startTime": 20.0,
+                    "endTime": 25.5,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 2.4000000000000004",
+                    "startTime": 25.5,
+                    "endTime": 27.9,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Monitoring for Turn off Stove after cooking_148fa161",
+                    "startTime": 27.9,
+                    "endTime": 28.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wait for Turn off Stove after cooking",
+                    "startTime": 28.0,
+                    "endTime": 29.93,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Turn off Stove after cooking",
+                    "startTime": 29.93,
+                    "endTime": 31.03,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Fork",
+                    "startTime": 31.03,
+                    "endTime": 41.83,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Put Bread in the Microwave",
+                    "startTime": 41.83,
+                    "endTime": 48.13,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Put Potato in the Microwave",
+                    "startTime": 48.13,
+                    "endTime": 54.03,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Start the Microwave",
+                    "startTime": 54.03,
+                    "endTime": 55.13,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Spoon",
+                    "startTime": 55.13,
+                    "endTime": 66.13,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plate_part_1",
+                    "startTime": 66.13,
+                    "endTime": 80.33,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plate_part_2",
+                    "startTime": 80.33,
+                    "endTime": 89.73,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plate_part_3",
+                    "startTime": 89.73,
+                    "endTime": 99.13,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Retrieve Bread from Microwave",
+                    "startTime": 99.13,
+                    "endTime": 108.33,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Retrieve Potato from Microwave",
+                    "startTime": 108.33,
+                    "endTime": 117.53,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Retrieve Coffee",
+                    "startTime": 117.53,
+                    "endTime": 120.73,
+                    "executionStatus": true
+                }
+            ]
+        }
+    ],
+    "computationTime": 1.9590585231781006,
+    "simulationMakespan": 135.83
+}

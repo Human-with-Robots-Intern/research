@@ -1,0 +1,42 @@
+{
+    "approach": "dag_bayesian",
+    "plans": [
+        {
+            "planName": "dag_bayesian",
+            "subtasks": [
+                {
+                    "subtaskName": "Prepare Coffee",
+                    "startTime": null,
+                    "endTime": 5.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plate_part_1",
+                    "startTime": 5.0,
+                    "endTime": 19.3,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plate_part_2",
+                    "startTime": 19.3,
+                    "endTime": 28.7,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Place Tomato in Fridge",
+                    "startTime": 28.7,
+                    "endTime": 35.5,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Retrieve Coffee",
+                    "startTime": 35.5,
+                    "endTime": 39.4,
+                    "executionStatus": true
+                }
+            ]
+        }
+    ],
+    "computationTime": 0.18030095100402832,
+    "simulationMakespan": 46.4
+}

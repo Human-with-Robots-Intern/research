@@ -1,0 +1,85 @@
+[
+    {
+        "Task": "Cook Egg Fry",
+        "Subtasks": [
+            {
+                "Name": "Fry the Egg on the Stove",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Egg": 1,
+                        "Pan": 1,
+                        "StoveKnob": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Egg",
+                        "PLACE_INSIDE Pan",
+                        "GRASP Pan",
+                        "PLACE_ON_TOP StoveBurner",
+                        "TOGGLE_ON StoveKnob",
+                        "TOGGLE_OFF StoveKnob"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Uncontrollable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Wash Plates",
+        "Subtasks": [
+            {
+                "Name": "Wash Plates",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Faucet": 1,
+                        "Plate": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP Plate",
+                        "TOGGLE_ON Faucet",
+                        "GRASP SoapBottle",
+                        "PLACE_ON_TOP Plate",
+                        "TOGGLE_OFF Faucet"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Place Credit Card on Shelf",
+        "Subtasks": [
+            {
+                "Name": "Place Credit Card on Shelf",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "CreditCard": 1,
+                        "Shelf": 1
+                    },
+                    "PrimitiveActions": [
+                        "GRASP CreditCard",
+                        "PLACE_ON_TOP Shelf"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]

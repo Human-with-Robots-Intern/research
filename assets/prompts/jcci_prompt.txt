@@ -389,10 +389,7 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
 - Instead, you must **combine existing actions** (e.g., `NAVIGATE_TO`, `GRASP`, `TOGGLE_ON faucet`, etc.) to represent the process of “cleaning/washing.”  
 - You may use descriptive wording like “Wash the Plate” in the `"Name"` field of a Subtask, but in the `"Executions" -> "PrimitiveActions"` array, you must **exclusively** use the Primitive Actions listed in the Environment Context.
 
----
-## **[EXAMPLES]**
-<Example>
----
+
 ### **[CHECKLIST BEFORE OUTPUT]**
 1) Did you reference any objects **not** in the Environment? If yes, create a subtask with `"Impossible"` and do not use that object.  
 2) **Exact** object name matching.  For **non-existent** objects (e.g., `sink-zexzrc` if it’s not identical to `SinkBasin`), create an `"Impossible"` subtask and do **not** proceed with further actions on them. 
