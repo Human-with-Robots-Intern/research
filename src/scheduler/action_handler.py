@@ -10,8 +10,8 @@ from utils.constants import (
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
 )
+from utils.sim.math_utils import adjust_if_unreachable
 from utils.util import create_module_logger
-from utils.math_utils import adjust_if_unreachable
 
 log = create_module_logger(__name__, module_log=True)
 
@@ -173,15 +173,13 @@ class ActionHandler:
 
             elif action_type == "GRASP":
                 if held_object is not None:
-                    raise ValueError(
-                        f"Already holding {held_object}, cannot grasp {target_obj_id}."
-                    )
+                    log.warning(f"Object {held_object} already in hand.")
                 held_object = target_obj_id
                 action_duration = PRIMITIVE_ACTION_DURATION
 
             elif action_type in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
                 if held_object is None:
-                    raise ValueError("No object in hand to place.")
+                    log.warning("No object in hand to place.")
                 # place 동작
                 scene_positions[held_object] = scene_positions[target_obj_id]
                 held_object = None

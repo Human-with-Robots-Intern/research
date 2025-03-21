@@ -11,6 +11,7 @@ LOG_PATH = ROOT_PATH / "logs"
 R_PATH = ROOT_PATH / "assets" / "results"
 RESULT_PATH = ROOT_PATH / "assets" / "results"
 PROMPT_FILE_PATH = "e2e_generator_ver5.txt"
+# PROMPT_FILE_PATH = "jcci_prompt.txt"
 ESTIMATE_FILE_NAME = "bayesian_estimate.json"
 GROUND_TRUTH_FILE_NAME = "bayesian_ground_truth.json"
 
@@ -35,8 +36,8 @@ NAV_STEP_DURATION = 0.1
 
 
 # * 스케쥴러 관련
-SIMULATION_DEPTH = 1
-BEAM_WIDTH = 1
+SIMULATION_DEPTH = 3
+BEAM_WIDTH = 3
 
 EPSILON = 1e-1
 LARGE_NUMBER = 1e2
@@ -110,3 +111,4 @@ OBJECT_INTERESTS = {
 
 # utils.py
 OBJECTS_INFO_PATH = "data/knowledges"
+TOP_K = 1

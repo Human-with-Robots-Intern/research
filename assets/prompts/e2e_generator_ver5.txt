@@ -835,7 +835,7 @@ In other words, `"Urgency": true` indicates that the subsequent subtask should s
 
 ---
 
-### **Example 4 (Handling Impossible Tasks)**
+### **Example 4**
 **Input**:  
 ```
 "Use coffee_machine to make coffee, then pick up the Apple"

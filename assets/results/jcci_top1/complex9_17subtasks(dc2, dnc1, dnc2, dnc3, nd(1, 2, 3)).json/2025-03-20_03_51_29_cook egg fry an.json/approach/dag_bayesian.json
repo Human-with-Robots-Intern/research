@@ -1,0 +1,132 @@
+{
+    "approach": "dag_bayesian",
+    "plans": [
+        {
+            "planName": "dag_bayesian",
+            "subtasks": [
+                {
+                    "subtaskName": "Prepare Egg Fry",
+                    "startTime": null,
+                    "endTime": 20.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Prepare Coffee",
+                    "startTime": 20.0,
+                    "endTime": 25.5,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 2.4000000000000004",
+                    "startTime": 25.5,
+                    "endTime": 27.9,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Monitoring for Turn off Stove after cooking_dadd092d",
+                    "startTime": 27.9,
+                    "endTime": 28.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wait for Turn off Stove after cooking",
+                    "startTime": 28.0,
+                    "endTime": 29.96,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Turn off Stove after cooking",
+                    "startTime": 29.96,
+                    "endTime": 31.06,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Tomato",
+                    "startTime": 31.06,
+                    "endTime": 41.46,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Lettuce",
+                    "startTime": 41.46,
+                    "endTime": 50.86,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Fork",
+                    "startTime": 50.86,
+                    "endTime": 63.86,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Put Bread in the Microwave",
+                    "startTime": 63.86,
+                    "endTime": 70.16,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Start the Microwave for Bread",
+                    "startTime": 70.16,
+                    "endTime": 71.26,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Put Potato in the Microwave",
+                    "startTime": 71.26,
+                    "endTime": 77.16,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Start the Microwave for Potato",
+                    "startTime": 77.16,
+                    "endTime": 78.26,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Spoon",
+                    "startTime": 78.26,
+                    "endTime": 89.26,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plate_part_1",
+                    "startTime": 89.26,
+                    "endTime": 103.46,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plate_part_2",
+                    "startTime": 103.46,
+                    "endTime": 112.86,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plate_part_3",
+                    "startTime": 112.86,
+                    "endTime": 122.26,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Retrieve Potato from Microwave",
+                    "startTime": 122.26,
+                    "endTime": 131.46,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Retrieve Bread from Microwave",
+                    "startTime": 131.46,
+                    "endTime": 140.66,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Retrieve Coffee",
+                    "startTime": 140.66,
+                    "endTime": 143.86,
+                    "executionStatus": true
+                }
+            ]
+        }
+    ],
+    "computationTime": 3.229264497756958,
+    "simulationMakespan": 163.26000000000005
+}

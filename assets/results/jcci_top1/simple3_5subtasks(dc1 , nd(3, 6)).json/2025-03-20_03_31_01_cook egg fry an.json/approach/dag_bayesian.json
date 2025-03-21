@@ -1,0 +1,66 @@
+{
+    "approach": "dag_bayesian",
+    "plans": [
+        {
+            "planName": "dag_bayesian",
+            "subtasks": [
+                {
+                    "subtaskName": "Prepare Egg Fry",
+                    "startTime": null,
+                    "endTime": 20.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plate_early",
+                    "startTime": 20.0,
+                    "endTime": 27.4,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Monitoring for Turn Off Stove After Cooking_3cf51966",
+                    "startTime": 27.4,
+                    "endTime": 27.5,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 1.4000000000000001",
+                    "startTime": 27.5,
+                    "endTime": 28.9,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Monitoring for Turn Off Stove After Cooking_8340ce28",
+                    "startTime": 28.9,
+                    "endTime": 29.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wait for Turn Off Stove After Cooking",
+                    "startTime": 29.0,
+                    "endTime": 30.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Turn Off Stove After Cooking",
+                    "startTime": 30.0,
+                    "endTime": 31.1,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plate_remain",
+                    "startTime": 31.1,
+                    "endTime": 36.4,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Place CreditCard in Shelf",
+                    "startTime": 36.4,
+                    "endTime": 43.8,
+                    "executionStatus": true
+                }
+            ]
+        }
+    ],
+    "computationTime": 0.35912322998046875,
+    "simulationMakespan": 48.7
+}

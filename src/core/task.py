@@ -197,6 +197,7 @@ class Task:
         self.subtasks = decomposed_subtasks
 
         self.update_constraints(subtask_mapping)
+        return self
 
     def update_constraints(self, subtask_mapping: Dict[str, List[Subtask]]):
         """
@@ -260,5 +261,3 @@ class TaskGraphBuilder:
                         raise ValueError("Constrained Node does not exist")
 
         return self.graph
-
-    

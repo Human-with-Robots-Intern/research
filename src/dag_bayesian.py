@@ -1,13 +1,13 @@
 import argparse
+import time
 
 from core.agent import Agent
 from core.scheduler import Scheduler
 from ithor.handlers.navigation_handler import build_navigation_graph
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
-
-from utils import create_module_logger, visualize
-from utils.result_saver import result_save
+from utils import create_module_logger
 from utils.constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH
+from utils.result_saver import result_save
 from utils.task import (
     build_tasks_and_constraints,
     get_init_state,
@@ -16,9 +16,7 @@ from utils.task import (
     load_task_data_from_file,
 )
 from utils.task.task_io import load_scene_positions
-import time
-from ai2thor.platform import CloudRendering 
-
+from utils.viz.visualizer import visualize
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -49,9 +47,14 @@ def parse_arguments():
         action="store_true",
     )
     parser.add_argument(
+        "--rag",
+        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
         "-s",
         "--simulation",
-        default=False,
+        default=True,
         action="store_true",
     )
     return parser.parse_args()
@@ -69,14 +72,14 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=11)
+    task_file_name = get_user_task_choice(task_files, choice=0, is_rag=args.rag)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
     subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
 
     # Visualize the task graph if enabled
-    if args.visualize: #True default, 현재는 변경 불가
+    if args.visualize:
         visualize(approach_name, task_file_name, constraints)
 
     agent = Agent()
@@ -84,50 +87,46 @@ def main():
     scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph=nav_graph)
 
     result_schedule = []
-   
 
     current_state = get_init_state(subtasks, constraints, scene_poses)
     is_end = False
 
-    computation_time_start = time.time() 
+    computation_time_start = time.time()
     total_simulation_execute_time = 0
     simulationTime = 0
     while not is_end:
-        
-        next_state = scheduler.get_next_state(current_state)        
+
+        next_state = scheduler.get_next_state(current_state)
 
         if next_state is None:
             log.error("No feasible solution found.")
             break
-        
-        
-   
-        if args.simulation: 
-            # 터미널에서 src/dag_bayesian.py -s 실행시 사용됨  
-            execute_time_start = time.time()   
-            subtask_time, is_subtask_success = execute_subtask(controller, next_state.subtask)
-            execute_time = time.time() - execute_time_start  
+
+        if args.simulation:
+            execute_time_start = time.time()
+            subtask_time, is_subtask_success = execute_subtask(
+                controller, next_state.subtask
+            )
+            execute_time = time.time() - execute_time_start
             total_simulation_execute_time += execute_time
 
-            simulationTime += subtask_time            
-            next_state.completed_subtasks[-1].subtask.is_subtask_success = is_subtask_success
-      
-      
-        if next_state.subtask.type == "Monitor":            
+            simulationTime += subtask_time
+            next_state.completed_subtasks[-1].subtask.is_subtask_success = (
+                is_subtask_success
+            )
+
+        if next_state.subtask.type == "Monitor":
             next_state = agent.bayesian_estimate(next_state)
-        
-     
 
         current_state = next_state
-        
 
+        result_schedule.append(current_state.subtask)
 
         if not current_state.remaining_subtasks:
             is_end = True
-    computation_time = time.time() - computation_time_start - total_simulation_execute_time
-    # 근데 이렇게 되면 computation time이 simulation 돌아가는 시간이 될텐데
-    # 그거 말고 schedule 뽑는데만 걸리는 시간은 어떻게 뽑지
-    # print(f"planning time is : {computation_time:.2f}") 
+    computation_time = (
+        time.time() - computation_time_start - total_simulation_execute_time
+    )
 
     for ce in current_state.completed_subtasks:
         log.info(
@@ -137,13 +136,13 @@ def main():
         ce.subtask.start_time = round(ce.start_time, LOG_ROUND)
         ce.subtask.end_time = round(ce.end_time, LOG_ROUND)
 
-        result_schedule.append(ce.subtask)
+    visualize(
+        approach_name, task_file_name, current_state.constraints, plan=result_schedule
+    )
 
-  
-    visualize(approach_name, task_file_name, current_state.constraints , plan= result_schedule)
-
-    result_save(task_file_name, approach_name,result_schedule, computation_time, simulationTime)
-
+    result_save(
+        task_file_name, approach_name, result_schedule, computation_time, simulationTime
+    )
 
 
 if __name__ == "__main__":

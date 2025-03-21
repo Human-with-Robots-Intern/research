@@ -11,6 +11,7 @@ from scheduler.constraint_handler import ConstraintHandler
 from scheduler.dataclass import SchedulerState
 from utils import KNOWLEDGE_PATH, create_module_logger
 from utils.task import task_util
+from utils.task.sentence_transformer import SentenceSimilarityModel
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -19,6 +20,7 @@ class Agent:
     def __init__(self):
         self.knowledge = self._load_knowledge()
         self.constraint_handler = ConstraintHandler()
+        self.sentence_sim_model = SentenceSimilarityModel.get_instance()
 
     def reset_knowledge_to_gaussian(self) -> None:
         """
@@ -78,8 +80,8 @@ class Agent:
 
     def _call_sentence_sim_model(
         self,
-        target_sub_name: str,
-        sub_name_labels: List[str],
+        origin_sub_name: str,
+        sub_name_candidates: List[str],
     ) -> str:
         """
         문장 유사도 모델을 호출하여 가장 유사한 후보 sub_name을 반환합니다.
@@ -89,32 +91,22 @@ class Agent:
         - 최대 유사도가 0.7 미만이면 sub_name_labels 중 가장 유사한 sub_name 반환,
           그 이상이면 원본 그대로.
         """
-        query_payload = {
-            "inputs": {
-                "source_sentence": target_sub_name,
-                "sentences": sub_name_labels,
-            }
-        }
-
-        # 1) 첫 모델 호출
-        similarity_scores = task_util.query(query_payload)
-
-        # 2) 모델 호출 오류 처리
-        if "error" in similarity_scores:
-            log.error(f"Sentence Sim Model Error: {similarity_scores['error']}")
-            # 모델 로딩 시간 고려하여 대기 후 재시도
-            time.sleep(similarity_scores.get("estimated_time", 0))
-            similarity_scores = task_util.query(query_payload)
+        similarity_scores = [
+            self.sentence_sim_model.compute_cosine_similarity(
+                origin_sub_name, sub_name_candidate
+            )
+            for sub_name_candidate in sub_name_candidates
+        ]
 
         # 3) 비어 있으면 그대로 반환
         if not similarity_scores:
-            return target_sub_name
+            return origin_sub_name
 
         # 4) 최대 유사도와 해당 인덱스를 찾음
         idx, max_score = max(enumerate(similarity_scores), key=lambda x: x[1])
 
         # 5) 점수가 0.7 미만이면 해당 sub_name 반환, 아니면 원본 그대로
-        return sub_name_labels[idx] if max_score < 0.7 else target_sub_name
+        return sub_name_candidates[idx] if max_score < 0.7 else origin_sub_name
 
     def _extract_monitoring_target_name(self, subtask_name: str) -> str:
         """
@@ -299,13 +291,13 @@ class Agent:
         )
 
         # 2) knowledge 로드
-        bayesian_estimation = self._load_knowledge("bayesian_estimate.json")
+        bayesian_estimate_dict = self._load_knowledge("bayesian_estimate.json")
         ground_truth_dict = self._load_knowledge("bayesian_ground_truth.json")
 
         # 3) 문장 유사도 모델로 실제 known_sub_name 결정
         known_sub_name = self._call_sentence_sim_model(
             monitoring_target_sub_name,
-            list(bayesian_estimation.keys()),
+            list(bayesian_estimate_dict.keys()),
         )
 
         # 4) critical_start_sub_name, end_time 찾아옴
@@ -320,26 +312,17 @@ class Agent:
         ground_truth_value = ground_truth_dict[known_sub_name]
         if ground_truth_value <= 0:
             raise ValueError("Invalid ground truth value")
-        """
-        - actual_duration : monitoring한 시간
-        - ground_truth : 해당 subtask의 ground_truth
-        - prior_mean/variance : 이전에 예상한 값의 분포
-        - cooking_data : subtask의 진행정도 // 여기에 noise를 주어야 한다.
-        - posterior_mean/variance : cooking_data를 받은 후 bayesian estimate를 통해 도출된 새로운 예상한 값의 분포.
-        - knowledge.json 파일에서 불러오고 업데이트.
-        """
 
-        m = re.search("Monitoring for (.*?)_", state.subtask.name)
-        if not m:
-            raise ValueError("Monitoring subtask name is not valid.")
-        monitoring_target_sub_name = m.group(1)
+        # m = re.search("Monitoring for (.*?)_", state.subtask.name)
+        # if not m:
+        #     raise ValueError("Monitoring subtask name is not valid.")
+        # monitoring_target_sub_name = m.group(1)
+        # known_sub_name = self._call_sentence_sim_model(
+        #     monitoring_target_sub_name, list(bayesian_estimate_dict.keys())
+        # )
 
-        bayesian_estimation = self._load_knowledge("bayesian_estimate.json")
+        bayesian_estimate_dict = self._load_knowledge("bayesian_estimate.json")
         ground_truth = self._load_knowledge("bayesian_ground_truth.json")
-
-        known_sub_name = self._call_sentence_sim_model(
-            monitoring_target_sub_name, list(bayesian_estimation.keys())
-        )
 
         for remain_sub in state.remaining_subtasks:
             # 제약 시작 sub 찾기
@@ -376,8 +359,17 @@ class Agent:
         elapsed_time = state.current_time - critical_start_sub_end_time
         ground_truth = ground_truth[known_sub_name]
 
-        prior_mean = bayesian_estimation[known_sub_name]["expected_duration"]
-        prior_variance = bayesian_estimation[known_sub_name]["variance"]
+        if known_sub_name in bayesian_estimate_dict:
+            prior_mean = bayesian_estimate_dict[known_sub_name]["expected_duration"]
+            prior_variance = bayesian_estimate_dict[known_sub_name]["variance"]
+        else:
+            # knowledge에 없다면 일단 기본값(예: 1, 5 등) 세팅
+            prior_mean = 1.0
+            prior_variance = 5.0
+            self.knowledge[known_sub_name] = {
+                "expected_duration": prior_mean,
+                "variance": prior_variance,
+            }
 
         # bayesian estimate
         cooking_data_real = elapsed_time / ground_truth

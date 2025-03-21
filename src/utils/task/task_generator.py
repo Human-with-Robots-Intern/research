@@ -2,13 +2,14 @@ import json
 import logging
 import os
 import re
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-from dotenv import load_dotenv
 
 import openai
+from dotenv import load_dotenv
 
 from utils.constants import (
     ESTIMATE_FILE_NAME,
@@ -16,15 +17,18 @@ from utils.constants import (
     PROMPT_FILE_PATH,
     PROMPT_PATH,
     TASK_PATH,
+    TOP_K,
 )
+from utils.task.few_shot_retriever import FewShotRetriever
+from utils.task.sentence_transformer import SentenceSimilarityModel
 from utils.util import create_module_logger
 
 # Accessing .env file
 load_dotenv()
 
 # Logging configuration
-
 logger = create_module_logger(__name__, module_log=True)
+sentence_sim_model = SentenceSimilarityModel().get_instance()
 
 
 def initialize_openai() -> openai.OpenAI:
@@ -37,6 +41,7 @@ def initialize_openai() -> openai.OpenAI:
 
 
 client = initialize_openai()
+
 
 # Task cache for deduplication
 task_cache: Dict[int, List[Dict[str, Any]]] = {}
@@ -51,11 +56,11 @@ def load_file(file_path: Path, file_type: str) -> Any:
         return json.load(file) if file_type == "json" else file.read()
 
 
-def sanitize_file_name(file_name: str) -> str:
-    """Sanitize file name to ensure compatibility."""
-    return datetime.now().strftime("%Y-%m-%d_%H_%M_") + re.sub(
-        r"[^\w\-_\.]+", "_", file_name
-    )
+# def sanitize_file_name(file_name: str) -> str:
+#     """Sanitize file name to ensure compatibility."""
+#     return datetime.now().strftime("%Y-%m-%d_%H_%M_") + re.sub(
+#         r"[^\w\-_\.]+", "_", file_name
+#     )
 
 
 def validate_output_format(output: Any) -> bool:
@@ -166,10 +171,10 @@ def cached_generate_task(
     full_prompt: List[Dict[str, str]], knowledge: Dict[str, Any]
 ) -> Optional[List[Dict[str, Any]]]:
     """Generate tasks using OpenAI API with caching."""
-    prompt_hash = hash(json.dumps(full_prompt, sort_keys=True))
-    if prompt_hash in task_cache:
-        logger.info("Using cached result.")
-        return task_cache[prompt_hash]
+    # prompt_hash = hash(json.dumps(full_prompt, sort_keys=True))
+    # if prompt_hash in task_cache:
+    #     logger.info("Using cached result.")
+    #     return task_cache[prompt_hash]
 
     max_retries = 5
     for attempt in range(1, max_retries + 1):
@@ -185,7 +190,7 @@ def cached_generate_task(
             output = json.loads(output_content)
 
             if validate_output_format(output):
-                task_cache[prompt_hash] = output
+                # task_cache[prompt_hash] = output
                 return output
         except json.JSONDecodeError as e:
             logger.error(f"JSON decoding failed: {e}")
@@ -196,13 +201,23 @@ def cached_generate_task(
     return None
 
 
-def generate_task():
+def generate_task(is_rag: bool = False) -> str:
     """Generate tasks based on user input and knowledge base."""
+    user_input = input("Please enter the instructions: ").strip()
 
     examples_prompt = load_file(Path(PROMPT_PATH) / PROMPT_FILE_PATH, "txt")
+    if is_rag:
+        rag_system = FewShotRetriever()
+        retrieved_few_shot_prompts = rag_system.generate_few_shot_prompts(
+            user_input, top_k=TOP_K
+        )
+        examples_prompt = examples_prompt.replace(
+            "<Example>", retrieved_few_shot_prompts
+        )
+        print(examples_prompt)
+
     knowledge = load_file(Path(KNOWLEDGE_PATH) / ESTIMATE_FILE_NAME, "json")
 
-    user_input = input("Please enter the instructions: ").strip()
     if not user_input:
         logger.error("User input cannot be empty.")
         raise ValueError("User input cannot be empty.")
@@ -217,7 +232,8 @@ def generate_task():
     if output and validate_output_format(output):
         task_numbers = len(output)
         subtask_numbers = sum(len(task.get("Subtasks", [])) for task in output)
-        output_file_name = f"_{task_numbers}tasks_{subtask_numbers}subtasks.json"
+        time_stamp = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
+        output_file_name = f"{time_stamp}_{user_input[:15]}.json"
         output_file_path = Path(TASK_PATH) / output_file_name
         save_to_file(output, output_file_path)
         return output_file_name
