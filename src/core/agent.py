@@ -296,9 +296,9 @@ class Agent:
 
         # 3) 문장 유사도 모델로 실제 known_sub_name 결정
         known_sub_name = self._call_sentence_sim_model(
-            monitoring_target_sub_name,
+            monitoring_target_sub_name.lower(),
             list(bayesian_estimate_dict.keys()),
-        )
+        ).lower()
 
         # 4) critical_start_sub_name, end_time 찾아옴
         critical_start_sub_name, critical_start_sub_end_time = (
@@ -320,9 +320,6 @@ class Agent:
         # known_sub_name = self._call_sentence_sim_model(
         #     monitoring_target_sub_name, list(bayesian_estimate_dict.keys())
         # )
-
-        bayesian_estimate_dict = self._load_knowledge("bayesian_estimate.json")
-        ground_truth = self._load_knowledge("bayesian_ground_truth.json")
 
         for remain_sub in state.remaining_subtasks:
             # 제약 시작 sub 찾기
@@ -357,7 +354,7 @@ class Agent:
                 break
 
         elapsed_time = state.current_time - critical_start_sub_end_time
-        ground_truth = ground_truth[known_sub_name]
+        ground_truth_dict = ground_truth_dict[known_sub_name]
 
         if known_sub_name in bayesian_estimate_dict:
             prior_mean = bayesian_estimate_dict[known_sub_name]["expected_duration"]
@@ -372,7 +369,7 @@ class Agent:
             }
 
         # bayesian estimate
-        cooking_data_real = elapsed_time / ground_truth
+        cooking_data_real = elapsed_time / ground_truth_dict
         mean_log = np.log(cooking_data_real)
         cooking_data_with_noise = np.random.lognormal(mean=mean_log, sigma=0.015)
         a = 1
