@@ -18,4 +18,9 @@ def make_summary(folder_path):
         ],
     }
         
-    
+def main():
+    folder_path = select_folder()
+    make_summary(folder_path)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,56 @@
+{
+    "approach": "Code as Policies",
+    "plans": [
+        {
+            "planName": "Code as Policies",
+            "actions": [
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 0.0,
+                    "endTime": 8.3,
+                    "executionStatus": "False"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 8.3,
+                    "endTime": 8.66,
+                    "executionStatus": "True"
+                },
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 9.87,
+                    "endTime": 12.76,
+                    "executionStatus": "False"
+                },
+                {
+                    "Executing action": [
+                        "put"
+                    ],
+                    "startTime": 12.76,
+                    "endTime": 13.13,
+                    "executionStatus": "True"
+                },
+                {
+                    "Executing action": [
+                        "pickup"
+                    ],
+                    "startTime": 13.14,
+                    "endTime": 19.24,
+                    "executionStatus": "False"
+                }
+            ]
+        }
+    ],
+    "computationTime": 161.74039244651794,
+    "success_rate": 0.4,
+    "timing_success_rate": null,
+    "schedulerTotalTime": null,
+    "simulationMakespan": 19.24,
+    "realWorldTotalTime": null
+}

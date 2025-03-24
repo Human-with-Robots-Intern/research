@@ -26,3 +26,7 @@ pickup(apple_id)[37m# define function: move_to(apple_id).[39;49;00m[37m[39;4
 [34mdef[39;49;00m[37m [39;49;00m[32mtoggleon[39;49;00m(coffee_machine_id):[37m[39;49;00m
     [37m# Code to toggle on the coffee machine[39;49;00m[37m[39;49;00m
     [34mpass[39;49;00m[37m[39;49;00m
+# is mug filled with coffee?.
+mug = get_obj_id('mug')
+true_states = get_true_states(mug)
+ret_val = any("filled with coffee".lower() in state.lower() for state in true_states)

@@ -1,0 +1,48 @@
+{
+    "approach": "DAG OS Scheduling(cpm)_simulation",
+    "plans": [
+        {
+            "planName": "DAG OS Scheduling(cpm)_simulation",
+            "subtasks": [
+                {
+                    "subtaskName": "Prepare Egg Fry",
+                    "start_time_simulation": null,
+                    "end_time_simulation": 25.1,
+                    "start_time_scheduled": null,
+                    "end_time_scheduled": 20.6,
+                    "executionStatus": null
+                },
+                {
+                    "subtaskName": "nav",
+                    "start_time_simulation": 25.1,
+                    "end_time_simulation": 25.7,
+                    "start_time_scheduled": 20.6,
+                    "end_time_scheduled": 23.8,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "wait",
+                    "start_time_simulation": 25.7,
+                    "end_time_simulation": 25.7,
+                    "start_time_scheduled": 23.8,
+                    "end_time_scheduled": 30.59,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Turn off stove after cooking",
+                    "start_time_simulation": 25.7,
+                    "end_time_simulation": 26.7,
+                    "start_time_scheduled": 40.58,
+                    "end_time_scheduled": 44.78,
+                    "executionStatus": null
+                }
+            ]
+        }
+    ],
+    "computationTime": 0.0,
+    "schedulerMakespan": 44.78,
+    "simulationMakespan": 26.7,
+    "realWorldMakespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate": null
+}

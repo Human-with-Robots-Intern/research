@@ -1,0 +1,72 @@
+{
+    "approach": "DAG_EDF_simulation",
+    "plans": [
+        {
+            "planName": "DAG_EDF_simulation",
+            "subtasks": [
+                {
+                    "subtaskName": "Throw away Paper Towel",
+                    "start_time_simulation": null,
+                    "end_time_simulation": 10.0,
+                    "start_time_scheduled": null,
+                    "end_time_scheduled": 6.4,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "Wash Tomato",
+                    "start_time_simulation": 10.0,
+                    "end_time_simulation": 28.3,
+                    "start_time_scheduled": 6.4,
+                    "end_time_scheduled": 16.7,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "Wash Potato",
+                    "start_time_simulation": 28.3,
+                    "end_time_simulation": 44.3,
+                    "start_time_scheduled": 16.7,
+                    "end_time_scheduled": 27.4,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "Prepare Egg Fry",
+                    "start_time_simulation": 44.3,
+                    "end_time_simulation": 68.5,
+                    "start_time_scheduled": 27.4,
+                    "end_time_scheduled": 47.4,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "NAVIGATE_TO_StoveKnob|-00.02|+00.88|-02.19",
+                    "start_time_simulation": 68.5,
+                    "end_time_simulation": 71.7,
+                    "start_time_scheduled": 47.4,
+                    "end_time_scheduled": 50.6,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "WAIT_for_Turn off stove after cooking",
+                    "start_time_simulation": 71.7,
+                    "end_time_simulation": 78.5,
+                    "start_time_scheduled": 50.6,
+                    "end_time_scheduled": 57.4,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Turn off stove after cooking",
+                    "start_time_simulation": 78.5,
+                    "end_time_simulation": 80.1,
+                    "start_time_scheduled": 57.4,
+                    "end_time_scheduled": 61.6,
+                    "executionStatus": true
+                }
+            ]
+        }
+    ],
+    "computationTime": 0.08,
+    "schedulerMakespan": 61.6,
+    "simulationMakespan": 80.1,
+    "realWorldMakespan": null,
+    "success_rate": 0.43,
+    "timing_success_rate": null
+}
