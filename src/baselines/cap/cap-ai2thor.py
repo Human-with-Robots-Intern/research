@@ -296,6 +296,7 @@ if __name__ == "__main__":
     cap_log_path =f"src/baselines/cap/result/cap_logs_{user_input}.txt"
     computation_time_start = time.time()
     lmp_scene_ui(user_input, objects=f"{objs}")
+    # 현재 computaion_time은 시뮬레이션 타임을 포함해서 정확하지 않음. 추후에 llmgeneration 방식의 computation_time을 폐기할 수 있으므로 일단 스킵
     computation_time = time.time() - computation_time_start
     result_path = f"{user_input}"
 

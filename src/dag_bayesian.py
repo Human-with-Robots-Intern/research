@@ -69,7 +69,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=12)
+    task_file_name = get_user_task_choice(task_files, choice=13)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
@@ -106,12 +106,13 @@ def main():
    
         if args.simulation: 
             # 터미널에서 src/dag_bayesian.py -s 실행시 사용됨  
-            execute_time_start = time.time()   
             subtask_time, executionStatus = execute_subtask(controller, next_state.subtask)
-            execute_time = time.time() - execute_time_start
-           
 
-            simulationTime += subtask_time            
+            next_state.completed_subtasks[-1].subtask.start_time_simulation = simulationTime
+            next_state.completed_subtasks[-1].subtask.end_time_simulation = simulationTime + subtask_time
+            
+            simulationTime += subtask_time
+
             next_state.completed_subtasks[-1].subtask.executionStatus = executionStatus
 
       
@@ -130,13 +131,15 @@ def main():
     # print(f"planning time is : {computation_time:.2f}") 
 
     for ce in current_state.completed_subtasks:
+        if ce.subtask.name == "Init":
+            continue
         log.info(
             f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
         log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
         # 지금 start time 과 end time은 scheduler가 계산 한 값이고 simulation을 실제 했을때의 시간이 아니다. 
-        ce.subtask.start_time = round(ce.start_time, LOG_ROUND)
-        ce.subtask.end_time = round(ce.end_time, LOG_ROUND)
+        ce.subtask.start_time_scheduled = round(ce.start_time, LOG_ROUND)
+        ce.subtask.end_time_scheduled = round(ce.end_time, LOG_ROUND)
 
         result_schedule.append(ce.subtask)
 

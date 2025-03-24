@@ -5,7 +5,7 @@ from pathlib import Path
 from .constants import RESULT_PATH
 
 
-def compose_plans(result_schedule, approach_name):
+def compose_plans(result_schedule, approach_name, simulationTime):
     """
     result_schedule(서브태스크 객체 리스트)을 받아 plans 데이터를 구성합니다.
     
@@ -26,12 +26,19 @@ def compose_plans(result_schedule, approach_name):
                 success_count += 1  
         subtask = {
             "subtaskName": st.name,
-            "startTime": round(st.start_time, 2) if st.start_time else None,
-            "endTime": round(st.end_time, 2) if st.end_time else None,
+            "start_time_simulation": round(st.start_time_simulation, 2) if st.start_time_simulation else None,
+            "end_time_simulation": round(st.end_time_simulation, 2) if st.end_time_simulation else None,
+            "start_time_scheduled": round(st.start_time_scheduled, 2) if st.start_time_scheduled else None,
+            "end_time_scheduled": round(st.end_time_scheduled, 2) if st.end_time_scheduled else None,
             "executionStatus": execution_status,    
             **({"updatedExpectedTime": st.updatedExpectedTime} if hasattr(st, "updatedExpectedTime") else {})
         }
         subtasks.append(subtask)
+
+    if simulationTime==None and st.end_time_simulation != None :
+        simulationTime = subtasks[-1]["end_time_simulation"]
+    if st.end_time_scheduled != None:
+        schedulerMakespan = st.end_time_scheduled
 
 
     success_rate=round(success_count/total_count, 2) if total_count != 0 else None
@@ -40,7 +47,7 @@ def compose_plans(result_schedule, approach_name):
         "subtasks": subtasks,
         
     }]
-    return plans, success_rate
+    return plans, success_rate, simulationTime, schedulerMakespan
 
 
 def result_save(task_name, approach_name, result_schedule, computation_time, simulationTime= None):
@@ -52,7 +59,7 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
         computation_time (float): 전체 계산 소요 시간
     """
 
-    plans, success_rate= compose_plans(result_schedule,approach_name)
+    plans, success_rate, simulationTime, schedulerMakespan = compose_plans(result_schedule,approach_name, simulationTime)
  
     save_folder_path = Path(RESULT_PATH) / task_name
     save_folder_path.mkdir(exist_ok=True, parents=True)
@@ -61,8 +68,10 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
     result_data = {
         "approach": approach_name,
         "plans": plans,
-        "computationTime": computation_time,
-        "simulationMakespan": round(simulationTime, 2),
+        "computationTime": round(computation_time, 2),
+        "schedulerMakespan": round(schedulerMakespan, 2)if schedulerMakespan else None,
+        "simulationMakespan": round(simulationTime, 2) if simulationTime else None,
+        "realWorldMakespan": None,
         "success_rate": success_rate,
         "timing_success_rate": None ,
     }

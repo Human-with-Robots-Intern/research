@@ -71,6 +71,7 @@ def get_current_timeslot(current_state: SchedulerState) -> Optional[str]:
 
 def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask]:
     """
+    함수 이름은 simulation 이지만 schedueling을 하는 함수다.
     각 실행 가능한 subtask에 대해 deadline을 산출한 후, deadline이 가장 짧은 subtask를 선택한다.
 
     [계산 방법]
@@ -418,8 +419,8 @@ def update(
     # -------------------------------
     subtask_entry = CompletedEntry(
         subtask=next_subtask,
-        start_time=new_current_time,
-        end_time=new_current_time + real_exec_time,
+        start_time = new_current_time,
+        end_time = new_current_time + real_exec_time,
     )
     new_current_time += real_exec_time
 
@@ -527,28 +528,34 @@ def main():
 
     subtasks, constraints = build_tasks_and_constraints(task_data, True)
 
-    computation_time_start = time.time()
+    computation_time = 0
     current_state = get_init_state(subtasks, constraints, scene_poses)
     result_schedule = []
-    total_simulation_execute_time = 0
-    simulationTime = 0
+    simulation_subtask_times = []
     for _ in range(len(subtasks)):
         #next_subtask는 Subtask 객체이다.
+
+        subtask_scheduling_time_start = time.time()
         next_subtask = simulation_edf(current_state, nav_graph)
+
         if next_subtask is None:
             break
-        if args.simulation:
-            # 터미널에서 src/dag_bayesian.py -s 실행시 사용됨  
-            execute_time_start = time.time()   
-            subtask_time, executionStatus = execute_subtask(controller, next_subtask)
-            execute_time = time.time() - execute_time_start  
-            total_simulation_execute_time += execute_time
+        current_state = update(current_state, next_subtask, nav_graph)
 
-            simulationTime += subtask_time            
+        subtask_scheduling_time = time.time() - subtask_scheduling_time_start
+        computation_time += subtask_scheduling_time
+
+        # 현재 시뮬레이션 실행시 schedule된 wait이나 navigate subtask는 단독으로 실행되지 않는다.
+        if args.simulation:
+            # 터미널에서 src/baselines/def/dag_edf.py -s 실행시 사용됨  
+
+            subtask_time, executionStatus = execute_subtask(controller, next_subtask)
+            simulation_subtask_times.append(subtask_time)
+
+    
             next_subtask.executionStatus = executionStatus
 
-        current_state = update(current_state, next_subtask, nav_graph)
-    computation_time=time.time() - computation_time_start - total_simulation_execute_time
+
     
     
 
@@ -560,14 +567,30 @@ def main():
     # completed_Entry 객체를 Subtask객체로 변환.
     # start_time과 end_time을 추출해서 Subtask 객체 안에 저장.
     subtasks_with_time =[]
-    for st in result_schedule:        
-        st.subtask.start_time = st.start_time
-        st.subtask.end_time = st.end_time
-        subtasks_with_time.append(st.subtask)
 
     if args.simulation: 
         approach_name = f"{approach_name}_simulation"
-    result_save(task_file_name, approach_name, subtasks_with_time, computation_time, simulationTime )
+        i = 0
+        current_time=0
+
+        for st in result_schedule:
+            st.subtask.start_time_scheduled = st.start_time
+            st.subtask.end_time_scheduled = st.end_time  
+
+
+            st.subtask.start_time_simulation =current_time
+            #Wait 과 Navigate는 실제 시뮬레이션 
+            if st.subtask.type == "WAIT" or st.subtask.type == "NAVIGATE":
+                st.subtask.end_time_simulation = current_time + st.subtask.duration.interval
+                current_time += st.subtask.duration.interval
+            else:
+                st.subtask.end_time_simulation = current_time + simulation_subtask_times[i]
+                current_time += simulation_subtask_times[i]
+                i += 1
+
+            subtasks_with_time.append(st.subtask)
+    
+    result_save(task_file_name, approach_name, subtasks_with_time, computation_time )
 
 
 if __name__ == "__main__":
