@@ -1,0 +1,24 @@
+{
+    "approach": "dag_bayesian",
+    "plans": [
+        {
+            "planName": "dag_bayesian",
+            "subtasks": [
+                {
+                    "subtaskName": "Wash Plate",
+                    "startTime": null,
+                    "endTime": 17.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Put Credit Card on Shelf",
+                    "startTime": 17.0,
+                    "endTime": 30.2,
+                    "executionStatus": true
+                }
+            ]
+        }
+    ],
+    "computationTime": 0.03035712242126465,
+    "simulationMakespan": 30.9
+}
