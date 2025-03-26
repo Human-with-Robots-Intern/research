@@ -19,7 +19,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from core.agent import Agent
 from core.scheduler import Scheduler
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
-from utils import create_module_logger, visualize
+from utils import create_module_logger
+from utils.viz.visualizer import visualize
 from utils.result_saver import result_save
 from utils.constants import (
     KNOWLEDGE_PATH,
@@ -87,7 +88,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ,choice=3) # already chosen
+    task_file_name = get_user_task_choice(task_files ,choice=12) # already chosen
     task_data = load_task_data_from_file(task_file_name)
     
     # Build tasks and constraints
@@ -122,12 +123,12 @@ def main():
 
         if args.simulation:
             # 터미널에서 src/baselines/cpm.py -s 실행시 사용됨           
-            subtask_time, is_subtask_success = execute_subtask(controller, st)
+            subtask_time, execution_status = execute_subtask(controller, st)
             st.start_time_simulation = simulationTime
             st.end_time_simulation = simulationTime + subtask_time   
             simulationTime += subtask_time   
             simulation_subtask_times.append(subtask_time)    
-            st.is_subtask_success = is_subtask_success
+            st.execution_status = execution_status
       
     
     print("total time = ", total_time)

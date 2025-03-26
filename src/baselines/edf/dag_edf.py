@@ -21,13 +21,15 @@ ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 
 from ithor.utils.math_utils import build_navigation_graph
 
-from sim.runner_ai2thor import init_ai2thor, load_scene_positions
+from sim.runner_ai2thor import init_ai2thor
+from utils.task import load_scene_positions
 
 
 from scheduler.action_handler import ActionHandler
 from utils.task.task_util import build_tasks_and_constraints
 from utils.viz.make_gantt import gantt_chart
-from scheduler.dataclass import SimulationNode, Candidate, CompletedEntry, SchedulerState
+from scheduler.dataclass import CompletedEntry, SchedulerState
+from utils.dataclass import SimulationNode
 from core.task import Subtask, Execution, Duration
 from utils.task.task_io import list_task_files, get_user_task_choice, load_task_data_from_file
 
@@ -519,7 +521,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ,choice=3)
+    task_file_name = get_user_task_choice(task_files ,choice=12)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints

@@ -88,7 +88,7 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
 
     # 추후 필요시 summary_comparison.json, tasks.json, constraints.jpg, metadata.json 등을 생성하는 코드 추가 가능
 
-def result_save_llm(approach, result_txt, json_output_path, computation_time):
+def result_save_llm(approach, user_input, result_txt, json_output_path, computation_time):
     with open(result_txt, "r") as f:
         lines = f.readlines()
 
@@ -96,7 +96,7 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
         "approach": f"{approach}",
         "plans": [
             {
-                "planName": f"{approach}",
+                "plan_name": f"{user_input}",
                 "actions": [],
                 "execution_status": None
             }
@@ -123,8 +123,8 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
         if line.startswith("Executing action:"):
             # 이전 액션 저장 (start_time, end_time, execution_status 포함)
             if current_action:
-                current_action["startTime"] = start_time
-                current_action["endTime"] = end_time
+                current_action["start_time"] = start_time
+                current_action["end_time"] = end_time
                 current_action["execution_status"] = execution_status                
                 actions.append(current_action)
 
@@ -132,7 +132,7 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
             action = re.findall(r"\['(.*?)'\]", line)
             if action:
                 action = action[0].split("', '")  # 문자열을 리스트로 변환
-                current_action = {"Executing action": action, "startTime": None, "endTime": None, "execution_status": None}
+                current_action = {"Executing_action": action, "start_time": None, "end_time": None, "execution_status": None}
                 execution_status = None  # 새 액션이 시작되었으므로 초기화
             else:
                 current_action = None
@@ -161,8 +161,8 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
 
     # 마지막 액션 저장 (루프가 종료된 후 마지막 액션을 추가해야 함)
     if current_action:
-        current_action["startTime"] = start_time
-        current_action["endTime"] = end_time
+        current_action["start_time"] = start_time
+        current_action["end_time"] = end_time
         current_action["execution_status"] = execution_status
         actions.append(current_action)
 
@@ -173,7 +173,7 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
 
     # JSON 파일로 저장
     filename=f"{approach}.json"
-    new_json_output_path = os.path.join( "assets", "results", "approach",json_output_path, filename)
+    new_json_output_path = os.path.join( "assets", "results",json_output_path, "approach", filename)
     os.makedirs(os.path.dirname(new_json_output_path), exist_ok=True)
     with open(new_json_output_path, "w") as f:
         json.dump(json_data, f, indent=4)

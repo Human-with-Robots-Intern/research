@@ -1,4 +1,4 @@
-from utils.file_utils import *
+from ithor.utils.file_utils import *
 
 
 class ArmHandler:

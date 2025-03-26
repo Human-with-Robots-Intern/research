@@ -28,9 +28,9 @@ def make_summary():
             summary_filename = "summary_insuff.json"
         else:
             summary_filename = "summary.json"
-        approachComparisons = []
-        for fileName in simulation_files:
-            sim_file_path = os.path.join(approach_dir, fileName)
+        approach_comparisons = []
+        for file_name in simulation_files:
+            sim_file_path = os.path.join(approach_dir, file_name)
 
             try:
                 with open(sim_file_path, "r") as f:
@@ -40,25 +40,25 @@ def make_summary():
                 continue
 
             # 각 시뮬레이션 파일의 데이터 추출
-            schedulerMakespan =data.get("schedulerMakespan")
-            simulation_makespan = data.get("simulationMakespan")
-            computation_time = data.get("computationTime")
+            scheduler_makespan =data.get("scheduler_makespan")
+            simulation_makespan = data.get("simulation_makespan")
+            computation_time = data.get("computation_time")
             success_rate = data.get("success_rate")
             
-            approachComparisons.append({
-                "approachName": fileName,
-                "schedulerMakespan": schedulerMakespan,
-                "simulationMakespan": simulation_makespan,
-                "realWorldMakespan": None,
-                "computationTime": computation_time,
-                "actionSuccessRate": success_rate,
-                "timingSuccessRate": None
+            approach_comparisons.append({
+                "approach_name": file_name,
+                "scheduler_makespan": scheduler_makespan,
+                "simulation_makespan": simulation_makespan,
+                "realWorld_makespan": None,
+                "computation_mime": computation_time,
+                "actionSuccess_mate": success_rate,
+                "timingSuccess_mate": None
             })
         
         # 최종 JSON 데이터 구성
         json_data = {
             "task": folder,
-            "approachComparisons": approachComparisons
+            "approachComparisons": approach_comparisons
         }
 
         # metadata 폴더가 없으면 생성 후 summary 파일 작성
