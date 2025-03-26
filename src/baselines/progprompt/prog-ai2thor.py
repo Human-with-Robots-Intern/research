@@ -104,6 +104,7 @@ def generate_plan(controller, args):
             for plan, task in zip(gen_plan, test_tasks):
                 line[task] = plan
             json.dump(line, f)
+            
     computation_time = time.time() - computation_time_start
 
     prog_log_path = os.path.join(current_dir, f"result/prog_logs_{task}.txt")
@@ -112,7 +113,7 @@ def generate_plan(controller, args):
     approach_name = "progprompt"
     result_path = f"{task}"
     simulate_execution(controller, test_tasks, gen_plan, log_file, args)
-    result_save_llm(approach_name,  prog_log_path, result_path, computation_time)
+    result_save_llm(approach_name, task, prog_log_path, result_path, computation_time)
  
 
 

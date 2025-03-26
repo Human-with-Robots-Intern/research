@@ -300,4 +300,4 @@ if __name__ == "__main__":
     computation_time = time.time() - computation_time_start
     result_path = f"{user_input}"
 
-    result_save_llm(approach_name, cap_log_path, result_path, computation_time)
+    result_save_llm(approach_name,user_input, cap_log_path, result_path, computation_time)
