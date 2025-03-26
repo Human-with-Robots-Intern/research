@@ -1,0 +1,66 @@
+{
+    "approach": "dag_bayesian",
+    "plans": [
+        {
+            "planName": "dag_bayesian",
+            "subtasks": [
+                {
+                    "subtaskName": "Prepare Egg Fry",
+                    "startTime": null,
+                    "endTime": 20.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Place Tomato in Fridge for later use_early",
+                    "startTime": 20.0,
+                    "endTime": 26.8,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Monitoring for Turn off Stove after cooking_2692f404",
+                    "startTime": 26.8,
+                    "endTime": 26.9,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Place Tomato in Fridge for later use_remain",
+                    "startTime": 26.9,
+                    "endTime": 27.9,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 2.2",
+                    "startTime": 27.9,
+                    "endTime": 30.1,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Monitoring for Turn off Stove after cooking_7a2f207f",
+                    "startTime": 30.1,
+                    "endTime": 30.2,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Turn off Stove after cooking",
+                    "startTime": 30.2,
+                    "endTime": 32.6,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Place Potato in Fridge for later use",
+                    "startTime": 32.6,
+                    "endTime": 40.4,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Place Lettuce in Fridge for later use",
+                    "startTime": 40.4,
+                    "endTime": 48.3,
+                    "executionStatus": true
+                }
+            ]
+        }
+    ],
+    "computationTime": 0.5046670436859131,
+    "simulationMakespan": 51.400000000000006
+}

@@ -1,0 +1,30 @@
+{
+    "approach": "dag_bayesian",
+    "plans": [
+        {
+            "planName": "dag_bayesian",
+            "subtasks": [
+                {
+                    "subtaskName": "Fry the Egg on the Stove",
+                    "startTime": null,
+                    "endTime": 12.8,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Plates",
+                    "startTime": 12.8,
+                    "endTime": 19.8,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "Place Credit Card on Shelf",
+                    "startTime": 19.8,
+                    "endTime": 30.8,
+                    "executionStatus": true
+                }
+            ]
+        }
+    ],
+    "computationTime": 0.0772101879119873,
+    "simulationMakespan": 32.6
+}

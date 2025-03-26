@@ -1,0 +1,72 @@
+{
+    "approach": "dag_bayesian",
+    "plans": [
+        {
+            "planName": "dag_bayesian",
+            "subtasks": [
+                {
+                    "subtaskName": "Prepare Egg Fry",
+                    "startTime": null,
+                    "endTime": 20.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Lettuce_early",
+                    "startTime": 20.0,
+                    "endTime": 26.4,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Monitoring for Turn off stove after cooking_a3b42610",
+                    "startTime": 26.4,
+                    "endTime": 26.5,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 1.4000000000000001",
+                    "startTime": 26.5,
+                    "endTime": 27.9,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Monitoring for Turn off stove after cooking_d3141b5e",
+                    "startTime": 27.9,
+                    "endTime": 28.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wait for Turn off stove after cooking",
+                    "startTime": 28.0,
+                    "endTime": 30.0,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Turn off stove after cooking",
+                    "startTime": 30.0,
+                    "endTime": 31.1,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Tomato",
+                    "startTime": 31.1,
+                    "endTime": 41.5,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Potato",
+                    "startTime": 41.5,
+                    "endTime": 51.5,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wash Lettuce_remain",
+                    "startTime": 51.5,
+                    "endTime": 53.6,
+                    "executionStatus": true
+                }
+            ]
+        }
+    ],
+    "computationTime": 0.5258502960205078,
+    "simulationMakespan": 61.70000000000001
+}
