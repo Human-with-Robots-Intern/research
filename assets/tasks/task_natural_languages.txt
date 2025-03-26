@@ -2,6 +2,9 @@ complex1_11subtasks(dc2, dnc2, nd(1, 3, 6)).json: boil_potato_and_make_coffee_an
 complex2_11subtasks(dc2, nd(1, 3, 5, 6)).json: boil_potato_and_wash_dishes_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_vegetables
 complex3_12subtasks(dc1, dnc2, dnc3, nd(2, 3)).json: cook_egg_fry_and_make_coffee_and_heat_potato_using_microwave_and_wash_cutlery_and_wash_dishes
 complex4_12subtasks(dc2, nd1, nd6, nd3, nd2).json: boil_potato_and_wash_vegetables_and_put_creditcard_on_shelf_and_wash_dishes_and_wash_cutlery
+complex5_12subtasks(nd7->dc1, nd(1, 2, 3, 5, 6).json: wash_egg_and_cook_egg_fry_and_wash_vegetables_and_wash_cutlery_and_wash_dishes_and_throw_away_paper_towel_and_put_creditcard_on_shelf
+complex6_14subtasks(dc1, dnc1, dnc2, nd(2, 3, 5, 6)).json: cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_wash_cutlery_and_wash_dishes_and_throw_away_paper_towel_and_put_creditcard_on_shelf
+complex7_14subtasks(dc1, dnc1, dnc3, nd(1, 3, 5, 6)).json: cook_egg_fry_and_wash_dishes_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_vegetables_and_heat_bread_using_microwave_and_make_coffee
 complex8_15subtasks(dc1, dnc2, nd1->nd4, nd(2, 3, 5, 6)).json: cook_egg_fry_and_make_coffee_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_cutlery_and_wash_dishes_and_wash_vegetables_and_organize_the_vegetables
 complex9_17subtasks(dc2, dnc1, dnc2, dnc3, nd(1, 2, 3)).json: cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_heat_potato_using_microwave_and_wash_vegetables_and_wash_cutlery_and_wash_dishes
 complex10_20subtasks(nd7->dc1, dnc1, dnc2, nd1->nd4, nd(2, 3, 5, 6)).json: wash_egg_and_cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_cutlery_and_wash_dishes_and_wash_vegetables_and_organize_the_vegetables

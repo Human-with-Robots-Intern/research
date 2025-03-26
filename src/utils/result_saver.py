@@ -5,7 +5,7 @@ from pathlib import Path
 from .constants import RESULT_PATH
 
 
-def compose_plans(result_schedule, approach_name, simulationTime):
+def compose_plans(result_schedule, task_name, simulationTime):
     """
     result_schedule(서브태스크 객체 리스트)을 받아 plans 데이터를 구성합니다.
     
@@ -43,7 +43,7 @@ def compose_plans(result_schedule, approach_name, simulationTime):
 
     success_rate=round(success_count/total_count, 2) if total_count != 0 else None
     plans = [{
-        "planName": approach_name,
+        "planName": task_name,
         "subtasks": subtasks,
         
     }]
@@ -59,7 +59,7 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
         computation_time (float): 전체 계산 소요 시간
     """
 
-    plans, success_rate, simulationTime, schedulerMakespan = compose_plans(result_schedule,approach_name, simulationTime)
+    plans, success_rate, simulationTime, schedulerMakespan = compose_plans(result_schedule, task_name, simulationTime)
  
     save_folder_path = Path(RESULT_PATH) / task_name
     save_folder_path.mkdir(exist_ok=True, parents=True)
@@ -68,11 +68,11 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
     result_data = {
         "approach": approach_name,
         "plans": plans,
-        "computationTime": round(computation_time, 2),
-        "schedulerMakespan": round(schedulerMakespan, 2)if schedulerMakespan else None,
+        "computationTime": round(computation_time, 5),
         "simulationMakespan": round(simulationTime, 2) if simulationTime else None,
+        "schedulerMakespan": round(schedulerMakespan, 2) if schedulerMakespan else None,
         "realWorldMakespan": None,
-        "success_rate": success_rate,
+        "success_rate": round(success_rate, 2) if success_rate else None,
         "timing_success_rate": None ,
     }
     
@@ -170,7 +170,7 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
 
     # JSON 파일로 저장
     filename=f"{approach}.json"
-    new_json_output_path = os.path.join( "assets", "results", json_output_path, filename)
+    new_json_output_path = os.path.join( "assets", "results", "approach",json_output_path, filename)
     os.makedirs(os.path.dirname(new_json_output_path), exist_ok=True)
     with open(new_json_output_path, "w") as f:
         json.dump(json_data, f, indent=4)

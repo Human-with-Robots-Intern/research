@@ -2,7 +2,7 @@
     "approach": "dag_bayesian_simulation",
     "plans": [
         {
-            "planName": "dag_bayesian_simulation",
+            "planName": "simple12_6subtasks(dc2, dnc2).json",
             "subtasks": [
                 {
                     "subtaskName": "Prepare Coffee Machine",
@@ -53,7 +53,7 @@
                     "executionStatus": true
                 },
                 {
-                    "subtaskName": "Monitoring for Turn off Stove after Boiling_be8cadca",
+                    "subtaskName": "Monitoring for Turn off Stove after Boiling_b5259559",
                     "start_time_simulation": 39.9,
                     "end_time_simulation": 40.0,
                     "start_time_scheduled": 24.4,
@@ -63,25 +63,25 @@
                 {
                     "subtaskName": "Wait for Turn off Stove after Boiling",
                     "start_time_simulation": 40.0,
-                    "end_time_simulation": 43.3,
+                    "end_time_simulation": 43.1,
                     "start_time_scheduled": 24.5,
-                    "end_time_scheduled": 27.8,
+                    "end_time_scheduled": 27.6,
                     "executionStatus": true
                 },
                 {
                     "subtaskName": "Turn off Stove after Boiling",
-                    "start_time_simulation": 43.3,
-                    "end_time_simulation": 44.3,
-                    "start_time_scheduled": 27.8,
-                    "end_time_scheduled": 28.9,
+                    "start_time_simulation": 43.1,
+                    "end_time_simulation": 44.1,
+                    "start_time_scheduled": 27.6,
+                    "end_time_scheduled": 28.7,
                     "executionStatus": true
                 }
             ]
         }
     ],
-    "computationTime": 0.06,
-    "schedulerMakespan": 28.9,
-    "simulationMakespan": 44.3,
+    "computationTime": 0.04913,
+    "simulationMakespan": 44.1,
+    "schedulerMakespan": 28.7,
     "realWorldMakespan": null,
     "success_rate": 0.44,
     "timing_success_rate": null

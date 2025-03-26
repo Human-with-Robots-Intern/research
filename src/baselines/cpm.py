@@ -87,7 +87,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=12 ) # already chosen
+    task_file_name = get_user_task_choice(task_files ,choice=11) # already chosen
     task_data = load_task_data_from_file(task_file_name)
     
     # Build tasks and constraints
@@ -139,7 +139,7 @@ def main():
         print(" -", step)
     if args.simulation: 
         approach_name = f"{approach_name}_simulation"
-    result_save(task_file_name, approach_name, result_schedule_with_time, computation_time)
+        result_save(task_file_name, approach_name, result_schedule_with_time, computation_time)
 
 
 def paths(edges):

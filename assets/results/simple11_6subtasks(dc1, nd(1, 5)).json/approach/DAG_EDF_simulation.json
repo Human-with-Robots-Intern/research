@@ -2,7 +2,7 @@
     "approach": "DAG_EDF_simulation",
     "plans": [
         {
-            "planName": "DAG_EDF_simulation",
+            "planName": "simple11_6subtasks(dc1, nd(1, 5)).json",
             "subtasks": [
                 {
                     "subtaskName": "Throw away Paper Towel",
@@ -63,9 +63,9 @@
             ]
         }
     ],
-    "computationTime": 0.08,
-    "schedulerMakespan": 61.6,
+    "computationTime": 0.10465,
     "simulationMakespan": 80.1,
+    "schedulerMakespan": 61.6,
     "realWorldMakespan": null,
     "success_rate": 0.43,
     "timing_success_rate": null

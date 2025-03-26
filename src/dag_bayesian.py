@@ -69,7 +69,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=13)
+    task_file_name = get_user_task_choice(task_files, choice=11)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
@@ -90,9 +90,9 @@ def main():
     is_end = False
 
 
-    computation_time=0
-
+    computation_time = 0
     simulationTime = 0
+
     while not is_end:
         
         computation_time_start = time.time() 
@@ -104,10 +104,10 @@ def main():
             break      
         
    
-        if args.simulation: 
+        if args.simulation:
             # 터미널에서 src/dag_bayesian.py -s 실행시 사용됨  
             subtask_time, executionStatus = execute_subtask(controller, next_state.subtask)
-
+            # 시뮬레이션에서 반환해주는 시간을 subtask 객체에 저장.
             next_state.completed_subtasks[-1].subtask.start_time_simulation = simulationTime
             next_state.completed_subtasks[-1].subtask.end_time_simulation = simulationTime + subtask_time
             
@@ -123,8 +123,7 @@ def main():
 
         current_state = next_state
         
-        # simulation time 과 scheduler 상의 시간이 다른 원인은 
-        # schedueler 상에서 이동거리를 구할 떄 오차가 있지 않을 까?
+  
 
         if not current_state.remaining_subtasks:
             is_end = True
@@ -137,10 +136,9 @@ def main():
             f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
         log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
-        # 지금 start time 과 end time은 scheduler가 계산 한 값이고 simulation을 실제 했을때의 시간이 아니다. 
+        # 지금 start time 과 end time은 scheduler가 계산 한 값이고 simulation을 했을때의 시간이 아니다. 
         ce.subtask.start_time_scheduled = round(ce.start_time, LOG_ROUND)
         ce.subtask.end_time_scheduled = round(ce.end_time, LOG_ROUND)
-
         result_schedule.append(ce.subtask)
 
   
@@ -148,7 +146,7 @@ def main():
 
     if args.simulation: 
         approach_name = f"{approach_name}_simulation"
-    result_save(task_file_name, approach_name,result_schedule, computation_time, simulationTime)
+        result_save(task_file_name, approach_name,result_schedule, computation_time, simulationTime)
 
 if __name__ == "__main__":
     main()

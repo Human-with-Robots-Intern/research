@@ -1,0 +1,32 @@
+{
+    "task": "simple11_6subtasks(dc1, nd(1, 5)).json",
+    "approachComparisons": [
+        {
+            "approachName": "DAG OS Scheduling(cpm)_simulation.json",
+            "schedulerMakespan": 45.0,
+            "simulationMakespan": 26.7,
+            "realWorldMakespan": null,
+            "computationTime": 1e-05,
+            "actionSuccessRate": 1.0,
+            "timingSuccessRate": null
+        },
+        {
+            "approachName": "dag_bayesian_simulation.json",
+            "schedulerMakespan": 48.03,
+            "simulationMakespan": 73.53,
+            "realWorldMakespan": null,
+            "computationTime": 0.14438,
+            "actionSuccessRate": 0.5,
+            "timingSuccessRate": null
+        },
+        {
+            "approachName": "DAG_EDF_simulation.json",
+            "schedulerMakespan": 61.6,
+            "simulationMakespan": 80.1,
+            "realWorldMakespan": null,
+            "computationTime": 0.10465,
+            "actionSuccessRate": 0.43,
+            "timingSuccessRate": null
+        }
+    ]
+}

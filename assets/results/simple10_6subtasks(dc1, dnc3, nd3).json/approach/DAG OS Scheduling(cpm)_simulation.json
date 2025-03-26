@@ -2,7 +2,7 @@
     "approach": "DAG OS Scheduling(cpm)_simulation",
     "plans": [
         {
-            "planName": "DAG OS Scheduling(cpm)_simulation",
+            "planName": "simple10_6subtasks(dc1, dnc3, nd3).json",
             "subtasks": [
                 {
                     "subtaskName": "Place Potato in Microwave",
@@ -79,9 +79,9 @@
             ]
         }
     ],
-    "computationTime": 0.0,
-    "schedulerMakespan": 102.8,
+    "computationTime": 1e-05,
     "simulationMakespan": 90.3,
+    "schedulerMakespan": 102.8,
     "realWorldMakespan": null,
     "success_rate": 1.0,
     "timing_success_rate": null
