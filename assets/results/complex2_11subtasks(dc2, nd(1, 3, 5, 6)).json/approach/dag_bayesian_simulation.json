@@ -1,0 +1,154 @@
+{
+    "approach": "dag_bayesian_simulation",
+    "plans": [
+        {
+            "plan_name": "complex2_11subtasks(dc2, nd(1, 3, 5, 6)).json",
+            "subtasks": [
+                {
+                    "subtask_name": "Wash Plate_part_1",
+                    "start_time_simulation": 0,
+                    "end_time_simulation": 23.1,
+                    "start_time_scheduled": 0,
+                    "end_time_scheduled": 15.1,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Plate_part_2",
+                    "start_time_simulation": 23.1,
+                    "end_time_simulation": 43.9,
+                    "start_time_scheduled": 15.1,
+                    "end_time_scheduled": 24.5,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Tomato",
+                    "start_time_simulation": 43.9,
+                    "end_time_simulation": 62.9,
+                    "start_time_scheduled": 24.5,
+                    "end_time_scheduled": 33.9,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Put Potato in Pot",
+                    "start_time_simulation": 62.9,
+                    "end_time_simulation": 70.9,
+                    "start_time_scheduled": 33.9,
+                    "end_time_scheduled": 37.9,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Fill Pot with Water",
+                    "start_time_simulation": 70.9,
+                    "end_time_simulation": 78.8,
+                    "start_time_scheduled": 37.9,
+                    "end_time_scheduled": 42.5,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Place Pot on Stove and Boil",
+                    "start_time_simulation": 78.8,
+                    "end_time_simulation": 86.9,
+                    "start_time_scheduled": 42.5,
+                    "end_time_scheduled": 47.0,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Lettuce_early",
+                    "start_time_simulation": 86.9,
+                    "end_time_simulation": 96.4,
+                    "start_time_scheduled": 47.0,
+                    "end_time_scheduled": 53.4,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Monitoring for Turn off Stove after Boiling_ab822008",
+                    "start_time_simulation": 96.4,
+                    "end_time_simulation": 96.5,
+                    "start_time_scheduled": 53.4,
+                    "end_time_scheduled": 53.5,
+                    "execution_status": true,
+                    "monitored_subtask": {
+                        "updated_subtask_name": "Place Pot on Stove and Boil",
+                        "original_expected_time": 9.974088621160872,
+                        "updated_expected_time": 10.033156006867598
+                    }
+                },
+                {
+                    "subtask_name": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 1.4000000000000001",
+                    "start_time_simulation": 96.5,
+                    "end_time_simulation": 97.8,
+                    "start_time_scheduled": 53.5,
+                    "end_time_scheduled": 54.9,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Monitoring for Turn off Stove after Boiling_867c72e4",
+                    "start_time_simulation": 97.8,
+                    "end_time_simulation": 97.9,
+                    "start_time_scheduled": 54.9,
+                    "end_time_scheduled": 55.0,
+                    "execution_status": true,
+                    "monitored_subtask": {
+                        "updated_subtask_name": "Place Pot on Stove and Boil",
+                        "original_expected_time": 10.033156006867598,
+                        "updated_expected_time": 9.959388488072593
+                    }
+                },
+                {
+                    "subtask_name": "Wait for Turn off Stove after Boiling",
+                    "start_time_simulation": 97.9,
+                    "end_time_simulation": 99.87,
+                    "start_time_scheduled": 55.0,
+                    "end_time_scheduled": 56.97,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Turn off Stove after Boiling",
+                    "start_time_simulation": 99.87,
+                    "end_time_simulation": 100.87,
+                    "start_time_scheduled": 56.97,
+                    "end_time_scheduled": 58.07,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Wash Potato",
+                    "start_time_simulation": 100.87,
+                    "end_time_simulation": 116.07,
+                    "start_time_scheduled": 58.07,
+                    "end_time_scheduled": 67.27,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Lettuce_remain",
+                    "start_time_simulation": 116.07,
+                    "end_time_simulation": 123.47,
+                    "start_time_scheduled": 67.27,
+                    "end_time_scheduled": 69.37,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Place CreditCard on Shelf",
+                    "start_time_simulation": 123.47,
+                    "end_time_simulation": 131.67,
+                    "start_time_scheduled": 69.37,
+                    "end_time_scheduled": 76.77,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Throw away Paper Towel",
+                    "start_time_simulation": 131.67,
+                    "end_time_simulation": 143.37,
+                    "start_time_scheduled": 76.77,
+                    "end_time_scheduled": 84.87,
+                    "execution_status": false
+                }
+            ]
+        }
+    ],
+    "computation_time": 1.60765,
+    "simulation_makespan": 143.37,
+    "scheduler_makespan": 84.87,
+    "realworld_makespan": null,
+    "success_rate": 0.38,
+    "timing_success_rate": null
+}

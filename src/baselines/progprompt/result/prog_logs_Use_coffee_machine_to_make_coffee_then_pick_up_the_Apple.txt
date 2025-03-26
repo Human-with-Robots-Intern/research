@@ -2,20 +2,24 @@ Starting simulation for task: Use_coffee_machine_to_make_coffee_then_pick_up_the
 Executing action: ['walk', 'mug']
 start_time:0 
 end_time: 1.5
-executionStatus: TrueExecuting action: ['pickup', 'mug']
+execution_status: True
+Executing action: ['pickup', 'mug']
 start_time:1.5 
 end_time: 4.0
-executionStatus: FalseExecuting action: ['walk', 'coffeemachine']
+execution_status: False
+Executing action: ['walk', 'coffeemachine']
 start_time:4.0 
 end_time: 5.0
-executionStatus: TrueExecuting action: ['put', 'mug', 'coffeemachine']
+execution_status: True
+Executing action: ['put', 'mug', 'coffeemachine']
 start_time:5.0 
 end_time: 8.0
-executionStatus: TrueExecuting action: ['toggleon', 'coffeemachine']
+execution_status: True
+Executing action: ['toggleon', 'coffeemachine']
 start_time:8.0 
 Invalid action
 State check:
-You see: CounterTop, PaperTowelRoll, Mug, Toaster is isToggledOff and isHeatSource, Window, Drawer is isClosed, CoffeeMachine is isToggledOff and isHeatSource, CounterTop holds Toaster, CounterTop holds CoffeeMachine, CounterTop holds Mug, CounterTop holds Lettuce, CounterTop holds PaperTowelRoll, CounterTop holds Pot, CounterTop holds Potato, CounterTop holds HousePlant, CounterTop holds SoapBottle. 
+You see: Mug, Toaster is isToggledOff and isHeatSource, CounterTop, Drawer is isClosed, PaperTowelRoll, CoffeeMachine is isToggledOff and isHeatSource, Window, CounterTop holds Toaster, CounterTop holds CoffeeMachine, CounterTop holds Mug, CounterTop holds Lettuce, CounterTop holds PaperTowelRoll, CounterTop holds Pot, CounterTop holds Potato, CounterTop holds HousePlant, CounterTop holds SoapBottle. 
 assert('coffee' in 'Mug')
 False
 Executing action: ['toggleon', 'coffeemachine']
@@ -28,20 +32,37 @@ False
 Executing action: ['pickup', 'mug']
 start_time:8.0 
 end_time: 10.8
-executionStatus: FalseState check:
+execution_status: False
+State check:
 You see: 
 walk('CounterTop')
-True
+False
 Executing action: ['walk', 'countertop']
 start_time:10.8 
 end_time: 12.7
-executionStatus: TrueExecuting action: ['put', 'mug', 'countertop']
+execution_status: True
+State check:
+You see: 
+put('Mug', 'CounterTop')
+False
+Executing action: ['put', 'mug', 'countertop']
 start_time:12.7 
 end_time: 15.7
-executionStatus: TrueExecuting action: ['walk', 'apple']
+execution_status: True
+State check:
+You see: 
+walk('Apple')
+False
+Executing action: ['walk', 'apple']
 start_time:15.7 
 end_time: 18.9
-executionStatus: TrueExecuting action: ['pickup', 'apple']
+execution_status: True
+State check:
+You see: 
+pickup('Apple')
+False
+Executing action: ['pickup', 'apple']
 start_time:18.9 
 end_time: 21.3
-executionStatus: FalseTotal time spent : 21.3
+execution_status: False
+Total time spent : 21.3

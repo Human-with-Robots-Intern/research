@@ -2,95 +2,105 @@
     "approach": "dag_bayesian_simulation",
     "plans": [
         {
-            "planName": "simple11_6subtasks(dc1, nd(1, 5)).json",
+            "plan_name": "simple11_6subtasks(dc1, nd(1, 5)).json",
             "subtasks": [
                 {
-                    "subtaskName": "Prepare Egg Fry",
-                    "start_time_simulation": null,
+                    "subtask_name": "Prepare Egg Fry",
+                    "start_time_simulation": 0,
                     "end_time_simulation": 25.1,
-                    "start_time_scheduled": null,
+                    "start_time_scheduled": 0,
                     "end_time_scheduled": 20.0,
-                    "executionStatus": false
+                    "execution_status": false
                 },
                 {
-                    "subtaskName": "Wash Tomato_early",
+                    "subtask_name": "Wash Tomato_early",
                     "start_time_simulation": 25.1,
                     "end_time_simulation": 36.2,
                     "start_time_scheduled": 20.0,
                     "end_time_scheduled": 26.8,
-                    "executionStatus": false
+                    "execution_status": false
                 },
                 {
-                    "subtaskName": "Monitoring for Turn off stove after cooking_89835d18",
+                    "subtask_name": "Monitoring for Turn off stove after cooking_ee0cb13c",
                     "start_time_simulation": 36.2,
                     "end_time_simulation": 36.3,
                     "start_time_scheduled": 26.8,
                     "end_time_scheduled": 26.9,
-                    "executionStatus": true
+                    "execution_status": true,
+                    "monitored_subtask": {
+                        "updated_subtask_name": "Prepare Egg Fry",
+                        "original_expected_time": 10.19276775558655,
+                        "updated_expected_time": 10.000732004906446
+                    }
                 },
                 {
-                    "subtaskName": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 1.4000000000000001",
+                    "subtask_name": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 1.4000000000000001",
                     "start_time_simulation": 36.3,
                     "end_time_simulation": 37.6,
                     "start_time_scheduled": 26.9,
                     "end_time_scheduled": 28.3,
-                    "executionStatus": true
+                    "execution_status": true
                 },
                 {
-                    "subtaskName": "Monitoring for Turn off stove after cooking_a94abd7c",
+                    "subtask_name": "Monitoring for Turn off stove after cooking_0bab18bc",
                     "start_time_simulation": 37.6,
                     "end_time_simulation": 37.7,
                     "start_time_scheduled": 28.3,
                     "end_time_scheduled": 28.4,
-                    "executionStatus": true
+                    "execution_status": true,
+                    "monitored_subtask": {
+                        "updated_subtask_name": "Prepare Egg Fry",
+                        "original_expected_time": 10.000732004906446,
+                        "updated_expected_time": 9.897252150423268
+                    }
                 },
                 {
-                    "subtaskName": "Wait for Turn off stove after cooking",
+                    "subtask_name": "Wait for Turn off stove after cooking",
                     "start_time_simulation": 37.7,
-                    "end_time_simulation": 39.23,
+                    "end_time_simulation": 39.49,
                     "start_time_scheduled": 28.4,
-                    "end_time_scheduled": 29.93,
-                    "executionStatus": true
+                    "end_time_scheduled": 30.19,
+                    "execution_status": true
                 },
                 {
-                    "subtaskName": "Turn off stove after cooking",
-                    "start_time_simulation": 39.23,
-                    "end_time_simulation": 40.23,
-                    "start_time_scheduled": 29.93,
-                    "end_time_scheduled": 31.03,
-                    "executionStatus": true
+                    "subtask_name": "Turn off stove after cooking",
+                    "start_time_simulation": 39.49,
+                    "end_time_simulation": 40.49,
+                    "start_time_scheduled": 30.19,
+                    "end_time_scheduled": 31.29,
+                    "execution_status": true
                 },
                 {
-                    "subtaskName": "Wash Potato",
-                    "start_time_simulation": 40.23,
-                    "end_time_simulation": 55.43,
-                    "start_time_scheduled": 31.03,
-                    "end_time_scheduled": 40.23,
-                    "executionStatus": false
+                    "subtask_name": "Wash Potato",
+                    "start_time_simulation": 40.49,
+                    "end_time_simulation": 55.69,
+                    "start_time_scheduled": 31.29,
+                    "end_time_scheduled": 40.49,
+                    "execution_status": false
                 },
                 {
-                    "subtaskName": "Wash Tomato_remain",
-                    "start_time_simulation": 55.43,
-                    "end_time_simulation": 60.63,
-                    "start_time_scheduled": 40.23,
-                    "end_time_scheduled": 42.33,
-                    "executionStatus": false
+                    "subtask_name": "Wash Tomato_remain",
+                    "start_time_simulation": 55.69,
+                    "end_time_simulation": 60.89,
+                    "start_time_scheduled": 40.49,
+                    "end_time_scheduled": 42.59,
+                    "execution_status": false
                 },
                 {
-                    "subtaskName": "Throw away Paper Towel",
-                    "start_time_simulation": 60.63,
-                    "end_time_simulation": 73.53,
-                    "start_time_scheduled": 42.33,
-                    "end_time_scheduled": 48.03,
-                    "executionStatus": false
+                    "subtask_name": "Throw away Paper Towel",
+                    "start_time_simulation": 60.89,
+                    "end_time_simulation": 73.79,
+                    "start_time_scheduled": 42.59,
+                    "end_time_scheduled": 48.29,
+                    "execution_status": false
                 }
             ]
         }
     ],
-    "computationTime": 0.14438,
-    "simulationMakespan": 73.53,
-    "schedulerMakespan": 48.03,
-    "realWorldMakespan": null,
+    "computation_time": 0.46695,
+    "simulation_makespan": 73.79,
+    "scheduler_makespan": 48.29,
+    "realworld_makespan": null,
     "success_rate": 0.5,
     "timing_success_rate": null
 }

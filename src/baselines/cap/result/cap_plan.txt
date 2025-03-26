@@ -2,20 +2,16 @@
 mug_id = get_obj_id('mug')
 move_to(mug_id)
 pickup(mug_id)
-
 coffee_machine_id = get_obj_id('coffee_machine')
 move_to(coffee_machine_id)
-
 put(coffee_machine_id)
 toggleon(coffee_machine_id)
 if not parse_question('is mug filled with coffee?'):
   toggleon(coffee_machine_id)
-
 pickup(mug_id)
 countertop_id = get_obj_id('countertop')
 move_to(countertop_id)
 put(countertop_id)
-
 apple_id = get_obj_id('apple')
 move_to(apple_id)
 pickup(apple_id)[37m# define function: move_to(apple_id).[39;49;00m[37m[39;49;00m
