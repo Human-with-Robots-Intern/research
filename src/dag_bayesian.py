@@ -72,7 +72,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=0, is_rag=args.rag)
+    task_file_name = get_user_task_choice(task_files, choice=3, is_rag=args.rag)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
@@ -84,7 +84,7 @@ def main():
 
     agent = Agent()
 
-    scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph=nav_graph)
+    scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph = nav_graph)
 
     result_schedule = []
 
@@ -108,18 +108,19 @@ def main():
    
         if args.simulation:
             # 터미널에서 src/dag_bayesian.py -s 실행시 사용됨  
-            subtask_time, executionStatus = execute_subtask(controller, next_state.subtask)
+            subtask_time, execution_status = execute_subtask(controller, next_state.subtask)
             # 시뮬레이션에서 반환해주는 시간을 subtask 객체에 저장.
             next_state.completed_subtasks[-1].subtask.start_time_simulation = simulationTime
             next_state.completed_subtasks[-1].subtask.end_time_simulation = simulationTime + subtask_time
             
             simulationTime += subtask_time
 
-            next_state.completed_subtasks[-1].subtask.executionStatus = executionStatus
+            next_state.completed_subtasks[-1].subtask.execution_status = execution_status
 
-      
         if next_state.subtask.type == "Monitor":            
-            next_state = agent.bayesian_estimate(next_state)
+            next_state, monitored_subtask = agent.bayesian_estimate(next_state)
+            next_state.completed_subtasks[-1].subtask.monitored_subtask = monitored_subtask
+
 
         current_state = next_state
         
@@ -146,7 +147,7 @@ def main():
 
     if args.simulation: 
         approach_name = f"{approach_name}_simulation"
-        result_save(task_file_name, approach_name,result_schedule, computation_time, simulationTime)
+    result_save(task_file_name, approach_name,result_schedule, computation_time, simulationTime)
 
 if __name__ == "__main__":
     main()

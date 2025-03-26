@@ -10,7 +10,7 @@ import sys
 from ai2thor.controller import Controller
 
 from utils.constants import *
-from utils.file_utils import *
+from ithor.utils.file_utils import *
 
 from pygments import highlight
 from pygments.lexers import PythonLexer
@@ -54,10 +54,10 @@ def timed_action(log_file, action_name, action_func, controller):
 
         # 
         if controller.last_event.metadata["lastActionSuccess"]:
-            log_file.write(f"executionStatus: {True}\n")
+            log_file.write(f"execution_status: {True}\n")
 
         else:
-            log_file.write(f"executionStatus: {False}\n")
+            log_file.write(f"execution_status: {False}\n")
 
 
         

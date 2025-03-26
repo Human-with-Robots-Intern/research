@@ -430,6 +430,6 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                         log_file.write("Invalid action\n")
                         break
                 log_file.write(f"end_time: {str(round(elapsed_time,2))}\n")
-                log_file.write(f"executionStatus: {last_action_success(controller)}")
+                log_file.write(f"execution_status: {last_action_success(controller)}")
     print(f"{round(elapsed_time, 2)=}")
     log_file.write(f"Total time spent : {round(elapsed_time, 2)}")

@@ -36,7 +36,7 @@ from utils.task import (
     task_io,
 )
 
-from utils.math_utils import adjust_if_unreachable, build_navigation_graph
+from ithor.utils.math_utils import adjust_if_unreachable, build_navigation_graph
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -87,7 +87,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ,choice=11) # already chosen
+    task_file_name = get_user_task_choice(task_files ,choice=3) # already chosen
     task_data = load_task_data_from_file(task_file_name)
     
     # Build tasks and constraints
@@ -469,7 +469,7 @@ def last_calculte_schedule_and_time(schedule_order, subtasks, held_object, nav_g
                             
                             nav_subtask.start_time_scheduled= total_time
                             nav_subtask.end_time_scheduled = total_time+nav_time
-                            nav_subtask.executionStatus=True 
+                            nav_subtask.execution_status=True 
                             result_schedule_with_time.append(nav_subtask)
 
                             total_time = nav_subtask.end_time_scheduled
@@ -482,7 +482,7 @@ def last_calculte_schedule_and_time(schedule_order, subtasks, held_object, nav_g
                                 wait_subtask.end_time_scheduled = total_time+wait_time
                                 result_schedule_with_time.append(wait_subtask)
                                 total_time = wait_subtask.end_time_scheduled
-                                wait_subtask.executionStatus=True
+                                wait_subtask.execution_status=True
                             else:
                                 wait_time = 0.0
                             

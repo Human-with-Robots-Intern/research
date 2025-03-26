@@ -19,15 +19,15 @@ ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 
 
 
-from utils.math_utils import build_navigation_graph
+from ithor.utils.math_utils import build_navigation_graph
 
-from utils.runner_ai2thor import init_ai2thor, load_scene_positions
+from sim.runner_ai2thor import init_ai2thor, load_scene_positions
 
 
-from utils.action_handler import ActionHandler
-from utils.task_util import build_tasks_and_constraints
-from utils.make_gantt import gantt_chart
-from utils.dataclass import SimulationNode, Candidate, CompletedEntry, SchedulerState
+from scheduler.action_handler import ActionHandler
+from utils.task.task_util import build_tasks_and_constraints
+from utils.viz.make_gantt import gantt_chart
+from scheduler.dataclass import SimulationNode, Candidate, CompletedEntry, SchedulerState
 from core.task import Subtask, Execution, Duration
 from utils.task.task_io import list_task_files, get_user_task_choice, load_task_data_from_file
 
@@ -296,8 +296,6 @@ def update(
     3) next_subtask 실행 CompletedEntry 추가
     """
 
-    from utils.action_handler import ActionHandler
-
     action_handler = ActionHandler(nav_graph)
 
     # -------------------------------
@@ -388,7 +386,7 @@ def update(
                 start_time=new_current_time,
                 end_time=new_current_time + nav_time,
             )
-            nav_entry.subtask.executionStatus = True
+            nav_entry.subtask.execution_status = True
             wait_entries.append(nav_entry)
             new_current_time += nav_time
 
@@ -410,7 +408,7 @@ def update(
                 start_time=new_current_time,
                 end_time=designated_start,
             )
-            wait_entry.subtask.executionStatus = True
+            wait_entry.subtask.execution_status = True
             wait_entries.append(wait_entry)
             new_current_time = designated_start
 
@@ -521,7 +519,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ,choice=11)
+    task_file_name = get_user_task_choice(task_files ,choice=3)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
@@ -549,11 +547,11 @@ def main():
         if args.simulation:
             # 터미널에서 src/baselines/def/dag_edf.py -s 실행시 사용됨  
 
-            subtask_time, executionStatus = execute_subtask(controller, next_subtask)
+            subtask_time, execution_status = execute_subtask(controller, next_subtask)
             simulation_subtask_times.append(subtask_time)
 
     
-            next_subtask.executionStatus = executionStatus
+            next_subtask.execution_status = execution_status
 
 
     
