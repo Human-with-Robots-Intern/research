@@ -1,3 +1,4 @@
+import argparse
 import heapq
 import json
 from typing import List, Optional, Tuple
@@ -10,6 +11,7 @@ import time
 
 from pathlib import Path
 
+from sim.runner_ai2thor import execute_subtask
 from utils.result_saver import result_save
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent  # 프로젝트 루트 경로
@@ -69,6 +71,7 @@ def get_current_timeslot(current_state: SchedulerState) -> Optional[str]:
 
 def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask]:
     """
+    함수 이름은 simulation 이지만 schedueling을 하는 함수다.
     각 실행 가능한 subtask에 대해 deadline을 산출한 후, deadline이 가장 짧은 subtask를 선택한다.
 
     [계산 방법]
@@ -380,11 +383,12 @@ def update(
                     type="NAVIGATE",
                     execution=Execution(objects={}, primitive_actions=[nav_action]),
                     duration=Duration(type="NAVIGATE", interval=nav_time),
-                    temporal_constraints=[],
+                    temporal_constraints=[],                    
                 ),
                 start_time=new_current_time,
                 end_time=new_current_time + nav_time,
             )
+            nav_entry.subtask.executionStatus = True
             wait_entries.append(nav_entry)
             new_current_time += nav_time
 
@@ -406,6 +410,7 @@ def update(
                 start_time=new_current_time,
                 end_time=designated_start,
             )
+            wait_entry.subtask.executionStatus = True
             wait_entries.append(wait_entry)
             new_current_time = designated_start
 
@@ -414,8 +419,8 @@ def update(
     # -------------------------------
     subtask_entry = CompletedEntry(
         subtask=next_subtask,
-        start_time=new_current_time,
-        end_time=new_current_time + real_exec_time,
+        start_time = new_current_time,
+        end_time = new_current_time + real_exec_time,
     )
     new_current_time += real_exec_time
 
@@ -438,8 +443,6 @@ def update(
         agent_location=current_state.agent_location,
     )
     return updated_state
-
-
 
 
 def get_init_state(
@@ -472,32 +475,87 @@ def get_init_state(
     return init_state
 
 
+def parse_arguments():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description="Task Scheduler")
+
+    # 현재 미사용중인 argument들은 주석처리되었다.
+    # parser.add_argument(
+    #     "-d",
+    #     "--decomposition",
+    #     help="Enable or disable decomposition",
+    #     default=True,
+    #     action="store_true",
+    # )
+    # parser.add_argument(
+    #     "-v",
+    #     "--visualize",
+    #     help="Enable visualization of the task plan",
+    #     default=True,
+    #     action="store_true",
+    # )
+    # parser.add_argument(
+    #     "-r",
+    #     "--reset",
+    #     default=True,
+    #     help="Reset the knowledge base to Gaussian",
+    #     action="store_true",
+    # )
+    parser.add_argument(
+        "-s",
+        "--simulation",
+        default=True,
+        action="store_true",
+    )
+    return parser.parse_args()
+
+
 def main():
 
     # Set up the AI2-THOR controller and navigation graph
-    approach_name="DAG + EDF"
+    approach_name="DAG_EDF"
+    args = parse_arguments()
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
     scene_poses = load_scene_positions("FloorPlan1_positions.json")
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=4)
+    task_file_name = get_user_task_choice(task_files ,choice=11)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
 
     subtasks, constraints = build_tasks_and_constraints(task_data, True)
 
-    computation_time_start = time.time()
+    computation_time = 0
     current_state = get_init_state(subtasks, constraints, scene_poses)
     result_schedule = []
+    simulation_subtask_times = []
     for _ in range(len(subtasks)):
+        #next_subtask는 Subtask 객체이다.
+
+        subtask_scheduling_time_start = time.time()
         next_subtask = simulation_edf(current_state, nav_graph)
+
         if next_subtask is None:
             break
         current_state = update(current_state, next_subtask, nav_graph)
-    computation_time=time.time() - computation_time_start
+
+        subtask_scheduling_time = time.time() - subtask_scheduling_time_start
+        computation_time += subtask_scheduling_time
+
+        # 현재 시뮬레이션 실행시 schedule된 wait이나 navigate subtask는 단독으로 실행되지 않는다.
+        if args.simulation:
+            # 터미널에서 src/baselines/def/dag_edf.py -s 실행시 사용됨  
+
+            subtask_time, executionStatus = execute_subtask(controller, next_subtask)
+            simulation_subtask_times.append(subtask_time)
+
+    
+            next_subtask.executionStatus = executionStatus
+
+
     
     
 
@@ -509,12 +567,30 @@ def main():
     # completed_Entry 객체를 Subtask객체로 변환.
     # start_time과 end_time을 추출해서 Subtask 객체 안에 저장.
     subtasks_with_time =[]
-    for st in result_schedule:        
-        st.subtask.start_time = st.start_time
-        st.subtask.end_time = st.end_time
-        subtasks_with_time.append(st.subtask)
 
-    result_save(task_file_name, approach_name, subtasks_with_time, computation_time)
+    if args.simulation: 
+        approach_name = f"{approach_name}_simulation"
+        i = 0
+        current_time=0
+
+        for st in result_schedule:
+            st.subtask.start_time_scheduled = st.start_time
+            st.subtask.end_time_scheduled = st.end_time  
+
+
+            st.subtask.start_time_simulation =current_time
+            #Wait 과 Navigate는 실제 시뮬레이션 
+            if st.subtask.type == "WAIT" or st.subtask.type == "NAVIGATE":
+                st.subtask.end_time_simulation = current_time + st.subtask.duration.interval
+                current_time += st.subtask.duration.interval
+            else:
+                st.subtask.end_time_simulation = current_time + simulation_subtask_times[i]
+                current_time += simulation_subtask_times[i]
+                i += 1
+
+            subtasks_with_time.append(st.subtask)
+    
+        result_save(task_file_name, approach_name, subtasks_with_time, computation_time )
 
 
 if __name__ == "__main__":

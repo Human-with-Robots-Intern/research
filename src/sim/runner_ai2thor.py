@@ -139,10 +139,10 @@ def execute_subtask(controller, subtask):
             log.warning(
                 f"Unknown action type: {action_type}. Skipping {action_str} in {subtask.name}."
             )
-            # TODO: log if the last primiive action was successful
-        # e.g.,
-        # wirte code here
-        success = controller.last_event.metadata.get("lastActionSuccess", "N/A")
+                # TODO: log if the last primiive action was successful
+        # e.g., 
+        
+        success = controller.last_event.metadata.get('lastActionSuccess', 'N/A')
         log.info(f"Action success: {action_str}: {success}")
         if success == False:
             is_subtask_success = False

@@ -55,6 +55,7 @@ def parse_arguments():
         "-s",
         "--simulation",
         default=True,
+        default=True,
         action="store_true",
     )
     return parser.parse_args()
@@ -91,59 +92,62 @@ def main():
     current_state = get_init_state(subtasks, constraints, scene_poses)
     is_end = False
 
-    computation_time_start = time.time()
-    total_simulation_execute_time = 0
-    simulationTime = 0
-    while not is_end:
 
-        next_state = scheduler.get_next_state(current_state)
+    computation_time = 0
+    simulationTime = 0
+
+    while not is_end:
+        
+        computation_time_start = time.time() 
+        next_state = scheduler.get_next_state(current_state) 
+        computation_time += time.time() - computation_time_start      
 
         if next_state is None:
             log.error("No feasible solution found.")
-            break
-
+            break      
+        
+   
         if args.simulation:
-            execute_time_start = time.time()
-            subtask_time, is_subtask_success = execute_subtask(
-                controller, next_state.subtask
-            )
-            execute_time = time.time() - execute_time_start
-            total_simulation_execute_time += execute_time
-
+            # 터미널에서 src/dag_bayesian.py -s 실행시 사용됨  
+            subtask_time, executionStatus = execute_subtask(controller, next_state.subtask)
+            # 시뮬레이션에서 반환해주는 시간을 subtask 객체에 저장.
+            next_state.completed_subtasks[-1].subtask.start_time_simulation = simulationTime
+            next_state.completed_subtasks[-1].subtask.end_time_simulation = simulationTime + subtask_time
+            
             simulationTime += subtask_time
-            next_state.completed_subtasks[-1].subtask.is_subtask_success = (
-                is_subtask_success
-            )
 
-        if next_state.subtask.type == "Monitor":
+            next_state.completed_subtasks[-1].subtask.executionStatus = executionStatus
+
+      
+        if next_state.subtask.type == "Monitor":            
             next_state = agent.bayesian_estimate(next_state)
 
         current_state = next_state
-
-        result_schedule.append(current_state.subtask)
+        
+  
 
         if not current_state.remaining_subtasks:
             is_end = True
-    computation_time = (
-        time.time() - computation_time_start - total_simulation_execute_time
-    )
+    # print(f"planning time is : {computation_time:.2f}") 
 
     for ce in current_state.completed_subtasks:
+        if ce.subtask.name == "Init":
+            continue
         log.info(
             f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
         log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
-        ce.subtask.start_time = round(ce.start_time, LOG_ROUND)
-        ce.subtask.end_time = round(ce.end_time, LOG_ROUND)
+        # 지금 start time 과 end time은 scheduler가 계산 한 값이고 simulation을 했을때의 시간이 아니다. 
+        ce.subtask.start_time_scheduled = round(ce.start_time, LOG_ROUND)
+        ce.subtask.end_time_scheduled = round(ce.end_time, LOG_ROUND)
+        result_schedule.append(ce.subtask)
 
-    visualize(
-        approach_name, task_file_name, current_state.constraints, plan=result_schedule
-    )
+  
+    visualize(approach_name, task_file_name, current_state.constraints , plan= result_schedule)
 
-    result_save(
-        task_file_name, approach_name, result_schedule, computation_time, simulationTime
-    )
-
+    if args.simulation: 
+        approach_name = f"{approach_name}_simulation"
+        result_save(task_file_name, approach_name,result_schedule, computation_time, simulationTime)
 
 if __name__ == "__main__":
     main()

@@ -1,1 +1,20 @@
 Executing action: ['pickup']
+start_time: 0.0
+end_time: 8.3
+executionStatus: False
+Executing action: ['put']
+start_time: 8.3
+end_time: 8.66
+executionStatus: True
+Executing action: ['pickup']
+start_time: 9.87
+end_time: 12.76
+executionStatus: False
+Executing action: ['put']
+start_time: 12.76
+end_time: 13.13
+executionStatus: True
+Executing action: ['pickup']
+start_time: 13.14
+end_time: 19.24
+executionStatus: False

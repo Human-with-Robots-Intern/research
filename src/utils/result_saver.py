@@ -7,7 +7,7 @@ from pathlib import Path
 from .constants import RESULT_PATH
 
 
-def compose_plans(result_schedule, approach_name):
+def compose_plans(result_schedule, task_name, simulationTime):
     """
     result_schedule(서브태스크 객체 리스트)을 받아 plans 데이터를 구성합니다.
 
@@ -17,37 +17,43 @@ def compose_plans(result_schedule, approach_name):
     현재 Subtask 클래스에는 startTime, endTime 속성이 없으므로 None으로 저장합니다.
     또한, updatedExpectedTime 속성이 있다면 포함하도록 처리합니다.
     """
-    plans = [
-        {
-            "planName": approach_name,
-            "subtasks": [
-                {
-                    "subtaskName": st.name,
-                    "startTime": round(st.start_time, 2) if st.start_time else None,
-                    "endTime": round(st.end_time, 2) if st.end_time else None,
-                    "executionStatus": getattr(
-                        st, "is_subtask_success", None
-                    ),  # Subtask 객체에 is_subtask_success 속성이 있는 경우에만 저장
-                    **(
-                        {"updatedExpectedTime": st.updatedExpectedTime}
-                        if hasattr(st, "updatedExpectedTime")
-                        else {}
-                    ),
-                }
-                for st in result_schedule
-            ],
+    success_count = 0
+    total_count = 0
+    subtasks = []
+    for st in result_schedule:  
+        execution_status = getattr(st, "executionStatus", None) # Subtask 객체에 is_subtask_success 속성이 있는 경우에만 저장
+        if execution_status is not None:
+            total_count += 1
+            if execution_status:
+                success_count += 1  
+        subtask = {
+            "subtaskName": st.name,
+            "start_time_simulation": round(st.start_time_simulation, 2) if st.start_time_simulation else None,
+            "end_time_simulation": round(st.end_time_simulation, 2) if st.end_time_simulation else None,
+            "start_time_scheduled": round(st.start_time_scheduled, 2) if st.start_time_scheduled else None,
+            "end_time_scheduled": round(st.end_time_scheduled, 2) if st.end_time_scheduled else None,
+            "executionStatus": execution_status,    
+            **({"updatedExpectedTime": st.updatedExpectedTime} if hasattr(st, "updatedExpectedTime") else {})
         }
-    ]
+        subtasks.append(subtask)
 
-    return plans
+    if simulationTime==None and st.end_time_simulation != None :
+        simulationTime = subtasks[-1]["end_time_simulation"]
+    if st.end_time_scheduled != None:
+        schedulerMakespan = st.end_time_scheduled
 
 
-def result_save(
-    task_name, approach_name, result_schedule, computation_time, simulationTime=None
-):
-    """
-    결과 데이터를 지정된 폴더 구조에 JSON 파일(result_save.pt)로 저장합니다.
+    success_rate=round(success_count/total_count, 2) if total_count != 0 else None
+    plans = [{
+        "planName": task_name,
+        "subtasks": subtasks,
+        
+    }]
+    return plans, success_rate, simulationTime, schedulerMakespan
 
+
+def result_save(task_name, approach_name, result_schedule, computation_time, simulationTime= None):
+    """    
     Parameters:
         task_name (str): 태스크 이름
         approach_name (str): 적용한 접근 방식 (예, "dag_bayesian")
@@ -55,8 +61,8 @@ def result_save(
         computation_time (float): 전체 계산 소요 시간
     """
 
-    plans = compose_plans(result_schedule, approach_name)
-
+    plans, success_rate, simulationTime, schedulerMakespan = compose_plans(result_schedule, task_name, simulationTime)
+ 
     save_folder_path = Path(RESULT_PATH) / task_name
     save_folder_path.mkdir(exist_ok=True, parents=True)
 
@@ -64,8 +70,12 @@ def result_save(
     result_data = {
         "approach": approach_name,
         "plans": plans,
-        "computationTime": computation_time,
-        "simulationMakespan": simulationTime,
+        "computationTime": round(computation_time, 5),
+        "simulationMakespan": round(simulationTime, 2) if simulationTime else None,
+        "schedulerMakespan": round(schedulerMakespan, 2) if schedulerMakespan else None,
+        "realWorldMakespan": None,
+        "success_rate": round(success_rate, 2) if success_rate else None,
+        "timing_success_rate": None ,
     }
 
     # 결과 데이터를 approach_name.json 파일로 저장 (JSON 형식)
@@ -77,18 +87,25 @@ def result_save(
 
     # 추후 필요시 summary_comparison.json, tasks.json, constraints.jpg, metadata.json 등을 생성하는 코드 추가 가능
 
-
 def result_save_llm(approach, result_txt, json_output_path, computation_time):
     with open(result_txt, "r") as f:
         lines = f.readlines()
 
     json_data = {
         "approach": f"{approach}",
-        "plans": [{"planName": f"{approach}", "actions": [], "executionStatus": None}],
+        "plans": [
+            {
+                "planName": f"{approach}",
+                "actions": [],
+                "executionStatus": None
+            }
+        ],
         "computationTime": computation_time,
-        "schedulerTotalTime": None,
+        "success_rate": None,
+        "timing_success_rate": None,
+        "schedulerTotalTime":None,
         "simulationMakespan": None,
-        "realWorldTotalTime": None,
+        "realWorldTotalTime": None
     }
 
     actions = []
@@ -96,7 +113,8 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
     start_time, end_time = None, None
     execution_status = None
     last_end_time = 0
-
+    total_count = 0
+    success_count = 0
     for line in lines:
         line = line.strip()
 
@@ -106,19 +124,14 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
             if current_action:
                 current_action["startTime"] = start_time
                 current_action["endTime"] = end_time
-                current_action["executionStatus"] = execution_status
+                current_action["executionStatus"] = execution_status                
                 actions.append(current_action)
 
             # 새로운 액션 감지
             action = re.findall(r"\['(.*?)'\]", line)
             if action:
                 action = action[0].split("', '")  # 문자열을 리스트로 변환
-                current_action = {
-                    "Executing action": action,
-                    "startTime": None,
-                    "endTime": None,
-                    "executionStatus": None,
-                }
+                current_action = {"Executing action": action, "startTime": None, "endTime": None, "executionStatus": None}
                 execution_status = None  # 새 액션이 시작되었으므로 초기화
             else:
                 current_action = None
@@ -135,6 +148,11 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
         # 실행 상태 감지
         elif line.startswith("executionStatus:"):
             execution_status = line.split(":")[1].strip()
+            if execution_status == "True":
+                success_count += 1
+            total_count += 1    
+             
+            
 
         # 총 실행 시간 감지
         elif line.startswith("Total time spent"):
@@ -148,16 +166,16 @@ def result_save_llm(approach, result_txt, json_output_path, computation_time):
         actions.append(current_action)
 
     json_data["plans"][0]["actions"] = actions
-    json_data["plans"][0].pop(
-        "executionStatus", None
-    )  # 마지막 executionStatus는 날리기 위함
+    json_data["plans"][0].pop("executionStatus", None) #마지막 executionStatus는 날리기 위함
     json_data["simulationMakespan"] = last_end_time
+    json_data["success_rate"] = round(success_count/total_count, 2) if total_count != 0 else None
 
     # JSON 파일로 저장
-    filename = f"{approach}.json"
-    new_json_output_path = os.path.join("assets", "results", json_output_path, filename)
+    filename=f"{approach}.json"
+    new_json_output_path = os.path.join( "assets", "results", "approach",json_output_path, filename)
     os.makedirs(os.path.dirname(new_json_output_path), exist_ok=True)
     with open(new_json_output_path, "w") as f:
         json.dump(json_data, f, indent=4)
+        
 
     print(f"JSON file saved at {new_json_output_path}")

@@ -17,8 +17,8 @@ from pygments.lexers import PythonLexer
 from pygments.formatters import TerminalFormatter
 
 import baselines.cap.util.LMPgen as gen
-from utils.result_saver import result_save
-from utils.result_saver_llm import result_save_llm
+from utils.result_saver import result_save_llm
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 # setting.json 에 ai2thor 위치 환경변수 추가한 상태로 해야함.
@@ -29,7 +29,7 @@ import time
 
 first_action_time = None 
 
-def timed_action(log_file, action_name, action_func):
+def timed_action(log_file, action_name, action_func, controller):
     """
     원래 action_func를 호출하기 직전/직후로 시간을 측정하고,
     result_save_llm가 파싱할 수 있는 포맷으로 로그를 남기는 래퍼 함수.
@@ -52,8 +52,15 @@ def timed_action(log_file, action_name, action_func):
         log_file.write(f"start_time: {round(start_time,2)}\n")
         log_file.write(f"end_time: {round(end_time,2)}\n")
 
-        # 여기서는 일단 항상 success라고 예시(실패 처리가 필요하면 따로 로직 추가)
-        log_file.write(f"executionStatus: success\n")
+        # 
+        if controller.last_event.metadata["lastActionSuccess"]:
+            log_file.write(f"executionStatus: {True}\n")
+
+        else:
+            log_file.write(f"executionStatus: {False}\n")
+
+
+        
 
         return result
     return wrapper
@@ -213,7 +220,7 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
     for action_name in ["pickup", "slice", "put", "drop", 
                         "toggle_on", "toggle_off", "open", "close"]:
         original_func = variable_vars[action_name]
-        variable_vars[action_name] = timed_action(log_file, action_name, original_func)
+        variable_vars[action_name] = timed_action(log_file, action_name, original_func, controller)
 
 
 
@@ -264,11 +271,11 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
 
     return lmp_scene_ui
 
-
 if __name__ == "__main__":
     approach_name = "Code as Policies"   
     user_input = (
         # "Heat potato with microwave, wash a plate three times and cook fried egg" 
+        # "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple"
         "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple"
     )
 
@@ -289,7 +296,8 @@ if __name__ == "__main__":
     cap_log_path =f"src/baselines/cap/result/cap_logs_{user_input}.txt"
     computation_time_start = time.time()
     lmp_scene_ui(user_input, objects=f"{objs}")
+    # 현재 computaion_time은 시뮬레이션 타임을 포함해서 정확하지 않음. 추후에 llmgeneration 방식의 computation_time을 폐기할 수 있으므로 일단 스킵
     computation_time = time.time() - computation_time_start
-    result_path = f"cap_result_{user_input}.json"
+    result_path = f"{user_input}"
 
     result_save_llm(approach_name, cap_log_path, result_path, computation_time)
