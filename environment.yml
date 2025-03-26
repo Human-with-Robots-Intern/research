@@ -1,69 +1,42 @@
 name: research
 channels:
-  - pytorch
-  - nvidia
   - conda-forge
-  - anaconda
 dependencies:
-  # Core Python and frequently used libraries
-  - python=3.10.15
-  - numpy>=1.23.5,<2.0.0
-  - scipy>=1.10.1
-  - matplotlib>=3.0.0
-  - networkx~=3.2.1
-  - pyyaml~=6.0.1
-  - anaconda::pyqt=5.15.10
-  - anaconda::pyqt5-sip=12.13.0
-  - conda-forge::qt-main=5.15.15
-
-  # # PyTorch and GPU dependencies
-  # # - cuda-toolkit=12.1 # 아마 omnigibson과 관련 없는 애 같음 다른 방법으로 cuda 설치할 것
-  # - pytorch=2.4.0
-  # - torchvision=0.19.0
-  # - torchaudio=2.4.0
-  # - pytorch-cuda=12.4
-
-  # # Simulation and robotics libraries
-  # - gymnasium>=0.28.1
-  # - opencv
-  # - omnigibson
-  # - Ai2thor
-
-  # Other utilities and libraries
-  - h5py
-  - trimesh
-  - rtree
-  - cryptography~=41.0.7
-  - progressbar
-  - click
   - aenum~=3.1.15
-  - openai
-  - Shapely
-
-  # Developer tools
   - black
-  - isort
-  - ipython~=8.20.0
+  - click
+  - cryptography~=41.0.7
   - future~=0.18.3
-  - termcolor~=2.4.0
-  - graphviz  # Graph visualization library
-  - nest-asyncio~=1.5.8
-  - imageio~=2.33.1
+  - graphviz
+  - gymnasium[version='>=0.28.1']
+  - h5py
   - imageio-ffmpeg~=0.4.9
-  - colorlog 
-  - pygraphviz
-  - Astunparse
-
-  # Pip-only dependencies
+  - imageio~=2.33.1
+  - ipython~=8.20.0
+  - isort
+  - matplotlib[version='>=3.0.0']
+  - nest-asyncio~=1.5.8
+  - networkx~=3.2.1
+  - numpy[version='>=1.23.5,<2.0.0']
+  - opencv[version='>=4.8.1']
   - pip
-  - pip:
-      # Development and testing tools
-      - pyright  # Type checking for Python
-      - pytest  # Testing framework
-      - coverage  # Code coverage analysis
-      - GitPython~=3.1.40  # Git interaction via Python
-
-      # Simulation and robotics-specific libraries
-      - transforms3d~=0.4.1
-      - addict~=2.4.0
-      - pymeshlab~=2022.2  # Mesh processing library
+  - progressbar
+  - python=3.10.15
+  - pytorch-cuda=12.1
+  - pytorch==2.4.0
+  - pyyaml~=6.0.1
+  - rtree
+  - scipy[version='>=1.10.1']
+  - termcolor~=2.4.0
+  - torchaudio==2.4.0
+  - torchvision==0.19.0
+  - trimesh
+  - anaconda::pyqt
+  - pytz
+  - anytree
+  - ai2thor
+  - colorlog
+  - pygraphviz
+  - sentence-transformers
+  - timm
+prefix: /home/dongkyu/miniforge3/envs/research

@@ -9,7 +9,7 @@ from utils.util import create_module_logger
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
-def init_ai2thor(platform = None):
+def init_ai2thor(platform=None):
     """
     Initializes the AI2-THOR controller with specified parameters.
 
@@ -47,7 +47,6 @@ def init_ai2thor(platform = None):
     return controller
 
 
-
 def execute_subtask(controller, subtask):
     """
     Executes a given subtask using the provided AI2-THOR controller.
@@ -78,7 +77,7 @@ def execute_subtask(controller, subtask):
 
     # Skip the Init subtask
     if subtask.name == "Init":
-        return
+        return 0, None
 
     log.info(f"Executing Subtask: {subtask.name}")
     # Parse execution details
@@ -99,8 +98,7 @@ def execute_subtask(controller, subtask):
                 )
             )
             if ai2thor_obj is None:
-                log.warning(f"Object '{obj_id}' not found in the environment.\n")
-                return False
+                raise (ValueError(f"Object {obj_id} not found in the environment."))
             object_registry[obj_id] = ai2thor_obj
 
     # Define action mapping to ai2thor action primitives
@@ -149,7 +147,7 @@ def execute_subtask(controller, subtask):
         if success == False:
             is_subtask_success = False
         ####
-       
+
     log.info(f"{subtask.name}의 걸린시간 = {round(elapsed_time, 2)}")
     log.info(f"Successfully executed Subtask: {subtask.name}")
     return elapsed_time, is_subtask_success

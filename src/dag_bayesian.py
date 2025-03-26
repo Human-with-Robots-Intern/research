@@ -1,13 +1,13 @@
 import argparse
+import time
 
 from core.agent import Agent
 from core.scheduler import Scheduler
 from ithor.handlers.navigation_handler import build_navigation_graph
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
-
-from utils import create_module_logger, visualize
-from utils.result_saver import result_save
+from utils import create_module_logger
 from utils.constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH
+from utils.result_saver import result_save
 from utils.task import (
     build_tasks_and_constraints,
     get_init_state,
@@ -16,9 +16,7 @@ from utils.task import (
     load_task_data_from_file,
 )
 from utils.task.task_io import load_scene_positions
-import time
-from ai2thor.platform import CloudRendering 
-
+from utils.viz.visualizer import visualize
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -49,8 +47,14 @@ def parse_arguments():
         action="store_true",
     )
     parser.add_argument(
+        "--rag",
+        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
         "-s",
         "--simulation",
+        default=True,
         default=True,
         action="store_true",
     )
@@ -69,14 +73,14 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=11)
+    task_file_name = get_user_task_choice(task_files, choice=0, is_rag=args.rag)
     task_data = load_task_data_from_file(task_file_name)
 
     # Build tasks and constraints
     subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
 
     # Visualize the task graph if enabled
-    if args.visualize: #True default, 현재는 변경 불가
+    if args.visualize:
         visualize(approach_name, task_file_name, constraints)
 
     agent = Agent()
@@ -84,7 +88,6 @@ def main():
     scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph=nav_graph)
 
     result_schedule = []
-   
 
     current_state = get_init_state(subtasks, constraints, scene_poses)
     is_end = False
@@ -118,8 +121,6 @@ def main():
       
         if next_state.subtask.type == "Monitor":            
             next_state = agent.bayesian_estimate(next_state)
-        
-     
 
         current_state = next_state
         

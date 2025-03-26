@@ -3,7 +3,11 @@ import math
 import time
 
 from utils.constants import SMOOTH_LEVEL
-from utils.math_utils import build_navigation_graph, closest_position, quantize_position
+from utils.sim.math_utils import (
+    build_navigation_graph,
+    closest_position,
+    quantize_position,
+)
 
 
 class NavigationHandler:
@@ -22,12 +26,17 @@ class NavigationHandler:
         object_pos = self.get_object_position(object_id)
 
         # Calculate horizontal distance and height difference
-        horizontal_distance = math.hypot(object_pos[0] - agent_pos[0],
-                                         object_pos[2] - agent_pos[2])
+        horizontal_distance = math.hypot(
+            object_pos[0] - agent_pos[0], object_pos[2] - agent_pos[2]
+        )
         height_diff = agent_pos[1] - object_pos[1]
 
         # Calculate required pitch angle (in degrees)
-        angle = math.degrees(math.atan(height_diff / horizontal_distance)) if horizontal_distance > 0 else 0
+        angle = (
+            math.degrees(math.atan(height_diff / horizontal_distance))
+            if horizontal_distance > 0
+            else 0
+        )
 
         # Clamp angle between -30 and 60 degrees
         clamped_angle = max(-30, min(60, angle))
@@ -83,9 +92,15 @@ class NavigationHandler:
                     continue
 
                 new_dir = calculate_direction(current, neighbor)
-                new_turn_count = turn_count if curr_dir is None or new_dir == curr_dir else turn_count + 1
+                new_turn_count = (
+                    turn_count
+                    if curr_dir is None or new_dir == curr_dir
+                    else turn_count + 1
+                )
 
-                heapq.heappush(pq, (new_turn_count, neighbor, new_dir, path + [neighbor]))
+                heapq.heappush(
+                    pq, (new_turn_count, neighbor, new_dir, path + [neighbor])
+                )
 
         raise Exception(f"No path found between {start} and {end}. Check reachability.")
 
@@ -122,7 +137,9 @@ class NavigationHandler:
         Returns:
             list: Reachable positions as tuples.
         """
-        positions = self.controller.step("GetReachablePositions").metadata["actionReturn"]
+        positions = self.controller.step("GetReachablePositions").metadata[
+            "actionReturn"
+        ]
         return [quantize_position((p["x"], p["y"], p["z"])) for p in positions]
 
     def get_agent_position(self):
@@ -180,8 +197,7 @@ class NavigationHandler:
         if rotation_angle:
             for _ in range(SMOOTH_LEVEL):
                 self.controller.step(
-                    action="RotateRight",
-                    degrees=rotation_angle / SMOOTH_LEVEL
+                    action="RotateRight", degrees=rotation_angle / SMOOTH_LEVEL
                 )
                 self.controller.step(action="Pass")
         time.sleep(0.1)

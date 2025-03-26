@@ -1,21 +1,23 @@
+import os
+import sys
 import textwrap
 from pathlib import Path
 from typing import List
-import sys,os
+
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
+from ..constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH, VIS_PATH
 
-from .constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH, VIS_PATH
+# VIS_PATH = ROOT_PATH / "assets" / "results"
 
-#VIS_PATH = ROOT_PATH / "assets" / "results"
 
 def visualize(approach, task_name, constraints, plan=None):
     folder_name = task_name
     task_folder_path = Path(VIS_PATH) / folder_name
     task_folder_path.mkdir(exist_ok=True)  # Create the folder if it doesn't exist
-    save_folder_path = task_folder_path/ "metadata"
+    save_folder_path = task_folder_path / "metadata"
     save_folder_path.mkdir(exist_ok=True)
 
     visualize_graph(approach, constraints, save_folder_path)
@@ -23,7 +25,9 @@ def visualize(approach, task_name, constraints, plan=None):
         plot_gantt_chart(plan, save_folder_path)
 
 
-def visualize_graph(approach, G: nx.DiGraph, save_folder_path="debug", is_display=False):
+def visualize_graph(
+    approach, G: nx.DiGraph, save_folder_path="debug", is_display=False
+):
     def wrap_label(label, width=10):
         """너무 긴 라벨을 일정 너비로 줄바꿈해 반환"""
         return "\n".join(textwrap.wrap(label, width=width))
