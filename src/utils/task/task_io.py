@@ -42,7 +42,7 @@ def get_user_task_choice(
             if choice == 0:
                 return generate_task(is_rag)
             elif 1 <= choice <= len(task_files):
-                return task_files[choice - 1].name
+                return task_files[choice - 1].name, choice
             else:
                 print(
                     f"Invalid choice. Please select a number between 0 and {len(task_files)}."

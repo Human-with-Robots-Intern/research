@@ -90,10 +90,10 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ) # already chosen
+    task_file_name, choice = get_user_task_choice(task_files ) # already chosen
     task_data = load_task_data_from_file(task_file_name)
     
-    input_natural_language = task_io.get_natural_language_from_task_file(task_file_name)
+    input_natural_language = task_io.get_natural_language_from_task_file(f"{choice}")
 
     # Build tasks and constraints
     subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)

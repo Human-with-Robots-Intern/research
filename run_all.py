@@ -72,7 +72,7 @@ instructions ={
     30: "cook_egg_fry_and_make_coffee_and_wash_dishes"
 }
 num_runs_per_instruction =1
-for i in reversed(range(1,28,3)):
+for i in reversed(range(1,31,3)):
     for script in scripts:
         for j in range(num_runs_per_instruction):
             print(f"task_name : {instructions[i]}")
@@ -84,16 +84,18 @@ for i in reversed(range(1,28,3)):
                 json_path = Path(f"assets/results/{instructions[i]}/approach/{approach}_simulation.json")
                 input_str = f"{instructions[i]}\n"
                 success, attempt = run_with_retries(script,input_str, max_retries=10)
-                json_path.parent.mkdir(parents=True, exist_ok=True)                
+                json_path.parent.mkdir(parents=True, exist_ok=True)   
+                           
 
-                
-                
                    
 
-                if success==True:                    
+                if success==True:   
+                    with open(json_path, "r") as f:
+                        data = json.load(f)                  
                     data["attempt"]= attempt
                 # 모든 시도 실패시 더미데이터 생성
                 else:
+                    
                     now = datetime.now()
                     time_str = now.strftime("%Y-%m-%d %H:%M")
 
@@ -109,7 +111,11 @@ for i in reversed(range(1,28,3)):
                         "simulation_makespan": inf,
                         "realworld_makespan": None
                     }
-                    data = default_data                  
+                    try: 
+                        with open(json_path, "r") as f:
+                            data = json.load(f) 
+                    except FileNotFoundError:
+                        data = default_data                  
 
                   
                 with open(json_path, "w") as f:
