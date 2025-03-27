@@ -1,0 +1,164 @@
+{
+    "saved_time": "2025-03-27 20:42",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "plan_name": "boil_potato_and_wash_vegetables_and_put_creditcard_on_shelf_and_wash_dishes_and_wash_cutlery",
+            "subtasks": [
+                {
+                    "subtask_name": "Wash Lettuce",
+                    "start_time_simulation": 0,
+                    "end_time_simulation": 15.7,
+                    "start_time_scheduled": 0,
+                    "end_time_scheduled": 10.1,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Potato",
+                    "start_time_simulation": 15.7,
+                    "end_time_simulation": 31.7,
+                    "start_time_scheduled": 10.1,
+                    "end_time_scheduled": 20.1,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Tomato",
+                    "start_time_simulation": 31.7,
+                    "end_time_simulation": 47.9,
+                    "start_time_scheduled": 20.1,
+                    "end_time_scheduled": 29.5,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Plate_part_1",
+                    "start_time_simulation": 47.9,
+                    "end_time_simulation": 70.1,
+                    "start_time_scheduled": 29.5,
+                    "end_time_scheduled": 43.7,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Plate_part_2",
+                    "start_time_simulation": 70.1,
+                    "end_time_simulation": 90.9,
+                    "start_time_scheduled": 43.7,
+                    "end_time_scheduled": 53.1,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Put Potato in Pot",
+                    "start_time_simulation": 90.9,
+                    "end_time_simulation": 100.9,
+                    "start_time_scheduled": 53.1,
+                    "end_time_scheduled": 57.1,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Fill Pot with Water",
+                    "start_time_simulation": 100.9,
+                    "end_time_simulation": 108.8,
+                    "start_time_scheduled": 57.1,
+                    "end_time_scheduled": 61.7,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Place Pot on Stove and Boil",
+                    "start_time_simulation": 108.8,
+                    "end_time_simulation": 116.9,
+                    "start_time_scheduled": 61.7,
+                    "end_time_scheduled": 66.2,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Fork_early",
+                    "start_time_simulation": 116.9,
+                    "end_time_simulation": 124.6,
+                    "start_time_scheduled": 66.2,
+                    "end_time_scheduled": 72.4,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Monitoring for Turn off Stove after Boiling_b81daf94",
+                    "start_time_simulation": 124.6,
+                    "end_time_simulation": 124.7,
+                    "start_time_scheduled": 72.4,
+                    "end_time_scheduled": 72.5,
+                    "execution_status": true,
+                    "monitored_subtask": {
+                        "updated_subtask_name": "Place Pot on Stove and Boil",
+                        "original_expected_time": 10.094251746933105,
+                        "updated_expected_time": 9.883657632813557
+                    }
+                },
+                {
+                    "subtask_name": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 1.4000000000000001",
+                    "start_time_simulation": 124.7,
+                    "end_time_simulation": 126.0,
+                    "start_time_scheduled": 72.5,
+                    "end_time_scheduled": 73.9,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Monitoring for Turn off Stove after Boiling_571e9417",
+                    "start_time_simulation": 126.0,
+                    "end_time_simulation": 126.1,
+                    "start_time_scheduled": 73.9,
+                    "end_time_scheduled": 74.0,
+                    "execution_status": true,
+                    "monitored_subtask": {
+                        "updated_subtask_name": "Place Pot on Stove and Boil",
+                        "original_expected_time": 9.883657632813557,
+                        "updated_expected_time": 10.042777014460013
+                    }
+                },
+                {
+                    "subtask_name": "Wait for Turn off Stove after Boiling",
+                    "start_time_simulation": 126.1,
+                    "end_time_simulation": 128.39,
+                    "start_time_scheduled": 74.0,
+                    "end_time_scheduled": 76.29,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Turn off Stove after Boiling",
+                    "start_time_simulation": 128.39,
+                    "end_time_simulation": 129.39,
+                    "start_time_scheduled": 76.29,
+                    "end_time_scheduled": 77.39,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Wash Spoon",
+                    "start_time_simulation": 129.39,
+                    "end_time_simulation": 142.59,
+                    "start_time_scheduled": 77.39,
+                    "end_time_scheduled": 88.19,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Wash Fork_remain",
+                    "start_time_simulation": 142.59,
+                    "end_time_simulation": 150.39,
+                    "start_time_scheduled": 88.19,
+                    "end_time_scheduled": 91.29,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Place CreditCard on Shelf",
+                    "start_time_simulation": 150.39,
+                    "end_time_simulation": 158.59,
+                    "start_time_scheduled": 91.29,
+                    "end_time_scheduled": 98.69,
+                    "execution_status": true
+                }
+            ]
+        }
+    ],
+    "computation_time": 1.82779,
+    "simulation_makespan": 158.59,
+    "scheduler_makespan": 98.69,
+    "realworld_makespan": null,
+    "success_rate": 0.53,
+    "timing_success_rate": null
+}
