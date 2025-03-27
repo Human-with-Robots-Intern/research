@@ -422,7 +422,7 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                         elapsed_time += Act.toggleoff(objID)
                     case "fill":
                         liquid = find_objID(controller, action[2])
-                        elapsed_time += Act.fill(objID, liquid)
+                        elapsed_time += Act.fill(objID)
                     case "done":
                         time.sleep(0.3)
                         pass
