@@ -28,6 +28,7 @@ from utils.constants import (
     NAV_STEP_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
+    SCENE_NAME,
 )
 from utils.task import (
     build_tasks_and_constraints,
@@ -85,10 +86,11 @@ def main():
     # Set up the AI2-THOR controller and navigation graph
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
+    scene_name=SCENE_NAME
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ,choice=1) # already chosen
+    task_file_name = get_user_task_choice(task_files ,choice=5) # already chosen
     task_data = load_task_data_from_file(task_file_name)
     
     input_natural_language = task_io.get_natural_language_from_task_file(task_file_name)
@@ -99,7 +101,7 @@ def main():
 
     # Visualize the task graph if enabled
     if args.visualize:
-        visualize(approach_name, task_file_name, constraints)
+        visualize(approach_name, input_natural_language, constraints)
 
     agent = Agent()
 
@@ -142,7 +144,15 @@ def main():
         print(" -", step)
     if args.simulation: 
         approach_name = f"{approach_name}_simulation"
-        result_save(input_natural_language, approach_name, result_schedule_with_time, computation_time)
+        result_args={
+            "task_name": input_natural_language,
+            "approach_name":approach_name,
+            "result_schedule": result_schedule_with_time,
+            "computation_time": computation_time,
+            "scene_name": scene_name,
+            "simulationTime": simulationTime
+        }
+        result_save(**result_args)
 
 
 def paths(edges):
@@ -195,8 +205,8 @@ def find_critical_path(edges, subtasks, held_object, nav_graph):
 
 
 def action_duration(action, held_object, nav_graph):
-
-    scene_positions = task_io.load_scene_positions("FloorPlan1_positions.json")
+    scene_name=SCENE_NAME
+    scene_positions = task_io.load_scene_positions(f"{scene_name}_positions.json")
 
     tokens = action.split()
     if not tokens:

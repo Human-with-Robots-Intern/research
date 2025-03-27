@@ -53,7 +53,7 @@ def compose_plans(result_schedule, task_name, simulationTime=None):
     return plans, success_rate, simulationTime, schedulerMakespan
 
 
-def result_save(task_name, approach_name, result_schedule, computation_time, simulationTime= None):
+def result_save(task_name, approach_name, result_schedule, computation_time, scene_name,simulationTime= None):
     """    
     Parameters:
         task_name (str): 태스크 이름
@@ -74,6 +74,7 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
     result_data = {
         "saved_time": time_str,
         "approach": approach_name,
+        "scene_name":scene_name,
         "plans": plans,
         "computation_time": round(computation_time, 5),
         "simulation_makespan": round(simulationTime, 2) if simulationTime else None,
@@ -92,15 +93,16 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
 
     # 추후 필요시 summary_comparison.json, tasks.json, constraints.jpg, metadata.json 등을 생성하는 코드 추가 가능
 
-def result_save_llm(approach, user_input, result_txt, json_output_path, computation_time):
-    apporach = f"{approach}_simulation"
+def result_save_llm(approach_name, user_input, result_txt, json_output_path, computation_time, scene_name):
+    
     with open(result_txt, "r") as f:
         lines = f.readlines()
     now = datetime.now()
     time_str = now.strftime("%Y-%m-%d %H:%M")
     json_data = {
         "saved_time": time_str,
-        "approach": approach,
+        "approach": approach_name,
+        "scene_name":scene_name,
         "plans": [
             {
                 "plan_name": user_input,
@@ -182,7 +184,7 @@ def result_save_llm(approach, user_input, result_txt, json_output_path, computat
     json_data["success_rate"] = round(success_count/total_count, 2) if total_count != 0 else None
 
     # JSON 파일로 저장
-    filename=f"{approach}.json"
+    filename=f"{approach_name}.json"
     new_json_output_path = os.path.join( "assets", "results",json_output_path, "approach", filename)
     os.makedirs(os.path.dirname(new_json_output_path), exist_ok=True)
     with open(new_json_output_path, "w") as f:

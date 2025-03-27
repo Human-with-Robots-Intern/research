@@ -272,11 +272,12 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
     return lmp_scene_ui
 
 if __name__ == "__main__":
-    approach_name = "Code as Policies"   
+    approach_name = "Code as Policies_simulation"   
     user_input = (
         # "Heat potato with microwave, wash a plate three times and cook fried egg" 
         # "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple"
-        "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple"
+        # "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple"
+        "boil_potato_and_wash_vegetables_and_put_creditcard_on_shelf_and_wash_dishes_and_wash_cutlery"
     )
 
     log_file = open(f"src/baselines/cap/result/cap_logs_{user_input}.txt", "w", buffering=1)
@@ -299,5 +300,14 @@ if __name__ == "__main__":
     # 현재 computaion_time은 시뮬레이션 타임을 포함해서 정확하지 않음. 추후에 llmgeneration 방식의 computation_time을 폐기할 수 있으므로 일단 스킵
     computation_time = time.time() - computation_time_start
     result_path = f"{user_input}"
+    result_args={
+        "approach_name": approach_name,
+        "user_input": user_input,
+        "result_txt":cap_log_path,
+        "json_output_path":result_path,
+        "computation_time":computation_time,
+        "scene_name": SCENE_NAME,
 
-    result_save_llm(approach_name,user_input, cap_log_path, result_path, computation_time)
+    }
+
+    result_save_llm(**result_args)

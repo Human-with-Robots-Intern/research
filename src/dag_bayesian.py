@@ -6,7 +6,7 @@ from core.scheduler import Scheduler
 from ithor.handlers.navigation_handler import build_navigation_graph
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import create_module_logger
-from utils.constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH
+from utils.constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH, SCENE_NAME
 from utils.result_saver import result_save
 from utils.task import (
     build_tasks_and_constraints,
@@ -68,11 +68,13 @@ def main():
     # Set up the AI2-THOR controller and navigation graph
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
-    scene_poses = load_scene_positions("FloorPlan1_positions.json")
+    scene_name = SCENE_NAME
+    scene_poses = load_scene_positions(f"{scene_name}_positions.json")
+    
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=1, is_rag=args.rag)
+    task_file_name = get_user_task_choice(task_files, choice=5, is_rag=args.rag)
     task_data = load_task_data_from_file(task_file_name)
 
     #task_file_name을 입력 자연어로 번역
@@ -84,7 +86,7 @@ def main():
 
     # Visualize the task graph if enabled
     if args.visualize:
-        visualize(approach_name, task_file_name, constraints)
+        visualize(approach_name, input_natural_language, constraints)
 
     agent = Agent()
 
@@ -151,7 +153,16 @@ def main():
 
     if args.simulation: 
         approach_name = f"{approach_name}_simulation"
-    result_save(input_natural_language, approach_name, result_schedule, computation_time, simulationTime)
+    result_args={
+        "task_name": input_natural_language,
+        "approach_name":approach_name,
+        "result_schedule": result_schedule,
+        "computation_time": computation_time,
+        "scene_name": scene_name,
+        "simulationTime": simulationTime,
+        
+    }
+    result_save(**result_args)
 
 if __name__ == "__main__":
     main()

@@ -90,5 +90,5 @@ def get_natural_language_from_task_file(task_file_name: str)-> str:
 
     task_nl_dict = {k.strip(":"): v for k, v in task_nl_dict.items()}
 
-    return task_nl_dict
+    return task_nl_dict[task_file_name]
     

@@ -23,6 +23,7 @@ from ithor.utils.math_utils import build_navigation_graph
 
 from sim.runner_ai2thor import init_ai2thor
 from utils.task import load_scene_positions
+from utils.constants import SCENE_NAME
 
 
 from scheduler.action_handler import ActionHandler
@@ -517,11 +518,12 @@ def main():
     args = parse_arguments()
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
-    scene_poses = load_scene_positions("FloorPlan1_positions.json")
+    scene_name = SCENE_NAME
+    scene_poses = load_scene_positions(f"{scene_name}_positions.json")
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ,choice=1)
+    task_file_name = get_user_task_choice(task_files ,choice=5)
     task_data = load_task_data_from_file(task_file_name)
     input_natural_language = get_natural_language_from_task_file(task_file_name)
 
@@ -564,10 +566,10 @@ def main():
     result_schedule.pop(0)
    
 
-    gantt_chart(result_schedule)
+    gantt_chart(result_schedule, input_natural_language)
     # completed_Entry 객체를 Subtask객체로 변환.
     # start_time과 end_time을 추출해서 Subtask 객체 안에 저장.
-    subtasks_with_time =[]
+    result_schedule_with_time =[]
 
     if args.simulation: 
         approach_name = f"{approach_name}_simulation"
@@ -589,9 +591,18 @@ def main():
                 current_time += simulation_subtask_times[i]
                 i += 1
 
-            subtasks_with_time.append(st.subtask)
+            result_schedule_with_time.append(st.subtask)
+
+        result_args={
+            "task_name": input_natural_language,
+            "approach_name":approach_name,
+            "result_schedule": result_schedule_with_time,
+            "computation_time": computation_time,
+            "scene_name": scene_name,
+            "simulationTime": None
+        }
     
-        result_save(input_natural_language, approach_name, subtasks_with_time, computation_time )
+        result_save(**result_args)
 
 
 if __name__ == "__main__":
