@@ -1,26 +1,26 @@
-import os
+from datetime import datetime
 import json
+from math import inf
+import os
 import subprocess
 import time
-from datetime import datetime
-from math import inf
 from pathlib import Path
 
 from src.utils.result_saver import result_save_llm
 from src.utils.constants import SCENE_NAME
 
 
-def run_with_retries(script, input_str, max_retries=10):
+def run_with_retries(script: str, input_str: str, max_retries: int = 10) -> tuple[bool, int]:
     """
-    주어진 스크립트를 input_str을 인자로 실행하며, 실패 시 최대 max_retries번 재시도한다.
+    주어진 스크립트를 input_str 인자를 사용해 실행하고, 실패 시 최대 max_retries회까지 재시도합니다.
     
     Args:
-        script (str): 실행할 스크립트의 경로.
+        script (str): 실행할 스크립트 파일 경로.
         input_str (str): 스크립트에 전달할 입력 문자열.
         max_retries (int): 최대 재시도 횟수.
-    
+        
     Returns:
-        tuple: (성공여부(bool), 시도 횟수(int))
+        tuple: (실행 성공 여부, 시도 횟수)
     """
     for attempt in range(1, max_retries + 1):
         print(f"Running {script} (Attempt {attempt})...")
@@ -30,33 +30,38 @@ def run_with_retries(script, input_str, max_retries=10):
         elif attempt < max_retries:
             print(f"Retrying {script} after failure (Attempt {attempt})...")
             time.sleep(2)  # 짧은 대기 후 재시도
-    return False, attempt
+    return False, attempt  # 모든 시도 실패
 
 
-def process_retry_script(script, instruction):
+def process_retry_script(script: str, instruction: str) -> None:
     """
-    재시도 대상 스크립트를 실행하고, 성공 여부에 따라 결과 JSON 파일을 저장한다.
+    재시도 대상 스크립트를 실행한 후, 결과에 따라 JSON 파일을 업데이트하거나 기본 데이터를 생성합니다.
+    
+    성공 시 기존 JSON 파일(존재할 경우)을 읽어 'attempt' 값을 갱신하고,
+    실패 시 기본 데이터를 생성하거나 기존 데이터를 유지합니다.
     
     Args:
-        script (str): 실행할 스크립트의 경로.
-        instruction (str): 해당 태스크의 명령어 문자열.
+        script (str): 실행할 스크립트 파일 경로.
+        instruction (str): 실행 명령어 문자열.
     """
     approach = os.path.splitext(os.path.basename(script))[0]
     json_path = Path(f"assets/results/{instruction}/approach/{approach}_simulation.json")
     input_str = f"{instruction}\n"
     
     success, attempt = run_with_retries(script, input_str, max_retries=10)
-    
-    # 결과 파일 저장을 위한 상위 디렉토리 생성
     json_path.parent.mkdir(parents=True, exist_ok=True)
     
-    # 성공 시 실제 출력 데이터가 있다면 이를 활용할 수 있으나, 현재는 간단히 attempt 정보만 기록
     if success:
-        data = {"attempt": attempt}
+        try:
+            with open(json_path, "r") as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            data = {}
+        data["attempt"] = attempt
     else:
         now = datetime.now()
         time_str = now.strftime("%Y-%m-%d %H:%M")
-        data = {
+        default_data = {
             "saved_time": time_str,
             "approach": approach,
             "attempt": attempt,
@@ -68,26 +73,36 @@ def process_retry_script(script, instruction):
             "simulation_makespan": inf,
             "realworld_makespan": None
         }
-    
+        try:
+            with open(json_path, "r") as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            data = default_data
+
     with open(json_path, "w") as f:
         json.dump(data, f, indent=4)
 
 
-def process_non_retry_script(script, iteration):
+def process_non_retry_script(script: str, iteration: int) -> None:
     """
-    재시도 로직이 필요 없는 스크립트를 실행한다.
+    재시도 로직이 필요 없는 스크립트를 실행합니다.
     
     Args:
-        script (str): 실행할 스크립트의 경로.
-        iteration (int): 입력 인자로 전달할 정수값.
+        script (str): 실행할 스크립트 파일 경로.
+        iteration (int): 스크립트에 전달할 정수형 입력값.
     """
     print(f"Running {script}...")
     input_str = f"{iteration}\n"
     subprocess.run(["python", script], input=input_str, text=True)
 
 
-def main():
-    # 실행할 스크립트 목록
+def main() -> None:
+    """
+    전체 실행 흐름을 제어하는 메인 함수입니다.
+    
+    - 각 태스크별(instruction)로 반복 실행하면서, 
+      재시도 대상 스크립트와 그렇지 않은 스크립트를 구분하여 실행합니다.
+    """
     scripts = [
         "src/baselines/progprompt/prog_ai2thor.py",
         "src/baselines/cap/cap_ai2thor.py",
@@ -102,7 +117,6 @@ def main():
         "src/baselines/cap/cap_ai2thor.py"
     }
     
-    # 태스크별 명령어 (instruction)
     instructions = {
         1: "wash_egg_and_cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_cutlery_and_wash_dishes_and_wash_vegetables_and_organize_the_vegetables",
         2: "boil_potato_and_make_coffee_and_wash_lettuce_and_tomato_and_wash_dishes_and_put_creditcard_on_shelf_and_throw_away_paper_towel",
@@ -138,12 +152,13 @@ def main():
     
     num_runs_per_instruction = 1
 
-    # i 값은 1부터 27까지 3씩 증가하는 범위를 역순으로 순회
+    # 태스크 번호는 1부터 30까지 3씩 증가하는 범위를 역순으로 실행 (예: 28, 25, …, 1)
     for i in reversed(range(1, 31, 3)):
         instruction = instructions[i]
         print(f"Task: {instruction}")
         for script in scripts:
             for _ in range(num_runs_per_instruction):
+                print(f"task_name: {instruction}")
                 if script in retry_scripts:
                     process_retry_script(script, instruction)
                 else:
