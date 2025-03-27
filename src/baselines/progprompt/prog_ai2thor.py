@@ -71,13 +71,7 @@ def generate_plan(controller, args):
                 + "\n\n"
             )
 
-    test_tasks = [
-        # "Heat potato with Microwave. Wash a plate three times and cook fried egg"
-        # "Wash_Tomato_and_Potato_and_egg_and_Cook_Egg_Fry"
-        #위의 두개가 계속 같은 reachbility error가 나서 다른 task로 대체함
-        # "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple"
-        "boil_potato_and_wash_vegetables_and_put_creditcard_on_shelf_and_wash_dishes_and_wash_cutlery"
-    ]
+    test_tasks = []
     # "toast the bread and put tomato in the fridge. put egg in the pan."
     # "pick the egg"
     # "put the book in the sinkbasin"
@@ -85,7 +79,12 @@ def generate_plan(controller, args):
     # "Wash a plate three times"
     gen_plan = []
     computation_time_start = time.time()
+
+    task = input()
+    test_tasks = []
+    test_tasks.append(task)
     for task in test_tasks:
+    
         print(f"Generating plan for: {task}\n")
         curr_prompt = f"{prompt}\ntask : {task}\n"  ## 주어진 정보 + 수행할 task 이어서 prompt 만듦
         _, text = LM(
@@ -111,7 +110,7 @@ def generate_plan(controller, args):
     prog_log_path = os.path.join(current_dir, f"result/prog_logs_{task}.txt")
     os.makedirs(os.path.dirname(prog_log_path), exist_ok=True)
     log_file = open(prog_log_path, "w", buffering=1)
-    approach_name = "progprompt_simulation"
+    approach_name = "prog_ai2thor_simulation"
     result_path = f"{task}"
     simulate_execution(controller, test_tasks, gen_plan, log_file, args)
     result_args={

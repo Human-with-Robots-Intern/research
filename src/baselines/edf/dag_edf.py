@@ -514,7 +514,7 @@ def parse_arguments():
 def main():
 
     # Set up the AI2-THOR controller and navigation graph
-    approach_name="DAG_EDF"
+    approach_name="dag_edf"
     args = parse_arguments()
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
@@ -523,7 +523,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ,choice=5)
+    task_file_name = get_user_task_choice(task_files)
     task_data = load_task_data_from_file(task_file_name)
     input_natural_language = get_natural_language_from_task_file(task_file_name)
 

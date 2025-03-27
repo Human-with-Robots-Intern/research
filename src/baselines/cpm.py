@@ -79,7 +79,7 @@ def parse_arguments():
 
 def main():
     """Main entry point for the Task Scheduler."""
-    approach_name = "DAG OS Scheduling(cpm)"
+    approach_name = "cpm"
     args = parse_arguments()
     held_object = None
 
@@ -90,7 +90,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ,choice=5) # already chosen
+    task_file_name = get_user_task_choice(task_files ) # already chosen
     task_data = load_task_data_from_file(task_file_name)
     
     input_natural_language = task_io.get_natural_language_from_task_file(task_file_name)
@@ -106,21 +106,19 @@ def main():
     agent = Agent()
 
     shedule_order = []
-
+    computation_start_time = time.time()
     critical_path, held_object = find_critical_path(
         edges, subtasks, held_object, nav_graph
     )
-
-    # 스케줄링 실행
-    
-    computation_time_start = time.time()
+    # 스케줄링 실행  
     shedule_order = schedule_with_cp_priority(edges, critical_path)
-    computation_time = time.time() - computation_time_start
 
     # 스케쥴링 끝난 거 앞에서 부터 시간 계산하기. 만약에 dependency가 지켜지지 않으면 wait넣기
     total_time, result_schedule_with_time = last_calculte_schedule_and_time(
         shedule_order, subtasks, held_object, nav_graph
     )
+    computation_time = time.time() - computation_start_time
+
     simulationTime = 0
     simulation_subtask_times = []
     for st in result_schedule_with_time:
@@ -489,7 +487,7 @@ def last_calculte_schedule_and_time(schedule_order, subtasks, held_object, nav_g
 
                             if nav_time < needed_interval:
                                 wait_time = needed_interval - nav_time
-                                wait_execution = Execution(objects=None, primitive_actions=["WAIT 0.0"])
+                                wait_execution = Execution(objects=None, primitive_actions=[f"WAIT {wait_time}"])
                                 wait_subtask=Subtask(task_name=task_name, name="wait", repetition=1,type="interaction", execution=wait_execution, duration= wait_time)
                                 wait_subtask.start_time_scheduled = total_time
                                 wait_subtask.end_time_scheduled = total_time+wait_time
@@ -499,7 +497,7 @@ def last_calculte_schedule_and_time(schedule_order, subtasks, held_object, nav_g
                             else:
                                 wait_time = 0.0
                             
-                            total_time += (nav_time + wait_time)
+                            # total_time += (nav_time + wait_time)
 
 
         

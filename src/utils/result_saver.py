@@ -29,10 +29,10 @@ def compose_plans(result_schedule, task_name, simulationTime=None):
                 success_count += 1  
         subtask = {
             "subtask_name": st.name,
-            "start_time_simulation": round(st.start_time_simulation, 2) if hasattr(st, "start_time_simulation") else None,
-            "end_time_simulation": round(st.end_time_simulation, 2) if hasattr(st, "end_time_simulation") else None,
-            "start_time_scheduled": round(st.start_time_scheduled, 2) if hasattr(st, "start_time_scheduled") else None,
-            "end_time_scheduled": round(st.end_time_scheduled, 2) if hasattr(st, "end_time_scheduled")else None,
+            "start_time_simulation": round(st.start_time_simulation, 3) if hasattr(st, "start_time_simulation") else None,
+            "end_time_simulation": round(st.end_time_simulation, 3) if hasattr(st, "end_time_simulation") else None,
+            "start_time_scheduled": round(st.start_time_scheduled, 3) if hasattr(st, "start_time_scheduled") else None,
+            "end_time_scheduled": round(st.end_time_scheduled, 3) if hasattr(st, "end_time_scheduled")else None,
             "execution_status": execution_status,
             **({"monitored_subtask": st.monitored_subtask} if hasattr(st, "monitored_subtask") else {})
         }
@@ -44,7 +44,7 @@ def compose_plans(result_schedule, task_name, simulationTime=None):
         schedulerMakespan = st.end_time_scheduled
 
 
-    success_rate=round(success_count/total_count, 2) if total_count != 0 else None
+    success_rate= round(success_count/total_count, 3) if total_count != 0 else "total_count is 0"
     plans = [{
         "plan_name": task_name,
         "subtasks": subtasks,
@@ -77,10 +77,10 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sce
         "scene_name":scene_name,
         "plans": plans,
         "computation_time": round(computation_time, 5),
-        "simulation_makespan": round(simulationTime, 2) if simulationTime else None,
-        "scheduler_makespan": round(schedulerMakespan, 2) if schedulerMakespan else None,
+        "simulation_makespan": round(simulationTime, 3) if simulationTime else None,
+        "scheduler_makespan": round(schedulerMakespan, 3) if schedulerMakespan else None,
         "realworld_makespan": None,
-        "success_rate": round(success_rate, 2) if success_rate else None,
+        "success_rate": round(success_rate, 3) if isinstance(success_rate, (int, float)) else None,
         "timing_success_rate": None ,
     }
 
@@ -115,7 +115,8 @@ def result_save_llm(approach_name, user_input, result_txt, json_output_path, com
         "timing_success_rate": None,
         "scheduler_makespan":None,
         "simulation_makespan": None,
-        "realworld_makespan": None
+        "realworld_makespan": None,
+
     }
 
     actions = []
@@ -181,7 +182,7 @@ def result_save_llm(approach_name, user_input, result_txt, json_output_path, com
     json_data["plans"][0]["actions"] = actions
     json_data["plans"][0].pop("execution_status", None) #마지막 execution_status는 날리기 위함
     json_data["simulation_makespan"] = last_end_time
-    json_data["success_rate"] = round(success_count/total_count, 2) if total_count != 0 else None
+    json_data["success_rate"] = round(success_count/total_count, 3) if total_count != 0 else None
 
     # JSON 파일로 저장
     filename=f"{approach_name}.json"
