@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .constants import RESULT_PATH
+from datetime import datetime
 
 
 def compose_plans(result_schedule, task_name, simulationTime=None):
@@ -68,7 +69,10 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
     save_folder_path.mkdir(exist_ok=True, parents=True)
 
     # 저장할 결과 데이터 구성
+    now = datetime.now()
+    time_str = now.strftime("%Y-%m-%d %H:%M")
     result_data = {
+        "saved_time": time_str,
         "approach": approach_name,
         "plans": plans,
         "computation_time": round(computation_time, 5),
@@ -89,14 +93,17 @@ def result_save(task_name, approach_name, result_schedule, computation_time, sim
     # 추후 필요시 summary_comparison.json, tasks.json, constraints.jpg, metadata.json 등을 생성하는 코드 추가 가능
 
 def result_save_llm(approach, user_input, result_txt, json_output_path, computation_time):
+    apporach = f"{approach}_simulation"
     with open(result_txt, "r") as f:
         lines = f.readlines()
-
+    now = datetime.now()
+    time_str = now.strftime("%Y-%m-%d %H:%M")
     json_data = {
-        "approach": f"{approach}",
+        "saved_time": time_str,
+        "approach": approach,
         "plans": [
             {
-                "plan_name": f"{user_input}",
+                "plan_name": user_input,
                 "actions": [],
                 "execution_status": None
             }
@@ -150,7 +157,10 @@ def result_save_llm(approach, user_input, result_txt, json_output_path, computat
         elif line.startswith("execution_status:"):
             execution_status = line.split(":")[1].strip()
             if execution_status == "True":
+                execution_status = True
                 success_count += 1
+            elif execution_status =="False": 
+                execution_status = False
             total_count += 1    
              
             

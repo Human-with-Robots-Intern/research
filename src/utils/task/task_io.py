@@ -81,3 +81,14 @@ def load_scene_positions(
     for key, value in scene_positions.items():
         scene_positions[key] = tuple(value)
     return scene_positions
+
+def get_natural_language_from_task_file(task_file_name: str)-> str:
+    task_nl_path = TASK_PATH/"task_natural_languages.json"
+
+    with open(task_nl_path, "r", encoding="utf-8")as f:
+        task_nl_dict = json.load(f)
+
+    task_nl_dict = {k.strip(":"): v for k, v in task_nl_dict.items()}
+
+    return task_nl_dict
+    

@@ -31,7 +31,7 @@ from utils.viz.make_gantt import gantt_chart
 from scheduler.dataclass import CompletedEntry, SchedulerState
 from utils.dataclass import SimulationNode
 from core.task import Subtask, Execution, Duration
-from utils.task.task_io import list_task_files, get_user_task_choice, load_task_data_from_file
+from utils.task.task_io import get_natural_language_from_task_file, list_task_files, get_user_task_choice, load_task_data_from_file
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState):
@@ -521,8 +521,9 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ,choice=12)
+    task_file_name = get_user_task_choice(task_files ,choice=1)
     task_data = load_task_data_from_file(task_file_name)
+    input_natural_language = get_natural_language_from_task_file(task_file_name)
 
     # Build tasks and constraints
 
@@ -590,7 +591,7 @@ def main():
 
             subtasks_with_time.append(st.subtask)
     
-        result_save(task_file_name, approach_name, subtasks_with_time, computation_time )
+        result_save(input_natural_language, approach_name, subtasks_with_time, computation_time )
 
 
 if __name__ == "__main__":

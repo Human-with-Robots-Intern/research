@@ -15,7 +15,7 @@ from utils.task import (
     list_task_files,
     load_task_data_from_file,
 )
-from utils.task.task_io import load_scene_positions
+from utils.task.task_io import load_scene_positions, get_natural_language_from_task_file
 from utils.viz.visualizer import visualize
 
 log = create_module_logger(module_name=__name__, module_log=True)
@@ -72,8 +72,12 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files, choice=12, is_rag=args.rag)
+    task_file_name = get_user_task_choice(task_files, choice=1, is_rag=args.rag)
     task_data = load_task_data_from_file(task_file_name)
+
+    #task_file_name을 입력 자연어로 번역
+
+    input_natural_language = get_natural_language_from_task_file(task_file_name)
 
     # Build tasks and constraints
     subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
@@ -147,7 +151,7 @@ def main():
 
     if args.simulation: 
         approach_name = f"{approach_name}_simulation"
-    result_save(task_file_name, approach_name,result_schedule, computation_time, simulationTime)
+    result_save(input_natural_language, approach_name, result_schedule, computation_time, simulationTime)
 
 if __name__ == "__main__":
     main()
