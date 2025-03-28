@@ -3,6 +3,9 @@ import os
 import math
 
 MIN_REQUIRED_SIMULATIONS = 5
+from utils.util import create_module_logger
+
+log = create_module_logger(module_name=__name__, module_log=True)
 
 def load_summary_data(file_path):
     try:
@@ -101,7 +104,8 @@ def make_average(base_dir):
                         if not math.isinf(parsed_val):
                             metrics[approach]["attempt_values"].append(parsed_val)
                     except ValueError:
-                        pass  # 숫자로 변환 실패 시 스킵
+                        log.debug(f"ValueErrot: {ValueError}")
+                 
 
             # subtask_count 및 executing_action_count 집계
             if "subtask_count" in entry:
