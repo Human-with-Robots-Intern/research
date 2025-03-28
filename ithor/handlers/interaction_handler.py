@@ -2,7 +2,7 @@ import random
 
 from ..concepts.actions import *
 from utils.constants import OBJECT_INTERESTS
-from utils.object_utils import detect_manipulable_objs
+from ithor.utils.object_utils import detect_manipulable_objs
 
 
 class InteractionHandler:

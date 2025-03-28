@@ -1,0 +1,15 @@
+{
+    "metadata": {
+        "task": "boil_potato_and_wash_vegetables_and_put_creditcard_on_shelf_and_wash_dishes_and_wash_cutlery",
+        "creation_date": "2025-03-27 20:42",
+        "instructions": "boil_potato_and_wash_vegetables_and_put_creditcard_on_shelf_and_wash_dishes_and_wash_cutlery",
+        "model_version": "gpt-4o"
+    },
+    "environment_info": {
+        "simulator": "AI2-THOR",
+        "simulation_version": "2.7.1",
+        "scene": "FloorPlan1",
+        "gpu": null,
+        "cpu": null
+    }
+}

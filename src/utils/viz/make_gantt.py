@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def gantt_chart(completed_subtasks: list):
+def gantt_chart(completed_subtasks: list, task_name: str = None):
     """
     완료된 subtasks(예: CompletedEntry 객체)를 기반으로 Gantt 차트를 생성한다.
     각 완료 엔트리는 다음 속성을 가진다고 가정:
@@ -70,4 +70,8 @@ def gantt_chart(completed_subtasks: list):
         )
 
     plt.tight_layout()
-    plt.show()
+    if task_name:
+        plt.savefig(f"assets/results/{task_name}/metadata/dag_edf_gantt_chart.png")
+        print(f"Gantt chart saved to: {task_name}")
+    else:
+        plt.show()

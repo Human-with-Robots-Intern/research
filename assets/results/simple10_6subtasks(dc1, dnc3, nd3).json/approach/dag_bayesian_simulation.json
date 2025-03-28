@@ -13,108 +13,112 @@
                     "executionStatus": false
                 },
                 {
-                    "subtaskName": "Wash Plate_part_1_early",
-                    "start_time_simulation": 25.1,
-                    "end_time_simulation": 34.6,
-                    "start_time_scheduled": 20.0,
-                    "end_time_scheduled": 27.4,
-                    "executionStatus": false
-                },
-                {
-                    "subtaskName": "Monitoring for Turn off stove after cooking_62e065a0",
-                    "start_time_simulation": 34.6,
-                    "end_time_simulation": 34.7,
-                    "start_time_scheduled": 27.4,
-                    "end_time_scheduled": 27.5,
-                    "executionStatus": true
-                },
-                {
-                    "subtaskName": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 1.4000000000000001",
-                    "start_time_simulation": 34.7,
-                    "end_time_simulation": 36.0,
-                    "start_time_scheduled": 27.5,
-                    "end_time_scheduled": 28.9,
-                    "executionStatus": true
-                },
-                {
-                    "subtaskName": "Monitoring for Turn off stove after cooking_d723d01d",
-                    "start_time_simulation": 36.0,
-                    "end_time_simulation": 36.1,
-                    "start_time_scheduled": 28.9,
-                    "end_time_scheduled": 29.0,
-                    "executionStatus": true
-                },
-                {
-                    "subtaskName": "Wait for Turn off stove after cooking",
-                    "start_time_simulation": 36.1,
-                    "end_time_simulation": 37.2,
-                    "start_time_scheduled": 29.0,
-                    "end_time_scheduled": 30.1,
-                    "executionStatus": true
-                },
-                {
-                    "subtaskName": "Turn off stove after cooking",
-                    "start_time_simulation": 37.2,
-                    "end_time_simulation": 38.2,
-                    "start_time_scheduled": 30.1,
-                    "end_time_scheduled": 31.2,
-                    "executionStatus": true
-                },
-                {
-                    "subtaskName": "Wash Plate_part_1_remain",
-                    "start_time_simulation": 38.2,
-                    "end_time_simulation": 46.8,
-                    "start_time_scheduled": 31.2,
-                    "end_time_scheduled": 36.5,
-                    "executionStatus": false
-                },
-                {
-                    "subtaskName": "Wash Plate_part_2",
-                    "start_time_simulation": 46.8,
-                    "end_time_simulation": 67.6,
-                    "start_time_scheduled": 36.5,
-                    "end_time_scheduled": 45.9,
-                    "executionStatus": false
-                },
-                {
                     "subtaskName": "Place Potato in Microwave",
-                    "start_time_simulation": 67.6,
-                    "end_time_simulation": 80.2,
-                    "start_time_scheduled": 45.9,
-                    "end_time_scheduled": 52.8,
+                    "start_time_simulation": 25.1,
+                    "end_time_simulation": 35.5,
+                    "start_time_scheduled": 20.0,
+                    "end_time_scheduled": 26.1,
                     "executionStatus": false
                 },
                 {
                     "subtaskName": "Start Microwave for Potato",
-                    "start_time_simulation": 80.2,
-                    "end_time_simulation": 81.2,
-                    "start_time_scheduled": 52.8,
-                    "end_time_scheduled": 53.9,
+                    "start_time_simulation": 35.5,
+                    "end_time_simulation": 36.5,
+                    "start_time_scheduled": 26.1,
+                    "end_time_scheduled": 27.2,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 0.30000000000000004",
+                    "start_time_simulation": 36.5,
+                    "end_time_simulation": 36.7,
+                    "start_time_scheduled": 27.2,
+                    "end_time_scheduled": 27.5,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Monitoring for Turn off stove after cooking_9e7d88dc",
+                    "start_time_simulation": 36.7,
+                    "end_time_simulation": 36.8,
+                    "start_time_scheduled": 27.5,
+                    "end_time_scheduled": 27.6,
+                    "originalin"
+                    "updatedExpectedTime": {
+                        
+                    }원래 대기시간 -> 수정된 대기시간
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Wait for Turn off stove after cooking",
+                    "start_time_simulation": 36.8,
+                    "end_time_simulation": 39.11,
+                    "start_time_scheduled": 27.6,
+                    "end_time_scheduled": 29.91,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Turn off stove after cooking",
+                    "start_time_simulation": 39.11,
+                    "end_time_simulation": 40.11,
+                    "start_time_scheduled": 29.91,
+                    "end_time_scheduled": 31.01,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Navigate to Microwave|-00.24|+01.69|-02.53 during 0.30000000000000004",
+                    "start_time_simulation": 40.11,
+                    "end_time_simulation": 40.31,
+                    "start_time_scheduled": 31.01,
+                    "end_time_scheduled": 31.31,
+                    "executionStatus": true
+                },
+                {
+                    "subtaskName": "Monitoring for Retrieve Potato from Microwave_2269a9cc",
+                    "start_time_simulation": 40.31,
+                    "end_time_simulation": 40.41,
+                    "start_time_scheduled": 31.31,
+                    "end_time_scheduled": 31.41,
                     "executionStatus": true
                 },
                 {
                     "subtaskName": "Wait for Retrieve Potato from Microwave",
-                    "start_time_simulation": 81.2,
-                    "end_time_simulation": 91.2,
-                    "start_time_scheduled": 53.9,
-                    "end_time_scheduled": 63.9,
+                    "start_time_simulation": 40.41,
+                    "end_time_simulation": 46.2,
+                    "start_time_scheduled": 31.41,
+                    "end_time_scheduled": 37.2,
                     "executionStatus": true
                 },
                 {
                     "subtaskName": "Retrieve Potato from Microwave",
-                    "start_time_simulation": 91.2,
-                    "end_time_simulation": 101.4,
-                    "start_time_scheduled": 63.9,
-                    "end_time_scheduled": 71.1,
+                    "start_time_simulation": 46.2,
+                    "end_time_simulation": 56.4,
+                    "start_time_scheduled": 37.2,
+                    "end_time_scheduled": 44.4,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "Wash Plate_part_1",
+                    "start_time_simulation": 56.4,
+                    "end_time_simulation": 78.6,
+                    "start_time_scheduled": 44.4,
+                    "end_time_scheduled": 58.6,
+                    "executionStatus": false
+                },
+                {
+                    "subtaskName": "Wash Plate_part_2",
+                    "start_time_simulation": 78.6,
+                    "end_time_simulation": 99.4,
+                    "start_time_scheduled": 58.6,
+                    "end_time_scheduled": 68.0,
                     "executionStatus": false
                 }
             ]
         }
     ],
-    "computationTime": 0.10946,
-    "simulationMakespan": 101.4,
-    "schedulerMakespan": 71.1,
+    "computationTime": 0.49667,
+    "simulationMakespan": 99.4,
+    "schedulerMakespan": 68.0,
     "realWorldMakespan": null,
-    "success_rate": 0.54,
+    "success_rate": 0.62,
     "timing_success_rate": null
 }

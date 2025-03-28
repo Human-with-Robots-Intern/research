@@ -42,7 +42,7 @@ def get_user_task_choice(
             if choice == 0:
                 return generate_task(is_rag)
             elif 1 <= choice <= len(task_files):
-                return task_files[choice - 1].name
+                return task_files[choice - 1].name, choice
             else:
                 print(
                     f"Invalid choice. Please select a number between 0 and {len(task_files)}."
@@ -81,3 +81,14 @@ def load_scene_positions(
     for key, value in scene_positions.items():
         scene_positions[key] = tuple(value)
     return scene_positions
+
+def get_natural_language_from_task_file(task_file_name: str)-> str:
+    task_nl_path = TASK_PATH/"task_natural_languages.json"
+
+    with open(task_nl_path, "r", encoding="utf-8")as f:
+        task_nl_dict = json.load(f)
+
+    task_nl_dict = {k.strip(":"): v for k, v in task_nl_dict.items()}
+
+    return task_nl_dict[task_file_name]
+    

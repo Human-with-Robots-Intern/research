@@ -1,0 +1,14 @@
+{
+    "task": "complex1_11subtasks(dc2, dnc2, nd(1, 3, 6)).json",
+    "approachComparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 81.16,
+            "simulation_makespan": 137.26,
+            "realWorld_makespan": null,
+            "computation_mime": 1.82408,
+            "actionSuccess_mate": 0.35,
+            "timingSuccess_mate": null
+        }
+    ]
+}

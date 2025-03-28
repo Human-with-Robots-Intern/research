@@ -19,7 +19,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from core.agent import Agent
 from core.scheduler import Scheduler
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
-from utils import create_module_logger, visualize
+from utils import create_module_logger
+from utils.viz.visualizer import visualize
 from utils.result_saver import result_save
 from utils.constants import (
     KNOWLEDGE_PATH,
@@ -27,6 +28,7 @@ from utils.constants import (
     NAV_STEP_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
+    SCENE_NAME,
 )
 from utils.task import (
     build_tasks_and_constraints,
@@ -36,7 +38,7 @@ from utils.task import (
     task_io,
 )
 
-from utils.math_utils import adjust_if_unreachable, build_navigation_graph
+from ithor.utils.math_utils import adjust_if_unreachable, build_navigation_graph
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -77,57 +79,58 @@ def parse_arguments():
 
 def main():
     """Main entry point for the Task Scheduler."""
-    approach_name = "DAG OS Scheduling(cpm)"
+    approach_name = "cpm"
     args = parse_arguments()
     held_object = None
 
     # Set up the AI2-THOR controller and navigation graph
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
+    scene_name=SCENE_NAME
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ,choice=11) # already chosen
+    task_file_name, choice = get_user_task_choice(task_files ) # already chosen
     task_data = load_task_data_from_file(task_file_name)
     
+    input_natural_language = task_io.get_natural_language_from_task_file(f"{choice}")
+
     # Build tasks and constraints
     subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
     edges = list(constraints.edges)
 
     # Visualize the task graph if enabled
     if args.visualize:
-        visualize(approach_name, task_file_name, constraints)
+        visualize(approach_name, input_natural_language, constraints)
 
     agent = Agent()
 
     shedule_order = []
-
+    computation_start_time = time.time()
     critical_path, held_object = find_critical_path(
         edges, subtasks, held_object, nav_graph
     )
-
-    # 스케줄링 실행
-    
-    computation_time_start = time.time()
+    # 스케줄링 실행  
     shedule_order = schedule_with_cp_priority(edges, critical_path)
-    computation_time = time.time() - computation_time_start
 
     # 스케쥴링 끝난 거 앞에서 부터 시간 계산하기. 만약에 dependency가 지켜지지 않으면 wait넣기
     total_time, result_schedule_with_time = last_calculte_schedule_and_time(
         shedule_order, subtasks, held_object, nav_graph
     )
+    computation_time = time.time() - computation_start_time
+
     simulationTime = 0
     simulation_subtask_times = []
     for st in result_schedule_with_time:
 
         if args.simulation:
             # 터미널에서 src/baselines/cpm.py -s 실행시 사용됨           
-            subtask_time, is_subtask_success = execute_subtask(controller, st)
+            subtask_time, execution_status = execute_subtask(controller, st)
             st.start_time_simulation = simulationTime
             st.end_time_simulation = simulationTime + subtask_time   
             simulationTime += subtask_time   
             simulation_subtask_times.append(subtask_time)    
-            st.is_subtask_success = is_subtask_success
+            st.execution_status = execution_status
       
     
     print("total time = ", total_time)
@@ -139,7 +142,15 @@ def main():
         print(" -", step)
     if args.simulation: 
         approach_name = f"{approach_name}_simulation"
-        result_save(task_file_name, approach_name, result_schedule_with_time, computation_time)
+        result_args={
+            "task_name": input_natural_language,
+            "approach_name":approach_name,
+            "result_schedule": result_schedule_with_time,
+            "computation_time": computation_time,
+            "scene_name": scene_name,
+            "simulationTime": simulationTime
+        }
+        result_save(**result_args)
 
 
 def paths(edges):
@@ -192,8 +203,8 @@ def find_critical_path(edges, subtasks, held_object, nav_graph):
 
 
 def action_duration(action, held_object, nav_graph):
-
-    scene_positions = task_io.load_scene_positions("FloorPlan1_positions.json")
+    scene_name=SCENE_NAME
+    scene_positions = task_io.load_scene_positions(f"{scene_name}_positions.json")
 
     tokens = action.split()
     if not tokens:
@@ -469,24 +480,24 @@ def last_calculte_schedule_and_time(schedule_order, subtasks, held_object, nav_g
                             
                             nav_subtask.start_time_scheduled= total_time
                             nav_subtask.end_time_scheduled = total_time+nav_time
-                            nav_subtask.executionStatus=True 
+                            nav_subtask.execution_status=True 
                             result_schedule_with_time.append(nav_subtask)
 
                             total_time = nav_subtask.end_time_scheduled
 
                             if nav_time < needed_interval:
                                 wait_time = needed_interval - nav_time
-                                wait_execution = Execution(objects=None, primitive_actions=["WAIT 0.0"])
+                                wait_execution = Execution(objects=None, primitive_actions=[f"WAIT {wait_time}"])
                                 wait_subtask=Subtask(task_name=task_name, name="wait", repetition=1,type="interaction", execution=wait_execution, duration= wait_time)
                                 wait_subtask.start_time_scheduled = total_time
                                 wait_subtask.end_time_scheduled = total_time+wait_time
                                 result_schedule_with_time.append(wait_subtask)
                                 total_time = wait_subtask.end_time_scheduled
-                                wait_subtask.executionStatus=True
+                                wait_subtask.execution_status=True
                             else:
                                 wait_time = 0.0
                             
-                            total_time += (nav_time + wait_time)
+                            # total_time += (nav_time + wait_time)
 
 
         

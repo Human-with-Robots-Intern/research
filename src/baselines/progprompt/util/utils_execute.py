@@ -422,7 +422,7 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                         elapsed_time += Act.toggleoff(objID)
                     case "fill":
                         liquid = find_objID(controller, action[2])
-                        elapsed_time += Act.fill(objID, liquid)
+                        elapsed_time += Act.fill(objID)
                     case "done":
                         time.sleep(0.3)
                         pass
@@ -430,6 +430,6 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                         log_file.write("Invalid action\n")
                         break
                 log_file.write(f"end_time: {str(round(elapsed_time,2))}\n")
-                log_file.write(f"executionStatus: {last_action_success(controller)}")
+                log_file.write(f"execution_status: {last_action_success(controller)}\n")
     print(f"{round(elapsed_time, 2)=}")
     log_file.write(f"Total time spent : {round(elapsed_time, 2)}")

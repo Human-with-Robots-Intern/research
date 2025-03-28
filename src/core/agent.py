@@ -294,6 +294,14 @@ class Agent:
         bayesian_estimate_dict = self._load_knowledge("bayesian_estimate.json")
         ground_truth_dict = self._load_knowledge("bayesian_ground_truth.json")
 
+        #dictionary의 key를 전부 lowercase로 변경. 
+        bayesian_estimate_dict = {
+            k.lower(): v for k, v in bayesian_estimate_dict.items()
+        }
+        ground_truth_dict = {
+            k.lower(): v for k, v in ground_truth_dict.items()
+        }
+
         # 3) 문장 유사도 모델로 실제 known_sub_name 결정
         known_sub_name = self._call_sentence_sim_model(
             monitoring_target_sub_name.lower(),
@@ -341,7 +349,7 @@ class Agent:
                 )
                 critical_start_sub_end_time = next(
                     (
-                        ce.end_time
+                        ce.end_time                 
                         for ce in state.completed_subtasks
                         if ce.subtask.name == critical_start_sub_name
                     ),
@@ -409,5 +417,9 @@ class Agent:
                 }
             },
         )
-
-        return state
+        monitored_subtask = {
+            "updated_subtask_name":critical_start_sub_name,
+            "original_expected_time":prior_mean,
+            "updated_expected_time":posterior_mean
+        }
+        return state , monitored_subtask

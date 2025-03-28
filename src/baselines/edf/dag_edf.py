@@ -19,17 +19,20 @@ ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 
 
 
-from utils.math_utils import build_navigation_graph
+from ithor.utils.math_utils import build_navigation_graph
 
-from utils.runner_ai2thor import init_ai2thor, load_scene_positions
+from sim.runner_ai2thor import init_ai2thor
+from utils.task import load_scene_positions
+from utils.constants import SCENE_NAME
 
 
-from utils.action_handler import ActionHandler
-from utils.task_util import build_tasks_and_constraints
-from utils.make_gantt import gantt_chart
-from utils.dataclass import SimulationNode, Candidate, CompletedEntry, SchedulerState
+from scheduler.action_handler import ActionHandler
+from utils.task.task_util import build_tasks_and_constraints
+from utils.viz.make_gantt import gantt_chart
+from scheduler.dataclass import CompletedEntry, SchedulerState
+from utils.dataclass import SimulationNode
 from core.task import Subtask, Execution, Duration
-from utils.task.task_io import list_task_files, get_user_task_choice, load_task_data_from_file
+from utils.task.task_io import get_natural_language_from_task_file, list_task_files, get_user_task_choice, load_task_data_from_file
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState):
@@ -296,8 +299,6 @@ def update(
     3) next_subtask 실행 CompletedEntry 추가
     """
 
-    from utils.action_handler import ActionHandler
-
     action_handler = ActionHandler(nav_graph)
 
     # -------------------------------
@@ -388,7 +389,7 @@ def update(
                 start_time=new_current_time,
                 end_time=new_current_time + nav_time,
             )
-            nav_entry.subtask.executionStatus = True
+            nav_entry.subtask.execution_status = True
             wait_entries.append(nav_entry)
             new_current_time += nav_time
 
@@ -410,7 +411,7 @@ def update(
                 start_time=new_current_time,
                 end_time=designated_start,
             )
-            wait_entry.subtask.executionStatus = True
+            wait_entry.subtask.execution_status = True
             wait_entries.append(wait_entry)
             new_current_time = designated_start
 
@@ -513,16 +514,18 @@ def parse_arguments():
 def main():
 
     # Set up the AI2-THOR controller and navigation graph
-    approach_name="DAG_EDF"
+    approach_name="dag_edf"
     args = parse_arguments()
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
-    scene_poses = load_scene_positions("FloorPlan1_positions.json")
+    scene_name = SCENE_NAME
+    scene_poses = load_scene_positions(f"{scene_name}_positions.json")
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name = get_user_task_choice(task_files ,choice=11)
+    task_file_name ,choice= get_user_task_choice(task_files)
     task_data = load_task_data_from_file(task_file_name)
+    input_natural_language = get_natural_language_from_task_file(f"{choice}")
 
     # Build tasks and constraints
 
@@ -549,11 +552,11 @@ def main():
         if args.simulation:
             # 터미널에서 src/baselines/def/dag_edf.py -s 실행시 사용됨  
 
-            subtask_time, executionStatus = execute_subtask(controller, next_subtask)
+            subtask_time, execution_status = execute_subtask(controller, next_subtask)
             simulation_subtask_times.append(subtask_time)
 
     
-            next_subtask.executionStatus = executionStatus
+            next_subtask.execution_status = execution_status
 
 
     
@@ -563,10 +566,10 @@ def main():
     result_schedule.pop(0)
    
 
-    gantt_chart(result_schedule)
+    gantt_chart(result_schedule, input_natural_language)
     # completed_Entry 객체를 Subtask객체로 변환.
     # start_time과 end_time을 추출해서 Subtask 객체 안에 저장.
-    subtasks_with_time =[]
+    result_schedule_with_time =[]
 
     if args.simulation: 
         approach_name = f"{approach_name}_simulation"
@@ -588,9 +591,18 @@ def main():
                 current_time += simulation_subtask_times[i]
                 i += 1
 
-            subtasks_with_time.append(st.subtask)
+            result_schedule_with_time.append(st.subtask)
+
+        result_args={
+            "task_name": input_natural_language,
+            "approach_name":approach_name,
+            "result_schedule": result_schedule_with_time,
+            "computation_time": computation_time,
+            "scene_name": scene_name,
+            "simulationTime": None
+        }
     
-        result_save(task_file_name, approach_name, subtasks_with_time, computation_time )
+        result_save(**result_args)
 
 
 if __name__ == "__main__":
