@@ -100,7 +100,7 @@ def make_average(base_dir):
                         parsed_val = float(attempt_val)
                         if not math.isinf(parsed_val):
                             metrics[approach]["attempt_values"].append(parsed_val)
-                    except:
+                    except ValueError:
                         pass  # 숫자로 변환 실패 시 스킵
 
             # subtask_count 및 executing_action_count 집계
