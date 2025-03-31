@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 from networkx import DiGraph
 
 from core.task import Subtask
-from scheduler.dataclass import Candidate, Deadline, SimulationNode, TimeSlot
+from core.dataclass import Candidate, Deadline, SimulationNode, TimeSlot
 from utils import create_module_logger
 from utils.constants import EPSILON, LOG_ROUND
 

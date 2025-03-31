@@ -29,7 +29,7 @@ from utils.constants import SCENE_NAME
 from scheduler.action_handler import ActionHandler
 from utils.task.task_util import build_tasks_and_constraints
 from utils.viz.make_gantt import gantt_chart
-from scheduler.dataclass import CompletedEntry, SchedulerState
+from core.dataclass import CompletedEntry, SchedulerState
 from utils.dataclass import SimulationNode
 from core.task import Subtask, Execution, Duration
 from utils.io_utils.task_io import get_natural_language_from_task_file, list_task_files, get_user_task_choice, load_task_data_from_file

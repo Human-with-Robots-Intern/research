@@ -1,33 +1,33 @@
+### utils/task/task_io.py
 import json
 from pathlib import Path
+from typing import Optional, Tuple
 
-from utils.constants import KNOWLEDGE_PATH, TASK_PATH
+from utils.config.constants import KNOWLEDGE_PATH, TASK_PATH
 from utils.task.task_generator import generate_task
 
 
-def load_navigation_times():
-    with open(KNOWLEDGE_PATH / "FloorPlan1_physics_navigation_time.json", "r") as f:
-        navigation_times = json.load(f)
-    return navigation_times
+def load_navigation_times() -> dict:
+    file_path = KNOWLEDGE_PATH / "FloorPlan1_physics_navigation_time.json"
+    with file_path.open("r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def list_task_files() -> list[Path]:
     """
-    List all JSON task files in the TASK_PATH directory, sorted by file name.
-
-    :return: List of Path objects pointing to JSON files.
+    TASK_PATH 디렉토리 내 JSON 파일 목록을 이름 기준으로 정렬하여 반환.
     """
     return sorted(TASK_PATH.glob("*.json"), key=lambda p: p.name)
 
 
 def get_user_task_choice(
-    task_files: list[Path], choice: int = None, is_rag=False
-) -> str:
+    task_files: list[Path], choice: Optional[int] = None, is_rag: bool = False
+) -> Tuple[str, Optional[int]]:
     """
-    Prompt the user to select a task file by index or choose to create a new instruction.
+    유저에게 task 파일을 선택하거나 새 instruction을 생성할 수 있도록 입력 받음.
 
-    :param task_files: List of available task files.
-    :return: The selected or newly generated task file name.
+    Returns:
+        - (task_file_name, index) 또는 (generated_task_name, None)
     """
     print("Select a file from the list below:")
     print("0. new instruction")
@@ -36,59 +36,48 @@ def get_user_task_choice(
 
     while True:
         try:
-            if not choice:
+            if choice is None:
                 choice = int(input("Enter the number of your choice: "))
 
             if choice == 0:
-                return generate_task(is_rag)
+                return generate_task(is_rag), None
             elif 1 <= choice <= len(task_files):
                 return task_files[choice - 1].name, choice
             else:
-                print(
-                    f"Invalid choice. Please select a number between 0 and {len(task_files)}."
-                )
+                print(f"Invalid choice. Please select between 0 and {len(task_files)}.")
         except ValueError as exc:
             print(f"Invalid input. Please enter a number. Error: {exc}")
 
 
 def load_task_data_from_file(task_file_name: str) -> dict:
     """
-    Load task data from a JSON file.
-
-    :param task_file_name: Name of the task file to load.
-    :return: Dictionary containing the loaded task data.
+    특정 task 파일에서 JSON 데이터를 불러옴.
     """
-    target_task_path = TASK_PATH / task_file_name
-    if not target_task_path.exists():
-        raise FileNotFoundError(f"Task file not found: {target_task_path}")
+    target_path = TASK_PATH / task_file_name
+    if not target_path.exists():
+        raise FileNotFoundError(f"Task file not found: {target_path}")
 
-    with open(target_task_path, "r", encoding="utf-8") as file:
+    with target_path.open("r", encoding="utf-8") as file:
         return json.load(file)
 
 
-def load_scene_positions(
-    file_name: str,
-) -> dict[str, tuple[float, float, float]]:
+def load_scene_positions(file_name: str) -> dict[str, tuple[float, float, float]]:
     """
-    Load scene positions from a JSON file.
-
-    :param file_path: Path to the JSON file containing scene positions.
-    :return: Dictionary containing scene positions.
+    객체별 3D 위치를 담은 JSON 파일 로드
     """
     file_path = KNOWLEDGE_PATH / file_name
-    with open(file_path, "r") as f:
-        scene_positions = json.load(f)
-    for key, value in scene_positions.items():
-        scene_positions[key] = tuple(value)
-    return scene_positions
+    with file_path.open("r", encoding="utf-8") as f:
+        raw_data = json.load(f)
+    return {k: tuple(v) for k, v in raw_data.items()}
 
-def get_natural_language_from_task_file(task_file_name: str)-> str:
-    task_nl_path = TASK_PATH/"task_natural_languages.json"
 
-    with open(task_nl_path, "r", encoding="utf-8")as f:
+def get_natural_language_from_task_file(task_file_name: str) -> str:
+    """
+    주어진 task 파일 이름에 해당하는 자연어 설명을 반환
+    """
+    nl_path = TASK_PATH / "task_natural_languages.json"
+    with nl_path.open("r", encoding="utf-8") as f:
         task_nl_dict = json.load(f)
 
     task_nl_dict = {k.strip(":"): v for k, v in task_nl_dict.items()}
-
     return task_nl_dict[task_file_name]
-    

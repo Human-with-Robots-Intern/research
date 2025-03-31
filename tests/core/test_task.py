@@ -5,7 +5,7 @@ from unittest import TestCase, main
 
 from core.task import Task, TaskGraphBuilder
 from utils.constants import TASK_PATH
-from utils.common.util import create_module_logger
+from archive.util import create_module_logger
 
 logger = create_module_logger(__name__, module_log=True)
 

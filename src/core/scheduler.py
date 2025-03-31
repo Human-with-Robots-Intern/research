@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple
 from core.task import Duration, Execution, Subtask
 from scheduler import ConstraintHandler, HeuristicManager
 from scheduler.action_handler import ActionHandler
-from scheduler.dataclass import (
+from core.dataclass import (
     Candidate,
     CompletedEntry,
     SchedulerState,
@@ -22,7 +22,7 @@ from utils.constants import (
     RESET,
 )
 from utils.task.task_util import make_monitoring_subtask
-from utils.common.util import create_module_logger
+from archive.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, module_log=True)
 

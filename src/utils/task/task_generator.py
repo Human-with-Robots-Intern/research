@@ -1,261 +1,160 @@
+# utils/task/task_generator.py
 import json
 import logging
 import os
 import re
-import sys
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import openai
 from dotenv import load_dotenv
 
-from utils.constants import (
-    ESTIMATE_FILE_NAME,
-    KNOWLEDGE_PATH,
-    PROMPT_FILE_PATH,
-    PROMPT_PATH,
-    TASK_PATH,
-    TOP_K,
-)
-from utils.task.few_shot_retriever import FewShotRetriever
-from utils.task.sentence_transformer import SentenceSimilarityModel
-from utils.common.util import create_module_logger
+from utils.config.constants import PROMPT_FILE_PATH, PROMPT_PATH, TASK_PATH, TOP_K
+from utils.nlp.few_shot_retriever import FewShotRetriever
+from utils.task.task_cache import check_cache, get_cache_key, store_cache
 
-# Accessing .env file
+# 내부 모듈
+from utils.task.task_validators import validate_output_format
+
+# .env 파일 로딩 (OPENAI_API_KEY 등)
 load_dotenv()
 
-# Logging configuration
-logger = create_module_logger(__name__, module_log=True)
-sentence_sim_model = SentenceSimilarityModel().get_instance()
+logger = logging.getLogger(__name__)
 
 
 def initialize_openai() -> openai.OpenAI:
-    """Initialize OpenAI API client."""
-    openai_api_key = os.environ.get("OPENAI_API_KEY")
+    """
+    OpenAI API 클라이언트를 초기화한다.
+    """
+    openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
         logger.error("OPENAI_API_KEY not found in environment variables.")
         raise EnvironmentError("OPENAI_API_KEY not found in environment variables.")
     return openai.OpenAI(api_key=openai_api_key)
 
 
-client = initialize_openai()
+class TaskGenerator:
+    """
+    태스크 생성 전반에 관한 로직을 관리하는 클래스.
+    - OpenAI Client
+    - Prompt 구성
+    - 결과 검증/재생성
+    - 캐싱
+    등
+    """
 
+    def __init__(self, is_rag: bool = False):
+        self.client = initialize_openai()
+        self.is_rag = is_rag
+        # 추가적으로 필요한 상태(예: knowledge 등) 여기서 관리 가능
 
-# Task cache for deduplication
-task_cache: Dict[int, List[Dict[str, Any]]] = {}
-
-
-def load_file(file_path: Path, file_type: str) -> Any:
-    """Load content from the specified file."""
-    if not file_path.exists():
-        logger.error(f"{file_type.capitalize()} file not found: {file_path}")
-        raise FileNotFoundError(f"{file_type.capitalize()} file not found: {file_path}")
-    with open(file_path, "r", encoding="utf-8") as file:
-        return json.load(file) if file_type == "json" else file.read()
-
-
-# def sanitize_file_name(file_name: str) -> str:
-#     """Sanitize file name to ensure compatibility."""
-#     return datetime.now().strftime("%Y-%m-%d_%H_%M_") + re.sub(
-#         r"[^\w\-_\.]+", "_", file_name
-#     )
-
-
-def validate_output_format(output: Any) -> bool:
-    """Validate the format of the generated task output."""
-    if not isinstance(output, list):
-        return False
-    for task in output:
-        if not isinstance(task, dict) or not {"Task", "Subtasks"}.issubset(task):
-            return False
-        for subtask in task.get("Subtasks", []):
-            required_keys = {
-                "Name",
-                "Repetition",
-                "Type",
-                "Executions",
-                "Duration",
-                "TemporalConstraints",
-            }
-            if not isinstance(subtask, dict) or not required_keys.issubset(subtask):
-                return False
-            executions = subtask.get("Executions", {})
-            if not isinstance(executions, dict) or not {
-                "Objects",
-                "PrimitiveActions",
-            }.issubset(executions):
-                return False
-    return True
-
-
-def classify_subtasks(
-    output: List[Dict[str, Any]], knowledge: Dict[str, Any]
-) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """Classify subtasks into valid and invalid based on knowledge."""
-    invalid_subtasks, valid_subtasks = [], []
-    valid_actions = set(knowledge.get("Valid_actions", {}).keys())
-
-    for task in output:
-        for subtask in task.get("Subtasks", []):
-            primitive_actions = subtask.get("Executions", {}).get(
-                "PrimitiveActions", []
+    def load_file(self, file_path: Path, file_type: str) -> Any:
+        """
+        지정된 파일 경로에서 데이터를 로딩한다.
+        """
+        if not file_path.exists():
+            raise FileNotFoundError(
+                f"{file_type.capitalize()} file not found: {file_path}"
             )
-            invalid_actions = [
-                action
-                for action in primitive_actions
-                if not any(
-                    action.startswith(valid_action) for valid_action in valid_actions
-                )
-            ]
-            if invalid_actions:
-                logger.debug(
-                    f"Invalid actions in subtask '{subtask['Name']}': {invalid_actions}"
-                )
-                subtask["InvalidActions"] = invalid_actions
-                invalid_subtasks.append(subtask)
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            if file_type == "json":
+                return json.load(f)
             else:
-                valid_subtasks.append(subtask)
+                return f.read()
 
-    return valid_subtasks, invalid_subtasks
+    def generate_task(self, user_input: str) -> str:
+        """
+        유저 입력 + Knowledge Base + Prompt를 조합하여 태스크를 생성한다.
+        결과를 파일에 저장하고, 파일명을 반환한다.
+        """
+        user_input = user_input.strip()
+        if not user_input:
+            raise ValueError("User input cannot be empty.")
 
+        # Prompt(예제) 로드
+        examples_prompt = self.load_file(Path(PROMPT_PATH) / PROMPT_FILE_PATH, "txt")
 
-def regenerate_invalid_subtasks(
-    invalid_subtasks: List[Dict[str, Any]], knowledge: Dict[str, Any]
-) -> List[Dict[str, Any]]:
-    """Regenerate invalid subtasks using OpenAI API."""
-    regenerated_subtasks = []
-    valid_actions = ", ".join(knowledge.get("Valid_actions", {}).keys())
+        # RAG 모드 활성화 시, FewShotRetriever 활용
+        if self.is_rag:
+            rag_system = FewShotRetriever()
+            retrieved_few_shot_prompts = rag_system.generate_few_shot_prompts(
+                user_input, top_k=TOP_K
+            )
+            examples_prompt = examples_prompt.replace(
+                "<Example>", retrieved_few_shot_prompts
+            )
 
-    for subtask in invalid_subtasks:
-        invalid_actions = subtask.get("InvalidActions", [])
-        regenerate_prompt = [
-            {
-                "role": "user",
-                "content": (
-                    f"The subtask contains invalid actions: {', '.join(invalid_actions)}.\n"
-                    f"Valid actions are: {valid_actions}.\n"
-                    "Please correct the invalid actions in the subtask below:\n"
-                    f"{json.dumps(subtask, indent=4, ensure_ascii=False)}\n"
-                ),
-            }
+        # Knowledge Base 로드
+        # knowledge = self.load_file(Path(KNOWLEDGE_PATH) / ESTIMATE_FILE_NAME, "json")
+
+        # 최종 OpenAI 프롬프트
+        full_prompt = [
+            {"role": "system", "content": examples_prompt},
+            {"role": "user", "content": f"# [Input]\n\n{user_input}"},
         ]
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o", messages=regenerate_prompt
-            )
-            regenerated_content = response.choices[0].message.content.strip()
-            regenerated_content = regenerated_content.strip("```json").strip("```")
-            new_subtask = json.loads(regenerated_content)
-            regenerated_subtasks.append(new_subtask)
-        except Exception as e:
-            logger.error(f"Error during subtask regeneration: {e}")
 
-    return regenerated_subtasks
+        # 캐싱 체크
+        prompt_key = get_cache_key(full_prompt)
+        cached_result = check_cache(prompt_key)
+        if cached_result:
+            logger.info("Using cached result.")
+            output = cached_result
+        else:
+            # OpenAI 호출
+            output = self._call_openai(full_prompt)
+            if output and validate_output_format(output):
+                # 캐시에 저장
+                store_cache(prompt_key, output)
+            else:
+                raise ValueError("Task generation failed. (Invalid Format)")
 
-
-def regenerate_subtasks_parallel(
-    invalid_subtasks: List[Dict[str, Any]], knowledge: Dict[str, Any]
-) -> List[Dict[str, Any]]:
-    """Regenerate invalid subtasks in parallel."""
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        results = executor.map(
-            lambda subtask: regenerate_invalid_subtasks([subtask], knowledge),
-            invalid_subtasks,
-        )
-    return [subtask for result in results for subtask in result]
-
-
-def cached_generate_task(
-    full_prompt: List[Dict[str, str]], knowledge: Dict[str, Any]
-) -> Optional[List[Dict[str, Any]]]:
-    """Generate tasks using OpenAI API with caching."""
-    # prompt_hash = hash(json.dumps(full_prompt, sort_keys=True))
-    # if prompt_hash in task_cache:
-    #     logger.info("Using cached result.")
-    #     return task_cache[prompt_hash]
-
-    max_retries = 5
-    for attempt in range(1, max_retries + 1):
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o", messages=full_prompt
-            )
-            output_content = response.choices[0].message.content.strip()
-
-            if "```json" in output_content:
-                output_content = output_content.strip("```json").strip("```")
-
-            output = json.loads(output_content)
-
-            if validate_output_format(output):
-                # task_cache[prompt_hash] = output
-                return output
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON decoding failed: {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}")
-
-    logger.error("Failed to generate valid output after retries.")
-    return None
-
-
-def generate_task(is_rag: bool = False) -> str:
-    """Generate tasks based on user input and knowledge base."""
-    user_input = input("Please enter the instructions: ").strip()
-
-    examples_prompt = load_file(Path(PROMPT_PATH) / PROMPT_FILE_PATH, "txt")
-    if is_rag:
-        rag_system = FewShotRetriever()
-        retrieved_few_shot_prompts = rag_system.generate_few_shot_prompts(
-            user_input, top_k=TOP_K
-        )
-        examples_prompt = examples_prompt.replace(
-            "<Example>", retrieved_few_shot_prompts
-        )
-        print(examples_prompt)
-
-    knowledge = load_file(Path(KNOWLEDGE_PATH) / ESTIMATE_FILE_NAME, "json")
-
-    if not user_input:
-        logger.error("User input cannot be empty.")
-        raise ValueError("User input cannot be empty.")
-
-    full_prompt = [
-        {"role": "system", "content": examples_prompt},
-        {"role": "user", "content": f"# [Input]\n\n{user_input}"},
-    ]
-
-    output = cached_generate_task(full_prompt, knowledge)
-
-    if output and validate_output_format(output):
-        task_numbers = len(output)
-        subtask_numbers = sum(len(task.get("Subtasks", [])) for task in output)
+        # 파일로 저장
         time_stamp = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
-        output_file_name = f"{time_stamp}_{user_input[:15]}.json"
+        sanitized_input = re.sub(r"[^\w\-_\.]+", "_", user_input[:15])
+        output_file_name = f"{time_stamp}_{sanitized_input}.json"
         output_file_path = Path(TASK_PATH) / output_file_name
-        save_to_file(output, output_file_path)
+
+        self.save_to_file(output, output_file_path)
         return output_file_name
-    else:
-        logger.error("Failed to generate output.")
-        raise ValueError("Task generation failed.")
 
+    def _call_openai(
+        self, full_prompt: List[Dict[str, str]]
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        OpenAI API를 호출하여 태스크를 생성한다. (재시도 로직 포함)
+        """
+        max_retries = 5
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = self.client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=full_prompt,
+                )
+                output_content = response.choices[0].message.content.strip()
 
-def save_to_file(data: Any, file_path: Path) -> None:
-    """Save data to a JSON file."""
-    os.makedirs(file_path.parent, exist_ok=True)
-    try:
-        with open(file_path, "w", encoding="utf-8") as file:
-            json.dump(data, file, indent=4, ensure_ascii=False)
+                # JSON 코드블록 제거
+                if "```json" in output_content:
+                    output_content = output_content.strip("```json").strip("```")
+
+                output = json.loads(output_content)
+                if validate_output_format(output):
+                    return output
+
+            except json.JSONDecodeError as e:
+                logger.error(f"[Attempt {attempt}] JSON decoding failed: {e}")
+            except Exception as e:
+                logger.error(f"[Attempt {attempt}] Unexpected error: {e}")
+
+        logger.error("Failed to generate valid output after retries.")
+        return None
+
+    def save_to_file(self, data: Any, file_path: Path) -> None:
+        """
+        JSON 파일로 결과를 저장한다.
+        """
+        os.makedirs(file_path.parent, exist_ok=True)
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
         logger.info(f"Output saved to {file_path}.")
-    except IOError as e:
-        logger.error(f"Error occurred while saving file: {e}")
-        raise
-
-
-if __name__ == "__main__":
-    try:
-        generate_task()
-    except Exception as e:
-        logger.error(f"Error occurred: {e}")

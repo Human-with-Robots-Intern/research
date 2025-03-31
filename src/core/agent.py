@@ -8,7 +8,7 @@ import networkx as nx
 import numpy as np
 
 from scheduler.constraint_handler import ConstraintHandler
-from scheduler.dataclass import SchedulerState
+from core.dataclass import SchedulerState
 from utils import KNOWLEDGE_PATH, create_module_logger
 from utils.task import task_util
 from utils.task.sentence_transformer import SentenceSimilarityModel
