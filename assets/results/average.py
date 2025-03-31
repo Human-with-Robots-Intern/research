@@ -8,11 +8,7 @@ MIN_REQUIRED_SIMULATIONS = 5
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
-def load_summary_data(file_path: Path) -> dict:
-    """
-    주어진 파일 경로에서 JSON 데이터를 읽어 반환합니다.
-    실패 시 None을 반환합니다.
-    """
+def load_summary_data(file_path):
     try:
         with file_path.open("r", encoding="utf-8") as f:
             return json.load(f)
@@ -138,10 +134,7 @@ def process_summary_file(
             )
 
 
-def compute_averages(metrics: dict, llm_list: set, dag_list: set) -> dict:
-    """
-    누적된 지표들을 기반으로 각 approach별 평균값을 계산합니다.
-    """
+    # 각 approach별로 평균 계산 (집계된 simulation 수가 MIN_REQUIRED_SIMULATIONS 이상인 경우)
     results = {}
     for approach, vals in metrics.items():
         result = {}
