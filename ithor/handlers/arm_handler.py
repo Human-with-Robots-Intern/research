@@ -1,6 +1,3 @@
-from ithor.utils.file_utils import *
-
-
 class ArmHandler:
     def __init__(self, controller):
         self.controller = controller

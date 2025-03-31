@@ -1,4 +1,4 @@
-from utils.constants import *
+from ithor.utils.constants import *
 
 
 class MoveHandler:
