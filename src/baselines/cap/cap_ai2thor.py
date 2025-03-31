@@ -281,9 +281,9 @@ if __name__ == "__main__":
     log_file = open(
         f"src/baselines/cap/result/cap_logs_{user_input}.txt", "w", buffering=1
     )
-    controller, camera_handler, Navi, Acttion = initialize_controller()
+    controller, camera_handler, Navi, Action = initialize_controller()
 
-    lmp_scene_ui = setup_LMP(controller, Navi, Acttion, cfg_scene, log_file)
+    lmp_scene_ui = setup_LMP(controller, Navi, Action, cfg_scene, log_file)
     # toast the bread
     # put tomato in the fridge
     # put egg in the pan : 냉장고 문을 안열고 계란 집음
