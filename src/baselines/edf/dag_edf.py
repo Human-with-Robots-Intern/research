@@ -1,14 +1,12 @@
+
 import argparse
 import copy
 import heapq
-import json
-import os
+from typing import List, Optional
+import networkx as nx
+import heapq
 import time
 from pathlib import Path
-from typing import List, Optional, Tuple
-
-import matplotlib.pyplot as plt
-import networkx as nx
 from sim.runner_ai2thor import execute_subtask
 
 from utils.io_utils.result_saver import result_save
@@ -17,13 +15,10 @@ PROJECT_ROOT = (
     Path(__file__).resolve().parent.parent.parent.parent
 )  # 프로젝트 루트 경로
 ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
-
-
-from sim.runner_ai2thor import init_ai2thor
-
-from core.dataclass import CompletedEntry, SchedulerState
-from core.task import Duration, Execution, Subtask
 from ithor.utils.math_utils import build_navigation_graph
+from sim.runner_ai2thor import init_ai2thor
+from utils.task import load_scene_positions
+from utils.constants import SCENE_NAME
 from scheduler.action_handler import ActionHandler
 from utils.constants import SCENE_NAME
 from utils.dataclass import SimulationNode
@@ -52,7 +47,7 @@ def is_executable(subtask: Subtask, current_state: SchedulerState):
             return True
         else:
             return False
-    # dependency가 없는 경으면 그냥 실행 가능
+    # dependency가 없는 경우면 그냥 실행 가능
     return True
 
 
@@ -70,6 +65,7 @@ def get_current_timeslot(current_state: SchedulerState) -> Optional[str]:
                 # 나가는 edge 중 critical한 edge가 있으면 critical timeslot
                 for _, target, data in constraints.out_edges(node, data=True):
                     if data.get("info", {}).get("IsCritical", False):
+
                         return "critical"
                 return "non-critical"
     return None
@@ -101,7 +97,7 @@ def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask
        2-b. 그렇지 않은 경우
            deadline = current_time + execution_time
     3. timeslot이 없는 경우:
-         deadline = current_time + execution_time
+           deadline = current_time + execution_time
     """
     action_handler = ActionHandler(nav_graph)
     current_time = current_state.current_time
@@ -526,7 +522,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name, choice = get_user_task_choice(task_files)
+    task_file_name , choice= get_user_task_choice(task_files)
     task_data = load_task_data_from_file(task_file_name)
     input_natural_language = get_natural_language_from_task_file(f"{choice}")
 
@@ -547,8 +543,8 @@ def main():
         if next_subtask is None:
             break
         current_state = update(current_state, next_subtask, nav_graph)
-
         subtask_scheduling_time = time.time() - subtask_scheduling_time_start
+
         computation_time += subtask_scheduling_time
 
         # 현재 시뮬레이션 실행시 schedule된 wait이나 navigate subtask는 단독으로 실행되지 않는다.
@@ -557,16 +553,15 @@ def main():
 
             subtask_time, execution_status = execute_subtask(controller, next_subtask)
             simulation_subtask_times.append(subtask_time)
-
             next_subtask.execution_status = execution_status
 
     result_schedule = current_state.completed_subtasks
     result_schedule.pop(0)
-
-    gantt_chart(result_schedule, input_natural_language)
     # completed_Entry 객체를 Subtask객체로 변환.
     # start_time과 end_time을 추출해서 Subtask 객체 안에 저장.
-    result_schedule_with_time = []
+    gantt_chart(result_schedule, input_natural_language)
+
+    result_schedule_with_time =[]
 
     if args.simulation:
         approach_name = f"{approach_name}_simulation"
