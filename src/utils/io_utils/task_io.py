@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from utils.config.constants import KNOWLEDGE_PATH, TASK_PATH
-from utils.task.task_generator import generate_task
+from utils.task.task_generator import TaskGenerator
 
 
 def load_navigation_times() -> dict:
@@ -40,7 +40,9 @@ def get_user_task_choice(
                 choice = int(input("Enter the number of your choice: "))
 
             if choice == 0:
-                return generate_task(is_rag), None
+                user_input = input("Enter your instruction: ")
+
+                return TaskGenerator(is_rag).generate_task(user_input), None
             elif 1 <= choice <= len(task_files):
                 return task_files[choice - 1].name, choice
             else:

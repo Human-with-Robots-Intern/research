@@ -40,8 +40,14 @@ def regenerate_invalid_subtasks(
 
             new_subtask = json.loads(regenerated_content)
             regenerated_subtasks.append(new_subtask)
-        except Exception as e:
-            logger.error(f"Error during subtask regeneration: {e}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing JSON response: {e}")
+        except ValueError as e:
+            logger.error(f"Value error during subtask regeneration: {e}")
+        except (ConnectionError, TimeoutError) as e:
+            logger.error(f"Network error during API call: {e}")
+        except AttributeError as e:
+            logger.error(f"Attribute error in response handling: {e}")
 
     return regenerated_subtasks
 

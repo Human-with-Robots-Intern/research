@@ -254,7 +254,7 @@ def plot_completed_subtasks_gantt(
         current_time = ed_time
 
     # Matplotlib
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _, ax = plt.subplots(figsize=(10, 6))
     task_names = [g["name"] for g in gantt_data]
     start_times = [g["start"] for g in gantt_data]
     durations = [g["end"] - g["start"] for g in gantt_data]
@@ -268,7 +268,7 @@ def plot_completed_subtasks_gantt(
     ax.set_xlabel("Time")
     ax.set_title("Gantt Chart (Completed Subtasks)")
 
-    for i, bar in enumerate(bars):
+    for i, _ in enumerate(bars):
         st = start_times[i]
         et = st + durations[i]
         ax.text(

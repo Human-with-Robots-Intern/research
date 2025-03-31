@@ -1,6 +1,5 @@
 ### utils/io_utils/result_saver.py
 import json
-import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -154,7 +153,7 @@ def result_save_llm(
     computation_time: float,
     scene_name: str,
 ):
-    with open(result_txt, "r") as f:
+    with open(result_txt, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
     actions, last_end_time, success_count, total_count = parse_llm_log(lines)

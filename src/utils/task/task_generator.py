@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 import openai
 from dotenv import load_dotenv
 
+from utils.common.logger import create_module_logger
 from utils.config.constants import PROMPT_FILE_PATH, PROMPT_PATH, TASK_PATH, TOP_K
 from utils.nlp.few_shot_retriever import FewShotRetriever
 from utils.task.task_cache import check_cache, get_cache_key, store_cache
@@ -20,7 +21,7 @@ from utils.task.task_validators import validate_output_format
 # .env 파일 로딩 (OPENAI_API_KEY 등)
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+logger = create_module_logger(__name__)
 
 
 def initialize_openai() -> openai.OpenAI:
