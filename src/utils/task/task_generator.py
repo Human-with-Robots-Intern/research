@@ -113,7 +113,7 @@ class TaskGenerator:
 
         # 파일로 저장
         time_stamp = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
-        sanitized_input = re.sub(r"[^\w\-_\.]+", "_", user_input[:15])
+        sanitized_input = re.sub(r"[^\w\-_\.]+", "_", user_input[:30])
         output_file_name = f"{time_stamp}_{sanitized_input}.json"
         output_file_path = Path(TASK_PATH) / output_file_name
 

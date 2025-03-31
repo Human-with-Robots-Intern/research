@@ -44,5 +44,4 @@ __all__ = [
     "ARM_MOVE_STEP",
     "HAND_RADIUS",
     "OBJECT_INTERESTS",
-    "OBJECTS_INFO_PATH",
 ]

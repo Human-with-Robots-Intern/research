@@ -43,11 +43,18 @@ def create_module_logger(module_name, module_log=False):
 
     logger.addHandler(_get_console_handler())
 
+    # 로그 파일 경로 생성
     log_file = LOG_PATH / "all_log" / f"{datetime.datetime.now():%Y%m%d_%H%M}.log"
+    # 폴더가 없으면 생성
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # 그 뒤 파일 핸들러 추가
     logger.addHandler(_get_file_handler(log_file))
 
     if module_log:
+        # 마찬가지로 module_log_file도 폴더 체크
         module_log_file = LOG_PATH / f"{module_name}.log"
+        module_log_file.parent.mkdir(parents=True, exist_ok=True)
         logger.addHandler(_get_file_handler(module_log_file, mode="w"))
 
     return logger

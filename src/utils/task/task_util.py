@@ -8,10 +8,11 @@ from typing import Dict, List, Literal, Tuple, Union
 from dotenv import load_dotenv
 from networkx import DiGraph
 
-# 내부 프로젝트 모듈
-from archive.util import create_module_logger
 from core.dataclass import CompletedEntry, SchedulerState
 from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
+
+# 내부 프로젝트 모듈
+from utils.common import create_module_logger
 from utils.config.constants import (
     KNOWLEDGE_PATH,
     MONITORING_DURATION,

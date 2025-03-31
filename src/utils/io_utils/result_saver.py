@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, List, Tuple
 
+from core.dataclass import CompletedEntry
 from utils.config.constants import RESULT_PATH
 
 
@@ -12,37 +13,45 @@ def get_now_str(fmt: str = "%Y-%m-%d %H:%M") -> str:
     return datetime.now().strftime(fmt)
 
 
-def compose_subtasks(result_schedule: List[Any]) -> Tuple[List[dict], int, int]:
+def compose_subtasks(
+    result_schedule: List[CompletedEntry],
+) -> Tuple[List[dict], int, int]:
     subtasks = []
     success_count = 0
     total_count = 0
 
-    for st in result_schedule:
-        execution_status = getattr(st, "execution_status", None)
+    for ce in result_schedule:
+        execution_status = getattr(ce.subtask, "execution_status", None)
         if execution_status is not None:
             total_count += 1
             if execution_status:
                 success_count += 1
 
         subtask = {
-            "subtask_name": st.name,
+            "subtask_name": ce.subtask.name,
             "start_time_simulation": round(
-                getattr(st, "start_time_simulation", None), 3
+                getattr(ce.subtask, "start_time_simulation", None), 3
             ),
-            "end_time_simulation": round(getattr(st, "end_time_simulation", None), 3),
-            "start_time_scheduled": round(getattr(st, "start_time_scheduled", None), 3),
-            "end_time_scheduled": round(getattr(st, "end_time_scheduled", None), 3),
+            "end_time_simulation": round(
+                getattr(ce.subtask, "end_time_simulation", None), 3
+            ),
+            "start_time_scheduled": round(
+                getattr(ce.subtask, "start_time_scheduled", None), 3
+            ),
+            "end_time_scheduled": round(
+                getattr(ce.subtask, "end_time_scheduled", None), 3
+            ),
             "execution_status": execution_status,
         }
-        if hasattr(st, "monitored_subtask"):
-            subtask["monitored_subtask"] = st.monitored_subtask
+        if hasattr(ce.subtask, "monitored_subtask"):
+            subtask["monitored_subtask"] = ce.subtask.monitored_subtask
         subtasks.append(subtask)
 
     return subtasks, success_count, total_count
 
 
 def compose_plans(
-    result_schedule: List[Any], task_name: str
+    result_schedule: List[CompletedEntry], task_name: str
 ) -> Tuple[List[dict], float, float, float]:
     subtasks, success_count, total_count = compose_subtasks(result_schedule)
 

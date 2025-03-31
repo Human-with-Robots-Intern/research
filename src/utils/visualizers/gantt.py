@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle
 
+from core.dataclass import CompletedEntry
+from core.task import Subtask
+
 
 def compute_start_times(durations: List[float]):
     """
@@ -225,7 +228,7 @@ def plot_subtask_timeline(
 
 
 def plot_completed_subtasks_gantt(
-    completed_subtasks: list, save_path: Optional[str] = None
+    completed_subtasks: List[CompletedEntry], save_path: Optional[str] = None
 ):
     """
     완료된 Subtask 리스트(예: CompletedEntry 형태) 기반으로 Gantt를 그린다.
@@ -236,14 +239,14 @@ def plot_completed_subtasks_gantt(
         return
 
     # 시작 시간 기준 정렬
-    sorted_entries = sorted(completed_subtasks, key=lambda e: e["start_time"])
+    sorted_entries = sorted(completed_subtasks, key=lambda e: e.start_time)
     gantt_data = []
     current_time = 0.0
 
     for entry in sorted_entries:
-        st_time = entry["start_time"]
-        ed_time = entry["end_time"]
-        sb_name = getattr(entry["subtask"], "name", str(entry["subtask"]))
+        st_time = entry.start_time
+        ed_time = entry.end_time
+        sb_name = getattr(entry.subtask, "name")
 
         # 대기 구간
         if st_time > current_time:

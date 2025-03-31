@@ -82,4 +82,4 @@ def get_natural_language_from_task_file(task_file_name: str) -> str:
         task_nl_dict = json.load(f)
 
     task_nl_dict = {k.strip(":"): v for k, v in task_nl_dict.items()}
-    return task_nl_dict[task_file_name]
+    return task_nl_dict.get(task_file_name, None)

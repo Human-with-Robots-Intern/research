@@ -1,15 +1,16 @@
 from pathlib import Path
 
 # ========== 경로 설정 ==========
-ROOT_PATH = Path(__file__).resolve().parents[2]
+ROOT_PATH = Path(__file__).resolve().parents[3]
 ASSETS_PATH = ROOT_PATH / "assets"
+SRC_PATH = ROOT_PATH / "src"
+LOG_PATH = ROOT_PATH / "logs"
 
 KNOWLEDGE_PATH = ASSETS_PATH / "knowledge"
 PROMPT_PATH = ASSETS_PATH / "prompts"
 TASK_PATH = ASSETS_PATH / "tasks"
 RESULT_PATH = ASSETS_PATH / "results"
-LOG_PATH = ROOT_PATH / "logs"
-OBJECTS_INFO_PATH = "data/knowledges"
+
 
 # ========== 파일명 상수 ==========
 PROMPT_FILE_PATH = "e2e_generator_ver5.txt"
