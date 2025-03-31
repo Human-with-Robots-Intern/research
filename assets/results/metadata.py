@@ -1,21 +1,46 @@
 import json
-import os
+from pathlib import Path
 
-MIN_REQUIRED_SIMULATIONS = 5 
+MIN_REQUIRED_SIMULATIONS = 5
 
-def load_simulation_data(file_path):
+def load_simulation_data(file_path: Path) -> dict:
+    """
+    주어진 파일 경로에서 JSON 데이터를 읽어 반환.
+    """
     try:
-        with open(file_path, "r") as f:
+        with file_path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         print(f"[Error] 파일 읽기 실패: {file_path} - {e}")
-        return None
+        return {}
 
-def build_summary_entry(file_name, data):
-    llm_list = [    
-        "prog_ai2thor_simulation.json",
-        "cap_ai2thor_simulation.json"
-    ]
+# def count_executing_actions(plans: list) -> int:
+#     """
+#     plans 리스트 내 각 액션의 'Executing_action' 개수를 누적하여 반환합니다.
+#     """
+#     count = 0
+#     for plan in plans:
+#         for action in plan.get("actions", []):
+#             count += len(action.get("Executing_action", []))
+#     return count
+
+# def count_subtasks(plans: list) -> int:
+#     """
+#     plans 리스트 내 각 plan의 'subtasks' 개수를 누적하여 반환합니다.
+#     """
+#     count = 0
+#     for plan in plans:
+#         count += len(plan.get("subtasks", []))
+#     return count
+
+def build_summary_entry(file_name: str, data: dict) -> dict:
+    """
+    파일명과 JSON 데이터를 바탕으로 summary 항목을 생성합니다.
+    llm 방식 파일인 경우에는 executing_action_count를, 그렇지 않으면 subtask_count를 계산합니다.
+    """
+    llm_files = {"prog_ai2thor_simulation.json", "cap_ai2thor_simulation.json"}
+    plans = data.get("plans", [])
+    
     entry = {
         "approach_name": file_name,
         "scheduler_makespan": data.get("scheduler_makespan"),
@@ -24,105 +49,102 @@ def build_summary_entry(file_name, data):
         "computation_time": data.get("computation_time"),
         "actionSuccess_rate": data.get("success_rate"),
         "timingSuccess_rate": None,
-        "attempt": data.get("attempt") if file_name in llm_list else "Not related"
+        "attempt": data.get("attempt") if file_name in llm_files else "Not related"
     }
-    # llm 방식의 경우, plan 내 "actions" 리스트의 각 액션에서 "Executing_action"의 수를 누적
-    if file_name in llm_list:
-        executing_action_count = 0
-        for plan in data.get("plans", []):
-            actions = plan.get("actions", [])
-            for action in actions:
-                executing_action_count += len(action.get("Executing_action", []))
-        entry["executing_action_count"] = executing_action_count
-    else:
-        # 그 외 방식은 기존대로 각 plan의 subtasks 수를 누적
-        total_subtasks = 0
-        for plan in data.get("plans", []):
-            subtasks = plan.get("subtasks", [])
-            total_subtasks += len(subtasks)
-        entry["subtask_count"] = total_subtasks
-
+    # 20250331에 필요없다고 판단해서 주석 처리.
+    # if file_name in llm_files:
+    #     entry["executing_action_count"] =  count_executing_actions(plans)
+    # else:
+    #     entry["subtask_count"] =count_subtasks(plans)
+        
     return entry
 
-def make_summary(base_dir):
-    for folder in os.listdir(base_dir):
-        folder_path = os.path.join(base_dir, folder)
-        if not os.path.isdir(folder_path):
+def process_summary_for_task(task_dir: Path) -> None:
+    """
+    각 태스크(폴더) 내 approach 폴더의 시뮬레이션 파일들을 읽어 summary를 작성.
+    모든 baseline의 output파일이 존재하면 summary.json, 그렇지 않으면 summary_insuff.json으로 저장.
+    """
+    approach_dir = task_dir / "approach"
+    metadata_dir = task_dir / "metadata"
+    
+    if not approach_dir.exists():
+        print(f"[Warning] '{approach_dir}' 폴더가 존재하지 않습니다.")
+        return
+
+    simulation_files = list(approach_dir.glob("*_simulation.json"))
+    if len(simulation_files) >= MIN_REQUIRED_SIMULATIONS:
+        summary_filename = "summary.json"
+    else:
+        summary_filename = "summary_insuff.json"
+
+    
+    approach_comparisons = []
+    for sim_file in simulation_files:
+        data = load_simulation_data(sim_file)
+        if not data:
             continue
+        entry = build_summary_entry(sim_file.name, data)
+        approach_comparisons.append(entry)
+    
+    summary_data = {
+        "task": task_dir.name,
+        "approach_comparisons": approach_comparisons
+    }
+    
+    metadata_dir.mkdir(exist_ok=True)
+    summary_file_path = metadata_dir / summary_filename
+    with summary_file_path.open("w", encoding="utf-8") as f:
+        json.dump(summary_data, f, indent=4)
+    print(f"Summary 파일이 '{summary_file_path}'에 저장되었습니다.")
 
-        metadata_dir = os.path.join(folder_path, "metadata")
-        approach_dir = os.path.join(folder_path, "approach")
-        if not os.path.exists(approach_dir):
-            print(f"[Warning] '{approach_dir}' 폴더가 존재하지 않습니다.")
-            continue
-
-        simulation_files = [
-            f for f in os.listdir(approach_dir)
-            if f.endswith("_simulation.json")
-        ]
-
-        summary_filename = (
-            "summary.json"
-            if len(simulation_files) >= MIN_REQUIRED_SIMULATIONS
-            else "summary_insuff.json"
-        )
-
-        approach_comparisons = []
-        for file_name in simulation_files:
-            sim_file_path = os.path.join(approach_dir, file_name)
-            data = load_simulation_data(sim_file_path)
-            if data is None:
-                continue
-            entry = build_summary_entry(file_name, data)
-            approach_comparisons.append(entry)
-
-        # 평균 계산은 average.py에서 처리할 예정이므로 summary에는 각 simulation의 개별 count만 기록
-        summary_data = {
-            "task": folder,
-            "approach_comparisons": approach_comparisons
+def process_metadata_for_task(task_dir: Path) -> None:
+    """
+    각 태스크(폴더) 내 'dag_bayesian_simulation.json' 파일을 기반으로 metadata 파일을 생성.
+    """
+    approach_dir = task_dir / "approach"
+    metadata_dir = task_dir / "metadata"
+    source_file = approach_dir / "dag_bayesian_simulation.json"
+    
+    data = load_simulation_data(source_file)
+    if not data:
+        return
+    
+    # plans가 비어있지 않은 경우 첫 번째 plan에서 plan_name을 추출.
+    instructions = data.get("plans", [{}])[0].get("plan_name") if data.get("plans") else None
+    
+    metadata_data = {
+        "metadata": {
+            "task": task_dir.name,
+            "creation_date": data.get("saved_time"),
+            "instructions": instructions,
+            "model_version": "gpt-4o"
+        },
+        "environment_info": {
+            "simulator": "AI2-THOR",
+            "simulation_version": "4.2.0",
+            "scene": data.get("scene_name"),
+            "gpu": None,
+            "cpu": None,
         }
+    }
+    
+    metadata_dir.mkdir(exist_ok=True)
+    metadata_file_path = metadata_dir / "metadata.json"
+    with metadata_file_path.open("w", encoding="utf-8") as f:
+        json.dump(metadata_data, f, indent=4)
 
-        os.makedirs(metadata_dir, exist_ok=True)
-        summary_file_path = os.path.join(metadata_dir, summary_filename)
-        with open(summary_file_path, "w") as f:
-            json.dump(summary_data, f, indent=4)
-        print(f"Summary 파일이 '{summary_file_path}'에 저장되었습니다.")
-
-def make_metadata(base_dir):
-    for folder in os.listdir(base_dir):
-        folder_path = os.path.join(base_dir, folder)
-        if not os.path.isdir(folder_path):
-            continue
-        metadata_dir = os.path.join(folder_path, "metadata")
-        approach_dir = os.path.join(folder_path, "approach")
-        source_file_name = "dag_bayesian_simulation.json"
-        sim_file_path = os.path.join(approach_dir, source_file_name)
-        data = load_simulation_data(sim_file_path)
-        if data is None:
-            continue
-        metadata_data = {
-            "metadata": {
-                "task": folder,
-                "creation_date": data.get("saved_time"),
-                "instructions": data["plans"][0].get("plan_name") if data.get("plans") else None,
-                "model_version": "gpt-4o"
-            },
-            "environment_info": {
-                "simulator": "AI2-THOR",
-                "simulation_version": "2.7.1",
-                "scene": data.get("scene_name"),
-                "gpu": None,
-                "cpu": None,
-            }
-        }
-        metadata_file_path = os.path.join(metadata_dir, "metadata.json")
-        with open(metadata_file_path, "w") as f:
-            json.dump(metadata_data, f, indent=4)
+def process_tasks(base_dir: Path) -> None:
+    """
+    base_dir 내의 각 태스크(폴더)에 대해 summary와 metadata 처리를 수행.
+    """
+    for task_dir in base_dir.iterdir():
+        if task_dir.is_dir():
+            process_summary_for_task(task_dir)
+            process_metadata_for_task(task_dir)
 
 def main():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    make_summary(base_dir)
-    make_metadata(base_dir)
+    base_dir = Path(__file__).resolve().parent
+    process_tasks(base_dir)
 
 if __name__ == "__main__":
     main()
