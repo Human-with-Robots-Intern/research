@@ -17,7 +17,7 @@ from pygments.lexers import PythonLexer
 from pygments.formatters import TerminalFormatter
 
 import baselines.cap.util.LMPgen as gen
-from utils.result_saver import result_save_llm
+from utils.io_utils.result_saver import result_save_llm
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))

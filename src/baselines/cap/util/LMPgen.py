@@ -9,7 +9,7 @@ import shapely
 import ast
 import astunparse
 from time import sleep
-from utils.util import create_module_logger
+from utils.common.util import create_module_logger
 import os
 from dotenv import load_dotenv
 

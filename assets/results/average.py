@@ -3,7 +3,7 @@ import os
 import math
 
 MIN_REQUIRED_SIMULATIONS = 5
-from utils.util import create_module_logger
+from utils.common.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, module_log=True)
 

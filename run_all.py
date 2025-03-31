@@ -7,7 +7,7 @@ from math import inf
 from pathlib import Path
 
 from src.utils.constants import SCENE_NAME
-from src.utils.result_saver import result_save_llm
+from utils.io_utils.result_saver import result_save_llm
 
 
 def run_with_retries(

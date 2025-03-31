@@ -7,7 +7,7 @@ from ithor.handlers.navigation_handler import build_navigation_graph
 from sim.runner_ai2thor import execute_subtask, init_ai2thor
 from utils import create_module_logger
 from utils.constants import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH, SCENE_NAME
-from utils.result_saver import result_save
+from utils.io_utils.result_saver import result_save
 from utils.task import (
     build_tasks_and_constraints,
     get_init_state,
@@ -15,7 +15,7 @@ from utils.task import (
     list_task_files,
     load_task_data_from_file,
 )
-from utils.task.task_io import load_scene_positions, get_natural_language_from_task_file
+from utils.io_utils.task_io import load_scene_positions, get_natural_language_from_task_file
 from utils.viz.visualizer import visualize
 
 log = create_module_logger(module_name=__name__, module_log=True)

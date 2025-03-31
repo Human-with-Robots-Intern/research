@@ -21,7 +21,7 @@ from utils.constants import (
     PRIMITIVE_ACTION_SET,
 )
 from utils.task.sentence_transformer import SentenceSimilarityModel
-from utils.util import create_module_logger
+from utils.common.util import create_module_logger
 
 load_dotenv()
 log = create_module_logger(__name__, module_log=True)

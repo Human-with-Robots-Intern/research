@@ -5,7 +5,7 @@ import math
 from typing import Callable, Dict, List, Set, Tuple
 import os, sys
 
-from utils.util import create_module_logger
+from utils.common.util import create_module_logger
 from utils.constants import GRID_SIZE
 
 log = create_module_logger(module_name=__name__, module_log=True)

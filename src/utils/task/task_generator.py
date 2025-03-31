@@ -21,7 +21,7 @@ from utils.constants import (
 )
 from utils.task.few_shot_retriever import FewShotRetriever
 from utils.task.sentence_transformer import SentenceSimilarityModel
-from utils.util import create_module_logger
+from utils.common.util import create_module_logger
 
 # Accessing .env file
 load_dotenv()

@@ -11,7 +11,7 @@ from utils.constants import (
     PRIMITIVE_ACTION_SET,
 )
 from utils.sim.math_utils import adjust_if_unreachable
-from utils.util import create_module_logger
+from utils.common.util import create_module_logger
 
 log = create_module_logger(__name__, module_log=True)
 

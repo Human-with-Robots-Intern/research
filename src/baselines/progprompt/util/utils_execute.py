@@ -9,7 +9,7 @@ import time
 import re
 
 from openai import OpenAI
-from utils.util import create_module_logger
+from utils.common.util import create_module_logger
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
 from ithor.handlers.arm_handler import ArmHandler

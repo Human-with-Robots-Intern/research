@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from sim.runner_ai2thor import execute_subtask
-from utils.result_saver import result_save
+from utils.io_utils.result_saver import result_save
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent  # 프로젝트 루트 경로
 ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
@@ -32,7 +32,7 @@ from utils.viz.make_gantt import gantt_chart
 from scheduler.dataclass import CompletedEntry, SchedulerState
 from utils.dataclass import SimulationNode
 from core.task import Subtask, Execution, Duration
-from utils.task.task_io import get_natural_language_from_task_file, list_task_files, get_user_task_choice, load_task_data_from_file
+from utils.io_utils.task_io import get_natural_language_from_task_file, list_task_files, get_user_task_choice, load_task_data_from_file
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState):

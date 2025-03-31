@@ -3,7 +3,7 @@ import math
 from core.task import Subtask
 from scheduler.dataclass import Candidate, SimulationNode, TimeSlot
 from utils.constants import SIMULATION_DEPTH
-from utils.util import create_module_logger
+from utils.common.util import create_module_logger
 
 log = create_module_logger(__name__, module_log=True)
 

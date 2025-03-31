@@ -22,7 +22,7 @@ from utils.constants import (
     RESET,
 )
 from utils.task.task_util import make_monitoring_subtask
-from utils.util import create_module_logger
+from utils.common.util import create_module_logger
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
