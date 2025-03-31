@@ -239,7 +239,7 @@ class TaskUtil:
         similar_subtask = (
             bayesian_keys[idx].lower()
             if best_score >= similarity_threshold
-            else subtask.name
+            else subtask.name.lower()
         )
 
         # bayesian_load 갱신
