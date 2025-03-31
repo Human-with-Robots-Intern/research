@@ -1,7 +1,7 @@
 from ai2thor.controller import Controller
 
 from ithor.handlers.action import Action
-from src.utils.common.logger import create_module_logger
+from src.utils.common import create_module_logger
 from src.utils.config.constants import (
     GRID_SIZE,
     SCENE_NAME,

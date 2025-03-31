@@ -49,6 +49,7 @@ def get_user_task_choice(
                 print(f"Invalid choice. Please select between 0 and {len(task_files)}.")
         except ValueError as exc:
             print(f"Invalid input. Please enter a number. Error: {exc}")
+        choice = None
 
 
 def load_task_data_from_file(task_file_name: str) -> dict:

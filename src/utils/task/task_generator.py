@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 import openai
 from dotenv import load_dotenv
 
-from utils.common.logger import create_module_logger
+from utils.common import create_module_logger
 from utils.config.constants import PROMPT_FILE_PATH, PROMPT_PATH, TASK_PATH, TOP_K
 from utils.nlp.few_shot_retriever import FewShotRetriever
 from utils.task.task_cache import check_cache, get_cache_key, store_cache
