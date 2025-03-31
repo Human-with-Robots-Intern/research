@@ -1,6 +1,5 @@
 
 import argparse
-import copy
 import heapq
 from typing import List, Optional
 import networkx as nx
@@ -19,7 +18,7 @@ from ithor.utils.math_utils import build_navigation_graph
 from simulation.runner_ai2thor import init_ai2thor
 from utils.config.constants import RESULT_PATH, SCENE_NAME
 from scheduler.action_handler import ActionHandler
-from dataclass import *
+from dataclass import SimulationNode, SchedulerState, CompletedEntry
 from core.task import *
 
 from utils.io_utils.task_io import (
