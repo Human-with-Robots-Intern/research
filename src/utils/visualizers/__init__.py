@@ -9,6 +9,7 @@ from .gantt import (
 )
 from .main_visualizer import load_json_data, main, plot_multi_approach_gantt
 from .union_find import merge_groups
+from .visualizer import visualize
 
 __all__ = [
     "merge_groups",
@@ -19,5 +20,5 @@ __all__ = [
     "visualize_graph",
     "load_json_data",
     "plot_multi_approach_gantt",
-    "main",
+    "visualize",
 ]
