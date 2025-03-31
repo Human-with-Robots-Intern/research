@@ -1,7 +1,27 @@
+"""
+ai2thor_simulation.py
+
+This module provides:
+1. A unified controller initialization function (`init_ai2thor_controller`)
+   that can create an AI2-THOR Controller with default or overridden parameters.
+2. A utility function (`execute_subtask`) to perform a given subtask with primitive actions.
+
+Example usage:
+    from ai2thor_simulation import init_ai2thor_controller, execute_subtask
+
+    controller = init_ai2thor_controller()
+    elapsed_time, success = execute_subtask(controller, subtask_obj)
+"""
+
 from ai2thor.controller import Controller
 
+# Action handler import
 from ithor.handlers.action import Action
-from src.utils.common import create_module_logger
+
+# Logging utility
+from src.utils.common.logger import create_module_logger
+
+# Constants (unify your constants in one place)
 from src.utils.config.constants import (
     GRID_SIZE,
     SCENE_NAME,
@@ -12,99 +32,107 @@ from src.utils.config.constants import (
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
-def init_ai2thor(platform=None):
+def init_ai2thor_controller(
+    scene: str = SCENE_NAME,
+    platform=None,
+    agent_mode: str = "default",
+    mass_threshold: float = 0.04,
+    grid_size: float = GRID_SIZE,
+    movement_gaussian_sigma: float = 0.005,
+    render_depth_image: bool = False,
+    render_instance_segmentation: bool = False,
+    width: int = SCREEN_WIDTH,
+    height: int = SCREEN_HEIGHT,
+    render_third_party_cameras: bool = False,
+    field_of_view: int = 60,
+) -> Controller:
     """
-    Initializes the AI2-THOR controller with specified parameters.
+    Initializes and returns an AI2-THOR controller instance with default or user-defined settings.
+
+    Args:
+        scene (str, optional): Scene name to load. Defaults to SCENE_NAME.
+        platform (str, optional): Platform to use. Defaults to None.
+        agent_mode (str, optional): Agent mode ("default", "locobot", "drone", or "arm"). Defaults to "default".
+        mass_threshold (float, optional): Minimum mass required for objects to be moved. Defaults to 0.04.
+        grid_size (float, optional): Movement grid size (mean for Move Actions). Defaults to GRID_SIZE.
+        movement_gaussian_sigma (float, optional): Movement sigma for Move Actions. Defaults to 0.005.
+        render_depth_image (bool, optional): Whether to render depth images. Defaults to False.
+        render_instance_segmentation (bool, optional): Whether to render instance segmentation. Defaults to False.
+        width (int, optional): Screen width. Defaults to SCREEN_WIDTH.
+        height (int, optional): Screen height. Defaults to SCREEN_HEIGHT.
+        render_third_party_cameras (bool, optional): Whether to render third-party cameras. Defaults to False.
+        field_of_view (int, optional): Camera field of view. Defaults to 60.
 
     Returns:
-        Controller: An instance of the AI2-THOR Controller class.
-
-    Parameters:
-        agentMode (str): The mode of the agent. Options are "default", "locobot", "drone", or "arm".
-        massThreshold (float): The minimum mass for objects to be moved by the physics engine.
-        scene (str): The name of the scene to load.
-        gridSize (float): The mean value for move actions.
-        movementGaussianSigma (float): The sigma value for move actions.
-        renderDepthImage (bool): Whether to render depth images (can be time-consuming).
-        renderInstanceSegmentation (bool): Whether to render instance segmentation (can be time-consuming).
-        width (int): The width of the screen.
-        height (int): The height of the screen.
-        renderThirdPartyCameras (bool): Whether to render third-party cameras.
-        fieldOfView (int): The field of view for the camera.
+        Controller: Configured AI2-THOR Controller.
     """
     controller = Controller(
-        agentMode="default",  # "default", "locobot", "drone", or "arm",
-        massThreshold=0.04,  # 물리 엔진에서 물체를 움직이는 최소 질량
-        scene=SCENE_NAME,  # Scene 이름
-        gridSize=GRID_SIZE,  # Move Actions의 Mean
-        movementGaussianSigma=0.005,  # Move Actions의 Sigma
-        renderDepthImage=False,  # Depth Image 렌더링 여부 (오랜 시간 소요)
-        renderInstanceSegmentation=False,  # Instance Segmentation 렌더링 여부 (오랜 시간 소요)
-        width=SCREEN_WIDTH,
-        height=SCREEN_HEIGHT,
-        renderThirdPartyCameras=False,
-        fieldOfView=60,
+        agentMode=agent_mode,
+        massThreshold=mass_threshold,
+        scene=scene,
+        gridSize=grid_size,
+        movementGaussianSigma=movement_gaussian_sigma,
+        renderDepthImage=render_depth_image,
+        renderInstanceSegmentation=render_instance_segmentation,
+        width=width,
+        height=height,
+        renderThirdPartyCameras=render_third_party_cameras,
+        fieldOfView=field_of_view,
         platform=platform,
     )
 
     return controller
 
 
-def execute_subtask(controller, subtask):
+def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
     """
     Executes a given subtask using the provided AI2-THOR controller.
 
-        controller: An instance of the AI2-THOR controller used to interact with the environment.
-        subtask: A Subtask object containing execution details, including the name, execution plan, and primitive actions.
-
     Args:
-    subtask: Subtask object containing execution details.
+        controller (Controller): An instance of the AI2-THOR Controller used to interact with the environment.
+        subtask: A Subtask object containing execution details,
+                 including the name, execution plan, and primitive actions.
 
     Returns:
-        float: The total elapsed time taken to execute the subtask.
+        tuple[float, bool]:
+            - float: The total elapsed time taken to execute the subtask.
+            - bool: Whether the subtask succeeded (based on last action success).
 
     Raises:
         ValueError: If an invalid action format is encountered in the primitive actions.
-
-    The function performs the following steps:
-    1. Initializes an Action object with the controller and log.
-    2. Skips execution if the subtask name is "Init".
-    3. Logs the subtask name and parses the execution details.
-    4. Iterates over the primitive actions and prints each action.
-    5. Registers objects in the environment if provided in the execution details.
-    6. Maps action types to corresponding AI2-THOR action primitives.
-    7. Executes each primitive action and calculates the total elapsed time.
-    8. Logs the total elapsed time and successful execution of the subtask.
     """
     act = Action(controller)
 
-    # Skip the Init subtask
+    # If the subtask is just for initialization, skip
     if subtask.name == "Init":
-        return 0, None
+        return 0.0, True
 
     log.info(f"Executing Subtask: {subtask.name}")
+
     # Parse execution details
     execution = subtask.execution
     primitive_actions = execution.primitive_actions
-    for action in primitive_actions:
-        print(action)
     objects = execution.objects
 
+    # Optional debugging
+    for action_str in primitive_actions:
+        print(f"[DEBUG] Primitive action: {action_str}")
+
+    # Object registry setup if needed
     object_registry = {}
-
     if objects is not None:
-        for obj_id in objects:
-            ai2thor_obj = list(
-                set(
-                    obj["objectId"]
-                    for obj in controller.step("Pass").metadata["objects"]
-                )
-            )
-            if ai2thor_obj is None:
-                raise (ValueError(f"Object {obj_id} not found in the environment."))
-            object_registry[obj_id] = ai2thor_obj
+        # Force a step so controller metadata is fresh
+        controller.step("Pass")
+        all_obj_ids = {
+            obj["objectId"] for obj in controller.last_event.metadata["objects"]
+        }
 
-    # Define action mapping to ai2thor action primitives
+        for obj_id in objects:
+            if obj_id not in all_obj_ids:
+                raise ValueError(f"Object '{obj_id}' not found in the environment.")
+            object_registry[obj_id] = obj_id  # or store more info if needed
+
+    # Define action mapping to AI2-THOR action primitives
     action_mapping = {
         "NAVIGATE_TO": lambda target_obj: act.move_to(target_obj),
         "GRASP": lambda target_obj: act.pickup(target_obj),
@@ -120,31 +148,29 @@ def execute_subtask(controller, subtask):
         "FILL": lambda target_obj: act.fill(target_obj),
     }
 
-    # Execute each primitive action
-    elapsed_time = 0
+    elapsed_time = 0.0
     is_subtask_success = True
+
+    # Execute each primitive action in sequence
     for action_str in primitive_actions:
-        # Split action into type and target
         parts = action_str.split(" ", 1)
         if len(parts) != 2:
-            log.warning(f"Invalid action format: {action_str}. Skipping.")
+            log.warning(f"Invalid action format: {action_str}.")
             raise ValueError(f"Invalid action format: {action_str}")
 
-        action_type, target_obj_ID = parts
+        action_type, target_obj_id = parts
         if action_type in action_mapping:
-            # 총 걸린시간 계산
-            elapsed_time += action_mapping[action_type](target_obj_ID)
+            elapsed_time += action_mapping[action_type](target_obj_id)
         else:
-            log.warning(
-                f"Unknown action type: {action_type}. Skipping {action_str} in {subtask.name}."
-            )
-                # TODO: log if the last primiive action was successful
-        # e.g., 
-        
-        success = controller.last_event.metadata.get('lastActionSuccess', 'N/A')
-        if success == False:
-            is_subtask_success = False
-        ####
+            log.warning(f"Unknown action type: {action_type}. Skipping.")
+            continue
 
-    log.info(f"{subtask.name}의 걸린시간 = {round(elapsed_time, 2)}")
+        # Check success of the last action
+        success = controller.last_event.metadata.get("lastActionSuccess", "N/A")
+        if success is False:
+            is_subtask_success = False
+
+    log.info(
+        f"Subtask '{subtask.name}' completed. Elapsed time: {round(elapsed_time, 2)}"
+    )
     return elapsed_time, is_subtask_success

@@ -4,7 +4,7 @@ import time
 from core.agent import Agent
 from core.scheduler import Scheduler
 from ithor.handlers.navigation_handler import build_navigation_graph
-from simulation.runner_ai2thor import execute_subtask, init_ai2thor
+from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from utils.common import create_module_logger
 from utils.config import BEAM_WIDTH, LOG_ROUND, SCENE_NAME, SIMULATION_DEPTH
 from utils.io_utils import (
@@ -61,7 +61,7 @@ def main():
     approach_name = "dag_bayesian"
 
     # Set up the AI2-THOR controller and navigation graph
-    controller = init_ai2thor()
+    controller = init_ai2thor_controller()
     nav_graph = build_navigation_graph(controller)
     scene_name = SCENE_NAME
     scene_poses = load_scene_positions(f"{scene_name}_positions.json")
