@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from utils.constants import KNOWLEDGE_PATH, TASK_PATH
+from utils.constants import KNOWLEDGE_PATH, TASK_PATH, ROOT_PATH
 from utils.task.task_generator import generate_task
 
 
@@ -126,7 +126,7 @@ def get_user_task_choice(
             if choice == 0:
                 return generate_task(is_rag)
             elif 1 <= choice <= len(task_files):
-                return task_files[choice - 1].name
+                return task_files[choice - 1].name, choice
             else:
                 print(
                     f"Invalid choice. Please select a number between 0 and {len(task_files)}."
@@ -166,3 +166,28 @@ def load_scene_positions(
     for key, value in scene_positions.items():
         scene_positions[key] = tuple(value)
     return scene_positions
+
+def get_natural_language_from_task_file(task_file_name: int, task_json_path=None) -> str:
+    """
+    task_file_name에 해당하는 자연어 설명을 반환한다.
+    기본 경로는 root/assets/tasks/task_natural_languages.json
+
+    Args:
+        task_file_name (int): task 번호 (예: 1, 2, ...)
+        task_json_path (str or Path, optional): JSON 파일 경로
+
+    Returns:
+        str: 해당 task에 대한 자연어 설명
+    """
+    if task_json_path is None:
+     
+        task_json_path = ROOT_PATH / "assets" / "tasks" / "task_natural_languages.json"
+    else:
+        task_json_path = Path(task_json_path)
+
+    with task_json_path.open("r") as f:
+        task_nl_map = json.load(f)
+
+    # int 키를 문자열로 변환하여 검색
+    key = str(task_file_name)
+    return task_nl_map.get(key, "[Unknown Task]")
