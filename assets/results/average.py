@@ -1,33 +1,32 @@
 import json
-import os
 import math
+import os
 
 MIN_REQUIRED_SIMULATIONS = 5
-from archive.util import create_module_logger
+from src.utils.common import create_module_logger
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
+
 def load_summary_data(file_path):
     try:
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception as e:
+    except (FileNotFoundError, PermissionError, json.JSONDecodeError) as e:
         print(f"[Error] 파일 읽기 실패: {file_path} - {e}")
         return None
 
+
 def make_average(base_dir):
     # llm_list에 해당하는 approach들은 attempt 평균 및 executing_action_count 평균을 계산함
-    llm_list = [
-        "prog_ai2thor_simulation.json",
-        "cap_ai2thor_simulation.json"
-    ]
+    llm_list = ["prog_ai2thor_simulation.json", "cap_ai2thor_simulation.json"]
     # scheduler_makespan을 계산할 approach 목록 (DAG 방식)
     dag_list = [
         "dag_bayesian_simulation.json",
         "cpm_simulation.json",
-        "dag_edf_simulation.json"
+        "dag_edf_simulation.json",
     ]
-    
+
     # 각 approach별로 집계할 지표의 합계와 카운트를 저장하는 dict 초기화
     metrics = {}
 
@@ -70,7 +69,7 @@ def make_average(base_dir):
                     "subtask_count_sum": 0.0,
                     "subtask_count_count": 0,
                     "executing_action_count_sum": 0.0,
-                    "executing_action_count_count": 0
+                    "executing_action_count_count": 0,
                 }
 
             # 내부 함수: 값이 None 또는 무한대(inf)인 경우 제외하고 집계
@@ -87,13 +86,29 @@ def make_average(base_dir):
                 metrics[approach][count_key] += 1
 
             # 기존 지표 집계
-            accumulate(entry.get("simulation_makespan"), "simulation_makespan_sum", "simulation_makespan_count")
-            accumulate(entry.get("actionSuccess_rate"), "actionSuccess_rate_sum", "actionSuccess_rate_count")
-            accumulate(entry.get("computation_time"), "computation_time_sum", "computation_time_count")
-            
+            accumulate(
+                entry.get("simulation_makespan"),
+                "simulation_makespan_sum",
+                "simulation_makespan_count",
+            )
+            accumulate(
+                entry.get("actionSuccess_rate"),
+                "actionSuccess_rate_sum",
+                "actionSuccess_rate_count",
+            )
+            accumulate(
+                entry.get("computation_time"),
+                "computation_time_sum",
+                "computation_time_count",
+            )
+
             if approach in dag_list:
-                accumulate(entry.get("scheduler_makespan"), "scheduler_makespan_sum", "scheduler_makespan_count")
-            
+                accumulate(
+                    entry.get("scheduler_makespan"),
+                    "scheduler_makespan_sum",
+                    "scheduler_makespan_count",
+                )
+
             # LLM approach인 경우, attempt가 숫자면 리스트에 추가
             if approach in llm_list:
                 attempt_val = entry.get("attempt")
@@ -105,13 +120,20 @@ def make_average(base_dir):
                             metrics[approach]["attempt_values"].append(parsed_val)
                     except ValueError:
                         log.debug(f"ValueErrot: {ValueError}")
-                 
 
             # subtask_count 및 executing_action_count 집계
             if "subtask_count" in entry:
-                accumulate(entry.get("subtask_count"), "subtask_count_sum", "subtask_count_count")
+                accumulate(
+                    entry.get("subtask_count"),
+                    "subtask_count_sum",
+                    "subtask_count_count",
+                )
             if "executing_action_count" in entry:
-                accumulate(entry.get("executing_action_count"), "executing_action_count_sum", "executing_action_count_count")
+                accumulate(
+                    entry.get("executing_action_count"),
+                    "executing_action_count_sum",
+                    "executing_action_count_count",
+                )
 
     # 각 approach별로 평균 계산 (집계된 simulation 수가 MIN_REQUIRED_SIMULATIONS 이상인 경우)
     results = {}
@@ -120,26 +142,34 @@ def make_average(base_dir):
 
         # simulation_makespan
         if vals["simulation_makespan_count"] >= MIN_REQUIRED_SIMULATIONS:
-            result["simulation_makespan_average"] = vals["simulation_makespan_sum"] / vals["simulation_makespan_count"]
+            result["simulation_makespan_average"] = (
+                vals["simulation_makespan_sum"] / vals["simulation_makespan_count"]
+            )
         else:
             result["simulation_makespan_average"] = None
 
         # actionSuccess_rate
         if vals["actionSuccess_rate_count"] >= MIN_REQUIRED_SIMULATIONS:
-            result["actionSuccess_rate_average"] = vals["actionSuccess_rate_sum"] / vals["actionSuccess_rate_count"]
+            result["actionSuccess_rate_average"] = (
+                vals["actionSuccess_rate_sum"] / vals["actionSuccess_rate_count"]
+            )
         else:
             result["actionSuccess_rate_average"] = None
 
         # computation_time
         if vals["computation_time_count"] >= MIN_REQUIRED_SIMULATIONS:
-            result["computation_time_average"] = vals["computation_time_sum"] / vals["computation_time_count"]
+            result["computation_time_average"] = (
+                vals["computation_time_sum"] / vals["computation_time_count"]
+            )
         else:
             result["computation_time_average"] = None
 
         # scheduler_makespan (DAG approach에만)
         if approach in dag_list:
             if vals["scheduler_makespan_count"] >= MIN_REQUIRED_SIMULATIONS:
-                result["scheduler_makespan_average"] = vals["scheduler_makespan_sum"] / vals["scheduler_makespan_count"]
+                result["scheduler_makespan_average"] = (
+                    vals["scheduler_makespan_sum"] / vals["scheduler_makespan_count"]
+                )
             else:
                 result["scheduler_makespan_average"] = None
 
@@ -158,13 +188,18 @@ def make_average(base_dir):
 
         # subtask_count 평균 (비-LLM approach or 일부 LLM에서 함께 쓸 수도 있음)
         if vals["subtask_count_count"] >= MIN_REQUIRED_SIMULATIONS:
-            result["subtask_count_average"] = vals["subtask_count_sum"] / vals["subtask_count_count"]
+            result["subtask_count_average"] = (
+                vals["subtask_count_sum"] / vals["subtask_count_count"]
+            )
         else:
             result["subtask_count_average"] = None
 
         # executing_action_count 평균 (LLM approach에서 사용)
         if vals["executing_action_count_count"] >= MIN_REQUIRED_SIMULATIONS:
-            result["executing_action_count_average"] = vals["executing_action_count_sum"] / vals["executing_action_count_count"]
+            result["executing_action_count_average"] = (
+                vals["executing_action_count_sum"]
+                / vals["executing_action_count_count"]
+            )
         else:
             result["executing_action_count_average"] = None
 
@@ -179,9 +214,11 @@ def make_average(base_dir):
     except Exception as e:
         print(f"[Error] 결과 파일 저장 실패: {e}")
 
+
 def main():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     make_average(base_dir)
+
 
 if __name__ == "__main__":
     main()

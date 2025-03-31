@@ -1,0 +1,34 @@
+{
+    "saved_time": "2025-03-31 15:14",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "plan_name": "2025-03-31_15_13_28_wash_a_dish_twice.json",
+            "subtasks": [
+                {
+                    "subtask_name": "Wash the Plate_part_1",
+                    "start_time_simulation": 0,
+                    "end_time_simulation": 17.7,
+                    "start_time_scheduled": 0,
+                    "end_time_scheduled": 15.1,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Wash the Plate_part_2",
+                    "start_time_simulation": 17.7,
+                    "end_time_simulation": 29.1,
+                    "start_time_scheduled": 15.1,
+                    "end_time_scheduled": 24.5,
+                    "execution_status": true
+                }
+            ]
+        }
+    ],
+    "computation_time": 0.01077,
+    "simulation_makespan": 29.1,
+    "scheduler_makespan": 24.5,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate": null
+}
