@@ -1,7 +1,7 @@
 import json
 import math
 from pathlib import Path
-from utils.util import create_module_logger
+from utils.common import create_module_logger
 
 MIN_REQUIRED_SIMULATIONS = 5
 log = create_module_logger(module_name=__name__, module_log=True)

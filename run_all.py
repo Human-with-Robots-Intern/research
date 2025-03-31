@@ -5,9 +5,7 @@ import subprocess
 import time
 from pathlib import Path
 from itertools import product
-
-from src.utils.result_saver import result_save_llm
-from src.utils.constants import SCENE_NAME
+from src.utils.config.constants import SCENE_NAME
 
 def run_with_retries(script: Path, input_str: str, max_retries: int = 10) -> tuple[bool, int]:
     """

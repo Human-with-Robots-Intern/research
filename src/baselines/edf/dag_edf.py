@@ -1,13 +1,12 @@
 
 import argparse
-import copy
 import heapq
 from typing import List, Optional
 import networkx as nx
 import heapq
 import time
 from pathlib import Path
-from sim.runner_ai2thor import execute_subtask
+from simulation.runner_ai2thor import execute_subtask
 
 from utils.io_utils.result_saver import result_save
 
@@ -16,21 +15,22 @@ PROJECT_ROOT = (
 )  # 프로젝트 루트 경로
 ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 from ithor.utils.math_utils import build_navigation_graph
-from sim.runner_ai2thor import init_ai2thor
-from utils.task import load_scene_positions
-from utils.constants import SCENE_NAME
+from simulation.runner_ai2thor import init_ai2thor
+from utils.config.constants import RESULT_PATH, SCENE_NAME
 from scheduler.action_handler import ActionHandler
-from utils.constants import SCENE_NAME
-from utils.dataclass import SimulationNode
+from dataclass import SimulationNode, SchedulerState, CompletedEntry
+from core.task import *
+
 from utils.io_utils.task_io import (
+    load_scene_positions,
     get_natural_language_from_task_file,
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file,
 )
-from utils.task import load_scene_positions
-from utils.task.task_util import build_tasks_and_constraints
-from utils.viz.make_gantt import gantt_chart
+
+from utils.task.task_util import TaskUtil
+from utils.visualizers.gantt import plot_completed_subtasks_gantt
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState):
@@ -524,11 +524,15 @@ def main():
     task_files = list_task_files()
     task_file_name , choice= get_user_task_choice(task_files)
     task_data = load_task_data_from_file(task_file_name)
-    input_natural_language = get_natural_language_from_task_file(f"{choice}")
+    input_natural_language = (
+        get_natural_language_from_task_file(f"{choice}")
+        if choice is not None
+        else Path(task_file_name).stem
+    )
 
     # Build tasks and constraints
 
-    subtasks, constraints = build_tasks_and_constraints(task_data, True)
+    subtasks, constraints = TaskUtil.build_tasks_and_constraints(task_data, True)
 
     computation_time = 0
     current_state = get_init_state(subtasks, constraints, scene_poses)
@@ -559,42 +563,47 @@ def main():
     result_schedule.pop(0)
     # completed_Entry 객체를 Subtask객체로 변환.
     # start_time과 end_time을 추출해서 Subtask 객체 안에 저장.
-    gantt_chart(result_schedule, input_natural_language)
 
-    result_schedule_with_time =[]
+    output_path = RESULT_PATH / input_natural_language / "metadata"
+    output_path.mkdir(parents=True, exist_ok=True)
+    gantt_path = output_path/"edf_gantt"
+
+    plot_completed_subtasks_gantt(result_schedule, gantt_path)
+
+
 
     if args.simulation:
         approach_name = f"{approach_name}_simulation"
         i = 0
         current_time = 0
 
-        for st in result_schedule:
-            st.subtask.start_time_scheduled = st.start_time
-            st.subtask.end_time_scheduled = st.end_time
+        for ce in result_schedule:
+            ce.subtask.start_time_scheduled = ce.start_time
+            ce.subtask.end_time_scheduled = ce.end_time
 
-            st.subtask.start_time_simulation = current_time
+            ce.subtask.start_time_simulation = current_time
             # Wait 과 Navigate는 실제 시뮬레이션
-            if st.subtask.type == "WAIT" or st.subtask.type == "NAVIGATE":
-                st.subtask.end_time_simulation = (
-                    current_time + st.subtask.duration.interval
+            if ce.subtask.type == "WAIT" or ce.subtask.type == "NAVIGATE":
+                ce.subtask.end_time_simulation = (
+                    current_time + ce.subtask.duration.interval
                 )
-                current_time += st.subtask.duration.interval
+                current_time += ce.subtask.duration.interval
             else:
-                st.subtask.end_time_simulation = (
+                ce.subtask.end_time_simulation = (
                     current_time + simulation_subtask_times[i]
                 )
                 current_time += simulation_subtask_times[i]
                 i += 1
 
-            result_schedule_with_time.append(st.subtask)
+
 
         result_args = {
             "task_name": input_natural_language,
             "approach_name": approach_name,
-            "result_schedule": result_schedule_with_time,
+            "result_schedule": result_schedule,
             "computation_time": computation_time,
             "scene_name": scene_name,
-            "simulationTime": None,
+            # "simulationTime": None,
         }
 
         result_save(**result_args)
