@@ -1,26 +1,23 @@
-from datetime import datetime
 import json
-from math import inf
 import subprocess
 import time
-from pathlib import Path
+from datetime import datetime
 from itertools import product
+from pathlib import Path
 
-from src.utils.result_saver import result_save_llm
-from src.utils.constants import SCENE_NAME
+from src.utils.config.constants import SCENE_NAME
 
-def run_with_retries(script: Path, input_str: str, max_retries: int = 10) -> tuple[bool, int]:
+
+def run_with_retries(
+    script: Path, input_str: str, max_retries: int = 10
+) -> tuple[bool, int]:
     """
     주어진 스크립트를 최대 max_retries 회까지 재시도하며 실행합니다.
     성공하면 (True, 시도 횟수), 실패하면 (False, 마지막 시도 횟수)를 반환합니다.
     """
     for attempt in range(1, max_retries + 1):
         print(f"Running {script} (Attempt {attempt})...")
-        result = subprocess.run(
-            ["python", str(script)],
-            input=input_str,
-            text=True
-        )
+        result = subprocess.run(["python", str(script)], input=input_str, text=True)
         if result.returncode == 0:
             return True, attempt
         elif attempt < max_retries:
@@ -28,13 +25,20 @@ def run_with_retries(script: Path, input_str: str, max_retries: int = 10) -> tup
             time.sleep(2)  # 짧은 대기 시간 후 재시도
     return False, attempt  # 모든 시도 실패
 
+
 def process_retry_script(script: Path, instruction: str) -> None:
     """
     재시도가 필요한 스크립트를 실행하고 결과 JSON 파일에 attempt 값을 기록하거나,
     모든 시도 실패 시 더미 데이터를 생성합니다.
     """
     approach = script.stem  # 파일명에서 확장자 제거
-    json_path = Path("assets") / "results" / instruction / "approach" / f"{approach}_simulation.json"
+    json_path = (
+        Path("assets")
+        / "results"
+        / instruction
+        / "approach"
+        / f"{approach}_simulation.json"
+    )
     input_str = f"{instruction}\n"
 
     success, attempt = run_with_retries(script, input_str, max_retries=10)
@@ -61,7 +65,7 @@ def process_retry_script(script: Path, instruction: str) -> None:
             "success_rate": 0,
             "scheduler_makespan": None,
             "simulation_makespan": "Inf",
-            "realworld_makespan": None
+            "realworld_makespan": None,
         }
         try:
             with json_path.open("r", encoding="utf-8") as f:
@@ -72,17 +76,15 @@ def process_retry_script(script: Path, instruction: str) -> None:
     with json_path.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
+
 def process_normal_script(script: Path, instruction: str, index: int) -> None:
     """
     재시도 대상이 아닌 스크립트를 단순 실행합니다.
     """
     print(f"Running {script}...")
     input_str = f"{index}\n"
-    subprocess.run(
-        ["python", str(script)],
-        input=input_str,
-        text=True
-    )
+    subprocess.run(["python", str(script)], input=input_str, text=True)
+
 
 def main() -> None:
     scripts = [
@@ -90,13 +92,13 @@ def main() -> None:
         Path("src/baselines/cap/cap_ai2thor.py"),
         Path("src/dag_bayesian.py"),
         Path("src/baselines/cpm.py"),
-        Path("src/baselines/edf/dag_edf.py")
+        Path("src/baselines/edf/dag_edf.py"),
     ]
 
     # 재시도 대상 (LLM 방식) 스크립트 집합
     llm_scripts = {
         Path("src/baselines/progprompt/prog_ai2thor.py"),
-        Path("src/baselines/cap/cap_ai2thor.py")
+        Path("src/baselines/cap/cap_ai2thor.py"),
     }
 
     instructions = {
@@ -129,7 +131,7 @@ def main() -> None:
         27: "heat_potato_using_microwave_and_wash_two_plates_and_place_book_on_shelf",
         28: "organize_the_vegetables_and_wash_dishes",
         29: "store_vegetables_and_book_dispose_of_paper_towel",
-        30: "cook_egg_fry_and_make_coffee_and_wash_dishes"
+        30: "cook_egg_fry_and_make_coffee_and_wash_dishes",
     }
 
     num_runs_per_instruction = 1
@@ -142,6 +144,7 @@ def main() -> None:
             process_retry_script(script, instruction)
         else:
             process_normal_script(script, instruction, i)
+
 
 if __name__ == "__main__":
     main()

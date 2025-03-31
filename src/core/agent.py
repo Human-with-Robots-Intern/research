@@ -9,8 +9,8 @@ import numpy as np
 from core.dataclass import SchedulerState
 from scheduler.constraint_handler import ConstraintHandler
 from utils.common import create_module_logger
-from utils.config.constants import KNOWLEDGE_PATH
-from utils.nlp.sentence_transformer import SentenceSimilarityModel
+from utils.config import KNOWLEDGE_PATH
+from utils.nlp import SentenceSimilarityModel
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
