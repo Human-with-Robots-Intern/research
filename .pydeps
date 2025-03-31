@@ -1,0 +1,23 @@
+[pydeps]
+max_bacon = 1
+no_show = True
+verbose = 0
+pylib = False
+exclude =
+    os
+    re
+    sys
+    collections
+    __future__
+    typing
+    logging
+    copy
+    json
+    time
+    math
+    pathlib
+    argparse
+    functools
+    itertools
+    tests
+    config

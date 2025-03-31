@@ -48,6 +48,3 @@ OBJECT_INTERESTS = {
         # "receptacleObjectIds",
     ],
 }
-
-# utils.py
-OBJECTS_INFO_PATH = "data/knowledges"

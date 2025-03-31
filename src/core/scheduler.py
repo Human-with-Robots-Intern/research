@@ -1,19 +1,14 @@
 import copy
 import itertools
-import math
 from queue import PriorityQueue
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
+from core.dataclass import Candidate, CompletedEntry, SchedulerState, SimulationNode
 from core.task import Duration, Execution, Subtask
 from scheduler import ConstraintHandler, HeuristicManager
 from scheduler.action_handler import ActionHandler
-from scheduler.dataclass import (
-    Candidate,
-    CompletedEntry,
-    SchedulerState,
-    SimulationNode,
-)
-from utils.constants import (
+from utils.common import create_module_logger
+from utils.config import (
     BAYESIAN_CRITERIA,
     EPSILON,
     MONITORING_DURATION,
@@ -21,8 +16,7 @@ from utils.constants import (
     RED,
     RESET,
 )
-from utils.task.task_util import make_monitoring_subtask
-from utils.util import create_module_logger
+from utils.task import TaskUtil
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -556,9 +550,9 @@ class Scheduler:
         remain_sub.execution.primitive_actions = post_actions_info.get_actions()
         remain_sub.duration.interval = post_actions_info.results[-1].time_used
         remain_sub.decomposed = True
-        
+
         monitoring_target_obj = list(critical_constraint_start_sub_objs.keys())[-1]
-        mon_sub = make_monitoring_subtask(
+        mon_sub = TaskUtil.create_monitoring_subtask(
             name=deadline_sub_name, obj=monitoring_target_obj
         )
 
@@ -746,7 +740,9 @@ class Scheduler:
             temporal_constraints=None,
         )
 
-        mon_sub = make_monitoring_subtask(name=candidate.subtask.name, obj=target_obj)
+        mon_sub = TaskUtil.create_monitoring_subtask(
+            name=candidate.subtask.name, obj=target_obj
+        )
 
         new_remain = [r for r in curr_state.remaining_subtasks]
         new_remain.extend([mon_sub])

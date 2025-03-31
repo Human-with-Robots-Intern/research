@@ -1,17 +1,16 @@
 import json
 import math
 import re
-import time
 from typing import Any, Dict, List, Optional
 
 import networkx as nx
 import numpy as np
 
+from core.dataclass import SchedulerState
 from scheduler.constraint_handler import ConstraintHandler
-from scheduler.dataclass import SchedulerState
-from utils import KNOWLEDGE_PATH, create_module_logger
-from utils.task import task_util
-from utils.task.sentence_transformer import SentenceSimilarityModel
+from utils.common import create_module_logger
+from utils.config.constants import KNOWLEDGE_PATH
+from utils.nlp.sentence_transformer import SentenceSimilarityModel
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -294,13 +293,11 @@ class Agent:
         bayesian_estimate_dict = self._load_knowledge("bayesian_estimate.json")
         ground_truth_dict = self._load_knowledge("bayesian_ground_truth.json")
 
-        #dictionary의 key를 전부 lowercase로 변경. 
+        # dictionary의 key를 전부 lowercase로 변경.
         bayesian_estimate_dict = {
             k.lower(): v for k, v in bayesian_estimate_dict.items()
         }
-        ground_truth_dict = {
-            k.lower(): v for k, v in ground_truth_dict.items()
-        }
+        ground_truth_dict = {k.lower(): v for k, v in ground_truth_dict.items()}
 
         # 3) 문장 유사도 모델로 실제 known_sub_name 결정
         known_sub_name = self._call_sentence_sim_model(
@@ -343,13 +340,11 @@ class Agent:
                         "Monitoring target sub does not have any critical subs"
                     )
                 max_critical = max(critical_slots, key=lambda x: x.interval)
-                critical_start_sub_name, max_critical_interval = (
-                    max_critical.related_subtask_name,
-                    max_critical.interval,
-                )
+                critical_start_sub_name = max_critical.related_subtask_name
+
                 critical_start_sub_end_time = next(
                     (
-                        ce.end_time                 
+                        ce.end_time
                         for ce in state.completed_subtasks
                         if ce.subtask.name == critical_start_sub_name
                     ),
@@ -418,8 +413,8 @@ class Agent:
             },
         )
         monitored_subtask = {
-            "updated_subtask_name":critical_start_sub_name,
-            "original_expected_time":prior_mean,
-            "updated_expected_time":posterior_mean
+            "updated_subtask_name": critical_start_sub_name,
+            "original_expected_time": prior_mean,
+            "updated_expected_time": posterior_mean,
         }
-        return state , monitored_subtask
+        return state, monitored_subtask

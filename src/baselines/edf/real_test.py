@@ -1,21 +1,19 @@
-import heapq
-import json
-from typing import List, Optional, Tuple
-import networkx as nx
-import matplotlib.pyplot as plt
-import os
 import copy
 import heapq
+import json
+import os
+from typing import List, Optional, Tuple
+
+import matplotlib.pyplot as plt
+import networkx as nx
 
 from ithor.utils.math_utils import build_navigation_graph
-
-from utils.runner_ai2thor import execute_subtask, init_ai2thor, load_scene_positions
-
 from utils.action_handler import ActionHandler
-from utils.task_util import build_tasks_and_constraints
+from utils.dataclass import Candidate, CompletedEntry, SchedulerState, SimulationNode
 from utils.make_gantt import plot_gantt_chart
-from utils.dataclass import SimulationNode, Candidate, CompletedEntry, SchedulerState
-from utils.task import Subtask, Execution, Duration
+from utils.runner_ai2thor import execute_subtask, init_ai2thor, load_scene_positions
+from utils.task import Duration, Execution, Subtask
+from utils.task_util import build_tasks_and_constraints
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState):

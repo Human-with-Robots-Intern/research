@@ -1,11 +1,12 @@
 import time
-from utils import create_module_logger
 
-from utils.constants import SMOOTH_LEVEL
+from ithor.utils.constants import SMOOTH_LEVEL
+from src.utils.common import create_module_logger
+
 from .navigation_handler import NavigationHandler
 
-
 log = create_module_logger(module_name=__name__, module_log=True)
+
 
 class Action:
     """
@@ -25,7 +26,6 @@ class Action:
         self.controller = controller
         self.navi = NavigationHandler(controller)
 
-
     def success_log(self, result, action: str):
         """
         Log the result of an action.
@@ -37,7 +37,9 @@ class Action:
         if result.metadata["lastActionSuccess"]:
             log.debug(f"{action}: success")
         else:
-            log.debug(f"{action}: failure. {result.metadata['errorMessage']}")
+            log.debug(
+                f"{action}: failure. {result.metadata.get('errorMessage', 'Unknown error')}"
+            )
 
     def get_parent_receptacle(self, object_id: str):
         """
@@ -49,18 +51,14 @@ class Action:
         Returns:
             The parent receptacle identifier, or None if not found.
         """
-        object_metadata = self.controller.last_event.metadata["objects"]
-        parent_receptacle_ids = None
-
+        object_metadata = self.controller.last_event.metadata.get("objects", [])
         for obj in object_metadata:
-            if obj["objectId"] == object_id:
-                if obj["parentReceptacles"]:
-                    parent_receptacle_ids = obj["parentReceptacles"]
-                    print(parent_receptacle_ids)
-                    break
-
-        if parent_receptacle_ids:
-            return parent_receptacle_ids[0]
+            if obj.get("objectId") == object_id:
+                # parentReceptacles 키가 없을 수도 있으므로 get으로 가져오기
+                parent_receptacle_ids = obj.get("parentReceptacles")
+                if parent_receptacle_ids:
+                    log.debug(f"Found parent receptacles: {parent_receptacle_ids}")
+                    return parent_receptacle_ids[0]
         return None
 
     def pickup(self, object_id: str):
@@ -92,45 +90,48 @@ class Action:
             time.sleep(0.3)
             elapsed_time += 1
             return elapsed_time
-        else:
-            receptacle_id = self.get_parent_receptacle(object_id)
-            if receptacle_id:
-                elapsed_time += self.move_to(receptacle_id)
-                self.open(receptacle_id)
+
+        # 만약 첫 시도에 실패한 경우
+        receptacle_id = self.get_parent_receptacle(object_id)
+        if receptacle_id:
+            elapsed_time += self.move_to(receptacle_id)
+            self.open(receptacle_id)
+            elapsed_time += 1
+            time.sleep(0.5)
+            result = self.controller.step(
+                action="PickupObject",
+                objectId=object_id,
+                forceAction=True,
+                manualInteract=False,
+            )
+            if result.metadata["lastActionSuccess"]:
+                self.close(receptacle_id)
                 elapsed_time += 1
-                time.sleep(0.5)
-                result = self.controller.step(
-                    action="PickupObject",
-                    objectId=object_id,
-                    forceAction=True,
-                    manualInteract=False,
+                log.debug(
+                    f"Pick up action after opening receptacle "
+                    f"{receptacle_id} was successful."
                 )
-                if result.metadata["lastActionSuccess"]:
-                    self.close(receptacle_id)
-                    elapsed_time += 1
-                    log.debug(
-                        f"Pick up action after opening receptacle object was successful: "
-                        f"receptacle object {receptacle_id}"
-                    )
-                    return elapsed_time
-                else:
-                    log.warning(
-                        f"Failed to pick up object {object_id} even after opening the receptacle."
-                    )
-                    elapsed_time += 1
-                    return elapsed_time
+                return elapsed_time
             else:
-                result = self.controller.step(
-                    action="PickupObject",
-                    objectId=object_id,
-                    forceAction=False,
-                    manualInteract=False,
+                log.warning(
+                    f"Failed to pick up object {object_id} even after "
+                    f"opening the receptacle {receptacle_id}."
                 )
-                self.success_log(result, f"pickup {object_id}")
-                self.controller.step(action="Pass")
-                time.sleep(0.3)
                 elapsed_time += 1
                 return elapsed_time
+        else:
+            # Re-try once more (또 한 번 시도)
+            result = self.controller.step(
+                action="PickupObject",
+                objectId=object_id,
+                forceAction=False,
+                manualInteract=False,
+            )
+            self.success_log(result, f"pickup {object_id}")
+            self.controller.step(action="Pass")
+            time.sleep(0.3)
+            elapsed_time += 1
+            return elapsed_time
 
     def slice(self, object_id: str):
         """
@@ -173,7 +174,7 @@ class Action:
         self.success_log(result, f"put {target_id}")
 
         if not result.metadata["lastActionSuccess"]:
-            self.controller.step("MoveBack")
+            self.controller.step(action="MoveBack")
             result = self.controller.step(
                 action="PutObject",
                 objectId=target_id,
@@ -183,7 +184,7 @@ class Action:
             self.success_log(result, f"MoveBack and put {target_id}")
 
         if not self.controller.last_event.metadata["lastActionSuccess"]:
-            self.controller.step("MoveAhead")
+            self.controller.step(action="MoveAhead")
             result = self.controller.step(action="DropHandObject", forceAction=True)
             elapsed_time += 1
             self.success_log(result, "drop")
@@ -200,16 +201,15 @@ class Action:
         Returns:
             float: Elapsed time for the drop action.
         """
-        self.controller.step(action="DropHandObject", forceAction=False)
+        result = self.controller.step(action="DropHandObject", forceAction=False)
         step = 0
-        while not self.controller.last_event.metadata["lastActionSuccess"]:
+        # 여러 번 시도해도 실패할 경우 탈출
+        while not result.metadata["lastActionSuccess"] and step < 10:
             self.controller.step(
                 action="MoveHeldObjectAhead", moveMagnitude=0.1, forceVisible=False
             )
             result = self.controller.step(action="DropHandObject", forceAction=False)
             step += 1
-            if step == 10:
-                break
         self.success_log(result, "drop")
         self.controller.step(action="Pass")
         time.sleep(0.3)
@@ -258,10 +258,12 @@ class Action:
             float: Elapsed time for the open action.
         """
         elapsed_time = 0
+        # 너무 가까우면 열기 실패할 수 있으므로 살짝 뒤로 이동
         for _ in range(2):
-            self.controller.step(action="MoveBack", moveMagnitude=None)
+            self.controller.step(action="MoveBack")
             self.controller.step(action="Pass")
         time.sleep(0.1)
+
         result = self.controller.step(
             action="OpenObject",
             objectId=object_id,
@@ -307,29 +309,38 @@ class Action:
         """
         agent_position = self.navi.get_agent_position()
         object_position = self.navi.get_object_position(object_id)
-        print(f"Monitoring: focusing on {object_id}")
+        log.debug(f"Monitoring: focusing on {object_id}")
+
         obj_angle, degree = self.navi.agent_rotate_angle(
             agent_position, object_position
         )
         result = None
+
         if degree != 0:
+            # 부드럽게 회전
             for _ in range(SMOOTH_LEVEL):
                 result = self.controller.step(
                     action="RotateRight", degrees=degree / SMOOTH_LEVEL
                 )
                 if not result.metadata["lastActionSuccess"]:
+                    # 회전 실패 시 약간 이동 후 재시도
                     self.navi.move_in_direction(-obj_angle, 0.2)
                     result = self.controller.step(
                         action="RotateRight", degrees=degree / SMOOTH_LEVEL
                     )
                 self.controller.step(action="Pass")
+
+        # 카메라 각도 조정
         self.navi.adjust_camera_to_object(object_id)
         self.success_log(result, f"adjust camera to {object_id} for monitoring action")
         time.sleep(2)
+
+        # 원위치로 회전
         if degree != 0:
             for _ in range(SMOOTH_LEVEL):
                 self.controller.step(action="RotateLeft", degrees=degree / SMOOTH_LEVEL)
-        self.controller.step("Pass")
+
+        self.controller.step(action="Pass")
         time.sleep(0.1)
         return 0.1
 
@@ -373,43 +384,61 @@ class Action:
 
         Args:
             object_id (str): The identifier of the target object.
+                            (Optionally can include a stop_time after a space,
+                             e.g., 'Tomato 2.0' -> objectId='Tomato', stop_time=2.0)
 
         Returns:
             float: Elapsed time for the move action.
         """
-        agent_position = self.navi.get_agent_position()
-
+        # stop_time 파라미터가 포함되어 있으면 분리
+        stop_time = None
         if " " in object_id:
-            object_id, stop_time = object_id.split(" ", 1)
+            splits = object_id.split(" ", 1)
+            object_id, stop_time_str = splits[0], splits[1]
+            try:
+                stop_time = float(stop_time_str)
+            except ValueError:
+                stop_time = None
 
+        agent_position = self.navi.get_agent_position()
         object_position = self.navi.get_object_position(object_id)
         path = self.navi.find_shortest_path(agent_position, object_position)
 
         if path:
+            # 첫 좌표는 현재 위치이므로 제거
             path.pop(0)
 
         elapsed_time = 0
         for position in path:
+            # 이동 하나 당 0.1초 정도 소요된다고 가정
             elapsed_time += 0.1
             self.navi.teleport_to_position(position)
-            if "stop_time" in locals() and elapsed_time == float(stop_time):
+
+            # stop_time이 설정되어 있고, elapsed_time이 일정값에 도달하면 중단
+            if stop_time is not None and elapsed_time >= stop_time:
                 break
 
+        # 목표 지점에 도달한 뒤 오브젝트 쪽으로 에이전트 회전
         agent_position = self.navi.get_agent_position()
         obj_angle, degree = self.navi.agent_rotate_angle(
             agent_position, object_position
         )
-        if degree != 0 and "stop_time" not in locals():
+
+        # stop_time이 없을 때에만 최종 회전 진행
+        if degree != 0 and stop_time is None:
             for _ in range(SMOOTH_LEVEL):
                 self.controller.step(
                     action="RotateRight", degrees=degree / SMOOTH_LEVEL
                 )
                 success = self.controller.last_event.metadata["lastActionSuccess"]
                 if not success:
+                    # 회전 실패 시 각도대로 살짝 이동 후 재시도
                     self.navi.move_in_direction(-obj_angle, 0.2)
                     self.controller.step(
                         action="RotateRight", degrees=degree / SMOOTH_LEVEL
                     )
+
+        # 카메라 각도 조정
         self.navi.adjust_camera_to_object(object_id)
         log.debug(f"move to {object_id}")
         self.controller.step(action="Pass")

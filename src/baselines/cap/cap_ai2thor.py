@@ -1,39 +1,37 @@
-import os
-import numpy as np
-import time
-import threading
 import copy
 import logging
+import os
 import sys
+import threading
+import time
+
+import numpy as np
 
 # import for ai2thor
 from ai2thor.controller import Controller
 
-from utils.constants import *
-from ithor.utils.file_utils import *
-
-from pygments import highlight
-from pygments.lexers import PythonLexer
-from pygments.formatters import TerminalFormatter
-
 import baselines.cap.util.LMPgen as gen
-from utils.result_saver import result_save_llm
-
+from ithor.utils.file_utils import *
+from utils.constants import *
+from utils.io_utils.result_saver import result_save_llm
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
+
+from ithor.handlers.action import Action
+
 # setting.json 에 ai2thor 위치 환경변수 추가한 상태로 해야함.
 from ithor.handlers.camera_handler import CameraHandler
 from ithor.handlers.navigation_handler import NavigationHandler
-from ithor.handlers.action import Action
-import time
 
-first_action_time = None 
+first_action_time = None
+
 
 def timed_action(log_file, action_name, action_func, controller):
     """
     원래 action_func를 호출하기 직전/직후로 시간을 측정하고,
     result_save_llm가 파싱할 수 있는 포맷으로 로그를 남기는 래퍼 함수.
     """
+
     def wrapper(*args, **kwargs):
         global first_action_time
         # 액션 시작 로그
@@ -43,7 +41,6 @@ def timed_action(log_file, action_name, action_func, controller):
         if first_action_time is None:
             first_action_time = now
 
-
         start_time = now - first_action_time
         result = action_func(*args, **kwargs)  # 실제 액션 함수 실행
         end_time = time.time() - first_action_time
@@ -52,17 +49,15 @@ def timed_action(log_file, action_name, action_func, controller):
         log_file.write(f"start_time: {round(start_time,2)}\n")
         log_file.write(f"end_time: {round(end_time,2)}\n")
 
-        # 
+        #
         if controller.last_event.metadata["lastActionSuccess"]:
             log_file.write(f"execution_status: {True}\n")
 
         else:
             log_file.write(f"execution_status: {False}\n")
 
-
-        
-
         return result
+
     return wrapper
 
 
@@ -83,7 +78,7 @@ def initialize_controller():
     )
     camera_handler = CameraHandler(controller)
     Navi = NavigationHandler(controller)
-    Act = Action(controller) # log 인자
+    Act = Action(controller)  # log 인자
 
     return controller, camera_handler, Navi, Act
 
@@ -215,14 +210,21 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
         }
     )
 
-
     # 위에서 update된 액션들을 한 번씩 래핑
-    for action_name in ["pickup", "slice", "put", "drop", 
-                        "toggle_on", "toggle_off", "open", "close"]:
+    for action_name in [
+        "pickup",
+        "slice",
+        "put",
+        "drop",
+        "toggle_on",
+        "toggle_off",
+        "open",
+        "close",
+    ]:
         original_func = variable_vars[action_name]
-        variable_vars[action_name] = timed_action(log_file, action_name, original_func, controller)
-
-
+        variable_vars[action_name] = timed_action(
+            log_file, action_name, original_func, controller
+        )
 
     variable_vars.update(
         {
@@ -271,14 +273,17 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
 
     return lmp_scene_ui
 
+
 if __name__ == "__main__":
-    approach_name = "cap_ai2thor_simulation"   
+    approach_name = "cap_ai2thor_simulation"
     user_input = input()
 
-    log_file = open(f"src/baselines/cap/result/cap_logs_{user_input}.txt", "w", buffering=1)
-    controller, camera_handler, Navi, Acttion = initialize_controller()
+    log_file = open(
+        f"src/baselines/cap/result/cap_logs_{user_input}.txt", "w", buffering=1
+    )
+    controller, camera_handler, Navi, Action = initialize_controller()
 
-    lmp_scene_ui = setup_LMP(controller, Navi, Acttion, cfg_scene, log_file)
+    lmp_scene_ui = setup_LMP(controller, Navi, Action, cfg_scene, log_file)
     # toast the bread
     # put tomato in the fridge
     # put egg in the pan : 냉장고 문을 안열고 계란 집음
@@ -289,20 +294,19 @@ if __name__ == "__main__":
     objs = list(
         set(obj["objectType"] for obj in controller.step("Pass").metadata["objects"])
     )
-    cap_log_path =f"src/baselines/cap/result/cap_logs_{user_input}.txt"
+    cap_log_path = f"src/baselines/cap/result/cap_logs_{user_input}.txt"
     computation_time_start = time.time()
     lmp_scene_ui(user_input, objects=f"{objs}")
     # 현재 computaion_time은 시뮬레이션 타임을 포함해서 정확하지 않음. 추후에 llmgeneration 방식의 computation_time을 폐기할 수 있으므로 일단 스킵
     computation_time = time.time() - computation_time_start
     result_path = f"{user_input}"
-    result_args={
+    result_args = {
         "approach_name": approach_name,
         "user_input": user_input,
-        "result_txt":cap_log_path,
-        "json_output_path":result_path,
-        "computation_time":computation_time,
+        "result_txt": cap_log_path,
+        "json_output_path": result_path,
+        "computation_time": computation_time,
         "scene_name": SCENE_NAME,
-
     }
 
     result_save_llm(**result_args)

@@ -14,7 +14,7 @@ def load_summary_data(file_path: Path) -> dict:
     try:
         with file_path.open("r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception as e:
+    except (FileNotFoundError, PermissionError, json.JSONDecodeError) as e:
         print(f"[Error] 파일 읽기 실패: {file_path} - {e}")
         return None
 
@@ -181,9 +181,11 @@ def make_average(base_dir: Path) -> None:
     except Exception as e:
         print(f"[Error] 결과 파일 저장 실패: {e}")
 
+
 def main():
     base_dir = Path(__file__).resolve().parent
     make_average(base_dir)
+
 
 if __name__ == "__main__":
     main()

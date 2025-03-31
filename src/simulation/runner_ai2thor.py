@@ -1,10 +1,13 @@
-import sys
-
 from ai2thor.controller import Controller
 
 from ithor.handlers.action import Action
-from utils.constants import *
-from utils.util import create_module_logger
+from src.utils.common.logger import create_module_logger
+from src.utils.config.constants import (
+    GRID_SIZE,
+    SCENE_NAME,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 
 log = create_module_logger(module_name=__name__, module_log=True)
 

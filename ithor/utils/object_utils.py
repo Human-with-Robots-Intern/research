@@ -1,4 +1,4 @@
-from ..utils.math_utils import calculate_rotation_angle, closest_position
+from .math_utils import calculate_rotation_angle, closest_position
 
 
 # object_utils.py
@@ -62,15 +62,15 @@ def rotate_to_object(controller, object_type):
     controller.step(action="RotateRight", degrees=rotation_angle)
 
 
-def teleport_to_object(controller, object_type):
-    """
-    Teleports the agent close to the specified object type and rotates to face it.
-    """
-    obj = obj_in_scene(controller, object_type)
-    reachable_positions = controller.step(action="GetReachablePositions").metadata[
-        "actionReturn"
-    ]
-    closest_pos = closest_position(obj["position"], reachable_positions)
-    controller.step(action="Teleport", position=closest_pos)
-    rotate_to_object(object_type)
-    return obj["objectId"]
+# def teleport_to_object(controller, object_type):
+#     """
+#     Teleports the agent close to the specified object type and rotates to face it.
+#     """
+#     obj = obj_in_scene(controller, object_type)
+#     reachable_positions = controller.step(action="GetReachablePositions").metadata[
+#         "actionReturn"
+#     ]
+#     closest_pos = closest_position(obj["position"], reachable_positions)
+#     controller.step(action="Teleport", position=closest_pos)
+#     rotate_to_object(controller, object_type)
+#     return obj["objectId"]

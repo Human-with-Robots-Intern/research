@@ -1,25 +1,28 @@
+import math
+import os
 import random
-
-from ai2thor.controller import Controller
-import os ,sys
+import re
+import sys
+import time
 
 import numpy as np
-import math
-import time
-import re
-
+from ai2thor.controller import Controller
 from openai import OpenAI
-from utils.util import create_module_logger
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../")))
+from utils.common import create_module_logger
+
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
+)
+from dotenv import load_dotenv
+
+from ithor.handlers.action import Action
 from ithor.handlers.arm_handler import ArmHandler
 from ithor.handlers.camera_handler import CameraHandler
 from ithor.handlers.interaction_handler import InteractionHandler
 from ithor.handlers.move_handler import MoveHandler
 from ithor.handlers.navigation_handler import NavigationHandler
 
-from ithor.handlers.action import Action
-from dotenv import load_dotenv
 load_dotenv()
 logger = create_module_logger(__name__, module_log=True)
 openai_api_key = os.environ.get("OPENAI_API_KEY")
@@ -27,9 +30,7 @@ if not openai_api_key:
     logger.error("OPENAI_API_KEY not found in environment variables.")
     raise EnvironmentError("OPENAI_API_KEY not found in environment variables.")
 
-client = OpenAI(
-    api_key=openai_api_key
-)
+client = OpenAI(api_key=openai_api_key)
 
 
 def LM(
@@ -396,7 +397,7 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                         # move action
                         elapsed_time += Act.move_to(objID)
                         # move_to 뒤에 바로 오는 log 기록은 살짝 무의미해 보임
-                        
+
                     case "pickup":
                         # pickup action
                         elapsed_time += Act.pickup(objID)

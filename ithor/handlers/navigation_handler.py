@@ -2,8 +2,8 @@ import heapq
 import math
 import time
 
-from utils.constants import SMOOTH_LEVEL
-from utils.sim.math_utils import (
+from ithor.utils.constants import SMOOTH_LEVEL
+from ithor.utils.math_utils import (
     build_navigation_graph,
     closest_position,
     quantize_position,
