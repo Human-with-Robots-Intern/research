@@ -1,38 +1,41 @@
 import argparse
-import heapq
-import json
-from typing import List, Optional, Tuple
-import networkx as nx
-import matplotlib.pyplot as plt
-import os
 import copy
 import heapq
+import json
+import os
 import time
-
 from pathlib import Path
+from typing import List, Optional, Tuple
 
+import matplotlib.pyplot as plt
+import networkx as nx
 from sim.runner_ai2thor import execute_subtask
+
 from utils.io_utils.result_saver import result_save
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent  # 프로젝트 루트 경로
+PROJECT_ROOT = (
+    Path(__file__).resolve().parent.parent.parent.parent
+)  # 프로젝트 루트 경로
 ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 
 
-
-from ithor.utils.math_utils import build_navigation_graph
-
 from sim.runner_ai2thor import init_ai2thor
-from utils.task import load_scene_positions
-from utils.constants import SCENE_NAME
 
-
+from core.dataclass import CompletedEntry, SchedulerState
+from core.task import Duration, Execution, Subtask
+from ithor.utils.math_utils import build_navigation_graph
 from scheduler.action_handler import ActionHandler
+from utils.constants import SCENE_NAME
+from utils.dataclass import SimulationNode
+from utils.io_utils.task_io import (
+    get_natural_language_from_task_file,
+    get_user_task_choice,
+    list_task_files,
+    load_task_data_from_file,
+)
+from utils.task import load_scene_positions
 from utils.task.task_util import build_tasks_and_constraints
 from utils.viz.make_gantt import gantt_chart
-from core.dataclass import CompletedEntry, SchedulerState
-from utils.dataclass import SimulationNode
-from core.task import Subtask, Execution, Duration
-from utils.io_utils.task_io import get_natural_language_from_task_file, list_task_files, get_user_task_choice, load_task_data_from_file
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState):
@@ -384,7 +387,7 @@ def update(
                     type="NAVIGATE",
                     execution=Execution(objects={}, primitive_actions=[nav_action]),
                     duration=Duration(type="NAVIGATE", interval=nav_time),
-                    temporal_constraints=[],                    
+                    temporal_constraints=[],
                 ),
                 start_time=new_current_time,
                 end_time=new_current_time + nav_time,
@@ -420,8 +423,8 @@ def update(
     # -------------------------------
     subtask_entry = CompletedEntry(
         subtask=next_subtask,
-        start_time = new_current_time,
-        end_time = new_current_time + real_exec_time,
+        start_time=new_current_time,
+        end_time=new_current_time + real_exec_time,
     )
     new_current_time += real_exec_time
 
@@ -514,7 +517,7 @@ def parse_arguments():
 def main():
 
     # Set up the AI2-THOR controller and navigation graph
-    approach_name="dag_edf"
+    approach_name = "dag_edf"
     args = parse_arguments()
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
@@ -523,7 +526,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name ,choice= get_user_task_choice(task_files)
+    task_file_name, choice = get_user_task_choice(task_files)
     task_data = load_task_data_from_file(task_file_name)
     input_natural_language = get_natural_language_from_task_file(f"{choice}")
 
@@ -536,7 +539,7 @@ def main():
     result_schedule = []
     simulation_subtask_times = []
     for _ in range(len(subtasks)):
-        #next_subtask는 Subtask 객체이다.
+        # next_subtask는 Subtask 객체이다.
 
         subtask_scheduling_time_start = time.time()
         next_subtask = simulation_edf(current_state, nav_graph)
@@ -550,58 +553,55 @@ def main():
 
         # 현재 시뮬레이션 실행시 schedule된 wait이나 navigate subtask는 단독으로 실행되지 않는다.
         if args.simulation:
-            # 터미널에서 src/baselines/def/dag_edf.py -s 실행시 사용됨  
+            # 터미널에서 src/baselines/def/dag_edf.py -s 실행시 사용됨
 
             subtask_time, execution_status = execute_subtask(controller, next_subtask)
             simulation_subtask_times.append(subtask_time)
 
-    
             next_subtask.execution_status = execution_status
-
-
-    
-    
 
     result_schedule = current_state.completed_subtasks
     result_schedule.pop(0)
-   
 
     gantt_chart(result_schedule, input_natural_language)
     # completed_Entry 객체를 Subtask객체로 변환.
     # start_time과 end_time을 추출해서 Subtask 객체 안에 저장.
-    result_schedule_with_time =[]
+    result_schedule_with_time = []
 
-    if args.simulation: 
+    if args.simulation:
         approach_name = f"{approach_name}_simulation"
         i = 0
-        current_time=0
+        current_time = 0
 
         for st in result_schedule:
             st.subtask.start_time_scheduled = st.start_time
-            st.subtask.end_time_scheduled = st.end_time  
+            st.subtask.end_time_scheduled = st.end_time
 
-
-            st.subtask.start_time_simulation =current_time
-            #Wait 과 Navigate는 실제 시뮬레이션 
+            st.subtask.start_time_simulation = current_time
+            # Wait 과 Navigate는 실제 시뮬레이션
             if st.subtask.type == "WAIT" or st.subtask.type == "NAVIGATE":
-                st.subtask.end_time_simulation = current_time + st.subtask.duration.interval
+                st.subtask.end_time_simulation = (
+                    current_time + st.subtask.duration.interval
+                )
                 current_time += st.subtask.duration.interval
             else:
-                st.subtask.end_time_simulation = current_time + simulation_subtask_times[i]
+                st.subtask.end_time_simulation = (
+                    current_time + simulation_subtask_times[i]
+                )
                 current_time += simulation_subtask_times[i]
                 i += 1
 
             result_schedule_with_time.append(st.subtask)
 
-        result_args={
+        result_args = {
             "task_name": input_natural_language,
-            "approach_name":approach_name,
+            "approach_name": approach_name,
             "result_schedule": result_schedule_with_time,
             "computation_time": computation_time,
             "scene_name": scene_name,
-            "simulationTime": None
+            "simulationTime": None,
         }
-    
+
         result_save(**result_args)
 
 

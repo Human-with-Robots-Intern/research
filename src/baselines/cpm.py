@@ -2,27 +2,24 @@ import argparse
 import heapq
 import json
 import math
-from collections import defaultdict
+import os
+import sys
 import time
+from collections import defaultdict
 from typing import Callable, Dict, List, Set, Tuple
 
 import networkx as nx
-import os, sys
 
-from core.task import Subtask,Execution
+from core.task import Execution, Subtask
 from utils.io_utils import task_io
 
-
-
-
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+from sim.runner_ai2thor import execute_subtask, init_ai2thor
+
 from core.agent import Agent
 from core.scheduler import Scheduler
-from sim.runner_ai2thor import execute_subtask, init_ai2thor
+from ithor.utils.math_utils import adjust_if_unreachable, build_navigation_graph
 from utils import create_module_logger
-from utils.viz.visualizer import visualize
-from utils.io_utils.result_saver import result_save
 from utils.constants import (
     KNOWLEDGE_PATH,
     MONITORING_DURATION,
@@ -31,14 +28,14 @@ from utils.constants import (
     PRIMITIVE_ACTION_SET,
     SCENE_NAME,
 )
+from utils.io_utils.result_saver import result_save
 from utils.task import (
     build_tasks_and_constraints,
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file,
 )
-
-from ithor.utils.math_utils import adjust_if_unreachable, build_navigation_graph
+from utils.viz.visualizer import visualize
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -86,13 +83,13 @@ def main():
     # Set up the AI2-THOR controller and navigation graph
     controller = init_ai2thor()
     nav_graph = build_navigation_graph(controller)
-    scene_name=SCENE_NAME
+    scene_name = SCENE_NAME
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name, choice = get_user_task_choice(task_files ) # already chosen
+    task_file_name, choice = get_user_task_choice(task_files)  # already chosen
     task_data = load_task_data_from_file(task_file_name)
-    
+
     input_natural_language = task_io.get_natural_language_from_task_file(f"{choice}")
 
     # Build tasks and constraints
@@ -110,7 +107,7 @@ def main():
     critical_path, held_object = find_critical_path(
         edges, subtasks, held_object, nav_graph
     )
-    # 스케줄링 실행  
+    # 스케줄링 실행
     shedule_order = schedule_with_cp_priority(edges, critical_path)
 
     # 스케쥴링 끝난 거 앞에서 부터 시간 계산하기. 만약에 dependency가 지켜지지 않으면 wait넣기
@@ -124,31 +121,30 @@ def main():
     for st in result_schedule_with_time:
 
         if args.simulation:
-            # 터미널에서 src/baselines/cpm.py -s 실행시 사용됨           
+            # 터미널에서 src/baselines/cpm.py -s 실행시 사용됨
             subtask_time, execution_status = execute_subtask(controller, st)
             st.start_time_simulation = simulationTime
-            st.end_time_simulation = simulationTime + subtask_time   
-            simulationTime += subtask_time   
-            simulation_subtask_times.append(subtask_time)    
+            st.end_time_simulation = simulationTime + subtask_time
+            simulationTime += subtask_time
+            simulation_subtask_times.append(subtask_time)
             st.execution_status = execution_status
-      
-    
+
     print("total time = ", total_time)
     print("Schedule order with start and end times:")
-    # for st in result_schedule_with_time: 
+    # for st in result_schedule_with_time:
     #     print(f" - {st.name}: {st.start_time_scheduled:.2f} ~ {st.end_time_scheduled:.2f}")
     print("=== Combined single-scheduler with CP priority ===")
     for step in shedule_order:
         print(" -", step)
-    if args.simulation: 
+    if args.simulation:
         approach_name = f"{approach_name}_simulation"
-        result_args={
+        result_args = {
             "task_name": input_natural_language,
-            "approach_name":approach_name,
+            "approach_name": approach_name,
             "result_schedule": result_schedule_with_time,
             "computation_time": computation_time,
             "scene_name": scene_name,
-            "simulationTime": simulationTime
+            "simulationTime": simulationTime,
         }
         result_save(**result_args)
 
@@ -203,7 +199,7 @@ def find_critical_path(edges, subtasks, held_object, nav_graph):
 
 
 def action_duration(action, held_object, nav_graph):
-    scene_name=SCENE_NAME
+    scene_name = SCENE_NAME
     scene_positions = task_io.load_scene_positions(f"{scene_name}_positions.json")
 
     tokens = action.split()
@@ -312,8 +308,8 @@ def subtask_time(subtask, held_object, nav_graph):
     for action in subtask.execution.primitive_actions:
         subtask_time, held_object = action_duration(action, held_object, nav_graph)
         subtask_total_time += subtask_time
-    
-    #action에 걸리는 시간인가?
+
+    # action에 걸리는 시간인가?
 
     return subtask_total_time, held_object
 
@@ -431,7 +427,6 @@ def schedule_with_cp_priority(edges, critical_path):
 
 
 def last_calculte_schedule_and_time(schedule_order, subtasks, held_object, nav_graph):
-
     """
     기존 로직 최대한 유지하되,
     - (1) subtask.start_time, subtask.end_time을 기록
@@ -446,61 +441,89 @@ def last_calculte_schedule_and_time(schedule_order, subtasks, held_object, nav_g
     # subtask 하나 씩 구하기
     for task_name in schedule_order:
         subtask = next(
-            (subtask for subtask in subtasks if subtask.name == task_name),None)
-        
+            (subtask for subtask in subtasks if subtask.name == task_name), None
+        )
+
         for obj in subtask.temporal_constraints:
             if hasattr(obj, "interval") and obj.interval:
                 if obj.interval:
-                    # 앞에서 부터 숫자 더해서 start subtask 까지 더하고 거기에 interval을 추가.                     
+                    # 앞에서 부터 숫자 더해서 start subtask 까지 더하고 거기에 interval을 추가.
                     needed_interval = obj.interval
                     start_subtask_name = obj.subtask
                     # start subtask + interval
                     start_subtask_obj = next(
-                        (s for s in result_schedule_with_time if s.name == start_subtask_name),
-                        None
+                        (
+                            s
+                            for s in result_schedule_with_time
+                            if s.name == start_subtask_name
+                        ),
+                        None,
                     )
-                    #subtask에 end_time이 생겼으므로 직접 가져오는 방식으로 계산한다. 
-                    #earlist_start는 시작 가능한 가장 빠른 시간을 뜻한다.
+                    # subtask에 end_time이 생겼으므로 직접 가져오는 방식으로 계산한다.
+                    # earlist_start는 시작 가능한 가장 빠른 시간을 뜻한다.
                     if start_subtask_obj is not None:
-                        earliest_start = start_subtask_obj.end_time_scheduled + needed_interval
+                        earliest_start = (
+                            start_subtask_obj.end_time_scheduled + needed_interval
+                        )
 
-                        if earliest_start > total_time: 
+                        if earliest_start > total_time:
                             # 현재 total time이랑 비교해서 interval이 더 크면 nav시간 구해서 nav subtask랑 wait subtask 객체를 만들어서 추가.
                             # 선행 시간 제약으로 인해 그 제약 시간동안 이동을 수행하고 시간이 또 남으면 wait을 해야한다는 로직
                             # nav 시간 구하기. schedule_subtask_and_time에 nav_{result_schedule[i]} 넣기
                             nav_time = specific_nav_time(
                                 subtask.execution.primitive_actions[0], nav_graph
                             )
-                            nav_execution_objects=subtask.execution.objects
-                            nav_execution_primitive_actions=subtask.execution.primitive_actions[0]
+                            nav_execution_objects = subtask.execution.objects
+                            nav_execution_primitive_actions = (
+                                subtask.execution.primitive_actions[0]
+                            )
                             if isinstance(nav_execution_primitive_actions, str):
-                                nav_execution_primitive_actions = [nav_execution_primitive_actions] 
-                            nav_execution=Execution(objects=nav_execution_objects, primitive_actions= nav_execution_primitive_actions)
-                            nav_subtask = Subtask(task_name=task_name, name="nav",repetition= 1, type="interaction", execution=nav_execution, duration=nav_time)
-                            
-                            nav_subtask.start_time_scheduled= total_time
-                            nav_subtask.end_time_scheduled = total_time+nav_time
-                            nav_subtask.execution_status=True 
+                                nav_execution_primitive_actions = [
+                                    nav_execution_primitive_actions
+                                ]
+                            nav_execution = Execution(
+                                objects=nav_execution_objects,
+                                primitive_actions=nav_execution_primitive_actions,
+                            )
+                            nav_subtask = Subtask(
+                                task_name=task_name,
+                                name="nav",
+                                repetition=1,
+                                type="interaction",
+                                execution=nav_execution,
+                                duration=nav_time,
+                            )
+
+                            nav_subtask.start_time_scheduled = total_time
+                            nav_subtask.end_time_scheduled = total_time + nav_time
+                            nav_subtask.execution_status = True
                             result_schedule_with_time.append(nav_subtask)
 
                             total_time = nav_subtask.end_time_scheduled
 
                             if nav_time < needed_interval:
                                 wait_time = needed_interval - nav_time
-                                wait_execution = Execution(objects=None, primitive_actions=[f"WAIT {wait_time}"])
-                                wait_subtask=Subtask(task_name=task_name, name="wait", repetition=1,type="interaction", execution=wait_execution, duration= wait_time)
+                                wait_execution = Execution(
+                                    objects=None,
+                                    primitive_actions=[f"WAIT {wait_time}"],
+                                )
+                                wait_subtask = Subtask(
+                                    task_name=task_name,
+                                    name="wait",
+                                    repetition=1,
+                                    type="interaction",
+                                    execution=wait_execution,
+                                    duration=wait_time,
+                                )
                                 wait_subtask.start_time_scheduled = total_time
-                                wait_subtask.end_time_scheduled = total_time+wait_time
+                                wait_subtask.end_time_scheduled = total_time + wait_time
                                 result_schedule_with_time.append(wait_subtask)
                                 total_time = wait_subtask.end_time_scheduled
-                                wait_subtask.execution_status=True
+                                wait_subtask.execution_status = True
                             else:
                                 wait_time = 0.0
-                            
+
                             # total_time += (nav_time + wait_time)
-
-
-        
 
         # subtask
         subtask.start_time_scheduled = total_time
@@ -508,7 +531,7 @@ def last_calculte_schedule_and_time(schedule_order, subtasks, held_object, nav_g
         subtask_total_time, held_object = subtask_time(subtask, held_object, nav_graph)
         total_time += subtask_total_time
 
-        subtask.end_time_scheduled = total_time   
+        subtask.end_time_scheduled = total_time
 
         result_schedule_with_time.append(subtask)
 
