@@ -1,10 +1,13 @@
-import sys
-
 from ai2thor.controller import Controller
 
 from ithor.handlers.action import Action
-from utils.constants import *
-from archive.util import create_module_logger
+from src.utils.common.logger import create_module_logger
+from src.utils.config.constants import (
+    GRID_SIZE,
+    SCENE_NAME,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -139,10 +142,10 @@ def execute_subtask(controller, subtask):
             log.warning(
                 f"Unknown action type: {action_type}. Skipping {action_str} in {subtask.name}."
             )
-                # TODO: log if the last primiive action was successful
-        # e.g., 
-        
-        success = controller.last_event.metadata.get('lastActionSuccess', 'N/A')
+            # TODO: log if the last primiive action was successful
+        # e.g.,
+
+        success = controller.last_event.metadata.get("lastActionSuccess", "N/A")
         log.info(f"Action success: {action_str}: {success}")
         if success == False:
             is_subtask_success = False

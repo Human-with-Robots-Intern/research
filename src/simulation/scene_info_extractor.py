@@ -3,7 +3,6 @@ from typing import Dict, List, Tuple
 
 from ai2thor.controller import Controller
 
-from ithor.handlers.camera_handler import CameraHandler
 from ithor.handlers.navigation_handler import NavigationHandler
 
 

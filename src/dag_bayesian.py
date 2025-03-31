@@ -72,7 +72,11 @@ def main():
     task_data = load_task_data_from_file(task_file_name)
 
     # task_file_name을 입력 자연어로 번역
-    input_natural_language = get_natural_language_from_task_file(f"{choice}")
+    input_natural_language = (
+        get_natural_language_from_task_file(f"{choice}")
+        if choice is not None
+        else task_file_name
+    )
 
     # Build tasks and constraints
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
@@ -141,7 +145,7 @@ def main():
         # 지금 start time 과 end time은 scheduler가 계산 한 값이고 simulation을 했을때의 시간이 아니다.
         ce.subtask.start_time_scheduled = round(ce.start_time, LOG_ROUND)
         ce.subtask.end_time_scheduled = round(ce.end_time, LOG_ROUND)
-        result_schedule.append(ce.subtask)
+        result_schedule.append(ce)
 
     if args.visualize:
         visualize(
@@ -158,7 +162,7 @@ def main():
         "result_schedule": result_schedule,
         "computation_time": computation_time,
         "scene_name": scene_name,
-        # "simulationTime": simulationTime,
+        # "simulationTime": simulation_time,
     }
     result_save(**result_args)
 

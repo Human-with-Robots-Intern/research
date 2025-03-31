@@ -2,10 +2,10 @@ from typing import List, Optional, Tuple
 
 from networkx import DiGraph
 
-from core.task import Subtask
 from core.dataclass import Candidate, Deadline, SimulationNode, TimeSlot
-from utils import create_module_logger
-from utils.constants import EPSILON, LOG_ROUND
+from core.task import Subtask
+from utils.common import create_module_logger
+from utils.config import EPSILON, LOG_ROUND
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
