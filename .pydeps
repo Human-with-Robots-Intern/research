@@ -1,5 +1,5 @@
 [pydeps]
-max_bacon = 2
+max_bacon = 1
 no_show = True
 verbose = 0
 pylib = False
@@ -9,3 +9,15 @@ exclude =
     sys
     collections
     __future__
+    typing
+    logging
+    copy
+    json
+    time
+    math
+    pathlib
+    argparse
+    functools
+    itertools
+    tests
+    config
