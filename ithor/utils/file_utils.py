@@ -1,14 +1,11 @@
-import datetime
 import json
-import math
 from pathlib import Path
 
-from ..utils.constants import OBJECTS_INFO_PATH
+from .constants import OBJECTS_INFO_PATH
 
 
 def save_the_agent_knowledge(scene_name: str, agent_knowledge: dict):
-    # 현재 시간을 파일명으로 사용
-    time_index = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+
     # 저장할 디렉토리 경로
     data_dir = Path(".") / OBJECTS_INFO_PATH
     data_dir.mkdir(parents=True, exist_ok=True)  # 경로가 없으면 생성
