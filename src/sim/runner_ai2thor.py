@@ -129,10 +129,6 @@ def execute_subtask(controller, subtask):
 
         action_type, target_obj_ID = parts
         if action_type in action_mapping:
-            log.info(
-                f"Performing action: {action_type} on {target_obj_ID.split('|')[0]}"
-            )
-
             # 총 걸린시간 계산
             elapsed_time += action_mapping[action_type](target_obj_ID)
         else:
@@ -143,11 +139,9 @@ def execute_subtask(controller, subtask):
         # e.g., 
         
         success = controller.last_event.metadata.get('lastActionSuccess', 'N/A')
-        log.info(f"Action success: {action_str}: {success}")
         if success == False:
             is_subtask_success = False
         ####
 
     log.info(f"{subtask.name}의 걸린시간 = {round(elapsed_time, 2)}")
-    log.info(f"Successfully executed Subtask: {subtask.name}")
     return elapsed_time, is_subtask_success
