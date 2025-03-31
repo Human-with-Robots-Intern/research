@@ -1,0 +1,66 @@
+{
+    "saved_time": "2025-03-31 19:48",
+    "approach": "cpm_interval_singleagent_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "plan_name": "wash_and_heat_potato_and_wash_cutlery_and_dispose_of_paper_towel",
+            "subtasks": [
+                {
+                    "subtask_name": "Place Bread in Microwave",
+                    "start_time_simulation": 0.0,
+                    "end_time_simulation": 8.1,
+                    "start_time_scheduled": 0.0,
+                    "end_time_scheduled": 4.0,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Wash Tomato",
+                    "start_time_simulation": 8.1,
+                    "end_time_simulation": 19.0,
+                    "start_time_scheduled": 4.0,
+                    "end_time_scheduled": 10.0,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Wash Potato",
+                    "start_time_simulation": 19.0,
+                    "end_time_simulation": 30.6,
+                    "start_time_scheduled": 10.0,
+                    "end_time_scheduled": 16.0,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Dispose of Paper Towel",
+                    "start_time_simulation": 30.6,
+                    "end_time_simulation": 37.1,
+                    "start_time_scheduled": 16.0,
+                    "end_time_scheduled": 18.0,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Start Microwave",
+                    "start_time_simulation": 37.1,
+                    "end_time_simulation": 42.2,
+                    "start_time_scheduled": 18.0,
+                    "end_time_scheduled": 19.0,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Retrieve Bread from Microwave",
+                    "start_time_simulation": 42.2,
+                    "end_time_simulation": 50.0,
+                    "start_time_scheduled": 24.0,
+                    "end_time_scheduled": 29.0,
+                    "execution_status": true
+                }
+            ]
+        }
+    ],
+    "computation_time": 0.00064,
+    "simulation_makespan": 50.0,
+    "scheduler_makespan": 29.0,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate": null
+}
