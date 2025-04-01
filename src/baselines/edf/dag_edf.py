@@ -9,6 +9,7 @@ from pathlib import Path
 from simulation.runner_ai2thor import execute_subtask
 
 from utils.io_utils.result_saver import result_save
+import os
 
 PROJECT_ROOT = (
     Path(__file__).resolve().parent.parent.parent.parent
@@ -75,6 +76,20 @@ from utils.visualizers.gantt import plot_completed_subtasks_gantt
 #         return "non-critical"
             
 #     return None
+
+# 임시로 사용할 함수
+def get_available_filename(filepath: str) -> str:
+    """
+    주어진 filepath가 이미 존재하면, 뒤에 (1), (2), ... 등의 첨자를 붙여서 사용 가능한 파일명을 반환합니다.
+    """
+    base, ext = os.path.splitext(filepath)
+    counter = 1
+    new_filepath = filepath
+    while os.path.exists(new_filepath):
+        new_filepath = f"{base} ({counter}){ext}"
+        counter += 1
+    return new_filepath
+##
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
@@ -207,6 +222,21 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
             for u, v, data in incoming_edges
             if data.get("info", {}).get("IsCritical", False)
         ]
+        ## 임시로 사용하는 부분
+        output_filepath= "temp_result/more_than_2_critical_edges.txt"
+        available_filepath = get_available_filename(output_filepath)
+        with open(available_filepath, "w" ,encoding="utf-8")as file:
+            if len(critical_edges)>1:            
+                file.write("=== Completed Tasks ===\n")
+                for entry in current_state.completed_subtasks:
+                    file.write(
+                        f"Task: {entry.subtask.name}, Start: {entry.start_time}, End: {entry.end_time}\n"
+                    )            
+                file.write("\n=== Remaining Tasks ===\n")
+                for task in current_state.remaining_subtasks:
+                    file.write(f"Task: {task.name}\n")
+        ###
+        
         if critical_edges:
             critical_deadlines = [
                 next(
@@ -227,8 +257,16 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
                     None  # 없으면 None 또는 기본값을 사용합니다.
                 )
                 
-                interval = data.get("info", {}).get("Interval", None)     
-            return predecessor_endtime+ interval + execution_time
+                interval = data.get("info", {}).get("Interval", None)   
+                # 가장 나중에 끝나야 하는 경우를 기준으로 deadline을 연산한다. 
+                if predecessor_endtime is not None:
+                    current_deadline = predecessor_endtime + interval
+                    if (max_deadline is None) or (current_deadline > max_deadline):
+                        max_deadline = current_deadline
+            if max_deadline is None:
+                max_deadline = 0
+
+            return max_deadline+ execution_time
         
         else:
             # in_edge가 없는 경우: 후행 subtask까지의 내비게이션 시간 포함
@@ -256,15 +294,6 @@ def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask
     """
     각 실행 가능한 subtask에 대해 deadline을 산출한 후, deadline이 가장 짧은 subtask를 선택한다.
     
-    [새로운 deadline 산출 규칙]
-      1. timeslot이 없는 경우:
-           deadline = current_time + execution_time
-      2. critical timeslot인 경우:
-         a. subtask가 critical in edge가 존재하면, 해당 선행 subtask의 end_time + edge interval에 nav_time을 더함
-         b. 그렇지 않으면, 유발 subtask의 정보를 이용해 deadline을 산출한다.
-      3. non-critical timeslot인 경우:
-         a. dependency가 있으면 선행 subtask의 end_time + edge interval에 nav_time을 더함
-         b. 없으면 기본값 사용
     """
     import heapq
 
