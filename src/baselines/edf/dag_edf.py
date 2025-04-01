@@ -32,6 +32,49 @@ from utils.io_utils.task_io import (
 from utils.task.task_util import TaskUtil
 from utils.visualizers.gantt import plot_completed_subtasks_gantt
 
+# def get_current_timeslot(current_state: SchedulerState) -> Optional[str]:
+#     """
+#     complete_subtasks에 있는 노드 중, digraph 상에서 나가는 edge가 있고 들어오는 edge가 없다면
+#     timeslot이 시작된 것으로 판단한다.
+#     반환값: "critical", "non-critical", 또는 None (timeslot 없음)
+#     """
+#     constraints = current_state.constraints
+#     for entry in current_state.completed_subtasks:
+#         node = entry.subtask.name
+#         if node in constraints:  # 노드 존재 여부 확인
+#             if constraints.out_degree(node) > 0 and constraints.in_degree(node) == 0:
+#                 # 나가는 edge 중 critical한 edge가 있으면 critical timeslot
+#                 for _, target, data in constraints.out_edges(node, data=True):
+#                     if data.get("info", {}).get("IsCritical", False):
+
+#                         return "critical"
+#                 return "non-critical"
+#     return None
+
+# def get_current_timeslot(current_state: SchedulerState) -> Optional[str]:
+#     """
+#     complete_subtasks에 있는 노드 중, digraph 상에서 나가는 edge가 있고 들어오는 edge가 없다면
+#     timeslot이 시작된 것으로 판단한다.
+#     반환값: "critical", "non-critical", 또는 None (timeslot 없음)
+#     """
+#     constraints = current_state.constraints
+#     completed_names = {entry.subtask.name for entry in current_state.completed_subtasks}
+#     pending_edges = []
+#     # 한쪽 노드만 completed_names 에 있는 edge 가 있는 경우. 
+#     for u, v, data in constraints.edges(data=True):
+#         # XOR 연산: 정확히 한쪽만 완료되었을 경우
+#         if (u in completed_names) ^ (v in completed_names):
+#             pending_edges.append((u, v, data))
+    
+#     if pending_edges:
+#         # 한 노드와만 연결된 edge 가 critical 이면
+#         for _,_,data in pending_edges:
+#             if data.get("info", {}).get("IsCritical", False):
+#                 return "critical"
+#         #한 노드와만 연결된 edge 가 있는데 critical은 없으면
+#         return "non-critical"
+            
+#     return None
 
 def is_executable(subtask: Subtask, current_state: SchedulerState):
     """
@@ -50,25 +93,77 @@ def is_executable(subtask: Subtask, current_state: SchedulerState):
     # dependency가 없는 경우면 그냥 실행 가능
     return True
 
-
-def get_current_timeslot(current_state: SchedulerState) -> Optional[str]:
+def get_pending_edges(current_state: SchedulerState) -> list:
     """
     complete_subtasks에 있는 노드 중, digraph 상에서 나가는 edge가 있고 들어오는 edge가 없다면
     timeslot이 시작된 것으로 판단한다.
     반환값: "critical", "non-critical", 또는 None (timeslot 없음)
     """
     constraints = current_state.constraints
-    for entry in current_state.completed_subtasks:
-        node = entry.subtask.name
-        if node in constraints:  # 노드 존재 여부 확인
-            if constraints.out_degree(node) > 0 and constraints.in_degree(node) == 0:
-                # 나가는 edge 중 critical한 edge가 있으면 critical timeslot
-                for _, target, data in constraints.out_edges(node, data=True):
-                    if data.get("info", {}).get("IsCritical", False):
+    completed_names = {entry.subtask.name for entry in current_state.completed_subtasks}
+    pending_edges = []
+    # 한쪽 노드만 completed_names 에 있는 edge 가 있는 경우. 
+    for u, v, data in constraints.edges(data=True):
+        # XOR 연산: 정확히 한쪽만 완료되었을 경우
+        if (u in completed_names) ^ (v in completed_names):
+            pending_edges.append((u, v, data))
+    
+    return pending_edges
 
-                        return "critical"
-                return "non-critical"
+def get_timeslot_type(pending_edges):
+    if pending_edges:
+        # pending edge들 중 하나라도 critical이면 "critical"을 반환
+        for _, _, data in pending_edges:
+            if data.get("info", {}).get("IsCritical", False):
+                return "critical"
+        # pending edge가 존재하지만 모두 non-critical인 경우
+        return "non-critical"
     return None
+
+def simulate_following_nav_time(edges, subtask, current_state, action_handler, current_time):
+    """
+    edges: (u, v, edge_data)의 list
+    subtask : 현재 subtask, 아마 필요 없는데 지식 부족으로 일단 삽입. 
+    current_state: SchedulerState
+    action_handler: ActionHandler 인스턴스
+    current_time: 현재 시간
+    현재 subtask에서 
+    후행 노드로 이동하는데 걸리는 내비게이션 시간을 반환한다.
+    """
+    # edge에서 timeslot 유발 노드와 후행 노드를 구분
+    nav_infos= []
+    for edge in edges:
+        u, v, _ = edge
+        completed_names = {entry.subtask.name for entry in current_state.completed_subtasks}
+
+        if u in completed_names:
+            following_node = v  # u: 완료된 노드, v: 후행 노드
+        else:
+            following_node = u
+        
+        # 후행 노드로 이동하는 내비게이션 동작을 시뮬레이션.
+        # simulation_subtask가 필요하면, 해당 context에 맞는 subtask를 전달해야 하겠지만,
+        # 여기서는 간단하게 None으로 처리하거나 적절한 subtask를 전달할 수 있다.
+
+        target_subtask = next((st for st in current_state.remaining_subtasks if st.name == following_node), None)
+        if target_subtask is None:
+            continue 
+
+        actions = target_subtask.execution.primitive_actions or []
+        if not actions:
+            raise("subtask not has primitive action")
+        first_action = actions[0]
+
+        temp_node = SimulationNode(
+            deadline=current_time,
+            simulation_subtask=subtask,  
+            state=current_state
+        )
+
+        nav_infos.append(action_handler.get_actions_info(temp_node, [first_action]))
+    nav_info = min(nav_infos)
+
+    return nav_info.time_used if nav_info else 0
 
 
 def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask]:
@@ -79,32 +174,33 @@ def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask
     [계산 방법]
     - complete_subtasks에서, digraph의 node 중 나가는 edge만 있고 들어오는 edge가 없다면 timeslot이 시작된 것으로 본다.
 
-    1. critical한 timeslot이 시작된 경우:
-       1-a. 만약 subtask가 dependency(들어오는 edge가 있음)를 가진 후행 subtask라면,
-           designated_start = (선행 subtask의 end_time + constraint의 interval)
-           candidate1 = designated_start - (자신의 nav_time)
-           deadline = candidate1
-       1-b. dependency가 없는 경우,
-           deadline = current_time + execution_time + (후행 subtask까지의 nav_time)
-           → 후행 subtask의 nav_time은, complete_subtasks 중 timeslot을 시작한 노드(즉, out_degree > 0, in_degree == 0)의 outgoing critical edge에 연결된 target subtask의 nav_time(시뮬레이션)으로 산출
-    2. non-critical한 timeslot이 시작된 경우:
-       2-a. 후행 subtask인 경우 (dependency 있음)
-           designated_start = (선행 subtask의 end_time + constraint의 interval)
-           candidate1 = designated_start - (자신의 nav_time)
-           candidate2 = current_time + execution_time + (자신의 nav_time)
-           ! 근데 생각해보니깐 여기서는 nav_time을 생각 안해도 될 것 같음
-           deadline = max(candidate1, candidate2)
-       2-b. 그렇지 않은 경우
-           deadline = current_time + execution_time
-    3. timeslot이 없는 경우:
-           deadline = current_time + execution_time
+    1. **timeslot이 시작되지 않은 경우.**
+        a. 모든 subtask의 deadline = current_time + execution_time + 그 subtask의 첫 nav_time
+    2. **현재 critical timeslot인 경우**
+        a. **현재 subtask가 critical in edge가 존재하는 후행 subtask 면**
+            deadline = 현재 subtask의 선행 subtask의 end_time + edge의 constraint의 interval - 현재 subtask의 첫 nav_time
+        b. **subtask 가 non_critical in edge 가 존재하는 후행 subtask면**
+            deadline = critical timeslot을 유발한 subtask의 end_time + 유발 subtask의 constraint의 interval + 유발 subtask의 후행 subtask의 execution_time - 후행 subtask의 첫 nav_time
+        c. **나머지 subtask의 경우**
+            deadline = current_time + execution_time + 후행 subtask까지의 nav_time + 그 subtask의 첫 nav_time
+    3. 현재 non-critical time slot인 경우.
+        a. 현재 subtask가 non_critical in edge 가 존재하는 후행 subtask면
+            deadline = 현재 subtask의 선행 subtask의 end_time + edge의 constraint의 interval - 현재 subtask의 첫 nav_time
+        b. 나머지 subtask의 경우
+            deadline = current_time + execution_time + 후행 subtask까지의 nav_time + 그 subtask의 첫 nav_time
     """
     action_handler = ActionHandler(nav_graph)
     current_time = current_state.current_time
     constraints = current_state.constraints
     # timeslot 존재 여부: get_current_timeslot는 "critical", "non-critical", 또는 None을 반환
-    timeslot_type = get_current_timeslot(current_state)
+    
+    #현재 시점에 한 노드만 완료된 엣지들의 리스트.
+    pending_edges = get_pending_edges(current_state)
+    # 그 리스트중 critical type이 있는지 확인
+    timeslot_type = get_timeslot_type(pending_edges)
+
     queue = []
+    
 
     for subtask in current_state.remaining_subtasks:
         if not is_executable(subtask, current_state):
@@ -112,7 +208,9 @@ def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask
 
         # 시뮬레이션으로 subtask의 실행 시간(execution_time) 산출
         temp_node = SimulationNode(
-            deadline=current_time, simulation_subtask=subtask, state=current_state
+            deadline=current_time, 
+            simulation_subtask=subtask, 
+            state=current_state
         )
         actions = subtask.execution.primitive_actions or []
         exec_info = (
@@ -128,151 +226,127 @@ def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask
                 if nav_info:
                     nav_time = nav_info.time_used
                 break
+        
 
-        # 기본 deadline (rule 3)
-        deadline = current_time + execution_time
+        # 기본 deadline (rule 1)
+        deadline = current_time + execution_time + nav_time
 
-        # dependency 여부: subtask가 들어오는 edge가 있으면 후행 subtask로 판단
-        incoming_edges = list(constraints.in_edges(subtask.name, data=True))
-        has_dependency = len(incoming_edges) > 0
+        # dependency 여부: subtask에 들어오는 edge가 있으면 후행 subtask로 판단. 
+        incoming_edges = list(constraints.in_edges(subtask.name, data=True))  
 
         if timeslot_type is None:
-            # rule 3: timeslot이 없으면 deadline = current_time + execution_time
-            deadline = current_time + execution_time
-        else:
-            if timeslot_type == "critical":
-                if has_dependency:
-                    # rule 1-a: 후행 subtask인 경우
-                    crit_edge = next(
-                        (
-                            edge
-                            for edge in incoming_edges
-                            if edge[2].get("info", {}).get("IsCritical", False)
-                        ),
-                        None,
-                    )
-                    if crit_edge:
-                        pred_name = crit_edge[0]
-                        interval = crit_edge[2]["info"]["Interval"]
-                        predecessor_entry = next(
-                            (
-                                entry
-                                for entry in current_state.completed_subtasks
-                                if entry.subtask.name == pred_name
-                            ),
-                            None,
+            # 1: timeslot이 없는 경우
+            deadline = current_time + execution_time       
+
+        elif timeslot_type == "critical":
+            # 2: timeslot 이 critical 인 경우
+
+            # 현재 subtask 의 critical in edge를 담은 list
+            critical_edges = [
+                (u, v, edge_data)
+                for u, v, edge_data in incoming_edges
+                if edge_data.get("info", {}).get("IsCritical", False)
+            ]
+
+            
+            
+            if critical_edges:
+                # 2-a 현재 subtask가 critical in edge가 존재하는 후행 subtask 인 경우
+
+                # 한 subtask가 가진 critical in edge 들의 deadline들 
+                critical_deadlines = [
+                    (
+                        # predecessor의 end_time (없으면 current_time 사용)
+                        next(
+                            (entry.end_time for entry in current_state.completed_subtasks if entry.subtask.name == u),
+                            current_state.current_time
                         )
-                        designated_start = (
-                            predecessor_entry.end_time
-                            if predecessor_entry
-                            else current_time
-                        ) + interval
-                        candidate1 = designated_start - nav_time
-                        deadline = candidate1
-                    else:
-                        # 만약 critical edge가 없으면 후행 subtask가 아니므로 rule 1-b 적용
-                        candidate_nav_times = []
-                        for entry in current_state.completed_subtasks:
-                            node = entry.subtask.name
-                            # timeslot을 시작한 노드: 나가는 edge만 있고 들어오는 edge가 없음
-                            if (
-                                node in constraints
-                                and constraints.out_degree(node) > 0
-                                and constraints.in_degree(node) == 0
-                            ):
-                                for _, target, data in constraints.out_edges(
-                                    node, data=True
-                                ):
-                                    if data.get("info", {}).get("IsCritical", False):
-                                        if any(
-                                            st.name == target
-                                            for st in current_state.remaining_subtasks
-                                        ):
-                                            temp_target = SimulationNode(
-                                                deadline=current_time,
-                                                simulation_subtask=subtask,
-                                                state=current_state,
-                                            )
-                                            nav_info = action_handler.get_actions_info(
-                                                temp_target, [f"NAVIGATE_TO {target}"]
-                                            )
-                                            if nav_info:
-                                                candidate_nav_times.append(
-                                                    nav_info.time_used
-                                                )
-                        following_nav = (
-                            min(candidate_nav_times) if candidate_nav_times else 0
-                        )
-                        deadline = current_time + execution_time + following_nav
-                else:
-                    # rule 1-b: dependency가 없는 경우
-                    candidate_nav_times = []
-                    for entry in current_state.completed_subtasks:
-                        node = entry.subtask.name
-                        if (
-                            node in constraints
-                            and constraints.out_degree(node) > 0
-                            and constraints.in_degree(node) == 0
-                        ):
-                            for _, target, data in constraints.out_edges(
-                                node, data=True
-                            ):
-                                if data.get("info", {}).get("IsCritical", False):
-                                    if any(
-                                        st.name == target
-                                        for st in current_state.remaining_subtasks
-                                    ):
-                                        temp_target = SimulationNode(
-                                            deadline=current_time,
-                                            simulation_subtask=subtask,
-                                            state=current_state,
-                                        )
-                                        nav_info = action_handler.get_actions_info(
-                                            temp_target, [f"NAVIGATE_TO {target}"]
-                                        )
-                                        if nav_info:
-                                            candidate_nav_times.append(
-                                                nav_info.time_used
-                                            )
-                    following_nav = (
-                        min(candidate_nav_times) if candidate_nav_times else 0
+                        + edge_data["info"]["Interval"]                        
                     )
-                    deadline = current_time + execution_time + following_nav
-            elif timeslot_type == "non-critical":
-                if has_dependency:
-                    # rule 2-a: 후행 subtask인 경우
-                    crit_edge = next(
-                        (
-                            edge
-                            for edge in incoming_edges
-                            if edge[2].get("info", {}).get("IsCritical", False)
-                        ),
-                        None,
-                    )
-                    if crit_edge:
-                        pred_name = crit_edge[0]
-                        interval = crit_edge[2]["info"]["Interval"]
-                        predecessor_entry = next(
-                            (
-                                entry
-                                for entry in current_state.completed_subtasks
-                                if entry.subtask.name == pred_name
-                            ),
-                            None,
+                    for u, v, edge_data in critical_edges
+                ]
+
+                # 이 subtask가 실행되어야하면 wait 여부를 확인해야한다.     
+                # ciritical_deadlines 에서 가장 급한걸 deadline으로 설정.                   
+                deadline = min(critical_deadlines) + nav_time
+
+            
+            elif incoming_edges:
+                # 2-b 현재 subtask 가 non_critical in edge 가 존재하는 후행 subtask 인 경우
+                
+                #현재 상태를 유발한 edge 들을 순회해서 그 edge의 후행 subtask 시작 시간보다 뒤로 deadline 을 준다. 
+
+                candidate_nav_times =  simulate_following_nav_time(
+                    critical_edges, subtask, current_state, action_handler, current_time
+                    )                
+                # 후행 subtask중 가장 급한것 까지의 nav_time 
+                following_nav = (
+                    min(candidate_nav_times) if candidate_nav_times else 0
+                )
+
+                non_critical_deadlines = [
+                    (
+                        # predecessor의 end_time (없으면 current_time 사용)
+                        next(
+                            (entry.end_time for entry in current_state.completed_subtasks if entry.subtask.name == u)                        ,
+                            current_state.current_time
                         )
-                        designated_start = (
-                            predecessor_entry.end_time
-                            if predecessor_entry
-                            else current_time
-                        ) + interval
-                        candidate1 = designated_start
-                        candidate2 = current_time + execution_time
-                        deadline = max(candidate1, candidate2)
-                    else:
-                        deadline = current_time + execution_time
-                else:
-                    # rule 2-b: dependency가 없는 경우
-                    deadline = current_time + execution_time
+                        # 후행 subtask의 execution time
+                        + next( 
+                            (entry.end_time - entry.start_time for entry in current_state.completed_subtasks 
+                            if entry.subtask.name == v), 0
+                            )
+                        + edge_data["info"]["Interval"] #그 edge 의 interval
+                        - following_nav 
+                        
+                    )
+                    for u, v, edge_data in pending_edges
+                    if edge_data.get("info", {}).get("IsCritical", False)
+                ]
+                # deadline = critical timeslot을 유발한 subtask의 end_time +  유발 subtask의 후행 subtask의 execution_time + 유발 subtask의 constraint의 interval - 후행 subtask의 첫 nav_time
+                deadline = min(non_critical_deadlines)
+            else:
+                # 2-c in_edge가 없는 subtask인 경우
+
+                # 현상황에서 constraint의 후행 subtask로 이동하는데 걸리는 시간들
+                critical_pending_edges = [
+                    (u, v, edge_data)
+                    for u, v, edge_data in pending_edges
+                    if edge_data.get("info", {}).get("IsCritical", False)
+                ]
+
+                candidate_nav_times = [
+                    simulate_following_nav_time(critical_pending_edges, subtask, current_state, action_handler, current_time)
+                    
+                ]
+
+                # 후행 subtask까지의 nav_time 
+                following_nav = (
+                    min(candidate_nav_times) if candidate_nav_times else 0
+                )
+                
+                deadline = current_time + execution_time + following_nav + nav_time
+
+        elif timeslot_type == "non-critical":
+            if incoming_edges:
+                # rule 3-a: 후행 subtask인 경우   
+                non_critical_deadlines = [
+                    (
+                        # predecessor의 end_time (없으면 current_time 사용)
+                        next(
+                            (entry.end_time for entry in current_state.completed_subtasks if entry.subtask.name == u),
+                            current_state.current_time
+                        )
+                        + edge_data["info"]["Interval"]                
+                    )
+                    for u, v, edge_data in incoming_edges
+                ] 
+                 
+                # deadline = 현재 subtask의 선행 subtask의 end_time + edge의 constraint의 interval - 현재 subtask의 첫 nav_time             
+                deadline = min(non_critical_deadlines)+ nav_time
+            else:
+                # rule 3-b: edge 가 없는 subtask 인 경우
+                deadline = current_time + execution_time + nav_time
 
         sim_node = SimulationNode(
             deadline=deadline,
@@ -385,6 +459,7 @@ def update(
                     duration=Duration(type="NAVIGATE", interval=nav_time),
                     temporal_constraints=[],
                 ),
+
                 start_time=new_current_time,
                 end_time=new_current_time + nav_time,
             )
@@ -443,36 +518,6 @@ def update(
         agent_location=current_state.agent_location,
     )
     return updated_state
-
-
-def get_init_state(
-    subtasks: List[Subtask], constraints: nx.DiGraph, scene_poses: dict
-) -> SchedulerState:
-    init_subtask = Subtask(
-        task_name=None,
-        name="Init",
-        duration=Duration(interval=0, type="Init"),
-        repetition=1,
-        type="Init",
-        execution=Execution(objects=[], primitive_actions=None),
-        temporal_constraints=None,
-    )
-    init_completed = CompletedEntry(
-        subtask=init_subtask,
-        start_time=0.0,
-        end_time=0.0,
-    )
-
-    init_state = SchedulerState(
-        subtask=init_subtask,
-        completed_subtasks=[init_completed],
-        remaining_subtasks=subtasks,
-        constraints=constraints,
-        current_time=0,
-        scene_positions=scene_poses,
-        held_object=None,
-    )
-    return init_state
 
 
 def parse_arguments():
@@ -535,7 +580,7 @@ def main():
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(task_data, True)
 
     computation_time = 0
-    current_state = get_init_state(subtasks, constraints, scene_poses)
+    current_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
     result_schedule = []
     simulation_subtask_times = []
     for _ in range(len(subtasks)):
