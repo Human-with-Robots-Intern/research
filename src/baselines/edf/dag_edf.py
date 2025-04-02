@@ -129,6 +129,7 @@ def get_timeslot_type(pending_edges: list) -> Optional[str]:
     if pending_edges:
         for _, _, data in pending_edges:
             if data.get("info", {}).get("IsCritical", False):
+                # 문자열 말고 다른거로 하자 bool 같은거로 
                 return "critical"
         return "non-critical"
     return None
@@ -195,25 +196,28 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
     subtask에 대한 deadline을 timeslot 유형과 dependency 조건에 따라 계산한다.
     
     [규칙]
-        1. timeslot이 없는 경우:
-           deadline = current_time + execution_time + nav_time
+        1. timeslot이 없는 경우: 실행대신 이동시간을 고려하게 하면
+           deadline = current_time + nav_time 
         2. critical timeslot:
-            a. subtask가 critical in edge가 있다면:
-                deadline = (선행 subtask의 end_time + edge interval) - nav_time
-            b. subtask가 dependency는 있으나 critical in edge가 없으면:
-                deadline = (현재 subtask의 edge의 시작 subtask의 end_time + edge의 interval + excute_time                        
+            a. subtask가 critical in edge가 있다면: -> navtime 빼지 말자. 
+                deadline = (선행 subtask의 end_time + edge interval) 
+            b. subtask가 non critical in edge만 있으면: -> 실행시간 제외하자
+                deadline = 현재 subtask의 edge의 선행 subtask의 end_time + edge의 interval                     
             c. 그 외:
-                deadline = current_time + execution_time + (후행 subtask까지의 nav_time) + nav_time
+                deadline = current_time + nav_time
+
+                
         3. non-critical timeslot:
-            a. dependency가 있는 경우:
-                deadline = (선행 subtask의 end_time + edge interval) - nav_time
-            b. dependency가 없으면:
-                deadline = current_time + execution_time + nav_time
+            a. 현재 subtask 가 noncritical의 후행 subtask 인 경우:
+                deadline = (선행 subtask의 end_time + edge interval) 
+            b. 그 외:
+                deadline = current_time + nav_time
     """
     # 현재 subtask가 가진 edge들의 list
     incoming_edges = list(constraints.in_edges(subtask.name, data=True))
     if timeslot_type is None:
-        return current_time + execution_time + nav_time
+        # 규칙 1
+        return current_time + execution_time
 
     elif timeslot_type == "critical":
         # critical in edge가 존재하는 경우
@@ -222,22 +226,9 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
             for u, v, data in incoming_edges
             if data.get("info", {}).get("IsCritical", False)
         ]
-        ## 임시로 사용하는 부분
-        output_filepath= "temp_result/more_than_2_critical_edges.txt"
-        available_filepath = get_available_filename(output_filepath)
-        with open(available_filepath, "w" ,encoding="utf-8")as file:
-            if len(critical_edges)>1:            
-                file.write("=== Completed Tasks ===\n")
-                for entry in current_state.completed_subtasks:
-                    file.write(
-                        f"Task: {entry.subtask.name}, Start: {entry.start_time}, End: {entry.end_time}\n"
-                    )            
-                file.write("\n=== Remaining Tasks ===\n")
-                for task in current_state.remaining_subtasks:
-                    file.write(f"Task: {task.name}\n")
-        ###
         
         if critical_edges:
+            #규칙 2-a
             critical_deadlines = [
                 next(
                     (entry.end_time for entry in current_state.completed_subtasks if entry.subtask.name == u),
@@ -247,9 +238,9 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
             ]
             return min(critical_deadlines) - nav_time
 
-        # dependency는 있으나 critical in edge가 없는 경우
+        
         elif incoming_edges:
-            
+            # 규칙 2-b
             for u, v, data in incoming_edges:
                 # current_state.completed_subtasks에서 u에 해당하는 predecessor의 end_time
                 predecessor_endtime = next(
@@ -271,10 +262,11 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
         else:
             # in_edge가 없는 경우: 후행 subtask까지의 내비게이션 시간 포함
             following_nav = simulate_following_nav_time(pending_edges, subtask, current_state, action_handler, current_time)
-            return current_time + execution_time + following_nav + nav_time
+            return current_time + execution_time + following_nav
 
     elif timeslot_type == "non-critical":
         if incoming_edges:
+            #규칙 3-a
             non_critical_deadlines = [
                 next(
                     (entry.end_time for entry in current_state.completed_subtasks if entry.subtask.name == u),
@@ -282,12 +274,13 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
                 ) + data["info"]["Interval"]
                 for u, v, data in incoming_edges
             ]
-            return min(non_critical_deadlines) - nav_time
+            return min(non_critical_deadlines) 
         else:
-            return current_time + execution_time + nav_time
+            #규칙 3-b
+            return current_time + execution_time
 
     # 기본 fallback
-    return current_time + execution_time + nav_time
+    return current_time + execution_time
 
 
 def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask]:
@@ -300,6 +293,7 @@ def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask
     action_handler = ActionHandler(nav_graph)
     current_time = current_state.current_time
     constraints = current_state.constraints
+
 
     pending_edges = get_pending_edges(current_state)
     timeslot_type = get_timeslot_type(pending_edges)
