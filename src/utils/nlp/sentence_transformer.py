@@ -14,7 +14,7 @@ class SentenceSimilarityModel:
         if SentenceSimilarityModel._instance is not None:
             raise RuntimeError("싱글톤 클래스이므로, get_instance()를 사용하세요.")
 
-        print("Loading SentenceTransformer model...")
+        log.warning("Loading SentenceTransformer model...")
         self.model = SentenceTransformer(model_name)
         SentenceSimilarityModel._instance = self
 
