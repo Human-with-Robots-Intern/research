@@ -4,8 +4,8 @@ import time
 
 from ithor.utils.constants import SMOOTH_LEVEL
 from ithor.utils.math_utils import (
-    build_navigation_graph,
     closest_position,
+    load_navigation_graph,
     quantize_position,
 )
 
@@ -13,7 +13,7 @@ from ithor.utils.math_utils import (
 class NavigationHandler:
     def __init__(self, controller):
         self.controller = controller
-        self.neighbors = build_navigation_graph(controller)
+        self.neighbors = load_navigation_graph(controller)
 
     def adjust_camera_to_object(self, object_id):
         """
