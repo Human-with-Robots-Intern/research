@@ -1,6 +1,7 @@
 # utils/task/__init__.py
 
 # 각 모듈에서 필요한 클래스를 불러와서 패키지의 public interface로 노출
+from .constraints_util import get_critical_start_info
 from .task_generator import TaskGenerator
 from .task_util import TaskUtil
 
@@ -10,4 +11,5 @@ from .task_util import TaskUtil
 __all__ = [
     "TaskGenerator",
     "TaskUtil",
+    "get_critical_start_info",
 ]
