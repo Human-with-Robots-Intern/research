@@ -104,6 +104,16 @@ def process_metadata_for_task(task_dir: Path) -> None:
     approach_dir = task_dir / "approach"
     metadata_dir = task_dir / "metadata"
     source_file = approach_dir / "dag_bayesian_simulation.json"
+
+    # 파일 존재하지 않으면 approach_dir 내 아무 파일 하나 선택
+    if not source_file.exists():
+        candidates = list(approach_dir.glob("*.json"))  
+        if not candidates:
+            print(f"[Warning] No files in {approach_dir}")
+            return
+        source_file = candidates[0]
+        print(f"[Info] 'dag_bayesian_simulation.json' not found. Using '{source_file.name}' instead.")
+
     
     data = load_simulation_data(source_file)
     if not data:
