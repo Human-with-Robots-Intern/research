@@ -172,62 +172,62 @@ class Agent:
 
         return critical_start_sub_name, critical_start_sub_end_time
 
-    def _bayesian_update(
-        self,
-        prior_mean: float,
-        prior_variance: float,
-        elapsed_time: float,
-        ground_truth_value: float,
-        noise_sigma: float = 0.015,
-    ) -> tuple[float, float]:
-        """
-        베이지안 추정의 핵심 계산 부분을 별도 함수로 분리.
+    # def _bayesian_update(
+    #     self,
+    #     prior_mean: float,
+    #     prior_variance: float,
+    #     elapsed_time: float,
+    #     ground_truth_value: float,
+    #     noise_sigma: float = 0.015,
+    # ) -> tuple[float, float]:
+    #     """
+    #     베이지안 추정의 핵심 계산 부분을 별도 함수로 분리.
 
-        파라미터
-        ----------
-        prior_mean: 기존 mean 추정치
-        prior_variance: 기존 var 추정치
-        elapsed_time: 경과 시간
-        ground_truth_value: 실제 정답(예: subtask duration)
-        noise_sigma: lognormal 샘플링에 쓰이는 sigma
+    #     파라미터
+    #     ----------
+    #     prior_mean: 기존 mean 추정치
+    #     prior_variance: 기존 var 추정치
+    #     elapsed_time: 경과 시간
+    #     ground_truth_value: 실제 정답(예: subtask duration)
+    #     noise_sigma: lognormal 샘플링에 쓰이는 sigma
 
-        리턴
-        ----------
-        posterior_mean, posterior_variance
-        """
+    #     리턴
+    #     ----------
+    #     posterior_mean, posterior_variance
+    #     """
 
-        # 1) 진행비율(cooking_data_real) 계산
-        cooking_data_real = elapsed_time / ground_truth_value
-        if cooking_data_real <= 0:
-            raise ValueError("cooking_data_real must be positive")
+    #     # 1) 진행비율(cooking_data_real) 계산
+    #     cooking_data_real = elapsed_time / ground_truth_value
+    #     if cooking_data_real <= 0:
+    #         raise ValueError("cooking_data_real must be positive")
 
-        # 2) lognormal 노이즈 모델링
-        mean_log = math.log(cooking_data_real)
-        cooking_data_with_noise = np.random.lognormal(mean=mean_log, sigma=noise_sigma)
+    #     # 2) lognormal 노이즈 모델링
+    #     mean_log = math.log(cooking_data_real)
+    #     cooking_data_with_noise = np.random.lognormal(mean=mean_log, sigma=noise_sigma)
 
-        # 3) 분모 0 방지 위해 prior_variance 최소치 보정
-        if prior_variance < 1e-12:
-            prior_variance = 1e-12
+    #     # 3) 분모 0 방지 위해 prior_variance 최소치 보정
+    #     if prior_variance < 1e-12:
+    #         prior_variance = 1e-12
 
-        # 4) Custom likelihood (예: (prior_mean - 관측)^2)
-        a = 1.0
-        likelihood_epsilon_square = (
-            a * (prior_mean - elapsed_time / cooking_data_with_noise) ** 2
-        )
+    #     # 4) Custom likelihood (예: (prior_mean - 관측)^2)
+    #     a = 1.0
+    #     likelihood_epsilon_square = (
+    #         a * (prior_mean - elapsed_time / cooking_data_with_noise) ** 2
+    #     )
 
-        denominator = likelihood_epsilon_square + prior_variance
-        if denominator < 1e-12:
-            raise ValueError("Denominator in Bayesian update is too small.")
+    #     denominator = likelihood_epsilon_square + prior_variance
+    #     if denominator < 1e-12:
+    #         raise ValueError("Denominator in Bayesian update is too small.")
 
-        # 5) Posterior
-        posterior_mean = (
-            prior_variance * prior_mean
-            + likelihood_epsilon_square * (elapsed_time / cooking_data_with_noise)
-        ) / denominator
+    #     # 5) Posterior
+    #     posterior_mean = (
+    #         prior_variance * prior_mean
+    #         + likelihood_epsilon_square * (elapsed_time / cooking_data_with_noise)
+    #     ) / denominator
 
-        posterior_variance = (likelihood_epsilon_square * prior_variance) / denominator
+    #     posterior_variance = (likelihood_epsilon_square * prior_variance) / denominator
 
-        return posterior_mean, posterior_variance
+    #     return posterior_mean, posterior_variance
 
     def _update_knowledge_and_constraints(
         self,
