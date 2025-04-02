@@ -9,7 +9,7 @@ from .constants import GRID_SIZE
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
-def build_navigation_graph(
+def load_navigation_graph(
     controller,
 ) -> Dict[Tuple[float, float, float], Set[Tuple[float, float, float]]]:
     """

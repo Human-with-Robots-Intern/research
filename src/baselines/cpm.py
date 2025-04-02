@@ -18,7 +18,7 @@ from sim.runner_ai2thor import execute_subtask, init_ai2thor
 
 from core.agent import Agent
 from core.scheduler import Scheduler
-from ithor.utils.math_utils import adjust_if_unreachable, build_navigation_graph
+from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
 from utils import create_module_logger
 from utils.constants import (
     KNOWLEDGE_PATH,
@@ -82,7 +82,7 @@ def main():
 
     # Set up the AI2-THOR controller and navigation graph
     controller = init_ai2thor()
-    nav_graph = build_navigation_graph(controller)
+    nav_graph = load_navigation_graph(controller)
     scene_name = SCENE_NAME
 
     # Load the chosen task data
