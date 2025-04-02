@@ -237,7 +237,9 @@ class TaskUtil:
         ]
         idx, best_score = max(enumerate(sim_scores), key=lambda x: x[1])
         similar_subtask = (
-            bayesian_keys[idx] if best_score >= similarity_threshold else subtask.name
+            bayesian_keys[idx].lower()
+            if best_score >= similarity_threshold
+            else subtask.name.lower()
         )
 
         # bayesian_load 갱신
@@ -247,14 +249,14 @@ class TaskUtil:
             ]
         else:
             # 새로 추가
-            bayesian_load[subtask.name] = {
+            bayesian_load[subtask.name.lower()] = {
                 "expected_duration": temporal_constraint.interval,
                 "variance": 1.0,
             }
 
         # ground_truth_load 갱신
-        if similar_subtask not in ground_truth_load:
-            ground_truth_load[similar_subtask] = 10
+        if similar_subtask.lower() not in ground_truth_load:
+            ground_truth_load[similar_subtask.lower()] = 10
 
     @classmethod
     def build_tasks_and_constraints(

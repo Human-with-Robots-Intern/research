@@ -2,7 +2,7 @@
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from utils.common.logger import create_module_logger
+from utils.common import create_module_logger
 
 log = create_module_logger(__name__, module_log=True)
 

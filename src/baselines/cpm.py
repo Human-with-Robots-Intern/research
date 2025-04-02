@@ -14,13 +14,13 @@ from core.task import Execution, Subtask
 from utils.io_utils import task_io
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
-from sim.runner_ai2thor import execute_subtask, init_ai2thor
+from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 
 from core.agent import Agent
 from core.scheduler import Scheduler
-from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
-from utils import create_module_logger
-from utils.constants import (
+from ithor.utils.math_utils import adjust_if_unreachable, build_navigation_graph
+from utils.common import create_module_logger
+from utils.config.constants import (
     KNOWLEDGE_PATH,
     MONITORING_DURATION,
     NAV_STEP_DURATION,
@@ -29,13 +29,13 @@ from utils.constants import (
     SCENE_NAME,
 )
 from utils.io_utils.result_saver import result_save
-from utils.task import (
-    build_tasks_and_constraints,
+from utils.io_utils.task_io import (    
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file,
 )
-from utils.viz.visualizer import visualize
+from utils.task.task_util import TaskUtil
+from utils.visualizers.visualizer import visualize
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -81,8 +81,8 @@ def main():
     held_object = None
 
     # Set up the AI2-THOR controller and navigation graph
-    controller = init_ai2thor()
-    nav_graph = load_navigation_graph(controller)
+    controller = init_ai2thor_controller()
+    nav_graph = build_navigation_graph(controller)
     scene_name = SCENE_NAME
 
     # Load the chosen task data
@@ -93,7 +93,7 @@ def main():
     input_natural_language = task_io.get_natural_language_from_task_file(f"{choice}")
 
     # Build tasks and constraints
-    subtasks, constraints = build_tasks_and_constraints(task_data, args.decomposition)
+    subtasks, constraints = TaskUtil.build_tasks_and_constraints(task_data, args.decomposition)
     edges = list(constraints.edges)
 
     # Visualize the task graph if enabled
@@ -299,9 +299,7 @@ def _find_short_path(
             )
             new_path = path + [nxt]
             heapq.heappush(pq, (nxt_turn, nxt, new_dir, new_path))
-
     raise ValueError(f"No path found from {start_pos} to {end_pos}.")
-
 
 def subtask_time(subtask, held_object, nav_graph):
     subtask_total_time = 0.0

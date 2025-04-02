@@ -6,8 +6,7 @@ import time
 from pathlib import Path
 from itertools import product
 
-from src.utils.result_saver import result_save_llm
-from src.utils.constants import SCENE_NAME
+from src.utils.config.constants import SCENE_NAME
 
 def run_with_retries(script: Path, input_str: str, max_retries: int = 10) -> tuple[bool, int]:
     """
@@ -57,10 +56,10 @@ def process_retry_script(script: Path, instruction: str) -> None:
             "attempt": attempt,
             "scene_name": SCENE_NAME,
             "plans": [{"plan_name": instruction}],
-            "computation_time": "Inf",
+            "computation_time": inf,
             "success_rate": 0,
             "scheduler_makespan": None,
-            "simulation_makespan": "Inf",
+            "simulation_makespan": inf,
             "realworld_makespan": None
         }
         try:
@@ -76,6 +75,7 @@ def process_normal_script(script: Path, instruction: str, index: int) -> None:
     """
     재시도 대상이 아닌 스크립트를 단순 실행합니다.
     """
+
     print(f"Running {script}...")
     input_str = f"{index}\n"
     subprocess.run(
@@ -135,7 +135,7 @@ def main() -> None:
     num_runs_per_instruction = 1
 
     # itertools.product를 사용하여 세 개의 반복 범위를 하나로 결합
-    for i, script, _ in product(range(1, 31), scripts, range(num_runs_per_instruction)):
+    for i, script, _ in product(range(1, 31, 3), scripts, range(num_runs_per_instruction)):
         instruction = instructions[i]
         print(f"task_name : {instruction}")
         if script in llm_scripts:

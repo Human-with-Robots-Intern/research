@@ -305,8 +305,9 @@ class Scheduler:
         log.debug(
             f"[_expand_single_subtask] Checking expansion for subtask: {candidate.subtask.name}."
         )
-        # 모니터링 필요?
+        # 모니터링 필요 여부 판단
         need_monitor = self._should_expand_with_monitoring(curr_node, candidate)
+
         if need_monitor:
             log.debug(
                 f"[_expand_single_subtask] Subtask {candidate.subtask.name} requires monitoring-based splitting."
@@ -381,7 +382,7 @@ class Scheduler:
 
         # * (1) 실제 실행 시간
         last_action_info = self.action_handler.get_actions_info(curr_node, sub_actions)
-        # success = controller.last_event.metadata.get('lastActionSuccess', 'N/A')
+
         start_time = curr_state.current_time
         end_time = start_time + last_action_info.time_used
 
@@ -513,7 +514,7 @@ class Scheduler:
 
         if expected_monitoring_start_timing > curr_state.current_time + exec_time:
             log.debug(
-                f"[_expand_subtask_with_monitoring] Entire subtask ends before monitoring cutoff => No split needed."
+                "[_expand_subtask_with_monitoring] Entire subtask ends before monitoring cutoff => No split needed."
             )
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
@@ -533,7 +534,7 @@ class Scheduler:
 
         if not post_actions_info:
             log.warning(
-                f"[_expand_subtask_with_monitoring] Entire pre subtask ends before monitoring cutoff => No split needed."
+                "[_expand_subtask_with_monitoring] Entire pre subtask ends before monitoring cutoff => No split needed."
             )
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
         early_sub = copy.deepcopy(candidate.subtask)
@@ -541,9 +542,6 @@ class Scheduler:
         early_sub.execution.primitive_actions = pre_actions_info.get_actions()
         early_sub.duration.interval = pre_actions_info.results[-1].time_used
         early_sub.decomposed = True
-
-        if early_sub.name.startswith("Wash Fork_early"):
-            pass
 
         remain_sub = copy.deepcopy(candidate.subtask)
         remain_sub.name += "_remain"

@@ -2,7 +2,7 @@
 import math
 from typing import Dict, Set, Tuple
 
-from src.utils.common.logger import create_module_logger
+from src.utils.common import create_module_logger
 
 from .constants import GRID_SIZE
 

@@ -12,7 +12,7 @@ from ai2thor.controller import Controller
 
 import baselines.cap.util.LMPgen as gen
 from ithor.utils.file_utils import *
-from utils.constants import *
+from utils.config.constants import *
 from utils.io_utils.result_saver import result_save_llm
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))

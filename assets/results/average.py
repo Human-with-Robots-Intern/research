@@ -1,22 +1,21 @@
 import json
 import math
 from pathlib import Path
-from utils.util import create_module_logger
+
+from src.utils.common import create_module_logger
 
 MIN_REQUIRED_SIMULATIONS = 5
 log = create_module_logger(module_name=__name__, module_log=True)
 
-def load_summary_data(file_path: Path) -> dict:
-    """
-    주어진 파일 경로에서 JSON 데이터를 읽어 반환합니다.
-    실패 시 None을 반환합니다.
-    """
+
+def load_summary_data(file_path):
     try:
         with file_path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except (FileNotFoundError, PermissionError, json.JSONDecodeError) as e:
         print(f"[Error] 파일 읽기 실패: {file_path} - {e}")
         return None
+
 
 def initialize_metrics(metrics: dict, approach: str) -> None:
     """
@@ -35,7 +34,10 @@ def initialize_metrics(metrics: dict, approach: str) -> None:
             "attempt_values": [],
         }
 
-def accumulate(metrics: dict, approach: str, value, sum_key: str, count_key: str) -> None:
+
+def accumulate(
+    metrics: dict, approach: str, value, sum_key: str, count_key: str
+) -> None:
     """
     값이 None이거나 무한대(inf)가 아닌 경우, 해당 approach의 metrics에서
     sum 및 count를 업데이트합니다.
@@ -51,7 +53,10 @@ def accumulate(metrics: dict, approach: str, value, sum_key: str, count_key: str
     metrics[approach][sum_key] += val
     metrics[approach][count_key] += 1
 
-def process_summary_file(summary_path: Path, metrics: dict, llm_list: set, dag_list: set) -> None:
+
+def process_summary_file(
+    summary_path: Path, metrics: dict, llm_list: set, dag_list: set
+) -> None:
     """
     summary.json 파일 내의 각 approach에 대해 지표를 누적합니다.
     """
@@ -68,17 +73,37 @@ def process_summary_file(summary_path: Path, metrics: dict, llm_list: set, dag_l
         initialize_metrics(metrics, approach)
 
         # 기본 지표 누적
-        accumulate(metrics, approach, entry.get("simulation_makespan"),
-                   "simulation_makespan_sum", "simulation_makespan_count")
-        accumulate(metrics, approach, entry.get("actionSuccess_rate"),
-                   "actionSuccess_rate_sum", "actionSuccess_rate_count")
-        accumulate(metrics, approach, entry.get("computation_time"),
-                   "computation_time_sum", "computation_time_count")
-        
+        accumulate(
+            metrics,
+            approach,
+            entry.get("simulation_makespan"),
+            "simulation_makespan_sum",
+            "simulation_makespan_count",
+        )
+        accumulate(
+            metrics,
+            approach,
+            entry.get("actionSuccess_rate"),
+            "actionSuccess_rate_sum",
+            "actionSuccess_rate_count",
+        )
+        accumulate(
+            metrics,
+            approach,
+            entry.get("computation_time"),
+            "computation_time_sum",
+            "computation_time_count",
+        )
+
         if approach in dag_list:
-            accumulate(metrics, approach, entry.get("scheduler_makespan"),
-                       "scheduler_makespan_sum", "scheduler_makespan_count")
-        
+            accumulate(
+                metrics,
+                approach,
+                entry.get("scheduler_makespan"),
+                "scheduler_makespan_sum",
+                "scheduler_makespan_count",
+            )
+
         # LLM approach의 경우 attempt 값 처리
         if approach in llm_list:
             attempt_val = entry.get("attempt")
@@ -89,19 +114,27 @@ def process_summary_file(summary_path: Path, metrics: dict, llm_list: set, dag_l
                         metrics[approach]["attempt_values"].append(parsed_val)
                 except ValueError:
                     log.debug("ValueError encountered while parsing attempt value")
-        
+
         # subtask_count 및 executing_action_count 누적
         if "subtask_count" in entry:
-            accumulate(metrics, approach, entry.get("subtask_count"),
-                       "subtask_count_sum", "subtask_count_count")
+            accumulate(
+                metrics,
+                approach,
+                entry.get("subtask_count"),
+                "subtask_count_sum",
+                "subtask_count_count",
+            )
         if "executing_action_count" in entry:
-            accumulate(metrics, approach, entry.get("executing_action_count"),
-                       "executing_action_count_sum", "executing_action_count_count")
+            accumulate(
+                metrics,
+                approach,
+                entry.get("executing_action_count"),
+                "executing_action_count_sum",
+                "executing_action_count_count",
+            )
 
-def compute_averages(metrics: dict, llm_list: set, dag_list: set) -> dict:
-    """
-    누적된 지표들을 기반으로 각 approach별 평균값을 계산합니다.
-    """
+
+    # 각 approach별로 평균 계산 (집계된 simulation 수가 MIN_REQUIRED_SIMULATIONS 이상인 경우)
     results = {}
     for approach, vals in metrics.items():
         result = {}
@@ -153,9 +186,14 @@ def compute_averages(metrics: dict, llm_list: set, dag_list: set) -> dict:
 
     return results
 
+
 def make_average(base_dir: Path) -> None:
     llm_list = {"prog_ai2thor_simulation.json", "cap_ai2thor_simulation.json"}
-    dag_list = {"dag_bayesian_simulation.json", "cpm_simulation.json", "dag_edf_simulation.json"}
+    dag_list = {
+        "dag_bayesian_simulation.json",
+        "cpm_simulation.json",
+        "dag_edf_simulation.json",
+    }
 
     metrics = {}
     # base_dir 내의 각 하위 폴더(태스크)를 순회
@@ -170,7 +208,7 @@ def make_average(base_dir: Path) -> None:
             continue
 
         process_summary_file(summary_path, metrics, llm_list, dag_list)
-    
+
     results = compute_averages(metrics, llm_list, dag_list)
 
     output_file = base_dir / "average.json"
