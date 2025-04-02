@@ -1,23 +1,28 @@
-import json
-import math
-import re
-from typing import Any, Dict, List, Optional
+from typing import List
 
 import networkx as nx
 import numpy as np
 
 from core.dataclass import SchedulerState
 from scheduler.constraint_handler import ConstraintHandler
-from utils.common import create_module_logger
-from utils.config import KNOWLEDGE_PATH
+from utils.common import create_module_logger, extract_monitoring_target_name
+from utils.config import (
+    ESTIMATE_FILE_NAME,
+    FACTOR_ALPHA,
+    GROUND_TRUTH_FILE_NAME,
+    INIT_PRIOR_MEAN,
+    INIT_PRIOR_VARIANCE,
+)
+from utils.io_utils import load_knowledge, save_knowledge
 from utils.nlp import SentenceSimilarityModel
+from utils.task.constraints_util import get_critical_start_info
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
 class Agent:
     def __init__(self):
-        self.knowledge = self._load_knowledge()
+        self.knowledge = load_knowledge(ESTIMATE_FILE_NAME)
         self.constraint_handler = ConstraintHandler()
         self.sentence_sim_model = SentenceSimilarityModel.get_instance()
 
@@ -28,149 +33,39 @@ class Agent:
         """
         for key in self.knowledge.keys():
             self.knowledge[key] = {
-                "expected_duration": 0,
-                "variance": 1,
+                "expected_duration": INIT_PRIOR_MEAN,
+                "variance": INIT_PRIOR_VARIANCE,
             }
-
-        self._save_knowledge()
         log.info("Knowledge reset to default Gaussian (mean=0, var=1).")
-
-    def _load_knowledge(
-        self, file_name: str = "bayesian_estimate.json"
-    ) -> Dict[str, Any]:
-        """
-        Load the knowledge JSON file, which is assumed to have a structure like:
-        {
-            "Brew Coffee": {
-                "expected_duration": 0.48,
-                "variance": 1.0
-            },
-            "Boil Water": {
-                "expected_duration": 3.2,
-                "variance": 0.5
-            }
-        }
-        """
-        knowledge_file = KNOWLEDGE_PATH / file_name
-
-        if knowledge_file.exists():
-            try:
-                with knowledge_file.open("r", encoding="utf-8") as f:
-                    knowledge = json.load(f)
-                return knowledge
-            except json.JSONDecodeError as e:
-                raise json.JSONDecodeError(
-                    f"Error decoding knowledge file: {e}", doc="", pos=0
-                )
-        else:
-            raise FileNotFoundError(f"Knowledge file not found at {knowledge_file}.")
-
-    def _save_knowledge(self) -> None:
-        """
-        Save (overwrite) the knowledge JSON file.
-        """
-        KNOWLEDGE_PATH.mkdir(parents=True, exist_ok=True)
-        knowledge_file = KNOWLEDGE_PATH / "bayesian_estimate.json"
-        try:
-            with knowledge_file.open("w", encoding="utf-8") as f:
-                json.dump(self.knowledge, f, indent=4, ensure_ascii=False)
-        except Exception as e:
-            raise Exception(f"Error saving knowledge: {e}")
+        save_knowledge(self.knowledge, ESTIMATE_FILE_NAME)
 
     def _call_sentence_sim_model(
-        self,
-        origin_sub_name: str,
-        sub_name_candidates: List[str],
+        self, origin_sub_name: str, sub_name_candidates: List[str]
     ) -> str:
         """
-        문장 유사도 모델을 호출하여 가장 유사한 후보 sub_name을 반환합니다.
-
-        - 모델 호출 시 에러 발생 시 추정 대기 시간 후에 재시도
-        - similarity_scores가 비어 있으면 target_sub_name 반환
-        - 최대 유사도가 0.7 미만이면 sub_name_labels 중 가장 유사한 sub_name 반환,
-          그 이상이면 원본 그대로.
+        sentence_transformer 싱글톤 인스턴스(self.sentence_sim_model)를 직접 사용하여,
+        가장 유사한 sub_name 후보를 반환합니다.
         """
-        similarity_scores = [
-            self.sentence_sim_model.compute_cosine_similarity(
-                origin_sub_name, sub_name_candidate
-            )
-            for sub_name_candidate in sub_name_candidates
-        ]
+        # 1) 원본 텍스트를 벡터로 인코딩
+        origin_vec = self.sentence_sim_model.encode_sentence(origin_sub_name)
 
-        # 3) 비어 있으면 그대로 반환
-        if not similarity_scores:
+        # 2) 후보들을 한 번에 벡터로 인코딩
+        candidate_vecs = self.sentence_sim_model.encode_sentences(sub_name_candidates)
+
+        # 3) 배치로 코사인 유사도 계산
+        similarity_scores = self.sentence_sim_model.compute_batch_cosine_similarity(
+            query_vec=origin_vec, ref_vecs=candidate_vecs
+        )
+
+        # 후보가 아예 없거나(similarity_scores가 비어있거나),
+        # 예외 상황이면 그냥 origin_sub_name을 리턴
+        if len(similarity_scores) == 0:
             return origin_sub_name
 
-        # 4) 최대 유사도와 해당 인덱스를 찾음
-        idx, max_score = max(enumerate(similarity_scores), key=lambda x: x[1])
-
-        # 5) 점수가 0.7 미만이면 해당 sub_name 반환, 아니면 원본 그대로
+        # 4) 가장 유사도가 높은 후보를 찾고, 0.7 미만이면 그 후보로 교체
+        idx = int(np.argmax(similarity_scores))
+        max_score = similarity_scores[idx]
         return sub_name_candidates[idx] if max_score < 0.7 else origin_sub_name
-
-    def _extract_monitoring_target_name(self, subtask_name: str) -> str:
-        """
-        'Monitoring for (.*?)_' 패턴에서 실제 모니터링 대상 subtask 이름을 추출.
-        예: "Monitoring for Make_Coffee_sub_1" -> "Make_Coffee_sub"
-        """
-        m = re.search(r"Monitoring for (.*?)_", subtask_name)
-        if not m:
-            raise ValueError(f"Invalid monitoring subtask name: {subtask_name}")
-        return m.group(1)
-
-    def _find_critical_start_sub_info(
-        self, state: SchedulerState, monitoring_target_sub_name: str
-    ) -> tuple[str, float]:
-        """
-        `monitoring_target_sub_name`에 연결된 critical slot을 찾고,
-        가장 큰 interval(critical)을 가진 start_sub_name과 그 end_time을 반환.
-        """
-        critical_start_sub_name: Optional[str] = None
-        critical_start_sub_end_time: Optional[float] = None
-
-        for remain_sub in state.remaining_subtasks:
-            if remain_sub.name == monitoring_target_sub_name:
-                # in방향 constraint slot들 중 critical만 추려냄
-                constraints_start_names = self.constraint_handler.get_time_slots(
-                    monitoring_target_sub_name,
-                    state.constraints,
-                    direction="in",
-                )
-                critical_slots = [
-                    slot for slot in constraints_start_names if slot.is_critical
-                ]
-                if not critical_slots:
-                    raise ValueError(
-                        f"Monitoring target sub ({monitoring_target_sub_name}) "
-                        "does not have any critical subs."
-                    )
-
-                # interval이 가장 큰 critical slot 찾기
-                max_critical = max(critical_slots, key=lambda x: x.interval)
-                critical_start_sub_name = max_critical.related_subtask_name
-                # max_critical_interval = max_critical.interval  # 필요하다면 사용
-
-                # completed_subtasks에서 해당 sub의 end_time 찾기
-                critical_start_sub_end_time = next(
-                    (
-                        ce.end_time
-                        for ce in state.completed_subtasks
-                        if ce.subtask.name == critical_start_sub_name
-                    ),
-                    None,
-                )
-                if critical_start_sub_end_time is None:
-                    raise ValueError(
-                        f"Critical start sub ({critical_start_sub_name}) end time not found."
-                    )
-
-                break
-
-        if critical_start_sub_name is None or critical_start_sub_end_time is None:
-            raise ValueError(
-                "Could not determine critical_start_sub_name or its end time."
-            )
-
-        return critical_start_sub_name, critical_start_sub_end_time
 
     def _update_knowledge_and_constraints(
         self,
@@ -189,7 +84,7 @@ class Agent:
         # 1) knowledge에 반영
         self.knowledge[known_sub_name]["expected_duration"] = posterior_mean
         self.knowledge[known_sub_name]["variance"] = posterior_variance
-        self._save_knowledge()
+        save_knowledge(self.knowledge, ESTIMATE_FILE_NAME)
 
         # 2) constraints 그래프 업데이트
         #    - (critical_start_sub_name, monitoring_target_sub_name)에 posterior_mean 반영
@@ -228,19 +123,11 @@ class Agent:
         """
 
         # 1) 모니터링 subtask 이름 파싱
-        monitoring_target_sub_name = self._extract_monitoring_target_name(
-            state.subtask.name
-        )
+        monitoring_target_sub_name = extract_monitoring_target_name(state.subtask.name)
 
         # 2) knowledge 로드
-        bayesian_estimate_dict = self._load_knowledge("bayesian_estimate.json")
-        ground_truth_dict = self._load_knowledge("bayesian_ground_truth.json")
-
-        # dictionary의 key를 전부 lowercase로 변경.
-        bayesian_estimate_dict = {
-            k.lower(): v for k, v in bayesian_estimate_dict.items()
-        }
-        ground_truth_dict = {k.lower(): v for k, v in ground_truth_dict.items()}
+        bayesian_estimate_dict = load_knowledge(ESTIMATE_FILE_NAME)
+        gt = load_knowledge(GROUND_TRUTH_FILE_NAME)
 
         # 3) 문장 유사도 모델로 실제 known_sub_name 결정
         known_sub_name = self._call_sentence_sim_model(
@@ -248,116 +135,76 @@ class Agent:
             list(bayesian_estimate_dict.keys()),
         ).lower()
 
-        # 4) critical_start_sub_name, end_time 찾아옴
-        critical_start_sub_name, critical_start_sub_end_time = (
-            self._find_critical_start_sub_info(state, monitoring_target_sub_name)
-        )
-        elapsed_time = state.current_time - critical_start_sub_end_time
+        if known_sub_name not in gt:
+            raise ValueError(
+                f"No ground_truth found for subtask: {known_sub_name}. Ground Truth에 해당 subtask를 추가해야 합니다."
+            )
+        gt_interval = gt[known_sub_name]
+        if gt_interval <= 0:
+            raise ValueError(
+                "Invalid ground truth value. Ground truth must be positive."
+            )
 
         # 5) ground_truth / prior_mean / prior_variance 가져오기
-        if known_sub_name not in ground_truth_dict:
-            raise ValueError(f"No ground_truth found for subtask: {known_sub_name}")
-        ground_truth_value = ground_truth_dict[known_sub_name]
-        if ground_truth_value <= 0:
-            raise ValueError("Invalid ground truth value")
-
-        # m = re.search("Monitoring for (.*?)_", state.subtask.name)
-        # if not m:
-        #     raise ValueError("Monitoring subtask name is not valid.")
-        # monitoring_target_sub_name = m.group(1)
-        # known_sub_name = self._call_sentence_sim_model(
-        #     monitoring_target_sub_name, list(bayesian_estimate_dict.keys())
-        # )
-
-        for remain_sub in state.remaining_subtasks:
-            # 제약 시작 sub 찾기
-            if remain_sub.name == monitoring_target_sub_name:
-                constraints_start_names = self.constraint_handler.get_time_slots(
-                    monitoring_target_sub_name, state.constraints, "in"
-                )
-                critical_slots = [
-                    slot for slot in constraints_start_names if slot.is_critical
-                ]
-                if not critical_slots:
-                    raise ValueError(
-                        "Monitoring target sub does not have any critical subs"
-                    )
-                max_critical = max(critical_slots, key=lambda x: x.interval)
-                critical_start_sub_name = max_critical.related_subtask_name
-
-                critical_start_sub_end_time = next(
-                    (
-                        ce.end_time
-                        for ce in state.completed_subtasks
-                        if ce.subtask.name == critical_start_sub_name
-                    ),
-                    None,
-                )
-                if not critical_start_sub_end_time:
-                    raise ValueError(
-                        "Critical start sub end time is not found in completed subtasks."
-                    )
-                break
-
-        elapsed_time = state.current_time - critical_start_sub_end_time
-        ground_truth_dict = ground_truth_dict[known_sub_name]
-
         if known_sub_name in bayesian_estimate_dict:
-            prior_mean = bayesian_estimate_dict[known_sub_name]["expected_duration"]
+            prior_interval = bayesian_estimate_dict[known_sub_name]["expected_duration"]
             prior_variance = bayesian_estimate_dict[known_sub_name]["variance"]
         else:
-            # knowledge에 없다면 일단 기본값(예: 1, 5 등) 세팅
-            prior_mean = 1.0
-            prior_variance = 5.0
+            prior_interval = INIT_PRIOR_MEAN
+            prior_variance = INIT_PRIOR_VARIANCE
             self.knowledge[known_sub_name] = {
-                "expected_duration": prior_mean,
-                "variance": prior_variance,
+                "expected_duration": INIT_PRIOR_MEAN,
+                "variance": INIT_PRIOR_VARIANCE,
             }
+        # dictionary의 key를 전부 lowercase로 변경.
+        # * 파일 내 key를 전부 lowercase로 바꾸면 아래 주석 처리된 코드는 필요 없음.
+        # bayesian_estimate_dict = {
+        #     k.lower(): v for k, v in bayesian_estimate_dict.items()
+        # }
+        # ground_truth_dict = {k.lower(): v for k, v in ground_truth_dict.items()}
 
-        # bayesian estimate
-        cooking_data_real = elapsed_time / ground_truth_dict
-        mean_log = np.log(cooking_data_real)
-        cooking_data_with_noise = np.random.lognormal(mean=mean_log, sigma=0.015)
-        a = 1
-        likelihood_epsilon_square = (
-            a * (prior_mean - elapsed_time / cooking_data_with_noise) ** 2
-        )
-        posterior_mean = (
-            prior_variance * prior_mean
-            + likelihood_epsilon_square * elapsed_time / cooking_data_with_noise
-        ) / (likelihood_epsilon_square + prior_variance)
-        posterior_variance = (likelihood_epsilon_square * prior_variance) / (
-            likelihood_epsilon_square + prior_variance
+        # 4) critical_start_sub_name, end_time 찾아옴
+        critical_start_sub_name, critical_start_sub_end_time = get_critical_start_info(
+            subtask_name=monitoring_target_sub_name,
+            completed=state.completed_subtasks,
+            constraints=state.constraints,
+            constraint_handler=self.constraint_handler,
         )
 
-        # update the posterior_data
-        self.knowledge[known_sub_name]["expected_duration"] = posterior_mean
-        self.knowledge[known_sub_name]["variance"] = posterior_variance
-        self._save_knowledge()
+        # 6) 베이지안 업데이트 계산
+        # critical 제약이 시작 된 이후 경과된 separation interval
+        critical_elapsed_interval = state.current_time - critical_start_sub_end_time
 
-        # ! update the constraints
-        nx.set_edge_attributes(
-            state.constraints,
-            {
-                (critical_start_sub_name, monitoring_target_sub_name): {
-                    "Interval": posterior_mean
-                }
-            },
+        # # epsilon_k_sq (근사 버전)
+        # epsilon_k_sq = FACTOR_ALPHA * (prior_interval - critical_elapsed_interval) ** 2
+
+        # epsilon_k_sq (정확 버전)
+        epsilon_k_sq = FACTOR_ALPHA * (gt_interval - critical_elapsed_interval) ** 2
+        
+        # 관측값 (노이즈 존재)
+        observation = np.random.normal(loc=gt_interval, scale=np.sqrt(epsilon_k_sq))
+
+        # posterior_interval, posterior_variance 계산
+        posterior_interval = (
+            prior_variance * observation + epsilon_k_sq * prior_interval
+        ) / (epsilon_k_sq + prior_variance)
+
+        posterior_variance = (epsilon_k_sq * prior_variance) / (
+            epsilon_k_sq + prior_variance
         )
 
-        nx.set_edge_attributes(
-            state.constraints,
-            {
-                (state.subtask.name, monitoring_target_sub_name): {
-                    "Interval": critical_start_sub_end_time
-                    + posterior_mean
-                    - state.current_time
-                }
-            },
+        self._update_knowledge_and_constraints(
+            state=state,
+            known_sub_name=known_sub_name,
+            posterior_mean=posterior_interval,
+            posterior_variance=posterior_variance,
+            critical_start_sub_name=critical_start_sub_name,
+            monitoring_target_sub_name=monitoring_target_sub_name,
+            critical_start_sub_end_time=critical_start_sub_end_time,
         )
         monitored_subtask = {
             "updated_subtask_name": critical_start_sub_name,
-            "original_expected_time": prior_mean,
-            "updated_expected_time": posterior_mean,
+            "original_expected_time": prior_interval,
+            "updated_expected_time": posterior_interval,
         }
         return state, monitored_subtask
