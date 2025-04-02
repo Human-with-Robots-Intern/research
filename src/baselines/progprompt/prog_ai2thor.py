@@ -12,7 +12,7 @@ from ai2thor.controller import Controller
 from util.utils_execute import *
 
 
-from utils.constants import *
+from utils.config.constants import *
 from utils.io_utils.result_saver import result_save_llm
 
 current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로

@@ -45,6 +45,8 @@ class SchedulerState(NamedTuple):
     agent_location: str = None
 
 
+
+
 class SimulationNode(NamedTuple):
     """
     우선순위 큐에서 사용할 탐색 노드.
@@ -59,4 +61,3 @@ class SimulationNode(NamedTuple):
 
     def __lt__(self, other):
         return self.deadline < other.deadline
-
