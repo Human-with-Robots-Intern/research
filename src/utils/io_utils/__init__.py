@@ -1,4 +1,5 @@
 from .ithor_io import *
+from .knowledge_io import *
 from .result_saver import *
 from .task_io import *
 
@@ -12,4 +13,6 @@ __all__ = [
     "get_user_task_choice",
     "get_natural_language_from_task_file",
     "result_save",
+    "load_knowledge",
+    "save_knowledge",
 ]
