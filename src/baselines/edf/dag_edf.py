@@ -31,7 +31,7 @@ from utils.io_utils.task_io import (
 )
 
 from utils.task.task_util import TaskUtil
-from utils.visualizers.gantt import plot_completed_subtasks_gantt
+from utils.visualizers.visualizer import visualize
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
@@ -55,8 +55,9 @@ def compute_nav_time(subtask: Subtask, current_state: SchedulerState, action_han
     """
     temp_node = SimulationNode(deadline=current_state.current_time, simulation_subtask=subtask, state=current_state)
     nav_time = 0
-
-    if not subtask.execution.primitive_actions[-1].startswith("NAVIGATE_TO"):
+    
+    # 모든 subtask의 첫 action은 NAVIGATE_TO 로 시작되어야 한다. 아니라면 문제가 있는것. 확인하라
+    if not subtask.execution.primitive_actions[0].startswith("NAVIGATE_TO"):
         nav_time = 1
         raise("first action is not NAVIGATE_TO")
     
@@ -92,7 +93,7 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
         2. subtask가 non critical in edge만 있으면: 
             deadline = max(선행 subtask의 end_time + edge의 interval)
         3. subtask가 critical in edge를 포함한다면:
-            deadline = min(선행 subtask의 end_time + edge interval)
+            deadline = critical edge의(선행 subtask의 end_time + edge interval)
 
     """
     # 가독성을 위한 변수 선언
@@ -122,8 +123,6 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
         # 두 non-critical-edge가 있으면 그중 느린쪽에 맞추면 해결됨. critical이 존재하면 아래에서 덮어 써짐.
         deadline =  max(non_critical_deadlines) 
 
-
-
     if critical_edges:
         #규칙 3
         critical_deadlines = [
@@ -134,7 +133,7 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
             for u, v, data in critical_edges
             
         ]
-        # 어짜피 두 critical edge가 있으면 둘중 하나는 포기해야하므로 급한거 먼저 처리하도록 구성.
+        # 어짜피 두 critical edge가 있으면 둘중 하나는 포기해야하므로 급한거 먼저 처리하도록 구성. 그러나 critical이 두개 있는경우는 없음
         deadline = min(critical_deadlines) 
 
     
@@ -143,8 +142,7 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
 
 def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask]:
     """
-    각 실행 가능한 subtask에 대해 deadline을 산출한 후, deadline이 가장 짧은 subtask를 선택한다.
-    
+    각 실행 가능한 subtask에 대해 deadline을 산출한 후, deadline이 가장 짧은 subtask를 선택한다.    
     """
     import heapq
 
@@ -398,12 +396,12 @@ def main():
     output_path.mkdir(parents=True, exist_ok=True)
     gantt_path = output_path/"edf_gantt"
 
-    plot_completed_subtasks_gantt(result_schedule, gantt_path)
-
-
+    # plot_completed_subtasks_gantt(result_schedule, gantt_path)
+    
 
     if args.simulation:
         approach_name = f"{approach_name}_simulation"
+        visualize(approach_name, input_natural_language, constraints, result_schedule)
         i = 0
         current_time = 0
 
@@ -435,7 +433,7 @@ def main():
             "scene_name": scene_name,
             # "simulationTime": None,
         }
-
+        
         result_save(**result_args)
 
 
