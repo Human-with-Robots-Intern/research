@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, List, Tuple
+from networkx import DiGraph
 
 from core.dataclass import CompletedEntry
 from utils.config.constants import RESULT_PATH
@@ -62,6 +63,25 @@ def compose_plans(
     plans = [{"plan_name": task_name, "subtasks": subtasks}]
     return plans, success_rate, simulation_time, scheduler_makespan
 
+def calculate_timing_success_rate(constraints: DiGraph, plans: List[dict])-> float :
+    '''
+    constraints 의 모든 edge를 확인해서 plans의 결과를 토대로 timing constraint 준수율을 계산한다.
+    '''
+    total_timing_constraints = 0
+    succeeded_timing_constraints = 0
+
+    ##TODO##
+    # 1. 모든edge를 확인해서 edge 별 선행, 후행, interval, critical 여부를 확인
+    # 2. total_timing_constraints = edge의 수
+    # 3. plans 에서 edge의 선행 subtask_name과 일치하는 subtask의 endtime + edge_interval 을 확인.
+    #   3-a. critical 인 경우 선행 subtask의 endtime + edge_interval +- 가우시간의 90% = 후행 subtask의 start time 이면 succeeded_timing_constraints =+ 1
+    #   3-b. non-critical 인 경우 선행 subtask의 endtime + edge_interval <= 후행 subtask의 start time 이면 succeeded_timing_constraints =+ 1
+    #   단, interval 이 없으면 interval = 0으로 처리
+    ### 
+
+    timing_success_rate = succeeded_timing_constraints / total_timing_constraints if total_timing_constraints != 0 else None
+    return timing_success_rate
+
 
 def result_save(
     task_name: str,
@@ -69,10 +89,13 @@ def result_save(
     result_schedule: List[Any],
     computation_time: float,
     scene_name: str,
+    constraints: DiGraph,
 ):
     plans, success_rate, simulation_time, scheduler_makespan = compose_plans(
         result_schedule, task_name
     )
+
+    timing_success_rate = calculate_timing_success_rate(constraints, plans)
 
     result_data = {
         "saved_time": get_now_str(),
@@ -84,7 +107,7 @@ def result_save(
         "scheduler_makespan": scheduler_makespan,
         "realworld_makespan": None,
         "success_rate": success_rate,
-        "timing_success_rate": None,
+        "timing_success_rate": timing_success_rate,
     }
 
     output_path = RESULT_PATH / task_name / "approach"

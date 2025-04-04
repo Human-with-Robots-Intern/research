@@ -15,7 +15,7 @@ PROJECT_ROOT = (
     Path(__file__).resolve().parent.parent.parent.parent
 )  # 프로젝트 루트 경로
 ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
-from ithor.utils.math_utils import build_navigation_graph
+from ithor.utils.math_utils import load_navigation_graph
 from simulation.runner_ai2thor import init_ai2thor_controller
 from utils.config.constants import RESULT_PATH, SCENE_NAME
 from scheduler.action_handler import ActionHandler
@@ -70,7 +70,7 @@ def compute_nav_time(subtask: Subtask, current_state: SchedulerState, action_han
 
     return nav_time
 
-def compute_execution_time(subtask: Subtask, current_state: SchedulerState, action_handler) -> float:
+def compute_execution_time(subtask: Subtask, current_state: SchedulerState, action_handler:ActionHandler) -> float:
     """
     현재 subtask의 실행 시간을 시뮬레이션하여 반환
     """
@@ -344,7 +344,7 @@ def main():
     approach_name = "dag_edf"
     args = parse_arguments()
     controller = init_ai2thor_controller()
-    nav_graph = build_navigation_graph(controller)
+    nav_graph = load_navigation_graph(controller)
     scene_name = SCENE_NAME
     scene_poses = load_scene_positions(f"{scene_name}_positions.json")
 
@@ -431,6 +431,7 @@ def main():
             "result_schedule": result_schedule,
             "computation_time": computation_time,
             "scene_name": scene_name,
+            "constraints": constraints,
             # "simulationTime": None,
         }
         
