@@ -1,0 +1,127 @@
+{
+    "saved_time": "2025-04-02 17:51",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "plan_name": "make_coffee_and_wash_plates_and_store_tomato_in_fridge",
+            "subtasks": [
+                {
+                    "subtask_name": "Place Bread in Microwave",
+                    "start_time_simulation": 0,
+                    "end_time_simulation": 8.1,
+                    "start_time_scheduled": 0,
+                    "end_time_scheduled": 7.2,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Put Potato in Pot",
+                    "start_time_simulation": 8.1,
+                    "end_time_simulation": 12.0,
+                    "start_time_scheduled": 7.2,
+                    "end_time_scheduled": 10.2,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Fill Pot with Water",
+                    "start_time_simulation": 12.0,
+                    "end_time_simulation": 17.3,
+                    "start_time_scheduled": 10.2,
+                    "end_time_scheduled": 14.8,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Prepare Coffee",
+                    "start_time_simulation": 17.3,
+                    "end_time_simulation": 22.3,
+                    "start_time_scheduled": 14.8,
+                    "end_time_scheduled": 19.0,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Place Pot on Stove and Boil",
+                    "start_time_simulation": 22.3,
+                    "end_time_simulation": 28.6,
+                    "start_time_scheduled": 19.0,
+                    "end_time_scheduled": 24.5,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Start Microwave",
+                    "start_time_simulation": 28.6,
+                    "end_time_simulation": 29.8,
+                    "start_time_scheduled": 24.5,
+                    "end_time_scheduled": 25.8,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Retrieve Coffee",
+                    "start_time_simulation": 29.8,
+                    "end_time_simulation": 35.4,
+                    "start_time_scheduled": 25.8,
+                    "end_time_scheduled": 30.6,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Wait for Retrieve Bread from Microwave",
+                    "start_time_simulation": 35.4,
+                    "end_time_simulation": 35.6,
+                    "start_time_scheduled": 30.6,
+                    "end_time_scheduled": 30.8,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 2.3000000000000003",
+                    "start_time_simulation": 35.6,
+                    "end_time_simulation": 37.8,
+                    "start_time_scheduled": 30.8,
+                    "end_time_scheduled": 33.1,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Monitoring for Turn off Stove after Boiling_adf582b5",
+                    "start_time_simulation": 37.8,
+                    "end_time_simulation": 37.9,
+                    "start_time_scheduled": 33.1,
+                    "end_time_scheduled": 33.2,
+                    "execution_status": true,
+                    "monitored_subtask": {
+                        "updated_subtask_name": "Place Pot on Stove and Boil",
+                        "original_expected_time": 10.00538038160997,
+                        "updated_expected_time": 9.84956154706071
+                    }
+                },
+                {
+                    "subtask_name": "Wait for Turn off Stove after Boiling",
+                    "start_time_simulation": 37.9,
+                    "end_time_simulation": 39.21,
+                    "start_time_scheduled": 33.2,
+                    "end_time_scheduled": 34.505,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Turn off Stove after Boiling",
+                    "start_time_simulation": 39.21,
+                    "end_time_simulation": 40.21,
+                    "start_time_scheduled": 34.505,
+                    "end_time_scheduled": 35.605,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Retrieve Bread from Microwave",
+                    "start_time_simulation": 40.21,
+                    "end_time_simulation": 48.21,
+                    "start_time_scheduled": 35.605,
+                    "end_time_scheduled": 43.005,
+                    "execution_status": true
+                }
+            ]
+        }
+    ],
+    "computation_time": 0.52812,
+    "simulation_makespan": 48.21,
+    "scheduler_makespan": 43.005,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate": null
+}
