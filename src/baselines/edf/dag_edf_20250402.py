@@ -17,7 +17,7 @@ PROJECT_ROOT = (
 ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 from ithor.utils.math_utils import build_navigation_graph
 from simulation.runner_ai2thor import init_ai2thor_controller
-from utils.config.constants import RESULT_PATH, SCENE_NAME
+from src.utils.config.constants import RESULT_PATH, SCENE_NAME
 from scheduler.action_handler import ActionHandler
 from dataclass import SimulationNode, SchedulerState, CompletedEntry
 from core.task import *

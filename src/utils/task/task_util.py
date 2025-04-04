@@ -12,14 +12,14 @@ from core.dataclass import CompletedEntry, SchedulerState
 from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
 
 # 내부 프로젝트 모듈
-from utils.common import create_module_logger
-from utils.config.constants import (
+from src.utils.common import create_module_logger
+from src.utils.config.constants import (
     KNOWLEDGE_PATH,
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
 )
-from utils.nlp.sentence_transformer import SentenceSimilarityModel
+from src.utils.nlp.sentence_transformer import SentenceSimilarityModel
 
 load_dotenv()
 log = create_module_logger(__name__, module_log=True)

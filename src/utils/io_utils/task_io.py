@@ -3,8 +3,8 @@ import json
 from pathlib import Path
 from typing import Optional, Tuple
 
-from utils.config.constants import KNOWLEDGE_PATH, TASK_PATH
-from utils.task.task_generator import TaskGenerator
+from src.utils.config.constants import KNOWLEDGE_PATH, TASK_PATH
+from src.utils.task.task_generator import TaskGenerator
 
 
 def load_navigation_times() -> dict:

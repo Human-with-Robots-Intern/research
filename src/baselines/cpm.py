@@ -11,16 +11,16 @@ from typing import Callable, Dict, List, Set, Tuple
 import networkx as nx
 
 from core.task import Execution, Subtask
-from utils.io_utils import task_io
+from src.utils.io_utils import task_io
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 
 from core.agent import Agent
 from core.scheduler import Scheduler
-from ithor.utils.math_utils import adjust_if_unreachable, build_navigation_graph
-from utils.common import create_module_logger
-from utils.config.constants import (
+from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
+from src.utils.common import create_module_logger
+from src.utils.config.constants import (
     KNOWLEDGE_PATH,
     MONITORING_DURATION,
     NAV_STEP_DURATION,
@@ -28,8 +28,8 @@ from utils.config.constants import (
     PRIMITIVE_ACTION_SET,
     SCENE_NAME,
 )
-from utils.io_utils.result_saver import result_save
-from utils.io_utils.task_io import (    
+from src.utils.io_utils.result_saver import result_save
+from src.utils.io_utils.task_io import (    
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file,
@@ -82,7 +82,7 @@ def main():
 
     # Set up the AI2-THOR controller and navigation graph
     controller = init_ai2thor_controller()
-    nav_graph = build_navigation_graph(controller)
+    nav_graph = load_navigation_graph(controller)
     scene_name = SCENE_NAME
 
     # Load the chosen task data

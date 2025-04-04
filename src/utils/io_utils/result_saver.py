@@ -5,8 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, List, Tuple
 
-from core.dataclass import CompletedEntry
-from utils.config.constants import RESULT_PATH
+from src.core.dataclass import CompletedEntry
+from src.utils.config.constants import RESULT_PATH
 
 
 def get_now_str(fmt: str = "%Y-%m-%d %H:%M") -> str:

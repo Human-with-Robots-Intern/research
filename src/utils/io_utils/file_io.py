@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from utils.config.constants import KNOWLEDGE_PATH, TASK_PATH
+from src.utils.config.constants import KNOWLEDGE_PATH, TASK_PATH
 
 
 def load_file(file_path: Path, file_type: str) -> Any:

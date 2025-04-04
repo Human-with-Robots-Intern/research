@@ -1,5 +1,5 @@
 [pydeps]
-max_bacon = 1
+
 no_show = True
 verbose = 0
 pylib = False

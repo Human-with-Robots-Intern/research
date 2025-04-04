@@ -4,8 +4,8 @@ from networkx import DiGraph
 
 from core.dataclass import Candidate, Deadline, SimulationNode, TimeSlot
 from core.task import Subtask
-from utils.common import create_module_logger
-from utils.config import EPSILON, LOG_ROUND
+from src.utils.common import create_module_logger
+from src.utils.config import EPSILON, LOG_ROUND
 
 log = create_module_logger(module_name=__name__, module_log=True)
 

@@ -1,0 +1,98 @@
+{
+    "saved_time": "2025-04-04 19:06",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "plan_name": "make_coffee_and_wash_plates_and_store_tomato_in_fridge",
+            "subtasks": [
+                {
+                    "subtask_name": "Place Bread in Microwave",
+                    "start_time_simulation": 0,
+                    "end_time_simulation": 8.1,
+                    "start_time_scheduled": 0,
+                    "end_time_scheduled": 7.2,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Start Microwave",
+                    "start_time_simulation": 8.1,
+                    "end_time_simulation": 9.2,
+                    "start_time_scheduled": 7.2,
+                    "end_time_scheduled": 8.3,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Put Potato in Pot",
+                    "start_time_simulation": 9.2,
+                    "end_time_simulation": 13.0,
+                    "start_time_scheduled": 8.3,
+                    "end_time_scheduled": 11.3,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Fill Pot with Water",
+                    "start_time_simulation": 13.0,
+                    "end_time_simulation": 18.3,
+                    "start_time_scheduled": 11.3,
+                    "end_time_scheduled": 15.9,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Prepare Coffee",
+                    "start_time_simulation": 18.3,
+                    "end_time_simulation": 23.3,
+                    "start_time_scheduled": 15.9,
+                    "end_time_scheduled": 20.1,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Retrieve Bread from Microwave",
+                    "start_time_simulation": 23.3,
+                    "end_time_simulation": 33.2,
+                    "start_time_scheduled": 20.1,
+                    "end_time_scheduled": 29.4,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Retrieve Coffee",
+                    "start_time_simulation": 33.2,
+                    "end_time_simulation": 37.0,
+                    "start_time_scheduled": 29.4,
+                    "end_time_scheduled": 32.6,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Place Pot on Stove and Boil",
+                    "start_time_simulation": 37.0,
+                    "end_time_simulation": 43.8,
+                    "start_time_scheduled": 32.6,
+                    "end_time_scheduled": 38.6,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Wait for Turn off Stove after Boiling",
+                    "start_time_simulation": 43.8,
+                    "end_time_simulation": 53.8,
+                    "start_time_scheduled": 38.6,
+                    "end_time_scheduled": 48.6,
+                    "execution_status": true
+                },
+                {
+                    "subtask_name": "Turn off Stove after Boiling",
+                    "start_time_simulation": 53.8,
+                    "end_time_simulation": 54.8,
+                    "start_time_scheduled": 48.6,
+                    "end_time_scheduled": 49.7,
+                    "execution_status": true
+                }
+            ]
+        }
+    ],
+    "computation_time": 0.67546,
+    "simulation_makespan": 54.8,
+    "scheduler_makespan": 49.7,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate": null
+}

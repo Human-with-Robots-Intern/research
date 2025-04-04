@@ -10,13 +10,13 @@ from typing import Any, Dict, List, Optional
 import openai
 from dotenv import load_dotenv
 
-from utils.common import create_module_logger
-from utils.config.constants import PROMPT_FILE_PATH, PROMPT_PATH, TASK_PATH, TOP_K
-from utils.nlp.few_shot_retriever import FewShotRetriever
-from utils.task.task_cache import check_cache, get_cache_key, store_cache
+from src.utils.common import create_module_logger
+from src.utils.config.constants import PROMPT_FILE_PATH, PROMPT_PATH, TASK_PATH, TOP_K
+from src.utils.nlp.few_shot_retriever import FewShotRetriever
+from src.utils.task.task_cache import check_cache, get_cache_key, store_cache
 
 # 내부 모듈
-from utils.task.task_validators import validate_output_format
+from src.utils.task.task_validators import validate_output_format
 
 # .env 파일 로딩 (OPENAI_API_KEY 등)
 load_dotenv()

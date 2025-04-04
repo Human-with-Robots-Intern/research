@@ -3,10 +3,10 @@ import heapq
 import math
 from typing import List, Tuple
 
-from core.dataclass import ActionResult, ActionSimulationLog, SimulationNode
 from ithor.utils.math_utils import adjust_if_unreachable
-from utils.common import create_module_logger
-from utils.config.constants import (
+from src.core.dataclass import ActionResult, ActionSimulationLog, SimulationNode
+from src.utils.common import create_module_logger
+from src.utils.config.constants import (
     MONITORING_DURATION,
     NAV_STEP_DURATION,
     PRIMITIVE_ACTION_DURATION,
@@ -14,6 +14,7 @@ from utils.config.constants import (
 )
 
 log = create_module_logger(__name__, module_log=True)
+
 
 class ActionHandler:
     def __init__(self, nav_graph):
@@ -173,12 +174,14 @@ class ActionHandler:
             elif action_type == "GRASP":
                 if held_object is not None:
                     log.warning(f"Object {held_object} already in hand.")
+                    raise ValueError(f"Object {held_object} already in hand.")
                 held_object = target_obj_id
                 action_duration = PRIMITIVE_ACTION_DURATION
 
             elif action_type in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
                 if held_object is None:
                     log.warning("No object in hand to place.")
+                    raise ValueError("No object in hand to place.")
                 # place 동작
                 scene_positions[held_object] = scene_positions[target_obj_id]
                 held_object = None

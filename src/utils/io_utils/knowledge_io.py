@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict
 
-from utils.config import KNOWLEDGE_PATH
+from src.utils.config import KNOWLEDGE_PATH
 
 
 def load_knowledge(file_name: str = "bayesian_estimate.json") -> Dict[str, Any]:

@@ -7,8 +7,8 @@ from core.dataclass import Candidate, CompletedEntry, SchedulerState, Simulation
 from core.task import Duration, Execution, Subtask
 from scheduler import ConstraintHandler, HeuristicManager
 from scheduler.action_handler import ActionHandler
-from utils.common import create_module_logger
-from utils.config import (
+from src.utils.common import create_module_logger
+from src.utils.config import (
     BAYESIAN_CRITERIA,
     EPSILON,
     MONITORING_DURATION,
@@ -16,7 +16,7 @@ from utils.config import (
     RED,
     RESET,
 )
-from utils.task import TaskUtil
+from src.utils.task import TaskUtil
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -53,7 +53,7 @@ class Scheduler:
 
         self.action_handler = ActionHandler(nav_graph or {})
         self.constraint_handler = ConstraintHandler()
-        self.cost_calculator = HeuristicManager(self.constraint_handler)
+        self.cost_calculator = HeuristicManager(self.action_handler)
 
         self._counter = itertools.count()
 
@@ -420,7 +420,9 @@ class Scheduler:
             held_object=new_held_obj,
         )
 
-        step_cost = self.cost_calculator.calc_heuristic(curr_node, candidate)
+        step_cost = self.cost_calculator.calc_heuristic(
+            curr_node, candidate, new_remain
+        )
         new_cost = curr_cost + step_cost
 
         log.info(
@@ -519,9 +521,7 @@ class Scheduler:
 
         # ! ------------------- Proceed with actual splitting -------------------
         # * (1) split_subtask_for_monitoring
-        # TODO : split_time을 expected_monitoring_start_timing - curr_state.current_time로 썼을 때, monitoring 시점이 2개가 생김
-        split_time = expected_monitoring_start_timing - curr_state.current_time
-        split_time = cutoff
+        split_time = max(0, expected_monitoring_start_timing - curr_state.current_time)
 
         pre_actions_info, post_actions_info = (
             self.action_handler.split_subtask_by_cutoff_time(
@@ -533,7 +533,7 @@ class Scheduler:
 
         if not post_actions_info:
             log.warning(
-                f"[_expand_subtask_with_monitoring] Entire pre subtask ends before monitoring cutoff => No split needed."
+                "[_expand_subtask_with_monitoring] Entire pre subtask ends before monitoring cutoff => No split needed."
             )
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
         early_sub = copy.deepcopy(candidate.subtask)
@@ -541,9 +541,6 @@ class Scheduler:
         early_sub.execution.primitive_actions = pre_actions_info.get_actions()
         early_sub.duration.interval = pre_actions_info.results[-1].time_used
         early_sub.decomposed = True
-
-        if early_sub.name.startswith("Wash Fork_early"):
-            pass
 
         remain_sub = copy.deepcopy(candidate.subtask)
         remain_sub.name += "_remain"
@@ -562,29 +559,30 @@ class Scheduler:
         )
 
         # * (B) Check feasibility against deadline
-        start_time = curr_state.current_time
-        end_time = start_time + early_sub.duration.interval
+        early_sub_start_time = curr_state.current_time
+        early_sub_end_time = early_sub_start_time + early_sub.duration.interval
 
-        if deadline_due < end_time:
+        if deadline_due < early_sub_end_time:
+            # * Critical Subtask 도래가 early sub 끝나는 시간보다 느리면 infeasible
             log.debug(
                 f"[_expand_subtask_with_monitoring] Deadline {deadline_due} < "
-                f"earliest_finish_time {end_time}"
+                f"earliest_finish_time {early_sub_end_time}"
                 f"=> Infeasible.\n"
             )
             return None
 
         # * (C) Update the state with the new subtasks
         old_name = candidate.subtask.name
-        completed_entry = CompletedEntry(early_sub, start_time, end_time)
+        completed_entry = CompletedEntry(
+            early_sub, early_sub_start_time, early_sub_end_time
+        )
         new_completed = curr_state.completed_subtasks + [completed_entry]
         new_held_obj = pre_actions_info.results[-1].held_object
         new_scene_positions = pre_actions_info.results[-1].scene_positions
         new_remain = [r for r in curr_state.remaining_subtasks if r.name != old_name]
         new_remain.extend([mon_sub, remain_sub])  # monitoring + remain 추가
 
-        # ! ------------------- Constraints Update -------------------
-        # (C) Build the new constraints graph
-
+        # ! ------------------- Constraints Update (REVISED LOGIC) -------------------
         new_constraints = copy.deepcopy(curr_state.constraints)
 
         in_edges = (
@@ -598,65 +596,108 @@ class Scheduler:
             else []
         )
 
-        # Remove old subtask node
         if new_constraints.has_node(old_name):
             new_constraints.remove_node(old_name)
-        # Reconnect edges
-        for pred, _, data in in_edges:
-            new_constraints.add_edge(
-                pred, early_sub.name, info=copy.deepcopy(data["info"])
-            )
-        for _, succ, data in out_edges:
-            new_constraints.add_edge(
-                remain_sub.name, succ, info=copy.deepcopy(data["info"])
-            )
 
-        # Add new subtask nodes
         new_constraints.add_node(early_sub.name)
         new_constraints.add_node(mon_sub.name)
         new_constraints.add_node(remain_sub.name)
 
-        # Connect early_sub -> mon_sub -> remain_sub
+        # Reconnect original incoming edges to early_sub
+        for pred, _, data in in_edges:
+            # IMPORTANT: Check if the incoming edge is the critical start edge itself
+            if pred != critical_start_sub_name:
+                new_constraints.add_edge(pred, early_sub.name, **data)
+            # else: We handle the critical connection below
+
+        # Reconnect original outgoing edges from remain_sub
+        for _, succ, data in out_edges:
+            # IMPORTANT: Check if the outgoing edge is the critical deadline edge itself
+            if succ != deadline_sub_name:
+                new_constraints.add_edge(remain_sub.name, succ, **data)
+            # else: We handle the critical connection below
+
+        # Connect early_sub -> mon_sub -> remain_sub (Non-critical connections)
         new_constraints.add_edge(
-            early_sub.name, mon_sub.name, info={"Interval": 0, "IsCritical": True}
+            early_sub.name,
+            mon_sub.name,
+            info={
+                "Interval": 0,
+                "IsCritical": True,
+            },  # Assuming immediate start after early_sub
         )
         new_constraints.add_edge(
-            mon_sub.name, remain_sub.name, info={"Interval": 0, "IsCritical": False}
+            mon_sub.name,
+            remain_sub.name,
+            info={
+                "Interval": 0,
+                "IsCritical": False,
+            },  # remain starts after monitoring duration
         )
 
-        # Add edges for the critical chain
+        # ---- START: Critical Chain Edges Correction (Reflecting Semantic Correction) ----
+
+        # Calculate the ACTUAL time elapsed from critical start event end to the end of the (corrected) early_sub
+        # end_time = curr_state.current_time + early_sub.duration.interval
+        actual_elapsed_until_early_end = (
+            early_sub_end_time - critical_constraint_start_time
+        )
+
+        # Edge: Critical Start -> Monitoring Task Start
+        # The interval reflects the *actual* expected time until mon_sub starts.
+        # Since mon_sub starts immediately after early_sub ends (Interval=0 edge above),
+        # this interval is the time from critical_start_sub_end to early_sub_end.
+        interval_crit_start_to_mon_start = actual_elapsed_until_early_end
         new_constraints.add_edge(
             critical_start_sub_name,
             mon_sub.name,
-            info={"Interval": early_sub.duration.interval, "IsCritical": True},
+            info={
+                "Interval": interval_crit_start_to_mon_start,
+                "IsCritical": True,
+            },  # <<< Interval reflects actual early_sub end
+        )
+        log.debug(
+            f"Added critical edge: {critical_start_sub_name} -> {mon_sub.name} with ACTUAL Interval={interval_crit_start_to_mon_start:.2f}"
         )
 
-        remain_critical_interval = (
-            max_critical_interval - early_sub.duration.interval - MONITORING_DURATION
+        # Edge: Monitoring Task End -> Original Deadline Subtask Start
+        # The interval reflects the remaining time from mon_sub's END to deadline_sub_name's START.
+        # Total original interval = max_critical_interval
+        # Time spent until mon_sub starts = interval_crit_start_to_mon_start
+        # Time spent for monitoring = MONITORING_DURATION
+        remain_critical_interval = max(
+            0,
+            max_critical_interval
+            - interval_crit_start_to_mon_start
+            - MONITORING_DURATION,
         )
         new_constraints.add_edge(
-            mon_sub.name,
-            deadline_sub_name,
+            mon_sub.name,  # From the end of monitoring task
+            deadline_sub_name,  # To the start of the task ending the critical period
             info={
-                "Interval": remain_critical_interval,
+                "Interval": remain_critical_interval,  # <<< Interval reflects remaining time after actual mon_sub start + duration
                 "IsCritical": True,
             },
         )
         log.debug(
-            f"[_expand_subtask_with_monitoring] monitoring for {deadline_sub_name}, {max_critical_interval}, {- early_sub.duration.interval - mon_sub.duration.interval}"
+            f"Added critical edge: {mon_sub.name} -> {deadline_sub_name} with Remaining Interval={remain_critical_interval:.2f}"
         )
+
+        # ---- END: Critical Chain Edges Correction ----
 
         new_state = SchedulerState(
             subtask=early_sub,
             completed_subtasks=new_completed,
             remaining_subtasks=new_remain,
             constraints=new_constraints,
-            current_time=end_time,
+            current_time=early_sub_end_time,
             scene_positions=new_scene_positions,
             held_object=new_held_obj,
         )
 
-        step_cost = self.cost_calculator.calc_heuristic(curr_node, candidate)
+        step_cost = self.cost_calculator.calc_heuristic(
+            curr_node, candidate, new_remain
+        )
         new_cost = curr_cost + step_cost
 
         log.info(
@@ -678,118 +719,250 @@ class Scheduler:
     # -----------------------------------------------------
     def _expand_wait_with_monitoring(
         self, curr_node: SimulationNode, candidate: Candidate
-    ) -> SimulationNode:
+    ) -> Optional[SimulationNode]:  # Can return None
         """
-        Inserts a single "Wait" action until the candidate's earliest_start_time.
+        Expands a wait action for a critical candidate by performing partial navigation
+        towards the target. Sets up constraints to ensure the Monitoring task
+        is executed immediately after this navigation, followed by the candidate task.
 
-        - If earliest_start_time <= current_time, wait_duration becomes 0.
-        - This wait is modeled as a Subtask with Navigation, Monitoring and Wait actions.
+        This function only performs the navigation and advances time to its end.
+        The Monitoring task itself will be selected and executed in the next step
+        due to the established constraints.
 
         Args:
             curr_node (SimulationNode): Current node in the search tree.
-            candidate (Candidate): The candidate subtask we're waiting for.
+            candidate (Candidate): The critical candidate subtask we're waiting for.
 
         Returns:
-            SimulationNode: The child node representing the new state after waiting.
+            Optional[SimulationNode]: The child node representing the state after partial
+            navigation is completed, with constraints set for subsequent monitoring,
+            or None if navigation/monitoring target cannot be determined.
         """
         curr_state = curr_node.state
         curr_cost = curr_node.heuristic_cost
         curr_depth = curr_node.depth
 
-        total_wait_duration = candidate.earliest_start_time - curr_state.current_time
-        if total_wait_duration < 0:
-            raise ValueError(
-                f"[_expand_wait_with_monitoring] Negative wait duration: {total_wait_duration}"
+        # Target task info
+        target_subtask_name = candidate.subtask.name
+        target_earliest_start_time = candidate.earliest_start_time
+
+        # --- Determine Navigation Target ---
+        try:
+            target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
+        except IndexError:
+            log.error(
+                f"Cannot determine navigation/monitoring target for {target_subtask_name}. Cannot expand."
             )
-        target_obj = candidate.subtask.execution.primitive_actions[0].split()[1]
-        full_nav_time = self.action_handler.get_actions_info(
-            curr_node, [f"NAVIGATE_TO {target_obj}"]
-        ).action_duration
-        #!  Refactoring 필요
-        partial_nav_time = min(
-            (
-                int(
-                    (candidate.earliest_start_time - curr_state.current_time)
-                    // NAV_STEP_DURATION
+            return None
+
+        # --- Calculate Timings ---
+        # Ideal time to START monitoring
+        ideal_monitor_start_time = target_earliest_start_time - MONITORING_DURATION
+        # Time available for navigation until ideal monitor start
+        available_time_for_nav = ideal_monitor_start_time - curr_state.current_time
+
+        partial_nav_time = 0.0
+        if available_time_for_nav < 0:
+            # Too late for ideal monitoring start, implies no time for navigation before monitoring.
+            log.warning(
+                f"Wait time too short ({available_time_for_nav:.2f}) for navigation before ideal monitoring. "
+                f"Proceeding to schedule monitoring immediately after current state for {target_subtask_name}."
+            )
+            # partial_nav_time remains 0.0
+        else:
+            # Calculate possible navigation time
+            try:
+                full_nav_time_info = self.action_handler.get_actions_info(
+                    curr_node, [f"NAVIGATE_TO {target_obj_id}"]
                 )
-                * NAV_STEP_DURATION
-            ),
-            full_nav_time,
-        )
-        log.warning(
-            f"Partial Navigation Time: {partial_nav_time} / {candidate.earliest_start_time - curr_state.current_time}"
-        )
-        if partial_nav_time < 0:
-            raise ValueError(
-                f"[_expand_wait_with_monitoring] Negative partial navigation time: {partial_nav_time}"
-            )
+                full_nav_time = (
+                    full_nav_time_info.action_duration if full_nav_time_info else 0.0
+                )
+                partial_nav_time = max(0, min(available_time_for_nav, full_nav_time))
+                log.debug(f"Calculated partial_nav_time: {partial_nav_time:.2f}")
+            except Exception as e:
+                log.error(
+                    f"Error calculating navigation time for {target_subtask_name}: {e}. Assuming 0 nav time."
+                )
+                partial_nav_time = 0.0
 
-        nav_action = [f"NAVIGATE_TO {target_obj} {partial_nav_time}"]
-        nav_action_info = self.action_handler.get_actions_info(curr_node, nav_action)
-        nav_time = nav_action_info.time_used
-        new_scene_positions = nav_action_info.scene_positions
-        new_held_obj = nav_action_info.held_object
+        # --- Simulate ONLY Partial Navigation ---
+        nav_start_time = curr_state.current_time
+        actual_nav_time_used = 0.0
+        navigate_sub = None
+        new_scene_positions = copy.deepcopy(
+            curr_state.scene_positions
+        )  # Start with current state
+        new_held_obj = curr_state.held_object
 
-        navigate_sub = Subtask(
-            task_name=None,
-            name=f"Navigate to {target_obj} during {partial_nav_time}",
-            duration=Duration(interval=nav_time, type="Controllable"),
-            repetition=1,
-            type="Interaction",
-            execution=Execution(objects=None, primitive_actions=nav_action),
-            temporal_constraints=None,
-        )
+        if partial_nav_time > 1e-6:
+            try:
+                nav_action = [f"NAVIGATE_TO {target_obj_id} {partial_nav_time}"]
+                temp_sim_node_for_nav = SimulationNode(
+                    state=curr_state,
+                    heuristic_cost=0,
+                    depth=0,
+                    tie_breaker=0,
+                    parent_node=None,
+                )
+                nav_action_info = self.action_handler.get_actions_info(
+                    temp_sim_node_for_nav, nav_action
+                )
 
+                if nav_action_info:
+                    actual_nav_time_used = nav_action_info.time_used
+                    new_scene_positions = nav_action_info.scene_positions
+                    new_held_obj = nav_action_info.held_object
+
+                    navigate_sub = Subtask(
+                        task_name=None,
+                        name=f"Navigate towards {target_obj_id} while waiting for {target_subtask_name}",
+                        duration=Duration(
+                            interval=actual_nav_time_used, type="Controllable"
+                        ),
+                        repetition=1,
+                        type="Interaction",
+                        execution=Execution(
+                            objects={target_obj_id: 1} if target_obj_id else None,
+                            primitive_actions=nav_action,
+                        ),
+                        decomposed=True,  # Indicates it's part of a larger sequence
+                    )
+                else:
+                    log.warning(
+                        f"Partial navigation simulation failed for {target_obj_id}. No navigation performed."
+                    )
+            except Exception as e:
+                log.error(
+                    f"Error during partial navigation simulation for {target_subtask_name}: {e}. No navigation performed."
+                )
+                actual_nav_time_used = 0.0  # Ensure time doesn't advance if nav fails
+
+        nav_end_time = nav_start_time + actual_nav_time_used
+
+        # --- State Update ---
+        new_completed = curr_state.completed_subtasks
+        if navigate_sub:
+            new_completed = curr_state.completed_subtasks + [
+                CompletedEntry(navigate_sub, nav_start_time, nav_end_time)
+            ]
+
+        # Create the monitoring subtask definition BUT DO NOT EXECUTE IT HERE. Add it to remaining tasks.
         mon_sub = TaskUtil.create_monitoring_subtask(
-            name=candidate.subtask.name, obj=target_obj
+            name=target_subtask_name, obj=target_obj_id
         )
+        # Ensure duration is set if TaskUtil doesn't do it
+        if not hasattr(mon_sub, "duration") or mon_sub.duration is None:
+            mon_sub.duration = Duration(
+                type="Controllable", interval=MONITORING_DURATION
+            )
+        elif mon_sub.duration.interval != MONITORING_DURATION:
+            mon_sub.duration.interval = MONITORING_DURATION
 
-        new_remain = [r for r in curr_state.remaining_subtasks]
-        new_remain.extend([mon_sub])
+        # Update remaining tasks: remove original candidate if it exists (though it shouldn't change), add mon_sub
+        new_remain = [
+            r for r in curr_state.remaining_subtasks if r.name != target_subtask_name
+        ]  # Keep others
+        new_remain.append(mon_sub)  # Add the monitoring task to be scheduled next
+        # Add the original candidate back AFTER the monitor task? Or let constraints handle order?
+        # Let constraints handle the order. Target task should already be in remaining_subtasks.
+        # Ensure original candidate is still there if it wasn't the one being replaced/modified.
+        original_candidate_still_needed = True  # Assume yes unless it was decomposed
+        if original_candidate_still_needed and not any(
+            r.name == target_subtask_name for r in new_remain
+        ):
+            # If the original candidate got filtered out somehow, add it back.
+            # This usually shouldn't happen if we just append mon_sub.
+            original_candidate_task = candidate.subtask  # Get the actual Subtask object
+            new_remain.append(original_candidate_task)
 
-        start_time = curr_state.current_time
-        end_time = start_time + nav_time
-
-        completed_entry = CompletedEntry(navigate_sub, start_time, end_time)
-        new_completed = curr_state.completed_subtasks + [completed_entry]
-
-        # ! ------------------- Constraints Update -------------------
+        # --- Constraints Update ---
         new_constraints = copy.deepcopy(curr_state.constraints)
-        new_constraints.add_node(mon_sub.name)
 
-        new_constraints.add_edge(
-            curr_node.state.subtask.name,
-            mon_sub.name,
-            info={"Interval": nav_time, "IsCritical": True},
+        # Add monitor node if needed
+        if not new_constraints.has_node(mon_sub.name):
+            new_constraints.add_node(mon_sub.name)
+
+        # Constraint 1: Monitoring task MUST start immediately after navigation (or current time if no nav).
+        # The interval is the time between the end of the *last completed task* in the PREVIOUS state
+        # and the start of the monitor task. Here, the "wait" conceptually fills the gap.
+        # We enforce the sequence: navigate_sub (if any) -> mon_sub
+
+        # Determine the name of the task completed just before this expansion
+        last_completed_node_name = (
+            curr_node.state.subtask.name
+        )  # Task completed in the parent node's state
+
+        # If navigation occurred, the link is from navigate_sub to mon_sub
+        source_node_for_mon_constraint = (
+            navigate_sub.name if navigate_sub else last_completed_node_name
         )
 
+        # Calculate the time interval between the source node end and the ideal monitor start time
+        source_node_end_time = (
+            nav_end_time if navigate_sub else curr_state.current_time
+        )  # Time when the source node finished
+        interval_source_end_to_mon_start = (
+            ideal_monitor_start_time - source_node_end_time
+        )
+        interval_source_end_to_mon_start = max(
+            0, interval_source_end_to_mon_start
+        )  # Interval cannot be negative
+
+        # Add edge: Source -> Monitor Task Start
         new_constraints.add_edge(
+            source_node_for_mon_constraint,
             mon_sub.name,
-            candidate.subtask.name,
             info={
-                "Interval": total_wait_duration - MONITORING_DURATION - nav_time,
-                "IsCritical": True,
+                "Interval": interval_source_end_to_mon_start,
+                "IsCritical": True,  # Monitoring must start at this calculated time
             },
         )
+        log.debug(
+            f"Added constraint: {source_node_for_mon_constraint} -> {mon_sub.name} (Interval={interval_source_end_to_mon_start:.2f}, Critical=True)"
+        )
 
-        # Agent position/state 변경은 거의 없음(Wait)
+        # Constraint 2: Target candidate task MUST start immediately after monitoring finishes.
+        # Interval from monitor task START to target task START is MONITORING_DURATION.
+        interval_mon_start_to_target_start = MONITORING_DURATION
+
+        new_constraints.add_edge(
+            mon_sub.name,  # From monitor task start
+            target_subtask_name,  # To target task start
+            info={
+                "Interval": interval_mon_start_to_target_start,
+                "IsCritical": True,  # Target must start right after monitor finishes
+            },
+        )
+        log.debug(
+            f"Added constraint: {mon_sub.name} -> {target_subtask_name} (Interval={interval_mon_start_to_target_start:.2f}, Critical=True)"
+        )
+
+        # --- Create New State ---
         new_state = SchedulerState(
-            subtask=navigate_sub,
+            # The subtask for this state is the navigation task if it happened, otherwise the previous task?
+            # Let's set it to navigate_sub if it exists, otherwise keep the parent's completed task.
+            subtask=navigate_sub if navigate_sub else curr_state.subtask,
             completed_subtasks=new_completed,
-            remaining_subtasks=new_remain,
-            constraints=new_constraints,
-            current_time=end_time,
+            remaining_subtasks=new_remain,  # Now contains mon_sub, target_subtask, and others
+            constraints=new_constraints,  # Constraints enforce mon_sub -> target_subtask order/timing
+            current_time=nav_end_time,  # Time advances only to the end of navigation
             scene_positions=new_scene_positions,
             held_object=new_held_obj,
         )
 
-        step_cost = self.cost_calculator.calc_heuristic(curr_node, candidate)
+        # --- Calculate Heuristic Cost ---
+        # Cost of performing the navigation towards the candidate
+        step_cost = self.cost_calculator.calc_heuristic(
+            curr_node, candidate, new_remain
+        )  # Using candidate cost is approximation
         new_cost = curr_cost + step_cost
 
         log.info(
-            f"[_expand_wait_with_monitoring] Subtask {navigate_sub.name}\n"
-            f"  -> Score={round(new_cost, 2)}, "
-            f"Interval={round(start_time,2)}~{round(end_time,2)}\n"
+            f"[_expand_wait_with_monitoring] Expanded wait for '{target_subtask_name}' by navigating towards it.\n"
+            f"  -> Completed: {navigate_sub.name if navigate_sub else 'No Nav'} ({round(nav_start_time,2)}~{round(nav_end_time,2)})\n"
+            f"  -> Next state time: {round(nav_end_time,2)}. Monitoring task '{mon_sub.name}' added to remaining tasks and constrained.\n"
+            f"  -> Score={round(new_cost, 2)}\n"
             f"  -> Updated remain={[r.name for r in new_remain]}\n"
         )
 
@@ -851,7 +1024,9 @@ class Scheduler:
             held_object=curr_state.held_object,
         )
 
-        step_cost = self.cost_calculator.calc_heuristic(curr_node, candidate)
+        step_cost = self.cost_calculator.calc_heuristic(
+            curr_node, candidate, curr_state.remaining_subtasks
+        )
         new_cost = curr_cost + step_cost
 
         log.info(

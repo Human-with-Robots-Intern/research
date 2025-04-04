@@ -9,7 +9,7 @@ import numpy as np
 from ai2thor.controller import Controller
 from openai import OpenAI
 
-from utils.common import create_module_logger
+from src.utils.common import create_module_logger
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))

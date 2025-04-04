@@ -1,9 +1,10 @@
 import datetime
 import logging
+from pathlib import Path
 
 from colorlog import ColoredFormatter
 
-from utils.config.constants import LOG_PATH
+LOG_PATH = Path(__file__).resolve().parents[3] / "logs"
 
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 COLOR_LOG_FORMAT = "%(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s"

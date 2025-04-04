@@ -5,9 +5,9 @@ from core.agent import Agent
 from core.scheduler import Scheduler
 from ithor.handlers.navigation_handler import load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
-from utils.common import create_module_logger
-from utils.config import BEAM_WIDTH, LOG_ROUND, SCENE_NAME, SIMULATION_DEPTH
-from utils.io_utils import (
+from src.utils.common import create_module_logger
+from src.utils.config import BEAM_WIDTH, LOG_ROUND, SCENE_NAME, SIMULATION_DEPTH
+from src.utils.io_utils import (
     get_natural_language_from_task_file,
     get_user_task_choice,
     list_task_files,
@@ -15,8 +15,8 @@ from utils.io_utils import (
     load_task_data_from_file,
     result_save,
 )
-from utils.task import TaskUtil
-from utils.visualizers import visualize
+from src.utils.task import TaskUtil
+from src.utils.visualizers import visualize
 
 log = create_module_logger(module_name=__name__, module_log=True)
 

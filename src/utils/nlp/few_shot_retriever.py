@@ -5,7 +5,7 @@ from typing import Dict, List
 
 import numpy as np
 
-from utils.nlp.sentence_transformer import SentenceSimilarityModel
+from src.utils.nlp.sentence_transformer import SentenceSimilarityModel
 
 
 class FewShotRetriever:
@@ -14,7 +14,7 @@ class FewShotRetriever:
 
     def semantic_search(
         self,
-        query_vec: np.ndarray,
+        query_str: str,
         references: List[str],
         k: int = 5,
     ) -> List[int]:
@@ -26,10 +26,8 @@ class FewShotRetriever:
         :param k: Top-k results to return
         :return: List of indices corresponding to top-k most similar entries
         """
-        ref_vecs = self.model.encode_sentences(references)
-        query_vec = self.model.encode_sentence(query_vec)
 
-        similarities = self.model.compute_batch_cosine_similarity(query_vec, ref_vecs)
+        similarities = self.model.compute_batch_cosine_similarity(query_str, references)
         return np.argsort(similarities)[::-1][:k].tolist()
 
     def _load_reference_data(self, path: Path) -> Dict[str, str]:

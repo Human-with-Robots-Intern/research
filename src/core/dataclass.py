@@ -182,7 +182,7 @@ class Candidate:
     # subtask의 시작 시간
     earliest_start_time: float
     # 고려할 데드라인
-    deadline: Deadline = (None, None)
+    deadline: Deadline = Deadline(float("inf"), None)
 
     def __repr__(self):
         return f"({self.subtask.name}; duration : {self.subtask.duration.interval}, earliest_start_time = {self.earliest_start_time}, deadline = {self.deadline}, is_critical = {self.is_critical})"

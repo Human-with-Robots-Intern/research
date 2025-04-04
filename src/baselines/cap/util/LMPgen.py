@@ -14,7 +14,7 @@ from pygments import highlight
 from pygments.formatters import TerminalFormatter
 from pygments.lexers import PythonLexer
 
-from utils.common import create_module_logger
+from src.utils.common import create_module_logger
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 load_dotenv()
