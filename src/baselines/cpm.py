@@ -11,7 +11,7 @@ import networkx as nx
 from networkx import DiGraph
 
 from core.dataclass import ActionResult, CompletedEntry, SimulationNode, SchedulerState
-from core.task import Subtask, Execution
+from core.task import Duration, Subtask, Execution
 from scheduler.action_handler import ActionHandler
 from utils.io_utils import task_io
 
@@ -77,215 +77,9 @@ def parse_arguments() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-def find_critical_path(    
-    subtasks: List[Subtask],
-    init_state: SchedulerState,
-) -> Tuple[List[Subtask]]:
-    """
-    모든 가능한 경로 중 각 subtask의 duration.interval 및 temporal constraint interval의 합이 가장 큰 경로를
-    critical path로 선택합니다.
-    
-    Args:
-        edges: 태스크 간 관계를 나타내는 간선 리스트
-        subtasks: Subtask 객체 리스트
-    
-    Returns:
-        (critical_path): 최대 시간 소요 경로와 보유 객체
-    """
-
-    # 시작 및 종료 노드 파악 (진입/진출 간선이 없는 노드)
-    start_nodes = [n for n in constraints.nodes if constraints.in_degree(n) == 0]
-    end_nodes = [n for n in constraints.nodes if constraints.out_degree(n) == 0]
-
-    # 모든 경로 파악
-    all_paths: List[List[str]] = []
-    for start in start_nodes:
-        for end in end_nodes:
-            all_paths.extend(nx.all_simple_paths(constraints, start, end))
-
-    max_time = -1
-    critical_path: List[Subtask] = []
-
-    # 각 경로에 대해 소요 시간을 계산
-    for path in all_paths:
-        path_time = 0
-        current_time = init_state.current_time
-        current_state = copy.deepcopy(init_state)       
-        current_path: List[Subtask] = []
-
-        for i, task_name in enumerate(path):
-            next_subtask = next((s for s in subtasks if s.name == task_name), None)            
-            if next_subtask:
-                exec_info = offline_subtask_execution(current_state, next_subtask)
-                current_state = update_state(current_state, next_subtask, exec_info)                
-                subtask_duration = exec_info.time_used                
-                # 현재 subtask와 path의 다음 subtask 간의 temporal constraint interval을 고려하여 대기 시간 계산
-                incoming_edges = list(constraints.in_edges(next_subtask.name, data=True)) 
-                if incoming_edges:
-                    interval = next(
-                        data['info']["Interval"]
-                        for u, v, data in incoming_edges
-                        if u == path[i - 1]
-                    )
-                                    
-                    if interval > 0:
-                        path_time += interval
-                path_time += subtask_duration
-                current_path.append(next_subtask)
-                
-        if path_time > max_time:
-            max_time = path_time
-            critical_path = current_path
-
-    return critical_path
-
-def schedule_with_cp_priority(
-    critical_path: List[Subtask],
-    subtasks: List[Subtask],
-) -> List[Tuple[Subtask, float]]:
-    """
-    주어진 태스크 간 간선 관계와 critical path 정보를 바탕으로,
-    CP 내의 태스크 우선순위를 반영한 위상 정렬 방식으로 스케줄 순서를 결정합니다.
-    
-    Args:
-        constraints: 태스크 간 관계를 나타내는 DiGraph 객체
-        critical_path: critical path 상의 태스크 순서 리스트
-    
-    Returns:
-        위상 정렬에 따른 태스크 실행 순서 리스트. 각 원소는 (노드 이름, interval) 
-    """
-    edges = list(constraints.edges)
-    graph: Dict[str, List[str]] = defaultdict(list)
-    in_degree: Dict[str, int] = defaultdict(int)
-    nodes: set = set()
-
-    # 그래프 구성 및 노드 집합 생성
-    for (u, v) in edges:
-        graph[u].append(v)
-        nodes.add(u)
-        nodes.add(v)
-
-    for node in nodes:
-        in_degree[node] = 0
-
-    for (u, v) in edges:
-        in_degree[v] += 1
-
-    # critical path 내 태스크의 우선순위 맵 (인덱스 낮을수록 우선순위 높음)
-    cp_priority: Dict[str, int] = {task: idx for idx, task in enumerate(critical_path)}
-    INF_PRIORITY = len(critical_path) + 999
-
-    def get_priority(task_name: str) -> int:
-        return cp_priority.get(task_name, INF_PRIORITY)
-
-    # 우선순위 큐 초기화: 진입차수가 0인 노드를 cp 우선순위에 따라 삽입
-    priority_queue: List[Tuple[int, int, str]] = []
-    idx = 0
-    for node in nodes:
-        if in_degree[node] == 0:
-            heapq.heappush(priority_queue, (get_priority(node), idx, node))
-            idx += 1
-
-    schedule:  List[str] = []
-    while priority_queue:
-        _, _, current = heapq.heappop(priority_queue)
-        schedule.append(current)
-        for next_node in graph[current]:
-            in_degree[next_node] -= 1
-            if in_degree[next_node] == 0:
-                heapq.heappush(priority_queue, (get_priority(next_node), idx, next_node))
-                idx += 1
-
-    name_to_subtask: Dict[str, Subtask] = {s.name: s for s in subtasks}
-    #[subtask, interval, is_critical]
-    schedule_with_interval: List[Tuple[Subtask, float]] = []
-    for i in range(len(schedule)):
-        # 다음 노드와 이어진 edge 가 있으면 저장하는 코드
-        interval = None
-        if i < len(schedule) - 1 and constraints.has_edge(schedule[i], schedule[i+1]):
-            edge_data = constraints.get_edge_data(schedule[i], schedule[i+1])
-            # edge_data에서 'info' dict와 "Interval" 키가 존재하는지 확인            
-            interval = edge_data['info'].get("Interval")
-        schedule_with_interval.append((name_to_subtask[schedule[i]], interval))
-
-    return schedule_with_interval
-
-def last_calculte_schedule_and_time(
-    schedule_order: List[str],
-    subtasks: List[Subtask],   
-    constraints: DiGraph, 
-    nav_graph: nx.Graph,
-    scene_poses: Dict[str, Any],
-    held_object: Any = None,   # 현재 보유 객체
-    
-) -> Tuple[float, List[CompletedEntry]]:
-    # 이 함수는 아래 함수에 흡수 통합 될 예정이다.
-    """
-    스케줄 순서에 따라 각 subtask의 시작 및 종료 시간을 계산합니다.
-    temporal constraint가 존재하는 경우에는 compute_nav_time()을 사용하여 추가 대기 시간을 반영합니다.
-    
-    Args:
-        schedule_order: 태스크 실행 순서 리스트
-        subtasks: Subtask 객체 리스트
-        held_object: 현재 보유 객체
-        nav_graph: 네비게이션 그래프
-        scene_positions: 씬 내 위치 정보
-    
-    Returns:
-        (total_time, result_schedule_with_time): 전체 소요 시간과 시간 정보가 포함된 CompletedEntry 리스트
-    """
-    total_time = 0.0
-    scheduled_entries: List[CompletedEntry] = []
-
-   
-    init_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
-
-    for task_name in schedule_order:
-        subtask = next((s for s in subtasks if s.name == task_name), None)
-        if not subtask:
-            continue
-
-        # temporal constraint에 따른 대기 시간 계산
-        for temp_constraint in subtask.temporal_constraints:
-            if getattr(temp_constraint, "interval", 0) > 0:
-                # 선행 태스크가 끝난 시간 이후 interval만큼 대기 필요
-                prior_entry = next(
-                    (entry for entry in scheduled_entries if entry.subtask.name == temp_constraint.subtask),
-                    None,
-                )
-                if prior_entry:
-                    earliest_start = prior_entry.end_time + temp_constraint.interval
-                    if earliest_start > total_time:
-                        waiting_gap = earliest_start - total_time
-                        # NAVIGATE_TO 액션을 통한 이동 시간 계산
-                        nav_time = compute_nav_time(subtask, current_state)
-                        # gap 동안 이동과 대기를 합산
-                        if nav_time > waiting_gap:
-                            total_time += waiting_gap
-                        else:
-                            total_time += nav_time
-                            remaining_wait = waiting_gap - nav_time
-                            if remaining_wait > 0:
-                                total_time += remaining_wait
-                        current_state = current_state._replace(current_time=total_time)
-
-        # subtask 실행: 단순 duration.interval을 이용하여 시간 누적
-        start_time = total_time
-        exec_time = float(subtask.duration.interval)
-        total_time += exec_time
-        end_time = total_time
-
-        subtask.start_time_scheduled = start_time
-        subtask.end_time_scheduled = end_time
-
-        scheduled_entries.append(CompletedEntry(subtask, start_time, end_time))
-        current_state = current_state._replace(current_time=total_time)
-
-    return total_time, scheduled_entries
-
 def compute_nav_time(
     subtask: Subtask, current_state: SchedulerState
-) -> float:
+) -> Tuple[float, dict[str, Tuple[float, float, float]]]    :
     """
     subtask의 첫 번째 primitive action이 NAVIGATE_TO일 경우, 해당 액션의 소요 시간을 계산합니다.
     
@@ -320,8 +114,9 @@ def compute_nav_time(
     nav_info = action_handler.get_actions_info(temp_node, [first_action])
     if nav_info:
         nav_time = nav_info.time_used
+        nav_positions = nav_info.scene_positions
 
-    return nav_time
+    return nav_time, nav_positions
 
 def offline_subtask_execution(current_state: SchedulerState, next_subtask: Subtask):
 
@@ -367,22 +162,163 @@ def update_state(current_state: SchedulerState, next_subtask: Subtask, exec_info
 
     return next_state
 
+def find_critical_path(    
+    subtasks: List[Subtask],
+) -> List[Tuple[Subtask,float,bool]]:
+    '''
+    edge를 가진 path들을 나열한다.
+    이 path의 순열을 보장하고자 하는 최대 시간을 가진 critical_path로 본다.
+    '''
+    # 시작 및 종료 노드 파악 (진입/진출 간선이 없는 노드)
+    start_nodes = [n for n in constraints.nodes if constraints.in_degree(n) == 0]
+    end_nodes = [n for n in constraints.nodes if constraints.out_degree(n) == 0]
+
+    # 모든 경로 파악
+    all_paths: List[List[str]] = []
+    for start in start_nodes:
+        for end in end_nodes:
+            all_paths.extend(nx.all_simple_paths(constraints, start, end))
+
+    # Create a mapping from subtask names to subtask objects
+    name_to_subtask = {subtask.name: subtask for subtask in subtasks}
+    
+    # Convert string paths to subtask paths
+    critical_path: List[Tuple[Subtask,float,bool]]= []
+
+    for path in all_paths:
+        for name in path:
+            subtask = name_to_subtask[name]
+
+            # Get the next subtask name in the path, if it exists
+            current_idx = path.index(name)
+            next_name = path[current_idx + 1] if current_idx < len(path) - 1 else None
+            
+            # Check if there is a temporal constraint between current and next subtask            
+            outgoing_edges = list(constraints.out_edges(subtask.name, data=True)) 
+            is_critical = None
+            interval = None
+            if outgoing_edges:
+                for u, v, data in outgoing_edges:
+                    if v == next_name:
+                        is_critical = data['info']["IsCritical"]
+                        interval = data['info'].get("Interval")
+                        break
+            critical_path.append((subtask, interval, is_critical))
+
+    return critical_path
+
+def nav_and_wait_during_interval(
+    current_state: SchedulerState,
+    interval: float,
+    next_subtask: Subtask,
+    is_critical: bool,
+) -> List[CompletedEntry]:
+    """
+    주어진 시간(interval) 동안 이동(NAVIGATE)과 대기(WAIT)를 위한 서브태스크를 생성합니다.
+    
+    next_subtask의 첫 번째 액션이 NAVIGATE_TO여야 하며, 
+    네비게이션 소요 시간이 interval보다 작을 경우,
+    네비게이션 후 남은 시간만큼 대기하는 WAIT 서브태스크를 생성합니다.
+    
+    Args:
+        current_state: 현재 스케줄러 상태 (시간, 위치 등 포함)
+        interval: 현재 간선에 주어진 시간 간격
+        next_subtask: 다음에 실행할 서브태스크. 첫번째 액션은 반드시 NAVIGATE_TO여야 함.
+        is_critical: 해당 간선이 critical(필수)인지 여부
+        
+    Returns:
+        - 생성된 CompletedEntry들의 리스트 (NAVIGATE, WAIT 서브태스크)
+        - 업데이트된 SchedulerState (현재 시간 및 위치 갱신)
+    
+    Raises:
+        ValueError: next_subtask의 첫 번째 액션이 NAVIGATE_TO가 아닐 경우
+    """
+    entries: List[CompletedEntry] = []
+    current_time = current_state.current_time
+    
+    # Get the first NAVIGATE_TO action from the next subtask
+    first_action = next_subtask.execution.primitive_actions[0]
+    if not first_action.startswith("NAVIGATE_TO"):
+        raise ValueError(f"[{next_subtask.name}] 첫 번째 액션이 NAVIGATE_TO가 아닙니다.")
+    nav_action = first_action
+    
+    
+    # Calculate navigation time
+    nav_time, nav_positions = compute_nav_time(next_subtask, current_state)
+    
+    # If navigation time is less than remaining interval, create both NAVIGATE and WAIT subtasks
+    if nav_time < interval:
+        # Create NAVIGATE subtask
+        nav_subtask = Subtask(
+            task_name=next_subtask.task_name,
+            name=f"NAVIGATE_TO_{nav_action.split()[1]}",
+            repetition=1,
+            type="NAVIGATE",
+            execution=Execution(objects={}, primitive_actions=[nav_action]),
+            duration=Duration(type="NAVIGATE", interval=nav_time),
+            temporal_constraints=[],
+        )
+        nav_entry = CompletedEntry(
+            subtask=nav_subtask,
+            start_time=current_time,
+            end_time=current_time + nav_time,
+        )
+        entries.append(nav_entry)
+        current_time += nav_time
+        
+        # Create WAIT subtask for remaining time
+        wait_time = interval - nav_time
+        wait_subtask = Subtask(
+            task_name=next_subtask.task_name,
+            name=f"WAIT_{wait_time}",
+            repetition=1,
+            type="WAIT",
+            execution=Execution(objects={}, primitive_actions=[f"WAIT {wait_time}"]),
+            duration=Duration(type="WAIT", interval=wait_time),
+            temporal_constraints=[],
+        )
+        wait_entry = CompletedEntry(
+            subtask=wait_subtask,
+            start_time=current_time,
+            end_time=current_time + wait_time,
+        )
+        entries.append(wait_entry)
+        current_state.current_time = current_time + interval
+        current_state.scene_positions = nav_positions   
+    return entries, current_state
+
 def get_final_entries(
-                    schedule_order: List[Tuple[Subtask,float,bool]], 
+                    critical_path: List[Tuple[Subtask,float,bool]], 
                     subtasks_witout_edge: List[Subtask], 
                     init_state:SchedulerState
                     ) -> List[Subtask]:
-    # schedule_order에는 subtask 사이에 edge 가 존재한다
-    # critical edge에는 총 subtask execution time <= critical edge interval이 될때까지 subtask를 집어 넣고
-    # non-critical edge 에는 subtask execution time > non-critical edge interval 이 될 때 까지 subtask를 집어넣고
-    # 남은 subtask들은 전부 맨 뒤로 삽입.
+    """
+    Critical Path와 제약(엣지)이 없는 서브태스크들을 고려하여 최종 스케줄 엔트리를 생성합니다.
+    
+    [1] 우선, critical_path에 포함된 각 서브태스크를 순서대로 실행(시뮬레이션)하여
+        CompletedEntry에 기록하고 스케줄러 상태를 업데이트합니다.
+    [2] 각 critical edge에 대해 지정된 interval 내에서 실행 가능한 비(非) critical 서브태스크들을
+        탐색하여 추가 실행합니다.
+        - 만약 interval 내에 실행 가능한 서브태스크(candidate)가 없다면,
+          non-critical 인 경우 실행 시간이 가장 짧은 서브태스크를 실행하거나,
+          critical인 경우 nav_and_wait_during_interval() 함수를 호출하여 남은 시간을 채웁니다.
+    [3] 마지막으로, 남은 제약이 없는 서브태스크들을 순차적으로 실행하여 스케줄에 추가합니다.
+    
+    Args:
+        critical_path: 각 원소가 (Subtask, interval, is_critical) 형태로 구성된 critical path 리스트
+        subtasks_without_edge: 제약(엣지)에 포함되지 않은 서브태스크 리스트
+        init_state: 초기 스케줄러 상태
+        
+    Returns:
+        최종적으로 스케줄된 CompletedEntry들의 리스트
+    """
+
     current_state = init_state
     final_entry_schedule: List[CompletedEntry] = []
 
-    for subtask, interval in schedule_order:
+    for i, (subtask, interval, is_critical) in enumerate(critical_path):
         # 우선 schedule_order에 있는 subtask를 돌면서 simulate_subtask_execution을 해준다.
-        exec_info = offline_subtask_execution(current_state, subtask)
-        current_state = update_state(current_state, subtask, exec_info)
+        exec_info = offline_subtask_execution(current_state, subtask)        
         subtask.start_time_scheduled = current_state.current_time
         subtask.end_time_scheduled = current_state.current_time + exec_info.time_used
 
@@ -391,42 +327,72 @@ def get_final_entries(
                 subtask=subtask,
                 start_time=current_state.current_time,
                 end_time=current_state.current_time + exec_info.time_used,))
+        current_state = update_state(current_state, subtask, exec_info)
 
-        if interval is None:
+        # interval이 없으면 다음 subtask로 넘어간다.
+        if interval is None :            
             continue
+
         # interval에 실행 가능한 subtask가 있으면 스케쥴.
-        while interval > 0 :
+        interval_time_used = 0.0
+        while True:
+            # 현재 상태에서 실행 가능한 모든 subtask의 예상 실행 시간 계산
             expected_time_dict: dict[Subtask, float] = {}
             for non_edge_subtask in subtasks_witout_edge:
                 # 현재 상태에서 non_edge_subtask를 실행했을 때 execution_time을 dict로 저장.
                 exeptected_exec_info = offline_subtask_execution(current_state, non_edge_subtask)
-                expected_execution_time =exeptected_exec_info.time_used
+                expected_execution_time = exeptected_exec_info.time_used
                 expected_time_dict[non_edge_subtask] = expected_execution_time
+            # 남은 interval 시간 내에 실행 가능한 subtask만 후보로 선택
+            remaining_interval = interval - interval_time_used
 
-            candidates = {k: v for k, v in expected_time_dict.items() if v <= interval}
-
-            if candidates:
-                best_subtask = max(candidates.items(), key=lambda item: item[1])[0]
-            else:
-                best_subtask = None
-                break
-
-            if best_subtask:
-                best_exec_info = offline_subtask_execution(current_state, non_edge_subtask)
-                current_state = update_state(current_state, best_subtask, best_exec_info)
-                final_entry_schedule.append(
-                    CompletedEntry( 
-                        subtask=best_subtask,
+            candidate_subtasks = {
+                subtask: time_used
+                for subtask, time_used in expected_time_dict.items()
+                if time_used <= remaining_interval
+            }
+            
+            if not candidate_subtasks and remaining_interval > 0:
+                if expected_time_dict and not is_critical:
+                    # For non-critical edges
+                    # non edge subtask 가 있으면 그걸 실행하고 탐색 중단.                        
+                    shortest_subtask = min(expected_time_dict.items(), key=lambda item: item[1])[0]
+                    shortest_exec_info = offline_subtask_execution(current_state, shortest_subtask)
+                    shortest_entry = CompletedEntry(
+                        subtask=shortest_subtask,
                         start_time=current_state.current_time,
-                        end_time=current_state.current_time + best_exec_info.time_used,))
-                best_subtask.start_time_scheduled = current_state.current_time
-                best_subtask.end_time_scheduled = current_state.current_time + expected_time_dict[best_subtask]
-                interval -= expected_time_dict[best_subtask]
-                subtasks_witout_edge.remove(best_subtask)
+                        end_time=current_state.current_time + shortest_exec_info.time_used,
+                    )
+                    final_entry_schedule.append(shortest_entry)
+                    current_state = update_state(current_state, shortest_subtask, shortest_exec_info)
+                    subtasks_witout_edge.remove(shortest_subtask)
+                    break
+
+                    next_subtask = critical_path[i + 1][0] 
+                    # nav time 이 interval보다 크면 빈 list를 반환한다.                      
+                    nav_wait_entries, current_state = nav_and_wait_during_interval(current_state, remaining_interval, next_subtask, is_critical)
+                    final_entry_schedule.extend(nav_wait_entries)
+                    break
+
+            # 가장 긴 실행 시간을 가진 subtask 선택
+            best_subtask = max(candidate_subtasks.items(), key=lambda item: item[1])[0]              
+            # 선택된 subtask 실행
+            best_exec_info = offline_subtask_execution(current_state, best_subtask)
+            interval_time_used += best_exec_info.time_used
+            
+            final_entry_schedule.append(
+                CompletedEntry( 
+                    subtask=best_subtask,
+                    start_time=current_state.current_time,
+                    end_time=current_state.current_time + best_exec_info.time_used,))
+            best_subtask.start_time_scheduled = current_state.current_time
+            best_subtask.end_time_scheduled = current_state.current_time + best_exec_info.time_used
+            current_state = update_state(current_state, best_subtask, best_exec_info)
+            subtasks_witout_edge.remove(best_subtask)
+
     # 남은 subtask가 있으면 뒤에 연달아서 붙혀준다.
     for left_subtask in subtasks_witout_edge:
-        left_exec_info = offline_subtask_execution(current_state, left_subtask)
-        current_state = update_state(current_state, left_subtask, left_exec_info)
+        left_exec_info = offline_subtask_execution(current_state, left_subtask)        
         final_entry_schedule.append(
             CompletedEntry( 
                 subtask=left_subtask,
@@ -434,6 +400,7 @@ def get_final_entries(
                 end_time=current_state.current_time + left_exec_info.time_used,))
         left_subtask.start_time_scheduled = current_state.current_time
         left_subtask.end_time_scheduled = current_state.current_time + left_exec_info.time_used
+        current_state = update_state(current_state, left_subtask, left_exec_info)
 
     return final_entry_schedule
             
@@ -470,12 +437,10 @@ def main() -> None:
     # ===== 스케줄 계산 시작 =====
     start_time = time.time()
     # 1) Critical Path 계산
-    critical_path = find_critical_path(subtasks, init_state)
+    critical_path = find_critical_path(subtasks)
     # 2) Critical Path 우선순위에 따른 path 스케줄 정렬
-    schedule_order = schedule_with_cp_priority(critical_path, subtasks)
     # 3) # edge가 없는 subtasks 를 스케쥴에 삽입하여 최종 엔트리 리스트를 얻음
-    final_scheduled_entries = get_final_entries(schedule_order, subtasks_witout_edge, init_state)
-
+    final_scheduled_entries = get_final_entries(critical_path, subtasks_witout_edge, init_state)
 
     computation_time = time.time() - start_time
     
