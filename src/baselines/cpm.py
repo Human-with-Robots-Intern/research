@@ -212,7 +212,7 @@ def nav_and_wait_during_interval(
     interval: float,
     next_subtask: Subtask,
     is_critical: bool,
-) -> List[CompletedEntry]:
+) -> Tuple[List[CompletedEntry], SchedulerState]:
     """
     주어진 시간(interval) 동안 이동(NAVIGATE)과 대기(WAIT)를 위한 서브태스크를 생성합니다.
     
@@ -267,29 +267,45 @@ def nav_and_wait_during_interval(
         )
         entries.append(nav_entry)
         current_time += nav_time
+
         
-        # Create WAIT subtask for remaining time
-        wait_time = interval - nav_time
-        wait_subtask = Subtask(
-            task_name=next_subtask.task_name,
-            name=f"WAIT_{wait_time}",
-            repetition=1,
-            type="WAIT",
-            execution=Execution(objects={}, primitive_actions=[f"WAIT {wait_time}"]),
-            duration=Duration(type="WAIT", interval=wait_time),
-            temporal_constraints=[],
-        )
-        wait_subtask.start_time_scheduled = current_time    
-        wait_subtask.end_time_scheduled = current_time + wait_time
-        wait_entry = CompletedEntry(
-            subtask=wait_subtask,
-            start_time=current_time,
-            end_time=current_time + wait_time,
-        )
-        entries.append(wait_entry)
-        current_state.current_time = current_time + interval
-        current_state.scene_positions = nav_positions   
-    return entries, current_state
+    # Create WAIT subtask for remaining time
+    if nav_time > interval:
+        # 네비게이션 소요 시간이 interval보다 크면 네비게이션 실행 없이 대기만 한다.
+        nav_time = 0
+        nav_positions = current_state.scene_positions
+    wait_time = interval - nav_time
+    wait_subtask = Subtask(
+        task_name=next_subtask.task_name,
+        name=f"WAIT_{wait_time} to {next_subtask.name}",
+        repetition=1,
+        type="WAIT",
+        execution=Execution(objects={}, primitive_actions=[f"WAIT {wait_time}"]),
+        duration=Duration(type="WAIT", interval=wait_time),
+        temporal_constraints=[],
+    )
+    wait_subtask.start_time_scheduled = current_time    
+    wait_subtask.end_time_scheduled = current_time + wait_time
+    wait_entry = CompletedEntry(
+        subtask=wait_subtask,
+        start_time=current_time,
+        end_time=current_time + wait_time,
+    )
+    entries.append(wait_entry)
+    
+    # Create new state instead of modifying the existing one
+    new_state = SchedulerState(
+        subtask=current_state.subtask,
+        completed_subtasks=current_state.completed_subtasks,
+        remaining_subtasks=current_state.remaining_subtasks,
+        constraints=current_state.constraints,
+        current_time= current_time + wait_time,
+        scene_positions=nav_positions,
+        held_object=current_state.held_object,
+        agent_location=current_state.agent_location,
+    )
+    
+    return entries, new_state
 
 def get_final_entries(
                     critical_path: List[Tuple[Subtask,float,bool]], 
