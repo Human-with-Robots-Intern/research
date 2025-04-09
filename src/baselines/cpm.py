@@ -258,6 +258,8 @@ def nav_and_wait_during_interval(
             duration=Duration(type="NAVIGATE", interval=nav_time),
             temporal_constraints=[],
         )
+        nav_subtask.start_time_scheduled = current_time
+        nav_subtask.end_time_scheduled = current_time + nav_time
         nav_entry = CompletedEntry(
             subtask=nav_subtask,
             start_time=current_time,
@@ -277,6 +279,8 @@ def nav_and_wait_during_interval(
             duration=Duration(type="WAIT", interval=wait_time),
             temporal_constraints=[],
         )
+        wait_subtask.start_time_scheduled = current_time    
+        wait_subtask.end_time_scheduled = current_time + wait_time
         wait_entry = CompletedEntry(
             subtask=wait_subtask,
             start_time=current_time,
@@ -330,7 +334,7 @@ def get_final_entries(
         current_state = update_state(current_state, subtask, exec_info)
 
         # interval이 없으면 다음 subtask로 넘어간다.
-        if interval is None :            
+        if interval is None:            
             continue
 
         # interval에 실행 가능한 subtask가 있으면 스케쥴.
@@ -352,12 +356,14 @@ def get_final_entries(
                 if time_used <= remaining_interval
             }
             
-            if not candidate_subtasks and remaining_interval > 0:
+            if not candidate_subtasks and remaining_interval >= 0:
                 if expected_time_dict and not is_critical:
                     # For non-critical edges
                     # non edge subtask 가 있으면 그걸 실행하고 탐색 중단.                        
                     shortest_subtask = min(expected_time_dict.items(), key=lambda item: item[1])[0]
                     shortest_exec_info = offline_subtask_execution(current_state, shortest_subtask)
+                    shortest_subtask.start_time_scheduled = current_state.current_time
+                    shortest_subtask.end_time_scheduled = current_state.current_time + shortest_exec_info.time_used
                     shortest_entry = CompletedEntry(
                         subtask=shortest_subtask,
                         start_time=current_state.current_time,
@@ -368,11 +374,11 @@ def get_final_entries(
                     subtasks_witout_edge.remove(shortest_subtask)
                     break
 
-                    next_subtask = critical_path[i + 1][0] 
-                    # nav time 이 interval보다 크면 빈 list를 반환한다.                      
-                    nav_wait_entries, current_state = nav_and_wait_during_interval(current_state, remaining_interval, next_subtask, is_critical)
-                    final_entry_schedule.extend(nav_wait_entries)
-                    break
+                next_subtask = critical_path[i + 1][0] 
+                # nav time 이 interval보다 크면 빈 list를 반환한다.                      
+                nav_wait_entries, current_state = nav_and_wait_during_interval(current_state, remaining_interval, next_subtask, is_critical)
+                final_entry_schedule.extend(nav_wait_entries)
+                break
 
             # 가장 긴 실행 시간을 가진 subtask 선택
             best_subtask = max(candidate_subtasks.items(), key=lambda item: item[1])[0]              
