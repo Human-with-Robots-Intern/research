@@ -18,8 +18,8 @@ from ai2thor.controller import Controller
 # Action handler import
 from ithor.handlers.action import Action
 
-# Logging utility
-from src.utils.common.logger import create_module_logger
+# # Logging utility
+# from src.utils.common.logger import create_module_logger
 
 # Constants (unify your constants in one place)
 from src.utils.config.constants import (
@@ -28,8 +28,8 @@ from src.utils.config.constants import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
+from utils.common.logger import create_module_logger
 
-log = create_module_logger(module_name=__name__, module_log=True)
 
 
 def init_ai2thor_controller(
@@ -84,7 +84,7 @@ def init_ai2thor_controller(
     return controller
 
 
-def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
+def execute_subtask(controller: Controller, subtask, log_level) -> tuple[float, bool]:
     """
     Executes a given subtask using the provided AI2-THOR controller.
 
@@ -101,6 +101,8 @@ def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
     Raises:
         ValueError: If an invalid action format is encountered in the primitive actions.
     """
+    log = create_module_logger(module_name=__name__, module_log=True, level=log_level)
+    
     act = Action(controller)
 
     # If the subtask is just for initialization, skip
@@ -116,7 +118,7 @@ def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
 
     # Optional debugging
     for action_str in primitive_actions:
-        print(f"[DEBUG] Primitive action: {action_str}")
+        log.debug(f"Primitive action: {action_str}")
 
     # Object registry setup if needed
     object_registry = {}

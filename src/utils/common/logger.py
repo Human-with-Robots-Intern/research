@@ -33,9 +33,9 @@ def _get_file_handler(filepath, mode="a"):
     return handler
 
 
-def create_module_logger(module_name, module_log=False):
+def create_module_logger(module_name, module_log=False, level=logging.DEBUG):
     logger = logging.getLogger(module_name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(level)
     logger.propagate = False
 
     if logger.hasHandlers():

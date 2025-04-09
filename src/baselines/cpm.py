@@ -35,9 +35,6 @@ from utils.io_utils.task_io import (
 from utils.task.task_util import TaskUtil
 from utils.visualizers.visualizer import visualize
 
-log = create_module_logger(module_name=__name__, module_log=True)
-
-
 def parse_arguments() -> argparse.Namespace:
     """
     명령행 인자를 파싱합니다.
@@ -70,6 +67,13 @@ def parse_arguments() -> argparse.Namespace:
         default=True,
         action="store_true",
         help="시뮬레이션 실행 여부 (default: True)",
+    )
+    parser.add_argument(
+    "--log-level",
+    type=str,
+    default="INFO",
+    choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+    help="로그 출력 수준 설정 (default: DEBUG)"
     )
     return parser.parse_args()
 
@@ -112,7 +116,7 @@ def find_critical_path(
         for i, task_name in enumerate(path):
             next_subtask = next((s for s in subtasks if s.name == task_name), None)            
             if next_subtask:
-                exec_info = execute_subtask(current_state, next_subtask)
+                exec_info = offline_subtask_execution(current_state, next_subtask)
                 current_state = update_state(current_state, next_subtask, exec_info)                
                 subtask_duration = exec_info.time_used                
                 # 현재 subtask와 path의 다음 subtask 간의 temporal constraint interval을 고려하여 대기 시간 계산
@@ -319,7 +323,6 @@ def compute_nav_time(
 
     return nav_time
 
-#scheduler.py 에 있는 get_next_state와 내용이 다르다
 def offline_subtask_execution(current_state: SchedulerState, next_subtask: Subtask):
 
     temp_node = SimulationNode(
@@ -336,7 +339,6 @@ def offline_subtask_execution(current_state: SchedulerState, next_subtask: Subta
         raise ValueError(f"[{next_subtask.name}] 액션 정보가 없습니다.")
 
     return exec_info
-
 
 def update_state(current_state: SchedulerState, next_subtask: Subtask, exec_info:ActionResult) -> SchedulerState:
  
@@ -358,30 +360,27 @@ def update_state(current_state: SchedulerState, next_subtask: Subtask, exec_info
         remaining_subtasks=new_remaining,
         constraints=constraints,
         current_time= current_state.current_time + subtask_duration,
-        scene_poses=exec_info.scene_positions,
+        scene_positions=exec_info.scene_positions,
         held_object=current_state.held_object,
         agent_location=current_state.agent_location,
     )
 
     return next_state
 
-def insert_non_edge_subtasks(
-                            schedule_order: List[Tuple[Subtask,float,bool]], 
-                            subtasks_witout_edge: List[Subtask], 
-                            init_state:SchedulerState) -> List[Subtask]:
+def get_final_entries(
+                    schedule_order: List[Tuple[Subtask,float,bool]], 
+                    subtasks_witout_edge: List[Subtask], 
+                    init_state:SchedulerState
+                    ) -> List[Subtask]:
     # schedule_order에는 subtask 사이에 edge 가 존재한다
     # critical edge에는 총 subtask execution time <= critical edge interval이 될때까지 subtask를 집어 넣고
     # non-critical edge 에는 subtask execution time > non-critical edge interval 이 될 때 까지 subtask를 집어넣고
     # 남은 subtask들은 전부 맨 뒤로 삽입.
- 
     current_state = init_state
     final_entry_schedule: List[CompletedEntry] = []
 
     for subtask, interval in schedule_order:
         # 우선 schedule_order에 있는 subtask를 돌면서 simulate_subtask_execution을 해준다.
-        
-        # position update
-        # subtask 에 start_time, end_time 넣어주기 
         exec_info = offline_subtask_execution(current_state, subtask)
         current_state = update_state(current_state, subtask, exec_info)
         subtask.start_time_scheduled = current_state.current_time
@@ -391,49 +390,58 @@ def insert_non_edge_subtasks(
             CompletedEntry( 
                 subtask=subtask,
                 start_time=current_state.current_time,
-                end_time=current_state.current_time + exec_info.time_used,
-            )
-        )
+                end_time=current_state.current_time + exec_info.time_used,))
 
         if interval is None:
             continue
-
+        # interval에 실행 가능한 subtask가 있으면 스케쥴.
         while interval > 0 :
-
             expected_time_dict: dict[Subtask, float] = {}
             for non_edge_subtask in subtasks_witout_edge:
                 # 현재 상태에서 non_edge_subtask를 실행했을 때 execution_time을 dict로 저장.
                 exeptected_exec_info = offline_subtask_execution(current_state, non_edge_subtask)
                 expected_execution_time =exeptected_exec_info.time_used
-                expected_time_dict[non_edge_subtask] = expected_execution_time            
+                expected_time_dict[non_edge_subtask] = expected_execution_time
+
             candidates = {k: v for k, v in expected_time_dict.items() if v <= interval}
 
             if candidates:
                 best_subtask = max(candidates.items(), key=lambda item: item[1])[0]
             else:
                 best_subtask = None
-            
-            if best_subtask:
+                break
 
+            if best_subtask:
+                best_exec_info = offline_subtask_execution(current_state, non_edge_subtask)
+                current_state = update_state(current_state, best_subtask, best_exec_info)
                 final_entry_schedule.append(
                     CompletedEntry( 
                         subtask=best_subtask,
                         start_time=current_state.current_time,
-                        end_time=current_state.current_time + exec_info.time_used,
-                    )
-                )
+                        end_time=current_state.current_time + best_exec_info.time_used,))
                 best_subtask.start_time_scheduled = current_state.current_time
                 best_subtask.end_time_scheduled = current_state.current_time + expected_time_dict[best_subtask]
-
                 interval -= expected_time_dict[best_subtask]
                 subtasks_witout_edge.remove(best_subtask)
+    # 남은 subtask가 있으면 뒤에 연달아서 붙혀준다.
+    for left_subtask in subtasks_witout_edge:
+        left_exec_info = offline_subtask_execution(current_state, left_subtask)
+        current_state = update_state(current_state, left_subtask, left_exec_info)
+        final_entry_schedule.append(
+            CompletedEntry( 
+                subtask=left_subtask,
+                start_time=current_state.current_time,
+                end_time=current_state.current_time + left_exec_info.time_used,))
+        left_subtask.start_time_scheduled = current_state.current_time
+        left_subtask.end_time_scheduled = current_state.current_time + left_exec_info.time_used
+
     return final_entry_schedule
             
-
 def main() -> None:
     approach_name = "cpm"
-    args: argparse.Namespace = parse_arguments()
-
+    args: argparse.Namespace = parse_arguments()   
+    
+    
     # 초기화: 컨트롤러, 네비게이션 그래프, 씬 정보
     controller = init_ai2thor_controller()
     nav_graph = load_navigation_graph(controller)
@@ -463,14 +471,11 @@ def main() -> None:
     start_time = time.time()
     # 1) Critical Path 계산
     critical_path = find_critical_path(subtasks, init_state)
-    # 2) Critical Path 우선순위에 따른 스케줄 정렬
+    # 2) Critical Path 우선순위에 따른 path 스케줄 정렬
     schedule_order = schedule_with_cp_priority(critical_path, subtasks)
-    # 3) # edge가 없는 subtasks 를 스케쥴에 삽입
-    final_scheduled_entries = insert_non_edge_subtasks(schedule_order, subtasks_witout_edge, init_state)
-    # 4) 최종 스케줄 및 전체 소요 시간 계산
-    total_time, scheduled_entries = last_calculte_schedule_and_time(
-        schedule_order, subtasks, constraints, nav_graph, scene_poses
-    )
+    # 3) # edge가 없는 subtasks 를 스케쥴에 삽입하여 최종 엔트리 리스트를 얻음
+    final_scheduled_entries = get_final_entries(schedule_order, subtasks_witout_edge, init_state)
+
 
     computation_time = time.time() - start_time
     
@@ -479,9 +484,9 @@ def main() -> None:
         approach_name = f"{approach_name}_simulation"
 
         simulation_time = 0.0
-        for entry in scheduled_entries:
+        for entry in final_scheduled_entries:
             subtask = entry.subtask
-            subtask_time, execution_status = execute_subtask(controller, subtask)
+            subtask_time, execution_status = execute_subtask(controller, subtask, args.log_level)
             subtask.start_time_simulation = simulation_time
             subtask.end_time_simulation = simulation_time + subtask_time
             simulation_time += subtask_time
@@ -490,7 +495,7 @@ def main() -> None:
         result_args = {
             "task_name": input_natural_language,
             "approach_name": approach_name,
-            "result_schedule": scheduled_entries,
+            "result_schedule": final_scheduled_entries,
             "computation_time": computation_time,
             "scene_name": scene_name,
             "constraints": constraints,
@@ -499,8 +504,7 @@ def main() -> None:
 
     # 시각화 옵션이 활성화된 경우
     if args.visualize:
-        visualize(approach_name, input_natural_language, constraints, scheduled_entries)
-
+        visualize(approach_name, input_natural_language, constraints, final_scheduled_entries)
 
 if __name__ == "__main__":
     main()
