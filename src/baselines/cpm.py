@@ -118,14 +118,14 @@ def find_critical_path(
                 # 현재 subtask와 path의 다음 subtask 간의 temporal constraint interval을 고려하여 대기 시간 계산
                 incoming_edges = list(constraints.in_edges(next_subtask.name, data=True)) 
                 if incoming_edges:
-                    constraint_data = [
+                    interval = next(
                         data['info']["Interval"]
                         for u, v, data in incoming_edges
-                        if u == path[i-1]
-                    ]
-                    
-                    if constraint_data > 0:
-                        path_time += constraint_data
+                        if u == path[i - 1]
+                    )
+                                    
+                    if interval > 0:
+                        path_time += interval
                 path_time += subtask_duration
                 current_path.append(next_subtask)
                 
@@ -203,7 +203,7 @@ def schedule_with_cp_priority(
             edge_data = constraints.get_edge_data(schedule[i], schedule[i+1])
             # edge_data에서 'info' dict와 "Interval" 키가 존재하는지 확인            
             interval = edge_data['info'].get("Interval")
-            is_critical = edge_data['info'].get("IsCritical",None)
+            is_critical = edge_data['info'].get("IsCritical")
             
         schedule_with_interval.append((name_to_subtask[schedule[i]], interval, is_critical))
 
@@ -367,10 +367,10 @@ def update_state(current_state: SchedulerState, next_subtask: Subtask, exec_info
         agent_location=current_state.agent_location,
     )
 
-    return next_state, exec_info
+    return next_state
 
-def emebed_non_edge_subtasks(
-                            schedule_order: List[Subtask,float,bool], 
+def insert_non_edge_subtasks(
+                            schedule_order: List[Tuple[Subtask,float,bool]], 
                             subtasks_witout_edge: List[Subtask], 
                             init_state:SchedulerState) -> List[Subtask]:
     # schedule_order에는 subtask 사이에 edge 가 존재한다
@@ -409,9 +409,7 @@ def emebed_non_edge_subtasks(
                 # 현재 상태에서 non_edge_subtask를 실행했을 때 execution_time을 dict로 저장.
                 exeptected_exec_info = offline_subtask_execution(current_state, non_edge_subtask)
                 expected_execution_time =exeptected_exec_info.time_used
-                expected_time_dict[non_edge_subtask] = expected_execution_time
-            
-
+                expected_time_dict[non_edge_subtask] = expected_execution_time            
             candidates = {k: v for k, v in expected_time_dict.items() if v <= interval}
 
             if candidates:
@@ -433,10 +431,8 @@ def emebed_non_edge_subtasks(
 
                 interval -= expected_time_dict[best_subtask]
                 subtasks_witout_edge.remove(best_subtask)
-    
-
-
-    
+    return find_critical_path
+            
 
 def main() -> None:
     approach_name = "cpm"
@@ -474,7 +470,7 @@ def main() -> None:
     # 2) Critical Path 우선순위에 따른 스케줄 정렬
     schedule_order = schedule_with_cp_priority(critical_path, subtasks)
     # 3) # edge가 없는 subtasks 를 스케쥴에 삽입
-    schedule_order = emebed_non_edge_subtasks(schedule_order, subtasks_witout_edge, init_state)
+    final_schedule = insert_non_edge_subtasks(schedule_order, subtasks_witout_edge, init_state)
     # 4) 최종 스케줄 및 전체 소요 시간 계산
     total_time, scheduled_entries = last_calculte_schedule_and_time(
         schedule_order, subtasks, constraints, nav_graph, scene_poses
