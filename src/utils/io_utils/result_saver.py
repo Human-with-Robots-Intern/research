@@ -7,8 +7,8 @@ from typing import Any, List, Tuple
 from networkx import DiGraph
 
 from core.dataclass import CompletedEntry
+from utils.common.logger import create_module_logger
 from utils.config.constants import RESULT_PATH
-
 
 def get_now_str(fmt: str = "%Y-%m-%d %H:%M") -> str:
     return datetime.now().strftime(fmt)
@@ -68,19 +68,51 @@ def calculate_timing_success_rate(constraints: DiGraph, plans: List[dict])-> flo
     constraints 의 모든 edge를 확인해서 plans의 결과를 토대로 timing constraint 준수율을 계산한다.
     '''
     total_timing_constraints = 0
-    succeeded_timing_constraints = 0
+    succeeded_timing_constraints_sim = 0
+    succeeded_timing_constraints_sched = 0
 
-    ##TODO##
-    # 1. 모든edge를 확인해서 edge 별 선행, 후행, interval, critical 여부를 확인
-    # 2. total_timing_constraints = edge의 수
-    # 3. plans 에서 edge의 선행 subtask_name과 일치하는 subtask의 endtime + edge_interval 을 확인.
-    #   3-a. critical 인 경우 선행 subtask의 endtime + edge_interval +- 가우시간의 90% = 후행 subtask의 start time 이면 succeeded_timing_constraints =+ 1
-    #   3-b. non-critical 인 경우 선행 subtask의 endtime + edge_interval <= 후행 subtask의 start time 이면 succeeded_timing_constraints =+ 1
-    #   단, interval 이 없으면 interval = 0으로 처리
-    ### 
+    # 모든 edge를 순회하며 timing constraint 검사
+    for u, v, data in constraints.edges(data=True):
+        total_timing_constraints += 1
+        edge_info = data.get("info", {})
+        interval = edge_info.get("Interval", 0)  # interval이 없으면 0으로 처리
+        is_critical = edge_info.get("IsCritical")
 
-    timing_success_rate = succeeded_timing_constraints / total_timing_constraints if total_timing_constraints != 0 else None
-    return timing_success_rate
+        # plans에서 선행/후행 subtask 찾기
+        subtasks = plans[0]["subtasks"]  # 첫 번째 plan의 subtasks 사용
+        pred_subtask = next((s for s in subtasks if s["subtask_name"] == u), None)
+        succ_subtask = next((s for s in subtasks if s["subtask_name"] == v), None)
+
+        if not pred_subtask or not succ_subtask:
+            log.warning(f"pred_subtask or succ_subtask not found: {u} -> {v}")
+            continue
+
+        # 선행 subtask의 종료 시간과 후행 subtask의 시작 시간
+        pred_end_time_sim = pred_subtask["end_time_simulation"]
+        succ_start_time_sim = succ_subtask["start_time_simulation"]
+        succ_start_time_sched = succ_subtask["start_time_scheduled"]
+        pred_end_time_sched = pred_subtask["end_time_scheduled"]
+
+        if is_critical:
+            # Critical edge: 가우시안 90% 범위 내에서 시작해야 함
+            # 일단 간단히 ±10% 범위를 사용
+            expected_start_sim = pred_end_time_sim + interval
+            expected_start_sched = pred_end_time_sched + interval
+            tolerance = interval * 0.1  # 10% 허용 오차 #추후에 interval의 std를 확인해서 허용오차를 조정해야함.
+            if abs(succ_start_time_sim - expected_start_sim) <= tolerance:
+                succeeded_timing_constraints_sim += 1
+            if abs(succ_start_time_sched - expected_start_sched) <= tolerance:
+                succeeded_timing_constraints_sched += 1
+        else:
+            # Non-critical edge: interval 이후에 시작하면 됨
+            if succ_start_time_sim >= pred_end_time_sim + interval:
+                succeeded_timing_constraints_sim += 1
+            if succ_start_time_sched >= pred_end_time_sched + interval:
+                succeeded_timing_constraints_sched += 1
+
+    timing_success_rate_sim = succeeded_timing_constraints_sim / total_timing_constraints if total_timing_constraints != 0 else None
+    timing_success_rate_sched = succeeded_timing_constraints_sched / total_timing_constraints if total_timing_constraints != 0 else None
+    return timing_success_rate_sim, timing_success_rate_sched
 
 
 def result_save(
@@ -90,12 +122,15 @@ def result_save(
     computation_time: float,
     scene_name: str,
     constraints: DiGraph,
+    log_level: str = "INFO",
 ):
+    global log  
+    log = create_module_logger(__name__,module_log=True, level=log_level)
     plans, success_rate, simulation_time, scheduler_makespan = compose_plans(
         result_schedule, task_name
     )
 
-    timing_success_rate = calculate_timing_success_rate(constraints, plans)
+    timing_success_rate_sim, timing_success_rate_sched = calculate_timing_success_rate(constraints, plans)
 
     result_data = {
         "saved_time": get_now_str(),
@@ -107,7 +142,8 @@ def result_save(
         "scheduler_makespan": scheduler_makespan,
         "realworld_makespan": None,
         "success_rate": success_rate,
-        "timing_success_rate": timing_success_rate,
+        "timing_success_rate_sim": timing_success_rate_sim,
+        "timing_success_rate_sched": timing_success_rate_sched,
     }
 
     output_path = RESULT_PATH / task_name / "approach"
