@@ -138,7 +138,7 @@ def find_critical_path(
 def schedule_with_cp_priority(
     critical_path: List[Subtask],
     subtasks: List[Subtask],
-) -> List[Tuple[Subtask, float, bool]]:
+) -> List[Tuple[Subtask, float]]:
     """
     주어진 태스크 간 간선 관계와 critical path 정보를 바탕으로,
     CP 내의 태스크 우선순위를 반영한 위상 정렬 방식으로 스케줄 순서를 결정합니다.
@@ -194,19 +194,15 @@ def schedule_with_cp_priority(
 
     name_to_subtask: Dict[str, Subtask] = {s.name: s for s in subtasks}
     #[subtask, interval, is_critical]
-    schedule_with_interval: List[Tuple[Subtask, float, bool]] = []
+    schedule_with_interval: List[Tuple[Subtask, float]] = []
     for i in range(len(schedule)):
         # 다음 노드와 이어진 edge 가 있으면 저장하는 코드
         interval = None
-        is_critical = None
         if i < len(schedule) - 1 and constraints.has_edge(schedule[i], schedule[i+1]):
             edge_data = constraints.get_edge_data(schedule[i], schedule[i+1])
             # edge_data에서 'info' dict와 "Interval" 키가 존재하는지 확인            
             interval = edge_data['info'].get("Interval")
-            is_critical = edge_data['info'].get("IsCritical")
-            
-        schedule_with_interval.append((name_to_subtask[schedule[i]], interval, is_critical))
-
+        schedule_with_interval.append((name_to_subtask[schedule[i]], interval))
 
     return schedule_with_interval
 
@@ -379,9 +375,9 @@ def insert_non_edge_subtasks(
     # 남은 subtask들은 전부 맨 뒤로 삽입.
  
     current_state = init_state
-    final_subtask_schedule: List[CompletedEntry] = []
+    final_entry_schedule: List[CompletedEntry] = []
 
-    for subtask, interval, is_critical in schedule_order:
+    for subtask, interval in schedule_order:
         # 우선 schedule_order에 있는 subtask를 돌면서 simulate_subtask_execution을 해준다.
         
         # position update
@@ -391,7 +387,7 @@ def insert_non_edge_subtasks(
         subtask.start_time_scheduled = current_state.current_time
         subtask.end_time_scheduled = current_state.current_time + exec_info.time_used
 
-        final_subtask_schedule.append(
+        final_entry_schedule.append(
             CompletedEntry( 
                 subtask=subtask,
                 start_time=current_state.current_time,
@@ -419,7 +415,7 @@ def insert_non_edge_subtasks(
             
             if best_subtask:
 
-                final_subtask_schedule.append(
+                final_entry_schedule.append(
                     CompletedEntry( 
                         subtask=best_subtask,
                         start_time=current_state.current_time,
@@ -431,7 +427,7 @@ def insert_non_edge_subtasks(
 
                 interval -= expected_time_dict[best_subtask]
                 subtasks_witout_edge.remove(best_subtask)
-    return find_critical_path
+    return final_entry_schedule
             
 
 def main() -> None:
@@ -470,7 +466,7 @@ def main() -> None:
     # 2) Critical Path 우선순위에 따른 스케줄 정렬
     schedule_order = schedule_with_cp_priority(critical_path, subtasks)
     # 3) # edge가 없는 subtasks 를 스케쥴에 삽입
-    final_schedule = insert_non_edge_subtasks(schedule_order, subtasks_witout_edge, init_state)
+    final_scheduled_entries = insert_non_edge_subtasks(schedule_order, subtasks_witout_edge, init_state)
     # 4) 최종 스케줄 및 전체 소요 시간 계산
     total_time, scheduled_entries = last_calculte_schedule_and_time(
         schedule_order, subtasks, constraints, nav_graph, scene_poses
