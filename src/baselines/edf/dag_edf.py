@@ -70,7 +70,7 @@ def compute_nav_time(subtask: Subtask, current_state: SchedulerState, action_han
 
     return nav_time
 
-def compute_execution_time(subtask: Subtask, current_state: SchedulerState, action_handler:ActionHandler) -> float:
+def offline_subtask_execution(subtask: Subtask, current_state: SchedulerState, action_handler:ActionHandler) -> float:
     """
     현재 subtask의 실행 시간을 시뮬레이션하여 반환
     """
@@ -79,7 +79,7 @@ def compute_execution_time(subtask: Subtask, current_state: SchedulerState, acti
     exec_info = action_handler.get_actions_info(temp_node, actions) if actions else None
 
     # exec_info를 추출하는데 실패할경우 None을 return
-    return exec_info.time_used if exec_info else None
+    return exec_info if exec_info else None
 
 
 
@@ -156,7 +156,7 @@ def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask
         if not is_executable(subtask, current_state):
             continue
 
-        # execution_time = compute_execution_time(subtask, current_state, action_handler)
+
         nav_time = compute_nav_time(subtask, current_state, action_handler)
 
         deadline = compute_deadline_for_subtask(subtask, current_state, nav_time)
@@ -191,7 +191,8 @@ def update(
     # -------------------------------
     current_time = current_state.current_time
     
-    real_exec_time = compute_execution_time(next_subtask, current_state, action_handler)
+    exec_info = offline_subtask_execution(next_subtask, current_state, action_handler)
+    real_exec_time = exec_info.time_used 
     if real_exec_time == None :
         real_exec_time = next_subtask.duration.interval
 
@@ -394,7 +395,7 @@ def main():
 
     output_path = RESULT_PATH / input_natural_language / "metadata"
     output_path.mkdir(parents=True, exist_ok=True)
-    gantt_path = output_path/"edf_gantt"
+
 
     # plot_completed_subtasks_gantt(result_schedule, gantt_path)
     
@@ -412,9 +413,7 @@ def main():
             ce.subtask.start_time_simulation = current_time
             # Wait 과 Navigate는 실제 시뮬레이션
             if ce.subtask.type == "WAIT" or ce.subtask.type == "NAVIGATE":
-                ce.subtask.end_time_simulation = (
-                    current_time + ce.subtask.duration.interval
-                )
+                ce.subtask.end_time_simulation = current_time + ce.subtask.duration.interval
                 current_time += ce.subtask.duration.interval
             else:
                 ce.subtask.end_time_simulation = (
