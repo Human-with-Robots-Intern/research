@@ -1,4 +1,3 @@
-
 import argparse
 import heapq
 from typing import List, Optional, Tuple
@@ -8,8 +7,9 @@ import time
 from pathlib import Path
 from simulation.runner_ai2thor import execute_subtask
 
+from utils.common.logger import create_module_logger
 from utils.io_utils.result_saver import result_save
-import os
+
 
 PROJECT_ROOT = (
     Path(__file__).resolve().parent.parent.parent.parent
@@ -48,17 +48,15 @@ def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
     return True  # dependency가 없으면 실행 가능
 
 
-
 def compute_nav_time(subtask: Subtask, current_state: SchedulerState, action_handler) -> float:
     """
     subtask 내 첫 번째 NAVIGATE_TO primitive action의 실행 시간을 시뮬레이션하여 반환
     """
     temp_node = SimulationNode(deadline=current_state.current_time, simulation_subtask=subtask, state=current_state)
-    nav_time = 0
+    nav_time = 0.0
     
     # 모든 subtask의 첫 action은 NAVIGATE_TO 로 시작되어야 한다. 아니라면 문제가 있는것. 확인하라
     if not subtask.execution.primitive_actions[0].startswith("NAVIGATE_TO"):
-        nav_time = 1
         raise("first action is not NAVIGATE_TO")
     
     for act in subtask.execution.primitive_actions or []:
@@ -136,16 +134,14 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
         # 어짜피 두 critical edge가 있으면 둘중 하나는 포기해야하므로 급한거 먼저 처리하도록 구성. 그러나 critical이 두개 있는경우는 없음
         deadline = min(critical_deadlines) 
 
-    
     return deadline
 
 
-def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask]:
+def get_next_subtask_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask]:
     """
     각 실행 가능한 subtask에 대해 deadline을 산출한 후, deadline이 가장 짧은 subtask를 선택한다.    
     """
     import heapq
-
     action_handler = ActionHandler(nav_graph)    
 
     # pending_edges = get_pending_edges(current_state)
@@ -158,7 +154,6 @@ def simulation_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask
 
 
         nav_time = compute_nav_time(subtask, current_state, action_handler)
-
         deadline = compute_deadline_for_subtask(subtask, current_state, nav_time)
 
         sim_node = SimulationNode(deadline=deadline, simulation_subtask=subtask, state=current_state)
@@ -336,6 +331,13 @@ def parse_arguments():
         default=True,
         action="store_true",
     )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="로그 출력 수준 설정 (default: INFO)"
+    )
     return parser.parse_args()
 
 
@@ -358,9 +360,7 @@ def main():
         if choice is not None
         else Path(task_file_name).stem
     )
-
     # Build tasks and constraints
-
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(task_data, True)
 
     computation_time = 0
@@ -371,7 +371,7 @@ def main():
         # next_subtask는 Subtask 객체이다.
 
         subtask_scheduling_time_start = time.time()
-        next_subtask = simulation_edf(current_state, nav_graph)
+        next_subtask = get_next_subtask_edf(current_state, nav_graph)
 
         if next_subtask is None:
             break
@@ -384,7 +384,7 @@ def main():
         if args.simulation:
             # 터미널에서 src/baselines/def/dag_edf.py -s 실행시 사용됨
 
-            subtask_time, execution_status = execute_subtask(controller, next_subtask)
+            subtask_time, execution_status = execute_subtask(controller, next_subtask, args.log_level)
             simulation_subtask_times.append(subtask_time)
             next_subtask.execution_status = execution_status
 
