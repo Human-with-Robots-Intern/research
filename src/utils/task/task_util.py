@@ -18,6 +18,7 @@ from utils.config.constants import (
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
+    SCENE_NAME,
 )
 from utils.nlp.sentence_transformer import SentenceSimilarityModel
 
@@ -54,7 +55,7 @@ class TaskUtil:
         """
         FloorPlan1_physics_environment.json 파일에서 object ID 정보를 로드한다.
         """
-        file_path = KNOWLEDGE_PATH / "FloorPlan1_physics_environment.json"
+        file_path = KNOWLEDGE_PATH / f"{SCENE_NAME}_physics_environment.json"
         return TaskUtil._load_json_file(file_path)
 
     @staticmethod
