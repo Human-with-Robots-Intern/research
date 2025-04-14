@@ -203,6 +203,7 @@ The following is the **ENVIRONMENT CONTEXT** that the robot can manipulate. robo
   ]
 }
 
+
 ```
 - Only the objects and actions in this JSON **must** be used.  
 - If a request is made for any other object or action, output a subtask explicitly stating it is impossible, as described above.

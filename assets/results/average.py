@@ -4,7 +4,7 @@ from pathlib import Path
 
 from src.utils.common import create_module_logger
 
-MIN_REQUIRED_SIMULATIONS = 5
+MIN_REQUIRED_SIMULATIONS = 1
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
@@ -31,6 +31,10 @@ def initialize_metrics(metrics: dict, approach: str) -> None:
             "computation_time_count": 0,
             "scheduler_makespan_sum": 0.0,
             "scheduler_makespan_count": 0,
+            "timingSuccess_rate_sched_sum": 0.0,
+            "timingSuccess_rate_sched_count": 0,
+            "timingSuccess_rate_sim_sum": 0.0,
+            "timingSuccess_rate_sim_count": 0,
             "attempt_values": [],
         }
 
@@ -80,6 +84,14 @@ def process_summary_file(
             "simulation_makespan_sum",
             "simulation_makespan_count",
         )
+        if approach in dag_list:
+            accumulate(
+                    metrics,
+                    approach,
+                    entry.get("scheduler_makespan"),
+                    "scheduler_makespan_sum",
+                    "scheduler_makespan_count",
+            )
         accumulate(
             metrics,
             approach,
@@ -94,15 +106,21 @@ def process_summary_file(
             "computation_time_sum",
             "computation_time_count",
         )
+        accumulate(
+            metrics,
+            approach,
+            entry.get("timingSuccess_rate_sched"),
+            "timingSuccess_rate_sched_sum",
+            "timingSuccess_rate_sched_count",
+        )
+        accumulate(
+            metrics,
+            approach,
+            entry.get("timingSuccess_rate_sim"),
+            "timingSuccess_rate_sim_sum",
+            "timingSuccess_rate_sim_count",
+        )
 
-        if approach in dag_list:
-            accumulate(
-                metrics,
-                approach,
-                entry.get("scheduler_makespan"),
-                "scheduler_makespan_sum",
-                "scheduler_makespan_count",
-            )
 
         # LLM approach의 경우 attempt 값 처리
         if approach in llm_list:
@@ -114,7 +132,6 @@ def process_summary_file(
                         metrics[approach]["attempt_values"].append(parsed_val)
                 except ValueError:
                     log.debug("ValueError encountered while parsing attempt value")
-
         # subtask_count 및 executing_action_count 누적
         if "subtask_count" in entry:
             accumulate(
@@ -138,6 +155,15 @@ def process_summary_file(
     results = {}
     for approach, vals in metrics.items():
         result = {}
+        
+        # scheduler_makespan 평균 (DAG 방식만)
+        if approach in dag_list:
+            if vals["scheduler_makespan_count"] >= MIN_REQUIRED_SIMULATIONS:
+                result["scheduler_makespan_average"] = (
+                    vals["scheduler_makespan_sum"] / vals["scheduler_makespan_count"]
+                )
+            else:
+                result["scheduler_makespan_average"] = None
 
         # simulation_makespan 평균
         if vals["simulation_makespan_count"] >= MIN_REQUIRED_SIMULATIONS:
@@ -162,15 +188,24 @@ def process_summary_file(
             )
         else:
             result["computation_time_average"] = None
+        
+        # timingSuccess_rate_sched 평균
+        if vals["timingSuccess_rate_sched_count"] >= MIN_REQUIRED_SIMULATIONS:
+            result["timingSuccess_rate_sched_average"] = (
+                vals["timingSuccess_rate_sched_sum"] / vals["timingSuccess_rate_sched_count"]
+            )
+        else:
+            result["timingSuccess_rate_sched_average"] = None
+        
+        # timingSuccess_rate_sim 평균
+        if vals["timingSuccess_rate_sim_count"] >= MIN_REQUIRED_SIMULATIONS:
+            result["timingSuccess_rate_sim_average"] = (
+                vals["timingSuccess_rate_sim_sum"] / vals["timingSuccess_rate_sim_count"]
+            )
+        else:
+            result["timingSuccess_rate_sim_average"] = None
 
-        # scheduler_makespan 평균 (DAG 방식만)
-        if approach in dag_list:
-            if vals["scheduler_makespan_count"] >= MIN_REQUIRED_SIMULATIONS:
-                result["scheduler_makespan_average"] = (
-                    vals["scheduler_makespan_sum"] / vals["scheduler_makespan_count"]
-                )
-            else:
-                result["scheduler_makespan_average"] = None
+        
 
         # attempt 평균 (LLM 방식만)
         if approach in llm_list:
@@ -205,11 +240,10 @@ def make_average(base_dir: Path) -> None:
         summary_path = metadata_dir / "summary.json"
         if not summary_path.exists():
             print(f"[Warning] '{summary_path}' 파일이 존재하지 않습니다.")
-            continue
+            summary_path = metadata_dir / "summary_insuff.json"
+            
 
-        process_summary_file(summary_path, metrics, llm_list, dag_list)
-
-    results = compute_averages(metrics, llm_list, dag_list)
+        results = process_summary_file(summary_path, metrics, llm_list, dag_list)
 
     output_file = base_dir / "average.json"
     try:
