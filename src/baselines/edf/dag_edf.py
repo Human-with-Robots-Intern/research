@@ -330,6 +330,12 @@ def parse_arguments():
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="로그 출력 수준 설정 (default: INFO)"
     )
+    parser.add_argument(
+        "--scene",
+        type=str,
+        default="FloorPlan1",
+        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)"
+    )
     return parser.parse_args()
 
 def main():
@@ -339,7 +345,7 @@ def main():
     args = parse_arguments()
     controller = init_ai2thor_controller()
     nav_graph = load_navigation_graph(controller)
-    scene_name = SCENE_NAME
+    scene_name = args.scene
     scene_poses = load_scene_positions(f"{scene_name}_positions.json")
 
     # Load the chosen task data
