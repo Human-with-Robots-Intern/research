@@ -21,10 +21,6 @@ from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from core.agent import Agent
 from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
 from utils.common import create_module_logger
-from utils.config.constants import (
-
-    SCENE_NAME,
-)
 from utils.io_utils.result_saver import result_save
 from utils.io_utils.task_io import (
     get_user_task_choice,
@@ -69,11 +65,17 @@ def parse_arguments() -> argparse.Namespace:
         help="시뮬레이션 실행 여부 (default: True)",
     )
     parser.add_argument(
-    "--log-level",
-    type=str,
-    default="INFO",
-    choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-    help="로그 출력 수준 설정 (default: DEBUG)"
+        "--log-level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="로그 출력 수준 설정 (default: DEBUG)"
+    )
+    parser.add_argument(
+        "--scene",
+        type=str,
+        default="FloorPlan1",
+        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)"
     )
     return parser.parse_args()
 
@@ -430,14 +432,13 @@ def main() -> None:
     approach_name = "cpm"
     args: argparse.Namespace = parse_arguments()   
     
-    
     # 초기화: 컨트롤러, 네비게이션 그래프, 씬 정보
     controller = init_ai2thor_controller()
     nav_graph = load_navigation_graph(controller)
 
     global action_handler, constraints   
      
-    scene_name: str = SCENE_NAME
+    scene_name: str = args.scene
     scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
     action_handler = ActionHandler(nav_graph)
     
@@ -469,7 +470,6 @@ def main() -> None:
     # ===== (옵션) 시뮬레이션 실행 =====
     if args.simulation:
         approach_name = f"{approach_name}_simulation"
-
         simulation_time = 0.0
         for entry in final_scheduled_entries:
             subtask = entry.subtask

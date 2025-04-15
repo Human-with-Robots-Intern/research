@@ -4,7 +4,7 @@ from typing import Dict, Set, Tuple
 
 from src.utils.common import create_module_logger
 
-from .constants import GRID_SIZE
+from src.utils.config.constants import GRID_SIZE
 
 log = create_module_logger(module_name=__name__, module_log=True)
 

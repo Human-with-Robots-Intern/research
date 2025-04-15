@@ -87,7 +87,7 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
     
     [규칙]
         1. 기본규칙
-           deadline = current_time + nav_time 
+            deadline = current_time + nav_time
         2. subtask가 non critical in edge만 있으면: 
             deadline = max(선행 subtask의 end_time + edge의 interval)
         3. subtask가 critical in edge를 포함한다면:
@@ -152,18 +152,15 @@ def get_next_subtask_edf(current_state: SchedulerState, nav_graph) -> Optional[S
         if not is_executable(subtask, current_state):
             continue
 
-
         nav_time = compute_nav_time(subtask, current_state, action_handler)
         deadline = compute_deadline_for_subtask(subtask, current_state, nav_time)
-
         sim_node = SimulationNode(deadline=deadline, simulation_subtask=subtask, state=current_state)
         heapq.heappush(queue, sim_node)
-        # remaining_subtask들에 deadline 정보를 삽입
+        # remaining_subtask들의 deadline 정보를 삽입
         subtask.deadline = deadline
 
     if queue:
         chosen_node = heapq.heappop(queue)
-
         # chosen_node.simulation_subtask.deadline = deadline
         return chosen_node.simulation_subtask
     
@@ -178,16 +175,14 @@ def update(
        - current_time < designated_start => NAVIGATE_TO + WAIT subtask를 CompletedEntry로 추가
     3) next_subtask 실행 CompletedEntry 추가
     """
-
     action_handler = ActionHandler(nav_graph)
-
     # -------------------------------
     # 1) 실제 실행 시간 시뮬레이션
     # -------------------------------
     current_time = current_state.current_time
     
     exec_info = offline_subtask_execution(next_subtask, current_state, action_handler)
-    real_exec_time = exec_info.time_used 
+    real_exec_time = exec_info.time_used
     if real_exec_time == None :
         real_exec_time = next_subtask.duration.interval
 
@@ -203,8 +198,6 @@ def update(
 
     # 현재 edge 가 critical이면 critical subtask의 predecessor를 찾아서 그 subtask 기준으로 연산해야함. 
     # 아니면 아무거나 써도 됨.
-
- 
 
     wait_entries = []
     #incoming_edge 가 있으면 deadline 규칙에 따라 연산된 deadline 시간에 subtask 시작
@@ -298,33 +291,32 @@ def update(
     )
     return updated_state
 
-
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Task Scheduler")
 
     # 현재 미사용중인 argument들은 주석처리되었다.
-    # parser.add_argument(
-    #     "-d",
-    #     "--decomposition",
-    #     help="Enable or disable decomposition",
-    #     default=True,
-    #     action="store_true",
-    # )
-    # parser.add_argument(
-    #     "-v",
-    #     "--visualize",
-    #     help="Enable visualization of the task plan",
-    #     default=True,
-    #     action="store_true",
-    # )
-    # parser.add_argument(
-    #     "-r",
-    #     "--reset",
-    #     default=True,
-    #     help="Reset the knowledge base to Gaussian",
-    #     action="store_true",
-    # )
+    parser.add_argument(
+        "-d",
+        "--decomposition",
+        help="Enable or disable decomposition",
+        default=True,
+        action="store_true",
+    )
+    parser.add_argument(
+        "-v",
+        "--visualize",
+        help="Enable visualization of the task plan",
+        default=True,
+        action="store_true",
+    )
+    parser.add_argument(
+        "-r",
+        "--reset",
+        default=True,
+        help="Reset the knowledge base to Gaussian",
+        action="store_true",
+    )
     parser.add_argument(
         "-s",
         "--simulation",
@@ -338,8 +330,13 @@ def parse_arguments():
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="로그 출력 수준 설정 (default: INFO)"
     )
+    parser.add_argument(
+        "--scene",
+        type=str,
+        default="FloorPlan1",
+        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)"
+    )
     return parser.parse_args()
-
 
 def main():
 
@@ -348,7 +345,7 @@ def main():
     args = parse_arguments()
     controller = init_ai2thor_controller()
     nav_graph = load_navigation_graph(controller)
-    scene_name = SCENE_NAME
+    scene_name = args.scene
     scene_poses = load_scene_positions(f"{scene_name}_positions.json")
 
     # Load the chosen task data
@@ -398,8 +395,6 @@ def main():
 
 
     # plot_completed_subtasks_gantt(result_schedule, gantt_path)
-    
-
     if args.simulation:
         approach_name = f"{approach_name}_simulation"
         visualize(approach_name, input_natural_language, constraints, result_schedule)
@@ -422,8 +417,6 @@ def main():
                 current_time += simulation_subtask_times[i]
                 i += 1
 
-
-
         result_args = {
             "task_name": input_natural_language,
             "approach_name": approach_name,
@@ -439,36 +432,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-#deprecated functions
-def get_pending_edges(current_state: SchedulerState) -> list:
-    """
-    complete_subtasks에 있는 노드 중, digraph 상에서 한쪽만 완료된 edge를
-    timeslot이 시작된 것으로 판단하여 pending edge 리스트를 반환한다.
-    """
-    constraints = current_state.constraints
-    completed_names = {entry.subtask.name for entry in current_state.completed_subtasks}
-    remaining_names = {entry.subtask.name for entry in current_state.remaining_subtasks}
-
-    pending_edges = []
-    for u, v, data in constraints.edges(data=True):
-        # 선행 subtask는 completed, 후행 subtask는 remaining에 있으면
-        if (u in completed_names) and (v in remaining_names):
-            pending_edges.append((u, v, data))
-    return pending_edges
-
-
-def get_timeslot_type(pending_edges: list) -> bool:
-    """
-    pending_edges 중 하나라도 critical이면 "critical", 그렇지 않으면 "non-critical",
-    pending_edges가 없으면 None을 반환한다.
-    """
-    if pending_edges:
-        for _, _, data in pending_edges:
-            if data.get("info", {}).get("IsCritical", False):
-                # 문자열 말고 다른거로 하자 bool 같은거로 
-                return True
-        return False
-    return None
-
-

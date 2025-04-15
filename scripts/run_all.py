@@ -86,9 +86,9 @@ def process_normal_script(script: Path, instruction: str, index: int) -> None:
 
 def main() -> None:
     scripts = [
-        Path("src/baselines/progprompt/prog_ai2thor.py"),
-        Path("src/baselines/cap/cap_ai2thor.py"),
-        Path("src/dag_bayesian.py"),
+        # Path("src/baselines/progprompt/prog_ai2thor.py"),
+        # Path("src/baselines/cap/cap_ai2thor.py"),
+        # Path("src/dag_bayesian.py"),
         Path("src/baselines/cpm.py"),
         Path("src/baselines/edf/dag_edf.py")
     ]
@@ -131,11 +131,23 @@ def main() -> None:
         29: "store_vegetables_and_book_dispose_of_paper_towel",
         30: "cook_egg_fry_and_make_coffee_and_wash_dishes"
     }
-
+    scene_list = [
+        "FloorPlan1",
+        "FloorPlan2",
+        "FloorPlan3",
+        "FloorPlan4",
+        "FloorPlan5",
+        "FloorPlan401",
+        "FloorPlan402",
+        "FloorPlan403",
+        "FloorPlan404",
+        "FloorPlan405"
+    ]
+    # scene name 도 arg 로 받도록 파일들을 수정해야함. 
     num_runs_per_instruction = 1
 
     # itertools.product를 사용하여 세 개의 반복 범위를 하나로 결합
-    for i, script, _ in product(range(1, 31, 3), scripts, range(num_runs_per_instruction)):
+    for i, script, _ in product(range(1, 31), scripts, range(num_runs_per_instruction)):
         instruction = instructions[i]
         print(f"task_name : {instruction}")
         if script in llm_scripts:

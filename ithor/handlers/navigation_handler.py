@@ -2,7 +2,7 @@ import heapq
 import math
 import time
 
-from ithor.utils.constants import SMOOTH_LEVEL
+from src.utils.config.constants import SMOOTH_LEVEL
 from ithor.utils.math_utils import (
     closest_position,
     load_navigation_graph,
