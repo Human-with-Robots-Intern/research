@@ -53,7 +53,9 @@ class Scheduler:
 
         self.action_handler = ActionHandler(nav_graph or {})
         self.constraint_handler = ConstraintHandler()
-        self.cost_calculator = HeuristicManager(self.action_handler)
+        self.cost_calculator = HeuristicManager(
+            self.constraint_handler, self.action_handler
+        )
 
         self._counter = itertools.count()
 

@@ -11,7 +11,7 @@ def extract_object_positions(
 ) -> Dict[str, Tuple[float, float, float]]:
     controller.step("Pass")
     metadata = controller.last_event.metadata
-
+    positions: Dict[str : Tuple[int, int, int]] = {}
     positions = {
         "agent": (
             metadata["agent"]["position"]["x"],

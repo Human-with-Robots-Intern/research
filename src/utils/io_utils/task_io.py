@@ -52,7 +52,7 @@ def get_user_task_choice(
         choice = None
 
 
-def load_task_data_from_file(task_file_name: str) -> dict:
+def load_task_data_from_file(task_file_name: str) -> list[dict]:
     """
     특정 task 파일에서 JSON 데이터를 불러옴.
     """

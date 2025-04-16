@@ -26,8 +26,8 @@ def main(scene_name: str):
     save_environment_data(scene, env, KNOWLEDGE_PATH)
 
     # 이동 시간 저장
-    move_time = extract_navigation_time(controller, object_ids)
-    save_navigation_time(scene, move_time, KNOWLEDGE_PATH)
+    # move_time = extract_navigation_time(controller, object_ids)
+    # save_navigation_time(scene, move_time, KNOWLEDGE_PATH)
 
     print(f"Knowledge extracted and saved for scene: {scene}")
 

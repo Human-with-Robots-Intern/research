@@ -81,7 +81,7 @@ log_handler.setFormatter(log_formatter)
 root_logger = logging.getLogger()
 if root_logger.hasHandlers():
     root_logger.handlers.clear()
-root_logger.setLevel(logging.WARNING)
+root_logger.setLevel(logging.INFO)
 root_logger.addHandler(log_handler)
 logging.getLogger("optuna").setLevel(logging.WARNING)
 log = logging.getLogger(__name__)
@@ -91,7 +91,8 @@ TASK_FILES_DIR = ASSETS_ROOT / "tasks"
 CONTROLLER_INSTANCE: Optional[Any] = None
 NAV_GRAPH: Optional[Dict] = None
 INITIAL_SCENE_POSITIONS: Optional[Dict] = None
-TUNING_TASK_NAMES_LIST = glob.glob(str(TASK_FILES_DIR / "*.json"))  # Get all task files
+# TUNING_TASK_NAMES_LIST = glob.glob(str(TASK_FILES_DIR / "*.json"))  # Get all task files
+TUNING_TASK_NAMES_LIST = ["complex3_12subtasks(dc1, dnc2, dnc3, nd(2, 3)).json"]
 TASK_PATHS_TO_TUNE: List[Path] = []
 CSV_FILENAME = ""  # Will be set after study creation
 CSV_HEADER = [  # CSV 파일 헤더 정의
@@ -168,42 +169,66 @@ def run_schedule_and_get_result(
 ) -> Optional[Dict[str, Any]]:
     # Placeholder - Use the full implementation from the previous verified answer
     task_name_str = task_path.stem
-    log.info(f"--- Starting Sim: '{task_name_str}' ---")
+    log.info(f"--- Starting Sim: '{task_name_str}' --- Run Start --- {task_name_str}")
     computation_start_time = time.time()
     simulation_time_accumulator = 0.0
     result_schedule: List[CompletedEntry] = []
     try:
         task_data_dict = load_task_data_from_file(task_path.name)
+        task_data_dict = task_data_dict[0]
+        log.debug(f"[{task_name_str}] Task data loaded: {list(task_data_dict.keys())}")
         subtasks, constraints = TaskUtil.build_tasks_and_constraints(
             task_data=task_data_dict, enable_decomposition=True
         )
+        log.debug(
+            f"[{task_name_str}] Built {len(subtasks)} subtasks and constraint graph with {len(constraints.nodes())} nodes."
+        )
+
+        # Reset controller
         event = controller_instance.reset(scene=scene_name)
+        if not event:
+            log.error(f"[{task_name_str}] Controller reset failed.")
+            return None
         live_metadata = event.metadata
         live_initial_positions = INITIAL_SCENE_POSITIONS
         live_initial_held = live_metadata.get("inventoryObjects", [])
         live_initial_held = (
             live_initial_held[0]["objectId"] if live_initial_held else None
         )
+
         current_state = TaskUtil.get_init_state(
             subtasks, constraints, live_initial_positions
         )
         current_state = current_state._replace(
             held_object=live_initial_held, current_time=0.0
         )
+        log.info(
+            f"[{task_name_str}] Initial state created. Time: {current_state.current_time:.2f}, Remaining: {[s.name for s in current_state.remaining_subtasks]}"
+        )
+
         is_end = False
         step_count = 0
         max_steps = 350
         while not is_end:
             step_count += 1
+            log.debug(
+                f"[{task_name_str}] --- Step {step_count} --- Current Time: {current_state.current_time:.2f}"
+            )
             if step_count > max_steps:
-                log.error(f"Max steps exceeded for '{task_name_str}'.")
+                log.error(f"[{task_name_str}] Max steps ({max_steps}) exceeded.")
                 break
+
+            # --- Get next state from Scheduler ---
+            log.debug(f"[{task_name_str}] Calling scheduler.get_next_state...")
             next_sched_state: Optional[SchedulerState] = None
             try:
                 next_sched_state = scheduler_instance.get_next_state(current_state)
             except Exception as scheduler_e:
-                log.error(f"Scheduler error: {scheduler_e}", exc_info=True)
-                break
+                log.error(
+                    f"[{task_name_str}] Scheduler error: {scheduler_e}", exc_info=True
+                )
+                break  # Critical scheduler error
+
             if next_sched_state is None:
                 log.info(f"Scheduler returned None for '{task_name_str}'.")
             if not current_state.remaining_subtasks:
@@ -211,46 +236,111 @@ def run_schedule_and_get_result(
                 break
             scheduled_subtask = next_sched_state.subtask
             if not scheduled_subtask or not scheduled_subtask.name:
-                log.error("Invalid subtask.")
+                log.error(
+                    f"[{task_name_str}] Invalid subtask returned by scheduler: {scheduled_subtask}"
+                )
                 break
+            log.info(
+                f"[{task_name_str}] Scheduler selected: '{scheduled_subtask.name}' (Type: {scheduled_subtask.type})"
+            )
+
+            # --- Execute Subtask in Simulation ---
             subtask_elapsed_time = 0.0
             execution_status = False
-            sim_final_positions = current_state.scene_positions
-            sim_final_held = current_state.held_object
+            sim_final_positions = current_state.scene_positions  # Default to previous
+            sim_final_held = current_state.held_object  # Default to previous
+            log.debug(
+                f"[{task_name_str}] Executing subtask '{scheduled_subtask.name}'... Actions: {scheduled_subtask.execution.primitive_actions}"
+            )
             try:
+                # Ensure controller is valid before execution
+                if controller_instance is None:
+                    raise RuntimeError(
+                        "Controller instance is None before executing subtask."
+                    )
+
                 subtask_elapsed_time, execution_status = execute_subtask(
                     controller_instance, scheduled_subtask
                 )
                 subtask_elapsed_time = float(subtask_elapsed_time)
                 execution_status = bool(execution_status)
+                log.info(
+                    f"[{task_name_str}] Execution result for '{scheduled_subtask.name}': Status={execution_status}, Time={subtask_elapsed_time:.2f}s"
+                )
+
+                # Get simulation results carefully
                 event = controller_instance.last_event
                 if not event or not event.metadata or "objects" not in event.metadata:
-                    raise RuntimeError("Invalid metadata")
-                sim_final_positions = {
-                    obj["objectId"]: tuple(obj["position"].values())
-                    for obj in event.metadata.get("objects", [])
-                }
-                agent_meta = event.metadata.get("agent")
-                if agent_meta and "position" in agent_meta:
-                    sim_final_positions["agent"] = tuple(
-                        agent_meta["position"].values()
+                    log.warning(
+                        f"[{task_name_str}] Invalid metadata after executing '{scheduled_subtask.name}'. State might be inaccurate."
                     )
-                elif "agent" in current_state.scene_positions:
-                    sim_final_positions["agent"] = current_state.scene_positions[
-                        "agent"
-                    ]
-                sim_final_held = agent_meta.get("inventoryObjects", [])
-                sim_final_held = (
-                    sim_final_held[0]["objectId"] if sim_final_held else None
-                )
+                    # Keep previous positions/held object if metadata invalid
+                else:
+                    # Update positions and held object based on simulation event
+                    sim_final_positions = {
+                        obj["objectId"]: tuple(obj["position"].values())
+                        for obj in event.metadata.get("objects", [])
+                    }
+                    agent_meta = event.metadata.get("agent")
+                    if agent_meta and "position" in agent_meta:
+                        sim_final_positions["agent"] = tuple(
+                            agent_meta["position"].values()
+                        )
+                    elif "agent" in current_state.scene_positions:
+                        # Fallback if agent meta missing but existed before
+                        sim_final_positions["agent"] = current_state.scene_positions[
+                            "agent"
+                        ]
+
+                    sim_final_held = agent_meta.get("inventoryObjects", [])
+                    sim_final_held = (
+                        sim_final_held[0]["objectId"] if sim_final_held else None
+                    )
+                    log.debug(
+                        f"[{task_name_str}] State after execution: Held='{sim_final_held}', Pos Keys={list(sim_final_positions.keys())}"
+                    )
+
             except Exception as exec_e:
-                log.error(f"Exec Error: {exec_e}")
-                execution_status = False
+                log.error(
+                    f"[{task_name_str}] Execution Error for '{scheduled_subtask.name}': {exec_e}",
+                    exc_info=True,
+                )
+                execution_status = False  # Ensure status reflects failure
+
             if not execution_status:
-                log.error(f"Exec failed for '{scheduled_subtask.name}'.")
-                break
+                log.error(
+                    f"[{task_name_str}] Execution failed for '{scheduled_subtask.name}'. Stopping task."
+                )
+                # Failure occurred, store partial result and stop
+                sim_start_time = simulation_time_accumulator
+                sim_end_time = (
+                    sim_start_time + subtask_elapsed_time
+                )  # Add elapsed time even if failed
+                # Ensure attributes exist before setting
+                for attr in [
+                    "start_time_simulation",
+                    "end_time_simulation",
+                    "execution_status",
+                    "start_time_scheduled",
+                    "end_time_scheduled",
+                    "monitored_subtask",
+                ]:
+                    if not hasattr(scheduled_subtask, attr):
+                        setattr(scheduled_subtask, attr, None)
+                current_completed_entry = CompletedEntry(
+                    scheduled_subtask, sim_start_time, sim_end_time
+                )
+                current_completed_entry.subtask.start_time_simulation = sim_start_time
+                current_completed_entry.subtask.end_time_simulation = sim_end_time
+                current_completed_entry.subtask.execution_status = execution_status
+                result_schedule.append(current_completed_entry)
+                simulation_time_accumulator = sim_end_time
+                break  # Stop the loop on execution failure
+
+            # --- Record Successful Execution ---
             sim_start_time = simulation_time_accumulator
             sim_end_time = sim_start_time + subtask_elapsed_time
+            # Ensure attributes exist before setting
             for attr in [
                 "start_time_simulation",
                 "end_time_simulation",
@@ -267,38 +357,83 @@ def run_schedule_and_get_result(
             current_completed_entry.subtask.start_time_simulation = sim_start_time
             current_completed_entry.subtask.end_time_simulation = sim_end_time
             current_completed_entry.subtask.execution_status = execution_status
-            # ... store scheduled times approx ...
+            current_completed_entry.subtask.start_time_scheduled = (
+                round(next_sched_state.subtask.start_time, 2)
+                if hasattr(next_sched_state.subtask, "start_time")
+                else None
+            )  # Approx scheduled times
+            current_completed_entry.subtask.end_time_scheduled = (
+                round(next_sched_state.subtask.end_time, 2)
+                if hasattr(next_sched_state.subtask, "end_time")
+                else None
+            )
             result_schedule.append(current_completed_entry)
             simulation_time_accumulator = sim_end_time
+
+            # --- Update State ---
             try:
+                # Use the state returned by the scheduler, but update time and simulation results
                 current_state = SchedulerState(
-                    subtask=scheduled_subtask,
+                    subtask=scheduled_subtask,  # The task just completed
                     completed_subtasks=result_schedule,
                     remaining_subtasks=next_sched_state.remaining_subtasks,
                     constraints=next_sched_state.constraints,
-                    current_time=simulation_time_accumulator,
-                    scene_positions=sim_final_positions,
-                    held_object=sim_final_held,
-                    agent_location=None,
+                    current_time=simulation_time_accumulator,  # Use accumulated simulation time
+                    scene_positions=sim_final_positions,  # Use updated positions from sim
+                    held_object=sim_final_held,  # Use updated held object from sim
+                    agent_location=None,  # Assuming this is not used or set elsewhere
+                )
+                log.debug(
+                    f"[{task_name_str}] State updated. New Time: {current_state.current_time:.2f}, Remaining: {[s.name for s in current_state.remaining_subtasks]}, Held='{current_state.held_object}'"
                 )
             except Exception as state_update_e:
-                log.error(f"State update error: {state_update_e}", exc_info=True)
-                break
+                log.error(
+                    f"[{task_name_str}] State update error after '{scheduled_subtask.name}': {state_update_e}",
+                    exc_info=True,
+                )
+                break  # Cannot continue if state update fails
+
+            # --- Agent Update (if Monitor task) ---
             if scheduled_subtask.type == "Monitor":
+                log.debug(
+                    f"[{task_name_str}] Calling agent.bayesian_estimate for '{scheduled_subtask.name}'..."
+                )
                 try:
                     updated_state_agent, monitored_info = (
                         agent_instance.bayesian_estimate(current_state)
                     )
+                    # Update the main state with the agent's changes (constraints, knowledge)
                     current_state = updated_state_agent
-                    # ... store monitored_info ...
+                    # Store monitored info if needed (ensure attribute exists)
+                    if hasattr(result_schedule[-1].subtask, "monitored_subtask"):
+                        result_schedule[-1].subtask.monitored_subtask = monitored_info
+                    log.info(
+                        f"[{task_name_str}] Agent Bayesian estimation completed. Monitored: {monitored_info}"
+                    )
                 except Exception as agent_e:
-                    log.error(f"Agent error: {agent_e}", exc_info=True)
-                    log.warning("Continuing without agent update.")
+                    log.error(
+                        f"[{task_name_str}] Agent error during Bayesian estimate: {agent_e}",
+                        exc_info=True,
+                    )
+                    log.warning(
+                        f"[{task_name_str}] Continuing simulation without agent update after Monitor task."
+                    )
+
+            # --- Check for End Condition ---
             if not current_state.remaining_subtasks:
-                log.info(f"All subtasks completed for '{task_name_str}'.")
+                log.info(
+                    f"[{task_name_str}] All subtasks completed after step {step_count}."
+                )
                 is_end = True
+        # End of while loop
+
+        # --- Process Results ---
         total_computation_time = time.time() - computation_start_time
         if not result_schedule:
+            log.warning(
+                f"[{task_name_str}] Simulation ended with no completed entries."
+            )
+            # Return failure result if no progress was made
             return {
                 "status": "Failed (No Progress)",
                 "simulation_makespan": float("inf"),
@@ -307,31 +442,55 @@ def run_schedule_and_get_result(
                 "scene_name": scene_name,
                 "task_name": task_name_str,
             }
+
         task_name_for_compose = task_data_dict.get("Task", task_name_str)
-        plans, success_rate, final_sim_makespan, final_sched_makespan = compose_plans(
-            result_schedule, task_name_for_compose
-        )
-        final_status = "Unknown"
-        last_step_succeeded = result_schedule[-1].subtask.execution_status
-        if is_end and last_step_succeeded:
-            final_status = "Completed"
-        elif not last_step_succeeded:
-            final_status = "Failed (Execution)"
-        elif step_count > max_steps:
-            final_status = "Failed (Timeout)"
+        # Ensure compose_plans can handle potentially empty schedule or failures
+        try:
+            plans, success_rate, final_sim_makespan, final_sched_makespan = (
+                compose_plans(result_schedule, task_name_for_compose)
+            )
+        except Exception as compose_e:
+            log.error(
+                f"[{task_name_str}] Error during compose_plans: {compose_e}",
+                exc_info=True,
+            )
+            # Provide default values if compose_plans fails
+            success_rate = 0.0
+            final_sim_makespan = simulation_time_accumulator  # Use last known time
+            final_sched_makespan = float("inf")
+            final_status = "Failed (Result Processing Error)"
         else:
-            final_status = "Failed (Scheduler Plan/Unknown)"
-        if not is_end and result_schedule:
-            final_sim_makespan = result_schedule[-1].end_time
-        result_dict = {
-            "simulation_makespan": (
-                final_sim_makespan if final_sim_makespan is not None else float("inf")
-            ),
-            "scheduler_makespan": (
-                final_sched_makespan
-                if final_sched_makespan is not None
+            # Determine final status based on loop exit reason and last step
+            final_status = "Unknown"
+            if is_end:  # Loop exited because remaining_subtasks became empty
+                last_step_succeeded = result_schedule[-1].subtask.execution_status
+                if last_step_succeeded:
+                    final_status = "Completed"
+                else:
+                    # This case should ideally be caught by the break inside the loop
+                    final_status = "Failed (Execution on Last Step?)"
+            elif step_count > max_steps:
+                final_status = "Failed (Timeout)"
+            elif result_schedule and not result_schedule[-1].subtask.execution_status:
+                # Loop broken due to execution failure
+                final_status = "Failed (Execution)"
+            else:
+                # Loop broken likely due to scheduler error or state update error
+                final_status = "Failed (Planning/State Error)"
+
+        # Handle cases where makespan might still be None from compose_plans
+        if final_sim_makespan is None:
+            final_sim_makespan = (
+                simulation_time_accumulator
+                if simulation_time_accumulator > 0
                 else float("inf")
-            ),
+            )
+        if final_sched_makespan is None:
+            final_sched_makespan = float("inf")
+
+        result_dict = {
+            "simulation_makespan": final_sim_makespan,
+            "scheduler_makespan": final_sched_makespan,
             "success_rate": success_rate,
             "computation_time": total_computation_time,
             "scene_name": scene_name,
@@ -339,12 +498,16 @@ def run_schedule_and_get_result(
             "status": final_status,
         }
         log.info(
-            f"Sim finished '{task_name_str}'. Status: {result_dict['status']}, SimMakespan: {result_dict['simulation_makespan']:.2f}, Rate: {result_dict['success_rate']:.2f}, CompTime: {result_dict['computation_time']:.2f}s"
+            f"--- Sim finished: '{task_name_str}' --- Status: {result_dict['status']}, SimMakespan: {result_dict['simulation_makespan']:.2f}, Rate: {result_dict['success_rate']:.2f}, CompTime: {result_dict['computation_time']:.2f}s"
         )
         return result_dict
+
     except Exception as e:
-        log.critical(f"Critical error in sim run '{task_name_str}': {e}", exc_info=True)
-        return None
+        # Catch any critical error happening outside the main loop but within the function
+        log.critical(
+            f"[{task_name_str}] Critical error in simulation run: {e}", exc_info=True
+        )
+        return None  # Return None on critical failure
 
 
 # --- Optuna Callback for CSV Logging ---
@@ -485,7 +648,7 @@ def objective(trial: optuna.Trial) -> float:
             action_handler = ActionHandler(NAV_GRAPH)
             constraint_handler = ConstraintHandler()
             # Pass fresh handler instances to HeuristicManager
-            heuristic_manager = HeuristicManager(action_handler)
+            heuristic_manager = HeuristicManager(constraint_handler, action_handler)
             heuristic_manager.alpha = alpha
             heuristic_manager.beta = beta
             heuristic_manager.gamma = gamma
@@ -694,7 +857,7 @@ if __name__ == "__main__":
         log.critical(f"Failed to create or load Optuna study: {e}", exc_info=True)
         sys.exit(1)
 
-    n_trials = 1000  # Adjust number of trials
+    n_trials = 1  # <-- 변경: 디버깅을 위해 1로 줄임 (원래값: 1000)
     timeout_seconds = 3600 * 24 * 2  # Adjust timeout
 
     log.info(
