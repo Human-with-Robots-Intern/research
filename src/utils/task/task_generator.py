@@ -1,6 +1,5 @@
 # utils/task/task_generator.py
 import json
-import logging
 import os
 import re
 from datetime import datetime
@@ -11,7 +10,14 @@ import openai
 from dotenv import load_dotenv
 
 from utils.common import create_module_logger
-from utils.config.constants import PROMPT_FILE_PATH, PROMPT_PATH, TASK_PATH, TOP_K
+from utils.config.constants import (
+    ENV_PLACEHOLDER,
+    KNOWLEDGE_PATH,
+    PROMPT_FILE_PATH,
+    PROMPT_PATH,
+    TASK_PATH,
+    TOP_K,
+)
 from utils.nlp.few_shot_retriever import FewShotRetriever
 from utils.task.task_cache import check_cache, get_cache_key, store_cache
 
@@ -65,11 +71,19 @@ class TaskGenerator:
             else:
                 return f.read()
 
-    def generate_task(self, user_input: str) -> str:
+    def generate_task(
+        self, user_input: str, scene_name: Optional[str] = "FloorPlan1"
+    ) -> str:
         """
         유저 입력 + Knowledge Base + Prompt를 조합하여 태스크를 생성한다.
         결과를 파일에 저장하고, 파일명을 반환한다.
+
+        Args:
+            user_input: The user's input instruction string.
+            environment_file_name: Optional name of the JSON file in ENVIRONMENT_PATH
+                                     containing environment details.
         """
+        
         user_input = user_input.strip()
         if not user_input:
             raise ValueError("User input cannot be empty.")
@@ -86,6 +100,48 @@ class TaskGenerator:
             examples_prompt = examples_prompt.replace(
                 "<Example>", retrieved_few_shot_prompts
             )
+        
+        number = int(scene_name.lstrip("FloorPlan"))
+        if number < 100:
+            scene_type = "kitchen"
+        elif number < 200:
+            scene_type = "living_room"
+        elif number < 300:
+            scene_type = "bedroom"
+        else:
+            scene_type = "bathroom"
+
+        # 환경 정보 로드 및 주입 (environment_file_name이 제공된 경우)
+        environment_info_str = ""
+ 
+        try:
+            env_file_path = Path(KNOWLEDGE_PATH) / scene_type/ "environment" / f"{scene_name}_physics.json"
+            env_data = self.load_file(env_file_path, "json")
+
+            # 전체 환경 데이터를 JSON 문자열로 변환
+            environment_info_str = json.dumps(
+                env_data, indent=2, ensure_ascii=False
+            )
+
+        except FileNotFoundError:
+            logger.warning(
+                f"Environment file not found: {scene_name}. Proceeding without environment info."
+            )
+        except ValueError as e: # Catches JSONDecodeError from load_file
+                logger.warning(
+                f"Error loading environment file {scene_name}: {e}. Proceeding without environment info."
+            )
+        except Exception as e:
+                logger.error(f"Unexpected error processing environment file {scene_name}: {e}")
+                # Decide if you want to raise here or proceed without env info
+                # raise
+
+        # 프롬프트 템플릿에 환경 정보 삽입 (또는 플레이스홀더 제거)
+        if ENV_PLACEHOLDER in examples_prompt:
+             examples_prompt = examples_prompt.replace(ENV_PLACEHOLDER, environment_info_str)
+        elif environment_info_str: # Placeholder not found, but env info exists
+             logger.warning(f"Placeholder '{ENV_PLACEHOLDER}' not found in prompt template, but environment info was loaded.")
+             
 
         # Knowledge Base 로드
         # knowledge = self.load_file(Path(KNOWLEDGE_PATH) / ESTIMATE_FILE_NAME, "json")

@@ -33,7 +33,7 @@ __all__ = [
     "RESET",
     "SCREEN_WIDTH",
     "SCREEN_HEIGHT",
-    "SCENE_NAME",
+    #"SCENE_NAME", 이제 변수로 받아온다.
     "GRID_SIZE",
     "SMOOTH_LEVEL",
     "MOVE_STEP",

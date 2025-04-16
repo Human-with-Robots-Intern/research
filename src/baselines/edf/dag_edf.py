@@ -17,7 +17,7 @@ PROJECT_ROOT = (
 ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 from ithor.utils.math_utils import load_navigation_graph
 from simulation.runner_ai2thor import init_ai2thor_controller
-from utils.config.constants import RESULT_PATH, SCENE_NAME
+from utils.config.constants import RESULT_PATH
 from scheduler.action_handler import ActionHandler
 from dataclass import SimulationNode, SchedulerState, CompletedEntry
 from core.task import *
@@ -342,8 +342,9 @@ def main():
 
     # Set up the AI2-THOR controller and navigation graph
     approach_name = "dag_edf"
+    scnen_name = args.scene
     args = parse_arguments()
-    controller = init_ai2thor_controller()
+    controller = init_ai2thor_controller(scene_name)
     nav_graph = load_navigation_graph(controller)
     scene_name = args.scene
     scene_poses = load_scene_positions(f"{scene_name}_positions.json")

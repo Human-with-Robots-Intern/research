@@ -18,9 +18,7 @@ from utils.io_utils import task_io
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 
-from core.agent import Agent
 from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
-from utils.common import create_module_logger
 from utils.io_utils.result_saver import result_save
 from utils.io_utils.task_io import (
     get_user_task_choice,
@@ -352,7 +350,7 @@ def get_final_entries(
         current_state = update_state(current_state, subtask, exec_info)
 
         # interval이 없으면 다음 subtask로 넘어간다.
-        if interval is None:            
+        if interval is None: 
             continue
 
         # interval에 실행 가능한 subtask가 있으면 스케쥴.
@@ -430,28 +428,30 @@ def get_final_entries(
             
 def main() -> None:
     approach_name = "cpm"
+
     args: argparse.Namespace = parse_arguments()   
+    scene_name: str = args.scene
     
     # 초기화: 컨트롤러, 네비게이션 그래프, 씬 정보
-    controller = init_ai2thor_controller()
+    controller = init_ai2thor_controller(scene_name)
     nav_graph = load_navigation_graph(controller)
 
     global action_handler, constraints   
      
-    scene_name: str = args.scene
+    
     scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
     action_handler = ActionHandler(nav_graph)
     
 
     # 사용자로부터 task 파일 선택 및 로드
     task_files = list_task_files()
-    task_file_name, choice = get_user_task_choice(task_files)
+    task_file_name, choice = get_user_task_choice(task_files, scene_name)
     task_data = load_task_data_from_file(task_file_name)
     input_natural_language: str = task_io.get_natural_language_from_task_file(f"{choice}")
 
     
     # Task 및 constraint 생성 (태스크 분해 여부에 따라)
-    subtasks, constraints = TaskUtil.build_tasks_and_constraints(task_data, args.decomposition)    
+    subtasks, constraints = TaskUtil.build_tasks_and_constraints(task_data, args.decomposition, scene_name)    
     subtasks_witout_edge = [s for s in subtasks 
                             if all(s.name != str1 and s.name != str2 for (str1, str2) in list(constraints.edges))]
     

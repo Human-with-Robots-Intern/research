@@ -21,7 +21,7 @@ def list_task_files() -> list[Path]:
 
 
 def get_user_task_choice(
-    task_files: list[Path], choice: Optional[int] = None, is_rag: bool = False
+    task_files: list[Path], choice: Optional[int] = None, is_rag: bool = False, scene_name: Optional[str] = "FloorPlan1"
 ) -> Tuple[str, Optional[int]]:
     """
     유저에게 task 파일을 선택하거나 새 instruction을 생성할 수 있도록 입력 받음.
@@ -42,7 +42,7 @@ def get_user_task_choice(
             if choice == 0:
                 user_input = input("Enter your instruction: ")
 
-                return TaskGenerator(is_rag).generate_task(user_input), None
+                return TaskGenerator(is_rag).generate_task(user_input,scene_name), None
             elif 1 <= choice <= len(task_files):
                 return task_files[choice - 1].name, choice
             else:
