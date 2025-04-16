@@ -1,3 +1,4 @@
+import argparse
 import copy
 import logging
 import os
@@ -12,6 +13,7 @@ from ai2thor.controller import Controller
 
 import baselines.cap.util.LMPgen as gen
 from ithor.utils.file_utils import *
+from simulation.runner_ai2thor import init_ai2thor_controller
 from utils.config.constants import *
 from utils.io_utils.result_saver import result_save_llm
 
@@ -60,27 +62,6 @@ def timed_action(log_file, action_name, action_func, controller):
 
     return wrapper
 
-
-def initialize_controller():
-    # initialize controller
-    controller = Controller(
-        agentMode="default",  # "default", "locobot", "drone", or "arm",
-        massThreshold=0.04,  # 물리 엔진에서 물체를 움직이는 최소 질량
-        scene=SCENE_NAME,  # Scene 이름
-        gridSize=GRID_SIZE,  # Move Actions의 Mean
-        movementGaussianSigma=0.005,  # Move Actions의 Sigma
-        renderDepthImage=False,  # Depth Image 렌더링 여부 (오랜 시간 소요)
-        renderInstanceSegmentation=False,  # Instance Segmentation 렌더링 여부 (오랜 시간 소요)
-        width=SCREEN_WIDTH,
-        height=SCREEN_HEIGHT,
-        renderThirdPartyCameras=False,
-        fieldOfView=60,
-    )
-    camera_handler = CameraHandler(controller)
-    Navi = NavigationHandler(controller)
-    Act = Action(controller)  # log 인자
-
-    return controller, camera_handler, Navi, Act
 
 
 ## LMP Prompts
@@ -273,15 +254,70 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
 
     return lmp_scene_ui
 
+def parse_arguments() -> argparse.Namespace:
+    """
+    명령행 인자를 파싱합니다.
+    """
+    parser = argparse.ArgumentParser(description="Task Scheduler")
+    parser.add_argument(
+        "-d",
+        "--decomposition",
+        default=True,
+        action="store_true",
+        help="태스크 분해 여부 (default: True)",
+    )
+    parser.add_argument(
+        "-v",
+        "--visualize",
+        default=True,
+        action="store_true",
+        help="시각화 실행 여부 (default: True)",
+    )
+    parser.add_argument(
+        "-r",
+        "--reset",
+        default=True,
+        action="store_true",
+        help="리셋 실행 여부 (default: True)",
+    )
+    parser.add_argument(
+        "-s",
+        "--simulation",
+        default=True,
+        action="store_true",
+        help="시뮬레이션 실행 여부 (default: True)",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="로그 출력 수준 설정 (default: DEBUG)"
+    )
+    parser.add_argument(
+        "--scene",
+        type=str,
+        default="FloorPlan1",
+        # 추후에 scene 목록이 생기면 choices = [] 으로 구현한다.
+        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)"
+    )
+    return parser.parse_args()
 
 if __name__ == "__main__":
     approach_name = "cap_ai2thor_simulation"
+    args = parse_arguments()
+    scene_name = args.scene
     user_input = input()
 
     log_file = open(
         f"src/baselines/cap/result/cap_logs_{user_input}.txt", "w", buffering=1
     )
-    controller, camera_handler, Navi, Action = initialize_controller()
+    controller = init_ai2thor_controller(scene_name)
+    
+    # 계속 필요한지 체크할 필요가 있다. 
+    camera_handler = CameraHandler(controller)
+    Navi = NavigationHandler(controller)
+    Act = Action(controller)
 
     lmp_scene_ui = setup_LMP(controller, Navi, Action, cfg_scene, log_file)
     # toast the bread
@@ -306,7 +342,7 @@ if __name__ == "__main__":
         "result_txt": cap_log_path,
         "json_output_path": result_path,
         "computation_time": computation_time,
-        "scene_name": SCENE_NAME,
+        "scene_name": scene_name,
     }
 
     result_save_llm(**result_args)
