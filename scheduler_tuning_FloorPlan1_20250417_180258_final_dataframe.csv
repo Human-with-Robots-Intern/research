@@ -1,0 +1,2 @@
+number,value,params_alpha,params_beta,params_delta,params_gamma,state,user_attrs_avg_completed_makespan,user_attrs_failed_tasks,user_attrs_num_completed,user_attrs_num_failed,datetime_start,datetime_complete,duration
+0,12500.0,0.15472966940891117,104.60571166221945,8.979877262955549,6.5251195192041,COMPLETE,inf,"[""complex3_12subtasks(dc1, dnc2, dnc3, nd(2, 3))""]",0,1,2025-04-17 18:02:59.126371,2025-04-17 18:02:59.823553,0 days 00:00:00.697182
