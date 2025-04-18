@@ -114,11 +114,10 @@ CSV_HEADER = [
     "duration",
     "param_alpha",
     "param_beta",
-    "param_gamma",
-    "param_delta",  # Hyperparameters
+    "param_zeta",
     "user_attr_num_completed",
     "user_attr_num_failed",
-    "user_attr_avg_completed_makespan",  # Custom metrics
+    "user_attr_avg_completed_makespan",
 ]
 
 # --- Optuna 목적 함수 페널티 및 임계값 설정 ---
@@ -267,16 +266,22 @@ def _initialize_task_state(
             live_initial_held_list[0]["objectId"] if live_initial_held_list else None
         )
 
-        initial_state = TaskUtil.get_init_state(
-            subtasks, constraints, INITIAL_SCENE_POSITIONS  # 전역 위치 사용
+        # [수정됨] @dataclass 객체 업데이트 방식 변경 (_replace 제거)
+        # 새로운 객체를 생성하면서 필요한 필드만 업데이트
+        initial_state = SchedulerState(
+            subtask=subtasks[0],
+            completed_subtasks=[],
+            remaining_subtasks=subtasks[1:],
+            constraints=constraints,
+            current_time=0.0,  # 업데이트할 값
+            scene_positions=INITIAL_SCENE_POSITIONS,
+            held_object=live_initial_held,  # 업데이트할 값
         )
-        initial_state = initial_state._replace(
-            held_object=live_initial_held, current_time=0.0
-        )
+
         log.info(
             f"[{task_name_str}] Initial state created. Time: {initial_state.current_time:.2f}, Remaining: {[s.name for s in initial_state.remaining_subtasks]}"
         )
-        return initial_state, task_data_dict, task_name_str
+        return initial_state, task_data_list, task_name_str
 
     except Exception as e:
         log.error(
@@ -415,7 +420,6 @@ def _run_simulation_step(
             current_time=simulation_time_accumulator,  # 누적된 *시뮬레이션* 시간 사용
             scene_positions=sim_final_positions,  # 시뮬레이션 결과 *위치* 사용
             held_object=sim_final_held,  # 시뮬레이션 결과 *보유 객체* 사용
-            agent_location=None,  # 사용되지 않는 것으로 가정
         )
         log.debug(
             f"[{task_name_str}] State updated. New Time: {next_state_after_step.current_time:.2f}, Remaining: {[s.name for s in next_state_after_step.remaining_subtasks]}"
@@ -721,6 +725,7 @@ class CSVSaveCallback:
                 if avg_makespan == float("inf") or avg_makespan is None:
                     avg_makespan = ""  # Inf/None은 빈 문자열로
 
+                # [수정됨] CSV 행 생성 시 파라미터 이름 변경 (zeta 사용, gamma/delta 제거)
                 row = [
                     trial.number,
                     value_str,
@@ -730,8 +735,7 @@ class CSVSaveCallback:
                     duration_str,
                     params.get("alpha", ""),
                     params.get("beta", ""),
-                    params.get("gamma", ""),
-                    params.get("delta", ""),
+                    params.get("zeta", ""),
                     user_attrs.get("num_completed", ""),
                     user_attrs.get("num_failed", ""),
                     avg_makespan,
@@ -760,19 +764,32 @@ def _run_single_task_for_trial(
         return None  # 실패 반환
 
     try:
-        # 트라이얼 내 각 태스크 실행 시 새로운 인스턴스 생성
-        agent = Agent()
+        # [수정됨] 핸들러 인스턴스 생성 및 주입 (dag_bayesian.py와 동일하게)
         action_handler = ActionHandler(NAV_GRAPH)
-        constraint_handler = ConstraintHandler()
-        # 휴리스틱 매니저 설정
+        constraint_handler = ConstraintHandler(action_handler)
+        # [수정됨] HeuristicManager 생성 시 params 전달 (가중치 설정용)
         heuristic_manager = HeuristicManager(constraint_handler, action_handler)
-        heuristic_manager.alpha = params["alpha"]
-        heuristic_manager.beta = params["beta"]
-        heuristic_manager.gamma = params["gamma"]
-        heuristic_manager.delta = params["delta"]
-        # 스케줄러 생성 및 휴리스틱 매니저 할당
+        # HeuristicManager 인스턴스에 현재 trial의 파라미터 설정
+        # (주의: HeuristicManager가 파라미터를 업데이트하는 메소드를 제공하거나,
+        #  __init__에서 받을 수 있도록 수정 필요. 여기서는 멤버 직접 설정 가정)
+        heuristic_manager.alpha = params.get("alpha", 1.0)
+        heuristic_manager.beta = params.get("beta", 1.5)
+        heuristic_manager.zeta = params.get("zeta", 0.1)
+        log.debug(
+            f"T{trial_number} Heuristic weights set: a={heuristic_manager.alpha:.3f}, b={heuristic_manager.beta:.3f}, z={heuristic_manager.zeta:.3f}"
+        )
+
+        # [수정됨] Agent 생성 시 ConstraintHandler 주입
+        agent = Agent(constraint_handler=constraint_handler)
+
+        # 스케줄러 생성
         scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, NAV_GRAPH)
-        scheduler.cost_calculator = heuristic_manager
+        # [수정됨] Scheduler 내부 핸들러/계산기 설정
+        scheduler.action_handler = action_handler
+        scheduler.constraint_handler = constraint_handler
+        scheduler.cost_calculator = (
+            heuristic_manager  # 업데이트된 가중치를 가진 인스턴스
+        )
 
         # 시뮬레이션 실행
         task_result = run_schedule_and_get_result(
@@ -862,16 +879,23 @@ def _calculate_task_objective(
 
 def objective(trial: optuna.Trial) -> float:
     """Optuna 목적 함수: 모든 튜닝 태스크에 대해 시뮬레이션을 실행하고 평균 목적 함수 값을 계산합니다."""
-    # 1. 하이퍼파라미터 제안
+    # [수정됨] 하이퍼파라미터 제안 (alpha, beta, zeta) 및 범위 조정
     params = {
-        "alpha": trial.suggest_float("alpha", 0.01, 15.0, log=True),
-        "beta": trial.suggest_float("beta", 0.1, 150.0, log=True),
-        "gamma": trial.suggest_float("gamma", 0.01, 70.0, log=True),
-        "delta": trial.suggest_float("delta", 0.0, 15.0),
+        "alpha": trial.suggest_float(
+            "alpha", 0.1, 5.0, log=False
+        ),  # 이동 시간 영향력 (log scale 제거 고려)
+        "beta": trial.suggest_float(
+            "beta", 0.1, 5.0, log=False
+        ),  # 긴급도 영향력 (log scale 제거 고려)
+        "zeta": trial.suggest_float(
+            "zeta", 0.01, 2.0, log=False
+        ),  # 남은 작업량 영향력 (범위 조정 필요)
+        # "gamma", "delta" 제거
     }
+    # [수정됨] 로그 메시지 업데이트
     log.info(
         f"\n--- Starting Trial {trial.number} | Params: "
-        f"a={params['alpha']:.3f}, b={params['beta']:.3f}, g={params['gamma']:.3f}, d={params['delta']:.3f} ---"
+        f"a={params['alpha']:.3f}, b={params['beta']:.3f}, z={params['zeta']:.3f} ---"
     )
 
     # 집계 변수 초기화

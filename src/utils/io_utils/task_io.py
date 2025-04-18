@@ -68,7 +68,7 @@ def load_scene_positions(file_name: str) -> dict[str, tuple[float, float, float]
     """
     객체별 3D 위치를 담은 JSON 파일 로드
     """
-    file_path = KNOWLEDGE_PATH / file_name
+    file_path = KNOWLEDGE_PATH / "scene_positions" / file_name
     with file_path.open("r", encoding="utf-8") as f:
         raw_data = json.load(f)
     return {k: tuple(v) for k, v in raw_data.items()}

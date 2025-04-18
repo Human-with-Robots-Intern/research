@@ -8,14 +8,7 @@ from core.task import Duration, Execution, Subtask
 from scheduler import ConstraintHandler, HeuristicManager
 from scheduler.action_handler import ActionHandler
 from src.utils.common import create_module_logger
-from src.utils.config import (
-    BAYESIAN_CRITERIA,
-    EPSILON,
-    MONITORING_DURATION,
-    NAV_STEP_DURATION,
-    RED,
-    RESET,
-)
+from src.utils.config import BAYESIAN_CRITERIA, EPSILON, MONITORING_DURATION, RED, RESET
 from src.utils.task import TaskUtil
 
 log = create_module_logger(module_name=__name__, module_log=True)
@@ -52,7 +45,7 @@ class Scheduler:
         )
 
         self.action_handler = ActionHandler(nav_graph or {})
-        self.constraint_handler = ConstraintHandler()
+        self.constraint_handler = ConstraintHandler(self.action_handler)
         self.cost_calculator = HeuristicManager(
             self.constraint_handler, self.action_handler
         )
@@ -189,66 +182,57 @@ class Scheduler:
         feasible_candidates: List[Candidate],
         not_yet_candidates: List[Candidate],
     ) -> List[SimulationNode]:
-        """
-        Expand the current node for both feasible and not-yet-feasible subtasks.
-
-        - Feasible candidates are sorted by earliest_start_time (ascending),
-          then expanded via `_expand_single_subtask`.
-        - If no feasible expansion is done and we have not-yet-feasible tasks,
-          we insert a single Wait expansion (the earliest not-yet-feasible candidate).
-          This is a simplified approach to "waiting" until a subtask becomes feasible.
-
-        Args:
-            curr_node (SimulationNode): The node being expanded.
-            feasible_candidates (List[Candidate]): Currently feasible tasks.
-            not_yet_candidates (List[Candidate]): Tasks that are not yet feasible.
-
-        Returns:
-            List[SimulationNode]: Children nodes expanded from curr_node.
-        """
+        """Expands candidates. Feasible ones first, then wait if necessary."""
         expansions: List[SimulationNode] = []
         is_expanded = False
 
-        # * (A) Expand feasible candidates:
-        # * Descending인 이유, Critical In 제약이 존재하는 subtask는 earliest_start_time이 0이 아닌 current_time과 근사한 경우임
+        # Feasible 후보 확장 (adjusted_start_time은 이미 이동 고려됨)
+        # Critical Task 처리: 조정된 시작 시간이 현재 시간과 거의 같으면 바로 실행
         sorted_feasible = sorted(
-            feasible_candidates, key=lambda c: c.earliest_start_time, reverse=True
+            feasible_candidates,
+            key=lambda c: c.adjusted_start_time,
+            reverse=False,
         )
         for candidate in sorted_feasible:
+            # Critical이고 조정된 시작 시간이 지금인가?
+            if (
+                candidate.is_critical
+                and abs(candidate.adjusted_start_time - curr_node.state.current_time)
+                < EPSILON
+            ):
+                log.info(
+                    f"[_expand_candidates] Critical Task {candidate.subtask.name} needs immediate start (Adjusted EST: {candidate.adjusted_start_time:.2f}). Expanding only this."
+                )
+                child_node = self._expand_single_subtask(curr_node, candidate)
+                if child_node:
+                    expansions.append(child_node)
+                    is_expanded = True
+                # Critical은 하나만 즉시 실행
+                return expansions  # 바로 반환
 
+            # 그 외 feasible 확장 시도
             log.debug(
-                f"[_expand_candidates] Attempting to expand feasible subtask: {candidate.subtask.name}.\n"
+                f"[_expand_candidates] Attempting feasible: {candidate.subtask.name} (Adjusted EST: {candidate.adjusted_start_time:.2f})"
             )
             child_node = self._expand_single_subtask(curr_node, candidate)
-            if child_node is not None:
+            if child_node:
                 expansions.append(child_node)
                 is_expanded = True
+                # 여기서 break 여부는 Beam Search 전략에 따라 결정
 
-                if (
-                    candidate.is_critical
-                    and abs(
-                        candidate.earliest_start_time - curr_node.state.current_time
-                    )
-                    < EPSILON
-                ):
-                    # Subtask가 Critical Constraints End인 경우, 반드시 도래. 다른 Subtask에 대한 고려 X
-                    log.debug(
-                        "[_expand_candidates] Critical Timing is now, must start immediately => Breaking."
-                    )
-                    break
-
-        # * (B) If we have not expanded any feasible subtask,
-        # *     then we do a single Wait expansion (pick earliest not-yet-feasible)
+        # Wait 확장 (조정된 adjusted_start_time 기준으로 가장 빠른 것 선택)
         if not is_expanded and not_yet_candidates:
             sorted_not_feasible = sorted(
-                not_yet_candidates, key=lambda c: c.earliest_start_time
+                not_yet_candidates,
+                key=lambda c: c.adjusted_start_time,
             )
             wait_candidate = sorted_not_feasible[0]
-            log.debug(
-                f"[_expand_candidates] No feasible expansions done. Waiting for subtask: {wait_candidate.subtask.name}.\n"
+            log.info(
+                f"[_expand_candidates] No feasible expansion. Waiting for {wait_candidate.subtask.name} (Adjusted EST: {wait_candidate.adjusted_start_time:.2f})."
             )
             wait_node = self._expand_single_wait(curr_node, wait_candidate)
-            expansions.append(wait_node)
+            if wait_node:
+                expansions.append(wait_node)
 
         return expansions
 
@@ -721,45 +705,21 @@ class Scheduler:
     # -----------------------------------------------------
     def _expand_wait_with_monitoring(
         self, curr_node: SimulationNode, candidate: Candidate
-    ) -> Optional[SimulationNode]:  # Can return None
-        """
-        Expands a wait action for a critical candidate by performing partial navigation
-        towards the target. Sets up constraints to ensure the Monitoring task
-        is executed immediately after this navigation, followed by the candidate task.
-
-        This function only performs the navigation and advances time to its end.
-        The Monitoring task itself will be selected and executed in the next step
-        due to the established constraints.
-
-        Args:
-            curr_node (SimulationNode): Current node in the search tree.
-            candidate (Candidate): The critical candidate subtask we're waiting for.
-
-        Returns:
-            Optional[SimulationNode]: The child node representing the state after partial
-            navigation is completed, with constraints set for subsequent monitoring,
-            or None if navigation/monitoring target cannot be determined.
-        """
+    ) -> Optional[SimulationNode]:
         curr_state = curr_node.state
         curr_cost = curr_node.heuristic_cost
         curr_depth = curr_node.depth
 
         # Target task info
         target_subtask_name = candidate.subtask.name
-        target_earliest_start_time = candidate.earliest_start_time
+        target_logical_start_time = candidate.logical_start_time
+        log.debug(
+            f"[_expand_wait_with_monitoring] Calculating timings for {target_subtask_name} based on LogicalEST: {target_logical_start_time:.2f}"
+        )
 
-        # --- Determine Navigation Target ---
-        try:
-            target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
-        except IndexError:
-            log.error(
-                f"Cannot determine navigation/monitoring target for {target_subtask_name}. Cannot expand."
-            )
-            return None
-
-        # --- Calculate Timings ---
+        # --- Calculate Timings (논리적 시작 시간 기준) ---
         # Ideal time to START monitoring
-        ideal_monitor_start_time = target_earliest_start_time - MONITORING_DURATION
+        ideal_monitor_start_time = target_logical_start_time - MONITORING_DURATION
         # Time available for navigation until ideal monitor start
         available_time_for_nav = ideal_monitor_start_time - curr_state.current_time
 
@@ -775,7 +735,7 @@ class Scheduler:
             # Calculate possible navigation time
             try:
                 full_nav_time_info = self.action_handler.get_actions_info(
-                    curr_node, [f"NAVIGATE_TO {target_obj_id}"]
+                    curr_node, [f"NAVIGATE_TO {target_logical_start_time}"]
                 )
                 full_nav_time = (
                     full_nav_time_info.action_duration if full_nav_time_info else 0.0
@@ -799,7 +759,9 @@ class Scheduler:
 
         if partial_nav_time > 1e-6:
             try:
-                nav_action = [f"NAVIGATE_TO {target_obj_id} {partial_nav_time}"]
+                nav_action = [
+                    f"NAVIGATE_TO {target_logical_start_time} {partial_nav_time}"
+                ]
                 temp_sim_node_for_nav = SimulationNode(
                     state=curr_state,
                     heuristic_cost=0,
@@ -818,21 +780,25 @@ class Scheduler:
 
                     navigate_sub = Subtask(
                         task_name=None,
-                        name=f"Navigate towards {target_obj_id} while waiting for {target_subtask_name}",
+                        name=f"Navigate towards {target_logical_start_time} while waiting for {target_subtask_name}",
                         duration=Duration(
                             interval=actual_nav_time_used, type="Controllable"
                         ),
                         repetition=1,
                         type="Interaction",
                         execution=Execution(
-                            objects={target_obj_id: 1} if target_obj_id else None,
+                            objects=(
+                                {target_logical_start_time: 1}
+                                if target_logical_start_time
+                                else None
+                            ),
                             primitive_actions=nav_action,
                         ),
                         decomposed=True,  # Indicates it's part of a larger sequence
                     )
                 else:
                     log.warning(
-                        f"Partial navigation simulation failed for {target_obj_id}. No navigation performed."
+                        f"Partial navigation simulation failed for {target_logical_start_time}. No navigation performed."
                     )
             except Exception as e:
                 log.error(
@@ -851,7 +817,7 @@ class Scheduler:
 
         # Create the monitoring subtask definition BUT DO NOT EXECUTE IT HERE. Add it to remaining tasks.
         mon_sub = TaskUtil.create_monitoring_subtask(
-            name=target_subtask_name, obj=target_obj_id
+            name=target_subtask_name, obj=target_logical_start_time
         )
         # Ensure duration is set if TaskUtil doesn't do it
         if not hasattr(mon_sub, "duration") or mon_sub.duration is None:
@@ -980,9 +946,9 @@ class Scheduler:
         self, curr_node: SimulationNode, candidate: Candidate
     ) -> SimulationNode:
         """
-        Inserts a single "Wait" action until the candidate's earliest_start_time.
+        Inserts a single "Wait" action until the candidate's adjusted_start_time.
 
-        - If earliest_start_time <= current_time, wait_duration becomes 0.
+        - If adjusted_start_time <= current_time, wait_duration becomes 0.
         - This wait is modeled as a Subtask with type="Wait".
 
         Args:
@@ -996,22 +962,24 @@ class Scheduler:
         curr_cost = curr_node.heuristic_cost
         depth = curr_node.depth
 
-        total_wait_duration = candidate.earliest_start_time - curr_state.current_time
+        # [수정됨] 기다리는 시간을 조정된 시작 시간 기준으로 계산 (필드 이름 변경됨)
+        wait_duration = candidate.adjusted_start_time - curr_state.current_time
+        wait_duration = max(0, wait_duration)  # 음수 방지
 
         wait_sub = Subtask(
             task_name=None,
             name=f"Wait for {candidate.subtask.name}",
-            duration=Duration(interval=total_wait_duration, type="Controllable"),
+            duration=Duration(interval=wait_duration, type="Controllable"),
             repetition=1,
             type="Wait",
             execution=Execution(
-                objects=None, primitive_actions=[f"WAIT {total_wait_duration}"]
+                objects=None, primitive_actions=[f"WAIT {wait_duration}"]
             ),
             temporal_constraints=None,
         )
 
         start_time = curr_state.current_time
-        end_time = curr_state.current_time + total_wait_duration
+        end_time = curr_state.current_time + wait_duration
 
         completed_entry = CompletedEntry(wait_sub, start_time, end_time)
         new_completed = curr_state.completed_subtasks + [completed_entry]

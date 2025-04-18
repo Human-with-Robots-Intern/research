@@ -1,11 +1,15 @@
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 import networkx as nx
 import numpy as np
 
-from core.dataclass import SchedulerState, Subtask  # Assuming Subtask exists
-from scheduler.constraint_handler import ConstraintHandler
+from core.dataclass import SchedulerState  # Assuming Subtask exists
+
+if TYPE_CHECKING:
+    from scheduler.action_handler import ActionHandler
+    from scheduler.constraint_handler import ConstraintHandler
+
 from src.utils.common import create_module_logger, extract_monitoring_target_name
 from src.utils.config import (
     ESTIMATE_FILE_NAME,
@@ -31,7 +35,7 @@ class Agent:
     estimation based on monitoring events during task execution.
     """
 
-    def __init__(self):
+    def __init__(self, constraint_handler: "ConstraintHandler"):
         """Initializes the Agent, loading prior knowledge and helpers."""
         self.prior_knowledge: Dict[str, Dict[str, float]] = (
             self._load_or_init_knowledge(ESTIMATE_FILE_NAME)
@@ -39,10 +43,10 @@ class Agent:
         self.ground_truth: Dict[str, float] = load_knowledge(
             GROUND_TRUTH_FILE_NAME
         )  # Load ground truth once
-        self.constraint_handler = ConstraintHandler()
+        self.constraint_handler = constraint_handler
         self.sentence_sim_model = SentenceSimilarityModel.get_instance()
         log.info(
-            "Agent initialized with prior knowledge and sentence similarity model."
+            "Agent initialized with injected ConstraintHandler and sentence similarity model."
         )
 
     def _load_or_init_knowledge(self, filename: str) -> Dict[str, Dict[str, float]]:

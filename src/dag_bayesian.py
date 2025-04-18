@@ -4,6 +4,9 @@ import time
 from core.agent import Agent
 from core.scheduler import Scheduler
 from ithor.handlers.navigation_handler import load_navigation_graph
+from scheduler.action_handler import ActionHandler
+from scheduler.constraint_handler import ConstraintHandler
+from scheduler.heuristic_manager import HeuristicManager
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.utils.common import create_module_logger
 from src.utils.config import BEAM_WIDTH, LOG_ROUND, SCENE_NAME, SIMULATION_DEPTH
@@ -81,9 +84,20 @@ def main():
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
         task_data, args.decomposition
     )
-    # Initialize the agent and scheduler
-    agent = Agent()
+
+    # 핸들러 인스턴스 생성
+    action_handler = ActionHandler(nav_graph or {})
+    constraint_handler = ConstraintHandler(action_handler)
+    heuristic_manager = HeuristicManager(constraint_handler, action_handler)
+
+    # Initialize the agent and scheduler with dependency injection
+    agent = Agent(constraint_handler=constraint_handler)
     scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph=nav_graph)
+    scheduler.action_handler = action_handler
+    scheduler.constraint_handler = constraint_handler
+    scheduler.cost_calculator = heuristic_manager
+
+    # 초기 상태 생성
     current_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
 
     # Visualize the task graph if enabled

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, NamedTuple, Optional, Tuple
 
+import networkx as nx
 from networkx import DiGraph
 
 from core.task import Subtask
@@ -87,7 +88,8 @@ class ActionSimulationLog:
         return [res.action_full_name for res in self.results]
 
 
-class CompletedEntry(NamedTuple):
+@dataclass
+class CompletedEntry:
     """
     완료된 Subtask에 대해, (Subtask, start_time, end_time)을 함께 저장
     """
@@ -97,92 +99,91 @@ class CompletedEntry(NamedTuple):
     end_time: float
 
     def __repr__(self):
-        return f"({self.subtask.name}, {self.start_time} ~ {self.end_time})"
+        return f"({self.subtask.name}, {self.start_time:.2f} ~ {self.end_time:.2f})"
 
 
-class SchedulerState(NamedTuple):
+@dataclass
+class SchedulerState:
     """
     현재 스케쥴 상태를 저장하는 dataclass
     """
 
-    # 현재 subtask
     subtask: Subtask
-    # 수행된 subtask들 (현재 subtask 포함)
     completed_subtasks: List[CompletedEntry]
-    # 남은 subtask들
     remaining_subtasks: List[Subtask]
-    # 현재 constraint
-    constraints: DiGraph
-    # 현재 절대 시간
+    constraints: nx.DiGraph
     current_time: float
-    # 현재 agent, object들의 position
-    scene_positions: dict[str, list[float, float, float]]
-    # 현재 agent가 들고 있는 object
+    scene_positions: dict[str, Tuple[float, float, float]]
     held_object: Optional[str]
-    # agent의 위치 (landmark)
-    agent_location: str = None
 
 
-class SimulationNode(NamedTuple):
+@dataclass(order=True)
+class SimulationNode:
     """
     우선순위 큐에서 사용할 탐색 노드.
-    - heuristic_cost: 지금까지 누적된 비용 (높을수록 우선)
-    - depth: 현재 탐색 깊이
-    - tie_breaker: 우선순위가 같을 때 순서 결정용
-    - state: 실제 스케줄 상태 (SchedulerState)
     """
 
+    # 비교 순서: heuristic_cost -> depth -> tie_breaker 순으로 비교됨
     heuristic_cost: float
     depth: int
-    tie_breaker: int
-    parent_node: Optional["SimulationNode"]
-    state: SchedulerState
+    tie_breaker: int  # cost, depth가 같을 때 비교하기 위한 필드
+    # 비교에 포함되지 않도록 compare=False 설정 (NamedTuple에는 없던 기능)
+    parent_node: Optional["SimulationNode"] = field(compare=False)
+    state: SchedulerState = field(compare=False)
 
 
-class TimeSlot(NamedTuple):
+@dataclass
+class TimeSlot:
     """
-    Subtask 간의 제약 시간을 저장하는 NamedTuple
+    Subtask 간의 제약 시간을 저장하는 데이터 클래스
     """
 
-    # 해당 subtask에서 in/out하는 제약 시간
-    interval: int
-    # 해당 subtask에서 in/out하는 제약 critical한지 여부
+    interval: float
     is_critical: bool
-    # 해당 subtask에서 in/out하는 제약과 연결된 subtask 이름
     related_subtask_name: Optional[str]
 
     def __repr__(self):
-        return f"({self.interval}, {self.is_critical}, {self.related_subtask_name},)"
+        name_repr = (
+            f"related={self.related_subtask_name}"
+            if self.related_subtask_name
+            else "None"
+        )
+        return f"({self.interval:.2f}, crit={self.is_critical}, {name_repr})"
 
 
 @dataclass
 class Deadline:
     """
-    Subtask의 데드라인을 저장하는 NamedTuple
+    Subtask의 데드라인을 저장하는 데이터 클래스
     """
 
-    # 해당 subtask의 데드라인 시간
     due_date: float
-    # 해당 subtask의 이름
-    subtask_name: str
+    subtask_name: Optional[str]
 
     def __repr__(self):
-        return f"({self.subtask_name=}, {self.due_date=})"
+        name_repr = f"subtask_name={self.subtask_name}" if self.subtask_name else "None"
+        return f"(due_date={self.due_date:.2f}, {name_repr})"
 
 
 @dataclass
 class Candidate:
     """
-    Subtask의 실행 가능 여부를 판단하기 위한 NamedTuple
+    Subtask의 실행 가능 여부를 판단하기 위한 데이터 클래스
     """
 
     subtask: Subtask
-    # subtask이 critical인지 여부
     is_critical: bool
-    # subtask의 시작 시간
-    earliest_start_time: float
-    # 고려할 데드라인
-    deadline: Deadline = Deadline(float("inf"), None)
+    adjusted_start_time: float
+    logical_start_time: float
+    deadline: Optional[Deadline] = field(
+        default_factory=lambda: Deadline(float("inf"), None)
+    )
 
     def __repr__(self):
-        return f"({self.subtask.name}; duration : {self.subtask.duration.interval}, earliest_start_time = {self.earliest_start_time}, deadline = {self.deadline}, is_critical = {self.is_critical})"
+        return (
+            f"Candidate({self.subtask.name}; "
+            f"AdjustedEST={self.adjusted_start_time:.2f}, "
+            f"LogicalEST={self.logical_start_time:.2f}, "
+            f"Deadline={self.deadline}, "
+            f"IsCritical={self.is_critical})"
+        )
