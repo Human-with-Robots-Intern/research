@@ -103,7 +103,7 @@ def time_logger(func):
         start = time.perf_counter()
         result = func(*args, **kwargs)
         end = time.perf_counter()
-        print(f"Function '{func.__name__}' took {end - start:.4f} seconds.")
-        return result
+        elapsed_time = end - start
+        return result, elapsed_time
 
     return wrapper

@@ -6,15 +6,15 @@ from core.scheduler import Scheduler
 from ithor.handlers.navigation_handler import load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from utils.common.logger import create_module_logger
-from utils.config import BEAM_WIDTH, LOG_ROUND, SCENE_NAME, SIMULATION_DEPTH
+from utils.config import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH
 from utils.io_utils import (
     get_natural_language_from_task_file,
     get_user_task_choice,
     list_task_files,
-    load_scene_positions,
     load_task_data_from_file,
     result_save,
 )
+from utils.io_utils.task_io import get_user_scene_choice
 from utils.task import TaskUtil
 from utils.visualizers import visualize
 
@@ -26,31 +26,13 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Task Scheduler")
 
     parser.add_argument(
-        "-d",
-        "--decomposition",
-        help="Enable or disable decomposition",
-        default=True,
-        action="store_true",
-    )
-    parser.add_argument(
-        "-v",
-        "--visualize",
-        help="Enable visualization of the task plan",
-        default=True,
-        action="store_true",
-    )
-    parser.add_argument(
         "-r",
         "--reset",
         default=True,
         help="Reset the knowledge base to Gaussian",
         action="store_true",
     )
-    parser.add_argument(
-        "--rag",
-        default=False,
-        action="store_true",
-    )
+
     parser.add_argument(
         "--log-level",
         type=str,
@@ -68,13 +50,13 @@ def main():
     approach_name = "dag_bayesian"
 
     # Set up the AI2-THOR controller and navigation graph
-    controller = init_ai2thor_controller()
+    scene_data = get_user_scene_choice()
+    controller = init_ai2thor_controller(scene=scene_data.file_name.split("_")[0])
     nav_graph = load_navigation_graph(controller)
-    scene_poses = load_scene_positions(f"{SCENE_NAME}_positions.json")
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name, choice = get_user_task_choice(task_files, is_rag=args.rag)
+    task_file_name, choice = get_user_task_choice(task_files)
     task_data = load_task_data_from_file(task_file_name)
 
     # task_file_name을 입력 자연어로 번역
@@ -86,32 +68,31 @@ def main():
 
     # Build tasks and constraints
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
-        task_data, args.decomposition
+        task_data, scene_data.file_name
     )
+    visualize(approach_name, input_natural_language, constraints)
+
+    result_schedule = []
+    is_end = False
     # Initialize the agent and scheduler
     agent = Agent()
     scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph=nav_graph)
-    current_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
 
-    # Visualize the task graph if enabled
-    visualize(approach_name, input_natural_language, constraints)
-    result_schedule = []
-    is_end = False
+    current_state = TaskUtil.get_init_state(
+        subtasks, constraints, scene_data.object_positions
+    )
 
-    computation_time = 0
-    simulation_time = 0
+    computation_time, simulation_time = 0, 0
 
     while not is_end:
-
-        computation_time_start = time.time()
-        next_state = scheduler.get_next_state(current_state)
-        computation_time += time.time() - computation_time_start
+        next_state, computation_elapsed_time = scheduler.get_next_state(current_state)
+        computation_time += computation_elapsed_time
 
         if next_state is None:
             log.error("No feasible solution found.")
             break
 
-        subtask_time, execution_status = execute_subtask(
+        sim_elapsed_time, execution_status = execute_subtask(
             controller, next_state.subtask, args.log_level
         )
         # 시뮬레이션에서 반환해주는 시간을 subtask 객체에 저장.
@@ -119,10 +100,10 @@ def main():
             simulation_time
         )
         next_state.completed_subtasks[-1].subtask.end_time_simulation = (
-            simulation_time + subtask_time
+            simulation_time + sim_elapsed_time
         )
         next_state.completed_subtasks[-1].subtask.execution_status = execution_status
-        simulation_time += subtask_time
+        simulation_time += sim_elapsed_time
 
         if next_state.subtask.type == "Monitor":
             next_state, monitored_subtask = agent.bayesian_estimate(next_state)
@@ -134,7 +115,6 @@ def main():
 
         if not current_state.remaining_subtasks:
             is_end = True
-    # print(f"planning time is : {computation_time:.2f}")
 
     for ce in current_state.completed_subtasks:
         if ce.subtask.name == "Init":
@@ -163,9 +143,9 @@ def main():
         "approach_name": approach_name,
         "result_schedule": result_schedule,
         "computation_time": computation_time,
-        "scene_name": SCENE_NAME,
+        "scene_name": scene_data.file_name,
         "constraints": constraints,
-        # "simulationTime": simulation_time,
+        "simulationTime": simulation_time,
     }
     result_save(**result_args)
 

@@ -14,8 +14,9 @@ from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
 # 내부 프로젝트 모듈
 from utils.common import create_module_logger
 from utils.config.constants import (
-    BAYESIAN_KNOWLEDGE_PATH,
-    DEFAULT_SCENE_NAME,
+    AGENT_KNOWLEDGE_PATH,
+    ESTIMATE_FILE_NAME,
+    GROUND_TRUTH_FILE_NAME,
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
@@ -54,7 +55,7 @@ class TaskUtil:
     @staticmethod
     def _load_object_ids(scene_file_name: str) -> Dict[str, List[str]]:
         """
-        FloorPlan1_physics_environment.json 파일에서 object ID 정보를 로드한다.
+        scene_name_physics.json  파일에서 object ID 정보를 로드한다.
         """
         room_type_dirs = list(SCENE_KNOWLEDGE_PATH.glob("*"))
         for room_type_dir in room_type_dirs:
@@ -288,11 +289,9 @@ class TaskUtil:
         :return: (최종 Subtask 리스트, TaskGraph 객체)
         """
         # 1) bayesian/groundtruth 정보 로드
-        bayesian_load = cls._load_json_file(
-            BAYESIAN_KNOWLEDGE_PATH / "bayesian_estimate.json"
-        )
+        bayesian_load = cls._load_json_file(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME)
         ground_truth_load = cls._load_json_file(
-            BAYESIAN_KNOWLEDGE_PATH / "bayesian_ground_truth.json"
+            AGENT_KNOWLEDGE_PATH / GROUND_TRUTH_FILE_NAME
         )
 
         # 2) Task 파싱, Object ID/액션 보정
