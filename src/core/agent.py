@@ -25,17 +25,15 @@ from src.utils.task.constraints_util import get_critical_start_info
 log = create_module_logger(module_name=__name__, module_log=True)
 
 # Define constants for clarity and maintainability
-SIMILARITY_THRESHOLD = (
-    0.7  # NOTE: Needs tuning based on task names and desired strictness
-)
-MIN_VARIANCE = 1e-9  # To avoid division by zero or numerical instability
-# 4.1: FACTOR_ALPHA 검증 필요성 강조 및 기본값 조정 (예시)
-# --- 수정: FACTOR_ALPHA 주석 강화 ---
-FACTOR_ALPHA = 0.5  # Default: 1.0. Adjusted slightly, but REQUIRES STATISTICAL VALIDATION AND TUNING. Must be positive.
-# This factor determines the relationship between prior variance and likelihood variance.
-# A value < 1 implies likelihood is more certain than prior, > 1 implies less certain.
-# The choice significantly impacts how much the observation influences the posterior.
-# --- 수정 끝 ---
+SIMILARITY_THRESHOLD = 0.7  # Needs tuning based on task names and desired strictness. Higher values = stricter matching.
+MIN_VARIANCE = 1e-9  # Avoid division by zero or numerical instability
+
+# FACTOR_ALPHA: Ratio determining how much observation uncertainty relates to prior uncertainty.
+# REQUIRES STATISTICAL VALIDATION AND TUNING based on the actual process. Must be positive.
+# Value < 1: Observation is assumed more certain than prior.
+# Value > 1: Observation is assumed less certain than prior.
+# Value = 1: Observation and prior have related uncertainty.
+# See config.py for the actual value being used.
 
 
 class Agent:
@@ -65,10 +63,22 @@ class Agent:
         try:
             knowledge = load_knowledge(filename)
             log.info(f"Successfully loaded knowledge from {filename}.")
-            # Ensure keys are lowercase for consistent lookups if requested
             if lowercase_keys:
-                # Convert keys to lowercase, handle potential non-string keys gracefully
-                return {str(k).lower(): v for k, v in knowledge.items()}
+                processed_knowledge = {}
+                invalid_keys = []
+                for k, v in knowledge.items():
+                    try:
+                        processed_knowledge[str(k).lower()] = v
+                    except Exception as e_key:
+                        invalid_keys.append(k)
+                        log.warning(
+                            f"Could not convert key '{k}' to lowercase string: {e_key}. Skipping entry."
+                        )
+                if invalid_keys:
+                    log.warning(
+                        f"Skipped {len(invalid_keys)} entries due to key conversion errors."
+                    )
+                return processed_knowledge
             else:
                 return knowledge
         except FileNotFoundError:
@@ -137,10 +147,12 @@ class Agent:
 
         # Check if the exact lowercase name already exists
         if query_sub_name_lower in candidate_sub_names:
-            log.debug(f"Exact match found for '{query_sub_name_lower}'.")
+            log.debug(f"Exact lowercase match found for '{query_sub_name_lower}'.")
             return query_sub_name_lower
 
-        # Proceed with similarity check if exact match not found
+        log.debug(
+            f"Performing similarity check for '{query_sub_name_lower}' against {len(candidate_sub_names)} known tasks."
+        )
         # Compute cosine similarities
         similarity_scores = self.sentence_sim_model.compute_batch_cosine_similarity(
             query_str=query_sub_name_lower,
@@ -148,16 +160,27 @@ class Agent:
         )
 
         # Find the best match
+        if not candidate_sub_names or len(similarity_scores) == 0:
+            log.warning(
+                f"Similarity check failed for '{query_sub_name_lower}': No candidates or scores."
+            )
+            return query_sub_name_lower  # fallback to original
         best_match_idx = int(np.argmax(similarity_scores))
         max_score = similarity_scores[best_match_idx]
 
         # Return the best match only if similarity is ABOVE the threshold.
         if max_score >= SIMILARITY_THRESHOLD:
-            best_match_name = candidate_sub_names[best_match_idx]
-            log.debug(
-                f"Found similar subtask: '{query_sub_name_lower}' -> '{best_match_name}' (Score: {max_score:.4f})"
-            )
-            return best_match_name
+            if best_match_idx < len(candidate_sub_names):
+                best_match_name = candidate_sub_names[best_match_idx]
+                log.debug(
+                    f"Found similar subtask: '{query_sub_name_lower}' -> '{best_match_name}' (Score: {max_score:.4f})"
+                )
+                return best_match_name
+            else:
+                log.error(
+                    f"Similarity check error: best_match_idx {best_match_idx} out of bounds for candidates (len {len(candidate_sub_names)})."
+                )
+                return query_sub_name_lower  # fallback
         else:
             log.debug(
                 f"No sufficiently similar subtask found for '{query_sub_name_lower}'. Best score: {max_score:.4f} (Threshold: {SIMILARITY_THRESHOLD}). Using original name."
@@ -166,125 +189,102 @@ class Agent:
 
     def _get_prior_estimate(self, sub_name: str) -> Tuple[float, float]:
         """
-        Retrieves the prior mean and variance for a subtask, initializing
-        with defaults if the subtask is not found in the knowledge base.
-
-        Args:
-            sub_name: The name of the subtask to find a match for.
-
-        Returns:
-            A tuple containing (prior_mean, prior_variance).
+        Retrieves the prior mean and variance for a subtask (lowercase name).
+        Initializes with defaults if not found or invalid. Ensures variance > MIN_VARIANCE.
         """
-        duration_value = INIT_PRIOR_MEAN
-        duration_source = "default"
+        prior_mean = INIT_PRIOR_MEAN
+        prior_variance = INIT_PRIOR_VARIANCE
+        source = "default"
 
-        # 1. Try Agent's knowledge (using the new get_latest_estimate method)
-        if self.agent:
+        if sub_name in self.prior_knowledge:
+            known_data = self.prior_knowledge[sub_name]
             try:
-                estimate = self.agent.get_latest_estimate(sub_name)
-                if estimate is not None:
-                    prior_mean, _ = estimate
-                    # Ensure non-negative duration
-                    duration_value = max(0, prior_mean)
-                    duration_source = "agent"
-                # else: Agent returned None (error occurred internally)
-            except Exception as e_agent:
-                log.warning(
-                    f"Failed to get estimate from Agent for '{sub_name}': {e_agent}. Falling back."
-                )
+                mean_val = float(known_data.get("expected_duration", INIT_PRIOR_MEAN))
+                var_val = float(known_data.get("variance", INIT_PRIOR_VARIANCE))
 
-        # 2. If Agent didn't provide, try subtask.duration.interval
-        if (
-            duration_source == "default"
-            and self.prior_knowledge.get(sub_name)
-            and self.prior_knowledge[sub_name]["expected_duration"] is not None
-        ):
-            try:
-                interval_val = float(
-                    self.prior_knowledge[sub_name]["expected_duration"]
-                )
-                if interval_val >= 0:
-                    duration_value = interval_val
-                    duration_source = "subtask_interval"
-                else:
-                    log.warning(
-                        f"Subtask '{sub_name}' has negative duration.interval. Using {duration_source} estimate ({duration_value:.2f})."
-                    )
+                # Ensure values are reasonable (non-negative)
+                prior_mean = max(0, mean_val)
+                prior_variance = max(MIN_VARIANCE, var_val)
+                source = "knowledge_base"
             except (ValueError, TypeError):
-                pass  # Keep default
+                log.warning(
+                    f"Could not parse prior knowledge values for '{sub_name}'. Using defaults."
+                )
+                # Keep default values
+        else:
+            log.debug(f"No prior knowledge found for '{sub_name}'. Using defaults.")
 
         log.debug(
-            f"Estimated duration for '{sub_name}': {duration_value:.2f} (Source: {duration_source})"
+            f"Prior estimate for '{sub_name}': Mean={prior_mean:.2f}, Var={prior_variance:.4f} (Source: {source})"
         )
-        return duration_value
+        return prior_mean, max(prior_variance, MIN_VARIANCE)
 
     def _perform_bayesian_update(
         self,
         prior_mean: float,
         prior_variance: float,
-        critical_elapsed_interval: float,  # This is the observation (z_k)
+        critical_elapsed_interval: float,  # Observation (z_k)
     ) -> Tuple[float, float]:
         """
-        Performs the Bayesian update for Gaussian prior and likelihood.
-        Uses the critical_elapsed_interval as the observation.
-        """
-        # --- Statistical Validation Note ---
-        # ASSUMPTION: Subtask durations follow a Gaussian distribution, and the observation
-        #             (critical_elapsed_interval) also allows for a Gaussian likelihood model.
-        # VALIDATION NEEDED: These assumptions MUST be statistically validated against the actual
-        #                    process characteristics. If durations are non-Gaussian (e.g., always positive,
-        #                    potentially skewed), consider alternative models like Gamma or Log-Normal distributions
-        #                    and corresponding Bayesian update methods.
-        # likelihood_variance CALCULATION: The formula `likelihood_variance = alpha * prior_variance`
-        #                                is a simplification. A more rigorous approach would involve
-        #                                deriving the likelihood variance from an observation model or data.
-        #                                FACTOR_ALPHA requires careful tuning and justification.
-        # --- End Statistical Validation Note ---
+        Performs Bayesian update (Gaussian Prior & Likelihood).
+        Uses critical_elapsed_interval as observation.
+        Returns (posterior_mean, posterior_variance).
+        Returns prior values if update cannot be performed.
 
-        # 4.1: FACTOR_ALPHA 유효성 검사 및 주석 강화
-        if not isinstance(FACTOR_ALPHA, (int, float)) or FACTOR_ALPHA <= 0:
-            log.critical(
-                f"Invalid FACTOR_ALPHA configured: {FACTOR_ALPHA}. Must be positive number. Using 1.0 as fallback."
+        STATISTICAL ASSUMPTIONS (Validation REQUIRED):
+        - Assumes Gaussian distributions for prior and likelihood.
+        - Assumes likelihood_variance = FACTOR_ALPHA * prior_variance.
+        - FACTOR_ALPHA needs tuning/justification based on data/model.
+        See config.py for FACTOR_ALPHA value. Consider alternative distributions if needed.
+        """
+        try:
+            # config에서 직접 로드 시도
+            from src.utils.config import FACTOR_ALPHA as alpha_config
+
+            if not isinstance(alpha_config, (int, float)) or alpha_config <= 0:
+                log.critical(
+                    f"Invalid FACTOR_ALPHA in config: {alpha_config}. Must be positive. Using 1.0 as fallback."
+                )
+                alpha = 1.0
+            else:
+                alpha = alpha_config
+        except ImportError:
+            log.error(
+                "Could not import FACTOR_ALPHA from src.utils.config. Using 1.0 as fallback."
             )
             alpha = 1.0
-        else:
-            alpha = FACTOR_ALPHA
 
         # Ensure prior variance is positive before using it
         prior_variance = max(prior_variance, MIN_VARIANCE)
 
+        # Compute likelihood_variance
         likelihood_variance = alpha * prior_variance
         likelihood_variance = max(likelihood_variance, MIN_VARIANCE)
 
-        # Observation (z_k): The actual measured time elapsed since the critical event.
+        # Observation (z_k)
         observation = critical_elapsed_interval
-        # Ensure observation is non-negative (time cannot be negative)
         if observation < 0:
-            # --- 수정: 음수 관측값 로깅 강화 ---
-            log.warning(
+            # Log warning and suggest investigation
+            log.error(
                 f"Negative critical_elapsed_interval ({observation:.2f}) observed. Clamping to 0. "
-                f"This might indicate upstream calculation issues or clock skew."
+                f"Investigate upstream calculation (e.g., critical start time, current time)."
             )
-            # --- 수정 끝 ---
             observation = 0
 
-        # --- Bayesian Update Formulas (Gaussian Prior & Likelihood) ---
-        # K = Kalman Gain = prior_variance / (prior_variance + likelihood_variance)
-        # posterior_mean = prior_mean + K * (observation - prior_mean)
-
+        # Bayesian Update Formulas
         denominator = prior_variance + likelihood_variance
 
-        # Avoid division by zero
+        # Avoid division by zero or near-zero
         if denominator < MIN_VARIANCE:
-            log.warning(
-                f"Denominator ({denominator:.4e}) near zero in Bayesian update. Returning prior values."
+            log.error(
+                f"Denominator ({denominator:.4e}) near zero in Bayesian update for prior ({prior_mean:.2f}, {prior_variance:.4f}) "
+                f"and likelihood var {likelihood_variance:.4f}. Update cannot be performed reliably. Returning PRIOR values."
             )
             return prior_mean, prior_variance
 
         kalman_gain = prior_variance / denominator
 
         posterior_mean = prior_mean + kalman_gain * (observation - prior_mean)
-        # Ensure posterior mean is non-negative
         posterior_mean = max(0, posterior_mean)
 
         posterior_variance = (1 - kalman_gain) * prior_variance
@@ -343,7 +343,9 @@ class Agent:
     ) -> Tuple[SchedulerState, Optional[Dict[str, Any]]]:
         """
         Performs Bayesian estimation based on a monitoring task.
-        Updates internal knowledge ONLY. Returns original state and monitoring info.
+        Updates internal knowledge ONLY.
+        Returns original state and monitoring info dict if successful.
+        Raises ValueError if critical path info cannot be determined.
         """
         log.info(
             f"Starting Bayesian estimation for monitoring task: '{state.subtask.name}' at time {state.current_time:.2f}"
@@ -359,13 +361,21 @@ class Agent:
             return state, monitored_subtask_info  # Return original state
 
         # 2) Find most similar known subtask name (using lowercase)
-        # Ensure knowledge keys are lowercase before passing
-        prior_knowledge_keys_lower = [
-            str(k).lower() for k in self.prior_knowledge.keys()
-        ]
+        try:
+            # 지식 베이스 키 목록을 가져와 lowercase로 변환
+            prior_knowledge_keys_lower = [
+                str(k).lower() for k in self.prior_knowledge.keys()
+            ]
+        except Exception as e_keys:
+            log.error(
+                f"Error processing prior knowledge keys: {e_keys}. Bayesian update may fail.",
+                exc_info=True,
+            )
+            prior_knowledge_keys_lower = []  # 오류 발생 시 빈 리스트 전달
+
         known_sub_name_lower = self._find_most_similar_subtask(
-            monitoring_target_sub_name,  # Pass original for similarity check
-            prior_knowledge_keys_lower,
+            monitoring_target_sub_name,
+            prior_knowledge_keys_lower,  # lowercase 리스트 전달
         )
         if known_sub_name_lower.lower() != monitoring_target_sub_name.lower():
             log.info(
@@ -394,7 +404,7 @@ class Agent:
             log.error(f"Error accessing ground truth data: {e_gt}", exc_info=True)
             # Proceed without GT even if there was an error accessing it
 
-        # 4) Get Prior Estimate (will initialize if not found)
+        # 4) Get Prior Estimate
         prior_mean, prior_variance = self._get_prior_estimate(known_sub_name_lower)
 
         # 5) Find critical start subtask and its end time
@@ -411,15 +421,23 @@ class Agent:
             log.debug(
                 f"Critical start for '{monitoring_target_sub_name}': '{critical_start_sub_name}' ended at {critical_start_sub_end_time:.2f}"
             )
-        except Exception as e:
+        except (
+            ValueError
+        ) as e_crit_path:  # get_critical_start_info가 실패 시 ValueError 발생 가정
             log.error(
-                f"Failed to get critical start info for '{monitoring_target_sub_name}': {e}",
+                f"Failed to get critical start info for '{monitoring_target_sub_name}': {e_crit_path}",
+            )
+            raise ValueError(
+                f"Failed to determine critical path for Bayesian update of '{monitoring_target_sub_name}'"
+            ) from e_crit_path
+        except Exception as e_crit_generic:  # 다른 예외 처리
+            log.error(
+                f"Unexpected error getting critical start info: {e_crit_generic}",
                 exc_info=True,
             )
-            return (
-                state,
-                monitored_subtask_info,
-            )  # Cannot proceed without critical path info
+            raise ValueError(
+                f"Unexpected error getting critical start info for '{monitoring_target_sub_name}'"
+            ) from e_crit_generic
 
         # 6) Calculate elapsed time and perform Bayesian Update
         critical_elapsed_interval = state.current_time - critical_start_sub_end_time
@@ -465,7 +483,17 @@ class Agent:
 
         try:
             # Ensure keys are strings before saving if necessary, though load handles lowercase conversion
-            knowledge_to_save = {str(k): v for k, v in self.prior_knowledge.items()}
+            knowledge_to_save = {}
+            for k, v in self.prior_knowledge.items():
+                # Ensure key is string, value is dict with float/int values
+                if isinstance(v, dict) and all(
+                    isinstance(val, (float, int)) for val in v.values()
+                ):
+                    knowledge_to_save[str(k)] = v
+                else:
+                    log.warning(
+                        f"Skipping knowledge entry for key '{k}' due to invalid value type: {type(v)}. Expected dict with numeric values."
+                    )
             save_knowledge(knowledge_to_save, ESTIMATE_FILE_NAME)
             log.info(
                 f"Successfully saved {len(knowledge_to_save)} knowledge entries to {ESTIMATE_FILE_NAME}."

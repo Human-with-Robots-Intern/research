@@ -13,6 +13,7 @@ from src.utils.config.constants import (
     NAV_STEP_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
+    REACHABLE_DISTANCE_THRESHOLD,
 )
 
 log = logging.getLogger(__name__)
@@ -39,10 +40,12 @@ class ActionHandler:
         Creates a copy of the node state for simulation.
         Returns None if simulation fails or the action list is empty.
 
-        NOTE: This simulation currently relies on `_simulate_actions`, which uses
-              placeholder logic and does not interact with the actual AI2THOR environment.
-              The returned ActionResult (especially time_used, action_duration, success,
-              and state changes) WILL BE INACCURATE until integrated with real simulation.
+        CRITICAL NOTE: This simulation relies on `_simulate_actions`, which uses
+              placeholder logic and INTERNAL ESTIMATES (pathfinding, constants) without
+              calling the actual AI2THOR environment. The returned ActionResult
+              (time_used, action_duration, success, state changes) IS AN ESTIMATE
+              and may differ significantly from real execution. Accuracy depends
+              heavily on the nav_graph quality, constants, and simplified models.
         """
         if not actions:
             log.warning("get_actions_info called with empty actions list.")
@@ -50,26 +53,39 @@ class ActionHandler:
 
         # 5.1: 시뮬레이션을 위해 상태 복사본 생성
         sim_node = copy.deepcopy(current_node)
+        log.debug(
+            f"Starting internal simulation for actions: {actions} from time {sim_node.state.current_time:.2f}"
+        )
         try:
             # 시뮬레이션 함수는 복사된 노드 상태를 직접 변경함
             log_info = self._simulate_actions(sim_node, actions)
             # Check if simulation was successful and produced results
             if not log_info or not log_info.results:
                 log.error(
-                    f"Full simulation failed or resulted in empty log for actions: {actions}"
+                    f"Internal simulation failed or resulted in empty log for actions: {actions}. Returning None."
                 )
                 return None
-            # --- 수정: 마지막 액션의 ActionResult 반환 확인 ---
+
+            # --- 수정: 마지막 액션의 ActionResult 반환 확인 및 성공 여부 로깅 ---
             # log_info.results는 ActionResult 객체의 리스트임
             last_result = log_info.results[-1]
             if not isinstance(last_result, ActionResult):
                 log.error(
-                    f"Last simulation result is not an ActionResult object: {type(last_result)}"
+                    f"Last simulation result is not an ActionResult object: {type(last_result)}. Returning None."
                 )
                 return None
+
+            log.debug(
+                f"Internal simulation finished. Last action success: {last_result.success}. Final estimated time: {last_result.time_used:.2f}"
+            )
             return last_result
+            # --- 수정 끝 ---\
         except Exception as e:
-            log.error(f"Action simulation failed: {e}", exc_info=True)
+            # _simulate_actions 내부에서 발생한 예외 (ValueError 등) 처리
+            log.error(
+                f"Internal action simulation failed for actions {actions}: {e}. Returning None.",
+                exc_info=True,
+            )
             return None
 
     def _simulate_actions(
@@ -78,19 +94,21 @@ class ActionHandler:
         primitive_actions: List[str],
     ) -> ActionSimulationLog:
         """
-        Simulates actions sequentially, updating the state within current_node.
+        Simulates actions sequentially using INTERNAL MODELS, updating the state within current_node.
         Raises ValueError on critical simulation errors (e.g., unknown action, object not found).
-        *** CRITICAL WARNING: Improved Internal Simulation Logic ***
-        This method simulates action effects internally without calling AI2THOR directly
-        to allow for fast lookahead in the scheduler. It uses:
-          - Pathfinding (`_find_shortest_path`) for NAVIGATE_TO duration estimation.
-          - Constants (`PRIMITIVE_ACTION_DURATION`, `MONITORING_DURATION`) for other actions.
-          - Simplified state updates (agent position, held object, basic object states).
-        Assumptions:
-          - Reachability for interactions is simplified (or assumed).
-          - Complex object state changes (e.g., cooking) are not modeled.
-          - Actions generally succeed unless navigation path is not found.
-        The accuracy depends on the navigation graph, constants, and the simplified models.
+
+        *** CRITICAL WARNING: INTERNAL SIMULATION LOGIC ***
+        This method simulates action effects internally without calling AI2THOR.
+        Uses:
+          - Pathfinding (`_find_shortest_path`) for NAVIGATE_TO duration.
+          - Constants (`PRIMITIVE_ACTION_DURATION`, `MONITORING_DURATION`) for others.
+          - Simplified state updates (agent position, held object, basic object properties).
+        Assumptions & Limitations:
+          - Reachability for interactions is CHECKED SIMPLISTICALLY via distance threshold.
+          - Complex object state changes (cooking, cleaning state) are NOT modeled.
+          - Collision detection during navigation is NOT modeled.
+          - Actions succeed unless path not found, target missing, or basic checks fail.
+        Accuracy depends heavily on nav_graph, constants, REACHABLE_DISTANCE_THRESHOLD, and simplified models.
         This is **NOT** a replacement for real execution via `runner_ai2thor.py`.
         """
         action_log_info = ActionSimulationLog()
@@ -131,6 +149,11 @@ class ActionHandler:
 
             action_duration = 0.0
             action_success = True  # Assume success initially
+            # --- 추가: 액션 시작 시점의 상태 로깅 (디버깅용) ---
+            log.debug(
+                f"Simulating action {i+1}/{len(primitive_actions)}: '{prim_action}' | Time: {time_used:.2f} | Held: {held_object}"
+            )
+            # --- 추가 끝 ---
 
             try:
                 # --- 수정: 액션 타입별 시뮬레이션 로직 개선 ---
@@ -152,18 +175,27 @@ class ActionHandler:
                         target_pos = tuple(
                             scene_positions[target_obj_id]["position"]
                         )  # 객체 위치 사용
-                        path = self._find_shortest_path(agent_pos, target_pos)
+                        # --- 수정: 경로 탐색 실패 시 에러 로깅 강화 ---
+                        try:
+                            path = self._find_shortest_path(agent_pos, target_pos)
+                        except Exception as e_path:
+                            log.error(
+                                f"Pathfinding error during NAVIGATE_TO {target_obj_id}: {e_path}",
+                                exc_info=True,
+                            )
+                            path = None  # 경로 탐색 실패 처리
+
                         if path:
                             # 경로 길이에 기반한 시간 추정 (NAV_STEP_DURATION 사용)
                             action_duration = len(path) * NAV_STEP_DURATION
                             # 상태 업데이트: 에이전트 위치를 목표 위치로 이동
                             scene_positions["agent"] = list(path[-1])  # 리스트로 저장
                             log.debug(
-                                f"Simulated NAVIGATE_TO '{target_obj_id}'. Path length: {len(path)}, Duration: {action_duration:.2f}"
+                                f"  Simulated NAVIGATE_TO '{target_obj_id}'. Path length: {len(path)}, Est. Duration: {action_duration:.2f}. New agent pos: {scene_positions['agent']}"
                             )
                         else:
                             log.warning(
-                                f"Navigation path not found from {agent_pos} to {target_pos} for '{target_obj_id}'."
+                                f"  Navigation path not found from {agent_pos} to {target_pos} for '{target_obj_id}'. Action FAILED."
                             )
                             action_success = False
                             action_duration = 0  # 실패 시 시간 0
@@ -178,19 +210,35 @@ class ActionHandler:
                         )
                         action_success = False
                     else:
-                        # TODO: 실제 도달 가능성(거리) 확인 로직 추가?
-                        held_object = target_obj_id
-                        # scene_positions에서 객체 제거 (더 이상 씬에 독립적으로 존재하지 않음)
-                        # del scene_positions[target_obj_id] # 실제 환경에서는 위치 정보가 남을 수 있음. 일단 유지.
-                        # 대신 isPickedUp 상태 업데이트 (만약 객체 메타데이터가 있다면)
-                        if target_obj_id in scene_positions and isinstance(
-                            scene_positions[target_obj_id], dict
-                        ):
-                            scene_positions[target_obj_id]["isPickedUp"] = True
-                        action_duration = PRIMITIVE_ACTION_DURATION
-                        log.debug(
-                            f"Simulated GRASP '{target_obj_id}'. Duration: {action_duration:.2f}"
+                        # --- 수정: 도달 가능성 확인 로직 추가 ---
+                        target_actual_pos = tuple(
+                            scene_positions[target_obj_id]["position"]
                         )
+                        dist = math.sqrt(
+                            sum(
+                                [
+                                    (a - b) ** 2
+                                    for a, b in zip(agent_pos, target_actual_pos)
+                                ]
+                            )
+                        )
+                        if dist > REACHABLE_DISTANCE_THRESHOLD:  # 예: 1.5m
+                            log.warning(
+                                f"  Grasp target '{target_obj_id}' might be unreachable (Distance: {dist:.2f} > {REACHABLE_DISTANCE_THRESHOLD}). Action FAILED."
+                            )
+                            action_success = False
+                        # --- 수정 끝 ---
+                        if action_success:  # 도달 가능하면 상태 업데이트
+                            held_object = target_obj_id
+                            # scene_positions 내 객체 상태 업데이트 (isPickedUp)
+                            if target_obj_id in scene_positions and isinstance(
+                                scene_positions[target_obj_id], dict
+                            ):
+                                scene_positions[target_obj_id]["isPickedUp"] = True
+                            action_duration = PRIMITIVE_ACTION_DURATION
+                            log.debug(
+                                f"  Simulated GRASP '{target_obj_id}'. Duration: {action_duration:.2f}. Agent now holds: {held_object}"
+                            )
 
                 elif action_type in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
                     receptacle_id = target_obj_id
@@ -203,29 +251,71 @@ class ActionHandler:
                         )
                         action_success = False
                     else:
-                        # TODO: 실제 도달 가능성 확인 로직 추가?
-                        # TODO: receptacle이 열려있는지 등 상태 확인 로직 추가?
-                        # 상태 업데이트: held_object를 receptacle 근처 위치로 이동 (단순화)
-                        # scene_positions에 다시 추가하고 held_object 비움
-                        if held_object in scene_positions and isinstance(
-                            scene_positions[held_object], dict
-                        ):
-                            scene_positions[held_object]["isPickedUp"] = False
-                            # 위치는 receptacle 위치로 단순화 (정확한 배치는 어려움)
-                            scene_positions[held_object]["position"] = scene_positions[
-                                receptacle_id
-                            ]["position"]
-                        else:  # 만약 grasp 시 scene_positions에서 제거했다면 다시 추가
-                            scene_positions[held_object] = {
-                                "position": scene_positions[receptacle_id]["position"],
-                                "isPickedUp": False,
-                                # 다른 기본 속성 추가 필요
-                            }
-                        log.debug(
-                            f"Simulated PLACE '{held_object}' on/in '{receptacle_id}'."
+                        # --- 수정: 도달 가능성 확인 로직 추가 ---
+                        receptacle_pos = tuple(
+                            scene_positions[receptacle_id]["position"]
                         )
-                        held_object = None
-                        action_duration = PRIMITIVE_ACTION_DURATION
+                        dist = math.sqrt(
+                            sum(
+                                [
+                                    (a - b) ** 2
+                                    for a, b in zip(agent_pos, receptacle_pos)
+                                ]
+                            )
+                        )
+                        if dist > REACHABLE_DISTANCE_THRESHOLD:
+                            log.warning(
+                                f"  Place target receptacle '{receptacle_id}' might be unreachable (Distance: {dist:.2f} > {REACHABLE_DISTANCE_THRESHOLD}). Action FAILED."
+                            )
+                            action_success = False
+                        # --- 수정 끝 ---
+
+                        # --- 수정: receptacle 상태 확인 로직 추가 (openable이고 PLACE_INSIDE 경우) ---
+                        if action_success and action_type == "PLACE_INSIDE":
+                            receptacle_meta = scene_positions.get(receptacle_id)
+                            if (
+                                isinstance(receptacle_meta, dict)
+                                and receptacle_meta.get("openable")
+                                and not receptacle_meta.get("isOpen")
+                            ):
+                                log.warning(
+                                    f"  Cannot place inside closed receptacle '{receptacle_id}'. Action FAILED."
+                                )
+                                action_success = False
+                        # --- 수정 끝 ---
+
+                        if action_success:  # 도달 가능하고 상태가 맞으면 진행
+                            # 상태 업데이트: held_object 상태 변경 및 scene_positions 업데이트
+                            log.debug(
+                                f"  Simulating PLACE '{held_object}' on/in '{receptacle_id}'."
+                            )
+                            if held_object in scene_positions and isinstance(
+                                scene_positions[held_object], dict
+                            ):
+                                scene_positions[held_object]["isPickedUp"] = False
+                                # 위치는 receptacle 위치로 단순화 (정확한 배치는 어려움)
+                                scene_positions[held_object]["position"] = (
+                                    scene_positions[receptacle_id]["position"]
+                                )
+                                log.debug(
+                                    f"    Updated state for '{held_object}': isPickedUp=False, pos={scene_positions[held_object]['position']}"
+                                )
+                            else:  # 만약 grasp 시 scene_positions에서 제거했다면 다시 추가 (이 경우는 없어야 함)
+                                log.warning(
+                                    f"    Held object '{held_object}' not found in scene_positions during PLACE. Re-adding with receptacle position."
+                                )
+                                scene_positions[held_object] = {
+                                    "position": scene_positions[receptacle_id][
+                                        "position"
+                                    ],
+                                    "isPickedUp": False,
+                                    # TODO: 다른 기본 속성 추가 필요 (e.g., openable, toggleable...)
+                                }
+                            held_object = None  # 손 비우기
+                            action_duration = PRIMITIVE_ACTION_DURATION
+                            log.debug(
+                                f"    PLACE successful. Duration: {action_duration:.2f}. Agent now holds: {held_object}"
+                            )
 
                 elif action_type in [
                     "OPEN",
@@ -234,18 +324,74 @@ class ActionHandler:
                     "TOGGLE_OFF",
                     "SLICE",
                 ]:
-                    # TODO: 객체 상태 업데이트 로직 구현 (scene_positions 내 객체 메타데이터 수정)
+                    # --- TODO: 객체 상태 업데이트 로직 구현 (scene_positions 내 객체 메타데이터 수정) --- \
                     # 예: scene_positions[target_obj_id]['isOpen'] = True / False 등
                     # 현재는 상태 변경 없이 시간만 소요되는 것으로 처리
                     if not target_obj_id or target_obj_id not in scene_positions:
                         log.error(f"{action_type} target '{target_obj_id}' not found.")
                         action_success = False
                     else:
-                        # TODO: 실제 도달 가능성 확인 로직 추가?
-                        action_duration = PRIMITIVE_ACTION_DURATION
-                        log.debug(
-                            f"Simulated {action_type} '{target_obj_id}'. Duration: {action_duration:.2f} (State change not fully modeled)"
+                        # --- 수정: 도달 가능성 확인 로직 추가 ---
+                        target_actual_pos = tuple(
+                            scene_positions[target_obj_id]["position"]
                         )
+                        dist = math.sqrt(
+                            sum(
+                                [
+                                    (a - b) ** 2
+                                    for a, b in zip(agent_pos, target_actual_pos)
+                                ]
+                            )
+                        )
+                        if dist > REACHABLE_DISTANCE_THRESHOLD:
+                            log.warning(
+                                f"  {action_type} target '{target_obj_id}' might be unreachable (Distance: {dist:.2f} > {REACHABLE_DISTANCE_THRESHOLD}). Action FAILED."
+                            )
+                            action_success = False
+                        # --- 수정 끝 ---
+
+                        if action_success:
+                            target_meta = scene_positions.get(target_obj_id)
+                            state_changed = False
+                            if isinstance(target_meta, dict):
+                                if action_type == "OPEN" and target_meta.get(
+                                    "openable"
+                                ):
+                                    if not target_meta.get(
+                                        "isOpen", False
+                                    ):  # 이미 열려있지 않으면 변경
+                                        target_meta["isOpen"] = True
+                                        state_changed = True
+                                        log.debug(
+                                            f"    Simulated OPEN for '{target_obj_id}'. New state: isOpen=True"
+                                        )
+                                elif action_type == "CLOSE" and target_meta.get(
+                                    "openable"
+                                ):
+                                    if target_meta.get(
+                                        "isOpen", False
+                                    ):  # 이미 닫혀있지 않으면 변경
+                                        target_meta["isOpen"] = False
+                                        state_changed = True
+                                        log.debug(
+                                            f"    Simulated CLOSE for '{target_obj_id}'. New state: isOpen=False"
+                                        )
+                                # --- TODO: 다른 상태 변경 액션 (TOGGLE, SLICE 등)에 대한 로직 추가 ---
+                                # elif action_type == "TOGGLE_ON" and ...
+                            else:
+                                log.warning(
+                                    f"  Metadata not found or not a dict for '{target_obj_id}'. Cannot simulate state change for {action_type}."
+                                )
+                                action_success = (
+                                    False  # 상태 변경 불가 시 실패 처리 고려
+                                )
+
+                            if action_success:
+                                action_duration = PRIMITIVE_ACTION_DURATION
+                                log.debug(
+                                    f"  Simulated {action_type} '{target_obj_id}'. Duration: {action_duration:.2f}. State changed: {state_changed}"
+                                )
+                            # else: 실패 로그는 위에서 처리됨
 
                 elif action_type == "WAIT":
                     try:
@@ -274,10 +420,49 @@ class ActionHandler:
                     )
                     # action_success = False # 필요시 실패 처리
 
+                # --- 수정: 실패 시에도 소요 시간 반영 고려 (주석 처리) ---
+                # 실패가 즉시 발생하지 않고 시간이 소요된 경우 (예: 네비게이션 중 충돌 감지 - 현재 미구현)
+                # action_duration_before_failure = ... # 실패까지 걸린 시간
+                # if not action_success and action_duration_before_failure > 0:
+                #     time_used += action_duration_before_failure
+                #     log.debug(f"  Action FAILED after {action_duration_before_failure:.2f}s.")
+                # else: # 즉시 실패 또는 성공
+                #     time_used += action_duration
+                #     log.debug(f"  Action {'SUCCESS' if action_success else 'FAILED (Immediate)'}. Duration: {action_duration:.2f}. Cumulative time: {time_used:.2f}")
+                # --- 현재 로직: 실패 시 duration 0, 성공 시 duration 더함 ---
+                time_used += action_duration
+                log.debug(
+                    f"  Action {'SUCCESS' if action_success else 'FAILED'}. Duration: {action_duration:.2f}. Cumulative time: {time_used:.2f}"
+                )
+                # --- 수정 끝 ---
+
+                # Log the result including success status
+                # --- 수정: 상태 복사 시점 명확화 및 로그 레벨 조정 ---
+                action_result = ActionResult(
+                    actions=[prim_action],  # 현재 처리된 액션
+                    action_full_name=prim_action,
+                    action_type=action_type,
+                    time_used=time_used,  # 누적 시간 (현재 액션 완료 또는 실패 시점)
+                    action_duration=action_duration,  # 현재 액션의 소요 시간 (실패 시 0 또는 실패까지 시간)
+                    scene_positions=copy.deepcopy(
+                        scene_positions
+                    ),  # 액션 시도 *후*의 상태
+                    held_object=held_object,  # 액션 시도 *후*의 상태
+                    success=action_success,  # 성공 여부
+                )
+                action_log_info.add_result(action_result)
+                # log.debug(f"    Logged ActionResult: Success={action_success}, Time={time_used:.2f}, Held={held_object}") # 상세 로그 필요 시 사용
                 # --- 수정 끝 ---
 
             except ValueError as e:  # ValueError 포함하여 예외 처리 강화
-                log.error(f"Action '{prim_action}' failed during simulation: {e}")
+                log.error(f"  Action '{prim_action}' simulation CRASHED: {e}")
+                action_success = False
+                action_duration = 0
+            except Exception as e_generic:  # 예상치 못한 다른 오류
+                log.error(
+                    f"  Unexpected error during simulation of action '{prim_action}': {e_generic}",
+                    exc_info=True,
+                )
                 action_success = False
                 action_duration = 0
 
@@ -285,24 +470,18 @@ class ActionHandler:
             # If action failed immediately, duration is 0, time_used doesn't increase.
             # If action took time then failed (e.g., navigation collision simulation),
             # action_duration should reflect time until failure. (Current logic uses 0 on failure).
+            # --- TODO: 실패 시에도 소요 시간 반영 고려 --- \
+            # if not action_success and action_duration_before_failure > 0:
+            #    time_used += action_duration_before_failure
+            # else:
+            #    time_used += action_duration
+            # --- TODO 끝 ---
             time_used += action_duration
-
-            # Log the result including success status
-            action_log_info.add_result(
-                actions=[prim_action],  # 현재 처리된 액션 추가
-                action_full_name=prim_action,
-                action_type=action_type,
-                time_used=time_used,  # Cumulative time
-                action_duration=action_duration,  # Duration of this step
-                scene_positions=copy.deepcopy(scene_positions),  # State *after* attempt
-                held_object=held_object,  # State *after* attempt
-                success=action_success,  # Add success flag
-            )
 
             # --- MODIFIED: Stop processing if an action failed ---
             if not action_success:
                 log.warning(
-                    f"Stopping action sequence simulation because action '{prim_action}' failed."
+                    f"Stopping action sequence simulation at index {i} because action '{prim_action}' failed."
                 )
                 break  # Exit the loop
 
@@ -344,14 +523,19 @@ class ActionHandler:
         current_node: SimulationNode,
         primitive_actions: list[str],
         cutoff_time: float,
-    ) -> Optional[Tuple[ActionSimulationLog, ActionSimulationLog]]:  # 반환 타입 명확화
+    ) -> Optional[
+        Tuple[ActionResult, ActionResult]
+    ]:  # 반환 타입을 각 로그의 마지막 ActionResult 튜플로 변경 (Scheduler 요구사항 확인 필요)
+        # 또는 (ActionSimulationLog, ActionSimulationLog) 유지
         """
         Splits a sequence of actions based on a cutoff time using optimized re-simulation.
         Handles GRASP/PLACE pairs spanning the cutoff.
-        Returns a tuple of two ActionSimulationLog objects (pre-cutoff, post-cutoff) if successful.
-        Returns None if the initial full simulation fails or split is invalid.
+        Returns a tuple of two ActionResult objects (last result of pre-cutoff, last result of post-cutoff)
+        if successful, otherwise None.
+        Returns (last_pre_result, None) if all actions are pre-cutoff.
+        Returns (None, last_post_result) if all actions are post-cutoff (cutoff_time <= 0).
 
-        NOTE: Relies on the improved `_simulate_actions` internal simulation. The accuracy
+        NOTE: Relies on the INTERNAL simulation `_simulate_actions`. The accuracy
               of the split point depends on the accuracy of this internal model.
         """
         log.debug(
@@ -365,22 +549,30 @@ class ActionHandler:
         full_log: Optional[ActionSimulationLog] = None
         full_sim_node = copy.deepcopy(current_node)
         try:
-            # Use the modified _simulate_actions which handles errors
+            # Use the modified _simulate_actions which handles errors and stops on failure
             full_log = self._simulate_actions(full_sim_node, primitive_actions)
-            # Check if simulation succeeded at all
+            # Check if simulation succeeded at all (at least one successful action)
             if not full_log or not full_log.results or not full_log.results[-1].success:
                 log.error(
-                    f"Full simulation failed or resulted in empty/failed log for actions: {primitive_actions}. Cannot split."
+                    f"Full internal simulation failed or resulted in empty/failed log for actions: {primitive_actions}. Cannot split."
                 )
                 return None  # 실패 시 None 반환
         except (
             ValueError,
             NotImplementedError,
         ) as e:  # 시뮬레이션 중 발생 가능한 에러 처리
-            log.error(f"Full simulation failed during split preparation: {e}")
+            log.error(
+                f"Full internal simulation failed during split preparation: {e}. Cannot split."
+            )
             return None  # 실패 시 None 반환
+        except Exception as e_full_sim:
+            log.error(
+                f"Unexpected error during full internal simulation for split: {e_full_sim}",
+                exc_info=True,
+            )
+            return None
 
-        # (2) Determine split point based on cumulative time
+        # (2) Determine split point based on cumulative time in the successful simulation log
         pre_cutoff_actions: list[str] = []
         post_cutoff_actions: list[str] = []
         split_index = -1  # The index of the last action in the pre-cutoff part
@@ -409,12 +601,16 @@ class ActionHandler:
         # 5.2: GRASP/PLACE 쌍 분할 방지 로직 추가
         grasped_object_in_pre = None
         if pre_cutoff_actions and post_cutoff_actions:
-            last_pre_result = full_log.results[-1]
-            if last_pre_result.success and last_pre_result.held_object:
-                grasped_object_in_pre = last_pre_result.held_object
+            # --- 수정: 분할 시점(split_index)의 상태 확인 --- \
+            # last_pre_result = full_log.results[-1]
+            if split_index >= 0 and split_index < len(full_log.results):
+                split_point_result = full_log.results[split_index]
+                if split_point_result.success and split_point_result.held_object:
+                    grasped_object_in_pre = split_point_result.held_object
+            # --- 수정 끝 ---
 
         if grasped_object_in_pre and post_cutoff_actions:
-            # --- 수정: PLACE 액션 존재 여부 검사 강화 ---
+            # --- 수정: PLACE 액션 존재 여부 검사 강화 ---\
             # PLACE_INSIDE, PLACE_ON_TOP 모두 확인
             place_action_exists_in_post = any(
                 action.upper().startswith("PLACE_") for action in post_cutoff_actions
@@ -424,32 +620,40 @@ class ActionHandler:
                     f"[_split_subtask_by_cutoff_time] Split occurs between GRASP('{grasped_object_in_pre}') "
                     f"in pre-cutoff and a PLACE action in post-cutoff. This is not allowed. Split failed."
                 )
-                return None, None
+                # --- 수정: 반환 타입 일치 (단일 None 반환) ---\
+                # return None, None
+                return None
+                # --- 수정 끝 ---
 
-        # (5) Re-simulate final action lists
-        # --- 수정: Re-simulation 제거, 기존 full_log 활용 ---
-        # full_log는 이미 전체 시뮬레이션 결과를 담고 있으므로, 이를 분할하여 사용
-        final_pre_log = ActionSimulationLog(results=full_log.results[: split_index + 1])
+        # (5) Extract results from the existing full_log (No re-simulation)
+        # --- 수정: ActionResult 튜플 반환 로직 ---
+        last_pre_result: Optional[ActionResult] = None
+        last_post_result: Optional[ActionResult] = None
 
-        final_post_log = None
-        # post_cutoff_actions에 해당하는 결과만 추출하여 새로운 로그 생성
+        if pre_cutoff_actions:
+            # split_index는 pre_cutoff의 마지막 액션 인덱스
+            if split_index >= 0:
+                last_pre_result = full_log.results[split_index]
+            else:  # pre_cutoff_actions가 비어있는 경우는 없어야 함 (split_index = -1 이면 pre는 빈 리스트)
+                log.error(
+                    "Inconsistent state: pre_cutoff_actions exist but split_index < 0."
+                )
+                return None
+
         if post_cutoff_actions:
-            # post_results = full_log.results[split_index + 1:] # 이게 맞음
-            final_post_log = ActionSimulationLog(
-                results=full_log.results[split_index + 1 :]
-            )
-            log.debug(
-                f"Post-cutoff log created with {len(final_post_log.results)} actions."
-            )
-            # post 로그의 첫 액션 시간은 pre 로그의 마지막 시간과 일치해야 함 (검증용)
-            # if final_pre_log.results and final_post_log.results:
-            #     if not math.isclose(final_pre_log.results[-1].time_used, final_post_log.results[0].time_used - final_post_log.results[0].action_duration, abs_tol=EPSILON):
-            #         log.error("Time inconsistency between pre and post split logs!")
-            #         return None
-        else:
-            # No post actions, create empty log
-            final_post_log = ActionSimulationLog()
+            # post_cutoff_actions는 split_index + 1 부터 시작
+            post_results = full_log.results[split_index + 1 :]
+            if post_results:
+                last_post_result = post_results[-1]
+            else:  # post_cutoff_actions가 있으나 결과가 없는 경우 (오류)
+                log.error(
+                    "Inconsistent state: post_cutoff_actions exist but no corresponding results found."
+                )
+                return None
 
-        # --- 수정: 튜플로 반환 ---
-        return (final_pre_log, final_post_log)
+        log.debug(
+            f"Split successful. Returning last results: Pre={last_pre_result is not None}, Post={last_post_result is not None}"
+        )
+        # pre만 있거나, post만 있거나, 둘 다 있거나, 둘 다 없는(오류) 경우 처리 가능
+        return (last_pre_result, last_post_result)
         # --- 수정 끝 ---

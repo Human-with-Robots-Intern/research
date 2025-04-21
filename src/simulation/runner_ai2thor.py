@@ -199,7 +199,7 @@ def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
     is_subtask_success = True  # Assume success initially
     start_real_time = time.time()  # For real-world timing (optional)
 
-    # --- 주석 추가: 외부 핸들러 의존성 ---
+    # --- 주석 추가: 외부 핸들러 의존성 ---\
     # NOTE: The accuracy of 'elapsed_time' and 'is_subtask_success' depends heavily
     # on the implementation of the 'ithor.handlers.action.Action' handler ('act').
     # The handler MUST return accurate simulated time costs and determine success
@@ -294,8 +294,13 @@ def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
         # If any action fails, the whole subtask is marked as failed
         if not action_success:
             is_subtask_success = False
+            # --- 주석 추가: 실패 시 상태 롤백 부재 및 정책 필요성 ---\
             # NOTE: No environment state rollback is implemented upon action failure.
             # The environment might be left in an inconsistent state after a failed subtask.
+            # POLICY DECISION NEEDED: How to handle environment state on failure?
+            # Options: a) Leave as is (current), b) Reset to a known safe state,
+            #          c) Attempt rollback (complex).
+            # --- 주석 끝 ---
             # Optional: Decide whether to break the loop on first failure
             log.error(
                 f"Subtask '{subtask.name}' failed due to action '{action_str}'. Stopping execution of remaining actions."

@@ -135,6 +135,13 @@ class Scheduler:
             feasible_candidates, not_yet_candidates = (
                 self.constraint_handler.get_feasible_candidates(curr_node)
             )
+            # --- 수정: 데드라인 할당 로직 호출 추가 ---
+            # feasible 후보들에게 다음 critical task를 기준으로 데드라인 할당
+            # _assign_deadlines는 feasible_candidates 리스트를 직접 수정함
+            self.constraint_handler._assign_deadlines(
+                feasible_candidates, not_yet_candidates, curr_node
+            )
+            # --- 수정 끝 ---
             log.debug(
                 f"[_simulate_search] Expanding {len(feasible_candidates)} feasible candidates "
                 f"and {len(not_yet_candidates)} not-yet-feasible candidates.\n"
@@ -673,216 +680,54 @@ class Scheduler:
         new_remain.extend([mon_sub, remain_sub])
 
         # ! ------------------- Constraints Update -------------------
-        # (C) Build the new constraints graph
-
         new_constraints = copy.deepcopy(curr_state.constraints)
-
-        # --- 수정: 노드 존재 확인 강화 및 예외 처리 추가 ---
-        try:
-            in_edges = (
-                list(new_constraints.in_edges(old_name, data=True))
-                if new_constraints.has_node(old_name)
-                else []
-            )
-            out_edges = (
-                list(new_constraints.out_edges(old_name, data=True))
-                if new_constraints.has_node(old_name)
-                else []
-            )
-
-            # Remove old subtask node
-            if new_constraints.has_node(old_name):
-                new_constraints.remove_node(old_name)
-
-            # Add new subtask nodes before adding edges
-            new_constraints.add_node(early_sub.name)
+        # 모니터링 노드 추가 (아직 실행 전이지만 제약 조건 연결 위해 필요)
+        if not new_constraints.has_node(mon_sub.name):
             new_constraints.add_node(mon_sub.name)
-            new_constraints.add_node(remain_sub.name)
 
-            # Reconnect edges
-            for pred, _, data in in_edges:
-                # deepcopy로 data['info'] 복사 보장 및 노드 존재 확인
-                if new_constraints.has_node(pred):
-                    new_constraints.add_edge(
-                        pred, early_sub.name, info=copy.deepcopy(data["info"])
-                    )
-                else:
-                    log.warning(
-                        f"Predecessor node '{pred}' not found while reconnecting edges for split subtask '{old_name}'. Skipping edge."
-                    )
+        # 네비게이션 Subtask 노드 추가 (완료되었으므로 필요)
+        if not new_constraints.has_node(early_sub.name):
+            new_constraints.add_node(early_sub.name)
 
-            for _, succ, data in out_edges:
-                # deepcopy로 data['info'] 복사 보장 및 노드 존재 확인
-                if new_constraints.has_node(succ):
-                    new_constraints.add_edge(
-                        remain_sub.name, succ, info=copy.deepcopy(data["info"])
-                    )
-                else:
-                    log.warning(
-                        f"Successor node '{succ}' not found while reconnecting edges for split subtask '{old_name}'. Skipping edge."
-                    )
+        # 네비게이션 완료 후 모니터링 시작 (critical)
+        # navigate_sub -> mon_sub 연결
+        new_constraints.add_edge(
+            early_sub.name,  # 네비게이션 완료 후
+            mon_sub.name,
+            info={"Interval": 0, "IsCritical": True},  # 즉시 모니터링 시작
+        )
 
-            # Connect early_sub -> mon_sub -> remain_sub
-            new_constraints.add_edge(
-                early_sub.name,
-                mon_sub.name,
-                info={
-                    "Interval": 0,
-                    "IsCritical": True,
-                },  # early 완료 후 즉시 mon 시작 (critical)
-            )
-            new_constraints.add_edge(
-                mon_sub.name,
-                remain_sub.name,
-                info={
-                    "Interval": MONITORING_DURATION,
-                    "IsCritical": False,
-                },  # mon 완료 후 remain 시작 (mon 시간만큼 간격)
-            )
-
-            # Add edges for the critical chain
-            # Critical 시작점이 그래프에 있는지 확인
-            if not new_constraints.has_node(critical_start_sub_name):
-                log.error(
-                    f"Critical start node '{critical_start_sub_name}' not found in constraint graph. Cannot add critical edges."
-                )
-                return None  # 제약 조건 오류
-
-            # critical 시작점 -> mon_sub (critical constraint)
-            new_constraints.add_edge(
-                critical_start_sub_name,
-                mon_sub.name,
-                info={
-                    "Interval": early_sub.duration.interval,
-                    "IsCritical": True,
-                },  # early_sub 실행 시간만큼 지연
-            )
-
-            # mon_sub -> critical 종료점 (critical constraint)
-            # 남은 critical 시간 = 원래 critical 시간 - early_sub 실행 시간 - monitoring 시간
-            remain_critical_interval = (
-                max_critical_interval
-                - early_sub.duration.interval
-                - MONITORING_DURATION
-            )
-
-            # --- 수정: 남은 critical 시간 < 0 이면 명확히 infeasible 처리 ---
-            if remain_critical_interval < -EPSILON:  # 부동소수점 오차 고려
-                log.error(
-                    f"[_expand_subtask_with_monitoring] Calculated remaining critical interval is negative ({round(remain_critical_interval, 2)}). "
-                    f"Original={round(max_critical_interval, 2)}, EarlySub={round(early_sub.duration.interval, 2)}, Mon={MONITORING_DURATION}. "
-                    f"This expansion path is INFEASIBLE."
-                )
-                return None  # 음수 interval은 허용 불가, 확장 실패
-            # --- 수정 끝 ---
-
-            # Critical 종료점이 그래프에 있는지 확인
-            if not new_constraints.has_node(deadline_sub_name):
-                log.error(
-                    f"Critical deadline node '{deadline_sub_name}' not found in constraint graph. Cannot add critical edges."
-                )
-                return None  # 제약 조건 오류
-
-            new_constraints.add_edge(
-                mon_sub.name,
-                deadline_sub_name,
-                info={
-                    "Interval": max(
-                        0, remain_critical_interval
-                    ),  # 음수 방지 (위에서 걸렀지만 방어적)
-                    "IsCritical": True,
-                },
-            )
-            log.debug(
-                f"[_expand_subtask_with_monitoring] Added critical constraint: {mon_sub.name} -> {deadline_sub_name} with interval {round(max(0, remain_critical_interval), 2)}"
-            )
-        except Exception as e_constraint:
+        # 모니터링 완료 후 원래 기다리던 subtask 시작 (critical)
+        # Interval = 총 대기 시간 - 네비게이션 시간 - 모니터링 시간
+        time_after_nav_and_mon = time_until_monitoring_start - MONITORING_DURATION
+        # 남은 시간이 음수면 안됨 -> 경로 폐기 (infeasible) - 이전 단계에서 처리됨
+        if time_after_nav_and_mon < -EPSILON:
             log.error(
-                f"Error updating constraints during subtask split for {old_name}: {e_constraint}",
-                exc_info=True,
+                f"[_expand_subtask_with_monitoring] Negative interval after nav/mon ({round(time_after_nav_and_mon,2)}). Should have been caught earlier. Infeasible."
             )
-            return None  # 제약 조건 업데이트 중 오류 발생 시 실패 처리
-        in_edges = (
-            list(new_constraints.in_edges(old_name, data=True))
-            if new_constraints.has_node(old_name)
-            else []
-        )
-        out_edges = (
-            list(new_constraints.out_edges(old_name, data=True))
-            if new_constraints.has_node(old_name)
-            else []
-        )
-
-        # Remove old subtask node
-        if new_constraints.has_node(old_name):
-            new_constraints.remove_node(old_name)
-
-        # Add new subtask nodes before adding edges
-        new_constraints.add_node(early_sub.name)
-        new_constraints.add_node(mon_sub.name)
-        new_constraints.add_node(remain_sub.name)
-
-        # Reconnect edges
-        for pred, _, data in in_edges:
-            # 원래 subtask로 들어오던 엣지는 early_sub로 연결
-            # deepcopy로 data['info'] 복사 보장
-            new_constraints.add_edge(
-                pred, early_sub.name, info=copy.deepcopy(data["info"])
-            )
-        for _, succ, data in out_edges:
-            # 원래 subtask에서 나가던 엣지는 remain_sub에서 나가도록 연결
-            # deepcopy로 data['info'] 복사 보장
-            new_constraints.add_edge(
-                remain_sub.name, succ, info=copy.deepcopy(data["info"])
-            )
-
-        # Connect early_sub -> mon_sub -> remain_sub
-        # early_sub 완료 후 즉시 mon_sub 시작 (IsCritical=True로 설정하여 우선순위 부여 가능)
-        new_constraints.add_edge(
-            early_sub.name, mon_sub.name, info={"Interval": 0, "IsCritical": True}
-        )
-        # mon_sub 완료 후 즉시 remain_sub 시작 (일반적으로 critical 아님)
-        new_constraints.add_edge(
-            mon_sub.name, remain_sub.name, info={"Interval": 0, "IsCritical": False}
-        )
-
-        # Add edges for the critical chain
-        # critical 시작점 -> mon_sub (critical constraint)
-        # Interval: early_sub 실행 시간만큼 지연됨
-        new_constraints.add_edge(
-            critical_start_sub_name,
-            mon_sub.name,
-            info={"Interval": early_sub.duration.interval, "IsCritical": True},
-        )
-
-        # mon_sub -> critical 종료점 (critical constraint)
-        # 남은 critical 시간 = 원래 critical 시간 - early_sub 실행 시간 - monitoring 시간
-        remain_critical_interval = (
-            max_critical_interval - early_sub.duration.interval - MONITORING_DURATION
-        )
-        # 남은 시간이 음수가 되면 제약조건 만족 불가 -> 해당 경로 폐기 (infeasible)
-        if remain_critical_interval < -EPSILON:  # 부동소수점 오차 고려
-            log.warning(
-                f"[_expand_subtask_with_monitoring] Calculated remaining critical interval is negative ({round(remain_critical_interval, 2)}). "
-                f"Original={round(max_critical_interval, 2)}, EarlySub={round(early_sub.duration.interval, 2)}, Mon={MONITORING_DURATION}. "
-                f"This path is infeasible."
-            )
-            # 음수 interval은 허용되지 않으므로, 확장 실패 처리.
             return None
-            # remain_critical_interval = 0 # 이전 로직 (클램핑)
 
+        # 기다리던 후보 태스크 노드가 그래프에 있는지 확인
+        if not new_constraints.has_node(candidate.subtask.name):
+            log.error(
+                f"Target candidate node '{candidate.subtask.name}' not found in constraint graph during wait expansion. Cannot add edge."
+            )
+            return None  # 제약 조건 오류
+
+        # mon_sub -> candidate.subtask.name 제약 추가
         new_constraints.add_edge(
             mon_sub.name,
-            deadline_sub_name,  # critical constraint의 원래 종료 subtask
+            candidate.subtask.name,
             info={
-                "Interval": remain_critical_interval,
+                "Interval": time_after_nav_and_mon,  # 계산된 남은 시간 사용
                 "IsCritical": True,
             },
         )
         log.debug(
-            f"[_expand_subtask_with_monitoring] Added critical constraint: {mon_sub.name} -> {deadline_sub_name} with interval {round(remain_critical_interval, 2)}"
+            f"[_expand_subtask_with_monitoring] Added constraint: {mon_sub.name} -> {candidate.subtask.name} with interval {round(time_after_nav_and_mon, 2)}"
         )
 
+        # 최종 상태 생성 (네비게이션 완료 시점)
         new_state = SchedulerState(
             subtask=early_sub,  # 현재 실행 완료된 것은 early_sub
             completed_subtasks=new_completed,
@@ -1049,26 +894,19 @@ class Scheduler:
         # ! ------------------- Constraints Update -------------------
         new_constraints = copy.deepcopy(curr_state.constraints)
         # 모니터링 노드 추가 (아직 실행 전이지만 제약 조건 연결 위해 필요)
-        new_constraints.add_node(mon_sub.name)
+        if not new_constraints.has_node(mon_sub.name):
+            new_constraints.add_node(mon_sub.name)
+
+        # 네비게이션 Subtask 노드 추가 (완료되었으므로 필요)
+        if not new_constraints.has_node(navigate_sub.name):
+            new_constraints.add_node(navigate_sub.name)
 
         # 네비게이션 완료 후 모니터링 시작 (critical)
-        # 이전 subtask -> mon_sub 제약 조건 추가 (Interval = 네비게이션 시간)
-        # curr_node.state.subtask 가 None일 수 있음 (초기 상태) -> 방어 코드 추가
-        prev_sub_name = (
-            curr_node.state.subtask.name if curr_node.state.subtask else "START"
-        )  # 이전 subtask 이름 가져오기
-        if not new_constraints.has_node(
-            prev_sub_name
-        ):  # 이전 노드가 그래프에 없으면 추가 (START 노드 등)
-            new_constraints.add_node(prev_sub_name)
-
-        # 네비게이션 subtask 자체를 이전 노드로 사용하는 것이 더 명확할 수 있음
-        # new_constraints.add_edge(navigate_sub.name, mon_sub.name, ...)
-        # 여기서는 기존 로직 유지 (prev_sub_name 사용)
+        # navigate_sub -> mon_sub 연결
         new_constraints.add_edge(
-            prev_sub_name,
+            navigate_sub.name,  # 네비게이션 완료 후
             mon_sub.name,
-            info={"Interval": actual_nav_time_used, "IsCritical": True},
+            info={"Interval": 0, "IsCritical": True},  # 즉시 모니터링 시작
         )
 
         # 모니터링 완료 후 원래 기다리던 subtask 시작 (critical)
@@ -1076,21 +914,26 @@ class Scheduler:
         time_after_nav_and_mon = (
             total_wait_duration - actual_nav_time_used - MONITORING_DURATION
         )
-        # 남은 시간이 음수면 안됨 -> 경로 폐기 (infeasible)
-        if time_after_nav_and_mon < -EPSILON:  # 부동소수점 오차 고려
-            log.warning(
-                f"[_expand_wait_with_monitoring] Remaining interval after nav and mon is negative ({round(time_after_nav_and_mon, 2)}). "
-                f"TotalWait={round(total_wait_duration, 2)}, NavUsed={round(actual_nav_time_used, 2)}, Mon={MONITORING_DURATION}. "
-                f"This path is infeasible."
+        # 남은 시간이 음수면 안됨 -> 경로 폐기 (infeasible) - 이전 단계에서 처리됨
+        if time_after_nav_and_mon < -EPSILON:
+            log.error(
+                f"[_expand_wait_with_monitoring] Negative interval after nav/mon ({round(time_after_nav_and_mon,2)}). Should have been caught earlier. Infeasible."
             )
-            # time_after_nav_and_mon = 0 # 이전 로직 (클램핑)
-            return None  # 제약 조건 위반으로 경로 폐기
+            return None
 
+        # 기다리던 후보 태스크 노드가 그래프에 있는지 확인
+        if not new_constraints.has_node(candidate.subtask.name):
+            log.error(
+                f"Target candidate node '{candidate.subtask.name}' not found in constraint graph during wait expansion. Cannot add edge."
+            )
+            return None  # 제약 조건 오류
+
+        # mon_sub -> candidate.subtask.name 제약 추가
         new_constraints.add_edge(
             mon_sub.name,
             candidate.subtask.name,
             info={
-                "Interval": time_after_nav_and_mon,
+                "Interval": time_after_nav_and_mon,  # 계산된 남은 시간 사용
                 "IsCritical": True,
             },
         )

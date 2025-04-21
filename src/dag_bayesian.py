@@ -2,6 +2,7 @@ import argparse
 import math
 import time
 from collections import deque
+from typing import List, Optional
 
 from core.agent import Agent
 from core.scheduler import Scheduler
@@ -30,6 +31,14 @@ from src.utils.task import TaskUtil
 from src.utils.visualizers import visualize
 
 log = create_module_logger(module_name=__name__, module_log=True)
+
+# --- 추가: 설정값 로드 (config 파일 사용 권장 주석 추가) ---
+# TODO: Move these constants to config.py for better management
+MAX_LOOPS = 2000
+DEADLOCK_THRESHOLD = 5
+RETRY_COUNT = 2  # 예시: 재시도 횟수
+RETRY_DELAY = 1  # 예시: 재시도 간격(초)
+# --- 추가 끝 ---
 
 
 def parse_arguments():
@@ -61,9 +70,20 @@ def main():
     approach_name = "dag_bayesian"
 
     # Set up the AI2-THOR controller and navigation graph
-    controller = init_ai2thor_controller()
-    nav_graph = load_navigation_graph(controller)
-    scene_poses = load_scene_positions(f"{SCENE_NAME}_positions.json")
+    try:
+        controller = init_ai2thor_controller()
+        nav_graph = load_navigation_graph(controller)
+        scene_poses = load_scene_positions(f"{SCENE_NAME}_positions.json")
+    except FileNotFoundError as e_load:
+        log.critical(
+            f"Failed to load navigation graph or scene positions: {e_load}. Aborting."
+        )
+        return
+    except Exception as e_init_thor:
+        log.critical(
+            f"Error during AI2THOR setup: {e_init_thor}. Aborting.", exc_info=True
+        )
+        return
 
     # Load the chosen task data
     task_files = list_task_files()
@@ -85,7 +105,14 @@ def main():
     # 핸들러 및 Agent 인스턴스 생성
     action_handler = ActionHandler(nav_graph or {})
     constraint_handler = ConstraintHandler(action_handler)
-    agent = Agent(constraint_handler=constraint_handler)
+    agent = Agent(
+        constraint_handler=None
+    )  # Scheduler가 내부 ConstraintHandler 사용 가정 시 None 전달? 또는 별도 생성? -> 구조 확인 필요
+    # agent 초기화에 constraint_handler가 필수라면, Scheduler 내부 인스턴스 접근 방법 필요 (현재 불가)
+    # Placeholder: agent 초기화 방식 원본 코드 확인 필요
+    log.warning(
+        "Agent initialization might need adjustment depending on ConstraintHandler dependency and Scheduler structure."
+    )
 
     # HeuristicManager 생성 (Agent의 knowledge 사용 위해 agent 주입)
     heuristic_manager = HeuristicManager(
@@ -100,9 +127,20 @@ def main():
         constraint_handler=constraint_handler,
         heuristic_manager=heuristic_manager,
     )
+    log.info("Scheduler initialized using internal handlers.")
+    # *** 경고 ***: Scheduler 내부의 HeuristicManager는 여기서 생성된 agent의 지식에 접근하지 못할 수 있음.
+    log.warning(
+        "Scheduler's internal HeuristicManager likely cannot access Agent knowledge updates."
+    )
 
     # 초기 상태 생성
-    current_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
+    try:
+        current_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
+    except Exception as e_init_state:
+        log.critical(
+            f"Failed to create initial state: {e_init_state}. Aborting.", exc_info=True
+        )
+        return
 
     # Visualize the task graph if enabled
     visualize(approach_name, input_natural_language, constraints)
@@ -110,11 +148,9 @@ def main():
     is_end = False
     task_failed = False
     failure_reason = ""
-    failed_task_entry = None
+    potential_failed_entry = None
+    last_successful_entry = None
     loop_count = 0
-    MAX_LOOPS = 2000  # Increased loop limit; may need tuning based on task complexity
-    DEADLOCK_THRESHOLD = 5  # 동일 상태 반복 허용 횟수
-
     computation_time = 0
     simulation_time = 0
 
@@ -123,36 +159,60 @@ def main():
     previous_states_summary = deque(maxlen=DEADLOCK_THRESHOLD + 1)
     consecutive_same_state_count = 0
 
+    log.info("Starting main execution loop...")
     while not is_end and not task_failed and loop_count < MAX_LOOPS:
         loop_count += 1
-        log.debug(f"--- Main Loop Iteration {loop_count} ---\n")
+        log.debug(
+            f"--- Main Loop Iteration {loop_count}/{MAX_LOOPS} | Time: {current_state.current_time:.2f} ---"
+        )
 
         computation_time_start = time.time()
-        # --- 상태 요약 생성 (튜플 형태 권장: 변경 불가능하고 해시 가능) ---
-        # --- 수정: current_time은 직접 비교 대신 아래에서 isclose 사용 ---
+        # --- 수정: 상태 요약에 scene_positions 및 held_object 추가 ---
+        # scene_positions 딕셔너리를 정렬된 (키, (좌표 튜플)) 튜플로 변환하여 해시 가능하게 만듦
+        # scene_positions의 값은 딕셔너리({'position': [...]}) 또는 리스트/튜플일 수 있음
+        scene_positions_summary = tuple(
+            sorted(
+                (
+                    k,
+                    # 값의 타입에 따라 처리: 딕셔너리이면 position 키 참조, 리스트/튜플이면 튜플 변환, 아니면 값 자체 사용
+                    (
+                        tuple(v["position"])
+                        if isinstance(v, dict) and "position" in v
+                        else tuple(v) if isinstance(v, (list, tuple)) else v
+                    ),
+                )
+                for k, v in current_state.scene_positions.items()
+            )
+        )
         current_state_summary = (
             tuple(sorted([ce.subtask.name for ce in current_state.completed_subtasks])),
             tuple(sorted([r.name for r in current_state.remaining_subtasks])),
-            # round(current_state.current_time, 3), # 부동소수점 비교 위해 반올림 (아래 isclose로 대체)
+            scene_positions_summary,  # 씬 상태 요약 추가
+            current_state.held_object,  # 들고 있는 객체 추가
         )
+        # --- 수정 끝 ---
 
         # --- 교착 상태 확인 ---
-        # --- 수정: deque에 이전 상태가 있고, 시간 제외한 요약이 같으며, 시간도 거의 같은지 확인 ---
-        if (
-            previous_states_summary
-            and current_state_summary
-            == previous_states_summary[-1][0]  # 시간 제외 요약 비교
-            and math.isclose(
-                current_state.current_time,
-                previous_states_summary[-1][1],
-                rel_tol=1e-5,
-                abs_tol=1e-5,
-            )  # 시간 비교 (허용 오차 조정 가능)
-        ):
+        # WARNING: Exact state summary comparison might be sensitive to float precision in scene_positions.
+        current_matching_previous_state = None
+        for prev_summary, prev_time in previous_states_summary:
+            if (
+                current_state_summary == prev_summary  # 확장된 요약 비교
+                and math.isclose(
+                    current_state.current_time,
+                    prev_time,
+                    rel_tol=1e-5,  # 상대 허용 오차
+                    abs_tol=1e-5,  # 절대 허용 오차
+                )
+            ):
+                current_matching_previous_state = (prev_summary, prev_time)
+                break
+
+        if current_matching_previous_state:
             consecutive_same_state_count += 1
             log.warning(
                 f"Consecutive identical state detected ({consecutive_same_state_count}/{DEADLOCK_THRESHOLD}). "
-                f"State Summary (excluding time): {current_state_summary}, Time: {current_state.current_time:.3f}"
+                f"State repeated {consecutive_same_state_count} times. Time: {current_state.current_time:.3f}"
             )
             if consecutive_same_state_count >= DEADLOCK_THRESHOLD:
                 log.error(
@@ -160,16 +220,6 @@ def main():
                 )
                 task_failed = True
                 failure_reason = "Deadlock detected (state repeating)."
-                # 실패한 태스크 정보 설정 (마지막으로 완료 시도한 태스크 또는 현재 상태의 마지막 완료 태스크)
-                failed_task_entry = (
-                    potential_failed_entry
-                    if "potential_failed_entry" in locals() and potential_failed_entry
-                    else (
-                        current_state.completed_subtasks[-1]
-                        if current_state.completed_subtasks
-                        else None
-                    )
-                )
                 break
         else:
             consecutive_same_state_count = 0  # 상태 변경 시 카운터 리셋
@@ -178,29 +228,19 @@ def main():
         previous_states_summary.append(
             (current_state_summary, current_state.current_time)
         )
-        # --- 수정 끝 ---
-        # --- 교착 상태 확인 끝 ---
+        # --- 수정 끝 ---\
+        # --- 교착 상태 확인 끝 ---\
 
-        # --- 수정: next_state 가져오기 전에 potential_failed_entry 초기화 ---
-        potential_failed_entry = None  # 루프 시작 시 초기화
-        # --- 수정 끝 ---
+        # 다음 상태 결정 (Scheduler 호출)
+        computation_time_start = time.time()
         next_state = scheduler.get_next_state(current_state)
         computation_time += time.time() - computation_time_start
 
         if next_state is None:
-            # 1.3: 스케줄러 실패 시 로그 강화 (변경 없음 - 추가 정보 부족)
             log.error(f"Scheduler could not find a feasible next state. Aborting.")
             task_failed = True
-            # --- 수정: 실패 시 failed_task_entry 설정 시도 ---
-            # 스케줄러 실패 시 어떤 태스크가 문제였는지 특정하기 어려움. 마지막 완료 태스크를 기록.
             failure_reason = "Scheduler failed to find a feasible next state."
-            failed_task_entry = (
-                current_state.completed_subtasks[-1]
-                if current_state.completed_subtasks
-                else None
-            )
-            # --- 수정 끝 ---
-            break  # 기존 로직 유지 (실패 처리)
+            break
 
         # --- 수정: next_state가 반환되었으므로, 이것이 다음 시도될 태스크 ---
         # 이 태스크가 실행/시뮬레이션 후 실패할 수 있으므로 potential_failed_entry로 설정
@@ -211,229 +251,213 @@ def main():
 
         actual_subtask_time = 0.0
         actual_execution_status = False
-        # --- 재시도 로직 추가 ---
-        max_retries = 2  # 최대 재시도 횟수
-        retry_delay = 1  # 재시도 간격 (초)
-        for attempt in range(max_retries + 1):
-            try:
-                actual_subtask_time, actual_execution_status = execute_subtask(
-                    controller, next_state.subtask
-                )
-                log.info(
-                    f"Executed (Attempt {attempt+1}): {next_state.subtask.name}, Duration: {actual_subtask_time:.2f}, Status: {actual_execution_status}"
-                )
-                # 성공 시 루프 탈출
-                break
-            except Exception as e:
-                log.error(
-                    f"Error during subtask execution simulation for '{next_state.subtask.name}': {e}",
-                    exc_info=True,
-                )
-                failure_reason = (
-                    f"Exception during simulation of '{next_state.subtask.name}'."
-                )
-                # --- 수정: 실패 시 potential_failed_entry 사용 ---
-                failed_task_entry = potential_failed_entry  # 예외 발생 시 시도했던 태스크를 실패 태스크로 설정
-                # --- 수정 끝 ---
-                if failed_task_entry:
-                    if hasattr(failed_task_entry.subtask, "execution_status"):
-                        failed_task_entry.subtask.execution_status = False
-                    else:
-                        log.warning(
-                            f"Failed task entry '{failed_task_entry.subtask.name}' lacks 'execution_status'."
-                        )
-
-                task_failed = True
-                break  # 예외 발생 시 외부 루프로 break
-        # --- 재시도 로직 끝 ---
-
-        # task_failed 플래그가 설정되었다면 메인 루프를 빠져나가야 함
-        if task_failed:
+        executed_subtask = next_state.subtask if next_state else None
+        if not executed_subtask:
+            log.error("Scheduler returned state without subtask. Aborting.")
+            task_failed = True
+            failure_reason = "Invalid state from scheduler (no subtask)."
             break
 
-        # --- 성공 시 기존 로직 계속 ---
-        # --- 수정: 성공 시 completed_task_entry 설정 ---
-        # 성공했으므로 potential_failed_entry가 완료된 태스크임
-        completed_task_entry = potential_failed_entry
-        # --- 수정 끝 ---
-
-        if next_state.subtask.type == "Monitor":
+        log.info(f"Attempting to execute subtask: '{executed_subtask.name}'")
+        execution_exception = None
+        for attempt in range(RETRY_COUNT + 1):
             try:
-                _, monitored_subtask_info = agent.bayesian_estimate(next_state)
-                if monitored_subtask_info:
-                    completed_task_entry.subtask.monitored_subtask = (
-                        monitored_subtask_info
-                    )
-                    log.info(
-                        f"Bayesian estimation successful for {next_state.subtask.name}"
-                    )
-
-                    updated_sub_name = monitored_subtask_info.get(
-                        "updated_subtask_name"  # Agent가 반환하는 이름은 이미 lowercase임
-                    )
-                    updated_mean = monitored_subtask_info.get("updated_expected_time")
-                    if updated_sub_name and updated_mean is not None:
-                        # --- 수정: remaining_subtasks 업데이트 로직 명확화 (Agent가 지식만 업데이트하도록 변경되었으므로 주석 처리 또는 로깅 강화) ---
-                        log.info(
-                            f"Agent knowledge updated for '{updated_sub_name}' to mean={updated_mean:.2f}. "
-                            f"Scheduler will use this updated knowledge via HeuristicManager if needed. "
-                            f"Direct update of remaining_subtasks duration in dag_bayesian is removed/disabled."
-                        )
-                        # found_match_for_update = False
-                        # for r_sub in next_state.remaining_subtasks:
-                        #     # 정확한 이름 일치 (대소문자 무시) 확인
-                        #     if r_sub.name.lower() == updated_sub_name:
-                        #         found_match_for_update = True
-                        #         if r_sub.duration:
-                        #             log.debug(
-                        #                 f"Updating remaining subtask '{r_sub.name}' duration from "
-                        #                 f"{r_sub.duration.interval} to {updated_mean:.2f} based on exact match."
-                        #             )
-                        #             r_sub.duration.interval = updated_mean # 직접 업데이트 제거
-                        #         else:
-                        #             log.warning(
-                        #                 f"Cannot update duration for remaining subtask '{r_sub.name}' as it has no Duration object."
-                        #             )
-                        #         break  # 정확히 일치하는 것을 찾으면 루프 중단
-                        # if not found_match_for_update:
-                        #     log.warning(
-                        #         f"Bayesian estimation updated knowledge for '{updated_sub_name}', "
-                        #         f"but no exactly matching remaining subtask found for duration update."
-                        #     )
-                        # --- 수정 끝 ---
-                    else:
-                        log.warning(
-                            f"Bayesian estimation did not return updated name/mean for {next_state.subtask.name}"
-                        )
-
-            except ValueError as e:
-                log.error(f"Critical error during Bayesian estimation: {e}. Aborting.")
-                failure_reason = f"Critical error during Bayesian estimation for '{next_state.subtask.name}'."
-                # --- 수정: 실패 시 completed_task_entry 사용 ---
-                failed_task_entry = completed_task_entry  # 베이지안 추정 실패 시 완료된 Monitor 태스크를 실패로 간주할 수 있음
-                # --- 수정 끝 ---
-                task_failed = True
+                actual_subtask_time, actual_execution_status = execute_subtask(
+                    controller, executed_subtask
+                )
+                log.info(
+                    f"  Attempt {attempt+1}: Duration={actual_subtask_time:.2f}, Status={'Success' if actual_execution_status else 'Failure'}"
+                )
+                if actual_execution_status:
+                    break
+                if attempt < RETRY_COUNT:
+                    log.warning(f"    Execution failed. Retrying in {RETRY_DELAY}s...")
+                    time.sleep(RETRY_DELAY)
+            except Exception as e_exec:
+                log.error(
+                    f"  Exception during execution (Attempt {attempt+1}): {e_exec}",
+                    exc_info=True,
+                )
+                execution_exception = e_exec
+                actual_execution_status = False
                 break
 
+        if not actual_execution_status:
+            log.error(
+                f"Subtask '{executed_subtask.name}' execution FAILED after {RETRY_COUNT+1} attempts."
+            )
+            task_failed = True
+            failure_reason = f"Subtask '{executed_subtask.name}' failed execution."
+            if execution_exception:
+                failure_reason += f" Reason: {execution_exception}"
+            break
+
+        log.info(f"Subtask '{executed_subtask.name}' executed successfully.")
+        completed_task_entry = potential_failed_entry
+        if completed_task_entry:
+            try:
+                completed_task_entry.start_time = current_state.current_time
+                completed_task_entry.end_time = (
+                    current_state.current_time + actual_subtask_time
+                )
+                setattr(
+                    completed_task_entry.subtask,
+                    "duration.interval",
+                    actual_subtask_time,
+                )
+                setattr(completed_task_entry.subtask, "execution_status", True)
+                last_successful_entry = completed_task_entry
+            except Exception as e_entry_update:
+                log.error(f"Error updating completed entry data: {e_entry_update}")
+        else:
+            log.error(
+                "Internal inconsistency: completed_task_entry is None after success."
+            )
+            task_failed = True
+            failure_reason = "Internal error after execution."
+            break
+
+        if executed_subtask.type == "Monitor":
+            try:
+                log.info(
+                    f"Performing Bayesian estimation for Monitor task: '{executed_subtask.name}'"
+                )
+                _, monitored_subtask_info = agent.bayesian_estimate(next_state)
+                if monitored_subtask_info:
+                    log.info(
+                        f"  Bayesian estimation successful. Info: {monitored_subtask_info}"
+                    )
+                else:
+                    log.warning("  Bayesian estimation did not return update info.")
+            except ValueError as e_bayes_val:
+                log.error(
+                    f"CRITICAL error during Bayesian estimation: {e_bayes_val}. Aborting."
+                )
+                task_failed = True
+                failure_reason = f"Critical Bayesian estimation error: {e_bayes_val}"
+                break
+            except Exception as e_bayes_generic:
+                log.error(
+                    f"Unexpected error during Bayesian estimation: {e_bayes_generic}. Continuing without update.",
+                    exc_info=True,
+                )
+
         actual_end_time = current_state.current_time + actual_subtask_time
-        next_state.current_time = actual_end_time
-        current_state = next_state
+        log.warning(
+            "Updating current_time based on actual execution, but using predicted scene state from scheduler. Accuracy depends on simulation fidelity."
+        )
+        try:
+            if hasattr(next_state, "_replace"):
+                current_state = next_state._replace(current_time=actual_end_time)
+            elif hasattr(next_state, "__dict__"):
+                current_state = next_state
+                current_state.current_time = actual_end_time
+            else:
+                raise TypeError(
+                    f"Cannot update time for next_state of type {type(next_state)}"
+                )
+        except Exception as e_state_update:
+            log.error(
+                f"Error updating current state after execution: {e_state_update}. State might be inconsistent.",
+                exc_info=True,
+            )
+            task_failed = True
+            failure_reason = "Internal error: Failed to update state after execution."
+            break
 
         if not current_state.remaining_subtasks:
             log.info("All subtasks completed.")
             is_end = True
 
-        # 1.4: 최대 루프 도달 시 로그 및 실패 처리 (상수 값만 변경됨)
         if loop_count >= MAX_LOOPS:
             log.error(f"Maximum loop iterations ({MAX_LOOPS}) reached. Aborting.")
             task_failed = True
-            failure_reason = (
-                "Maximum iterations reached (potential infinite loop or stuck state)."
-            )
-            # --- 수정: 실패 시 completed_task_entry 또는 current_state의 마지막 완료 태스크 사용 ---
-            failed_task_entry = (
-                completed_task_entry
-                if "completed_task_entry" in locals() and completed_task_entry
-                else (
-                    current_state.completed_subtasks[-1]
-                    if current_state.completed_subtasks
-                    else None
-                )
-            )
-            # --- 수정 끝 ---
+            failure_reason = f"Maximum iterations reached ({MAX_LOOPS})."
+            break
 
     log.info("=" * 20 + " Execution Summary " + "=" * 20)
     if task_failed:
-        log.error(f"Task execution failed: {failure_reason}")
+        log.error(f"Task execution FAILED: {failure_reason}")
+        failed_at_task = potential_failed_entry
+        log.error(
+            f"  Failed during/after subtask: {failed_at_task.subtask.name if failed_at_task else 'Unknown'}"
+        )
+        log.error(
+            f"  Last successful subtask: {last_successful_entry.subtask.name if last_successful_entry else 'None'}"
+        )
+        log.error(f"  Failure occurred at time: {current_state.current_time:.2f}")
     else:
         log.info("Task execution finished successfully.")
 
-    # --- 1.2: 결과 저장 로직 수정 ---
     result_schedule = []
-    processed_names = set()  # 중복 추가 방지
-
-    # 실패 여부와 관계없이 current_state의 완료된 태스크 목록을 기반으로 결과 생성
+    processed_names = set()
     if current_state:
         for ce in current_state.completed_subtasks:
-            # Init 제외하고 아직 처리되지 않은 이름만 추가
             if ce.subtask.name != "Init" and ce.subtask.name not in processed_names:
                 result_schedule.append(ce)
                 processed_names.add(ce.subtask.name)
 
-    # --- 수정: 실패한 태스크를 명시적으로 추가 (이미 위에서 추가되지 않았다면) ---
-    # 실패한 태스크가 있고, Init이 아니며, 아직 결과에 없다면 추가
-    if task_failed and failed_task_entry and failed_task_entry.subtask.name != "Init":
-        if failed_task_entry.subtask.name not in processed_names:
-            # 실패 상태를 명확히 설정 (이미 루프에서 설정되었을 수 있음)
-            if hasattr(failed_task_entry.subtask, "execution_status"):
-                failed_task_entry.subtask.execution_status = False
-            else:
-                log.warning(
-                    f"Failed task entry '{failed_task_entry.subtask.name}' lacks 'execution_status' attribute. Cannot mark as failed explicitly."
-                )
-            result_schedule.append(failed_task_entry)
-            processed_names.add(failed_task_entry.subtask.name)
-        # 만약 failed_task_entry가 이미 result_schedule에 있다면, 상태만 업데이트
-        elif hasattr(failed_task_entry.subtask, "execution_status"):
+    if (
+        task_failed
+        and potential_failed_entry
+        and potential_failed_entry.subtask.name != "Init"
+    ):
+        if potential_failed_entry.subtask.name not in processed_names:
+            log.debug(
+                f"  Explicitly adding failed task '{potential_failed_entry.subtask.name}' to final schedule."
+            )
+            setattr(potential_failed_entry.subtask, "execution_status", False)
+            result_schedule.append(potential_failed_entry)
+        else:
             for entry in result_schedule:
-                if entry.subtask.name == failed_task_entry.subtask.name:
-                    entry.subtask.execution_status = False
+                if entry.subtask.name == potential_failed_entry.subtask.name:
+                    log.debug(
+                        f"  Updating status of task '{entry.subtask.name}' to FAILED."
+                    )
+                    setattr(entry.subtask, "execution_status", False)
                     break
-    # --- 수정 끝 ---
 
     log.info("--- Final Schedule ---")
     total_simulated_time = 0.0
     last_end_time = 0.0
     for ce in result_schedule:
-        # getattr을 사용하여 execution_status가 없는 경우 기본값 True 사용
         status_str = (
             "Success" if getattr(ce.subtask, "execution_status", True) else "Failed"
         )
-        # 시작/종료 시간 로깅 추가
         log.info(
             f"- {ce.subtask.name:<30} | Status: {status_str:<7} | Start: {ce.start_time:>6.2f} | End: {ce.end_time:>6.2f} | Duration: {(ce.end_time - ce.start_time):>6.2f}"
         )
-        # Init 제외하고 성공한 태스크의 duration만 합산 (실패 태스크 시간은 제외)
         if status_str == "Success" and ce.subtask.name != "Init":
             total_simulated_time += ce.end_time - ce.start_time
         if ce.end_time > last_end_time:
             last_end_time = ce.end_time
 
     log.info("-" * 60)
-    # --- 수정: simulation_time을 결과 스케줄의 마지막 종료 시간 또는 계산된 총 시간으로 설정 ---
-    # simulation_time = total_simulated_time # 이전: 성공한 태스크 시간 합계
-    simulation_time = last_end_time  # 수정: 마지막 태스크 완료 시간
+    simulation_time = last_end_time
     log.info(f"Total simulated time (last end time): {simulation_time:.2f}s")
-    # --- 수정 끝 ---
 
-    # result_save 호출 전 인자 확인
     result_args = {
-        "task_name": (
-            input_natural_language if input_natural_language else "Unknown Task"
-        ),
+        "task_name": input_natural_language or "Unknown Task",
         "approach_name": approach_name,
-        "result_schedule": result_schedule,  # 수정된 스케줄 전달
+        "result_schedule": result_schedule,
         "computation_time": computation_time,
-        "scene_name": SCENE_NAME if SCENE_NAME else "Unknown Scene",
-        "simulation_time": simulation_time,  # 수정된 시간 전달
+        "scene_name": SCENE_NAME or "Unknown Scene",
+        "simulation_time": simulation_time,
         "task_failed": task_failed,
         "failure_reason": failure_reason if task_failed else "N/A",
     }
-    # 누락된 키가 있는지 확인 (디버깅용)
-    # required_keys = ["task_name", "approach_name", "result_schedule", "computation_time", "scene_name", "simulation_time", "task_failed", "failure_reason"]
-    # for key in required_keys:
-    #     if key not in result_args:
-    #         log.error(f"Missing key '{key}' in result_args before calling result_save!")
-    #     elif result_args[key] is None and key != "failure_reason": # failure_reason은 None일 수 있음
-    #          log.warning(f"Key '{key}' is None in result_args.")
-
-    result_save(**result_args)
+    try:
+        result_save(**result_args)
+    except Exception as e_save:
+        log.error(f"Failed to save results: {e_save}", exc_info=True)
 
     if SAVE_KNOWLEDGE_ON_EXIT:
         try:
             agent.save_knowledge_to_file()
         except Exception as e:
             log.error(f"Failed to save agent knowledge: {e}", exc_info=True)
+
+    log.info("Execution finished.")
 
 
 if __name__ == "__main__":
