@@ -15,6 +15,7 @@ from utils.config.constants import (
 
 log = create_module_logger(__name__, module_log=True)
 
+
 class ActionHandler:
     def __init__(self, nav_graph):
         self.nav_graph = nav_graph

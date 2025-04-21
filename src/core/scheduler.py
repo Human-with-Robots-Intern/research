@@ -53,7 +53,9 @@ class Scheduler:
 
         self.action_handler = ActionHandler(nav_graph or {})
         self.constraint_handler = ConstraintHandler()
-        self.cost_calculator = HeuristicManager(self.constraint_handler)
+        self.cost_calculator = HeuristicManager(
+            self.constraint_handler, self.action_handler
+        )
 
         self._counter = itertools.count()
 
@@ -533,7 +535,7 @@ class Scheduler:
 
         if not post_actions_info:
             log.warning(
-                f"[_expand_subtask_with_monitoring] Entire pre subtask ends before monitoring cutoff => No split needed."
+                "[_expand_subtask_with_monitoring] Entire pre subtask ends before monitoring cutoff => No split needed."
             )
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
         early_sub = copy.deepcopy(candidate.subtask)
@@ -541,9 +543,6 @@ class Scheduler:
         early_sub.execution.primitive_actions = pre_actions_info.get_actions()
         early_sub.duration.interval = pre_actions_info.results[-1].time_used
         early_sub.decomposed = True
-
-        if early_sub.name.startswith("Wash Fork_early"):
-            pass
 
         remain_sub = copy.deepcopy(candidate.subtask)
         remain_sub.name += "_remain"

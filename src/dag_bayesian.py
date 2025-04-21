@@ -5,6 +5,7 @@ from core.agent import Agent
 from core.scheduler import Scheduler
 from ithor.handlers.navigation_handler import load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
+from utils.common.logger import create_module_logger
 from utils.config import BEAM_WIDTH, LOG_ROUND, SCENE_NAME, SIMULATION_DEPTH
 from utils.io_utils import (
     get_natural_language_from_task_file,
@@ -16,6 +17,8 @@ from utils.io_utils import (
 )
 from utils.task import TaskUtil
 from utils.visualizers import visualize
+
+log = create_module_logger(__name__, module_log=True)
 
 
 def parse_arguments():
@@ -53,7 +56,7 @@ def parse_arguments():
         type=str,
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="로그 출력 수준 설정 (default: INFO)"
+        help="로그 출력 수준 설정 (default: INFO)",
     )
 
     return parser.parse_args()
@@ -108,7 +111,9 @@ def main():
             log.error("No feasible solution found.")
             break
 
-        subtask_time, execution_status = execute_subtask(controller, next_state.subtask, args.log_level)
+        subtask_time, execution_status = execute_subtask(
+            controller, next_state.subtask, args.log_level
+        )
         # 시뮬레이션에서 반환해주는 시간을 subtask 객체에 저장.
         next_state.completed_subtasks[-1].subtask.start_time_simulation = (
             simulation_time
