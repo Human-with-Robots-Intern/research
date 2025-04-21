@@ -199,6 +199,19 @@ def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
     is_subtask_success = True  # Assume success initially
     start_real_time = time.time()  # For real-world timing (optional)
 
+    # --- 주석 추가: 외부 핸들러 의존성 ---
+    # NOTE: The accuracy of 'elapsed_time' and 'is_subtask_success' depends heavily
+    # on the implementation of the 'ithor.handlers.action.Action' handler ('act').
+    # Specifically:
+    # 1. The duration returned by handler methods (e.g., act.move_to) MUST accurately
+    #    reflect the simulated time cost. If it returns fixed values or simple estimates,
+    #    'elapsed_time' will not match reality.
+    # 2. Action success MUST be correctly determined, typically by checking
+    #    controller.last_event.metadata['lastActionSuccess'] after the handler call.
+    # 3. Assumed methods like act.monitoring, act.wait, act.fill MUST exist and
+    #    function as expected within the handler.
+    # -----------------------------------------
+
     for action_index, action_str in enumerate(primitive_actions):
         action_duration = 0.0  # Duration for this specific action
         action_success = False  # Success status for this specific action
@@ -220,17 +233,10 @@ def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
                 log.debug(
                     f"Executing action {action_index+1}/{len(primitive_actions)}: '{action_str}'"
                 )
-                # --- Execute Action ---
-                # --- TODO: AI2Thor Interaction Point ---
-                # 1. Verify action_mapping[action_type](target) correctly calls controller.step(...)
-                #    with parameters matching the AI2-THOR API documentation for the intended action.
-                # 2. Check how the underlying Action handler (ithor.handlers.action.Action)
-                #    determines the returned_duration. Is it based on physics steps, fixed values,
-                #    or API feedback? Ensure this aligns with ActionHandler's expectations in the scheduler.
+                # --- Execute Action via Handler ---
                 returned_duration = action_mapping[action_type](target)
 
-                # --- Process Result ---
-                # Check if a valid duration was returned
+                # --- Process Result (Check duration and metadata) ---
                 if (
                     isinstance(returned_duration, (int, float))
                     and returned_duration >= 0
@@ -242,16 +248,11 @@ def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
                     )
                     action_duration = 0.0
 
-                # Check action success from metadata (more robust access)
                 last_event = getattr(controller, "last_event", None)
-                last_metadata = (
-                    getattr(last_event, "metadata", None) if last_event else None
-                )
-
-                if last_metadata:
-                    action_success = last_metadata.get("lastActionSuccess", False)
+                if last_event:
+                    action_success = last_event.metadata.get("lastActionSuccess", False)
                     if not action_success:
-                        error_message = last_metadata.get(
+                        error_message = last_event.metadata.get(
                             "errorMessage", "No error message provided."
                         )
                         log.warning(

@@ -65,7 +65,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name, choice = get_user_task_choice(task_files, is_rag=args.rag)
+    task_file_name, choice = get_user_task_choice(task_files)
     task_data = load_task_data_from_file(task_file_name)
 
     # task_file_name을 입력 자연어로 번역

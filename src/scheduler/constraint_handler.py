@@ -372,13 +372,18 @@ class ConstraintHandler:
 
             # --- Check predecessor execution status ---
             # Use getattr for safe access to potentially missing attribute
-            pred_status = getattr(pred_entry.subtask, "execution_status", None)
-            # If status attribute is missing, log warning and assume success for now
-            if pred_status is None:
-                log.warning(
-                    f"Predecessor '{pred_name}' for '{sub.name}' completed but lacks 'execution_status'. Assuming success."
+            # --- 수정: execution_status 부재 시 오류 발생 ---
+            try:
+                pred_status = pred_entry.subtask.execution_status
+            except AttributeError:
+                log.error(
+                    f"CRITICAL: Predecessor '{pred_name}' for '{sub.name}' completed but lacks mandatory 'execution_status' attribute! Cannot determine feasibility."
                 )
-                pred_status = True  # Default assumption
+                # 필수 속성 누락 시 FAILED 상태 반환 또는 예외 발생
+                # return (None, False, "FAILED")
+                raise AttributeError(
+                    f"Predecessor '{pred_name}' is missing 'execution_status'."
+                )  # 예외 발생
 
             if pred_status is False:
                 # If any predecessor failed, this subtask cannot run
@@ -423,7 +428,7 @@ class ConstraintHandler:
             if abs(earliest_critical_time - latest_critical_time) > EPSILON:
                 log.error(
                     f"CONSTRAINT CONFLICT for '{sub.name}': Multiple distinct critical start times calculated: {critical_times}. "
-                    f"Check constraint graph logic. Proceeding with the LATEST required critical time: {latest_critical_time:.2f}"
+                    f"Check constraint graph logic. Applying policy: Using the LATEST required critical time: {latest_critical_time:.2f}"  # 정책 명시
                 )
                 # Policy: Use the latest required critical time in case of conflict.
                 final_start_time = latest_critical_time
@@ -443,7 +448,7 @@ class ConstraintHandler:
                 log.error(
                     f"CONSTRAINT CONFLICT for '{sub.name}': Required critical start time {final_start_time:.2f} "
                     f"is EARLIER than latest non-critical requirement {non_critical_earliest_start:.2f}. "
-                    f"Check constraint graph logic. Proceeding with the LATEST non-critical requirement time: {non_critical_earliest_start:.2f}"
+                    f"Check constraint graph logic. Applying policy: Using the LATEST non-critical requirement time: {non_critical_earliest_start:.2f}"  # 정책 명시
                 )
                 # Policy: Respect the non-critical dependency, use the later time.
                 final_start_time = non_critical_earliest_start

@@ -78,10 +78,21 @@ class ActionHandler:
         self, action_type: str, target_obj_id: Optional[str]
     ) -> float:
         """
-        Placeholder for estimating primitive action duration.
-        TODO (5.1): Replace this with actual AI2THOR interaction or a more sophisticated model.
+        Estimates primitive action duration.
+        *** WARNING: This is a placeholder implementation. ***
+        It returns fixed constants and does not interact with the actual simulator.
+        This MUST be replaced with interaction with AI2THOR or a realistic model.
         """
-        # Currently returns a fixed duration, ignoring target_obj_id
+        # --- 수정: NotImplementedError 발생 ---
+        # raise NotImplementedError(
+        #     "_estimate_primitive_duration is a placeholder and needs to be replaced "
+        #     "with actual simulator interaction or a valid duration model."
+        # )
+        # 주석 처리 유지 (실행은 가능하도록 하되, 경고성 주석 강화)
+        log.warning(
+            "_estimate_primitive_duration is using placeholder fixed durations. Replace with actual simulation logic."
+        )  # 경고 로그 추가
+
         default_duration = PRIMITIVE_ACTION_DURATION
         if action_type == "MONITORING":
             return MONITORING_DURATION
@@ -103,6 +114,11 @@ class ActionHandler:
         Handles GRASP/PLACE pairs spanning the cutoff.
         Returns two ActionSimulationLog objects (pre-cutoff, post-cutoff).
         Returns (None, None) if the initial full simulation fails.
+
+        NOTE: This implementation simulates the full sequence first, then re-simulates
+        the split parts. This could be inefficient for long sequences. Consider
+        optimizing by reusing results from the initial simulation if performance
+        becomes critical.
         """
         log.debug(
             f"Attempting to split actions at cutoff time: {cutoff_time:.2f} for node at time {current_node.state.current_time:.2f}"
@@ -288,6 +304,8 @@ class ActionHandler:
         """
         Simulates actions sequentially, updating the state within current_node.
         Raises ValueError on critical simulation errors (e.g., unknown action, object not found).
+        *** WARNING: Current action effects (duration, success, state changes) are based on placeholders. ***
+        Needs integration with actual AI2THOR calls and results.
         """
         action_log_info = ActionSimulationLog()
 
@@ -329,7 +347,15 @@ class ActionHandler:
             action_success = True  # Assume success initially
 
             try:
-                # --- MODIFIED: Wrap action simulation in try-except ---
+                # --- MODIFIED: Wrap action simulation in try-except ---\
+                # --- !!! Placeholder Warning !!! ---
+                # The following action logic (NAVIGATE_TO, GRASP, PLACE, etc.) uses
+                # placeholder durations (_estimate_primitive_duration) and assumes success
+                # without actual AI2THOR interaction.
+                # This needs to be replaced with calls to a simulator interface
+                # (like self.action_handler or controller.step) that returns
+                # actual duration and success status based on the simulation result.
+                # ----------------------------------
                 if action_type == "NAVIGATE_TO":
                     # ... (Navigation simulation logic) ...
                     # Inside navigation, if pathfinding fails or target unreachable, set action_success = False
@@ -431,15 +457,15 @@ class ActionHandler:
                     # TODO: Get success/duration from actual AI2THOR event
                 else:
                     log.error(f"Unknown action type encountered: '{action_type}'")
-                    action_success = False  # Mark unknown action as failed
-                    action_duration = 0
+                    # --- 수정: 알 수 없는 액션 시 에러 발생시키기 ---
+                    # action_success = False
+                    # action_duration = 0
+                    raise ValueError(f"Unknown action type: {action_type}")  # 에러 발생
 
-            except ValueError as e:
+            except ValueError as e:  # ValueError 포함하여 예외 처리 강화
                 log.error(f"Action '{prim_action}' failed during simulation: {e}")
                 action_success = False
-                action_duration = (
-                    0  # No time elapses for immediate failure due to bad input/state
-                )
+                action_duration = 0
 
             # Accumulate time *only if action was successful* (or partially successful for nav)
             # If action failed immediately, duration is 0, time_used doesn't increase.

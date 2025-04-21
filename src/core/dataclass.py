@@ -1,20 +1,21 @@
 from dataclasses import dataclass, field
-from typing import List, NamedTuple, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import networkx as nx
-from networkx import DiGraph
 
 from core.task import Subtask
 
 
 @dataclass
 class ActionResult:
-    action_full_name: str
-    action_type: str
+    action_full_name: str  # 액션 전체 이름 (예: "Pick MoveToObj1")
+    action_type: str  # 액션 타입 (예: "Interaction", "Monitor")
     time_used: float  # 누적 시간 (이 액션이 종료된 시점)
     action_duration: float  # 이 액션에 걸린 소요 시간
-    scene_positions: dict[str, Tuple[float, float, float]]
-    held_object: Optional[str] = None
+    scene_positions: dict[
+        str, Tuple[float, float, float]
+    ]  # 액션 완료 이후, 모든 obj의 포지션
+    held_object: Optional[str] = None  # 액션 완료 이후, 들고 있는 객체
 
     def __repr__(self):
         return f"({self.action_full_name}, {self.action_type}, {self.time_used}, {self.action_duration}, {self.held_object})"
@@ -94,9 +95,9 @@ class CompletedEntry:
     완료된 Subtask에 대해, (Subtask, start_time, end_time)을 함께 저장
     """
 
-    subtask: Subtask
-    start_time: float
-    end_time: float
+    subtask: Subtask  # 완료된 Subtask
+    start_time: float  # 시작 시간
+    end_time: float  # 종료 시간
 
     def __repr__(self):
         return f"({self.subtask.name}, {self.start_time:.2f} ~ {self.end_time:.2f})"
@@ -108,13 +109,13 @@ class SchedulerState:
     현재 스케쥴 상태를 저장하는 dataclass
     """
 
-    subtask: Subtask
-    completed_subtasks: List[CompletedEntry]
-    remaining_subtasks: List[Subtask]
-    constraints: nx.DiGraph
-    current_time: float
-    scene_positions: dict[str, Tuple[float, float, float]]
-    held_object: Optional[str]
+    subtask: Subtask  # 현재 실행 중인 Subtask
+    completed_subtasks: List[CompletedEntry]  # 완료된 Subtask들
+    remaining_subtasks: List[Subtask]  # 남은 Subtask들
+    constraints: nx.DiGraph  # 제약 그래프
+    current_time: float  # 현재 시간
+    scene_positions: dict[str, Tuple[float, float, float]]  # 현재 모든 obj의 포지션
+    held_object: Optional[str] = None  # 현재 들고 있는 객체
     global_deadline: Optional[float] = None
 
 
@@ -125,10 +126,10 @@ class SimulationNode:
     """
 
     # 비교 순서: heuristic_cost -> depth -> tie_breaker 순으로 비교됨
-    heuristic_cost: float
-    depth: int
+    heuristic_cost: float  # 휴리스틱 비용
+    depth: int  # 탐색 깊이
     tie_breaker: int  # cost, depth가 같을 때 비교하기 위한 필드
-    # 비교에 포함되지 않도록 compare=False 설정 (NamedTuple에는 없던 기능)
+    # 비교에 포함되지 않도록 compare=False 설정
     parent_node: Optional["SimulationNode"] = field(compare=False)
     state: SchedulerState = field(compare=False)
 
@@ -139,9 +140,9 @@ class TimeSlot:
     Subtask 간의 제약 시간을 저장하는 데이터 클래스
     """
 
-    interval: float
-    is_critical: bool
-    related_subtask_name: Optional[str]
+    interval: float  # 시간 간격
+    is_critical: bool  # 중요한 시간 제약 여부
+    related_subtask_name: Optional[str] = None  # 관련된 Subtask 이름
 
     def __repr__(self):
         name_repr = (
@@ -158,8 +159,8 @@ class Deadline:
     Subtask의 데드라인을 저장하는 데이터 클래스
     """
 
-    due_date: float
-    subtask_name: Optional[str]
+    due_date: float  # 데드라인 시간
+    subtask_name: Optional[str] = None  # 관련된 Subtask 이름
 
     def __repr__(self):
         name_repr = f"subtask_name={self.subtask_name}" if self.subtask_name else "None"
@@ -172,10 +173,10 @@ class Candidate:
     Subtask의 실행 가능 여부를 판단하기 위한 데이터 클래스
     """
 
-    subtask: "Subtask"
-    is_critical: bool
-    adjusted_start_time: float
-    logical_start_time: float
+    subtask: "Subtask"  # 후보 Subtask
+    is_critical: bool  # 중요한 시간 제약 여부
+    adjusted_start_time: float  # 조정된 시작 시간
+    logical_start_time: float  # 논리적 시작 시간
     deadline: Optional[Deadline] = field(
         default_factory=lambda: Deadline(float("inf"), None)
     )

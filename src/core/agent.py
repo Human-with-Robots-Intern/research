@@ -427,6 +427,7 @@ class Agent:
         critical_elapsed_interval = state.current_time - critical_start_sub_end_time
         # Clamp negative elapsed time (can happen due to float precision or logic errors)
         if critical_elapsed_interval < 0:
+            # --- 수정: 로그 레벨 Warning -> Error, 메시지 강화 ---
             log.error(  # WARNING -> ERROR
                 f"Elapsed time ({critical_elapsed_interval:.2f}) is negative. "
                 f"(Current: {state.current_time:.2f}, CritStartEnd: {critical_start_sub_end_time:.2f}). "

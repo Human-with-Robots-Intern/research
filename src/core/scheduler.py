@@ -469,10 +469,10 @@ class Scheduler:
         start_time = curr_state.current_time
         end_time = start_time + last_action_info.time_used
 
-        # * (2) subtask 종료 시각이 deadline보다 느리면 infeasible (기존 로직 유지)
-        if (
-            candidate.deadline.due_date < end_time - EPSILON
-        ):  # Add epsilon for float comparison
+        # * (2) subtask 종료 시각이 deadline보다 느리면 infeasible 수정
+        # 기존: candidate.deadline.due_date < end_time - EPSILON
+        # 수정: end_time이 deadline을 명확히 초과하면 infeasible
+        if end_time > candidate.deadline.due_date + EPSILON:
             log.debug(
                 f"[_expand_subtask_wo_monitoring] Deadline {candidate.deadline.due_date:.2f} violated by "
                 f"subtask end time {end_time:.2f} for {candidate.subtask.name}. Infeasible expansion."
@@ -483,7 +483,7 @@ class Scheduler:
                 heuristic_cost=LARGE_NUMBER,
                 depth=curr_node.depth + 1,
                 tie_breaker=next(self._counter),
-                state=curr_node.state,
+                state=curr_node.state,  # 상태는 변경하지 않음 (실패한 확장)
             )
 
         # * (3) subtask 복사 & duration 설정 (기존 로직 유지)
@@ -568,7 +568,7 @@ class Scheduler:
         """
         curr_state = curr_node.state
         curr_cost = curr_node.heuristic_cost
-        depth = curr_node.depth
+        curr_depth = curr_node.depth
 
         log.debug(
             f"[_expand_subtask_with_monitoring] Splitting subtask {candidate.subtask.name} into monitoring form."
@@ -852,7 +852,7 @@ class Scheduler:
         return SimulationNode(
             parent_node=curr_node,
             heuristic_cost=new_cost,
-            depth=depth + 1,
+            depth=curr_depth + 1,
             tie_breaker=next(self._counter),
             state=new_state,
         )
@@ -1245,11 +1245,21 @@ class Scheduler:
         """
         curr_state = curr_node.state
         curr_cost = curr_node.heuristic_cost
-        depth = curr_node.depth
+        curr_depth = curr_node.depth
 
-        # [수정됨] 기다리는 시간을 조정된 시작 시간 기준으로 계산 (필드 이름 변경됨)
+        # * (1) subtask가 시작될 때까지 기다려야 하는 시간 계산
+        # adjusted_start_time은 이미 navigation 시간을 고려한 값임
+        # current_time보다 adjusted_start_time이 이전이면 즉시 시작 가능 (wait_duration = 0)
         wait_duration = candidate.adjusted_start_time - curr_state.current_time
-        wait_duration = max(0, wait_duration)  # 음수 방지
+        if wait_duration < 0:
+            log.debug(
+                f"[_expand_wait_wo_monitoring] Adjusted start time {candidate.adjusted_start_time:.2f} is before current time {curr_state.current_time:.2f} "
+                f"for {candidate.subtask.name}. Clamping wait duration {wait_duration:.2f} to 0."
+            )
+            wait_duration = 0  # 음수 대기 시간은 0으로 처리
+
+        start_time = curr_state.current_time + wait_duration  # 대기 후 시작 시간
+        end_time = start_time  # Wait 액션 자체의 시간은 0
 
         wait_sub = Subtask(
             task_name=None,
@@ -1262,9 +1272,6 @@ class Scheduler:
             ),
             temporal_constraints=None,
         )
-
-        start_time = curr_state.current_time
-        end_time = curr_state.current_time + wait_duration
 
         completed_entry = CompletedEntry(wait_sub, start_time, end_time)
         new_completed = curr_state.completed_subtasks + [completed_entry]
@@ -1294,7 +1301,7 @@ class Scheduler:
         return SimulationNode(
             parent_node=curr_node,
             heuristic_cost=new_cost,
-            depth=depth + 1,
+            depth=curr_depth + 1,
             tie_breaker=next(self._counter),
             state=new_state,
         )

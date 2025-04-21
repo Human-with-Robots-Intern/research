@@ -46,7 +46,10 @@ class HeuristicManager:
         self.alpha = 1.0  # Navigation time weight
         self.beta = 1.5  # Urgency (slack) weight
         self.zeta = 0.1  # Remaining work estimate weight
-        self.gamma = 0.5  # Wait time penalty weight (7.3 추가)
+        # --- 주석 추가: 미사용 파라미터 ---
+        self.gamma = (
+            0.5  # Wait time penalty weight (Currently unused in calc_heuristic)
+        )
         # ----------------------------------------------------------
         if self.agent:
             log.info("HeuristicManager initialized with Agent knowledge.")
@@ -194,6 +197,10 @@ class HeuristicManager:
                         try:
                             # Find all simple paths (no cycles) between candidate end and deadline start
                             # This can be computationally expensive! Consider optimizing (e.g., critical path).
+                            # --- 주석 추가: 잠재적 성능 병목 ---
+                            # NOTE: Calculating all simple paths can be computationally expensive
+                            # for complex graphs. Consider optimization (e.g., using critical path estimation)
+                            # if performance becomes an issue.
                             all_paths = list(
                                 nx.all_simple_paths(
                                     constraints,
