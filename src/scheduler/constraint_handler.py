@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 import networkx as nx
 from networkx import DiGraph
 
-from core.dataclass import Candidate, Deadline, SimulationNode, TimeSlot
+from core.dataclass import ActionResult, Candidate, Deadline, SimulationNode, TimeSlot
 from core.task import Subtask
 
 # from scheduler.action_handler import ActionHandler
@@ -70,282 +70,144 @@ class ConstraintHandler:
         )
 
         for sub in remaining_subtasks:
-            # Check if the subtask is ready based on predecessor constraints
-            # Returns: (logical_start_time, is_critical, predecessor_status)
-            logical_start_time, is_critical, pred_status = self.get_earliest_start_time(
+            # 1. 논리적 제약 조건 확인 (선행 태스크 완료 여부, 시간 제약)
+            logical_start_time, is_critical, status = self.get_earliest_start_time(
                 curr_node, sub
             )
 
-            # --- Filter based on predecessor status ---
-            if pred_status == "FAILED":
+            # 선행 태스크 실패 또는 제약 조건 오류 시 후보에서 제외
+            if (
+                status == "FAILED_PREDECESSOR"
+                or status == "CONSTRAINT_ERROR"
+                or status == "CONFLICT"
+            ):
                 log.warning(
-                    f"Subtask '{sub.name}' skipped: Predecessor check indicates failure or conflict."
+                    f"Subtask '{sub.name}' cannot be scheduled due to status: {status}. Skipping."
                 )
-                continue  # Skip candidate if predecessors failed or constraints conflict
-            if pred_status is None:  # Not 'COMPLETED' or 'FAILED'
-                log.debug(
-                    f"Subtask '{sub.name}' not ready yet (predecessors not completed)."
-                )
-                continue  # Skip candidate if predecessors not yet finished
+                continue
 
-            # --- Estimate Navigation Time (using dedicated ActionHandler method) ---
+            # 선행 태스크 미완료 시 not_yet 후보로 분류 (status == "NOT_READY")
+            if logical_start_time is None or status == "NOT_READY":
+                log.debug(
+                    f"Subtask '{sub.name}' is not yet ready (predecessors not finished). Adding to not_yet_candidates."
+                )
+                # not_yet 후보에 필요한 정보 추가 (예: 예상 준비 시간 등)
+                # 여기서는 Candidate 객체만 추가하고, 추후 deadline 할당 등에서 활용 가능
+                not_yet_candidates.append(
+                    Candidate(subtask=sub, is_critical=is_critical, status="NOT_READY")
+                )  # status 추가
+                continue
+
+            # 2. 물리적 제약 조건 확인 (네비게이션 시간 등)
+            #    - 현재 위치에서 서브태스크 시작 위치까지 네비게이션 시간 예측
+            #    - 서브태스크 실행에 필요한 자원 가용성 확인 (예: 특정 도구, 공간 등 - 현재 미구현)
             estimated_nav_time = 0.0
-            nav_estimation_failed = False
             try:
-                # Call the dedicated (assumed improved) navigation time estimation method
-                # This method should ideally consider the task type, target location,
-                # and potentially multiple initial actions or agent state.
-                estimated_nav_time = self.action_handler.get_navigation_time_estimate(
-                    curr_node, sub
+                # 첫 번째 액션(주로 네비게이션)을 기반으로 시간 예측 시도
+                first_action = (
+                    sub.execution.primitive_actions[0]
+                    if sub.execution and sub.execution.primitive_actions
+                    else None
                 )
-
-                if estimated_nav_time == float("inf"):
-                    log.warning(
-                        f"Task '{sub.name}': Navigation deemed infeasible by ActionHandler."
+                if first_action and first_action.upper().startswith("NAVIGATE_TO"):
+                    # ActionHandler를 사용하여 네비게이션 시간 예측
+                    # 주의: get_actions_info는 실제 시뮬레이션 기반일 수 있으므로 비용이 클 수 있음
+                    # 더 가벼운 예측 함수가 ActionHandler에 필요할 수 있음
+                    nav_info: Optional[ActionResult] = (
+                        self.action_handler.get_actions_info(curr_node, [first_action])
                     )
-                    nav_estimation_failed = True
-                elif estimated_nav_time < 0:
-                    log.warning(
-                        f"Task '{sub.name}': Received negative nav estimate ({estimated_nav_time:.2f}). Using 0."
-                    )
-                    estimated_nav_time = 0.0
-
-                log.debug(
-                    f"Task '{sub.name}': Estimated nav/setup time from ActionHandler: {estimated_nav_time:.2f}s"
-                )
-
-            except AttributeError:
-                # Fallback if the dedicated method doesn't exist on ActionHandler yet
-                log.warning(
-                    f"ActionHandler does not have 'get_navigation_time_estimate'. Falling back to simulating first action."
-                )
-                try:
-                    first_action = sub.execution.primitive_actions[0]
-                    sim_node_for_nav = copy.deepcopy(curr_node)
-                    action_info = self.action_handler.get_actions_info(
-                        sim_node_for_nav, [first_action]
-                    )
-                    if action_info is None or action_info.time_used < 0:
-                        log.warning(
-                            f"Task '{sub.name}': Fallback nav estimation failed. Assuming infinite time."
-                        )
-                        nav_estimation_failed = True
+                    if nav_info:
+                        estimated_nav_time = (
+                            nav_info.action_duration
+                        )  # action_duration이 순수 네비게이션 시간을 나타낸다고 가정
                     else:
-                        estimated_nav_time = action_info.action_duration
-                        log.debug(
-                            f"Task '{sub.name}': Fallback estimated nav/setup time: {estimated_nav_time:.2f}s"
+                        log.warning(
+                            f"Could not estimate navigation time for '{first_action}' for subtask '{sub.name}'. Assuming 0."
                         )
-                except Exception as e_fallback:
-                    log.error(
-                        f"Task '{sub.name}': Error during fallback nav estimation: {e_fallback}. Assuming infinite time.",
-                        exc_info=True,
-                    )
-                    nav_estimation_failed = True
-
-            except Exception as e:
+                # 다른 종류의 첫 액션에 대한 준비 시간 예측 로직 추가 가능
+            except Exception as e_nav_est:
                 log.error(
-                    f"Task '{sub.name}': Error during navigation time estimation: {e}. Assuming infinite time.",
+                    f"Error estimating preparation time for subtask '{sub.name}': {e_nav_est}",
                     exc_info=True,
                 )
-                nav_estimation_failed = True
+                # 예측 실패 시 안전하게 0으로 처리하거나 후보에서 제외할 수 있음
 
-            # --- Calculate Adjusted Start Time ---
-            if nav_estimation_failed:
-                adjusted_start_time_val = float("inf")
-                log.warning(
-                    f"Task '{sub.name}' has infeasible navigation, setting adjusted_start_time to infinity."
-                )
-            else:
-                adjusted_start_time_val = logical_start_time - estimated_nav_time
+            # 3. 최종 시작 가능 시간 계산 및 Feasibility 판단
+            #    물리적 준비 시간(네비게이션) + 논리적 시작 가능 시간
+            earliest_possible_start_time = logical_start_time + estimated_nav_time
 
-            log.debug(
-                f"Task '{sub.name}': LogicalEST={logical_start_time:.2f}, EstNavTime={estimated_nav_time:.2f}, AdjustedEST={adjusted_start_time_val:.2f}"
-            )
+            # 현재 시간 이후에만 시작 가능
+            adjusted_start_time = max(current_time, earliest_possible_start_time)
 
-            # Create the candidate object
-            candidate_obj = Candidate(
+            # 최종 후보 생성
+            candidate = Candidate(
                 subtask=sub,
                 is_critical=is_critical,
-                adjusted_start_time=adjusted_start_time_val,
-                logical_start_time=logical_start_time,  # Keep logical time for reference
+                status=status,  # "COMPLETED" 또는 다른 유효 상태
+                logical_start_time=logical_start_time,
+                estimated_nav_time=estimated_nav_time,
+                earliest_start_time=adjusted_start_time,  # 최종 조정된 시작 시간
             )
 
-            # --- Determine Feasibility based on Adjusted Start Time ---
-            # Check if the agent can start now or needs to wait
-
-            # Using Adjusted EST for feasibility check
-            check_time = adjusted_start_time_val
-
-            # Add a small epsilon for floating point comparisons (used below for non-critical)
-            if is_critical:
-                # --- MODIFIED Critical Check ---
-                # Critical tasks MUST start close to their adjusted start time
-                time_diff = current_time - check_time
-                if abs(time_diff) < CRITICAL_TIME_TOLERANCE:
-                    log.debug(
-                        f"Critical task '{sub.name}' is feasible now (Diff: {time_diff:.3f}, Tol: {CRITICAL_TIME_TOLERANCE})."
-                    )
-                    feasible_candidates.append(candidate_obj)
-                elif (
-                    time_diff < 0
-                ):  # current_time < check_time - CRITICAL_TIME_TOLERANCE => Need to wait
-                    log.debug(
-                        f"Critical task '{sub.name}' is not yet ready (needs wait). AdjustedEST: {check_time:.2f}"
-                    )
-                    not_yet_candidates.append(candidate_obj)
-                else:  # current_time > check_time + CRITICAL_TIME_TOLERANCE
-                    # Critical start time window has passed!
-                    log.error(  # Changed from CRITICAL to ERROR
-                        f"MISSED CRITICAL START WINDOW for '{sub.name}'! "
-                        f"Current Time: {round(current_time, LOG_ROUND)}, "
-                        f"Required Start Window: ~{round(check_time, LOG_ROUND)} +/- {CRITICAL_TIME_TOLERANCE}. "
-                        f"Difference: {time_diff:.3f}. Candidate is infeasible."
-                    )
-                    # Do not add to feasible or not_yet lists
-            else:  # Non-critical tasks
-                # Can start if current time is at or after the adjusted start time
-                if current_time >= check_time - EPSILON:
-                    log.debug(f"Non-critical task '{sub.name}' is feasible now.")
-                    feasible_candidates.append(candidate_obj)
-                else:  # Need to wait for non-critical start
-                    log.debug(
-                        f"Non-critical task '{sub.name}' is not yet ready (needs wait). AdjustedEST: {check_time:.2f}"
-                    )
-                    not_yet_candidates.append(candidate_obj)
-
-        # Assign deadlines based on the next upcoming critical task among not_yet candidates
-        # This modifies feasible_candidates in-place by adding deadline info
-        feasible_candidates_with_deadlines = self._assign_deadlines(
-            feasible_candidates, not_yet_candidates, curr_node
-        )
-
-        log.info(
-            f"Found {len(feasible_candidates_with_deadlines)} feasible and {len(not_yet_candidates)} not-yet candidates."
-        )
-        return (feasible_candidates_with_deadlines, not_yet_candidates)
-
-    def _assign_deadlines(
-        self,
-        feasible: List[Candidate],
-        not_yet: List[Candidate],
-        curr_node: SimulationNode,
-    ) -> List[Candidate]:
-        """
-        Assigns deadlines to feasible candidates based on the earliest upcoming
-        critical task found in the not_yet list.
-        """
-        # Find the earliest adjusted start time among upcoming critical tasks
-        crit_candidates = [
-            c for c in not_yet if c.is_critical and c.status != "MISSED_CRITICAL"
-        ]
-        crit_candidates.sort(
-            key=lambda x: x.adjusted_start_time
-        )  # Sort by adjusted start time
-
-        if not crit_candidates:
-            # No upcoming critical tasks in the 'not_yet' list
-            deadline_time = float("inf")
-            deadline_reason_subtask_name = "None"
-        else:
-            next_crit = crit_candidates[0]
-            # The deadline is the adjusted start time of the next critical task
-            deadline_time = next_crit.adjusted_start_time
-            deadline_reason_subtask_name = next_crit.subtask.name
-            log.debug(
-                f"Next critical task '{deadline_reason_subtask_name}' sets deadline at AdjustedEST {deadline_time:.2f}"
-            )
-
-        # Assign the calculated deadline to all currently feasible candidates
-        for c in feasible:
-            c.deadline = Deadline(deadline_time, deadline_reason_subtask_name)
-            log.debug(
-                f"  Assigned deadline to feasible '{c.subtask.name}': Due={c.deadline.due_date:.2f} (due to next critical '{c.deadline.subtask_name}')"
-            )
-
-        # 6.3: 전역 데드라인 고려
-        global_deadline = curr_node.state.global_deadline
-        final_deadline_time = deadline_time
-        if global_deadline is not None:
-            if deadline_time == float("inf"):
-                final_deadline_time = global_deadline
-                deadline_reason_subtask_name = "Global"
+            # 현재 시간에 즉시 시작 가능한 경우 feasible
+            if adjusted_start_time <= current_time + EPSILON:
                 log.debug(
-                    f"No upcoming critical task, using global deadline: {global_deadline:.2f}"
+                    f"Subtask '{sub.name}' is feasible now. Adjusted start: {adjusted_start_time:.2f}"
                 )
-            elif deadline_time > global_deadline:
-                final_deadline_time = global_deadline
-                original_reason = deadline_reason_subtask_name
-                deadline_reason_subtask_name = (
-                    f"Global (earlier than {original_reason})"
-                )
+                feasible_candidates.append(candidate)
+            else:
+                # 즉시 시작은 불가능하지만, 미래에 가능할 것으로 예상되는 경우 not_yet
                 log.debug(
-                    f"Global deadline {global_deadline:.2f} is earlier than next critical task deadline {deadline_time:.2f}. Using global."
+                    f"Subtask '{sub.name}' is not yet feasible (requires nav/wait). Adjusted start: {adjusted_start_time:.2f}. Adding to not_yet_candidates."
                 )
-            # else: critical deadline is earlier than global, use critical
+                not_yet_candidates.append(candidate)
 
-        for c in feasible:
-            c.deadline = Deadline(final_deadline_time, deadline_reason_subtask_name)
-            log.debug(
-                f"  Assigned deadline to feasible '{c.subtask.name}': Due={c.deadline.due_date:.2f} (due to next critical '{c.deadline.subtask_name}')"
-            )
-
-        return feasible
+        return feasible_candidates, not_yet_candidates
 
     def get_earliest_start_time(
         self, curr_node: SimulationNode, sub: Subtask
-    ) -> Tuple[Optional[float], bool, Optional[str]]:
+    ) -> Tuple[Optional[float], bool, str]:
         """
         Calculates the logical earliest start time for subtask 'sub' based on
         predecessor completion times and constraint intervals.
-        Checks for predecessor failures and constraint conflicts.
-
-        Returns:
-            Tuple[Optional[float], bool, Optional[str]]:
-            - logical_start_time (float or None): Earliest time based on constraints, None if not ready or conflict.
-            - is_critical (bool): True if determined by a critical constraint.
-            - predecessor_status (str or None): "COMPLETED", "FAILED", None (if not finished).
+        Returns: (earliest_start_time, is_critical, status)
+        Status can be: "COMPLETED", "NOT_READY", "FAILED_PREDECESSOR", "CONSTRAINT_ERROR", "CONFLICT"
         """
         curr_constraints = curr_node.state.constraints
+        if not curr_constraints or not isinstance(curr_constraints, nx.DiGraph):
+            log.error(
+                f"Invalid constraint graph provided for state at time {curr_node.state.current_time:.2f}. Cannot process subtask '{sub.name}'."
+            )
+            return None, False, "CONSTRAINT_ERROR"
 
-        # --- MODIFIED: Add cycle check before using the graph ---
+        if sub.name not in curr_constraints:
+            log.debug(
+                f"Subtask '{sub.name}' not found in constraint graph. Assuming ready at time 0."
+            )
+            # 제약 그래프에 없는 태스크는 선행 조건 없이 즉시 가능하다고 간주 (시간 0)
+            return 0.0, False, "COMPLETED"  # 상태 COMPLETED로 명시
+
         if not nx.is_directed_acyclic_graph(curr_constraints):
             log.error(
                 f"CONSTRAINT ERROR: Cycle detected in the constraint graph for state at time {curr_node.state.current_time:.2f}! "
                 f"Cannot reliably calculate earliest start time for '{sub.name}'. Check constraint update logic."
             )
-            # Depending on desired behavior, could return (None, False, "FAILED") or raise an exception.
-            # Returning FAILED status for now.
-            return (None, False, "FAILED")
+            return None, False, "CONSTRAINT_ERROR"
 
         # Create a map for faster lookup of completed task entries
         completed_subtasks_map = {
             ce.subtask.name: ce for ce in curr_node.state.completed_subtasks
         }
 
-        # Check if the subtask exists in the graph
-        if sub.name not in curr_constraints:
-            # Handle tasks not in graph (e.g., 'Init' or dynamically added tasks without preds)
-            log.warning(
-                f"Subtask '{sub.name}' not found in constraint graph. Assuming ready at time 0."
-            )
-            # 'Init' task has no predecessors, others might implicitly start at 0
-            return (
-                (0.0, False, "COMPLETED") if sub.name != "Init" else (0.0, False, None)
-            )
-
         # Get incoming edges (predecessors)
         in_edges = list(curr_constraints.in_edges(sub.name, data=True))
         if not in_edges:
             # No predecessors, can start immediately
             log.debug(f"Subtask '{sub.name}' has no predecessors. Ready at time 0.")
-            return (0.0, False, "COMPLETED")
+            return 0.0, False, "COMPLETED"
 
-        critical_times = (
-            []
-        )  # Store potential start times dictated by critical constraints
-        non_critical_earliest_start = (
-            0.0  # Earliest start time based on non-critical constraints
-        )
+        critical_times = []
+        non_critical_earliest_start = 0.0
         all_predecessors_finished = True
         any_predecessor_failed = False
 
@@ -371,30 +233,35 @@ class ConstraintHandler:
                 continue  # Cannot calculate start time if a predecessor is not finished
 
             # --- Check predecessor execution status ---
-            # Use getattr for safe access to potentially missing attribute
-            # --- 수정: execution_status 부재 시 오류 발생 ---
             try:
-                pred_status = pred_entry.subtask.execution_status
-            except AttributeError:
-                log.error(
-                    f"CRITICAL: Predecessor '{pred_name}' for '{sub.name}' completed but lacks mandatory 'execution_status' attribute! Cannot determine feasibility."
-                )
-                # 필수 속성 누락 시 FAILED 상태 반환 또는 예외 발생
-                # return (None, False, "FAILED")
-                raise AttributeError(
-                    f"Predecessor '{pred_name}' is missing 'execution_status'."
-                )  # 예외 발생
+                # Use getattr for safe access
+                pred_status = getattr(
+                    pred_entry.subtask, "execution_status", True
+                )  # 기본값을 True로 간주 (상태 기록이 없는 경우 성공으로 가정)
+                if pred_status is None:
+                    # 속성 자체가 없거나 값이 None인 경우 (이 경우는 위 기본값 True로 인해 거의 발생 안 함)
+                    log.warning(
+                        f"Predecessor '{pred_name}' for '{sub.name}' completed but 'execution_status' is None. Assuming SUCCESS based on default."
+                    )
+                    pred_status = True  # 명시적으로 True 설정
+                elif pred_status is False:
+                    # If any predecessor explicitly failed
+                    any_predecessor_failed = True
+                    log.warning(
+                        f"Predecessor '{pred_name}' for '{sub.name}' FAILED execution. '{sub.name}' cannot start."
+                    )
+                    break  # Exit the loop early
 
-            if pred_status is False:
-                # If any predecessor failed, this subtask cannot run
-                any_predecessor_failed = True
-                log.warning(
-                    f"Predecessor '{pred_name}' for '{sub.name}' FAILED execution. '{sub.name}' cannot start."
+            except Exception as e_status:  # 예상치 못한 다른 에러 발생 시
+                log.error(
+                    f"Error accessing execution_status for predecessor '{pred_name}': {e_status}. Treating as FAILED.",
+                    exc_info=True,
                 )
-                # No need to check further predecessors if one failed
-                break  # Exit the loop early
+                any_predecessor_failed = True
+                break  # 이 서브태스크는 실행 불가, 루프 중단
 
             # --- Calculate potential start time based on this predecessor ---
+            # (any_predecessor_failed가 True면 이 부분은 실행되지 않음)
             pred_end_time = pred_entry.end_time
             candidate_start_time = pred_end_time + interval
 
@@ -409,11 +276,11 @@ class ConstraintHandler:
         # --- Determine final result based on checks ---
         if any_predecessor_failed:
             # If any predecessor failed, return FAILED status
-            return (None, False, "FAILED")
+            return None, False, "FAILED_PREDECESSOR"
 
         if not all_predecessors_finished:
             # If predecessors are okay so far but not all finished, return None status
-            return (None, False, None)
+            return None, False, "NOT_READY"
 
         # --- Check for conflicts if all predecessors completed successfully ---
         final_start_time = 0.0
@@ -427,32 +294,29 @@ class ConstraintHandler:
             # Check for conflicting critical times
             if abs(earliest_critical_time - latest_critical_time) > EPSILON:
                 log.error(
-                    f"CONSTRAINT CONFLICT for '{sub.name}': Multiple distinct critical start times calculated: {critical_times}. "
-                    f"Check constraint graph logic. Applying policy: Using the LATEST required critical time: {latest_critical_time:.2f}"  # 정책 명시
+                    f"CRITICAL CONSTRAINT CONFLICT for '{sub.name}': Multiple distinct critical start times required by predecessors: {sorted(critical_times)}. "
+                    f"This indicates an issue in the constraint graph definition or update logic. "
+                    f"Cannot resolve conflict. Marking as infeasible."
                 )
                 # Policy: Use the latest required critical time in case of conflict.
-                final_start_time = latest_critical_time
+                return None, True, "CONFLICT"
             else:
                 # All critical times agree
-                final_start_time = (
-                    earliest_critical_time  # Or latest_critical_time, they are the same
-                )
+                final_start_time = earliest_critical_time
 
-            is_final_critical = (
-                True  # Mark as critical if any critical constraint exists
-            )
+            is_final_critical = True
 
             # Check if the (latest) critical time conflicts with non-critical time
-            # The final start time must be >= the latest non-critical requirement
             if final_start_time < non_critical_earliest_start - EPSILON:
                 log.error(
-                    f"CONSTRAINT CONFLICT for '{sub.name}': Required critical start time {final_start_time:.2f} "
+                    f"CRITICAL/NON-CRITICAL CONFLICT for '{sub.name}': Required critical start time {final_start_time:.2f} "
                     f"is EARLIER than latest non-critical requirement {non_critical_earliest_start:.2f}. "
-                    f"Check constraint graph logic. Applying policy: Using the LATEST non-critical requirement time: {non_critical_earliest_start:.2f}"  # 정책 명시
+                    f"This indicates an issue in the constraint graph definition or update logic. "
+                    f"Cannot resolve conflict. Marking as infeasible."
                 )
                 # Policy: Respect the non-critical dependency, use the later time.
-                final_start_time = non_critical_earliest_start
-                # Keep is_final_critical = True because a critical constraint *was* involved.
+                return None, True, "CONFLICT"
+                # is_final_critical remains True because a critical constraint was involved.
         else:
             # No critical constraints, determined by latest non-critical predecessor
             final_start_time = non_critical_earliest_start
@@ -462,3 +326,44 @@ class ConstraintHandler:
             f"Subtask '{sub.name}' ready at {final_start_time:.2f} (Critical: {is_final_critical})"
         )
         return (final_start_time, is_final_critical, "COMPLETED")
+
+    def _assign_deadlines(
+        self,
+        feasible: List[Candidate],
+        not_yet: List[Candidate],
+        curr_node: SimulationNode,
+    ) -> List[Candidate]:
+        """
+        Assigns deadlines to feasible candidates based on the earliest upcoming
+        critical task found in the not_yet list (excluding those already missed).
+        """
+        # Find the earliest start time among upcoming critical tasks THAT HAVE NOT BEEN MISSED
+        crit_candidates = [
+            c
+            for c in not_yet
+            if c.is_critical and c.status != "MISSED_CRITICAL"  # 상태 확인 추가
+        ]
+        # --- 수정: logical_start_time 기준으로 정렬 ---
+        # 데드라인은 논리적 시작 시간을 기준으로 설정되어야 함
+        crit_candidates.sort(
+            key=lambda x: x.logical_start_time
+        )  # latest_departure_time 대신 logical_start_time 사용
+
+        if not crit_candidates:
+            # No upcoming non-missed critical tasks in the 'not_yet' list
+            deadline_time = float("inf")
+            deadline_reason_subtask_name = "None"
+        else:
+            next_crit = crit_candidates[0]
+            # The deadline is the logical start time of the next critical task
+            # --- 수정: deadline_time을 logical_start_time으로 설정 ---
+            deadline_time = (
+                next_crit.logical_start_time
+            )  # adjusted_start_time(latest_departure_time) 대신 사용
+            deadline_reason_subtask_name = next_crit.subtask.name
+            log.debug(
+                # f"Next critical task '{deadline_reason_subtask_name}' sets deadline at LogicalEST {deadline_time:.2f}" # 로그 수정
+                f"Next critical task '{deadline_reason_subtask_name}' sets deadline at LogicalEST {deadline_time:.2f}"  # 로그 수정
+            )
+
+        return feasible

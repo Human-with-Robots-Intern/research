@@ -30,7 +30,12 @@ SIMILARITY_THRESHOLD = (
 )
 MIN_VARIANCE = 1e-9  # To avoid division by zero or numerical instability
 # 4.1: FACTOR_ALPHA 검증 필요성 강조 및 기본값 조정 (예시)
-FACTOR_ALPHA = 0.5  # Default: 1.0. Adjusted slightly, but REQUIRES VALIDATION AND TUNING. Must be positive.
+# --- 수정: FACTOR_ALPHA 주석 강화 ---
+FACTOR_ALPHA = 0.5  # Default: 1.0. Adjusted slightly, but REQUIRES STATISTICAL VALIDATION AND TUNING. Must be positive.
+# This factor determines the relationship between prior variance and likelihood variance.
+# A value < 1 implies likelihood is more certain than prior, > 1 implies less certain.
+# The choice significantly impacts how much the observation influences the posterior.
+# --- 수정 끝 ---
 
 
 class Agent:
@@ -142,29 +147,22 @@ class Agent:
             ref_strs=candidate_sub_names,  # Assuming candidates are already lowercase from _load_or_init_knowledge
         )
 
-        if len(similarity_scores) == 0:
-            log.warning(
-                f"Sentence similarity model returned no scores for '{query_sub_name_lower}'."
-            )
-            return query_sub_name  # Return original name if scoring failed
-
         # Find the best match
         best_match_idx = int(np.argmax(similarity_scores))
         max_score = similarity_scores[best_match_idx]
 
         # Return the best match only if similarity is ABOVE the threshold.
-        # (Higher cosine similarity score means more similar)
         if max_score >= SIMILARITY_THRESHOLD:
             best_match_name = candidate_sub_names[best_match_idx]
             log.debug(
-                f"Found similar subtask: '{query_sub_name}' -> '{best_match_name}' (Score: {max_score:.4f})"
+                f"Found similar subtask: '{query_sub_name_lower}' -> '{best_match_name}' (Score: {max_score:.4f})"
             )
             return best_match_name
         else:
             log.debug(
-                f"No sufficiently similar subtask found for '{query_sub_name}'. Best score: {max_score:.4f} (Threshold: {SIMILARITY_THRESHOLD}). Using original name."
+                f"No sufficiently similar subtask found for '{query_sub_name_lower}'. Best score: {max_score:.4f} (Threshold: {SIMILARITY_THRESHOLD}). Using original name."
             )
-            return query_sub_name  # Return original if no match meets criteria
+            return query_sub_name_lower
 
     def _get_prior_estimate(self, sub_name: str) -> Tuple[float, float]:
         """
@@ -172,48 +170,53 @@ class Agent:
         with defaults if the subtask is not found in the knowledge base.
 
         Args:
-            sub_name: The name of the subtask (lowercase).
+            sub_name: The name of the subtask to find a match for.
 
         Returns:
             A tuple containing (prior_mean, prior_variance).
         """
-        # Ensure lookup key is lowercase
-        sub_name_lower = sub_name.lower()
-        prior_data = self.prior_knowledge.get(sub_name_lower)
+        duration_value = INIT_PRIOR_MEAN
+        duration_source = "default"
 
-        if prior_data is None:
-            log.info(
-                f"Subtask '{sub_name_lower}' not in prior knowledge. Initializing with defaults (Mean={INIT_PRIOR_MEAN}, Var={INIT_PRIOR_VARIANCE})."
-            )
-            prior_mean = INIT_PRIOR_MEAN
-            prior_variance = INIT_PRIOR_VARIANCE
-            # Add to knowledge base with lowercase key
-            self.prior_knowledge[sub_name_lower] = {
-                "expected_duration": prior_mean,
-                "variance": prior_variance,
-            }
-            # Defer saving to save_knowledge_to_file() call
-        else:
-            # Make sure the keys within the loaded data are accessible
+        # 1. Try Agent's knowledge (using the new get_latest_estimate method)
+        if self.agent:
             try:
-                prior_mean = prior_data["expected_duration"]
-                prior_variance = prior_data["variance"]
-            except KeyError as e:
-                log.error(
-                    f"Missing key {e} in prior knowledge for '{sub_name_lower}'. Using defaults."
+                estimate = self.agent.get_latest_estimate(sub_name)
+                if estimate is not None:
+                    prior_mean, _ = estimate
+                    # Ensure non-negative duration
+                    duration_value = max(0, prior_mean)
+                    duration_source = "agent"
+                # else: Agent returned None (error occurred internally)
+            except Exception as e_agent:
+                log.warning(
+                    f"Failed to get estimate from Agent for '{sub_name}': {e_agent}. Falling back."
                 )
-                prior_mean = INIT_PRIOR_MEAN
-                prior_variance = INIT_PRIOR_VARIANCE
-                # Correct the entry
-                self.prior_knowledge[sub_name_lower] = {
-                    "expected_duration": prior_mean,
-                    "variance": prior_variance,
-                }
 
-        # Ensure variance is not non-positive for numerical stability
-        prior_variance = max(prior_variance, MIN_VARIANCE)
+        # 2. If Agent didn't provide, try subtask.duration.interval
+        if (
+            duration_source == "default"
+            and self.prior_knowledge.get(sub_name)
+            and self.prior_knowledge[sub_name]["expected_duration"] is not None
+        ):
+            try:
+                interval_val = float(
+                    self.prior_knowledge[sub_name]["expected_duration"]
+                )
+                if interval_val >= 0:
+                    duration_value = interval_val
+                    duration_source = "subtask_interval"
+                else:
+                    log.warning(
+                        f"Subtask '{sub_name}' has negative duration.interval. Using {duration_source} estimate ({duration_value:.2f})."
+                    )
+            except (ValueError, TypeError):
+                pass  # Keep default
 
-        return prior_mean, prior_variance
+        log.debug(
+            f"Estimated duration for '{sub_name}': {duration_value:.2f} (Source: {duration_source})"
+        )
+        return duration_value
 
     def _perform_bayesian_update(
         self,
@@ -225,29 +228,18 @@ class Agent:
         Performs the Bayesian update for Gaussian prior and likelihood.
         Uses the critical_elapsed_interval as the observation.
         """
-        # --- TODO: Statistical Validation Needed ---
-        # The choice of Gaussian prior/likelihood and the specific update formulas
-        # should be statistically validated against the actual process characteristics.
-        # Consider alternative models (e.g., Gamma distribution for durations) if Gaussian assumption is poor.
-        # The observation model (likelihood_variance) is particularly critical and needs justification/validation.
-
-        # --- TODO: Review Observation Data Usage ---
-        # Currently uses a single observation (critical_elapsed_interval).
-        # Consider policies for incorporating multiple observations over time,
-        # handling outliers, or weighting recent observations more heavily.
-
-        # Ensure prior variance is numerically stable
-        prior_variance = max(prior_variance, MIN_VARIANCE)
-
-        # Model Likelihood Variance (epsilon_k_sq): How uncertain is our observation?
-        # Simple model: Assume observation uncertainty is proportional to prior uncertainty.
-        # FACTOR_ALPHA scales this. Higher alpha = less trust in prior / more observation noise.
-        # --- !!! VALIDITY WARNING & TODO !!! ---
-        # This simple noise model (likelihood_variance = FACTOR_ALPHA * prior_variance)
-        # needs rigorous validation and potentially replacement with a more sophisticated model
-        # that considers sensor noise, process variability, etc.
-        # The FACTOR_ALPHA value requires careful tuning based on experiments or domain knowledge.
-        # TODO: Evaluate and potentially replace this likelihood variance model.
+        # --- Statistical Validation Note ---
+        # ASSUMPTION: Subtask durations follow a Gaussian distribution, and the observation
+        #             (critical_elapsed_interval) also allows for a Gaussian likelihood model.
+        # VALIDATION NEEDED: These assumptions MUST be statistically validated against the actual
+        #                    process characteristics. If durations are non-Gaussian (e.g., always positive,
+        #                    potentially skewed), consider alternative models like Gamma or Log-Normal distributions
+        #                    and corresponding Bayesian update methods.
+        # likelihood_variance CALCULATION: The formula `likelihood_variance = alpha * prior_variance`
+        #                                is a simplification. A more rigorous approach would involve
+        #                                deriving the likelihood variance from an observation model or data.
+        #                                FACTOR_ALPHA requires careful tuning and justification.
+        # --- End Statistical Validation Note ---
 
         # 4.1: FACTOR_ALPHA 유효성 검사 및 주석 강화
         if not isinstance(FACTOR_ALPHA, (int, float)) or FACTOR_ALPHA <= 0:
@@ -258,6 +250,9 @@ class Agent:
         else:
             alpha = FACTOR_ALPHA
 
+        # Ensure prior variance is positive before using it
+        prior_variance = max(prior_variance, MIN_VARIANCE)
+
         likelihood_variance = alpha * prior_variance
         likelihood_variance = max(likelihood_variance, MIN_VARIANCE)
 
@@ -265,23 +260,24 @@ class Agent:
         observation = critical_elapsed_interval
         # Ensure observation is non-negative (time cannot be negative)
         if observation < 0:
+            # --- 수정: 음수 관측값 로깅 강화 ---
             log.warning(
-                f"Negative critical_elapsed_interval ({observation:.2f}) observed. Clamping to 0."
+                f"Negative critical_elapsed_interval ({observation:.2f}) observed. Clamping to 0. "
+                f"This might indicate upstream calculation issues or clock skew."
             )
+            # --- 수정 끝 ---
             observation = 0
 
         # --- Bayesian Update Formulas (Gaussian Prior & Likelihood) ---
         # K = Kalman Gain = prior_variance / (prior_variance + likelihood_variance)
         # posterior_mean = prior_mean + K * (observation - prior_mean)
-        # posterior_variance = (1 - K) * prior_variance
 
         denominator = prior_variance + likelihood_variance
 
         # Avoid division by zero
         if denominator < MIN_VARIANCE:
             log.warning(
-                f"Denominator ({denominator:.4e}) near zero in Bayesian update. "
-                f"PriorVar={prior_variance:.4e}, LikelihoodVar={likelihood_variance:.4e}. Returning prior values."
+                f"Denominator ({denominator:.4e}) near zero in Bayesian update. Returning prior values."
             )
             return prior_mean, prior_variance
 
@@ -297,8 +293,7 @@ class Agent:
 
         log.debug(
             f"Bayesian Update: Prior=({prior_mean:.2f}, {prior_variance:.4f}), "
-            f"ObservedElapsed(z_k)={observation:.2f}, "
-            f"LikelihoodVar(R)={likelihood_variance:.4f}, K={kalman_gain:.4f} -> "
+            f"ObservedElapsed(z_k)={observation:.2f}, K={kalman_gain:.4f} -> "
             f"Posterior=({posterior_mean:.2f}, {posterior_variance:.4f})"
         )
 
@@ -315,6 +310,9 @@ class Agent:
         """
         Updates ONLY the agent's internal knowledge base with the new posterior estimates.
         Constraint graph modification is REMOVED based on feedback to avoid inconsistencies.
+        This design choice assumes the Scheduler relies on the original logical constraints
+        for feasibility checks, while the HeuristicManager can query the Agent for the
+        latest duration estimates to guide the search.
         """
         # 1) Update internal knowledge base (using lowercase key)
         if known_sub_name not in self.prior_knowledge:
@@ -369,29 +367,29 @@ class Agent:
             monitoring_target_sub_name,  # Pass original for similarity check
             prior_knowledge_keys_lower,
         )
-        log.info(
-            f"Target: '{monitoring_target_sub_name}', Matched Known Subtask (lowercase): '{known_sub_name_lower}'"
-        )
+        if known_sub_name_lower.lower() != monitoring_target_sub_name.lower():
+            log.info(
+                f"Target '{monitoring_target_sub_name}' was matched to known subtask '{known_sub_name_lower}' using similarity."
+            )
+        else:
+            log.info(
+                f"Target '{monitoring_target_sub_name}' matched existing known subtask."
+            )
 
         # 3) Get Ground Truth (Optional, for logging/comparison only)
         gt_interval = None
-        gt_key_used = None
+        gt_key_used = known_sub_name_lower
         try:
-            # Attempt lookup with matched lowercase key first, then original casing as fallback
-            gt_interval = self.ground_truth.get(known_sub_name_lower)
-            gt_key_used = known_sub_name_lower
+            gt_interval = self.ground_truth.get(gt_key_used)
             if gt_interval is None:
-                gt_interval = self.ground_truth.get(monitoring_target_sub_name)
-                gt_key_used = monitoring_target_sub_name
-                if gt_interval is None:
-                    log.warning(
-                        f"Ground truth not found for matched key '{known_sub_name_lower}' or original key '{monitoring_target_sub_name}'. "
-                        f"Check ground truth file '{GROUND_TRUTH_FILE_NAME}'. Proceeding without GT for update."
-                    )
-                else:
-                    log.debug(
-                        f"Used original name '{monitoring_target_sub_name}' for ground truth lookup."
-                    )
+                log.warning(
+                    f"Ground truth not found for matched key '{gt_key_used}'. "
+                    f"Check ground truth file '{GROUND_TRUTH_FILE_NAME}' and ensure keys are lowercase. Proceeding without GT for update."
+                )
+            else:
+                log.debug(
+                    f"Used original name '{known_sub_name_lower}' for ground truth lookup."
+                )
         except Exception as e_gt:
             log.error(f"Error accessing ground truth data: {e_gt}", exc_info=True)
             # Proceed without GT even if there was an error accessing it
@@ -427,11 +425,8 @@ class Agent:
         critical_elapsed_interval = state.current_time - critical_start_sub_end_time
         # Clamp negative elapsed time (can happen due to float precision or logic errors)
         if critical_elapsed_interval < 0:
-            # --- 수정: 로그 레벨 Warning -> Error, 메시지 강화 ---
-            log.error(  # WARNING -> ERROR
-                f"Elapsed time ({critical_elapsed_interval:.2f}) is negative. "
-                f"(Current: {state.current_time:.2f}, CritStartEnd: {critical_start_sub_end_time:.2f}). "
-                f"Using elapsed time = 0 for update. CRITICAL: Investigate timing source (get_critical_start_info or state.current_time)."  # 원인 조사 촉구
+            log.error(
+                f"Elapsed time ({critical_elapsed_interval:.2f}) is negative. Clamping to 0."
             )
             critical_elapsed_interval = 0
 
@@ -456,9 +451,6 @@ class Agent:
             "original_expected_time": prior_mean,
             "updated_expected_time": posterior_mean,
             "ground_truth_time": gt_interval,
-            "prior_variance": prior_variance,
-            "posterior_variance": posterior_variance,
-            "observed_elapsed": critical_elapsed_interval,
         }
         log.info(f"Bayesian estimation complete. Update info: {monitored_subtask_info}")
 

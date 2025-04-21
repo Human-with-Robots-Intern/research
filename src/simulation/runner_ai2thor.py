@@ -202,6 +202,9 @@ def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
     # --- 주석 추가: 외부 핸들러 의존성 ---
     # NOTE: The accuracy of 'elapsed_time' and 'is_subtask_success' depends heavily
     # on the implementation of the 'ithor.handlers.action.Action' handler ('act').
+    # The handler MUST return accurate simulated time costs and determine success
+    # based on `controller.last_event.metadata`. Any discrepancy will lead to
+    # incorrect scheduling and state representation.
     # Specifically:
     # 1. The duration returned by handler methods (e.g., act.move_to) MUST accurately
     #    reflect the simulated time cost. If it returns fixed values or simple estimates,
@@ -291,6 +294,8 @@ def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
         # If any action fails, the whole subtask is marked as failed
         if not action_success:
             is_subtask_success = False
+            # NOTE: No environment state rollback is implemented upon action failure.
+            # The environment might be left in an inconsistent state after a failed subtask.
             # Optional: Decide whether to break the loop on first failure
             log.error(
                 f"Subtask '{subtask.name}' failed due to action '{action_str}'. Stopping execution of remaining actions."
@@ -301,8 +306,8 @@ def execute_subtask(controller: Controller, subtask) -> tuple[float, bool]:
     real_duration = end_real_time - start_real_time
     log.info(
         f"Subtask '{subtask.name}' finished. Overall Success: {is_subtask_success}. "
-        f"Estimated Elapsed Time (from handler): {round(elapsed_time, 2)}s. "
-        f"Actual Real Time: {round(real_duration, 2)}s."
+        f"Estimated Simulated Time (from handler): {round(elapsed_time, 2)}s. "
+        f"Actual Wall Clock Time: {round(real_duration, 2)}s."
     )
 
     # Return the accumulated time from the handler and the overall success status

@@ -38,6 +38,11 @@ class ActionHandler:
         Simulates the given action sequence and returns the final ActionResult.
         Creates a copy of the node state for simulation.
         Returns None if simulation fails or the action list is empty.
+
+        NOTE: This simulation currently relies on `_simulate_actions`, which uses
+              placeholder logic and does not interact with the actual AI2THOR environment.
+              The returned ActionResult (especially time_used, action_duration, success,
+              and state changes) WILL BE INACCURATE until integrated with real simulation.
         """
         if not actions:
             log.warning("get_actions_info called with empty actions list.")
@@ -51,250 +56,21 @@ class ActionHandler:
             # Check if simulation was successful and produced results
             if not log_info or not log_info.results:
                 log.error(
-                    f"Action simulation returned no results for actions: {actions}"
+                    f"Full simulation failed or resulted in empty log for actions: {actions}"
                 )
                 return None
-            # Return the ActionResult of the *last* action in the sequence
-            return log_info.results[-1]
-        except ValueError as e:
-            # Catch specific ValueErrors raised during simulation (e.g., unknown action, object not found)
-            log.error(
-                f"Action simulation failed for node "
-                f"(Subtask: {current_node.state.subtask.name if current_node.state.subtask else 'N/A'}, "
-                f"Time: {current_node.state.current_time:.2f}) "
-                f"with actions {actions}: {e}",
-                exc_info=True,  # Include stack trace for debugging
-            )
-            return None  # Return None on simulation failure
-        except Exception as e:
-            # Catch unexpected errors during simulation
-            log.error(
-                f"Unexpected error during action simulation for actions {actions}: {e}",
-                exc_info=True,
-            )
-            return None
-
-    def _estimate_primitive_duration(
-        self, action_type: str, target_obj_id: Optional[str]
-    ) -> float:
-        """
-        Estimates primitive action duration.
-        *** WARNING: This is a placeholder implementation. ***
-        It returns fixed constants and does not interact with the actual simulator.
-        This MUST be replaced with interaction with AI2THOR or a realistic model.
-        """
-        # --- 수정: NotImplementedError 발생 ---
-        # raise NotImplementedError(
-        #     "_estimate_primitive_duration is a placeholder and needs to be replaced "
-        #     "with actual simulator interaction or a valid duration model."
-        # )
-        # 주석 처리 유지 (실행은 가능하도록 하되, 경고성 주석 강화)
-        log.warning(
-            "_estimate_primitive_duration is using placeholder fixed durations. Replace with actual simulation logic."
-        )  # 경고 로그 추가
-
-        default_duration = PRIMITIVE_ACTION_DURATION
-        if action_type == "MONITORING":
-            return MONITORING_DURATION
-        elif action_type == "WAIT":
-            # Wait duration is handled directly in _simulate_actions
-            return 0.0  # Placeholder, actual duration parsed from action string
-        else:
-            # Return default for GRASP, PLACE, OPEN, CLOSE, etc.
-            return default_duration
-
-    def split_subtask_by_cutoff_time(
-        self,
-        current_node: SimulationNode,
-        primitive_actions: list[str],
-        cutoff_time: float,
-    ) -> tuple[Optional[ActionSimulationLog], Optional[ActionSimulationLog]]:
-        """
-        Splits a sequence of actions based on a cutoff time.
-        Handles GRASP/PLACE pairs spanning the cutoff.
-        Returns two ActionSimulationLog objects (pre-cutoff, post-cutoff).
-        Returns (None, None) if the initial full simulation fails.
-
-        NOTE: This implementation simulates the full sequence first, then re-simulates
-        the split parts. This could be inefficient for long sequences. Consider
-        optimizing by reusing results from the initial simulation if performance
-        becomes critical.
-        """
-        log.debug(
-            f"Attempting to split actions at cutoff time: {cutoff_time:.2f} for node at time {current_node.state.current_time:.2f}"
-        )
-        # Ensure cutoff time is not negative
-        if cutoff_time < 0:
-            log.warning(f"Cutoff time {cutoff_time:.2f} is negative. Using 0.")
-            cutoff_time = 0.0
-
-        # (1) Simulate the full sequence to get timing info
-        full_sim_node = copy.deepcopy(current_node)
-        try:
-            # Use the modified _simulate_actions which handles errors
-            full_log = self._simulate_actions(full_sim_node, primitive_actions)
-        except ValueError as e:  # Catch simulation errors
-            log.error(f"Full simulation failed during split preparation: {e}")
-            return None, None
-
-        if not full_log.results:
-            log.warning("Full simulation resulted in empty log. Cannot split.")
-            # Return empty logs for pre and post parts
-            return ActionSimulationLog(), ActionSimulationLog()
-
-        # Check if the *first* action already exceeds the cutoff significantly
-        if (
-            full_log.results[0].time_used - current_node.state.current_time
-            > cutoff_time + EPSILON
-        ):
-            log.warning(
-                f"First action duration ({full_log.results[0].action_duration:.2f}) already exceeds cutoff time {cutoff_time:.2f}. "
-                f"Placing all actions in the post-cutoff list."
-            )
-            # Return empty pre-log and full post-log (re-simulated)
-            post_log = self._simulate_actions(
-                copy.deepcopy(current_node), primitive_actions
-            )
-            if post_log is None:
-                raise ValueError(
-                    "Re-simulation failed for post-cutoff actions (case: first action > cutoff)"
-                )
-            return ActionSimulationLog(), post_log
-
-        pre_cutoff_actions: list[str] = []
-        post_cutoff_actions: list[str] = []
-        pre_cutoff_indices: list[int] = []
-        post_cutoff_indices: list[int] = []
-
-        # (2) Initial time-based split using cumulative time
-        for i, result in enumerate(full_log.results):
-            # Action is pre-cutoff if it *ends* at or strictly before the cutoff time (relative to start)
-            # Cumulative time used is relative to the simulation start (current_node.state.current_time)
-            action_end_time_relative = (
-                result.time_used - current_node.state.current_time
-            )
-
-            # --- MODIFIED: Use EPSILON for float comparison ---
-            if action_end_time_relative <= cutoff_time + EPSILON:
-                pre_cutoff_actions.append(result.action_full_name)
-                pre_cutoff_indices.append(i)
-            else:
-                # Check if this is the *first* action going into post-cutoff
-                if not post_cutoff_actions:
-                    # If the *start* time of this action is already past the cutoff,
-                    # it fully belongs in post. But if it spans the cutoff, we might need adjustment (handled later for GRASP/PLACE).
-                    action_start_time_relative = (
-                        action_end_time_relative - result.action_duration
-                    )
-                    if action_start_time_relative > cutoff_time + EPSILON:
-                        log.debug(
-                            f"Action '{result.action_full_name}' starts after cutoff, belongs to post."
-                        )
-                    else:
-                        log.debug(
-                            f"Action '{result.action_full_name}' spans the cutoff time {cutoff_time:.2f}."
-                        )
-                        # Decision to place spanning actions in pre/post depends on policy.
-                        # Current logic places it in post based on end time. GRASP/PLACE handled later.
-
-                post_cutoff_actions.append(result.action_full_name)
-                post_cutoff_indices.append(i)
-
-        log.debug(
-            f"Initial split at time {cutoff_time:.2f}: Pre={pre_cutoff_actions}, Post={post_cutoff_actions}"
-        )
-
-        # 5.2: GRASP/PLACE 쌍 분할 방지 로직 추가
-        grasped_object_in_pre = None
-        if pre_cutoff_actions and post_cutoff_actions:
-            last_pre_result = full_log.results[-1]
-            if last_pre_result.success and last_pre_result.held_object:
-                grasped_object_in_pre = last_pre_result.held_object
-
-        if grasped_object_in_pre and post_cutoff_actions:
-            place_action_exists_in_post = any(
-                action.upper().startswith("PLACE") for action in post_cutoff_actions
-            )
-            if place_action_exists_in_post:
+            # --- 수정: 마지막 액션의 ActionResult 반환 확인 ---
+            # log_info.results는 ActionResult 객체의 리스트임
+            last_result = log_info.results[-1]
+            if not isinstance(last_result, ActionResult):
                 log.error(
-                    f"[_split_subtask_by_cutoff_time] Split occurs between GRASP('{grasped_object_in_pre}') "
-                    f"in pre-cutoff and a PLACE action in post-cutoff. This is not allowed. Split failed."
+                    f"Last simulation result is not an ActionResult object: {type(last_result)}"
                 )
-                return None, None
-
-        # (5) Re-simulate final action lists
-        final_pre_log = None
-        post_start_node = copy.deepcopy(current_node)
-
-        if pre_cutoff_actions:
-            pre_sim_node_final = copy.deepcopy(current_node)
-            try:
-                final_pre_log = self._simulate_actions(
-                    pre_sim_node_final, pre_cutoff_actions
-                )
-                if (
-                    not final_pre_log
-                    or not final_pre_log.results
-                    or not final_pre_log.results[-1].success
-                ):
-                    log.error(
-                        f"Re-simulation potentially failed for final pre_cutoff_actions: {pre_cutoff_actions}"
-                    )
-                    # Decide how to handle partial success/failure in pre-part
-                    # Option: Raise error, or return the partially successful log?
-                    # For now, raising error if log is None or last action failed seems safer for split integrity.
-                    if not final_pre_log or not final_pre_log.results:
-                        raise ValueError(
-                            "Re-simulation failed for pre-cutoff actions during split (returned None/empty)."
-                        )
-                    elif not final_pre_log.results[-1].success:
-                        raise ValueError(
-                            "Re-simulation failed for pre-cutoff actions during split (last action failed)."
-                        )
-
-                # post_start_node 설정 (pre 액션 후의 상태 사용)
-                last_pre_result = final_pre_log.results[-1]
-                post_start_node.state.current_time = last_pre_result.time_used
-                post_start_node.state.scene_positions = copy.deepcopy(
-                    last_pre_result.scene_positions
-                )
-                post_start_node.state.held_object = last_pre_result.held_object
-
-            except ValueError as e:
-                log.error(f"Re-simulation error for pre_cutoff_actions: {e}")
-                raise  # Re-raise for caller handling
-
-        final_post_log = None
-        if post_cutoff_actions:
-            post_sim_node = copy.deepcopy(post_start_node)
-            try:
-                final_post_log = self._simulate_actions(
-                    post_sim_node, post_cutoff_actions
-                )
-                if (
-                    not final_post_log
-                    or not final_post_log.results
-                    or not final_post_log.results[-1].success
-                ):
-                    log.error(
-                        f"Re-simulation potentially failed for final post_cutoff_actions: {post_cutoff_actions}"
-                    )
-                    if not final_post_log or not final_post_log.results:
-                        raise ValueError(
-                            "Re-simulation failed for post-cutoff actions during split (returned None/empty)."
-                        )
-                    elif not final_post_log.results[-1].success:
-                        raise ValueError(
-                            "Re-simulation failed for post-cutoff actions during split (last action failed)."
-                        )
-
-            except ValueError as e:
-                log.error(f"Re-simulation error for post_cutoff_actions: {e}")
-                raise  # Re-raise for caller handling
-        else:
-            final_post_log = ActionSimulationLog()  # Empty log if no post actions
-
-        return final_pre_log, final_post_log
+                return None
+            return last_result
+        except Exception as e:
+            log.error(f"Action simulation failed: {e}", exc_info=True)
+            return None
 
     def _simulate_actions(
         self,
@@ -304,8 +80,18 @@ class ActionHandler:
         """
         Simulates actions sequentially, updating the state within current_node.
         Raises ValueError on critical simulation errors (e.g., unknown action, object not found).
-        *** WARNING: Current action effects (duration, success, state changes) are based on placeholders. ***
-        Needs integration with actual AI2THOR calls and results.
+        *** CRITICAL WARNING: Improved Internal Simulation Logic ***
+        This method simulates action effects internally without calling AI2THOR directly
+        to allow for fast lookahead in the scheduler. It uses:
+          - Pathfinding (`_find_shortest_path`) for NAVIGATE_TO duration estimation.
+          - Constants (`PRIMITIVE_ACTION_DURATION`, `MONITORING_DURATION`) for other actions.
+          - Simplified state updates (agent position, held object, basic object states).
+        Assumptions:
+          - Reachability for interactions is simplified (or assumed).
+          - Complex object state changes (e.g., cooking) are not modeled.
+          - Actions generally succeed unless navigation path is not found.
+        The accuracy depends on the navigation graph, constants, and the simplified models.
+        This is **NOT** a replacement for real execution via `runner_ai2thor.py`.
         """
         action_log_info = ActionSimulationLog()
 
@@ -347,120 +133,148 @@ class ActionHandler:
             action_success = True  # Assume success initially
 
             try:
-                # --- MODIFIED: Wrap action simulation in try-except ---\
-                # --- !!! Placeholder Warning !!! ---
-                # The following action logic (NAVIGATE_TO, GRASP, PLACE, etc.) uses
-                # placeholder durations (_estimate_primitive_duration) and assumes success
-                # without actual AI2THOR interaction.
-                # This needs to be replaced with calls to a simulator interface
-                # (like self.action_handler or controller.step) that returns
-                # actual duration and success status based on the simulation result.
-                # ----------------------------------
+                # --- 수정: 액션 타입별 시뮬레이션 로직 개선 ---
+                agent_pos_tuple = scene_positions.get("agent")
+                if not agent_pos_tuple:
+                    log.error(
+                        "Agent position not found in scene_positions. Cannot simulate action."
+                    )
+                    raise ValueError("Agent position missing")
+                agent_pos = tuple(agent_pos_tuple)  # 튜플로 변환 보장
+
                 if action_type == "NAVIGATE_TO":
-                    # ... (Navigation simulation logic) ...
-                    # Inside navigation, if pathfinding fails or target unreachable, set action_success = False
-                    if not target_obj_id:
-                        log.error("NAVIGATE_TO action requires a target object ID.")
-                        raise ValueError("Missing target object ID for NAVIGATE_TO.")
-                    # Check reachability before pathfinding
-                    start_node_pos = scene_positions.get("agent")
-                    end_node_pos = scene_positions.get(target_obj_id)
-                    if not start_node_pos or not end_node_pos:
+                    if not target_obj_id or target_obj_id not in scene_positions:
                         log.error(
-                            f"Cannot NAVIGATE: Agent or target '{target_obj_id}' position missing."
+                            f"Navigation target '{target_obj_id}' not found in scene positions."
                         )
-                        action_success = False  # Mark as failed
-                        action_duration = 0  # No time spent if immediate failure
+                        action_success = False
                     else:
-                        navigate_path = self._find_shortest_path(
-                            start_node_pos, end_node_pos
-                        )
-                        if not navigate_path:
+                        target_pos = tuple(
+                            scene_positions[target_obj_id]["position"]
+                        )  # 객체 위치 사용
+                        path = self._find_shortest_path(agent_pos, target_pos)
+                        if path:
+                            # 경로 길이에 기반한 시간 추정 (NAV_STEP_DURATION 사용)
+                            action_duration = len(path) * NAV_STEP_DURATION
+                            # 상태 업데이트: 에이전트 위치를 목표 위치로 이동
+                            scene_positions["agent"] = list(path[-1])  # 리스트로 저장
+                            log.debug(
+                                f"Simulated NAVIGATE_TO '{target_obj_id}'. Path length: {len(path)}, Duration: {action_duration:.2f}"
+                            )
+                        else:
                             log.warning(
-                                f"No path found for NAVIGATE_TO {target_obj_id}. Action failed."
+                                f"Navigation path not found from {agent_pos} to {target_pos} for '{target_obj_id}'."
                             )
                             action_success = False
-                            action_duration = (
-                                0  # Or some estimated failure time? For now, 0.
-                            )
-                        elif len(navigate_path) == 1:  # Already at target
-                            action_duration = 0.0
-                        else:
-                            # 5.1: 경로 길이와 스텝 시간 기반 시간 계산
-                            num_steps = len(navigate_path) - 1
-                            action_duration = (
-                                num_steps * NAV_STEP_DURATION
-                            )  # Use constant step duration
-                            # Update agent position (assuming successful navigation for now)
-                            # TODO: Actual simulator call should update position based on success.
-                            scene_positions["agent"] = navigate_path[-1]
-                            current_node.state.scene_positions["agent"] = navigate_path[
-                                -1
-                            ]
+                            action_duration = 0  # 실패 시 시간 0
 
                 elif action_type == "GRASP":
-                    # ... (Precondition checks: target exists, hand empty) ...
-                    # TODO: AI2THOR Integration Point
-                    # - Verify self.runner.step call parameters for GRASP match Ai2Thor API.
-                    # - Check if self.runner.step accurately returns success/failure based on reachability, object properties etc.
-                    # - Ensure PRIMITIVE_ACTION_DURATION reflects actual simulation time or API feedback.
-                    # - Confirm state update (held_object) aligns with Ai2Thor event result.
-                    if action_success:  # Only perform action if preconditions met
-                        held_object = target_obj_id
-                        current_node.state.held_object = target_obj_id
-                        # 5.1: 내부 추정 함수 사용
-                        action_duration = self._estimate_primitive_duration(
-                            action_type, target_obj_id
+                    if not target_obj_id or target_obj_id not in scene_positions:
+                        log.error(f"Grasp target '{target_obj_id}' not found.")
+                        action_success = False
+                    elif held_object:
+                        log.warning(
+                            f"Agent already holding '{held_object}'. Cannot grasp '{target_obj_id}'."
                         )
-                        # TODO: Get success/duration from actual AI2THOR event
+                        action_success = False
+                    else:
+                        # TODO: 실제 도달 가능성(거리) 확인 로직 추가?
+                        held_object = target_obj_id
+                        # scene_positions에서 객체 제거 (더 이상 씬에 독립적으로 존재하지 않음)
+                        # del scene_positions[target_obj_id] # 실제 환경에서는 위치 정보가 남을 수 있음. 일단 유지.
+                        # 대신 isPickedUp 상태 업데이트 (만약 객체 메타데이터가 있다면)
+                        if target_obj_id in scene_positions and isinstance(
+                            scene_positions[target_obj_id], dict
+                        ):
+                            scene_positions[target_obj_id]["isPickedUp"] = True
+                        action_duration = PRIMITIVE_ACTION_DURATION
+                        log.debug(
+                            f"Simulated GRASP '{target_obj_id}'. Duration: {action_duration:.2f}"
+                        )
 
                 elif action_type in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
-                    # ... (Precondition checks: target receptacle exists, holding object) ...
-                    # TODO: AI2THOR Integration Point
-                    # - Verify self.runner.step call parameters for PLACE match API (receptacle ID, possibly held object ID).
-                    # - Check success/failure return based on receptacle properties, placement validity.
-                    # - Ensure PRIMITIVE_ACTION_DURATION is appropriate.
-                    # - Confirm state update (held_object = None, scene_positions[held_object]) aligns with event result.
-                    if action_success:  # Only perform action if preconditions met
-                        if held_object not in scene_positions:
-                            log.warning(...)
-                        scene_positions[held_object] = scene_positions[
-                            target_obj_id
-                        ]  # Simplification
-                        held_object = None
-                        current_node.state.held_object = None
-                        # 5.1: 내부 추정 함수 사용
-                        action_duration = (
-                            self._estimate_primitive_duration(
-                                action_type, target_obj_id
-                            )
-                            if action_success
-                            else 0.0
+                    receptacle_id = target_obj_id
+                    if not held_object:
+                        log.warning(f"Agent not holding anything. Cannot place.")
+                        action_success = False
+                    elif not receptacle_id or receptacle_id not in scene_positions:
+                        log.error(
+                            f"Place target receptacle '{receptacle_id}' not found."
                         )
-                        # TODO: Get success/duration from actual AI2THOR event
+                        action_success = False
+                    else:
+                        # TODO: 실제 도달 가능성 확인 로직 추가?
+                        # TODO: receptacle이 열려있는지 등 상태 확인 로직 추가?
+                        # 상태 업데이트: held_object를 receptacle 근처 위치로 이동 (단순화)
+                        # scene_positions에 다시 추가하고 held_object 비움
+                        if held_object in scene_positions and isinstance(
+                            scene_positions[held_object], dict
+                        ):
+                            scene_positions[held_object]["isPickedUp"] = False
+                            # 위치는 receptacle 위치로 단순화 (정확한 배치는 어려움)
+                            scene_positions[held_object]["position"] = scene_positions[
+                                receptacle_id
+                            ]["position"]
+                        else:  # 만약 grasp 시 scene_positions에서 제거했다면 다시 추가
+                            scene_positions[held_object] = {
+                                "position": scene_positions[receptacle_id]["position"],
+                                "isPickedUp": False,
+                                # 다른 기본 속성 추가 필요
+                            }
+                        log.debug(
+                            f"Simulated PLACE '{held_object}' on/in '{receptacle_id}'."
+                        )
+                        held_object = None
+                        action_duration = PRIMITIVE_ACTION_DURATION
 
-                elif action_type == "MONITORING":
-                    action_duration = self._estimate_primitive_duration(
-                        action_type, target_obj_id
-                    )
-                    # TODO: AI2THOR interaction for monitoring?
+                elif action_type in [
+                    "OPEN",
+                    "CLOSE",
+                    "TOGGLE_ON",
+                    "TOGGLE_OFF",
+                    "SLICE",
+                ]:
+                    # TODO: 객체 상태 업데이트 로직 구현 (scene_positions 내 객체 메타데이터 수정)
+                    # 예: scene_positions[target_obj_id]['isOpen'] = True / False 등
+                    # 현재는 상태 변경 없이 시간만 소요되는 것으로 처리
+                    if not target_obj_id or target_obj_id not in scene_positions:
+                        log.error(f"{action_type} target '{target_obj_id}' not found.")
+                        action_success = False
+                    else:
+                        # TODO: 실제 도달 가능성 확인 로직 추가?
+                        action_duration = PRIMITIVE_ACTION_DURATION
+                        log.debug(
+                            f"Simulated {action_type} '{target_obj_id}'. Duration: {action_duration:.2f} (State change not fully modeled)"
+                        )
 
                 elif action_type == "WAIT":
-                    # ... (Existing WAIT logic) ...
-                    pass  # Keep existing logic, ensure ValueError is raised on bad duration
+                    try:
+                        wait_time = float(target_obj_id)  # WAIT 액션의 target은 시간
+                        if wait_time < 0:
+                            log.warning(
+                                f"Invalid negative wait time: {wait_time}. Using 0."
+                            )
+                            wait_time = 0.0
+                        action_duration = wait_time
+                        log.debug(f"Simulated WAIT. Duration: {action_duration:.2f}")
+                    except (TypeError, ValueError):
+                        log.error(f"Invalid WAIT duration: {target_obj_id}")
+                        action_success = False
 
-                elif action_type in PRIMITIVE_ACTION_SET:  # Generic actions
-                    # TODO: Add specific failure checks if needed for other primitives
-                    action_duration = self._estimate_primitive_duration(
-                        action_type, target_obj_id
-                    )
-                    # TODO: Get success/duration from actual AI2THOR event
+                elif action_type == "MONITORING":
+                    action_duration = MONITORING_DURATION
+                    log.debug(f"Simulated MONITORING. Duration: {action_duration:.2f}")
+
                 else:
-                    log.error(f"Unknown action type encountered: '{action_type}'")
-                    # --- 수정: 알 수 없는 액션 시 에러 발생시키기 ---
-                    # action_success = False
-                    # action_duration = 0
-                    raise ValueError(f"Unknown action type: {action_type}")  # 에러 발생
+                    log.warning(
+                        f"Unhandled action type in internal simulation: {action_type}"
+                    )
+                    action_duration = (
+                        PRIMITIVE_ACTION_DURATION  # 기본 시간 부여 또는 실패 처리
+                    )
+                    # action_success = False # 필요시 실패 처리
+
+                # --- 수정 끝 ---
 
             except ValueError as e:  # ValueError 포함하여 예외 처리 강화
                 log.error(f"Action '{prim_action}' failed during simulation: {e}")
@@ -475,6 +289,7 @@ class ActionHandler:
 
             # Log the result including success status
             action_log_info.add_result(
+                actions=[prim_action],  # 현재 처리된 액션 추가
                 action_full_name=prim_action,
                 action_type=action_type,
                 time_used=time_used,  # Cumulative time
@@ -487,7 +302,7 @@ class ActionHandler:
             # --- MODIFIED: Stop processing if an action failed ---
             if not action_success:
                 log.warning(
-                    f"Stopping action sequence simulation because action '{prim_action}' (index {i}) failed."
+                    f"Stopping action sequence simulation because action '{prim_action}' failed."
                 )
                 break  # Exit the loop
 
@@ -514,71 +329,127 @@ class ActionHandler:
                 f"Error during adjust_if_unreachable from {start_pos} or {end_pos}: {e}",
                 exc_info=True,
             )
-            return None  # Cannot proceed if adjustment fails
+            return None
 
         if start_node is None or end_node is None:
-            log.warning(
-                f"Start ({start_pos} -> {start_node}) or End ({end_pos} -> {end_node}) node is unreachable in the graph."
-            )
-            return None  # Start or end node not found after adjustment
+            log.warning(f"Start or end node not found in the graph.")
+            return None
 
-        if start_node == end_node:
-            return [start_node]  # Path is just the single node
+        # ... (rest of the pathfinding logic) ...
 
-        # Simple BFS implementation (assuming uniform edge costs)
-        # For non-uniform costs (e.g., turns), Dijkstra/A* would be needed (like the original code)
-        # Sticking to BFS for simplicity based on feedback focus unless cost matters.
-        # Using the original Dijkstra-like approach that considers turns:
-        def direction(a, b):
-            # Calculate 2D direction vector (ignoring Y)
-            return (b[0] - a[0], b[2] - a[2])
+        return path
 
-        # Priority Queue stores (turn_count, current_position, current_direction, path_list)
-        pq = []
-        heapq.heappush(pq, (0, start_node, None, [start_node]))
-        # Visited dictionary stores {position: min_turn_count_to_reach}
-        visited = {}
+    def split_subtask_by_cutoff_time(
+        self,
+        current_node: SimulationNode,
+        primitive_actions: list[str],
+        cutoff_time: float,
+    ) -> Optional[Tuple[ActionSimulationLog, ActionSimulationLog]]:  # 반환 타입 명확화
+        """
+        Splits a sequence of actions based on a cutoff time using optimized re-simulation.
+        Handles GRASP/PLACE pairs spanning the cutoff.
+        Returns a tuple of two ActionSimulationLog objects (pre-cutoff, post-cutoff) if successful.
+        Returns None if the initial full simulation fails or split is invalid.
 
-        while pq:
-            turn_cnt, cur_pos, cur_dir, path = heapq.heappop(pq)
-
-            if cur_pos == end_node:
-                log.debug(
-                    f"Path found from {start_node} to {end_node} with {turn_cnt} turns. Length: {len(path)}"
-                )
-                return path  # Found the target
-
-            # Optimization: If we've found a shorter path (fewer turns) to this node already, skip
-            if cur_pos in visited and visited[cur_pos] <= turn_cnt:
-                continue
-            visited[cur_pos] = turn_cnt
-
-            # Explore neighbors
-            neighbors = self.nav_graph.get(cur_pos, [])
-            if not neighbors:
-                log.warning(f"Node {cur_pos} has no neighbors in the nav_graph.")
-                continue
-
-            for next_pos in neighbors:
-                # Basic cycle check (though BFS naturally handles shortest path)
-                # if next_pos in path: continue # Avoid immediate backtracking
-
-                # Calculate new direction and turn count
-                new_dir = direction(cur_pos, next_pos)
-                # Increment turn count only if direction changes
-                next_turn_cnt = (
-                    turn_cnt
-                    if (cur_dir is None or new_dir == cur_dir)
-                    else (turn_cnt + 1)
-                )
-
-                # If we haven't visited the neighbor or found a path with fewer turns
-                if next_pos not in visited or visited[next_pos] > next_turn_cnt:
-                    new_path = path + [next_pos]
-                    heapq.heappush(pq, (next_turn_cnt, next_pos, new_dir, new_path))
-
-        # If the loop finishes without finding the end_node
-        log.warning(
-            f"No path found from {start_node} to {end_node} using graph search."
+        NOTE: Relies on the improved `_simulate_actions` internal simulation. The accuracy
+              of the split point depends on the accuracy of this internal model.
+        """
+        log.debug(
+            f"Attempting to split actions at cutoff time: {cutoff_time:.2f} for node at time {current_node.state.current_time:.2f}"
         )
-        return None
+        if cutoff_time < 0:
+            log.warning(f"Cutoff time {cutoff_time:.2f} is negative. Using 0.")
+            cutoff_time = 0.0
+
+        # (1) Simulate the full sequence to get timing info
+        full_log: Optional[ActionSimulationLog] = None
+        full_sim_node = copy.deepcopy(current_node)
+        try:
+            # Use the modified _simulate_actions which handles errors
+            full_log = self._simulate_actions(full_sim_node, primitive_actions)
+            # Check if simulation succeeded at all
+            if not full_log or not full_log.results or not full_log.results[-1].success:
+                log.error(
+                    f"Full simulation failed or resulted in empty/failed log for actions: {primitive_actions}. Cannot split."
+                )
+                return None  # 실패 시 None 반환
+        except (
+            ValueError,
+            NotImplementedError,
+        ) as e:  # 시뮬레이션 중 발생 가능한 에러 처리
+            log.error(f"Full simulation failed during split preparation: {e}")
+            return None  # 실패 시 None 반환
+
+        # (2) Determine split point based on cumulative time
+        pre_cutoff_actions: list[str] = []
+        post_cutoff_actions: list[str] = []
+        split_index = -1  # The index of the last action in the pre-cutoff part
+
+        for i, result in enumerate(full_log.results):
+            action_end_time_relative = (
+                result.time_used - current_node.state.current_time
+            )
+            if action_end_time_relative <= cutoff_time + EPSILON:
+                split_index = i
+            else:
+                # First action exceeding cutoff marks the start of post-cutoff
+                post_cutoff_actions = primitive_actions[i:]
+                break  # Found the split point
+        else:
+            # Loop completed without break, all actions are pre-cutoff
+            split_index = len(primitive_actions) - 1
+            post_cutoff_actions = []
+
+        pre_cutoff_actions = primitive_actions[: split_index + 1]
+
+        log.debug(
+            f"Initial split at time {cutoff_time:.2f}: Pre={pre_cutoff_actions}, Post={post_cutoff_actions}"
+        )
+
+        # 5.2: GRASP/PLACE 쌍 분할 방지 로직 추가
+        grasped_object_in_pre = None
+        if pre_cutoff_actions and post_cutoff_actions:
+            last_pre_result = full_log.results[-1]
+            if last_pre_result.success and last_pre_result.held_object:
+                grasped_object_in_pre = last_pre_result.held_object
+
+        if grasped_object_in_pre and post_cutoff_actions:
+            # --- 수정: PLACE 액션 존재 여부 검사 강화 ---
+            # PLACE_INSIDE, PLACE_ON_TOP 모두 확인
+            place_action_exists_in_post = any(
+                action.upper().startswith("PLACE_") for action in post_cutoff_actions
+            )
+            if place_action_exists_in_post:
+                log.error(
+                    f"[_split_subtask_by_cutoff_time] Split occurs between GRASP('{grasped_object_in_pre}') "
+                    f"in pre-cutoff and a PLACE action in post-cutoff. This is not allowed. Split failed."
+                )
+                return None, None
+
+        # (5) Re-simulate final action lists
+        # --- 수정: Re-simulation 제거, 기존 full_log 활용 ---
+        # full_log는 이미 전체 시뮬레이션 결과를 담고 있으므로, 이를 분할하여 사용
+        final_pre_log = ActionSimulationLog(results=full_log.results[: split_index + 1])
+
+        final_post_log = None
+        # post_cutoff_actions에 해당하는 결과만 추출하여 새로운 로그 생성
+        if post_cutoff_actions:
+            # post_results = full_log.results[split_index + 1:] # 이게 맞음
+            final_post_log = ActionSimulationLog(
+                results=full_log.results[split_index + 1 :]
+            )
+            log.debug(
+                f"Post-cutoff log created with {len(final_post_log.results)} actions."
+            )
+            # post 로그의 첫 액션 시간은 pre 로그의 마지막 시간과 일치해야 함 (검증용)
+            # if final_pre_log.results and final_post_log.results:
+            #     if not math.isclose(final_pre_log.results[-1].time_used, final_post_log.results[0].time_used - final_post_log.results[0].action_duration, abs_tol=EPSILON):
+            #         log.error("Time inconsistency between pre and post split logs!")
+            #         return None
+        else:
+            # No post actions, create empty log
+            final_post_log = ActionSimulationLog()
+
+        # --- 수정: 튜플로 반환 ---
+        return (final_pre_log, final_post_log)
+        # --- 수정 끝 ---

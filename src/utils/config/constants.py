@@ -13,7 +13,6 @@ PROMPT_PATH = ASSETS_PATH / "prompts"
 TASK_PATH = ASSETS_PATH / "tasks"
 RESULT_PATH = ASSETS_PATH / "results"
 
-
 # ========== 파일명 상수 ==========
 PROMPT_FILE_PATH = "e2e_generator_ver5.txt"
 ESTIMATE_FILE_NAME = "bayesian_estimate.json"
@@ -45,6 +44,7 @@ FACTOR_ALPHA = 1.0
 SIMULATION_DEPTH = 3
 BEAM_WIDTH = 3
 EPSILON = 1e-1
+LARGE_DURATION_THRESHOLD = 1e-1
 LARGE_NUMBER = 1e2
 BAYESIAN_CRITERIA = 0.7
 TOP_K = 1
@@ -107,3 +107,18 @@ OBJECT_INTERESTS = {
 DEFAULT_SUBTASK_DURATION_ESTIMATE: float = (
     1.0  # 추가: 유효한 duration 없는 태스크의 기본 추정 시간
 )
+SAVE_KNOWLEDGE_ON_EXIT: bool = True
+FACTOR_ALPHA = 0.5  # 예시 값 (튜닝 필요)
+
+# Initial prior knowledge values (if knowledge file not found)
+INIT_PRIOR_MEAN = 10.0
+INIT_PRIOR_VARIANCE = 100.0  # 분산을 크게 하여 초기 불확실성을 높게 설정
+
+# Similarity threshold for matching subtask names in knowledge base
+# 유사도 점수가 이 값 이상이어야 동일/유사 태스크로 간주함. (튜닝 필요)
+SIMILARITY_THRESHOLD = 0.7
+# --- Heuristic Weights (튜닝 필수!) ---
+# 휴리스틱 비용 = alpha*nav + beta*urgency + zeta*remaining
+ALPHA_HEURISTIC = 1.0  # 네비게이션 비용 가중치
+BETA_HEURISTIC = 1.5  # 긴급도(Slack) 비용 가중치
+ZETA_HEURISTIC = 0.1  # 남은 작업량 추정 비용 가중치
