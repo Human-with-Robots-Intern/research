@@ -42,60 +42,32 @@ class Agent:
     estimation based on monitoring events during task execution.
     """
 
-    def __init__(self, constraint_handler: "ConstraintHandler"):
+    def __init__(self):
         """Initializes the Agent, loading prior knowledge and helpers."""
         self.prior_knowledge: Dict[str, Dict[str, float]] = (
-            self._load_or_init_knowledge(ESTIMATE_FILE_NAME, lowercase_keys=True)
+            self._load_lower_case_knowledge(ESTIMATE_FILE_NAME)
         )
-        self.ground_truth: Dict[str, float] = self._load_or_init_knowledge(
-            GROUND_TRUTH_FILE_NAME, lowercase_keys=True
-        )
-        self.constraint_handler = constraint_handler
-        self.sentence_sim_model = SentenceSimilarityModel.get_instance()
-        log.info(
-            "Agent initialized with injected ConstraintHandler and sentence similarity model."
+        self.ground_truth: Dict[str, float] = self._load_lower_case_knowledge(
+            GROUND_TRUTH_FILE_NAME
         )
 
-    def _load_or_init_knowledge(
-        self, filename: str, lowercase_keys: bool = True
-    ) -> Dict[str, Any]:
+        self.sentence_sim_model = SentenceSimilarityModel.get_instance()
+
+    def _load_lower_case_knowledge(self, filename: str) -> Dict[str, Any]:
         """Loads knowledge from file or returns an empty dict if not found."""
         try:
             knowledge = load_knowledge(filename)
             log.info(f"Successfully loaded knowledge from {filename}.")
-            if lowercase_keys:
-                processed_knowledge = {}
-                invalid_keys = []
-                for k, v in knowledge.items():
-                    try:
-                        processed_knowledge[str(k).lower()] = v
-                    except Exception as e_key:
-                        invalid_keys.append(k)
-                        log.warning(
-                            f"Could not convert key '{k}' to lowercase string: {e_key}. Skipping entry."
-                        )
-                if invalid_keys:
-                    log.warning(
-                        f"Skipped {len(invalid_keys)} entries due to key conversion errors."
-                    )
-                return processed_knowledge
-            else:
-                return knowledge
+            processed_knowledge = {}
+
+            for k, v in knowledge.items():
+                processed_knowledge[str(k).lower()] = v
+
+            return processed_knowledge
+
         except FileNotFoundError:
             log.warning(
                 f"Knowledge file {filename} not found. Initializing empty knowledge base."
-            )
-            return {}
-        except (ValueError, TypeError, KeyError) as e_parse:
-            log.error(
-                f"Error parsing knowledge data from {filename}: {e_parse}. Returning empty.",
-                exc_info=True,
-            )
-            return {}
-        except Exception as e_broad:
-            log.error(
-                f"Error loading knowledge from {filename}: {e_broad}. Returning empty.",
-                exc_info=True,
             )
             return {}
 
@@ -415,7 +387,6 @@ class Agent:
                     subtask_name=monitoring_target_sub_name,
                     completed=state.completed_subtasks,
                     constraints=state.constraints,
-                    constraint_handler=self.constraint_handler,
                 )
             )
             log.debug(

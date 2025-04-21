@@ -3,6 +3,7 @@ import itertools
 from queue import PriorityQueue
 from typing import List, Optional
 
+from core.agent import Agent
 from core.dataclass import (
     ActionResult,
     Candidate,
@@ -42,6 +43,7 @@ class Scheduler:
         search_width: int,
         simulation_depth: int,
         nav_graph: dict,
+        agent: Agent,
     ):
 
         self.search = search_width
@@ -49,10 +51,12 @@ class Scheduler:
         log.info(
             f"{RED}[Scheduler Init] search_width={search_width}, simulation_depth={simulation_depth}{RESET}"
         )
-
+        self.agent = agent
         self.action_handler = ActionHandler(nav_graph or {})
-        self.constraint_handler = ConstraintHandler()
-        self.cost_calculator = HeuristicManager(self.constraint_handler)
+        self.constraint_handler = ConstraintHandler(self.action_handler)
+        self.cost_calculator = HeuristicManager(
+            self.constraint_handler, self.action_handler, self.agent
+        )
 
         self._counter = itertools.count()
 

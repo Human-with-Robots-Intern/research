@@ -66,7 +66,6 @@ class HeuristicManager:
                 f"Failed to load or validate heuristic weights from config: {e_weights}. Using defaults (1.0, 1.0, 1.0)."
             )
             self.alpha, self.beta, self.zeta = 1.0, 1.0, 1.0  # 안전한 기본값
-        # --- 수정 끝 ---
 
         if self.agent:
             log.info("HeuristicManager initialized with Agent knowledge.")

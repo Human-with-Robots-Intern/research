@@ -17,9 +17,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# Define a tolerance for critical task start time checks
-CRITICAL_TIME_TOLERANCE = EPSILON  # Use global epsilon or a very small value
-
 
 class ConstraintHandler:
 
@@ -66,9 +63,6 @@ class ConstraintHandler:
 
         current_time = curr_node.state.current_time
         remaining_subtasks = curr_node.state.remaining_subtasks
-        log.debug(
-            f"Checking {len(remaining_subtasks)} remaining subtasks at time {current_time:.2f}"
-        )
 
         for sub in remaining_subtasks:
             # 1. 논리적 제약 조건 확인 (선행 태스크 완료 여부, 시간 제약)
@@ -110,10 +104,7 @@ class ConstraintHandler:
                     else None
                 )
                 if first_action:
-                    # 네비게이션 또는 다른 준비 액션 시간 예측 시도
-                    # WARNING: Relies on ActionHandler.get_actions_info which uses internal simulation.
-                    #          This might be computationally expensive and its accuracy is limited.
-                    #          Consider adding a lighter estimation function to ActionHandler if needed.
+
                     log.debug(
                         f"  Estimating prep time for '{sub.name}' using first action: '{first_action}' via ActionHandler"
                     )
@@ -121,7 +112,6 @@ class ConstraintHandler:
                         self.action_handler.get_actions_info(curr_node, [first_action])
                     )
                     if prep_info and prep_info.success:  # 성공적으로 예측된 경우만 사용
-                        # action_duration이 해당 액션만의 순수 시간을 나타낸다고 가정
                         estimated_prep_time = prep_info.action_duration
                         log.debug(f"    Estimated prep time: {estimated_prep_time:.2f}")
                     elif prep_info and not prep_info.success:
@@ -167,7 +157,6 @@ class ConstraintHandler:
                 is_critical=is_critical,
                 status=status,  # 논리적 상태 ("COMPLETED")
                 logical_start_time=logical_start_time,
-                estimated_nav_time=estimated_prep_time,  # 이름 변경 고려: estimated_prep_time
                 earliest_start_time=adjusted_start_time,  # 최종 조정된 예상 시작 시간
             )
 
@@ -323,8 +312,7 @@ class ConstraintHandler:
 
             # --- 수정: 충돌 검사 및 로깅 강화 ---
             if (
-                abs(earliest_critical_time - latest_critical_time)
-                > CRITICAL_TIME_TOLERANCE
+                abs(earliest_critical_time - latest_critical_time) > EPSILON
             ):  # 수정된 허용 오차 사용
                 log.error(
                     f"CRITICAL CONSTRAINT CONFLICT for '{sub.name}': Multiple distinct critical start times required: {sorted(critical_times)}. Check constraint logic."
