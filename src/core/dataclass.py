@@ -115,6 +115,7 @@ class SchedulerState:
     current_time: float
     scene_positions: dict[str, Tuple[float, float, float]]
     held_object: Optional[str]
+    global_deadline: Optional[float] = None
 
 
 @dataclass(order=True)
@@ -178,6 +179,7 @@ class Candidate:
     deadline: Optional[Deadline] = field(
         default_factory=lambda: Deadline(float("inf"), None)
     )
+    status: Optional[str] = None
 
     def __repr__(self):
         return (

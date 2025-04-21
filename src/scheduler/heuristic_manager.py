@@ -1,9 +1,19 @@
 import logging
 import math
+from typing import TYPE_CHECKING, Optional
+
+import networkx as nx  # Required for path finding
 
 from core.dataclass import Candidate, SimulationNode, Subtask
+from core.task import Subtask  # Subtask 직접 임포트
 from src.utils.config import EPSILON
-from src.utils.config.constants import LARGE_NUMBER
+from src.utils.config.constants import DEFAULT_SUBTASK_DURATION_ESTIMATE, LARGE_NUMBER
+
+# Forward declarations for type hinting
+if TYPE_CHECKING:
+    from core.agent import Agent
+    from scheduler.action_handler import ActionHandler
+    from scheduler.constraint_handler import ConstraintHandler
 
 log = logging.getLogger(__name__)
 
@@ -18,25 +28,39 @@ class HeuristicManager:
     비용이 낮을수록 우선순위가 높습니다.
     """
 
-    def __init__(self, constraint_handler, action_handler, knowledge_base=None):
+    def __init__(
+        self,
+        constraint_handler: "ConstraintHandler",
+        action_handler: "ActionHandler",
+        agent: Optional["Agent"] = None,  # Inject Agent dependency
+    ):
         self.constraint_handler = constraint_handler
         self.action_handler = action_handler
+        self.agent = agent  # Store agent instance
 
-        # --- 휴리스틱 가중치 (실험을 통해 튜닝 필요) ---
-        self.alpha = 1.0  # 네비게이션 시간 가중치
-        self.beta = 1.5  # 긴급도 (슬랙) 가중치
-        self.zeta = 0.1  # 남은 작업량 추정치 가중치 (단위 고려하여 조정)
-        # ---------------------------------------------------
-
-        log.info(
-            f"휴리스틱 가중치: alpha={self.alpha}, beta={self.beta}, zeta={self.zeta} "
-        )
+        # --- 휴리스틱 가중치 (매우 중요! 실험 및 튜닝 필수!) ---
+        # 7.4: 튜닝 필요성 강조 및 gamma 추가
+        # These weights critically determine the scheduler's behavior.
+        # They MUST be tuned based on experiments, specific task characteristics,
+        # and desired scheduling objectives (e.g., makespan, deadline adherence).
+        self.alpha = 1.0  # Navigation time weight
+        self.beta = 1.5  # Urgency (slack) weight
+        self.zeta = 0.1  # Remaining work estimate weight
+        self.gamma = 0.5  # Wait time penalty weight (7.3 추가)
+        # ----------------------------------------------------------
+        if self.agent:
+            log.info("HeuristicManager initialized with Agent knowledge.")
+        else:
+            log.warning(
+                "HeuristicManager initialized WITHOUT Agent knowledge. Using default estimates."
+            )
 
     def calc_heuristic(
         self,
         current_node: "SimulationNode",
         candidate: "Candidate",
         remaining_subtasks: list["Subtask"],
+        actual_duration: Optional[float] = None,  # 실제 소요 시간 (옵션)
     ) -> float:
         """
         후보 서브태스크 확장에 대한 휴리스틱 비용을 계산합니다.
@@ -46,90 +70,251 @@ class HeuristicManager:
             current_node (SimulationNode): 확장 기준이 되는 현재 노드.
             candidate (Candidate): 평가 대상 후보 태스크.
             remaining_subtasks (list[Subtask]): 이 후보가 실행된 후 남게 될 서브태스크 리스트.
+            actual_duration (Optional[float]): 후보 태스크의 실제 시뮬레이션 시간 (제공된 경우 사용).
 
         Returns:
-            float: 계산된 휴리스틱 비용. 실행 불가능한 경우 LARGE_NUMBER 반환.
+            float: 계산된 휴리스틱 비용. 실행 불가능하거나 매우 비관적인 경우 LARGE_NUMBER 반환.
         """
+        # --- TODO: Review Heuristic Components and Weights (alpha, beta, zeta) ---
+        # The current combination of navigation, urgency, and remaining work might be biased
+        # towards certain task types or scheduling goals (e.g., minimizing makespan vs. meeting deadlines).
+        # Evaluate the effectiveness of each component and the appropriateness of the weights
+        # based on simulation results and desired system behavior. Consider alternative heuristics.
 
         candidate_subtask = candidate.subtask
-        current_time = current_node.state.current_time  # 현재 시간
+        current_time = current_node.state.current_time
 
-        # --- (A) 네비게이션 비용 (alpha * nav_time) ---
+        # --- (A) 네비게이션 비용 (Improved Estimation) ---
         nav_time = 0.0
         try:
-            # 네비게이션 시간 계산 (이전과 동일)
-            first_action = candidate_subtask.execution.primitive_actions[0]
-            action_type = first_action.split()[0].upper()
-            if action_type == "NAVIGATE_TO":
-                action_info = self.action_handler.get_actions_info(
-                    current_node, [first_action]
+            # Use dedicated estimation method from ActionHandler
+            # Assumes action_handler is updated separately to provide this method
+            nav_time = self.action_handler.get_navigation_time_estimate(
+                current_node, candidate.subtask
+            )
+            if nav_time == float("inf"):
+                log.warning(
+                    f"'{candidate.subtask.name}' navigation deemed infeasible. Cost=LARGE_NUMBER."
                 )
-                nav_time = action_info.time_used if action_info else 0.0
-        except (IndexError, AttributeError, TypeError, Exception) as e:
-            log.warning(f"'{candidate_subtask.name}' nav time error: {e}. Assuming 0.")
-            nav_time = 0.0
+                return LARGE_NUMBER
+            elif nav_time < 0:
+                log.warning(
+                    f"'{candidate.subtask.name}' received negative nav estimate ({nav_time:.2f}). Using 0."
+                )
+                nav_time = 0.0
+
+        except AttributeError:
+            # Fallback if the dedicated method doesn't exist yet
+            log.warning(
+                f"ActionHandler missing 'get_navigation_time_estimate'. Falling back to first action sim."
+            )
+            try:
+                # Check if there are any actions first
+                if (
+                    not candidate.subtask.execution
+                    or not candidate.subtask.execution.primitive_actions
+                ):
+                    log.warning(
+                        f"Task '{candidate.subtask.name}' has no actions for fallback nav estimation. Assuming 0."
+                    )
+                    nav_time = 0.0
+                else:
+                    first_action = candidate.subtask.execution.primitive_actions[0]
+                    # --- MODIFIED FALLBACK ---
+                    # Check if the first action is actually navigation
+                    if first_action.upper().startswith("NAVIGATE_TO"):
+                        action_info = self.action_handler.get_actions_info(
+                            current_node, [first_action]
+                        )
+                        if action_info is None or action_info.time_used < 0:
+                            log.warning(
+                                f"'{candidate.subtask.name}' fallback nav estimation failed. Cost=LARGE_NUMBER."
+                            )
+                            return LARGE_NUMBER
+                        nav_time = action_info.action_duration
+                    else:
+                        # First action is not NAVIGATE_TO, fallback is unreliable
+                        log.warning(
+                            f"Task '{candidate.subtask.name}': Fallback nav estimation skipped. First action ('{first_action}') is not NAVIGATE_TO. Cost=LARGE_NUMBER."
+                        )
+                        nav_time = 0.0  # LARGE_NUMBER 대신 0.0
+
+            except Exception as e_fallback:
+                log.warning(
+                    f"'{candidate.subtask.name}' fallback nav estimation error: {e_fallback}. Cost=LARGE_NUMBER."
+                )
+                return LARGE_NUMBER
+        except (ValueError, TypeError, Exception) as e:
+            log.warning(
+                f"'{candidate.subtask.name}' nav time estimation error: {e}. Cost=LARGE_NUMBER."
+            )
+            return LARGE_NUMBER  # Return high cost if nav estimation fails
+
         navigation_cost = self.alpha * nav_time
 
-        # --- (B) 긴급도 비용 (beta * urgency_term) ---
-        urgency_term = 0.0
-        estimated_duration = 0.0  # 후보 작업의 총 예상 시간 (이동 포함)
-        slack_val = float("inf")
+        # --- (B) 긴급도 비용 ---
+        urgency_term = 0.0  # Default urgency term (no urgency if no deadline)
+        slack_val = float("inf")  # Default slack
 
         if candidate.deadline and candidate.deadline.due_date < float("inf"):
             deadline_time = candidate.deadline.due_date
+            deadline_sub_name = (
+                candidate.deadline.subtask_name
+            )  # Task that sets the deadline
             try:
-                # 1. 후보 작업의 총 예상 시간 계산 (이동 포함)
-                sub_duration_info = self.action_handler.get_actions_info(
-                    current_node, candidate_subtask.execution.primitive_actions
-                )
-                if sub_duration_info:
-                    estimated_duration = sub_duration_info.time_used
+                # 1. 후보 작업 자체의 예상 시간 계산
+                estimated_duration_candidate = 0.0
+                if actual_duration is not None and actual_duration >= 0:
+                    estimated_duration_candidate = actual_duration
+                    log.debug(
+                        f"Using provided actual_duration for {candidate_subtask.name}: {actual_duration:.2f}"
+                    )
                 else:
-                    log.warning(
-                        f"'{candidate_subtask.name}' duration estimation failed. Using default."
+                    # Reuse existing logic to estimate candidate duration
+                    sub_duration_info = self.action_handler.get_actions_info(
+                        current_node, candidate_subtask.execution.primitive_actions
                     )
-                    estimated_duration = (
-                        candidate_subtask.duration.interval
-                        if candidate_subtask.duration
-                        else 0.0
-                    )
+                    if (
+                        sub_duration_info is None or sub_duration_info.time_used < 0
+                    ):  # Check for negative time too
+                        log.warning(
+                            f"'{candidate_subtask.name}' duration estimation failed. Returning LARGE_NUMBER cost."
+                        )
+                        return LARGE_NUMBER
+                    estimated_duration_candidate = sub_duration_info.time_used
 
-                # 2. [수정됨] 슬랙 계산: (마감까지 남은 시간) - (필요한 시간)
+                # --- NEW: Estimate time needed for tasks *between* candidate and deadline task ---
+                time_needed_for_intermediate_tasks = 0.0
+                # Check if deadline task exists and is different from candidate
+                if deadline_sub_name and deadline_sub_name != candidate_subtask.name:
+                    constraints = current_node.state.constraints
+                    if constraints.has_node(
+                        candidate_subtask.name
+                    ) and constraints.has_node(deadline_sub_name):
+                        try:
+                            # Find all simple paths (no cycles) between candidate end and deadline start
+                            # This can be computationally expensive! Consider optimizing (e.g., critical path).
+                            all_paths = list(
+                                nx.all_simple_paths(
+                                    constraints,
+                                    source=candidate_subtask.name,
+                                    target=deadline_sub_name,
+                                )
+                            )
+
+                            max_intermediate_time = 0.0
+                            if not all_paths:
+                                log.debug(
+                                    f"No direct constraint path found between '{candidate_subtask.name}' and deadline task '{deadline_sub_name}'. Intermediate time = 0."
+                                )
+                            else:
+                                log.debug(
+                                    f"Found {len(all_paths)} paths between '{candidate_subtask.name}' and '{deadline_sub_name}'. Calculating max duration."
+                                )
+                                for path in all_paths:
+                                    current_path_time = 0.0
+                                    # Sum durations of intermediate nodes in the path
+                                    # Path includes start and end node, so iterate from index 1 to N-2
+                                    for i in range(1, len(path) - 1):
+                                        intermediate_sub_name = path[i]
+                                        # Find the Subtask object for the intermediate node
+                                        intermediate_sub = next(
+                                            (
+                                                sub
+                                                for sub in remaining_subtasks
+                                                + [candidate.subtask]
+                                                if sub.name == intermediate_sub_name
+                                            ),
+                                            None,
+                                        )
+                                        if intermediate_sub:
+                                            # Use _estimate_remaining_cost logic (or similar) to get its duration
+                                            # This avoids duplicating estimation logic. Call helper?
+                                            # Simplified version: use agent or default
+                                            est_dur = DEFAULT_SUBTASK_DURATION_ESTIMATE
+                                            if self.agent:
+                                                try:
+                                                    est_dur, _ = (
+                                                        self.agent._get_prior_estimate(
+                                                            intermediate_sub.name
+                                                        )
+                                                    )
+                                                except Exception:
+                                                    pass  # Ignore agent errors here
+                                            elif (
+                                                intermediate_sub.duration
+                                                and intermediate_sub.duration.interval
+                                                is not None
+                                            ):
+                                                try:
+                                                    est_dur = float(
+                                                        intermediate_sub.duration.interval
+                                                    )
+                                                except:
+                                                    pass
+                                            current_path_time += max(
+                                                0, est_dur
+                                            )  # Add non-negative duration
+
+                                    max_intermediate_time = max(
+                                        max_intermediate_time, current_path_time
+                                    )
+
+                                time_needed_for_intermediate_tasks = (
+                                    max_intermediate_time
+                                )
+                                log.debug(
+                                    f"Estimated max intermediate task time between '{candidate_subtask.name}' and '{deadline_sub_name}': {time_needed_for_intermediate_tasks:.2f}"
+                                )
+
+                        except nx.NetworkXNoPath:
+                            log.debug(
+                                f"No path found between '{candidate_subtask.name}' and '{deadline_sub_name}' in constraint graph."
+                            )
+                        except nx.NodeNotFound:
+                            log.warning(
+                                f"Node '{candidate_subtask.name}' or '{deadline_sub_name}' not found in constraint graph for intermediate time calculation."
+                            )
+                        except Exception as e_path:
+                            log.error(
+                                f"Error calculating intermediate task time: {e_path}",
+                                exc_info=True,
+                            )
+
+                # 2. 슬랙 계산 (후보 작업 + 중간 작업 시간 고려)
                 time_remaining_until_deadline = deadline_time - current_time
-                time_needed_for_candidate = estimated_duration
-                slack_val = time_remaining_until_deadline - time_needed_for_candidate
+                # Total time needed includes candidate itself and longest path of intermediate tasks
+                time_needed = (
+                    estimated_duration_candidate + time_needed_for_intermediate_tasks
+                )
+                slack_val = time_remaining_until_deadline - time_needed
 
                 log.debug(
-                    f"Slack Calc for '{candidate_subtask.name}': Deadline={deadline_time:.2f}, Now={current_time:.2f}, Remaining={time_remaining_until_deadline:.2f}, Needed={time_needed_for_candidate:.2f} => Slack={slack_val:.2f}"
+                    f"Slack Calc: DeadlineTime={deadline_time:.2f}, CurrentTime={current_time:.2f}, "
+                    f"Remaining={time_remaining_until_deadline:.2f} | "
+                    f"TimeNeeded (Candidate={estimated_duration_candidate:.2f} + Intermediate={time_needed_for_intermediate_tasks:.2f}) = {time_needed:.2f} | "
+                    f"Slack={slack_val:.2f}"
                 )
 
-                # 3. 긴급도 항 계산
+                # 3. 긴급도 항 계산 (음수 슬랙 처리, 역제곱근 사용 - 타당성 검토 필요)
                 if slack_val <= EPSILON:
-                    log.warning(
-                        f"'{candidate_subtask.name}' has zero/negative slack ({slack_val:.2f}). High urgency penalty."
-                    )
-                    # [수정됨] LARGE_NUMBER 대신 큰 음수 값으로 설정 (비용 함수에서는 큰 양수 페널티가 됨)
+                    # ... (High urgency penalty logging) ...
                     urgency_term = (
                         -LARGE_NUMBER
-                    )  # Lower cost is better, so high penalty means very low (negative) urgency term
+                    )  # 매우 큰 음수 값 (비용 함수에서는 큰 양수 페널티)
                 else:
-                    # Use reciprocal square root for smoother penalty increase as slack decreases
+                    # Use reciprocal square root for smoother penalty increase
                     urgency_term = -1.0 / math.sqrt(slack_val + EPSILON)
 
-            except Exception as e:
+            except (ValueError, Exception) as e:  # ValueError 포함
                 log.error(
-                    f"'{candidate_subtask.name}' slack calculation error: {e}. Setting urgency_term=0."
+                    f"'{candidate_subtask.name}' slack calculation error: {e}. Cost=LARGE_NUMBER."
                 )
-                urgency_term = 0.0
-        else:
-            log.debug(
-                f"'{candidate_subtask.name}' has no finite deadline. urgency_term=0."
-            )
-            urgency_term = 0.0
+                return LARGE_NUMBER
 
         urgency_cost = self.beta * urgency_term
 
-        # --- (C) 남은 작업량 비용 (zeta * remaining_work_estimate) ---
+        # --- (C) 남은 작업량 비용 ---
         remaining_work_estimate = self._estimate_remaining_cost(remaining_subtasks)
         remaining_work_cost = self.zeta * remaining_work_estimate
 
@@ -150,51 +335,87 @@ class HeuristicManager:
         log.debug(f"  ==> Total Cost: {total_cost:.4f}")
 
         # --- 실행 불가능 처리 (휴리스틱 레벨) ---
-        # [수정됨] urgency_term이 매우 낮은 값(즉, 페널티가 매우 큼)이면 LARGE_NUMBER 반환
-        # 이것은 스케줄러의 데드라인 체크와는 별개로 휴리스틱 레벨에서의 비선호 표현임.
-        if (
-            urgency_term <= -LARGE_NUMBER + EPSILON
-        ):  # Check against the large negative value
+        # urgency_term이 매우 낮은 값(-LARGE_NUMBER)이면 LARGE_NUMBER 비용 반환
+        if urgency_term <= -LARGE_NUMBER + EPSILON:
             log.warning(
                 f"'{candidate_subtask.name}' deemed highly unpromising due to very low/negative slack ({slack_val:.2f}). Cost=LARGE_NUMBER."
             )
-            return LARGE_NUMBER  # Return large cost, effectively pruning
+            return LARGE_NUMBER  # 높은 비용 반환
+
+        # --- MODIFIED: Justification for LARGE_NUMBER ---
+        # Return LARGE_NUMBER if any sub-calculation failed (already handled above)
+        # or if urgency cost itself is LARGE_NUMBER (due to negative slack).
+        if total_cost >= LARGE_NUMBER:
+            log.warning(
+                f"Returning LARGE_NUMBER cost for '{candidate_subtask.name}' due to calculation failure or extreme urgency."
+            )
+            return LARGE_NUMBER
+
+        # Sanity check for negative cost (should not happen with current components)
+        if total_cost < 0:
+            log.error(
+                f"Calculated negative heuristic cost ({total_cost:.4f}) for '{candidate_subtask.name}'. Returning 0."
+            )
+            return 0.0
 
         return total_cost
 
     def _estimate_remaining_cost(self, remaining_subtasks: list["Subtask"]) -> float:
         """
-        남은 작업량을 추정합니다 (개수와 총 예상 시간 가중 합 사용).
-
-        Args:
-            remaining_subtasks (list[Subtask]): 남은 서브태스크 리스트.
-
-        Returns:
-            float: 추정된 남은 작업 비용.
+        Estimates the remaining workload based on the sum of estimated durations.
+        NOTE: This is a very rough estimate, ignoring dependencies and parallelism.
         """
+        # --- NOTE: Dependency on Agent Knowledge ---
+        # This estimation relies on duration estimates, potentially from the Agent.
+        # The accuracy of the Agent's knowledge (prior estimates) directly impacts
+        # the quality of this remaining work cost component.
         if not remaining_subtasks:
             return 0.0
 
         total_estimated_duration = 0.0
         for sub in remaining_subtasks:
-            # 가정: sub.duration.interval이 해당 서브태스크의 예상 소요 시간을 나타냄
-            if sub.duration and sub.duration.interval is not None:
+            duration_value = DEFAULT_SUBTASK_DURATION_ESTIMATE  # 기본값 사용
+            duration_source = "default"
+
+            # 1. Try using Agent's knowledge if available
+            if self.agent:
                 try:
-                    # interval 값이 float 또는 int로 변환 가능한지 확인
-                    duration_value = float(sub.duration.interval)
-                    total_estimated_duration += duration_value
-                except (ValueError, TypeError):
+                    # Use Agent's method to get prior, handling similarity/defaults internally
+                    # Assuming Agent has _get_prior_estimate method accessible
+                    # Pass the subtask name for potential similarity matching inside agent
+                    prior_mean, _ = self.agent._get_prior_estimate(sub.name)
+                    duration_value = prior_mean
+                    duration_source = "agent"
+                except Exception as e_agent:
                     log.warning(
-                        f"Subtask '{sub.name}'의 duration.interval ('{sub.duration.interval}')이 숫자가 아님. 무시."
+                        f"Failed to get estimate from Agent for '{sub.name}': {e_agent}. Falling back."
                     )
-            else:
-                log.warning(
-                    f"Subtask '{sub.name}'에 유효한 duration 정보가 없음. 예상 시간 0으로 처리."
-                )
-                pass  # 또는 기본 시간 추가
 
-        # 가중 합으로 비용 계산
-        cost = total_estimated_duration
+            # 2. If Agent didn't provide value, try using subtask.duration.interval
+            if (
+                duration_source == "default"
+                and sub.duration
+                and sub.duration.interval is not None
+            ):
+                try:
+                    interval_val = float(sub.duration.interval)
+                    if interval_val >= 0:
+                        duration_value = interval_val
+                        duration_source = "subtask_interval"
+                    else:
+                        log.warning(
+                            f"Subtask '{sub.name}' has negative duration.interval. Using {duration_source} estimate ({duration_value:.2f})."
+                        )
+                except (ValueError, TypeError):
+                    pass  # Keep default if interval is not numeric
 
-        log.debug(f"추정된 남은 작업 비용 총 예상시간:{total_estimated_duration:.2f})")
-        return cost
+            # Log the source of the duration used if not default
+            # if duration_source != "default":
+            #      log.debug(f"Using '{duration_source}' duration ({duration_value:.2f}) for '{sub.name}' remaining cost.")
+
+            total_estimated_duration += duration_value
+
+        log.debug(
+            f"Estimated remaining cost (sum of durations): {total_estimated_duration:.2f} for {len(remaining_subtasks)} tasks"
+        )
+        return total_estimated_duration

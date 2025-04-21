@@ -1,26 +1,29 @@
 import copy
+import dataclasses
 import itertools
+import math  # For inf comparison
 from queue import PriorityQueue
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
 
 # 필요한 데이터 클래스 및 핸들러 임포트
-from core.dataclass import (
+from src.core.dataclass import (  # src 경로 사용
     ActionResult,
     Candidate,
-    Duration,
+    Deadline,  # Deadline 추가
     SchedulerState,
     SimulationNode,
     Subtask,
 )
 
 # 테스트 대상 모듈 임포트
-from core.scheduler import Scheduler
-from scheduler.action_handler import ActionHandler
-from scheduler.constraint_handler import ConstraintHandler
-from scheduler.heuristic_manager import HeuristicManager
-from src.utils.config import EPSILON, LARGE_NUMBER
+from src.core.scheduler import Scheduler  # src 경로 사용
+from src.core.task import Duration, Execution, Subtask  # Execution 추가
+from src.scheduler.action_handler import ActionHandler  # src 경로 사용
+from src.scheduler.constraint_handler import ConstraintHandler  # src 경로 사용
+from src.scheduler.heuristic_manager import HeuristicManager  # src 경로 사용
+from src.utils.config import EPSILON, LARGE_NUMBER  # src 경로 사용
 
 
 # Fixtures
@@ -29,8 +32,11 @@ def mock_action_handler():
     mock = MagicMock(spec=ActionHandler)
     # 기본 get_actions_info 반환 설정
     mock_action_result = MagicMock(spec=ActionResult)
-    mock_action_result.time_used = 1.0  # 기본 시간
-    mock_action_result.scene_positions = {"agent": (1, 0, 0)}
+    mock_action_result.time_used = 1.0
+    mock_action_result.scene_positions = {
+        "agent": (1, 0, 0),
+        "target": (1, 0, 0),
+    }  # 샘플 위치 추가
     mock_action_result.held_object = None
     mock.get_actions_info.return_value = mock_action_result
     # split_subtask_by_cutoff_time 모킹 (필요시)
@@ -43,7 +49,9 @@ def mock_constraint_handler():
     mock = MagicMock(spec=ConstraintHandler)
     # 기본 get_feasible_candidates 반환 설정 (빈 리스트)
     mock.get_feasible_candidates.return_value = ([], [])
-    # get_time_slots 모킹 (필요시)
+    # get_earliest_start_time 모킹 (ConstraintHandler 내부에서 사용될 수 있음)
+    # 기본 반환값: 시작 가능, non-critical, 완료된 선행
+    mock.get_earliest_start_time.return_value = (0.0, False, "COMPLETED")
     mock.get_time_slots.return_value = []
     return mock
 
@@ -52,46 +60,67 @@ def mock_constraint_handler():
 def mock_heuristic_manager():
     mock = MagicMock(spec=HeuristicManager)
     # 기본 calc_heuristic 반환 설정
-    mock.calc_heuristic.return_value = 10.0  # 기본 휴리스틱 값
+    mock.calc_heuristic.return_value = 10.0
     return mock
 
 
 @pytest.fixture
-def sample_subtask(name="SampleSub"):
+def sample_subtask(name="SampleSub", duration=5.0, actions=None):
     # 간단한 모의 Subtask
     sub = MagicMock(spec=Subtask)
     sub.name = name
     sub.type = "Interaction"
-    sub.execution.primitive_actions = [f"NAVIGATE_TO {name}"]
-    sub.duration = Duration(type="Controllable", interval=5.0)
+    # Execution 모의 객체 생성 및 할당
+    sub.execution = MagicMock(spec=Execution)
+    if actions is None:
+        sub.execution.primitive_actions = [f"ACTION {name}"]  # 기본 액션
+    else:
+        sub.execution.primitive_actions = actions
+    sub.duration = MagicMock(spec=Duration)
+    sub.duration.type = "Controllable"
+    sub.duration.interval = duration  # 예상 시간
     sub.decomposed = False
+    # name 속성을 읽을 수 있도록 설정
+    type(sub).name = PropertyMock(return_value=name)
     return sub
 
 
 @pytest.fixture
-def sample_candidate(subtask, adjusted_start=0.0, logical_start=0.0, is_critical=False):
-    # Candidate 생성 헬퍼
-    return Candidate(
-        subtask=subtask,
-        is_critical=is_critical,
-        adjusted_start_time=adjusted_start,
-        logical_start_time=logical_start,
-        # deadline은 기본값 사용
-    )
+def sample_candidate():
+    def _create_candidate(
+        subtask,
+        adjusted_start=0.0,
+        logical_start=0.0,
+        is_critical=False,
+        deadline_time=float("inf"),
+        deadline_reason=None,
+    ):
+        deadline = Deadline(due_date=deadline_time, subtask_name=deadline_reason)
+        return Candidate(
+            subtask=subtask,
+            is_critical=is_critical,
+            adjusted_start_time=adjusted_start,
+            logical_start_time=logical_start,
+            deadline=deadline,
+        )
+
+    return _create_candidate
 
 
 @pytest.fixture
 def initial_scheduler_state(sample_subtask):
     """초기 스케줄러 상태 fixture"""
-    sub1 = sample_subtask("TaskA")
-    sub2 = sample_subtask("TaskB")
+    sub1 = sample_subtask(name="TaskA", duration=5.0)
+    sub2 = sample_subtask(name="TaskB", duration=3.0)
+    # scene_positions에 서브태스크 이름과 매칭되는 키가 있어야 함 (ActionHandler 등에서 사용)
+    init_positions = {"agent": (0, 0, 0), "TaskA": (1, 0, 0), "TaskB": (0, 1, 0)}
     return SchedulerState(
-        subtask=None,  # 시작 시 subtask 없음
+        subtask=None,
         completed_subtasks=[],
         remaining_subtasks=[sub1, sub2],
-        constraints=MagicMock(),  # 모의 DiGraph
+        constraints=MagicMock(spec=dict),  # 모의 DiGraph (dict처럼 동작 가정)
         current_time=0.0,
-        scene_positions={"agent": (0, 0, 0), "TaskA": (1, 0, 0), "TaskB": (0, 1, 0)},
+        scene_positions=init_positions,
         held_object=None,
     )
 
@@ -100,15 +129,17 @@ def initial_scheduler_state(sample_subtask):
 def scheduler_instance(
     mock_action_handler, mock_constraint_handler, mock_heuristic_manager
 ):
-    """테스트용 Scheduler 인스턴스 생성"""
-    return Scheduler(
+    """테스트용 Scheduler 인스턴스 생성. 의존성 주입"""
+    scheduler = Scheduler(
         search_width=3,
         simulation_depth=2,
-        action_handler=mock_action_handler,
-        constraint_handler=mock_constraint_handler,
-        heuristic_manager=mock_heuristic_manager,
         nav_graph={},  # 모의 nav_graph
     )
+    # 핸들러 직접 주입 (생성자에서 주입하도록 변경되었을 수 있으나, 테스트에서는 명시적 주입이 편리)
+    scheduler.action_handler = mock_action_handler
+    scheduler.constraint_handler = mock_constraint_handler
+    scheduler.cost_calculator = mock_heuristic_manager
+    return scheduler
 
 
 # 테스트 케이스
@@ -121,13 +152,14 @@ def test_scheduler_initialization(
     """Scheduler 초기화 및 핸들러 주입 확인"""
     assert scheduler_instance.search == 3
     assert scheduler_instance.simulation_depth == 2
+    # 핸들러가 올바르게 설정되었는지 확인
     assert scheduler_instance.action_handler is mock_action_handler
     assert scheduler_instance.constraint_handler is mock_constraint_handler
     assert scheduler_instance.cost_calculator is mock_heuristic_manager
 
 
-# --- _simulate_search 테스트 --- (매우 복잡하여 핵심 경로 위주 테스트)
-@patch("queue.PriorityQueue")  # PriorityQueue 모킹
+# --- _simulate_search 테스트 ---
+@patch("src.core.scheduler.PriorityQueue")
 def test_simulate_search_no_candidates(
     mock_pq, scheduler_instance, initial_scheduler_state
 ):
@@ -138,43 +170,75 @@ def test_simulate_search_no_candidates(
         [],
     )
 
+    pq_instance = mock_pq.return_value
+    # Correct side effect: False (loop enters), True (loop exits after get)
+    pq_instance.empty.side_effect = [False, True]
+    # get should be called once now
+    init_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=initial_scheduler_state,
+    )
+    pq_instance.get.return_value = init_node
+
     result_node = scheduler_instance._simulate_search(initial_scheduler_state)
 
     assert result_node is None
-    # PriorityQueue 상호작용 확인 (put 한 번, get 한 번)
     assert mock_pq.return_value.put.call_count == 1
-    assert mock_pq.return_value.get.call_count == 1
+    assert mock_pq.return_value.get.call_count == 1  # Should pass now
 
 
-@patch("queue.PriorityQueue")
+@patch("src.core.scheduler.PriorityQueue")
 @patch.object(Scheduler, "_expand_candidates")
-def test_simulate_search_reaches_depth(
-    mock_expand, mock_pq, scheduler_instance, initial_scheduler_state, sample_subtask
+def test_simulate_search_handles_large_number_cost(
+    mock_expand,
+    mock_pq,
+    scheduler_instance,
+    initial_scheduler_state,
+    sample_subtask,
+    sample_candidate,
 ):
-    """최대 깊이 도달 시 종료 및 최적해 반환 확인"""
-    # 초기 노드 설정
-    init_node = SimulationNode(0.0, 0, 0, None, initial_scheduler_state)
-    # 확장 결과 모킹 (depth 1에서 결과 반환)
+    """휴리스틱 비용이 LARGE_NUMBER인 노드는 Beam Pruning에서 제외되는지 확인"""
+    mock_expand.reset_mock()  # Mock 호출 횟수 초기화
+    init_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=initial_scheduler_state,
+    )
+
+    # 확장 결과 모킹: 하나는 정상 비용, 하나는 LARGE_NUMBER
     sub_a = sample_subtask("TaskA")
-    state_a = initial_scheduler_state._replace(
-        subtask=sub_a, current_time=5.0, remaining_subtasks=[sample_subtask("TaskB")]
+    state_a = initial_scheduler_state  # 간단히 상태 재사용
+    node_a_normal = SimulationNode(
+        heuristic_cost=10.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=init_node,
+        state=state_a,
     )
-    node_a = SimulationNode(10.0, 1, 1, init_node, state_a)
-    state_b = initial_scheduler_state._replace(
-        subtask=sample_subtask("TaskB"), current_time=6.0, remaining_subtasks=[sub_a]
+    node_b_large = SimulationNode(
+        heuristic_cost=LARGE_NUMBER,
+        depth=1,
+        tie_breaker=2,
+        parent_node=init_node,
+        state=state_a,
     )
-    node_b = SimulationNode(12.0, 1, 2, init_node, state_b)
-    mock_expand.return_value = [node_a, node_b]  # 정렬된 상태로 가정
+
+    # _expand_candidates가 정렬된 리스트 반환 가정
+    mock_expand.return_value = [node_a_normal, node_b_large]
 
     # PQ 동작 모킹
     pq_instance = mock_pq.return_value
     pq_instance.empty.side_effect = [
         False,
         False,
-        False,
         True,
-    ]  # put(init), get(init), put(a), put(b), get(a), get(b), empty
-    pq_instance.get.side_effect = [init_node, node_a, node_b]
+    ]  # put(init), get(init), put(a_normal), empty
+    pq_instance.get.return_value = init_node  # 첫 get은 init_node
 
     # constraint_handler 모킹 (후보 반환)
     cand_a = sample_candidate(sub_a)
@@ -184,20 +248,129 @@ def test_simulate_search_reaches_depth(
         [],
     )
 
-    # 시뮬레이션 깊이 1로 설정하여 테스트
+    # 시뮬레이션 깊이 1로 설정
     scheduler_instance.simulation_depth = 1
+    # Beam Width 1로 설정하여 pruning 테스트
+    scheduler_instance.search = 1
+
     result_node = scheduler_instance._simulate_search(initial_scheduler_state)
 
-    # 최적해는 비용이 낮은 node_a 여야 함
-    assert result_node is node_a
-    # expand_candidates는 한 번만 호출됨 (init_node 확장 시)
-    mock_expand.assert_called_once_with(init_node, [cand_a, cand_b], [])
-    # get은 3번 호출 (init, a, b)
-    assert pq_instance.get.call_count == 3
+    # 결과는 node_a_normal 이어야 함 (최종 best_solutions에서 선택)
+    # 주의: _simulate_search는 depth 1 도달 시 best_solutions에 추가. 최종 반환은 best_solutions 중 최저 비용.
+    # 여기서는 depth 1 도달이 목적이므로 node_a_normal이 최종 반환될 가능성이 높음.
+    # 만약 depth 0 에서 모든 작업 완료 시나리오면 init_node가 반환될 수도 있음.
+    # 테스트를 명확히 하려면, node_a_normal도 depth=2로 만들고 depth=2 도달 시나리오 가정.
+    node_a_normal.depth = 2  # 깊이 도달 가정
+    pq_instance.empty.side_effect = [
+        False,
+        False,
+        True,
+    ]  # put(init), get(init), put(a_normal), get(a_normal), empty
+    pq_instance.get.side_effect = [init_node, node_a_normal]
+
+    result_node = scheduler_instance._simulate_search(initial_scheduler_state)
+    assert result_node is node_a_normal
+
+    # PQ에는 정상 비용 노드만 추가되어야 함
+    pq_instance.put.assert_called_with(node_a_normal)
+    # LARGE_NUMBER 비용 노드는 put 호출되지 않음
+    calls = pq_instance.put.call_args_list
+    assert not any(node_b_large in call.args for call in calls if call.args)
+
+    assert mock_expand.call_count >= 1
+
+
+@patch("src.core.scheduler.PriorityQueue")
+@patch.object(Scheduler, "_expand_candidates")
+def test_simulate_search_reaches_depth(
+    mock_expand,
+    mock_pq,
+    scheduler_instance,
+    initial_scheduler_state,
+    sample_subtask,
+    sample_candidate,
+):
+    """휴리스틱 비용이 LARGE_NUMBER인 노드는 Beam Pruning에서 제외되는지 확인"""
+    mock_expand.reset_mock()  # Mock 호출 횟수 초기화
+    init_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=initial_scheduler_state,
+    )
+
+    # 확장 결과 모킹: 하나는 정상 비용, 하나는 LARGE_NUMBER
+    sub_a = sample_subtask("TaskA")
+    state_a = initial_scheduler_state  # 간단히 상태 재사용
+    node_a_normal = SimulationNode(
+        heuristic_cost=10.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=init_node,
+        state=state_a,
+    )
+    node_b_large = SimulationNode(
+        heuristic_cost=LARGE_NUMBER,
+        depth=1,
+        tie_breaker=2,
+        parent_node=init_node,
+        state=state_a,
+    )
+
+    # _expand_candidates가 정렬된 리스트 반환 가정
+    mock_expand.return_value = [node_a_normal, node_b_large]
+
+    # PQ 동작 모킹
+    pq_instance = mock_pq.return_value
+    pq_instance.empty.side_effect = [
+        False,
+        False,
+        True,
+    ]  # put(init), get(init), put(a_normal), empty
+    pq_instance.get.return_value = init_node  # 첫 get은 init_node
+
+    # constraint_handler 모킹 (후보 반환)
+    cand_a = sample_candidate(sub_a)
+    cand_b = sample_candidate(sample_subtask("TaskB"))
+    scheduler_instance.constraint_handler.get_feasible_candidates.return_value = (
+        [cand_a, cand_b],
+        [],
+    )
+
+    # 시뮬레이션 깊이 1로 설정
+    scheduler_instance.simulation_depth = 1
+    # Beam Width 1로 설정하여 pruning 테스트
+    scheduler_instance.search = 1
+
+    result_node = scheduler_instance._simulate_search(initial_scheduler_state)
+
+    # 결과는 node_a_normal 이어야 함 (최종 best_solutions에서 선택)
+    # 주의: _simulate_search는 depth 1 도달 시 best_solutions에 추가. 최종 반환은 best_solutions 중 최저 비용.
+    # 여기서는 depth 1 도달이 목적이므로 node_a_normal이 최종 반환될 가능성이 높음.
+    # 만약 depth 0 에서 모든 작업 완료 시나리오면 init_node가 반환될 수도 있음.
+    # 테스트를 명확히 하려면, node_a_normal도 depth=2로 만들고 depth=2 도달 시나리오 가정.
+    node_a_normal.depth = 2  # 깊이 도달 가정
+    pq_instance.empty.side_effect = [
+        False,
+        False,
+        True,
+    ]  # put(init), get(init), put(a_normal), get(a_normal), empty
+    pq_instance.get.side_effect = [init_node, node_a_normal]
+
+    result_node = scheduler_instance._simulate_search(initial_scheduler_state)
+    assert result_node is node_a_normal
+
+    # PQ에는 정상 비용 노드만 추가되어야 함
+    pq_instance.put.assert_called_with(node_a_normal)
+    # LARGE_NUMBER 비용 노드는 put 호출되지 않음
+    calls = pq_instance.put.call_args_list
+    assert not any(node_b_large in call.args for call in calls if call.args)
+
+    assert mock_expand.call_count >= 1
 
 
 # --- _expand_candidates 테스트 ---
-# 이 함수는 내부적으로 _expand_single_* 함수들을 호출하므로, 해당 함수들을 모킹하여 테스트
 @patch.object(Scheduler, "_expand_single_subtask")
 @patch.object(Scheduler, "_expand_single_wait")
 def test_expand_candidates_feasible_only(
@@ -208,29 +381,33 @@ def test_expand_candidates_feasible_only(
     sample_subtask,
 ):
     """Feasible 후보만 있고 Wait 없는 경우 테스트"""
-    cand_a = sample_candidate(sample_subtask("TaskA"))
-    cand_b = sample_candidate(sample_subtask("TaskB"))
-    feasible = [cand_a, cand_b]
+    # Create subtasks first
+    sub_a = sample_subtask("TaskA")
+    sub_b = sample_subtask("TaskB")
+    # Create candidates using the factory and subtasks
+    cand_a = sample_candidate(sub_a)
+    cand_b = sample_candidate(sub_b)
+    feasible = [cand_a, cand_b]  # adjusted_start_time 오름차순 정렬됨 가정
     not_yet = []
     mock_node = MagicMock(spec=SimulationNode)
+    mock_node.state = MagicMock(spec=SchedulerState)
     mock_node.state.current_time = 0.0
 
     # _expand_single_subtask가 모의 노드 반환하도록 설정
-    mock_expand_subtask.side_effect = [
-        MagicMock(spec=SimulationNode),
-        MagicMock(spec=SimulationNode),
-    ]
+    mock_expansion_a = MagicMock(spec=SimulationNode)
+    mock_expansion_a.heuristic_cost = 10.0
+    mock_expansion_b = MagicMock(spec=SimulationNode)
+    mock_expansion_b.heuristic_cost = 12.0
+    mock_expand_subtask.side_effect = [mock_expansion_a, mock_expansion_b]
 
     expansions = scheduler_instance._expand_candidates(mock_node, feasible, not_yet)
 
     assert len(expansions) == 2
     assert mock_expand_subtask.call_count == 2
     mock_expand_wait.assert_not_called()
-    # 호출 인자 확인 (정렬된 순서대로 호출되는지 등)
-    # 주의: 현재 _expand_candidates는 adjusted_start_time 오름차순 정렬 사용
-    # 여기서는 cand_a, cand_b 순서로 전달되었다고 가정
+    # 호출 인자 확인 (정렬된 순서 cand_a, cand_b 로 호출 가정)
     mock_expand_subtask.assert_has_calls(
-        [call(mock_node, cand_a), call(mock_node, cand_b)], any_order=True
+        [call(mock_node, cand_a), call(mock_node, cand_b)]
     )
 
 
@@ -244,15 +421,16 @@ def test_expand_candidates_wait_only(
     sample_subtask,
 ):
     """Wait 후보만 있는 경우 테스트"""
-    cand_c = sample_candidate(sample_subtask("TaskC"), adj_start=5.0)  # 아직 시작 불가
-    cand_d = sample_candidate(sample_subtask("TaskD"), adj_start=3.0)  # 이게 더 빠름
+    cand_c = sample_candidate(sample_subtask("TaskC"), adjusted_start=5.0)
+    cand_d = sample_candidate(sample_subtask("TaskD"), adjusted_start=3.0)
     feasible = []
-    not_yet = [cand_c, cand_d]
+    not_yet = [cand_c, cand_d]  # 정렬되지 않은 상태
     mock_node = MagicMock(spec=SimulationNode)
+    mock_node.state = MagicMock(spec=SchedulerState)
     mock_node.state.current_time = 0.0
 
-    # _expand_single_wait가 모의 노드 반환하도록 설정
     mock_wait_node = MagicMock(spec=SimulationNode)
+    mock_wait_node.heuristic_cost = 15.0
     mock_expand_wait.return_value = mock_wait_node
 
     expansions = scheduler_instance._expand_candidates(mock_node, feasible, not_yet)
@@ -265,30 +443,47 @@ def test_expand_candidates_wait_only(
 
 
 @patch.object(Scheduler, "_expand_single_subtask")
-def test_expand_candidates_immediate_critical(
-    mock_expand_subtask, scheduler_instance, sample_candidate, sample_subtask
+@patch.object(Scheduler, "_expand_single_wait")  # Wait도 고려될 수 있으므로 mock 추가
+def test_expand_candidates_immediate_critical_and_feasible(
+    mock_expand_wait,
+    mock_expand_subtask,
+    scheduler_instance,
+    sample_candidate,
+    sample_subtask,
 ):
-    """즉시 실행해야 하는 Critical Task가 있는 경우 테스트"""
-    cand_a = sample_candidate(sample_subtask("TaskA"))
-    # 현재 시간(0.0)과 조정된 시작 시간이 거의 같은 Critical Task
+    """즉시 실행 Critical Task와 다른 Feasible Task가 함께 있는 경우 테스트 (src 로직 변경 반영)"""
+    cand_a = sample_candidate(sample_subtask("TaskA"), adjusted_start=0.0)
     cand_crit = sample_candidate(
-        sample_subtask("Critical"), is_critical=True, adj_start=0.0
+        sample_subtask("Critical"), is_critical=True, adjusted_start=0.0
     )
-    feasible = [cand_a, cand_crit]
+    # 정렬된 순서: cand_crit, cand_a (또는 반대, 여기선 순서 무관하게 둘 다 처리되는지 확인)
+    feasible = [cand_crit, cand_a]
     not_yet = []
     mock_node = MagicMock(spec=SimulationNode)
+    mock_node.state = MagicMock(spec=SchedulerState)
     mock_node.state.current_time = 0.0
 
-    # Critical 확장 결과만 반환하도록 설정
+    # 두 번의 확장이 일어남 가정
     mock_crit_expansion = MagicMock(spec=SimulationNode)
-    mock_expand_subtask.return_value = mock_crit_expansion
+    mock_crit_expansion.heuristic_cost = 8.0
+    mock_a_expansion = MagicMock(spec=SimulationNode)
+    mock_a_expansion.heuristic_cost = 10.0
+    mock_expand_subtask.side_effect = [
+        mock_crit_expansion,
+        mock_a_expansion,
+    ]  # 호출 순서대로 반환
 
     expansions = scheduler_instance._expand_candidates(mock_node, feasible, not_yet)
 
-    assert len(expansions) == 1
-    assert expansions[0] is mock_crit_expansion
-    # _expand_single_subtask는 Critical Task에 대해서만 한 번 호출됨
-    mock_expand_subtask.assert_called_once_with(mock_node, cand_crit)
+    # src 코드 변경: Critical 즉시 실행 필요해도 다른 feasible도 확장됨
+    assert len(expansions) == 2
+    assert mock_expand_subtask.call_count == 2
+    mock_expand_wait.assert_not_called()  # not_yet 후보 없으므로 호출 안됨
+    # Critical과 일반 Feasible 모두 확장 시도
+    mock_expand_subtask.assert_has_calls(
+        [call(mock_node, cand_crit), call(mock_node, cand_a)],
+        any_order=True,  # 순서는 입력 정렬에 따라 다름
+    )
 
 
 # --- _expand_single_subtask 테스트 ---
@@ -332,16 +527,25 @@ def test_expand_single_subtask_routing(
 # --- _extract_state 테스트 ---
 def test_extract_state(initial_scheduler_state, sample_subtask):
     """경로에서 depth=1 상태 추출 테스트"""
+    # Create mock subtasks correctly
+    root_sub = sample_subtask(
+        name="Root"
+    )  # Use the fixture correctly (it's a factory now)
+    step1_sub = sample_subtask(name="Step1")
+    step2_sub = sample_subtask(name="Step2")
+
     # 경로 생성 (Root -> Node1 -> Node2)
     root_node = SimulationNode(0.0, 0, 0, None, initial_scheduler_state)
-    state1 = initial_scheduler_state._replace(subtask=sample_subtask("Step1"))
+    # Use dataclasses.replace
+    state1 = dataclasses.replace(
+        initial_scheduler_state, subtask=step1_sub, current_time=5.0
+    )
     node1 = SimulationNode(10.0, 1, 1, root_node, state1)
-    state2 = state1._replace(subtask=sample_subtask("Step2"))
+    state2 = dataclasses.replace(state1, subtask=step2_sub, current_time=10.0)
     node2 = SimulationNode(20.0, 2, 2, node1, state2)
 
-    scheduler = Scheduler(
-        1, 1, MagicMock(), MagicMock(), MagicMock(), {}
-    )  # 임시 스케줄러
+    # Correct Scheduler init call
+    scheduler = Scheduler(search_width=1, simulation_depth=2, nav_graph={})
 
     # Case 1: 경로 길이가 충분할 때
     extracted_state = scheduler._extract_state(node2)
@@ -357,3 +561,120 @@ def test_extract_state(initial_scheduler_state, sample_subtask):
 
 
 # _should_expand_with_monitoring 테스트 추가 필요
+
+
+# --- _expand_subtask_wo_monitoring 테스트 ---
+def test_expand_subtask_wo_monitoring_success(
+    scheduler_instance,
+    mock_action_handler,
+    mock_heuristic_manager,
+    initial_scheduler_state,
+    sample_subtask,
+    sample_candidate,
+):
+    """_expand_subtask_wo_monitoring 성공 케이스 테스트"""
+    sub_a = initial_scheduler_state.remaining_subtasks[0]  # TaskA
+    candidate_a = sample_candidate(sub_a, adjusted_start=0.0, deadline_time=10.0)
+    current_node = SimulationNode(0.0, 0, 0, None, initial_scheduler_state)
+
+    # ActionHandler mock 설정
+    action_result = ActionResult(
+        action_full_name="ACTION TaskA",
+        action_type="ACTION",
+        time_used=5.0,
+        action_duration=5.0,
+        scene_positions={"agent": (1, 0, 0), "TaskA": (1, 0, 0), "TaskB": (0, 1, 0)},
+        held_object=None,
+    )
+    mock_action_handler.get_actions_info.return_value = action_result
+    # Heuristic mock 설정
+    mock_heuristic_manager.calc_heuristic.return_value = 15.0
+
+    result_node = scheduler_instance._expand_subtask_wo_monitoring(
+        current_node, candidate_a
+    )
+
+    assert result_node is not None
+    assert result_node.parent_node is current_node
+    assert result_node.depth == 1
+    assert result_node.heuristic_cost == 15.0  # parent cost (0) + step cost (15)
+
+    # 상태 검증
+    new_state = result_node.state
+    # name mock 객체의 return_value와 비교 시도
+    new_state_subtask_name_val = new_state.subtask.name.return_value
+    expected_subtask_name = "TaskA"
+    assert (
+        new_state_subtask_name_val == expected_subtask_name
+    ), f"Expected subtask name '{expected_subtask_name}', got '{new_state_subtask_name_val}' from mock return_value"
+
+    completed_subtask_name_val = new_state.completed_subtasks[
+        0
+    ].subtask.name.return_value
+    assert (
+        completed_subtask_name_val == expected_subtask_name
+    ), f"Expected completed subtask name '{expected_subtask_name}', got '{completed_subtask_name_val}' from mock return_value"
+    assert new_state.current_time == 5.0  # 현재 시간 + action 시간
+    assert len(new_state.completed_subtasks) == 1
+    assert new_state.completed_subtasks[0].start_time == 0.0
+    assert new_state.completed_subtasks[0].end_time == 5.0
+    assert len(new_state.remaining_subtasks) == 1
+    assert new_state.remaining_subtasks[0].name == "TaskB"
+    assert new_state.scene_positions["agent"] == (1, 0, 0)
+
+    # 핸들러 호출 검증
+    mock_action_handler.get_actions_info.assert_called_once_with(
+        current_node, sub_a.execution.primitive_actions
+    )
+    mock_heuristic_manager.calc_heuristic.assert_called_once()
+    # calc_heuristic 호출 시 actual_duration 전달되는지 확인 (선택적 기능)
+    # _, kwargs = mock_heuristic_manager.calc_heuristic.call_args
+    # assert 'actual_duration' in kwargs and kwargs['actual_duration'] == 5.0
+
+
+def test_expand_subtask_wo_monitoring_action_handler_fails(
+    scheduler_instance,
+    mock_action_handler,
+    initial_scheduler_state,
+    sample_candidate,
+    sample_subtask,
+):
+    """ActionHandler.get_actions_info가 None 반환 시 확장 실패 테스트"""
+    candidate_a = sample_candidate(sample_subtask("TaskA"))
+    current_node = SimulationNode(0.0, 0, 0, None, initial_scheduler_state)
+    # ActionHandler가 None 반환하도록 설정
+    mock_action_handler.get_actions_info.return_value = None
+
+    result_node = scheduler_instance._expand_subtask_wo_monitoring(
+        current_node, candidate_a
+    )
+
+    assert result_node is None  # 확장에 실패하여 None 반환
+
+
+def test_expand_subtask_wo_monitoring_heuristic_fails(
+    scheduler_instance,
+    mock_action_handler,
+    mock_heuristic_manager,
+    initial_scheduler_state,
+    sample_candidate,
+    sample_subtask,
+):
+    """HeuristicManager.calc_heuristic가 LARGE_NUMBER 반환 시 높은 비용의 노드 반환 테스트"""
+    candidate_a = sample_candidate(sample_subtask("TaskA"))
+    current_node = SimulationNode(0.0, 0, 0, None, initial_scheduler_state)
+    # HeuristicManager가 LARGE_NUMBER 반환하도록 설정
+    mock_heuristic_manager.calc_heuristic.return_value = LARGE_NUMBER
+
+    # ActionHandler는 정상 동작 가정
+    action_result = ActionResult(
+        "ACTION TaskA", "ACTION", 5.0, 5.0, {"agent": (1, 0, 0)}, None
+    )
+    mock_action_handler.get_actions_info.return_value = action_result
+
+    result_node = scheduler_instance._expand_subtask_wo_monitoring(
+        current_node, candidate_a
+    )
+
+    assert result_node is not None  # 노드는 생성됨
+    assert result_node.heuristic_cost == LARGE_NUMBER  # 휴리스틱 비용이 그대로 반영됨

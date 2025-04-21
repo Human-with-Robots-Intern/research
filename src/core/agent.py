@@ -1,10 +1,10 @@
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import networkx as nx
 import numpy as np
 
-from core.dataclass import SchedulerState  # Assuming Subtask exists
+from core.dataclass import SchedulerState, Subtask  # Assuming Subtask exists
 
 if TYPE_CHECKING:
     from scheduler.action_handler import ActionHandler
@@ -25,8 +25,12 @@ from src.utils.task.constraints_util import get_critical_start_info
 log = create_module_logger(module_name=__name__, module_log=True)
 
 # Define constants for clarity and maintainability
-SIMILARITY_THRESHOLD = 0.7
+SIMILARITY_THRESHOLD = (
+    0.7  # NOTE: Needs tuning based on task names and desired strictness
+)
 MIN_VARIANCE = 1e-9  # To avoid division by zero or numerical instability
+# 4.1: FACTOR_ALPHA 검증 필요성 강조 및 기본값 조정 (예시)
+FACTOR_ALPHA = 0.5  # Default: 1.0. Adjusted slightly, but REQUIRES VALIDATION AND TUNING. Must be positive.
 
 
 class Agent:
@@ -38,25 +42,45 @@ class Agent:
     def __init__(self, constraint_handler: "ConstraintHandler"):
         """Initializes the Agent, loading prior knowledge and helpers."""
         self.prior_knowledge: Dict[str, Dict[str, float]] = (
-            self._load_or_init_knowledge(ESTIMATE_FILE_NAME)
+            self._load_or_init_knowledge(ESTIMATE_FILE_NAME, lowercase_keys=True)
         )
-        self.ground_truth: Dict[str, float] = load_knowledge(GROUND_TRUTH_FILE_NAME)
+        self.ground_truth: Dict[str, float] = self._load_or_init_knowledge(
+            GROUND_TRUTH_FILE_NAME, lowercase_keys=True
+        )
         self.constraint_handler = constraint_handler
         self.sentence_sim_model = SentenceSimilarityModel.get_instance()
         log.info(
             "Agent initialized with injected ConstraintHandler and sentence similarity model."
         )
 
-    def _load_or_init_knowledge(self, filename: str) -> Dict[str, Dict[str, float]]:
+    def _load_or_init_knowledge(
+        self, filename: str, lowercase_keys: bool = True
+    ) -> Dict[str, Any]:
         """Loads knowledge from file or returns an empty dict if not found."""
         try:
             knowledge = load_knowledge(filename)
             log.info(f"Successfully loaded knowledge from {filename}.")
-            # Ensure keys are lowercase for consistent lookups
-            return {k.lower(): v for k, v in knowledge.items()}
+            # Ensure keys are lowercase for consistent lookups if requested
+            if lowercase_keys:
+                # Convert keys to lowercase, handle potential non-string keys gracefully
+                return {str(k).lower(): v for k, v in knowledge.items()}
+            else:
+                return knowledge
         except FileNotFoundError:
             log.warning(
                 f"Knowledge file {filename} not found. Initializing empty knowledge base."
+            )
+            return {}
+        except (ValueError, TypeError, KeyError) as e_parse:
+            log.error(
+                f"Error parsing knowledge data from {filename}: {e_parse}. Returning empty.",
+                exc_info=True,
+            )
+            return {}
+        except Exception as e_broad:
+            log.error(
+                f"Error loading knowledge from {filename}: {e_broad}. Returning empty.",
+                exc_info=True,
             )
             return {}
 
@@ -103,9 +127,15 @@ class Agent:
             )
             return query_sub_name
 
-        # Ensure consistent casing for comparison
+        # Ensure query is lowercase for comparison
         query_sub_name_lower = query_sub_name.lower()
 
+        # Check if the exact lowercase name already exists
+        if query_sub_name_lower in candidate_sub_names:
+            log.debug(f"Exact match found for '{query_sub_name_lower}'.")
+            return query_sub_name_lower
+
+        # Proceed with similarity check if exact match not found
         # Compute cosine similarities
         similarity_scores = self.sentence_sim_model.compute_batch_cosine_similarity(
             query_str=query_sub_name_lower,
@@ -147,24 +177,38 @@ class Agent:
         Returns:
             A tuple containing (prior_mean, prior_variance).
         """
-        prior_data = self.prior_knowledge.get(sub_name)
+        # Ensure lookup key is lowercase
+        sub_name_lower = sub_name.lower()
+        prior_data = self.prior_knowledge.get(sub_name_lower)
 
         if prior_data is None:
             log.info(
-                f"Subtask '{sub_name}' not in prior knowledge. Initializing with defaults."
+                f"Subtask '{sub_name_lower}' not in prior knowledge. Initializing with defaults (Mean={INIT_PRIOR_MEAN}, Var={INIT_PRIOR_VARIANCE})."
             )
             prior_mean = INIT_PRIOR_MEAN
             prior_variance = INIT_PRIOR_VARIANCE
-            # Add to knowledge base for future reference
-            self.prior_knowledge[sub_name] = {
+            # Add to knowledge base with lowercase key
+            self.prior_knowledge[sub_name_lower] = {
                 "expected_duration": prior_mean,
                 "variance": prior_variance,
             }
-            # Persist the newly added default knowledge immediately
-            # save_knowledge(self.prior_knowledge, ESTIMATE_FILE_NAME) # Optional: Save immediately or wait for update
+            # Defer saving to save_knowledge_to_file() call
         else:
-            prior_mean = prior_data["expected_duration"]
-            prior_variance = prior_data["variance"]
+            # Make sure the keys within the loaded data are accessible
+            try:
+                prior_mean = prior_data["expected_duration"]
+                prior_variance = prior_data["variance"]
+            except KeyError as e:
+                log.error(
+                    f"Missing key {e} in prior knowledge for '{sub_name_lower}'. Using defaults."
+                )
+                prior_mean = INIT_PRIOR_MEAN
+                prior_variance = INIT_PRIOR_VARIANCE
+                # Correct the entry
+                self.prior_knowledge[sub_name_lower] = {
+                    "expected_duration": prior_mean,
+                    "variance": prior_variance,
+                }
 
         # Ensure variance is not non-positive for numerical stability
         prior_variance = max(prior_variance, MIN_VARIANCE)
@@ -175,64 +219,86 @@ class Agent:
         self,
         prior_mean: float,
         prior_variance: float,
-        ground_truth_duration: float,  # Still passed for logging/comparison if needed
-        critical_elapsed_interval: float,  # This is our actual observation
+        critical_elapsed_interval: float,  # This is the observation (z_k)
     ) -> Tuple[float, float]:
         """
-        Performs the Bayesian update calculation for subtask duration based on observation.
-        [수정됨] Likelihood variance and observation are now based on the actual observation
-                 (critical_elapsed_interval) and prior uncertainty.
-
-        Args:
-            prior_mean: The prior expected duration.
-            prior_variance: The prior variance of the duration.
-            ground_truth_duration: The actual duration (for logging/comparison).
-            critical_elapsed_interval: Time elapsed since the critical constraint started (the observation).
-
-        Returns:
-            A tuple containing (posterior_mean, posterior_variance).
+        Performs the Bayesian update for Gaussian prior and likelihood.
+        Uses the critical_elapsed_interval as the observation.
         """
-        # [수정됨] Model likelihood variance (epsilon_k_sq) based on observation uncertainty.
-        # Simple model: Assume observation noise is proportional to the prior uncertainty.
-        # FACTOR_ALPHA acts as a scaling factor for this assumed noise level.
-        # A higher FACTOR_ALPHA means we trust the prior less / assume more observation noise.
-        epsilon_k_sq = FACTOR_ALPHA * prior_variance
-        # Ensure likelihood variance is numerically stable
-        epsilon_k_sq = max(epsilon_k_sq, MIN_VARIANCE)
+        # --- TODO: Statistical Validation Needed ---
+        # The choice of Gaussian prior/likelihood and the specific update formulas
+        # should be statistically validated against the actual process characteristics.
+        # Consider alternative models (e.g., Gamma distribution for durations) if Gaussian assumption is poor.
+        # The observation model (likelihood_variance) is particularly critical and needs justification/validation.
 
-        # [수정됨] Observation is now centered around the actual measured interval.
-        # The noise added depends on the likelihood variance calculated above.
-        observation = np.random.normal(
-            loc=critical_elapsed_interval, scale=np.sqrt(epsilon_k_sq)
-        )
-        # Clamp observation to be non-negative? Depending on whether negative intervals make sense.
-        observation = max(0, observation)
+        # --- TODO: Review Observation Data Usage ---
+        # Currently uses a single observation (critical_elapsed_interval).
+        # Consider policies for incorporating multiple observations over time,
+        # handling outliers, or weighting recent observations more heavily.
 
-        # --- Bayesian Update Formulas (for Gaussian prior and likelihood) ---
-        # Denominator for posterior calculations
-        denominator = epsilon_k_sq + prior_variance
+        # Ensure prior variance is numerically stable
+        prior_variance = max(prior_variance, MIN_VARIANCE)
+
+        # Model Likelihood Variance (epsilon_k_sq): How uncertain is our observation?
+        # Simple model: Assume observation uncertainty is proportional to prior uncertainty.
+        # FACTOR_ALPHA scales this. Higher alpha = less trust in prior / more observation noise.
+        # --- !!! VALIDITY WARNING & TODO !!! ---
+        # This simple noise model (likelihood_variance = FACTOR_ALPHA * prior_variance)
+        # needs rigorous validation and potentially replacement with a more sophisticated model
+        # that considers sensor noise, process variability, etc.
+        # The FACTOR_ALPHA value requires careful tuning based on experiments or domain knowledge.
+        # TODO: Evaluate and potentially replace this likelihood variance model.
+
+        # 4.1: FACTOR_ALPHA 유효성 검사 및 주석 강화
+        if not isinstance(FACTOR_ALPHA, (int, float)) or FACTOR_ALPHA <= 0:
+            log.critical(
+                f"Invalid FACTOR_ALPHA configured: {FACTOR_ALPHA}. Must be positive number. Using 1.0 as fallback."
+            )
+            alpha = 1.0
+        else:
+            alpha = FACTOR_ALPHA
+
+        likelihood_variance = alpha * prior_variance
+        likelihood_variance = max(likelihood_variance, MIN_VARIANCE)
+
+        # Observation (z_k): The actual measured time elapsed since the critical event.
+        observation = critical_elapsed_interval
+        # Ensure observation is non-negative (time cannot be negative)
+        if observation < 0:
+            log.warning(
+                f"Negative critical_elapsed_interval ({observation:.2f}) observed. Clamping to 0."
+            )
+            observation = 0
+
+        # --- Bayesian Update Formulas (Gaussian Prior & Likelihood) ---
+        # K = Kalman Gain = prior_variance / (prior_variance + likelihood_variance)
+        # posterior_mean = prior_mean + K * (observation - prior_mean)
+        # posterior_variance = (1 - K) * prior_variance
+
+        denominator = prior_variance + likelihood_variance
 
         # Avoid division by zero
         if denominator < MIN_VARIANCE:
             log.warning(
-                f"Denominator near zero ({denominator:.4e}) in Bayesian update for prior mean {prior_mean:.2f}. Returning prior values."
+                f"Denominator ({denominator:.4e}) near zero in Bayesian update. "
+                f"PriorVar={prior_variance:.4e}, LikelihoodVar={likelihood_variance:.4e}. Returning prior values."
             )
             return prior_mean, prior_variance
 
-        # Posterior Mean
-        posterior_mean = (
-            prior_variance * observation + epsilon_k_sq * prior_mean
-        ) / denominator
+        kalman_gain = prior_variance / denominator
 
-        # Posterior Variance
-        posterior_variance = (epsilon_k_sq * prior_variance) / denominator
-        # Ensure posterior variance is also numerically stable
+        posterior_mean = prior_mean + kalman_gain * (observation - prior_mean)
+        # Ensure posterior mean is non-negative
+        posterior_mean = max(0, posterior_mean)
+
+        posterior_variance = (1 - kalman_gain) * prior_variance
+        # Ensure posterior variance is numerically stable and non-negative
         posterior_variance = max(posterior_variance, MIN_VARIANCE)
 
         log.debug(
             f"Bayesian Update: Prior=({prior_mean:.2f}, {prior_variance:.4f}), "
-            f"ObservedElapsed={critical_elapsed_interval:.2f}, GT={ground_truth_duration:.2f}, "
-            f"GeneratedObs={observation:.2f}, LikelihoodVar(Est)={epsilon_k_sq:.4f} -> "
+            f"ObservedElapsed(z_k)={observation:.2f}, "
+            f"LikelihoodVar(R)={likelihood_variance:.4f}, K={kalman_gain:.4f} -> "
             f"Posterior=({posterior_mean:.2f}, {posterior_variance:.4f})"
         )
 
@@ -240,129 +306,105 @@ class Agent:
 
     def _update_knowledge_and_constraints(
         self,
-        state: SchedulerState,
-        known_sub_name: str,
+        state: SchedulerState,  # State is now only used for logging/context if needed
+        known_sub_name: str,  # lowercase name for knowledge base key
         posterior_mean: float,
         posterior_variance: float,
-        critical_start_sub_name: str,
-        monitoring_target_sub_name: str,  # The original name extracted from monitor task
-        critical_start_sub_end_time: float,
+        # Constraint-related args removed as constraints are not modified here
     ) -> None:
         """
-        Updates the agent's internal knowledge base with the new posterior estimates.
-        [수정됨] Does NOT modify the constraint graph directly anymore (Option 1 adopted).
-                 The scheduler should use the logical constraints, and the heuristic
-                 can optionally leverage the agent's updated knowledge.
+        Updates ONLY the agent's internal knowledge base with the new posterior estimates.
+        Constraint graph modification is REMOVED based on feedback to avoid inconsistencies.
         """
-        # 1) Update internal knowledge base
+        # 1) Update internal knowledge base (using lowercase key)
         if known_sub_name not in self.prior_knowledge:
             log.warning(
                 f"Attempting to update knowledge for '{known_sub_name}', but it was not initialized. Creating entry."
             )
-            self.prior_knowledge[known_sub_name] = {}
+            self.prior_knowledge[known_sub_name] = {}  # Initialize if missing
 
         self.prior_knowledge[known_sub_name]["expected_duration"] = posterior_mean
         self.prior_knowledge[known_sub_name]["variance"] = posterior_variance
         log.info(
             f"Updated internal knowledge for '{known_sub_name}': Mean={posterior_mean:.2f}, Var={posterior_variance:.4f}"
         )
-        # Persist the updated knowledge (consider moving persistence outside this function if called frequently)
-        # save_knowledge(self.prior_knowledge, ESTIMATE_FILE_NAME)
+
+        # Knowledge is saved later via save_knowledge_to_file()
 
         # ---- Constraint Update Removed ----
-        # The constraint graph retains the original logical intervals.
-        # The scheduler uses these logical intervals for feasibility checks.
-        # The HeuristicManager can potentially query the Agent for the latest
-        # posterior_mean if needed to refine cost calculations, but the graph itself remains unchanged by the agent.
-
-        # [제거됨] 아래 코드 블록 제거:
-        # edge_monitor_end_to_target_start = ( ... )
-        # expected_target_end_time = ...
-        # updated_remaining_interval = ...
-        # if state.constraints.has_edge(...):
-        #    nx.set_edge_attributes(...)
-        #    log.info(...)
-        # else:
-        #    log.warning(...)
+        # --- MODIFIED: Add explicit confirmation comment ---
+        # As per design review, Agent no longer directly modifies the constraint graph.
+        # This prevents potential conflicts with Scheduler's constraint management and
+        # ensures constraint intervals remain based on logical structure, not just updated estimates.
+        # The Scheduler uses the logical constraints, while the HeuristicManager can
+        # query the Agent for updated duration estimates to inform heuristic calculations.
+        log.debug("Constraint graph modification by Agent is disabled.")
 
     def bayesian_estimate(
         self, state: SchedulerState
-    ) -> Tuple[SchedulerState, Dict[str, Any]]:
+    ) -> Tuple[SchedulerState, Optional[Dict[str, Any]]]:
         """
-        Performs Bayesian estimation for a monitored subtask's duration.
-
-        This method orchestrates the process:
-        1. Extracts the target subtask name from the current monitoring task.
-        2. Finds the most similar known subtask name using sentence similarity.
-        3. Retrieves ground truth and prior estimates for the matched subtask.
-        4. Identifies the start point (subtask and time) of the relevant critical path constraint.
-        5. Calculates the posterior duration estimate using a Bayesian update.
-        6. Updates the agent's internal knowledge base and the scheduler's constraint graph.
-
-        Args:
-            state: The current state of the scheduler, including the current subtask,
-                   completed tasks, constraints, and current time.
-
-        Returns:
-            A tuple containing:
-            - The updated SchedulerState (with modified constraints).
-            - A dictionary containing information about the monitored subtask update:
-                {
-                    "updated_subtask_name": str, # The name in the knowledge base
-                    "original_expected_time": float, # Prior mean
-                    "updated_expected_time": float  # Posterior mean
-                }
-
-        Raises:
-            ValueError: If ground truth data is missing for the matched subtask.
+        Performs Bayesian estimation based on a monitoring task.
+        Updates internal knowledge ONLY. Returns original state and monitoring info.
         """
         log.info(
             f"Starting Bayesian estimation for monitoring task: '{state.subtask.name}' at time {state.current_time:.2f}"
         )
+        monitored_subtask_info = {}  # Initialize result dict
 
-        # 1) Extract target subtask name from the monitoring task name
+        # 1) Extract target subtask name
         monitoring_target_sub_name = extract_monitoring_target_name(state.subtask.name)
         if not monitoring_target_sub_name:
             log.error(
                 f"Could not extract target subtask name from '{state.subtask.name}'. Skipping update."
             )
-            # Return unchanged state and empty info dict
-            return state, {}
+            return state, monitored_subtask_info  # Return original state
 
-        # 2) Find the most similar known subtask name (using lowercase)
-        prior_knowledge_keys_lower = [k.lower() for k in self.prior_knowledge.keys()]
+        # 2) Find most similar known subtask name (using lowercase)
+        # Ensure knowledge keys are lowercase before passing
+        prior_knowledge_keys_lower = [
+            str(k).lower() for k in self.prior_knowledge.keys()
+        ]
         known_sub_name_lower = self._find_most_similar_subtask(
-            monitoring_target_sub_name,
-            prior_knowledge_keys_lower,  # Pass explicitly lowercased keys
+            monitoring_target_sub_name,  # Pass original for similarity check
+            prior_knowledge_keys_lower,
         )
         log.info(
-            f"Target: '{monitoring_target_sub_name}', Matched Known Subtask: '{known_sub_name_lower}'"
+            f"Target: '{monitoring_target_sub_name}', Matched Known Subtask (lowercase): '{known_sub_name_lower}'"
         )
 
-        # 3) Get Ground Truth (Check existence *before* proceeding)
-        # Ground truth lookup should also be case-insensitive if keys aren't guaranteed lowercase
-        gt_interval = self.ground_truth.get(known_sub_name_lower)
-        if gt_interval is None:
-            # Try original casing as fallback if GT keys aren't normalized
-            gt_interval = self.ground_truth.get(monitoring_target_sub_name)
+        # 3) Get Ground Truth (Optional, for logging/comparison only)
+        gt_interval = None
+        gt_key_used = None
+        try:
+            # Attempt lookup with matched lowercase key first, then original casing as fallback
+            gt_interval = self.ground_truth.get(known_sub_name_lower)
+            gt_key_used = known_sub_name_lower
             if gt_interval is None:
-                raise ValueError(
-                    f"No ground_truth found for subtask: '{known_sub_name_lower}' (or original: '{monitoring_target_sub_name}'). "
-                    f"Ground Truth file '{GROUND_TRUTH_FILE_NAME}' needs this entry."
-                )
-            else:
-                log.warning(
-                    f"Used original name '{monitoring_target_sub_name}' for ground truth lookup."
-                )
+                gt_interval = self.ground_truth.get(monitoring_target_sub_name)
+                gt_key_used = monitoring_target_sub_name
+                if gt_interval is None:
+                    log.warning(
+                        f"Ground truth not found for matched key '{known_sub_name_lower}' or original key '{monitoring_target_sub_name}'. "
+                        f"Check ground truth file '{GROUND_TRUTH_FILE_NAME}'. Proceeding without GT for update."
+                    )
+                else:
+                    log.debug(
+                        f"Used original name '{monitoring_target_sub_name}' for ground truth lookup."
+                    )
+        except Exception as e_gt:
+            log.error(f"Error accessing ground truth data: {e_gt}", exc_info=True)
+            # Proceed without GT even if there was an error accessing it
 
         # 4) Get Prior Estimate (will initialize if not found)
         prior_mean, prior_variance = self._get_prior_estimate(known_sub_name_lower)
 
-        # 5) Find critical start subtask and its end time for the monitored target
+        # 5) Find critical start subtask and its end time
         try:
+            # Use the original monitoring target name for graph lookups
             critical_start_sub_name, critical_start_sub_end_time = (
                 get_critical_start_info(
-                    subtask_name=monitoring_target_sub_name,  # Use the original name for graph lookup
+                    subtask_name=monitoring_target_sub_name,
                     completed=state.completed_subtasks,
                     constraints=state.constraints,
                     constraint_handler=self.constraint_handler,
@@ -376,48 +418,74 @@ class Agent:
                 f"Failed to get critical start info for '{monitoring_target_sub_name}': {e}",
                 exc_info=True,
             )
-            # Cannot proceed without critical path info
-            return state, {}
+            return (
+                state,
+                monitored_subtask_info,
+            )  # Cannot proceed without critical path info
 
         # 6) Calculate elapsed time and perform Bayesian Update
         critical_elapsed_interval = state.current_time - critical_start_sub_end_time
+        # Clamp negative elapsed time (can happen due to float precision or logic errors)
         if critical_elapsed_interval < 0:
-            log.warning(
+            log.error(  # WARNING -> ERROR
                 f"Elapsed time ({critical_elapsed_interval:.2f}) is negative. "
-                f"Current time {state.current_time:.2f} is before critical start end time {critical_start_sub_end_time:.2f}. "
-                f"Using elapsed time = 0 for update."
+                f"(Current: {state.current_time:.2f}, CritStartEnd: {critical_start_sub_end_time:.2f}). "
+                f"Using elapsed time = 0 for update. CRITICAL: Investigate timing source (get_critical_start_info or state.current_time)."  # 원인 조사 촉구
             )
             critical_elapsed_interval = 0
 
         posterior_mean, posterior_variance = self._perform_bayesian_update(
             prior_mean=prior_mean,
             prior_variance=prior_variance,
-            ground_truth_duration=gt_interval,
             critical_elapsed_interval=critical_elapsed_interval,
         )
 
-        # 7) Update knowledge base and constraints graph
+        # 7) Update ONLY internal knowledge base
         self._update_knowledge_and_constraints(
-            state=state,
-            known_sub_name=known_sub_name_lower,  # Use the matched lowercase name for knowledge update
+            state=state,  # Pass state for context if needed inside (currently unused)
+            known_sub_name=known_sub_name_lower,  # Use matched lowercase name
             posterior_mean=posterior_mean,
             posterior_variance=posterior_variance,
-            critical_start_sub_name=critical_start_sub_name,
-            monitoring_target_sub_name=monitoring_target_sub_name,  # Use original name for graph edge lookup
-            critical_start_sub_end_time=critical_start_sub_end_time,
+            # No constraint args needed anymore
         )
 
         # Prepare monitoring result information
         monitored_subtask_info = {
-            "updated_subtask_name": known_sub_name_lower,  # The key in the knowledge base that was updated
+            "updated_subtask_name": known_sub_name_lower,
             "original_expected_time": prior_mean,
             "updated_expected_time": posterior_mean,
-            "ground_truth_time": gt_interval,  # Include GT for analysis
+            "ground_truth_time": gt_interval,
             "prior_variance": prior_variance,
             "posterior_variance": posterior_variance,
+            "observed_elapsed": critical_elapsed_interval,
         }
-        log.info(
-            f"Bayesian estimation complete for '{monitoring_target_sub_name}'. Update info: {monitored_subtask_info}"
-        )
+        log.info(f"Bayesian estimation complete. Update info: {monitored_subtask_info}")
 
+        # Return the ORIGINAL state and the monitoring info
         return state, monitored_subtask_info
+
+    def save_knowledge_to_file(self) -> None:
+        """Saves the current prior knowledge base to the estimate file."""
+        if not self.prior_knowledge:
+            log.warning("Attempted to save knowledge, but knowledge base is empty.")
+            return
+
+        try:
+            # Ensure keys are strings before saving if necessary, though load handles lowercase conversion
+            knowledge_to_save = {str(k): v for k, v in self.prior_knowledge.items()}
+            save_knowledge(knowledge_to_save, ESTIMATE_FILE_NAME)
+            log.info(
+                f"Successfully saved {len(knowledge_to_save)} knowledge entries to {ESTIMATE_FILE_NAME}."
+            )
+        except (IOError, PermissionError) as e_io:
+            log.error(
+                f"CRITICAL: Failed to save knowledge due to file system error: {e_io}",
+                exc_info=True,
+            )
+            # Consider re-raising or specific handling for critical save failures
+            # raise e_io # Optional: uncomment to stop execution on critical save failure
+        except Exception as e_generic:
+            log.error(
+                f"Failed to save knowledge base to {ESTIMATE_FILE_NAME}: {e_generic}",
+                exc_info=True,
+            )

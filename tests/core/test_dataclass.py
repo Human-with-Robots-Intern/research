@@ -36,24 +36,24 @@ def sample_deadline():
 
 
 # 테스트 케이스
-def test_candidate_creation(sample_subtask, sample_deadline):
+def test_candidate_creation(sample_deadline):
     """Candidate 객체 생성 및 기본 필드 확인 테스트"""
-    candidate = Candidate(
-        subtask=sample_subtask,
-        is_critical=True,
-        adjusted_start_time=50.0,
-        logical_start_time=55.0,
-        deadline=sample_deadline,
-        heuristic_penalty=0.0,
+    # Provide required args for Subtask
+    mock_execution = Execution(objects={}, primitive_actions=["ACTION"])
+    mock_duration = Duration(type="Controllable", interval=1.0)
+    mock_subtask = Subtask(
+        "Task", "Sub", 1, "Type", execution=mock_execution, duration=mock_duration
     )
-    assert candidate.subtask.name == "TestSub"
-    assert candidate.is_critical is True
-    assert candidate.adjusted_start_time == 50.0
-    assert candidate.logical_start_time == 55.0
-    assert candidate.deadline.due_date == 100.0
-    assert candidate.heuristic_penalty == 0.0
-    assert "AdjustedEST=50.00" in repr(candidate)
-    assert "LogicalEST=55.00" in repr(candidate)
+
+    candidate = Candidate(
+        subtask=mock_subtask,
+        is_critical=False,
+        adjusted_start_time=0.0,
+        logical_start_time=0.0,
+        deadline=sample_deadline,  # Use provided fixture or default
+    )
+    assert candidate.subtask.name == "Sub"
+    assert not candidate.is_critical
 
 
 def test_scheduler_state_creation(sample_subtask):

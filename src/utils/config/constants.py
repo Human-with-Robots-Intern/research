@@ -102,3 +102,8 @@ OBJECT_INTERESTS = {
         "isUsedUp",
     ],
 }
+
+# ========== 휴리스틱 관련 (또는 다른 적절한 섹션) ==========
+DEFAULT_SUBTASK_DURATION_ESTIMATE: float = (
+    1.0  # 추가: 유효한 duration 없는 태스크의 기본 추정 시간
+)
