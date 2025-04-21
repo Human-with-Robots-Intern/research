@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict
 
-from utils.config import KNOWLEDGE_PATH
+from utils.config import SCENE_KNOWLEDGE_PATH
 
 
 def load_knowledge(file_name: str = "bayesian_estimate.json") -> Dict[str, Any]:
@@ -9,7 +9,7 @@ def load_knowledge(file_name: str = "bayesian_estimate.json") -> Dict[str, Any]:
     Load the knowledge JSON file.
     파일이 존재하지 않으면 FileNotFoundError를, JSON 디코딩 실패 시 JSONDecodeError를 발생.
     """
-    knowledge_file = KNOWLEDGE_PATH / file_name
+    knowledge_file = SCENE_KNOWLEDGE_PATH / file_name
 
     if knowledge_file.exists():
         try:
@@ -29,8 +29,8 @@ def save_knowledge(
     """
     Save (overwrite) the knowledge JSON file.
     """
-    KNOWLEDGE_PATH.mkdir(parents=True, exist_ok=True)
-    knowledge_file = KNOWLEDGE_PATH / file_name
+    SCENE_KNOWLEDGE_PATH.mkdir(parents=True, exist_ok=True)
+    knowledge_file = SCENE_KNOWLEDGE_PATH / file_name
     try:
         with knowledge_file.open("w", encoding="utf-8") as f:
             json.dump(knowledge, f, indent=4, ensure_ascii=False)

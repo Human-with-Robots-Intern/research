@@ -14,11 +14,12 @@ from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
 # 내부 프로젝트 모듈
 from utils.common import create_module_logger
 from utils.config.constants import (
-    KNOWLEDGE_PATH,
+    BAYESIAN_KNOWLEDGE_PATH,
+    DEFAULT_SCENE_NAME,
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
-    SCENE_NAME,
+    SCENE_KNOWLEDGE_PATH,
 )
 from utils.nlp.sentence_transformer import SentenceSimilarityModel
 
@@ -51,12 +52,19 @@ class TaskUtil:
             json.dump(data, f, indent=4)
 
     @staticmethod
-    def _load_object_ids() -> Dict[str, List[str]]:
+    def _load_object_ids(scene_file_name: str) -> Dict[str, List[str]]:
         """
         FloorPlan1_physics_environment.json 파일에서 object ID 정보를 로드한다.
         """
-        file_path = KNOWLEDGE_PATH / f"{SCENE_NAME}_physics_environment.json"
-        return TaskUtil._load_json_file(file_path)
+        room_type_dirs = list(SCENE_KNOWLEDGE_PATH.glob("*"))
+        for room_type_dir in room_type_dirs:
+            file_path = room_type_dir / "environment" / f"{scene_file_name}"
+            if file_path.exists():
+                return TaskUtil._load_json_file(file_path)
+        # If the loop completes without finding the file, raise an error.
+        raise FileNotFoundError(
+            f"Physics file for scene '{scene_file_name}' not found in any subdirectories of {file_path}"
+        )
 
     @staticmethod
     def tasks_to_subtasks(
@@ -160,13 +168,13 @@ class TaskUtil:
         return tasks
 
     @classmethod
-    def check_obj_id(cls, tasks: List[Task]) -> List[Task]:
+    def check_obj_id(cls, scene_name: str, tasks: List[Task]) -> List[Task]:
         """
         Subtask의 primitive_actions에 사용된 obj_id가 유효한지 확인 후,
         유효하지 않다면 문장 유사도 기반으로 가장 가까운 후보로 교체한다.
         """
         # 1) scene에서 사용 가능한 모든 object ID 로드
-        object_ids_map = cls._load_object_ids()
+        object_ids_map = cls._load_object_ids(scene_name)
         # 모든 object id를 flatten
         all_object_ids = {
             obj for category in object_ids_map for obj in object_ids_map[category]
@@ -263,7 +271,8 @@ class TaskUtil:
     def build_tasks_and_constraints(
         cls,
         task_data: dict,
-        enable_decomposition: bool,
+        scene_file_name: str,
+        enable_decomposition: bool = True,
     ) -> Tuple[List[Subtask], DiGraph]:
         """
         1) JSON 형태의 raw task_data를 Task로 파싱
@@ -279,14 +288,16 @@ class TaskUtil:
         :return: (최종 Subtask 리스트, TaskGraph 객체)
         """
         # 1) bayesian/groundtruth 정보 로드
-        bayesian_load = cls._load_json_file(KNOWLEDGE_PATH / "bayesian_estimate.json")
+        bayesian_load = cls._load_json_file(
+            BAYESIAN_KNOWLEDGE_PATH / "bayesian_estimate.json"
+        )
         ground_truth_load = cls._load_json_file(
-            KNOWLEDGE_PATH / "bayesian_ground_truth.json"
+            BAYESIAN_KNOWLEDGE_PATH / "bayesian_ground_truth.json"
         )
 
         # 2) Task 파싱, Object ID/액션 보정
         tasks = Task.parse_instruction(task_data)
-        tasks = cls.check_obj_id(tasks)
+        tasks = cls.check_obj_id(scene_file_name, tasks)
         tasks = cls.refine_primitive_actions(tasks)
 
         # 3) enable_decomposition 옵션 처리
@@ -306,9 +317,11 @@ class TaskUtil:
                     )
 
         # 5) 변경 사항 저장
-        cls._save_json_file(KNOWLEDGE_PATH / "bayesian_estimate.json", bayesian_load)
         cls._save_json_file(
-            KNOWLEDGE_PATH / "bayesian_ground_truth.json", ground_truth_load
+            SCENE_KNOWLEDGE_PATH / "bayesian_estimate.json", bayesian_load
+        )
+        cls._save_json_file(
+            SCENE_KNOWLEDGE_PATH / "bayesian_ground_truth.json", ground_truth_load
         )
 
         # 6) 액션 정제(재적용) + duration 조정

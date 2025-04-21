@@ -1,17 +1,17 @@
 import json
 from pathlib import Path
 
-from src.utils.config import KNOWLEDGE_PATH
+from src.utils.config import SCENE_KNOWLEDGE_PATH
 
 
 def save_the_agent_knowledge(scene_name: str, agent_knowledge: dict):
 
     # 저장할 디렉토리 경로
 
-    KNOWLEDGE_PATH.mkdir(parents=True, exist_ok=True)  # 경로가 없으면 생성
+    SCENE_KNOWLEDGE_PATH.mkdir(parents=True, exist_ok=True)  # 경로가 없으면 생성
 
     # 파일 저장 경로
-    file_path = KNOWLEDGE_PATH / f"{scene_name}.json"
+    file_path = SCENE_KNOWLEDGE_PATH / f"{scene_name}.json"
 
     # 파일 저장
     with file_path.open("w") as f:
@@ -20,7 +20,7 @@ def save_the_agent_knowledge(scene_name: str, agent_knowledge: dict):
 
 def load_agent_knowledge(scene_name: str):
     # 파일이 저장된 디렉토리 경로
-    file_path = Path.cwd().joinpath(KNOWLEDGE_PATH) / f"{scene_name}.json"
+    file_path = Path.cwd().joinpath(SCENE_KNOWLEDGE_PATH) / f"{scene_name}.json"
     try:
         with file_path.open("r") as f:
             agent_knowledge = json.load(f)

@@ -4,7 +4,7 @@ from .constants import *
 __all__ = [
     "ROOT_PATH",
     "ASSETS_PATH",
-    "KNOWLEDGE_PATH",
+    "SCENE_KNOWLEDGE_PATH",
     "PROMPT_PATH",
     "TASK_PATH",
     "RESULT_PATH",

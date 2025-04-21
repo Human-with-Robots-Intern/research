@@ -17,22 +17,22 @@ from ai2thor.controller import Controller
 
 # Action handler import
 from ithor.handlers.action import Action
+from utils.common.logger import create_module_logger
 
 # Constants (unify your constants in one place)
-from src.utils.config.constants import (
+from utils.config.constants import (
+    DEFAULT_SCENE_NAME,
     GRID_SIZE,
-    SCENE_NAME,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
 )
-from utils.common.logger import create_module_logger
 
 # # Logging utility
 # from src.utils.common.logger import create_module_logger
 
 
 def init_ai2thor_controller(
-    scene: str = SCENE_NAME,
+    scene: str = DEFAULT_SCENE_NAME,
     platform=None,
     agent_mode: str = "default",
     mass_threshold: float = 0.04,

@@ -10,7 +10,7 @@ log = create_module_logger(__name__, module_log=True)
 class SentenceSimilarityModel:
     _instance = None
 
-    def __init__(self, model_name="sentence-transformers/all-MiniLM-L6-v2"):
+    def __init__(self, model_name="all-MiniLM-L6-v2"):
         if SentenceSimilarityModel._instance is not None:
             raise RuntimeError("싱글톤 클래스이므로, get_instance()를 사용하세요.")
 
