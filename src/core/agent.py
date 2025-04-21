@@ -40,9 +40,7 @@ class Agent:
         self.prior_knowledge: Dict[str, Dict[str, float]] = (
             self._load_or_init_knowledge(ESTIMATE_FILE_NAME)
         )
-        self.ground_truth: Dict[str, float] = load_knowledge(
-            GROUND_TRUTH_FILE_NAME
-        )  # Load ground truth once
+        self.ground_truth: Dict[str, float] = load_knowledge(GROUND_TRUTH_FILE_NAME)
         self.constraint_handler = constraint_handler
         self.sentence_sim_model = SentenceSimilarityModel.get_instance()
         log.info(
@@ -124,11 +122,8 @@ class Agent:
         best_match_idx = int(np.argmax(similarity_scores))
         max_score = similarity_scores[best_match_idx]
 
-        # Return the best match only if similarity is below the threshold (as per original logic)
-        # Note: This logic seems counter-intuitive (low score means better match?).
-        # Assuming the original code's logic `max_score < 0.7` is intended.
-        # If high score should mean better match, this should be `max_score >= SIMILARITY_THRESHOLD`.
-        # Sticking to original logic for now.
+        # Return the best match only if similarity is ABOVE the threshold.
+        # (Higher cosine similarity score means more similar)
         if max_score >= SIMILARITY_THRESHOLD:
             best_match_name = candidate_sub_names[best_match_idx]
             log.debug(
@@ -137,7 +132,7 @@ class Agent:
             return best_match_name
         else:
             log.debug(
-                f"No sufficiently similar subtask found for '{query_sub_name}'. Best score: {max_score:.4f}. Using original name."
+                f"No sufficiently similar subtask found for '{query_sub_name}'. Best score: {max_score:.4f} (Threshold: {SIMILARITY_THRESHOLD}). Using original name."
             )
             return query_sub_name  # Return original if no match meets criteria
 
@@ -180,34 +175,38 @@ class Agent:
         self,
         prior_mean: float,
         prior_variance: float,
-        ground_truth_duration: float,
-        critical_elapsed_interval: float,
+        ground_truth_duration: float,  # Still passed for logging/comparison if needed
+        critical_elapsed_interval: float,  # This is our actual observation
     ) -> Tuple[float, float]:
         """
-        Performs the Bayesian update calculation for subtask duration.
+        Performs the Bayesian update calculation for subtask duration based on observation.
+        [수정됨] Likelihood variance and observation are now based on the actual observation
+                 (critical_elapsed_interval) and prior uncertainty.
 
         Args:
             prior_mean: The prior expected duration.
             prior_variance: The prior variance of the duration.
-            ground_truth_duration: The actual duration (used for generating noisy observation).
-            critical_elapsed_interval: Time elapsed since the critical constraint started.
+            ground_truth_duration: The actual duration (for logging/comparison).
+            critical_elapsed_interval: Time elapsed since the critical constraint started (the observation).
 
         Returns:
             A tuple containing (posterior_mean, posterior_variance).
         """
-        # Calculate likelihood variance (epsilon_k_sq) based on the difference
-        # between ground truth and elapsed time, scaled by FACTOR_ALPHA.
-        # Using ground truth here assumes this is for simulation/evaluation purposes.
-        diff = ground_truth_duration - critical_elapsed_interval
-        # Ensure the base of the square is non-negative if durations can vary unexpectedly
-        epsilon_k_sq = FACTOR_ALPHA * (max(0, diff) ** 2)
+        # [수정됨] Model likelihood variance (epsilon_k_sq) based on observation uncertainty.
+        # Simple model: Assume observation noise is proportional to the prior uncertainty.
+        # FACTOR_ALPHA acts as a scaling factor for this assumed noise level.
+        # A higher FACTOR_ALPHA means we trust the prior less / assume more observation noise.
+        epsilon_k_sq = FACTOR_ALPHA * prior_variance
         # Ensure likelihood variance is numerically stable
         epsilon_k_sq = max(epsilon_k_sq, MIN_VARIANCE)
 
-        # Generate a noisy observation based on the ground truth duration and likelihood variance
+        # [수정됨] Observation is now centered around the actual measured interval.
+        # The noise added depends on the likelihood variance calculated above.
         observation = np.random.normal(
-            loc=ground_truth_duration, scale=np.sqrt(epsilon_k_sq)
+            loc=critical_elapsed_interval, scale=np.sqrt(epsilon_k_sq)
         )
+        # Clamp observation to be non-negative? Depending on whether negative intervals make sense.
+        observation = max(0, observation)
 
         # --- Bayesian Update Formulas (for Gaussian prior and likelihood) ---
         # Denominator for posterior calculations
@@ -232,8 +231,8 @@ class Agent:
 
         log.debug(
             f"Bayesian Update: Prior=({prior_mean:.2f}, {prior_variance:.4f}), "
-            f"GT={ground_truth_duration:.2f}, Elapsed={critical_elapsed_interval:.2f}, "
-            f"Obs={observation:.2f}, LikelihoodVar={epsilon_k_sq:.4f} -> "
+            f"ObservedElapsed={critical_elapsed_interval:.2f}, GT={ground_truth_duration:.2f}, "
+            f"GeneratedObs={observation:.2f}, LikelihoodVar(Est)={epsilon_k_sq:.4f} -> "
             f"Posterior=({posterior_mean:.2f}, {posterior_variance:.4f})"
         )
 
@@ -250,73 +249,41 @@ class Agent:
         critical_start_sub_end_time: float,
     ) -> None:
         """
-        Updates the agent's knowledge base and the constraints graph in the
-        scheduler state with the new posterior estimates.
-
-        Args:
-            state: The current scheduler state.
-            known_sub_name: The lowercase, matched subtask name in the knowledge base.
-            posterior_mean: The calculated posterior mean duration.
-            posterior_variance: The calculated posterior variance.
-            critical_start_sub_name: The name of the subtask that started the critical constraint.
-            monitoring_target_sub_name: The original name of the subtask being monitored.
-            critical_start_sub_end_time: The time when the critical_start_subtask finished.
+        Updates the agent's internal knowledge base with the new posterior estimates.
+        [수정됨] Does NOT modify the constraint graph directly anymore (Option 1 adopted).
+                 The scheduler should use the logical constraints, and the heuristic
+                 can optionally leverage the agent's updated knowledge.
         """
         # 1) Update internal knowledge base
         if known_sub_name not in self.prior_knowledge:
             log.warning(
                 f"Attempting to update knowledge for '{known_sub_name}', but it was not initialized. Creating entry."
             )
-            self.prior_knowledge[known_sub_name] = (
-                {}
-            )  # Should have been initialized in _get_prior_estimate
+            self.prior_knowledge[known_sub_name] = {}
 
         self.prior_knowledge[known_sub_name]["expected_duration"] = posterior_mean
         self.prior_knowledge[known_sub_name]["variance"] = posterior_variance
         log.info(
-            f"Updated knowledge for '{known_sub_name}': Mean={posterior_mean:.2f}, Var={posterior_variance:.4f}"
+            f"Updated internal knowledge for '{known_sub_name}': Mean={posterior_mean:.2f}, Var={posterior_variance:.4f}"
         )
-        # Persist the updated knowledge
-        save_knowledge(self.prior_knowledge, ESTIMATE_FILE_NAME)
+        # Persist the updated knowledge (consider moving persistence outside this function if called frequently)
+        # save_knowledge(self.prior_knowledge, ESTIMATE_FILE_NAME)
 
-        # ---- START: Constraint Update CORRECTION ----
+        # ---- Constraint Update Removed ----
+        # The constraint graph retains the original logical intervals.
+        # The scheduler uses these logical intervals for feasibility checks.
+        # The HeuristicManager can potentially query the Agent for the latest
+        # posterior_mean if needed to refine cost calculations, but the graph itself remains unchanged by the agent.
 
-        # REMOVE the attempt to update the non-existent original edge
-        # edge_critical_to_target = (critical_start_sub_name, monitoring_target_sub_name)
-        # if state.constraints.has_edge(*edge_critical_to_target):
-        #     ... (This block should be removed) ...
+        # [제거됨] 아래 코드 블록 제거:
+        # edge_monitor_end_to_target_start = ( ... )
+        # expected_target_end_time = ...
+        # updated_remaining_interval = ...
+        # if state.constraints.has_edge(...):
+        #    nx.set_edge_attributes(...)
+        #    log.info(...)
         # else:
-        #     log.warning(f"Constraint edge {edge_critical_to_target} not found ...") # This warning is expected now
-
-        # KEEP the update for the edge representing the REMAINING interval from the MONITORING task END.
-        # This edge connects the end of the monitor task (state.subtask.name) to the start of the
-        # task that ends the critical period (monitoring_target_sub_name).
-        edge_monitor_end_to_target_start = (
-            state.subtask.name,
-            monitoring_target_sub_name,
-        )  # Ensure monitoring_target_sub_name is the correct deadline task name here
-
-        # Calculate the UPDATED remaining interval
-        updated_remaining_interval = max(
-            0, critical_start_sub_end_time + posterior_mean - state.current_time
-        )
-
-        if state.constraints.has_edge(*edge_monitor_end_to_target_start):
-            nx.set_edge_attributes(
-                state.constraints,
-                {
-                    edge_monitor_end_to_target_start: {
-                        "Interval": updated_remaining_interval
-                    }
-                },
-            )
-            log.debug(
-                f"Updated constraint edge {edge_monitor_end_to_target_start} with updated remaining Interval={updated_remaining_interval:.2f}"
-            )
-        else:
-            log.warning(
-                f"Constraint edge {edge_monitor_end_to_target_start} not found. Cannot update remaining interval. Check naming consistency."
-            )
+        #    log.warning(...)
 
     def bayesian_estimate(
         self, state: SchedulerState
@@ -363,9 +330,10 @@ class Agent:
             return state, {}
 
         # 2) Find the most similar known subtask name (using lowercase)
+        prior_knowledge_keys_lower = [k.lower() for k in self.prior_knowledge.keys()]
         known_sub_name_lower = self._find_most_similar_subtask(
             monitoring_target_sub_name,
-            list(self.prior_knowledge.keys()),  # Pass lowercase keys
+            prior_knowledge_keys_lower,  # Pass explicitly lowercased keys
         )
         log.info(
             f"Target: '{monitoring_target_sub_name}', Matched Known Subtask: '{known_sub_name_lower}'"

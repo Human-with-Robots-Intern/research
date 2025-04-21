@@ -108,17 +108,23 @@ class ConstraintHandler:
             check_time = adjusted_start_time_val
 
             if is_critical:
+                # Case 1: Critical task needs to start exactly now (within EPSILON)
                 if abs(current_time - check_time) < EPSILON:
                     feasible_candidates.append(candidate_obj)
+                # Case 2: It's not time yet for the critical task
                 elif current_time < check_time:
                     not_yet_candidates.append(candidate_obj)
-                else:
-                    log.error(
-                        f"CRITICAL TIMING MISSED for '{sub.name}'! "
+                # Case 3: We are past the required start time (check_time)
+                else:  # current_time > check_time
+                    # Log a critical warning, but don't immediately abort the entire search branch.
+                    # This candidate is practically infeasible and will likely get a very high
+                    # heuristic cost (due to negative slack), effectively pruning it later.
+                    log.critical(  # Use critical level for higher visibility
+                        f"CRITICAL TIMING POTENTIALLY MISSED for '{sub.name}'! "
                         f"Current Time: {round(current_time, LOG_ROUND)}, "
-                        f"Required Start (incl. nav): {round(check_time, LOG_ROUND)}. Aborting branch."
+                        f"Required Start (Adj. EST): {round(check_time, LOG_ROUND)}. "
+                        f"This candidate will likely be pruned by heuristic."
                     )
-                    return [], []
             else:
                 if current_time >= check_time - EPSILON:
                     feasible_candidates.append(candidate_obj)

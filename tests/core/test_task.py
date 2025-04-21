@@ -3,7 +3,17 @@ import logging
 from pathlib import Path
 from unittest import TestCase, main
 
-from core.task import Task, TaskGraphBuilder
+import networkx as nx
+import pytest
+
+from core.task import (
+    Duration,
+    Execution,
+    Subtask,
+    Task,
+    TaskGraphBuilder,
+    TemporalConstraint,
+)
 from utils.common import create_module_logger
 from utils.constants import TASK_PATH
 
@@ -70,3 +80,170 @@ if __name__ == "__main__":
         print("\n[INFO] 모든 테스트가 성공적으로 통과했습니다!")
     except Exception as e:
         print(f"\n[ERROR] 테스트 실패: {str(e)}")
+
+
+# Fixtures
+@pytest.fixture
+def sample_execution():
+    return Execution(
+        objects={"plate": 1}, primitive_actions=["NAVIGATE_TO plate", "GRASP plate"]
+    )
+
+
+@pytest.fixture
+def sample_duration():
+    return Duration(type="Controllable", interval=5.0)
+
+
+@pytest.fixture
+def sample_constraint():
+    return TemporalConstraint(
+        constraint_type="After", subtask="Prep", interval=2.0, is_critical=False
+    )
+
+
+@pytest.fixture
+def sample_subtask1(sample_execution, sample_duration):  # No constraint
+    return Subtask(
+        task_name="Wash",
+        name="WashPlate1",
+        repetition=1,
+        type="Interaction",
+        execution=sample_execution,
+        duration=sample_duration,
+        temporal_constraints=[],
+    )
+
+
+@pytest.fixture
+def sample_subtask2(
+    sample_execution, sample_duration, sample_constraint
+):  # With constraint
+    return Subtask(
+        task_name="Wash",
+        name="WashPlate2",
+        repetition=1,
+        type="Interaction",
+        execution=sample_execution,
+        duration=sample_duration,
+        temporal_constraints=[sample_constraint],
+    )
+
+
+@pytest.fixture
+def sample_subtask_repeat(sample_execution, sample_duration):  # With repetition
+    return Subtask(
+        task_name="Wash",
+        name="WashMultiple",
+        repetition=3,
+        type="Interaction",
+        execution=sample_execution,
+        duration=sample_duration,
+        temporal_constraints=[],
+    )
+
+
+# 테스트 케이스
+def test_subtask_creation(sample_subtask1):
+    """Subtask 객체 생성 및 기본 속성 확인"""
+    assert sample_subtask1.name == "WashPlate1"
+    assert sample_subtask1.repetition == 1
+    assert sample_subtask1.type == "Interaction"
+    assert len(sample_subtask1.temporal_constraints) == 0
+    assert not sample_subtask1.decomposed  # Initially not decomposed
+
+
+def test_subtask_with_constraint(sample_subtask2):
+    """TemporalConstraint가 있는 Subtask 생성 확인"""
+    assert len(sample_subtask2.temporal_constraints) == 1
+    assert sample_subtask2.temporal_constraints[0].subtask == "Prep"
+
+
+def test_subtask_decompose_no_repeat(sample_subtask1):
+    """Repetition=1인 Subtask 분해 시 자기 자신 반환 확인"""
+    decomposed = sample_subtask1.decompose()
+    assert isinstance(decomposed, list)
+    assert len(decomposed) == 1
+    assert decomposed[0] is sample_subtask1
+
+
+def test_subtask_decompose_with_repeat(sample_subtask_repeat):
+    """Repetition > 1인 Subtask 분해 확인"""
+    decomposed = sample_subtask_repeat.decompose()
+    assert isinstance(decomposed, list)
+    assert len(decomposed) == 3
+    assert decomposed[0].name == "WashMultiple_part_1"
+    assert decomposed[1].name == "WashMultiple_part_2"
+    assert decomposed[2].name == "WashMultiple_part_3"
+    # 첫 번째 파트는 원본 제약 조건 없음
+    assert len(decomposed[0].temporal_constraints) == 0
+    # 두 번째 파트는 첫 번째 파트에 대한 제약 조건 가짐
+    assert len(decomposed[1].temporal_constraints) == 1
+    assert decomposed[1].temporal_constraints[0].subtask == "WashMultiple_part_1"
+    assert decomposed[1].temporal_constraints[0].interval == 0
+    # 모든 분해된 파트는 repetition=1, decomposed=True
+    for part in decomposed:
+        assert part.repetition == 1
+        assert part.decomposed is True
+
+
+def test_task_creation(sample_subtask1, sample_subtask2):
+    """Task 객체 생성 및 기본 속성 확인"""
+    task = Task(name="DishWashing", subtasks=[sample_subtask1, sample_subtask2])
+    assert task.name == "DishWashing"
+    assert len(task.subtasks) == 2
+
+
+def test_task_decompose_subtasks(sample_subtask1, sample_subtask_repeat):
+    """Task 내 Subtask 분해 및 제약 조건 업데이트 확인"""
+    # 제약 조건이 있는 서브태스크 추가 (분해될 WashMultiple을 참조)
+    final_sub = Subtask(
+        task_name="Wash",
+        name="FinalStep",
+        repetition=1,
+        type="End",
+        execution=Execution(None, []),
+        duration=Duration("Fixed", 1.0),
+        temporal_constraints=[TemporalConstraint("After", "WashMultiple", 0, False)],
+    )
+    task = Task(
+        name="ComplexWash", subtasks=[sample_subtask1, sample_subtask_repeat, final_sub]
+    )
+    original_subtask_count = len(task.subtasks)  # 3
+    task.decompose_subtasks()  # 분해 실행
+
+    # 총 서브태스크 개수 확인 (1 + 3 + 1 = 5)
+    assert len(task.subtasks) == (
+        original_subtask_count - 1 + sample_subtask_repeat.repetition
+    )
+    # FinalStep의 제약 조건이 마지막 파트(WashMultiple_part_3)를 참조하는지 확인
+    final_step_in_task = next(s for s in task.subtasks if s.name == "FinalStep")
+    assert len(final_step_in_task.temporal_constraints) == 1
+    assert final_step_in_task.temporal_constraints[0].subtask == "WashMultiple_part_3"
+
+
+def test_task_graph_builder(sample_subtask1, sample_subtask2):
+    """TaskGraphBuilder가 제약 조건에 따라 그래프를 올바르게 생성하는지 확인"""
+    task = Task(name="DishWashing", subtasks=[sample_subtask1, sample_subtask2])
+    builder = TaskGraphBuilder()
+    graph = builder.build_graph([task])
+
+    assert isinstance(graph, nx.DiGraph)
+    assert "WashPlate1" in graph.nodes
+    assert "WashPlate2" in graph.nodes
+    assert (
+        "Prep" in graph.nodes
+    )  # 제약 조건에만 언급되어도 노드가 생성되는지 확인 (현재 구현 기준)
+
+    # WashPlate2는 Prep 이후에 실행되어야 함 (Prep -> WashPlate2 엣지 존재)
+    assert graph.has_edge("Prep", "WashPlate2")
+    edge_data = graph.get_edge_data("Prep", "WashPlate2")
+    assert edge_data["info"]["Interval"] == 2.0
+    assert edge_data["info"]["IsCritical"] is False
+
+    # WashPlate1은 제약 조건이 없으므로 들어오는 엣지 없음
+    assert len(list(graph.predecessors("WashPlate1"))) == 0
+
+
+# Task.from_dict, Subtask.from_dict 등 딕셔너리 파싱 관련 테스트 추가 필요
+# TemporalConstraint 타입 ("Before" 등)에 따른 엣지 방향 테스트 추가 필요

@@ -496,7 +496,24 @@ def _process_simulation_results(
         }
 
     # compose_plans 호출 및 결과 처리
-    task_name_for_compose = task_data_dict.get("Task", task_name_str)
+    task_name_for_compose = task_name_str  # 기본값 설정
+    if isinstance(task_data_dict, list) and task_data_dict:
+        # 리스트이고 비어있지 않으면 첫 번째 딕셔너리에서 "Task" 키 가져오기 시도
+        first_task_dict = task_data_dict[0]
+        if isinstance(first_task_dict, dict):
+            task_name_for_compose = first_task_dict.get("Task", task_name_str)
+        else:
+            log.warning(
+                f"[{task_name_str}] First element of task_data is not a dict: {type(first_task_dict)}. Using task name from file."
+            )
+    elif isinstance(task_data_dict, dict):
+        # 만약 dict 타입으로 오는 경우도 대비 (이전 로직)
+        task_name_for_compose = task_data_dict.get("Task", task_name_str)
+    else:
+        log.warning(
+            f"[{task_name_str}] task_data_dict is not a list or dict: {type(task_data_dict)}. Using task name from file."
+        )
+
     try:
         plans, success_rate, final_sim_makespan, final_sched_makespan = compose_plans(
             result_schedule, task_name_for_compose
@@ -1144,7 +1161,7 @@ def _analyze_and_print_results(study: optuna.study.Study, study_name: str):
 if __name__ == "__main__":
     # --- 튜닝 실행 설정 ---
     # 튜닝할 트라이얼 수 (디버깅 시 작게 설정, 실제 튜닝 시 크게 설정)
-    N_TRIALS_TO_RUN = 1
+    N_TRIALS_TO_RUN = 1 # 예: 100회 튜닝
     # 최대 튜닝 시간 (초), None이면 시간 제한 없음
     TIMEOUT_TUNING_SECONDS = 3600 * 24 * 2  # 예: 2일
 

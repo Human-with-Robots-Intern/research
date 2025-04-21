@@ -1,2 +1,0 @@
-trial_number,value,state,datetime_start,datetime_complete,duration,param_alpha,param_beta,param_zeta,user_attr_num_completed,user_attr_num_failed,user_attr_avg_completed_makespan
-0,12500.0,COMPLETE,2025-04-18T19:00:22.168323,2025-04-18T19:00:22.857286,0.688963,1.9352465823520764,4.758500101408589,1.4666679442046962,0,1,

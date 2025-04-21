@@ -35,23 +35,12 @@ def parse_arguments():
         default=True,
         action="store_true",
     )
-    parser.add_argument(
-        "-v",
-        "--visualize",
-        help="Enable visualization of the task plan",
-        default=True,
-        action="store_true",
-    )
+
     parser.add_argument(
         "-r",
         "--reset",
         default=True,
         help="Reset the knowledge base to Gaussian",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--rag",
-        default=False,
         action="store_true",
     )
 
@@ -118,28 +107,68 @@ def main():
             log.error("No feasible solution found.")
             break
 
-        subtask_time, execution_status = execute_subtask(controller, next_state.subtask)
-        # 시뮬레이션에서 반환해주는 시간을 subtask 객체에 저장.
-        next_state.completed_subtasks[-1].subtask.start_time_simulation = (
-            simulation_time
-        )
-        next_state.completed_subtasks[-1].subtask.end_time_simulation = (
-            simulation_time + subtask_time
-        )
-        next_state.completed_subtasks[-1].subtask.execution_status = execution_status
-        simulation_time += subtask_time
-
-        if next_state.subtask.type == "Monitor":
-            next_state, monitored_subtask = agent.bayesian_estimate(next_state)
-            next_state.completed_subtasks[-1].subtask.monitored_subtask = (
-                monitored_subtask
+        # [수정됨] Execute subtask and check status immediately
+        try:
+            subtask_time, execution_status = execute_subtask(
+                controller, next_state.subtask
+            )
+            log.info(
+                f"Executed: {next_state.subtask.name}, Duration: {subtask_time:.2f}, Status: {execution_status}"
             )
 
-        current_state = next_state
+            # --- Handle Execution Failure ---
+            if not execution_status:
+                log.error(
+                    f"Subtask '{next_state.subtask.name}' failed execution in simulation. Aborting."
+                )
+                # Optionally save partial results or state before breaking
+                # result_save(...)
+                break  # Exit the main loop on failure
 
+            # --- Store execution results ---
+            next_state.completed_subtasks[-1].subtask.start_time_simulation = (
+                simulation_time
+            )
+            next_state.completed_subtasks[-1].subtask.end_time_simulation = (
+                simulation_time + subtask_time
+            )
+            # Store the status as well
+            next_state.completed_subtasks[-1].subtask.execution_status = (
+                execution_status
+            )
+            simulation_time += subtask_time
+
+        except Exception as e:
+            log.error(
+                f"Error during subtask execution simulation for '{next_state.subtask.name}': {e}",
+                exc_info=True,
+            )
+            # Decide how to handle simulation errors (e.g., treat as failure)
+            break  # Exit loop on simulation error
+
+        # --- Bayesian Estimate (if Monitor task) ---
+        if next_state.subtask.type == "Monitor":
+            try:
+                next_state, monitored_subtask = agent.bayesian_estimate(next_state)
+                next_state.completed_subtasks[-1].subtask.monitored_subtask = (
+                    monitored_subtask
+                )
+            except ValueError as e:
+                log.error(
+                    f"Error during Bayesian estimation: {e}. Continuing without update."
+                )
+                # Decide if this error should stop the process
+            except Exception as e:
+                log.error(
+                    f"Unexpected error during Bayesian estimation: {e}", exc_info=True
+                )
+                # Decide if this error should stop the process
+
+        # --- Update state and check termination ---
+        current_state = next_state
         if not current_state.remaining_subtasks:
+            log.info("All subtasks completed.")
             is_end = True
-    # print(f"planning time is : {computation_time:.2f}")
 
     for ce in current_state.completed_subtasks:
         if ce.subtask.name == "Init":

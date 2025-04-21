@@ -52,6 +52,7 @@ class HeuristicManager:
         """
 
         candidate_subtask = candidate.subtask
+        current_time = current_node.state.current_time  # 현재 시간
 
         # --- (A) 네비게이션 비용 (alpha * nav_time) ---
         nav_time = 0.0
@@ -65,20 +66,19 @@ class HeuristicManager:
                 )
                 nav_time = action_info.time_used if action_info else 0.0
         except (IndexError, AttributeError, TypeError, Exception) as e:
-            log.warning(
-                f"'{candidate_subtask.name}'의 네비게이션 시간 계산 불가: {e}. nav_time=0 가정."
-            )
+            log.warning(f"'{candidate_subtask.name}' nav time error: {e}. Assuming 0.")
             nav_time = 0.0
         navigation_cost = self.alpha * nav_time
 
         # --- (B) 긴급도 비용 (beta * urgency_term) ---
         urgency_term = 0.0
-        estimated_duration = 0.0
+        estimated_duration = 0.0  # 후보 작업의 총 예상 시간 (이동 포함)
         slack_val = float("inf")
 
         if candidate.deadline and candidate.deadline.due_date < float("inf"):
+            deadline_time = candidate.deadline.due_date
             try:
-                # 예상 소요 시간 계산 (이전과 동일)
+                # 1. 후보 작업의 총 예상 시간 계산 (이동 포함)
                 sub_duration_info = self.action_handler.get_actions_info(
                     current_node, candidate_subtask.execution.primitive_actions
                 )
@@ -86,7 +86,7 @@ class HeuristicManager:
                     estimated_duration = sub_duration_info.time_used
                 else:
                     log.warning(
-                        f"'{candidate_subtask.name}'의 예상 시간 계산 실패. 기본값 사용."
+                        f"'{candidate_subtask.name}' duration estimation failed. Using default."
                     )
                     estimated_duration = (
                         candidate_subtask.duration.interval
@@ -94,29 +94,36 @@ class HeuristicManager:
                         else 0.0
                     )
 
-                # 슬랙 계산 (이전과 동일)
-                earliest_finish_time = (
-                    candidate.earliest_start_time + estimated_duration
-                )
-                slack_val = candidate.deadline.due_date - earliest_finish_time
+                # 2. [수정됨] 슬랙 계산: (마감까지 남은 시간) - (필요한 시간)
+                time_remaining_until_deadline = deadline_time - current_time
+                time_needed_for_candidate = estimated_duration
+                slack_val = time_remaining_until_deadline - time_needed_for_candidate
 
-                # 긴급도 항 계산 (이전과 동일)
+                log.debug(
+                    f"Slack Calc for '{candidate_subtask.name}': Deadline={deadline_time:.2f}, Now={current_time:.2f}, Remaining={time_remaining_until_deadline:.2f}, Needed={time_needed_for_candidate:.2f} => Slack={slack_val:.2f}"
+                )
+
+                # 3. 긴급도 항 계산
                 if slack_val <= EPSILON:
                     log.warning(
-                        f"후보 '{candidate_subtask.name}'의 슬랙({slack_val:.2f})이 0 이하. 높은 긴급도 페널티 적용."
+                        f"'{candidate_subtask.name}' has zero/negative slack ({slack_val:.2f}). High urgency penalty."
                     )
-                    urgency_term = LARGE_NUMBER
+                    # [수정됨] LARGE_NUMBER 대신 큰 음수 값으로 설정 (비용 함수에서는 큰 양수 페널티가 됨)
+                    urgency_term = (
+                        -LARGE_NUMBER
+                    )  # Lower cost is better, so high penalty means very low (negative) urgency term
                 else:
+                    # Use reciprocal square root for smoother penalty increase as slack decreases
                     urgency_term = -1.0 / math.sqrt(slack_val + EPSILON)
 
             except Exception as e:
                 log.error(
-                    f"'{candidate_subtask.name}'의 슬랙 계산 중 오류: {e}. urgency_term=0 설정."
+                    f"'{candidate_subtask.name}' slack calculation error: {e}. Setting urgency_term=0."
                 )
                 urgency_term = 0.0
         else:
             log.debug(
-                f"후보 '{candidate_subtask.name}'에 유효한 마감 시간이 없음. urgency_term=0."
+                f"'{candidate_subtask.name}' has no finite deadline. urgency_term=0."
             )
             urgency_term = 0.0
 
@@ -130,24 +137,28 @@ class HeuristicManager:
         total_cost = navigation_cost + urgency_cost + remaining_work_cost
 
         # --- 로깅 ---
-        log.debug(f"휴리스틱 비용 분석: '{candidate_subtask.name}'")
+        log.debug(f"Heuristic Cost Breakdown: '{candidate_subtask.name}'")
         log.debug(
-            f"  네비게이션 비용 (alpha={self.alpha:.2f} * nav={nav_time:.2f}): {navigation_cost:.3f}"
+            f"  Nav Cost ({self.alpha:.2f} * {nav_time:.2f}): {navigation_cost:.3f}"
         )
         log.debug(
-            f"  긴급도 비용 (beta={self.beta:.2f} * term={urgency_term:.3f}): {urgency_cost:.3f} (슬랙: {slack_val:.2f})"
+            f"  Urgency Cost ({self.beta:.2f} * {urgency_term:.3f}): {urgency_cost:.3f} (Slack: {slack_val:.2f})"
         )
         log.debug(
-            f"  남은 작업 비용 (zeta={self.zeta:.2f} * est={remaining_work_estimate:.2f}): {remaining_work_cost:.3f}"
+            f"  Remaining Work Cost ({self.zeta:.2f} * est={remaining_work_estimate:.2f}): {remaining_work_cost:.3f}"
         )
-        log.debug(f"  ==> 총 비용: {total_cost:.4f}")
+        log.debug(f"  ==> Total Cost: {total_cost:.4f}")
 
-        # --- 실행 불가능 처리 ---
-        if urgency_term >= LARGE_NUMBER:
+        # --- 실행 불가능 처리 (휴리스틱 레벨) ---
+        # [수정됨] urgency_term이 매우 낮은 값(즉, 페널티가 매우 큼)이면 LARGE_NUMBER 반환
+        # 이것은 스케줄러의 데드라인 체크와는 별개로 휴리스틱 레벨에서의 비선호 표현임.
+        if (
+            urgency_term <= -LARGE_NUMBER + EPSILON
+        ):  # Check against the large negative value
             log.warning(
-                f"후보 '{candidate_subtask.name}'는 슬랙 부족({slack_val:.2f})으로 실행 불가능 처리됨. 비용=LARGE_NUMBER."
+                f"'{candidate_subtask.name}' deemed highly unpromising due to very low/negative slack ({slack_val:.2f}). Cost=LARGE_NUMBER."
             )
-            return LARGE_NUMBER
+            return LARGE_NUMBER  # Return large cost, effectively pruning
 
         return total_cost
 

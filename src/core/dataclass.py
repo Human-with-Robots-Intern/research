@@ -171,7 +171,7 @@ class Candidate:
     Subtask의 실행 가능 여부를 판단하기 위한 데이터 클래스
     """
 
-    subtask: Subtask
+    subtask: "Subtask"
     is_critical: bool
     adjusted_start_time: float
     logical_start_time: float

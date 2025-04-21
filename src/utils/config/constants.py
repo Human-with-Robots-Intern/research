@@ -6,7 +6,9 @@ ASSETS_PATH = ROOT_PATH / "assets"
 SRC_PATH = ROOT_PATH / "src"
 LOG_PATH = ROOT_PATH / "logs"
 
+
 KNOWLEDGE_PATH = ASSETS_PATH / "knowledge"
+SCENE_PATH = KNOWLEDGE_PATH / "scene_positions"
 PROMPT_PATH = ASSETS_PATH / "prompts"
 TASK_PATH = ASSETS_PATH / "tasks"
 RESULT_PATH = ASSETS_PATH / "results"
