@@ -1,0 +1,57 @@
+name: research
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10.15
+  - pip
+
+  # 핵심 라이브러리
+  - numpy=1.26.4
+  - scipy
+  - matplotlib
+  - opencv
+  - h5py
+  - networkx
+  - trimesh
+  - gymnasium>=0.28.1
+  - rtree
+  - pyqt
+  - graphviz
+  - pillow
+  - scikit-learn
+  - sentence-transformers
+  - tqdm
+
+  # 개발 도구 및 유틸
+  - ipython
+  - isort
+  - black
+  - click
+  - future
+  - pyyaml
+  - termcolor
+  - colorlog
+  - anytree
+  - nest-asyncio
+
+  # 기타 시각/GUI 관련
+  - cairo
+  - pango
+  - gdk-pixbuf
+  - gtk3
+
+  # pip 전용 패키지
+  - pip:
+      - ai2thor==5.0.0
+      - pygraphviz
+      - timm
+      - transformers
+      - torch
+      - torchvision
+      - openai
+      - flask
+      - requests
+      - jinja2
+      - typing-inspection

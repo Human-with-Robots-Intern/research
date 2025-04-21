@@ -174,14 +174,14 @@ class Agent:
         # 6) 베이지안 업데이트 계산
         # critical 제약이 시작 된 이후 경과된 separation interval
         critical_elapsed_interval = state.current_time - critical_start_sub_end_time
-        
+
         # * epsilon_k_sq (Likelihood의 분산)
         # # epsilon_k_sq (근사 버전)
         # epsilon_k_sq = FACTOR_ALPHA * (prior_interval - critical_elapsed_interval) ** 2
 
         # epsilon_k_sq (정확 버전)
         epsilon_k_sq = FACTOR_ALPHA * (gt_interval - critical_elapsed_interval) ** 2
-        
+
         # 관측값 (노이즈 존재)
         observation = np.random.normal(loc=gt_interval, scale=np.sqrt(epsilon_k_sq))
 
