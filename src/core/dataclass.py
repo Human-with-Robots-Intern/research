@@ -155,6 +155,8 @@ class TimeSlot(NamedTuple):
         return f"({self.interval}, {self.is_critical}, {self.related_subtask_name},)"
 
 
+
+
 @dataclass
 class Deadline:
     """

@@ -18,9 +18,6 @@ from ai2thor.controller import Controller
 # Action handler import
 from ithor.handlers.action import Action
 
-# # Logging utility
-# from src.utils.common.logger import create_module_logger
-
 # Constants (unify your constants in one place)
 from src.utils.config.constants import (
     GRID_SIZE,
@@ -30,6 +27,8 @@ from src.utils.config.constants import (
 )
 from utils.common.logger import create_module_logger
 
+# # Logging utility
+# from src.utils.common.logger import create_module_logger
 
 
 def init_ai2thor_controller(
@@ -102,7 +101,7 @@ def execute_subtask(controller: Controller, subtask, log_level) -> tuple[float, 
         ValueError: If an invalid action format is encountered in the primitive actions.
     """
     log = create_module_logger(module_name=__name__, module_log=True, level=log_level)
-    
+
     act = Action(controller)
 
     # If the subtask is just for initialization, skip
