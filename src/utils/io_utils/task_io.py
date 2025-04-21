@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from typing import NamedTuple, Optional, Tuple
 
-from utils.config.constants import KNOWLEDGE_PATH, ROOM_TYPE, TASK_PATH
+from utils.config.constants import ROOM_TYPE, SCENE_KNOWLEDGE_PATH, TASK_PATH
 from utils.task.task_generator import TaskGenerator
 
 
@@ -61,7 +61,7 @@ def load_scene_data(room_type: str, file_name: str) -> SceneData:
         """
         상호작용 가능한 객체를 담은 JSON 파일 로드
         """
-        file_path = KNOWLEDGE_PATH / room_type / "environment" / file_name
+        file_path = SCENE_KNOWLEDGE_PATH / room_type / "environment" / file_name
         raw_data = load_file(file_path, "json")
         return raw_data
 
@@ -71,7 +71,9 @@ def load_scene_data(room_type: str, file_name: str) -> SceneData:
         """
         객체별 3D 위치를 담은 JSON 파일 로드
         """
-        file_path = KNOWLEDGE_PATH / room_type / "object_init_positions" / file_name
+        file_path = (
+            SCENE_KNOWLEDGE_PATH / room_type / "object_init_positions" / file_name
+        )
         raw_data = load_file(file_path, "json")
         return {k: tuple(v) for k, v in raw_data.items()}
 
@@ -110,7 +112,7 @@ def get_user_scene_choice() -> SceneData:
         else:
             print(f"Invalid choice. Please select between 1 and {len(ROOM_TYPE)}.")
 
-    scene_path = KNOWLEDGE_PATH / scene_type
+    scene_path = SCENE_KNOWLEDGE_PATH / scene_type
     scene_file_list = list(scene_path.glob("*.json"))
 
     if not scene_file_list:
