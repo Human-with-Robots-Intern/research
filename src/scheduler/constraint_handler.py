@@ -136,8 +136,8 @@ class ConstraintHandler:
             # estimated_physical_ready_time = current_time + estimated_prep_time
             # adjusted_start_time = max(logical_start_time, estimated_physical_ready_time)
             # --- 수정 끝 ---
+            adjusted_start_time = logical_start_time
 
-            # 최종 후보 생성 (정보 추가)
             candidate = Candidate(
                 subtask=sub,
                 is_critical=is_critical,

@@ -74,8 +74,8 @@ def main():
     # Initialize the agent and scheduler
     action_handler = ActionHandler(nav_graph or {})
     constraint_handler = ConstraintHandler(action_handler)
-    cost_calculator = HeuristicManager(constraint_handler, action_handler)
     agent = Agent(constraint_handler)
+    cost_calculator = HeuristicManager(constraint_handler, action_handler, agent)
     scheduler = Scheduler(
         BEAM_WIDTH,
         SIMULATION_DEPTH,
