@@ -16,6 +16,7 @@ Example usage:
 from ai2thor.controller import Controller
 
 # Action handler import
+from core.task import Subtask
 from ithor.handlers.action import Action
 from utils.common.logger import create_module_logger
 
@@ -83,7 +84,9 @@ def init_ai2thor_controller(
     return controller
 
 
-def execute_subtask(controller: Controller, subtask, log_level) -> tuple[float, bool]:
+def execute_subtask(
+    controller: Controller, subtask: Subtask, log_level: str
+) -> tuple[float, bool]:
     """
     Executes a given subtask using the provided AI2-THOR controller.
 
