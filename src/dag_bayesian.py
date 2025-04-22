@@ -82,11 +82,11 @@ def main():
         subtasks, constraints, scene_data.object_positions
     )
 
-    computation_time, simulation_time = 0, 0
+    total_compute_time, total_sim_time = 0, 0
 
     while not is_end:
         next_state, computation_elapsed_time = scheduler.get_next_state(current_state)
-        computation_time += computation_elapsed_time
+        total_compute_time += computation_elapsed_time
 
         if next_state is None:
             log.error("No feasible solution found.")
@@ -95,37 +95,34 @@ def main():
         sim_elapsed_time, execution_status = execute_subtask(
             controller, next_state.subtask, args.log_level
         )
-        # 시뮬레이션에서 반환해주는 시간을 subtask 객체에 저장.
-        next_state.completed_subtasks[-1].subtask.start_time_simulation = (
-            simulation_time
-        )
-        next_state.completed_subtasks[-1].subtask.end_time_simulation = (
-            simulation_time + sim_elapsed_time
-        )
-        next_state.completed_subtasks[-1].subtask.execution_status = execution_status
-        simulation_time += sim_elapsed_time
+
+        # 시뮬레이션에서 흐른 시간과 실행 상태를 저장.
+        last_entry = next_state.completed_entries[-1]
+        last_entry.sim_start_time = total_sim_time
+        last_entry.sim_end_time = total_sim_time + sim_elapsed_time
+        last_entry.execution_status = execution_status
+        total_sim_time += sim_elapsed_time
 
         if next_state.subtask.type == "Monitor":
             next_state, monitored_subtask = agent.bayesian_estimate(next_state)
-            next_state.completed_subtasks[-1].subtask.monitored_subtask = (
-                monitored_subtask
-            )
+            next_state.completed_entries[-1].monitored_subtask = monitored_subtask
 
         current_state = next_state
 
         if not current_state.remaining_subtasks:
             is_end = True
 
-    for ce in current_state.completed_subtasks:
+    for ce in current_state.completed_entries:
         if ce.subtask.name == "Init":
             continue
 
         log.info(
-            f"{ce.subtask.name} ({round(ce.start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
+            f"{ce.subtask.name} ({round(ce.sim_start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
         )
         log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
         # 지금 start time 과 end time은 scheduler가 계산 한 값이고 simulation을 했을때의 시간이 아니다.
-        ce.subtask.start_time_scheduled = round(ce.start_time, LOG_ROUND)
+        # ? 흠... ce.scheduled_start_time / end_time을 이용할 수는 없나?
+        ce.subtask.start_time_scheduled = round(ce.sim_start_time, LOG_ROUND)
         ce.subtask.end_time_scheduled = round(ce.end_time, LOG_ROUND)
         result_schedule.append(ce)
 
@@ -142,10 +139,10 @@ def main():
         "task_name": input_natural_language,
         "approach_name": approach_name,
         "result_schedule": result_schedule,
-        "computation_time": computation_time,
+        "computation_time": total_compute_time,
         "scene_name": scene_data.file_name,
         "constraints": constraints,
-        "simulationTime": simulation_time,
+        "simulationTime": total_sim_time,
     }
     result_save(**result_args)
 

@@ -166,7 +166,7 @@ class Agent:
         # 4) critical_start_sub_name, end_time 찾아옴
         critical_start_sub_name, critical_start_sub_end_time = get_critical_start_info(
             subtask_name=monitoring_target_sub_name,
-            completed=state.completed_subtasks,
+            completed=state.completed_entries,
             constraints=state.constraints,
             constraint_handler=self.constraint_handler,
         )

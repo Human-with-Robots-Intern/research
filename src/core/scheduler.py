@@ -406,7 +406,7 @@ class Scheduler:
         new_scene_positions = last_action_info.scene_positions
 
         completed_entry = CompletedEntry(copied_sub, start_time, end_time)
-        new_completed = curr_state.completed_subtasks + [completed_entry]
+        new_completed = curr_state.completed_entries + [completed_entry]
 
         new_remain = [
             r for r in curr_state.remaining_subtasks if r.name != candidate.subtask.name
@@ -500,7 +500,7 @@ class Scheduler:
         # * 3) Find monitoring obj and the time at which the critical constraint starts
         critical_constraint_start_time = 0.0
         critical_constraint_start_sub_objs = None
-        for ce in curr_state.completed_subtasks:
+        for ce in curr_state.completed_entries:
             if ce.subtask.name == critical_start_sub_name:
                 critical_constraint_start_time = ce.end_time
                 critical_constraint_start_sub_objs = ce.subtask.execution.objects
@@ -546,7 +546,9 @@ class Scheduler:
 
         remain_sub = copy.deepcopy(candidate.subtask)
         remain_sub.name += "_remain"
-        remain_sub.execution.primitive_actions = post_actions_info.get_actions()
+        remain_sub.execution.primitive_actions = [
+            f"NAVIGATE_TO {post_actions_info.results[0].split()[1]}"
+        ] + post_actions_info.get_actions()
         remain_sub.duration.interval = post_actions_info.results[-1].time_used
         remain_sub.decomposed = True
 
@@ -575,7 +577,7 @@ class Scheduler:
         # * (C) Update the state with the new subtasks
         old_name = candidate.subtask.name
         completed_entry = CompletedEntry(early_sub, start_time, end_time)
-        new_completed = curr_state.completed_subtasks + [completed_entry]
+        new_completed = curr_state.completed_entries + [completed_entry]
         new_held_obj = pre_actions_info.results[-1].held_object
         new_scene_positions = pre_actions_info.results[-1].scene_positions
         new_remain = [r for r in curr_state.remaining_subtasks if r.name != old_name]
@@ -661,7 +663,7 @@ class Scheduler:
         log.info(
             f"[_expand_subtask_with_monitoring] Subtask {candidate.subtask.name} => early_sub: {early_sub.name}\n"
             f"  -> Score={round(new_cost, 2)}, "
-            f"Interval={round(completed_entry.start_time,2)}~{round(completed_entry.end_time,2)}\n"
+            f"Interval={round(completed_entry.sim_start_time,2)}~{round(completed_entry.end_time,2)}\n"
             f"  -> Updated remain={[r.name for r in new_remain]}\n"
         )
         return SimulationNode(
@@ -750,7 +752,7 @@ class Scheduler:
         end_time = start_time + nav_time
 
         completed_entry = CompletedEntry(navigate_sub, start_time, end_time)
-        new_completed = curr_state.completed_subtasks + [completed_entry]
+        new_completed = curr_state.completed_entries + [completed_entry]
 
         # ! ------------------- Constraints Update -------------------
         new_constraints = copy.deepcopy(curr_state.constraints)
@@ -838,7 +840,7 @@ class Scheduler:
         end_time = curr_state.current_time + total_wait_duration
 
         completed_entry = CompletedEntry(wait_sub, start_time, end_time)
-        new_completed = curr_state.completed_subtasks + [completed_entry]
+        new_completed = curr_state.completed_entries + [completed_entry]
 
         new_state = SchedulerState(
             subtask=wait_sub,
