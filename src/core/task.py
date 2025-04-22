@@ -71,6 +71,7 @@ class Subtask:
         duration: Duration,
         temporal_constraints: Optional[List[TemporalConstraint]] = None,
         decomposed: bool = False,
+        execution_status: bool = False,
     ):
         self.task_name = task_name
         self.name = name
@@ -80,6 +81,7 @@ class Subtask:
         self.duration = duration
         self.temporal_constraints = temporal_constraints or []
         self.decomposed = decomposed
+        self.execution_status = execution_status
 
     def __repr__(self):
         return f"Subtask({self.name})"

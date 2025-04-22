@@ -239,12 +239,12 @@ def plot_completed_subtasks_gantt(
         return
 
     # 시작 시간 기준 정렬
-    sorted_entries = sorted(completed_subtasks, key=lambda e: e.start_time)
+    sorted_entries = sorted(completed_subtasks, key=lambda e: e.sim_start_time)
     gantt_data = []
     current_time = 0.0
 
     for entry in sorted_entries:
-        st_time = entry.start_time
+        st_time = entry.sim_start_time
         ed_time = entry.end_time
         sb_name = getattr(entry.subtask, "name")
 

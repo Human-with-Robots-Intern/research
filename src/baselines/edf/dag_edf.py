@@ -1,35 +1,33 @@
 import argparse
 import heapq
-from typing import List, Optional, Tuple
-import networkx as nx
-import heapq
 import time
 from pathlib import Path
-from simulation.runner_ai2thor import execute_subtask
+from typing import List, Optional, Tuple
 
+import networkx as nx
+
+from simulation.runner_ai2thor import execute_subtask
 from utils.common.logger import create_module_logger
 from utils.io_utils.result_saver import result_save
-
 
 PROJECT_ROOT = (
     Path(__file__).resolve().parent.parent.parent.parent
 )  # 프로젝트 루트 경로
 ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
+from dataclass import CompletedEntry, SchedulerState, SimulationNode
+
+from core.task import *
 from ithor.utils.math_utils import load_navigation_graph
+from scheduler.action_handler import ActionHandler
 from simulation.runner_ai2thor import init_ai2thor_controller
 from utils.config.constants import RESULT_PATH, SCENE_NAME
-from scheduler.action_handler import ActionHandler
-from dataclass import SimulationNode, SchedulerState, CompletedEntry
-from core.task import *
-
 from utils.io_utils.task_io import (
-    load_scene_positions,
     get_natural_language_from_task_file,
     get_user_task_choice,
     list_task_files,
+    load_scene_positions,
     load_task_data_from_file,
 )
-
 from utils.task.task_util import TaskUtil
 from utils.visualizers.visualizer import visualize
 
@@ -43,36 +41,49 @@ def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
     if incoming:  # dependency가 있는 경우
         # 단순히 첫번째 dependency가 완료되었는지 여부로 판단
         pred_name = incoming[0][0]
-        completed = {entry.subtask.name for entry in current_state.completed_subtasks}
+        completed = {entry.subtask.name for entry in current_state.completed_entries}
         return pred_name in completed
     return True  # dependency가 없으면 실행 가능
 
 
-def compute_nav_time(subtask: Subtask, current_state: SchedulerState, action_handler) -> float:
+def compute_nav_time(
+    subtask: Subtask, current_state: SchedulerState, action_handler
+) -> float:
     """
     subtask 내 첫 번째 NAVIGATE_TO primitive action의 실행 시간을 시뮬레이션하여 반환
     """
-    temp_node = SimulationNode(deadline=current_state.current_time, simulation_subtask=subtask, state=current_state)
+    temp_node = SimulationNode(
+        deadline=current_state.current_time,
+        simulation_subtask=subtask,
+        state=current_state,
+    )
     nav_time = 0.0
-    
+
     # 모든 subtask의 첫 action은 NAVIGATE_TO 로 시작되어야 한다. 아니라면 문제가 있는것. 확인하라
     if not subtask.execution.primitive_actions[0].startswith("NAVIGATE_TO"):
-        raise("first action is not NAVIGATE_TO")
-    
+        raise ("first action is not NAVIGATE_TO")
+
     for act in subtask.execution.primitive_actions or []:
-            if act.startswith("NAVIGATE_TO"):
-                nav_info = action_handler.get_actions_info(temp_node, [act])
-                if nav_info:
-                    nav_time = nav_info.time_used
-                break
+        if act.startswith("NAVIGATE_TO"):
+            nav_info = action_handler.get_actions_info(temp_node, [act])
+            if nav_info:
+                nav_time = nav_info.time_used
+            break
 
     return nav_time
 
-def offline_subtask_execution(subtask: Subtask, current_state: SchedulerState, action_handler:ActionHandler) -> float:
+
+def offline_subtask_execution(
+    subtask: Subtask, current_state: SchedulerState, action_handler: ActionHandler
+) -> float:
     """
     현재 subtask의 실행 시간을 시뮬레이션하여 반환
     """
-    temp_node = SimulationNode(deadline= current_state.current_time, simulation_subtask=subtask, state=current_state)
+    temp_node = SimulationNode(
+        deadline=current_state.current_time,
+        simulation_subtask=subtask,
+        state=current_state,
+    )
     actions = subtask.execution.primitive_actions or []
     exec_info = action_handler.get_actions_info(temp_node, actions) if actions else None
 
@@ -80,27 +91,30 @@ def offline_subtask_execution(subtask: Subtask, current_state: SchedulerState, a
     return exec_info if exec_info else None
 
 
-
-def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState,nav_time: float,) -> float:
+def compute_deadline_for_subtask(
+    subtask: Subtask,
+    current_state: SchedulerState,
+    nav_time: float,
+) -> float:
     """
     subtask에 대한 deadline을 timeslot 유형과 dependency 조건에 따라 계산한다.
-    
+
     [규칙]
         1. 기본규칙
             deadline = current_time + nav_time
-        2. subtask가 non critical in edge만 있으면: 
+        2. subtask가 non critical in edge만 있으면:
             deadline = max(선행 subtask의 end_time + edge의 interval)
         3. subtask가 critical in edge를 포함한다면:
             deadline = critical edge의(선행 subtask의 end_time + edge interval)
 
     """
     # 가독성을 위한 변수 선언
-    constraints= current_state.constraints
+    constraints = current_state.constraints
     current_time = current_state.current_time
 
     # 현재 subtask가 가진 edge들의 list
     incoming_edges = list(constraints.in_edges(subtask.name, data=True))
-    # 현재 subtask가 critical edge를 가지는지 
+    # 현재 subtask가 critical edge를 가지는지
     critical_edges = [
         (u, v, data)
         for u, v, data in incoming_edges
@@ -109,40 +123,50 @@ def compute_deadline_for_subtask(subtask: Subtask, current_state: SchedulerState
     # 기본 deadline
     deadline = current_time + nav_time
 
-    if incoming_edges :
-        #규칙 2
+    if incoming_edges:
+        # 규칙 2
         non_critical_deadlines = [
             next(
-                (entry.end_time for entry in current_state.completed_subtasks if entry.subtask.name == u),
-                current_time
-            ) + data["info"]["Interval"]
+                (
+                    entry.end_time
+                    for entry in current_state.completed_entries
+                    if entry.subtask.name == u
+                ),
+                current_time,
+            )
+            + data["info"]["Interval"]
             for u, v, data in incoming_edges
         ]
         # 두 non-critical-edge가 있으면 그중 느린쪽에 맞추면 해결됨. critical이 존재하면 아래에서 덮어 써짐.
-        deadline =  max(non_critical_deadlines) 
+        deadline = max(non_critical_deadlines)
 
     if critical_edges:
-        #규칙 3
+        # 규칙 3
         critical_deadlines = [
             next(
-                (entry.end_time for entry in current_state.completed_subtasks if entry.subtask.name == u),
-                current_time
-            ) + data["info"]["Interval"]
+                (
+                    entry.end_time
+                    for entry in current_state.completed_entries
+                    if entry.subtask.name == u
+                ),
+                current_time,
+            )
+            + data["info"]["Interval"]
             for u, v, data in critical_edges
-            
         ]
         # 어짜피 두 critical edge가 있으면 둘중 하나는 포기해야하므로 급한거 먼저 처리하도록 구성. 그러나 critical이 두개 있는경우는 없음
-        deadline = min(critical_deadlines) 
+        deadline = min(critical_deadlines)
 
     return deadline
 
 
 def get_next_subtask_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask]:
     """
-    각 실행 가능한 subtask에 대해 deadline을 산출한 후, deadline이 가장 짧은 subtask를 선택한다.    
+    각 실행 가능한 subtask에 대해 deadline을 산출한 후, deadline이 가장 짧은 subtask를 선택한다.
     """
     import heapq
-    action_handler = ActionHandler(nav_graph)    
+
+    action_handler = ActionHandler(nav_graph)
 
     # pending_edges = get_pending_edges(current_state)
     # timeslot_type = get_timeslot_type(pending_edges)
@@ -154,7 +178,9 @@ def get_next_subtask_edf(current_state: SchedulerState, nav_graph) -> Optional[S
 
         nav_time = compute_nav_time(subtask, current_state, action_handler)
         deadline = compute_deadline_for_subtask(subtask, current_state, nav_time)
-        sim_node = SimulationNode(deadline=deadline, simulation_subtask=subtask, state=current_state)
+        sim_node = SimulationNode(
+            deadline=deadline, simulation_subtask=subtask, state=current_state
+        )
         heapq.heappush(queue, sim_node)
         # remaining_subtask들의 deadline 정보를 삽입
         subtask.deadline = deadline
@@ -163,8 +189,9 @@ def get_next_subtask_edf(current_state: SchedulerState, nav_graph) -> Optional[S
         chosen_node = heapq.heappop(queue)
         # chosen_node.simulation_subtask.deadline = deadline
         return chosen_node.simulation_subtask
-    
+
     return None
+
 
 def update(
     current_state: SchedulerState, next_subtask: Subtask, nav_graph
@@ -180,10 +207,10 @@ def update(
     # 1) 실제 실행 시간 시뮬레이션
     # -------------------------------
     current_time = current_state.current_time
-    
+
     exec_info = offline_subtask_execution(next_subtask, current_state, action_handler)
     real_exec_time = exec_info.time_used
-    if real_exec_time == None :
+    if real_exec_time == None:
         real_exec_time = next_subtask.duration.interval
 
     # subtask의 duration.interval을 실제 실행 시간으로 업데이트.
@@ -196,14 +223,13 @@ def update(
     incoming_edges = list(constraints.in_edges(next_subtask.name, data=True))
     designated_start = current_time  # 기본적으로는 지금 바로 시작
 
-    # 현재 edge 가 critical이면 critical subtask의 predecessor를 찾아서 그 subtask 기준으로 연산해야함. 
+    # 현재 edge 가 critical이면 critical subtask의 predecessor를 찾아서 그 subtask 기준으로 연산해야함.
     # 아니면 아무거나 써도 됨.
 
     wait_entries = []
-    #incoming_edge 가 있으면 deadline 규칙에 따라 연산된 deadline 시간에 subtask 시작
+    # incoming_edge 가 있으면 deadline 규칙에 따라 연산된 deadline 시간에 subtask 시작
     if incoming_edges:
         designated_start = next_subtask.deadline
-    
 
     new_current_time = current_time
 
@@ -231,7 +257,6 @@ def update(
                     duration=Duration(type="NAVIGATE", interval=nav_time),
                     temporal_constraints=[],
                 ),
-
                 start_time=new_current_time,
                 end_time=new_current_time + nav_time,
             )
@@ -274,7 +299,7 @@ def update(
     # -------------------------------
     # 완료 목록 및 state 갱신
     # -------------------------------
-    new_completed = current_state.completed_subtasks + wait_entries + [subtask_entry]
+    new_completed = current_state.completed_entries + wait_entries + [subtask_entry]
     new_remaining = [
         st for st in current_state.remaining_subtasks if st.name != next_subtask.name
     ]
@@ -290,6 +315,7 @@ def update(
         agent_location=current_state.agent_location,
     )
     return updated_state
+
 
 def parse_arguments():
     """Parse command-line arguments."""
@@ -328,15 +354,16 @@ def parse_arguments():
         type=str,
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="로그 출력 수준 설정 (default: INFO)"
+        help="로그 출력 수준 설정 (default: INFO)",
     )
     parser.add_argument(
         "--scene",
         type=str,
         default="FloorPlan1",
-        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)"
+        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
     return parser.parse_args()
+
 
 def main():
 
@@ -350,7 +377,7 @@ def main():
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name , choice= get_user_task_choice(task_files)
+    task_file_name, choice = get_user_task_choice(task_files)
     task_data = load_task_data_from_file(task_file_name)
     input_natural_language = (
         get_natural_language_from_task_file(f"{choice}")
@@ -381,18 +408,19 @@ def main():
         if args.simulation:
             # 터미널에서 src/baselines/def/dag_edf.py -s 실행시 사용됨
 
-            subtask_time, execution_status = execute_subtask(controller, next_subtask, args.log_level)
+            subtask_time, execution_status = execute_subtask(
+                controller, next_subtask, args.log_level
+            )
             simulation_subtask_times.append(subtask_time)
             next_subtask.execution_status = execution_status
 
-    result_schedule = current_state.completed_subtasks
+    result_schedule = current_state.completed_entries
     result_schedule.pop(0)
     # completed_Entry 객체를 Subtask객체로 변환.
     # start_time과 end_time을 추출해서 Subtask 객체 안에 저장.
 
     output_path = RESULT_PATH / input_natural_language / "metadata"
     output_path.mkdir(parents=True, exist_ok=True)
-
 
     # plot_completed_subtasks_gantt(result_schedule, gantt_path)
     if args.simulation:
@@ -402,13 +430,15 @@ def main():
         current_time = 0
 
         for ce in result_schedule:
-            ce.subtask.start_time_scheduled = ce.start_time
+            ce.subtask.start_time_scheduled = ce.sim_start_time
             ce.subtask.end_time_scheduled = ce.end_time
 
             ce.subtask.start_time_simulation = current_time
             # Wait 과 Navigate는 실제 시뮬레이션
             if ce.subtask.type == "WAIT" or ce.subtask.type == "NAVIGATE":
-                ce.subtask.end_time_simulation = current_time + ce.subtask.duration.interval
+                ce.subtask.end_time_simulation = (
+                    current_time + ce.subtask.duration.interval
+                )
                 current_time += ce.subtask.duration.interval
             else:
                 ce.subtask.end_time_simulation = (
@@ -426,7 +456,7 @@ def main():
             "constraints": constraints,
             # "simulationTime": None,
         }
-        
+
         result_save(**result_args)
 
 

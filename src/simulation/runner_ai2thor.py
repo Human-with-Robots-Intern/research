@@ -153,7 +153,7 @@ def execute_subtask(
     }
 
     elapsed_time = 0.0
-    is_subtask_success = True
+    is_execution_success = True
 
     # Execute each primitive action in sequence
     for action_str in primitive_actions:
@@ -172,9 +172,9 @@ def execute_subtask(
         # Check success of the last action
         success = controller.last_event.metadata.get("lastActionSuccess", "N/A")
         if success is False:
-            is_subtask_success = False
+            is_execution_success = False
 
     log.info(
         f"Subtask '{subtask.name}' completed. Elapsed time: {round(elapsed_time, 2)}"
     )
-    return elapsed_time, is_subtask_success
+    return elapsed_time, is_execution_success
