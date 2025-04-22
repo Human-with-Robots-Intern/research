@@ -1,9 +1,79 @@
 from dataclasses import dataclass, field
-from typing import List, NamedTuple, Optional, Tuple
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple
 
 from networkx import DiGraph
 
-from core.task import Subtask
+if TYPE_CHECKING:
+    from src.core.task import Subtask
+
+
+class SchedulerState(NamedTuple):
+    """
+    현재 스케쥴 상태를 저장하는 dataclass
+    """
+
+    # 현재 subtask
+    subtask: Subtask
+    # 수행된 subtask들 (현재 subtask 포함)
+    completed_entries: List["CompletedEntry"]
+    # 남은 subtask들
+    remaining_subtasks: List[Subtask]
+    # 현재 constraint
+    constraints: DiGraph
+    # 현재 절대 시간
+    current_time: float
+    # 현재 agent, object들의 position
+    scene_positions: dict[str, list[float, float, float]]
+    # 현재 agent가 들고 있는 object
+    held_object: Optional[str]
+    # agent의 위치 (landmark)
+    agent_location: str = None
+
+
+class SimulationNode(NamedTuple):
+    """
+    우선순위 큐에서 사용할 탐색 노드.
+    - heuristic_cost: 지금까지 누적된 비용 (높을수록 우선)
+    - depth: 현재 탐색 깊이
+    - tie_breaker: 우선순위가 같을 때 순서 결정용
+    - state: 실제 스케줄 상태 (SchedulerState)
+    """
+
+    heuristic_cost: float
+    depth: int
+    tie_breaker: int
+    parent_node: Optional["SimulationNode"]
+    state: SchedulerState
+
+
+class TimeSlot(NamedTuple):
+    """
+    Subtask 간의 제약 시간을 저장하는 NamedTuple
+    """
+
+    # 해당 subtask에서 in/out하는 제약 시간
+    interval: int
+    # 해당 subtask에서 in/out하는 제약 critical한지 여부
+    is_critical: bool
+    # 해당 subtask에서 in/out하는 제약과 연결된 subtask 이름
+    related_subtask_name: Optional[str]
+
+    def __repr__(self):
+        return f"({self.interval}, {self.is_critical}, {self.related_subtask_name},)"
+
+
+class Deadline(NamedTuple):
+    """
+    Subtask의 데드라인을 저장하는 NamedTuple
+    """
+
+    # 해당 subtask의 데드라인 시간
+    due_date: float
+    # 해당 subtask의 이름
+    subtask_name: str
+
+    def __repr__(self):
+        return f"({self.subtask_name=}, {self.due_date=})"
 
 
 @dataclass
@@ -87,89 +157,22 @@ class ActionSimulationLog:
         return [res.action_full_name for res in self.results]
 
 
-class CompletedEntry(NamedTuple):
-    """
-    완료된 Subtask에 대해, (Subtask, start_time, end_time)을 함께 저장
-    """
-
-    subtask: Subtask
-    start_time: float
-    end_time: float
-
-    def __repr__(self):
-        return f"({self.subtask.name}, {self.start_time} ~ {self.end_time})"
-
-
-class SchedulerState(NamedTuple):
-    """
-    현재 스케쥴 상태를 저장하는 dataclass
-    """
-
-    # 현재 subtask
-    subtask: Subtask
-    # 수행된 subtask들 (현재 subtask 포함)
-    completed_subtasks: List[CompletedEntry]
-    # 남은 subtask들
-    remaining_subtasks: List[Subtask]
-    # 현재 constraint
-    constraints: DiGraph
-    # 현재 절대 시간
-    current_time: float
-    # 현재 agent, object들의 position
-    scene_positions: dict[str, list[float, float, float]]
-    # 현재 agent가 들고 있는 object
-    held_object: Optional[str]
-    # agent의 위치 (landmark)
-    agent_location: str = None
-
-
-class SimulationNode(NamedTuple):
-    """
-    우선순위 큐에서 사용할 탐색 노드.
-    - heuristic_cost: 지금까지 누적된 비용 (높을수록 우선)
-    - depth: 현재 탐색 깊이
-    - tie_breaker: 우선순위가 같을 때 순서 결정용
-    - state: 실제 스케줄 상태 (SchedulerState)
-    """
-
-    heuristic_cost: float
-    depth: int
-    tie_breaker: int
-    parent_node: Optional["SimulationNode"]
-    state: SchedulerState
-
-
-class TimeSlot(NamedTuple):
-    """
-    Subtask 간의 제약 시간을 저장하는 NamedTuple
-    """
-
-    # 해당 subtask에서 in/out하는 제약 시간
-    interval: int
-    # 해당 subtask에서 in/out하는 제약 critical한지 여부
-    is_critical: bool
-    # 해당 subtask에서 in/out하는 제약과 연결된 subtask 이름
-    related_subtask_name: Optional[str]
-
-    def __repr__(self):
-        return f"({self.interval}, {self.is_critical}, {self.related_subtask_name},)"
-
-
-
-
 @dataclass
-class Deadline:
+class CompletedEntry:
     """
-    Subtask의 데드라인을 저장하는 NamedTuple
+    완료된 Subtask에 대해, (Subtask, schedule_start_time, schedule_end_time, sim_start_time, sim_end_time, execution_status)을 함께 저장
+    스케쥴러 상에서 완료된 시간, 시뮬레이션 상에서 완료된 시간, 시뮬레이션 실행 상태를 함께 저장
     """
 
-    # 해당 subtask의 데드라인 시간
-    due_date: float
-    # 해당 subtask의 이름
-    subtask_name: str
+    subtask: Subtask
+    schedule_start_time: float
+    schedule_end_time: float
+    sim_start_time: float = float("inf")
+    sim_end_time: float = float("inf")
+    execution_status: bool = False
 
     def __repr__(self):
-        return f"({self.subtask_name=}, {self.due_date=})"
+        return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time})"
 
 
 @dataclass
@@ -184,7 +187,7 @@ class Candidate:
     # subtask의 시작 시간
     earliest_start_time: float
     # 고려할 데드라인
-    deadline: Deadline = (None, None)
+    deadline: Deadline = Deadline(due_date=float("inf"), subtask_name=None)
 
     def __repr__(self):
         return f"({self.subtask.name}; duration : {self.subtask.duration.interval}, earliest_start_time = {self.earliest_start_time}, deadline = {self.deadline}, is_critical = {self.is_critical})"
