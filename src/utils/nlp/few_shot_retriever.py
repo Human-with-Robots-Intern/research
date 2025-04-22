@@ -29,7 +29,7 @@ class FewShotRetriever:
         ref_vecs = self.model.encode_sentences(references)
         query_vec = self.model.encode_sentence(query_vec)
 
-        similarities = self.model.compute_batch_cosine_similarity(query_vec, ref_vecs)
+        similarities = self.model.get_similar_ref(query_vec, ref_vecs)
         return np.argsort(similarities)[::-1][:k].tolist()
 
     def _load_reference_data(self, path: Path) -> Dict[str, str]:

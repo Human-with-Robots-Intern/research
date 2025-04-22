@@ -181,16 +181,6 @@ class TaskUtil:
         }
         all_object_ids = list(all_object_ids)
 
-        def find_most_similar_object(target: str, candidates: List[str]) -> str:
-            if not candidates:
-                return target
-            sim_scores = [
-                cls._sentence_sim_model.compute_cosine_similarity(target, candidate)
-                for candidate in candidates
-            ]
-            idx, _ = max(enumerate(sim_scores), key=lambda x: x[1])
-            return candidates[idx]
-
         def transform_action(action: str) -> str:
             parts = action.split(" ", 1)
             if len(parts) < 2:
@@ -207,7 +197,9 @@ class TaskUtil:
 
             # 후보에 없으면 유사도 가장 높은 후보로 교체
             if target_obj not in candidates:
-                matched = find_most_similar_object(target_obj, candidates)
+                matched = cls._sentence_sim_model.get_similar_ref(
+                    target_obj, candidates
+                )
                 return f"{base_action} {matched}"
             else:
                 return action
@@ -240,15 +232,8 @@ class TaskUtil:
         if not bayesian_keys:
             return
 
-        sim_scores = [
-            cls._sentence_sim_model.compute_cosine_similarity(subtask.name, key)
-            for key in bayesian_keys
-        ]
-        idx, best_score = max(enumerate(sim_scores), key=lambda x: x[1])
-        similar_subtask = (
-            bayesian_keys[idx].lower()
-            if best_score >= similarity_threshold
-            else subtask.name.lower()
+        similar_subtask = cls._sentence_sim_model.get_similar_ref(
+            subtask.name, bayesian_keys
         )
 
         # bayesian_load 갱신
