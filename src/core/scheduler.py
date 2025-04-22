@@ -8,6 +8,7 @@ from core.task import Duration, Execution, Subtask
 from scheduler import ConstraintHandler, HeuristicManager
 from scheduler.action_handler import ActionHandler
 from utils.common import create_module_logger
+from utils.common.decorators import time_logger
 from utils.config import (
     BAYESIAN_CRITERIA,
     EPSILON,
@@ -53,15 +54,14 @@ class Scheduler:
 
         self.action_handler = ActionHandler(nav_graph or {})
         self.constraint_handler = ConstraintHandler()
-        self.cost_calculator = HeuristicManager(
-            self.constraint_handler, self.action_handler
-        )
+        self.cost_calculator = HeuristicManager(self.constraint_handler)
 
         self._counter = itertools.count()
 
     # ======================
     # Public method
     # ======================
+    @time_logger
     def get_next_state(self, parent_state: SchedulerState) -> Optional[SchedulerState]:
         """
         Public method to retrieve the immediate next state (1-step ahead in time)
