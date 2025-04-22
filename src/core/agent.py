@@ -1,10 +1,13 @@
-from typing import List
+from __future__ import annotations
+
+import json
+from typing import Dict, List
 
 import networkx as nx
 import numpy as np
 
 from core.dataclass import SchedulerState
-from scheduler.constraint_handler import ConstraintHandler
+from scheduler import ConstraintHandler
 from utils.common import create_module_logger, extract_monitoring_target_name
 from utils.config import (
     ESTIMATE_FILE_NAME,
@@ -13,7 +16,8 @@ from utils.config import (
     INIT_PRIOR_MEAN,
     INIT_PRIOR_VARIANCE,
 )
-from utils.io_utils import load_knowledge, save_knowledge
+from utils.config.constants import AGENT_KNOWLEDGE_PATH, SCENE_KNOWLEDGE_PATH
+from utils.io_utils import load_file
 from utils.nlp import SentenceSimilarityModel
 from utils.task.constraints_util import get_critical_start_info
 
@@ -21,23 +25,51 @@ log = create_module_logger(module_name=__name__, module_log=True)
 
 
 class Agent:
-    def __init__(self):
-        self.knowledge = load_knowledge(ESTIMATE_FILE_NAME)
-        self.constraint_handler = ConstraintHandler()
+    def __init__(self, constraint_handler: ConstraintHandler):
+        """Initializes the Agent, loading prior knowledge and helpers."""
+        self.estimate_knowledge: Dict[str, Dict[str, float]] = (
+            self._load_lower_case_knowledge(ESTIMATE_FILE_NAME)
+        )
+        self.ground_truth: Dict[str, float] = self._load_lower_case_knowledge(
+            GROUND_TRUTH_FILE_NAME
+        )
+
         self.sentence_sim_model = SentenceSimilarityModel.get_instance()
+        self.constraint_handler = constraint_handler
+
+    def _load_lower_case_knowledge(self, filename: str) -> Dict[str, Dict]:
+        """Loads knowledge from file or returns an empty dict if not found."""
+        knowledge_path = AGENT_KNOWLEDGE_PATH / filename
+        try:
+            knowledge = load_file(knowledge_path, "json")
+            log.info(f"Successfully loaded knowledge from {filename}.")
+            processed_knowledge = {}
+
+            for k, v in knowledge.items():
+                processed_knowledge[str(k).lower()] = v
+
+            return processed_knowledge
+
+        except FileNotFoundError:
+            log.warning(
+                f"Knowledge file {filename} not found. Initializing empty knowledge base."
+            )
+            return {}
 
     def reset_knowledge_to_gaussian(self) -> None:
         """
         Reset the knowledge base:
         every key (e.g. 'Brew Coffee') is re-initialized with a new Gaussian (mean=1, var=1).
         """
-        for key in self.knowledge.keys():
-            self.knowledge[key] = {
+        for key in self.estimate_knowledge:
+            self.estimate_knowledge[key] = {
                 "expected_duration": INIT_PRIOR_MEAN,
                 "variance": INIT_PRIOR_VARIANCE,
             }
-        log.info("Knowledge reset to default Gaussian (mean=0, var=1).")
-        save_knowledge(self.knowledge, ESTIMATE_FILE_NAME)
+
+        knowledge_path = AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME
+        with open(knowledge_path, "w", encoding="utf-8") as f:
+            json.dump(self.estimate_knowledge, f, indent=4, ensure_ascii=False)
 
     def _call_sentence_sim_model(
         self, origin_sub_name: str, sub_name_candidates: List[str]
@@ -82,9 +114,11 @@ class Agent:
         constraints 그래프에 반영한다.
         """
         # 1) knowledge에 반영
-        self.knowledge[known_sub_name]["expected_duration"] = posterior_mean
-        self.knowledge[known_sub_name]["variance"] = posterior_variance
-        save_knowledge(self.knowledge, ESTIMATE_FILE_NAME)
+        self.estimate_knowledge[known_sub_name]["expected_duration"] = posterior_mean
+        self.estimate_knowledge[known_sub_name]["variance"] = posterior_variance
+        estimate_knowledge_path = AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME
+        with open(estimate_knowledge_path, "w", encoding="utf-8") as f:
+            json.dump(self.estimate_knowledge, f, indent=4, ensure_ascii=False)
 
         # 2) constraints 그래프 업데이트
         #    - (critical_start_sub_name, monitoring_target_sub_name)에 posterior_mean 반영

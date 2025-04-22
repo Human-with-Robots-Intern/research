@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import itertools
 from queue import PriorityQueue
@@ -44,6 +46,9 @@ class Scheduler:
         search_width: int,
         simulation_depth: int,
         nav_graph: dict,
+        action_handler: ActionHandler,
+        constraint_handler: ConstraintHandler,
+        heuristic_manager: HeuristicManager,
     ):
 
         self.search = search_width
@@ -51,10 +56,6 @@ class Scheduler:
         log.info(
             f"{RED}[Scheduler Init] search_width={search_width}, simulation_depth={simulation_depth}{RESET}"
         )
-
-        self.action_handler = ActionHandler(nav_graph or {})
-        self.constraint_handler = ConstraintHandler()
-        self.cost_calculator = HeuristicManager(self.constraint_handler)
 
         self._counter = itertools.count()
 

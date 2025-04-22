@@ -1,9 +1,9 @@
 import argparse
 import time
 
-from core.agent import Agent
-from core.scheduler import Scheduler
+from core import Agent, Scheduler
 from ithor.handlers.navigation_handler import load_navigation_graph
+from scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from utils.common.logger import create_module_logger
 from utils.config import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH
@@ -71,16 +71,25 @@ def main():
         task_data, scene_data.file_name
     )
     visualize(approach_name, input_natural_language, constraints)
-
-    result_schedule = []
-    is_end = False
     # Initialize the agent and scheduler
-    agent = Agent()
-    scheduler = Scheduler(BEAM_WIDTH, SIMULATION_DEPTH, nav_graph=nav_graph)
-
+    action_handler = ActionHandler(nav_graph or {})
+    constraint_handler = ConstraintHandler(action_handler)
+    cost_calculator = HeuristicManager(constraint_handler, action_handler)
+    agent = Agent(constraint_handler)
+    scheduler = Scheduler(
+        BEAM_WIDTH,
+        SIMULATION_DEPTH,
+        nav_graph=nav_graph,
+        action_handler=action_handler,
+        constraint_handler=constraint_handler,
+        heuristic_manager=cost_calculator,
+    )
     current_state = TaskUtil.get_init_state(
         subtasks, constraints, scene_data.object_positions
     )
+
+    result_schedule = []
+    is_end = False
 
     total_compute_time, total_sim_time = 0, 0
 
