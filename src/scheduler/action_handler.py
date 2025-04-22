@@ -522,7 +522,6 @@ class ActionHandler:
         # split_index가 유효하고 (-1이 아니고), 해당 액션이 성공했으며, 객체를 들고 있는 경우
         if (
             0 <= split_index < len(full_simulation_log.results)
-            and full_simulation_log.results[split_index].success
             and full_simulation_log.results[split_index].held_object is not None
         ):
             held_object_at_split = full_simulation_log.results[split_index].held_object
@@ -550,7 +549,7 @@ class ActionHandler:
                 log.warning(
                     f"Object '{held_object_at_split}' was held at split index {split_index}, but no subsequent PLACE action was found in the remaining sequence. Split will occur after GRASP."
                 )
-        elif 0 <= split_index < len(full_simulation_log.results):
+        elif full_simulation_log.results[split_index].held_object is None:
             log.debug(
                 f"No object held or action failed at split index {split_index}. No GRASP/PLACE adjustment needed."
             )
@@ -559,7 +558,7 @@ class ActionHandler:
                 "Split index is -1 (all actions are post-cutoff) or invalid. No adjustment needed."
             )
 
-        # 4. 최종 로그 생성 (조정된 split_index 기준)
+        # 4. 초기 로그 생성 (조정된 split_index 기준)
         pre_log.results = full_simulation_log.results[: split_index + 1]
         post_log.results = full_simulation_log.results[split_index + 1 :]
 
