@@ -1,22 +1,23 @@
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import networkx as nx
 from networkx import DiGraph
 
+from core.dataclass import (
+    ActionResult,
+    Candidate,
+    CompletedEntry,
+    Deadline,
+    SimulationNode,
+    TimeSlot,
+)
 from core.task import Subtask
-from src.utils.config import EPSILON
+from utils.config import EPSILON
 
-if TYPE_CHECKING:
-    from core.dataclass import (
-        ActionResult,
-        Candidate,
-        CompletedEntry,
-        Deadline,
-        SimulationNode,
-        TimeSlot,
-    )
-    from src.scheduler.action_handler import ActionHandler
+from .action_handler import ActionHandler
 
 log = logging.getLogger(__name__)
 
