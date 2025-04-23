@@ -100,6 +100,7 @@ OBJECT_INTERESTS = {
         "isUsedUp",
     ],
 }
+
 # ========== 환경 상수 ==========
-ENV_PLACEHOLDER = "<EnvironmentInfo>"
-ENV_SAMPLE_COUNT = 30
+ENV_PLACEHOLDER = "<ENVIRONMENT_INFO>"
+

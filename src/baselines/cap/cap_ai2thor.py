@@ -25,7 +25,8 @@ from ithor.handlers.action import Action
 from ithor.handlers.camera_handler import CameraHandler
 from ithor.handlers.navigation_handler import NavigationHandler
 
-first_action_time = None
+
+last_end_time = 0  # Track the last action's end time
 
 
 def timed_action(log_file, action_name, action_func, controller):
@@ -35,30 +36,26 @@ def timed_action(log_file, action_name, action_func, controller):
     """
 
     def wrapper(*args, **kwargs):
-        global first_action_time
+        global last_end_time
         # 액션 시작 로그
         log_file.write(f"Executing action: ['{action_name}']\n")
-        now = time.time()
-
-        if first_action_time is None:
-            first_action_time = now
-
-        start_time = now - first_action_time
-        result = action_func(*args, **kwargs)  # 실제 액션 함수 실행
-        end_time = time.time() - first_action_time
+        
+        # Use the last action's end time as the start time
+        start_time = last_end_time
+        elapsed_time = action_func(*args, **kwargs)  # 실제 액션 함수 실행
+        end_time = start_time + elapsed_time
+        last_end_time = end_time  # Update the last end time for the next action
 
         # 액션 시간 및 실행 결과 로그
         log_file.write(f"start_time: {round(start_time,2)}\n")
         log_file.write(f"end_time: {round(end_time,2)}\n")
 
-        #
         if controller.last_event.metadata["lastActionSuccess"]:
             log_file.write(f"execution_status: {True}\n")
-
         else:
             log_file.write(f"execution_status: {False}\n")
 
-        return result
+        return elapsed_time
 
     return wrapper
 
@@ -151,7 +148,7 @@ cfg_scene = {
 vars_log = open("vars_log.txt", "w", buffering=1)
 
 
-def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
+def setup_LMP(controller, Act, cfg_scene, log_file):
     # LMP env wrapper
     # 위에 있음.
     cfg_scene = copy.deepcopy(cfg_scene)
@@ -174,22 +171,21 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
     for var_name, var_value in fixed_vars.items():
         vars_log.write(f"{var_name}: {var_value}\n")
 
-    variable_vars = {k: getattr(Navi, k) for k in ["move_in_direction"]}
-    variable_vars.update(
-        {
-            k: getattr(Action, k)
-            for k in [
-                "pickup",
-                "slice",
-                "put",
-                "drop",
-                "toggle_on",
-                "toggle_off",
-                "open",
-                "close",
-            ]
-        }
-    )
+    variable_vars={
+                    k: getattr(Act, k)
+                    for k in [
+                        "pickup",
+                        "slice",
+                        "put",
+                        "drop",
+                        "toggle_on",
+                        "toggle_off",
+                        "open",
+                        "close",
+                        "move_to",
+                    ]
+                    }
+
 
     # 위에서 update된 액션들을 한 번씩 래핑
     for action_name in [
@@ -201,6 +197,7 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
         "toggle_off",
         "open",
         "close",
+        "move_to",
     ]:
         original_func = variable_vars[action_name]
         variable_vars[action_name] = timed_action(
@@ -316,10 +313,9 @@ if __name__ == "__main__":
     
     # 계속 필요한지 체크할 필요가 있다. 
     camera_handler = CameraHandler(controller)
-    Navi = NavigationHandler(controller)
     Act = Action(controller)
 
-    lmp_scene_ui = setup_LMP(controller, Navi, Action, cfg_scene, log_file)
+    lmp_scene_ui = setup_LMP(controller,  Act, cfg_scene, log_file)
     # toast the bread
     # put tomato in the fridge
     # put egg in the pan : 냉장고 문을 안열고 계란 집음
