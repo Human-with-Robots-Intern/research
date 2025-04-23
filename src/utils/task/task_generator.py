@@ -115,7 +115,7 @@ class TaskGenerator:
         environment_info_str = ""
  
         try:
-            env_file_path = Path(KNOWLEDGE_PATH) / scene_type/ "environment" / f"{scene_name}_physics.json"
+            env_file_path = Path(KNOWLEDGE_PATH) / scene_type/ "environment" / f"{scene_name}_physics_environment.json"
             env_data = self.load_file(env_file_path, "json")
 
             # 전체 환경 데이터를 JSON 문자열로 변환
