@@ -42,7 +42,7 @@ def get_user_task_choice(
             if choice == 0:
                 user_input = input("Enter your instruction: ")
 
-                return TaskGenerator(is_rag).generate_task(user_input,scene_name), None
+                return TaskGenerator(is_rag).generate_task(user_input,scene_name), choice
             elif 1 <= choice <= len(task_files):
                 return task_files[choice - 1].name, choice
             else:

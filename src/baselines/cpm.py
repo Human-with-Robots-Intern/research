@@ -72,7 +72,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan1",
+        default="FloorPlan401",
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)"
     )
     return parser.parse_args()
@@ -445,9 +445,11 @@ def main() -> None:
 
     # 사용자로부터 task 파일 선택 및 로드
     task_files = list_task_files()
-    task_file_name, choice = get_user_task_choice(task_files, scene_name)
+    task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
     task_data = load_task_data_from_file(task_file_name)
     input_natural_language: str = task_io.get_natural_language_from_task_file(f"{choice}")
+    if input_natural_language is None:
+        input_natural_language = task_file_name
 
     
     # Task 및 constraint 생성 (태스크 분해 여부에 따라)

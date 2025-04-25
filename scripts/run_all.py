@@ -135,15 +135,15 @@ def main() -> None:
     
     scene_list = [
         "FloorPlan1",
-        "FloorPlan2",
-        "FloorPlan3",
-        "FloorPlan4",
+        "FloorPlan7",
+        "FloorPlan13",
+        "FloorPlan18",
         "FloorPlan27",
         "FloorPlan401",
-        "FloorPlan402",
-        "FloorPlan403",
-        "FloorPlan404",
-        "FloorPlan405"
+        "FloorPlan415",
+        "FloorPlan422",
+        "FloorPlan426",
+        "FloorPlan427"
     ]
     # scene name 도 arg 로 받도록 파일들을 수정해야함. 
     num_runs_per_instruction = 1
