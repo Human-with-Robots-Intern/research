@@ -112,7 +112,7 @@ def get_user_scene_choice() -> SceneData:
         else:
             print(f"Invalid choice. Please select between 1 and {len(ROOM_TYPE)}.")
 
-    scene_path = SCENE_KNOWLEDGE_PATH / scene_type
+    scene_path = SCENE_KNOWLEDGE_PATH / scene_type / "object_init_positions"
     scene_file_list = list(scene_path.glob("*.json"))
 
     if not scene_file_list:

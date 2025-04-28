@@ -1,10 +1,10 @@
 import argparse
 import time
 
-from core import Agent, Scheduler
 from ithor.handlers.navigation_handler import load_navigation_graph
-from scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
+from src.core import Agent, Scheduler
+from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from utils.common.logger import create_module_logger
 from utils.config import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH
 from utils.io_utils import (
@@ -135,13 +135,12 @@ def main():
         ce.subtask.end_time_scheduled = round(ce.end_time, LOG_ROUND)
         result_schedule.append(ce)
 
-    if args.visualize:
-        visualize(
-            approach_name,
-            input_natural_language,
-            current_state.constraints,
-            plan=result_schedule,
-        )
+    visualize(
+        approach_name,
+        input_natural_language,
+        current_state.constraints,
+        plan=result_schedule,
+    )
 
     approach_name = f"{approach_name}_simulation"
     result_args = {
@@ -151,7 +150,7 @@ def main():
         "computation_time": total_compute_time,
         "scene_name": scene_data.file_name,
         "constraints": constraints,
-        "simulationTime": total_sim_time,
+        # "simulationTime": total_sim_time,
     }
     result_save(**result_args)
 

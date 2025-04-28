@@ -3,14 +3,12 @@ from __future__ import annotations
 import copy
 import itertools
 from queue import PriorityQueue
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
-from core.dataclass import Candidate, CompletedEntry, SchedulerState, SimulationNode
-from core.task import Duration, Execution, Subtask
-from scheduler import ConstraintHandler, HeuristicManager
-from scheduler.action_handler import ActionHandler
-from utils.common import create_module_logger
-from utils.common.decorators import time_logger
+from src.core.dataclass import Candidate, CompletedEntry, SchedulerState, SimulationNode
+from src.core.task import Duration, Execution, Subtask
+from src.utils.common import create_module_logger
+from src.utils.common.decorators import time_logger
 from utils.config import (
     BAYESIAN_CRITERIA,
     EPSILON,
@@ -20,6 +18,9 @@ from utils.config import (
     RESET,
 )
 from utils.task import TaskUtil
+
+if TYPE_CHECKING:
+    from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -56,7 +57,9 @@ class Scheduler:
         log.info(
             f"{RED}[Scheduler Init] search_width={search_width}, simulation_depth={simulation_depth}{RESET}"
         )
-
+        self.constraint_handler = constraint_handler
+        self.action_handler = action_handler
+        self.cost_calculator = heuristic_manager
         self._counter = itertools.count()
 
     # ======================
@@ -152,7 +155,7 @@ class Scheduler:
                 f"========================================\n"
                 f"Depth = {curr_depth} (expanding to {curr_depth + 1})\n"
                 f"Current Time : {round(curr_state.current_time,2)}\n\n"
-                f"Completed_subs={[ce.subtask.name for ce in curr_state.completed_subtasks]}\n"
+                f"Completed_subs={[ce.subtask.name for ce in curr_state.completed_entries]}\n"
                 f"Remaining_subs={[r.name for r in curr_state.remaining_subtasks]}\n\n"
                 f"Feasible_subs={[c for c in feasible_candidates]},\n\n"
                 f"Not_yet_feasible_subs={[c for c in not_yet_candidates]}\n\n"
@@ -415,7 +418,7 @@ class Scheduler:
 
         new_state = SchedulerState(
             subtask=copied_sub,
-            completed_subtasks=new_completed,
+            completed_entries=new_completed,
             remaining_subtasks=new_remain,
             constraints=curr_state.constraints,
             current_time=end_time,
@@ -650,7 +653,7 @@ class Scheduler:
 
         new_state = SchedulerState(
             subtask=early_sub,
-            completed_subtasks=new_completed,
+            completed_entries=new_completed,
             remaining_subtasks=new_remain,
             constraints=new_constraints,
             current_time=end_time,
@@ -777,7 +780,7 @@ class Scheduler:
         # Agent position/state 변경은 거의 없음(Wait)
         new_state = SchedulerState(
             subtask=navigate_sub,
-            completed_subtasks=new_completed,
+            completed_entries=new_completed,
             remaining_subtasks=new_remain,
             constraints=new_constraints,
             current_time=end_time,
@@ -845,7 +848,7 @@ class Scheduler:
 
         new_state = SchedulerState(
             subtask=wait_sub,
-            completed_subtasks=new_completed,
+            completed_entries=new_completed,
             remaining_subtasks=curr_state.remaining_subtasks,
             constraints=curr_state.constraints,
             current_time=end_time,

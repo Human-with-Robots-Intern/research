@@ -86,7 +86,9 @@ class ActionHandler:
         action_log = ActionSimulationLog()
         # 시뮬레이션을 위해 상태 깊은 복사
         sim_state = copy.deepcopy(initial_node.state)
-
+        current_scene_positions = sim_state.scene_positions
+        current_held_object = sim_state.held_object
+        new_held_object = None
         time_elapsed = 0.0  # 이번 시뮬레이션 시퀀스에서 경과한 시간
 
         for i, action_str in enumerate(primitive_actions):
@@ -94,7 +96,7 @@ class ActionHandler:
                 f"--- Simulating action {i+1}/{len(primitive_actions)}: '{action_str}' ---"
             )
             log.debug(
-                f"    State before: Time={sim_state.current_time:.2f}, Held={sim_state.held_object}"
+                f"    State before: Time={sim_state.current_time:.2f}, Held={current_held_object}"
             )
 
             # 액션 파싱
@@ -112,11 +114,10 @@ class ActionHandler:
 
             action_duration = 0.0
             action_success = True
-            new_held_object = sim_state.held_object  # 상태 변화를 반영할 변수
 
             agent_pos: Optional[Position] = (
-                tuple(sim_state.scene_positions.get("agent"))
-                if "agent" in sim_state.scene_positions
+                tuple(current_scene_positions.get("agent"))
+                if "agent" in current_scene_positions
                 else None
             )
             if agent_pos is None:
@@ -129,31 +130,31 @@ class ActionHandler:
                         agent_pos,
                         target_obj_id,
                         partial_time_str,
-                        sim_state.scene_positions,
+                        current_scene_positions,
                     )
                 )
                 if action_success and new_agent_pos is not None:
-                    sim_state.scene_positions["agent"] = tuple(new_agent_pos)
+                    current_scene_positions["agent"] = tuple(new_agent_pos)
 
             elif action_type == "GRASP":
                 action_duration, action_success, new_held_object = self._simulate_grasp(
                     agent_pos,
                     target_obj_id,
-                    sim_state.held_object,
-                    sim_state.scene_positions,
+                    current_held_object,
+                    current_scene_positions,
                 )
 
             elif action_type in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
                 action_duration, action_success, new_held_object = self._simulate_place(
                     agent_pos,
                     target_obj_id,
-                    sim_state.held_object,
-                    sim_state.scene_positions,
+                    current_held_object,
+                    current_scene_positions,
                 )
 
             elif action_type in STATIC_ACTION_SET:
                 action_duration, action_success = self._simulate_interaction(
-                    agent_pos, action_type, target_obj_id, sim_state.scene_positions
+                    agent_pos, action_type, target_obj_id, current_scene_positions
                 )
 
             elif action_type == "WAIT":
@@ -168,7 +169,7 @@ class ActionHandler:
                 action_success = False
 
             # 시뮬레이션 상태 업데이트 (헬퍼 메서드에서 변경된 부분 반영)
-            sim_state.held_object = new_held_object
+            current_held_object = new_held_object
 
             # 경과 시간 및 누적 시간 업데이트
             time_elapsed += action_duration
@@ -177,24 +178,19 @@ class ActionHandler:
             log.debug(f"    Action Result: {'SUCCESS' if action_success else 'FAILED'}")
             log.debug(f"    Duration: {action_duration:.2f}")
             log.debug(
-                f"    State after : Time={current_cumulative_time:.2f}, Held={sim_state.held_object}"
+                f"    State after : Time={current_cumulative_time:.2f}, Held={current_held_object}"
             )
             log.debug(f"--- End simulation step {i+1} ---")
 
-            # ActionResult 생성 및 로그 추가
-            action_result = ActionResult(
-                actions=[action_str],
+            action_log.add_result(
                 action_full_name=action_str,
                 action_type=action_type,
-                # time_used는 이 액션 *완료 후*의 누적 시간
                 time_used=current_cumulative_time,
-                action_duration=action_duration,  # 현재 액션의 소요 시간
-                # 액션 실행 후의 상태를 깊은 복사하여 저장
-                scene_positions=copy.deepcopy(sim_state.scene_positions),
-                held_object=sim_state.held_object,  # held_object는 불변 객체(str 또는 None)이므로 복사 필요 없음
+                action_duration=action_duration,
+                scene_positions=copy.deepcopy(current_scene_positions),
+                held_object=current_held_object,
                 success=action_success,
             )
-            action_log.add_result(action_result)
 
             # 액션 실패 시 시뮬레이션 중단
             if not action_success:

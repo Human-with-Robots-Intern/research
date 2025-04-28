@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import networkx as nx
 import numpy as np
 
-from core.dataclass import SchedulerState
-from scheduler import ConstraintHandler
-from utils.common import create_module_logger, extract_monitoring_target_name
-from utils.config import (
+from src.core.dataclass import SchedulerState
+from src.utils.common import create_module_logger, extract_monitoring_target_name
+from src.utils.config import (
     ESTIMATE_FILE_NAME,
     FACTOR_ALPHA,
     GROUND_TRUTH_FILE_NAME,
@@ -20,6 +19,9 @@ from utils.config.constants import AGENT_KNOWLEDGE_PATH, MIN_VARIANCE
 from utils.io_utils import load_file
 from utils.nlp import SentenceSimilarityModel
 from utils.task.constraints_util import get_critical_start_info
+
+if TYPE_CHECKING:
+    from scheduler import ConstraintHandler
 
 log = create_module_logger(module_name=__name__, module_log=True)
 

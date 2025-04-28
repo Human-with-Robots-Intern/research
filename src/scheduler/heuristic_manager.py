@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import logging
 import math
@@ -6,22 +8,22 @@ from typing import TYPE_CHECKING, Optional
 import networkx as nx  # Required for path finding
 import numpy as np  # 추가 (남은 작업량 추정 등에 사용될 수 있음)
 
-from core.dataclass import Candidate, SimulationNode, Subtask
-from core.task import Subtask  # Subtask 직접 임포트
+from src.core.dataclass import Candidate, SimulationNode
 from src.utils.config import (
     ALPHA_HEURISTIC,
     BETA_HEURISTIC,
-    DEFAULT_SUBTASK_DURATION_ESTIMATE,
     EPSILON,
     GAMMA_HEURISTIC,
+    INIT_PRIOR_MEAN,
     LARGE_NUMBER,
 )
 
 # Forward declarations for type hinting
 if TYPE_CHECKING:
-    from core.agent import Agent
-    from scheduler.action_handler import ActionHandler
-    from scheduler.constraint_handler import ConstraintHandler
+    from src.core.agent import Agent
+    from src.core.task import Subtask  # Subtask 직접 임포트
+    from src.scheduler.action_handler import ActionHandler
+    from src.scheduler.constraint_handler import ConstraintHandler
 
 log = logging.getLogger(__name__)
 
@@ -54,9 +56,9 @@ class HeuristicManager:
         """Subtask의 예상 소요 시간을 반환합니다."""
         # TODO: Agent의 지식이나 경험을 바탕으로 더 정확한 추정치 제공
         log.warning(
-            f"Using default duration estimate ({DEFAULT_SUBTASK_DURATION_ESTIMATE}) for subtask '{subtask.name}'. Implement agent-specific estimation."
+            f"Using default duration estimate ({INIT_PRIOR_MEAN}) for subtask '{subtask.name}'. Implement agent-specific estimation."
         )
-        return DEFAULT_SUBTASK_DURATION_ESTIMATE  # Placeholder
+        return INIT_PRIOR_MEAN  # Placeholder
 
     def _calculate_navigation_cost(
         self, current_node: SimulationNode, candidate: Candidate

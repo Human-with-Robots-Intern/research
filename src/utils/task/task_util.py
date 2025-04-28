@@ -338,13 +338,11 @@ class TaskUtil:
         )
         init_completed = CompletedEntry(
             subtask=init_subtask,
-            start_time=0.0,
-            end_time=0.0,
         )
 
         init_state = SchedulerState(
             subtask=init_subtask,
-            completed_subtasks=[init_completed],
+            completed_entries=[init_completed],
             remaining_subtasks=subtasks,
             constraints=constraints,
             current_time=0,

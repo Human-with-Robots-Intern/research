@@ -86,6 +86,7 @@ class ActionResult:
     action_duration: float  # 이 액션에 걸린 소요 시간
     scene_positions: dict[str, Tuple[float, float, float]]
     held_object: Optional[str] = None
+    success: bool = False
 
     def __repr__(self):
         return f"({self.action_full_name}, {self.action_type}, {self.time_used}, {self.action_duration}, {self.held_object})"
@@ -103,6 +104,7 @@ class ActionSimulationLog:
         action_duration: float,
         scene_positions: dict[str, Tuple[float, float, float]],
         held_object: Optional[str] = None,
+        success: bool = False,
     ):
         self.results.append(
             ActionResult(
@@ -112,6 +114,7 @@ class ActionSimulationLog:
                 action_duration=action_duration,
                 scene_positions=scene_positions,
                 held_object=held_object,
+                success=success,
             )
         )
 
@@ -167,8 +170,8 @@ class CompletedEntry:
     """
 
     subtask: Subtask
-    schedule_start_time: float
-    schedule_end_time: float
+    schedule_start_time: float = float("inf")
+    schedule_end_time: float = float("inf")
     sim_start_time: float = float("inf")
     sim_end_time: float = float("inf")
     execution_status: bool = False
