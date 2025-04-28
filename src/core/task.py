@@ -110,7 +110,7 @@ class Subtask:
             task_name=task_name,
             name=subtask_data["Name"],
             repetition=repetition,
-            type=subtask_data["Type"],
+            subtask_type=subtask_data["Type"],
             duration=duration,
             execution=execution,
             temporal_constraints=temporal_constraints,

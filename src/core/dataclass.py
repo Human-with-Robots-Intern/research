@@ -100,7 +100,7 @@ class ActionSimulationLog:
         self,
         action_full_name: str,
         action_type: str,
-        time_used: float,
+        cumulative_time: float,
         action_duration: float,
         scene_positions: dict[str, Tuple[float, float, float]],
         held_object: Optional[str] = None,
@@ -110,7 +110,7 @@ class ActionSimulationLog:
             ActionResult(
                 action_full_name=action_full_name,
                 action_type=action_type,
-                cumulative_time=time_used,
+                cumulative_time=cumulative_time,
                 action_duration=action_duration,
                 scene_positions=scene_positions,
                 held_object=held_object,

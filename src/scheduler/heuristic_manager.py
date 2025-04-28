@@ -17,6 +17,7 @@ from src.utils.config import (
     INIT_PRIOR_MEAN,
     LARGE_NUMBER,
 )
+from utils.config.constants import NAV_STEP_DURATION
 
 # Forward declarations for type hinting
 if TYPE_CHECKING:
@@ -118,12 +119,19 @@ class HeuristicManager:
             deadline_first_action = deadline_subtask.execution.primitive_actions[0]
             if deadline_first_action.startswith("NAVIGATE_TO"):
                 # 후보 완료 위치에서 데드라인 태스크 시작 위치까지 네비게이션 시뮬레이션
-                dummy_node = copy.deepcopy(current_node)
-                dummy_node.state.agent_location = candidate_done_agent_pos
-                nav_sim_result = self.action_handler.get_actions_info(
-                    dummy_node, [deadline_first_action]
+                nav_target_object = deadline_first_action.split("NAVIGATE_TO")[
+                    1
+                ].strip()
+                nav_to_deadline_duration = (
+                    len(
+                        self.action_handler._find_shortest_path(
+                            candidate_done_agent_pos,
+                            current_node.state.scene_positions[nav_target_object],
+                        )
+                    )
+                    * NAV_STEP_DURATION
                 )
-                nav_to_deadline_duration = nav_sim_result.action_duration
+
         else:
             log.warning(
                 f"Deadline reason subtask '{deadline_reason}' not found in remaining tasks."

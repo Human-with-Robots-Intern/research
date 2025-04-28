@@ -112,7 +112,7 @@ def main():
         last_entry.execution_status = execution_status
         total_sim_time += sim_elapsed_time
 
-        if next_state.subtask.type == "Monitor":
+        if next_state.subtask.subtask_type == "Monitor":
             next_state, monitored_subtask = agent.bayesian_estimate(next_state)
             next_state.completed_entries[-1].monitored_subtask = monitored_subtask
 

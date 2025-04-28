@@ -89,8 +89,7 @@ class ActionHandler:
         current_scene_positions = sim_state.scene_positions
         current_held_object = sim_state.held_object
         new_held_object = None
-        time_elapsed = 0.0  # 이번 시뮬레이션 시퀀스에서 경과한 시간
-
+        current_cumulative_time = 0.0
         for i, action_str in enumerate(primitive_actions):
             log.debug(
                 f"--- Simulating action {i+1}/{len(primitive_actions)}: '{action_str}' ---"
@@ -172,8 +171,7 @@ class ActionHandler:
             current_held_object = new_held_object
 
             # 경과 시간 및 누적 시간 업데이트
-            time_elapsed += action_duration
-            current_cumulative_time = initial_node.state.current_time + time_elapsed
+            current_cumulative_time += action_duration
 
             log.debug(f"    Action Result: {'SUCCESS' if action_success else 'FAILED'}")
             log.debug(f"    Duration: {action_duration:.2f}")
@@ -185,7 +183,7 @@ class ActionHandler:
             action_log.add_result(
                 action_full_name=action_str,
                 action_type=action_type,
-                time_used=current_cumulative_time,
+                cumulative_time=current_cumulative_time,
                 action_duration=action_duration,
                 scene_positions=copy.deepcopy(current_scene_positions),
                 held_object=current_held_object,

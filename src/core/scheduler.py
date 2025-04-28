@@ -521,6 +521,10 @@ class Scheduler:
             log.debug(
                 f"[_expand_subtask_with_monitoring] Entire subtask ends before monitoring cutoff => No split needed."
             )
+            log.debug(
+                f"expected_monitoring_start_timing: {expected_monitoring_start_timing}, curr_state.current_time + exec_time: {curr_state.current_time + exec_time}"
+            )
+            log.debug(f"deadline_sub_name: {deadline_sub_name}")
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
         # ! ------------------- Proceed with actual splitting -------------------
