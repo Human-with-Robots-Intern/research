@@ -506,7 +506,7 @@ class Scheduler:
         critical_constraint_start_sub_objs = None
         for ce in curr_state.completed_entries:
             if ce.subtask.name == critical_start_sub_name:
-                critical_constraint_start_time = ce.end_time
+                critical_constraint_start_time = ce.sim_end_time
                 critical_constraint_start_sub_objs = ce.subtask.execution.objects
                 break
         expected_monitoring_start_timing = critical_constraint_start_time + cutoff
@@ -667,7 +667,7 @@ class Scheduler:
         log.info(
             f"[_expand_subtask_with_monitoring] Subtask {candidate.subtask.name} => early_sub: {early_sub.name}\n"
             f"  -> Score={round(new_cost, 2)}, "
-            f"Interval={round(completed_entry.sim_start_time,2)}~{round(completed_entry.end_time,2)}\n"
+            f"Interval={round(completed_entry.sim_start_time,2)}~{round(completed_entry.sim_end_time,2)}\n"
             f"  -> Updated remain={[r.name for r in new_remain]}\n"
         )
         return SimulationNode(

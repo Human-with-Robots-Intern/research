@@ -245,7 +245,7 @@ def plot_completed_subtasks_gantt(
 
     for entry in sorted_entries:
         st_time = entry.sim_start_time
-        ed_time = entry.end_time
+        ed_time = entry.sim_end_time
         sb_name = getattr(entry.subtask, "name")
 
         # 대기 구간

@@ -1,5 +1,5 @@
 {
-    "saved_time": "2025-04-28 18:29",
+    "saved_time": "2025-04-28 18:45",
     "approach": "dag_bayesian_simulation",
     "scene_name": "FloorPlan1_physics.json",
     "plans": [
@@ -8,7 +8,7 @@
             "subtasks": []
         }
     ],
-    "computation_time": 0.01229,
+    "computation_time": 0.01173,
     "simulation_makespan": null,
     "scheduler_makespan": null,
     "realworld_makespan": null,

@@ -4,11 +4,13 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, List, Tuple
+
 from networkx import DiGraph
 
 from core.dataclass import CompletedEntry
 from utils.common.logger import create_module_logger
 from utils.config.constants import RESULT_PATH
+
 
 def get_now_str(fmt: str = "%Y-%m-%d %H:%M") -> str:
     return datetime.now().strftime(fmt)
@@ -29,23 +31,18 @@ def compose_subtasks(
                 success_count += 1
 
         subtask = {
+            # 왜
             "subtask_name": ce.subtask.name,
             "start_time_simulation": round(
-                getattr(ce.subtask, "start_time_simulation", None), 3
+                getattr(ce.subtask, "sim_start_time", None), 3
             ),
-            "end_time_simulation": round(
-                getattr(ce.subtask, "end_time_simulation", None), 3
-            ),
-            "start_time_scheduled": round(
-                getattr(ce.subtask, "start_time_scheduled", None), 3
-            ),
-            "end_time_scheduled": round(
-                getattr(ce.subtask, "end_time_scheduled", None), 3
-            ),
+            "end_time_simulation": round(getattr(ce, "sim_end_time", None), 3),
+            "start_time_scheduled": round(getattr(ce, "schedule_start_time", None), 3),
+            "end_time_scheduled": round(getattr(ce, "schedule_end_time", None), 3),
             "execution_status": execution_status,
         }
-        if hasattr(ce.subtask, "monitored_subtask"):
-            subtask["monitored_subtask"] = ce.subtask.monitored_subtask
+        if hasattr(ce, "monitored_subtask"):
+            subtask["monitored_subtask"] = ce.monitored_subtask
         subtasks.append(subtask)
 
     return subtasks, success_count, total_count
@@ -63,10 +60,11 @@ def compose_plans(
     plans = [{"plan_name": task_name, "subtasks": subtasks}]
     return plans, success_rate, simulation_time, scheduler_makespan
 
-def calculate_timing_success_rate(constraints: DiGraph, plans: List[dict])-> float :
-    '''
+
+def calculate_timing_success_rate(constraints: DiGraph, plans: List[dict]) -> float:
+    """
     constraints 의 모든 edge를 확인해서 plans의 결과를 토대로 timing constraint 준수율을 계산한다.
-    '''
+    """
     total_timing_constraints = 0
     succeeded_timing_constraints_sim = 0
     succeeded_timing_constraints_sched = 0
@@ -98,7 +96,9 @@ def calculate_timing_success_rate(constraints: DiGraph, plans: List[dict])-> flo
             # 일단 간단히 ±10% 범위를 사용
             expected_start_sim = pred_end_time_sim + interval
             expected_start_sched = pred_end_time_sched + interval
-            tolerance = interval * 0.1  # 10% 허용 오차 #추후에 interval의 std를 확인해서 허용오차를 조정해야함.
+            tolerance = (
+                interval * 0.1
+            )  # 10% 허용 오차 #추후에 interval의 std를 확인해서 허용오차를 조정해야함.
             if abs(succ_start_time_sim - expected_start_sim) <= tolerance:
                 succeeded_timing_constraints_sim += 1
             if abs(succ_start_time_sched - expected_start_sched) <= tolerance:
@@ -110,8 +110,16 @@ def calculate_timing_success_rate(constraints: DiGraph, plans: List[dict])-> flo
             if succ_start_time_sched >= pred_end_time_sched + interval:
                 succeeded_timing_constraints_sched += 1
 
-    timing_success_rate_sim = succeeded_timing_constraints_sim / total_timing_constraints if total_timing_constraints != 0 else None
-    timing_success_rate_sched = succeeded_timing_constraints_sched / total_timing_constraints if total_timing_constraints != 0 else None
+    timing_success_rate_sim = (
+        succeeded_timing_constraints_sim / total_timing_constraints
+        if total_timing_constraints != 0
+        else None
+    )
+    timing_success_rate_sched = (
+        succeeded_timing_constraints_sched / total_timing_constraints
+        if total_timing_constraints != 0
+        else None
+    )
     return timing_success_rate_sim, timing_success_rate_sched
 
 
@@ -124,13 +132,15 @@ def result_save(
     constraints: DiGraph,
     log_level: str = "INFO",
 ):
-    global log  
-    log = create_module_logger(__name__,module_log=True, level=log_level)
+    global log
+    log = create_module_logger(__name__, module_log=True, level=log_level)
     plans, success_rate, simulation_time, scheduler_makespan = compose_plans(
         result_schedule, task_name
     )
 
-    timing_success_rate_sim, timing_success_rate_sched = calculate_timing_success_rate(constraints, plans)
+    timing_success_rate_sim, timing_success_rate_sched = calculate_timing_success_rate(
+        constraints, plans
+    )
 
     result_data = {
         "saved_time": get_now_str(),

@@ -126,13 +126,13 @@ def main():
             continue
 
         log.info(
-            f"{ce.subtask.name} ({round(ce.sim_start_time, LOG_ROUND)} ~ {round(ce.end_time,LOG_ROUND)})"
+            f"{ce.subtask.name} ({round(ce.sim_start_time, LOG_ROUND)} ~ {round(ce.sim_end_time,LOG_ROUND)})"
         )
         log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
         # 지금 start time 과 end time은 scheduler가 계산 한 값이고 simulation을 했을때의 시간이 아니다.
         # ? 흠... ce.scheduled_start_time / end_time을 이용할 수는 없나?
-        ce.subtask.start_time_scheduled = round(ce.sim_start_time, LOG_ROUND)
-        ce.subtask.end_time_scheduled = round(ce.end_time, LOG_ROUND)
+        ce.start_time_scheduled = round(ce.sim_start_time, LOG_ROUND)
+        ce.end_time_scheduled = round(ce.sim_end_time, LOG_ROUND)
         result_schedule.append(ce)
 
     visualize(
@@ -152,6 +152,7 @@ def main():
         "constraints": constraints,
         # "simulationTime": total_sim_time,
     }
+    log.info(f"result_args: {result_args}")
     result_save(**result_args)
 
 
