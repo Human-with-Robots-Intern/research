@@ -418,7 +418,9 @@ def update(
     )
     if sim_log and sim_log.results:
         last_result = sim_log.results[-1]
-        real_exec_time = last_result.time_used  # 시뮬레이션이 0초부터 시작했다고 가정
+        real_exec_time = (
+            last_result.cumulative_time
+        )  # 시뮬레이션이 0초부터 시작했다고 가정
     else:
         # primitive_actions가 없거나 시뮬레이션 실패 시 fallback
         real_exec_time = next_subtask.duration.interval
@@ -475,7 +477,7 @@ def update(
             # NAVIGATE_TO에 걸리는 시간 계산
             nav_sim_log = action_handler._simulate_actions(temp_node, [nav_action])
             if nav_sim_log and nav_sim_log.results:
-                nav_time = nav_sim_log.results[-1].time_used
+                nav_time = nav_sim_log.results[-1].cumulative_time
             else:
                 nav_time = 1  # fallback
             # NAVIGATE_TO CompletedEntry
@@ -484,7 +486,7 @@ def update(
                     task_name=next_subtask.task_name,
                     name=f"NAVIGATE_TO_{nav_action.split()[1]}",
                     repetition=1,
-                    type="NAVIGATE",
+                    subtask_type="NAVIGATE",
                     execution=Execution(objects={}, primitive_actions=[nav_action]),
                     duration=Duration(type="NAVIGATE", interval=nav_time),
                     temporal_constraints=[],
@@ -504,7 +506,7 @@ def update(
                     task_name=next_subtask.task_name,
                     name=f"WAIT_for_{next_subtask.name}",
                     repetition=1,
-                    type="WAIT",
+                    subtask_type="WAIT",
                     execution=Execution(
                         objects={}, primitive_actions=[f"WAIT {remaining_wait}"]
                     ),
@@ -655,7 +657,10 @@ def main():
 
             ce.subtask.start_time_simulation = current_time
             # Wait 과 Navigate는 실제 시뮬레이션
-            if ce.subtask.type == "WAIT" or ce.subtask.type == "NAVIGATE":
+            if (
+                ce.subtask.subtask_type == "WAIT"
+                or ce.subtask.subtask_type == "NAVIGATE"
+            ):
                 ce.subtask.end_time_simulation = (
                     current_time + ce.subtask.duration.interval
                 )

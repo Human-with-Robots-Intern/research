@@ -82,14 +82,14 @@ class Deadline(NamedTuple):
 class ActionResult:
     action_full_name: str
     action_type: str
-    time_used: float  # 누적 시간 (이 액션이 종료된 시점)
+    cumulative_time: float  # 누적 시간 (이 액션이 종료된 시점)
     action_duration: float  # 이 액션에 걸린 소요 시간
     scene_positions: dict[str, Tuple[float, float, float]]
     held_object: Optional[str] = None
     success: bool = False
 
     def __repr__(self):
-        return f"({self.action_full_name}, {self.action_type}, {self.time_used}, {self.action_duration}, {self.held_object})"
+        return f"({self.action_full_name}, {self.action_type}, {self.cumulative_time}, {self.action_duration}, {self.held_object})"
 
 
 @dataclass
@@ -110,7 +110,7 @@ class ActionSimulationLog:
             ActionResult(
                 action_full_name=action_full_name,
                 action_type=action_type,
-                time_used=time_used,
+                cumulative_time=time_used,
                 action_duration=action_duration,
                 scene_positions=scene_positions,
                 held_object=held_object,
@@ -136,14 +136,16 @@ class ActionSimulationLog:
         if not self.results:
             return 0.0
         # 마지막 ActionResult의 time_used가 전체 시뮬레이션 누적 시간
-        return self.results[-1].time_used
+        return self.results[-1].cumulative_time
 
     def filter_by_action_type(self, action_type: str) -> list[ActionResult]:
         """
         특정 action_type(대소문자 무관)에 해당하는 모든 ActionResult를 리스트로 반환.
         """
-        atype_upper = action_type.upper()
-        return [res for res in self.results if res.action_type.upper() == atype_upper]
+        action_type_upper = action_type.upper()
+        return [
+            res for res in self.results if res.action_type.upper() == action_type_upper
+        ]
 
     def count_actions(self, action_type: Optional[str] = None) -> int:
         """
@@ -152,8 +154,10 @@ class ActionSimulationLog:
         """
         if action_type is None:
             return len(self.results)
-        atype_upper = action_type.upper()
-        return sum(1 for res in self.results if res.action_type.upper() == atype_upper)
+        action_type_upper = action_type.upper()
+        return sum(
+            1 for res in self.results if res.action_type.upper() == action_type_upper
+        )
 
     def get_actions(self) -> List[str]:
         """
@@ -177,7 +181,7 @@ class CompletedEntry:
     execution_status: bool = False
 
     def __repr__(self):
-        return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time})"
+        return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time}, {self.sim_start_time} ~ {self.sim_end_time}, {self.execution_status})"
 
 
 @dataclass

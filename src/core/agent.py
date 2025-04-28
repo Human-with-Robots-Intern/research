@@ -47,8 +47,8 @@ class Agent:
             log.info(f"Successfully loaded knowledge from {filename}.")
             processed_knowledge = {}
 
-            for k, v in knowledge.items():
-                processed_knowledge[str(k).lower()] = v
+            for key, value in knowledge.items():
+                processed_knowledge[str(key).lower()] = value
 
             return processed_knowledge
 

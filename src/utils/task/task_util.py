@@ -332,7 +332,7 @@ class TaskUtil:
             name="Init",
             duration=Duration(interval=0, type="Init"),
             repetition=1,
-            type="Init",
+            subtask_type="Init",
             execution=Execution(objects=[], primitive_actions=None),
             temporal_constraints=None,
         )
@@ -362,7 +362,7 @@ class TaskUtil:
             name=f"Monitoring for {name}_{uuid.uuid4().hex[:8]}",
             duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
             repetition=1,
-            type="Monitor",
+            subtask_type="Monitor",
             execution=Execution(objects=[], primitive_actions=monitoring_action),
             temporal_constraints=None,
             decomposed=True,

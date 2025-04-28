@@ -1,18 +1,35 @@
 {
-    "saved_time": "2025-04-28 18:45",
+    "saved_time": "2025-04-28 19:18",
     "approach": "dag_bayesian_simulation",
     "scene_name": "FloorPlan1_physics.json",
     "plans": [
         {
             "plan_name": "wash_egg_and_cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_cutlery_and_wash_dishes_and_wash_vegetables_and_organize_the_vegetables",
-            "subtasks": []
+            "subtasks": [
+                {
+                    "subtask_name": "Wash Plate_part_1",
+                    "start_time_simulation": 0,
+                    "end_time_simulation": 17.7,
+                    "start_time_scheduled": 0,
+                    "end_time_scheduled": 15.0,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Plate_part_2",
+                    "start_time_simulation": 17.7,
+                    "end_time_simulation": 29.1,
+                    "start_time_scheduled": 15.0,
+                    "end_time_scheduled": 39.2,
+                    "execution_status": false
+                }
+            ]
         }
     ],
-    "computation_time": 0.01173,
-    "simulation_makespan": null,
-    "scheduler_makespan": null,
+    "computation_time": 0.01966,
+    "simulation_makespan": 29.1,
+    "scheduler_makespan": 39.2,
     "realworld_makespan": null,
     "success_rate": 0.0,
-    "timing_success_rate_sim": 0.0,
-    "timing_success_rate_sched": 0.0
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0
 }

@@ -116,7 +116,7 @@ def compute_nav_time(
     )
     nav_info = action_handler.get_actions_info(temp_node, [first_action])
     if nav_info:
-        nav_time = nav_info.time_used
+        nav_time = nav_info.cumulative_time
         nav_positions = nav_info.scene_positions
 
     return nav_time, nav_positions
@@ -144,7 +144,7 @@ def update_state(
     current_state: SchedulerState, next_subtask: Subtask, exec_info: ActionResult
 ) -> SchedulerState:
 
-    subtask_duration = exec_info.time_used
+    subtask_duration = exec_info.cumulative_time
     subtask_entry = CompletedEntry(
         subtask=next_subtask,
         start_time=current_state.current_time,
@@ -263,7 +263,7 @@ def nav_and_wait_during_interval(
             task_name=next_subtask.task_name,
             name=f"NAVIGATE_TO_{nav_action.split()[1]}",
             repetition=1,
-            type="NAVIGATE",
+            subtask_type="NAVIGATE",
             execution=Execution(objects={}, primitive_actions=[nav_action]),
             duration=Duration(type="NAVIGATE", interval=nav_time),
             temporal_constraints=[],
@@ -288,7 +288,7 @@ def nav_and_wait_during_interval(
         task_name=next_subtask.task_name,
         name=f"WAIT_{wait_time} to {next_subtask.name}",
         repetition=1,
-        type="WAIT",
+        subtask_type="WAIT",
         execution=Execution(objects={}, primitive_actions=[f"WAIT {wait_time}"]),
         duration=Duration(type="WAIT", interval=wait_time),
         temporal_constraints=[],
@@ -350,13 +350,15 @@ def get_final_entries(
         # 우선 schedule_order에 있는 subtask를 돌면서 simulate_subtask_execution을 해준다.
         exec_info = offline_subtask_execution(current_state, subtask)
         subtask.start_time_scheduled = current_state.current_time
-        subtask.end_time_scheduled = current_state.current_time + exec_info.time_used
+        subtask.end_time_scheduled = (
+            current_state.current_time + exec_info.cumulative_time
+        )
 
         final_entry_schedule.append(
             CompletedEntry(
                 subtask=subtask,
                 start_time=current_state.current_time,
-                end_time=current_state.current_time + exec_info.time_used,
+                end_time=current_state.current_time + exec_info.cumulative_time,
             )
         )
         current_state = update_state(current_state, subtask, exec_info)
@@ -375,7 +377,7 @@ def get_final_entries(
                 exeptected_exec_info = offline_subtask_execution(
                     current_state, non_edge_subtask
                 )
-                expected_execution_time = exeptected_exec_info.time_used
+                expected_execution_time = exeptected_exec_info.cumulative_time
                 expected_time_dict[non_edge_subtask] = expected_execution_time
             # 남은 interval 시간 내에 실행 가능한 subtask만 후보로 선택
             remaining_interval = interval - interval_time_used
@@ -398,13 +400,13 @@ def get_final_entries(
                     )
                     shortest_subtask.start_time_scheduled = current_state.current_time
                     shortest_subtask.end_time_scheduled = (
-                        current_state.current_time + shortest_exec_info.time_used
+                        current_state.current_time + shortest_exec_info.cumulative_time
                     )
                     shortest_entry = CompletedEntry(
                         subtask=shortest_subtask,
                         start_time=current_state.current_time,
                         end_time=current_state.current_time
-                        + shortest_exec_info.time_used,
+                        + shortest_exec_info.cumulative_time,
                     )
                     final_entry_schedule.append(shortest_entry)
                     current_state = update_state(
@@ -425,18 +427,19 @@ def get_final_entries(
             best_subtask = max(candidate_subtasks.items(), key=lambda item: item[1])[0]
             # 선택된 subtask 실행
             best_exec_info = offline_subtask_execution(current_state, best_subtask)
-            interval_time_used += best_exec_info.time_used
+            interval_time_used += best_exec_info.cumulative_time
 
             final_entry_schedule.append(
                 CompletedEntry(
                     subtask=best_subtask,
                     start_time=current_state.current_time,
-                    end_time=current_state.current_time + best_exec_info.time_used,
+                    end_time=current_state.current_time
+                    + best_exec_info.cumulative_time,
                 )
             )
             best_subtask.start_time_scheduled = current_state.current_time
             best_subtask.end_time_scheduled = (
-                current_state.current_time + best_exec_info.time_used
+                current_state.current_time + best_exec_info.cumulative_time
             )
             current_state = update_state(current_state, best_subtask, best_exec_info)
             subtasks_witout_edge.remove(best_subtask)
@@ -448,12 +451,12 @@ def get_final_entries(
             CompletedEntry(
                 subtask=left_subtask,
                 start_time=current_state.current_time,
-                end_time=current_state.current_time + left_exec_info.time_used,
+                end_time=current_state.current_time + left_exec_info.cumulative_time,
             )
         )
         left_subtask.start_time_scheduled = current_state.current_time
         left_subtask.end_time_scheduled = (
-            current_state.current_time + left_exec_info.time_used
+            current_state.current_time + left_exec_info.cumulative_time
         )
         current_state = update_state(current_state, left_subtask, left_exec_info)
 

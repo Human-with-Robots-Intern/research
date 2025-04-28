@@ -33,7 +33,7 @@ class ActionHandler:
 
     def get_actions_info(
         self, current_node: SimulationNode, actions: list[str]
-    ) -> ActionResult:
+    ) -> Optional[ActionResult]:
         """
         주어진 액션 시퀀스를 시뮬레이션하고 최종 ActionResult를 반환합니다.
         시뮬레이션을 위해 노드 상태의 복사본을 생성합니다.
@@ -506,7 +506,7 @@ class ActionHandler:
         split_index = -1  # pre-cutoff 부분의 마지막 액션 인덱스
         for i, result in enumerate(full_simulation_log.results):
             # 현재 액션 완료 시간 <= 절대 cutoff 시간 인 마지막 액션 찾기
-            if result.time_used <= absolute_cutoff_time + EPSILON:
+            if result.cumulative_time <= absolute_cutoff_time + EPSILON:
                 split_index = i
             else:
                 # 이 액션부터 post-cutoff

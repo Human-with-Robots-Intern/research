@@ -52,7 +52,7 @@ class Scheduler:
         heuristic_manager: HeuristicManager,
     ):
 
-        self.search = search_width
+        self.search_width = search_width
         self.simulation_depth = simulation_depth
         log.info(
             f"{RED}[Scheduler Init] search_width={search_width}, simulation_depth={simulation_depth}{RESET}"
@@ -170,7 +170,7 @@ class Scheduler:
 
             # (3) Local Beam Pruning: Keep only the top-K expansions
             for i, nd in enumerate(expanded_nodes):
-                if i < self.search:
+                if i < self.search_width:
                     queue.put(nd)
                 else:
                     break
@@ -389,7 +389,7 @@ class Scheduler:
         last_action_info = self.action_handler.get_actions_info(curr_node, sub_actions)
         # success = controller.last_event.metadata.get('lastActionSuccess', 'N/A')
         start_time = curr_state.current_time
-        end_time = start_time + last_action_info.time_used
+        end_time = start_time + last_action_info.cumulative_time
 
         # * (2) subtask 종료 시각이 deadline보다 느리면 infeasible
         if candidate.deadline.due_date < end_time:
@@ -401,7 +401,7 @@ class Scheduler:
 
         # * (3) subtask 복사 & duration 설정
         copied_sub = copy.deepcopy(candidate.subtask)
-        copied_sub.duration.interval = last_action_info.time_used
+        copied_sub.duration.interval = last_action_info.cumulative_time
 
         # * (4) subtask 실행 후, 실제 최종 위치/held_object 반영
         # *    "get_actions_info" 결과를 통해 scene_positions, held_object를 가져온다
@@ -515,7 +515,7 @@ class Scheduler:
         last_action_info = self.action_handler.get_actions_info(
             curr_node, candidate.subtask.execution.primitive_actions
         )
-        exec_time = last_action_info.time_used
+        exec_time = last_action_info.cumulative_time
 
         if expected_monitoring_start_timing > curr_state.current_time + exec_time:
             log.debug(
@@ -537,7 +537,7 @@ class Scheduler:
             )
         )
 
-        if not post_actions_info:
+        if len(post_actions_info.get_actions()) == 0:
             log.warning(
                 "[_expand_subtask_with_monitoring] Entire pre subtask ends before monitoring cutoff => No split needed."
             )
@@ -545,15 +545,15 @@ class Scheduler:
         early_sub = copy.deepcopy(candidate.subtask)
         early_sub.name += "_early"
         early_sub.execution.primitive_actions = pre_actions_info.get_actions()
-        early_sub.duration.interval = pre_actions_info.results[-1].time_used
+        early_sub.duration.interval = pre_actions_info.results[-1].cumulative_time
         early_sub.decomposed = True
 
         remain_sub = copy.deepcopy(candidate.subtask)
         remain_sub.name += "_remain"
         remain_sub.execution.primitive_actions = [
-            f"NAVIGATE_TO {post_actions_info.results[0].split()[1]}"
+            f"NAVIGATE_TO {post_actions_info.get_actions()[0].split()[1]}"
         ] + post_actions_info.get_actions()
-        remain_sub.duration.interval = post_actions_info.results[-1].time_used
+        remain_sub.duration.interval = post_actions_info.results[-1].cumulative_time
         remain_sub.decomposed = True
 
         monitoring_target_obj = list(critical_constraint_start_sub_objs.keys())[-1]
@@ -731,7 +731,7 @@ class Scheduler:
 
         nav_action = [f"NAVIGATE_TO {target_obj} {partial_nav_time}"]
         nav_action_info = self.action_handler.get_actions_info(curr_node, nav_action)
-        nav_time = nav_action_info.time_used
+        nav_time = nav_action_info.cumulative_time
         new_scene_positions = nav_action_info.scene_positions
         new_held_obj = nav_action_info.held_object
 
@@ -740,7 +740,7 @@ class Scheduler:
             name=f"Navigate to {target_obj} during {partial_nav_time}",
             duration=Duration(interval=nav_time, type="Controllable"),
             repetition=1,
-            type="Interaction",
+            subtask_type="Interaction",
             execution=Execution(objects=None, primitive_actions=nav_action),
             temporal_constraints=None,
         )
@@ -833,7 +833,7 @@ class Scheduler:
             name=f"Wait for {candidate.subtask.name}",
             duration=Duration(interval=total_wait_duration, type="Controllable"),
             repetition=1,
-            type="Wait",
+            subtask_type="Wait",
             execution=Execution(
                 objects=None, primitive_actions=[f"WAIT {total_wait_duration}"]
             ),

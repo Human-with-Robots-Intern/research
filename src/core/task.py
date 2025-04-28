@@ -39,14 +39,14 @@ class TemporalConstraint:
     def __init__(
         self, constraint_type: str, subtask: str, interval: int, is_critical: bool
     ):
-        self.type = constraint_type
+        self.constraint_type = constraint_type
         self.subtask = subtask
         self.interval = interval
         self.is_critical = is_critical
 
     def __repr__(self):
         return (
-            f"TemporalConstraint(type={self.type}, subtask={self.subtask}, "
+            f"TemporalConstraint(type={self.constraint_type}, subtask={self.subtask}, "
             f"interval={self.interval}, is_critical={self.is_critical})"
         )
 
@@ -66,7 +66,7 @@ class Subtask:
         task_name: str,
         name: str,
         repetition: int,
-        type: str,
+        subtask_type: str,
         execution: Execution,
         duration: Duration,
         temporal_constraints: Optional[List[TemporalConstraint]] = None,
@@ -76,7 +76,7 @@ class Subtask:
         self.task_name = task_name
         self.name = name
         self.repetition = repetition
-        self.type = type
+        self.subtask_type = subtask_type
         self.execution = execution
         self.duration = duration
         self.temporal_constraints = temporal_constraints or []
@@ -131,7 +131,7 @@ class Subtask:
             decomposed_subtask = Subtask(
                 task_name=self.task_name,
                 name=f"{self.name}_part_{part_index + 1}",
-                type=self.type,
+                subtask_type=self.subtask_type,
                 repetition=1,
                 duration=Duration(
                     type=self.duration.type,
@@ -216,7 +216,7 @@ class Task:
                     last_decomposed_part = subtask_mapping[constraint.subtask][-1]
                     updated_constraints.append(
                         TemporalConstraint(
-                            constraint_type=constraint.type,
+                            constraint_type=constraint.constraint_type,
                             subtask=last_decomposed_part.name,
                             interval=constraint.interval,
                             is_critical=constraint.is_critical,
@@ -236,23 +236,23 @@ class TaskGraphBuilder:
             for subtask in task.subtasks:
                 # 노드 추가
                 subtask_node = subtask.name
-                self.graph.add_node(subtask_node, type=subtask.type)
+                self.graph.add_node(subtask_node, type=subtask.subtask_type)
 
                 # 엣지 추가
                 for constraint in subtask.temporal_constraints:
                     if constraint.subtask:
                         edge_data = {
                             "info": {
-                                "Type": constraint.type,
+                                "Type": constraint.constraint_type,
                                 "Interval": constraint.interval,
                                 "IsCritical": constraint.is_critical,
                             }
                         }
-                        if constraint.type == "Before":
+                        if constraint.constraint_type == "Before":
                             self.graph.add_edge(
                                 subtask_node, constraint.subtask, **edge_data
                             )
-                        elif constraint.type == "After":
+                        elif constraint.constraint_type == "After":
                             self.graph.add_edge(
                                 constraint.subtask, subtask_node, **edge_data
                             )

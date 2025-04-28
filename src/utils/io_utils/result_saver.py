@@ -33,9 +33,7 @@ def compose_subtasks(
         subtask = {
             # 왜
             "subtask_name": ce.subtask.name,
-            "start_time_simulation": round(
-                getattr(ce.subtask, "sim_start_time", None), 3
-            ),
+            "start_time_simulation": round(getattr(ce, "sim_start_time", None), 3),
             "end_time_simulation": round(getattr(ce, "sim_end_time", None), 3),
             "start_time_scheduled": round(getattr(ce, "schedule_start_time", None), 3),
             "end_time_scheduled": round(getattr(ce, "schedule_end_time", None), 3),
