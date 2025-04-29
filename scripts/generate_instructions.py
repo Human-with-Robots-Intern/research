@@ -40,53 +40,53 @@ def _generate_and_sample_instructions(base_list, combo_list, combo_size, max_sam
     return random.sample(temp_instructions, min(max_samples, len(temp_instructions)))
 
 def generate_simple_instructions(non_critical_list, not_constrained_list):
-    """Generates simple instructions (1-2 non-critical + 4-5 not-constrained, total 6)."""
+    """Generates simple instructions (1-2 non-critical + 3-4 not-constrained, total 5)."""
     simple_instructions = []
     
     # Case 1: 1 non-critical + 5 not-constrained
-    if len(not_constrained_list) >= 5:
+    if len(not_constrained_list) >= 4:
         for non_critical in non_critical_list:
             simple_instructions.extend(
-                _generate_and_sample_instructions([non_critical], not_constrained_list, 5)
+                _generate_and_sample_instructions([non_critical], not_constrained_list, 4)
             )
             
     # Case 2: 2 non-critical + 4 not-constrained
-    if len(non_critical_list) >= 2 and len(not_constrained_list) >= 4:
+    if len(non_critical_list) >= 2 and len(not_constrained_list) >= 3:
         for non_critical_combo in combinations(non_critical_list, 2):
-             simple_instructions.extend(
-                _generate_and_sample_instructions(list(non_critical_combo), not_constrained_list, 4)
+            simple_instructions.extend(
+                _generate_and_sample_instructions(list(non_critical_combo), not_constrained_list, 3)
             )
 
     return simple_instructions
 
 def generate_normal_instructions(critical_list, non_critical_list, not_constrained_list):
-    """Generates normal instructions (1 critical + 1 non-critical + 4 not-constrained, total 6)."""
+    """Generates normal instructions (1 critical + 1 non-critical + 3 not-constrained, total 5)."""
     normal_instructions = []
-    if len(not_constrained_list) >= 4:
+    if len(not_constrained_list) >= 3:
         for critical_item in critical_list:
             for non_critical_item in non_critical_list:
                 normal_instructions.extend(
-                    _generate_and_sample_instructions([critical_item, non_critical_item], not_constrained_list, 4)
+                    _generate_and_sample_instructions([critical_item, non_critical_item], not_constrained_list, 3)
                 )
     return normal_instructions
 
 def generate_complicated_instructions(critical_list, non_critical_list, not_constrained_list):
-    """Generates complicated instructions (2+ critical + 0-1 non-critical + 3 not-constrained, total 6)."""
+    """Generates complicated instructions (2+ critical + 0-1 non-critical + 2 not-constrained, total 5)."""
     complicated_instructions = []
 
-    # Case 1: 2 critical + 1 non-critical + 3 not-constrained
-    if len(critical_list) >= 2 and len(not_constrained_list) >= 3:
+    # Case 1: 2 critical + 1 non-critical + 2 not-constrained
+    if len(critical_list) >= 2 and len(not_constrained_list) >= 2:
         for critical_combo in combinations(critical_list, 2):
             for non_critical in non_critical_list:
-                 complicated_instructions.extend(
-                    _generate_and_sample_instructions(list(critical_combo) + [non_critical], not_constrained_list, 3)
+                complicated_instructions.extend(
+                    _generate_and_sample_instructions(list(critical_combo) + [non_critical], not_constrained_list, 2)
                 )
 
-    # Case 2: 3 critical + 0 non-critical + 3 not-constrained
-    if len(critical_list) >= 3 and len(not_constrained_list) >= 3:
+    # Case 2: 3 critical + 0 non-critical + 2 not-constrained
+    if len(critical_list) >= 3 and len(not_constrained_list) >= 2:
         for critical_combo in combinations(critical_list, 3):
-             complicated_instructions.extend(
-                _generate_and_sample_instructions(list(critical_combo), not_constrained_list, 3)
+            complicated_instructions.extend(
+                _generate_and_sample_instructions(list(critical_combo), not_constrained_list, 2)
             )
             
     return complicated_instructions
@@ -116,7 +116,7 @@ Floorplan_kitchen_not_constrained_list = [
     "wash_all_cutlery",
     "set_the_table",
     "prepare_a_water_cup",
-    "wash_Spoon"
+    "put_saltshaker_on_the_table"
 ]
 
 # Floorplan1
@@ -241,7 +241,7 @@ Floorplan_bathroom_non_critical_list = [
 Floorplan_bathroom_not_constrained_list = [
     "place_toilet_paper_on_the_toilet_paper_holder",
     "turn_on_the_candle",
-    "trun_on_the_light",
+    "turn_on_the_light",
     "throw_away_cloth",
     "close_shower_curtain"
 ]
@@ -259,7 +259,7 @@ Floorplan401_non_critical_list = [
 Floorplan401_not_constrained_list = [
     "place_toilet_paper_on_the_toilet_paper_holder",
     "turn_on_the_candle",
-    "trun_on_the_light",
+    "turn_on_the_light",
     "throw_away_cloth",
     "close_shower_curtain"
 ]
@@ -276,7 +276,7 @@ Floorplan415_non_critical_list = [
 Floorplan415_not_constrained_list = [
     "place_toilet_paper_on_the_toilet_paper_holder",
     "turn_on_the_candle",
-    "trun_on_the_light",
+    "turn_on_the_light",
     "throw_away_cloth",
     "close_shower_curtain"
 ]
@@ -293,7 +293,7 @@ Floorplan422_non_critical_list = [
 Floorplan422_not_constrained_list = [
     "place_toilet_paper_on_the_toilet_paper_holder",
     "turn_on_the_candle",
-    "trun_on_the_light",
+    "turn_on_the_light",
     "throw_away_cloth",
     "close_shower_curtain",
     "put_soap_bar_in_a_cabinet",
@@ -313,7 +313,7 @@ Floorplan426_non_critical_list = [
 Floorplan426_not_constrained_list = [
     "place_toilet_paper_on_the_toilet_paper_holder",
     "turn_on_the_candle",
-    "trun_on_the_light",
+    "turn_on_the_light",
     "throw_away_cloth",
     "close_shower_curtain",
     "put_soap_bar_in_a_cabinet",
@@ -333,7 +333,7 @@ Floorplan427_non_critical_list = [
 Floorplan427_not_constrained_list = [
     "place_toilet_paper_on_the_toilet_paper_holder",
     "turn_on_the_candle",
-    "trun_on_the_light",
+    "turn_on_the_light",
     "throw_away_cloth",
     "close_shower_curtain",
     "put_tissue_box_inside_a_drawer",
@@ -375,6 +375,6 @@ output_dict = {"instructions": instructions_dict}
 current_dir = Path(__file__).parent
 
 # Save to JSON file
-output_path = current_dir / "instructions.json"
+output_path = current_dir / "instructions_len_5.json"
 with open(output_path, 'w') as f:
     json.dump(output_dict, f, indent=4) 

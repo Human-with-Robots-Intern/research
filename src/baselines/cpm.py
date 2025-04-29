@@ -43,13 +43,7 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="태스크 분해 여부 (default: True)",
     )
-    parser.add_argument(
-        "-v",
-        "--visualize",
-        default=True,
-        action="store_true",
-        help="시각화 실행 여부 (default: True)",
-    )
+ 
     parser.add_argument(
         "-r",
         "--reset",
@@ -479,12 +473,12 @@ def main() -> None:
 
     # 사용자로부터 task 파일 선택 및 로드
     task_files = list_task_files()
-    task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
+    task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name) 
     task_data = load_task_data_from_file(task_file_name)
-    input_natural_language: str = task_io.get_natural_language_from_task_file(
-        f"{choice}"
-    )
-
+    input_natural_language = task_file_name
+    if choice != 0:
+        input_natural_language = task_io.get_natural_language_from_task_file(f"{choice}")
+    
     # Task 및 constraint 생성 (태스크 분해 여부에 따라)
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
         task_data, args.decomposition
@@ -536,11 +530,6 @@ def main() -> None:
         }
         result_save(**result_args)
 
-    # 시각화 옵션이 활성화된 경우
-    if args.visualize:
-        visualize(
-            approach_name, input_natural_language, constraints, final_scheduled_entries
-        )
 
 
 if __name__ == "__main__":
