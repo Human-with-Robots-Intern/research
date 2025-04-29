@@ -70,24 +70,37 @@ def process_retry_script(script: Path, instruction: str, scene_name: str) -> Non
     with json_path.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
-def process_normal_script(script: Path, instruction: str, index: int, scene_name: str) -> None:
+def process_normal_script(script: Path, instruction: str, scene_name: str) -> None:
     """
     재시도 대상이 아닌 스크립트를 단순 실행합니다.
     """
-
     print(f"Running {script}...")
-    input_str = f"{index}\n"
-    subprocess.run(
+    
+    # 첫 번째 입력 (0)을 주고 프로세스 시작
+    process = subprocess.Popen(
         ["python", str(script), "--scene", scene_name],
-        input=input_str,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True
     )
+    
+    # 첫 번째 입력 전송 (0)
+    process.stdin.write("0\n")
+    process.stdin.flush()
+    
+    # 두 번째 입력 전송 (instruction)
+    process.stdin.write(f"{instruction}\n")
+    process.stdin.flush()
+    
+    # 프로세스 종료 대기
+    process.wait()
 
 def main() -> None:
-    scripts = [
-        # Path("src/baselines/progprompt/prog_ai2thor.py"),
-        # Path("src/baselines/cap/cap_ai2thor.py"),
+    approaches = [
         # Path("src/dag_bayesian.py"),
+        Path("src/baselines/progprompt/prog_ai2thor.py"),
+        Path("src/baselines/cap/cap_ai2thor.py"),        
         Path("src/baselines/cpm.py"),
         Path("src/baselines/edf/dag_edf.py")
     ]
@@ -131,7 +144,81 @@ def main() -> None:
         30: "cook_egg_fry_and_make_coffee_and_wash_dishes"
     }
     #나중엔 각 scene 별로 instruction 목록이 생길것이다. 
+    kitchen_scene_instructions = [
+    "heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_cutlery and set_the_table and prepare_a_water_cup and put_saltshaker_on_the_table",
+    "heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and prepare_a_water_cup and put_saltshaker_on_the_table",
+    "heat_the_bread_using_microwave and make_a_coffee and put_apple_and_lettuce_in_fridge and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
+    "heat_the_bread_using_microwave and make_a_coffee and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
+    "make_a_coffee and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
+    "boil_potato and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and prepare_a_water_cup",
+    "boil_potato and make_a_coffee and put_apple_and_lettuce_in_fridge and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
+    "boil_potato and heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_cutlery and prepare_a_water_cup and put_saltshaker_on_the_table",
+    "cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
+    "cook_egg and make_a_coffee and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
+    "cook_egg and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_cutlery and set_the_table and prepare_a_water_cup",
+    "fill_pot_with_water and heat_the_bread_using_microwave and wash_all_cutlery and set_the_table and prepare_a_water_cup and put_saltshaker_on_the_table",
+    "fill_pot_with_water and make_a_coffee and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
+    "fill_pot_with_water and heat_the_potato_using_microwave and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and prepare_a_water_cup",
+    "fill_pot_with_water and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and set_the_table and prepare_a_water_cup and put_saltshaker_on_the_table",
+    "boil_potato and cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and set_the_table and prepare_a_water_cup",
+    "boil_potato and cook_egg and make_a_coffee and wash_apple_and_lettuce and wash_all_cutlery and put_saltshaker_on_the_table",
+    "cook_egg and fill_pot_with_water and heat_the_bread_using_microwave and set_the_table and prepare_a_water_cup and put_saltshaker_on_the_table",
+    "cook_egg and fill_pot_with_water and make_a_coffee and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
+    "cook_egg and fill_pot_with_water and heat_the_potato_using_microwave and wash_apple_and_lettuce and set_the_table and prepare_a_water_cup",
+    ]
+    bathroom_scene_instructions=[
+    "wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
+    "wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
+    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
+    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth",
+    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and close_shower_curtain",
+    "fill_bathtub_with_water_with_shower_head and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
+    "fill_bathtub_with_water_with_shower_head and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth and close_shower_curtain",
+    "fill_bathtub_with_water_with_shower_head and wet_the_handtowel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
+    "fill_bathtub_with_water_with_shower_head and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth",
+    "fill_bathtub_with_water_with_shower_head and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
+    "clean_the_toilet and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth",
+    "clean_the_toilet and wet_the_handtowel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
+    "clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth and close_shower_curtain",
+    "clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and close_shower_curtain",
+    "clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth"
+    "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_handtowel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_cloth",
+    "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth",
+    "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth",
+    "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_towel_with_water and turn_on_the_candle and turn_on_the_light and close_shower_curtain",
+    "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and close_shower_curtain",
+    ]
     
+    floorplane_1_instructions=[
+
+    ]
+    floorplan_7_instructions=[
+
+    ]
+    floorplan_13_instructions=[
+
+    ]
+    floorplan_18_instructions=[
+
+    ]
+    floorplan_27_instructions=[
+
+    ]
+    floorplan_401_instructions=[
+
+    ]
+    floorplan_415_instructions=[
+
+    ]
+    floorplan_422_instructions=[
+
+    ]
+    floorplan_426_instructions=[
+
+    ]
+    floorplan_427_instructions=[
+
+    ]
     
     scene_list = [
         "FloorPlan1",
@@ -139,28 +226,33 @@ def main() -> None:
         "FloorPlan13",
         "FloorPlan18",
         "FloorPlan27",
-        "FloorPlan401",
-        "FloorPlan415",
-        "FloorPlan422",
-        "FloorPlan426",
-        "FloorPlan427"
+        # "FloorPlan401",
+        # "FloorPlan415",
+        # "FloorPlan422",
+        # "FloorPlan426",
+        # "FloorPlan427"
     ]
     # scene name 도 arg 로 받도록 파일들을 수정해야함. 
     num_runs_per_instruction = 1
 
     # itertools.product를 사용하여 네 개의 반복 범위를 하나로 결합
-    for scene_name, script, _, i in product(
+    for scene_name, approach, _, i in product(
                                             scene_list, 
-                                            scripts, 
+                                            approaches, 
                                             range(num_runs_per_instruction),
                                             range(1, 31)
                                             ):
-        instruction = instructions[i]
-        print(f"task_name : {instruction}, scene_name : {scene_name}")
-        if script in llm_scripts:
-            process_retry_script(script, instruction, scene_name)
+        number = int(scene_name.lstrip("FloorPlan"))
+        if number >= 400:
+            instruction = bathroom_scene_instructions[i]
         else:
-            process_normal_script(script, instruction, i, scene_name)
+            instruction = kitchen_scene_instructions[i]
+        
+        print(f"task_name : {instruction}, scene_name : {scene_name}")
+        if approach in llm_scripts:
+            process_retry_script(approach, instruction, scene_name)
+        else:
+            process_normal_script(approach, instruction, scene_name)
 
 if __name__ == "__main__":
     main()

@@ -9,16 +9,12 @@ from .gantt import plot_completed_subtasks_gantt
 # from .viz_utils import VIS_PATH
 
 
-def visualize(approach, task_name, constraints, plan=None):
+def visualize(approach, output_path, constraints, plan=None):
     """
     DAG + Gantt 차트를 함께 시각화 및 저장하는 함수 (예시).
     """
-    folder_name = task_name
-    # 예: VIS_PATH를 어느 위치에 정의했는지에 따라 다름
-    # task_folder_path = Path(VIS_PATH) / folder_name
-    task_folder_path = Path("assets/results") / folder_name  # 임의 예시
-    task_folder_path.mkdir(exist_ok=True)
-    save_folder_path = task_folder_path / "metadata"
+    
+    save_folder_path = output_path / "metadata"
     save_folder_path.mkdir(exist_ok=True)
 
     # DAG 시각화

@@ -81,7 +81,7 @@ class TaskGenerator:
         Args:
             user_input: The user's input instruction string.
             environment_file_name: Optional name of the JSON file in ENVIRONMENT_PATH
-                                     containing environment details.
+                                    containing environment details.
         """
         
         user_input = user_input.strip()
@@ -113,7 +113,7 @@ class TaskGenerator:
 
         # 환경 정보 로드 및 주입 (environment_file_name이 제공된 경우)
         environment_info_str = ""
- 
+
         try:
             env_file_path = Path(KNOWLEDGE_PATH) / scene_type/ "environment" / f"{scene_name}_physics_environment.json"
             env_data = self.load_file(env_file_path, "json")
@@ -138,10 +138,10 @@ class TaskGenerator:
 
         # 프롬프트 템플릿에 환경 정보 삽입 (또는 플레이스홀더 제거)
         if ENV_PLACEHOLDER in examples_prompt:
-             examples_prompt = examples_prompt.replace(ENV_PLACEHOLDER, environment_info_str)
+            examples_prompt = examples_prompt.replace(ENV_PLACEHOLDER, environment_info_str)
         elif environment_info_str: # Placeholder not found, but env info exists
-             logger.warning(f"Placeholder '{ENV_PLACEHOLDER}' not found in prompt template, but environment info was loaded.")
-             
+            logger.warning(f"Placeholder '{ENV_PLACEHOLDER}' not found in prompt template, but environment info was loaded.")
+
 
         # Knowledge Base 로드
         # knowledge = self.load_file(Path(KNOWLEDGE_PATH) / ESTIMATE_FILE_NAME, "json")
@@ -168,9 +168,10 @@ class TaskGenerator:
                 raise ValueError("Task generation failed. (Invalid Format)")
 
         # 파일로 저장
-        time_stamp = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
-        sanitized_input = re.sub(r"[^\w\-_\.]+", "_", user_input[:30])
-        output_file_name = f"{time_stamp}_{sanitized_input}.json"
+        # time_stamp = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
+        # sanitized_input = re.sub(r"[^\w\-_\.]+", "_", user_input[:30])
+        # output_file_name = f"{time_stamp}_{sanitized_input}.json"
+        output_file_name = f"{user_input}.json"
         output_file_path = Path(TASK_PATH) / output_file_name
 
         self.save_to_file(output, output_file_path)

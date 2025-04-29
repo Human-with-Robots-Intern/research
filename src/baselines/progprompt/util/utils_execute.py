@@ -302,8 +302,6 @@ current_state_prompt = get_current_state_prompt()
 
 def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
     elapsed_time = 0
-    camera_handler = CameraHandler(controller)
-    Navi = NavigationHandler(controller)
     Act = Action(controller)
     ## gen plan 토대로 실행
     for task, plan in zip(test_tasks, gen_plan):

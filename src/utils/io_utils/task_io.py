@@ -41,8 +41,9 @@ def get_user_task_choice(
 
             if choice == 0:
                 user_input = input("Enter your instruction: ")
+                TaskGenerator(is_rag).generate_task(user_input,scene_name)
 
-                return TaskGenerator(is_rag).generate_task(user_input,scene_name), choice
+                return user_input, choice
             elif 1 <= choice <= len(task_files):
                 return task_files[choice - 1].name, choice
             else:
@@ -56,6 +57,9 @@ def load_task_data_from_file(task_file_name: str) -> dict:
     """
     특정 task 파일에서 JSON 데이터를 불러옴.
     """
+    
+    if not task_file_name.endswith('.json'):
+        task_file_name = f"{task_file_name}.json"
     target_path = TASK_PATH / task_file_name
     if not target_path.exists():
         raise FileNotFoundError(f"Task file not found: {target_path}")
