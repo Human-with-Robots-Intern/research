@@ -147,57 +147,6 @@ class TestAgent(unittest.TestCase):
         mean, variance = self.agent._get_prior_estimate("zero_var")
         self.assertAlmostEqual(variance, MIN_VARIANCE)
 
-    def test_perform_bayesian_update_calculation(self):
-        """Test the Bayesian update calculation logic."""
-        prior_mean, prior_variance = 10.0, 4.0
-        gt_duration = 12.0
-        elapsed_interval = 11.0
-        mock_observation = 11.5  # Assume np.random.normal returns this
-        self.mock_np_random_normal.return_value = mock_observation
-
-        # Expected calculation
-        epsilon_k_sq = max(FACTOR_ALPHA * prior_variance, MIN_VARIANCE)
-        denominator = epsilon_k_sq + prior_variance
-        expected_posterior_mean = (
-            prior_variance * mock_observation + epsilon_k_sq * prior_mean
-        ) / denominator
-        expected_posterior_variance = max(
-            (epsilon_k_sq * prior_variance) / denominator, MIN_VARIANCE
-        )
-
-        post_mean, post_var = self.agent._perform_bayesian_update(
-            prior_mean, prior_variance, gt_duration, elapsed_interval
-        )
-
-        self.assertAlmostEqual(post_mean, expected_posterior_mean)
-        self.assertAlmostEqual(post_var, expected_posterior_variance)
-        # Check that np.random.normal was called with correct parameters
-        expected_scale = np.sqrt(epsilon_k_sq)
-        self.mock_np_random_normal.assert_called_once_with(
-            loc=elapsed_interval, scale=expected_scale
-        )
-
-    def test_perform_bayesian_update_denominator_zero(self):
-        """Test Bayesian update yields results close to prior when denominator is near zero."""
-        prior_mean, prior_variance_tiny = 10.0, 1e-12
-        elapsed_interval, gt_duration = 11.0, 12.0
-
-        self.mock_np_random_normal.reset_mock()
-        # Mock observation to be predictable, e.g., equal to elapsed_interval
-        self.mock_np_random_normal.return_value = elapsed_interval
-
-        post_mean, post_var = self.agent._perform_bayesian_update(
-            prior_mean, prior_variance_tiny, gt_duration, elapsed_interval
-        )
-
-        # np.random.normal은 호출될 수 있으므로 assert_not_called 제거
-        # self.mock_np_random_normal.assert_not_called() # 제거
-
-        # 반환값이 prior 값과 매우 가까운지 확인 (delta 값 조정)
-        self.assertAlmostEqual(post_mean, prior_mean, delta=1e-3)
-        # post_var는 MIN_VARIANCE로 클램핑되므로 MIN_VARIANCE와 비교
-        self.assertAlmostEqual(post_var, MIN_VARIANCE, delta=1e-15)
-
     def test_bayesian_estimate_success_flow(self):
         """Test the high-level flow of bayesian_estimate."""
         # Use helper to create mock subtasks

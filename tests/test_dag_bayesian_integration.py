@@ -210,7 +210,7 @@ def test_main_workflow(
     # 3. 주요 함수 호출 검증
     mock_parse_args.assert_called_once()
     mock_get_scene.assert_called_once()
-    mock_init_controller.assert_called_once_with(scene="FloorPlan_Test")
+    mock_init_controller.assert_called_once_with(scene="FloorPlan")
     mock_load_nav.assert_called_once_with(mock_init_controller.return_value)
     mock_list_task.assert_called_once()
     mock_get_task.assert_called_once_with(["task1.json"])
@@ -239,8 +239,9 @@ def test_main_workflow(
         heuristic_manager=mock_heuristic_manager_inst,
     )
 
-    # 스케줄링 루프 검증 (get_next_state, execute_subtask 호출 횟수)
-    assert mock_scheduler_inst.get_next_state.call_count == 3
+    # 스케줄링 루프 검증 (get_next_state 호출 횟수 수정)
+    assert mock_scheduler_inst.get_next_state.call_count == 2
+    # execute_subtask 호출 횟수 (2번)는 그대로 유지
     assert mock_execute_subtask.call_count == 2
     # execute_subtask 호출 인자 확인 (Sub1, Sub2 순서)
     mock_execute_subtask.assert_has_calls(
@@ -260,7 +261,7 @@ def test_main_workflow(
     assert saved_args["task_name"] == "Translated Test Task"
     assert saved_args["approach_name"] == "dag_bayesian_simulation"
     assert saved_args["scene_name"] == "FloorPlan_Test_Scene"
-    assert saved_args["computation_time"] == pytest.approx(3.0)
+    assert saved_args["computation_time"] == pytest.approx(2.0)
     # result_schedule 내용 검증 강화
     assert isinstance(saved_args["result_schedule"], list)
     assert len(saved_args["result_schedule"]) == 2

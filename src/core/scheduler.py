@@ -44,7 +44,7 @@ class Scheduler:
 
     def __init__(
         self,
-        search_width: int,
+        beam_width: int,
         simulation_depth: int,
         nav_graph: dict,
         action_handler: ActionHandler,
@@ -52,10 +52,10 @@ class Scheduler:
         heuristic_manager: HeuristicManager,
     ):
 
-        self.search_width = search_width
+        self.search_width = beam_width
         self.simulation_depth = simulation_depth
         log.info(
-            f"{RED}[Scheduler Init] search_width={search_width}, simulation_depth={simulation_depth}{RESET}"
+            f"{RED}[Scheduler Init] search_width={beam_width}, simulation_depth={simulation_depth}{RESET}"
         )
         self.constraint_handler = constraint_handler
         self.action_handler = action_handler

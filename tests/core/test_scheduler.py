@@ -128,7 +128,7 @@ def scheduler_instance(
 ):
     """테스트용 Scheduler 인스턴스 생성. 의존성 주입"""
     scheduler = Scheduler(
-        search_width=3,
+        beam_width=3,
         simulation_depth=2,
         nav_graph={},  # 모의 nav_graph
         action_handler=mock_action_handler,
@@ -545,7 +545,7 @@ def test_extract_state(initial_scheduler_state, sample_subtask):
     node2 = SimulationNode(20.0, 2, 2, node1, state2)
 
     # Correct Scheduler init call
-    scheduler = Scheduler(search_width=1, simulation_depth=2, nav_graph={})
+    scheduler = Scheduler(beam_width=1, simulation_depth=2, nav_graph={})
 
     # Case 1: 경로 길이가 충분할 때
     extracted_state = scheduler._extract_state(node2)
