@@ -32,7 +32,6 @@ from utils.io_utils.task_io import (
 )
 
 from utils.task.task_util import TaskUtil
-from utils.visualizers.visualizer import visualize
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
@@ -305,13 +304,6 @@ def parse_arguments():
         action="store_true",
     )
     parser.add_argument(
-        "-v",
-        "--visualize",
-        help="Enable visualization of the task plan",
-        default=True,
-        action="store_true",
-    )
-    parser.add_argument(
         "-r",
         "--reset",
         default=True,
@@ -398,7 +390,7 @@ def main():
     # plot_completed_subtasks_gantt(result_schedule, gantt_path)
     if args.simulation:
         approach_name = f"{approach_name}_simulation"
-        visualize(approach_name, input_natural_language, constraints, result_schedule)
+
         i = 0
         current_time = 0
 

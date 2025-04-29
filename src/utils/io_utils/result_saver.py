@@ -9,6 +9,7 @@ from networkx import DiGraph
 from core.dataclass import CompletedEntry
 from utils.common.logger import create_module_logger
 from utils.config.constants import RESULT_PATH
+from utils.visualizers.visualizer import visualize
 
 def get_now_str(fmt: str = "%Y-%m-%d %H:%M") -> str:
     return datetime.now().strftime(fmt)
@@ -149,14 +150,15 @@ def result_save(
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = RESULT_PATH / f"{task_name}_{num}" / scene_name /"approach"
-        file_path = output_path / f"{approach_name}.json"
+        output_path = RESULT_PATH / f"{task_name}_{num}" / scene_name 
+        file_path = output_path /"approach"/ f"{approach_name}.json"
         if not file_path.exists():
             break
         num += 1
     # Create directory if it doesn't exist
     output_path.mkdir(parents=True, exist_ok=True)
     
+    visualize(approach_name, output_path, constraints, plans)
     with file_path.open("w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=4)
 

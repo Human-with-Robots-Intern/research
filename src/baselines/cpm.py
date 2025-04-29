@@ -27,7 +27,7 @@ from utils.io_utils.task_io import (
     load_scene_positions,
 )
 from utils.task.task_util import TaskUtil
-from utils.visualizers.visualizer import visualize
+
 
 def parse_arguments() -> argparse.Namespace:
     """
@@ -41,13 +41,7 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="태스크 분해 여부 (default: True)",
     )
-    parser.add_argument(
-        "-v",
-        "--visualize",
-        default=True,
-        action="store_true",
-        help="시각화 실행 여부 (default: True)",
-    )
+ 
     parser.add_argument(
         "-r",
         "--reset",
@@ -489,9 +483,7 @@ def main() -> None:
         }
         result_save(**result_args)
 
-    # 시각화 옵션이 활성화된 경우
-    if args.visualize:
-        visualize(approach_name, input_natural_language, constraints, final_scheduled_entries)
+
 
 if __name__ == "__main__":
     main()
