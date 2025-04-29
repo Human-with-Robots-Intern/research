@@ -468,7 +468,7 @@ def main() -> None:
     args: argparse.Namespace = parse_arguments()
 
     # 초기화: 컨트롤러, 네비게이션 그래프, 씬 정보
-    controller = init_ai2thor_controller()
+    controller = init_ai2thor_controller(scene_name)
     nav_graph = load_navigation_graph(controller)
 
     global action_handler, constraints
@@ -479,7 +479,7 @@ def main() -> None:
 
     # 사용자로부터 task 파일 선택 및 로드
     task_files = list_task_files()
-    task_file_name, choice = get_user_task_choice(task_files)
+    task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
     task_data = load_task_data_from_file(task_file_name)
     input_natural_language: str = task_io.get_natural_language_from_task_file(
         f"{choice}"

@@ -50,7 +50,7 @@ def init_ai2thor_controller(
     Initializes and returns an AI2-THOR controller instance with default or user-defined settings.
 
     Args:
-        scene (str, optional): Scene name to load. Defaults to SCENE_NAME.
+        scene (str, optional): Scene name to load. Defaults to FloorPlan1.
         platform (str, optional): Platform to use. Defaults to None.
         agent_mode (str, optional): Agent mode ("default", "locobot", "drone", or "arm"). Defaults to "default".
         mass_threshold (float, optional): Minimum mass required for objects to be moved. Defaults to 0.04.

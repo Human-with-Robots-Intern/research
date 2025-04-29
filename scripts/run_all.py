@@ -6,7 +6,6 @@ import time
 from pathlib import Path
 from itertools import product
 
-from src.utils.config.constants import SCENE_NAME
 
 def run_with_retries(script: Path, input_str: str, max_retries: int = 10) -> tuple[bool, int]:
     """
@@ -27,7 +26,7 @@ def run_with_retries(script: Path, input_str: str, max_retries: int = 10) -> tup
             time.sleep(2)  # 짧은 대기 시간 후 재시도
     return False, attempt  # 모든 시도 실패
 
-def process_retry_script(script: Path, instruction: str) -> None:
+def process_retry_script(script: Path, instruction: str, scene_name: str) -> None:
     """
     재시도가 필요한 스크립트를 실행하고 결과 JSON 파일에 attempt 값을 기록하거나,
     모든 시도 실패 시 더미 데이터를 생성합니다.
@@ -54,7 +53,7 @@ def process_retry_script(script: Path, instruction: str) -> None:
             "saved_time": time_str,
             "approach": approach,
             "attempt": attempt,
-            "scene_name": SCENE_NAME,
+            "scene_name": scene_name,
             "plans": [{"plan_name": instruction}],
             "computation_time": inf,
             "success_rate": 0,
@@ -71,7 +70,7 @@ def process_retry_script(script: Path, instruction: str) -> None:
     with json_path.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
-def process_normal_script(script: Path, instruction: str, index: int) -> None:
+def process_normal_script(script: Path, instruction: str, index: int, scene_name: str) -> None:
     """
     재시도 대상이 아닌 스크립트를 단순 실행합니다.
     """
@@ -79,7 +78,7 @@ def process_normal_script(script: Path, instruction: str, index: int) -> None:
     print(f"Running {script}...")
     input_str = f"{index}\n"
     subprocess.run(
-        ["python", str(script)],
+        ["python", str(script), "--scene", scene_name],
         input=input_str,
         text=True
     )
@@ -131,29 +130,37 @@ def main() -> None:
         29: "store_vegetables_and_book_dispose_of_paper_towel",
         30: "cook_egg_fry_and_make_coffee_and_wash_dishes"
     }
+    #나중엔 각 scene 별로 instruction 목록이 생길것이다. 
+    
+    
     scene_list = [
         "FloorPlan1",
-        "FloorPlan2",
-        "FloorPlan3",
-        "FloorPlan4",
-        "FloorPlan5",
+        "FloorPlan7",
+        "FloorPlan13",
+        "FloorPlan18",
+        "FloorPlan27",
         "FloorPlan401",
-        "FloorPlan402",
-        "FloorPlan403",
-        "FloorPlan404",
-        "FloorPlan405"
+        "FloorPlan415",
+        "FloorPlan422",
+        "FloorPlan426",
+        "FloorPlan427"
     ]
     # scene name 도 arg 로 받도록 파일들을 수정해야함. 
     num_runs_per_instruction = 1
 
-    # itertools.product를 사용하여 세 개의 반복 범위를 하나로 결합
-    for i, script, _ in product(range(1, 31), scripts, range(num_runs_per_instruction)):
+    # itertools.product를 사용하여 네 개의 반복 범위를 하나로 결합
+    for scene_name, script, _, i in product(
+                                            scene_list, 
+                                            scripts, 
+                                            range(num_runs_per_instruction),
+                                            range(1, 31)
+                                            ):
         instruction = instructions[i]
-        print(f"task_name : {instruction}")
+        print(f"task_name : {instruction}, scene_name : {scene_name}")
         if script in llm_scripts:
-            process_retry_script(script, instruction)
+            process_retry_script(script, instruction, scene_name)
         else:
-            process_normal_script(script, instruction, i)
+            process_normal_script(script, instruction, i, scene_name)
 
 if __name__ == "__main__":
     main()

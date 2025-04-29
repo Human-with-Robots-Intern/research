@@ -175,6 +175,7 @@ class TaskUtil:
         """
         # 1) scene에서 사용 가능한 모든 object ID 로드
         object_ids_map = cls._load_object_ids(scene_name)
+        object_ids_map = cls._load_object_ids(scene_name)
         # 모든 object id를 flatten
         all_object_ids = {
             obj for category in object_ids_map for obj in object_ids_map[category]

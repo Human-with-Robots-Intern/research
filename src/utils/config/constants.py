@@ -131,3 +131,7 @@ OBJECT_INTERESTS = {
         "isUsedUp",
     ],
 }
+
+# ========== 환경 상수 ==========
+ENV_PLACEHOLDER = "<ENVIRONMENT_INFO>"
+

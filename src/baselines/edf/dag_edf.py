@@ -369,8 +369,9 @@ def main():
 
     # Set up the AI2-THOR controller and navigation graph
     approach_name = "dag_edf"
+    scnen_name = args.scene
     args = parse_arguments()
-    controller = init_ai2thor_controller()
+    controller = init_ai2thor_controller(scene_name)
     nav_graph = load_navigation_graph(controller)
     scene_name = args.scene
     scene_poses = load_scene_positions(f"{scene_name}_positions.json")

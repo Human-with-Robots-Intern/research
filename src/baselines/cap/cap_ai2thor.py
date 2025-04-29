@@ -1,3 +1,4 @@
+import argparse
 import copy
 import logging
 import os
@@ -12,6 +13,7 @@ from ai2thor.controller import Controller
 
 import baselines.cap.util.LMPgen as gen
 from ithor.utils.file_utils import *
+from simulation.runner_ai2thor import init_ai2thor_controller
 from utils.config.constants import *
 from utils.io_utils.result_saver import result_save_llm
 
@@ -23,7 +25,8 @@ from ithor.handlers.action import Action
 from ithor.handlers.camera_handler import CameraHandler
 from ithor.handlers.navigation_handler import NavigationHandler
 
-first_action_time = None
+
+last_end_time = 0  # Track the last action's end time
 
 
 def timed_action(log_file, action_name, action_func, controller):
@@ -33,54 +36,29 @@ def timed_action(log_file, action_name, action_func, controller):
     """
 
     def wrapper(*args, **kwargs):
-        global first_action_time
+        global last_end_time
         # 액션 시작 로그
         log_file.write(f"Executing action: ['{action_name}']\n")
-        now = time.time()
-
-        if first_action_time is None:
-            first_action_time = now
-
-        start_time = now - first_action_time
-        result = action_func(*args, **kwargs)  # 실제 액션 함수 실행
-        end_time = time.time() - first_action_time
+        
+        # Use the last action's end time as the start time
+        start_time = last_end_time
+        elapsed_time = action_func(*args, **kwargs)  # 실제 액션 함수 실행
+        end_time = start_time + elapsed_time
+        last_end_time = end_time  # Update the last end time for the next action
 
         # 액션 시간 및 실행 결과 로그
         log_file.write(f"start_time: {round(start_time,2)}\n")
         log_file.write(f"end_time: {round(end_time,2)}\n")
 
-        #
         if controller.last_event.metadata["lastActionSuccess"]:
             log_file.write(f"execution_status: {True}\n")
-
         else:
             log_file.write(f"execution_status: {False}\n")
 
-        return result
+        return elapsed_time
 
     return wrapper
 
-
-def initialize_controller():
-    # initialize controller
-    controller = Controller(
-        agentMode="default",  # "default", "locobot", "drone", or "arm",
-        massThreshold=0.04,  # 물리 엔진에서 물체를 움직이는 최소 질량
-        scene=SCENE_NAME,  # Scene 이름
-        gridSize=GRID_SIZE,  # Move Actions의 Mean
-        movementGaussianSigma=0.005,  # Move Actions의 Sigma
-        renderDepthImage=False,  # Depth Image 렌더링 여부 (오랜 시간 소요)
-        renderInstanceSegmentation=False,  # Instance Segmentation 렌더링 여부 (오랜 시간 소요)
-        width=SCREEN_WIDTH,
-        height=SCREEN_HEIGHT,
-        renderThirdPartyCameras=False,
-        fieldOfView=60,
-    )
-    camera_handler = CameraHandler(controller)
-    Navi = NavigationHandler(controller)
-    Act = Action(controller)  # log 인자
-
-    return controller, camera_handler, Navi, Act
 
 
 ## LMP Prompts
@@ -170,7 +148,7 @@ cfg_scene = {
 vars_log = open("vars_log.txt", "w", buffering=1)
 
 
-def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
+def setup_LMP(controller, Act, cfg_scene, log_file):
     # LMP env wrapper
     # 위에 있음.
     cfg_scene = copy.deepcopy(cfg_scene)
@@ -193,22 +171,21 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
     for var_name, var_value in fixed_vars.items():
         vars_log.write(f"{var_name}: {var_value}\n")
 
-    variable_vars = {k: getattr(Navi, k) for k in ["move_in_direction"]}
-    variable_vars.update(
-        {
-            k: getattr(Action, k)
-            for k in [
-                "pickup",
-                "slice",
-                "put",
-                "drop",
-                "toggle_on",
-                "toggle_off",
-                "open",
-                "close",
-            ]
-        }
-    )
+    variable_vars={
+                    k: getattr(Act, k)
+                    for k in [
+                        "pickup",
+                        "slice",
+                        "put",
+                        "drop",
+                        "toggle_on",
+                        "toggle_off",
+                        "open",
+                        "close",
+                        "move_to",
+                    ]
+                    }
+
 
     # 위에서 update된 액션들을 한 번씩 래핑
     for action_name in [
@@ -220,6 +197,7 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
         "toggle_off",
         "open",
         "close",
+        "move_to",
     ]:
         original_func = variable_vars[action_name]
         variable_vars[action_name] = timed_action(
@@ -273,17 +251,71 @@ def setup_LMP(controller, Navi, Action, cfg_scene, log_file):
 
     return lmp_scene_ui
 
+def parse_arguments() -> argparse.Namespace:
+    """
+    명령행 인자를 파싱합니다.
+    """
+    parser = argparse.ArgumentParser(description="Task Scheduler")
+    parser.add_argument(
+        "-d",
+        "--decomposition",
+        default=True,
+        action="store_true",
+        help="태스크 분해 여부 (default: True)",
+    )
+    parser.add_argument(
+        "-v",
+        "--visualize",
+        default=True,
+        action="store_true",
+        help="시각화 실행 여부 (default: True)",
+    )
+    parser.add_argument(
+        "-r",
+        "--reset",
+        default=True,
+        action="store_true",
+        help="리셋 실행 여부 (default: True)",
+    )
+    parser.add_argument(
+        "-s",
+        "--simulation",
+        default=True,
+        action="store_true",
+        help="시뮬레이션 실행 여부 (default: True)",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="로그 출력 수준 설정 (default: DEBUG)"
+    )
+    parser.add_argument(
+        "--scene",
+        type=str,
+        default="FloorPlan1",
+        # 추후에 scene 목록이 생기면 choices = [] 으로 구현한다.
+        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)"
+    )
+    return parser.parse_args()
 
 if __name__ == "__main__":
     approach_name = "cap_ai2thor_simulation"
+    args = parse_arguments()
+    scene_name = args.scene
     user_input = input()
 
     log_file = open(
         f"src/baselines/cap/result/cap_logs_{user_input}.txt", "w", buffering=1
     )
-    controller, camera_handler, Navi, Action = initialize_controller()
+    controller = init_ai2thor_controller(scene_name)
+    
+    # 계속 필요한지 체크할 필요가 있다. 
+    camera_handler = CameraHandler(controller)
+    Act = Action(controller)
 
-    lmp_scene_ui = setup_LMP(controller, Navi, Action, cfg_scene, log_file)
+    lmp_scene_ui = setup_LMP(controller,  Act, cfg_scene, log_file)
     # toast the bread
     # put tomato in the fridge
     # put egg in the pan : 냉장고 문을 안열고 계란 집음
@@ -306,7 +338,7 @@ if __name__ == "__main__":
         "result_txt": cap_log_path,
         "json_output_path": result_path,
         "computation_time": computation_time,
-        "scene_name": SCENE_NAME,
+        "scene_name": scene_name,
     }
 
     result_save_llm(**result_args)
