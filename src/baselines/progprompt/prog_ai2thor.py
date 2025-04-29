@@ -9,6 +9,7 @@ import time
 import numpy as np
 import openai
 from ai2thor.controller import Controller
+from simulation.runner_ai2thor import init_ai2thor_controller
 from util.utils_execute import *
 
 
@@ -17,25 +18,71 @@ from utils.io_utils.result_saver import result_save_llm
 
 current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
 
-
-def initialize_controller():
-
-    controller = Controller(
-        agentMode="default",  # "default", "locobot", "drone", or "arm",
-        massThreshold=0.04,  # 물리 엔진에서 물체를 움직이는 최소 질량
-        scene=SCENE_NAME,  # Scene 이름
-        gridSize=GRID_SIZE,  # Move Actions의 Mean
-        movementGaussianSigma=0.005,  # Move Actions의 Sigma
-        renderDepthImage=False,  # Depth Image 렌더링 여부 (오랜 시간 소요)
-        renderInstanceSegmentation=False,  # Instance Segmentation 렌더링 여부 (오랜 시간 소요)
-        width=SCREEN_WIDTH,
-        height=SCREEN_HEIGHT,
-        renderThirdPartyCameras=False,
-        fieldOfView=60,
+def parse_arguments() -> argparse.Namespace:
+    """
+    명령행 인자를 파싱합니다.
+    """
+    parser = argparse.ArgumentParser(description="Task Scheduler")
+    parser.add_argument(
+        "-d",
+        "--decomposition",
+        default=True,
+        action="store_true",
+        help="태스크 분해 여부 (default: True)",
     )
+    parser.add_argument(
+        "-v",
+        "--visualize",
+        default=True,
+        action="store_true",
+        help="시각화 실행 여부 (default: True)",
+    )
+    parser.add_argument(
+        "-r",
+        "--reset",
+        default=True,
+        action="store_true",
+        help="리셋 실행 여부 (default: True)",
+    )
+    parser.add_argument(
+        "-s",
+        "--simulation",
+        default=True,
+        action="store_true",
+        help="시뮬레이션 실행 여부 (default: True)",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="로그 출력 수준 설정 (default: DEBUG)"
+    )
+    parser.add_argument(
+        "--gpt-version",
+        type=str,
+        default="gpt-4o",
+        choices=["gpt-4o", "gpt-4o-mini"],
+    )
+    parser.add_argument(
+        "--scene",
+        type=str,
+        default="FloorPlan1",
+        # 추후에 scene 목록이 생기면 choices = [] 으로 구현한다.
+        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)"
+    )
+    parser.add_argument(
+        "--prompt-num-examples", type=int, default=4, choices=range(1, 5)
+    )
+    parser.add_argument(
+        "--prompt-task-examples-ablation",
+        type=str,
+        default="none",
+        choices=["none", "no_comments", "no_feedback", "no_comments_feedback"],
+    )
+    parser.add_argument("--openai-api-key", type=str, default="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")
 
-    return controller
-
+    return parser.parse_args()
 
 def generate_plan(controller, args):
 
@@ -112,6 +159,7 @@ def generate_plan(controller, args):
     log_file = open(prog_log_path, "w", buffering=1)
     approach_name = "prog_ai2thor_simulation"
     result_path = f"{task}"
+    # simulate_execution 함수도 execute_subtask로 변경 가능한지 검토할 필요가 있다. 
     simulate_execution(controller, test_tasks, gen_plan, log_file, args)
     result_args={
         "approach_name": approach_name,
@@ -119,7 +167,7 @@ def generate_plan(controller, args):
         "result_txt":prog_log_path,
         "json_output_path":result_path,
         "computation_time":computation_time,
-        "scene_name": SCENE_NAME,
+        "scene_name": args.scene,
 
     }
     result_save_llm(**result_args)
@@ -127,7 +175,8 @@ def generate_plan(controller, args):
 
 
 def planner_executer(args):
-    controller = initialize_controller()
+    scene_name = args.scene
+    controller = init_ai2thor_controller(scene_name)
     generate_plan(controller, args)
 
 
@@ -146,24 +195,7 @@ if __name__ == "__main__":
     ## NOTE: davinci or older GPT3 versions have a lower token length limit
     ## check token length limit for models to set prompt size:
     ## https://platform.openai.com/docs/models
-    parser.add_argument(
-        "--prompt-num-examples", type=int, default=4, choices=range(1, 5)
-    )
-    parser.add_argument(
-        "--prompt-task-examples-ablation",
-        type=str,
-        default="none",
-        choices=["none", "no_comments", "no_feedback", "no_comments_feedback"],
-    )
-    parser.add_argument("--openai-api-key", type=str, default="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")
-
-    parser.add_argument(
-        "--gpt-version",
-        type=str,
-        default="gpt-4o",
-        choices=["gpt-4o", "gpt-4o-mini"],
-    )
-    parser.add_argument("--load-generated-plans", type=bool, default=False)
+    
 
     
     args = parser.parse_args()

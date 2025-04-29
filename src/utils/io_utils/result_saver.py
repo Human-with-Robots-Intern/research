@@ -145,8 +145,11 @@ def result_save(
         "timing_success_rate_sim": timing_success_rate_sim,
         "timing_success_rate_sched": timing_success_rate_sched,
     }
-
+    
     output_path = RESULT_PATH / task_name / "approach"
+    # Create directory if it doesn't exist
+    if not output_path.exists():
+        output_path.mkdir(parents=True, exist_ok=True)
     output_path.mkdir(parents=True, exist_ok=True)
     file_path = output_path / f"{approach_name}.json"
     with file_path.open("w", encoding="utf-8") as f:

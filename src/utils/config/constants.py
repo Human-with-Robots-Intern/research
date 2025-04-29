@@ -61,7 +61,7 @@ RESET = "\x1b[0m"
 # ========== AI2-THOR 환경 상수 ==========
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-SCENE_NAME = "FloorPlan1"
+# SCENE_NAME = "FloorPlan1" 이제 변수로 받아온다.
 GRID_SIZE = 0.125
 SMOOTH_LEVEL = 30
 
@@ -100,3 +100,7 @@ OBJECT_INTERESTS = {
         "isUsedUp",
     ],
 }
+
+# ========== 환경 상수 ==========
+ENV_PLACEHOLDER = "<ENVIRONMENT_INFO>"
+
