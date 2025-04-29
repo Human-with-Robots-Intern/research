@@ -146,12 +146,17 @@ def result_save(
         "timing_success_rate_sched": timing_success_rate_sched,
     }
     
-    output_path = RESULT_PATH / task_name / "approach"
+    # Find the next available number for the task name
+    num = 1
+    while True:
+        output_path = RESULT_PATH / f"{task_name}_{num}" / scene_name /"approach"
+        file_path = output_path / f"{approach_name}.json"
+        if not file_path.exists():
+            break
+        num += 1
     # Create directory if it doesn't exist
-    if not output_path.exists():
-        output_path.mkdir(parents=True, exist_ok=True)
     output_path.mkdir(parents=True, exist_ok=True)
-    file_path = output_path / f"{approach_name}.json"
+    
     with file_path.open("w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=4)
 
@@ -226,7 +231,6 @@ def result_save_llm(
 ):
     with open(result_txt, "r", encoding="utf-8") as f:
         lines = f.readlines()
-
     actions, last_end_time, success_count, total_count = parse_llm_log(lines)
 
     result_data = {
