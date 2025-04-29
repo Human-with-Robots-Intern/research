@@ -8,6 +8,7 @@ from pathlib import Path
 from simulation.runner_ai2thor import execute_subtask
 
 from utils.common.logger import create_module_logger
+from utils.io_utils import task_io
 from utils.io_utils.result_saver import result_save
 
 
@@ -342,24 +343,23 @@ def main():
 
     # Set up the AI2-THOR controller and navigation graph
     approach_name = "dag_edf"
-    scnen_name = args.scene
+    
     args = parse_arguments()
+    scene_name = args.scene
+
     controller = init_ai2thor_controller(scene_name)
     nav_graph = load_navigation_graph(controller)
-    scene_name = args.scene
     scene_poses = load_scene_positions(f"{scene_name}_positions.json")
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name , choice= get_user_task_choice(task_files)
+    task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name) 
     task_data = load_task_data_from_file(task_file_name)
-    input_natural_language = (
-        get_natural_language_from_task_file(f"{choice}")
-        if choice is not None
-        else Path(task_file_name).stem
-    )
+    input_natural_language = task_file_name
+    if choice != 0:
+        input_natural_language = task_io.get_natural_language_from_task_file(f"{choice}")
     # Build tasks and constraints
-    subtasks, constraints = TaskUtil.build_tasks_and_constraints(task_data, True)
+    subtasks, constraints = TaskUtil.build_tasks_and_constraints(task_data, True,scene_name=scene_name)
 
     computation_time = 0
     current_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)

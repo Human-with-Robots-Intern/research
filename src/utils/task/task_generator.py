@@ -81,7 +81,7 @@ class TaskGenerator:
         Args:
             user_input: The user's input instruction string.
             environment_file_name: Optional name of the JSON file in ENVIRONMENT_PATH
-                                     containing environment details.
+                                    containing environment details.
         """
         
         user_input = user_input.strip()
@@ -168,9 +168,10 @@ class TaskGenerator:
                 raise ValueError("Task generation failed. (Invalid Format)")
 
         # 파일로 저장
-        time_stamp = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
-        sanitized_input = re.sub(r"[^\w\-_\.]+", "_", user_input[:30])
-        output_file_name = f"{time_stamp}_{sanitized_input}.json"
+        # time_stamp = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
+        # sanitized_input = re.sub(r"[^\w\-_\.]+", "_", user_input[:30])
+        # output_file_name = f"{time_stamp}_{sanitized_input}.json"
+        output_file_name = f"{user_input}.json"
         output_file_path = Path(TASK_PATH) / output_file_name
 
         self.save_to_file(output, output_file_path)
