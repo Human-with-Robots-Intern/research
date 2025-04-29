@@ -85,7 +85,6 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 def generate_plan(controller, args):
-
     # 현재 scene에 있는 object들을 가져옴
     obj = list(
         set(obj["objectType"] for obj in controller.step("Pass").metadata["objects"])
@@ -102,21 +101,21 @@ def generate_plan(controller, args):
         prompt_egs = {}
         for k, v in tmp.items():
             prompt_egs[k] = v
-    if args.prompt_task_examples == "default":
-        default_examples = [
-            "Wash_Tomato_and_Potato_and_egg_and_Cook_Egg_Fry",
-            "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple",
-            "make_me_a_toast_and_set_the_table_for_lunch",
-            "put_tomato_and_apple_in_fridge_and_put_book_in_shelf",
-        ]
-        for i in range(args.prompt_num_examples):
-            prompt += (
-                "task : "
-                + default_examples[i]
-                + " \n"
-                + prompt_egs[default_examples[i]]
-                + "\n\n"
-            )
+    # if args.prompt_task_examples == "default":
+    #     default_examples = [
+    #         "Wash_Tomato_and_Potato_and_egg_and_Cook_Egg_Fry",
+    #         "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple",
+    #         "make_me_a_toast_and_set_the_table_for_lunch",
+    #         "put_tomato_and_apple_in_fridge_and_put_book_in_shelf",
+    #     ]
+    #     for i in range(args.prompt_num_examples):
+    #         prompt += (
+    #             "task : "
+    #             + default_examples[i]
+    #             + " \n"
+    #             + prompt_egs[default_examples[i]]
+    #             + "\n\n"
+    #         )
 
     test_tasks = []
     # "toast the bread and put tomato in the fridge. put egg in the pan."
@@ -127,30 +126,24 @@ def generate_plan(controller, args):
     gen_plan = []
     computation_time_start = time.time()
 
+    # Read task from input
     task = input()
-    test_tasks = []
-    test_tasks.append(task)
-    for task in test_tasks:
-    
-        print(f"Generating plan for: {task}\n")
-        curr_prompt = f"{prompt}\ntask : {task}\n"  ## 주어진 정보 + 수행할 task 이어서 prompt 만듦
-        _, text = LM(
-            curr_prompt,
-            args.gpt_version,
-            max_tokens=600,
-            stop=["def"],
-            frequency_penalty=0.15,
-        )
-        gen_plan.append(text)  # 답장온거 저장
-
-        # save generated plan
-        line = {}
-        print(f"Saving generated plan at: {task}.json\n")
-        plan_of_task_path = os.path.join(current_dir,f"result/plans_of_{task}.json")
-        with open(plan_of_task_path, "w") as f:
-            for plan, task in zip(gen_plan, test_tasks):
-                line[task] = plan
-            json.dump(line, f)
+    print(f"Generating plan for: {task}\n")
+    curr_prompt = f"{prompt}\ntask : {task}\n"  ## 주어진 정보 + 수행할 task 이어서 prompt 만듦
+    _, text = LM(
+        curr_prompt,
+        args.gpt_version,
+        max_tokens=600,
+        stop=["def"],
+        frequency_penalty=0.15,
+    )
+    # save generated plan
+    line = {}
+    print(f"Saving generated plan at: {task}.json\n")
+    plan_of_task_path = os.path.join(current_dir,f"result/plans_of_{task}.json")
+    with open(plan_of_task_path, "w") as f:
+        line[task] = text
+        json.dump(line, f)
             
     computation_time = time.time() - computation_time_start
 
@@ -160,7 +153,7 @@ def generate_plan(controller, args):
     approach_name = "prog_ai2thor_simulation"
     result_path = f"{task}"
     # simulate_execution 함수도 execute_subtask로 변경 가능한지 검토할 필요가 있다. 
-    simulate_execution(controller, test_tasks, gen_plan, log_file, args)
+    simulate_execution(controller, [task], [text], log_file, args)
     result_args={
         "approach_name": approach_name,
         "user_input": task,
@@ -168,10 +161,9 @@ def generate_plan(controller, args):
         "json_output_path":result_path,
         "computation_time":computation_time,
         "scene_name": args.scene,
-
     }
     result_save_llm(**result_args)
- 
+
 
 
 def planner_executer(args):
