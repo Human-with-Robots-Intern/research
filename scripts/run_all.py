@@ -7,7 +7,7 @@ from pathlib import Path
 from itertools import product
 
 
-def run_with_retries(script: Path, input_str: str, max_retries: int = 10) -> tuple[bool, int]:
+def run_with_retries(script: Path, input_str: str, scene_name: str, max_retries: int = 10) -> tuple[bool, int]:
     """
     주어진 스크립트를 최대 max_retries 회까지 재시도하며 실행합니다.
     성공하면 (True, 시도 횟수), 실패하면 (False, 마지막 시도 횟수)를 반환합니다.
@@ -15,7 +15,7 @@ def run_with_retries(script: Path, input_str: str, max_retries: int = 10) -> tup
     for attempt in range(1, max_retries + 1):
         print(f"Running {script} (Attempt {attempt})...")
         result = subprocess.run(
-            ["python", str(script)],
+            ["python", str(script), "--scene", scene_name],
             input=input_str,
             text=True
         )
@@ -35,7 +35,7 @@ def process_retry_script(script: Path, instruction: str, scene_name: str) -> Non
     json_path = Path("assets") / "results" / instruction / "approach" / f"{approach}_simulation.json"
     input_str = f"{instruction}\n"
 
-    success, attempt = run_with_retries(script, input_str, max_retries=10)
+    success, attempt = run_with_retries(script, input_str, scene_name, max_retries=10)
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
     if success:
@@ -55,10 +55,10 @@ def process_retry_script(script: Path, instruction: str, scene_name: str) -> Non
             "attempt": attempt,
             "scene_name": scene_name,
             "plans": [{"plan_name": instruction}],
-            "computation_time": inf,
+            "computation_time": -1,  # inf 대신 -1 사용
             "success_rate": 0,
             "scheduler_makespan": None,
-            "simulation_makespan": inf,
+            "simulation_makespan": -1,  # inf 대신 -1 사용
             "realworld_makespan": None
         }
         try:
@@ -95,14 +95,22 @@ def process_normal_script(script: Path, instruction: str, scene_name: str) -> No
     
     # 프로세스 종료 대기
     process.wait()
+    
+    # 에러 코드 출력
+    if process.returncode != 0:
+        print(f"Script {script} failed with error code: {process.returncode}")
+        # stderr 내용도 출력
+        stderr_output = process.stderr.read()
+        if stderr_output:
+            print(f"Error output: {stderr_output}")
 
 def main() -> None:
     approaches = [
         # Path("src/dag_bayesian.py"),
-        Path("src/baselines/progprompt/prog_ai2thor.py"),
+        # Path("src/baselines/progprompt/prog_ai2thor.py"),
         Path("src/baselines/cap/cap_ai2thor.py"),        
-        Path("src/baselines/cpm.py"),
-        Path("src/baselines/edf/dag_edf.py")
+        # Path("src/baselines/cpm.py"),
+        # Path("src/baselines/edf/dag_edf.py")
     ]
 
     # 재시도 대상 (LLM 방식) 스크립트 집합
@@ -112,24 +120,24 @@ def main() -> None:
     }
 
     instructions = {
-        1: "wash_egg_and_cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_cutlery_and_wash_dishes_and_wash_vegetables_and_organize_the_vegetables",
+        1: "wash_egg_and_cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_fork_and_spoon_and_wash_dishes_and_wash_vegetables_and_organize_the_vegetables",
         2: "boil_potato_and_make_coffee_and_wash_lettuce_and_tomato_and_wash_dishes_and_put_creditcard_on_shelf_and_throw_away_paper_towel",
         3: "boil_potato_and_wash_dishes_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_vegetables",
-        4: "cook_egg_fry_and_make_coffee_and_heat_potato_using_microwave_and_wash_cutlery_and_wash_dishes",
-        5: "boil_potato_and_wash_vegetables_and_put_creditcard_on_shelf_and_wash_dishes_and_wash_cutlery",
-        6: "wash_egg_and_cook_egg_fry_and_wash_vegetables_and_wash_cutlery_and_wash_dishes_and_throw_away_paper_towel_and_put_creditcard_on_shelf",
-        7: "cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_wash_cutlery_and_wash_dishes_and_throw_away_paper_towel_and_put_creditcard_on_shelf",
+        4: "cook_egg_fry_and_make_coffee_and_heat_potato_using_microwave_and_wash_fork_and_spoon_and_wash_dishes",
+        5: "boil_potato_and_wash_vegetables_and_put_creditcard_on_shelf_and_wash_dishes_and_wash_fork_and_spoon",
+        6: "wash_egg_and_cook_egg_fry_and_wash_vegetables_and_wash_fork_and_spoon_and_wash_dishes_and_throw_away_paper_towel_and_put_creditcard_on_shelf",
+        7: "cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_wash_fork_and_spoon_and_wash_dishes_and_throw_away_paper_towel_and_put_creditcard_on_shelf",
         8: "cook_egg_fry_and_wash_dishes_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_vegetables_and_heat_bread_using_microwave_and_make_coffee",
-        9: "cook_egg_fry_and_make_coffee_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_cutlery_and_wash_dishes_and_wash_vegetables_and_organize_the_vegetables",
-        10: "cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_heat_potato_using_microwave_and_wash_vegetables_and_wash_cutlery_and_wash_dishes",
+        9: "cook_egg_fry_and_make_coffee_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_fork_and_spoon_and_wash_dishes_and_wash_vegetables_and_organize_the_vegetables",
+        10: "cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_heat_potato_using_microwave_and_wash_vegetables_and_wash_fork_and_spoon_and_wash_dishes",
         11: "cook_egg_fry_and_heat_potato_in_microwave_and_wash_plates",
         12: "cook_egg_fry_and_throw_away_paper_towel_and_wash_vegetables",
         13: "boil_potato_and_brew_coffee",
         14: "heat_the_potato_and_make_coffee_and_wash_plates_and_put_book_on_shelf",
         15: "heat_bread_using_microwave_and_wash_tomato_and_potato_and_dispose_of_paper_towel",
-        16: "wash_and_heat_potato_and_wash_cutlery_and_dispose_of_paper_towel",
+        16: "wash_and_heat_potato_and_wash_fork_and_spoon_and_dispose_of_paper_towel",
         17: "cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee",
-        18: "make_coffee_and_wash_vegetables_and_wash_cutlery",
+        18: "make_coffee_and_wash_vegetables_and_wash_fork_and_spoon",
         19: "boil_potato_and_make_coffee_and_wash_vegetables",
         20: "cook_egg_fry_and_wash_dishes_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_vegetables",
         21: "prepare_vegetables_for_lunch_and_cook_egg_fry",
@@ -145,48 +153,47 @@ def main() -> None:
     }
     #나중엔 각 scene 별로 instruction 목록이 생길것이다. 
     kitchen_scene_instructions = [
-    "heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_cutlery and set_the_table and prepare_a_water_cup and put_saltshaker_on_the_table",
-    "heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and prepare_a_water_cup and put_saltshaker_on_the_table",
-    "heat_the_bread_using_microwave and make_a_coffee and put_apple_and_lettuce_in_fridge and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
-    "heat_the_bread_using_microwave and make_a_coffee and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
-    "make_a_coffee and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
-    "boil_potato and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and prepare_a_water_cup",
-    "boil_potato and make_a_coffee and put_apple_and_lettuce_in_fridge and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
-    "boil_potato and heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_cutlery and prepare_a_water_cup and put_saltshaker_on_the_table",
-    "cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
-    "cook_egg and make_a_coffee and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
-    "cook_egg and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_cutlery and set_the_table and prepare_a_water_cup",
-    "fill_pot_with_water and heat_the_bread_using_microwave and wash_all_cutlery and set_the_table and prepare_a_water_cup and put_saltshaker_on_the_table",
-    "fill_pot_with_water and make_a_coffee and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
-    "fill_pot_with_water and heat_the_potato_using_microwave and wash_apple_and_lettuce and wash_all_cutlery and set_the_table and prepare_a_water_cup",
-    "fill_pot_with_water and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and set_the_table and prepare_a_water_cup and put_saltshaker_on_the_table",
-    "boil_potato and cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and set_the_table and prepare_a_water_cup",
-    "boil_potato and cook_egg and make_a_coffee and wash_apple_and_lettuce and wash_all_cutlery and put_saltshaker_on_the_table",
-    "cook_egg and fill_pot_with_water and heat_the_bread_using_microwave and set_the_table and prepare_a_water_cup and put_saltshaker_on_the_table",
-    "cook_egg and fill_pot_with_water and make_a_coffee and wash_all_cutlery and set_the_table and put_saltshaker_on_the_table",
-    "cook_egg and fill_pot_with_water and heat_the_potato_using_microwave and wash_apple_and_lettuce and set_the_table and prepare_a_water_cup",
+    "heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table and prepare_a_water_cup",
+    # "heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and set_the_table and put_saltshaker_on_the_table",
+    # "make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table and put_saltshaker_on_the_table",
+    # "heat_the_bread_using_microwave and make_a_coffee and wash_apple_and_lettuce and set_the_table and put_saltshaker_on_the_table",
+    # "heat_the_bread_using_microwave and make_a_coffee and put_apple_and_lettuce_in_fridge and set_the_table and put_saltshaker_on_the_table",
+    # "boil_potato and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and prepare_a_water_cup",
+    # "boil_potato and make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and put_saltshaker_on_the_table",
+    # "boil_potato and make_a_coffee and wash_all_fork_and_spoon and set_the_table and put_saltshaker_on_the_table"
+    # "cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and put_saltshaker_on_the_table",
+    # "cook_egg and make_a_coffee and wash_apple_and_lettuce and set_the_table and put_saltshaker_on_the_table",
+    # "cook_egg and make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table",
+    # "cook_egg and heat_the_potato_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table",
+    # "fill_pot_with_water and make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table",
+    # "fill_pot_with_water and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and prepare_a_water_cup",# "cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table and put_saltshaker_on_the_table",
+    # "fill_pot_with_water and heat_the_potato_using_microwave and wash_apple_and_lettuce and prepare_a_water_cup and put_saltshaker_on_the_table",
+    # "fill_pot_with_water and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and put_saltshaker_on_the_table",
+    # "boil_potato and cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and set_the_table",
+    # "boil_potato and cook_egg and make_a_coffee and wash_all_fork_and_spoon and put_saltshaker_on_the_table",
+    # "cook_egg and fill_pot_with_water and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon",
     ]
     bathroom_scene_instructions=[
-    "wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
-    "wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and close_shower_curtain",
-    "fill_bathtub_with_water_with_shower_head and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
-    "fill_bathtub_with_water_with_shower_head and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth and close_shower_curtain",
-    "fill_bathtub_with_water_with_shower_head and wet_the_handtowel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
-    "fill_bathtub_with_water_with_shower_head and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth",
-    "fill_bathtub_with_water_with_shower_head and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
-    "clean_the_toilet and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth",
-    "clean_the_toilet and wet_the_handtowel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
-    "clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth and close_shower_curtain",
-    "clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and close_shower_curtain",
-    "clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light and throw_away_cloth"
-    "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_handtowel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_cloth",
-    "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth",
-    "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth",
-    "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_towel_with_water and turn_on_the_candle and turn_on_the_light and close_shower_curtain",
-    "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and close_shower_curtain",
+    "wet_the_handtowel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
+    # "wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth and close_shower_curtain",
+    # "wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
+    # "wet_the_towel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
+    # "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth",
+    # "fill_bathtub_with_water_with_shower_head and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and throw_away_cloth and close_shower_curtain",
+    # "fill_bathtub_with_water_with_shower_head and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth",
+    # "fill_bathtub_with_water_with_shower_head and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth",
+    # "fill_bathtub_with_water_with_shower_head and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth",
+    # "fill_bathtub_with_water_with_shower_head and wet_the_towel_with_water and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
+    # "clean_the_toilet and wet_the_handtowel_with_water and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
+    # "clean_the_toilet and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and close_shower_curtain",
+    # "clean_the_toilet and wet_the_towel_with_water and turn_on_the_light and throw_away_cloth and close_shower_curtain",
+    # "clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light",
+    # "clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and close_shower_curtain"
+    # "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_handtowel_with_water and turn_on_the_candle and close_shower_curtain",
+    # "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and throw_away_cloth",
+    # "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light",
+    # "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_towel_with_water and turn_on_the_light and close_shower_curtain",
+    # "fill_bathtub_with_water_with_shower_head and clean_the_toilet and wet_the_towel_with_water and turn_on_the_light and throw_away_cloth"
     ]
     
     floorplane_1_instructions=[
@@ -221,26 +228,25 @@ def main() -> None:
     ]
     
     scene_list = [
-        "FloorPlan1",
-        "FloorPlan7",
-        "FloorPlan13",
-        "FloorPlan18",
-        "FloorPlan27",
-        # "FloorPlan401",
+        # "FloorPlan1",
+        # "FloorPlan7",
+        # "FloorPlan13",
+        # "FloorPlan18",
+        # "FloorPlan27",
+        "FloorPlan401",
         # "FloorPlan415",
         # "FloorPlan422",
         # "FloorPlan426",
         # "FloorPlan427"
     ]
-    # scene name 도 arg 로 받도록 파일들을 수정해야함. 
-    num_runs_per_instruction = 1
+    num_runs_per_instruction = 2
 
     # itertools.product를 사용하여 네 개의 반복 범위를 하나로 결합
     for scene_name, approach, _, i in product(
                                             scene_list, 
                                             approaches, 
                                             range(num_runs_per_instruction),
-                                            range(1, 31)
+                                            range(0, 1)
                                             ):
         number = int(scene_name.lstrip("FloorPlan"))
         if number >= 400:
