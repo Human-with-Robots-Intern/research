@@ -245,7 +245,12 @@ class Scheduler:
         # *     then we do a single Wait expansion (pick earliest not-yet-feasible)
         if not is_expanded and not_yet_candidates:
             sorted_not_feasible = sorted(
-                not_yet_candidates, key=lambda c: c.earliest_start_time
+                not_yet_candidates,
+                key=lambda c: (
+                    c.earliest_start_time
+                    if c.earliest_start_time is not None
+                    else float("inf")
+                ),
             )
             wait_candidate = sorted_not_feasible[0]
             log.debug(
@@ -484,7 +489,7 @@ class Scheduler:
         )
         critical_slots = [slot for slot in constraints_start_names if slot.is_critical]
         if not critical_slots:
-            # Re-check monitoring necessity constraints
+            # * Re-check monitoring necessity constraints
             # 현재 candidate subtask가 critical constraints 영향 하에 있지 않는 경우, fallback to non-monitoring
             log.debug(
                 f"[_expand_subtask_with_monitoring] No critical constraints found for {deadline_sub_name}, "
@@ -575,9 +580,9 @@ class Scheduler:
         end_time = start_time + early_sub.duration.interval
 
         if deadline_due < end_time:
-            log.debug(
+            log.warning(
                 f"[_expand_subtask_with_monitoring] Deadline {deadline_due} < "
-                f"earliest_finish_time {end_time}"
+                f"Early_sub end_time {end_time}"
                 f"=> Infeasible.\n"
             )
             return None

@@ -95,7 +95,7 @@ class ActionHandler:
                 f"--- Simulating action {i+1}/{len(primitive_actions)}: '{action_str}' ---"
             )
             log.debug(
-                f"    State before: Time={sim_state.current_time:.2f}, Held={current_held_object}"
+                f"    State before: Time={current_cumulative_time:.2f}, Held={current_held_object}"
             )
 
             # 액션 파싱
@@ -273,7 +273,7 @@ class ActionHandler:
             steps_can_take = int(math.floor(partial_duration / NAV_STEP_DURATION))
             # 경로 길이 내에서만 이동 가능
             actual_steps = min(steps_can_take, len(navigate_path))
-            new_agent_pos = navigate_path[actual_steps]
+            new_agent_pos = navigate_path[actual_steps - 1]
 
         # 4. 전체 경로 이동 처리
         else:

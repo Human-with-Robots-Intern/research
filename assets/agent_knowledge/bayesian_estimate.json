@@ -1,45 +1,37 @@
 {
-    "Prepare Egg Fry": {
+    "prepare egg fry": {
         "expected_duration": 10.0,
         "variance": 1.0
     },
-    "Turn off stove after cooking": {
-        "expected_duration": 9.979160126405048,
-        "variance": 1.1785878607345168e-05
+    "turn off stove after cooking": {
+        "expected_duration": 10.009766846079287,
+        "variance": 0.960015993602559
     },
-    "Prepare Potato": {
+    "prepare potato": {
         "expected_duration": 100.0,
         "variance": 1.0
     },
-    "Turn off stove after cooking potato": {
+    "turn off stove after cooking potato": {
         "expected_duration": 10.0,
         "variance": 1.0
     },
-    "Turn off Stove after cooking": {
+    "retrieve potato from microwave and place on plate": {
         "expected_duration": 10.0,
         "variance": 1.0
     },
-    "Turn Off Stove After Cooking": {
+    "retrieve potato from microwave": {
         "expected_duration": 10.0,
         "variance": 1.0
     },
-    "Retrieve Potato from Microwave and Place on Plate": {
+    "turn off stove after boiling potato": {
         "expected_duration": 10.0,
         "variance": 1.0
     },
-    "Retrieve Potato from Microwave": {
+    "turn off stove after cooking egg fry": {
         "expected_duration": 10.0,
         "variance": 1.0
     },
-    "Turn Off Stove After Boiling Potato": {
-        "expected_duration": 10.0,
-        "variance": 1.0
-    },
-    "Turn Off Stove After Cooking Egg Fry": {
-        "expected_duration": 10.0,
-        "variance": 1.0
-    },
-    "Turn off Stove after Boiling": {
+    "turn off stove after boiling": {
         "expected_duration": 10.0,
         "variance": 1.0
     }
