@@ -1,13 +1,14 @@
+from __future__ import annotations
+
 import copy
 import itertools
 from queue import PriorityQueue
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
-from core.dataclass import Candidate, CompletedEntry, SchedulerState, SimulationNode
-from core.task import Duration, Execution, Subtask
-from scheduler import ConstraintHandler, HeuristicManager
-from scheduler.action_handler import ActionHandler
-from utils.common import create_module_logger
+from src.core.dataclass import Candidate, CompletedEntry, SchedulerState, SimulationNode
+from src.core.task import Duration, Execution, Subtask
+from src.utils.common import create_module_logger
+from src.utils.common.decorators import time_logger
 from utils.config import (
     BAYESIAN_CRITERIA,
     EPSILON,
@@ -17,6 +18,9 @@ from utils.config import (
     RESET,
 )
 from utils.task import TaskUtil
+
+if TYPE_CHECKING:
+    from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -43,23 +47,25 @@ class Scheduler:
         search_width: int,
         simulation_depth: int,
         nav_graph: dict,
+        action_handler: ActionHandler,
+        constraint_handler: ConstraintHandler,
+        heuristic_manager: HeuristicManager,
     ):
 
-        self.search = search_width
+        self.search_width = search_width
         self.simulation_depth = simulation_depth
         log.info(
             f"{RED}[Scheduler Init] search_width={search_width}, simulation_depth={simulation_depth}{RESET}"
         )
-
-        self.action_handler = ActionHandler(nav_graph or {})
-        self.constraint_handler = ConstraintHandler()
-        self.cost_calculator = HeuristicManager(self.constraint_handler)
-
+        self.constraint_handler = constraint_handler
+        self.action_handler = action_handler
+        self.cost_calculator = heuristic_manager
         self._counter = itertools.count()
 
     # ======================
     # Public method
     # ======================
+    @time_logger
     def get_next_state(self, parent_state: SchedulerState) -> Optional[SchedulerState]:
         """
         Public method to retrieve the immediate next state (1-step ahead in time)
@@ -149,7 +155,7 @@ class Scheduler:
                 f"========================================\n"
                 f"Depth = {curr_depth} (expanding to {curr_depth + 1})\n"
                 f"Current Time : {round(curr_state.current_time,2)}\n\n"
-                f"Completed_subs={[ce.subtask.name for ce in curr_state.completed_subtasks]}\n"
+                f"Completed_subs={[ce.subtask.name for ce in curr_state.completed_entries]}\n"
                 f"Remaining_subs={[r.name for r in curr_state.remaining_subtasks]}\n\n"
                 f"Feasible_subs={[c for c in feasible_candidates]},\n\n"
                 f"Not_yet_feasible_subs={[c for c in not_yet_candidates]}\n\n"
@@ -164,7 +170,7 @@ class Scheduler:
 
             # (3) Local Beam Pruning: Keep only the top-K expansions
             for i, nd in enumerate(expanded_nodes):
-                if i < self.search:
+                if i < self.search_width:
                     queue.put(nd)
                 else:
                     break
@@ -239,7 +245,12 @@ class Scheduler:
         # *     then we do a single Wait expansion (pick earliest not-yet-feasible)
         if not is_expanded and not_yet_candidates:
             sorted_not_feasible = sorted(
-                not_yet_candidates, key=lambda c: c.earliest_start_time
+                not_yet_candidates,
+                key=lambda c: (
+                    c.earliest_start_time
+                    if c.earliest_start_time is not None
+                    else float("inf")
+                ),
             )
             wait_candidate = sorted_not_feasible[0]
             log.debug(
@@ -383,7 +394,7 @@ class Scheduler:
         last_action_info = self.action_handler.get_actions_info(curr_node, sub_actions)
         # success = controller.last_event.metadata.get('lastActionSuccess', 'N/A')
         start_time = curr_state.current_time
-        end_time = start_time + last_action_info.time_used
+        end_time = start_time + last_action_info.cumulative_time
 
         # * (2) subtask 종료 시각이 deadline보다 느리면 infeasible
         if candidate.deadline.due_date < end_time:
@@ -395,7 +406,7 @@ class Scheduler:
 
         # * (3) subtask 복사 & duration 설정
         copied_sub = copy.deepcopy(candidate.subtask)
-        copied_sub.duration.interval = last_action_info.time_used
+        copied_sub.duration.interval = last_action_info.cumulative_time
 
         # * (4) subtask 실행 후, 실제 최종 위치/held_object 반영
         # *    "get_actions_info" 결과를 통해 scene_positions, held_object를 가져온다
@@ -404,7 +415,7 @@ class Scheduler:
         new_scene_positions = last_action_info.scene_positions
 
         completed_entry = CompletedEntry(copied_sub, start_time, end_time)
-        new_completed = curr_state.completed_subtasks + [completed_entry]
+        new_completed = curr_state.completed_entries + [completed_entry]
 
         new_remain = [
             r for r in curr_state.remaining_subtasks if r.name != candidate.subtask.name
@@ -412,7 +423,7 @@ class Scheduler:
 
         new_state = SchedulerState(
             subtask=copied_sub,
-            completed_subtasks=new_completed,
+            completed_entries=new_completed,
             remaining_subtasks=new_remain,
             constraints=curr_state.constraints,
             current_time=end_time,
@@ -478,7 +489,7 @@ class Scheduler:
         )
         critical_slots = [slot for slot in constraints_start_names if slot.is_critical]
         if not critical_slots:
-            # Re-check monitoring necessity constraints
+            # * Re-check monitoring necessity constraints
             # 현재 candidate subtask가 critical constraints 영향 하에 있지 않는 경우, fallback to non-monitoring
             log.debug(
                 f"[_expand_subtask_with_monitoring] No critical constraints found for {deadline_sub_name}, "
@@ -498,9 +509,9 @@ class Scheduler:
         # * 3) Find monitoring obj and the time at which the critical constraint starts
         critical_constraint_start_time = 0.0
         critical_constraint_start_sub_objs = None
-        for ce in curr_state.completed_subtasks:
+        for ce in curr_state.completed_entries:
             if ce.subtask.name == critical_start_sub_name:
-                critical_constraint_start_time = ce.end_time
+                critical_constraint_start_time = ce.sim_end_time
                 critical_constraint_start_sub_objs = ce.subtask.execution.objects
                 break
         expected_monitoring_start_timing = critical_constraint_start_time + cutoff
@@ -509,12 +520,16 @@ class Scheduler:
         last_action_info = self.action_handler.get_actions_info(
             curr_node, candidate.subtask.execution.primitive_actions
         )
-        exec_time = last_action_info.time_used
+        exec_time = last_action_info.cumulative_time
 
         if expected_monitoring_start_timing > curr_state.current_time + exec_time:
             log.debug(
                 f"[_expand_subtask_with_monitoring] Entire subtask ends before monitoring cutoff => No split needed."
             )
+            log.debug(
+                f"expected_monitoring_start_timing: {expected_monitoring_start_timing}, curr_state.current_time + exec_time: {curr_state.current_time + exec_time}"
+            )
+            log.debug(f"deadline_sub_name: {deadline_sub_name}")
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
         # ! ------------------- Proceed with actual splitting -------------------
@@ -531,24 +546,23 @@ class Scheduler:
             )
         )
 
-        if not post_actions_info:
+        if len(post_actions_info.get_actions()) == 0:
             log.warning(
-                f"[_expand_subtask_with_monitoring] Entire pre subtask ends before monitoring cutoff => No split needed."
+                "[_expand_subtask_with_monitoring] Entire pre subtask ends before monitoring cutoff => No split needed."
             )
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
         early_sub = copy.deepcopy(candidate.subtask)
         early_sub.name += "_early"
         early_sub.execution.primitive_actions = pre_actions_info.get_actions()
-        early_sub.duration.interval = pre_actions_info.results[-1].time_used
+        early_sub.duration.interval = pre_actions_info.results[-1].cumulative_time
         early_sub.decomposed = True
-
-        if early_sub.name.startswith("Wash Fork_early"):
-            pass
 
         remain_sub = copy.deepcopy(candidate.subtask)
         remain_sub.name += "_remain"
-        remain_sub.execution.primitive_actions = post_actions_info.get_actions()
-        remain_sub.duration.interval = post_actions_info.results[-1].time_used
+        remain_sub.execution.primitive_actions = [
+            f"NAVIGATE_TO {post_actions_info.get_actions()[0].split()[1]}"
+        ] + post_actions_info.get_actions()
+        remain_sub.duration.interval = post_actions_info.results[-1].cumulative_time
         remain_sub.decomposed = True
 
         monitoring_target_obj = list(critical_constraint_start_sub_objs.keys())[-1]
@@ -566,9 +580,9 @@ class Scheduler:
         end_time = start_time + early_sub.duration.interval
 
         if deadline_due < end_time:
-            log.debug(
+            log.warning(
                 f"[_expand_subtask_with_monitoring] Deadline {deadline_due} < "
-                f"earliest_finish_time {end_time}"
+                f"Early_sub end_time {end_time}"
                 f"=> Infeasible.\n"
             )
             return None
@@ -576,7 +590,7 @@ class Scheduler:
         # * (C) Update the state with the new subtasks
         old_name = candidate.subtask.name
         completed_entry = CompletedEntry(early_sub, start_time, end_time)
-        new_completed = curr_state.completed_subtasks + [completed_entry]
+        new_completed = curr_state.completed_entries + [completed_entry]
         new_held_obj = pre_actions_info.results[-1].held_object
         new_scene_positions = pre_actions_info.results[-1].scene_positions
         new_remain = [r for r in curr_state.remaining_subtasks if r.name != old_name]
@@ -648,7 +662,7 @@ class Scheduler:
 
         new_state = SchedulerState(
             subtask=early_sub,
-            completed_subtasks=new_completed,
+            completed_entries=new_completed,
             remaining_subtasks=new_remain,
             constraints=new_constraints,
             current_time=end_time,
@@ -662,7 +676,7 @@ class Scheduler:
         log.info(
             f"[_expand_subtask_with_monitoring] Subtask {candidate.subtask.name} => early_sub: {early_sub.name}\n"
             f"  -> Score={round(new_cost, 2)}, "
-            f"Interval={round(completed_entry.start_time,2)}~{round(completed_entry.end_time,2)}\n"
+            f"Interval={round(completed_entry.sim_start_time,2)}~{round(completed_entry.sim_end_time,2)}\n"
             f"  -> Updated remain={[r.name for r in new_remain]}\n"
         )
         return SimulationNode(
@@ -726,7 +740,7 @@ class Scheduler:
 
         nav_action = [f"NAVIGATE_TO {target_obj} {partial_nav_time}"]
         nav_action_info = self.action_handler.get_actions_info(curr_node, nav_action)
-        nav_time = nav_action_info.time_used
+        nav_time = nav_action_info.cumulative_time
         new_scene_positions = nav_action_info.scene_positions
         new_held_obj = nav_action_info.held_object
 
@@ -735,7 +749,7 @@ class Scheduler:
             name=f"Navigate to {target_obj} during {partial_nav_time}",
             duration=Duration(interval=nav_time, type="Controllable"),
             repetition=1,
-            type="Interaction",
+            subtask_type="Interaction",
             execution=Execution(objects=None, primitive_actions=nav_action),
             temporal_constraints=None,
         )
@@ -751,7 +765,7 @@ class Scheduler:
         end_time = start_time + nav_time
 
         completed_entry = CompletedEntry(navigate_sub, start_time, end_time)
-        new_completed = curr_state.completed_subtasks + [completed_entry]
+        new_completed = curr_state.completed_entries + [completed_entry]
 
         # ! ------------------- Constraints Update -------------------
         new_constraints = copy.deepcopy(curr_state.constraints)
@@ -775,7 +789,7 @@ class Scheduler:
         # Agent position/state 변경은 거의 없음(Wait)
         new_state = SchedulerState(
             subtask=navigate_sub,
-            completed_subtasks=new_completed,
+            completed_entries=new_completed,
             remaining_subtasks=new_remain,
             constraints=new_constraints,
             current_time=end_time,
@@ -828,7 +842,7 @@ class Scheduler:
             name=f"Wait for {candidate.subtask.name}",
             duration=Duration(interval=total_wait_duration, type="Controllable"),
             repetition=1,
-            type="Wait",
+            subtask_type="Wait",
             execution=Execution(
                 objects=None, primitive_actions=[f"WAIT {total_wait_duration}"]
             ),
@@ -839,11 +853,11 @@ class Scheduler:
         end_time = curr_state.current_time + total_wait_duration
 
         completed_entry = CompletedEntry(wait_sub, start_time, end_time)
-        new_completed = curr_state.completed_subtasks + [completed_entry]
+        new_completed = curr_state.completed_entries + [completed_entry]
 
         new_state = SchedulerState(
             subtask=wait_sub,
-            completed_subtasks=new_completed,
+            completed_entries=new_completed,
             remaining_subtasks=curr_state.remaining_subtasks,
             constraints=curr_state.constraints,
             current_time=end_time,

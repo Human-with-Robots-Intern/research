@@ -14,11 +14,12 @@ from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
 # 내부 프로젝트 모듈
 from utils.common import create_module_logger
 from utils.config.constants import (
-    KNOWLEDGE_PATH,
+    ESTIMATE_FILE_NAME,
+    GROUND_TRUTH_FILE_NAME,
     MONITORING_DURATION,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
-    
+    SCENE_KNOWLEDGE_PATH,
 )
 from utils.nlp.sentence_transformer import SentenceSimilarityModel
 
@@ -51,12 +52,19 @@ class TaskUtil:
             json.dump(data, f, indent=4)
 
     @staticmethod
-    def _load_object_ids(scene_name: str) -> Dict[str, List[str]]:
+    def _load_object_ids(scene_file_name: str) -> Dict[str, List[str]]:
         """
-        FloorPlan1_physics_environment.json 파일에서 object ID 정보를 로드한다.
+        scene_name_physics.json  파일에서 object ID 정보를 로드한다.
         """
-        file_path = KNOWLEDGE_PATH / f"{scene_name}_physics_environment.json"
-        return TaskUtil._load_json_file(file_path)
+        room_type_dirs = list(SCENE_KNOWLEDGE_PATH.glob("*"))
+        for room_type_dir in room_type_dirs:
+            file_path = room_type_dir / "environment" / f"{scene_file_name}"
+            if file_path.exists():
+                return TaskUtil._load_json_file(file_path)
+        # If the loop completes without finding the file, raise an error.
+        raise FileNotFoundError(
+            f"Physics file for scene '{scene_file_name}' not found in any subdirectories of {file_path}"
+        )
 
     @staticmethod
     def tasks_to_subtasks(
@@ -160,28 +168,19 @@ class TaskUtil:
         return tasks
 
     @classmethod
-    def check_obj_id(cls, tasks: List[Task], scene_name: str) -> List[Task]:
+    def check_obj_id(cls, scene_name: str, tasks: List[Task]) -> List[Task]:
         """
         Subtask의 primitive_actions에 사용된 obj_id가 유효한지 확인 후,
         유효하지 않다면 문장 유사도 기반으로 가장 가까운 후보로 교체한다.
         """
         # 1) scene에서 사용 가능한 모든 object ID 로드
         object_ids_map = cls._load_object_ids(scene_name)
+        object_ids_map = cls._load_object_ids(scene_name)
         # 모든 object id를 flatten
         all_object_ids = {
             obj for category in object_ids_map for obj in object_ids_map[category]
         }
         all_object_ids = list(all_object_ids)
-
-        def find_most_similar_object(target: str, candidates: List[str]) -> str:
-            if not candidates:
-                return target
-            sim_scores = [
-                cls._sentence_sim_model.compute_cosine_similarity(target, candidate)
-                for candidate in candidates
-            ]
-            idx, _ = max(enumerate(sim_scores), key=lambda x: x[1])
-            return candidates[idx]
 
         def transform_action(action: str) -> str:
             parts = action.split(" ", 1)
@@ -199,7 +198,9 @@ class TaskUtil:
 
             # 후보에 없으면 유사도 가장 높은 후보로 교체
             if target_obj not in candidates:
-                matched = find_most_similar_object(target_obj, candidates)
+                matched = cls._sentence_sim_model.get_similar_ref(
+                    target_obj, candidates
+                )
                 return f"{base_action} {matched}"
             else:
                 return action
@@ -232,15 +233,8 @@ class TaskUtil:
         if not bayesian_keys:
             return
 
-        sim_scores = [
-            cls._sentence_sim_model.compute_cosine_similarity(subtask.name, key)
-            for key in bayesian_keys
-        ]
-        idx, best_score = max(enumerate(sim_scores), key=lambda x: x[1])
-        similar_subtask = (
-            bayesian_keys[idx].lower()
-            if best_score >= similarity_threshold
-            else subtask.name.lower()
+        similar_subtask = cls._sentence_sim_model.get_similar_ref(
+            subtask.name, bayesian_keys
         )
 
         # bayesian_load 갱신
@@ -263,8 +257,8 @@ class TaskUtil:
     def build_tasks_and_constraints(
         cls,
         task_data: dict,
-        enable_decomposition: bool,
-        scene_name: str,
+        scene_file_name: str,
+        enable_decomposition: bool = True,
     ) -> Tuple[List[Subtask], DiGraph]:
         """
         1) JSON 형태의 raw task_data를 Task로 파싱
@@ -280,14 +274,14 @@ class TaskUtil:
         :return: (최종 Subtask 리스트, TaskGraph 객체)
         """
         # 1) bayesian/groundtruth 정보 로드
-        bayesian_load = cls._load_json_file(KNOWLEDGE_PATH / "bayesian_estimate.json")
+        bayesian_load = cls._load_json_file(SCENE_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME)
         ground_truth_load = cls._load_json_file(
-            KNOWLEDGE_PATH / "bayesian_ground_truth.json"
+            SCENE_KNOWLEDGE_PATH / GROUND_TRUTH_FILE_NAME
         )
 
         # 2) Task 파싱, Object ID/액션 보정
         tasks = Task.parse_instruction(task_data)
-        tasks = cls.check_obj_id(tasks, scene_name)
+        tasks = cls.check_obj_id(scene_file_name, tasks)
         tasks = cls.refine_primitive_actions(tasks)
 
         # 3) enable_decomposition 옵션 처리
@@ -307,9 +301,11 @@ class TaskUtil:
                     )
 
         # 5) 변경 사항 저장
-        cls._save_json_file(KNOWLEDGE_PATH / "bayesian_estimate.json", bayesian_load)
         cls._save_json_file(
-            KNOWLEDGE_PATH / "bayesian_ground_truth.json", ground_truth_load
+            SCENE_KNOWLEDGE_PATH / "bayesian_estimate.json", bayesian_load
+        )
+        cls._save_json_file(
+            SCENE_KNOWLEDGE_PATH / "bayesian_ground_truth.json", ground_truth_load
         )
 
         # 6) 액션 정제(재적용) + duration 조정
@@ -337,19 +333,17 @@ class TaskUtil:
             name="Init",
             duration=Duration(interval=0, type="Init"),
             repetition=1,
-            type="Init",
+            subtask_type="Init",
             execution=Execution(objects=[], primitive_actions=None),
             temporal_constraints=None,
         )
         init_completed = CompletedEntry(
             subtask=init_subtask,
-            start_time=0.0,
-            end_time=0.0,
         )
 
         init_state = SchedulerState(
             subtask=init_subtask,
-            completed_subtasks=[init_completed],
+            completed_entries=[init_completed],
             remaining_subtasks=subtasks,
             constraints=constraints,
             current_time=0,
@@ -369,7 +363,7 @@ class TaskUtil:
             name=f"Monitoring for {name}_{uuid.uuid4().hex[:8]}",
             duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
             repetition=1,
-            type="Monitor",
+            subtask_type="Monitor",
             execution=Execution(objects=[], primitive_actions=monitoring_action),
             temporal_constraints=None,
             decomposed=True,

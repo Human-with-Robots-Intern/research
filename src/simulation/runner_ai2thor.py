@@ -16,24 +16,24 @@ Example usage:
 from ai2thor.controller import Controller
 
 # Action handler import
+from core.task import Subtask
 from ithor.handlers.action import Action
+from utils.common.logger import create_module_logger
+
+# Constants (unify your constants in one place)
+from utils.config.constants import (
+    DEFAULT_SCENE_NAME,
+    GRID_SIZE,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 
 # # Logging utility
 # from src.utils.common.logger import create_module_logger
 
-# Constants (unify your constants in one place)
-from src.utils.config.constants import (
-    GRID_SIZE,
-
-    SCREEN_HEIGHT,
-    SCREEN_WIDTH,
-)
-from utils.common.logger import create_module_logger
-
-
 
 def init_ai2thor_controller(
-    scene: str = "FloorPlan1",
+    scene: str = DEFAULT_SCENE_NAME,
     platform=None,
     agent_mode: str = "default",
     mass_threshold: float = 0.04,
@@ -84,7 +84,9 @@ def init_ai2thor_controller(
     return controller
 
 
-def execute_subtask(controller: Controller, subtask, log_level) -> tuple[float, bool]:
+def execute_subtask(
+    controller: Controller, subtask: Subtask, log_level: str
+) -> tuple[float, bool]:
     """
     Executes a given subtask using the provided AI2-THOR controller.
 
@@ -102,7 +104,7 @@ def execute_subtask(controller: Controller, subtask, log_level) -> tuple[float, 
         ValueError: If an invalid action format is encountered in the primitive actions.
     """
     log = create_module_logger(module_name=__name__, module_log=True, level=log_level)
-    
+
     act = Action(controller)
 
     # If the subtask is just for initialization, skip
@@ -151,7 +153,7 @@ def execute_subtask(controller: Controller, subtask, log_level) -> tuple[float, 
     }
 
     elapsed_time = 0.0
-    is_subtask_success = True
+    is_execution_success = True
 
     # Execute each primitive action in sequence
     for action_str in primitive_actions:
@@ -170,9 +172,9 @@ def execute_subtask(controller: Controller, subtask, log_level) -> tuple[float, 
         # Check success of the last action
         success = controller.last_event.metadata.get("lastActionSuccess", "N/A")
         if success is False:
-            is_subtask_success = False
+            is_execution_success = False
 
     log.info(
         f"Subtask '{subtask.name}' completed. Elapsed time: {round(elapsed_time, 2)}"
     )
-    return elapsed_time, is_subtask_success
+    return elapsed_time, is_execution_success

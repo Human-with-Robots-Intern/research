@@ -26,7 +26,7 @@ def get_critical_start_info(
 
     # completed_subtasks에서 critical_start_sub_name의 end_time 찾기
     critical_start_sub_end_time = next(
-        (ce.end_time for ce in completed if ce.subtask.name == critical_start_sub_name),
+        (ce.sim_end_time for ce in completed if ce.subtask.name == critical_start_sub_name),
         None,
     )
     if critical_start_sub_end_time is None:

@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from utils.common import create_module_logger
 from utils.config.constants import (
     ENV_PLACEHOLDER,
-    KNOWLEDGE_PATH,
+    SCENE_KNOWLEDGE_PATH,
     PROMPT_FILE_PATH,
     PROMPT_PATH,
     TASK_PATH,
@@ -115,7 +115,7 @@ class TaskGenerator:
         environment_info_str = ""
 
         try:
-            env_file_path = Path(KNOWLEDGE_PATH) / scene_type/ "environment" / f"{scene_name}_physics_environment.json"
+            env_file_path = Path(SCENE_KNOWLEDGE_PATH) / scene_type/ "environment" / f"{scene_name}_physics_environment.json"
             env_data = self.load_file(env_file_path, "json")
 
             # 전체 환경 데이터를 JSON 문자열로 변환
@@ -144,7 +144,7 @@ class TaskGenerator:
 
 
         # Knowledge Base 로드
-        # knowledge = self.load_file(Path(KNOWLEDGE_PATH) / ESTIMATE_FILE_NAME, "json")
+        # knowledge = self.load_file(Path(SCENE_KNOWLEDGE_PATH) / ESTIMATE_FILE_NAME, "json")
 
         # 최종 OpenAI 프롬프트
         full_prompt = [

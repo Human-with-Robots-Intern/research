@@ -6,7 +6,14 @@ ASSETS_PATH = ROOT_PATH / "assets"
 SRC_PATH = ROOT_PATH / "src"
 LOG_PATH = ROOT_PATH / "logs"
 
-KNOWLEDGE_PATH = ASSETS_PATH / "knowledge"
+AGENT_KNOWLEDGE_PATH = ASSETS_PATH / "agent_knowledge"
+SCENE_KNOWLEDGE_PATH = ASSETS_PATH / "scene_knowledge"
+BATHROOM_PATH = SCENE_KNOWLEDGE_PATH / "bathroom"
+BEDROOM_PATH = SCENE_KNOWLEDGE_PATH / "bedroom"
+KITCHEN_PATH = SCENE_KNOWLEDGE_PATH / "kitchen"
+LIVING_ROOM_PATH = SCENE_KNOWLEDGE_PATH / "living_room"
+BAYESIAN_PATH = SCENE_KNOWLEDGE_PATH / "bayesian"
+
 PROMPT_PATH = ASSETS_PATH / "prompts"
 TASK_PATH = ASSETS_PATH / "tasks"
 RESULT_PATH = ASSETS_PATH / "results"
@@ -18,6 +25,8 @@ ESTIMATE_FILE_NAME = "bayesian_estimate.json"
 GROUND_TRUTH_FILE_NAME = "bayesian_ground_truth.json"
 
 # ========== 시뮬레이션 관련 ==========
+DEFAULT_SCENE_NAME = "FloorPlan1"
+ROOM_TYPE = ["bathroom", "bedroom", "kitchen", "living_room"]
 PRIMITIVE_ACTION_SET = {
     "NAVIGATE_TO",
     "GRASP",
@@ -32,19 +41,41 @@ PRIMITIVE_ACTION_SET = {
     "WAIT",
     "FILL",
 }
+STATIC_ACTION_SET = {
+    "GRASP",
+    "PLACE_INSIDE",
+    "PLACE_ON_TOP",
+    "OPEN",
+    "CLOSE",
+    "TOGGLE_ON",
+    "TOGGLE_OFF",
+    "SLICE",
+    "FILL",
+}
+DYNAMIC_ACTION_SET = {
+    "NAVIGATE_TO",
+    "WAIT",
+    "MONITORING",
+}
 PRIMITIVE_ACTION_DURATION = 1.0
 MONITORING_DURATION = 0.1
 NAV_STEP_DURATION = 0.1
+REACHABLE_DISTANCE_THRESHOLD = 1.5
+ALPHA_HEURISTIC = 1.0
+BETA_HEURISTIC = 1.0
+GAMMA_HEURISTIC = 1.0
 # ========== 베이지안 ==========
+BAYESIAN_CRITERIA = 0.7
 INIT_PRIOR_MEAN = 10.0
-INIT_PRIOR_VARIANCE = 10.0
+INIT_PRIOR_VARIANCE = 100.0
 FACTOR_ALPHA = 1.0
+SIMILARITY_THRESHOLD = 0.7
+MIN_VARIANCE = 1e-6
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 3
-BEAM_WIDTH = 3
+SIMULATION_DEPTH = 1
+BEAM_WIDTH = 1
 EPSILON = 1e-1
 LARGE_NUMBER = 1e2
-BAYESIAN_CRITERIA = 0.7
 TOP_K = 1
 
 # ========== ANSI 로그 색상 ==========
@@ -61,7 +92,7 @@ RESET = "\x1b[0m"
 # ========== AI2-THOR 환경 상수 ==========
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-# SCENE_NAME = "FloorPlan1" 이제 변수로 받아온다.
+
 GRID_SIZE = 0.125
 SMOOTH_LEVEL = 30
 

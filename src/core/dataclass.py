@@ -1,103 +1,12 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import List, NamedTuple, Optional, Tuple
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple
 
 from networkx import DiGraph
 
-from core.task import Subtask
-
-
-@dataclass
-class ActionResult:
-    action_full_name: str
-    action_type: str
-    time_used: float  # 누적 시간 (이 액션이 종료된 시점)
-    action_duration: float  # 이 액션에 걸린 소요 시간
-    scene_positions: dict[str, Tuple[float, float, float]]
-    held_object: Optional[str] = None
-
-    def __repr__(self):
-        return f"({self.action_full_name}, {self.action_type}, {self.time_used}, {self.action_duration}, {self.held_object})"
-
-
-@dataclass
-class ActionSimulationLog:
-    results: list[ActionResult] = field(default_factory=list)
-
-    def add_result(
-        self,
-        action_full_name: str,
-        action_type: str,
-        time_used: float,
-        action_duration: float,
-        scene_positions: dict[str, Tuple[float, float, float]],
-        held_object: Optional[str] = None,
-    ):
-        self.results.append(
-            ActionResult(
-                action_full_name=action_full_name,
-                action_type=action_type,
-                time_used=time_used,
-                action_duration=action_duration,
-                scene_positions=scene_positions,
-                held_object=held_object,
-            )
-        )
-
-    def total_navigate_duration(self) -> float:
-        """
-        action_type이 'NAVIGATE_TO'인 액션들만 골라서 action_duration의 합을 구한다.
-        """
-        total = 0.0
-        for result in self.results:
-            if result.action_type.upper() == "NAVIGATE_TO":
-                total += result.action_duration
-        return total
-
-    def total_time_used(self) -> float:
-        """
-        전체 액션 중 가장 마지막 액션의 time_used(누적 시간)를 반환.
-        없으면 0.0을 반환.
-        """
-        if not self.results:
-            return 0.0
-        # 마지막 ActionResult의 time_used가 전체 시뮬레이션 누적 시간
-        return self.results[-1].time_used
-
-    def filter_by_action_type(self, action_type: str) -> list[ActionResult]:
-        """
-        특정 action_type(대소문자 무관)에 해당하는 모든 ActionResult를 리스트로 반환.
-        """
-        atype_upper = action_type.upper()
-        return [res for res in self.results if res.action_type.upper() == atype_upper]
-
-    def count_actions(self, action_type: Optional[str] = None) -> int:
-        """
-        특정 action_type에 해당하는 액션의 개수를 세거나,
-        action_type이 None이면 전체 액션 개수를 반환한다.
-        """
-        if action_type is None:
-            return len(self.results)
-        atype_upper = action_type.upper()
-        return sum(1 for res in self.results if res.action_type.upper() == atype_upper)
-
-    def get_actions(self) -> List[str]:
-        """
-        모든 액션 이름을 리스트로 반환한다.
-        """
-        return [res.action_full_name for res in self.results]
-
-
-class CompletedEntry(NamedTuple):
-    """
-    완료된 Subtask에 대해, (Subtask, start_time, end_time)을 함께 저장
-    """
-
-    subtask: Subtask
-    start_time: float
-    end_time: float
-
-    def __repr__(self):
-        return f"({self.subtask.name}, {self.start_time} ~ {self.end_time})"
+if TYPE_CHECKING:
+    from src.core.task import Subtask
 
 
 class SchedulerState(NamedTuple):
@@ -108,7 +17,7 @@ class SchedulerState(NamedTuple):
     # 현재 subtask
     subtask: Subtask
     # 수행된 subtask들 (현재 subtask 포함)
-    completed_subtasks: List[CompletedEntry]
+    completed_entries: List["CompletedEntry"]
     # 남은 subtask들
     remaining_subtasks: List[Subtask]
     # 현재 constraint
@@ -155,8 +64,7 @@ class TimeSlot(NamedTuple):
         return f"({self.interval}, {self.is_critical}, {self.related_subtask_name},)"
 
 
-@dataclass
-class Deadline:
+class Deadline(NamedTuple):
     """
     Subtask의 데드라인을 저장하는 NamedTuple
     """
@@ -171,6 +79,112 @@ class Deadline:
 
 
 @dataclass
+class ActionResult:
+    action_full_name: str
+    action_type: str
+    cumulative_time: float  # 누적 시간 (이 액션이 종료된 시점)
+    action_duration: float  # 이 액션에 걸린 소요 시간
+    scene_positions: dict[str, Tuple[float, float, float]]
+    held_object: Optional[str] = None
+    success: bool = False
+
+    def __repr__(self):
+        return f"({self.action_full_name}, {self.action_type}, {self.cumulative_time}, {self.action_duration}, {self.held_object})"
+
+
+@dataclass
+class ActionSimulationLog:
+    results: list[ActionResult] = field(default_factory=list)
+
+    def add_result(
+        self,
+        action_full_name: str,
+        action_type: str,
+        cumulative_time: float,
+        action_duration: float,
+        scene_positions: dict[str, Tuple[float, float, float]],
+        held_object: Optional[str] = None,
+        success: bool = False,
+    ):
+        self.results.append(
+            ActionResult(
+                action_full_name=action_full_name,
+                action_type=action_type,
+                cumulative_time=cumulative_time,
+                action_duration=action_duration,
+                scene_positions=scene_positions,
+                held_object=held_object,
+                success=success,
+            )
+        )
+
+    def total_navigate_duration(self) -> float:
+        """
+        action_type이 'NAVIGATE_TO'인 액션들만 골라서 action_duration의 합을 구한다.
+        """
+        total = 0.0
+        for result in self.results:
+            if result.action_type.upper() == "NAVIGATE_TO":
+                total += result.action_duration
+        return total
+
+    def total_time_used(self) -> float:
+        """
+        전체 액션 중 가장 마지막 액션의 time_used(누적 시간)를 반환.
+        없으면 0.0을 반환.
+        """
+        if not self.results:
+            return 0.0
+        # 마지막 ActionResult의 time_used가 전체 시뮬레이션 누적 시간
+        return self.results[-1].cumulative_time
+
+    def filter_by_action_type(self, action_type: str) -> list[ActionResult]:
+        """
+        특정 action_type(대소문자 무관)에 해당하는 모든 ActionResult를 리스트로 반환.
+        """
+        action_type_upper = action_type.upper()
+        return [
+            res for res in self.results if res.action_type.upper() == action_type_upper
+        ]
+
+    def count_actions(self, action_type: Optional[str] = None) -> int:
+        """
+        특정 action_type에 해당하는 액션의 개수를 세거나,
+        action_type이 None이면 전체 액션 개수를 반환한다.
+        """
+        if action_type is None:
+            return len(self.results)
+        action_type_upper = action_type.upper()
+        return sum(
+            1 for res in self.results if res.action_type.upper() == action_type_upper
+        )
+
+    def get_actions(self) -> List[str]:
+        """
+        모든 액션 이름을 리스트로 반환한다.
+        """
+        return [res.action_full_name for res in self.results]
+
+
+@dataclass
+class CompletedEntry:
+    """
+    완료된 Subtask에 대해, (Subtask, schedule_start_time, schedule_end_time, sim_start_time, sim_end_time, execution_status)을 함께 저장
+    스케쥴러 상에서 완료된 시간, 시뮬레이션 상에서 완료된 시간, 시뮬레이션 실행 상태를 함께 저장
+    """
+
+    subtask: Subtask
+    schedule_start_time: float = float("inf")
+    schedule_end_time: float = float("inf")
+    sim_start_time: float = float("inf")
+    sim_end_time: float = float("inf")
+    execution_status: bool = False
+
+    def __repr__(self):
+        return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time}, {self.sim_start_time} ~ {self.sim_end_time}, {self.execution_status})"
+
+
+@dataclass
 class Candidate:
     """
     Subtask의 실행 가능 여부를 판단하기 위한 NamedTuple
@@ -182,7 +196,7 @@ class Candidate:
     # subtask의 시작 시간
     earliest_start_time: float
     # 고려할 데드라인
-    deadline: Deadline = (None, None)
+    deadline: Deadline = Deadline(due_date=float("inf"), subtask_name=None)
 
     def __repr__(self):
         return f"({self.subtask.name}; duration : {self.subtask.duration.interval}, earliest_start_time = {self.earliest_start_time}, deadline = {self.deadline}, is_critical = {self.is_critical})"

@@ -3,6 +3,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 from utils.common import create_module_logger
+from utils.config.constants import SIMILARITY_THRESHOLD
 
 log = create_module_logger(__name__, module_log=True)
 
@@ -10,7 +11,7 @@ log = create_module_logger(__name__, module_log=True)
 class SentenceSimilarityModel:
     _instance = None
 
-    def __init__(self, model_name="sentence-transformers/all-MiniLM-L6-v2"):
+    def __init__(self, model_name="all-MiniLM-L6-v2"):
         if SentenceSimilarityModel._instance is not None:
             raise RuntimeError("싱글톤 클래스이므로, get_instance()를 사용하세요.")
 
@@ -30,27 +31,29 @@ class SentenceSimilarityModel:
     def encode_sentences(self, sentences: list[str]) -> np.ndarray:
         return self.model.encode(sentences, convert_to_numpy=True)
 
-    def compute_cosine_similarity(self, query_str: str, target_str: str) -> float:
-        origin_vec = self.model.encode([query_str])[0]
-        target_vec = self.model.encode([target_str])[0]
-        return float(
-            np.dot(origin_vec, target_vec)
-            / (np.linalg.norm(origin_vec) * np.linalg.norm(target_vec))
-        )
-
-    def compute_batch_cosine_similarity(
-        self, query_vec: np.ndarray, ref_vecs: np.ndarray
-    ) -> np.ndarray:
-        """
-        Compute cosine similarity between a single query vector and a batch of reference vectors.
+    def get_similar_ref(self, query: str, references: list[str]) -> str:
+        """references 중에서 query와 유사한 문장을 반환한다.
+        유사도 점수가 SIMILARITY_THRESHOLD보다 큰 경우 가장 유사한 문장을 반환하고,
+        그렇지 않으면 원본 query를 반환한다.
 
         Args:
-            query_vec (np.ndarray): shape (embedding_dim,)
-            ref_vecs (np.ndarray): shape (n_refs, embedding_dim)
+            query (str): 찾고자 하는 문장
+            references (list[str]): 비교 대상 문장들
 
         Returns:
-            np.ndarray: shape (n_refs,), cosine similarities
+            str: 가장 유사한 문장 또는 원본 query
         """
+        if not references:  # references가 비어있는 경우 query 반환
+            return query
+
+        query_vec = self.encode_sentence(query)
+        ref_vecs = self.encode_sentences(references)
+
         query_norm = query_vec / np.linalg.norm(query_vec)
         ref_norms = ref_vecs / np.linalg.norm(ref_vecs, axis=1, keepdims=True)
-        return np.dot(ref_norms, query_norm)
+        cosine_similarities = np.dot(ref_norms, query_norm)
+
+        max_idx = np.argmax(cosine_similarities)
+        max_score = cosine_similarities[max_idx]
+
+        return references[max_idx] if max_score > SIMILARITY_THRESHOLD else query

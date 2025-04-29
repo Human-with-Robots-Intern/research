@@ -1,0 +1,38 @@
+{
+    "prepare egg fry": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "turn off stove after cooking": {
+        "expected_duration": 10.01063915894128,
+        "variance": 0.9367894226223128
+    },
+    "prepare potato": {
+        "expected_duration": 100.0,
+        "variance": 1.0
+    },
+    "turn off stove after cooking potato": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "retrieve potato from microwave and place on plate": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "retrieve potato from microwave": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "turn off stove after boiling potato": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "turn off stove after cooking egg fry": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    },
+    "turn off stove after boiling": {
+        "expected_duration": 10.0,
+        "variance": 1.0
+    }
+}
