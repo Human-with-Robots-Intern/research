@@ -130,6 +130,7 @@ def result_save(
     scene_name: str,
     constraints: DiGraph,
     log_level: str = "INFO",
+
 ):
     global log
     log = create_module_logger(__name__, module_log=True, level=log_level)
@@ -159,14 +160,16 @@ def result_save(
     num = 1
     while True:
         output_path = RESULT_PATH / f"{task_name}_{num}" / scene_name 
-        file_path = output_path /"approach"/ f"{approach_name}.json"
+        approach_path = output_path /"approach"
+        file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():
             break
         num += 1
     # Create directory if it doesn't exist
     output_path.mkdir(parents=True, exist_ok=True)
+    approach_path.mkdir(parents=True, exist_ok=True)
     
-    visualize(approach_name, output_path, constraints, plans)
+    visualize(approach_name, output_path, constraints, result_schedule)
     with file_path.open("w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=4)
 
