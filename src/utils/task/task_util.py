@@ -1,15 +1,17 @@
 # utils/task/task_util.py
+from __future__ import annotations
 
 import json
 import uuid
 from pathlib import Path
-from typing import Dict, List, Literal, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Literal, Tuple, Union
 
 from dotenv import load_dotenv
 from networkx import DiGraph
 
-from core.dataclass import CompletedEntry, SchedulerState
-from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
+if TYPE_CHECKING:
+    from src.core.dataclass import CompletedEntry, SchedulerState
+    from src.core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
 
 # 내부 프로젝트 모듈
 from utils.common import create_module_logger

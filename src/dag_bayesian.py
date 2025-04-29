@@ -16,7 +16,6 @@ from utils.io_utils import (
 )
 from utils.io_utils.task_io import get_user_scene_choice
 from utils.task import TaskUtil
-from utils.visualizers import visualize
 
 log = create_module_logger(__name__, module_log=True)
 
@@ -70,7 +69,7 @@ def main():
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
         task_data, scene_data.file_name
     )
-    visualize(approach_name, input_natural_language, constraints)
+
     # Initialize the agent and scheduler
     action_handler = ActionHandler(nav_graph or {})
     constraint_handler = ConstraintHandler(action_handler)
@@ -135,13 +134,6 @@ def main():
         ce.end_time_scheduled = round(ce.sim_end_time, LOG_ROUND)
         result_schedule.append(ce)
 
-    visualize(
-        approach_name,
-        input_natural_language,
-        current_state.constraints,
-        plan=result_schedule,
-    )
-
     approach_name = f"{approach_name}_simulation"
     result_args = {
         "task_name": input_natural_language,
@@ -152,7 +144,7 @@ def main():
         "constraints": constraints,
         # "simulationTime": total_sim_time,
     }
-    log.info(f"result_args: {result_args}")
+
     result_save(**result_args)
 
 
