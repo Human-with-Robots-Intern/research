@@ -5,9 +5,11 @@ import math  # For inf comparison
 from queue import PriorityQueue
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
+import networkx as nx  # Import networkx
 import pytest
 
 # 필요한 데이터 클래스 및 핸들러 임포트
+from src.core.dataclass import CompletedEntry  # Added CompletedEntry
 from src.core.dataclass import Deadline  # Deadline 추가
 from src.core.dataclass import (  # src 경로 사용
     ActionResult,
@@ -37,6 +39,7 @@ def mock_action_handler():
         "target": (1, 0, 0),
     }  # 샘플 위치 추가
     mock_action_result.held_object = None
+    mock_action_result.success = True
     mock.get_actions_info.return_value = mock_action_result
     # split_subtask_by_cutoff_time 모킹 (필요시)
     mock.split_subtask_by_cutoff_time.return_value = (MagicMock(), MagicMock())
@@ -64,35 +67,56 @@ def mock_heuristic_manager():
 
 
 @pytest.fixture
-def sample_subtask(name="SampleSub", duration=5.0, actions=None, type="Interaction"):
-    # 간단한 모의 Subtask
-    sub = MagicMock(spec=Subtask)
-    sub.name = name
-    sub.subtask_type = type
-    # Execution 모의 객체 생성 및 할당
-    sub.execution = MagicMock(spec=Execution)
-    if actions is None:
-        sub.execution.primitive_actions = [f"ACTION {name}"]  # 기본 액션
-    else:
-        sub.execution.primitive_actions = actions
-    sub.duration = MagicMock(spec=Duration)
-    sub.duration.type = "Controllable"
-    sub.duration.interval = duration  # 예상 시간
-    sub.decomposed = False
-    # name 속성을 읽을 수 있도록 설정
-    type(sub).name = PropertyMock(return_value=name)
-    return sub
+def sample_subtask_factory():  # Changed to factory pattern
+    """Factory for creating Subtask mocks"""
+
+    def _create_subtask(
+        name="SampleSub",
+        duration=5.0,
+        actions=None,
+        type="Interaction",
+        decomposed=False,
+    ):
+        sub = MagicMock(spec=Subtask)
+        sub.name = name
+        sub.subtask_type = type
+        sub.execution = MagicMock(spec=Execution)
+        if actions is None:
+            sub.execution.primitive_actions = [f"ACTION {name}"]
+        else:
+            sub.execution.primitive_actions = actions
+        sub.duration = MagicMock(spec=Duration)
+        sub.duration.type = "Controllable"
+        sub.duration.interval = duration
+        sub.decomposed = decomposed
+        # Make attributes readable via PropertyMock
+        type(sub).name = PropertyMock(return_value=name)
+        type(sub).subtask_type = PropertyMock(return_value=type)
+        type(sub).execution = PropertyMock(return_value=sub.execution)
+        type(sub).duration = PropertyMock(return_value=sub.duration)
+        type(sub).decomposed = PropertyMock(return_value=decomposed)
+        return sub
+
+    return _create_subtask
 
 
 @pytest.fixture
-def sample_candidate():
+def sample_candidate_factory(sample_subtask_factory):  # Use subtask factory
+    """Factory for creating Candidate objects"""
+
     def _create_candidate(
-        subtask,
+        subtask_name="SampleSub",  # Use name to create subtask
+        duration=5.0,
+        actions=None,
+        type="Interaction",
         earliest_start=0.0,
         is_critical=False,
         deadline_time=float("inf"),
         deadline_reason=None,
     ):
+        subtask = sample_subtask_factory(
+            name=subtask_name, duration=duration, actions=actions, type=type
+        )  # Create subtask inside
         deadline = Deadline(due_date=deadline_time, subtask_name=deadline_reason)
         return Candidate(
             subtask=subtask,
@@ -105,17 +129,21 @@ def sample_candidate():
 
 
 @pytest.fixture
-def initial_scheduler_state(sample_subtask):
-    """초기 스케줄러 상태 fixture"""
-    sub1 = sample_subtask(name="TaskA", duration=5.0)
-    sub2 = sample_subtask(name="TaskB", duration=3.0)
+def initial_scheduler_state(sample_subtask_factory):  # Use subtask factory
+    """Initial scheduler state fixture"""
+    sub1 = sample_subtask_factory(name="TaskA", duration=5.0)
+    sub2 = sample_subtask_factory(name="TaskB", duration=3.0)
     # scene_positions에 서브태스크 이름과 매칭되는 키가 있어야 함 (ActionHandler 등에서 사용)
     init_positions = {"agent": (0, 0, 0), "TaskA": (1, 0, 0), "TaskB": (0, 1, 0)}
+    # Use nx.DiGraph() for constraints
+    constraints_graph = nx.DiGraph()
+    constraints_graph.add_node("TaskA")
+    constraints_graph.add_node("TaskB")
     return SchedulerState(
         subtask=None,
         completed_entries=[],
         remaining_subtasks=[sub1, sub2],
-        constraints=MagicMock(spec=dict),  # 모의 DiGraph (dict처럼 동작 가정)
+        constraints=constraints_graph,  # Use nx.DiGraph
         current_time=0.0,
         scene_positions=init_positions,
         held_object=None,
@@ -197,8 +225,7 @@ def test_simulate_search_handles_large_number_cost(
     mock_pq,
     scheduler_instance,
     initial_scheduler_state,
-    sample_subtask,
-    sample_candidate,
+    sample_candidate_factory,
 ):
     """휴리스틱 비용이 LARGE_NUMBER인 노드는 Beam Pruning에서 제외되는지 확인"""
     mock_expand.reset_mock()  # Mock 호출 횟수 초기화
@@ -211,7 +238,7 @@ def test_simulate_search_handles_large_number_cost(
     )
 
     # 확장 결과 모킹: 하나는 정상 비용, 하나는 LARGE_NUMBER
-    sub_a = sample_subtask("TaskA")
+    sub_a = sample_candidate_factory("TaskA")
     state_a = initial_scheduler_state  # 간단히 상태 재사용
     node_a_normal = SimulationNode(
         heuristic_cost=10.0,
@@ -241,8 +268,8 @@ def test_simulate_search_handles_large_number_cost(
     pq_instance.get.return_value = init_node  # 첫 get은 init_node
 
     # constraint_handler 모킹 (후보 반환)
-    cand_a = sample_candidate(sub_a)
-    cand_b = sample_candidate(sample_subtask("TaskB"))
+    cand_a = sample_candidate_factory("TaskA")
+    cand_b = sample_candidate_factory("TaskB")
     scheduler_instance.constraint_handler.get_feasible_candidates.return_value = (
         [cand_a, cand_b],
         [],
@@ -287,8 +314,7 @@ def test_simulate_search_reaches_depth(
     mock_pq,
     scheduler_instance,
     initial_scheduler_state,
-    sample_subtask,
-    sample_candidate,
+    sample_candidate_factory,
 ):
     """휴리스틱 비용이 LARGE_NUMBER인 노드는 Beam Pruning에서 제외되는지 확인"""
     mock_expand.reset_mock()  # Mock 호출 횟수 초기화
@@ -301,7 +327,7 @@ def test_simulate_search_reaches_depth(
     )
 
     # 확장 결과 모킹: 하나는 정상 비용, 하나는 LARGE_NUMBER
-    sub_a = sample_subtask("TaskA")
+    sub_a = sample_candidate_factory("TaskA")
     state_a = initial_scheduler_state  # 간단히 상태 재사용
     node_a_normal = SimulationNode(
         heuristic_cost=10.0,
@@ -331,8 +357,8 @@ def test_simulate_search_reaches_depth(
     pq_instance.get.return_value = init_node  # 첫 get은 init_node
 
     # constraint_handler 모킹 (후보 반환)
-    cand_a = sample_candidate(sub_a)
-    cand_b = sample_candidate(sample_subtask("TaskB"))
+    cand_a = sample_candidate_factory("TaskA")
+    cand_b = sample_candidate_factory("TaskB")
     scheduler_instance.constraint_handler.get_feasible_candidates.return_value = (
         [cand_a, cand_b],
         [],
@@ -377,16 +403,15 @@ def test_expand_candidates_feasible_only(
     mock_expand_wait,
     mock_expand_subtask,
     scheduler_instance,
-    sample_candidate,
-    sample_subtask,
+    sample_candidate_factory,
 ):
     """Feasible 후보만 있고 Wait 없는 경우 테스트"""
     # Create subtasks first
-    sub_a = sample_subtask("TaskA")
-    sub_b = sample_subtask("TaskB")
+    sub_a = sample_candidate_factory("TaskA")
+    sub_b = sample_candidate_factory("TaskB")
     # Create candidates using the factory and subtasks
-    cand_a = sample_candidate(sub_a)
-    cand_b = sample_candidate(sub_b)
+    cand_a = sample_candidate_factory("TaskA", earliest_start=0.0)
+    cand_b = sample_candidate_factory("TaskB", earliest_start=0.0)
     feasible = [cand_a, cand_b]  # adjusted_start_time 오름차순 정렬됨 가정
     not_yet = []
     mock_node = MagicMock(spec=SimulationNode)
@@ -417,12 +442,11 @@ def test_expand_candidates_wait_only(
     mock_expand_wait,
     mock_expand_subtask,
     scheduler_instance,
-    sample_candidate,
-    sample_subtask,
+    sample_candidate_factory,
 ):
     """Wait 후보만 있는 경우 테스트"""
-    cand_c = sample_candidate(sample_subtask("TaskC"), adjusted_start=5.0)
-    cand_d = sample_candidate(sample_subtask("TaskD"), adjusted_start=3.0)
+    cand_c = sample_candidate_factory("TaskC", earliest_start=5.0)
+    cand_d = sample_candidate_factory("TaskD", earliest_start=3.0)
     feasible = []
     not_yet = [cand_c, cand_d]  # 정렬되지 않은 상태
     mock_node = MagicMock(spec=SimulationNode)
@@ -448,13 +472,12 @@ def test_expand_candidates_immediate_critical_and_feasible(
     mock_expand_wait,
     mock_expand_subtask,
     scheduler_instance,
-    sample_candidate,
-    sample_subtask,
+    sample_candidate_factory,
 ):
     """즉시 실행 Critical Task와 다른 Feasible Task가 함께 있는 경우 테스트 (src 로직 변경 반영)"""
-    cand_a = sample_candidate(sample_subtask("TaskA"), adjusted_start=0.0)
-    cand_crit = sample_candidate(
-        sample_subtask("Critical"), is_critical=True, adjusted_start=0.0
+    cand_a = sample_candidate_factory("TaskA", earliest_start=0.0)
+    cand_crit = sample_candidate_factory(
+        "Critical", is_critical=True, earliest_start=0.0
     )
     # 정렬된 순서: cand_crit, cand_a (또는 반대, 여기선 순서 무관하게 둘 다 처리되는지 확인)
     feasible = [cand_crit, cand_a]
@@ -495,11 +518,10 @@ def test_expand_single_subtask_routing(
     mock_expand_w,
     mock_should,
     scheduler_instance,
-    sample_candidate,
-    sample_subtask,
+    sample_candidate_factory,
 ):
     """_should_expand_with_monitoring 결과에 따른 라우팅 테스트"""
-    candidate = sample_candidate(sample_subtask("Task"))
+    candidate = sample_candidate_factory("Task")
     mock_node = MagicMock()
 
     # Case 1: 모니터링 필요 없음
@@ -525,14 +547,14 @@ def test_expand_single_subtask_routing(
 
 
 # --- _extract_state 테스트 ---
-def test_extract_state(initial_scheduler_state, sample_subtask):
+def test_extract_state(initial_scheduler_state, sample_subtask_factory):
     """경로에서 depth=1 상태 추출 테스트"""
     # Create mock subtasks correctly
-    root_sub = sample_subtask(
+    root_sub = sample_subtask_factory(
         name="Root"
     )  # Use the fixture correctly (it's a factory now)
-    step1_sub = sample_subtask(name="Step1")
-    step2_sub = sample_subtask(name="Step2")
+    step1_sub = sample_subtask_factory(name="Step1")
+    step2_sub = sample_subtask_factory(name="Step2")
 
     # 경로 생성 (Root -> Node1 -> Node2)
     root_node = SimulationNode(0.0, 0, 0, None, initial_scheduler_state)
@@ -569,12 +591,11 @@ def test_expand_subtask_wo_monitoring_success(
     mock_action_handler,
     mock_heuristic_manager,
     initial_scheduler_state,
-    sample_subtask,
-    sample_candidate,
+    sample_candidate_factory,  # Use factory
 ):
     """_expand_subtask_wo_monitoring 성공 케이스 테스트"""
     sub_a = initial_scheduler_state.remaining_subtasks[0]  # TaskA
-    candidate_a = sample_candidate(sub_a, adjusted_start=0.0, deadline_time=10.0)
+    candidate_a = sample_candidate_factory(subtask_name="TaskA", deadline_time=10.0)
     current_node = SimulationNode(0.0, 0, 0, None, initial_scheduler_state)
 
     # Mock ActionResult 필드명 확인
@@ -632,11 +653,10 @@ def test_expand_subtask_wo_monitoring_action_handler_fails(
     scheduler_instance,
     mock_action_handler,
     initial_scheduler_state,
-    sample_candidate,
-    sample_subtask,
+    sample_candidate_factory,
 ):
     """ActionHandler.predict_duration가 None 반환 시 확장 실패 테스트"""
-    candidate_a = sample_candidate(sample_subtask("TaskA"))
+    candidate_a = sample_candidate_factory("TaskA")
     current_node = SimulationNode(0.0, 0, 0, None, initial_scheduler_state)
     # ActionHandler가 None 반환하도록 설정
     mock_action_handler.predict_duration.return_value = None
@@ -653,11 +673,10 @@ def test_expand_subtask_wo_monitoring_heuristic_fails(
     mock_action_handler,
     mock_heuristic_manager,
     initial_scheduler_state,
-    sample_candidate,
-    sample_subtask,
+    sample_candidate_factory,
 ):
     """HeuristicManager.calc_heuristic가 LARGE_NUMBER 반환 시 높은 비용의 노드 반환 테스트"""
-    candidate_a = sample_candidate(sample_subtask("TaskA"))
+    candidate_a = sample_candidate_factory("TaskA")
     current_node = SimulationNode(0.0, 0, 0, None, initial_scheduler_state)
     # HeuristicManager가 LARGE_NUMBER 반환하도록 설정
     mock_heuristic_manager.calc_heuristic.return_value = LARGE_NUMBER

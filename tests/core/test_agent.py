@@ -1,4 +1,6 @@
+import copy
 import json
+import math
 import unittest
 from pathlib import Path
 from unittest.mock import ANY, MagicMock, call, mock_open, patch
@@ -32,19 +34,19 @@ class TestAgent(unittest.TestCase):
         # Mock dependencies needed for Agent initialization and methods
         self.mock_constraint_handler = MagicMock()
         # Patch external functions/classes used by Agent
-        self.patcher_load_file = patch("src.utils.io_utils.load_file")
-        self.patcher_json_dump = patch("json.dump")
+        self.patcher_load_file = patch("src.utils.io_utils.load_file", autospec=True)
+        self.patcher_json_dump = patch("json.dump", autospec=True)
         self.patcher_open = patch("builtins.open", mock_open())
         self.patcher_ssm_instance = patch(
-            "src.utils.nlp.SentenceSimilarityModel.get_instance"
+            "src.utils.nlp.SentenceSimilarityModel.get_instance", autospec=True
         )
         self.patcher_extract_target = patch(
-            "src.utils.common.extract_monitoring_target_name"
+            "src.utils.common.extract_monitoring_target_name", autospec=True
         )
         self.patcher_get_crit_start = patch(
-            "src.utils.task.constraints_util.get_critical_start_info"
+            "src.utils.task.constraints_util.get_critical_start_info", autospec=True
         )
-        self.patcher_np_random_normal = patch("numpy.random.normal")
+        self.patcher_np_random_normal = patch("numpy.random.normal", autospec=True)
 
         self.mock_load_file = self.patcher_load_file.start()
         self.mock_json_dump = self.patcher_json_dump.start()
@@ -60,18 +62,18 @@ class TestAgent(unittest.TestCase):
         self.mock_np_random_normal.return_value = 10.0
 
         # Default knowledge for tests
-        self.mock_prior = {"task_a": {"expected_duration": 10.0, "variance": 2.0}}
-        self.mock_ground_truth = {"task_a": 12.0, "task_b": 20.0}
+        self.mock_prior = {"Task_A": {"expected_duration": 10.0, "variance": 2.0}}
+        self.mock_ground_truth = {"Task_A": 12.0, "Task_B": 20.0}
 
         # Configure load_file mocks
-        def load_side_effect(filepath, mode=None):
+        def load_side_effect(filepath, mode="json"):
             filename = Path(filepath).name
             if filename == ESTIMATE_FILE_NAME:
-                return self.mock_prior.copy()
+                return copy.deepcopy(self.mock_prior)
             elif filename == GROUND_TRUTH_FILE_NAME:
-                return self.mock_ground_truth.copy()
+                return copy.deepcopy(self.mock_ground_truth)
             else:
-                raise FileNotFoundError
+                raise FileNotFoundError(f"File not found: {filepath}")
 
         self.mock_load_file.side_effect = load_side_effect
 
@@ -90,7 +92,7 @@ class TestAgent(unittest.TestCase):
 
     def test_init_loads_knowledge_lowercase(self):
         """Test Agent initialization loads knowledge and converts keys to lowercase."""
-        # Check if load_file was called correctly
+        self.assertEqual(self.mock_load_file.call_count, 2)
         self.mock_load_file.assert_any_call(
             AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME, "json"
         )
@@ -98,26 +100,29 @@ class TestAgent(unittest.TestCase):
             AGENT_KNOWLEDGE_PATH / GROUND_TRUTH_FILE_NAME, "json"
         )
 
-        # Check if keys are lowercase (Agent init handles this)
         self.assertIn("task_a", self.agent.estimate_knowledge)
         self.assertIn("task_a", self.agent.ground_truth_knowledge)
+        self.assertIn("task_b", self.agent.ground_truth_knowledge)
         self.assertNotIn("Task_A", self.agent.estimate_knowledge)
         self.assertNotIn("Task_A", self.agent.ground_truth_knowledge)
-
-        # Test loading with different casing in mock data
-        self.mock_prior = {"Task_C": {"expected_duration": 5.0, "variance": 1.0}}
-        self.mock_ground_truth = {"Task_D": 8.0}
-        # Re-initialize agent to test loading again
-        agent_new = Agent(constraint_handler=self.mock_constraint_handler)
-        self.assertIn("task_c", agent_new.estimate_knowledge)
-        self.assertIn("task_d", agent_new.ground_truth_knowledge)
+        self.assertNotIn("Task_B", self.agent.ground_truth_knowledge)
 
     def test_init_handles_file_not_found(self):
         """Test Agent initialization handles missing knowledge files."""
         self.mock_load_file.side_effect = FileNotFoundError
+        self.patcher_load_file.stop()
+        patcher_temp = patch(
+            "src.utils.io_utils.load_file", side_effect=FileNotFoundError
+        )
+        mock_load_temp = patcher_temp.start()
+
         agent_no_files = Agent(constraint_handler=self.mock_constraint_handler)
+
         self.assertEqual(agent_no_files.estimate_knowledge, {})
         self.assertEqual(agent_no_files.ground_truth_knowledge, {})
+
+        patcher_temp.stop()
+        self.patcher_load_file.start()
 
     def test_get_prior_estimate_existing(self):
         """Test retrieving prior estimate for an existing task."""
@@ -125,13 +130,17 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(mean, 10.0)
         self.assertEqual(variance, 2.0)
 
+        mean_upper, variance_upper = self.agent._get_prior_estimate("Task_A")
+        self.assertEqual(mean_upper, 10.0)
+        self.assertEqual(variance_upper, 2.0)
+
     def test_get_prior_estimate_new_task(self):
         """Test initializing and retrieving prior estimate for a new task."""
         self.assertNotIn("new_task", self.agent.estimate_knowledge)
         mean, variance = self.agent._get_prior_estimate("new_task")
         self.assertEqual(mean, INIT_PRIOR_MEAN)
-        self.assertAlmostEqual(variance, max(INIT_PRIOR_VARIANCE, MIN_VARIANCE))
-        # Check if it was added to the internal knowledge
+        expected_variance = max(INIT_PRIOR_VARIANCE, MIN_VARIANCE)
+        self.assertAlmostEqual(variance, expected_variance)
         self.assertIn("new_task", self.agent.estimate_knowledge)
         self.assertEqual(
             self.agent.estimate_knowledge["new_task"]["expected_duration"],
@@ -140,16 +149,15 @@ class TestAgent(unittest.TestCase):
 
     def test_get_prior_estimate_min_variance(self):
         """Test prior variance is clamped at MIN_VARIANCE."""
-        self.agent.estimate_knowledge["zero_var"] = {
+        self.agent.estimate_knowledge["low_var_task"] = {
             "expected_duration": 5.0,
-            "variance": 0.0,
+            "variance": 1e-10,
         }
-        mean, variance = self.agent._get_prior_estimate("zero_var")
+        mean, variance = self.agent._get_prior_estimate("low_var_task")
         self.assertAlmostEqual(variance, MIN_VARIANCE)
 
     def test_bayesian_estimate_success_flow(self):
         """Test the high-level flow of bayesian_estimate."""
-        # Use helper to create mock subtasks
         mock_subtask = self._create_mock_subtask(
             "Monitor Task_A", subtask_type="Monitor"
         )
@@ -162,42 +170,30 @@ class TestAgent(unittest.TestCase):
                 subtask=completed_start_task, sim_start_time=0.0, sim_end_time=5.0
             )
         ]
-        mock_state.constraints = MagicMock()  # Assume constraint graph exists
+        mock_state.constraints = MagicMock()
 
-        # Configure mocks for this flow
-        self.mock_extract_target.return_value = "Task_A"  # Target extracted
+        self.mock_extract_target.return_value = "Task_A"
         self.agent.sentence_sim_model.get_similar_ref.return_value = "task_a"
         self.mock_get_crit_start.return_value = (
             "StartTask",
             5.0,
-        )  # Critical start info
-        # _get_prior_estimate uses setUp mock data
-        # _perform_bayesian_update uses setUp mock data and mock observation
+        )
 
-        # Expected posterior values from the update calculation (based on setUp mocks)
-        # Prior: mean=10, var=2 -> epsilon_k_sq = max(1.0*2, 1e-9) = 2.0
-        # elapsed = 15.0 - 5.0 = 10.0
-        # observation = mock_np_random_normal = 10.0
-        # denom = 2.0 + 2.0 = 4.0
-        # post_mean = (2 * 10 + 2 * 10) / 4 = 10.0
-        # post_var = (2 * 2) / 4 = 1.0
         expected_post_mean = 10.0
         expected_post_var = 1.0
 
         updated_state, result_info = self.agent.bayesian_estimate(mock_state)
 
-        # Assertions
         self.mock_extract_target.assert_called_once_with("Monitor Task_A")
         self.agent.sentence_sim_model.get_similar_ref.assert_called_once_with(
             query_str="task_a", ref_strs=list(self.agent.estimate_knowledge.keys())
         )
         self.mock_get_crit_start.assert_called_once_with(
-            subtask_name="Task_A",
+            subtask_name="task_a",
             completed=mock_state.completed_entries,
             constraints=mock_state.constraints,
             constraint_handler=self.mock_constraint_handler,
         )
-        # Check if knowledge was updated internally (we don't mock _update_knowledge... itself)
         self.assertAlmostEqual(
             self.agent.estimate_knowledge["task_a"]["expected_duration"],
             expected_post_mean,
@@ -206,25 +202,20 @@ class TestAgent(unittest.TestCase):
             self.agent.estimate_knowledge["task_a"]["variance"], expected_post_var
         )
 
-        # Check result info dictionary
         self.assertIsNotNone(result_info)
         self.assertEqual(result_info["updated_subtask_name"], "StartTask")
-        self.assertAlmostEqual(
-            result_info["original_expected_time"], 10.0
-        )  # Prior mean from mock
+        self.assertAlmostEqual(result_info["original_expected_time"], 10.0)
         self.assertAlmostEqual(result_info["updated_expected_time"], expected_post_mean)
-        self.assertAlmostEqual(result_info["ground_truth_time"], 12.0)  # GT from mock
+        self.assertAlmostEqual(result_info["ground_truth_time"], 12.0)
         self.assertAlmostEqual(result_info["posterior_variance"], expected_post_var)
 
-        self.assertEqual(
-            updated_state, mock_state
-        )  # State object itself might be modified in place or returned
+        self.assertEqual(updated_state, mock_state)
 
     def test_bayesian_estimate_missing_ground_truth(self):
-        """Test bayesian_estimate raises ValueError if ground truth is missing."""
+        """Test bayesian_estimate handles missing ground truth gracefully."""
         mock_subtask = self._create_mock_subtask(
             "Monitor Task_C", subtask_type="Monitor"
-        )  # Use helper
+        )
         mock_state = MagicMock(
             spec=SchedulerState,
             subtask=mock_subtask,
@@ -235,16 +226,17 @@ class TestAgent(unittest.TestCase):
         self.mock_extract_target.return_value = "Task_C"
         self.agent.sentence_sim_model.get_similar_ref.return_value = "task_c"
 
-        with self.assertRaisesRegex(
-            ValueError, "No ground_truth found for matched subtask: 'task_c'"
-        ):
-            self.agent.bayesian_estimate(mock_state)
+        updated_state, result_info = self.agent.bayesian_estimate(mock_state)
+
+        self.assertIn("task_c", self.agent.estimate_knowledge)
+        self.assertIsNotNone(result_info)
+        self.assertIsNone(result_info.get("ground_truth_time"))
 
     def test_bayesian_estimate_crit_start_exception(self):
         """Test bayesian_estimate handles exception from get_critical_start_info."""
         mock_subtask = self._create_mock_subtask(
             "Monitor Task_A", subtask_type="Monitor"
-        )  # Use helper
+        )
         mock_state = MagicMock(
             spec=SchedulerState,
             subtask=mock_subtask,
@@ -258,8 +250,8 @@ class TestAgent(unittest.TestCase):
 
         updated_state, result_info = self.agent.bayesian_estimate(mock_state)
 
-        self.assertEqual(updated_state, mock_state)  # Should return original state
-        self.assertEqual(result_info, {})  # Should return empty dict
+        self.assertIs(updated_state, mock_state)
+        self.assertEqual(result_info, {})
 
     def test_bayesian_estimate_negative_elapsed_time(self):
         """Test bayesian_estimate handles negative elapsed time by clamping to 0."""
@@ -275,29 +267,22 @@ class TestAgent(unittest.TestCase):
                 CompletedEntry(
                     subtask=completed_start_task, sim_start_time=0.0, sim_end_time=5.0
                 )
-            ],  # end_time=5.0
+            ],
             constraints=MagicMock(),
         )
         self.mock_extract_target.return_value = "Task_A"
         self.agent.sentence_sim_model.get_similar_ref.return_value = "task_a"
-        self.mock_get_crit_start.return_value = ("StartTask", 5.0)  # end_time=5.0
+        self.mock_get_crit_start.return_value = ("StartTask", 5.0)
 
-        # _perform_bayesian_update 내부의 np.random.normal 호출 검증
-        self.mock_np_random_normal.reset_mock()  # 이전 호출 기록 초기화
-        self.mock_np_random_normal.return_value = 10.0  # dummy observation
+        self.mock_np_random_normal.reset_mock()
+        self.mock_np_random_normal.return_value = 0.0
 
         self.agent.bayesian_estimate(mock_state)
 
-        # np.random.normal이 호출되었는지, loc 인자가 0인지 확인
         self.mock_np_random_normal.assert_called_once()
         call_args, call_kwargs = self.mock_np_random_normal.call_args
-        # loc 인자는 키워드 인자로 전달될 수도 있고 위치 인자일 수도 있음
-        passed_loc = call_kwargs.get("loc", None)
-        if passed_loc is None and len(call_args) > 0:  # 위치 인자인 경우
-            passed_loc = call_args[0]
-        self.assertEqual(
-            passed_loc, 0
-        )  # critical_elapsed_interval이 0으로 전달되었는지 확인
+        passed_loc = call_kwargs.get("loc", call_args[0])
+        self.assertEqual(passed_loc, 0)
 
     def test_save_knowledge_to_file_success(self):
         """Test saving knowledge calls json.dump correctly."""
@@ -310,10 +295,66 @@ class TestAgent(unittest.TestCase):
         )
 
     def test_save_knowledge_to_file_empty(self):
-        pytest.skip("Refactoring needed: Test json.dump call")
+        """Test saving knowledge when the knowledge base is empty."""
+        self.agent.estimate_knowledge = {}
+        mock_monitor_subtask = self._create_mock_subtask(
+            "Monitor Task_X", subtask_type="Monitor"
+        )
+        mock_state = MagicMock(
+            spec=SchedulerState,
+            subtask=mock_monitor_subtask,
+            current_time=1.0,
+            completed_entries=[],
+            constraints=MagicMock(),
+        )
+        self.mock_extract_target.return_value = "Task_X"
+        self.agent.sentence_sim_model.get_similar_ref.return_value = "task_x"
+        self.mock_get_crit_start.return_value = ("StartTaskX", 0.0)
+        self.mock_np_random_normal.return_value = INIT_PRIOR_MEAN
+
+        self.mock_open.reset_mock()
+        self.mock_json_dump.reset_mock()
+
+        self.agent.bayesian_estimate(mock_state)
+
+        self.mock_open.assert_called_once_with(
+            AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME, "w"
+        )
+        file_handle = self.mock_open.return_value.__enter__.return_value
+        self.mock_json_dump.assert_called_once_with(
+            self.agent.estimate_knowledge, file_handle, indent=4, ensure_ascii=False
+        )
+        self.assertIn("task_x", self.agent.estimate_knowledge)
 
     def test_save_knowledge_to_file_exception(self):
-        pytest.skip("Refactoring needed: Test json.dump call with exception")
+        """Test exception handling during knowledge saving."""
+        self.mock_json_dump.side_effect = IOError("Disk full")
+
+        mock_monitor_subtask = self._create_mock_subtask(
+            "Monitor Task_A", subtask_type="Monitor"
+        )
+        mock_start_subtask = self._create_mock_subtask("StartTask")
+        mock_state = MagicMock(
+            spec=SchedulerState,
+            subtask=mock_monitor_subtask,
+            current_time=15.0,
+            completed_entries=[
+                CompletedEntry(
+                    subtask=mock_start_subtask, sim_start_time=0.0, sim_end_time=5.0
+                )
+            ],
+            constraints=MagicMock(),
+        )
+        self.mock_extract_target.return_value = "Task_A"
+        self.agent.sentence_sim_model.get_similar_ref.return_value = "task_a"
+        self.mock_get_crit_start.return_value = ("StartTask", 5.0)
+
+        try:
+            self.agent.bayesian_estimate(mock_state)
+        except IOError:
+            self.fail("IOError from json.dump was not handled by Agent.")
+
+        self.mock_json_dump.assert_called_once()
 
     # Helper to create mock Subtasks correctly
     def _create_mock_subtask(self, name, subtask_type="Action", execution_status=True):
@@ -328,7 +369,3 @@ class TestAgent(unittest.TestCase):
         mock_subtask.repetition = 1
         mock_subtask.execution_status = execution_status
         return mock_subtask
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -1,6 +1,7 @@
 import math
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, PropertyMock, call, patch
 
+import networkx as nx  # Needed for CP test setup
 import numpy as np
 import pytest
 
@@ -9,6 +10,7 @@ from scheduler.constraint_handler import ConstraintHandler
 
 # 테스트 대상 모듈 임포트
 from scheduler.heuristic_manager import HeuristicManager
+from src.core.agent import Agent  # Agent 임포트 추가
 
 # 필요한 데이터 클래스 및 핸들러 임포트
 from src.core.dataclass import (
@@ -31,70 +33,174 @@ def mock_constraint_handler():
 
 @pytest.fixture
 def mock_action_handler():
-    """Mock ActionHandler with configurable get_actions_info"""
+    """Mock ActionHandler with configurable get_actions_info and _find_shortest_path"""
     mock = MagicMock(spec=ActionHandler)
 
-    # 기본 반환값 설정 (ActionResult 모킹)
-    default_nav_result = MagicMock(spec=ActionResult)
-    default_nav_result.cumulative_time = 1.0  # 기본 네비게이션 시간
-    default_nav_result.action_duration = 1.0
-
-    default_sub_result = MagicMock(spec=ActionResult)
-    default_sub_result.cumulative_time = 5.0  # 기본 서브태스크 총 시간
-    default_sub_result.action_duration = 1.0  # 마지막 액션 시간
-
-    # side_effect를 사용하여 호출 인자에 따라 다른 값 반환 가능하게 함
-    def side_effect_func(node, actions):
+    # --- get_actions_info Mock ---
+    def get_actions_info_side_effect(node, actions):
         action_str = actions[0]
-        if action_str.startswith("NAVIGATE_TO"):  # 네비게이션 시간 요청 시
-            # nav_time 조정 필요 시 여기서 가능
-            mock_nav_result = MagicMock(spec=ActionResult)
-            mock_nav_result.cumulative_time = 1.0
-            mock_nav_result.action_duration = 1.0
-            # 특정 목적지에 따라 다른 시간 반환 가능
-            if "NoNav" in action_str:
-                mock_nav_result.cumulative_time = 0.0
-            return mock_nav_result
-        else:  # 전체 서브태스크 시간 요청 시
-            # estimated_duration 조정 필요 시 여기서 가능
-            mock_sub_result = MagicMock(spec=ActionResult)
-            mock_sub_result.cumulative_time = 5.0
-            mock_sub_result.action_duration = 1.0  # 마지막 액션 시간 가정
-            if "ShortTask" in actions[0]:
-                mock_sub_result.cumulative_time = 2.0
-            return mock_sub_result
+        result = MagicMock(spec=ActionResult)
+        result.success = True  # 기본 성공
+        result.scene_positions = node.state.scene_positions.copy()  # 상태 복사
+        result.held_object = node.state.held_object
+        result.action_full_name = action_str
+        result.action_type = action_str.split()[0] if action_str else "NO_ACTION"
 
-    mock.get_actions_info.side_effect = side_effect_func
+        if action_str.startswith("NAVIGATE_TO"):
+            target = (
+                action_str.split()[1] if len(action_str.split()) > 1 else "DefaultDest"
+            )
+            if "NoPath" in target:  # 경로 없음 시뮬레이션
+                result.action_duration = LARGE_NUMBER
+                result.cumulative_time = LARGE_NUMBER
+                result.success = False
+            elif "NoNav" in target:  # 네비게이션 불필요 시뮬레이션
+                result.action_duration = 0.0
+                result.cumulative_time = 0.0
+            else:
+                result.action_duration = 1.5  # 기본 네비게이션 시간
+                result.cumulative_time = 1.5
+                # 실제로는 위치 업데이트도 필요하겠지만 여기서는 생략
+        elif action_str == "DO_NOTHING":  # 액션 없는 경우
+            result.action_duration = 0.0
+            result.cumulative_time = 0.0
+        else:  # 일반 서브태스크 실행 시간
+            # 간단하게 액션 개수에 비례하도록 설정 (예시)
+            duration = len(actions) * 2.0
+            if "ShortTask" in action_str:
+                duration = len(actions) * 1.0
+            elif "FailTask" in action_str:  # 실패 시뮬레이션
+                duration = 1.0
+                result.success = False
+
+            result.action_duration = (
+                duration / len(actions) if actions else 0
+            )  # 마지막 액션 시간 (근사치)
+            result.cumulative_time = duration
+            # 상태 변화 시뮬레이션 필요 시 추가 (예: held_object 변경)
+
+        return result
+
+    mock.get_actions_info.side_effect = get_actions_info_side_effect
+
+    # --- _find_shortest_path Mock ---
+    # 기본적으로 간단한 경로 반환, 특정 조건에서 빈 경로 또는 예외 발생
+    def find_path_side_effect(pos1, pos2):
+        if pos1 == pos2:
+            return []
+        if pos1 == (0, 0, 0) and pos2 == (1, 1, 0):  # 기본 경로
+            return [(0, 0, 0), (0, 1, 0), (1, 1, 0)]  # 2 steps
+        if pos1 == (0, 0, 0) and pos2 == (5, 5, 0):  # 긴 경로
+            return [(i, i, 0) for i in range(6)]  # 5 steps
+        if pos1 == (9, 9, 9):  # 경로 없음 예외 발생 시뮬레이션
+            raise ValueError("No path found")
+        return [(0, 0, 0), (0, 0, 1)]  # 기본 1 step
+
+    mock._find_shortest_path.side_effect = find_path_side_effect
+
     return mock
 
 
 @pytest.fixture
-def sample_sim_node():
-    state = SchedulerState(
-        subtask=None,
-        completed_entries=[],
-        remaining_subtasks=[],
-        constraints=MagicMock(),
-        current_time=10.0,
-        scene_positions={
-            "agent": [0.0, 0.0, 0.0],
-            "Dest": [1.0, 1.0, 0.0],
-        },  # 테스트에 필요한 위치 추가
-        held_object=None,
-        agent_location="Start",
-    )
-    return SimulationNode(0.0, 0, 0, None, state)
+def mock_agent():
+    """Mock Agent"""
+    return MagicMock(spec=Agent)
 
 
 @pytest.fixture
-def sample_candidate_factory():
+def sample_sim_node_factory():
+    """Factory for creating SimulationNode with configurable state"""
+
+    def _create_node(
+        current_time=10.0,
+        agent_pos=(0.0, 0.0, 0.0),
+        remaining_tasks=None,
+        constraints=None,
+    ):
+        state = SchedulerState(
+            subtask=None,
+            completed_entries=[],
+            remaining_subtasks=list(remaining_tasks) if remaining_tasks else [],
+            constraints=constraints if constraints else nx.DiGraph(),  # 기본 빈 그래프
+            current_time=current_time,
+            scene_positions={
+                "agent": list(agent_pos),
+                "Dest1": [1.0, 1.0, 0.0],
+                "Dest2": [5.0, 5.0, 0.0],
+                "ObjA": [1.0, 0.0, 0.0],
+                "ObjB": [0.0, 1.0, 0.0],
+            },
+            held_object=None,
+        )
+        # SimulationNode 생성 시 parent_node=None 으로 설정
+        return SimulationNode(
+            parent_node=None, heuristic_cost=0.0, depth=0, tie_breaker=0, state=state
+        )
+
+    return _create_node
+
+
+@pytest.fixture
+def sample_subtask_factory():
+    """Factory for creating Subtask mocks"""
+
+    def _create_subtask(
+        name,
+        duration_interval=4.0,
+        nav_target="Dest1",
+        interaction="INTERACT",
+        objects=None,
+    ):
+        sub = MagicMock(spec=Subtask)
+        sub.name = name
+        primitive_actions = []
+        if nav_target:
+            primitive_actions.append(f"NAVIGATE_TO {nav_target}")
+        if interaction:
+            # 객체 ID 목록이 주어지면 첫 번째 객체를 사용, 없으면 이름 사용
+            target_obj = objects[0] if objects else name
+            primitive_actions.append(f"{interaction} {target_obj}")
+
+        sub.execution = MagicMock(spec=Execution)
+        sub.execution.primitive_actions = primitive_actions
+        sub.execution.objects = objects if objects else [name]  # 객체 목록 설정
+
+        sub.duration = MagicMock(spec=Duration)
+        sub.duration.interval = duration_interval  # 순수 상호작용 시간으로 간주
+        sub.subtask_type = "Interaction"  # 기본 타입 설정
+        if interaction is None:
+            sub.subtask_type = "NAVIGATE"  # 상호작용 없으면 네비게이션 타입으로 간주
+
+        # PropertyMock을 사용하여 속성 접근 시 값 반환
+        type(sub).name = PropertyMock(return_value=name)
+        type(sub).subtask_type = PropertyMock(return_value=sub.subtask_type)
+        type(sub).duration = PropertyMock(return_value=sub.duration)
+        type(sub).execution = PropertyMock(return_value=sub.execution)
+
+        return sub
+
+    return _create_subtask
+
+
+@pytest.fixture
+def sample_candidate_factory(sample_subtask_factory):
+    """Factory for creating Candidate objects"""
+
     def _create_candidate(
-        subtask,  # Accepts Subtask object
+        name="TestCandidate",
+        duration=4.0,
+        nav_target="Dest1",
+        interaction="INTERACT",
         is_crit=False,
         earliest_start=10.0,
         deadline_due=20.0,
+        deadline_reason="NextCrit",
+        objects=None,
     ):
-        deadline = Deadline(due_date=deadline_due, subtask_name="NextCrit")
+        subtask = sample_subtask_factory(
+            name, duration, nav_target, interaction, objects=objects
+        )
+        deadline = Deadline(due_date=deadline_due, subtask_name=deadline_reason)
         return Candidate(
             subtask=subtask,
             is_critical=is_crit,
@@ -106,223 +212,345 @@ def sample_candidate_factory():
 
 
 @pytest.fixture
-def sample_subtask_factory():
-    def _create_subtask(name, duration_interval=4.0, nav_action="NAVIGATE_TO Dest"):
-        sub = MagicMock(spec=Subtask)
-        sub.name = name
-        # execution 및 primitive_actions mock 추가
-        sub.execution = MagicMock(spec=Execution)
-        sub.execution.primitive_actions = (
-            [nav_action, f"DO_SOMETHING {name}"]
-            if nav_action
-            else [f"DO_SOMETHING {name}"]
-        )
-        sub.duration = MagicMock(spec=Duration)
-        sub.duration.interval = duration_interval
-        type(sub).name = PropertyMock(return_value=name)
-        return sub
-
-    return _create_subtask
-
-
-@pytest.fixture
-def heuristic_manager(mock_constraint_handler, mock_action_handler):
-    """테스트용 HeuristicManager 인스턴스 (기본 가중치 사용)"""
-    # knowledge_base는 None으로 전달 (분산 항 제거됨) - src/HeuristicManager 업데이트 반영 필요
-    # agent=None 으로 생성자 변경 가능성 확인
+def heuristic_manager(mock_constraint_handler, mock_action_handler, mock_agent):
+    """테스트용 HeuristicManager 인스턴스 (실제 Config 값 사용 시도)"""
+    # 실제 config 값을 사용하도록 수정
     manager = HeuristicManager(
-        mock_constraint_handler, mock_action_handler, agent=None  # agent=None으로 전달
+        mock_constraint_handler, mock_action_handler, agent=mock_agent
     )
-    # 실제 HeuristicManager의 __init__ 에서 설정된 기본 가중치 사용하도록 수정
-    # manager.alpha = 1.0 # 아래에서 실제 값 사용
-    # manager.beta = 1.5
-    # manager.zeta = 0.1 # zeta는 제거되었을 수 있음 (코드 확인)
-    # manager.gamma 추가 확인
-    manager.alpha = pytest.approx(
-        1.0
-    )  # 실제 값 확인 필요 from src.utils.config import ALPHA_HEURISTIC
-    manager.beta = pytest.approx(
-        1.5
-    )  # 실제 값 확인 필요 from src.utils.config import BETA_HEURISTIC
-    manager.gamma = pytest.approx(
-        0.5
-    )  # 실제 값 확인 필요 from src.utils.config import GAMMA_HEURISTIC
-
-    # 아래 weight들은 제거되었을 수 있음
-    # manager.weight_remaining_count = 0.3
-    # manager.weight_remaining_duration = 0.7
+    # 실제 값 로드 시도 (테스트 환경에 따라 실패 가능성 있음)
+    try:
+        manager.alpha = ALPHA_HEURISTIC
+        manager.beta = BETA_HEURISTIC
+        manager.gamma = GAMMA_HEURISTIC
+    except NameError:  # config 임포트 실패 시 기본값 사용
+        print(
+            "Warning: Failed to import heuristic weights from config. Using defaults for test."
+        )
+        manager.alpha = 1.0
+        manager.beta = 1.5
+        manager.gamma = 0.5
     return manager
 
 
-# 테스트 케이스
+# --- HeuristicManager 초기화 테스트 ---
 def test_heuristic_manager_initialization(
-    heuristic_manager, mock_constraint_handler, mock_action_handler
+    heuristic_manager, mock_constraint_handler, mock_action_handler, mock_agent
 ):
-    """HeuristicManager 초기화 및 기본 가중치 확인"""
+    """HeuristicManager 초기화 확인"""
     assert heuristic_manager.constraint_handler is mock_constraint_handler
     assert heuristic_manager.action_handler is mock_action_handler
-    assert heuristic_manager.alpha == pytest.approx(1.0)
-    assert heuristic_manager.beta == pytest.approx(1.5)
-    assert heuristic_manager.gamma == pytest.approx(0.5)
+    assert heuristic_manager.agent is mock_agent
+    # pytest.approx 사용하여 부동소수점 비교
+    assert heuristic_manager.alpha == pytest.approx(ALPHA_HEURISTIC)
+    assert heuristic_manager.beta == pytest.approx(BETA_HEURISTIC)
+    assert heuristic_manager.gamma == pytest.approx(GAMMA_HEURISTIC)
 
 
-# _estimate_remaining_cost 관련 테스트는 제거되거나 수정 필요
-# (HeuristicManager에서 해당 로직이 _calculate_critical_path_duration 및 _calculate_mst_nav_time 으로 변경됨)
-# def test_estimate_remaining_cost_empty(heuristic_manager): ...
-# def test_estimate_remaining_cost_calculation(heuristic_manager, sample_subtask_factory): ...
+# --- 내부 도우미 함수 테스트 ---
 
 
-# calc_heuristic 관련 테스트 수정 필요 (alpha, beta, gamma 사용)
-def test_calc_heuristic_basic(
-    heuristic_manager, sample_sim_node, sample_candidate_factory, sample_subtask_factory
+def test_calculate_navigation_cost_needed(
+    heuristic_manager, sample_sim_node_factory, sample_candidate_factory
 ):
-    """기본적인 휴리스틱 계산 확인 (alpha, beta, gamma 사용)"""
-    sub = sample_subtask_factory("TestCandidate")
-    candidate = sample_candidate_factory(sub, deadline_due=20.0)
-    rem_sub1 = sample_subtask_factory("Rem1", duration_interval=4.0)
-    rem_sub2 = sample_subtask_factory("Rem2", duration_interval=6.0)
-    remaining = {rem_sub1, rem_sub2}  # Set으로 전달
-    current_node = sample_sim_node  # fixture 사용
-
-    # Mock _calculate_navigation_cost, _calculate_urgency_cost,
-    #      _calculate_critical_path_duration, _calculate_mst_nav_time
-    with patch.object(
-        heuristic_manager, "_calculate_navigation_cost", return_value=1.0
-    ) as mock_nav, patch.object(
-        heuristic_manager, "_calculate_urgency_cost", return_value=(0.5, -1.0)
-    ) as mock_urgency, patch.object(
-        heuristic_manager, "_calculate_critical_path_duration", return_value=10.0
-    ) as mock_cp, patch.object(
-        heuristic_manager, "_calculate_mst_nav_time", return_value=3.0
-    ) as mock_mst:
-
-        # calc_heuristic 호출
-        cost = heuristic_manager.calc_heuristic(current_node, candidate)
-
-        # 예상 비용 계산 (alpha, beta, gamma 사용)
-        nav_cost_val = 1.0
-        urgency_cost_val = 0.5  # (_calculate_urgency_cost 반환값의 첫번째 요소)
-        future_cost_val = 10.0 + 3.0  # CP + MST
-        expected_cost = (
-            heuristic_manager.alpha * nav_cost_val
-            + heuristic_manager.beta * urgency_cost_val
-            + heuristic_manager.gamma * future_cost_val
-        )
-
-        # 호출 검증
-        mock_nav.assert_called_once_with(current_node, candidate)
-        mock_urgency.assert_called_once_with(current_node, candidate)
-        # calc_heuristic 내부에서 remaining_tasks를 계산하여 전달하므로,
-        # 아래 mock들은 직접 호출되지 않을 수 있음 (calc_heuristic 내부 로직 확인 필요)
-        # 만약 calc_heuristic 내부에서 호출한다면 아래 assert 추가
-        # mock_cp.assert_called_once()
-        # mock_mst.assert_called_once()
-
-        assert cost == pytest.approx(expected_cost), "Heuristic calculation mismatch."
-
-
-def test_calc_heuristic_no_nav(
-    heuristic_manager, sample_sim_node, sample_candidate_factory, sample_subtask_factory
-):
-    sub_no_nav = sample_subtask_factory("NoNavTask", nav_action=None)
-    candidate = sample_candidate_factory(sub_no_nav)
-
-    # Mock action_handler to return duration of the first non-nav action
-    mock_non_nav_action_result = MagicMock(spec=ActionResult)
-    mock_non_nav_action_result.cumulative_time = 0.5  # Assume first action takes 0.5
-    heuristic_manager.action_handler.get_actions_info.side_effect = (
-        lambda node, actions: mock_non_nav_action_result
+    """네비게이션 비용 계산 (이동 필요한 경우)"""
+    current_node = sample_sim_node_factory()
+    candidate = sample_candidate_factory(nav_target="Dest1")  # 기본 mock은 1.5초 반환
+    cost = heuristic_manager._calculate_navigation_cost(current_node, candidate)
+    assert cost == pytest.approx(1.5)
+    heuristic_manager.action_handler.get_actions_info.assert_called_once_with(
+        current_node, ["NAVIGATE_TO Dest1"]
     )
 
-    # If src code uses first action's time_used as nav_time even if not NAV:
-    nav_time = 0.5  # <<<< Adjust this based on src behavior confirmation
-    estimated_duration = 0.5  # It also uses this for duration estimate!
 
-    slack_val = (20.0 - 10.0) - estimated_duration
-    urgency_term = (
-        -1.0 / math.sqrt(slack_val + EPSILON) if slack_val > EPSILON else -LARGE_NUMBER
+def test_calculate_navigation_cost_not_needed(
+    heuristic_manager, sample_sim_node_factory, sample_candidate_factory
+):
+    """네비게이션 비용 계산 (이동 불필요 - 첫 액션이 NAVIGATE 아님)"""
+    current_node = sample_sim_node_factory()
+    candidate = sample_candidate_factory(
+        nav_target=None, interaction="INTERACT"
+    )  # NAV 없음
+    cost = heuristic_manager._calculate_navigation_cost(current_node, candidate)
+    assert cost == pytest.approx(0.0)
+    heuristic_manager.action_handler.get_actions_info.assert_not_called()  # 네비게이션 없으므로 호출 안됨
+
+
+def test_calculate_navigation_cost_failed(
+    heuristic_manager, sample_sim_node_factory, sample_candidate_factory
+):
+    """네비게이션 비용 계산 (경로 탐색 실패)"""
+    current_node = sample_sim_node_factory()
+    candidate = sample_candidate_factory(
+        nav_target="NoPath"
+    )  # Mock이 실패 반환하도록 설정됨
+    cost = heuristic_manager._calculate_navigation_cost(current_node, candidate)
+    assert cost == pytest.approx(LARGE_NUMBER)
+    heuristic_manager.action_handler.get_actions_info.assert_called_once_with(
+        current_node, ["NAVIGATE_TO NoPath"]
     )
-    est_rem_cost = 0  # No remaining tasks
 
+
+def test_calculate_urgency_cost_normal_slack(
+    heuristic_manager, sample_sim_node_factory, sample_candidate_factory
+):
+    """긴급도 비용 계산 (일반적인 슬랙)"""
+    # current=10, deadline=20, exec_time=5 -> slack = (20-10)-5 = 5
+    current_node = sample_sim_node_factory(current_time=10.0)
+    candidate = sample_candidate_factory(
+        deadline_due=20.0, duration=4.0
+    )  # exec_time=5.0 mock 반환
+    heuristic_manager.action_handler.get_actions_info.reset_mock()  # 이전 호출 초기화
+    # 서브태스크 실행 시간 mock 설정 (candidate.subtask.execution.primitive_actions 사용)
+    mock_exec_result = MagicMock(spec=ActionResult, success=True, cumulative_time=5.0)
+    heuristic_manager.action_handler.get_actions_info.return_value = mock_exec_result
+
+    urgency_cost, slack_val = heuristic_manager._calculate_urgency_cost(
+        current_node, candidate
+    )
+
+    expected_slack = (20.0 - 10.0) - 5.0
+    expected_urgency = 1.0 / (expected_slack + EPSILON)
+    assert slack_val == pytest.approx(expected_slack)
+    assert urgency_cost == pytest.approx(expected_urgency)
+    heuristic_manager.action_handler.get_actions_info.assert_called_once_with(
+        current_node, candidate.subtask.execution.primitive_actions
+    )
+
+
+def test_calculate_urgency_cost_low_slack(
+    heuristic_manager, sample_sim_node_factory, sample_candidate_factory
+):
+    """긴급도 비용 계산 (슬랙 작을 때)"""
+    # current=10, deadline=15.5, exec_time=5 -> slack = (15.5-10)-5 = 0.5
+    current_node = sample_sim_node_factory(current_time=10.0)
+    candidate = sample_candidate_factory(
+        deadline_due=15.5, duration=4.0
+    )  # exec_time=5.0 mock 반환
+    heuristic_manager.action_handler.get_actions_info.reset_mock()
+    mock_exec_result = MagicMock(spec=ActionResult, success=True, cumulative_time=5.0)
+    heuristic_manager.action_handler.get_actions_info.return_value = mock_exec_result
+
+    urgency_cost, slack_val = heuristic_manager._calculate_urgency_cost(
+        current_node, candidate
+    )
+
+    expected_slack = (15.5 - 10.0) - 5.0
+    expected_urgency = 1.0 / (expected_slack + EPSILON)
+    assert slack_val == pytest.approx(expected_slack)
+    assert urgency_cost == pytest.approx(expected_urgency)
+    assert urgency_cost > 1.0  # 슬랙 5일때보다 커야 함
+
+
+def test_calculate_urgency_cost_negative_slack(
+    heuristic_manager, sample_sim_node_factory, sample_candidate_factory
+):
+    """긴급도 비용 계산 (음수 슬랙)"""
+    # current=10, deadline=12, exec_time=5 -> slack = (12-10)-5 = -3
+    current_node = sample_sim_node_factory(current_time=10.0)
+    candidate = sample_candidate_factory(
+        deadline_due=12.0, duration=4.0
+    )  # exec_time=5.0 mock 반환
+    heuristic_manager.action_handler.get_actions_info.reset_mock()
+    mock_exec_result = MagicMock(spec=ActionResult, success=True, cumulative_time=5.0)
+    heuristic_manager.action_handler.get_actions_info.return_value = mock_exec_result
+
+    urgency_cost, slack_val = heuristic_manager._calculate_urgency_cost(
+        current_node, candidate
+    )
+
+    expected_slack = (12.0 - 10.0) - 5.0
+    assert slack_val == pytest.approx(expected_slack)
+    assert urgency_cost == pytest.approx(
+        LARGE_NUMBER
+    )  # 음수 슬랙 시 LARGE_NUMBER 반환 확인
+
+
+def test_calculate_urgency_cost_infinite_deadline(
+    heuristic_manager, sample_sim_node_factory, sample_candidate_factory
+):
+    """긴급도 비용 계산 (마감 시간 없음)"""
+    current_node = sample_sim_node_factory()
+    candidate = sample_candidate_factory(deadline_due=float("inf"))
+    urgency_cost, slack_val = heuristic_manager._calculate_urgency_cost(
+        current_node, candidate
+    )
+    assert slack_val == float("inf")
+    assert urgency_cost == pytest.approx(0.0)
+    # 실행 시간 추정 위한 get_actions_info는 여전히 호출될 수 있음 (구현 따라 다름)
+    # heuristic_manager.action_handler.get_actions_info.assert_called()
+
+
+def test_calculate_urgency_cost_execution_fail(
+    heuristic_manager, sample_sim_node_factory, sample_candidate_factory
+):
+    """긴급도 비용 계산 (실행 시간 추정 실패)"""
+    current_node = sample_sim_node_factory()
+    candidate = sample_candidate_factory()
+    heuristic_manager.action_handler.get_actions_info.reset_mock()
+    mock_exec_result = MagicMock(
+        spec=ActionResult, success=False, cumulative_time=1.0
+    )  # 실패 반환
+    heuristic_manager.action_handler.get_actions_info.return_value = mock_exec_result
+
+    urgency_cost, slack_val = heuristic_manager._calculate_urgency_cost(
+        current_node, candidate
+    )
+    assert slack_val == -float("inf")  # 실패 시 슬랙
+    assert urgency_cost == pytest.approx(LARGE_NUMBER)  # 실패 시 비용
+
+
+# --- calc_heuristic 메인 함수 테스트 ---
+# 내부 도우미 함수들을 모킹하여 가중합 로직 검증
+@patch.object(HeuristicManager, "_calculate_navigation_cost")
+@patch.object(HeuristicManager, "_calculate_urgency_cost")
+@patch.object(HeuristicManager, "_calculate_critical_path_duration")
+@patch.object(HeuristicManager, "_calculate_mst_nav_time")
+def test_calc_heuristic_weighting_logic(
+    mock_mst,
+    mock_cp,
+    mock_urgency,
+    mock_nav,  # Mock 객체들
+    heuristic_manager,
+    sample_sim_node_factory,
+    sample_candidate_factory,
+    sample_subtask_factory,  # Fixtures
+):
+    """calc_heuristic의 가중합 로직 검증"""
+    # Mock 설정
+    mock_nav.return_value = 1.5  # nav_cost_candidate
+    mock_urgency.return_value = (0.2, 4.0)  # (urgency_cost_candidate, slack_val)
+    mock_cp.return_value = 8.0  # critical_interaction_duration
+    mock_mst.return_value = 2.5  # mst_nav_time
+
+    # 테스트 데이터 준비
+    current_node = sample_sim_node_factory()
+    candidate_sub = sample_subtask_factory("Cand", duration=4.0)  # 실행 시간 5.0 가정
+    candidate = sample_candidate_factory(subtask=candidate_sub)
+    rem_sub1 = sample_subtask_factory("Rem1")
+    rem_sub2 = sample_subtask_factory("Rem2")
+    current_node.state.remaining_subtasks = [
+        candidate_sub,
+        rem_sub1,
+        rem_sub2,
+    ]  # 현재 남은 task 설정
+
+    # 가상 다음 상태 시뮬레이션 Mock 설정 (ActionHandler Mock 사용)
+    mock_sim_result = MagicMock(spec=ActionResult, success=True)
+    mock_sim_result.scene_positions = {
+        "agent": [1.0, 1.0, 0.0]
+    }  # 에이전트 위치 변경 가정
+    heuristic_manager.action_handler.get_actions_info.return_value = mock_sim_result
+
+    # calc_heuristic 호출
+    cost = heuristic_manager.calc_heuristic(current_node, candidate)
+
+    # 예상 비용 계산
+    nav_cost_val = 1.5
+    urgency_cost_val = 0.2
+    future_cost_val = 8.0 + 2.5
     expected_cost = (
-        heuristic_manager.alpha * nav_time
-        + heuristic_manager.beta * urgency_term
-        + heuristic_manager.gamma * est_rem_cost
+        heuristic_manager.alpha * nav_cost_val
+        + heuristic_manager.beta * urgency_cost_val
+        + heuristic_manager.gamma * future_cost_val
     )
-    cost = heuristic_manager.calc_heuristic(sample_sim_node, candidate)
+
+    # 호출 검증
+    mock_nav.assert_called_once_with(current_node, candidate)
+    mock_urgency.assert_called_once_with(current_node, candidate)
+    # future cost 계산 위해 get_actions_info 호출 확인 (가상 다음 상태 생성용)
+    heuristic_manager.action_handler.get_actions_info.assert_called_once_with(
+        current_node, candidate.subtask.execution.primitive_actions
+    )
+    # future cost 계산 함수 호출 확인 (가상 다음 상태 정보와 함께 호출되어야 함)
+    expected_next_remaining = {rem_sub1, rem_sub2}  # candidate 제외
+    mock_cp.assert_called_once()
+    # mock_cp 호출 인자 검증 (set 비교는 순서 무관하게)
+    assert mock_cp.call_args[0][0] == expected_next_remaining
+    assert (
+        mock_cp.call_args[0][1] is current_node.state.constraints
+    )  # 제약조건은 그대로 전달 가정
+
+    mock_mst.assert_called_once()
+    assert mock_mst.call_args[0][0] == tuple(
+        mock_sim_result.scene_positions["agent"]
+    )  # 변경된 에이전트 위치
+    assert mock_mst.call_args[0][1] == expected_next_remaining
+    assert (
+        mock_mst.call_args[0][2] is mock_sim_result.scene_positions
+    )  # 다음 scene position
+
+    # 최종 비용 검증
     assert cost == pytest.approx(expected_cost)
 
 
-def test_calc_heuristic_high_urgency(
-    heuristic_manager, sample_sim_node, sample_candidate_factory, sample_subtask_factory
+@patch.object(HeuristicManager, "_calculate_navigation_cost")
+@patch.object(HeuristicManager, "_calculate_urgency_cost")
+def test_calc_heuristic_candidate_fail(
+    mock_urgency,
+    mock_nav,
+    heuristic_manager,
+    sample_sim_node_factory,
+    sample_candidate_factory,
+    sample_subtask_factory,
 ):
-    """긴급도 높을 때 (슬랙 작을 때) 확인"""
-    # deadline=15.5 -> slack = (15.5 - 10.0) - 5.0 = 0.5
-    sub = sample_subtask_factory("UrgencyTask")  # subtask 생성
-    candidate = sample_candidate_factory(sub, deadline_due=15.5)  # subtask 전달
-    cost = heuristic_manager.calc_heuristic(sample_sim_node, candidate)
+    """calc_heuristic 후보 자체 실패 시 LARGE_NUMBER 반환 확인 (예: 네비 실패)"""
+    mock_nav.return_value = LARGE_NUMBER  # 네비 실패
+    mock_urgency.return_value = (0.2, 4.0)  # 긴급도는 정상
 
-    # 실제 결과값으로 수정 (src 코드 검토 필요)
-    expected_cost = 0.3006213938197646
-    assert (
-        abs(cost - expected_cost) < EPSILON
-    ), "Heuristic calculation mismatch (high urgency). Review src/scheduler/heuristic_manager.py"
-    # 슬랙 5.0일 때보다 비용이 낮아지는지 확인 (더 선호되어야 함)
-    basic_sub = sample_subtask_factory("Basic")
-    basic_candidate = sample_candidate_factory(basic_sub, deadline_due=20.0)
-    basic_cost = heuristic_manager.calc_heuristic(sample_sim_node, basic_candidate)
-    assert cost < basic_cost
+    current_node = sample_sim_node_factory()
+    candidate = sample_candidate_factory()
+
+    cost = heuristic_manager.calc_heuristic(current_node, candidate)
+    assert cost == pytest.approx(LARGE_NUMBER)
+    # 네비/긴급도 계산 후 바로 반환하므로 future cost 계산 안 함
+    heuristic_manager.action_handler.get_actions_info.assert_not_called()
 
 
-def test_calc_heuristic_infinite_deadline(
-    heuristic_manager, sample_sim_node, sample_candidate_factory, sample_subtask_factory
+@patch.object(HeuristicManager, "_calculate_navigation_cost")
+@patch.object(HeuristicManager, "_calculate_urgency_cost")
+@patch.object(HeuristicManager, "_calculate_critical_path_duration")
+@patch.object(HeuristicManager, "_calculate_mst_nav_time")
+def test_calc_heuristic_future_fail(
+    mock_mst,
+    mock_cp,
+    mock_urgency,
+    mock_nav,
+    heuristic_manager,
+    sample_sim_node_factory,
+    sample_candidate_factory,
+    sample_subtask_factory,
 ):
-    """마감 시간 없을 때 urgency_term이 0인지 확인"""
-    sub = sample_subtask_factory("InfDeadlineTask")  # subtask 생성
-    candidate = sample_candidate_factory(sub, deadline_due=float("inf"))  # subtask 전달
-    cost = heuristic_manager.calc_heuristic(sample_sim_node, candidate)
-    nav_time = 1.0
-    expected_cost = heuristic_manager.alpha * nav_time  # urgency_cost = 0
-    assert abs(cost - expected_cost) < EPSILON
+    """calc_heuristic 미래 비용 계산 실패 시 LARGE_NUMBER 반환 확인"""
+    mock_nav.return_value = 1.5
+    mock_urgency.return_value = (0.2, 4.0)
+    mock_cp.return_value = LARGE_NUMBER  # CP 계산 실패
+    mock_mst.return_value = 2.5
+
+    current_node = sample_sim_node_factory()
+    candidate_sub = sample_subtask_factory("Cand")
+    candidate = sample_candidate_factory(subtask=candidate_sub)
+    current_node.state.remaining_subtasks = [
+        candidate_sub,
+        sample_subtask_factory("Rem1"),
+    ]
+
+    mock_sim_result = MagicMock(spec=ActionResult, success=True)
+    mock_sim_result.scene_positions = {"agent": [1.0, 1.0, 0.0]}
+    heuristic_manager.action_handler.get_actions_info.return_value = mock_sim_result
+
+    cost = heuristic_manager.calc_heuristic(current_node, candidate)
+    assert cost == pytest.approx(LARGE_NUMBER)
 
 
-# @pytest.mark.xfail 주석 추가 및 이유 명확화
-@pytest.mark.xfail(
-    reason="HeuristicManager의 음수 슬랙 처리(-LARGE_NUMBER 반환)가 의도된 동작인지 확인 필요"
-)
-def test_calc_heuristic_negative_slack(
-    heuristic_manager, sample_sim_node, sample_candidate_factory, sample_subtask_factory
-):
-    """음수 슬랙 발생 시 휴리스틱 계산 확인 (예상: 매우 큰 음수 또는 LARGE_NUMBER)"""
-    # 마감 시한이 현재 시간보다 빠르고 예상 소요시간이 있는 경우
-    sub = sample_subtask_factory("LateTask")
-    # deadline_due < current_time + estimated_duration
-    candidate = sample_candidate_factory(sub, deadline_due=12.0)  # current_time=10.0
-    remaining = []
-    current_node = sample_sim_node
+# TODO: _calculate_critical_path_duration 테스트 케이스 추가
+# 예: def test_calculate_critical_path_duration_linear(): ...
+# 예: def test_calculate_critical_path_duration_parallel(): ...
+# 예: def test_calculate_critical_path_duration_cycle_detection(): ...
 
-    with patch.object(
-        heuristic_manager, "_calculate_navigation_cost", return_value=1.0
-    ), patch.object(
-        heuristic_manager, "_calculate_urgency_cost", return_value=(-LARGE_NUMBER, -1.0)
-    ), patch.object(
-        heuristic_manager, "_calculate_critical_path_duration", return_value=0.0
-    ), patch.object(
-        heuristic_manager, "_calculate_mst_nav_time", return_value=0.0
-    ):
+# TODO: _calculate_mst_nav_time 테스트 케이스 추가
+# 예: def test_calculate_mst_nav_time_basic(): ...
+# 예: def test_calculate_mst_nav_time_no_path(): ... (ActionHandler mock 활용)
+# 예: def test_calculate_mst_nav_time_scipy_unavailable(): ... (ImportError mock 필요)
 
-        cost = heuristic_manager.calc_heuristic(current_node, candidate)
-
-        # 음수 슬랙 시 매우 큰 음수 또는 -LARGE_NUMBER와 유사한 값이 반환될 것으로 예상
-        # beta * (-LARGE_NUMBER) 가 주된 항이 됨
-        # 정확한 예상값은 HeuristicManager 로직 확인 후 결정
-        assert (
-            cost < -1000
-        ), "Negative slack should result in a very large negative heuristic value"
-
-
-# 주석 추가: MST 관련 테스트는 src/HeuristicManager의 해당 로직이 활성화될 때 추가 필요
-# def test_calculate_mst_nav_time_...():
-#     """MST 네비게이션 시간 계산 테스트 (SciPy 필요)"""
-#     # TODO: src/HeuristicManager의 _calculate_mst_nav_time 로직이 활성화되면 테스트 추가
-#     pass
+# TODO: _get_estimated_interaction_time, _get_task_start_location, _estimate_nav_time 에 대한 단위 테스트 추가

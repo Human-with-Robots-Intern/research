@@ -164,6 +164,29 @@ def sample_subtask_repeat(sample_execution, sample_duration):  # With repetition
     )
 
 
+@pytest.fixture
+def sample_task_instruction_dict():
+    return {
+        "TaskName": "SampleFileTask",
+        "Subtasks": [
+            {
+                "Name": "Prep",
+                "Location": "Bench",
+                "Execution": {"Actor": "R1", "Duration": {"Nominal": 10}},
+            },
+            {
+                "Name": "Wash",
+                "Location": "Sink",
+                "Execution": {"Actor": "R1", "Duration": {"Nominal": 20}},
+                "Repetition": 2,
+            },
+        ],
+        "TemporalConstraints": [
+            {"From": "Prep", "To": "Wash", "Type": "After", "Interval": 1.0}
+        ],
+    }
+
+
 # 테스트 케이스
 def test_subtask_creation(sample_subtask1):
     """Subtask 객체 생성 및 기본 속성 확인"""
@@ -261,6 +284,12 @@ def test_task_graph_builder(sample_subtask1, sample_subtask2):
     assert edge_data["info"]["Type"] == "After"
 
     assert len(list(graph.predecessors("WashPlate1"))) == 0
+
+
+def test_instruction_parsing_sample(sample_task_instruction_dict):
+    task = Task.parse_instruction(sample_task_instruction_dict)
+    assert task.name == "SampleFileTask"
+    # ... other assertions
 
 
 # Task.from_dict, Subtask.from_dict 등 딕셔너리 파싱 관련 테스트 추가 필요
