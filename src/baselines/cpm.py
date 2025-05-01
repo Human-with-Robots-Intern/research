@@ -141,8 +141,8 @@ def update_state(
     subtask_duration = exec_info.cumulative_time
     subtask_entry = CompletedEntry(
         subtask=next_subtask,
-        start_time=current_state.current_time,
-        end_time=current_state.current_time + subtask_duration,
+        schedule_start_time=current_state.current_time,
+        schedule_end_time=current_state.current_time + subtask_duration,
     )
 
     new_completed = current_state.completed_entries + [subtask_entry]
@@ -152,7 +152,7 @@ def update_state(
 
     next_state = SchedulerState(
         subtask=next_subtask,
-        completed_subtasks=new_completed,
+        completed_entries=new_completed,
         remaining_subtasks=new_remaining,
         constraints=constraints,
         current_time=current_state.current_time + subtask_duration,
@@ -266,8 +266,8 @@ def nav_and_wait_during_interval(
         nav_subtask.end_time_scheduled = current_time + nav_time
         nav_entry = CompletedEntry(
             subtask=nav_subtask,
-            start_time=current_time,
-            end_time=current_time + nav_time,
+            schedule_start_time=current_time,
+            schedule_end_time=current_time + nav_time,
         )
         entries.append(nav_entry)
         current_time += nav_time
@@ -291,15 +291,15 @@ def nav_and_wait_during_interval(
     wait_subtask.end_time_scheduled = current_time + wait_time
     wait_entry = CompletedEntry(
         subtask=wait_subtask,
-        start_time=current_time,
-        end_time=current_time + wait_time,
+        schedule_start_time=current_time,
+        schedule_end_time=current_time + wait_time,
     )
     entries.append(wait_entry)
 
     # Create new state instead of modifying the existing one
     new_state = SchedulerState(
         subtask=current_state.subtask,
-        completed_subtasks=current_state.completed_entries,
+        completed_entries=current_state.completed_entries,
         remaining_subtasks=current_state.remaining_subtasks,
         constraints=current_state.constraints,
         current_time=current_time + wait_time,
@@ -315,7 +315,7 @@ def get_final_entries(
     critical_path: List[Tuple[Subtask, float, bool]],
     subtasks_witout_edge: List[Subtask],
     init_state: SchedulerState,
-) -> List[Subtask]:
+) -> List[CompletedEntry]:
     """
     Critical Path와 제약(엣지)이 없는 서브태스크들을 고려하여 최종 스케줄 엔트리를 생성합니다.
 
@@ -351,8 +351,9 @@ def get_final_entries(
         final_entry_schedule.append(
             CompletedEntry(
                 subtask=subtask,
-                start_time=current_state.current_time,
-                end_time=current_state.current_time + exec_info.cumulative_time,
+                schedule_start_time=current_state.current_time,
+                schedule_end_time=current_state.current_time + exec_info.cumulative_time,
+
             )
         )
         current_state = update_state(current_state, subtask, exec_info)
@@ -398,8 +399,8 @@ def get_final_entries(
                     )
                     shortest_entry = CompletedEntry(
                         subtask=shortest_subtask,
-                        start_time=current_state.current_time,
-                        end_time=current_state.current_time
+                        schedule_start_time=current_state.current_time,
+                        schedule_end_time=current_state.current_time
                         + shortest_exec_info.cumulative_time,
                     )
                     final_entry_schedule.append(shortest_entry)
@@ -426,8 +427,8 @@ def get_final_entries(
             final_entry_schedule.append(
                 CompletedEntry(
                     subtask=best_subtask,
-                    start_time=current_state.current_time,
-                    end_time=current_state.current_time
+                    schedule_start_time=current_state.current_time,
+                    schedule_end_time=current_state.current_time
                     + best_exec_info.cumulative_time,
                 )
             )
@@ -444,8 +445,8 @@ def get_final_entries(
         final_entry_schedule.append(
             CompletedEntry(
                 subtask=left_subtask,
-                start_time=current_state.current_time,
-                end_time=current_state.current_time + left_exec_info.cumulative_time,
+                schedule_start_time=current_state.current_time,
+                schedule_end_time=current_state.current_time + left_exec_info.cumulative_time,
             )
         )
         left_subtask.start_time_scheduled = current_state.current_time
@@ -460,6 +461,7 @@ def get_final_entries(
 def main() -> None:
     approach_name = "cpm"
     args: argparse.Namespace = parse_arguments()
+    scene_name: str = args.scene
 
     # 초기화: 컨트롤러, 네비게이션 그래프, 씬 정보
     controller = init_ai2thor_controller(scene_name)
@@ -467,7 +469,7 @@ def main() -> None:
 
     global action_handler, constraints
 
-    scene_name: str = args.scene
+    
     scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
     action_handler = ActionHandler(nav_graph)
 
@@ -481,7 +483,7 @@ def main() -> None:
     
     # Task 및 constraint 생성 (태스크 분해 여부에 따라)
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
-        task_data, args.decomposition
+        task_data, f"{scene_name}_physics_environment.json", args.decomposition
     )
     subtasks_witout_edge = [
         s
@@ -515,10 +517,10 @@ def main() -> None:
             subtask_time, execution_status = execute_subtask(
                 controller, subtask, args.log_level
             )
-            subtask.start_time_simulation = simulation_time
-            subtask.end_time_simulation = simulation_time + subtask_time
+            entry.sim_start_time = simulation_time
+            entry.sim_end_time = simulation_time + subtask_time
             simulation_time += subtask_time
-            subtask.execution_status = execution_status
+            entry.execution_status = execution_status
 
         result_args = {
             "task_name": input_natural_language,
