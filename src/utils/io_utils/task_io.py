@@ -192,7 +192,7 @@ def load_scene_positions(file_name: str) -> dict[str, tuple[float, float, float]
     """
     # Extract the number from the file name
     try:
-        scene_num = int(file_name.replace("FloorPlan", "").replace("_physics.json", ""))
+        scene_num = int(file_name.replace("FloorPlan", "").replace("_positions.json", ""))
         # Determine scene type based on number
         if scene_num >= 400:
             room_type = "bathroom"
