@@ -1042,109 +1042,126 @@ class Scheduler:
         # ! ------------------- Final State & Node Creation -------------------
         # new_completed, new_remain, new_constraints 변수는 이 스코프에서 이미 올바르게 정의되어 있어야 함.
         # (이전 제안에서 new_constraints = copy.deepcopy(curr_state.constraints) 등으로 시작)
-        new_completed_for_state = curr_state.completed_entries + [
-            CompletedEntry(
-                early_sub,
-                planned_early_sub_nav_start_time,
-                planned_early_sub_completion_time,
-            )
-        ]
-        new_scene_positions_for_state = (
-            pre_actions_info.results[-1].scene_positions
-            if pre_actions_info.results
-            else curr_state.scene_positions
-        )
-        new_held_obj_for_state = (
-            pre_actions_info.results[-1].held_object
-            if pre_actions_info.results
-            else curr_state.held_object
-        )
-
-        new_remain_for_state = [
-            r for r in curr_state.remaining_subtasks if r.name != original_task_name
-        ]
-        new_remain_for_state.extend([mon_sub, remain_sub])
-
-        # new_constraints는 이 함수 상단에서 curr_state.constraints를 deepcopy하고 수정해야 함.
-        # (이전 최종 제안 코드의 Constraints Update 부분을 참조하여 여기에 통합해야 함)
         # 여기서는 new_constraints가 이미 잘 정의되었다고 가정하고 사용.
         # --- 제약 조건 업데이트 로직 시작 (이전 제안 기반) ---
         new_constraints = copy.deepcopy(curr_state.constraints)
-        if new_constraints.has_node(original_task_name):
-            in_edges_data = list(
+        original_task_name_in_constraints = new_constraints.has_node(original_task_name)
+
+        in_edges_data_for_original = []
+        if original_task_name_in_constraints:
+            in_edges_data_for_original = list(
                 new_constraints.in_edges(original_task_name, data=True)
             )
-            out_edges_data = list(
-                new_constraints.out_edges(original_task_name, data=True)
-            )
-            new_constraints.remove_node(original_task_name)
-        else:
-            in_edges_data = []
-            out_edges_data = []
+
+        if not new_constraints.has_node(mon_sub.name):
+            new_constraints.add_node(mon_sub.name)
+        if not new_constraints.has_node(original_task_name):  # candidate.subtask.name
+            new_constraints.add_node(original_task_name)
             log.warning(
-                f"Original task {original_task_name} not found in constraints for splitting."
+                f"Original task {original_task_name} was not in constraints, added for mon_sub link."
             )
 
-        new_constraints.add_node(early_sub.name)
-        new_constraints.add_node(mon_sub.name)
-        new_constraints.add_node(remain_sub.name)
-
-        for pred, _, data in in_edges_data:
-            new_constraints.add_edge(
-                pred, early_sub.name, info=copy.deepcopy(data["info"])
+        # 1. Link mon_sub to original_task_name (candidate.subtask)
+        # Interval은 모니터링 완료 후, 원래 태스크의 상호작용 시작 전까지의 순수 대기 시간.
+        # candidate.is_critical은 original_task_name 자체가 critical한지를 나타냄.
+        info_mon_to_orig = {
+            "Interval": pure_wait_duration_after_monitoring,
+            "IsCritical": candidate.is_critical,  # 또는 항상 True/False로 할지 정책 결정
+        }
+        if new_constraints.has_edge(mon_sub.name, original_task_name):
+            new_constraints.edges[mon_sub.name, original_task_name]["info"].update(
+                info_mon_to_orig
             )
-        new_constraints.add_edge(
-            early_sub.name, mon_sub.name, info={"Interval": 0, "IsCritical": True}
-        )
-        new_constraints.add_edge(
-            mon_sub.name, remain_sub.name, info={"Interval": 0, "IsCritical": False}
-        )
-        for _, succ, data in out_edges_data:
+        else:
             new_constraints.add_edge(
-                remain_sub.name, succ, info=copy.deepcopy(data["info"])
+                mon_sub.name, original_task_name, info=info_mon_to_orig
             )
 
-        if critical_start_sub_name:
-            new_constraints.add_edge(
-                critical_start_sub_name,
-                mon_sub.name,
-                info={"Interval": duration_of_early_sub_from_sim, "IsCritical": True},
-            )
-            # due_related_sub_name은 mon_sub 이름에 사용된 변수.
-            # 여기서 due_related_sub_name은 critical chain의 다음 타겟을 의미.
-            # scheduling_due_obj.due_related_sub_name 이 그 역할을 할 수 있음.
-            actual_due_related_sub_name = scheduling_due_obj.due_related_sub_name
-            if (
-                actual_due_related_sub_name
-                and actual_due_related_sub_name != original_task_name
-                and not new_constraints.has_edge(
-                    remain_sub.name, actual_due_related_sub_name
-                )
-            ):
-                # interval_for_mon_to_due는 max_critical_interval - (duration_of_early_sub_from_sim + MONITORING_DURATION)
-                interval_for_mon_to_due = max_critical_interval - (
-                    duration_of_early_sub_from_sim + MONITORING_DURATION
-                )
-                interval_for_remain_to_due = (
-                    interval_for_mon_to_due - duration_of_remain_sub_from_sim
-                )
-                if interval_for_remain_to_due < 0:
-                    interval_for_remain_to_due = 0
-                new_constraints.add_edge(
-                    remain_sub.name,
-                    actual_due_related_sub_name,
-                    info={"Interval": interval_for_remain_to_due, "IsCritical": True},
-                )
+        # 2. Reroute incoming edges from original_task_name to mon_sub (ONLY if critical)
+        #    Non-critical incoming edges should remain pointing to original_task_name.
+        if original_task_name_in_constraints:
+            completed_map = {ce.subtask.name: ce for ce in curr_state.completed_entries}
+            # planned_monitoring_start_time은 prep_nav_sub 완료 시간과 동일
+            # planned_monitoring_start_time = planned_nav_completion_time
+
+            for pred_name, _, data in in_edges_data_for_original:
+                if pred_name == mon_sub.name:  # self-loop 방지
+                    continue
+
+                original_edge_info = copy.deepcopy(data["info"])
+
+                if original_edge_info.get("IsCritical"):
+                    # Critical 제약은 mon_sub로 이전
+                    if new_constraints.has_edge(
+                        pred_name, original_task_name
+                    ):  # 기존 pred -> orig 연결 제거
+                        new_constraints.remove_edge(pred_name, original_task_name)
+
+                    pred_entry = completed_map.get(pred_name)
+                    new_interval_to_mon = original_edge_info.get(
+                        "Interval", 0
+                    )  # 기본값은 원본 Interval
+
+                    if pred_entry:
+                        calculated_interval = (
+                            planned_monitoring_start_time - pred_entry.schedule_end_time
+                        )
+                        new_interval_to_mon = max(0, calculated_interval)
+                        log.debug(
+                            f"Rerouting CRITICAL {pred_name}->{original_task_name} to {pred_name}->{mon_sub.name}. OrigInt: {original_edge_info.get('Interval',0)}, NewIntToMon: {new_interval_to_mon}"
+                        )
+                    else:
+                        log.warning(
+                            f"Predecessor {pred_name} for CRITICAL constraint to {mon_sub.name} (via {original_task_name}) not in completed. Using original interval {new_interval_to_mon} for {pred_name}->{mon_sub.name} (may be inaccurate)."
+                        )
+
+                    info_pred_to_mon = {
+                        "Interval": new_interval_to_mon,
+                        "IsCritical": True,
+                    }
+                    if new_constraints.has_edge(pred_name, mon_sub.name):
+                        new_constraints.edges[pred_name, mon_sub.name]["info"].update(
+                            info_pred_to_mon
+                        )
+                    else:
+                        new_constraints.add_edge(
+                            pred_name, mon_sub.name, info=info_pred_to_mon
+                        )
+                # else: Non-critical 제약은 original_task_name으로 그대로 유지 (제거하지 않음)
+                #    log.debug(f"Non-critical constraint {pred_name}->{original_task_name} remains.")
+
         # --- 제약 조건 업데이트 로직 끝 ---
 
+        # SchedulerState 생성 부분
+        new_completed_for_state = curr_state.completed_entries + [
+            CompletedEntry(
+                subtask=early_sub,
+                schedule_start_time=planned_early_sub_nav_start_time,
+                schedule_end_time=planned_early_sub_completion_time,
+                execution_status=(
+                    True
+                    if pre_actions_info
+                    and pre_actions_info.results
+                    and all(r.success for r in pre_actions_info.results)
+                    else False
+                ),  # early_sub의 성공 여부
+            )
+        ]
+        new_remain_for_state = [
+            r for r in curr_state.remaining_subtasks if r.name != original_task_name
+        ]
+        new_remain_for_state.extend(
+            [mon_sub, candidate.subtask]
+        )  # mon_sub와 원래 후보(candidate.subtask) 추가
+
         new_state = SchedulerState(
-            subtask=early_sub,
-            completed_entries=new_completed_for_state,  # 이전 completed_entries 사용
-            remaining_subtasks=new_remain_for_state,  # 새로 구성된 remaining_subtasks
-            constraints=new_constraints,  # 새로 구성된 constraints
+            subtask=early_sub,  # 방금 완료한 것은 early_sub
+            completed_entries=new_completed_for_state,
+            remaining_subtasks=new_remain_for_state,
+            constraints=new_constraints,
             current_time=planned_early_sub_completion_time,
-            scene_positions=new_scene_positions_for_state,  # early_sub 완료 후 상태
-            held_object=new_held_obj_for_state,
+            scene_positions=state_before_remain_nav_scene_pos,
+            held_object=state_before_remain_nav_held_obj,
         )
         step_cost = self.cost_calculator.calc_heuristic(curr_node, candidate)
         new_cost = curr_cost + step_cost
@@ -1252,76 +1269,116 @@ class Scheduler:
         )
         mon_sub.decomposed = True
 
-        # new_state 생성 시 new_completed, new_remain, new_constraints 사용 확인 완료.
-        new_completed_for_state = curr_state.completed_entries + [
-            CompletedEntry(
-                prep_nav_sub, planned_nav_start_time, planned_nav_completion_time
-            )
-        ]
-
-        new_remain_for_state = [
-            r for r in curr_state.remaining_subtasks if r.name != original_task_name
-        ]
-        new_remain_for_state.extend(
-            [mon_sub, candidate.subtask]
-        )  # candidate.subtask는 원래 subtask 객체
-
-        # new_constraints는 이 함수 상단에서 curr_state.constraints를 deepcopy하고 수정해야 함.
-        # (이전 최종 제안 코드의 Constraints Update 부분을 참조하여 여기에 통합해야 함)
-        # 여기서는 new_constraints가 이미 잘 정의되었다고 가정하고 사용.
-        # --- 제약 조건 업데이트 로직 시작 (이전 제안 기반) ---
+        # --- 제약 조건 업데이트 로직 시작 ---
         new_constraints = copy.deepcopy(curr_state.constraints)
-        original_node_exists_in_constraint = new_constraints.has_node(
-            original_task_name
-        )
+        original_task_name_in_constraints = new_constraints.has_node(original_task_name)
+
+        # in_edges_data를 여기서 가져와야 함 (original_task_name이 제약 그래프에서 변경/제거되기 전)
+        in_edges_data_for_original = []
+        if original_task_name_in_constraints:
+            in_edges_data_for_original = list(
+                new_constraints.in_edges(original_task_name, data=True)
+            )
 
         if not new_constraints.has_node(mon_sub.name):
             new_constraints.add_node(mon_sub.name)
-
         if not new_constraints.has_node(original_task_name):  # candidate.subtask.name
             new_constraints.add_node(original_task_name)
             log.warning(
                 f"Original task {original_task_name} was not in constraints, added for mon_sub link."
             )
 
+        # 1. Link mon_sub to original_task_name (candidate.subtask)
+        # Interval은 모니터링 완료 후, 원래 태스크의 상호작용 시작 전까지의 순수 대기 시간.
+        # candidate.is_critical은 original_task_name 자체가 critical한지를 나타냄.
+        info_mon_to_orig = {
+            "Interval": pure_wait_duration_after_monitoring,
+            "IsCritical": candidate.is_critical,  # 또는 항상 True/False로 할지 정책 결정
+        }
         if new_constraints.has_edge(mon_sub.name, original_task_name):
             new_constraints.edges[mon_sub.name, original_task_name]["info"].update(
-                {
-                    "Interval": pure_wait_duration_after_monitoring,
-                    "IsCritical": candidate.is_critical,
-                }
+                info_mon_to_orig
             )
         else:
             new_constraints.add_edge(
-                mon_sub.name,
-                original_task_name,
-                info={
-                    "Interval": pure_wait_duration_after_monitoring,
-                    "IsCritical": candidate.is_critical,
-                },
+                mon_sub.name, original_task_name, info=info_mon_to_orig
             )
 
-        if original_node_exists_in_constraint:
-            in_edges_data = list(
-                new_constraints.in_edges(original_task_name, data=True)
-            )
-            # out_edges_data = list(new_constraints.out_edges(original_task_name, data=True)) # out-edges는 original_task_name에서 그대로 나감
+        # 2. Reroute incoming edges from original_task_name to mon_sub (ONLY if critical)
+        #    Non-critical incoming edges should remain pointing to original_task_name.
+        if original_task_name_in_constraints:
+            completed_map = {ce.subtask.name: ce for ce in curr_state.completed_entries}
+            # planned_monitoring_start_time은 prep_nav_sub 완료 시간과 동일
+            # planned_monitoring_start_time = planned_nav_completion_time
 
-            for pred, _, data in in_edges_data:
-                if pred == mon_sub.name:
+            for pred_name, _, data in in_edges_data_for_original:
+                if pred_name == mon_sub.name:  # self-loop 방지
                     continue
-                if new_constraints.has_edge(pred, original_task_name):
-                    new_constraints.remove_edge(pred, original_task_name)
 
-                new_edge_info = copy.deepcopy(data["info"])
-                if new_edge_info.get("IsCritical"):
-                    new_edge_info["Interval"] = 0
-                    if not new_constraints.has_edge(pred, mon_sub.name):
-                        new_constraints.add_edge(pred, mon_sub.name, info=new_edge_info)
+                original_edge_info = copy.deepcopy(data["info"])
+
+                if original_edge_info.get("IsCritical"):
+                    # Critical 제약은 mon_sub로 이전
+                    if new_constraints.has_edge(
+                        pred_name, original_task_name
+                    ):  # 기존 pred -> orig 연결 제거
+                        new_constraints.remove_edge(pred_name, original_task_name)
+
+                    pred_entry = completed_map.get(pred_name)
+                    new_interval_to_mon = original_edge_info.get(
+                        "Interval", 0
+                    )  # 기본값은 원본 Interval
+
+                    if pred_entry:
+                        calculated_interval = (
+                            planned_monitoring_start_time - pred_entry.schedule_end_time
+                        )
+                        new_interval_to_mon = max(0, calculated_interval)
+                        log.debug(
+                            f"Rerouting CRITICAL {pred_name}->{original_task_name} to {pred_name}->{mon_sub.name}. OrigInt: {original_edge_info.get('Interval',0)}, NewIntToMon: {new_interval_to_mon}"
+                        )
+                    else:
+                        log.warning(
+                            f"Predecessor {pred_name} for CRITICAL constraint to {mon_sub.name} (via {original_task_name}) not in completed. Using original interval {new_interval_to_mon} for {pred_name}->{mon_sub.name} (may be inaccurate)."
+                        )
+
+                    info_pred_to_mon = {
+                        "Interval": new_interval_to_mon,
+                        "IsCritical": True,
+                    }
+                    if new_constraints.has_edge(pred_name, mon_sub.name):
+                        new_constraints.edges[pred_name, mon_sub.name]["info"].update(
+                            info_pred_to_mon
+                        )
+                    else:
+                        new_constraints.add_edge(
+                            pred_name, mon_sub.name, info=info_pred_to_mon
+                        )
+                # else: Non-critical 제약은 original_task_name으로 그대로 유지 (제거하지 않음)
+                #    log.debug(f"Non-critical constraint {pred_name}->{original_task_name} remains.")
+
         # --- 제약 조건 업데이트 로직 끝 ---
 
+        # SchedulerState 생성 부분
+        new_completed_for_state = curr_state.completed_entries + [
+            CompletedEntry(
+                subtask=prep_nav_sub,
+                schedule_start_time=planned_nav_start_time,
+                schedule_end_time=planned_nav_completion_time,
+                execution_status=(
+                    True if executed_nav_info and executed_nav_info.success else False
+                ),  # prep_nav_sub 성공 여부
+            )
+        ]
+        new_remain_for_state = [
+            r for r in curr_state.remaining_subtasks if r.name != original_task_name
+        ]
+        new_remain_for_state.extend(
+            [mon_sub, candidate.subtask]
+        )  # mon_sub와 원래 후보(candidate.subtask) 추가
+
         new_state = SchedulerState(
-            subtask=prep_nav_sub,
+            subtask=prep_nav_sub,  # 방금 완료한 것은 prep_nav_sub
             completed_entries=new_completed_for_state,
             remaining_subtasks=new_remain_for_state,
             constraints=new_constraints,
@@ -1329,7 +1386,7 @@ class Scheduler:
             scene_positions=new_scene_positions_after_nav,
             held_object=new_held_obj_after_nav,
         )
-        # ... (step_cost 계산 및 SimulationNode 반환 로직은 동일) ...
+        # ... (step_cost, new_cost, SimulationNode 반환은 동일) ...
         step_cost = self.cost_calculator.calc_heuristic(curr_node, candidate)
         new_cost = curr_cost + step_cost
         log.info(
