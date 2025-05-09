@@ -9,14 +9,17 @@ from src.core.task import Subtask
 
 
 
-class CompletedEntry(NamedTuple):
+class CompletedEntry:
     """
     완료된 Subtask에 대해, (Subtask, schedule_start_time, schedule_end_time)을 함께 저장
     """
 
     subtask: Subtask
-    schedule_start_time: float
-    schedule_end_time: float
+    schedule_start_time: float = float("inf")
+    schedule_end_time: float = float("inf")
+    sim_start_time: float = float("inf")
+    sim_end_time: float = float("inf")
+    execution_status: bool = False
 
     def __repr__(self):
         return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time})"
@@ -30,7 +33,7 @@ class SchedulerState(NamedTuple):
     # 현재 subtask
     subtask: Subtask
     # 수행된 subtask들 (현재 subtask 포함X)
-    completed_subtasks: List[CompletedEntry]
+    completed_entries: List[CompletedEntry]
     # 남은 subtask들
     remaining_subtasks: List[Subtask]
     # 현재 constraint

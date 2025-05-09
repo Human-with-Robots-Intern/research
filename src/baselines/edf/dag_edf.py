@@ -21,7 +21,7 @@ from core.task import *
 from ithor.utils.math_utils import load_navigation_graph
 from scheduler.action_handler import ActionHandler
 from simulation.runner_ai2thor import init_ai2thor_controller
-from utils.config.constants import RESULT_PATH, SCENE_NAME
+from utils.config.constants import RESULT_PATH
 from utils.io_utils.task_io import (
     get_natural_language_from_task_file,
     get_user_task_choice,
@@ -67,7 +67,7 @@ def compute_nav_time(
         if act.startswith("NAVIGATE_TO"):
             nav_info = action_handler.get_actions_info(temp_node, [act])
             if nav_info:
-                nav_time = nav_info.time_used
+                nav_time = nav_info.action_duration
             break
 
     return nav_time
@@ -209,7 +209,7 @@ def update(
     current_time = current_state.current_time
 
     exec_info = offline_subtask_execution(next_subtask, current_state, action_handler)
-    real_exec_time = exec_info.time_used
+    real_exec_time = exec_info.action_duration
     if real_exec_time == None:
         real_exec_time = next_subtask.duration.interval
 
@@ -310,9 +310,9 @@ def update(
         remaining_subtasks=new_remaining,
         constraints=constraints,
         current_time=new_current_time,
-        scene_positions=current_state.scene_positions,  # scene_positions도 필요시 갱신?
-        held_object=current_state.held_object,
-        agent_location=current_state.agent_location,
+        scene_positions=current_state.scene_positions,
+        held_object=current_state.held_object,  # Preserve held object state
+        agent_location=current_state.agent_location,  # Preserve agent location
     )
     return updated_state
 
@@ -378,7 +378,7 @@ def main():
     if choice != 0:
         input_natural_language = task_io.get_natural_language_from_task_file(f"{choice}")
     # Build tasks and constraints
-    subtasks, constraints = TaskUtil.build_tasks_and_constraints(task_data, True,scene_name=scene_name)
+    subtasks, constraints = TaskUtil.build_tasks_and_constraints(task_data, scene_file_name = f"{scene_name}_physics_environment.json")
 
     computation_time = 0
     current_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
@@ -423,8 +423,7 @@ def main():
         current_time = 0
 
         for ce in result_schedule:
-            ce.subtask.start_time_scheduled = ce.sim_start_time
-            ce.subtask.end_time_scheduled = ce.end_time
+
 
             ce.subtask.start_time_simulation = current_time
             # Wait 과 Navigate는 실제 시뮬레이션

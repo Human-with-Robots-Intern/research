@@ -198,6 +198,7 @@ class TaskGenerator:
 
                 output = json.loads(output_content)
                 if validate_output_format(output):
+                    # validate_output_format이 output을 수정했으므로 수정된 버전을 반환
                     return output
 
             except json.JSONDecodeError as e:
