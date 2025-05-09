@@ -203,7 +203,7 @@ class Candidate:
     estimated_first_nav_duration: float = 0.0
     # 고려할 스케줄링 마감시간
     scheduling_due: SchedulingDue = SchedulingDue(
-        due_date=float("inf"), triggering_subtask_name=None
+        due_date=float("inf"), due_related_sub_name=None
     )
 
     def __repr__(self):

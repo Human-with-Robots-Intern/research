@@ -389,7 +389,7 @@ class ConstraintHandler:
 
         # Assign the calculated scheduling_due to all feasible candidates (IN-PLACE)
         new_scheduling_due = SchedulingDue(
-            due_date=scheduling_due, triggering_subtask_name=due_related_sub_name
+            due_date=scheduling_due, due_related_sub_name=due_related_sub_name
         )
         for feasible_candidate in feasible_candidates:
             feasible_candidate.scheduling_due = new_scheduling_due

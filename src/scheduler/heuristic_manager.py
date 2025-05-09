@@ -42,7 +42,6 @@ class HeuristicManager:
 
     def __init__(
         self,
-        # constraint_handler: "ConstraintHandler", # 직접 사용되지 않음
         action_handler: "ActionHandler",
         agent: Optional["Agent"] = None,
     ):
@@ -338,7 +337,7 @@ class HeuristicManager:
             return LARGE_NUMBER
 
         log.debug(
-            f"Calculating heuristic for Candidate: {candidate.subtask.name} (EstNav: {candidate.estimated_first_nav_duration:.2f}, ActualInteractStart: {candidate.actual_interaction_start_time:.2f}, Due: {candidate.scheduling_due.due_date:.2f if candidate.scheduling_due else 'N/A'})"
+            f"Calculating heuristic for Candidate: {candidate.subtask.name} (EstNav: {candidate.estimated_first_nav_duration:.2f}, ActualInteractStart: {candidate.actual_interaction_start_time:.2f}, Due: {candidate.scheduling_due.due_date if candidate.scheduling_due else 'N/A'})"
         )
 
         # --- 1. 후보 자체의 비용 (Cost for the candidate itself) ---
