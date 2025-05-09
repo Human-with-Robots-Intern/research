@@ -189,6 +189,7 @@ class TaskGenerator:
                 response = self.client.chat.completions.create(
                     model="gpt-4o",
                     messages=full_prompt,
+                    temperature=0,
                 )
                 output_content = response.choices[0].message.content.strip()
 
