@@ -438,7 +438,7 @@ class Scheduler:
         wait_sub_executed_info = self.action_handler.get_actions_info(
             curr_node, wait_sub_primitive_actions
         )
-        if wait_sub_executed_info is None or not wait_sub_executed_info.results:
+        if wait_sub_executed_info is None:
             log.error(
                 f"[_expand_wait_wo_monitoring] Failed to simulate wait subtask actions for {candidate.subtask.name}"
             )
@@ -712,8 +712,8 @@ class Scheduler:
         # 예시로 필요한 변수들만 명시 (실제 코드는 이 변수들을 가져오는 부분이 있어야 함)
         constraints_start_names = self.constraint_handler.get_time_slots(
             (
-                scheduling_due_obj.triggering_subtask_name
-                if scheduling_due_obj.triggering_subtask_name
+                scheduling_due_obj.due_related_sub_name
+                if scheduling_due_obj.due_related_sub_name
                 else original_task_name
             ),  # due_related_sub_name 사용
             curr_state.constraints,
@@ -725,7 +725,7 @@ class Scheduler:
             not critical_slots
         ):  # _should_expand_with_monitoring 에서도 체크하지만, 여기서도 방어적으로
             log.debug(
-                f"No critical constraints found for {scheduling_due_obj.triggering_subtask_name if scheduling_due_obj.triggering_subtask_name else original_task_name}. Fallback to non-monitoring for {original_task_name}."
+                f"No critical constraints found for {scheduling_due_obj.due_related_sub_name if scheduling_due_obj.due_related_sub_name else original_task_name}. Fallback to non-monitoring for {original_task_name}."
             )
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
@@ -779,7 +779,7 @@ class Scheduler:
 
         original_subtask_actions = candidate.subtask.execution.primitive_actions
         try:
-            # get_actions_info는 ActionResult 또는 None 반환
+            # full_candidate_action_info
             full_candidate_action_info: Optional[ActionResult] = (
                 self.action_handler.get_actions_info(
                     curr_node, original_subtask_actions
@@ -787,7 +787,7 @@ class Scheduler:
             )
             if not (
                 full_candidate_action_info and full_candidate_action_info.success
-            ):  # .success 직접 사용
+            ):  # .success 접근
                 log.warning(
                     f"Fallback: Full action sim failed for {original_task_name}."
                 )
@@ -795,7 +795,7 @@ class Scheduler:
 
             total_original_subtask_duration = (
                 full_candidate_action_info.cumulative_time
-            )  # .cumulative_time 직접 사용
+            )  # .cumulative_time 접근
             if (
                 expected_monitoring_start_timing
                 > curr_state.current_time + total_original_subtask_duration - EPSILON
@@ -860,8 +860,8 @@ class Scheduler:
         )
         # mon_sub 이름 수정 제안: due_related_sub_name을 명시
         due_related_sub_name_for_mon = (
-            scheduling_due_obj.triggering_subtask_name
-            if scheduling_due_obj.triggering_subtask_name
+            scheduling_due_obj.due_related_sub_name
+            if scheduling_due_obj.due_related_sub_name
             else original_task_name
         )
         mon_sub = TaskUtil.create_monitoring_subtask(
@@ -924,21 +924,21 @@ class Scheduler:
 
         try:
             if post_actions_info.get_actions():
-                # get_actions_info는 ActionResult 또는 None 반환
+                # executed_nav_info_for_remain
                 executed_nav_info_for_remain = self.action_handler.get_actions_info(
                     temp_sim_node_for_remain_nav, [nav_action_for_remain_str]
                 )
                 if not (
                     executed_nav_info_for_remain
                     and executed_nav_info_for_remain.success
-                ):  # .success 직접 사용
+                ):  # .success 접근
                     log.warning(
                         f"Navigation for remain_sub of {original_task_name} failed."
                     )
                     return None
                 actual_nav_duration_for_remain = (
                     executed_nav_info_for_remain.action_duration
-                )  # 단일 액션이므로 action_duration
+                )  # .action_duration 접근
             else:
                 log.warning(
                     f"post_actions_info.get_actions() is empty for {original_task_name}, remain_sub will have no actions."
@@ -1112,8 +1112,8 @@ class Scheduler:
             )
             # due_related_sub_name은 mon_sub 이름에 사용된 변수.
             # 여기서 due_related_sub_name은 critical chain의 다음 타겟을 의미.
-            # scheduling_due_obj.triggering_subtask_name 이 그 역할을 할 수 있음.
-            actual_due_related_sub_name = scheduling_due_obj.triggering_subtask_name
+            # scheduling_due_obj.due_related_sub_name 이 그 역할을 할 수 있음.
+            actual_due_related_sub_name = scheduling_due_obj.due_related_sub_name
             if (
                 actual_due_related_sub_name
                 and actual_due_related_sub_name != original_task_name
