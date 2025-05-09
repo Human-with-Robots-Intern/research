@@ -61,9 +61,13 @@ PRIMITIVE_ACTION_DURATION = 1.0
 MONITORING_DURATION = 0.1
 NAV_STEP_DURATION = 0.1
 REACHABLE_DISTANCE_THRESHOLD = 1.5
-ALPHA_HEURISTIC = 4.0
-BETA_HEURISTIC = 4.0
-GAMMA_HEURISTIC = 2.0
+# Heuristic constants have been reduced to align with the updated algorithm's expectations:
+# - ALPHA_HEURISTIC: Reduced to 2.0 to balance the weight of heuristic influence on decision-making.
+# - BETA_HEURISTIC: Reduced to 3.0 to ensure smoother scaling in probabilistic calculations.
+# - GAMMA_HEURISTIC: Reduced to 0.3 to minimize overfitting and maintain generalization in predictions.
+ALPHA_HEURISTIC = 2.0
+BETA_HEURISTIC = 3.0
+GAMMA_HEURISTIC = 0.3
 # ========== 베이지안 ==========
 BAYESIAN_CRITERIA = 0.7
 INIT_PRIOR_MEAN = 10.0

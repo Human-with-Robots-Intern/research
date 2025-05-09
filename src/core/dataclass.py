@@ -174,10 +174,12 @@ class CompletedEntry:
     """
 
     subtask: Subtask
+    # start, end time은 navigation을 포함한 시작 및 종료 시간
     schedule_start_time: float = float("inf")
     schedule_end_time: float = float("inf")
     sim_start_time: float = float("inf")
     sim_end_time: float = float("inf")
+    actual_first_nav_duration: Optional[float] = None
     execution_status: bool = False
 
     def __repr__(self):
@@ -193,10 +195,14 @@ class Candidate:
     subtask: Subtask
     # subtask이 critical인지 여부
     is_critical: bool
-    # subtask의 시작 시간
-    earliest_start_time: float
+    # subtask의 실제 상호작용 시작 예상 시간
+    actual_interaction_start_time: float
+    # subtask의 시간 제약 로직 상 상호작용 시작 시간
+    logical_interaction_start_time: Optional[float] = None
+    # subtask의 첫 번째 액션의 소요 시간
+    estimated_first_nav_duration: float = 0.0
     # 고려할 데드라인
     deadline: Deadline = Deadline(due_date=float("inf"), subtask_name=None)
 
     def __repr__(self):
-        return f"({self.subtask.name}; duration : {self.subtask.duration.interval}, earliest_start_time = {self.earliest_start_time}, deadline = {self.deadline}, is_critical = {self.is_critical})"
+        return f"({self.subtask.name}; duration : {self.subtask.duration.interval}, earliest_start_time = {self.actual_interaction_start_time}, deadline = {self.deadline}, is_critical = {self.is_critical})"
