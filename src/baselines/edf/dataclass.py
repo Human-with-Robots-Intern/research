@@ -11,15 +11,15 @@ from src.core.task import Subtask
 
 class CompletedEntry(NamedTuple):
     """
-    완료된 Subtask에 대해, (Subtask, start_time, end_time)을 함께 저장
+    완료된 Subtask에 대해, (Subtask, schedule_start_time, schedule_end_time)을 함께 저장
     """
 
     subtask: Subtask
-    start_time: float
-    end_time: float
+    schedule_start_time: float
+    schedule_end_time: float
 
     def __repr__(self):
-        return f"({self.subtask.name}, {self.start_time} ~ {self.end_time})"
+        return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time})"
 
 
 class SchedulerState(NamedTuple):

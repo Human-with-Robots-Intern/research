@@ -80,8 +80,9 @@ def parse_arguments() -> argparse.Namespace:
         default="none",
         choices=["none", "no_comments", "no_feedback", "no_comments_feedback"],
     )
-    parser.add_argument("--openai-api-key", type=str, default="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")
-
+    parser.add_argument("--openai-api-key", type=str, default=os.getenv("OPENAI_API_KEY"))
+    
+    parser.add_argument("--prompt-task-examples", type=str, default="default")
     return parser.parse_args()
 
 def generate_plan(controller, args):
@@ -101,21 +102,21 @@ def generate_plan(controller, args):
         prompt_egs = {}
         for k, v in tmp.items():
             prompt_egs[k] = v
-    # if args.prompt_task_examples == "default":
-    #     default_examples = [
-    #         "Wash_Tomato_and_Potato_and_egg_and_Cook_Egg_Fry",
-    #         "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple",
-    #         "make_me_a_toast_and_set_the_table_for_lunch",
-    #         "put_tomato_and_apple_in_fridge_and_put_book_in_shelf",
-    #     ]
-    #     for i in range(args.prompt_num_examples):
-    #         prompt += (
-    #             "task : "
-    #             + default_examples[i]
-    #             + " \n"
-    #             + prompt_egs[default_examples[i]]
-    #             + "\n\n"
-    #         )
+    if args.prompt_task_examples == "default":
+        default_examples = [
+            "Wash_Tomato_and_Potato_and_egg_and_Cook_Egg_Fry",
+            "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple",
+            "make_me_a_toast_and_set_the_table_for_lunch",
+            "put_tomato_and_apple_in_fridge_and_put_book_in_shelf",
+        ]
+        for i in range(args.prompt_num_examples):
+            prompt += (
+                "task : "
+                + default_examples[i]
+                + " \n"
+                + prompt_egs[default_examples[i]]
+                + "\n\n"
+            )
 
     test_tasks = []
     # "toast the bread and put tomato in the fridge. put egg in the pan."
@@ -173,24 +174,8 @@ def planner_executer(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser() 
+    args: argparse.Namespace = parse_arguments()    
 
-    parser.add_argument(
-        "--prompt-task-examples",
-        type=str,
-        default="default",
-        choices=["default", "random"],
-    )
-    # for random task examples, choose seed
-    parser.add_argument("--seed", type=int, default=0)
-
-    ## NOTE: davinci or older GPT3 versions have a lower token length limit
-    ## check token length limit for models to set prompt size:
-    ## https://platform.openai.com/docs/models
-    
-
-    
-    args = parser.parse_args()
     openai.api_key = args.openai_api_key
 
     planner_executer(args=args)

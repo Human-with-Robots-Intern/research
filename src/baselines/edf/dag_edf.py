@@ -279,8 +279,8 @@ def update(
                     duration=Duration(type="WAIT", interval=remaining_wait),
                     temporal_constraints=[],
                 ),
-                start_time=new_current_time,
-                end_time=designated_start,
+                schedule_start_time=new_current_time,
+                schedule_end_time=designated_start,
             )
             wait_entry.subtask.execution_status = True
             wait_entries.append(wait_entry)
@@ -291,8 +291,8 @@ def update(
     # -------------------------------
     subtask_entry = CompletedEntry(
         subtask=next_subtask,
-        start_time=new_current_time,
-        end_time=new_current_time + real_exec_time,
+        schedule_start_time=new_current_time,
+        schedule_end_time=new_current_time + real_exec_time,
     )
     new_current_time += real_exec_time
 
@@ -306,7 +306,7 @@ def update(
 
     updated_state = SchedulerState(
         subtask=next_subtask,
-        completed_subtasks=new_completed,
+        completed_entries=new_completed,
         remaining_subtasks=new_remaining,
         constraints=constraints,
         current_time=new_current_time,

@@ -113,7 +113,7 @@ Floorplan_kitchen_non_critical_list = [
 Floorplan_kitchen_not_constrained_list = [
     "wash_apple_and_lettuce",
     "put_apple_and_lettuce_in_fridge",
-    "wash_all_cutlery",
+    "wash_all_fork_and_spoon",
     "set_the_table",
     "prepare_a_water_cup",
     "put_saltshaker_on_the_table"
@@ -136,7 +136,7 @@ Floorplan1_not_constrained_list = [
     "wash_apple_and_lettuce", 
     "put_apple_and_lettuce_in_fridge", 
     "prepare_a_water_cup", 
-    "wash_all_cutlery", 
+    "wash_all_fork_and_spoon", 
     "throw_away_paper_towel_roll", 
     "put_the_wine_bottle_inside_a_cabinet", 
     "put_the_creditcard_on_the_countertop", 
@@ -159,7 +159,7 @@ Floorplan7_non_critical_list = [
 Floorplan7_not_constrained_list = [
     "wash_apple_and_lettuce", 
     "put_apple_and_lettuce_in_fridge", 
-    "wash_all_cutlery", 
+    "wash_all_fork_and_spoon", 
     "set_the_table", 
     "put_the_wine_bottle_inside_a_cabinet", 
     "put_a_statue_on_the_table"
@@ -179,7 +179,7 @@ Floorplan13_non_critical_list = [
 Floorplan13_not_constrained_list = [
     "wash_apple_and_lettuce", 
     "put_apple_and_lettuce_in_fridge", 
-    "wash_all_cutlery", 
+    "wash_all_fork_and_spoon", 
     "set_the_table", 
     "throw_away_paper_towel_roll", 
     "put_the_pencil_on_somewhere"
@@ -200,7 +200,7 @@ Floorplan18_non_critical_list = [
 Floorplan18_not_constrained_list = [
     "wash_apple_and_lettuce", 
     "put_apple_and_lettuce_in_fridge", 
-    "wash_all_cutlery", 
+    "wash_all_fork_and_spoon", 
     "set_the_table", 
     "throw_away_paper_towel_roll", 
     "roll_up_down_the_blinds", 
@@ -221,7 +221,7 @@ Floorplan27_non_critical_list = [
 Floorplan27_not_constrained_list = [
     "wash_apple_and_lettuce", 
     "put_apple_and_lettuce_in_fridge", 
-    "wash_all_cutlery", 
+    "wash_all_fork_and_spoon", 
     "set_the_table", 
     "wash_two_ladles", 
     "put_the_wine_bottle_inside_a_cabinet"
