@@ -6,19 +6,19 @@ from networkx import DiGraph
 from src.core.task import Subtask
 
 
-
-
-
+@dataclass
 class CompletedEntry:
     """
     완료된 Subtask에 대해, (Subtask, schedule_start_time, schedule_end_time)을 함께 저장
     """
 
-    subtask: Subtask
+    subtask: Subtask  
+    # start, end time은 navigation을 포함한 시작 및 종료 시간
     schedule_start_time: float = float("inf")
     schedule_end_time: float = float("inf")
     sim_start_time: float = float("inf")
     sim_end_time: float = float("inf")
+    actual_first_nav_duration: Optional[float] = None
     execution_status: bool = False
 
     def __repr__(self):
