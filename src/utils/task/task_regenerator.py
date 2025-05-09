@@ -33,6 +33,7 @@ def regenerate_invalid_subtasks(
             response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=regenerate_prompt,
+                temperature=0,
             )
             regenerated_content = response.choices[0].message.content.strip()
             # JSON 코드블록 제거 로직

@@ -264,13 +264,19 @@ def result_save_llm(
         "realworld_makespan": None,
     }
 
-    file_path = (
-        Path("assets")
-        / "results"
-        / json_output_path
-        / "approach"
-        / f"{approach_name}.json"
-    )
+    # Find the next available number for the task name
+    num = 1
+    while True:
+        output_path = RESULT_PATH / f"{user_input}_{num}" / scene_name 
+        approach_path = output_path /"approach"
+        file_path = approach_path / f"{approach_name}.json"
+        if not file_path.exists():
+            break
+        num += 1
+    # Create directory if it doesn't exist
+    output_path.mkdir(parents=True, exist_ok=True)
+    approach_path.mkdir(parents=True, exist_ok=True)
+
     file_path.parent.mkdir(parents=True, exist_ok=True)
     with file_path.open("w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=4)
