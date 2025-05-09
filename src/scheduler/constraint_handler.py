@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 import networkx as nx
 from networkx import DiGraph
 
-from core.dataclass import (
+from src.core.dataclass import (
     ActionResult,
     Candidate,
     CompletedEntry,

@@ -13,8 +13,8 @@ def visualize(approach, output_path, constraints, plan=None):
     """
     DAG + Gantt 차트를 함께 시각화 및 저장하는 함수 (예시).
     """
-    
-    save_folder_path = output_path / "metadata"
+
+    save_folder_path = Path(output_path) / "metadata"
     save_folder_path.mkdir(exist_ok=True)
 
     # DAG 시각화

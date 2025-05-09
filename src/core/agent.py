@@ -16,9 +16,7 @@ from src.utils.config import (
     INIT_PRIOR_VARIANCE,
 )
 from utils.config.constants import AGENT_KNOWLEDGE_PATH, MIN_VARIANCE
-from utils.io_utils import load_file
 from utils.nlp import SentenceSimilarityModel
-from utils.task.constraints_util import get_critical_start_info
 
 if TYPE_CHECKING:
     from scheduler import ConstraintHandler
@@ -41,6 +39,8 @@ class Agent:
 
     def _load_lower_case_knowledge(self, filename: str) -> Dict[str, Dict]:
         """Loads knowledge from file or returns an empty dict if not found."""
+        from utils.io_utils import load_file
+
         knowledge_path = AGENT_KNOWLEDGE_PATH / filename
         try:
             knowledge = load_file(knowledge_path, "json")
@@ -182,6 +182,7 @@ class Agent:
         6) 베이지안 업데이트 계산
         7) knowledge 및 constraints 업데이트
         """
+        from utils.task.constraints_util import get_critical_start_info
 
         # 1) Extract target subtask name
         monitoring_target_sub_name = extract_monitoring_target_name(state.subtask.name)

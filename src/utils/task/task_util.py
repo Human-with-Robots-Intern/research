@@ -1,19 +1,21 @@
 # utils/task/task_util.py
+from __future__ import annotations
 
 import json
 import uuid
 from pathlib import Path
-from typing import Dict, List, Literal, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Literal, Tuple, Union
 
 from dotenv import load_dotenv
 from networkx import DiGraph
 
-from core.dataclass import CompletedEntry, SchedulerState
-from core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
+from src.core.dataclass import CompletedEntry, SchedulerState
+from src.core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
 
 # 내부 프로젝트 모듈
 from utils.common import create_module_logger
 from utils.config.constants import (
+    AGENT_KNOWLEDGE_PATH,
     ESTIMATE_FILE_NAME,
     GROUND_TRUTH_FILE_NAME,
     MONITORING_DURATION,
@@ -174,9 +176,9 @@ class TaskUtil:
         유효하지 않다면 문장 유사도 기반으로 가장 가까운 후보로 교체한다.
         """
         # 1) scene에서 사용 가능한 모든 object ID 로드
+        # SCENE_KNOWLEDGE_PATH 대신 AGENT_KNOWLEDGE_PATH를 사용하여 object ID 로드
         object_ids_map = cls._load_object_ids(scene_name)
-        object_ids_map = cls._load_object_ids(scene_name)
-        # 모든 object id를 flatten
+        # 모든 object id를 flatten (AGENT_KNOWLEDGE_PATH 기반)
         all_object_ids = {
             obj for category in object_ids_map for obj in object_ids_map[category]
         }
@@ -273,10 +275,12 @@ class TaskUtil:
         :param enable_decomposition: 서브태스크 분해 여부
         :return: (최종 Subtask 리스트, TaskGraph 객체)
         """
-        # 1) bayesian/groundtruth 정보 로드
-        bayesian_load = cls._load_json_file(SCENE_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME)
+        from src.core.task import Task, TaskGraphBuilder
+
+        # 1) bayesian/groundtruth 정보 로드 (AGENT_KNOWLEDGE_PATH에서 로드)
+        bayesian_load = cls._load_json_file(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME)
         ground_truth_load = cls._load_json_file(
-            SCENE_KNOWLEDGE_PATH / GROUND_TRUTH_FILE_NAME
+            AGENT_KNOWLEDGE_PATH / GROUND_TRUTH_FILE_NAME
         )
 
         # 2) Task 파싱, Object ID/액션 보정
@@ -302,10 +306,10 @@ class TaskUtil:
 
         # 5) 변경 사항 저장
         cls._save_json_file(
-            SCENE_KNOWLEDGE_PATH / "bayesian_estimate.json", bayesian_load
+            AGENT_KNOWLEDGE_PATH / "bayesian_estimate.json", bayesian_load
         )
         cls._save_json_file(
-            SCENE_KNOWLEDGE_PATH / "bayesian_ground_truth.json", ground_truth_load
+            AGENT_KNOWLEDGE_PATH / "bayesian_ground_truth.json", ground_truth_load
         )
 
         # 6) 액션 정제(재적용) + duration 조정

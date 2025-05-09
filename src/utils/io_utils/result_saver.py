@@ -1,13 +1,17 @@
 ### utils/io_utils/result_saver.py
+from __future__ import annotations
+
 import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import TYPE_CHECKING, Any, List, Tuple
 
 from networkx import DiGraph
 
-from core.dataclass import CompletedEntry
+if TYPE_CHECKING:
+    from src.core.dataclass import CompletedEntry
+
 from utils.common.logger import create_module_logger
 from utils.config.constants import RESULT_PATH
 from utils.visualizers.visualizer import visualize
@@ -130,7 +134,6 @@ def result_save(
     scene_name: str,
     constraints: DiGraph,
     log_level: str = "INFO",
-
 ):
     global log
     log = create_module_logger(__name__, module_log=True, level=log_level)
@@ -155,12 +158,12 @@ def result_save(
         "timing_success_rate_sim": timing_success_rate_sim,
         "timing_success_rate_sched": timing_success_rate_sched,
     }
-    
+
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = RESULT_PATH / f"{task_name}_{num}" / scene_name 
-        approach_path = output_path /"approach"
+        output_path = RESULT_PATH / f"{task_name}_{num}" / scene_name
+        approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():
             break
@@ -168,7 +171,7 @@ def result_save(
     # Create directory if it doesn't exist
     output_path.mkdir(parents=True, exist_ok=True)
     approach_path.mkdir(parents=True, exist_ok=True)
-    
+
     visualize(approach_name, output_path, constraints, result_schedule)
     with file_path.open("w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=4)

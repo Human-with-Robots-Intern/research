@@ -1,19 +1,29 @@
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING, Optional, Tuple
+
 import networkx as nx
 
-from core.dataclass import CompletedEntry
-from scheduler.constraint_handler import ConstraintHandler
+if TYPE_CHECKING:
+    from src.core.dataclass import CompletedEntry
+    from src.core.scheduler import ConstraintHandler
+
+log = logging.getLogger(__name__)
 
 
 def get_critical_start_info(
     subtask_name: str,
     completed: list[CompletedEntry],
     constraints: nx.DiGraph,
-    constraint_handler: ConstraintHandler,
-) -> tuple[str, float]:
+    constraint_handler: "ConstraintHandler",
+) -> Tuple[Optional[str], Optional[float]]:
     """
-    subtask_name에 inbound로 연결된 critical slots 중 interval이 가장 큰 것 찾기.
-    그리고 그 slot의 related_subtask_name과 그 subtask의 end_time을 반환.
+    Calculate the earliest start time based on critical constraints ('After', critical=True).
+    Finds the predecessor that dictates the latest start time among critical constraints.
     """
+    from src.core.dataclass import CompletedEntry
+
     constraints_start_names = constraint_handler.get_time_slots(
         subtask_name, constraints, direction="in"
     )
@@ -26,7 +36,11 @@ def get_critical_start_info(
 
     # completed_subtasks에서 critical_start_sub_name의 end_time 찾기
     critical_start_sub_end_time = next(
-        (ce.sim_end_time for ce in completed if ce.subtask.name == critical_start_sub_name),
+        (
+            ce.sim_end_time
+            for ce in completed
+            if ce.subtask.name == critical_start_sub_name
+        ),
         None,
     )
     if critical_start_sub_end_time is None:
