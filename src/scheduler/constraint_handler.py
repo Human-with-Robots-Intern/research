@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 import networkx as nx
 from networkx import DiGraph
 
+from core.task import Subtask
 from src.core.dataclass import (
     ActionResult,
     Candidate,
@@ -14,7 +15,6 @@ from src.core.dataclass import (
     SimulationNode,
     TimeSlot,
 )
-from core.task import Subtask
 from utils.config import EPSILON
 
 from .action_handler import ActionHandler
@@ -108,53 +108,62 @@ class ConstraintHandler:
                 continue
 
             # 2. 물리적 제약 조건 확인 (네비게이션 시간 등)
-            first_action = (
+            first_nav_action = (
                 sub.execution.primitive_actions[0]
-                if sub.execution and sub.execution.primitive_actions
+                if sub.execution
+                and sub.execution.primitive_actions[0].startswith("NAVIGATE_TO")
                 else None
             )
 
-            log.debug(
-                f"  Estimating prep time for '{sub.name}' using first action: '{first_action}' via ActionHandler"
-            )
-            prep_info: Optional[ActionResult] = self.action_handler.get_actions_info(
-                curr_node, [first_action]
-            )
-
-            estimated_prep_time = prep_info.action_duration
-            log.debug(f"    Estimated prep time: {estimated_prep_time:.2f}")
+            first_nav_duration = 0.0
+            if first_nav_action:
+                log.debug(
+                    f"  Estimating prep time for '{sub.name}' using first action: '{first_nav_action}' via ActionHandler"
+                )
+                # curr_node의 현재 시간, 위치 등을 기준으로 첫 액션 실행 시간 추정
+                navigation_info: Optional[ActionResult] = (
+                    self.action_handler.get_actions_info(curr_node, [first_nav_action])
+                )
+                # get_actions_info는 빈 actions 목록이 아니면 항상 ActionResult를 반환하므로 prep_info는 None이 아님.
+                first_nav_duration = navigation_info.action_duration
+                log.debug(
+                    f"    Estimated prep duration for first action: {first_nav_duration:.2f}"
+                )
+            else:
+                log.debug(
+                    f"  No primitive actions for subtask '{sub.name}'. Prep duration is 0."
+                )
 
             # 3. 최종 시작 가능 시간 계산 및 Feasibility 판단
-            #    논리적 시작 시간과 물리적 준비 완료 시간 중 더 늦은 시간
-            #    (현재 시간 + 준비 시간) vs (논리적 시작 시간)
+            #    logical_start_time: 선행 작업 완료 + 제약 간격 이후의 시간 (상호작용 시작 가능 논리적 시간)
+            #    current_time + estimated_prep_duration: 현재부터 첫 액션 수행 후의 시간 (물리적 준비 완료 시간)
 
-            # 대안적 해석: 논리적으로 시작 가능한 시간(logical_start_time) 이후에,
-            #              추가로 물리적 준비 시간(estimated_prep_time)이 필요함.
-            #              단, 이 준비는 current_time부터 시작될 수 있음.
-            # 준비 완료 시점 = current_time + estimated_prep_time
-            # 시작 가능 시점 = max(logical_start_time, current_time + estimated_prep_time) -> 이 방식이 더 적절해 보임
-            # estimated_physical_ready_time = current_time + estimated_prep_time
-            # adjusted_start_time = max(logical_start_time, estimated_physical_ready_time)
-            # --- 수정 끝 ---
-            adjusted_start_time = logical_start_time
+            # 실제 상호작용이 시작될 수 있는 가장 이른 시간
+            effective_interaction_start_time = max(
+                logical_start_time, current_time + first_nav_duration
+            )
 
             candidate = Candidate(
                 subtask=sub,
                 is_critical=is_critical,
-                earliest_start_time=logical_start_time,
+                earliest_start_time=effective_interaction_start_time,
             )
 
-            # 현재 시간에 즉시 시작 가능한 경우 feasible
-            # 주의: estimated_prep_time이 0이고 logical_start_time <= current_time 인 경우
-            if adjusted_start_time <= current_time + EPSILON:
+            # 현재 시간에 "상호작용을 시작"할 수 있는 경우 feasible
+            # 즉, effective_interaction_start_time이 현재 시간과 거의 같아야 함.
+            if (
+                effective_interaction_start_time
+                <= current_time + first_nav_duration + EPSILON
+            ):
                 log.debug(
-                    f"Subtask '{sub.name}' is feasible now. Adjusted start: {adjusted_start_time:.2f}"
+                    f"Subtask '{sub.name}' is feasible now (interaction can start at {effective_interaction_start_time:.2f})."
                 )
                 feasible_candidates.append(candidate)
             else:
-                # 즉시 시작은 불가능 (논리적 시간 미도래 또는 준비 시간 필요)
+                # 즉시 상호작용 시작은 불가능 (논리적 시간 미도래 또는 준비 시간 필요)
                 log.debug(
-                    f"Subtask '{sub.name}' is not yet feasible (requires nav/wait). Adjusted start: {adjusted_start_time:.2f}. Adding to not_yet_candidates."
+                    f"Subtask '{sub.name}' is not yet feasible for immediate interaction "
+                    f"(interaction can start at {effective_interaction_start_time:.2f}). Adding to not_yet_candidates."
                 )
                 not_yet_candidates.append(candidate)
 
@@ -351,7 +360,7 @@ class ConstraintHandler:
                 valid_crit_candidates.append(c)
             else:
                 log.warning(
-                    f"Critical candidate '{c.subtask.name}' in not_yet list has invalid logical_start_time ({c.logical_start_time}). Excluding from deadline calculation."
+                    f"Critical candidate '{c.subtask.name}' in not_yet list has invalid logical_start_time ({c.earliest_start_time}). Excluding from deadline calculation."
                 )
 
         if not valid_crit_candidates:
