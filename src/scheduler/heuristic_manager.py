@@ -418,18 +418,19 @@ class HeuristicManager:
         self, current_node: SimulationNode, candidate: Candidate
     ) -> tuple[float, float]:
         """
-        Calculates urgency cost based on slack time relative to the candidate's deadline.
+        Calculates urgency cost based on slack time relative to the candidate's scheduling_due.
         Returns (urgency_cost, slack_value).
         """
-        # Check for finite deadline
-        if not candidate.deadline or candidate.deadline.due_date == float("inf"):
-            # log.debug("  No finite deadline. Urgency Cost: 0.0, Slack: inf")
+        # Check for finite scheduling_due
+        if not candidate.scheduling_due or candidate.scheduling_due.due_date == float(
+            "inf"
+        ):
+            # log.debug("  No finite scheduling_due. Urgency Cost: 0.0, Slack: inf")
             return 0.0, float("inf")
 
         current_time = current_node.state.current_time
-        deadline_time = candidate.deadline.due_date
-        deadline_reason = candidate.deadline.subtask_name
-        # log.debug(f"  Deadline detected: {deadline_time:.2f} (due to '{deadline_reason}')")
+        scheduling_due = candidate.scheduling_due.due_date
+        due_related_sub_name = candidate.scheduling_due.subtask_name
 
         # 1. Estimate candidate execution time
         candidate_sim_info = self.action_handler.get_actions_info(
@@ -451,22 +452,18 @@ class HeuristicManager:
 
         # --- Slack Calculation Refinement ---
         # Slack = Time Available - Time Needed
-        # Time Available = deadline_time - current_time
-        # Time Needed = candidate_exec_time (assuming deadline applies directly to this candidate finishing)
-        # If deadline is due to a *subsequent* task, we might need nav time to that task as well,
-        # but the current Candidate object structure links deadline directly. Let's stick to that.
+        # Time Available = scheduling_due - current_time
+        # Time Needed = candidate_exec_time (assuming scheduling_due applies directly to this candidate finishing)
+        # If scheduling_due is due to a *subsequent* task, we might need nav time to that task as well,
+        # but the current Candidate object structure links scheduling_due directly. Let's stick to that.
 
-        time_available = deadline_time - current_time
+        time_available = scheduling_due - current_time
         time_needed = candidate_exec_time
         slack_val = time_available - time_needed
 
-        # log.debug(f"  Urgency Calc: Deadline={deadline_time:.2f}, Current={current_time:.2f}, Available={time_available:.2f}")
-        # log.debug(f"    Time Needed (CandExec) = {time_needed:.2f}")
-        # log.debug(f"    Calculated Slack = {slack_val:.2f}")
-
         # 4. Calculate urgency cost
         urgency_cost = 0.0
-        if slack_val <= EPSILON:  # Includes negative slack (deadline missed)
+        if slack_val <= EPSILON:  # Includes negative slack (scheduling_due missed)
             # log.warning(f"  Urgency Alert for '{candidate.subtask.name}': Slack {slack_val:.2f} <= {EPSILON}. High urgency cost.")
             # Use beta * LARGE_NUMBER for very high cost, but ensure consistency
             urgency_cost = (

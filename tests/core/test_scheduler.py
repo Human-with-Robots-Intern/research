@@ -10,7 +10,7 @@ import pytest
 
 # 필요한 데이터 클래스 및 핸들러 임포트
 from src.core.dataclass import CompletedEntry  # Added CompletedEntry
-from src.core.dataclass import Deadline  # Deadline 추가
+from src.core.dataclass import SchedulingDue  # Deadline 추가
 from src.core.dataclass import (  # src 경로 사용
     ActionResult,
     Candidate,
@@ -117,7 +117,7 @@ def sample_candidate_factory(sample_subtask_factory):  # Use subtask factory
         subtask = sample_subtask_factory(
             name=subtask_name, duration=duration, actions=actions, type=type
         )  # Create subtask inside
-        deadline = Deadline(due_date=deadline_time, subtask_name=deadline_reason)
+        deadline = SchedulingDue(due_date=deadline_time, subtask_name=deadline_reason)
         return Candidate(
             subtask=subtask,
             is_critical=is_critical,

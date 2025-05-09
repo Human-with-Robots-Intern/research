@@ -9,8 +9,8 @@ from src.core.dataclass import (
     ActionSimulationLog,
     Candidate,
     CompletedEntry,
-    Deadline,
     SchedulerState,
+    SchedulingDue,
     SimulationNode,
     TimeSlot,
 )
@@ -64,7 +64,7 @@ def sample_scheduler_state(sample_subtask):
 
 @pytest.fixture
 def sample_deadline():
-    return Deadline(due_date=100.0, subtask_name="NextCriticalTask")
+    return SchedulingDue(due_date=100.0, subtask_name="NextCriticalTask")
 
 
 # 테스트 케이스
@@ -80,7 +80,7 @@ def test_candidate_creation(sample_subtask, sample_deadline):
     assert candidate.subtask.name == "TestSub"
     assert not candidate.is_critical
     assert candidate.earliest_start_time == 0.0
-    assert candidate.deadline.due_date == 100.0
+    assert candidate.scheduling_due.due_date == 100.0
 
 
 def test_scheduler_state_creation(sample_subtask, sample_scheduler_state):

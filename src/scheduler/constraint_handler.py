@@ -11,7 +11,7 @@ from src.core.dataclass import (
     ActionResult,
     Candidate,
     CompletedEntry,
-    Deadline,
+    SchedulingDue,
     SimulationNode,
     TimeSlot,
 )
@@ -78,8 +78,8 @@ class ConstraintHandler:
 
         for sub in remaining_subtasks:
             # 1. 시간 제약 상 시작 가능한 시간 조건 확인
-            logical_start_time, is_critical, status = self.get_earliest_start_time(
-                curr_node, sub
+            logical_interaction_start_time, is_critical, status = (
+                self.get_logical_interaction_start_time(curr_node, sub)
             )
 
             # 선행 태스크 실패 또는 제약 조건 오류/충돌 시 후보에서 제외
@@ -97,12 +97,12 @@ class ConstraintHandler:
                     f"Subtask '{sub.name}' is not yet ready (predecessors not finished). Adding to not_yet_candidates."
                 )
                 # not_yet 후보에 필요한 정보 추가 (예: 예상 준비 시간 등)
-                # 여기서는 Candidate 객체만 추가하고, 추후 deadline 할당 등에서 활용 가능
+                # 여기서는 Candidate 객체만 추가하고, 추후 scheduling_due 할당 등에서 활용 가능
                 not_yet_candidates.append(
                     Candidate(
                         subtask=sub,
                         is_critical=is_critical,
-                        earliest_start_time=logical_start_time,
+                        logical_interaction_start_time=logical_interaction_start_time,
                     )
                 )  # status 추가
                 continue
@@ -139,45 +139,47 @@ class ConstraintHandler:
             #    current_time + estimated_prep_duration: 현재부터 첫 액션 수행 후의 시간 (물리적 준비 완료 시간)
 
             # 실제 상호작용이 시작될 수 있는 가장 이른 시간
-            effective_interaction_start_time = max(
-                logical_start_time, current_time + first_nav_duration
+            actual_interaction_start_time = max(
+                logical_interaction_start_time, current_time + first_nav_duration
             )
 
             candidate = Candidate(
                 subtask=sub,
                 is_critical=is_critical,
-                earliest_start_time=effective_interaction_start_time,
+                logical_interaction_start_time=logical_interaction_start_time,
+                actual_interaction_start_time=actual_interaction_start_time,
+                estimated_first_nav_duration=first_nav_duration,
             )
 
             # 현재 시간에 "상호작용을 시작"할 수 있는 경우 feasible
             # 즉, effective_interaction_start_time이 현재 시간과 거의 같아야 함.
             if (
-                effective_interaction_start_time
+                actual_interaction_start_time
                 <= current_time + first_nav_duration + EPSILON
             ):
                 log.debug(
-                    f"Subtask '{sub.name}' is feasible now (interaction can start at {effective_interaction_start_time:.2f})."
+                    f"Subtask '{sub.name}' is feasible now (interaction can start at {actual_interaction_start_time:.2f})."
                 )
                 feasible_candidates.append(candidate)
             else:
                 # 즉시 상호작용 시작은 불가능 (논리적 시간 미도래 또는 준비 시간 필요)
                 log.debug(
                     f"Subtask '{sub.name}' is not yet feasible for immediate interaction "
-                    f"(interaction can start at {effective_interaction_start_time:.2f}). Adding to not_yet_candidates."
+                    f"(interaction can start at {actual_interaction_start_time:.2f}). Adding to not_yet_candidates."
                 )
                 not_yet_candidates.append(candidate)
 
-        self._assign_deadlines(feasible_candidates, not_yet_candidates, curr_node)
+        self._assign_scheduling_due(feasible_candidates, not_yet_candidates, curr_node)
 
         return feasible_candidates, not_yet_candidates
 
-    def get_earliest_start_time(
+    def get_logical_interaction_start_time(
         self, curr_node: SimulationNode, sub: Subtask
     ) -> Tuple[Optional[float], bool, str]:
         """
         태스크 'sub'의 논리적 최소 시작 시간을 계산합니다.(시간 제약 상에서 최소 시작 시간)
         선행 태스크 완료 시간과 제약 시간 간격을 기반으로 합니다.
-        반환: (earliest_start_time, is_critical, status)
+        반환: (logical_interaction_start_time, is_critical, status)
         Status: "COMPLETED", "NOT_READY", "FAILED_PREDECESSOR", "CONSTRAINT_ERROR", "CONFLICT"
         """
         # * 제약 그래프 유효성 검사
@@ -264,14 +266,14 @@ class ConstraintHandler:
             # --- Calculate potential start time based on this predecessor ---
             # (any_predecessor_failed가 True면 이 부분은 실행되지 않음)
             pred_end_time = pred_entry.schedule_end_time
-            curr_earliest_start_time = pred_end_time + interval
+            curr_logical_interaction_start_time = pred_end_time + interval
 
             if is_crit:
-                critical_times.append(curr_earliest_start_time)
+                critical_times.append(curr_logical_interaction_start_time)
             else:
                 # For non-critical, the task can only start after the latest predecessor finishes
                 non_critical_earliest_start = max(
-                    non_critical_earliest_start, curr_earliest_start_time
+                    non_critical_earliest_start, curr_logical_interaction_start_time
                 )
 
         # --- Determine final result based on checks ---
@@ -338,60 +340,63 @@ class ConstraintHandler:
         )
         return (final_start_time, is_final_critical, "COMPLETED")
 
-    def _assign_deadlines(
+    def _assign_scheduling_due(
         self,
-        feasible: List[Candidate],
-        not_yet: List[Candidate],
+        feasible_candidates: List[Candidate],
+        not_yet_candidates: List[Candidate],
         curr_node: SimulationNode,  # 현재 노드 정보는 로깅 외에는 사용되지 않음
     ) -> None:  # 반환 타입 제거 (in-place 수정)
         """
-        Assigns deadlines to feasible candidates based on the logical earliest start time
+        Assigns scheduling due to feasible candidates based on the logical earliest start time
         of the next upcoming critical task found in the not_yet list.
         Modifies the feasible list IN-PLACE.
         """
         # Find the earliest logical start time among upcoming critical tasks
-        # --- 수정: 상태 확인 제거 (get_earliest_start_time에서 이미 실패/충돌 걸러짐) ---
-        crit_candidates = [c for c in not_yet if c.is_critical]
+        # --- 수정: 상태 확인 제거 (get_logical_interaction_start_time에서 이미 실패/충돌 걸러짐) ---
+        crit_candidates = [c for c in not_yet_candidates if c.is_critical]
 
-        # --- 수정: logical_start_time 유효성 확인 및 정렬 ---
+        # --- 수정: logical_interaction_start_time 유효성 확인 및 정렬 ---
         valid_crit_candidates = []
-        for c in crit_candidates:
-            if c.earliest_start_time is not None and c.earliest_start_time >= 0:
-                valid_crit_candidates.append(c)
+        for critical_candidate in crit_candidates:
+            if (
+                critical_candidate.logical_interaction_start_time is not None
+                and critical_candidate.logical_interaction_start_time >= 0
+            ):
+                valid_crit_candidates.append(critical_candidate)
             else:
                 log.warning(
-                    f"Critical candidate '{c.subtask.name}' in not_yet list has invalid logical_start_time ({c.earliest_start_time}). Excluding from deadline calculation."
+                    f"Critical candidate '{critical_candidate.subtask.name}' in not_yet list has invalid logical_start_time ({critical_candidate.logical_interaction_start_time}). Excluding from scheduling_due calculation."
                 )
 
         if not valid_crit_candidates:
             # No upcoming valid critical tasks
-            deadline_time = float("inf")
-            deadline_reason_subtask_name = None
+            scheduling_due = float("inf")
+            due_related_sub_name = None
             log.debug(
-                "No upcoming valid critical tasks found in not_yet list. Assigning infinite deadline."
+                "No upcoming valid critical tasks found in not_yet list. Assigning infinite scheduling_due."
             )
         else:
-            # Sort by logical start time to find the *next* critical deadline
-            valid_crit_candidates.sort(key=lambda x: x.earliest_start_time)
+            # Sort by logical start time to find the *next* critical scheduling_due
+            valid_crit_candidates.sort(key=lambda x: x.logical_interaction_start_time)
             next_crit = valid_crit_candidates[0]
-            # The deadline is the logical start time of the next critical task
-            deadline_time = next_crit.earliest_start_time
-            deadline_reason_subtask_name = next_crit.subtask.name
+            # The scheduling_due is the logical start time of the next critical task
+            scheduling_due = next_crit.logical_interaction_start_time
+            due_related_sub_name = next_crit.subtask.name
             log.debug(
-                f"Next critical task '{deadline_reason_subtask_name}' sets deadline at LogicalEST {deadline_time:.2f}"
+                f"Next critical task '{due_related_sub_name}' sets scheduling_due at LogicalEST {scheduling_due:.2f}"
             )
         # --- 수정 끝 ---
 
-        # Assign the calculated deadline to all feasible candidates (IN-PLACE)
-        new_deadline = Deadline(
-            due_date=deadline_time, subtask_name=deadline_reason_subtask_name
+        # Assign the calculated scheduling_due to all feasible candidates (IN-PLACE)
+        new_scheduling_due = SchedulingDue(
+            due_date=scheduling_due, triggering_subtask_name=due_related_sub_name
         )
-        for cand in feasible:
-            cand.deadline = new_deadline
+        for feasible_candidate in feasible_candidates:
+            feasible_candidate.scheduling_due = new_scheduling_due
 
         # 로깅 추가 (할당된 데드라인 확인)
-        if feasible:
+        if feasible_candidates:
             log.debug(
-                f"Assigned deadline {new_deadline} to {len(feasible)} feasible candidates."
+                f"Assigned scheduling_due {new_scheduling_due} to {len(feasible_candidates)} feasible candidates."
             )
         # No return needed as feasible list is modified in-place

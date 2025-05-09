@@ -331,10 +331,10 @@ def test_split_subtask_no_correction(mock_simulate, action_handler, sample_sim_n
 
     primitive_actions = [res.action_full_name for res in full_log.results]
     # cutoff_time은 상대 시간이므로 node.state.current_time(0.0) 기준으로 3.5
-    cutoff_time = 3.5
+    due_date = 3.5
 
     pre_info, post_info = action_handler.split_subtask_by_cutoff_time(
-        sample_sim_node, primitive_actions, cutoff_time
+        sample_sim_node, primitive_actions, due_date
     )
 
     mock_simulate.assert_called_once_with(
@@ -364,11 +364,11 @@ def test_split_subtask_with_correction(mock_simulate, action_handler, sample_sim
     mock_simulate.return_value = full_log  # 단일 반환값 설정
 
     # cutoff_time은 GRASP 직후
-    cutoff_time = 3.5
+    due_date = 3.5
     primitive_actions = [res.action_full_name for res in full_log.results]
 
     pre_info, post_info = action_handler.split_subtask_by_cutoff_time(
-        sample_sim_node, primitive_actions, cutoff_time
+        sample_sim_node, primitive_actions, due_date
     )
 
     mock_simulate.assert_called_once_with(sample_sim_node, primitive_actions)
@@ -386,12 +386,10 @@ def test_split_subtask_with_correction(mock_simulate, action_handler, sample_sim
 def test_split_subtask_simulation_error(mock_simulate, action_handler, sample_sim_node):
     """분할 중 _simulate_actions 오류 발생 시 ValueError 발생 확인"""
     actions = ["ACTION A", "ACTION B"]
-    cutoff_time = 1.0
+    due_date = 1.0
 
     with pytest.raises(ValueError, match="Initial simulation failed"):
-        action_handler.split_subtask_by_cutoff_time(
-            sample_sim_node, actions, cutoff_time
-        )
+        action_handler.split_subtask_by_cutoff_time(sample_sim_node, actions, due_date)
     mock_simulate.assert_called_once_with(sample_sim_node, actions)
 
 

@@ -9,8 +9,8 @@ from src.core.dataclass import (
     ActionResult,
     Candidate,
     CompletedEntry,
-    Deadline,
     SchedulerState,
+    SchedulingDue,
     SimulationNode,
     TimeSlot,
 )

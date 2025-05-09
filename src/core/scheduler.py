@@ -196,7 +196,7 @@ class Scheduler:
         """
         Expand the current node for both feasible and not-yet-feasible subtasks.
 
-        - Feasible candidates are sorted by earliest_start_time (ascending),
+        - Feasible candidates are sorted by actual_interaction_start_time (descending),
           then expanded via `_expand_single_subtask`.
         - If no feasible expansion is done and we have not-yet-feasible tasks,
           we insert a single Wait expansion (the earliest not-yet-feasible candidate).
@@ -214,9 +214,11 @@ class Scheduler:
         is_expanded = False
 
         # * (A) Expand feasible candidates:
-        # * Descending인 이유, Critical In 제약이 존재하는 subtask는 earliest_start_time이 0이 아닌 current_time과 근사한 경우임
+        # * Descending인 이유, Critical In 제약이 존재하는 subtask는 actual_interaction_start_time이 0이 아닌 current_time과 근사한 경우임
         sorted_feasible = sorted(
-            feasible_candidates, key=lambda c: c.earliest_start_time, reverse=True
+            feasible_candidates,
+            key=lambda c: c.actual_interaction_start_time,
+            reverse=True,
         )
         for candidate in sorted_feasible:
 
@@ -230,16 +232,23 @@ class Scheduler:
 
                 if (
                     candidate.is_critical
+                    and candidate.logical_interaction_start_time
+                    is not None  # 논리적 시작 시간 계산이 가능해야 함
                     and abs(
-                        candidate.earliest_start_time - curr_node.state.current_time
+                        (
+                            candidate.logical_interaction_start_time
+                            - candidate.estimated_first_nav_duration
+                        )
+                        - curr_node.state.current_time
                     )
                     < EPSILON
                 ):
-                    # Subtask가 Critical Constraints End인 경우, 반드시 도래. 다른 Subtask에 대한 고려 X
+                    # 위 조건은 "이 critical task의 (논리적) 상호작용을 제때 시작하기 위해
+                    # 필요한 네비게이션 시작 시점이 현재 시간과 거의 같은가?"를 의미합니다.
                     log.debug(
-                        "[_expand_candidates] Critical Timing is now, must start immediately => Breaking."
+                        f"Critical task {candidate.subtask.name} requires immediate start of its process (nav+interaction)."
                     )
-                    break
+                    break  # 이 후보를 즉시 실행 (더 이상 다른 feasible 후보를 보지 않음)
 
         # * (B) If we have not expanded any feasible subtask,
         # *     then we do a single Wait expansion (pick earliest not-yet-feasible)
@@ -247,8 +256,8 @@ class Scheduler:
             sorted_not_feasible = sorted(
                 not_yet_candidates,
                 key=lambda c: (
-                    c.earliest_start_time
-                    if c.earliest_start_time is not None
+                    c.actual_interaction_start_time
+                    if c.actual_interaction_start_time is not None
                     else float("inf")
                 ),
             )
@@ -396,10 +405,10 @@ class Scheduler:
         start_time = curr_state.current_time
         end_time = start_time + last_action_info.cumulative_time
 
-        # * (2) subtask 종료 시각이 deadline보다 느리면 infeasible
-        if candidate.deadline.due_date < end_time:
+        # * (2) subtask 종료 시각이 scheduling due보다 느리면 infeasible
+        if candidate.scheduling_due.due_date < end_time:
             log.debug(
-                f"[_expand_subtask_wo_monitoring] Deadline {candidate.deadline.due_date} < "
+                f"[_expand_subtask_wo_monitoring] Scheduling due {candidate.scheduling_due.due_date} < "
                 f"subtask_end_time {end_time} => Infeasible."
             )
             return None
@@ -478,21 +487,21 @@ class Scheduler:
             f"[_expand_subtask_with_monitoring] Splitting subtask {candidate.subtask.name} into monitoring form."
         )
         # ! ------------------- Re-check monitoring necessity constraints -------------------
-        # * 1) We identify the relevant "critical" slot for the subtask's deadline
-        deadline_due, deadline_sub_name = (
-            candidate.deadline.due_date,
-            candidate.deadline.subtask_name,
+        # * 1) We identify the relevant "critical" slot for the subtask's scheduling due
+        scheduling_due, due_related_sub_name = (
+            candidate.scheduling_due.due_date,
+            candidate.scheduling_due.subtask_name,
         )
         # Critical constraint를 끝내는 Subtask를 향하는 모든 critical constraints를 찾는다
         constraints_start_names = self.constraint_handler.get_time_slots(
-            deadline_sub_name, curr_state.constraints, "in"
+            due_related_sub_name, curr_state.constraints, "in"
         )
         critical_slots = [slot for slot in constraints_start_names if slot.is_critical]
         if not critical_slots:
             # * Re-check monitoring necessity constraints
             # 현재 candidate subtask가 critical constraints 영향 하에 있지 않는 경우, fallback to non-monitoring
             log.debug(
-                f"[_expand_subtask_with_monitoring] No critical constraints found for {deadline_sub_name}, "
+                f"[_expand_subtask_with_monitoring] No critical constraints found for {due_related_sub_name}, "
                 f"falling back to normal subtask expansion."
             )
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
@@ -529,7 +538,7 @@ class Scheduler:
             log.debug(
                 f"expected_monitoring_start_timing: {expected_monitoring_start_timing}, curr_state.current_time + exec_time: {curr_state.current_time + exec_time}"
             )
-            log.debug(f"deadline_sub_name: {deadline_sub_name}")
+            log.debug(f"due_related_sub_name: {due_related_sub_name}")
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
         # ! ------------------- Proceed with actual splitting -------------------
@@ -567,7 +576,7 @@ class Scheduler:
 
         monitoring_target_obj = list(critical_constraint_start_sub_objs.keys())[-1]
         mon_sub = TaskUtil.create_monitoring_subtask(
-            name=deadline_sub_name, obj=monitoring_target_obj
+            name=due_related_sub_name, obj=monitoring_target_obj
         )
 
         log.debug(
@@ -575,13 +584,13 @@ class Scheduler:
             f"mon_sub, remain_sub={remain_sub.name}"
         )
 
-        # * (B) Check feasibility against deadline
+        # * (B) Check feasibility against scheduling due
         start_time = curr_state.current_time
         end_time = start_time + early_sub.duration.interval
 
-        if deadline_due < end_time:
+        if scheduling_due < end_time:
             log.warning(
-                f"[_expand_subtask_with_monitoring] Deadline {deadline_due} < "
+                f"[_expand_subtask_with_monitoring] Scheduling due {scheduling_due} < "
                 f"Early_sub end_time {end_time}"
                 f"=> Infeasible.\n"
             )
@@ -650,14 +659,14 @@ class Scheduler:
         )
         new_constraints.add_edge(
             mon_sub.name,
-            deadline_sub_name,
+            due_related_sub_name,
             info={
                 "Interval": remain_critical_interval,
                 "IsCritical": True,
             },
         )
         log.debug(
-            f"[_expand_subtask_with_monitoring] monitoring for {deadline_sub_name}, {max_critical_interval}, {- early_sub.duration.interval - mon_sub.duration.interval}"
+            f"[_expand_subtask_with_monitoring] monitoring for {due_related_sub_name}, {max_critical_interval}, {- early_sub.duration.interval - mon_sub.duration.interval}"
         )
 
         new_state = SchedulerState(
@@ -694,9 +703,9 @@ class Scheduler:
         self, curr_node: SimulationNode, candidate: Candidate
     ) -> SimulationNode:
         """
-        Inserts a single "Wait" action until the candidate's earliest_start_time.
+        Inserts a single "Wait" action until the candidate's actual_interaction_start_time.
 
-        - If earliest_start_time <= current_time, wait_duration becomes 0.
+        - If actual_interaction_start_time <= current_time, wait_duration becomes 0.
         - This wait is modeled as a Subtask with Navigation, Monitoring and Wait actions.
 
         Args:
@@ -893,7 +902,7 @@ class Scheduler:
         Determines whether the candidate subtask requires monitoring-based splitting.
 
         Conditions checked here:
-        1) The subtask has a finite deadline.
+        1) The subtask has a finite scheduling due.
         2) The subtask has not been decomposed yet (decomposed=False).
         3) The subtask is long enough that it won't finish before the monitoring cutoff.
 
@@ -904,10 +913,10 @@ class Scheduler:
         Returns:
             bool: True if we should expand the subtask with monitoring, False otherwise.
         """
-        # (1) If there's no deadline => no monitoring needed
-        if candidate.deadline.due_date == float("inf"):
+        # (1) If there's no scheduling due => no monitoring needed
+        if candidate.scheduling_due.due_date == float("inf"):
             log.debug(
-                f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} has no finite deadline => No monitoring."
+                f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} has no finite scheduling due => No monitoring."
             )
             return False
 
