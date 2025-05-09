@@ -176,9 +176,9 @@ class TaskUtil:
         유효하지 않다면 문장 유사도 기반으로 가장 가까운 후보로 교체한다.
         """
         # 1) scene에서 사용 가능한 모든 object ID 로드
+        # SCENE_KNOWLEDGE_PATH 대신 AGENT_KNOWLEDGE_PATH를 사용하여 object ID 로드
         object_ids_map = cls._load_object_ids(scene_name)
-        object_ids_map = cls._load_object_ids(scene_name)
-        # 모든 object id를 flatten
+        # 모든 object id를 flatten (AGENT_KNOWLEDGE_PATH 기반)
         all_object_ids = {
             obj for category in object_ids_map for obj in object_ids_map[category]
         }
@@ -277,7 +277,7 @@ class TaskUtil:
         """
         from src.core.task import Task, TaskGraphBuilder
 
-        # 1) bayesian/groundtruth 정보 로드
+        # 1) bayesian/groundtruth 정보 로드 (AGENT_KNOWLEDGE_PATH에서 로드)
         bayesian_load = cls._load_json_file(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME)
         ground_truth_load = cls._load_json_file(
             AGENT_KNOWLEDGE_PATH / GROUND_TRUTH_FILE_NAME

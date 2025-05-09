@@ -202,6 +202,8 @@ def load_scene_positions(file_name: str) -> dict[str, tuple[float, float, float]
         room_type = "bedroom"
     elif room_number >= 400 and room_number < 500:
         room_type = "bathroom"
+    else:
+        raise ValueError(f"Unexpected room number in file name: {file_name}")
 
     file_path = SCENE_KNOWLEDGE_PATH / room_type / "object_init_positions" / file_name
     with file_path.open("r", encoding="utf-8") as f:
