@@ -20,6 +20,8 @@ class CompletedEntry:
     sim_end_time: float = float("inf")
     actual_first_nav_duration: Optional[float] = None
     execution_status: bool = False
+    schedule_nav_time: Optional[float] = None
+    sim_nav_time: Optional[float] = None
 
     def __repr__(self):
         return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time})"
@@ -61,6 +63,6 @@ class SimulationNode(NamedTuple):
     deadline: float
     simulation_subtask: Subtask
     state: SchedulerState
-
+    execution_time: float
     def __lt__(self, other):
         return self.deadline < other.deadline
