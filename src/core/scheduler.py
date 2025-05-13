@@ -5,18 +5,18 @@ import itertools
 from queue import PriorityQueue
 from typing import TYPE_CHECKING, List, Optional
 
-from src.core.dataclass import Candidate, CompletedEntry, SchedulerState, SimulationNode
+from src.core.dataclass import (
+    ActionResult,
+    Candidate,
+    CompletedEntry,
+    SchedulerState,
+    SimulationNode,
+)
 from src.core.task import Duration, Execution, Subtask
 from src.utils.common import create_module_logger
 from src.utils.common.decorators import time_logger
-from utils.config import (
-    BAYESIAN_CRITERIA,
-    EPSILON,
-    MONITORING_DURATION,
-    NAV_STEP_DURATION,
-    RED,
-    RESET,
-)
+from utils.config import BAYESIAN_CRITERIA, EPSILON, MONITORING_DURATION, RED, RESET
+from utils.config.constants import BEAM_WIDTH, SIMULATION_DEPTH
 from utils.task import TaskUtil
 
 if TYPE_CHECKING:
@@ -44,12 +44,11 @@ class Scheduler:
 
     def __init__(
         self,
-        beam_width: int,
-        simulation_depth: int,
-        nav_graph: dict,
         action_handler: ActionHandler,
         constraint_handler: ConstraintHandler,
         heuristic_manager: HeuristicManager,
+        beam_width: int = BEAM_WIDTH,
+        simulation_depth: int = SIMULATION_DEPTH,
     ):
 
         self.search_width = beam_width
@@ -199,8 +198,8 @@ class Scheduler:
         - Feasible candidates are sorted by actual_interaction_start_time (descending),
           then expanded via `_expand_single_subtask`.
         - If no feasible expansion is done and we have not-yet-feasible tasks,
-          we insert a single Wait expansion (the earliest not-yet-feasible candidate).
-          This is a simplified approach to "waiting" until a subtask becomes feasible.
+          we insert a single Wait expansion or Nav + Monitoring + Wait expansion (the earliest not-yet-feasible candidate).
+          These approaches are a simplified approach to "waiting" until a subtask becomes feasible.
 
         Args:
             curr_node (SimulationNode): The node being expanded.
@@ -214,14 +213,12 @@ class Scheduler:
         is_expanded = False
 
         # * (A) Expand feasible candidates:
-        # * Descending인 이유, Critical In 제약이 존재하는 subtask는 actual_interaction_start_time이 0이 아닌 current_time과 근사한 경우임
+        # * Ascending Order: Critical In 제약이 존재하는 subtask는 actual_interaction_start_time이 0이 아닌 current_time과 근사한 경우임
         sorted_feasible = sorted(
             feasible_candidates,
             key=lambda c: c.actual_interaction_start_time,
-            reverse=True,
         )
         for candidate in sorted_feasible:
-
             log.debug(
                 f"[_expand_candidates] Attempting to expand feasible subtask: {candidate.subtask.name}.\n"
             )
@@ -448,7 +445,7 @@ class Scheduler:
 
         # Wait Subtask 객체 생성
         # 이 Wait Subtask는 "candidate.subtask를 시작하기 위한 준비 작업"을 의미함
-        wait_sub_obj_name = f"PrepareFor_{candidate.subtask.name}"
+        wait_sub_obj_name = f"Prepare For {candidate.subtask.name}"
         if nav_target_object_id:
             wait_sub_obj_name += f"_to_{nav_target_object_id}"
 

@@ -1,0 +1,83 @@
+{
+    "saved_time": "2025-05-13 11:07",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1_physics.json",
+    "plans": [
+        {
+            "plan_name": "wash_egg_and_cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_cutlery_and_wash_dishes_and_wash_vegetables_and_organize_the_vegetables",
+            "subtasks": [
+                {
+                    "subtask_name": "Wash Egg",
+                    "start_time_simulation": 0,
+                    "end_time_simulation": 13.3,
+                    "start_time_scheduled": 0,
+                    "end_time_scheduled": 10.6,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Place Bread in Microwave",
+                    "start_time_simulation": 13.3,
+                    "end_time_simulation": 20.5,
+                    "start_time_scheduled": 10.6,
+                    "end_time_scheduled": 16.7,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Prepare Egg Fry",
+                    "start_time_simulation": 20.5,
+                    "end_time_simulation": 34.8,
+                    "start_time_scheduled": 16.7,
+                    "end_time_scheduled": 28.9,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Start Microwave",
+                    "start_time_simulation": 34.8,
+                    "end_time_simulation": 36.0,
+                    "start_time_scheduled": 28.9,
+                    "end_time_scheduled": 30.2,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "PrepareFor_Retrieve Bread from Microwave",
+                    "start_time_simulation": 36.0,
+                    "end_time_simulation": 41.0,
+                    "start_time_scheduled": 30.2,
+                    "end_time_scheduled": 35.2,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "PrepareFor_Turn off Stove after cooking_to_StoveKnob|-00.02|+00.88|-02.19",
+                    "start_time_simulation": 41.0,
+                    "end_time_simulation": 44.35,
+                    "start_time_scheduled": 35.2,
+                    "end_time_scheduled": 38.65,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Turn off Stove after cooking",
+                    "start_time_simulation": 44.35,
+                    "end_time_simulation": 45.35,
+                    "start_time_scheduled": 38.65,
+                    "end_time_scheduled": 39.65,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Retrieve Bread from Microwave",
+                    "start_time_simulation": 45.35,
+                    "end_time_simulation": 53.35,
+                    "start_time_scheduled": 39.65,
+                    "end_time_scheduled": 47.05,
+                    "execution_status": false
+                }
+            ]
+        }
+    ],
+    "computation_time": 1329.50351,
+    "simulation_makespan": 53.35,
+    "scheduler_makespan": 47.05,
+    "realworld_makespan": null,
+    "success_rate": 0.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0
+}
