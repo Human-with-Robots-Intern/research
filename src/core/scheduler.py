@@ -1,5 +1,4 @@
 from __future__ import annotations
-# TODO Monitoring 분기 로직 다시 확인
 
 import copy
 import itertools
@@ -19,6 +18,9 @@ from src.utils.common.decorators import time_logger
 from utils.config import BAYESIAN_CRITERIA, EPSILON, MONITORING_DURATION, RED, RESET
 from utils.config.constants import BEAM_WIDTH, SIMULATION_DEPTH
 from utils.task import TaskUtil
+
+# TODO Monitoring 분기 로직 다시 확인
+
 
 if TYPE_CHECKING:
     from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
@@ -338,6 +340,44 @@ class Scheduler:
 
     def _expand_single_wait(
         self, curr_node: SimulationNode, candidate: Candidate
+    ) -> Optional[SimulationNode]:
+        """
+        Expands the wait subtask by deciding whether to split it
+        into a monitoring subtask or not.
+
+        Args:
+            curr_node (SimulationNode): The current node in the search tree.
+            candidate (Candidate): The subtask candidate will be expand.
+
+        Returns:
+            Optional[SimulationNode]: The resulting child node if successful,
+            otherwise None.
+        """
+        log.debug(
+            f"[_expand_single_wait] Checking wait-based expansion for subtask: {candidate.subtask.name}."
+        )
+        target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
+        nav_time = self.action_handler.get_actions_info(
+            curr_node,
+            [f"NAVIGATE_TO {target_obj_id}"],
+        ).action_duration
+        log.debug(
+            f"[_expand_single_wait] Subtask {candidate.subtask.name}'s navigation time: {nav_time}. ({target_obj_id})"
+        )
+        # 모니터링 wait? (동일 위치로 navigate할 때, 0.1 반환함, 또한 monitoring 시간 0.1) 합산하여 0.2를 기준으로 함
+        if nav_time > 0.1 and candidate.is_critical:
+            log.debug(
+                f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITH monitoring."
+            )
+            return self._expand_wait_with_monitoring(curr_node, candidate)
+        else:
+            log.debug(
+                f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITHOUT monitoring."
+            )
+            return self._expand_wait_wo_monitoring(curr_node, candidate)
+
+    def __expand_single_wait(
+        self, curr_node: SimulationNode, candidate: Candidate
     ) -> SimulationNode:
         """
         Inserts necessary actions (Navigation then Wait) to meet candidate's actual_interaction_start_time.
@@ -367,12 +407,12 @@ class Scheduler:
 
         # 순수 대기 시간 (네비게이션 시작 전까지)
         # 이 값은 0보다 작을 수 없음 (이미 feasible check를 통과했거나, not_yet 후보이므로 nav 시작은 current_time 이후)
-        pure_wait_time_before_nav = max(
+        pure_wait_time_after_nav = max(
             0, planned_nav_start_for_target - curr_state.current_time
         )
 
         # 실제 네비게이션이 시작될 시간
-        actual_nav_start_time = curr_state.current_time + pure_wait_time_before_nav
+        actual_nav_start_time = curr_state.current_tim
 
         # 실제 네비게이션 완료 및 상호작용 시작 시간
         actual_interaction_start_at_target = (
@@ -381,8 +421,7 @@ class Scheduler:
 
         # 이 값은 target_interaction_time과 거의 같아야 함
         if (
-            abs(actual_interaction_start_at_target - target_interaction_time)
-            > EPSILON * 10
+            abs(actual_interaction_start_at_target - target_interaction_time) > EPSILON
         ):  # 좀 더 여유있는 엡실론
             log.warning(
                 f"[_expand_wait_wo_monitoring] Mismatch in interaction time calculation for {candidate.subtask.name}."
@@ -396,9 +435,9 @@ class Scheduler:
         current_sim_time_offset = 0.0  # wait_sub 내부에서의 상대 시간
 
         # 1. 필요하다면 순수 대기 액션 추가 (네비게이션 시작 전)
-        if pure_wait_time_before_nav > EPSILON:
-            wait_sub_primitive_actions.append(f"WAIT {pure_wait_time_before_nav:.2f}")
-            current_sim_time_offset += pure_wait_time_before_nav
+        if pure_wait_time_after_nav > EPSILON:
+            wait_sub_primitive_actions.append(f"WAIT {pure_wait_time_after_nav:.2f}")
+            current_sim_time_offset += pure_wait_time_after_nav
 
         # 2. 필요하다면 네비게이션 액션 추가
         nav_target_object_id = None
@@ -489,7 +528,7 @@ class Scheduler:
             f"    Current Time                    : {curr_state.current_time:.2f}\n"
             f"    Target Interaction Time         : {target_interaction_time:.2f}\n"
             f"    Est. Nav Duration for Candidate : {nav_duration_for_candidate:.2f}\n"
-            f"    Pure Wait Time Before Nav       : {pure_wait_time_before_nav:.2f}\n"
+            f"    Pure Wait Time Before Nav       : {pure_wait_time_after_nav:.2f}\n"
             f"    Wait Sub Actions                : {wait_sub_primitive_actions}\n"
             f"    Actual Wait Sub Duration (Sim)  : {actual_total_duration_for_wait_sub:.2f}\n"
             f"    Planned Wait Sub Completion     : {planned_wait_sub_completion_time:.2f}"
@@ -1390,6 +1429,74 @@ class Scheduler:
         log.info(
             f"Expanded wait for {original_task_name} with monitoring: prep_nav='{prep_nav_sub.name}'."
         )
+        return SimulationNode(
+            parent_node=curr_node,
+            heuristic_cost=new_cost,
+            depth=depth + 1,
+            tie_breaker=next(self._counter),
+            state=new_state,
+        )
+
+    def _expand_wait_wo_monitoring(
+        self, curr_node: SimulationNode, candidate: Candidate
+    ) -> SimulationNode:
+        """
+        Inserts a single "Wait" action until the candidate's earliest_start_time.
+
+        - If earliest_start_time <= current_time, wait_duration becomes 0.
+        - This wait is modeled as a Subtask with type="Wait".
+
+        Args:
+            curr_node (SimulationNode): Current node in the search tree.
+            candidate (Candidate): The candidate subtask we're waiting for.
+
+        Returns:
+            SimulationNode: The child node representing the new state after waiting.
+        """
+        curr_state = curr_node.state
+        curr_cost = curr_node.heuristic_cost
+        depth = curr_node.depth
+
+        total_wait_duration = candidate.earliest_start_time - curr_state.current_time
+
+        wait_sub = Subtask(
+            task_name=None,
+            name=f"Wait for {candidate.subtask.name}",
+            duration=Duration(interval=total_wait_duration, type="Controllable"),
+            repetition=1,
+            subtask_type="Wait",
+            execution=Execution(
+                objects=None, primitive_actions=[f"WAIT {total_wait_duration}"]
+            ),
+            temporal_constraints=None,
+        )
+
+        start_time = curr_state.current_time
+        end_time = curr_state.current_time + total_wait_duration
+
+        completed_entry = CompletedEntry(wait_sub, start_time, end_time)
+        new_completed = curr_state.completed_entries + [completed_entry]
+
+        new_state = SchedulerState(
+            subtask=wait_sub,
+            completed_entries=new_completed,
+            remaining_subtasks=curr_state.remaining_subtasks,
+            constraints=curr_state.constraints,
+            current_time=end_time,
+            scene_positions=curr_state.scene_positions,
+            held_object=curr_state.held_object,
+        )
+
+        step_cost = self.cost_calculator.calc_heuristic(curr_node, candidate)
+        new_cost = curr_cost + step_cost
+
+        log.info(
+            f"[_expand_wait_wo_monitoring] WAIT subtask {candidate.subtask.name}\n"
+            f"  -> Score={round(new_cost, 2)}, "
+            f"Interval={round(start_time,2)}~{round(end_time,2)}\n"
+            f"  -> Updated remain={[r.name for r in curr_state.remaining_subtasks]}\n"
+        )
+
         return SimulationNode(
             parent_node=curr_node,
             heuristic_cost=new_cost,
