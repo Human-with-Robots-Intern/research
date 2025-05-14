@@ -96,9 +96,10 @@ def execute_subtask(
             - bool: Whether the subtask succeeded (based on last action success).
             - float: 실제 첫 NAVIGATE_TO primitive action의 소요 시간(sim_nav_time)
     """
-    log = create_module_logger(module_name=__name__, module_log=True, level=log_level)
+    log = create_module_logger(module_name=__name__, module_log=True)
+    log.setLevel(log_level)
 
-    act = Action(controller)
+    act = Action(controller, log_level=log_level)
 
     # If the subtask is just for initialization, skip
     if subtask.name == "Init":
@@ -154,10 +155,11 @@ def execute_subtask(
         if len(parts) != 2:
             log.warning(f"Invalid action format: {action_str}.")
             raise ValueError(f"Invalid action format: {action_str}")
-
         action_type, target_obj_id = parts
         if action_type in action_mapping:
             action_duration = action_mapping[action_type](target_obj_id)
+            if action_type == "WAIT":
+                action_duration = subtask.duration.interval
             elapsed_time += action_duration
             # 첫 NAVIGATE_TO의 시간 기록
             if not nav_time_found and action_type == "NAVIGATE_TO":
@@ -166,13 +168,14 @@ def execute_subtask(
         else:
             log.warning(f"Unknown action type: {action_type}. Skipping.")
             continue
-
         # Check success of the last action
         success = controller.last_event.metadata.get("lastActionSuccess", "N/A")
         if success is False:
             is_execution_success = False
-
+        log.info(f"Action: {action_str}, duration: {action_duration}")
+        
+    elapsed_time = round(elapsed_time, 2)
     log.info(
-        f"Subtask '{subtask.name}' completed. Elapsed time: {round(elapsed_time, 2)}"
+        f"Subtask '{subtask.name}' completed. Elapsed time: {elapsed_time}"
     )
     return elapsed_time, is_execution_success, sim_nav_time
