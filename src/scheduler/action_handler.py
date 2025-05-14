@@ -22,7 +22,7 @@ NavGraph: TypeAlias = Dict[Position, List[Position]]  # 네비게이션 그래�
 
 
 class ActionHandler:
-    def __init__(self, nav_graph: NavGraph, log_level: str = "WARNING"):
+    def __init__(self, nav_graph: NavGraph, log_level: str = "DEBUG"):
         """
         ActionHandler를 초기화합니다.
 
