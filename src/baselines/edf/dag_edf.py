@@ -47,7 +47,7 @@ def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
 
 
 def compute_nav_time(
-    subtask: Subtask, current_state: SchedulerState, action_handler
+    subtask: Subtask, current_state: SchedulerState, action_handler: ActionHandler
 ) -> float:
     """
     subtask 내 첫 번째 NAVIGATE_TO primitive action의 실행 시간을 시뮬레이션하여 반환
@@ -163,16 +163,11 @@ def compute_deadline_for_subtask(
     return deadline
 
 
-def get_next_subtask_edf(current_state: SchedulerState, nav_graph) -> Optional[Subtask]:
+def get_next_subtask_edf(current_state: SchedulerState, action_handler: ActionHandler) -> Optional[Subtask]:
     """
     각 실행 가능한 subtask에 대해 deadline을 산출한 후, deadline이 가장 짧은 subtask를 선택한다.
     """
     import heapq
-
-    action_handler = ActionHandler(nav_graph)
-
-    # pending_edges = get_pending_edges(current_state)
-    # timeslot_type = get_timeslot_type(pending_edges)
 
     queue = []
     for subtask in current_state.remaining_subtasks:
@@ -199,7 +194,7 @@ def get_next_subtask_edf(current_state: SchedulerState, nav_graph) -> Optional[S
 
 
 def update(
-    current_state: SchedulerState, next_subtask: Subtask, nav_graph
+    current_state: SchedulerState, next_subtask: Subtask, action_handler: ActionHandler
 ) -> SchedulerState:
     """
     1) next_subtask 실행 시간 시뮬레이션 후 subtask.duration.interval 에 반영
@@ -207,7 +202,6 @@ def update(
         - current_time < designated_start => NAVIGATE_TO + WAIT subtask를 CompletedEntry로 추가
     3) next_subtask 실행 CompletedEntry 추가
     """
-    action_handler = ActionHandler(nav_graph)
     # -------------------------------
     # 1) 실제 실행 시간 시뮬레이션
     # -------------------------------
@@ -264,7 +258,7 @@ def update(
             wait_entry = CompletedEntry(
                 subtask=Subtask(
                     task_name=next_subtask.task_name,
-                    name=f"WAIT_for_{next_subtask.name}",
+                    name=f"WAIT {remaining_wait} for {next_subtask.name}",
                     repetition=1,
                     subtask_type="WAIT",
                     execution=Execution(
@@ -363,6 +357,7 @@ def main():
     controller = init_ai2thor_controller(scene_name)
     nav_graph = load_navigation_graph(controller)
     scene_poses = load_scene_positions(f"{scene_name}_positions.json")
+    action_handler = ActionHandler(nav_graph, log_level=args.log_level)
 
     # Load the chosen task data
     task_files = list_task_files()
@@ -381,11 +376,11 @@ def main():
     # Phase 1: Complete scheduling
     for _ in range(len(subtasks)):
         subtask_scheduling_time_start = time.time()
-        next_subtask = get_next_subtask_edf(current_state, nav_graph)
+        next_subtask = get_next_subtask_edf(current_state, action_handler)
 
         if next_subtask is None:
             break
-        current_state = update(current_state, next_subtask, nav_graph)
+        current_state = update(current_state, next_subtask, action_handler)
         subtask_scheduling_time = time.time() - subtask_scheduling_time_start
         computation_time += subtask_scheduling_time
 

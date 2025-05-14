@@ -460,7 +460,7 @@ def main() -> None:
     global action_handler, constraints
     
     scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
-    action_handler = ActionHandler(nav_graph)
+    action_handler = ActionHandler(nav_graph, log_level=args.log_level)
 
     # 사용자로부터 task 파일 선택 및 로드
     task_files = list_task_files()

@@ -22,14 +22,17 @@ NavGraph: TypeAlias = Dict[Position, List[Position]]  # 네비게이션 그래�
 
 
 class ActionHandler:
-    def __init__(self, nav_graph: NavGraph):
+    def __init__(self, nav_graph: NavGraph, log_level: str = "WARNING"):
         """
         ActionHandler를 초기화합니다.
 
         Args:
             nav_graph: 네비게이션에 사용될 그래프. {position_tuple: [neighbor_position_tuples]} 형식.
+            log_level: 로그 출력 수준 ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
         """
         self.nav_graph = nav_graph
+        # 로그 레벨 설정
+        log.setLevel(log_level)
 
     def get_actions_info(
         self, current_node: SimulationNode, actions: list[str]
@@ -278,13 +281,17 @@ class ActionHandler:
         # 4. 전체 경로 이동 처리
         else:
             log.debug(f"  Processing NAVIGATE_TO for full path.")
+            #ithor의 action.py에서는 첫좌표를 제거하므로 여기서도 동일하게 제거
+            if navigate_path:
+                navigate_path.pop(0)
             path_steps = len(navigate_path)  # 실제 이동 스텝 수
-            duration = path_steps * NAV_STEP_DURATION
+
+            duration = round(path_steps * NAV_STEP_DURATION, 2) 
             # 경로의 마지막 위치가 새로운 에이전트 위치 (경로가 비었으면 현재 위치)
             new_agent_pos = navigate_path[-1] if navigate_path else agent_pos
             success = True
-            log.debug(
-                f"    Path found with {path_steps} steps. Duration: {duration:.2f}s. Final pos: {new_agent_pos}"
+            log.warning(
+                f"    Path found to {target_obj_id} with {path_steps} steps. Duration: {duration:.2f}s. Final pos: {new_agent_pos}"
             )
 
         # 5. 결과 반환
