@@ -123,8 +123,8 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             "subtask_name": entry.subtask.name,
             "start_time_simulation": entry.sim_start_time,
             "end_time_simulation": entry.sim_end_time,
-            "start_time_scheduled": entry.schedule_start_time,
-            "end_time_scheduled": entry.schedule_end_time,
+            "start_time_scheduled": round(entry.schedule_start_time, 2),
+            "end_time_scheduled": round(entry.schedule_end_time, 2),
             "execution_status": entry.execution_status
         }
         serialized_entries.append(serialized_entry)
@@ -159,8 +159,8 @@ def result_save(
         "scene_name": scene_name,
         "plans": serialized_plans,
         "computation_time": round(computation_time, 5),
-        "simulation_makespan": simulation_makespan,
-        "scheduler_makespan": scheduler_makespan,
+        "simulation_makespan": round(simulation_makespan, 2),
+        "scheduler_makespan": round(scheduler_makespan, 2),
         "realworld_makespan": None,
         "success_rate": success_rate,
         "timing_success_rate_sim": timing_success_rate_sim,
