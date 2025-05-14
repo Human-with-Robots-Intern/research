@@ -5,7 +5,7 @@ import os
 import sys
 import time
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, NamedTuple
 
 import networkx as nx
 from networkx import DiGraph
@@ -29,6 +29,14 @@ from utils.io_utils.task_io import (
 )
 from utils.task.task_util import TaskUtil
 from utils.visualizers.visualizer import visualize
+
+
+# Define NamedTuple for storing execution prediction info
+class ExecutionPredictionInfo(NamedTuple):
+    predicted_exec_time: float
+    predicted_nav_time: float
+    predicted_exec_info: ActionResult
+
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -59,11 +67,12 @@ def parse_arguments() -> argparse.Namespace:
         help="시뮬레이션 실행 여부 (default: True)",
     )
     parser.add_argument(
+        "-l",
         "--log-level",
         type=str,
-        default="INFO",
+        default="WARNING",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="로그 출력 수준 설정 (default: DEBUG)",
+        help="로그 출력 수준 설정 (default: WARNING)",
     )
     parser.add_argument(
         "--scene",
@@ -116,7 +125,7 @@ def compute_nav_time(
     return nav_time, nav_positions
 
 
-def offline_subtask_execution(current_state: SchedulerState, next_subtask: Subtask):
+def offline_subtask_execution(current_state: SchedulerState, next_subtask: Subtask) -> ActionResult:
 
     temp_node = SimulationNode(
         heuristic_cost=0.0,
@@ -141,7 +150,8 @@ def update_state(
     subtask_duration = exec_info.cumulative_time
     subtask_entry = CompletedEntry(
         subtask=next_subtask,
-        schedule_start_time=current_state.current_time,
+    
+        schedule_start_time=current_state.current_time + exec_info.cumulative_time,
         schedule_end_time=current_state.current_time + subtask_duration,
     )
 
@@ -188,23 +198,21 @@ def find_critical_path(
     critical_path: List[Tuple[Subtask, float, bool]] = []
 
     for path in all_paths:
-        for name in path:
+        for i, name in enumerate(path):
             subtask = name_to_subtask[name]
+            next_name = path[i + 1] if i < len(path) - 1 else None
 
-            # Get the next subtask name in the path, if it exists
-            current_idx = path.index(name)
-            next_name = path[current_idx + 1] if current_idx < len(path) - 1 else None
-
-            # Check if there is a temporal constraint between current and next subtask
-            outgoing_edges = list(constraints.out_edges(subtask.name, data=True))
-            is_critical = None
             interval = None
-            if outgoing_edges:
-                for u, v, data in outgoing_edges:
-                    if v == next_name:
-                        is_critical = data["info"]["IsCritical"]
-                        interval = data["info"].get("Interval")
-                        break
+            is_critical = None
+            if next_name:
+                # Find the specific edge data directly
+                if edge_data := next(
+                    (data for u, v, data in constraints.out_edges(name, data=True) if v == next_name),
+                    None # Default if no such edge exists
+                ):
+                    is_critical = edge_data["info"]["IsCritical"]
+                    interval = edge_data["info"].get("Interval")
+
             critical_path.append((subtask, interval, is_critical))
 
     return critical_path
@@ -218,52 +226,45 @@ def nav_and_wait_during_interval(
 ) -> Tuple[List[CompletedEntry], SchedulerState]:
     """
     주어진 시간(interval) 동안 이동(NAVIGATE)과 대기(WAIT)를 위한 서브태스크를 생성합니다.
-
     next_subtask의 첫 번째 액션이 NAVIGATE_TO여야 하며,
-    네비게이션 소요 시간이 interval보다 작을 경우,
+    네비게이션 소요 시간이 interval보다 작을 경우에만,
     네비게이션 후 남은 시간만큼 대기하는 WAIT 서브태스크를 생성합니다.
-
     Args:
         current_state: 현재 스케줄러 상태 (시간, 위치 등 포함)
         interval: 현재 간선에 주어진 시간 간격
         next_subtask: 다음에 실행할 서브태스크. 첫번째 액션은 반드시 NAVIGATE_TO여야 함.
         is_critical: 해당 간선이 critical(필수)인지 여부
-
     Returns:
         - 생성된 CompletedEntry들의 리스트 (NAVIGATE, WAIT 서브태스크)
         - 업데이트된 SchedulerState (현재 시간 및 위치 갱신)
-
     Raises:
         ValueError: next_subtask의 첫 번째 액션이 NAVIGATE_TO가 아닐 경우
     """
     entries: List[CompletedEntry] = []
     current_time = current_state.current_time
-
+    
     # Get the first NAVIGATE_TO action from the next subtask
     first_action = next_subtask.execution.primitive_actions[0]
     if not first_action.startswith("NAVIGATE_TO"):
         raise ValueError(
             f"[{next_subtask.name}] 첫 번째 액션이 NAVIGATE_TO가 아닙니다."
         )
-    nav_action = first_action
-
+    
     # Calculate navigation time
     nav_time, nav_positions = compute_nav_time(next_subtask, current_state)
-
-    # If navigation time is less than remaining interval, create both NAVIGATE and WAIT subtasks
-    if nav_time < interval:
+    
+    # Only proceed if interval is greater than navigation time
+    if nav_time <= interval:
         # Create NAVIGATE subtask
         nav_subtask = Subtask(
             task_name=next_subtask.task_name,
-            name=f"NAVIGATE_TO_{nav_action.split()[1]}",
+            name=f"NAVIGATE_TO_{first_action.split()[1]}",
             repetition=1,
             subtask_type="NAVIGATE",
-            execution=Execution(objects={}, primitive_actions=[nav_action]),
+            execution=Execution(objects={}, primitive_actions=[first_action]),
             duration=Duration(type="NAVIGATE", interval=nav_time),
             temporal_constraints=[],
         )
-        nav_subtask.start_time_scheduled = current_time
-        nav_subtask.end_time_scheduled = current_time + nav_time
         nav_entry = CompletedEntry(
             subtask=nav_subtask,
             schedule_start_time=current_time,
@@ -272,43 +273,40 @@ def nav_and_wait_during_interval(
         entries.append(nav_entry)
         current_time += nav_time
 
-    # Create WAIT subtask for remaining time
-    if nav_time > interval:
-        # 네비게이션 소요 시간이 interval보다 크면 네비게이션 실행 없이 대기만 한다.
-        nav_time = 0
-        nav_positions = current_state.scene_positions
-    wait_time = interval - nav_time
-    wait_subtask = Subtask(
-        task_name=next_subtask.task_name,
-        name=f"WAIT_{wait_time} to {next_subtask.name}",
-        repetition=1,
-        subtask_type="WAIT",
-        execution=Execution(objects={}, primitive_actions=[f"WAIT {wait_time}"]),
-        duration=Duration(type="WAIT", interval=wait_time),
-        temporal_constraints=[],
-    )
-    wait_subtask.start_time_scheduled = current_time
-    wait_subtask.end_time_scheduled = current_time + wait_time
-    wait_entry = CompletedEntry(
-        subtask=wait_subtask,
-        schedule_start_time=current_time,
-        schedule_end_time=current_time + wait_time,
-    )
-    entries.append(wait_entry)
+        # Create WAIT subtask for remaining time
+        wait_time = interval - nav_time
+        if wait_time > 0:
+            wait_subtask = Subtask(
+                task_name=next_subtask.task_name,
+                name=f"WAIT {wait_time} to {next_subtask.name}",
+                repetition=1,
+                subtask_type="WAIT",
+                execution=Execution(objects={}, primitive_actions=[f"WAIT {wait_time}"]),
+                duration=Duration(type="WAIT", interval=wait_time),
+                temporal_constraints=[],
+            )
+            wait_entry = CompletedEntry(
+                subtask=wait_subtask,
+                schedule_start_time=current_time,
+                schedule_end_time=current_time + wait_time,
+            )
+            entries.append(wait_entry)
 
-    # Create new state instead of modifying the existing one
-    new_state = SchedulerState(
-        subtask=current_state.subtask,
-        completed_entries=current_state.completed_entries,
-        remaining_subtasks=current_state.remaining_subtasks,
-        constraints=current_state.constraints,
-        current_time=current_time + wait_time,
-        scene_positions=nav_positions,
-        held_object=current_state.held_object,
-        agent_location=current_state.agent_location,
-    )
-
-    return entries, new_state
+        # Create new state with updated time and positions
+        new_state = SchedulerState(
+            subtask=current_state.subtask,
+            completed_entries=current_state.completed_entries,
+            remaining_subtasks=current_state.remaining_subtasks,
+            constraints=current_state.constraints,
+            current_time=current_time + wait_time,
+            scene_positions=nav_positions,
+            held_object=current_state.held_object,
+            agent_location=current_state.agent_location,
+        )
+        return entries, new_state
+    
+    # If interval < nav_time, return empty entries and unchanged state
+    return entries, current_state
 
 
 def get_final_entries(
@@ -343,17 +341,14 @@ def get_final_entries(
     for i, (subtask, interval, is_critical) in enumerate(critical_path):
         # 우선 schedule_order에 있는 subtask를 돌면서 simulate_subtask_execution을 해준다.
         exec_info = offline_subtask_execution(current_state, subtask)
-        subtask.start_time_scheduled = current_state.current_time
-        subtask.end_time_scheduled = (
-            current_state.current_time + exec_info.cumulative_time
-        )
-
+        nav_time, _ = compute_nav_time(subtask, current_state)
+        
         final_entry_schedule.append(
             CompletedEntry(
                 subtask=subtask,
                 schedule_start_time=current_state.current_time,
                 schedule_end_time=current_state.current_time + exec_info.cumulative_time,
-
+                schedule_nav_time=nav_time,
             )
         )
         current_state = update_state(current_state, subtask, exec_info)
@@ -361,47 +356,43 @@ def get_final_entries(
         # interval이 없으면 다음 subtask로 넘어간다.
         if interval is None:
             continue
-
         # interval에 실행 가능한 subtask가 있으면 스케쥴.
         interval_time_used = 0.0
         while True:
-            # 현재 상태에서 실행 가능한 모든 subtask의 예상 실행 시간 계산
-            expected_time_dict: dict[Subtask, float] = {}
+            # 현재 상태에서 실행 가능한 모든 subtask의 예상 실행 정보 계산
+            expected_ne_subtask_info: dict[Subtask, ExecutionPredictionInfo] = {}
             for non_edge_subtask in subtasks_witout_edge:
-                # 현재 상태에서 non_edge_subtask를 실행했을 때 execution_time을 dict로 저장.
-                exeptected_exec_info = offline_subtask_execution(
-                    current_state, non_edge_subtask
+                predicted_exec_info = offline_subtask_execution(current_state, non_edge_subtask)
+                predicted_exec_time = predicted_exec_info.cumulative_time
+                predicted_next_state = update_state(current_state, non_edge_subtask, predicted_exec_info)                
+                predicted_nav_time, _ = compute_nav_time(non_edge_subtask, predicted_next_state)
+                expected_ne_subtask_info[non_edge_subtask] = ExecutionPredictionInfo(
+                    predicted_exec_time=predicted_exec_time,
+                    predicted_nav_time=predicted_nav_time,
+                    predicted_exec_info=predicted_exec_info,
                 )
-                expected_execution_time = exeptected_exec_info.cumulative_time
-                expected_time_dict[non_edge_subtask] = expected_execution_time
+            
             # 남은 interval 시간 내에 실행 가능한 subtask만 후보로 선택
             remaining_interval = interval - interval_time_used
 
             candidate_subtasks = {
-                subtask: time_used
-                for subtask, time_used in expected_time_dict.items()
-                if time_used <= remaining_interval
+                st: info.predicted_exec_time
+                for st, info in expected_ne_subtask_info.items()
+                if info.predicted_exec_time <= remaining_interval - info.predicted_nav_time
             }
-
             if not candidate_subtasks and remaining_interval >= 0:
-                if expected_time_dict and not is_critical:
-                    # For non-critical edges
-                    # non edge subtask 가 있으면 그걸 실행하고 탐색 중단.
+                if expected_ne_subtask_info and not is_critical: # Check if expected_info_dict is not empty
+                    #non critical edge가 활성화 되어 있고 실행 가능한 subtask는 있으면 그 중 제일 짧은걸 실행시킨다. 
                     shortest_subtask = min(
-                        expected_time_dict.items(), key=lambda item: item[1]
+                        expected_ne_subtask_info.items(), key=lambda item: item[1].predicted_exec_time
                     )[0]
-                    shortest_exec_info = offline_subtask_execution(
-                        current_state, shortest_subtask
-                    )
-                    shortest_subtask.start_time_scheduled = current_state.current_time
-                    shortest_subtask.end_time_scheduled = (
-                        current_state.current_time + shortest_exec_info.cumulative_time
-                    )
+                    shortest_exec_info = expected_ne_subtask_info[shortest_subtask].predicted_exec_info
+                    shortest_nav_time = expected_ne_subtask_info[shortest_subtask].predicted_nav_time                    
                     shortest_entry = CompletedEntry(
                         subtask=shortest_subtask,
                         schedule_start_time=current_state.current_time,
-                        schedule_end_time=current_state.current_time
-                        + shortest_exec_info.cumulative_time,
+                        schedule_end_time=current_state.current_time + shortest_exec_info.cumulative_time,
+                        schedule_nav_time=shortest_nav_time,
                     )
                     final_entry_schedule.append(shortest_entry)
                     current_state = update_state(
@@ -409,19 +400,18 @@ def get_final_entries(
                     )
                     subtasks_witout_edge.remove(shortest_subtask)
                     break
-
-                next_subtask = critical_path[i + 1][0]
-                # nav time 이 interval보다 크면 빈 list를 반환한다.
-                nav_wait_entries, current_state = nav_and_wait_during_interval(
-                    current_state, remaining_interval, next_subtask, is_critical
-                )
-                final_entry_schedule.extend(nav_wait_entries)
+                if i + 1 < len(critical_path):
+                    next_subtask_in_cp = critical_path[i + 1][0]
+                    nav_wait_entries, current_state = nav_and_wait_during_interval(
+                        current_state, remaining_interval, next_subtask_in_cp, is_critical
+                    )
+                    final_entry_schedule.extend(nav_wait_entries)
+                # If no next subtask, or if nav_and_wait is not applicable, just break
                 break
-
             # 가장 긴 실행 시간을 가진 subtask 선택
             best_subtask = max(candidate_subtasks.items(), key=lambda item: item[1])[0]
             # 선택된 subtask 실행
-            best_exec_info = offline_subtask_execution(current_state, best_subtask)
+            best_exec_info = expected_ne_subtask_info[best_subtask].predicted_exec_info
             interval_time_used += best_exec_info.cumulative_time
 
             final_entry_schedule.append(
@@ -468,7 +458,6 @@ def main() -> None:
     nav_graph = load_navigation_graph(controller)
 
     global action_handler, constraints
-
     
     scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
     action_handler = ActionHandler(nav_graph)
@@ -483,7 +472,7 @@ def main() -> None:
     
     # Task 및 constraint 생성 (태스크 분해 여부에 따라)
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
-        task_data, f"{scene_name}_physics_environment.json", args.decomposition
+        task_data, scene_file_name = f"{scene_name}_physics_environment.json", enable_decomposition = args.decomposition
     )
     subtasks_witout_edge = [
         s
@@ -514,13 +503,14 @@ def main() -> None:
         simulation_time = 0.0
         for entry in final_scheduled_entries:
             subtask = entry.subtask
-            subtask_time, execution_status = execute_subtask(
+            subtask_time, execution_status, sim_nav_time = execute_subtask(
                 controller, subtask, args.log_level
             )
             entry.sim_start_time = simulation_time
             entry.sim_end_time = simulation_time + subtask_time
             simulation_time += subtask_time
             entry.execution_status = execution_status
+            entry.sim_nav_time = sim_nav_time
 
         result_args = {
             "task_name": input_natural_language,
@@ -531,6 +521,7 @@ def main() -> None:
             "constraints": constraints,
         }
         result_save(**result_args)
+        print("end")
 
 
 
