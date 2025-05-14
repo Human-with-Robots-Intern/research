@@ -4,18 +4,20 @@ import networkx as nx
 
 
 class Duration:
-    def __init__(self, type: str, interval: int):
-        self.type = type
-        self.interval = interval
+    def __init__(self, type: str, interval: int, total_time: float = 0.0):
+        self.type: str = type
+        self.interval: int = interval
+        self.total_time: Optional[float] = total_time
 
     def __repr__(self):
-        return f"Duration(type={self.type}, interval={self.interval})"
+        return f"Duration(type={self.type}, interval={self.interval}, total_time={self.total_time})"
 
     @classmethod
     def from_dict(cls, data: Dict) -> "Duration":
         return cls(
             type=data["Type"],
-            interval=data["Interval"],
+            interval=float(data["Interval"]),
+            total_time=None,  # 초기에는 total_time 없음
         )
 
 

@@ -138,7 +138,7 @@ def main():
         "result_schedule": result_schedule,
         "computation_time": total_compute_time,
         "scene_name": scene_data.file_name,
-        "constraints": constraints,
+        "constraints": current_state.constraints,
         # "simulationTime": total_sim_time,
     }
 

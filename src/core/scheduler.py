@@ -195,79 +195,247 @@ class Scheduler:
         feasible_candidates: List[Candidate],
         not_yet_candidates: List[Candidate],
     ) -> List[SimulationNode]:
-        """
-        Expand the current node for both feasible and not-yet-feasible subtasks.
-
-        - Feasible candidates are sorted by actual_interaction_start_time (descending),
-          then expanded via `_expand_single_subtask`.
-        - If no feasible expansion is done and we have not-yet-feasible tasks,
-          we insert a single Wait expansion or Nav + Monitoring + Wait expansion (the earliest not-yet-feasible candidate).
-          These approaches are a simplified approach to "waiting" until a subtask becomes feasible.
-
-        Args:
-            curr_node (SimulationNode): The node being expanded.
-            feasible_candidates (List[Candidate]): Currently feasible tasks.
-            not_yet_candidates (List[Candidate]): Tasks that are not yet feasible.
-
-        Returns:
-            List[SimulationNode]: Children nodes expanded from curr_node.
-        """
         expansions: List[SimulationNode] = []
         is_expanded = False
 
-        # * (A) Expand feasible candidates:
-        # * Ascending Order: Critical In 제약이 존재하는 subtask는 actual_interaction_start_time이 0이 아닌 current_time과 근사한 경우임
-        sorted_feasible = sorted(
-            feasible_candidates,
-            key=lambda c: c.actual_interaction_start_time,
-        )
-        for candidate in sorted_feasible:
-            log.debug(
-                f"[_expand_candidates] Attempting to expand feasible subtask: {candidate.subtask.name}.\n"
-            )
-            child_node = self._expand_single_subtask(curr_node, candidate)
-            if child_node is not None:
-                expansions.append(child_node)
-                is_expanded = True
+        # --- 단계 1: 정책 1 - 정시(On-time) CRITICAL 서브태스크 우선 처리 ---
+        # "즉시 실행 가능한 Time-critical" 후보를 찾아, 있다면 그것 하나만 확장하고 즉시 반환.
 
+        on_time_critical_candidate_to_expand: Optional[Candidate] = None
+
+        # feasible_candidates를 순회하며 정책 1에 부합하는 후보를 찾음.
+        # ConstraintHandler가 critical 충돌을 방지하므로, 이 조건을 만족하는 후보는 최대 하나로 가정.
+        for candidate in feasible_candidates:
+            if candidate.is_critical:
+                if candidate.logical_interaction_start_time is None:
+                    log.error(
+                        f"Critical candidate {candidate.subtask.name} has None LST. Skipping."
+                    )
+                    continue
+
+                physical_earliest_interaction_start_time = (
+                    curr_node.state.current_time
+                    + candidate.estimated_first_nav_duration
+                )
+
+                # 정책 1 조건: 논리적 상호작용 시작 시간과 물리적으로 가능한 가장 빠른 시작 시간이 거의 일치하는가?
                 if (
-                    candidate.is_critical
-                    and candidate.logical_interaction_start_time
-                    is not None  # 논리적 시작 시간 계산이 가능해야 함
-                    and abs(
-                        (
-                            candidate.logical_interaction_start_time
-                            - candidate.estimated_first_nav_duration
-                        )
-                        - curr_node.state.current_time
+                    abs(
+                        candidate.logical_interaction_start_time
+                        - physical_earliest_interaction_start_time
                     )
                     < EPSILON
                 ):
-                    # 위 조건은 "이 critical task의 (논리적) 상호작용을 제때 시작하기 위해
-                    # 필요한 네비게이션 시작 시점이 현재 시간과 거의 같은가?"를 의미합니다.
                     log.debug(
-                        f"Critical task {candidate.subtask.name} requires immediate start of its process (nav+interaction)."
+                        f"[_expand_candidates] Policy 1: Found ON-TIME CRITICAL candidate: {candidate.subtask.name}."
                     )
-                    break  # 이 후보를 즉시 실행 (더 이상 다른 feasible 후보를 보지 않음)
+                    # AST를 LST와 동일하게 설정하여 정확한 시간에 실행되도록 보장.
+                    candidate.actual_interaction_start_time = (
+                        candidate.logical_interaction_start_time
+                    )
 
-        # * (B) If we have not expanded any feasible subtask,
-        # *     then we do a single Wait expansion (pick earliest not-yet-feasible)
+                    # (선택 사항) Candidate 객체에 missed_ideal_timing 필드가 있다면 설정
+                    # if hasattr(candidate, 'missed_ideal_timing'):
+                    #     candidate.missed_ideal_timing = False
+
+                    on_time_critical_candidate_to_expand = candidate
+                    break  # 정책 1에 부합하는 첫 번째 후보를 찾았으므로 더 이상 탐색 불필요
+
+        if on_time_critical_candidate_to_expand is not None:
+            log.debug(
+                f"[_expand_candidates] Expanding ONLY on-time critical: {on_time_critical_candidate_to_expand.subtask.name} "
+                f"at LST/AST: {on_time_critical_candidate_to_expand.logical_interaction_start_time:.2f}."
+            )
+            child_node = self._expand_single_subtask(
+                curr_node, on_time_critical_candidate_to_expand
+            )
+            if child_node is not None:
+                expansions.append(child_node)
+                # is_expanded = True # 여기서 설정해도 되지만, 어차피 즉시 반환하므로 큰 의미는 없음.
+                # 단, _simulate_search로 반환될 때 expansions에 노드가 있으므로 문제 없음.
+            return (
+                expansions  # 정책 1에 따라 확장된 노드(최대 1개)만 포함하여 즉시 반환
+            )
+
+        # --- 단계 1에서 정시 Critical 확장이 없었던 경우 다음 단계로 진행 ---
+
+        # --- 단계 2: 정책 3 (놓친 CRITICAL ASAP) 및 Non-CRITICAL, 미래 CRITICAL 서브태스크 처리 ---
+        # 이 단계는 정시 Critical 후보가 없었을 때만 실행됨.
+
+        if feasible_candidates:  # 여전히 처리할 feasible 후보가 있다면
+            log.debug(
+                f"[_expand_candidates] No on-time critical expanded. Processing other feasible candidates."
+            )
+
+            candidates_for_stage_2_expansion: List[Candidate] = []
+            for (
+                candidate
+            ) in feasible_candidates:  # 모든 feasible_candidates를 다시 검토
+                physical_earliest_interaction_start_time = (
+                    curr_node.state.current_time
+                    + candidate.estimated_first_nav_duration
+                )
+
+                if candidate.is_critical:
+                    # 이 후보는 정책 1의 "정시" 조건은 만족하지 못한 Critical 후보임.
+                    if candidate.logical_interaction_start_time is None:  # 방어적 코드
+                        log.error(
+                            f"Critical candidate {candidate.subtask.name} (Stage 2) has None LST. Skipping."
+                        )
+                        continue
+
+                    # 정책 3: 타이밍을 놓친 Critical (LST < 물리적 ASAP 시간) -> 가능한 빨리(ASAP) 수행
+                    if (
+                        candidate.logical_interaction_start_time
+                        < physical_earliest_interaction_start_time - EPSILON
+                    ):
+                        log.warning(
+                            f"[_expand_candidates] Policy 3: MISSED CRITICAL {candidate.subtask.name}. "
+                            f"Ideal LST: {candidate.logical_interaction_start_time:.2f}. Will perform ASAP at {physical_earliest_interaction_start_time:.2f}."
+                        )
+                        # AST를 물리적 ASAP 시간으로 설정 (ConstraintHandler가 이미 이렇게 했을 가능성 높음)
+                        candidate.actual_interaction_start_time = (
+                            physical_earliest_interaction_start_time
+                        )
+
+                        # (선택 사항) missed_ideal_timing 플래그 설정
+                        # if hasattr(candidate, 'missed_ideal_timing'):
+                        #     candidate.missed_ideal_timing = True
+                        candidates_for_stage_2_expansion.append(candidate)
+
+                    # 미래의 Critical (LST >= 물리적 ASAP, 단 정시 조건은 아님) -> LST에 맞춰 수행
+                    else:
+                        log.debug(
+                            f"[_expand_candidates] Future CRITICAL (not on-time): {candidate.subtask.name}. "
+                            f"LST: {candidate.logical_interaction_start_time:.2f}, PhysicalEarliest: {physical_earliest_interaction_start_time:.2f}. "
+                            f"Scheduling for LST."
+                        )
+                        # AST를 LST로 설정 (ConstraintHandler가 LST > physical_ASAP일 때 AST=LST로 했을 것임)
+                        candidate.actual_interaction_start_time = (
+                            candidate.logical_interaction_start_time
+                        )
+
+                        # (선택 사항) missed_ideal_timing 플래그 설정
+                        # if hasattr(candidate, 'missed_ideal_timing'):
+                        #     candidate.missed_ideal_timing = False # LST에 맞추므로 놓친 것은 아님
+                        candidates_for_stage_2_expansion.append(candidate)
+
+                else:  # Non-CRITICAL 후보
+                    if candidate.logical_interaction_start_time is None:  # 방어적 코드
+                        log.error(
+                            f"Non-critical candidate {candidate.subtask.name} has None LST. Skipping."
+                        )
+                        continue
+
+                    # AST는 max(LST, 물리적 ASAP)로 설정 (ConstraintHandler가 이미 처리했을 가능성 높음)
+                    expected_actual_start_time = max(
+                        candidate.logical_interaction_start_time,
+                        physical_earliest_interaction_start_time,
+                    )
+                    # 현재 Candidate 객체의 AST가 예상과 다르면 업데이트 (일관성 유지)
+                    if (
+                        candidate.actual_interaction_start_time is None
+                        or abs(
+                            candidate.actual_interaction_start_time
+                            - expected_actual_start_time
+                        )
+                        > EPSILON
+                    ):
+                        candidate.actual_interaction_start_time = (
+                            expected_actual_start_time
+                        )
+
+                    # (선택 사항) missed_ideal_timing 플래그 설정
+                    # if hasattr(candidate, 'missed_ideal_timing'):
+                    #     candidate.missed_ideal_timing = False
+                    candidates_for_stage_2_expansion.append(candidate)
+
+            if candidates_for_stage_2_expansion:
+                # 확장 대상 후보들을 정렬 (예: AST 기준, 그 다음 LST 또는 휴리스틱)
+                candidates_for_stage_2_expansion.sort(
+                    key=lambda c: (
+                        (
+                            c.actual_interaction_start_time
+                            if c.actual_interaction_start_time is not None
+                            else float("inf")
+                        ),
+                        (
+                            c.logical_interaction_start_time
+                            if c.logical_interaction_start_time is not None
+                            else float("inf")
+                        ),
+                    )
+                )
+
+                for candidate_to_expand in candidates_for_stage_2_expansion:
+                    log.debug(
+                        f"[_expand_candidates] Stage 2: Expanding candidate: {candidate_to_expand.subtask.name} "
+                        f"at AST: {candidate_to_expand.actual_interaction_start_time:.2f} "
+                        f"(LST: {candidate_to_expand.logical_interaction_start_time:.2f}, Critical: {candidate_to_expand.is_critical})."
+                    )
+                    child_node = self._expand_single_subtask(
+                        curr_node, candidate_to_expand
+                    )
+                    if child_node is not None:
+                        expansions.append(child_node)
+                        is_expanded = (
+                            True  # 여기서 실제 작업 확장이 일어나면 플래그 설정
+                        )
+
+        # --- 단계 3: 정책 2 - WAIT 서브태스크 확장 ---
+        # 단계 1과 단계 2에서 어떤 작업 수행 확장도 일어나지 않았을 경우에만 실행.
         if not is_expanded and not_yet_candidates:
+            log.debug(
+                f"[_expand_candidates] Policy 2: No task-performing subtask expanded. Considering WAIT."
+            )
+
+            # not_yet_candidates 정렬 키 개선: 유효한 미래 시간 우선
             sorted_not_feasible = sorted(
                 not_yet_candidates,
                 key=lambda c: (
-                    c.actual_interaction_start_time
+                    c.actual_interaction_start_time  # ConstraintHandler가 설정한 미래의 AST
                     if c.actual_interaction_start_time is not None
-                    else float("inf")
+                    and c.actual_interaction_start_time
+                    > curr_node.state.current_time + EPSILON
+                    else (
+                        c.logical_interaction_start_time  # AST가 없거나 과거면 LST (미래)
+                        if c.logical_interaction_start_time is not None
+                        and c.logical_interaction_start_time
+                        > curr_node.state.current_time + EPSILON
+                        else float("inf")
+                    )  # 둘 다 없거나 과거면 맨 뒤로
                 ),
             )
-            wait_candidate = sorted_not_feasible[0]
-            log.debug(
-                f"[_expand_candidates] No feasible expansions done. Waiting for subtask: {wait_candidate.subtask.name}.\n"
-            )
-            wait_node = self._expand_single_wait(curr_node, wait_candidate)
-            expansions.append(wait_node)
 
+            # 정렬된 리스트가 비어있지 않고, 첫 번째 후보의 정렬 기준값이 유효한 미래 시간인지 확인
+            if sorted_not_feasible and (
+                (
+                    sorted_not_feasible[0].actual_interaction_start_time is not None
+                    and sorted_not_feasible[0].actual_interaction_start_time
+                    > curr_node.state.current_time + EPSILON
+                )
+                or (
+                    sorted_not_feasible[0].logical_interaction_start_time is not None
+                    and sorted_not_feasible[0].logical_interaction_start_time
+                    > curr_node.state.current_time + EPSILON
+                )
+            ):
+
+                wait_candidate = sorted_not_feasible[0]
+                log.debug(
+                    f"[_expand_candidates] Waiting for subtask: {wait_candidate.subtask.name} "
+                    f"(Target AST: {wait_candidate.actual_interaction_start_time}, Target LST: {wait_candidate.logical_interaction_start_time})."
+                )
+                wait_node = self._expand_single_wait(curr_node, wait_candidate)
+                if wait_node:
+                    expansions.append(wait_node)
+                    # is_expanded는 여기서 True로 설정하지 않음 (Wait은 작업 수행 확장이 아님)
+            else:
+                log.debug(
+                    f"[_expand_candidates] No task-performing subtask expanded, and no suitable not_yet_candidates to wait for."
+                )
+
+        # expansions 리스트는 _simulate_search로 전달되어 정렬 및 Beam Pruning 대상이 됨.
         return expansions
 
     def _extract_state(self, child_node: SimulationNode) -> Optional[SchedulerState]:
@@ -480,7 +648,7 @@ class Scheduler:
             return None
 
         copied_sub = copy.deepcopy(candidate.subtask)
-        copied_sub.duration.interval = total_subtask_duration_from_sim
+        copied_sub.duration.total_time = total_subtask_duration_from_sim
 
         completed_entry = CompletedEntry(
             subtask=copied_sub,
@@ -693,7 +861,7 @@ class Scheduler:
         early_sub = copy.deepcopy(candidate.subtask)
         early_sub.name = f"{original_task_name}_early"
         early_sub.execution.primitive_actions = pre_actions_info.get_actions()
-        early_sub.duration.interval = duration_of_early_sub_from_sim
+        early_sub.duration.total_time = duration_of_early_sub_from_sim
         early_sub.decomposed = True
         planned_early_sub_completion_time = (
             planned_early_sub_nav_start_time + duration_of_early_sub_from_sim
@@ -878,7 +1046,7 @@ class Scheduler:
                 actual_nav_duration_for_remain + duration_of_post_interaction_sim
             )
 
-        remain_sub.duration.interval = duration_of_remain_sub_from_sim
+        remain_sub.total_time = duration_of_remain_sub_from_sim
         remain_sub.decomposed = True
 
         # ! ------------------- Constraints Update (New Logic) -------------------
@@ -1038,9 +1206,7 @@ class Scheduler:
             scene_positions=state_before_remain_nav_scene_pos,  # pre_actions_info.results[-1] 에서 가져온 값
             held_object=state_before_remain_nav_held_obj,  # pre_actions_info.results[-1] 에서 가져온 값
         )
-        step_cost = self.cost_calculator.calc_heuristic(
-            curr_node, candidate
-        )  # 비용은 원본 candidate 기준으로
+        step_cost = self.cost_calculator.calc_heuristic(curr_node, candidate)
         new_cost = curr_cost + step_cost
         log.info(
             f"Expanded {original_task_name} with monitoring: early_sub='{early_sub.name}', mon_sub='{mon_sub.name}', remain_sub='{remain_sub.name}'."
@@ -1068,29 +1234,42 @@ class Scheduler:
             f"[_expand_wait_with_monitoring] Attempting partial nav + monitoring for {original_task_name}."
         )
 
-        # 1. 시간 계산
-        target_interaction_abs_time = candidate.actual_interaction_start_time
+        # +++ 1단계: M_old (이전 모니터링 태스크) 식별 로직 +++
+        # 이 확장을 유발한, 바로 직전에 완료된 태스크가 original_task_name에 대한 모니터링이었는지 확인
+        M_old_name: Optional[str] = None
         if (
-            target_interaction_abs_time is None
-        ):  # Not-yet candidate 중 logical_start_time이 None인 경우 등
+            curr_node.state.subtask
+            and curr_node.state.subtask.subtask_type == "Monitor"
+            and original_task_name in curr_node.state.subtask.name
+        ):  # 이름 규칙에 따라 original_task_name 관련 여부 판단
+            M_old_name = curr_node.state.subtask.name
+            log.debug(
+                f"  Identified M_old (previous monitor for {original_task_name}): {M_old_name}"
+            )
+        # +++ END: M_old 식별 +++
+
+        # === 기존 코드의 변수 계산 및 P_new, M_new 생성 로직 시작 ===
+        # (이 부분은 사용자의 기존 코드 로직을 최대한 따라야 합니다.)
+        # 1. 시간 계산 (target_interaction_abs_time, available_total_idle_time 등)
+        target_interaction_abs_time = (
+            candidate.actual_interaction_start_time
+        )  # 1082행 부근
+        if target_interaction_abs_time is None:
             log.warning(
-                f"Candidate {original_task_name} has no valid actual_interaction_start_time. Cannot expand with wait_monitoring."
+                f"Candidate {original_task_name} has no valid actual_interaction_start_time. Cannot expand."
             )
             return None
 
         available_total_idle_time = (
             target_interaction_abs_time - curr_state.current_time
         )
-        if available_total_idle_time < 0:  # 이미 늦음
-            # 이미 늦었지만, 모니터링이라도 수행해야 하는가? 아니면 이 경로를 포기해야 하는가?
-            # 여기서는 일단 진행하되, pure_wait_duration_after_monitoring이 음수가 될 수 있음을 인지.
-            log.warning(
-                f"Available idle time for {original_task_name} is negative ({available_total_idle_time:.2f}). Target may be missed."
-            )
-            # available_total_idle_time = 0 # 또는 포기 return None
+        # ... (full_nav_duration_from_current_pos, calculated_partial_nav_time 등 계산, 1093행~1126행 부근)
 
-        # 2. 현재 상태 기준 전체 네비게이션 시간 재계산
-        nav_target_obj = None
+        # 2. `prep_nav_sub` (P_new) 생성 및 시뮬레이션 (기존 코드 1128행~1177행 부근)
+        prep_nav_sub: Optional[Subtask] = None
+        prep_nav_actions = []
+        # ... (nav_target_obj 결정 로직) ...
+        nav_target_obj = None  # 플레이스홀더: 실제 nav_target_obj 결정 로직 필요
         if (
             candidate.subtask.execution
             and candidate.subtask.execution.primitive_actions
@@ -1104,35 +1283,16 @@ class Scheduler:
             ):
                 nav_target_obj = first_action_tokens[1]
 
-        full_nav_duration_from_current_pos = float("inf")
-        if nav_target_obj:
-            # nav_target_obj가 None이거나 빈 문자열일 경우 action_handler.get_actions_info에서 오류 발생 방지
-            log.debug(
-                f"  Calculating full nav time from current pos to {nav_target_obj} for {original_task_name}"
-            )
-            full_nav_info_now = self.action_handler.get_actions_info(
-                curr_node, [f"NAVIGATE_TO {nav_target_obj}"]
-            )
-            if full_nav_info_now and full_nav_info_now.success:
-                full_nav_duration_from_current_pos = full_nav_info_now.action_duration
-            else:
-                log.warning(
-                    f"  Failed to get full_nav_duration from current pos for {nav_target_obj}. Assuming unreachable for nav."
-                )
-                # full_nav_duration_from_current_pos는 이미 float('inf')
-        else:
-            log.debug(
-                f"  No NAVIGATE_TO action found for {original_task_name} or nav_target_obj is invalid. No navigation planned for prep_nav_sub."
-            )
-            full_nav_duration_from_current_pos = 0.0  # 네비게이션이 없으므로 0
-
-        # 3. 부분 네비게이션 시간 결정
+        calculated_partial_nav_time = (
+            0.0  # 플레이스홀더: 실제 calculated_partial_nav_time 계산 로직 필요
+        )
+        # ... (calculated_partial_nav_time 계산 로직 예시, 1117행 ~ 1126행) ...
         time_for_nav_before_monitoring = available_total_idle_time - MONITORING_DURATION
-        calculated_partial_nav_time = 0.0
+        full_nav_duration_from_current_pos = 0.0  # 플레이스홀더: 실제 계산 로직 필요
         if (
             time_for_nav_before_monitoring > EPSILON
             and full_nav_duration_from_current_pos > EPSILON
-        ):  # 네비게이션 할 시간과 목표가 있을 때
+        ):
             calculated_partial_nav_time = max(
                 0.0,
                 min(
@@ -1141,42 +1301,29 @@ class Scheduler:
                     full_nav_duration_from_current_pos,
                 ),
             )
-        log.debug(
-            f"  Available for nav: {time_for_nav_before_monitoring:.2f}, Full nav needed: {full_nav_duration_from_current_pos:.2f}, Calculated partial nav: {calculated_partial_nav_time:.2f}"
-        )
 
-        # 4. `prep_nav_sub` 생성 및 시뮬레이션
-        prep_nav_actions = []
+        actual_prep_nav_duration = 0.0
+        scene_positions_after_prep_nav = curr_state.scene_positions
+        held_object_after_prep_nav = curr_state.held_object
+        prep_nav_sub_success = True  # 기본 성공으로 가정, 실패 시 False로 변경
+
         if calculated_partial_nav_time > EPSILON and nav_target_obj:
             prep_nav_actions.append(
                 f"NAVIGATE_TO {nav_target_obj} {calculated_partial_nav_time:.2f}"
             )
 
-        actual_prep_nav_duration = 0.0
-        scene_positions_after_prep_nav = curr_state.scene_positions  # 기본값: 현재 위치
-        held_object_after_prep_nav = curr_state.held_object  # 기본값: 현재 물건
-        prep_nav_sub_success = True  # prep_nav_actions가 없으면 성공으로 간주
-
-        prep_nav_sub: Optional[Subtask] = (
-            None  # prep_nav_sub가 실제로 생성되었는지 추적
-        )
-
-        if prep_nav_actions:  # 부분 네비게이션 액션이 있을 경우에만 Subtask 생성
-            prep_nav_sub_name = f"NavigatePartialFor_{original_task_name}_Mon"
-            log.debug(
-                f"  Creating prep_nav_sub: {prep_nav_sub_name} with actions: {prep_nav_actions}"
-            )
-            # 임시 SimulationNode를 만들지 않고, curr_node를 직접 사용 (action_handler가 내부적으로 복사)
+        if prep_nav_actions:
+            prep_nav_sub_name = f"Navigate Partial For {original_task_name}"
+            # P_new 시뮬레이션 (action_handler 호출)
             executed_prep_nav_info = self.action_handler.get_actions_info(
                 curr_node, prep_nav_actions
             )
             if executed_prep_nav_info and executed_prep_nav_info.success:
-                actual_prep_nav_duration = (
-                    executed_prep_nav_info.cumulative_time
-                )  # 단일 액션이므로 action_duration과 같을 수 있음
+                actual_prep_nav_duration = executed_prep_nav_info.cumulative_time
                 scene_positions_after_prep_nav = executed_prep_nav_info.scene_positions
                 held_object_after_prep_nav = executed_prep_nav_info.held_object
-                prep_nav_sub = Subtask(  # 성공 시에만 Subtask 객체 생성
+                prep_nav_sub = Subtask(  # P_new 객체 생성
+                    # ... (Subtask 생성자 인수들, 기존 1155행 부근 참고) ...
                     task_name="SchedulerGenerated",
                     name=prep_nav_sub_name,
                     duration=Duration(
@@ -1185,7 +1332,7 @@ class Scheduler:
                     execution=Execution(
                         objects=None, primitive_actions=prep_nav_actions
                     ),
-                    decomposed=True,  # 분할된 작업의 일부
+                    decomposed=True,
                     subtask_type="Navigation",
                     repetition=1,
                 )
@@ -1194,38 +1341,30 @@ class Scheduler:
                 log.warning(
                     f"  prep_nav_sub simulation failed for {original_task_name}."
                 )
-                # 사용자 결정 2: 비용을 높여 이 경로 회피
-                # new_cost를 매우 높게 설정하거나, None 반환. 여기서는 일단 진행하고 new_cost에서 처리.
-        else:
-            log.debug(
-                f"  No partial navigation actions for {original_task_name}. actual_prep_nav_duration = 0."
-            )
-            # prep_nav_actions가 없으므로 prep_nav_sub는 생성되지 않음 (None 유지)
 
-        # 5. `mon_sub` 생성 및 시뮬레이션
-        # 모니터링 대상은 candidate의 네비게이션 타겟 또는 candidate 자체일 수 있음. 여기서는 nav_target_obj 사용.
-        # nav_target_obj가 없으면 candidate.subtask.name을 모니터링 대상으로 할 수도 있음.
+        prep_nav_start_time = curr_state.current_time
+        prep_nav_end_time = prep_nav_start_time + actual_prep_nav_duration
+
+        # 3. `mon_sub` (M_new) 생성 및 시뮬레이션 (기존 코드 1179행~1260행 부근)
         monitoring_target_for_mon_sub = (
             nav_target_obj if nav_target_obj else original_task_name
         )
-
-        mon_sub_name_prefix = (
+        mon_sub_name_prefix_for_new_mon = (
             candidate.scheduling_due.due_related_sub_name
             if candidate.scheduling_due
             and candidate.scheduling_due.due_related_sub_name
             else original_task_name
         )
 
-        mon_sub = TaskUtil.create_monitoring_subtask(
-            name=f"MonitorFor_{mon_sub_name_prefix}",  # 이름 명확히
+        mon_sub: Subtask = TaskUtil.create_monitoring_subtask(  # M_new 객체 생성
+            name=f"{mon_sub_name_prefix_for_new_mon}",
             obj=monitoring_target_for_mon_sub,
         )
-        mon_sub.decomposed = True  # 분할된 작업의 일부
+        mon_sub.decomposed = True
 
-        # mon_sub 시뮬레이션을 위한 임시 상태 (prep_nav 완료 후)
-        state_before_mon = SchedulerState(
-            subtask=prep_nav_sub,  # 이전 완료 작업 (None일 수 있음)
-            current_time=curr_state.current_time + actual_prep_nav_duration,
+        state_before_mon = SchedulerState(  # M_new 시뮬레이션 위한 임시 상태
+            subtask=prep_nav_sub,
+            current_time=prep_nav_end_time,
             scene_positions=scene_positions_after_prep_nav,
             held_object=held_object_after_prep_nav,
             completed_entries=curr_state.completed_entries
@@ -1233,18 +1372,17 @@ class Scheduler:
                 [
                     CompletedEntry(
                         prep_nav_sub,
-                        curr_state.current_time,
-                        curr_state.current_time + actual_prep_nav_duration,
+                        prep_nav_start_time,
+                        prep_nav_end_time,
                         prep_nav_sub_success,
                     )
                 ]
                 if prep_nav_sub
                 else []
             ),
-            remaining_subtasks=curr_state.remaining_subtasks,  # 임시 상태이므로 중요하지 않음
-            constraints=curr_state.constraints,  # 임시 상태이므로 중요하지 않음
+            remaining_subtasks=curr_state.remaining_subtasks,
+            constraints=curr_state.constraints,
         )
-        # ActionHandler는 SimulationNode를 받으므로 임시 노드 생성
         node_before_mon = SimulationNode(
             parent_node=curr_node,
             state=state_before_mon,
@@ -1257,121 +1395,199 @@ class Scheduler:
             node_before_mon, mon_sub.execution.primitive_actions
         )
         mon_sub_success = False
-        actual_mon_duration = MONITORING_DURATION  # 기본값
+        actual_mon_duration = MONITORING_DURATION
         if executed_mon_info and executed_mon_info.success:
-            actual_mon_duration = (
-                executed_mon_info.action_duration
-            )  # 보통 MONITORING_DURATION
+            actual_mon_duration = executed_mon_info.action_duration
             mon_sub_success = True
-            # 모니터링 후 scene_positions, held_object 변경은 없다고 가정 (시간만 흐름)
         else:
             log.warning(f"  mon_sub simulation failed for {original_task_name}.")
-            # 사용자 결정: mon_sub 실패 시 이 경로 회피 (new_cost에서 처리)
 
-        # 6. CompletedEntry 생성 및 상태 업데이트 준비
-        new_completed_entries = list(curr_state.completed_entries)  # 복사해서 사용
+        mon_sub_start_time = prep_nav_end_time
+        mon_sub_end_time = mon_sub_start_time + actual_mon_duration
+        # === END: 기존 코드의 변수 계산 및 P_new, M_new 생성 로직 ===
 
-        prep_nav_start_time = curr_state.current_time
-        prep_nav_end_time = prep_nav_start_time + actual_prep_nav_duration
-        if (
-            prep_nav_sub
-        ):  # prep_nav_sub가 실제로 생성되었을 때만 completed_entries에 추가
+        # 4. `new_completed_entries` 준비 (P_new, M_new 정보 포함)
+        # 이 리스트는 아래 제약 조건 업데이트 시 pred_entry 검색에 사용될 수 있음.
+        new_completed_entries = list(curr_state.completed_entries)
+        if prep_nav_sub:  # P_new가 실제로 생성되었고, 성공 여부와 관계없이 기록
             new_completed_entries.append(
                 CompletedEntry(
                     subtask=prep_nav_sub,
                     schedule_start_time=prep_nav_start_time,
                     schedule_end_time=prep_nav_end_time,
-                    execution_status=prep_nav_sub_success,
+                    execution_status=prep_nav_sub_success,  # 성공 여부 기록
                 )
             )
-
-        mon_sub_start_time = prep_nav_end_time
-        mon_sub_end_time = mon_sub_start_time + actual_mon_duration
+        # M_new는 항상 생성되므로 completed_entries에 추가 (성공 여부 기록)
         new_completed_entries.append(
             CompletedEntry(
                 subtask=mon_sub,
                 schedule_start_time=mon_sub_start_time,
                 schedule_end_time=mon_sub_end_time,
-                execution_status=mon_sub_success,
+                execution_status=mon_sub_success,  # 성공 여부 기록
             )
         )
 
-        # 7. 제약 조건 업데이트
+        # 5. 제약 조건 업데이트 시작
         new_constraints = copy.deepcopy(curr_state.constraints)
-        # original_task_name이 제약 그래프에 있는지 확인 (없으면 추가는 하지 않음, 연결만 시도)
 
-        # 7.1. prep_nav_sub -> mon_sub (prep_nav_sub가 존재하고 성공했을 때)
-        if prep_nav_sub and prep_nav_sub_success:
-            if not new_constraints.has_node(prep_nav_sub.name):
+        # +++ 2단계: M_old 완료와 새로운 모니터링 시퀀스(P_new/M_new) 시작 연결 +++
+        if M_old_name:
+            actual_start_of_new_sequence_name = mon_sub.name  # 기본 M_new.name
+            if prep_nav_sub and prep_nav_sub_success:  # P_new가 있고 성공했다면
+                actual_start_of_new_sequence_name = prep_nav_sub.name
+
+            # M_old는 이미 완료된 태스크이므로 new_constraints 그래프에 노드가 있어야 함.
+            if not new_constraints.has_node(M_old_name):
+                log.error(
+                    f"  CRITICAL LOGIC ERROR: M_old_name '{M_old_name}' should exist in constraints as a completed task!"
+                )
+                # 이 경우는 심각한 문제이므로, 실패 처리 또는 예외 발생 고려 가능
+                # return None
+                new_constraints.add_node(M_old_name)  # 임시 방편
+
+            # P_new/M_new 노드가 아직 없을 수 있으므로 명시적으로 추가 (아래에서도 추가될 수 있음)
+            if not new_constraints.has_node(actual_start_of_new_sequence_name):
+                new_constraints.add_node(actual_start_of_new_sequence_name)
+
+            log.debug(
+                f"  Adding constraint from completed M_old '{M_old_name}' to start of new sequence '{actual_start_of_new_sequence_name}' (Interval: 0, Critical: True)"
+            )
+            edge_data_m_old_to_new_seq = {"Interval": 0.0, "IsCritical": True}
+            if not new_constraints.has_edge(
+                M_old_name, actual_start_of_new_sequence_name
+            ):
+                new_constraints.add_edge(
+                    M_old_name,
+                    actual_start_of_new_sequence_name,
+                    info=edge_data_m_old_to_new_seq,
+                )
+            else:
+                new_constraints.edges[M_old_name, actual_start_of_new_sequence_name][
+                    "info"
+                ].update(edge_data_m_old_to_new_seq)
+        # +++ END: M_old 연결 +++
+
+        # +++ 4단계 (일부): 새로운 모니터링 시퀀스 내부 연결 (P_new, M_new 노드 추가 포함) +++
+        # 7.1. prep_nav_sub (P_new) -> mon_sub (M_new)
+        if (
+            prep_nav_sub
+        ):  # P_new가 생성되었을 경우 (성공 여부와 관계없이 노드는 존재 가능)
+            if not new_constraints.has_node(prep_nav_sub.name):  # P_new 노드 추가
                 new_constraints.add_node(prep_nav_sub.name)
-            if not new_constraints.has_node(mon_sub.name):
+            if not new_constraints.has_node(mon_sub.name):  # M_new 노드 추가
                 new_constraints.add_node(mon_sub.name)
-            new_constraints.add_edge(
-                prep_nav_sub.name,
-                mon_sub.name,
-                info={"Interval": 0.0, "IsCritical": True},
-            )
 
-        # 7.2. mon_sub -> candidate.subtask (original_task_name)
-        interval_to_candidate = target_interaction_abs_time - mon_sub_end_time
-        if interval_to_candidate < -EPSILON:  # 이미 늦었음
-            log.warning(
-                f"  Target interaction time for {original_task_name} ({target_interaction_abs_time:.2f}) "
-                f"is already passed after monitoring ({mon_sub_end_time:.2f}). Interval set to 0."
-            )
-        interval_to_candidate = max(0, interval_to_candidate)  # 사용자 결정 3
+            # P_new 성공 시에만 M_new로 이어지는 것이 논리적일 수 있으나, 여기서는 연결은 만들되,
+            # 스케줄링 시 P_new 실패가 M_new의 실행 가능성에 영향을 줄 것임.
+            # 여기서는 Critical 연결을 가정.
+            info_p_new_to_m_new = {"Interval": 0.0, "IsCritical": True}
+            if prep_nav_sub_success:  # P_new가 성공해야 M_new로 이어짐이 타당
+                if not new_constraints.has_edge(prep_nav_sub.name, mon_sub.name):
+                    new_constraints.add_edge(
+                        prep_nav_sub.name, mon_sub.name, info=info_p_new_to_m_new
+                    )
+                    log.debug(
+                        f"  Added constraint: P_new '{prep_nav_sub.name}' -> M_new '{mon_sub.name}', Info: {info_p_new_to_m_new}"
+                    )
+                else:
+                    new_constraints.edges[prep_nav_sub.name, mon_sub.name][
+                        "info"
+                    ].update(info_p_new_to_m_new)
+            # else: P_new 실패 시 M_new로의 Critical 연결은 의미가 없을 수 있음. 정책 결정 필요. 현재는 연결 안함.
 
+        # 7.2. mon_sub (M_new) -> candidate.subtask (original_task_name)
+        # M_new 노드가 없다면 추가 (위에서 추가되었을 수도 있음)
         if not new_constraints.has_node(mon_sub.name):
             new_constraints.add_node(mon_sub.name)
-        # candidate.subtask.name은 original_task_name. 그래프에 없을 수도 있음.
+        # original_task_name 노드가 없다면 추가
         if not new_constraints.has_node(original_task_name):
-            log.warning(
-                f"Original task {original_task_name} not in constraints. Adding node for linking from {mon_sub.name}."
-            )
             new_constraints.add_node(original_task_name)
+            log.debug(
+                f"  Node for original task '{original_task_name}' added to constraints."
+            )
 
-        new_constraints.add_edge(
-            mon_sub.name,
-            original_task_name,
-            info={
-                "Interval": interval_to_candidate,
+        # M_new 성공 시에만 original_task_name으로 이어지는 것이 논리적.
+        if mon_sub_success:
+            interval_m_new_to_original = target_interaction_abs_time - mon_sub_end_time
+            interval_m_new_to_original = max(
+                0.0, interval_m_new_to_original
+            )  # 음수 방지
+
+            info_m_new_to_original = {
+                "Interval": interval_m_new_to_original,
                 "IsCritical": candidate.is_critical,
-            },
-        )
+            }
+            if not new_constraints.has_edge(mon_sub.name, original_task_name):
+                new_constraints.add_edge(
+                    mon_sub.name, original_task_name, info=info_m_new_to_original
+                )
+                log.debug(
+                    f"  Added constraint: M_new '{mon_sub.name}' -> Original '{original_task_name}', Info: {info_m_new_to_original}"
+                )
+            else:
+                new_constraints.edges[mon_sub.name, original_task_name]["info"].update(
+                    info_m_new_to_original
+                )
+        # else: M_new 실패 시 original_task_name으로의 연결은 의미가 없을 수 있음. 정책 결정 필요. 현재는 연결 안함.
 
-        # 7.3. 기존 Critical 제약 재연결 (candidate.subtask로 향하던 제약들)
-        #    이 부분은 기존 _expand_wait_with_monitoring의 제약 업데이트 로직을 참고하여,
-        #    연결 대상을 mon_sub (또는 상황에 따라 prep_nav_sub)로 변경하고, Interval 재계산 필요.
-        #    (이 부분은 복잡하여 기존 코드 로직의 상세한 이해와 수정이 필요합니다)
-        #    간단화 버전: original_task_name으로 들어오던 critical edge를 mon_sub로 옮긴다고 가정.
-        if new_constraints.has_node(original_task_name):  # 원래 노드가 있어야 이전 가능
+        # +++ 3단계: "내부 제약"(M_old발)과 "외부 제약" 구분 및 처리 +++
+        if new_constraints.has_node(original_task_name):
+            # 그래프 수정 중 반복자 무효화를 피하기 위해 엣지 리스트 복사
             in_edges_data_original = list(
                 new_constraints.in_edges(original_task_name, data=True)
             )
+            log.debug(
+                f"  Processing {len(in_edges_data_original)} incoming edges to '{original_task_name}' for rerouting."
+            )
+
             for pred, _, data in in_edges_data_original:
-                if pred == mon_sub.name or (prep_nav_sub and pred == prep_nav_sub.name):
-                    continue  # 자기 자신 또는 내부 연결 방지
+                # 이미 새로운 시퀀스 내부에서 original_task_name으로 연결된 M_new는 여기서 다시 처리할 필요 없음.
+                if pred == mon_sub.name:
+                    log.debug(
+                        f"    Skipping rerouting for pred '{pred}' (it's M_new, already handled)."
+                    )
+                    continue
+                # P_new에서 original_task_name으로 직접 가는 제약은 현재 로직상 없음.
+                if prep_nav_sub and pred == prep_nav_sub.name:
+                    log.debug(
+                        f"    Skipping rerouting for pred '{pred}' (it's P_new, not directly linked to original_task_name here)."
+                    )
+                    continue
 
                 edge_info = data.get("info", {})
+
+                # Case A: pred가 M_old인 "내부 제약"
+                if M_old_name and pred == M_old_name:
+                    # M_old -> original_task_name 엣지는 (2단계에서 M_old -> P_new/M_new 로 연결했으므로) 제거 대상.
+                    if new_constraints.has_edge(M_old_name, original_task_name):
+                        log.info(
+                            f"    Removing obsolete direct edge from M_old '{M_old_name}' to Original '{original_task_name}'."
+                        )
+                        new_constraints.remove_edge(M_old_name, original_task_name)
+                    continue  # 이 pred에 대한 처리는 완료.
+
+                # Case B: pred가 M_old가 아닌 "외부 제약" 또는 관련 없는 이전 태스크
                 if edge_info.get("IsCritical"):
-                    # 이 pred에서 mon_sub (또는 prep_nav_sub)까지의 새로운 Interval 계산 필요
-                    # 여기서는 예시로 기존 Interval 유지, 실제로는 재계산 필요
                     log.debug(
-                        f"  Rerouting critical constraint from {pred} to {mon_sub.name} (was to {original_task_name})"
+                        f"    Processing external critical constraint from Pred '{pred}' to Original '{original_task_name}'."
                     )
+
+                    actual_reroute_target_for_pred = mon_sub.name  # 기본 M_new
+                    time_for_interval_calc_start = mon_sub_start_time
+                    if (
+                        prep_nav_sub and prep_nav_sub_success
+                    ):  # P_new가 있고 성공해야 P_new로 리라우팅
+                        actual_reroute_target_for_pred = prep_nav_sub.name
+                        time_for_interval_calc_start = prep_nav_start_time
+
+                    log.debug(
+                        f"      Rerouting: Pred '{pred}' -> Target '{actual_reroute_target_for_pred}' (was to Original '{original_task_name}')"
+                    )
+
                     if new_constraints.has_edge(pred, original_task_name):
                         new_constraints.remove_edge(pred, original_task_name)
 
-                    # 연결 대상 결정: prep_nav_sub가 있었고 성공했다면 prep_nav_sub, 아니면 mon_sub
-                    actual_reroute_target_for_pred = mon_sub.name
-                    new_interval_from_pred = (
-                        mon_sub_start_time  # 기본적으로 mon_sub 시작시간 기준
-                    )
-                    if prep_nav_sub and prep_nav_sub_success:
-                        actual_reroute_target_for_pred = prep_nav_sub.name
-                        new_interval_from_pred = prep_nav_start_time
-
-                    # pred_entry 찾아서 정확한 interval 계산 (기존 _expand_wait_with_monitoring 참고)
                     pred_entry = next(
                         (
                             ce
@@ -1379,10 +1595,8 @@ class Scheduler:
                             if ce.subtask.name == pred
                         ),
                         None,
-                    )  # 가장 최근 완료된 pred
-                    if (
-                        not pred_entry
-                    ):  # 만약 pred가 아직 new_completed_entries에 없다면 (curr_node.state.completed_entries 에서 찾아야 함)
+                    )
+                    if not pred_entry:
                         pred_entry = next(
                             (
                                 ce
@@ -1392,21 +1606,26 @@ class Scheduler:
                             None,
                         )
 
+                    calculated_interval = edge_info.get("Interval", 0.0)
                     if pred_entry:
                         calculated_interval = (
-                            new_interval_from_pred - pred_entry.schedule_end_time
+                            time_for_interval_calc_start - pred_entry.schedule_end_time
                         )
-                        # calculated_interval = max(0, calculated_interval) # 음수 방지
-                    else:  # pred_entry 못찾으면 기존 interval 사용 (부정확할 수 있음)
-                        calculated_interval = edge_info.get("Interval", 0)
+                    else:
                         log.warning(
-                            f"Predecessor {pred} for critical constraint not found in completed entries. Using original interval {calculated_interval} for rerouting."
+                            f"      Predecessor '{pred}' for critical constraint rerouting not found in completed. Using original interval {calculated_interval}."
                         )
 
                     rerouted_edge_info = {
-                        "Interval": max(0, calculated_interval),
+                        "Interval": max(0.0, calculated_interval),
                         "IsCritical": True,
                     }
+
+                    if not new_constraints.has_node(pred):
+                        new_constraints.add_node(pred)
+                    if not new_constraints.has_node(actual_reroute_target_for_pred):
+                        new_constraints.add_node(actual_reroute_target_for_pred)
+
                     if not new_constraints.has_edge(
                         pred, actual_reroute_target_for_pred
                     ):
@@ -1415,53 +1634,85 @@ class Scheduler:
                             actual_reroute_target_for_pred,
                             info=rerouted_edge_info,
                         )
-                    else:  # 이미 엣지가 있다면 (다른 이유로), 정보 업데이트 (더 보수적인 값으로 등)
+                        log.debug(
+                            f"      Added rerouted edge: Pred '{pred}' -> Target '{actual_reroute_target_for_pred}', Info: {rerouted_edge_info}"
+                        )
+                    else:
                         new_constraints.edges[pred, actual_reroute_target_for_pred][
                             "info"
                         ].update(rerouted_edge_info)
+                        log.debug(
+                            f"      Updated rerouted edge: Pred '{pred}' -> Target '{actual_reroute_target_for_pred}', Info: {rerouted_edge_info}"
+                        )
+        # +++ END: 제약 재연결 로직 +++
 
         # 8. 새로운 SchedulerState 생성
-        # 최종 완료된 subtask는 mon_sub
-        final_completed_subtask_for_state = mon_sub
+        # P_new, M_new의 성공 여부에 따라 최종 상태 결정이 달라질 수 있음.
+        # 만약 P_new 또는 M_new가 실패하면 이 경로는 유효하지 않을 수 있음 (비용을 높이거나 None 반환).
+        # 여기서는 일단 M_new가 마지막 작업이라고 가정하고 상태를 만듦.
+        if not mon_sub_success or (
+            prep_nav_sub and not prep_nav_sub_success
+        ):  # P_new가 있거나 M_new가 실패한 경우
+            log.warning(
+                f"  Expansion for {original_task_name} with monitoring resulted in failure of P_new or M_new. Node might be invalid."
+            )
+            # 이 경우 비용을 매우 높게 설정하거나, None을 반환하는 것을 고려해야 함.
+            # return None # 예시: 실패 시 확장하지 않음
+
+        final_completed_subtask_for_state = (
+            mon_sub  # 이 확장에서는 M_new가 대표적인 완료 태스크
+        )
         final_current_time_for_state = mon_sub_end_time
-        final_scene_positions_for_state = (
-            scene_positions_after_prep_nav  # mon_sub는 위치 변경 없다고 가정
-        )
-        final_held_object_for_state = (
-            held_object_after_prep_nav  # mon_sub는 물건 변경 없다고 가정
-        )
+
+        # scene_positions, held_object는 M_new (또는 그 이전 P_new) 시뮬레이션 후의 상태
+        # 여기서는 M_new 시뮬레이션 시 사용한 state_before_mon의 결과(executed_mon_info) 또는 P_new의 결과를 사용해야 함.
+        # 간단하게는 M_new 시뮬레이션을 위한 node_before_mon.state의 scene_positions, held_object를 사용할 수 있음.
+        # (executed_mon_info가 위치/물건 변경을 반영한다면 그것을 사용)
+        final_scene_positions = (
+            node_before_mon.state.scene_positions
+        )  # M_new는 위치 변경 없다고 가정
+        final_held_object = (
+            node_before_mon.state.held_object
+        )  # M_new는 물건 변경 없다고 가정
+        if (
+            executed_mon_info and executed_mon_info.scene_positions
+        ):  # M_new 시뮬레이션이 위치 변경 반영 시
+            final_scene_positions = executed_mon_info.scene_positions
+        if (
+            executed_mon_info and executed_mon_info.held_object is not None
+        ):  # M_new 시뮬레이션이 물건 변경 반영 시
+            final_held_object = executed_mon_info.held_object
 
         new_remaining_subtasks = [
             r for r in curr_state.remaining_subtasks if r.name != original_task_name
         ]
-        # mon_sub는 completed로 갔으므로, candidate.subtask (original_task_name)를 remaining에 추가해야 함.
-        # prep_nav_sub도 completed.
-        # 주의: candidate.subtask는 아직 처리 안된 것이므로 remaining에 있어야 함.
-        # 만약 original_task_name을 사용하는 다른 Subtask 객체가 있다면 (예: decomposed된 다른 조각), 그것도 유지.
-        # 여기서는 candidate.subtask 객체 자체를 추가.
+        # original_task_name (candidate.subtask)은 아직 처리 안 됐으므로 remaining_subtasks에 다시 추가되어야 함.
+        # 중복 추가 방지
         if not any(r.name == original_task_name for r in new_remaining_subtasks):
             new_remaining_subtasks.append(candidate.subtask)
 
         new_state = SchedulerState(
-            subtask=final_completed_subtask_for_state,
-            completed_entries=new_completed_entries,
+            subtask=final_completed_subtask_for_state,  # 가장 최근 완료된 것은 M_new
+            completed_entries=new_completed_entries,  # P_new, M_new 완료 정보 포함
             remaining_subtasks=new_remaining_subtasks,
             constraints=new_constraints,
             current_time=final_current_time_for_state,
-            scene_positions=final_scene_positions_for_state,
-            held_object=final_held_object_for_state,
+            scene_positions=final_scene_positions,
+            held_object=final_held_object,
         )
 
-        step_cost = self.cost_calculator.calc_heuristic(
-            curr_node, candidate
-        )  # 비용은 원본 candidate 기준으로
+        step_cost = self.cost_calculator.calc_heuristic(curr_node, candidate)
         new_cost = curr_cost + step_cost
+
+        # P_new 또는 M_new 실패 시 비용 증가 (기존 코드에 이런 로직이 있다면 참고)
+        if not mon_sub_success or (prep_nav_sub and not prep_nav_sub_success):
+            new_cost = float("inf")  # 예시: 실패 시 비용 무한대로 하여 선택되지 않도록
+
         log.info(
-            f"Expanded wait for {original_task_name} with monitoring:\n"
-            f"  PrepNav: {prep_nav_sub.name if prep_nav_sub else 'None'} (Dur: {actual_prep_nav_duration:.2f}, Success: {prep_nav_sub_success})\n"
-            f"  Monitor: {mon_sub.name} (Dur: {actual_mon_duration:.2f}, Success: {mon_sub_success})\n"
-            f"  Completion: {final_current_time_for_state:.2f}, Target Interaction: {target_interaction_abs_time:.2f}\n"
-            f"  Cost: +{step_cost:.2f} -> Total: {new_cost:.2f}. Depth: {depth + 1}"
+            f"Expanded wait for {original_task_name} with monitoring: "
+            f"P_new='{prep_nav_sub.name if prep_nav_sub else 'None'}'(S:{prep_nav_sub_success}), "
+            f"M_new='{mon_sub.name}'(S:{mon_sub_success}). "
+            f"End Time: {final_current_time_for_state:.2f}. Cost: {new_cost:.2f}."
         )
 
         return SimulationNode(
@@ -1565,7 +1816,7 @@ class Scheduler:
         prep_nav_sub: Optional[Subtask] = None
 
         if prep_nav_actions:
-            prep_nav_sub_name = f"NavigatePartialFor_{original_task_name}_Wait"
+            prep_nav_sub_name = f"Navigate Partial For {original_task_name}"
             log.debug(
                 f"  Creating prep_nav_sub: {prep_nav_sub_name} with actions: {prep_nav_actions}"
             )
@@ -1629,10 +1880,10 @@ class Scheduler:
                 + (
                     [
                         CompletedEntry(
-                            prep_nav_sub,
-                            curr_state.current_time,
-                            current_time_after_prep_nav,
-                            prep_nav_sub_success,
+                            subtask=prep_nav_sub,
+                            schedule_start_time=curr_state.current_time,
+                            schedule_end_time=current_time_after_prep_nav,
+                            success=prep_nav_sub_success,
                         )
                     ]
                     if prep_nav_sub
@@ -1691,10 +1942,10 @@ class Scheduler:
         if prep_nav_sub:
             new_completed_entries.append(
                 CompletedEntry(
-                    prep_nav_sub,
-                    curr_state.current_time,
-                    current_time_after_prep_nav,
-                    prep_nav_sub_success,
+                    subtask=prep_nav_sub,
+                    schedule_start_time=curr_state.current_time,
+                    schedule_end_time=current_time_after_prep_nav,
+                    success=prep_nav_sub_success,
                 )
             )
         if pure_wait_sub:
@@ -1702,10 +1953,10 @@ class Scheduler:
             pure_wait_end_time = pure_wait_start_time + actual_pure_wait_duration
             new_completed_entries.append(
                 CompletedEntry(
-                    pure_wait_sub,
-                    pure_wait_start_time,
-                    pure_wait_end_time,
-                    pure_wait_sub_success,
+                    subtask=pure_wait_sub,
+                    schedule_start_time=pure_wait_start_time,
+                    schedule_end_time=pure_wait_end_time,
+                    success=pure_wait_sub_success,
                 )
             )
 

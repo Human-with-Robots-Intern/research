@@ -14,7 +14,7 @@ def regenerate_invalid_subtasks(
     유효하지 않은 서브태스크들을 OpenAI를 통해 재생성한다.
     """
     regenerated_subtasks = []
-    valid_actions_str = ", ".join(knowledge.get("Valid_actions", {}).keys())
+    valid_actions_str = ", ".join(list(knowledge.get("Valid_actions", {}).keys()))
 
     for subtask in invalid_subtasks:
         invalid_actions = subtask.get("InvalidActions", [])

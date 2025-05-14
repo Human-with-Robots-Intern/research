@@ -4,8 +4,8 @@
         "variance": 1.0
     },
     "turn off stove after cooking": {
-        "expected_duration": 9.752548162030532,
-        "variance": 0.7359500560539215
+        "expected_duration": 99.59008399848638,
+        "variance": 0.7307638641569922
     },
     "prepare potato": {
         "expected_duration": 100.0,

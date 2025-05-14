@@ -365,7 +365,11 @@ class TaskUtil:
         monitoring_subtask = Subtask(
             task_name=None,
             name=f"Monitoring for {name}_{uuid.uuid4().hex[:8]}",
-            duration=Duration(interval=MONITORING_DURATION, type="Monitor"),
+            duration=Duration(
+                interval=MONITORING_DURATION,
+                type="Monitor",
+                total_time=MONITORING_DURATION,
+            ),
             repetition=1,
             subtask_type="Monitor",
             execution=Execution(objects=[], primitive_actions=monitoring_action),
