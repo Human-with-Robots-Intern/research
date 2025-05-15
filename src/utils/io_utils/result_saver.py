@@ -28,7 +28,7 @@ def compose_subtasks(
     total_count = 0
 
     for ce in result_schedule:
-        execution_status = getattr(ce.subtask, "execution_status", None)
+        execution_status = getattr(ce, "execution_status", None)
         if execution_status is not None:
             total_count += 1
             if execution_status:
@@ -121,8 +121,8 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
     for entry in result_schedule:
         serialized_entry = {
             "subtask_name": entry.subtask.name,
-            "start_time_simulation": entry.sim_start_time,
-            "end_time_simulation": entry.sim_end_time,
+            "start_time_simulation": round(entry.sim_start_time, 2),
+            "end_time_simulation": round(entry.sim_end_time, 2),
             "start_time_scheduled": round(entry.schedule_start_time, 2),
             "end_time_scheduled": round(entry.schedule_end_time, 2),
             "execution_status": entry.execution_status
@@ -162,9 +162,9 @@ def result_save(
         "simulation_makespan": round(simulation_makespan, 2),
         "scheduler_makespan": round(scheduler_makespan, 2),
         "realworld_makespan": None,
-        "success_rate": success_rate,
-        "timing_success_rate_sim": timing_success_rate_sim,
-        "timing_success_rate_sched": timing_success_rate_sched,
+        "success_rate": round(success_rate, 2),
+        "timing_success_rate_sim": round(timing_success_rate_sim, 2),
+        "timing_success_rate_sched": round(timing_success_rate_sched, 2),
     }
 
     # Find the next available number for the task name

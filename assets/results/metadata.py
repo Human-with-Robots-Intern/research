@@ -48,7 +48,8 @@ def build_summary_entry(file_name: str, data: dict) -> dict:
         "realWorld_makespan": None,
         "computation_time": data.get("computation_time"),
         "actionSuccess_rate": data.get("success_rate"),
-        "timingSuccess_rate": None,
+        "scheduler_timingSuccess_rate": data.get("timing_success_rate_sched"),  # 시뮬레이션 기준 timing success rate 사용
+        "simulation_timingSuccess_rate": data.get("timing_success_rate_sim"),  # 시뮬레이션 기준 timing success rate 사용
         "attempt": data.get("attempt") if file_name in llm_files else "Not related"
     }
     # 20250331에 필요없다고 판단해서 주석 처리.
@@ -64,84 +65,101 @@ def process_summary_for_task(task_dir: Path) -> None:
     각 태스크(폴더) 내 approach 폴더의 시뮬레이션 파일들을 읽어 summary를 작성.
     모든 baseline의 output파일이 존재하면 summary.json, 그렇지 않으면 summary_insuff.json으로 저장.
     """
-    approach_dir = task_dir / "approach"
-    metadata_dir = task_dir / "metadata"
-    
-    if not approach_dir.exists():
-        print(f"[Warning] '{approach_dir}' 폴더가 존재하지 않습니다.")
+    # task_dir이 {task_name}_{num} 형식이므로, scene_name 디렉토리를 찾아야 함
+    scene_dirs = [d for d in task_dir.iterdir() if d.is_dir()]
+    if not scene_dirs:
+        print(f"[Warning] No scene directories found in '{task_dir}'")
         return
 
-    simulation_files = list(approach_dir.glob("*_simulation.json"))
-    if len(simulation_files) >= MIN_REQUIRED_SIMULATIONS:
-        summary_filename = "summary.json"
-    else:
-        summary_filename = "summary_insuff.json"
-
-    
-    approach_comparisons = []
-    for sim_file in simulation_files:
-        data = load_simulation_data(sim_file)
-        if not data:
+    # 모든 scene 디렉토리에 대해 처리
+    for scene_dir in scene_dirs:
+        approach_dir = scene_dir / "approach"
+        metadata_dir = scene_dir / "metadata"
+        
+        if not approach_dir.exists():
+            print(f"[Warning] '{approach_dir}' 폴더가 존재하지 않습니다.")
             continue
-        entry = build_summary_entry(sim_file.name, data)
-        approach_comparisons.append(entry)
-    
-    summary_data = {
-        "task": task_dir.name,
-        "approach_comparisons": approach_comparisons
-    }
-    
-    metadata_dir.mkdir(exist_ok=True)
-    summary_file_path = metadata_dir / summary_filename
-    with summary_file_path.open("w", encoding="utf-8") as f:
-        json.dump(summary_data, f, indent=4)
-    print(f"Summary 파일이 '{summary_file_path}'에 저장되었습니다.")
+
+        simulation_files = list(approach_dir.glob("*_simulation.json"))
+        if len(simulation_files) >= MIN_REQUIRED_SIMULATIONS:
+            summary_filename = "summary.json"
+        else:
+            summary_filename = "summary_insuff.json"
+
+        approach_comparisons = []
+        for sim_file in simulation_files:
+            data = load_simulation_data(sim_file)
+            if not data:
+                continue
+            entry = build_summary_entry(sim_file.name, data)
+            approach_comparisons.append(entry)
+        
+        summary_data = {
+            "task": task_dir.name,
+            "scene": scene_dir.name,
+            "approach_comparisons": approach_comparisons
+        }
+        
+        metadata_dir.mkdir(exist_ok=True)
+        summary_file_path = metadata_dir / summary_filename
+        with summary_file_path.open("w", encoding="utf-8") as f:
+            json.dump(summary_data, f, indent=4)
+        print(f"Summary 파일이 '{summary_file_path}'에 저장되었습니다.")
 
 def process_metadata_for_task(task_dir: Path) -> None:
     """
     각 태스크(폴더) 내 'dag_bayesian_simulation.json' 파일을 기반으로 metadata 파일을 생성.
     """
-    approach_dir = task_dir / "approach"
-    metadata_dir = task_dir / "metadata"
-    source_file = approach_dir / "dag_bayesian_simulation.json"
-
-    # 파일 존재하지 않으면 approach_dir 내 아무 파일 하나 선택
-    if not source_file.exists():
-        candidates = list(approach_dir.glob("*.json"))  
-        if not candidates:
-            print(f"[Warning] No files in {approach_dir}")
-            return
-        source_file = candidates[0]
-        print(f"[Info] 'dag_bayesian_simulation.json' not found. Using '{source_file.name}' instead.")
-
-    
-    data = load_simulation_data(source_file)
-    if not data:
+    # task_dir이 {task_name}_{num} 형식이므로, scene_name 디렉토리를 찾아야 함
+    scene_dirs = [d for d in task_dir.iterdir() if d.is_dir()]
+    if not scene_dirs:
+        print(f"[Warning] No scene directories found in '{task_dir}'")
         return
-    
-    # plans가 비어있지 않은 경우 첫 번째 plan에서 plan_name을 추출.
-    instructions = data.get("plans", [{}])[0].get("plan_name") if data.get("plans") else None
-    
-    metadata_data = {
-        "metadata": {
-            "task": task_dir.name,
-            "creation_date": data.get("saved_time"),
-            "instructions": instructions,
-            "model_version": "gpt-4o"
-        },
-        "environment_info": {
-            "simulator": "AI2-THOR",
-            "simulation_version": "4.2.0",
-            "scene": data.get("scene_name"),
-            "gpu": None,
-            "cpu": None,
+
+    # 모든 scene 디렉토리에 대해 처리
+    for scene_dir in scene_dirs:
+        approach_dir = scene_dir / "approach"
+        metadata_dir = scene_dir / "metadata"
+        source_file = approach_dir / "dag_bayesian_simulation.json"
+
+        # 파일 존재하지 않으면 approach_dir 내 아무 파일 하나 선택
+        if not source_file.exists():
+            candidates = list(approach_dir.glob("*.json"))  
+            if not candidates:
+                print(f"[Warning] No files in {approach_dir}")
+                continue
+            source_file = candidates[0]
+            print(f"[Info] 'dag_bayesian_simulation.json' not found. Using '{source_file.name}' instead.")
+
+        data = load_simulation_data(source_file)
+        if not data:
+            continue
+        
+        # plans가 비어있지 않은 경우 첫 번째 plan에서 plan_name을 추출.
+        instructions = data.get("plans", [{}])[0].get("plan_name") if data.get("plans") else None
+        
+        metadata_data = {
+            "metadata": {
+                "task": task_dir.name,
+                "scene": scene_dir.name,
+                "creation_date": data.get("saved_time"),
+                "instructions": instructions,
+                "model_version": "gpt-4o"
+            },
+            "environment_info": {
+                "simulator": "AI2-THOR",
+                "simulation_version": "4.2.0",
+                "scene": data.get("scene_name"),
+                "gpu": None,
+                "cpu": None,
+            }
         }
-    }
-    
-    metadata_dir.mkdir(exist_ok=True)
-    metadata_file_path = metadata_dir / "metadata.json"
-    with metadata_file_path.open("w", encoding="utf-8") as f:
-        json.dump(metadata_data, f, indent=4)
+        
+        metadata_dir.mkdir(exist_ok=True)
+        metadata_file_path = metadata_dir / "metadata.json"
+        with metadata_file_path.open("w", encoding="utf-8") as f:
+            json.dump(metadata_data, f, indent=4)
+        print(f"Metadata 파일이 '{metadata_file_path}'에 저장되었습니다.")
 
 def process_tasks(base_dir: Path) -> None:
     """

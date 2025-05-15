@@ -31,10 +31,10 @@ def initialize_metrics(metrics: dict, approach: str) -> None:
             "computation_time_count": 0,
             "scheduler_makespan_sum": 0.0,
             "scheduler_makespan_count": 0,
-            "timingSuccess_rate_sched_sum": 0.0,
-            "timingSuccess_rate_sched_count": 0,
-            "timingSuccess_rate_sim_sum": 0.0,
-            "timingSuccess_rate_sim_count": 0,
+            "scheduler_timingSuccess_rate_sum": 0.0,
+            "scheduler_timingSuccess_rate_count": 0,
+            "simulation_timingSuccess_rate_sum": 0.0,
+            "simulation_timingSuccess_rate_count": 0,
             "attempt_values": [],
         }
 
@@ -109,16 +109,16 @@ def process_summary_file(
         accumulate(
             metrics,
             approach,
-            entry.get("timingSuccess_rate_sched"),
-            "timingSuccess_rate_sched_sum",
-            "timingSuccess_rate_sched_count",
+            entry.get("scheduler_timingSuccess_rate"),
+            "scheduler_timingSuccess_rate_sum",
+            "scheduler_timingSuccess_rate_count",
         )
         accumulate(
             metrics,
             approach,
-            entry.get("timingSuccess_rate_sim"),
-            "timingSuccess_rate_sim_sum",
-            "timingSuccess_rate_sim_count",
+            entry.get("simulation_timingSuccess_rate"),
+            "simulation_timingSuccess_rate_sum",
+            "simulation_timingSuccess_rate_count",
         )
 
 
@@ -132,23 +132,6 @@ def process_summary_file(
                         metrics[approach]["attempt_values"].append(parsed_val)
                 except ValueError:
                     log.debug("ValueError encountered while parsing attempt value")
-        # subtask_count 및 executing_action_count 누적
-        if "subtask_count" in entry:
-            accumulate(
-                metrics,
-                approach,
-                entry.get("subtask_count"),
-                "subtask_count_sum",
-                "subtask_count_count",
-            )
-        if "executing_action_count" in entry:
-            accumulate(
-                metrics,
-                approach,
-                entry.get("executing_action_count"),
-                "executing_action_count_sum",
-                "executing_action_count_count",
-            )
 
 
     # 각 approach별로 평균 계산 (집계된 simulation 수가 MIN_REQUIRED_SIMULATIONS 이상인 경우)
@@ -189,23 +172,22 @@ def process_summary_file(
         else:
             result["computation_time_average"] = None
         
-        # timingSuccess_rate_sched 평균
-        if vals["timingSuccess_rate_sched_count"] >= MIN_REQUIRED_SIMULATIONS:
-            result["timingSuccess_rate_sched_average"] = (
-                vals["timingSuccess_rate_sched_sum"] / vals["timingSuccess_rate_sched_count"]
+        # scheduler_timingSuccess_rate 평균 (DAG 방식만)
+        if approach in dag_list:
+            if vals["scheduler_timingSuccess_rate_count"] >= MIN_REQUIRED_SIMULATIONS:
+                result["scheduler_timingSuccess_rate_average"] = (
+                    vals["scheduler_timingSuccess_rate_sum"] / vals["scheduler_timingSuccess_rate_count"]
+                )
+            else:
+                result["scheduler_timingSuccess_rate_average"] = None
+        
+        # simulation_timingSuccess_rate 평균
+        if vals["simulation_timingSuccess_rate_count"] >= MIN_REQUIRED_SIMULATIONS:
+            result["simulation_timingSuccess_rate_average"] = (
+                vals["simulation_timingSuccess_rate_sum"] / vals["simulation_timingSuccess_rate_count"]
             )
         else:
-            result["timingSuccess_rate_sched_average"] = None
-        
-        # timingSuccess_rate_sim 평균
-        if vals["timingSuccess_rate_sim_count"] >= MIN_REQUIRED_SIMULATIONS:
-            result["timingSuccess_rate_sim_average"] = (
-                vals["timingSuccess_rate_sim_sum"] / vals["timingSuccess_rate_sim_count"]
-            )
-        else:
-            result["timingSuccess_rate_sim_average"] = None
-
-        
+            result["simulation_timingSuccess_rate_average"] = None
 
         # attempt 평균 (LLM 방식만)
         if approach in llm_list:
@@ -230,28 +212,133 @@ def make_average(base_dir: Path) -> None:
         "dag_edf_simulation.json",
     }
 
-    metrics = {}
+    # 전체 평균을 위한 메트릭스
+    overall_metrics = {}
+    # 씬별 평균을 위한 메트릭스
+    scene_metrics = {}
+
     # base_dir 내의 각 하위 폴더(태스크)를 순회
-    for folder in base_dir.iterdir():
-        if not folder.is_dir():
+    for task_dir in base_dir.iterdir():
+        if not task_dir.is_dir():
             continue
 
-        metadata_dir = folder / "metadata"
-        summary_path = metadata_dir / "summary.json"
-        if not summary_path.exists():
-            print(f"[Warning] '{summary_path}' 파일이 존재하지 않습니다.")
-            summary_path = metadata_dir / "summary_insuff.json"
-            
+        # 각 씬 디렉토리를 순회
+        for scene_dir in task_dir.iterdir():
+            if not scene_dir.is_dir():
+                continue
 
-        results = process_summary_file(summary_path, metrics, llm_list, dag_list)
+            scene_name = scene_dir.name
+            metadata_dir = scene_dir / "metadata"
+            summary_path = metadata_dir / "summary.json"
+            if not summary_path.exists():
+                print(f"[Warning] '{summary_path}' 파일이 존재하지 않습니다.")
+                summary_path = metadata_dir / "summary_insuff.json"
+                if not summary_path.exists():
+                    print(f"[Warning] '{summary_path}' 파일도 존재하지 않습니다.")
+                    continue
+
+            # 씬별 메트릭스 초기화
+            if scene_name not in scene_metrics:
+                scene_metrics[scene_name] = {}
+
+            # 씬별 및 전체에 동시에 누적
+            process_summary_file(summary_path, scene_metrics[scene_name], llm_list, dag_list)
+            process_summary_file(summary_path, overall_metrics, llm_list, dag_list)
+
+    # 씬별 평균 계산 및 저장
+    scene_results = {}
+    for scene_name, metrics in scene_metrics.items():
+        scene_results[scene_name] = calculate_averages(metrics, llm_list, dag_list)
+
+    # 전체 평균 계산
+    overall_results = calculate_averages(overall_metrics, llm_list, dag_list)
+
+    # 결과 저장
+    output_data = {
+        "scene_averages": scene_results,
+        "overall_average": overall_results
+    }
 
     output_file = base_dir / "average.json"
     try:
         with output_file.open("w", encoding="utf-8") as f:
-            json.dump(results, f, indent=4)
+            json.dump(output_data, f, indent=4)
         print(f"평균 결과가 '{output_file}'에 저장되었습니다.")
     except Exception as e:
         print(f"[Error] 결과 파일 저장 실패: {e}")
+
+
+def calculate_averages(metrics: dict, llm_list: set, dag_list: set) -> dict:
+    """
+    주어진 메트릭스에 대해 각 approach별 평균을 계산합니다.
+    """
+    results = {}
+    for approach, vals in metrics.items():
+        result = {}
+        
+        # scheduler_makespan 평균 (DAG 방식만)
+        if approach in dag_list:
+            if vals["scheduler_makespan_count"] >= MIN_REQUIRED_SIMULATIONS:
+                result["scheduler_makespan_average"] = (
+                    vals["scheduler_makespan_sum"] / vals["scheduler_makespan_count"]
+                )
+            else:
+                result["scheduler_makespan_average"] = None
+
+        # simulation_makespan 평균
+        if vals["simulation_makespan_count"] >= MIN_REQUIRED_SIMULATIONS:
+            result["simulation_makespan_average"] = (
+                vals["simulation_makespan_sum"] / vals["simulation_makespan_count"]
+            )
+        else:
+            result["simulation_makespan_average"] = None
+
+        # actionSuccess_rate 평균
+        if vals["actionSuccess_rate_count"] >= MIN_REQUIRED_SIMULATIONS:
+            result["actionSuccess_rate_average"] = (
+                vals["actionSuccess_rate_sum"] / vals["actionSuccess_rate_count"]
+            )
+        else:
+            result["actionSuccess_rate_average"] = None
+
+        # computation_time 평균
+        if vals["computation_time_count"] >= MIN_REQUIRED_SIMULATIONS:
+            result["computation_time_average"] = (
+                vals["computation_time_sum"] / vals["computation_time_count"]
+            )
+        else:
+            result["computation_time_average"] = None
+        
+        # scheduler_timingSuccess_rate 평균 (DAG 방식만)
+        if approach in dag_list:
+            if vals["scheduler_timingSuccess_rate_count"] >= MIN_REQUIRED_SIMULATIONS:
+                result["scheduler_timingSuccess_rate_average"] = (
+                    vals["scheduler_timingSuccess_rate_sum"] / vals["scheduler_timingSuccess_rate_count"]
+                )
+            else:
+                result["scheduler_timingSuccess_rate_average"] = None
+        
+        # simulation_timingSuccess_rate 평균
+        if vals["simulation_timingSuccess_rate_count"] >= MIN_REQUIRED_SIMULATIONS:
+            result["simulation_timingSuccess_rate_average"] = (
+                vals["simulation_timingSuccess_rate_sum"] / vals["simulation_timingSuccess_rate_count"]
+            )
+        else:
+            result["simulation_timingSuccess_rate_average"] = None
+
+        # attempt 평균 (LLM 방식만)
+        if approach in llm_list:
+            attempt_list = vals["attempt_values"]
+            if len(attempt_list) == 0:
+                result["attempt_average"] = "Not related"
+            elif len(attempt_list) < MIN_REQUIRED_SIMULATIONS:
+                result["attempt_average"] = None
+            else:
+                result["attempt_average"] = sum(attempt_list) / len(attempt_list)
+
+        results[approach] = result
+
+    return results
 
 
 def main():
