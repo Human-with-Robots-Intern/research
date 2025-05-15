@@ -7,6 +7,20 @@ from src.core.task import Subtask
 
 
 @dataclass
+class ActionResult:
+    action_full_name: str
+    action_type: str
+    cumulative_time: float  # 누적 시간 (이 액션이 종료된 시점)
+    action_duration: float  # 이 액션에 걸린 소요 시간
+    scene_positions: dict[str, Tuple[float, float, float]]
+    held_object: Optional[str] = None
+    success: bool = False
+
+    def __repr__(self):
+        return f"({self.action_full_name}, {self.action_type}, {self.cumulative_time}, {self.action_duration}, {self.held_object})"
+
+
+@dataclass
 class CompletedEntry:
     """
     완료된 Subtask에 대해, (Subtask, schedule_start_time, schedule_end_time)을 함께 저장
