@@ -86,30 +86,24 @@ def init_ai2thor_controller(
 
 def execute_subtask(
     controller: Controller, subtask: Subtask, log_level: str
-) -> tuple[float, bool]:
+) -> tuple[float, bool, float]:
     """
     Executes a given subtask using the provided AI2-THOR controller.
 
-    Args:
-        controller (Controller): An instance of the AI2-THOR Controller used to interact with the environment.
-        subtask: A Subtask object containing execution details,
-                 including the name, execution plan, and primitive actions.
-
     Returns:
-        tuple[float, bool]:
+        tuple[float, bool, float]:
             - float: The total elapsed time taken to execute the subtask.
             - bool: Whether the subtask succeeded (based on last action success).
-
-    Raises:
-        ValueError: If an invalid action format is encountered in the primitive actions.
+            - float: 실제 첫 NAVIGATE_TO primitive action의 소요 시간(sim_nav_time)
     """
-    log = create_module_logger(module_name=__name__, module_log=True, level=log_level)
+    log = create_module_logger(module_name=__name__, module_log=True)
+    log.setLevel(log_level)
 
-    act = Action(controller)
+    act = Action(controller, log_level=log_level)
 
     # If the subtask is just for initialization, skip
     if subtask.name == "Init":
-        return 0.0, True
+        return 0.0, True, 0.0
 
     log.info(f"Executing Subtask: {subtask.name}")
 
@@ -125,7 +119,6 @@ def execute_subtask(
     # Object registry setup if needed
     object_registry = {}
     if objects is not None:
-        # Force a step so controller metadata is fresh
         controller.step("Pass")
         all_obj_ids = {
             obj["objectId"] for obj in controller.last_event.metadata["objects"]
@@ -134,9 +127,8 @@ def execute_subtask(
         for obj_id in objects:
             if obj_id not in all_obj_ids:
                 raise ValueError(f"Object '{obj_id}' not found in the environment.")
-            object_registry[obj_id] = obj_id  # or store more info if needed
+            object_registry[obj_id] = obj_id
 
-    # Define action mapping to AI2-THOR action primitives
     action_mapping = {
         "NAVIGATE_TO": lambda target_obj: act.move_to(target_obj),
         "GRASP": lambda target_obj: act.pickup(target_obj),
@@ -154,6 +146,8 @@ def execute_subtask(
 
     elapsed_time = 0.0
     is_execution_success = True
+    sim_nav_time = 0.0
+    nav_time_found = False
 
     # Execute each primitive action in sequence
     for action_str in primitive_actions:
@@ -161,20 +155,27 @@ def execute_subtask(
         if len(parts) != 2:
             log.warning(f"Invalid action format: {action_str}.")
             raise ValueError(f"Invalid action format: {action_str}")
-
         action_type, target_obj_id = parts
         if action_type in action_mapping:
-            elapsed_time += action_mapping[action_type](target_obj_id)
+            action_duration = action_mapping[action_type](target_obj_id)
+            if action_type == "WAIT":
+                action_duration = subtask.duration.interval
+            elapsed_time += action_duration
+            # 첫 NAVIGATE_TO의 시간 기록
+            if not nav_time_found and action_type == "NAVIGATE_TO":
+                sim_nav_time = action_duration
+                nav_time_found = True
         else:
             log.warning(f"Unknown action type: {action_type}. Skipping.")
             continue
-
         # Check success of the last action
         success = controller.last_event.metadata.get("lastActionSuccess", "N/A")
         if success is False:
             is_execution_success = False
-
+        log.warning(f"Action: {action_str}, duration: {round(action_duration, 2)}, success: {success}")
+        
+    elapsed_time = round(elapsed_time, 2)
     log.info(
-        f"Subtask '{subtask.name}' completed. Elapsed time: {round(elapsed_time, 2)}"
+        f"Subtask '{subtask.name}' completed. Elapsed time: {elapsed_time}"
     )
-    return elapsed_time, is_execution_success
+    return elapsed_time, is_execution_success, sim_nav_time

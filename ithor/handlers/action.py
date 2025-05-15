@@ -16,15 +16,16 @@ class Action:
 
     Args:
         controller: The AI2-THOR controller used to interact with the environment.
-        log (logging.Logger): Logger object for recording action execution details.
+        log_level (str): Log level for the action logger.
 
     Returns (for all actions):
         elapsed_time (float): Time taken to perform the action.
     """
 
-    def __init__(self, controller):
+    def __init__(self, controller, log_level: str = "WARNING"):
         self.controller = controller
         self.navi = NavigationHandler(controller)
+        log.setLevel(log_level)
 
     def success_log(self, result, action: str):
         """
@@ -94,9 +95,11 @@ class Action:
         # 만약 첫 시도에 실패한 경우
         receptacle_id = self.get_parent_receptacle(object_id)
         if receptacle_id:
-            elapsed_time += self.move_to(receptacle_id)
+            # schedule time과 시간을 align하기 위해 주석처리
+            # elapsed_time += self.move_to(receptacle_id)
             self.open(receptacle_id)
-            elapsed_time += 1
+            # schedule time과 시간을 align하기 위해 주석처리
+            # elapsed_time += 1
             time.sleep(0.5)
             result = self.controller.step(
                 action="PickupObject",
@@ -186,12 +189,11 @@ class Action:
         if not self.controller.last_event.metadata["lastActionSuccess"]:
             self.controller.step(action="MoveAhead")
             result = self.controller.step(action="DropHandObject", forceAction=True)
-            elapsed_time += 1
+            # elapsed_time += 1
             self.success_log(result, "drop")
             log.debug("Alternative Action: Drop")
         self.controller.step(action="Pass")
         time.sleep(0.3)
-        elapsed_time += 1
         return elapsed_time
 
     def drop(self):
@@ -365,7 +367,6 @@ class Action:
         Wait for the specified duration.
         Args:
             wait_time (float, optional): Duration in seconds. Defaults to 1.
-
         Returns:
             float: Elapsed time for the wait action.
         """
@@ -457,6 +458,7 @@ class Action:
         # 카메라 각도 조정
         self.navi.adjust_camera_to_object(object_id)
         log.debug(f"move to {object_id}")
+        log.debug(f"move to {object_id} elapsed_time in action.py: {elapsed_time}")
         self.controller.step(action="Pass")
         time.sleep(0.2)
-        return round(elapsed_time, 2)
+        return elapsed_time
