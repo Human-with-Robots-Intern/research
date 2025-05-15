@@ -172,7 +172,7 @@ def execute_subtask(
         success = controller.last_event.metadata.get("lastActionSuccess", "N/A")
         if success is False:
             is_execution_success = False
-        log.info(f"Action: {action_str}, duration: {action_duration}")
+        log.warning(f"Action: {action_str}, duration: {round(action_duration, 2)}, success: {success}")
         
     elapsed_time = round(elapsed_time, 2)
     log.info(

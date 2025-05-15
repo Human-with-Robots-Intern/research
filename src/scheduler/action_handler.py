@@ -182,7 +182,7 @@ class ActionHandler:
                 f"    State after : Time={current_cumulative_time:.2f}, Held={current_held_object}"
             )
             log.debug(f"--- End simulation step {i+1} ---")
-
+            log.warning(f"action_str: {action_str}, action_duration: {action_duration}")
             action_log.add_result(
                 action_full_name=action_str,
                 action_type=action_type,
@@ -199,7 +199,7 @@ class ActionHandler:
                     f"Stopping action sequence simulation at index {i} because action '{action_str}' failed."
                 )
                 break  # for 루프 탈출
-
+            
         return action_log
 
     def _check_reachability(
@@ -290,7 +290,7 @@ class ActionHandler:
             # 경로의 마지막 위치가 새로운 에이전트 위치 (경로가 비었으면 현재 위치)
             new_agent_pos = navigate_path[-1] if navigate_path else agent_pos
             success = True
-            log.warning(
+            log.debug(
                 f"    Path found to {target_obj_id} with {path_steps} steps. Duration: {duration:.2f}s. Final pos: {new_agent_pos}"
             )
 

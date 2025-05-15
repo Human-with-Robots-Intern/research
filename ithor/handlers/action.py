@@ -458,7 +458,7 @@ class Action:
         # 카메라 각도 조정
         self.navi.adjust_camera_to_object(object_id)
         log.debug(f"move to {object_id}")
-        log.warning(f"move to {object_id} elapsed_time in action.py: {elapsed_time}")
+        log.debug(f"move to {object_id} elapsed_time in action.py: {elapsed_time}")
         self.controller.step(action="Pass")
         time.sleep(0.2)
         return elapsed_time
