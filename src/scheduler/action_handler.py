@@ -485,8 +485,6 @@ class ActionHandler:
             log.warning(f"Relative cutoff time {cutoff_time:.2f} is negative. Using 0.")
             cutoff_time = 0.0
 
-        absolute_cutoff_time = current_node.state.current_time + cutoff_time
-
         # 1. 전체 시퀀스 시뮬레이션 (단 한번)
         full_simulation_log = self._simulate_actions(current_node, primitive_actions)
 
@@ -504,7 +502,7 @@ class ActionHandler:
         split_index = -1  # pre-cutoff 부분의 마지막 액션 인덱스
         for i, result in enumerate(full_simulation_log.results):
             # 현재 액션 완료 시간 <= 절대 cutoff 시간 인 마지막 액션 찾기
-            if result.cumulative_time <= absolute_cutoff_time + EPSILON:
+            if result.cumulative_time <= cutoff_time + EPSILON:
                 split_index = i
             else:
                 # 이 액션부터 post-cutoff

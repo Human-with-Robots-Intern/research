@@ -1,7 +1,7 @@
 import time
 
-from src.utils.config.constants import SMOOTH_LEVEL
 from src.utils.common import create_module_logger
+from src.utils.config.constants import SMOOTH_LEVEL
 
 from .navigation_handler import NavigationHandler
 
@@ -227,7 +227,7 @@ class Action:
         """
         result = self.controller.step(action="ToggleObjectOn", objectId=object_id)
         self.success_log(result, f"toggle on {object_id}")
-########## modified to simulate water        
+        ########## modified to simulate water
         # If the object is a faucet and there's a pot under it, wait before filling
         if "Faucet" in object_id:
             # Find the pot under the faucet
@@ -236,13 +236,13 @@ class Action:
                     # Wait for 5 seconds before filling the pot
                     # time.sleep(5.0)
                     # # Set the pot's isFilled property to true
-                    # self.controller.step(action="SetObjectState", 
+                    # self.controller.step(action="SetObjectState",
                     #                   objectId=obj["objectId"],
                     #                   state="isFilledWithLiquid",
                     #                   value=True)
                     # break
                     pass
-##########################      
+        ##########################
         self.controller.step(action="Pass")
         time.sleep(0.3)
         return 1

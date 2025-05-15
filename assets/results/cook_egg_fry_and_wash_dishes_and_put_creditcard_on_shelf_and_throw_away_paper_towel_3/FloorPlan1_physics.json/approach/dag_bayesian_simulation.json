@@ -1,0 +1,75 @@
+{
+    "saved_time": "2025-05-15 17:48",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1_physics.json",
+    "plans": [
+        {
+            "plan_name": "cook_egg_fry_and_wash_dishes_and_put_creditcard_on_shelf_and_throw_away_paper_towel",
+            "subtasks": [
+                {
+                    "subtask_name": "Place CreditCard in Shelf",
+                    "start_time_simulation": 0,
+                    "end_time_simulation": 7.7,
+                    "start_time_scheduled": 0,
+                    "end_time_scheduled": 6.9,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Plate_part_1",
+                    "start_time_simulation": 7.7,
+                    "end_time_simulation": 21.1,
+                    "start_time_scheduled": 6.9,
+                    "end_time_scheduled": 17.6,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wash Plate_part_2",
+                    "start_time_simulation": 21.1,
+                    "end_time_simulation": 32.5,
+                    "start_time_scheduled": 17.6,
+                    "end_time_scheduled": 26.8,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Dispose of Paper Towel",
+                    "start_time_simulation": 32.5,
+                    "end_time_simulation": 39.0,
+                    "start_time_scheduled": 26.8,
+                    "end_time_scheduled": 32.5,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Prepare Egg Fry",
+                    "start_time_simulation": 39.0,
+                    "end_time_simulation": 60.5,
+                    "start_time_scheduled": 32.5,
+                    "end_time_scheduled": 53.6,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Wait for Turn Off Stove After Cooking",
+                    "start_time_simulation": 60.5,
+                    "end_time_simulation": 70.08,
+                    "start_time_scheduled": 53.6,
+                    "end_time_scheduled": 63.182,
+                    "execution_status": false
+                },
+                {
+                    "subtask_name": "Turn Off Stove After Cooking",
+                    "start_time_simulation": 70.08,
+                    "end_time_simulation": 71.08,
+                    "start_time_scheduled": 63.182,
+                    "end_time_scheduled": 64.182,
+                    "execution_status": false
+                }
+            ]
+        }
+    ],
+    "computation_time": 1.56028,
+    "simulation_makespan": 71.08,
+    "scheduler_makespan": 64.182,
+    "realworld_makespan": null,
+    "success_rate": 0.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0
+}
