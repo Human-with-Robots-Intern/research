@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 import networkx as nx
 from networkx import DiGraph
 
-from models.dataclass import (
+from src.models.dataclass import (
     ActionResult,
     Candidate,
     CompletedEntry,
@@ -14,7 +14,7 @@ from models.dataclass import (
     SimulationNode,
     TimeSlot,
 )
-from models.task import Subtask
+from src.models.task import Subtask
 from utils.config import EPSILON
 
 from .action_handler import ActionHandler

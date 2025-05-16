@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple
 from networkx import DiGraph
 
 if TYPE_CHECKING:
-    from models.task import Subtask
+    from src.models.task import Subtask
 
 
 class SchedulerState(NamedTuple):

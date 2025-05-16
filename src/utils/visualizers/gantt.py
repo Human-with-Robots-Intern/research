@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle
 
-from models.dataclass import CompletedEntry
+from src.models.dataclass import CompletedEntry
 
 
 def compute_start_times(durations: List[float]):

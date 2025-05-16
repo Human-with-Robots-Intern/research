@@ -13,6 +13,8 @@ Example usage:
     elapsed_time, success = execute_subtask(controller, subtask_obj)
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from ai2thor.controller import Controller
@@ -22,7 +24,7 @@ from utils.common.logger import create_module_logger
 
 # Action handler import
 if TYPE_CHECKING:
-    from models.task import Subtask
+    from src.models.task import Subtask
 
 
 # Constants (unify your constants in one place)

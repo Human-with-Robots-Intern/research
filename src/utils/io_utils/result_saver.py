@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, List, Tuple
 from networkx import DiGraph
 
 if TYPE_CHECKING:
-    from models.dataclass import CompletedEntry
+    from src.models.dataclass import CompletedEntry
 
 from utils.common.logger import create_module_logger
 from utils.config.constants import RESULT_PATH

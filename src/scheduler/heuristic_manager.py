@@ -11,7 +11,7 @@ import networkx as nx
 # from scipy.sparse.csgraph import minimum_spanning_tree # MST 계산에 필요할 수 있음
 import numpy as np  # 거리 계산 등에 사용될 수 있음
 
-from models.dataclass import ActionResult, Candidate, SimulationNode
+from src.models.dataclass import ActionResult, Candidate, SimulationNode
 from src.utils.config import (  # INIT_PRIOR_MEAN, # 더 이상 직접 사용하지 않거나, interaction 추정에 활용
     ALPHA_HEURISTIC,
     BETA_HEURISTIC,
@@ -23,7 +23,7 @@ from utils.config.constants import NAV_STEP_DURATION, PRIMITIVE_ACTION_DURATION
 
 # Forward declarations for type hinting
 if TYPE_CHECKING:
-    from models.task import Subtask
+    from src.models.task import Subtask
     from src.scheduler.action_handler import ActionHandler
 
 log = logging.getLogger(__name__)

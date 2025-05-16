@@ -51,8 +51,8 @@ try:
     from scheduler.constraint_handler import ConstraintHandler
     from scheduler.heuristic_manager import HeuristicManager
     from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
-    from models.dataclass import CompletedEntry, SchedulerState
-    from models.task import Subtask, Task
+    from src.models.dataclass import CompletedEntry, SchedulerState
+    from src.models.task import Subtask, Task
     from utils.common.logger import create_module_logger
     from utils.config import BEAM_WIDTH, SIMULATION_DEPTH
     from utils.io_utils.result_saver import compose_plans

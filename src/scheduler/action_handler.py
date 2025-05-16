@@ -4,7 +4,7 @@ import math
 from typing import Dict, List, Optional, Tuple, TypeAlias
 
 from ithor.utils.math_utils import adjust_if_unreachable
-from models.dataclass import ActionResult, ActionSimulationLog, SimulationNode
+from src.models.dataclass import ActionResult, ActionSimulationLog, SimulationNode
 from utils.common import create_module_logger
 from utils.config.constants import (
     EPSILON,
@@ -199,7 +199,7 @@ class ActionHandler:
                     f"Stopping action sequence simulation at index {i} because action '{action_str}' failed."
                 )
                 break  # for 루프 탈출
-            
+
         return action_log
 
     def _check_reachability(
@@ -281,12 +281,12 @@ class ActionHandler:
         # 4. 전체 경로 이동 처리
         else:
             log.debug(f"  Processing NAVIGATE_TO for full path.")
-            #ithor의 action.py에서는 첫좌표를 제거하므로 여기서도 동일하게 제거
+            # ithor의 action.py에서는 첫좌표를 제거하므로 여기서도 동일하게 제거
             if navigate_path:
                 navigate_path.pop(0)
             path_steps = len(navigate_path)  # 실제 이동 스텝 수
 
-            duration = round(path_steps * NAV_STEP_DURATION, 2) 
+            duration = round(path_steps * NAV_STEP_DURATION, 2)
             # 경로의 마지막 위치가 새로운 에이전트 위치 (경로가 비었으면 현재 위치)
             new_agent_pos = navigate_path[-1] if navigate_path else agent_pos
             success = True

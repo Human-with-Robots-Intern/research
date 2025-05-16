@@ -74,7 +74,7 @@ def main():
     action_handler = ActionHandler(nav_graph or {})
     constraint_handler = ConstraintHandler(action_handler)
     agent = Agent(constraint_handler)
-    cost_calculator = HeuristicManager(action_handler, agent)
+    cost_calculator = HeuristicManager(action_handler)
     scheduler = Scheduler(
         action_handler=action_handler,
         constraint_handler=constraint_handler,
