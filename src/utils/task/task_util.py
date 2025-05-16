@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Dict, List, Literal, Tuple, Union
 from dotenv import load_dotenv
 from networkx import DiGraph
 
-from src.core.dataclass import CompletedEntry, SchedulerState
-from src.core.task import Duration, Execution, Subtask, Task, TaskGraphBuilder
+from models.dataclass import CompletedEntry, SchedulerState
+from models.task import Duration, Execution, Subtask, Task
 
 # 내부 프로젝트 모듈
 from utils.common import create_module_logger
@@ -275,7 +275,7 @@ class TaskUtil:
         :param enable_decomposition: 서브태스크 분해 여부
         :return: (최종 Subtask 리스트, TaskGraph 객체)
         """
-        from src.core.task import Task, TaskGraphBuilder
+        from models.task import Task, TaskGraphBuilder
 
         # 1) bayesian/groundtruth 정보 로드 (AGENT_KNOWLEDGE_PATH에서 로드)
         bayesian_load = cls._load_json_file(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME)

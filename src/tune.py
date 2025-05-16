@@ -45,14 +45,14 @@ except IndexError:
 # --- 필요한 모듈 임포트 ---
 try:
     from core.agent import Agent
-    from core.dataclass import CompletedEntry, SchedulerState
     from core.scheduler import Scheduler
-    from core.task import Subtask, Task
     from ithor.handlers.navigation_handler import load_navigation_graph
     from scheduler.action_handler import ActionHandler
     from scheduler.constraint_handler import ConstraintHandler
     from scheduler.heuristic_manager import HeuristicManager
     from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
+    from models.dataclass import CompletedEntry, SchedulerState
+    from models.task import Subtask, Task
     from utils.common.logger import create_module_logger
     from utils.config import BEAM_WIDTH, SIMULATION_DEPTH
     from utils.io_utils.result_saver import compose_plans

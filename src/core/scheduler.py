@@ -5,22 +5,19 @@ import itertools
 from queue import PriorityQueue
 from typing import TYPE_CHECKING, List, Optional
 
-from src.core.dataclass import (
+from models.dataclass import (
     ActionResult,
     Candidate,
     CompletedEntry,
     SchedulerState,
     SimulationNode,
 )
-from src.core.task import Duration, Execution, Subtask
+from models.task import Duration, Execution, Subtask
 from src.utils.common import create_module_logger
 from src.utils.common.decorators import time_logger
 from utils.config import BAYESIAN_CRITERIA, EPSILON, MONITORING_DURATION, RED, RESET
 from utils.config.constants import BEAM_WIDTH, NAV_STEP_DURATION, SIMULATION_DEPTH
 from utils.task import TaskUtil
-
-# TODO Monitoring 분기 로직 다시 확인
-
 
 if TYPE_CHECKING:
     from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager

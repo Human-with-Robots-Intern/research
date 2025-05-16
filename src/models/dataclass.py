@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple
 from networkx import DiGraph
 
 if TYPE_CHECKING:
-    from src.core.task import Subtask
+    from models.task import Subtask
 
 
 class SchedulerState(NamedTuple):
@@ -178,7 +178,7 @@ class CompletedEntry:
     schedule_start_time: float = float("inf")
     schedule_end_time: float = float("inf")
     sim_start_time: float = float("inf")
-    sim_end_time: float = float("inf") 
+    sim_end_time: float = float("inf")
     actual_first_nav_duration: Optional[float] = None
     execution_status: bool = False
     sim_nav_time: Optional[float] = None

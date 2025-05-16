@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 import networkx as nx
 import numpy as np
 
-from src.core.dataclass import SchedulerState
+from models.dataclass import SchedulerState
 from src.utils.common import create_module_logger, extract_monitoring_target_name
 from src.utils.config import (
     ESTIMATE_FILE_NAME,

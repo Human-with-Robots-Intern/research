@@ -6,7 +6,7 @@ from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from utils.common.logger import create_module_logger
-from utils.config import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH
+from utils.config import LOG_ROUND
 from utils.io_utils import (
     get_natural_language_from_task_file,
     get_user_task_choice,

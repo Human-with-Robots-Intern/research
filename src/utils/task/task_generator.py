@@ -12,9 +12,9 @@ from dotenv import load_dotenv
 from utils.common import create_module_logger
 from utils.config.constants import (
     ENV_PLACEHOLDER,
-    SCENE_KNOWLEDGE_PATH,
     PROMPT_FILE_PATH,
     PROMPT_PATH,
+    SCENE_KNOWLEDGE_PATH,
     TASK_PATH,
     TOP_K,
 )
@@ -83,7 +83,7 @@ class TaskGenerator:
             environment_file_name: Optional name of the JSON file in ENVIRONMENT_PATH
                                     containing environment details.
         """
-        
+
         user_input = user_input.strip()
         if not user_input:
             raise ValueError("User input cannot be empty.")
@@ -100,7 +100,7 @@ class TaskGenerator:
             examples_prompt = examples_prompt.replace(
                 "<Example>", retrieved_few_shot_prompts
             )
-        
+
         number = int(scene_name.lstrip("FloorPlan"))
         if number < 100:
             scene_type = "kitchen"
@@ -115,33 +115,41 @@ class TaskGenerator:
         environment_info_str = ""
 
         try:
-            env_file_path = Path(SCENE_KNOWLEDGE_PATH) / scene_type/ "environment" / f"{scene_name}_physics_environment.json"
+            env_file_path = (
+                Path(SCENE_KNOWLEDGE_PATH)
+                / scene_type
+                / "environment"
+                / f"{scene_name}_physics_environment.json"
+            )
             env_data = self.load_file(env_file_path, "json")
 
             # 전체 환경 데이터를 JSON 문자열로 변환
-            environment_info_str = json.dumps(
-                env_data, indent=2, ensure_ascii=False
-            )
+            environment_info_str = json.dumps(env_data, indent=2, ensure_ascii=False)
 
         except FileNotFoundError:
             logger.warning(
                 f"Environment file not found: {scene_name}. Proceeding without environment info."
             )
-        except ValueError as e: # Catches JSONDecodeError from load_file
-                logger.warning(
+        except ValueError as e:  # Catches JSONDecodeError from load_file
+            logger.warning(
                 f"Error loading environment file {scene_name}: {e}. Proceeding without environment info."
             )
         except Exception as e:
-                logger.error(f"Unexpected error processing environment file {scene_name}: {e}")
-                # Decide if you want to raise here or proceed without env info
-                # raise
+            logger.error(
+                f"Unexpected error processing environment file {scene_name}: {e}"
+            )
+            # Decide if you want to raise here or proceed without env info
+            # raise
 
         # 프롬프트 템플릿에 환경 정보 삽입 (또는 플레이스홀더 제거)
         if ENV_PLACEHOLDER in examples_prompt:
-            examples_prompt = examples_prompt.replace(ENV_PLACEHOLDER, environment_info_str)
-        elif environment_info_str: # Placeholder not found, but env info exists
-            logger.warning(f"Placeholder '{ENV_PLACEHOLDER}' not found in prompt template, but environment info was loaded.")
-
+            examples_prompt = examples_prompt.replace(
+                ENV_PLACEHOLDER, environment_info_str
+            )
+        elif environment_info_str:  # Placeholder not found, but env info exists
+            logger.warning(
+                f"Placeholder '{ENV_PLACEHOLDER}' not found in prompt template, but environment info was loaded."
+            )
 
         # Knowledge Base 로드
         # knowledge = self.load_file(Path(SCENE_KNOWLEDGE_PATH) / ESTIMATE_FILE_NAME, "json")

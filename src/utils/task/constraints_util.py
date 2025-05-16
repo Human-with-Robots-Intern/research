@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional, Tuple
 import networkx as nx
 
 if TYPE_CHECKING:
-    from src.core.dataclass import CompletedEntry
+    from models.dataclass import CompletedEntry
     from src.core.scheduler import ConstraintHandler
 
 log = logging.getLogger(__name__)

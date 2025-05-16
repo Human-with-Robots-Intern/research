@@ -4,8 +4,8 @@ from unittest.mock import ANY, MagicMock, call, patch
 import networkx as nx
 import pytest
 
-from src.core.dataclass import CompletedEntry, SchedulerState  # 필요한 클래스 임포트
-from src.core.task import Duration, Execution, Subtask  # Subtask 생성 위해 임포트
+from models.dataclass import CompletedEntry, SchedulerState  # 필요한 클래스 임포트
+from models.task import Duration, Execution, Subtask  # Subtask 생성 위해 임포트
 
 # 테스트 대상 모듈 임포트 (경로 주의)
 from src.dag_bayesian import main as dag_main

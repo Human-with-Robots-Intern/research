@@ -11,7 +11,7 @@ import networkx as nx
 # from scipy.sparse.csgraph import minimum_spanning_tree # MST 계산에 필요할 수 있음
 import numpy as np  # 거리 계산 등에 사용될 수 있음
 
-from src.core.dataclass import ActionResult, Candidate, SimulationNode
+from models.dataclass import ActionResult, Candidate, SimulationNode
 from src.utils.config import (  # INIT_PRIOR_MEAN, # 더 이상 직접 사용하지 않거나, interaction 추정에 활용
     ALPHA_HEURISTIC,
     BETA_HEURISTIC,
@@ -23,10 +23,8 @@ from utils.config.constants import NAV_STEP_DURATION, PRIMITIVE_ACTION_DURATION
 
 # Forward declarations for type hinting
 if TYPE_CHECKING:
-    from src.core.agent import Agent
-    from src.core.task import Subtask
+    from models.task import Subtask
     from src.scheduler.action_handler import ActionHandler
-    from src.scheduler.constraint_handler import ConstraintHandler
 
 log = logging.getLogger(__name__)
 
@@ -43,11 +41,8 @@ class HeuristicManager:
     def __init__(
         self,
         action_handler: "ActionHandler",
-        agent: Optional["Agent"] = None,
     ):
-        # self.constraint_handler = constraint_handler # 현재 코드에서 직접 사용하지 않음
         self.action_handler = action_handler
-        self.agent = agent  # 향후 Agent 지식 기반 시간 추정에 활용 가능
 
         self.alpha = ALPHA_HEURISTIC
         self.beta = BETA_HEURISTIC

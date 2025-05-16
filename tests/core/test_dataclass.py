@@ -4,7 +4,7 @@ import pytest
 from networkx import DiGraph
 
 # 테스트 대상 모듈 임포트
-from src.core.dataclass import (
+from models.dataclass import (
     ActionResult,
     ActionSimulationLog,
     Candidate,
@@ -14,7 +14,7 @@ from src.core.dataclass import (
     SimulationNode,
     TimeSlot,
 )
-from src.core.task import Duration, Execution, Subtask  # 경로 수정: src.core.task
+from models.task import Duration, Execution, Subtask  # 경로 수정: src.core.task
 
 
 # Fixtures (필요시 테스트 데이터 생성)

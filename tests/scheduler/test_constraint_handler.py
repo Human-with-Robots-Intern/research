@@ -5,7 +5,7 @@ import networkx as nx
 import pytest
 
 # 필요한 데이터 클래스 임포트
-from src.core.dataclass import (
+from models.dataclass import (
     ActionResult,
     Candidate,
     CompletedEntry,
@@ -14,7 +14,7 @@ from src.core.dataclass import (
     SimulationNode,
     TimeSlot,
 )
-from src.core.task import Duration, Execution, Subtask
+from models.task import Duration, Execution, Subtask
 from src.scheduler.action_handler import ActionHandler
 
 # 테스트 대상 모듈 임포트

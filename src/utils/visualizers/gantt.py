@@ -1,13 +1,10 @@
-# utils/viz/gantt.py
-
 from typing import List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle
 
-from core.dataclass import CompletedEntry
-from core.task import Subtask
+from models.dataclass import CompletedEntry
 
 
 def compute_start_times(durations: List[float]):

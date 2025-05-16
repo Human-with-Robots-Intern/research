@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, List, Tuple
 from networkx import DiGraph
 
 if TYPE_CHECKING:
-    from src.core.dataclass import CompletedEntry
+    from models.dataclass import CompletedEntry
 
 from utils.common.logger import create_module_logger
 from utils.config.constants import RESULT_PATH
@@ -34,7 +34,6 @@ def compose_subtasks(
             if execution_status:
                 success_count += 1
 
-
     return success_count, total_count
 
 
@@ -44,13 +43,17 @@ def compose_plans(
     success_count, total_count = compose_subtasks(result_schedule)
 
     simulation_makespan = result_schedule[-1].sim_end_time if result_schedule else None
-    scheduler_makespan = result_schedule[-1].schedule_end_time if result_schedule else None
+    scheduler_makespan = (
+        result_schedule[-1].schedule_end_time if result_schedule else None
+    )
     success_rate = round(success_count / total_count, 3) if total_count > 0 else 0.0
 
     return success_rate, simulation_makespan, scheduler_makespan
 
 
-def calculate_timing_success_rate(constraints: DiGraph, result_schedule: List[CompletedEntry]) -> float:
+def calculate_timing_success_rate(
+    constraints: DiGraph, result_schedule: List[CompletedEntry]
+) -> float:
     """
     constraints 의 모든 edge를 확인해서 plans의 결과를 토대로 timing constraint 준수율을 계산한다.
     """
@@ -78,7 +81,9 @@ def calculate_timing_success_rate(constraints: DiGraph, result_schedule: List[Co
         succ_start_time_sim = succ_entry.sim_start_time
         succ_start_time_sched = succ_entry.schedule_start_time
         pred_end_time_sched = pred_entry.schedule_end_time
-        schedule_nav_time = succ_entry.schedule_nav_time  # navigation time이 없으면 0으로 처리
+        schedule_nav_time = (
+            succ_entry.schedule_nav_time
+        )  # navigation time이 없으면 0으로 처리
         sim_nav_time = succ_entry.sim_nav_time
 
         if is_critical:
@@ -125,7 +130,7 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             "end_time_simulation": round(entry.sim_end_time, 2),
             "start_time_scheduled": round(entry.schedule_start_time, 2),
             "end_time_scheduled": round(entry.schedule_end_time, 2),
-            "execution_status": entry.execution_status
+            "execution_status": entry.execution_status,
         }
         serialized_entries.append(serialized_entry)
     return serialized_entries
@@ -275,8 +280,8 @@ def result_save_llm(
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = RESULT_PATH / f"{user_input}_{num}" / scene_name 
-        approach_path = output_path /"approach"
+        output_path = RESULT_PATH / f"{user_input}_{num}" / scene_name
+        approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():
             break

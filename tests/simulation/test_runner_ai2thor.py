@@ -7,7 +7,7 @@ import pytest
 from ithor.handlers.action import Action as IThorAction  # Import for patching target
 
 # 필요한 데이터 클래스 임포트
-from src.core.task import Duration, Execution, Subtask
+from models.task import Duration, Execution, Subtask
 
 # 테스트 대상 모듈 임포트
 from src.simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller

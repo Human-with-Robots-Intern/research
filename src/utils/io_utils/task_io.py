@@ -205,7 +205,6 @@ def load_scene_positions(file_name: str) -> dict[str, tuple[float, float, float]
     else:
         raise ValueError(f"Unexpected room number in file name: {file_name}")
 
-
     file_path = SCENE_KNOWLEDGE_PATH / room_type / "object_init_positions" / file_name
     with file_path.open("r", encoding="utf-8") as f:
         raw_data = json.load(f)

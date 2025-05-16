@@ -17,7 +17,7 @@ PROJECT_ROOT = (
 ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 from dataclass import ActionResult, CompletedEntry, SchedulerState, SimulationNode
 
-from core.task import *
+from models.task import *
 from ithor.utils.math_utils import load_navigation_graph
 from scheduler.action_handler import ActionHandler
 from simulation.runner_ai2thor import init_ai2thor_controller
