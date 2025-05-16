@@ -6,17 +6,36 @@ from networkx import DiGraph
 from src.core.task import Subtask
 
 
+@dataclass
+class ActionResult:
+    action_full_name: str
+    action_type: str
+    cumulative_time: float  # 누적 시간 (이 액션이 종료된 시점)
+    action_duration: float  # 이 액션에 걸린 소요 시간
+    scene_positions: dict[str, Tuple[float, float, float]]
+    held_object: Optional[str] = None
+    success: bool = False
+
+    def __repr__(self):
+        return f"({self.action_full_name}, {self.action_type}, {self.cumulative_time}, {self.action_duration}, {self.held_object})"
 
 
-
-class CompletedEntry(NamedTuple):
+@dataclass
+class CompletedEntry:
     """
     완료된 Subtask에 대해, (Subtask, schedule_start_time, schedule_end_time)을 함께 저장
     """
 
-    subtask: Subtask
-    schedule_start_time: float
-    schedule_end_time: float
+    subtask: Subtask  
+    # start, end time은 navigation을 포함한 시작 및 종료 시간
+    schedule_start_time: float = float("inf")
+    schedule_end_time: float = float("inf")
+    sim_start_time: float = float("inf")
+    sim_end_time: float = float("inf")
+    actual_first_nav_duration: Optional[float] = None
+    execution_status: bool = False
+    schedule_nav_time: Optional[float] = None
+    sim_nav_time: Optional[float] = None
 
     def __repr__(self):
         return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time})"
@@ -30,7 +49,7 @@ class SchedulerState(NamedTuple):
     # 현재 subtask
     subtask: Subtask
     # 수행된 subtask들 (현재 subtask 포함X)
-    completed_subtasks: List[CompletedEntry]
+    completed_entries: List[CompletedEntry]
     # 남은 subtask들
     remaining_subtasks: List[Subtask]
     # 현재 constraint
@@ -58,6 +77,6 @@ class SimulationNode(NamedTuple):
     deadline: float
     simulation_subtask: Subtask
     state: SchedulerState
-
+    execution_time: float
     def __lt__(self, other):
         return self.deadline < other.deadline

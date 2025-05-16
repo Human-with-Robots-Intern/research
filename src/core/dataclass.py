@@ -178,9 +178,11 @@ class CompletedEntry:
     schedule_start_time: float = float("inf")
     schedule_end_time: float = float("inf")
     sim_start_time: float = float("inf")
-    sim_end_time: float = float("inf")
+    sim_end_time: float = float("inf") 
     actual_first_nav_duration: Optional[float] = None
-    execution_status: bool = True
+    execution_status: bool = False
+    sim_nav_time: Optional[float] = None
+    schedule_nav_time: Optional[float] = None
 
     def __repr__(self):
         return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time}, {self.sim_start_time} ~ {self.sim_end_time}, {self.execution_status})"

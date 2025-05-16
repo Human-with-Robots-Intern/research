@@ -24,47 +24,33 @@ def get_now_str(fmt: str = "%Y-%m-%d %H:%M") -> str:
 def compose_subtasks(
     result_schedule: List[CompletedEntry],
 ) -> Tuple[List[dict], int, int]:
-    subtasks = []
     success_count = 0
     total_count = 0
 
     for ce in result_schedule:
-        execution_status = getattr(ce.subtask, "execution_status", None)
+        execution_status = getattr(ce, "execution_status", None)
         if execution_status is not None:
             total_count += 1
             if execution_status:
                 success_count += 1
 
-        subtask = {
-            # 왜
-            "subtask_name": ce.subtask.name,
-            "start_time_simulation": round(getattr(ce, "sim_start_time", None), 3),
-            "end_time_simulation": round(getattr(ce, "sim_end_time", None), 3),
-            "start_time_scheduled": round(getattr(ce, "schedule_start_time", None), 3),
-            "end_time_scheduled": round(getattr(ce, "schedule_end_time", None), 3),
-            "execution_status": execution_status,
-        }
-        if hasattr(ce, "monitored_subtask"):
-            subtask["monitored_subtask"] = ce.monitored_subtask
-        subtasks.append(subtask)
 
-    return subtasks, success_count, total_count
+    return success_count, total_count
 
 
 def compose_plans(
     result_schedule: List[CompletedEntry], task_name: str
-) -> Tuple[List[dict], float, float, float]:
-    subtasks, success_count, total_count = compose_subtasks(result_schedule)
+) -> Tuple[float, float, float]:
+    success_count, total_count = compose_subtasks(result_schedule)
 
-    simulation_time = subtasks[-1]["end_time_simulation"] if subtasks else None
-    scheduler_makespan = subtasks[-1]["end_time_scheduled"] if subtasks else None
+    simulation_makespan = result_schedule[-1].sim_end_time if result_schedule else None
+    scheduler_makespan = result_schedule[-1].schedule_end_time if result_schedule else None
     success_rate = round(success_count / total_count, 3) if total_count > 0 else 0.0
 
-    plans = [{"plan_name": task_name, "subtasks": subtasks}]
-    return plans, success_rate, simulation_time, scheduler_makespan
+    return success_rate, simulation_makespan, scheduler_makespan
 
 
-def calculate_timing_success_rate(constraints: DiGraph, plans: List[dict]) -> float:
+def calculate_timing_success_rate(constraints: DiGraph, result_schedule: List[CompletedEntry]) -> float:
     """
     constraints 의 모든 edge를 확인해서 plans의 결과를 토대로 timing constraint 준수율을 계산한다.
     """
@@ -80,25 +66,26 @@ def calculate_timing_success_rate(constraints: DiGraph, plans: List[dict]) -> fl
         is_critical = edge_info.get("IsCritical")
 
         # plans에서 선행/후행 subtask 찾기
-        subtasks = plans[0]["subtasks"]  # 첫 번째 plan의 subtasks 사용
-        pred_subtask = next((s for s in subtasks if s["subtask_name"] == u), None)
-        succ_subtask = next((s for s in subtasks if s["subtask_name"] == v), None)
+        pred_entry = next((ce for ce in result_schedule if ce.subtask.name == u), None)
+        succ_entry = next((ce for ce in result_schedule if ce.subtask.name == v), None)
 
-        if not pred_subtask or not succ_subtask:
+        if not pred_entry or not succ_entry:
             log.warning(f"pred_subtask or succ_subtask not found: {u} -> {v}")
             continue
 
         # 선행 subtask의 종료 시간과 후행 subtask의 시작 시간
-        pred_end_time_sim = pred_subtask["end_time_simulation"]
-        succ_start_time_sim = succ_subtask["start_time_simulation"]
-        succ_start_time_sched = succ_subtask["start_time_scheduled"]
-        pred_end_time_sched = pred_subtask["end_time_scheduled"]
+        pred_end_time_sim = pred_entry.sim_end_time
+        succ_start_time_sim = succ_entry.sim_start_time
+        succ_start_time_sched = succ_entry.schedule_start_time
+        pred_end_time_sched = pred_entry.schedule_end_time
+        schedule_nav_time = succ_entry.schedule_nav_time  # navigation time이 없으면 0으로 처리
+        sim_nav_time = succ_entry.sim_nav_time
 
         if is_critical:
             # Critical edge: 가우시안 90% 범위 내에서 시작해야 함
             # 일단 간단히 ±10% 범위를 사용
-            expected_start_sim = pred_end_time_sim + interval
-            expected_start_sched = pred_end_time_sched + interval
+            expected_start_sim = pred_end_time_sim + interval - sim_nav_time
+            expected_start_sched = pred_end_time_sched + interval - schedule_nav_time
             tolerance = (
                 interval * 0.1
             )  # 10% 허용 오차 #추후에 interval의 std를 확인해서 허용오차를 조정해야함.
@@ -126,6 +113,24 @@ def calculate_timing_success_rate(constraints: DiGraph, plans: List[dict]) -> fl
     return timing_success_rate_sim, timing_success_rate_sched
 
 
+def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[dict]:
+    """
+    Convert CompletedEntry objects to JSON-serializable format
+    """
+    serialized_entries = []
+    for entry in result_schedule:
+        serialized_entry = {
+            "subtask_name": entry.subtask.name,
+            "start_time_simulation": round(entry.sim_start_time, 2),
+            "end_time_simulation": round(entry.sim_end_time, 2),
+            "start_time_scheduled": round(entry.schedule_start_time, 2),
+            "end_time_scheduled": round(entry.schedule_end_time, 2),
+            "execution_status": entry.execution_status
+        }
+        serialized_entries.append(serialized_entry)
+    return serialized_entries
+
+
 def result_save(
     task_name: str,
     approach_name: str,
@@ -137,26 +142,29 @@ def result_save(
 ):
     global log
     log = create_module_logger(__name__, module_log=True, level=log_level)
-    plans, success_rate, simulation_time, scheduler_makespan = compose_plans(
+    success_rate, simulation_makespan, scheduler_makespan = compose_plans(
         result_schedule, task_name
     )
 
     timing_success_rate_sim, timing_success_rate_sched = calculate_timing_success_rate(
-        constraints, plans
+        constraints, result_schedule
     )
+
+    # Serialize the result schedule
+    serialized_plans = serialize_completed_entries(result_schedule)
 
     result_data = {
         "saved_time": get_now_str(),
         "approach": approach_name,
         "scene_name": scene_name,
-        "plans": plans,
+        "plans": serialized_plans,
         "computation_time": round(computation_time, 5),
-        "simulation_makespan": simulation_time,
-        "scheduler_makespan": scheduler_makespan,
+        "simulation_makespan": round(simulation_makespan, 2),
+        "scheduler_makespan": round(scheduler_makespan, 2),
         "realworld_makespan": None,
-        "success_rate": success_rate,
-        "timing_success_rate_sim": timing_success_rate_sim,
-        "timing_success_rate_sched": timing_success_rate_sched,
+        "success_rate": round(success_rate, 2),
+        "timing_success_rate_sim": round(timing_success_rate_sim, 2),
+        "timing_success_rate_sched": round(timing_success_rate_sched, 2),
     }
 
     # Find the next available number for the task name

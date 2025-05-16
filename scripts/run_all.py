@@ -5,7 +5,16 @@ import subprocess
 import time
 from pathlib import Path
 from itertools import product
+import argparse
 
+from src.utils.common import create_module_logger
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Run all scripts with specified log level')
+    parser.add_argument('--log-level', type=str, default='WARNING',
+                    choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+                    help='Set the logging level (default: WARNING)')
+    return parser.parse_args()
 
 def run_with_retries(script: Path, input_str: str, scene_name: str, max_retries: int = 10) -> tuple[bool, int]:
     """
@@ -13,7 +22,7 @@ def run_with_retries(script: Path, input_str: str, scene_name: str, max_retries:
     성공하면 (True, 시도 횟수), 실패하면 (False, 마지막 시도 횟수)를 반환합니다.
     """
     for attempt in range(1, max_retries + 1):
-        print(f"Running {script} (Attempt {attempt})...")
+        log.debug(f"Running {script} (Attempt {attempt})...")
         result = subprocess.run(
             ["python", str(script), "--scene", scene_name],
             input=input_str,
@@ -22,7 +31,7 @@ def run_with_retries(script: Path, input_str: str, scene_name: str, max_retries:
         if result.returncode == 0:
             return True, attempt
         elif attempt < max_retries:
-            print(f"Retrying {script} after failure (Attempt {attempt})...")
+            log.warning(f"Retrying {script} after failure (Attempt {attempt})...")
             time.sleep(2)  # 짧은 대기 시간 후 재시도
     return False, attempt  # 모든 시도 실패
 
@@ -43,7 +52,7 @@ def process_retry_script(script: Path, instruction: str, scene_name: str) -> Non
             with json_path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
         except Exception as e:
-            print(f"[Error] JSON 파일 {json_path} 로드 실패: {e}")
+            log.error(f"JSON 파일 {json_path} 로드 실패: {e}")
             data = {}
         data["attempt"] = attempt
     else:
@@ -73,8 +82,9 @@ def process_retry_script(script: Path, instruction: str, scene_name: str) -> Non
 def process_normal_script(script: Path, instruction: str, scene_name: str) -> None:
     """
     재시도 대상이 아닌 스크립트를 단순 실행합니다.
+    instruction이 1~30 사이의 숫자인 경우 첫 번째 입력 전송을 건너뜁니다.
     """
-    print(f"Running {script}...")
+    log.warning(f"Running {script},{scene_name},{instruction}...")
     
     # 첫 번째 입력 (0)을 주고 프로세스 시작
     process = subprocess.Popen(
@@ -82,12 +92,22 @@ def process_normal_script(script: Path, instruction: str, scene_name: str) -> No
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True
+        text=True,
+        bufsize=1  # Line buffered
     )
     
-    # 첫 번째 입력 전송 (0)
-    process.stdin.write("0\n")
-    process.stdin.flush()
+    # instruction이 1~30 사이의 숫자가 아닌 경우에만 첫 번째 입력 전송
+    try:
+        instruction_num = int(instruction)
+        if not (1 <= instruction_num <= 30):
+            process.stdin.write("0\n")
+            process.stdin.flush()
+            time.sleep(0.1)  # 입력 사이에 짧은 대기 시간 추가
+    except ValueError:
+        # instruction이 숫자가 아닌 경우 첫 번째 입력 전송
+        process.stdin.write("0\n")
+        process.stdin.flush()
+        time.sleep(0.1)  # 입력 사이에 짧은 대기 시간 추가
     
     # 두 번째 입력 전송 (instruction)
     process.stdin.write(f"{instruction}\n")
@@ -98,19 +118,25 @@ def process_normal_script(script: Path, instruction: str, scene_name: str) -> No
     
     # 에러 코드 출력
     if process.returncode != 0:
-        print(f"Script {script} failed with error code: {process.returncode}")
+        log.error(f"Script {script} failed with error code: {process.returncode}")
         # stderr 내용도 출력
         stderr_output = process.stderr.read()
         if stderr_output:
-            print(f"Error output: {stderr_output}")
+            log.error(f"Error output: {stderr_output}")
 
 def main() -> None:
+    args = parse_args()
+    global log
+    log = create_module_logger(module_name=__name__, module_log=True)
+    log.setLevel(args.log_level)
+
     approaches = [
         # Path("src/dag_bayesian.py"),
-        Path("src/baselines/progprompt/prog_ai2thor.py"),
-        Path("src/baselines/cap/cap_ai2thor.py"),        
+        # Path("src/baselines/progprompt/prog_ai2thor.py"),
+        # Path("src/baselines/cap/cap_ai2thor.py"),   
+        Path("src/baselines/edf/dag_edf.py"),
         Path("src/baselines/cpm.py"),
-        Path("src/baselines/edf/dag_edf.py")
+
     ]
 
     # 재시도 대상 (LLM 방식) 스크립트 집합
@@ -164,7 +190,6 @@ def main() -> None:
     "fill_bathtub_with_water and clean_the_toilet and wet_the_towel_with_water and turn_on_the_light and close_shower_curtain",
     "fill_bathtub_with_water and clean_the_toilet and wet_the_towel_with_water and turn_on_the_light and throw_away_cloth"
     ]
-    
     FloorPlan1_instructions=[
     "heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and throw_away_paper_towel_roll and put_the_wine_bottle_inside_a_cabinet",
     "make_a_coffee and throw_away_paper_towel_roll and put_the_creditcard_on_the_countertop and put_the_book_in_cabinet and set_the_table",
@@ -339,15 +364,15 @@ def main() -> None:
     
     scene_list = [
         "FloorPlan1",
-        "FloorPlan7",
-        "FloorPlan13",
-        "FloorPlan18",
-        "FloorPlan27",
-        "FloorPlan401",
-        "FloorPlan419",
-        "FloorPlan422",
-        "FloorPlan426",
-        "FloorPlan427"
+        # "FloorPlan7",
+        # "FloorPlan13",
+        # "FloorPlan18",
+        # "FloorPlan27",
+        # "FloorPlan401",
+        # "FloorPlan419",
+        # "FloorPlan422",
+        # "FloorPlan426",
+        # "FloorPlan427"
     ]
     num_runs_per_instruction = 1
 
@@ -366,13 +391,25 @@ def main() -> None:
         # Combine base instructions with scene-specific instructions
         instructions = common_instructions + scene_specific_instructions
 
-        for instruction, i in product(instructions, range(num_runs_per_instruction)):
-            print(f"task_name : {instruction}")
-            print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i}")
-            if approach in llm_scripts:
-                process_retry_script(approach, instruction, scene_name)
-            else:
-                process_normal_script(approach, instruction, scene_name)
+        # predefine instruction을 사용하려면  활성화
+        numbers = list(range(1, 31))
+
+        if numbers:            
+            for instruction, i in product(numbers, range(num_runs_per_instruction)):
+                print(f"task_name : {instruction}")
+                print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i}")
+                if approach in llm_scripts:
+                    process_retry_script(approach, instruction, scene_name)
+                else:
+                    process_normal_script(approach, instruction, scene_name)
+        else:
+            for instruction, i in product(instructions, range(num_runs_per_instruction)):
+                print(f"task_name : {instruction}")
+                print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i}")
+                if approach in llm_scripts:
+                    process_retry_script(approach, instruction, scene_name)
+                else:
+                    process_normal_script(approach, instruction, scene_name)
 
 if __name__ == "__main__":
     main()
