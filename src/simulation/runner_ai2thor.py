@@ -13,12 +13,17 @@ Example usage:
     elapsed_time, success = execute_subtask(controller, subtask_obj)
 """
 
+from typing import TYPE_CHECKING
+
 from ai2thor.controller import Controller
 
-# Action handler import
-from core.task import Subtask
 from ithor.handlers.action import Action
 from utils.common.logger import create_module_logger
+
+# Action handler import
+if TYPE_CHECKING:
+    from models.task import Subtask
+
 
 # Constants (unify your constants in one place)
 from utils.config.constants import (
@@ -171,11 +176,12 @@ def execute_subtask(
         # Check success of the last action
         success = controller.last_event.metadata.get("lastActionSuccess", "N/A")
         if success is False:
+            log.warning(f"Action '{action_str}' failed.")
             is_execution_success = False
-        log.warning(f"Action: {action_str}, duration: {round(action_duration, 2)}, success: {success}")
-        
+        log.warning(
+            f"Action: {action_str}, duration: {round(action_duration, 2)}, success: {success}"
+        )
+
     elapsed_time = round(elapsed_time, 2)
-    log.info(
-        f"Subtask '{subtask.name}' completed. Elapsed time: {elapsed_time}"
-    )
+    log.info(f"Subtask '{subtask.name}' completed. Elapsed time: {elapsed_time}")
     return elapsed_time, is_execution_success, sim_nav_time

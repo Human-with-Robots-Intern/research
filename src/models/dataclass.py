@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple
 from networkx import DiGraph
 
 if TYPE_CHECKING:
-    from src.core.task import Subtask
+    from models.task import Subtask
 
 
 class SchedulerState(NamedTuple):
@@ -64,18 +64,18 @@ class TimeSlot(NamedTuple):
         return f"({self.interval}, {self.is_critical}, {self.related_subtask_name},)"
 
 
-class Deadline(NamedTuple):
+class SchedulingDue(NamedTuple):
     """
-    Subtask의 데드라인을 저장하는 NamedTuple
+    다음 critical subtask로 인해 현재 후보군에게 영향을 주는 스케줄링 마감 정보를 저장.
     """
 
-    # 해당 subtask의 데드라인 시간
+    # 현재 후보군이 이 시간까지는 완료되는 것이 좋음 (다음 critical subtask의 시작 시간)
     due_date: float
-    # 해당 subtask의 이름
-    subtask_name: str
+    # 이 마감 시간을 유발한 (다음) critical subtask의 이름
+    due_related_sub_name: Optional[str] = None
 
     def __repr__(self):
-        return f"({self.subtask_name=}, {self.due_date=})"
+        return f"(due_date={self.due_date}, due_related_sub_name='{self.due_related_sub_name}')"
 
 
 @dataclass
@@ -178,7 +178,7 @@ class CompletedEntry:
     schedule_start_time: float = float("inf")
     schedule_end_time: float = float("inf")
     sim_start_time: float = float("inf")
-    sim_end_time: float = float("inf") 
+    sim_end_time: float = float("inf")
     actual_first_nav_duration: Optional[float] = None
     execution_status: bool = False
     sim_nav_time: Optional[float] = None
@@ -198,13 +198,15 @@ class Candidate:
     # subtask이 critical인지 여부
     is_critical: bool
     # subtask의 실제 상호작용 시작 예상 시간
-    actual_interaction_start_time: float
+    actual_interaction_start_time: Optional[float] = None
     # subtask의 시간 제약 로직 상 상호작용 시작 시간
     logical_interaction_start_time: Optional[float] = None
-    # subtask의 첫 번째 액션의 소요 시간
+    # subtask의 첫 번째 navigation 액션의 소요 시간
     estimated_first_nav_duration: float = 0.0
-    # 고려할 데드라인
-    deadline: Deadline = Deadline(due_date=float("inf"), subtask_name=None)
+    # 고려할 스케줄링 마감시간
+    scheduling_due: SchedulingDue = SchedulingDue(
+        due_date=float("inf"), due_related_sub_name=None
+    )
 
     def __repr__(self):
-        return f"({self.subtask.name}; duration : {self.subtask.duration.interval}, earliest_start_time = {self.actual_interaction_start_time}, deadline = {self.deadline}, is_critical = {self.is_critical})"
+        return f"({self.subtask.name}; duration : {self.subtask.duration.interval}, actual_interaction_start_time = {self.actual_interaction_start_time}, logical_interaction_start_time = {self.logical_interaction_start_time}, scheduling_due = {self.scheduling_due}, is_critical = {self.is_critical})"

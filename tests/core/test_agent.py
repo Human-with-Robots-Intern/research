@@ -19,8 +19,8 @@ from src.core.agent import (
     MIN_VARIANCE,
     Agent,
 )
-from src.core.dataclass import CompletedEntry, SchedulerState  # Assuming these exist
-from src.core.task import Duration, Execution, Subtask
+from models.dataclass import CompletedEntry, SchedulerState  # Assuming these exist
+from models.task import Duration, Execution, Subtask
 from src.utils.config import constants as config_constants  # For default durations etc.
 
 # Mock necessary external dependencies if Agent uses them directly

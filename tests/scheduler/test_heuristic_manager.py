@@ -13,14 +13,14 @@ from scheduler.heuristic_manager import HeuristicManager
 from src.core.agent import Agent  # Agent 임포트 추가
 
 # 필요한 데이터 클래스 및 핸들러 임포트
-from src.core.dataclass import (
+from models.dataclass import (
     ActionResult,
     Candidate,
-    Deadline,
     SchedulerState,
+    SchedulingDue,
     SimulationNode,
 )
-from src.core.task import Duration, Execution, Subtask
+from models.task import Duration, Execution, Subtask
 from src.utils.config import EPSILON, LARGE_NUMBER
 
 
@@ -200,7 +200,7 @@ def sample_candidate_factory(sample_subtask_factory):
         subtask = sample_subtask_factory(
             name, duration, nav_target, interaction, objects=objects
         )
-        deadline = Deadline(due_date=deadline_due, subtask_name=deadline_reason)
+        deadline = SchedulingDue(due_date=deadline_due, subtask_name=deadline_reason)
         return Candidate(
             subtask=subtask,
             is_critical=is_crit,

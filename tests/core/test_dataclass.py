@@ -4,17 +4,17 @@ import pytest
 from networkx import DiGraph
 
 # 테스트 대상 모듈 임포트
-from src.core.dataclass import (
+from models.dataclass import (
     ActionResult,
     ActionSimulationLog,
     Candidate,
     CompletedEntry,
-    Deadline,
     SchedulerState,
+    SchedulingDue,
     SimulationNode,
     TimeSlot,
 )
-from src.core.task import Duration, Execution, Subtask  # 경로 수정: src.core.task
+from models.task import Duration, Execution, Subtask  # 경로 수정: src.core.task
 
 
 # Fixtures (필요시 테스트 데이터 생성)
@@ -64,7 +64,7 @@ def sample_scheduler_state(sample_subtask):
 
 @pytest.fixture
 def sample_deadline():
-    return Deadline(due_date=100.0, subtask_name="NextCriticalTask")
+    return SchedulingDue(due_date=100.0, subtask_name="NextCriticalTask")
 
 
 # 테스트 케이스
@@ -80,7 +80,7 @@ def test_candidate_creation(sample_subtask, sample_deadline):
     assert candidate.subtask.name == "TestSub"
     assert not candidate.is_critical
     assert candidate.earliest_start_time == 0.0
-    assert candidate.deadline.due_date == 100.0
+    assert candidate.scheduling_due.due_date == 100.0
 
 
 def test_scheduler_state_creation(sample_subtask, sample_scheduler_state):

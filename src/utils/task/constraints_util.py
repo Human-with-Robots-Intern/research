@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional, Tuple
 import networkx as nx
 
 if TYPE_CHECKING:
-    from src.core.dataclass import CompletedEntry
+    from models.dataclass import CompletedEntry
     from src.core.scheduler import ConstraintHandler
 
 log = logging.getLogger(__name__)
@@ -22,7 +22,6 @@ def get_critical_start_info(
     Calculate the earliest start time based on critical constraints ('After', critical=True).
     Finds the predecessor that dictates the latest start time among critical constraints.
     """
-    from src.core.dataclass import CompletedEntry
 
     constraints_start_names = constraint_handler.get_time_slots(
         subtask_name, constraints, direction="in"

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 import networkx as nx
 import numpy as np
 
-from src.core.dataclass import SchedulerState
+from models.dataclass import SchedulerState
 from src.utils.common import create_module_logger, extract_monitoring_target_name
 from src.utils.config import (
     ESTIMATE_FILE_NAME,
@@ -94,8 +94,8 @@ class Agent:
 
         # Compute cosine similarities
         similar_subtask_name = self.sentence_sim_model.get_similar_ref(
-            query_str=query_sub_name_lower,
-            ref_strs=candidate_sub_names,  # Assuming candidates are already lowercase from _load_or_init_knowledge
+            query=query_sub_name_lower,
+            references=candidate_sub_names,  # Assuming candidates are already lowercase from _load_or_init_knowledge
         )
         return similar_subtask_name.lower()
 
@@ -190,7 +190,9 @@ class Agent:
         # 2) 문장 유사도 모델로 실제 known_sub_name 결정
         known_sub_name_lower = self._find_most_similar_subtask(
             monitoring_target_sub_name,
-            self.estimate_knowledge.keys(),
+            list(
+                self.estimate_knowledge.keys(),
+            ),
         )
 
         # 3) ground_truth / prior_mean / prior_variance 가져오기

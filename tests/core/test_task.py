@@ -7,7 +7,7 @@ import networkx as nx
 import pytest
 import yaml
 
-from src.core.task import (
+from models.task import (
     Duration,
     Execution,
     Subtask,

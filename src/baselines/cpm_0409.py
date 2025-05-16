@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Tuple
 import networkx as nx
 from networkx import DiGraph
 
-from core.dataclass import ActionResult, CompletedEntry, SchedulerState, SimulationNode
-from core.task import Execution, Subtask
+from models.dataclass import ActionResult, CompletedEntry, SchedulerState, SimulationNode
+from models.task import Execution, Subtask
 from scheduler.action_handler import ActionHandler
 from utils.io_utils import task_io
 

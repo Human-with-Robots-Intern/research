@@ -6,7 +6,7 @@ from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from utils.common.logger import create_module_logger
-from utils.config import BEAM_WIDTH, LOG_ROUND, SIMULATION_DEPTH
+from utils.config import LOG_ROUND
 from utils.io_utils import (
     get_natural_language_from_task_file,
     get_user_task_choice,
@@ -74,11 +74,8 @@ def main():
     action_handler = ActionHandler(nav_graph or {})
     constraint_handler = ConstraintHandler(action_handler)
     agent = Agent(constraint_handler)
-    cost_calculator = HeuristicManager(constraint_handler, action_handler, agent)
+    cost_calculator = HeuristicManager(action_handler, agent)
     scheduler = Scheduler(
-        BEAM_WIDTH,
-        SIMULATION_DEPTH,
-        nav_graph=nav_graph,
         action_handler=action_handler,
         constraint_handler=constraint_handler,
         heuristic_manager=cost_calculator,
@@ -128,8 +125,6 @@ def main():
             f"{ce.subtask.name} ({round(ce.sim_start_time, LOG_ROUND)} ~ {round(ce.sim_end_time,LOG_ROUND)})"
         )
         log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
-        # 지금 start time 과 end time은 scheduler가 계산 한 값이고 simulation을 했을때의 시간이 아니다.
-        # ? 흠... ce.scheduled_start_time / end_time을 이용할 수는 없나?
         ce.start_time_scheduled = round(ce.sim_start_time, LOG_ROUND)
         ce.end_time_scheduled = round(ce.sim_end_time, LOG_ROUND)
         result_schedule.append(ce)
@@ -141,7 +136,7 @@ def main():
         "result_schedule": result_schedule,
         "computation_time": total_compute_time,
         "scene_name": scene_data.file_name,
-        "constraints": constraints,
+        "constraints": current_state.constraints,
         # "simulationTime": total_sim_time,
     }
 
