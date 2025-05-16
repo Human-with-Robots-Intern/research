@@ -1,0 +1,19 @@
+{
+    "instructions": [
+        "wet_the_handtowel_with_water and throw_away_cloth and close_shower_curtain and put_a_soap_bar_on_the_sink and put_the_candle_inside_the_drawer",
+        "wet_the_handtowel_with_water and turn_on_the_light and throw_away_cloth and put_tissue_box_inside_a_drawer and put_a_soap_bar_on_the_sink",
+        "wet_the_towel_with_water and turn_on_the_light and throw_away_cloth and put_a_soap_bar_on_the_sink and put_the_candle_inside_the_drawer",
+        "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_a_soap_bar_on_the_sink and put_the_candle_inside_the_drawer",
+        "wet_the_handtowel_with_water and wet_the_towel_with_water and turn_on_the_candle and turn_on_the_light and put_the_candle_inside_the_drawer",
+        "fill_bathtub_with_water and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and close_shower_curtain and put_a_soap_bar_on_the_sink",
+        "fill_bathtub_with_water and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and close_shower_curtain",
+        "clean_the_sink_with_dish_sponge and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and close_shower_curtain",
+        "clean_the_sink_with_dish_sponge and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_tissue_box_inside_a_drawer and put_the_candle_inside_the_drawer",
+        "clean_the_sink_with_dish_sponge and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth",
+        "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_tissue_box_inside_a_drawer",
+        "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and put_tissue_box_inside_a_drawer and put_the_candle_inside_the_drawer",
+        "fill_bathtub_with_water and clean_the_sink_with_dish_sponge and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_a_soap_bar_on_the_sink",
+        "fill_bathtub_with_water and clean_the_sink_with_dish_sponge and wet_the_towel_with_water and turn_on_the_light and put_a_soap_bar_on_the_sink",
+        "clean_the_toilet_with_scrub_brush and clean_the_sink_with_dish_sponge and wet_the_handtowel_with_water and close_shower_curtain and put_tissue_box_inside_a_drawer"
+    ]
+}
