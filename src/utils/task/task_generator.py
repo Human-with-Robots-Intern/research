@@ -226,3 +226,10 @@ class TaskGenerator:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
         logger.info(f"Output saved to {file_path}.")
+
+
+if __name__ == "__main__":
+    task_generator = TaskGenerator()
+    task_generator.generate_task(
+        "boil_water_with_kettle and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and put_the_wine_bottle_inside_a_cabinet and put_the_creditcard_on_the_countertop"
+    )

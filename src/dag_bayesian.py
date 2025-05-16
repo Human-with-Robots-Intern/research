@@ -97,7 +97,7 @@ def main():
             log.error("No feasible solution found.")
             break
 
-        sim_elapsed_time, execution_status = execute_subtask(
+        sim_elapsed_time, execution_status, sim_nav_time = execute_subtask(
             controller, next_state.subtask, args.log_level
         )
 

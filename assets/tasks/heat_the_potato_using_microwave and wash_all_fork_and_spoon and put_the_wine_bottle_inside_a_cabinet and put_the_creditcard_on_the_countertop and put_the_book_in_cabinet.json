@@ -1,0 +1,198 @@
+[
+    {
+        "Task": "Heat Potato using Microwave",
+        "Subtasks": [
+            {
+                "Name": "Heat Potato in Microwave",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Potato|-01.66|+00.93|-02.15": 1,
+                        "Microwave|-00.24|+01.69|-02.53": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Potato|-01.66|+00.93|-02.15",
+                        "GRASP Potato|-01.66|+00.93|-02.15",
+                        "NAVIGATE_TO Microwave|-00.24|+01.69|-02.53",
+                        "OPEN Microwave|-00.24|+01.69|-02.53",
+                        "PLACE_INSIDE Microwave|-00.24|+01.69|-02.53",
+                        "CLOSE Microwave|-00.24|+01.69|-02.53",
+                        "TOGGLE_ON Microwave|-00.24|+01.69|-02.53"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Retrieve Potato from Microwave",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Potato|-01.66|+00.93|-02.15": 1,
+                        "Microwave|-00.24|+01.69|-02.53": 1
+                    },
+                    "PrimitiveActions": [
+                        "TOGGLE_OFF Microwave|-00.24|+01.69|-02.53",
+                        "OPEN Microwave|-00.24|+01.69|-02.53",
+                        "GRASP Potato|-01.66|+00.93|-02.15",
+                        "CLOSE Microwave|-00.24|+01.69|-02.53"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": [
+                    {
+                        "Type": "After",
+                        "Subtask": "Heat Potato in Microwave",
+                        "Interval": 5,
+                        "Urgency": true
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "Task": "Wash Fork and Spoon",
+        "Subtasks": [
+            {
+                "Name": "Wash Fork",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Fork|+00.95|+00.77|-02.37": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Fork|+00.95|+00.77|-02.37",
+                        "GRASP Fork|+00.95|+00.77|-02.37",
+                        "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+                        "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
+                        "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+                        "GRASP Fork|+00.95|+00.77|-02.37",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Wash Spoon",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Spoon|+00.98|+00.77|-02.29": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Spoon|+00.98|+00.77|-02.29",
+                        "GRASP Spoon|+00.98|+00.77|-02.29",
+                        "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+                        "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
+                        "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
+                        "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
+                        "GRASP Spoon|+00.98|+00.77|-02.29",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 5
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Store Wine Bottle and Credit Card",
+        "Subtasks": [
+            {
+                "Name": "Put Wine Bottle in Cabinet",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "WineBottle|-01.00|+01.65|-02.58": 1,
+                        "Cabinet|+00.68|+00.50|-02.20": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO WineBottle|-01.00|+01.65|-02.58",
+                        "GRASP WineBottle|-01.00|+01.65|-02.58",
+                        "NAVIGATE_TO Cabinet|+00.68|+00.50|-02.20",
+                        "OPEN Cabinet|+00.68|+00.50|-02.20",
+                        "PLACE_INSIDE Cabinet|+00.68|+00.50|-02.20",
+                        "CLOSE Cabinet|+00.68|+00.50|-02.20"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Put Credit Card on CounterTop",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "CreditCard|-00.46|+01.10|+00.87": 1,
+                        "CounterTop|-00.08|+01.15|00.00": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO CreditCard|-00.46|+01.10|+00.87",
+                        "GRASP CreditCard|-00.46|+01.10|+00.87",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 1
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    },
+    {
+        "Task": "Store Book in Cabinet",
+        "Subtasks": [
+            {
+                "Name": "Put Book in Cabinet",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": {
+                        "Book|+00.15|+01.10|+00.62": 1,
+                        "Cabinet|+00.68|+00.50|-02.20": 1
+                    },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO Book|+00.15|+01.10|+00.62",
+                        "GRASP Book|+00.15|+01.10|+00.62",
+                        "NAVIGATE_TO Cabinet|+00.68|+00.50|-02.20",
+                        "OPEN Cabinet|+00.68|+00.50|-02.20",
+                        "PLACE_INSIDE Cabinet|+00.68|+00.50|-02.20",
+                        "CLOSE Cabinet|+00.68|+00.50|-02.20"
+                    ]
+                },
+                "Duration": {
+                    "Type": "Controllable",
+                    "Interval": 2
+                },
+                "TemporalConstraints": []
+            }
+        ]
+    }
+]

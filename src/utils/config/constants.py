@@ -20,7 +20,7 @@ RESULT_PATH = ASSETS_PATH / "results"
 
 
 # ========== 파일명 상수 ==========
-PROMPT_FILE_PATH = "e2e_generator_ver5.txt"
+PROMPT_FILE_PATH = "e2e_generator_ver7.txt"
 ESTIMATE_FILE_NAME = "bayesian_estimate.json"
 GROUND_TRUTH_FILE_NAME = "bayesian_ground_truth.json"
 
