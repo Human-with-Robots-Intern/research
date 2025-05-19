@@ -206,7 +206,6 @@ class Scheduler:
 
         # --- 단계 1: 정책 1 - 정시(On-time) CRITICAL 서브태스크 우선 처리 ---
         # "즉시 실행 가능한 Time-critical" 후보를 찾아, 있다면 그것 하나만 확장하고 즉시 반환.
-
         on_time_critical_candidate_to_expand: Optional[Candidate] = None
 
         # feasible_candidates를 순회하며 정책 1에 부합하는 후보를 찾음.
@@ -214,11 +213,13 @@ class Scheduler:
         for candidate in feasible_candidates:
             if candidate.is_critical:
                 if candidate.logical_interaction_start_time is None:
+                    # 있을 수 없는 조건, Feasible하면 반드시 LST가 있어야 함 (선행 작업이 완료된 상태니까)
                     log.error(
                         f"Critical candidate {candidate.subtask.name} has None LST. Skipping."
                     )
                     continue
 
+                # 물리적으로 상호작용할 수 있는 가장 이른 시각
                 physical_earliest_interaction_start_time = (
                     curr_node.state.current_time
                     + candidate.estimated_first_nav_duration
@@ -240,10 +241,6 @@ class Scheduler:
                         candidate.logical_interaction_start_time
                     )
 
-                    # (선택 사항) Candidate 객체에 missed_ideal_timing 필드가 있다면 설정
-                    # if hasattr(candidate, 'missed_ideal_timing'):
-                    #     candidate.missed_ideal_timing = False
-
                     on_time_critical_candidate_to_expand = candidate
                     break  # 정책 1에 부합하는 첫 번째 후보를 찾았으므로 더 이상 탐색 불필요
 
@@ -257,11 +254,8 @@ class Scheduler:
             )
             if child_node is not None:
                 expansions.append(child_node)
-                # is_expanded = True # 여기서 설정해도 되지만, 어차피 즉시 반환하므로 큰 의미는 없음.
-                # 단, _simulate_search로 반환될 때 expansions에 노드가 있으므로 문제 없음.
-            return (
-                expansions  # 정책 1에 따라 확장된 노드(최대 1개)만 포함하여 즉시 반환
-            )
+
+            return expansions
 
         # --- 단계 1에서 정시 Critical 확장이 없었던 경우 다음 단계로 진행 ---
 
@@ -295,6 +289,7 @@ class Scheduler:
                         candidate.logical_interaction_start_time
                         < physical_earliest_interaction_start_time - EPSILON
                     ):
+                        # 이미 LST 타이밍을 놓친 경우, actual_interaction_start_time을 물리적 ASAP 시간으로 설정
                         log.warning(
                             f"[_expand_candidates] Policy 3: MISSED CRITICAL {candidate.subtask.name}. "
                             f"Ideal LST: {candidate.logical_interaction_start_time:.2f}. Will perform ASAP at {physical_earliest_interaction_start_time:.2f}."
@@ -304,9 +299,6 @@ class Scheduler:
                             physical_earliest_interaction_start_time
                         )
 
-                        # (선택 사항) missed_ideal_timing 플래그 설정
-                        # if hasattr(candidate, 'missed_ideal_timing'):
-                        #     candidate.missed_ideal_timing = True
                         candidates_for_stage_2_expansion.append(candidate)
 
                     # 미래의 Critical (LST >= 물리적 ASAP, 단 정시 조건은 아님) -> LST에 맞춰 수행
@@ -316,14 +308,11 @@ class Scheduler:
                             f"LST: {candidate.logical_interaction_start_time:.2f}, PhysicalEarliest: {physical_earliest_interaction_start_time:.2f}. "
                             f"Scheduling for LST."
                         )
-                        # AST를 LST로 설정 (ConstraintHandler가 LST > physical_ASAP일 때 AST=LST로 했을 것임)
+                        # AST를 LST로 설정 (이미 ConstraintHandler가 LST > physical_ASAP일 때 AST=LST로 했을 것임)
                         candidate.actual_interaction_start_time = (
                             candidate.logical_interaction_start_time
                         )
 
-                        # (선택 사항) missed_ideal_timing 플래그 설정
-                        # if hasattr(candidate, 'missed_ideal_timing'):
-                        #     candidate.missed_ideal_timing = False # LST에 맞추므로 놓친 것은 아님
                         candidates_for_stage_2_expansion.append(candidate)
 
                 else:  # Non-CRITICAL 후보
@@ -351,9 +340,6 @@ class Scheduler:
                             expected_actual_start_time
                         )
 
-                    # (선택 사항) missed_ideal_timing 플래그 설정
-                    # if hasattr(candidate, 'missed_ideal_timing'):
-                    #     candidate.missed_ideal_timing = False
                     candidates_for_stage_2_expansion.append(candidate)
 
             if candidates_for_stage_2_expansion:
@@ -444,7 +430,9 @@ class Scheduler:
         # expansions 리스트는 _simulate_search로 전달되어 정렬 및 Beam Pruning 대상이 됨.
         return expansions
 
-    def _extract_state(self, child_node: SimulationNode) -> Optional[SchedulerState]:
+    def _extract_state(
+        self, child_node: Optional[SimulationNode]
+    ) -> Optional[SchedulerState]:
         """
         Traces from a terminal node (child_node) back to the root (init_state),
         and returns the **state at depth=1** in that path. This effectively
@@ -499,6 +487,8 @@ class Scheduler:
         log.debug(
             f"[_expand_single_subtask] Checking expansion for subtask: {candidate.subtask.name}."
         )
+        if candidate.subtask.name.startswith("Monitoring"):
+            print(candidate.subtask.execution.primitive_actions)
         # 모니터링 필요?
         need_monitor = self._should_expand_with_monitoring(curr_node, candidate)
         if need_monitor:
@@ -530,6 +520,8 @@ class Scheduler:
         log.debug(
             f"[_expand_single_wait] Checking wait-based expansion for subtask: {candidate.subtask.name}."
         )
+        if candidate.subtask.name.startswith("Monitoring"):
+            print(candidate.subtask.execution.primitive_actions)
         target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
         nav_time = self.action_handler.get_actions_info(
             curr_node,
@@ -607,6 +599,8 @@ class Scheduler:
         Expands a non-monitoring subtask. The subtask is executed fully at once.
         Navigation (if any, as first_nav_duration) + Interaction are performed.
         """
+        if candidate.subtask.name.startswith("EARLY"):
+            print(candidate.subtask.execution.primitive_actions)
         curr_state = curr_node.state
         curr_cost = curr_node.heuristic_cost
         curr_depth = curr_node.depth
@@ -657,10 +651,16 @@ class Scheduler:
         copied_sub = copy.deepcopy(candidate.subtask)
         copied_sub.duration.total_time = total_subtask_duration_from_sim
 
+        sim_success_status = (
+            executed_action_info.success if executed_action_info else False
+        )
+
         completed_entry = CompletedEntry(
             subtask=copied_sub,
             schedule_start_time=planned_nav_start_time,
             schedule_end_time=planned_subtask_completion_time,
+            schedule_nav_time=executed_action_info.first_navigate_duration,
+            execution_status=sim_success_status,
         )
         new_completed = curr_state.completed_entries + [completed_entry]
         new_remain = [
@@ -1212,7 +1212,13 @@ class Scheduler:
         start_time = curr_state.current_time
         end_time = start_time + nav_time
 
-        completed_entry = CompletedEntry(navigate_sub, start_time, end_time)
+        completed_entry = CompletedEntry(
+            subtask=navigate_sub,
+            schedule_start_time=start_time,
+            schedule_end_time=end_time,
+            schedule_nav_time=nav_time,
+            execution_status=True,
+        )
         new_completed = curr_state.completed_entries + [completed_entry]
 
         # ! ------------------- Constraints Update -------------------
@@ -1302,7 +1308,13 @@ class Scheduler:
         start_time = curr_state.current_time
         end_time = curr_state.current_time + total_wait_duration
 
-        completed_entry = CompletedEntry(wait_sub, start_time, end_time)
+        completed_entry = CompletedEntry(
+            subtask=wait_sub,
+            schedule_start_time=start_time,
+            schedule_end_time=end_time,
+            schedule_nav_time=0.0,
+            execution_status=True,
+        )
         new_completed = curr_state.completed_entries + [completed_entry]
 
         new_state = SchedulerState(

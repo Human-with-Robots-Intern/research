@@ -106,6 +106,7 @@ def main():
         last_entry.sim_start_time = total_sim_time
         last_entry.sim_end_time = total_sim_time + sim_elapsed_time
         last_entry.execution_status = execution_status
+        last_entry.sim_nav_time = sim_nav_time
         total_sim_time += sim_elapsed_time
 
         if next_state.subtask.subtask_type == "Monitor":

@@ -87,6 +87,7 @@ class ActionResult:
     scene_positions: dict[str, Tuple[float, float, float]]
     held_object: Optional[str] = None
     success: bool = False
+    first_navigate_duration: Optional[float] = None
 
     def __repr__(self):
         return f"({self.action_full_name}, {self.action_type}, {self.cumulative_time}, {self.action_duration}, {self.held_object})"
@@ -118,7 +119,7 @@ class ActionSimulationLog:
             )
         )
 
-    def total_navigate_duration(self) -> float:
+    def get_total_navigate_duration(self) -> float:
         """
         action_type이 'NAVIGATE_TO'인 액션들만 골라서 action_duration의 합을 구한다.
         """
