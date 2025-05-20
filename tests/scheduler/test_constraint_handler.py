@@ -140,7 +140,7 @@ def test_get_earliest_start_time_predecessor_failed(
         pred_sub.name, succ.name, info={"Interval": 0, "IsCritical": False}
     )
     # CompletedEntry에 execution_status=False 설정
-    completed = [CompletedEntry(pred_sub, 0.0, 5.0, execution_status=False)]
+    completed = [CompletedEntry(pred_sub, 0.0, 5.0, sched_execution_status=False)]
     node = create_test_node(5.0, completed, [succ], constraints)
     start_time, is_critical, status = constraint_handler.get_earliest_start_time(
         node, succ

@@ -1,7 +1,7 @@
 {
     "brew coffee": 5,
     "prepare egg fry": 10,
-    "prepare potato": 100,
+    "prepare potato": 10,
     "turn off stove after cooking potato": 10,
     "turn off stove after boiling": 10,
     "turn off stove after boiling potato": 10,
@@ -25,5 +25,6 @@
     "turn off stove after cooking": 10,
     "Turn off Stove after cooking": 10,
     "Turn off Stove after Boiling": 10,
-    "turn off faucet after filling pot": 10
+    "turn off faucet after filling pot": 10,
+    "retrieve heated potato and place on countertop": 10
 }

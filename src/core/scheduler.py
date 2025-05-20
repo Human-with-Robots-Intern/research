@@ -660,7 +660,7 @@ class Scheduler:
             schedule_start_time=planned_nav_start_time,
             schedule_end_time=planned_subtask_completion_time,
             schedule_nav_time=executed_action_info.first_navigate_duration,
-            execution_status=sim_success_status,
+            sched_execution_status=sim_success_status,
         )
         new_completed = curr_state.completed_entries + [completed_entry]
         new_remain = [
@@ -1217,7 +1217,7 @@ class Scheduler:
             schedule_start_time=start_time,
             schedule_end_time=end_time,
             schedule_nav_time=nav_time,
-            execution_status=True,
+            sched_execution_status=True,
         )
         new_completed = curr_state.completed_entries + [completed_entry]
 
@@ -1313,7 +1313,7 @@ class Scheduler:
             schedule_start_time=start_time,
             schedule_end_time=end_time,
             schedule_nav_time=0.0,
-            execution_status=True,
+            sched_execution_status=True,
         )
         new_completed = curr_state.completed_entries + [completed_entry]
 

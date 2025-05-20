@@ -116,7 +116,7 @@ def calculate_timing_success_rate(
         # 실제 스케쥴 결과 : pred_end_time_sched -> succ_start_time_sched,
         log.info(f"Original Timing Constraint : {u} -> {v} ({interval}, {is_critical})")
         log.info(
-            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s"
+            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s\n\n"
         )
 
     timing_success_rate_sim = (
@@ -144,7 +144,7 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             "end_time_simulation": round(entry.sim_end_time, 2),
             "start_time_scheduled": round(entry.schedule_start_time, 2),
             "end_time_scheduled": round(entry.schedule_end_time, 2),
-            "execution_status": entry.execution_status,
+            "execution_status": entry.sched_execution_status,
         }
         serialized_entries.append(serialized_entry)
     return serialized_entries

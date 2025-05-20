@@ -4,8 +4,8 @@
         "variance": 1.0
     },
     "turn off stove after cooking": {
-        "expected_duration": 99.0864869764016,
-        "variance": 0.5980110869030564
+        "expected_duration": 7.5011270245449495,
+        "variance": 2.8226218095143043
     },
     "prepare potato": {
         "expected_duration": 100.0,
@@ -24,15 +24,19 @@
         "variance": 1.0
     },
     "turn off stove after boiling potato": {
-        "expected_duration": 10.0,
-        "variance": 1.0
+        "expected_duration": 11.641306082352838,
+        "variance": 0.5314174341474573
     },
     "turn off stove after cooking egg fry": {
         "expected_duration": 10.0,
         "variance": 1.0
     },
     "turn off stove after boiling": {
-        "expected_duration": 10.0,
+        "expected_duration": 10.28811318445723,
+        "variance": 0.42834594682099725
+    },
+    "retrieve heated potato and place on countertop": {
+        "expected_duration": 0,
         "variance": 1.0
     }
 }

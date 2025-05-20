@@ -183,11 +183,9 @@ class ConstraintHandler:
         반환: (logical_interaction_start_time, is_critical, status)
         Status: "COMPLETED", "NOT_READY", "FAILED_PREDECESSOR", "CONSTRAINT_ERROR", "CONFLICT", "PROVISIONAL"
         """
-        import networkx as nx
-
-        from src.models.dataclass import CompletedEntry
 
         curr_constraints = curr_node.state.constraints
+        # CONSTRAINT_ERROR: 제약 그래프가 없거나 사이클을 갖는 경우
         if not curr_constraints or not isinstance(curr_constraints, nx.DiGraph):
             log.error(
                 f"Invalid constraint graph provided for state at time {curr_node.state.current_time:.2f}. Cannot process subtask '{sub.name}'."
@@ -200,6 +198,7 @@ class ConstraintHandler:
             )
             return None, False, "CONSTRAINT_ERROR"
 
+        # COMPLETED: 태스크가 아직 제약 그래프에 없는 경우 -> 동적으로 생성된 것으로 간주
         if sub.name not in curr_constraints:
             log.debug(
                 f"Subtask '{sub.name}' not found in constraint graph. Assuming ready at time 0."
@@ -209,28 +208,34 @@ class ConstraintHandler:
         completed_subtasks_map = {
             ce.subtask.name: ce for ce in curr_node.state.completed_entries
         }
-
+        # COMPLETED : Subtask에 시간 제약이 부재한 경우에는 언제든지 수행되도 되는 것
         in_edges = list(curr_constraints.in_edges(sub.name, data=True))
         if not in_edges:
             log.debug(f"Subtask '{sub.name}' has no predecessors. Ready at time 0.")
             return 0.0, False, "COMPLETED"
 
-        # --- 기존 방식: 선행 작업이 모두 완료된 경우 ---
+        # 선행 작업이 있는 Task에 대하여
         critical_times = []
         non_critical_earliest_start = 0.0
         all_predecessors_finished = True
         any_predecessor_failed = False
         failure_reason = ""
+
         for pred_name, _, edge_data in in_edges:
             info = edge_data.get("info", {})
             interval = float(info.get("Interval", 0.0))
             is_crit = info.get("IsCritical", False)
-            pred_entry: CompletedEntry = completed_subtasks_map.get(pred_name, None)
+
+            pred_entry: Optional[CompletedEntry] = completed_subtasks_map.get(
+                pred_name, None
+            )
+
             if pred_entry is None:
                 all_predecessors_finished = False
                 continue
+
             if hasattr(pred_entry, "execution_status"):
-                pred_status = pred_entry.execution_status
+                pred_status = pred_entry.sched_execution_status
                 if pred_status is False:
                     any_predecessor_failed = True
                     failure_reason = f"Predecessor '{pred_name}' explicitly FAILED."

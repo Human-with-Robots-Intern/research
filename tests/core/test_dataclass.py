@@ -42,7 +42,7 @@ def sample_scheduler_state(sample_subtask):
         schedule_end_time=10.0,
         sim_start_time=0.0,
         sim_end_time=10.0,
-        execution_status=True,
+        sched_execution_status=True,
     )
     constraints = DiGraph()
     constraints.add_node(sample_subtask.name)  # 그래프에 노드 추가
@@ -189,7 +189,7 @@ def test_completed_entry_creation(sample_subtask):
         schedule_end_time=20.0,
         sim_start_time=11.0,
         sim_end_time=21.5,
-        execution_status=True,
+        sched_execution_status=True,
         # monitored_subtask=... # <<< 생성자에서 제거
     )
     # 생성 후 속성 설정
@@ -201,5 +201,5 @@ def test_completed_entry_creation(sample_subtask):
     assert ce.schedule_end_time == 20.0
     assert ce.sim_start_time == 11.0
     assert ce.sim_end_time == 21.5
-    assert ce.execution_status is True
+    assert ce.sched_execution_status is True
     assert ce.monitored_subtask == monitor_data

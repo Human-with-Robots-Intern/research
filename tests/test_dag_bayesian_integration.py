@@ -87,7 +87,7 @@ def mock_initial_state(mock_subtasks, mock_constraints, mock_scene_data):
         schedule_end_time=0.0,
         sim_start_time=0.0,
         sim_end_time=0.0,
-        execution_status=True,
+        sched_execution_status=True,
     )
     return SchedulerState(
         subtask=init_sub,  # 마지막으로 완료된 subtask
