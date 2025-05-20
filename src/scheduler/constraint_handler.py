@@ -98,6 +98,7 @@ class ConstraintHandler:
                 )
                 # not_yet 후보에 필요한 정보 추가 (예: 예상 준비 시간 등)
                 # 여기서는 Candidate 객체만 추가하고, 추후 scheduling_due 할당 등에서 활용 가능
+                # NOT_READY 상태 Subtask는 최소 시작 시간이 None임
                 not_yet_candidates.append(
                     Candidate(
                         subtask=sub,
@@ -139,6 +140,8 @@ class ConstraintHandler:
             #    current_time + estimated_prep_duration: 현재부터 첫 액션 수행 후의 시간 (물리적 준비 완료 시간)
 
             # 실제 상호작용이 시작될 수 있는 가장 이른 시간
+            # 가능한 상호작용 시간 보다, Logical Interaction Start Time이 더 늦는 경우 -> Logical Interaction Start Time으로 결정 -> 논리적 제약 충족 필요 -> not yet
+            # Logical Interaction Start Time보다, 가능한 상호작용 시간이 같거나 늦는 경우 -> 가능한 상호작용 시간으로 결정 -> feasible candidates
             actual_interaction_start_time = max(
                 logical_interaction_start_time, current_time + first_nav_duration
             )
@@ -264,8 +267,8 @@ class ConstraintHandler:
             final_start_time = 0.0
             is_final_critical = False
             tc_conflict_detected = False
-            if critical_times:
 
+            if critical_times:
                 # 하나의 Subtask u,v pair 간 복수의 Critical 제약이 존재하는 경우,
                 earliest_critical_time = min(critical_times)
                 latest_critical_time = max(critical_times)
@@ -306,8 +309,8 @@ class ConstraintHandler:
         self,
         feasible_candidates: List[Candidate],
         not_yet_candidates: List[Candidate],
-        curr_node: SimulationNode,  # 현재 노드 정보는 로깅 외에는 사용되지 않음
-    ) -> None:  # 반환 타입 제거 (in-place 수정)
+        curr_node: SimulationNode,
+    ) -> None:
         """
         Assigns scheduling due to feasible candidates based on the logical earliest start time
         of the next upcoming critical task found in the not_yet list.
@@ -318,9 +321,12 @@ class ConstraintHandler:
 
         valid_crit_candidates = []
         for critical_candidate in crit_candidates:
+            # logical_interaction_start_time이 유효한 경우는 선행 작업이 완료된 경우 또는 in edge 시간 제약이 없는 경우
+            # 현재 시각 또는 미래 시각에 도래할 not yet critical candidate가 feasible candidate의 scheduling due를 결정
             if (
                 critical_candidate.logical_interaction_start_time is not None
-                and critical_candidate.logical_interaction_start_time >= 0
+                and critical_candidate.logical_interaction_start_time
+                >= curr_node.state.current_time
             ):
                 valid_crit_candidates.append(critical_candidate)
             else:
@@ -333,7 +339,7 @@ class ConstraintHandler:
             scheduling_due = float("inf")
             due_related_sub_name = None
             log.debug(
-                "No upcoming valid critical tasks found in not_yet list. Assigning infinite scheduling_due."
+                f"현재 not yet list에 critical subtask가 존재하지 않아, scheduling due가 inf로 처리됩니다."
             )
         else:
             # Sort by logical start time to find the *next* critical scheduling_due
@@ -345,7 +351,6 @@ class ConstraintHandler:
             log.debug(
                 f"Next critical task '{due_related_sub_name}' sets scheduling_due at LogicalEST {scheduling_due:.2f}"
             )
-        # --- 수정 끝 ---
 
         # Assign the calculated scheduling_due to all feasible candidates (IN-PLACE)
         new_scheduling_due = SchedulingDue(
@@ -354,7 +359,6 @@ class ConstraintHandler:
         for feasible_candidate in feasible_candidates:
             feasible_candidate.scheduling_due = new_scheduling_due
 
-        # 로깅 추가 (할당된 데드라인 확인)
         if feasible_candidates:
             log.debug(
                 f"Assigned scheduling_due {new_scheduling_due} to {len(feasible_candidates)} feasible candidates."
