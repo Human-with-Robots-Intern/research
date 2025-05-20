@@ -180,8 +180,8 @@ class ConstraintHandler:
         태스크 'sub'의 논리적 최소 시작 시간을 계산합니다.(시간 제약 상에서 최소 시작 시간)
         선행 태스크 완료 시간과 제약 시간 간격을 기반으로 합니다.
         선행 작업이 아직 완료되지 않은 경우, feasible_candidates/not_yet_candidates에서 예상 완료 시점을 추정하여 반환.
-        반환: (logical_interaction_start_time, is_critical, status)
-        Status: "COMPLETED", "NOT_READY", "FAILED_PREDECESSOR", "CONSTRAINT_ERROR", "CONFLICT", "PROVISIONAL"
+        반환: (logical_interaction_start_time(절대 시간계), is_critical, status)
+        Status: "COMPLETED", "NOT_READY", "FAILED_PREDECESSOR", "CONSTRAINT_ERROR", "CONFLICT"
         """
 
         curr_constraints = curr_node.state.constraints
@@ -238,40 +238,49 @@ class ConstraintHandler:
                 pred_status = pred_entry.sched_execution_status
                 if pred_status is False:
                     any_predecessor_failed = True
-                    failure_reason = f"Predecessor '{pred_name}' explicitly FAILED."
+                    failure_reason = (
+                        f"Predecessor '{pred_name}' sched execution status FAILED."
+                    )
                     log.warning(f"'{sub.name}' cannot start: {failure_reason}")
                     break
             pred_end_time = pred_entry.schedule_end_time
             curr_logical_interaction_start_time = pred_end_time + interval
+
+            # Critical / Non-critical 분리
             if is_crit:
                 critical_times.append(curr_logical_interaction_start_time)
             else:
                 non_critical_earliest_start = max(
                     non_critical_earliest_start, curr_logical_interaction_start_time
                 )
+        # 선행 작업 성공 / 실패 여부 확인
         if any_predecessor_failed:
             log.info(
                 f"Final status for '{sub.name}': FAILED_PREDECESSOR ({failure_reason})"
             )
             return None, False, "FAILED_PREDECESSOR"
+
         if all_predecessors_finished:
             final_start_time = 0.0
             is_final_critical = False
             tc_conflict_detected = False
             if critical_times:
+
+                # 하나의 Subtask u,v pair 간 복수의 Critical 제약이 존재하는 경우,
                 earliest_critical_time = min(critical_times)
                 latest_critical_time = max(critical_times)
-                if abs(earliest_critical_time - latest_critical_time) > 1e-6:
+                if abs(earliest_critical_time - latest_critical_time) > EPSILON:
                     log.error(
                         f"CRITICAL CONSTRAINT CONFLICT for '{sub.name}': Multiple distinct critical start times required: {sorted(critical_times)}. Check constraint logic."
                     )
                     tc_conflict_detected = True
                 else:
                     final_start_time = earliest_critical_time
+
                 is_final_critical = True
                 if (
                     not tc_conflict_detected
-                    and 1e-6 < non_critical_earliest_start - final_start_time
+                    and EPSILON < non_critical_earliest_start - final_start_time
                 ):
                     log.error(
                         f"CRITICAL/NON-CRITICAL CONFLICT for '{sub.name}': Required critical start {final_start_time:.2f} "
@@ -284,51 +293,12 @@ class ConstraintHandler:
             else:
                 final_start_time = non_critical_earliest_start
                 is_final_critical = False
+
             log.debug(
                 f"Final status for '{sub.name}': COMPLETED. Earliest logical start: {final_start_time:.2f} (Critical: {is_final_critical})"
             )
             return (final_start_time, is_final_critical, "COMPLETED")
 
-        # --- 새로운 방식: 선행 작업이 아직 완료되지 않은 경우, 잠정적 LST 추정 ---
-        feasible_candidates = getattr(curr_node, "feasible_candidates", None)
-        not_yet_candidates = getattr(curr_node, "not_yet_candidates", None)
-        latest_pred_end = None
-        is_provisional = False
-        for pred_name, _, edge_data in in_edges:
-            info = edge_data.get("info", {})
-            interval = float(info.get("Interval", 0.0))
-            pred_candidate = None
-            if feasible_candidates:
-                pred_candidate = next(
-                    (c for c in feasible_candidates if c.subtask.name == pred_name),
-                    None,
-                )
-            if not pred_candidate and not_yet_candidates:
-                pred_candidate = next(
-                    (c for c in not_yet_candidates if c.subtask.name == pred_name), None
-                )
-            if (
-                pred_candidate
-                and getattr(pred_candidate, "actual_interaction_start_time", None)
-                is not None
-            ):
-                pred_end = pred_candidate.actual_interaction_start_time
-                if hasattr(pred_candidate, "subtask") and hasattr(
-                    pred_candidate.subtask, "duration"
-                ):
-                    pred_end += getattr(pred_candidate.subtask.duration, "interval", 0)
-                pred_end += interval
-                is_provisional = True
-            else:
-                pred_end = None
-            if pred_end is not None:
-                if latest_pred_end is None or pred_end > latest_pred_end:
-                    latest_pred_end = pred_end
-        if latest_pred_end is not None:
-            log.debug(
-                f"Final status for '{sub.name}': PROVISIONAL. Estimated logical start: {latest_pred_end:.2f}"
-            )
-            return latest_pred_end, False, "PROVISIONAL"
         log.debug(f"Final status for '{sub.name}': NOT_READY (no predecessor info)")
         return None, False, "NOT_READY"
 
@@ -344,10 +314,8 @@ class ConstraintHandler:
         Modifies the feasible list IN-PLACE.
         """
         # Find the earliest logical start time among upcoming critical tasks
-        # --- 수정: 상태 확인 제거 (get_logical_interaction_start_time에서 이미 실패/충돌 걸러짐) ---
         crit_candidates = [c for c in not_yet_candidates if c.is_critical]
 
-        # --- 수정: logical_interaction_start_time 유효성 확인 및 정렬 ---
         valid_crit_candidates = []
         for critical_candidate in crit_candidates:
             if (
