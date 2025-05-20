@@ -175,14 +175,18 @@ class ConstraintHandler:
 
     def get_logical_interaction_start_time(
         self, curr_node: SimulationNode, sub: Subtask
-    ) -> Tuple[Optional[float], bool, str]:
+    ) -> tuple:
         """
         태스크 'sub'의 논리적 최소 시작 시간을 계산합니다.(시간 제약 상에서 최소 시작 시간)
         선행 태스크 완료 시간과 제약 시간 간격을 기반으로 합니다.
+        선행 작업이 아직 완료되지 않은 경우, feasible_candidates/not_yet_candidates에서 예상 완료 시점을 추정하여 반환.
         반환: (logical_interaction_start_time, is_critical, status)
-        Status: "COMPLETED", "NOT_READY", "FAILED_PREDECESSOR", "CONSTRAINT_ERROR", "CONFLICT"
+        Status: "COMPLETED", "NOT_READY", "FAILED_PREDECESSOR", "CONSTRAINT_ERROR", "CONFLICT", "PROVISIONAL"
         """
-        # * 제약 그래프 유효성 검사
+        import networkx as nx
+
+        from src.models.dataclass import CompletedEntry
+
         curr_constraints = curr_node.state.constraints
         if not curr_constraints or not isinstance(curr_constraints, nx.DiGraph):
             log.error(
@@ -200,145 +204,128 @@ class ConstraintHandler:
             log.debug(
                 f"Subtask '{sub.name}' not found in constraint graph. Assuming ready at time 0."
             )
-            # ! 제약 그래프에 없는 태스크는 선행 조건 없이 즉시 가능하다고 간주 (시간 0) <= 확인 필요
-            return 0.0, False, "COMPLETED"  # 상태 COMPLETED로 명시
+            return 0.0, False, "COMPLETED"
 
-        # Create a map for faster lookup of completed task entries
         completed_subtasks_map = {
             ce.subtask.name: ce for ce in curr_node.state.completed_entries
         }
 
-        # * 선행 태스크 조회
         in_edges = list(curr_constraints.in_edges(sub.name, data=True))
         if not in_edges:
-            # * 선행 태스크 없음, 즉시 가능
             log.debug(f"Subtask '{sub.name}' has no predecessors. Ready at time 0.")
             return 0.0, False, "COMPLETED"
 
-        # * 최소 시작 시간 계산
+        # --- 기존 방식: 선행 작업이 모두 완료된 경우 ---
         critical_times = []
         non_critical_earliest_start = 0.0
-        # 일단, 성공으로 가정하고 시작
         all_predecessors_finished = True
         any_predecessor_failed = False
-        failure_reason = ""  # 실패 이유 로깅용
-
+        failure_reason = ""
         for pred_name, _, edge_data in in_edges:
             info = edge_data.get("info", {})
-            interval = float(
-                info.get("Interval", 0.0)
-            )  # Time gap after predecessor ends
-            is_crit = info.get(
-                "IsCritical", False
-            )  # Is this a critical timing constraint?
-
-            # Find the completion entry for the predecessor
+            interval = float(info.get("Interval", 0.0))
+            is_crit = info.get("IsCritical", False)
             pred_entry: CompletedEntry = completed_subtasks_map.get(pred_name, None)
-
             if pred_entry is None:
-                # If any predecessor is not yet completed
                 all_predecessors_finished = False
-                log.debug(
-                    f"Predecessor '{pred_name}' for '{sub.name}' not completed yet."
-                )
-                # Continue checking other predecessors for potential failures, but cannot determine start time yet
-                continue  # Cannot calculate start time if a predecessor is not finished
-
-            # --- Check predecessor execution status ---
+                continue
             if hasattr(pred_entry, "execution_status"):
-                # * 선행 작업의 작업 실패 또한 확인
                 pred_status = pred_entry.execution_status
-                if pred_status is False:  # 명시적으로 False인 경우만 실패
+                if pred_status is False:
                     any_predecessor_failed = True
                     failure_reason = f"Predecessor '{pred_name}' explicitly FAILED."
                     log.warning(f"'{sub.name}' cannot start: {failure_reason}")
                     break
-                elif pred_status is None:
-                    log.warning(
-                        f"Predecessor '{pred_name}' completed but 'execution_status' is None. Assuming SUCCESS."
-                    )
-            else:
-                # 속성 자체가 없는 경우 (레거시 또는 오류), 기본값 True 가정은 유지하되 경고
-                log.warning(
-                    f"Predecessor '{pred_name}' completed but lacks 'execution_status' attribute. Assuming SUCCESS."
-                )
-
-            # --- Calculate potential start time based on this predecessor ---
-            # (any_predecessor_failed가 True면 이 부분은 실행되지 않음)
             pred_end_time = pred_entry.schedule_end_time
             curr_logical_interaction_start_time = pred_end_time + interval
-
             if is_crit:
                 critical_times.append(curr_logical_interaction_start_time)
             else:
-                # For non-critical, the task can only start after the latest predecessor finishes
                 non_critical_earliest_start = max(
                     non_critical_earliest_start, curr_logical_interaction_start_time
                 )
-
-        # --- Determine final result based on checks ---
         if any_predecessor_failed:
             log.info(
                 f"Final status for '{sub.name}': FAILED_PREDECESSOR ({failure_reason})"
             )
             return None, False, "FAILED_PREDECESSOR"
-
-        if not all_predecessors_finished:
-            log.debug(f"Final status for '{sub.name}': NOT_READY")
-            return None, False, "NOT_READY"
-
-        # --- Check for conflicts if all predecessors completed successfully ---
-        final_start_time = 0.0
-        is_final_critical = False  # 최종 타임슬롯이 크리티컬 여부
-        tc_conflict_detected = False  # 충돌 상태 플래그
-
-        if critical_times:
-            # If there are critical constraints, find the earliest and latest required start times
-            earliest_critical_time = min(critical_times)
-            latest_critical_time = max(critical_times)
-
-            # --- 수정: 충돌 검사 및 로깅 강화 ---
-            if (
-                abs(earliest_critical_time - latest_critical_time) > EPSILON
-            ):  # 수정된 허용 오차 사용
-                log.error(
-                    f"CRITICAL CONSTRAINT CONFLICT for '{sub.name}': Multiple distinct critical start times required: {sorted(critical_times)}. Check constraint logic."
-                )
-                # Policy: 충돌 시 실행 불가 처리 (또는 가장 늦은 시간 사용 등 정책 결정 필요)
-                # 현재: 실행 불가 (CONFLICT)
-                tc_conflict_detected = True
-            else:
-                # All critical times agree (within tolerance)
-                final_start_time = earliest_critical_time  # 또는 평균값 사용 등
-
-            is_final_critical = True
-
-            # Check non-critical conflict only if critical times were consistent
-            if (
-                not tc_conflict_detected
-                and EPSILON < non_critical_earliest_start - final_start_time
-            ):
-                log.error(
-                    f"CRITICAL/NON-CRITICAL CONFLICT for '{sub.name}': Required critical start {final_start_time:.2f} "
-                    f"is EARLIER than latest non-critical requirement {non_critical_earliest_start:.2f}. Check constraint logic."
-                )
-                # Policy: 충돌 시 실행 불가 처리
-                tc_conflict_detected = True
-
-            if tc_conflict_detected:
-                log.info(f"Final status for '{sub.name}': CONFLICT")
-                return None, True, "CONFLICT"  # is_critical=True 유지
-            # --- 수정 끝 ---
-        else:
-            # No critical constraints
-            final_start_time = non_critical_earliest_start
+        if all_predecessors_finished:
+            final_start_time = 0.0
             is_final_critical = False
+            tc_conflict_detected = False
+            if critical_times:
+                earliest_critical_time = min(critical_times)
+                latest_critical_time = max(critical_times)
+                if abs(earliest_critical_time - latest_critical_time) > 1e-6:
+                    log.error(
+                        f"CRITICAL CONSTRAINT CONFLICT for '{sub.name}': Multiple distinct critical start times required: {sorted(critical_times)}. Check constraint logic."
+                    )
+                    tc_conflict_detected = True
+                else:
+                    final_start_time = earliest_critical_time
+                is_final_critical = True
+                if (
+                    not tc_conflict_detected
+                    and 1e-6 < non_critical_earliest_start - final_start_time
+                ):
+                    log.error(
+                        f"CRITICAL/NON-CRITICAL CONFLICT for '{sub.name}': Required critical start {final_start_time:.2f} "
+                        f"is EARLIER than latest non-critical requirement {non_critical_earliest_start:.2f}. Check constraint logic."
+                    )
+                    tc_conflict_detected = True
+                if tc_conflict_detected:
+                    log.info(f"Final status for '{sub.name}': CONFLICT")
+                    return None, True, "CONFLICT"
+            else:
+                final_start_time = non_critical_earliest_start
+                is_final_critical = False
+            log.debug(
+                f"Final status for '{sub.name}': COMPLETED. Earliest logical start: {final_start_time:.2f} (Critical: {is_final_critical})"
+            )
+            return (final_start_time, is_final_critical, "COMPLETED")
 
-        # 모든 검사 통과
-        log.debug(
-            f"Final status for '{sub.name}': COMPLETED. Earliest logical start: {final_start_time:.2f} (Critical: {is_final_critical})"
-        )
-        return (final_start_time, is_final_critical, "COMPLETED")
+        # --- 새로운 방식: 선행 작업이 아직 완료되지 않은 경우, 잠정적 LST 추정 ---
+        feasible_candidates = getattr(curr_node, "feasible_candidates", None)
+        not_yet_candidates = getattr(curr_node, "not_yet_candidates", None)
+        latest_pred_end = None
+        is_provisional = False
+        for pred_name, _, edge_data in in_edges:
+            info = edge_data.get("info", {})
+            interval = float(info.get("Interval", 0.0))
+            pred_candidate = None
+            if feasible_candidates:
+                pred_candidate = next(
+                    (c for c in feasible_candidates if c.subtask.name == pred_name),
+                    None,
+                )
+            if not pred_candidate and not_yet_candidates:
+                pred_candidate = next(
+                    (c for c in not_yet_candidates if c.subtask.name == pred_name), None
+                )
+            if (
+                pred_candidate
+                and getattr(pred_candidate, "actual_interaction_start_time", None)
+                is not None
+            ):
+                pred_end = pred_candidate.actual_interaction_start_time
+                if hasattr(pred_candidate, "subtask") and hasattr(
+                    pred_candidate.subtask, "duration"
+                ):
+                    pred_end += getattr(pred_candidate.subtask.duration, "interval", 0)
+                pred_end += interval
+                is_provisional = True
+            else:
+                pred_end = None
+            if pred_end is not None:
+                if latest_pred_end is None or pred_end > latest_pred_end:
+                    latest_pred_end = pred_end
+        if latest_pred_end is not None:
+            log.debug(
+                f"Final status for '{sub.name}': PROVISIONAL. Estimated logical start: {latest_pred_end:.2f}"
+            )
+            return latest_pred_end, False, "PROVISIONAL"
+        log.debug(f"Final status for '{sub.name}': NOT_READY (no predecessor info)")
+        return None, False, "NOT_READY"
 
     def _assign_scheduling_due(
         self,
