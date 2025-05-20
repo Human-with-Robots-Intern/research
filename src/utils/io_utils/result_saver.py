@@ -69,6 +69,7 @@ def calculate_timing_success_rate(
         timing_success_flag = False
         total_timing_constraints += 1
         edge_info = data.get("info", {})
+
         interval = edge_info.get("Interval", 0)  # interval이 없으면 0으로 처리
         is_critical = edge_info.get("IsCritical")
 
@@ -111,8 +112,11 @@ def calculate_timing_success_rate(
             if succ_start_time_sched >= pred_end_time_sched + interval:
                 succeeded_timing_constraints_sched_cnt += 1
 
+        # 제약 시작 작업 끝 작업, 원본 제약 기준 (interval, is_critical)
+        # 실제 스케쥴 결과 : pred_end_time_sched -> succ_start_time_sched,
+        log.info(f"Original Timing Constraint : {u} -> {v} ({interval}, {is_critical})")
         log.info(
-            f"Timing Success Rate [{timing_success_flag}] - {pred_end_time_sched} -> {succ_start_time_sched}"
+            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s"
         )
 
     timing_success_rate_sim = (
