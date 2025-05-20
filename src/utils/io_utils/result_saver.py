@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,8 @@ if TYPE_CHECKING:
 from utils.common.logger import create_module_logger
 from utils.config.constants import RESULT_PATH
 from utils.visualizers.visualizer import visualize
+
+log = create_module_logger(__name__, module_log=True, level=logging.INFO)
 
 
 def get_now_str(fmt: str = "%Y-%m-%d %H:%M") -> str:
@@ -58,11 +61,12 @@ def calculate_timing_success_rate(
     constraints 의 모든 edge를 확인해서 plans의 결과를 토대로 timing constraint 준수율을 계산한다.
     """
     total_timing_constraints = 0
-    succeeded_timing_constraints_sim = 0
-    succeeded_timing_constraints_sched = 0
+    succeeded_timing_constraints_sim_cnt = 0
+    succeeded_timing_constraints_sched_cnt = 0
 
     # 모든 edge를 순회하며 timing constraint 검사
     for u, v, data in constraints.edges(data=True):
+        timing_success_flag = False
         total_timing_constraints += 1
         edge_info = data.get("info", {})
         interval = edge_info.get("Interval", 0)  # interval이 없으면 0으로 처리
@@ -95,23 +99,29 @@ def calculate_timing_success_rate(
                 interval * 0.1
             )  # 10% 허용 오차 #추후에 interval의 std를 확인해서 허용오차를 조정해야함.
             if abs(succ_start_time_sim - expected_start_sim) <= tolerance:
-                succeeded_timing_constraints_sim += 1
+                timing_success_flag = True
+                succeeded_timing_constraints_sim_cnt += 1
             if abs(succ_start_time_sched - expected_start_sched) <= tolerance:
-                succeeded_timing_constraints_sched += 1
+                succeeded_timing_constraints_sched_cnt += 1
         else:
             # Non-critical edge: interval 이후에 시작하면 됨
             if succ_start_time_sim >= pred_end_time_sim + interval:
-                succeeded_timing_constraints_sim += 1
+                timing_success_flag = True
+                succeeded_timing_constraints_sim_cnt += 1
             if succ_start_time_sched >= pred_end_time_sched + interval:
-                succeeded_timing_constraints_sched += 1
+                succeeded_timing_constraints_sched_cnt += 1
+
+        log.info(
+            f"Timing Success Rate [{timing_success_flag}] - {pred_end_time_sched} -> {succ_start_time_sched}"
+        )
 
     timing_success_rate_sim = (
-        succeeded_timing_constraints_sim / total_timing_constraints
+        succeeded_timing_constraints_sim_cnt / total_timing_constraints
         if total_timing_constraints != 0
         else None
     )
     timing_success_rate_sched = (
-        succeeded_timing_constraints_sched / total_timing_constraints
+        succeeded_timing_constraints_sched_cnt / total_timing_constraints
         if total_timing_constraints != 0
         else None
     )
@@ -146,7 +156,7 @@ def result_save(
     log_level: str = "INFO",
 ):
     global log
-    log = create_module_logger(__name__, module_log=True, level=log_level)
+
     success_rate, simulation_makespan, scheduler_makespan = compose_plans(
         result_schedule, task_name
     )
