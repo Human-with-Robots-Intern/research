@@ -489,7 +489,7 @@ def main():
             # Update the entry with simulation times and execution status
             entry.sim_start_time = simulation_current_time
             entry.sim_end_time = simulation_current_time + subtask_time
-            entry.sched_execution_status = execution_status
+            entry.execution_status = execution_status
             entry.sim_nav_time = sim_nav_time
             simulation_current_time += subtask_time
 

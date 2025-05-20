@@ -67,12 +67,7 @@ class ActionHandler:
             return None
 
         # 마지막 ActionResult 가져오기
-        last_action_result = action_sim_info.results[-1]
-
-        # first_navigate_duration 속성 추가 (존재하지 않으면 생성)
-        # ActionResult dataclass에 first_navigate_duration 필드가 Optional[float] = None 로 정의되어 있다고 가정합니다.
-        # 그렇지 않다면, setattr을 사용하거나 dataclass를 수정해야 합니다.
-        # 여기서는 ActionResult가 해당 필드를 가지고 있다고 가정하고 진행합니다.
+        last_action_result: ActionResult = action_sim_info.results[-1]
 
         first_nav_duration = 0.0
         if action_sim_info.results:  # 결과가 하나라도 있는지 확인
@@ -80,18 +75,14 @@ class ActionHandler:
             if first_action_in_log.action_type.upper() == "NAVIGATE_TO":
                 first_nav_duration = first_action_in_log.action_duration
 
-        # ActionResult dataclass에 first_navigate_duration 필드가 있다고 가정하고 직접 할당
-        # 만약 필드가 없다면, 아래 코드는 AttributeError를 발생시킵니다.
-        # 이 경우, ActionResult dataclass 정의를 수정하거나, 다른 방식으로 정보를 전달해야 합니다.
         try:
-            last_action_result.first_navigate_duration = first_nav_duration
+            last_action_result.first_nav_duration = first_nav_duration
         except AttributeError:
             log.warning(
-                "ActionResult dataclass does not have 'first_navigate_duration' attribute. "
+                "ActionResult dataclass does not have 'first_nav_duration' attribute. "
                 "This information will not be directly added to the returned ActionResult object. "
                 "Consider modifying the ActionResult dataclass or using the ActionSimulationLog object."
             )
-            
 
         return last_action_result
 

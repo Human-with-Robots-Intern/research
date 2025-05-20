@@ -87,7 +87,7 @@ class ActionResult:
     scene_positions: dict[str, Tuple[float, float, float]]
     held_object: Optional[str] = None
     success: bool = False
-    first_navigate_duration: Optional[float] = None
+    first_nav_duration: Optional[float] = None
 
     def __repr__(self):
         return f"({self.action_full_name}, {self.action_type}, {self.cumulative_time}, {self.action_duration}, {self.held_object})"
@@ -184,13 +184,11 @@ class CompletedEntry:
     actual_first_nav_duration: Optional[float] = None
     sim_nav_time: Optional[float] = None
     schedule_nav_time: Optional[float] = None
-    # Sched, Sim, Actual 실행 상태
-    sched_execution_status: bool = False
-    sim_execution_status: bool = False
-    actual_execution_status: bool = False
+    # Simulation / Real-world에서 실행 성공 상태
+    execution_status: bool = False
 
     def __repr__(self):
-        return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time}, {self.sim_start_time} ~ {self.sim_end_time}, {self.sched_execution_status})"
+        return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time}, {self.sim_start_time} ~ {self.sim_end_time}, {self.execution_status})"
 
 
 @dataclass

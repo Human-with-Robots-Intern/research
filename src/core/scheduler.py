@@ -599,8 +599,7 @@ class Scheduler:
         Expands a non-monitoring subtask. The subtask is executed fully at once.
         Navigation (if any, as first_nav_duration) + Interaction are performed.
         """
-        if candidate.subtask.name.startswith("EARLY"):
-            print(candidate.subtask.execution.primitive_actions)
+
         curr_state = curr_node.state
         curr_cost = curr_node.heuristic_cost
         curr_depth = curr_node.depth
@@ -639,9 +638,9 @@ class Scheduler:
 
         if (
             candidate.scheduling_due
-            and candidate.scheduling_due.due_date
-            < planned_subtask_completion_time - EPSILON
+            and candidate.scheduling_due.due_date <= planned_subtask_completion_time
         ):
+            # 현재 candidate의 완료 시간이 due_date를 넘는 경우에는 Infeasible case; 확장 불가ㄴ
             log.warning(
                 f"Scheduling due {candidate.scheduling_due.due_date:.2f} < "
                 f"planned_subtask_completion_time {planned_subtask_completion_time:.2f} for {original_task_name}. Infeasible."
@@ -651,6 +650,9 @@ class Scheduler:
         copied_sub = copy.deepcopy(candidate.subtask)
         copied_sub.duration.total_time = total_subtask_duration_from_sim
 
+        # Tree 확장용으로 CompletedEntry의 execution status를 action_handler sim 결과를 저장하게 함.
+        # 또한 저 멤버에는 실제 실행 성공 여부도 포함됨... 음... 이래도 되려나?
+
         sim_success_status = (
             executed_action_info.success if executed_action_info else False
         )
@@ -659,8 +661,8 @@ class Scheduler:
             subtask=copied_sub,
             schedule_start_time=planned_nav_start_time,
             schedule_end_time=planned_subtask_completion_time,
-            schedule_nav_time=executed_action_info.first_navigate_duration,
-            sched_execution_status=sim_success_status,
+            schedule_nav_time=executed_action_info.first_nav_duration,
+            execution_status=sim_success_status,
         )
         new_completed = curr_state.completed_entries + [completed_entry]
         new_remain = [
@@ -714,11 +716,11 @@ class Scheduler:
         original_task_name = (
             candidate.subtask.name
         )  # 분할 대상 태스크 (인터리빙 태스크)
+
         log.debug(
             f"[_expand_subtask_with_monitoring - Policy 2] Attempting to split {original_task_name} for monitoring."
         )
-
-        # --- Phase 1: 모니터링 컨텍스트 정의 (기존과 유사) ---
+        # Critical Subtask가 Not yet에 없는 경우에는 Monitoring할 필요가 없음
         if not candidate.scheduling_due or candidate.scheduling_due.due_date == float(
             "inf"
         ):
@@ -763,23 +765,13 @@ class Scheduler:
             critical_start_completed_entry.schedule_end_time
         )
 
-        critical_start_sub_last_interacted_object_name: Optional[str] = None
-        if (
-            critical_start_completed_entry.subtask.execution
-            and critical_start_completed_entry.subtask.execution.primitive_actions
-        ):
-            last_action_str = (
-                critical_start_completed_entry.subtask.execution.primitive_actions[-1]
-            )
-            action_parts = last_action_str.split()
-            if len(action_parts) > 1:
-                critical_start_sub_last_interacted_object_name = action_parts[1]
-            else:
-                log.warning(
-                    f"Could not parse object from last action '{last_action_str}' of {critical_start_sub_name}."
-                )
+        monitoring_target_obj = next(
+            remain_sub.execution.primitive_actions[0].split()[1]
+            for remain_sub in curr_node.state.remaining_subtasks
+            if remain_sub.name == critical_end_sub_name
+        )
 
-        if not critical_start_sub_last_interacted_object_name:
+        if not monitoring_target_obj:
             log.warning(
                 f"Could not determine last interacted object for critical_start_subtask '{critical_start_sub_name}'. "
                 f"Monitoring subtask cannot be created correctly. Fallback for {original_task_name}."
@@ -787,11 +779,12 @@ class Scheduler:
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
         log.debug(
-            f"Main monitoring context for {original_task_name}: CritStart='{critical_start_sub_name}' (ends {critical_start_sub_actual_end_time:.2f}, last_obj='{critical_start_sub_last_interacted_object_name}'), "
+            f"Main monitoring context for {original_task_name}: CritStart='{critical_start_sub_name}' (ends {critical_start_sub_actual_end_time:.2f}, last_obj='{monitoring_target_obj}'), "
             f"CritEnd='{critical_end_sub_name}', OriginalInterval={original_critical_interval_duration:.2f}."
         )
 
         # --- Phase 2: early_sub 실행 시간 계산 및 조정 (정책 2 - 1.1.3) ---
+
         original_absolute_monitoring_trigger_time = (
             critical_start_sub_actual_end_time
             + (original_critical_interval_duration * BAYESIAN_CRITERIA)
@@ -819,10 +812,9 @@ class Scheduler:
         )
 
         should_even_try_split = (
-            curr_state.current_time
-            < original_absolute_monitoring_trigger_time - EPSILON
+            curr_state.current_time < original_absolute_monitoring_trigger_time
             and candidate_expected_completion_time_wo_split
-            > original_absolute_monitoring_trigger_time - EPSILON
+            > original_absolute_monitoring_trigger_time
         )
         if not should_even_try_split:
             log.debug(
@@ -857,7 +849,9 @@ class Scheduler:
                 f"Failed to get valid early_actions from split for {original_task_name} with cutoff {duration_for_early_sub_target:.2f}. Will try to add WAIT or fallback."
             )
 
+        # ? 남는 시간을 subtask를 expansion하게 해야 하는거 아닌가?
         if actual_early_sub_duration < duration_for_early_sub_target:
+            # return self._expand_subtask_wo_monitoring(curr_node, candidate)
             log.debug(
                 f"Early actions for {original_task_name} are too short (duration: {actual_early_sub_duration:.2f}) or empty. Attempting to add WAIT."
             )
@@ -866,7 +860,7 @@ class Scheduler:
             )
 
             if remaining_time_to_fill > EPSILON:
-                wait_action_str = f"WAIT {remaining_time_to_fill:.2f}"
+                wait_action_str = f"WAIT {remaining_time_to_fill}"
                 early_sub_actions.append(wait_action_str)
 
                 actual_early_sub_duration += remaining_time_to_fill
@@ -877,13 +871,6 @@ class Scheduler:
                 log.debug(
                     f"No significant time ({remaining_time_to_fill:.2f}) to fill with WAIT for early_sub of {original_task_name}."
                 )
-
-        if not early_sub_actions:
-            log.warning(
-                f"Even after attempting to add WAIT, early_actions for {original_task_name} are empty (target duration {duration_for_early_sub_target:.2f} was too short). "
-                f"Fallback to non-monitoring."
-            )
-            return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
         # --- Phase 3: early_sub 확장 및 실제 모니터링 시점 결정 ---
         early_sub_task = copy.deepcopy(candidate.subtask)
@@ -928,7 +915,7 @@ class Scheduler:
         # --- Phase 4: mon_sub (주요 인터벌용) 및 remain_sub 생성 ---
         mon_sub_task_for_main_interval = TaskUtil.create_monitoring_subtask(
             name=f"{critical_end_sub_name}",
-            obj=critical_start_sub_last_interacted_object_name,
+            obj=monitoring_target_obj,
         )
         mon_sub_task_for_main_interval.decomposed = True
 
@@ -941,7 +928,9 @@ class Scheduler:
         if remain_sub_actions:
             remain_sub_task = copy.deepcopy(candidate.subtask)
             remain_sub_task.name = f"REMAIN_{original_task_name}"
-            remain_sub_task.execution.primitive_actions = remain_sub_actions
+            remain_sub_task.execution.primitive_actions = [
+                f"NAVIGATE_TO {remain_sub_actions[0].split()[1]}"
+            ] + remain_sub_actions
             remain_sub_task.decomposed = True
             log.debug(
                 f"Prepared REMAIN subtask: {remain_sub_task.name} with {len(remain_sub_actions)} actions."
@@ -1060,6 +1049,20 @@ class Scheduler:
         log.debug(
             f"Added/Updated main monitoring constraint: '{critical_start_sub_name}' -> '{mon_sub_task_for_main_interval.name}', Interval: {info_crit_start_to_mon['Interval']:.2f}."
         )
+
+        if new_constraints_graph.has_edge(
+            critical_start_sub_name, critical_end_sub_name
+        ):
+            edge_data = new_constraints_graph.get_edge_data(
+                critical_start_sub_name, critical_end_sub_name
+            )
+            if edge_data and edge_data.get("info", {}).get("IsCritical", False):
+                new_constraints_graph.remove_edge(
+                    critical_start_sub_name, critical_end_sub_name
+                )
+                log.debug(
+                    f"Removed old direct critical edge: '{critical_start_sub_name}' -> '{critical_end_sub_name}'"
+                )
 
         mon_duration = MONITORING_DURATION
         if (
@@ -1217,7 +1220,7 @@ class Scheduler:
             schedule_start_time=start_time,
             schedule_end_time=end_time,
             schedule_nav_time=nav_time,
-            sched_execution_status=True,
+            execution_status=True,
         )
         new_completed = curr_state.completed_entries + [completed_entry]
 
@@ -1313,7 +1316,7 @@ class Scheduler:
             schedule_start_time=start_time,
             schedule_end_time=end_time,
             schedule_nav_time=0.0,
-            sched_execution_status=True,
+            execution_status=True,
         )
         new_completed = curr_state.completed_entries + [completed_entry]
 

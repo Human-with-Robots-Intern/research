@@ -453,7 +453,7 @@ def _run_simulation_step(
             if hasattr(last_entry, "sim_end_time"):
                 last_entry.sim_end_time = sim_end_time
             if hasattr(last_entry, "execution_status"):
-                last_entry.sched_execution_status = execution_status
+                last_entry.execution_status = execution_status
             if hasattr(last_entry, "computation_time"):
                 last_entry.computation_time = current_step_computation_time
 
@@ -630,7 +630,7 @@ def _process_simulation_results(
     except NameError:
         log.warning("'compose_plans' function not found. Using basic aggregation.")
         success_rate = (
-            sum(1 for entry in result_schedule if entry.sched_execution_status)
+            sum(1 for entry in result_schedule if entry.execution_status)
             / len(result_schedule)
             if result_schedule
             else 0.0
@@ -743,10 +743,7 @@ def run_schedule_and_get_result(
 
             if stop_loop:
                 if current_state is None:
-                    if (
-                        result_schedule
-                        and not result_schedule[-1].sched_execution_status
-                    ):
+                    if result_schedule and not result_schedule[-1].execution_status:
                         final_status = "Failed (Execution)"
                     else:
                         final_status = "Failed (Planning/State Error)"

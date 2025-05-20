@@ -238,7 +238,7 @@ class ConstraintHandler:
                 continue
 
             if hasattr(pred_entry, "execution_status"):
-                pred_status = pred_entry.sched_execution_status
+                pred_status = pred_entry.execution_status
                 if pred_status is False:
                     any_predecessor_failed = True
                     failure_reason = (
