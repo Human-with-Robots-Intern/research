@@ -20,7 +20,7 @@ RESULT_PATH = ASSETS_PATH / "results"
 
 
 # ========== 파일명 상수 ==========
-PROMPT_FILE_PATH = "e2e_generator_ver5.txt"
+PROMPT_FILE_PATH = "e2e_generator_ver7.txt"
 ESTIMATE_FILE_NAME = "bayesian_estimate.json"
 GROUND_TRUTH_FILE_NAME = "bayesian_ground_truth.json"
 
@@ -69,15 +69,16 @@ ALPHA_HEURISTIC = 2.0
 BETA_HEURISTIC = 3.0
 GAMMA_HEURISTIC = 0.3
 # ========== 베이지안 ==========
-BAYESIAN_CRITERIA = 0.7
+BAYESIAN_CRITERIA = 0.3
 INIT_PRIOR_MEAN = 10.0
 INIT_PRIOR_VARIANCE = 100.0
-FACTOR_ALPHA = 1.0
+FACTOR_ALPHA = 0.3
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
+TIMING_TOLERANCE = 0.15
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 2
-BEAM_WIDTH = 2
+SIMULATION_DEPTH = 3
+BEAM_WIDTH = 3
 EPSILON = 1e-1
 LARGE_NUMBER = 1e2
 TOP_K = 1

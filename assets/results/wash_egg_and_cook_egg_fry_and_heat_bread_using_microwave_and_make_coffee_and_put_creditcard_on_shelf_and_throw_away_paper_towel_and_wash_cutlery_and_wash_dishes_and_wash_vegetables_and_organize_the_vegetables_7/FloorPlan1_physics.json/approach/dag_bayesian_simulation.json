@@ -1,147 +1,182 @@
 {
-    "saved_time": "2025-05-15 17:06",
+    "saved_time": "2025-05-21 16:44",
     "approach": "dag_bayesian_simulation",
     "scene_name": "FloorPlan1_physics.json",
     "plans": [
         {
-            "plan_name": "wash_egg_and_cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee_and_put_creditcard_on_shelf_and_throw_away_paper_towel_and_wash_cutlery_and_wash_dishes_and_wash_vegetables_and_organize_the_vegetables",
-            "subtasks": [
-                {
-                    "subtask_name": "Wash Egg",
-                    "start_time_simulation": 0,
-                    "end_time_simulation": 13.3,
-                    "start_time_scheduled": 0,
-                    "end_time_scheduled": 10.6,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Prepare Egg Fry",
-                    "start_time_simulation": 13.3,
-                    "end_time_simulation": 29.5,
-                    "start_time_scheduled": 10.6,
-                    "end_time_scheduled": 24.8,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Wash Fork",
-                    "start_time_simulation": 29.5,
-                    "end_time_simulation": 42.7,
-                    "start_time_scheduled": 24.8,
-                    "end_time_scheduled": 35.5,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Place CreditCard on Shelf",
-                    "start_time_simulation": 42.7,
-                    "end_time_simulation": 50.9,
-                    "start_time_scheduled": 35.5,
-                    "end_time_scheduled": 42.9,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Wash Plate_part_1",
-                    "start_time_simulation": 50.9,
-                    "end_time_simulation": 64.3,
-                    "start_time_scheduled": 42.9,
-                    "end_time_scheduled": 53.6,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Wash Plate_part_2",
-                    "start_time_simulation": 64.3,
-                    "end_time_simulation": 75.3,
-                    "start_time_scheduled": 53.6,
-                    "end_time_scheduled": 62.8,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Wash Plate_part_3",
-                    "start_time_simulation": 75.3,
-                    "end_time_simulation": 86.3,
-                    "start_time_scheduled": 62.8,
-                    "end_time_scheduled": 72.0,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Place Bread in Microwave",
-                    "start_time_simulation": 86.3,
-                    "end_time_simulation": 93.5,
-                    "start_time_scheduled": 72.0,
-                    "end_time_scheduled": 78.1,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Start Microwave",
-                    "start_time_simulation": 93.5,
-                    "end_time_simulation": 94.6,
-                    "start_time_scheduled": 78.1,
-                    "end_time_scheduled": 79.1,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Wash Spoon",
-                    "start_time_simulation": 94.6,
-                    "end_time_simulation": 108.0,
-                    "start_time_scheduled": 79.1,
-                    "end_time_scheduled": 90.0,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Prepare Coffee",
-                    "start_time_simulation": 108.0,
-                    "end_time_simulation": 113.1,
-                    "start_time_scheduled": 90.0,
-                    "end_time_scheduled": 94.3,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "EARLY_Wash Lettuce",
-                    "start_time_simulation": 113.1,
-                    "end_time_simulation": 123.6,
-                    "start_time_scheduled": 94.3,
-                    "end_time_scheduled": 103.1,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Wash Tomato",
-                    "start_time_simulation": 123.6,
-                    "end_time_simulation": 134.6,
-                    "start_time_scheduled": 103.1,
-                    "end_time_scheduled": 112.4,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Place Tomato in Fridge",
-                    "start_time_simulation": 134.6,
-                    "end_time_simulation": 141.7,
-                    "start_time_scheduled": 112.4,
-                    "end_time_scheduled": 117.8,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Retrieve Coffee",
-                    "start_time_simulation": 141.7,
-                    "end_time_simulation": 146.1,
-                    "start_time_scheduled": 117.8,
-                    "end_time_scheduled": 121.7,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Retrieve Bread from Microwave",
-                    "start_time_simulation": 146.1,
-                    "end_time_simulation": 155.9,
-                    "start_time_scheduled": 121.7,
-                    "end_time_scheduled": 130.9,
-                    "execution_status": false
-                }
-            ]
+            "subtask_name": "Wash Egg",
+            "start_time_simulation": 0,
+            "end_time_simulation": 10.3,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 10.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 10.3,
+            "end_time_simulation": 16.5,
+            "start_time_scheduled": 10.3,
+            "end_time_scheduled": 16.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Start Microwave",
+            "start_time_simulation": 16.5,
+            "end_time_simulation": 17.6,
+            "start_time_scheduled": 16.3,
+            "end_time_scheduled": 17.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Potato in Fridge",
+            "start_time_simulation": 17.6,
+            "end_time_simulation": 25.3,
+            "start_time_scheduled": 17.3,
+            "end_time_scheduled": 24.6,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place CreditCard on Shelf",
+            "start_time_simulation": 25.3,
+            "end_time_simulation": 32.3,
+            "start_time_scheduled": 24.6,
+            "end_time_scheduled": 31.7,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Plate_part_1",
+            "start_time_simulation": 32.3,
+            "end_time_simulation": 42.7,
+            "start_time_scheduled": 31.7,
+            "end_time_scheduled": 42.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Plate_part_2",
+            "start_time_simulation": 42.7,
+            "end_time_simulation": 52.1,
+            "start_time_scheduled": 42.1,
+            "end_time_scheduled": 51.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Plate_part_3",
+            "start_time_simulation": 52.1,
+            "end_time_simulation": 61.5,
+            "start_time_scheduled": 51.1,
+            "end_time_scheduled": 60.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Tomato",
+            "start_time_simulation": 61.5,
+            "end_time_simulation": 70.5,
+            "start_time_scheduled": 60.1,
+            "end_time_scheduled": 69.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Tomato in Fridge",
+            "start_time_simulation": 70.5,
+            "end_time_simulation": 76.6,
+            "start_time_scheduled": 69.1,
+            "end_time_scheduled": 74.4,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Prepare Coffee",
+            "start_time_simulation": 76.6,
+            "end_time_simulation": 81.3,
+            "start_time_scheduled": 74.4,
+            "end_time_scheduled": 79.2,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Lettuce",
+            "start_time_simulation": 81.3,
+            "end_time_simulation": 89.8,
+            "start_time_scheduled": 79.2,
+            "end_time_scheduled": 87.7,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Lettuce in Fridge",
+            "start_time_simulation": 89.8,
+            "end_time_simulation": 95.5,
+            "start_time_scheduled": 87.7,
+            "end_time_scheduled": 93.0,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Retrieve Coffee",
+            "start_time_simulation": 95.5,
+            "end_time_simulation": 98.9,
+            "start_time_scheduled": 93.0,
+            "end_time_scheduled": 96.7,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Throw away Paper Towel",
+            "start_time_simulation": 98.9,
+            "end_time_simulation": 104.4,
+            "start_time_scheduled": 96.7,
+            "end_time_scheduled": 102.2,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Prepare Egg Fry",
+            "start_time_simulation": 104.4,
+            "end_time_simulation": 120.7,
+            "start_time_scheduled": 102.2,
+            "end_time_scheduled": 118.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Turn off Stove after cooking",
+            "start_time_simulation": 120.7,
+            "end_time_simulation": 129.4,
+            "start_time_scheduled": 118.1,
+            "end_time_scheduled": 126.8,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn off Stove after cooking",
+            "start_time_simulation": 129.4,
+            "end_time_simulation": 130.4,
+            "start_time_scheduled": 126.8,
+            "end_time_scheduled": 127.8,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Retrieve Bread from Microwave",
+            "start_time_simulation": 130.4,
+            "end_time_simulation": 137.4,
+            "start_time_scheduled": 127.8,
+            "end_time_scheduled": 135.0,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Fork",
+            "start_time_simulation": 137.4,
+            "end_time_simulation": 149.8,
+            "start_time_scheduled": 135.0,
+            "end_time_scheduled": 147.6,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Spoon",
+            "start_time_simulation": 149.8,
+            "end_time_simulation": 162.2,
+            "start_time_scheduled": 147.6,
+            "end_time_scheduled": 160.2,
+            "execution_status": true
         }
     ],
-    "computation_time": 49.19744,
-    "simulation_makespan": 155.9,
-    "scheduler_makespan": 130.9,
+    "computation_time": 5.90039,
+    "simulation_makespan": 162.2,
+    "scheduler_makespan": 160.2,
     "realworld_makespan": null,
-    "success_rate": 0.0,
-    "timing_success_rate_sim": 0.5833333333333334,
-    "timing_success_rate_sched": 0.5833333333333334
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0
 }

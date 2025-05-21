@@ -15,7 +15,7 @@ from src.utils.config import (
     INIT_PRIOR_MEAN,
     INIT_PRIOR_VARIANCE,
 )
-from utils.config.constants import AGENT_KNOWLEDGE_PATH, MIN_VARIANCE
+from utils.config.constants import AGENT_KNOWLEDGE_PATH, MIN_VARIANCE, TIMING_TOLERANCE
 from utils.nlp import SentenceSimilarityModel
 
 if TYPE_CHECKING:
@@ -122,6 +122,7 @@ class Agent:
 
         # 2) constraints 그래프 업데이트
         #    - (critical_start_sub_name, monitoring_target_sub_name)에 posterior_mean 반영
+
         nx.set_edge_attributes(
             state.constraints,
             {
@@ -230,19 +231,29 @@ class Agent:
             epsilon_k_sq + prior_variance
         )
 
-        self._update_knowledge_and_constraints(
-            state=state,
-            known_sub_name=known_sub_name_lower,
-            posterior_mean=posterior_mean,
-            posterior_variance=posterior_variance,
-            critical_start_sub_name=critical_start_sub_name,
-            monitoring_target_sub_name=monitoring_target_sub_name,
-            critical_start_sub_end_time=critical_start_sub_end_time,
-        )
-        monitored_subtask = {
-            "updated_subtask_name": critical_start_sub_name,
-            "original_expected_time": prior_mean,
-            "updated_expected_time": posterior_mean,
-            "ground_truth_time": gt_interval,
-        }
+        bayesian_diff = abs(posterior_mean - prior_mean) / prior_mean
+        if bayesian_diff > TIMING_TOLERANCE:
+            self._update_knowledge_and_constraints(
+                state=state,
+                known_sub_name=known_sub_name_lower,
+                posterior_mean=posterior_mean,
+                posterior_variance=posterior_variance,
+                critical_start_sub_name=critical_start_sub_name,
+                monitoring_target_sub_name=monitoring_target_sub_name,
+                critical_start_sub_end_time=critical_start_sub_end_time,
+            )
+            monitored_subtask = {
+                "updated_subtask_name": critical_start_sub_name,
+                "original_expected_time": prior_mean,
+                "updated_expected_time": posterior_mean,
+                "ground_truth_time": gt_interval,
+            }
+        else:
+            monitored_subtask = {
+                "updated_subtask_name": critical_start_sub_name,
+                "original_expected_time": prior_mean,
+                "updated_expected_time": prior_mean,
+                "ground_truth_time": gt_interval,
+            }
+
         return state, monitored_subtask

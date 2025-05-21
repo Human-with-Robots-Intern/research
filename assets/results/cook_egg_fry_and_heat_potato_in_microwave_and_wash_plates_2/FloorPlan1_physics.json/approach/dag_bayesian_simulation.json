@@ -1,0 +1,118 @@
+{
+    "saved_time": "2025-05-21 12:31",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1_physics.json",
+    "plans": [
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 0,
+            "end_time_simulation": 7.5,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 7.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Prepare Egg Fry",
+            "start_time_simulation": 7.5,
+            "end_time_simulation": 21.9,
+            "start_time_scheduled": 7.3,
+            "end_time_scheduled": 23.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Start Microwave for Potato",
+            "start_time_simulation": 21.9,
+            "end_time_simulation": 23.1,
+            "start_time_scheduled": 23.9,
+            "end_time_scheduled": 25.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 0.2",
+            "start_time_simulation": 23.1,
+            "end_time_simulation": 23.3,
+            "start_time_scheduled": 25.1,
+            "end_time_scheduled": 25.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn off stove after cooking_aa4d31b3",
+            "start_time_simulation": 23.3,
+            "end_time_simulation": 23.4,
+            "start_time_scheduled": 25.3,
+            "end_time_scheduled": 25.4,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Turn off stove after cooking",
+            "start_time_simulation": 23.4,
+            "end_time_simulation": 30.36,
+            "start_time_scheduled": 25.4,
+            "end_time_scheduled": 32.36,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn off stove after cooking",
+            "start_time_simulation": 30.36,
+            "end_time_simulation": 31.36,
+            "start_time_scheduled": 32.36,
+            "end_time_scheduled": 33.46,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Navigate to Microwave|-00.24|+01.69|-02.53 during 0.2",
+            "start_time_simulation": 31.36,
+            "end_time_simulation": 31.56,
+            "start_time_scheduled": 33.46,
+            "end_time_scheduled": 33.66,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Retrieve Potato from Microwave_04449f1a",
+            "start_time_simulation": 31.56,
+            "end_time_simulation": 31.66,
+            "start_time_scheduled": 33.66,
+            "end_time_scheduled": 33.76,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Retrieve Potato from Microwave",
+            "start_time_simulation": 31.66,
+            "end_time_simulation": 33.05,
+            "start_time_scheduled": 33.76,
+            "end_time_scheduled": 35.14,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Plate_part_1",
+            "start_time_simulation": 33.05,
+            "end_time_simulation": 44.85,
+            "start_time_scheduled": 35.14,
+            "end_time_scheduled": 46.84,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Retrieve Potato from Microwave",
+            "start_time_simulation": 44.85,
+            "end_time_simulation": 53.65,
+            "start_time_scheduled": 46.84,
+            "end_time_scheduled": 55.84,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Plate_part_2",
+            "start_time_simulation": 53.65,
+            "end_time_simulation": 63.05,
+            "start_time_scheduled": 55.84,
+            "end_time_scheduled": 64.84,
+            "execution_status": true
+        }
+    ],
+    "computation_time": 1.46612,
+    "simulation_makespan": 63.05,
+    "scheduler_makespan": 64.84,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.75,
+    "timing_success_rate_sched": 0.75
+}
