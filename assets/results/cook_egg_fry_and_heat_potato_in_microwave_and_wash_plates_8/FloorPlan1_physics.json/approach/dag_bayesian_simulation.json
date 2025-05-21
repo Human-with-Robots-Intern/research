@@ -1,0 +1,86 @@
+{
+    "saved_time": "2025-05-21 15:43",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1_physics.json",
+    "plans": [
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 0,
+            "end_time_simulation": 7.5,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 7.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Start Microwave for Potato",
+            "start_time_simulation": 7.5,
+            "end_time_simulation": 8.5,
+            "start_time_scheduled": 7.3,
+            "end_time_scheduled": 8.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "EARLY_Prepare Egg Fry",
+            "start_time_simulation": 8.5,
+            "end_time_simulation": 11.9,
+            "start_time_scheduled": 8.3,
+            "end_time_scheduled": 11.7,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Retrieve Potato from Microwave_c43dbe4f",
+            "start_time_simulation": 11.9,
+            "end_time_simulation": 12.0,
+            "start_time_scheduled": 11.7,
+            "end_time_scheduled": 11.8,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Retrieve Potato from Microwave",
+            "start_time_simulation": 12.0,
+            "end_time_simulation": 18.48,
+            "start_time_scheduled": 11.8,
+            "end_time_scheduled": 18.28,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "REMAIN_Prepare Egg Fry",
+            "start_time_simulation": 18.48,
+            "end_time_simulation": 29.48,
+            "start_time_scheduled": 18.28,
+            "end_time_scheduled": 31.48,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Retrieve Potato from Microwave",
+            "start_time_simulation": 29.48,
+            "end_time_simulation": 36.48,
+            "start_time_scheduled": 31.48,
+            "end_time_scheduled": 38.68,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn off stove after cooking",
+            "start_time_simulation": 36.48,
+            "end_time_simulation": 39.68,
+            "start_time_scheduled": 38.68,
+            "end_time_scheduled": 41.88,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Plate",
+            "start_time_simulation": 39.68,
+            "end_time_simulation": 51.28,
+            "start_time_scheduled": 41.88,
+            "end_time_scheduled": 53.48,
+            "execution_status": true
+        }
+    ],
+    "computation_time": 0.53484,
+    "simulation_makespan": 51.28,
+    "scheduler_makespan": 53.48,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.71,
+    "timing_success_rate_sched": 0.71
+}

@@ -110,6 +110,7 @@ def main():
         total_sim_time += sim_elapsed_time
 
         if next_state.subtask.subtask_type == "Monitor":
+            #? 정말 constraint가 잘 전파된 것이 맞나?
             next_state, monitored_subtask = agent.bayesian_estimate(next_state)
             next_state.completed_entries[-1].monitored_subtask = monitored_subtask
 
