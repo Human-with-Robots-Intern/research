@@ -251,13 +251,6 @@ def _initialize_task_state(
                 enable_decomposition=True,
                 scene_file_name=scene_physics_file,
             )
-        except TypeError:
-            log.warning(
-                "TaskUtil.build_tasks_and_constraints does not accept 'enable_decomposition' or 'scene_file_name'. Running with basic args."
-            )
-            subtasks, constraints = TaskUtil.build_tasks_and_constraints(
-                task_data=task_dict
-            )
         except Exception as build_e:
             log.error(
                 f"[{task_name_str}] Error during build_tasks_and_constraints: {build_e}",
@@ -329,48 +322,12 @@ def _run_simulation_step(
     )
     should_stop_loop = False
     next_state_after_step = None
-    current_step_computation_time = 0.0
 
     try:
         log.debug(f"[{task_name_str}] Calling scheduler.get_next_state...")
-        next_sched_state_result = scheduler_instance.get_next_state(current_state)
-
-        if (
-            isinstance(next_sched_state_result, tuple)
-            and len(next_sched_state_result) == 2
-        ):
-            potential_state, potential_time = next_sched_state_result
-            log.debug(
-                f"Type check in tune.py: id(SchedulerState) = {id(SchedulerState)}, id(potential_state.__class__) = {id(potential_state.__class__)}"
-            )
-            log.debug(type(potential_state))
-            if (
-                hasattr(potential_state, "__class__")
-                and potential_state.__class__.__name__ == "SchedulerState"
-            ):
-                next_sched_state = potential_state
-                current_step_computation_time = (
-                    float(potential_time) if potential_time is not None else 0.0
-                )
-            else:
-                log.error(
-                    f"[{task_name_str}] Invalid state type in get_next_state tuple: {type(potential_state)}"
-                )
-                next_sched_state = None
-        elif next_sched_state_result is None:
-            next_sched_state = None
-        else:
-            log.warning(
-                f"[{task_name_str}] Unexpected return type from get_next_state: {type(next_sched_state_result)}. Assuming state only."
-            )
-            if isinstance(next_sched_state_result, SchedulerState):
-                next_sched_state = next_sched_state_result
-            else:
-                log.error(
-                    f"[{task_name_str}] Return type is not SchedulerState either. Cannot proceed."
-                )
-                next_sched_state = None
-
+        next_sched_state, current_step_computation_time = (
+            scheduler_instance.get_next_state(current_state)
+        )
         computation_time_accumulator += current_step_computation_time
 
         if next_sched_state is None:
@@ -412,21 +369,23 @@ def _run_simulation_step(
             )
 
         log.info(
-            f"[{task_name_str}] Scheduler selected: '{scheduled_subtask.name}' (Type: {getattr(scheduled_subtask, 'type', 'Unknown')})"
+            f"[{task_name_str}] Scheduler selected: '{scheduled_subtask.name}' (Type: {getattr(scheduled_subtask, 'subtask_type', 'Unknown')})"
         )
 
         log.debug(f"[{task_name_str}] Executing subtask '{scheduled_subtask.name}'...")
         try:
-            subtask_elapsed_time, execution_status = execute_subtask(
+            subtask_elapsed_time, execution_status, sim_nav_time = execute_subtask(
                 controller_instance, scheduled_subtask, log_level="WARNING"
             )
         except TypeError:
             log.warning(
                 "execute_subtask does not accept log_level argument. Running without it."
             )
-            subtask_elapsed_time, execution_status = execute_subtask(
+            subtask_elapsed_time, execution_status, sim_nav_time = execute_subtask(
                 controller_instance, scheduled_subtask
             )
+            if sim_nav_time is None:
+                sim_nav_time = 0.0
         except Exception as exec_e:
             log.error(
                 f"[{task_name_str}] Error during execute_subtask for '{scheduled_subtask.name}': {exec_e}",
@@ -434,13 +393,14 @@ def _run_simulation_step(
             )
             subtask_elapsed_time = 0.0
             execution_status = False
+            sim_nav_time = 0.0
 
         subtask_elapsed_time = (
             float(subtask_elapsed_time) if subtask_elapsed_time is not None else 0.0
         )
         execution_status = bool(execution_status)
         log.info(
-            f"[{task_name_str}] Execution: Status={execution_status}, Time={subtask_elapsed_time:.2f}s"
+            f"[{task_name_str}] Execution: Status={execution_status}, Time={subtask_elapsed_time:.2f}s, NavTime={sim_nav_time:.2f}s"
         )
 
         sim_start_time = simulation_time_accumulator
@@ -456,6 +416,8 @@ def _run_simulation_step(
                 last_entry.execution_status = execution_status
             if hasattr(last_entry, "computation_time"):
                 last_entry.computation_time = current_step_computation_time
+            if hasattr(last_entry, "sim_nav_time"):
+                last_entry.sim_nav_time = sim_nav_time
 
             result_schedule.append(last_entry)
         else:
@@ -527,7 +489,7 @@ def _run_simulation_step(
 
         if (
             hasattr(agent_instance, "bayesian_estimate")
-            and getattr(scheduled_subtask, "type", "") == "Monitor"
+            and getattr(scheduled_subtask, "subtask_type", "") == "Monitor"
         ):
             log.debug(f"[{task_name_str}] Calling agent.bayesian_estimate...")
             try:
@@ -606,13 +568,18 @@ def _process_simulation_results(
         }
 
     task_name_for_compose = task_name_str
-    if task_data_list and isinstance(task_data_list[0], dict):
+    if (
+        task_data_list
+        and isinstance(task_data_list, list)
+        and task_data_list
+        and isinstance(task_data_list[0], dict)
+    ):
         task_name_for_compose = task_data_list[0].get("Task", task_name_str)
 
     try:
         if callable(compose_plans):
-            plans, success_rate, final_sim_makespan, final_sched_makespan = (
-                compose_plans(result_schedule, task_name_for_compose)
+            success_rate, final_sim_makespan, final_sched_makespan = compose_plans(
+                result_schedule, task_name_for_compose
             )
             final_sim_makespan = (
                 final_sim_makespan
@@ -750,7 +717,7 @@ def run_schedule_and_get_result(
                 elif not current_state.remaining_subtasks:
                     final_status = "Completed"
                 elif final_status == "Unknown":
-                    final_status = "Failed (Planning Error)"
+                    final_status = "Interrupted / Planning Error"
                 break
 
         return _process_simulation_results(
@@ -889,7 +856,6 @@ def _run_single_task_for_trial(
     controller_instance: Any,
     nav_graph: Dict,
     initial_scene_positions: Dict,
-    task_paths_to_tune: List[Path],
 ) -> Optional[Dict[str, Any]]:
     """주어진 하이퍼파라미터와 리소스로 단일 태스크 시뮬레이션을 실행합니다."""
     if (
@@ -914,9 +880,7 @@ def _run_single_task_for_trial(
         action_handler = ActionHandler(nav_graph)
         constraint_handler = ConstraintHandler(action_handler)
         agent = Agent(constraint_handler=constraint_handler)
-        heuristic_manager = HeuristicManager(
-            constraint_handler, action_handler, agent=agent
-        )
+        heuristic_manager = HeuristicManager(action_handler)
         heuristic_manager.alpha = params.get("alpha", 1.0)
         heuristic_manager.beta = params.get("beta", 1.0)
         heuristic_manager.gamma = params.get("gamma", 0.1)
@@ -927,7 +891,6 @@ def _run_single_task_for_trial(
         scheduler = Scheduler(
             beam_width=BEAM_WIDTH,
             simulation_depth=SIMULATION_DEPTH,
-            nav_graph=nav_graph,
             action_handler=action_handler,
             constraint_handler=constraint_handler,
             heuristic_manager=heuristic_manager,
@@ -1108,7 +1071,6 @@ def objective(
                 controller_instance=controller,
                 nav_graph=nav_graph,
                 initial_scene_positions=initial_scene_positions,
-                task_paths_to_tune=task_paths_to_tune,
             )
 
             if task_result is None:
@@ -1116,7 +1078,8 @@ def objective(
                     f"T{trial.number}, Task {task_path.stem}: Simulation function returned None. Max penalty."
                 )
                 task_result = {
-                    "status": "Failed (Missing Trial Resources)",
+                    "task_name": task_path.stem,
+                    "status": "Failed (Runner Returned None)",
                     "simulation_makespan": float("inf"),
                     "scheduler_makespan": float("inf"),
                     "success_rate": 0.0,
@@ -1126,6 +1089,7 @@ def objective(
                 current_task_objective = CRITICAL_FAILURE_PENALTY
                 is_valid = False
                 task_comp_time = task_result.get("computation_time", float("inf"))
+
             else:
                 task_objective, is_valid = _calculate_task_objective(
                     task_result, trial.number, task_path.stem
@@ -1331,8 +1295,6 @@ def run_optuna_study(
         f"Starting optimization with {n_trials} trials (timeout={timeout_seconds}s, n_jobs={n_jobs})..."
     )
     try:
-        import functools
-
         objective_func = functools.partial(
             objective,
             scene_name=scene_name,
@@ -1417,6 +1379,7 @@ def _analyze_and_print_results(
                         display_value = f"{value:.2f}"
                     else:
                         display_value = str(value)
+
                 log.info(f"    {key}: {display_value}")
         else:
             log.warning(

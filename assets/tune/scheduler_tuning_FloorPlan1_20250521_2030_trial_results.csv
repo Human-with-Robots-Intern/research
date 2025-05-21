@@ -1,0 +1,1 @@
+trial_number,value,state,datetime_start,datetime_complete,duration,param_alpha,param_beta,param_gamma,user_attr_num_completed,user_attr_num_failed,user_attr_avg_completed_makespan,user_attr_avg_computation_time,user_attr_failed_tasks_json

@@ -1,0 +1,206 @@
+{
+    "saved_time": "2025-05-21 20:18",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1_physics.json",
+    "plans": [
+        {
+            "subtask_name": "Wash Egg",
+            "start_time_simulation": 0,
+            "end_time_simulation": 10.3,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 10.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 10.3,
+            "end_time_simulation": 16.5,
+            "start_time_scheduled": 10.3,
+            "end_time_scheduled": 16.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Prepare Egg Fry",
+            "start_time_simulation": 16.5,
+            "end_time_simulation": 28.8,
+            "start_time_scheduled": 16.3,
+            "end_time_scheduled": 28.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "EARLY_Wash Fork",
+            "start_time_simulation": 28.8,
+            "end_time_simulation": 34.5,
+            "start_time_scheduled": 28.1,
+            "end_time_scheduled": 34.0,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn off Stove after cooking_00fb631a",
+            "start_time_simulation": 34.5,
+            "end_time_simulation": 34.6,
+            "start_time_scheduled": 34.0,
+            "end_time_scheduled": 34.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "REMAIN_Wash Fork",
+            "start_time_simulation": 34.6,
+            "end_time_simulation": 34.6,
+            "start_time_scheduled": 34.1,
+            "end_time_scheduled": 34.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 1.3",
+            "start_time_simulation": 34.6,
+            "end_time_simulation": 35.9,
+            "start_time_scheduled": 34.1,
+            "end_time_scheduled": 35.4,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn off Stove after cooking_5a8cfaf9",
+            "start_time_simulation": 35.9,
+            "end_time_simulation": 36.0,
+            "start_time_scheduled": 35.4,
+            "end_time_scheduled": 35.5,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Plate_part_1",
+            "start_time_simulation": 36.0,
+            "end_time_simulation": 47.6,
+            "start_time_scheduled": 35.5,
+            "end_time_scheduled": 47.2,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn off Stove after cooking",
+            "start_time_simulation": 47.6,
+            "end_time_simulation": 50.8,
+            "start_time_scheduled": 47.2,
+            "end_time_scheduled": 50.4,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Spoon",
+            "start_time_simulation": 50.8,
+            "end_time_simulation": 61.0,
+            "start_time_scheduled": 50.4,
+            "end_time_scheduled": 60.8,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Plate_part_2",
+            "start_time_simulation": 61.0,
+            "end_time_simulation": 70.4,
+            "start_time_scheduled": 60.8,
+            "end_time_scheduled": 69.8,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Plate_part_3",
+            "start_time_simulation": 70.4,
+            "end_time_simulation": 79.8,
+            "start_time_scheduled": 69.8,
+            "end_time_scheduled": 78.8,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Tomato",
+            "start_time_simulation": 79.8,
+            "end_time_simulation": 88.8,
+            "start_time_scheduled": 78.8,
+            "end_time_scheduled": 87.8,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Prepare Coffee",
+            "start_time_simulation": 88.8,
+            "end_time_simulation": 92.9,
+            "start_time_scheduled": 87.8,
+            "end_time_scheduled": 91.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Lettuce",
+            "start_time_simulation": 92.9,
+            "end_time_simulation": 101.4,
+            "start_time_scheduled": 91.9,
+            "end_time_scheduled": 100.4,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Retrieve Coffee",
+            "start_time_simulation": 101.4,
+            "end_time_simulation": 104.2,
+            "start_time_scheduled": 100.4,
+            "end_time_scheduled": 103.4,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place CreditCard on Shelf",
+            "start_time_simulation": 104.2,
+            "end_time_simulation": 111.4,
+            "start_time_scheduled": 103.4,
+            "end_time_scheduled": 110.6,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Start Microwave",
+            "start_time_simulation": 111.4,
+            "end_time_simulation": 114.2,
+            "start_time_scheduled": 110.6,
+            "end_time_scheduled": 113.4,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Potato in Fridge",
+            "start_time_simulation": 114.2,
+            "end_time_simulation": 121.9,
+            "start_time_scheduled": 113.4,
+            "end_time_scheduled": 120.7,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Tomato in Fridge",
+            "start_time_simulation": 121.9,
+            "end_time_simulation": 128.8,
+            "start_time_scheduled": 120.7,
+            "end_time_scheduled": 127.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Retrieve Bread from Microwave",
+            "start_time_simulation": 128.8,
+            "end_time_simulation": 138.8,
+            "start_time_scheduled": 127.3,
+            "end_time_scheduled": 137.6,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Lettuce in Fridge",
+            "start_time_simulation": 138.8,
+            "end_time_simulation": 144.5,
+            "start_time_scheduled": 137.6,
+            "end_time_scheduled": 142.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Throw away Paper Towel",
+            "start_time_simulation": 144.5,
+            "end_time_simulation": 150.6,
+            "start_time_scheduled": 142.9,
+            "end_time_scheduled": 149.1,
+            "execution_status": true
+        }
+    ],
+    "computation_time": 43.52308,
+    "simulation_makespan": 150.6,
+    "scheduler_makespan": 149.1,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0
+}
