@@ -6,7 +6,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 from networkx import DiGraph
 
@@ -157,6 +157,7 @@ def result_save(
     computation_time: float,
     scene_name: str,
     constraints: DiGraph,
+    initial_plan_data: List[Dict],
     log_level: str = "INFO",
 ):
     global log
@@ -199,7 +200,14 @@ def result_save(
     output_path.mkdir(parents=True, exist_ok=True)
     approach_path.mkdir(parents=True, exist_ok=True)
 
-    visualize(approach_name, output_path, constraints, result_schedule)
+    visualize(
+        approach_name,
+        output_path,
+        constraints,
+        result_schedule,
+        initial_plan_data,
+        scene_name,
+    )
     with file_path.open("w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=4)
 

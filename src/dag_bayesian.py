@@ -110,7 +110,7 @@ def main():
         total_sim_time += sim_elapsed_time
 
         if next_state.subtask.subtask_type == "Monitor":
-            #? 정말 constraint가 잘 전파된 것이 맞나?
+            # ? 정말 constraint가 잘 전파된 것이 맞나?
             next_state, monitored_subtask = agent.bayesian_estimate(next_state)
             next_state.completed_entries[-1].monitored_subtask = monitored_subtask
 
@@ -139,6 +139,7 @@ def main():
         "computation_time": total_compute_time,
         "scene_name": scene_data.file_name,
         "constraints": current_state.constraints,
+        "initial_plan_data": task_data,
         # "simulationTime": total_sim_time,
     }
 

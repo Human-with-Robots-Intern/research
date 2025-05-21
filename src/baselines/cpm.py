@@ -33,7 +33,6 @@ from utils.io_utils.task_io import (
     load_task_data_from_file,
 )
 from utils.task.task_util import TaskUtil
-from utils.visualizers.visualizer import visualize
 
 
 class ExecutionPredictionInfo(NamedTuple):
@@ -567,6 +566,7 @@ def main() -> None:
             "computation_time": computation_time,
             "scene_name": scene_name,
             "constraints": constraints,
+            "initial_plan_data": task_data,
         }
         result_save(**result_args)
         print("end")

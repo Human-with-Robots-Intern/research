@@ -500,6 +500,7 @@ def main():
         "computation_time": computation_time,
         "scene_name": scene_name,
         "constraints": constraints,
+        "initial_plan_data": task_data,
     }
 
     result_save(**result_args)
