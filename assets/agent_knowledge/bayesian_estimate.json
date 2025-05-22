@@ -4,11 +4,11 @@
         "variance": 1.0
     },
     "turn off stove after cooking": {
-        "expected_duration": 11.44199391166044,
-        "variance": 0.042400522842619734
+        "expected_duration": 10.0,
+        "variance": 1.0
     },
     "prepare potato": {
-        "expected_duration": 100.0,
+        "expected_duration": 10.0,
         "variance": 1.0
     },
     "turn off stove after cooking potato": {
@@ -61,6 +61,22 @@
     },
     "stop filling pot and place on stoveburner": {
         "expected_duration": 10,
+        "variance": 1.0
+    },
+    "retrieve bread from microwave": {
+        "expected_duration": 5,
+        "variance": 1.0
+    },
+    "turn off kettle": {
+        "expected_duration": 5,
+        "variance": 1.0
+    },
+    "stop filling pot and place on stoveburner": {
+        "expected_duration": 10,
+        "variance": 1.0
+    },
+    "cook egg in pan": {
+        "expected_duration": 0,
         "variance": 1.0
     }
 }

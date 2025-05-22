@@ -165,8 +165,6 @@ def execute_subtask(
         action_type, target_obj_id = parts
         if action_type in action_mapping:
             action_duration = action_mapping[action_type](target_obj_id)
-            if action_type == "WAIT":
-                action_duration = subtask.duration.interval
             elapsed_time += action_duration
             # 첫 NAVIGATE_TO의 시간 기록
             if not nav_time_found and action_type == "NAVIGATE_TO":

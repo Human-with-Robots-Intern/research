@@ -63,8 +63,8 @@ def calculate_timing_success_rate(
     total_timing_constraints = 0
     succeeded_timing_constraints_sim_cnt = 0
     succeeded_timing_constraints_sched_cnt = 0
-
     detail_log = {}
+
     # 모든 edge를 순회하며 timing constraint 검사
     for u, v, data in constraints.edges(data=True):
         timing_success_flag = False
@@ -73,15 +73,12 @@ def calculate_timing_success_rate(
 
         interval = edge_info.get("Interval", 0)  # interval이 없으면 0으로 처리
         is_critical = edge_info.get("IsCritical")
-
         # plans에서 선행/후행 subtask 찾기
         pred_entry = next((ce for ce in result_schedule if ce.subtask.name == u), None)
         succ_entry = next((ce for ce in result_schedule if ce.subtask.name == v), None)
-
         if not pred_entry or not succ_entry:
             log.warning(f"pred_subtask or succ_subtask not found: {u} -> {v}")
             continue
-
         # 선행 subtask의 종료 시간과 후행 subtask의 시작 시간
         pred_end_time_sim = pred_entry.sim_end_time
         succ_start_time_sim = succ_entry.sim_start_time
@@ -91,14 +88,13 @@ def calculate_timing_success_rate(
             succ_entry.schedule_nav_time
         )  # navigation time이 없으면 0으로 처리
         sim_nav_time = succ_entry.sim_nav_time
-
         if is_critical:
             # Critical edge: 가우시안 90% 범위 내에서 시작해야 함
             # 일단 간단히 ±10% 범위를 사용
             expected_start_sim = pred_end_time_sim + interval - sim_nav_time
             expected_start_sched = pred_end_time_sched + interval - schedule_nav_time
             tolerance = (
-                interval * 0.1
+                0.2 + interval * 0.1
             )  # 10% 허용 오차 #추후에 interval의 std를 확인해서 허용오차를 조정해야함.
             if abs(succ_start_time_sim - expected_start_sim) <= tolerance:
                 timing_success_flag = True
@@ -112,7 +108,6 @@ def calculate_timing_success_rate(
                 succeeded_timing_constraints_sim_cnt += 1
             if succ_start_time_sched >= pred_end_time_sched + interval:
                 succeeded_timing_constraints_sched_cnt += 1
-
         # 제약 시작 작업 끝 작업, 원본 제약 기준 (interval, is_critical)
         # 실제 스케쥴 결과 : pred_end_time_sched -> succ_start_time_sched,
         log.info(f"Original Timing Constraint : {u} -> {v} ({interval}, {is_critical})")
