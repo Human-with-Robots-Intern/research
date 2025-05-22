@@ -86,7 +86,6 @@ def compute_nav_time(
 
     return nav_time, nav_positions
 
-
 def offline_subtask_execution(
     subtask: Subtask, current_state: SchedulerState, action_handler: ActionHandler
 ) -> float:
@@ -111,7 +110,7 @@ def update_state(
     subtask_duration = exec_info.cumulative_time
     subtask_entry = CompletedEntry(
         subtask=next_subtask,    
-        schedule_start_time=current_state.current_time + exec_info.cumulative_time,
+        schedule_start_time=current_state.current_time,
         schedule_end_time=current_state.current_time + subtask_duration,
         schedule_nav_time=nav_time 
     )
@@ -167,7 +166,7 @@ def nav_and_wait_during_interval(
     # Calculate navigation time
     nav_time, nav_positions = compute_nav_time(next_subtask, current_state, action_handler)
     # Only proceed if interval is greater than navigation time
-    if nav_time <= interval:
+    if 0.0 < nav_time <= interval:
         # Create NAVIGATE subtask
         nav_subtask = Subtask(
             task_name=next_subtask.task_name,
@@ -449,8 +448,6 @@ def main():
         exec_info = offline_subtask_execution(entry.subtask, current_state, action_handler)
         action_handler = ActionHandler(nav_graph, log_level=args.log_level)
         current_state = update_state(current_state, entry.subtask, exec_info, entry.schedule_nav_time)
-        
-        
 
     # Phase 2: Execute simulation if requested
     if args.simulation:
