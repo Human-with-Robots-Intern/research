@@ -193,25 +193,25 @@ def nav_and_wait_during_interval(
         entries.append(nav_entry)
         current_time += nav_time
         # Create WAIT subtask for remaining time
-        wait_time = interval - nav_time
-        if wait_time > 0:
-            wait_subtask = Subtask(
-                task_name=next_subtask.task_name,
-                name=f"WAIT {wait_time} to {next_subtask.name}",
-                repetition=1,
-                subtask_type="WAIT",
-                execution=Execution(
-                    objects={}, primitive_actions=[f"WAIT {wait_time}"]
-                ),
-                duration=Duration(type="WAIT", interval=wait_time),
-                temporal_constraints=[],
-            )
-            wait_entry = CompletedEntry(
-                subtask=wait_subtask,
-                schedule_start_time=current_time,
-                schedule_end_time=current_time + wait_time,
-            )
-            entries.append(wait_entry)
+    wait_time = interval - nav_time
+    if wait_time >= 0:
+        wait_subtask = Subtask(
+            task_name=next_subtask.task_name,
+            name=f"WAIT {wait_time} to {next_subtask.name}",
+            repetition=1,
+            subtask_type="WAIT",
+            execution=Execution(
+                objects={}, primitive_actions=[f"WAIT {wait_time}"]
+            ),
+            duration=Duration(type="WAIT", interval=wait_time),
+            temporal_constraints=[],
+        )
+        wait_entry = CompletedEntry(
+            subtask=wait_subtask,
+            schedule_start_time=current_time,
+            schedule_end_time=current_time + wait_time,
+        )
+        entries.append(wait_entry)
         # Create new state with updated time and positions
         new_state = SchedulerState(
             subtask=current_state.subtask,

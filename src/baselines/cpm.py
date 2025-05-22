@@ -282,7 +282,7 @@ def nav_and_wait_during_interval(
     # Calculate navigation time
     nav_time, nav_positions = compute_nav_time(next_subtask, current_state)
 
-    if nav_time <= interval:
+    if 0.0 < nav_time <= interval:
         # Create NAVIGATE subtask
         nav_subtask = Subtask(
             task_name=next_subtask.task_name,
@@ -303,25 +303,25 @@ def nav_and_wait_during_interval(
         current_time += nav_time
 
         # Create wait subtask if needed
-        wait_time = interval - nav_time
-        if wait_time > 0:
-            wait_subtask = Subtask(
-                task_name=next_subtask.task_name,
-                name=f"WAIT {wait_time} to {next_subtask.name}",
-                repetition=1,
-                subtask_type="WAIT",
-                execution=Execution(
-                    objects={}, primitive_actions=[f"WAIT {wait_time}"]
-                ),
-                duration=Duration(type="WAIT", interval=wait_time),
-                temporal_constraints=[],
-            )
-            wait_entry = CompletedEntry(
-                subtask=wait_subtask,
-                schedule_start_time=current_time,
-                schedule_end_time=current_time + wait_time,
-            )
-            entries.append(wait_entry)
+    wait_time = interval - nav_time
+    if wait_time > 0:
+        wait_subtask = Subtask(
+            task_name=next_subtask.task_name,
+            name=f"WAIT {wait_time} to {next_subtask.name}",
+            repetition=1,
+            subtask_type="WAIT",
+            execution=Execution(
+                objects={}, primitive_actions=[f"WAIT {wait_time}"]
+            ),
+            duration=Duration(type="WAIT", interval=wait_time),
+            temporal_constraints=[],
+        )
+        wait_entry = CompletedEntry(
+            subtask=wait_subtask,
+            schedule_start_time=current_time,
+            schedule_end_time=current_time + wait_time,
+        )
+        entries.append(wait_entry)
 
         new_state = SchedulerState(
             subtask=current_state.subtask,
@@ -412,7 +412,7 @@ def get_final_entries(
                 <= remaining_interval - info.nav_time_to_succ
             }
 
-            if not candidate_subtasks and remaining_interval >= 0:
+            if not candidate_subtasks and remaining_interval > 0:
                 if (
                     expected_ne_subtask_info and not is_critical
                 ):  # Check if expected_info_dict is not empty
