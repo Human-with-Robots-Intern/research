@@ -1,0 +1,198 @@
+{
+    "saved_time": "2025-05-22 12:50",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1_physics.json",
+    "plans": [
+        {
+            "subtask_name": "Wash Apple and Place on CounterTop",
+            "start_time_simulation": 0,
+            "end_time_simulation": 9.9,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 9.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 9.9,
+            "end_time_simulation": 16.1,
+            "start_time_scheduled": 9.9,
+            "end_time_scheduled": 15.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 16.1,
+            "end_time_simulation": 17.2,
+            "start_time_scheduled": 15.9,
+            "end_time_scheduled": 16.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "EARLY_Place Plate on Table",
+            "start_time_simulation": 17.2,
+            "end_time_simulation": 18.8,
+            "start_time_scheduled": 16.9,
+            "end_time_scheduled": 18.5,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Microwave after Heating Bread_5ed15727",
+            "start_time_simulation": 18.8,
+            "end_time_simulation": 18.9,
+            "start_time_scheduled": 18.5,
+            "end_time_scheduled": 18.6,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "REMAIN_Place Plate on Table",
+            "start_time_simulation": 18.9,
+            "end_time_simulation": 18.9,
+            "start_time_scheduled": 18.6,
+            "end_time_scheduled": 18.6,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Navigate to Microwave|-00.24|+01.69|-02.53 during 1.6",
+            "start_time_simulation": 18.9,
+            "end_time_simulation": 20.5,
+            "start_time_scheduled": 18.6,
+            "end_time_scheduled": 20.2,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Microwave after Heating Bread_22229f5e",
+            "start_time_simulation": 20.5,
+            "end_time_simulation": 20.6,
+            "start_time_scheduled": 20.2,
+            "end_time_scheduled": 20.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 20.6,
+            "end_time_simulation": 22.2,
+            "start_time_scheduled": 20.3,
+            "end_time_scheduled": 21.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 22.2,
+            "end_time_simulation": 23.2,
+            "start_time_scheduled": 21.9,
+            "end_time_scheduled": 23.0,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 23.2,
+            "end_time_simulation": 29.0,
+            "start_time_scheduled": 23.0,
+            "end_time_scheduled": 29.0,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Potato in Pot and Boil on Stove",
+            "start_time_simulation": 29.0,
+            "end_time_simulation": 36.6,
+            "start_time_scheduled": 29.0,
+            "end_time_scheduled": 36.4,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "EARLY_Prepare Pan on Stove and Heat",
+            "start_time_simulation": 36.6,
+            "end_time_simulation": 40.2,
+            "start_time_scheduled": 36.4,
+            "end_time_scheduled": 40.0,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove After Boiling Potato_bd10d393",
+            "start_time_simulation": 40.2,
+            "end_time_simulation": 40.3,
+            "start_time_scheduled": 40.0,
+            "end_time_scheduled": 40.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "REMAIN_Prepare Pan on Stove and Heat",
+            "start_time_simulation": 40.3,
+            "end_time_simulation": 41.3,
+            "start_time_scheduled": 40.1,
+            "end_time_scheduled": 41.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Fork on Table",
+            "start_time_simulation": 41.3,
+            "end_time_simulation": 45.9,
+            "start_time_scheduled": 41.1,
+            "end_time_scheduled": 46.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Cook Egg in Pan",
+            "start_time_simulation": 45.9,
+            "end_time_simulation": 55.7,
+            "start_time_scheduled": 46.9,
+            "end_time_scheduled": 56.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn Off Stove After Boiling Potato",
+            "start_time_simulation": 55.7,
+            "end_time_simulation": 57.1,
+            "start_time_scheduled": 56.9,
+            "end_time_scheduled": 58.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Retrieve Boiled Potato and Place on CounterTop",
+            "start_time_simulation": 57.1,
+            "end_time_simulation": 60.9,
+            "start_time_scheduled": 58.3,
+            "end_time_scheduled": 62.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 2.2",
+            "start_time_simulation": 60.9,
+            "end_time_simulation": 63.1,
+            "start_time_scheduled": 62.1,
+            "end_time_scheduled": 64.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove After Cooking Egg_73262f65",
+            "start_time_simulation": 63.1,
+            "end_time_simulation": 63.2,
+            "start_time_scheduled": 64.3,
+            "end_time_scheduled": 64.4,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 63.2,
+            "end_time_simulation": 65.7,
+            "start_time_scheduled": 64.4,
+            "end_time_scheduled": 66.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 65.7,
+            "end_time_simulation": 66.7,
+            "start_time_scheduled": 66.9,
+            "end_time_scheduled": 68.0,
+            "execution_status": true
+        }
+    ],
+    "computation_time": 9.09209,
+    "simulation_makespan": 66.7,
+    "scheduler_makespan": 68.0,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.74,
+    "timing_success_rate_sched": 0.74
+}

@@ -64,6 +64,7 @@ def calculate_timing_success_rate(
     succeeded_timing_constraints_sim_cnt = 0
     succeeded_timing_constraints_sched_cnt = 0
 
+    detail_log = {}
     # 모든 edge를 순회하며 timing constraint 검사
     for u, v, data in constraints.edges(data=True):
         timing_success_flag = False
@@ -118,6 +119,13 @@ def calculate_timing_success_rate(
         log.info(
             f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s\n\n"
         )
+        detail_log[f"{u} -> {v}"] = {}
+        detail_log[f"{u} -> {v}"][
+            "Original Timing Constraint"
+        ] = f"({interval}, {is_critical})"
+        detail_log[f"{u} -> {v}"][
+            "Schedule Result"
+        ] = f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched})s"
 
     timing_success_rate_sim = (
         succeeded_timing_constraints_sim_cnt / total_timing_constraints
@@ -129,7 +137,7 @@ def calculate_timing_success_rate(
         if total_timing_constraints != 0
         else None
     )
-    return timing_success_rate_sim, timing_success_rate_sched
+    return timing_success_rate_sim, timing_success_rate_sched, detail_log
 
 
 def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[dict]:
@@ -166,8 +174,8 @@ def result_save(
         result_schedule, task_name
     )
 
-    timing_success_rate_sim, timing_success_rate_sched = calculate_timing_success_rate(
-        constraints, result_schedule
+    timing_success_rate_sim, timing_success_rate_sched, detail_log = (
+        calculate_timing_success_rate(constraints, result_schedule)
     )
 
     # Serialize the result schedule
@@ -185,6 +193,7 @@ def result_save(
         "success_rate": round(success_rate, 2),
         "timing_success_rate_sim": round(timing_success_rate_sim, 2),
         "timing_success_rate_sched": round(timing_success_rate_sched, 2),
+        "detail_log": detail_log,
     }
 
     # Find the next available number for the task name
@@ -210,6 +219,8 @@ def result_save(
     )
     with file_path.open("w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=4)
+
+    print(f"JSON file saved at {file_path}")
 
 
 def parse_llm_log(lines: List[str]) -> Tuple[List[dict], float, int, int]:

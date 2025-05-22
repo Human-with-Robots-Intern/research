@@ -38,5 +38,29 @@
     "retrieve heated potato and place on countertop": {
         "expected_duration": 0,
         "variance": 1.0
+    },
+    "cook egg in pan": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "retrieve cooked egg and place on plate": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "turn off microwave after heating bread": {
+        "expected_duration": 5.834526167250541,
+        "variance": 0.9247441300421433
+    },
+    "retrieve heated bread and place on countertop": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "boil potato in pot": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "stop filling pot and place on stoveburner": {
+        "expected_duration": 10,
+        "variance": 1.0
     }
 }

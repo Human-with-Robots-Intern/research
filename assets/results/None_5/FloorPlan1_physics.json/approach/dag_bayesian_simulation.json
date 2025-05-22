@@ -1,0 +1,143 @@
+{
+    "saved_time": "2025-05-22 13:37",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1_physics.json",
+    "plans": [
+        {
+            "subtask_name": "Wash Apple and Place on CounterTop",
+            "start_time_simulation": 0,
+            "end_time_simulation": 9.9,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 9.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 9.9,
+            "end_time_simulation": 16.1,
+            "start_time_scheduled": 9.9,
+            "end_time_scheduled": 15.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Prepare Pot and Stove for Boiling Potato",
+            "start_time_simulation": 16.1,
+            "end_time_simulation": 20.6,
+            "start_time_scheduled": 15.9,
+            "end_time_scheduled": 20.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Boil Potato in Pot",
+            "start_time_simulation": 20.6,
+            "end_time_simulation": 23.8,
+            "start_time_scheduled": 20.3,
+            "end_time_scheduled": 23.5,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Cook Egg in Pan",
+            "start_time_simulation": 23.8,
+            "end_time_simulation": 38.4,
+            "start_time_scheduled": 23.5,
+            "end_time_scheduled": 40.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 38.4,
+            "end_time_simulation": 39.6,
+            "start_time_scheduled": 40.3,
+            "end_time_scheduled": 41.5,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "EARLY_Place Plate on Table",
+            "start_time_simulation": 39.6,
+            "end_time_simulation": 41.2,
+            "start_time_scheduled": 41.5,
+            "end_time_scheduled": 43.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Microwave and Retrieve Bread_c9ba65d7",
+            "start_time_simulation": 41.2,
+            "end_time_simulation": 41.3,
+            "start_time_scheduled": 43.1,
+            "end_time_scheduled": 43.2,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "REMAIN_Place Plate on Table",
+            "start_time_simulation": 41.3,
+            "end_time_simulation": 41.3,
+            "start_time_scheduled": 43.2,
+            "end_time_scheduled": 43.2,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Navigate to Microwave|-00.24|+01.69|-02.53 during 1.6",
+            "start_time_simulation": 41.3,
+            "end_time_simulation": 42.9,
+            "start_time_scheduled": 43.2,
+            "end_time_scheduled": 44.8,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Microwave and Retrieve Bread_8e7e16f2",
+            "start_time_simulation": 42.9,
+            "end_time_simulation": 43.0,
+            "start_time_scheduled": 44.8,
+            "end_time_scheduled": 44.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Turn Off Microwave and Retrieve Bread",
+            "start_time_simulation": 43.0,
+            "end_time_simulation": 45.43,
+            "start_time_scheduled": 44.9,
+            "end_time_scheduled": 47.33,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Turn Off Stove After Cooking",
+            "start_time_simulation": 45.43,
+            "end_time_simulation": 49.84,
+            "start_time_scheduled": 47.33,
+            "end_time_scheduled": 51.74,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn Off Stove After Cooking",
+            "start_time_simulation": 49.84,
+            "end_time_simulation": 52.44,
+            "start_time_scheduled": 51.74,
+            "end_time_scheduled": 54.44,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn Off Microwave and Retrieve Bread",
+            "start_time_simulation": 52.44,
+            "end_time_simulation": 59.44,
+            "start_time_scheduled": 54.44,
+            "end_time_scheduled": 61.64,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Lettuce and Place on CounterTop",
+            "start_time_simulation": 59.44,
+            "end_time_simulation": 68.44,
+            "start_time_scheduled": 61.64,
+            "end_time_scheduled": 70.64,
+            "execution_status": true
+        }
+    ],
+    "computation_time": 4.27524,
+    "simulation_makespan": 68.44,
+    "scheduler_makespan": 70.64,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.75,
+    "timing_success_rate_sched": 0.75,
+    "detail_log": "Original Timing Constraint : Prepare Pot and Stove for Boiling Potato -> Boil Potato in Pot (0, False)\nSchedule Result [True] - Prepare Pot and Stove for Boiling Potato (20.3) -> Boil Potato in Pot (20.3)s\n\nOriginal Timing Constraint : Boil Potato in Pot -> Cook Egg in Pan (0, False)\nSchedule Result [True] - Boil Potato in Pot (23.5) -> Cook Egg in Pan (23.5)s\n\nOriginal Timing Constraint : Cook Egg in Pan -> Turn Off Stove After Cooking (11.44199391166044, True)\nSchedule Result [True] - Cook Egg in Pan (40.3) -> Turn Off Stove After Cooking (51.74199391166044)s\n\nOriginal Timing Constraint : Place Bread in Microwave -> Start Microwave for Heating Bread (0, False)\nSchedule Result [True] - Place Bread in Microwave (15.9) -> Start Microwave for Heating Bread (40.3)s\n\nOriginal Timing Constraint : Start Microwave for Heating Bread -> Turn Off Microwave and Retrieve Bread (5.834526167250541, True)\nSchedule Result [False] - Start Microwave for Heating Bread (41.5) -> Turn Off Microwave and Retrieve Bread (54.44199391166044)s\n\nOriginal Timing Constraint : Start Microwave for Heating Bread -> Monitoring for Turn Off Microwave and Retrieve Bread_c9ba65d7 (1.6000000000000014, True)\nSchedule Result [True] - Start Microwave for Heating Bread (41.5) -> Monitoring for Turn Off Microwave and Retrieve Bread_c9ba65d7 (43.1)s\n\nOriginal Timing Constraint : Wash Apple and Place on CounterTop -> Wash Lettuce and Place on CounterTop (0, False)\nSchedule Result [True] - Wash Apple and Place on CounterTop (9.9) -> Wash Lettuce and Place on CounterTop (61.64199391166044)s\n\nOriginal Timing Constraint : EARLY_Place Plate on Table -> Monitoring for Turn Off Microwave and Retrieve Bread_c9ba65d7 (0.0, True)\nSchedule Result [True] - EARLY_Place Plate on Table (43.1) -> Monitoring for Turn Off Microwave and Retrieve Bread_c9ba65d7 (43.1)s\n\nOriginal Timing Constraint : Monitoring for Turn Off Microwave and Retrieve Bread_c9ba65d7 -> REMAIN_Place Plate on Table (0.0, False)\nSchedule Result [True] - Monitoring for Turn Off Microwave and Retrieve Bread_c9ba65d7 (43.2) -> REMAIN_Place Plate on Table (43.2)s\n\nOriginal Timing Constraint : Monitoring for Turn Off Microwave and Retrieve Bread_c9ba65d7 -> Turn Off Microwave and Retrieve Bread (4.134526167250542, True)\nSchedule Result [False] - Monitoring for Turn Off Microwave and Retrieve Bread_c9ba65d7 (43.2) -> Turn Off Microwave and Retrieve Bread (54.44199391166044)s\n\nOriginal Timing Constraint : REMAIN_Place Plate on Table -> Monitoring for Turn Off Microwave and Retrieve Bread_8e7e16f2 (1.6, True)\nSchedule Result [True] - REMAIN_Place Plate on Table (43.2) -> Monitoring for Turn Off Microwave and Retrieve Bread_8e7e16f2 (44.800000000000004)s\n\nOriginal Timing Constraint : Monitoring for Turn Off Microwave and Retrieve Bread_8e7e16f2 -> Turn Off Microwave and Retrieve Bread (2.434526167250542, True)\nSchedule Result [False] - Monitoring for Turn Off Microwave and Retrieve Bread_8e7e16f2 (44.900000000000006) -> Turn Off Microwave and Retrieve Bread (54.44199391166044)s\n\n"
+}
