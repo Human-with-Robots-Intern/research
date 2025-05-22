@@ -87,6 +87,7 @@ class ActionResult:
     scene_positions: dict[str, Tuple[float, float, float]]
     held_object: Optional[str] = None
     success: bool = False
+    first_nav_duration: Optional[float] = None
 
     def __repr__(self):
         return f"({self.action_full_name}, {self.action_type}, {self.cumulative_time}, {self.action_duration}, {self.held_object})"
@@ -118,7 +119,7 @@ class ActionSimulationLog:
             )
         )
 
-    def total_navigate_duration(self) -> float:
+    def get_total_navigate_duration(self) -> float:
         """
         action_type이 'NAVIGATE_TO'인 액션들만 골라서 action_duration의 합을 구한다.
         """
@@ -179,10 +180,12 @@ class CompletedEntry:
     schedule_end_time: float = float("inf")
     sim_start_time: float = float("inf")
     sim_end_time: float = float("inf")
+    # 첫 번째 navigation 액션의 소요 시간
     actual_first_nav_duration: Optional[float] = None
-    execution_status: bool = False
     sim_nav_time: Optional[float] = None
     schedule_nav_time: Optional[float] = None
+    # Simulation / Real-world에서 실행 성공 상태
+    execution_status: bool = False
 
     def __repr__(self):
         return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time}, {self.sim_start_time} ~ {self.sim_end_time}, {self.execution_status})"

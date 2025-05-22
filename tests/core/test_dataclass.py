@@ -173,7 +173,7 @@ def test_action_simulation_log_basic():
 
     assert len(log.results) == 3
     assert log.total_time_used() == 4.0
-    assert log.total_navigate_duration() == pytest.approx(1.5 + 2.0)
+    assert log.get_total_navigate_duration() == pytest.approx(1.5 + 2.0)
     assert len(log.filter_by_action_type("NAVIGATE_TO")) == 2
     assert log.count_actions("INTERACT") == 1
     assert log.count_actions() == 3

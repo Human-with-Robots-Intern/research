@@ -1,0 +1,102 @@
+{
+    "saved_time": "2025-05-21 15:34",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1_physics.json",
+    "plans": [
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 0,
+            "end_time_simulation": 7.5,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 7.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Start Microwave for Potato",
+            "start_time_simulation": 7.5,
+            "end_time_simulation": 8.5,
+            "start_time_scheduled": 7.3,
+            "end_time_scheduled": 8.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "EARLY_Prepare Egg Fry",
+            "start_time_simulation": 8.5,
+            "end_time_simulation": 11.9,
+            "start_time_scheduled": 8.3,
+            "end_time_scheduled": 11.7,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Retrieve Potato from Microwave_58ff5f06",
+            "start_time_simulation": 11.9,
+            "end_time_simulation": 12.0,
+            "start_time_scheduled": 11.7,
+            "end_time_scheduled": 11.8,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Navigate to Microwave|-00.24|+01.69|-02.53 during 0.2",
+            "start_time_simulation": 12.0,
+            "end_time_simulation": 12.2,
+            "start_time_scheduled": 11.8,
+            "end_time_scheduled": 12.0,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Retrieve Potato from Microwave_3d5a8e94",
+            "start_time_simulation": 12.2,
+            "end_time_simulation": 12.3,
+            "start_time_scheduled": 12.0,
+            "end_time_scheduled": 12.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Retrieve Potato from Microwave",
+            "start_time_simulation": 12.3,
+            "end_time_simulation": 18.48,
+            "start_time_scheduled": 12.1,
+            "end_time_scheduled": 18.28,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "REMAIN_Prepare Egg Fry",
+            "start_time_simulation": 18.48,
+            "end_time_simulation": 29.68,
+            "start_time_scheduled": 18.28,
+            "end_time_scheduled": 31.58,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Retrieve Potato from Microwave",
+            "start_time_simulation": 29.68,
+            "end_time_simulation": 36.68,
+            "start_time_scheduled": 31.58,
+            "end_time_scheduled": 38.78,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn off stove after cooking",
+            "start_time_simulation": 36.68,
+            "end_time_simulation": 39.88,
+            "start_time_scheduled": 38.78,
+            "end_time_scheduled": 41.98,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Plate",
+            "start_time_simulation": 39.88,
+            "end_time_simulation": 51.48,
+            "start_time_scheduled": 41.98,
+            "end_time_scheduled": 53.58,
+            "execution_status": true
+        }
+    ],
+    "computation_time": 0.48143,
+    "simulation_makespan": 51.48,
+    "scheduler_makespan": 53.58,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.67,
+    "timing_success_rate_sched": 0.67
+}

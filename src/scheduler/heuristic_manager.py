@@ -351,7 +351,7 @@ class HeuristicManager:
                 f"Candidate {candidate.subtask.name} nav cost is already LARGE_NUMBER."
             )
             # 이 경우 더 계산할 필요 없이 높은 비용 반환 가능
-            # return LARGE_NUMBER
+            return LARGE_NUMBER
 
         # (b) 후보의 긴급도 비용 (SchedulingDue까지 남은 시간 - Slack 기반)
         urgency_cost_for_candidate, slack_time = self._calculate_candidate_urgency_cost(

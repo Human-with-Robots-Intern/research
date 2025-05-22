@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 from networkx import DiGraph
 
@@ -15,6 +16,8 @@ if TYPE_CHECKING:
 from utils.common.logger import create_module_logger
 from utils.config.constants import RESULT_PATH
 from utils.visualizers.visualizer import visualize
+
+log = create_module_logger(__name__, module_log=True, level=logging.INFO)
 
 
 def get_now_str(fmt: str = "%Y-%m-%d %H:%M") -> str:
@@ -60,11 +63,14 @@ def calculate_timing_success_rate(
     total_timing_constraints = 0
     succeeded_timing_constraints_sim_cnt = 0
     succeeded_timing_constraints_sched_cnt = 0
+    detail_log = {}
+
     # 모든 edge를 순회하며 timing constraint 검사
     for u, v, data in constraints.edges(data=True):
         timing_success_flag = False
         total_timing_constraints += 1
         edge_info = data.get("info", {})
+
         interval = edge_info.get("Interval", 0)  # interval이 없으면 0으로 처리
         is_critical = edge_info.get("IsCritical")
         # plans에서 선행/후행 subtask 찾기
@@ -104,11 +110,18 @@ def calculate_timing_success_rate(
                 succeeded_timing_constraints_sched_cnt += 1
         # 제약 시작 작업 끝 작업, 원본 제약 기준 (interval, is_critical)
         # 실제 스케쥴 결과 : pred_end_time_sched -> succ_start_time_sched,
-        log.warning(f"Original Timing Constraint : {u} -> {v} ({interval}, {is_critical})")
-        log.warning(
-            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s"
+        log.info(f"Original Timing Constraint : {u} -> {v} ({interval}, {is_critical})")
+        log.info(
+            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s\n\n"
         )
-        log.warning(f"nav_time: {schedule_nav_time}, {sim_nav_time}\n\n")
+        detail_log[f"{u} -> {v}"] = {}
+        detail_log[f"{u} -> {v}"][
+            "Original Timing Constraint"
+        ] = f"({interval}, {is_critical})"
+        detail_log[f"{u} -> {v}"][
+            "Schedule Result"
+        ] = f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched})s"
+
     timing_success_rate_sim = (
         succeeded_timing_constraints_sim_cnt / total_timing_constraints
         if total_timing_constraints != 0
@@ -119,7 +132,7 @@ def calculate_timing_success_rate(
         if total_timing_constraints != 0
         else None
     )
-    return timing_success_rate_sim, timing_success_rate_sched
+    return timing_success_rate_sim, timing_success_rate_sched, detail_log
 
 
 def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[dict]:
@@ -147,16 +160,17 @@ def result_save(
     computation_time: float,
     scene_name: str,
     constraints: DiGraph,
+    initial_plan_data: List[Dict],
     log_level: str = "INFO",
 ):
     global log
-    log = create_module_logger(__name__, module_log=True, level=log_level)
+
     success_rate, simulation_makespan, scheduler_makespan = compose_plans(
         result_schedule, task_name
     )
 
-    timing_success_rate_sim, timing_success_rate_sched = calculate_timing_success_rate(
-        constraints, result_schedule
+    timing_success_rate_sim, timing_success_rate_sched, detail_log = (
+        calculate_timing_success_rate(constraints, result_schedule)
     )
 
     # Serialize the result schedule
@@ -174,6 +188,7 @@ def result_save(
         "success_rate": round(success_rate, 2),
         "timing_success_rate_sim": round(timing_success_rate_sim, 2),
         "timing_success_rate_sched": round(timing_success_rate_sched, 2),
+        "detail_log": detail_log,
     }
 
     # Find the next available number for the task name
@@ -189,9 +204,18 @@ def result_save(
     output_path.mkdir(parents=True, exist_ok=True)
     approach_path.mkdir(parents=True, exist_ok=True)
 
-    visualize(approach_name, output_path, constraints, result_schedule)
+    visualize(
+        approach_name,
+        output_path,
+        constraints,
+        result_schedule,
+        initial_plan_data,
+        scene_name,
+    )
     with file_path.open("w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=4)
+
+    print(f"JSON file saved at {file_path}")
 
 
 def parse_llm_log(lines: List[str]) -> Tuple[List[dict], float, int, int]:

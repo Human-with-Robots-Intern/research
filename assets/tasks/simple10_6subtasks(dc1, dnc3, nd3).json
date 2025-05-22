@@ -93,7 +93,9 @@
           "Objects": {
             "Microwave|-00.24|+01.69|-02.53": 1
           },
-          "PrimitiveActions": ["TOGGLE_ON Microwave|-00.24|+01.69|-02.53"]
+          "PrimitiveActions": [
+            "TOGGLE_ON Microwave|-00.24|+01.69|-02.53"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
@@ -146,7 +148,7 @@
     "Subtasks": [
       {
         "Name": "Wash Plate",
-        "Repetition": 2,
+        "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {

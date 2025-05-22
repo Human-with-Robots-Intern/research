@@ -20,19 +20,47 @@
         "variance": 1.0
     },
     "retrieve potato from microwave": {
-        "expected_duration": 10.0,
-        "variance": 1.0
+        "expected_duration": 9.98075077377359,
+        "variance": 0.05835512419097493
     },
     "turn off stove after boiling potato": {
-        "expected_duration": 10.0,
-        "variance": 1.0
+        "expected_duration": 11.641306082352838,
+        "variance": 0.5314174341474573
     },
     "turn off stove after cooking egg fry": {
         "expected_duration": 10.0,
         "variance": 1.0
     },
     "turn off stove after boiling": {
-        "expected_duration": 10.0,
+        "expected_duration": 10.842126917350162,
+        "variance": 0.2653778790470067
+    },
+    "retrieve heated potato and place on countertop": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "cook egg in pan": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "retrieve cooked egg and place on plate": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "turn off microwave after heating bread": {
+        "expected_duration": 5.834526167250541,
+        "variance": 0.9247441300421433
+    },
+    "retrieve heated bread and place on countertop": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "boil potato in pot": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "stop filling pot and place on stoveburner": {
+        "expected_duration": 10,
         "variance": 1.0
     },
     "retrieve bread from microwave": {

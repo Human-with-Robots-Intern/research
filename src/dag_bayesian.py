@@ -97,7 +97,7 @@ def main():
             log.error("No feasible solution found.")
             break
 
-        sim_elapsed_time, execution_status = execute_subtask(
+        sim_elapsed_time, execution_status, sim_nav_time = execute_subtask(
             controller, next_state.subtask, args.log_level
         )
 
@@ -106,9 +106,11 @@ def main():
         last_entry.sim_start_time = total_sim_time
         last_entry.sim_end_time = total_sim_time + sim_elapsed_time
         last_entry.execution_status = execution_status
+        last_entry.sim_nav_time = sim_nav_time
         total_sim_time += sim_elapsed_time
 
         if next_state.subtask.subtask_type == "Monitor":
+            # ? 정말 constraint가 잘 전파된 것이 맞나?
             next_state, monitored_subtask = agent.bayesian_estimate(next_state)
             next_state.completed_entries[-1].monitored_subtask = monitored_subtask
 
@@ -137,6 +139,7 @@ def main():
         "computation_time": total_compute_time,
         "scene_name": scene_data.file_name,
         "constraints": current_state.constraints,
+        "initial_plan_data": task_data,
         # "simulationTime": total_sim_time,
     }
 

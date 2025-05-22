@@ -1,105 +1,94 @@
 {
-    "saved_time": "2025-05-01 11:51",
+    "saved_time": "2025-05-20 20:08",
     "approach": "dag_bayesian_simulation",
     "scene_name": "FloorPlan1_physics.json",
     "plans": [
         {
-            "plan_name": "cook_egg_fry_and_heat_bread_using_microwave_and_make_coffee",
-            "subtasks": [
-                {
-                    "subtask_name": "Place Bread in Microwave",
-                    "start_time_simulation": 0,
-                    "end_time_simulation": 8.1,
-                    "start_time_scheduled": 0,
-                    "end_time_scheduled": 7.1,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Prepare Egg Fry",
-                    "start_time_simulation": 8.1,
-                    "end_time_simulation": 25.6,
-                    "start_time_scheduled": 7.1,
-                    "end_time_scheduled": 24.1,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Start Microwave",
-                    "start_time_simulation": 25.6,
-                    "end_time_simulation": 26.8,
-                    "start_time_scheduled": 24.1,
-                    "end_time_scheduled": 25.4,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Prepare Coffee",
-                    "start_time_simulation": 26.8,
-                    "end_time_simulation": 32.9,
-                    "start_time_scheduled": 25.4,
-                    "end_time_scheduled": 30.7,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 2.4000000000000004",
-                    "start_time_simulation": 32.9,
-                    "end_time_simulation": 35.2,
-                    "start_time_scheduled": 30.7,
-                    "end_time_scheduled": 33.1,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Monitoring for Turn off Stove after cooking_65cfd15b",
-                    "start_time_simulation": 35.2,
-                    "end_time_simulation": 35.3,
-                    "start_time_scheduled": 33.1,
-                    "end_time_scheduled": 33.2,
-                    "execution_status": false,
-                    "monitored_subtask": {
-                        "updated_subtask_name": "Prepare Egg Fry",
-                        "original_expected_time": 9.971839756897284,
-                        "updated_expected_time": 9.722019562629205,
-                        "ground_truth_time": 10
-                    }
-                },
-                {
-                    "subtask_name": "Wait for Turn off Stove after cooking",
-                    "start_time_simulation": 35.3,
-                    "end_time_simulation": 36.17,
-                    "start_time_scheduled": 33.2,
-                    "end_time_scheduled": 34.072,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Turn off Stove after cooking",
-                    "start_time_simulation": 36.17,
-                    "end_time_simulation": 37.17,
-                    "start_time_scheduled": 34.072,
-                    "end_time_scheduled": 35.072,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Retrieve Bread from Microwave",
-                    "start_time_simulation": 37.17,
-                    "end_time_simulation": 45.17,
-                    "start_time_scheduled": 35.072,
-                    "end_time_scheduled": 42.472,
-                    "execution_status": false
-                },
-                {
-                    "subtask_name": "Retrieve Coffee",
-                    "start_time_simulation": 45.17,
-                    "end_time_simulation": 48.97,
-                    "start_time_scheduled": 42.472,
-                    "end_time_scheduled": 45.672,
-                    "execution_status": false
-                }
-            ]
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 0,
+            "end_time_simulation": 7.1,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 6.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Start Microwave",
+            "start_time_simulation": 7.1,
+            "end_time_simulation": 8.2,
+            "start_time_scheduled": 6.9,
+            "end_time_scheduled": 7.9,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Prepare Egg Fry",
+            "start_time_simulation": 8.2,
+            "end_time_simulation": 22.6,
+            "start_time_scheduled": 7.9,
+            "end_time_scheduled": 24.5,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "EARLY_Retrieve Bread from Microwave",
+            "start_time_simulation": 22.6,
+            "end_time_simulation": 29.8,
+            "start_time_scheduled": 24.5,
+            "end_time_scheduled": 27.01,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn off Stove after cooking_1eff7904",
+            "start_time_simulation": 29.8,
+            "end_time_simulation": 29.9,
+            "start_time_scheduled": 27.01,
+            "end_time_scheduled": 27.11,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "REMAIN_Retrieve Bread from Microwave",
+            "start_time_simulation": 29.9,
+            "end_time_simulation": 35.1,
+            "start_time_scheduled": 27.11,
+            "end_time_scheduled": 32.11,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn off Stove after cooking",
+            "start_time_simulation": 35.1,
+            "end_time_simulation": 38.3,
+            "start_time_scheduled": 32.11,
+            "end_time_scheduled": 35.31,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Prepare Coffee",
+            "start_time_simulation": 38.3,
+            "end_time_simulation": 43.6,
+            "start_time_scheduled": 35.31,
+            "end_time_scheduled": 40.61,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Retrieve Coffee",
+            "start_time_simulation": 43.6,
+            "end_time_simulation": 48.6,
+            "start_time_scheduled": 40.61,
+            "end_time_scheduled": 45.61,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Retrieve Coffee",
+            "start_time_simulation": 48.6,
+            "end_time_simulation": 51.1,
+            "start_time_scheduled": 45.61,
+            "end_time_scheduled": 48.11,
+            "execution_status": true
         }
     ],
-    "computation_time": 0.84841,
-    "simulation_makespan": 48.97,
-    "scheduler_makespan": 45.672,
+    "computation_time": 1.23045,
+    "simulation_makespan": 51.1,
+    "scheduler_makespan": 48.11,
     "realworld_makespan": null,
-    "success_rate": 0.0,
-    "timing_success_rate_sim": 1.0,
-    "timing_success_rate_sched": 1.0
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.62,
+    "timing_success_rate_sched": 0.75
 }

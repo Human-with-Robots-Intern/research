@@ -55,8 +55,36 @@ class ActionHandler:
             )
             return None
 
-        action_sim_info = self._simulate_actions(current_node, actions)
-        return action_sim_info.results[-1]
+        action_sim_info: Optional[ActionSimulationLog] = self._simulate_actions(
+            current_node, actions
+        )
+
+        # action_sim_info가 None이거나, 결과가 비어있는 경우 처리
+        if not action_sim_info or not action_sim_info.results:
+            log.warning(
+                "Action simulation did not produce any results. Returning None."
+            )
+            return None
+
+        # 마지막 ActionResult 가져오기
+        last_action_result: ActionResult = action_sim_info.results[-1]
+
+        first_nav_duration = 0.0
+        if action_sim_info.results:  # 결과가 하나라도 있는지 확인
+            first_action_in_log = action_sim_info.results[0]
+            if first_action_in_log.action_type.upper() == "NAVIGATE_TO":
+                first_nav_duration = first_action_in_log.action_duration
+
+        try:
+            last_action_result.first_nav_duration = first_nav_duration
+        except AttributeError:
+            log.warning(
+                "ActionResult dataclass does not have 'first_nav_duration' attribute. "
+                "This information will not be directly added to the returned ActionResult object. "
+                "Consider modifying the ActionResult dataclass or using the ActionSimulationLog object."
+            )
+
+        return last_action_result
 
     # --------------------------------------------------------------------------
     # 액션 시뮬레이션 핵심 로직 (_simulate_actions 및 헬퍼 메서드)

@@ -1,0 +1,166 @@
+{
+    "saved_time": "2025-05-20 19:53",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1_physics.json",
+    "plans": [
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 0,
+            "end_time_simulation": 7.5,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 7.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Start Microwave for Potato",
+            "start_time_simulation": 7.5,
+            "end_time_simulation": 8.5,
+            "start_time_scheduled": 7.3,
+            "end_time_scheduled": 8.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "EARLY_Prepare Egg Fry",
+            "start_time_simulation": 8.5,
+            "end_time_simulation": 11.9,
+            "start_time_scheduled": 8.3,
+            "end_time_scheduled": 11.7,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Retrieve Potato from Microwave_ffa6a408",
+            "start_time_simulation": 11.9,
+            "end_time_simulation": 12.0,
+            "start_time_scheduled": 11.7,
+            "end_time_scheduled": 11.8,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Navigate to Microwave|-00.24|+01.69|-02.53 during 0.2",
+            "start_time_simulation": 12.0,
+            "end_time_simulation": 12.2,
+            "start_time_scheduled": 11.8,
+            "end_time_scheduled": 12.0,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Retrieve Potato from Microwave_bf9d36bb",
+            "start_time_simulation": 12.2,
+            "end_time_simulation": 12.3,
+            "start_time_scheduled": 12.0,
+            "end_time_scheduled": 12.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Retrieve Potato from Microwave",
+            "start_time_simulation": 12.3,
+            "end_time_simulation": 18.5,
+            "start_time_scheduled": 12.1,
+            "end_time_scheduled": 18.3,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "REMAIN_Prepare Egg Fry",
+            "start_time_simulation": 18.5,
+            "end_time_simulation": 29.7,
+            "start_time_scheduled": 18.3,
+            "end_time_scheduled": 31.6,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "EARLY_Wash Plate_part_1",
+            "start_time_simulation": 29.7,
+            "end_time_simulation": 37.1,
+            "start_time_scheduled": 31.6,
+            "end_time_scheduled": 33.6,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn off stove after cooking_3ee1886b",
+            "start_time_simulation": 37.1,
+            "end_time_simulation": 37.2,
+            "start_time_scheduled": 33.6,
+            "end_time_scheduled": 33.7,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 1.4",
+            "start_time_simulation": 37.2,
+            "end_time_simulation": 38.6,
+            "start_time_scheduled": 33.7,
+            "end_time_scheduled": 35.1,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn off stove after cooking_c7d333ba",
+            "start_time_simulation": 38.6,
+            "end_time_simulation": 38.7,
+            "start_time_scheduled": 35.1,
+            "end_time_scheduled": 35.2,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 0.2",
+            "start_time_simulation": 38.7,
+            "end_time_simulation": 38.7,
+            "start_time_scheduled": 35.2,
+            "end_time_scheduled": 35.4,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Monitoring for Turn off stove after cooking_86c5eb4b",
+            "start_time_simulation": 38.7,
+            "end_time_simulation": 38.8,
+            "start_time_scheduled": 35.4,
+            "end_time_scheduled": 35.5,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wait for Turn off stove after cooking",
+            "start_time_simulation": 38.8,
+            "end_time_simulation": 41.57,
+            "start_time_scheduled": 35.5,
+            "end_time_scheduled": 38.27,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Turn off stove after cooking",
+            "start_time_simulation": 41.57,
+            "end_time_simulation": 42.57,
+            "start_time_scheduled": 38.27,
+            "end_time_scheduled": 39.37,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "REMAIN_Wash Plate_part_1",
+            "start_time_simulation": 42.57,
+            "end_time_simulation": 54.17,
+            "start_time_scheduled": 39.37,
+            "end_time_scheduled": 50.97,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Retrieve Potato from Microwave",
+            "start_time_simulation": 54.17,
+            "end_time_simulation": 62.97,
+            "start_time_scheduled": 50.97,
+            "end_time_scheduled": 59.97,
+            "execution_status": true
+        },
+        {
+            "subtask_name": "Wash Plate_part_2",
+            "start_time_simulation": 62.97,
+            "end_time_simulation": 72.37,
+            "start_time_scheduled": 59.97,
+            "end_time_scheduled": 68.97,
+            "execution_status": true
+        }
+    ],
+    "computation_time": 2.76301,
+    "simulation_makespan": 72.37,
+    "scheduler_makespan": 68.97,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.67,
+    "timing_success_rate_sched": 0.83
+}
