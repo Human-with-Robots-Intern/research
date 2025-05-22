@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from src.models.dataclass import CompletedEntry
 
 from utils.common.logger import create_module_logger
-from utils.config.constants import RESULT_PATH, TIMING_TOLERANCE
+from utils.config.constants import EPSILON, RESULT_PATH, TIMING_TOLERANCE
 from utils.visualizers.visualizer import visualize
 
 log = create_module_logger(__name__, module_log=True, level=logging.INFO)
@@ -90,20 +90,20 @@ def calculate_timing_success_rate(
         sim_nav_time = succ_entry.sim_nav_time
         if is_critical:
             # Critical edge: 가우시안 90% 범위 내에서 시작해야 함
-            # 일단 간단히 ±10% 범위를 사용
+            # expected_start_sim = pred_end_time_sim + interval - sim_nav_time
+            
 
-           
-            if abs(interval -(succ_start_time_sim - pred_end_time_sim))/interval <= TIMING_TOLERANCE:
+            if abs(interval -((succ_start_time_sim+sim_nav_time) - pred_end_time_sim)) <= 0.1 + interval * TIMING_TOLERANCE:
                 timing_success_flag = True
                 succeeded_timing_constraints_sim_cnt += 1
-            if abs(interval -(succ_start_time_sched - pred_end_time_sched))/interval <= TIMING_TOLERANCE:
+            if abs(interval -((succ_start_time_sched+schedule_nav_time) - pred_end_time_sched)) <= 0.1 + interval * TIMING_TOLERANCE:
                 succeeded_timing_constraints_sched_cnt += 1
         else:
             # Non-critical edge: interval 이후에 시작하면 됨
-            if (interval - (succ_start_time_sim - pred_end_time_sim))/interval  <= TIMING_TOLERANCE/2:
+            if (interval - ((succ_start_time_sim+sim_nav_time) - pred_end_time_sim))  <= 0.1 + interval * TIMING_TOLERANCE:
                 timing_success_flag = True
                 succeeded_timing_constraints_sim_cnt += 1
-            if (interval - (succ_start_time_sched - pred_end_time_sched))/interval <= TIMING_TOLERANCE/2:
+            if (interval - ((succ_start_time_sched+schedule_nav_time) - pred_end_time_sched))  <= 0.1 + interval * TIMING_TOLERANCE:
                 succeeded_timing_constraints_sched_cnt += 1
         # 제약 시작 작업 끝 작업, 원본 제약 기준 (interval, is_critical)
         # 실제 스케쥴 결과 : pred_end_time_sched -> succ_start_time_sched,
