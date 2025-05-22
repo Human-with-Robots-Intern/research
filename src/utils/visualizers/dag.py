@@ -82,7 +82,7 @@ def visualize_graph(
 
     if save_path:
         plt.savefig(save_path, dpi=300)
-        print(f"Graph saved: {save_path}")
+
     if is_display:
         plt.show()
     else:

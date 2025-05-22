@@ -70,13 +70,5 @@
     "turn off kettle": {
         "expected_duration": 5,
         "variance": 1.0
-    },
-    "stop filling pot and place on stoveburner": {
-        "expected_duration": 10,
-        "variance": 1.0
-    },
-    "cook egg in pan": {
-        "expected_duration": 0,
-        "variance": 1.0
     }
 }

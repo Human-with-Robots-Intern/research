@@ -1,5 +1,6 @@
 import copy
 import heapq
+import logging
 import math
 from typing import Dict, List, Optional, Tuple, TypeAlias
 
@@ -13,9 +14,10 @@ from utils.config.constants import (
     PRIMITIVE_ACTION_DURATION,
     REACHABLE_DISTANCE_THRESHOLD,
     STATIC_ACTION_SET,
+    TIMING_TOLERANCE,
 )
 
-log = create_module_logger(__name__, module_log=True)
+log = create_module_logger(__name__, module_log=True, level=logging.DEBUG)
 
 Position: TypeAlias = Tuple[float, float, float]
 NavGraph: TypeAlias = Dict[Position, List[Position]]  # 네비게이션 그래프 타입 정의
@@ -280,9 +282,10 @@ class ActionHandler:
 
         # 1. 목표 유효성 검사 및 위치 가져오기
         if not target_obj_id or target_obj_id not in scene_positions:
-            raise ValueError(
-                f"Navigation target '{target_obj_id}' not found in scene positions."
-            )
+            # raise ValueError(
+            #     f"Navigation target '{target_obj_id}' not found in scene positions."
+            # )
+            return 0.0, True, agent_pos
         target_pos = tuple(scene_positions[target_obj_id])
 
         # 2. 경로 탐색 시도 (partial time 여부와 관계없이 일단 시도)
@@ -494,106 +497,184 @@ class ActionHandler:
         self,
         current_node: SimulationNode,
         primitive_actions: List[str],
-        cutoff_time: float,
-    ) -> Tuple[ActionSimulationLog, ActionSimulationLog]:
+        target_cutoff_time: float,
+    ) -> Tuple[ActionSimulationLog, ActionSimulationLog, bool, bool]:
         """
-        주어진 액션 시퀀스를 지정된 cutoff_time 기준으로 두 부분으로 나눕니다.
-        내부 시뮬레이션(_simulate_actions)을 한 번 사용하여 각 액션의 완료 시간과 상태를 계산하고,
-        cutoff_time을 초과하는 첫 번째 액션을 기준으로 분할합니다.
-        만약 분할 지점에서 객체를 들고 있다면(GRASP 이후), 이후 첫 번째 PLACE 액션까지를
-        첫 번째 부분(pre-cutoff)에 포함하도록 분할 지점을 조정합니다.
+        주어진 액션 시퀀스를 지정된 target_cutoff_time 기준으로 두 부분으로 나눕니다.
+        1. 전체 시퀀스를 시뮬레이션합니다.
+        2. target_cutoff_time 내에 완료되는 액션들로 초기 pre_log를 구성합니다.
+        3. pre_log의 마지막 액션에서 객체를 들고 있다면(GRASP 이후),
+           다음 PLACE 액션까지를 pre_log에 포함시키려 시도합니다.
+        4. 단, 이 조정으로 인해 pre_log의 완료 시간이 target_cutoff_time을 기준으로
+           TIMING_TOLERANCE 비율을 초과하지 않는 경우에만 조정을 확정합니다.
+        5. 분할 성공 여부와 pre_log 완료 시 객체를 들고 있는지 여부를 함께 반환합니다.
 
         Args:
             current_node: 분할을 시작할 기준 노드.
             primitive_actions: 분할 대상 액션 시퀀스.
-            cutoff_time: 분할 기준 시간 (current_node.state.current_time 기준 상대 시간).
+            target_cutoff_time: 분할 기준이 되는 목표 상대 시간.
 
         Returns:
-            (pre-cutoff ActionSimulationLog, post-cutoff ActionSimulationLog) 튜플.
-            각 로그는 해당 구간의 액션 결과 리스트를 포함합니다. 구간에 액션이 없으면 빈 로그가 반환됩니다.
+            Tuple: (pre_actions_log, post_actions_log, split_successful, pre_ends_holding_object)
+                   split_successful: 유의미한 분할이 이루어졌는지 여부.
+                   pre_ends_holding_object: pre_actions_log 완료 시 객체를 들고 있는지 여부.
         """
         log.debug(
-            f"Attempting to split actions at relative cutoff time: {cutoff_time:.2f} "
+            f"Attempting to split actions with target_cutoff_time: {target_cutoff_time:.2f} "
             f"(Node time: {current_node.state.current_time:.2f})"
         )
-        if cutoff_time < 0:
-            log.warning(f"Relative cutoff time {cutoff_time:.2f} is negative. Using 0.")
-            cutoff_time = 0.0
-
-        # 1. 전체 시퀀스 시뮬레이션 (단 한번)
-        full_simulation_log = self._simulate_actions(current_node, primitive_actions)
 
         pre_log = ActionSimulationLog()
         post_log = ActionSimulationLog()
+        split_successful = False
+        pre_ends_holding_object = False
 
-        # 시뮬레이션 실패 또는 결과 없음 처리
+        # target_cutoff_time이 너무 작으면 분할 의미 없음 (상대 시간이므로 0보다 커야 함)
+        if target_cutoff_time < EPSILON:
+            log.warning(
+                f"Target cutoff time {target_cutoff_time:.2f} is too small. No effective split will be performed."
+            )
+            # 전체 액션 시뮬레이션 결과를 pre_log로 간주 (분할 실패)
+            full_sim_log = self._simulate_actions(current_node, primitive_actions)
+            if full_sim_log and full_sim_log.results:
+                pre_log.results = full_sim_log.results[:]
+                last_action_res = pre_log.results[-1]
+                pre_ends_holding_object = last_action_res.held_object is not None
+            return pre_log, post_log, False, pre_ends_holding_object
+
+        # 1. 전체 액션 시퀀스 시뮬레이션
+        full_simulation_log = self._simulate_actions(current_node, primitive_actions)
+
         if not full_simulation_log or not full_simulation_log.results:
             log.error(
-                "Full internal simulation failed or produced no results. Returning empty logs."
+                "Full internal simulation failed or produced no results. Returning empty logs and split_failed."
             )
-            return pre_log, post_log  # 빈 로그 반환
+            return pre_log, post_log, False, False
 
-        # 2. 초기 분할 지점 결정
-        split_index = -1  # pre-cutoff 부분의 마지막 액션 인덱스
+        # 2. 초기 분할 지점 결정: target_cutoff_time을 넘지 않는 마지막 액션
+        initial_split_index = -1
         for i, result in enumerate(full_simulation_log.results):
-            # 현재 액션 완료 시간 <= 절대 cutoff 시간 인 마지막 액션 찾기
-            if result.cumulative_time <= cutoff_time + EPSILON:
-                split_index = i
+            if result.cumulative_time <= target_cutoff_time + EPSILON:
+                initial_split_index = i
             else:
-                # 이 액션부터 post-cutoff
-                break
-
-        log.debug(f"Initial split index determined: {split_index}")
-
-        # 3. GRASP / PLACE 제약 조건 확인 및 분할 지점 조정
-        # split_index가 유효하고 (-1이 아니고), 해당 액션이 성공했으며, 객체를 들고 있는 경우
-        if (
-            0 <= split_index < len(full_simulation_log.results)
-            and full_simulation_log.results[split_index].held_object is not None
-        ):
-            held_object_at_split = full_simulation_log.results[split_index].held_object
-            log.debug(
-                f"Object '{held_object_at_split}' is held at the initial split point (index {split_index}). Checking for subsequent PLACE action."
-            )
-
-            # 분할 지점 이후의 액션들을 확인하여 첫 번째 PLACE 액션 찾기
-            found_place = False
-            for j, next_result in enumerate(
-                full_simulation_log.results[split_index + 1 :]
-            ):
-                if next_result.action_type.startswith("PLACE_"):
-                    # PLACE 액션을 찾으면, 이 액션까지 pre-cutoff에 포함하도록 split_index 조정
-                    adjusted_split_index = split_index + 1 + j
-                    log.info(
-                        f"Found subsequent PLACE action '{next_result.action_full_name}' at index {adjusted_split_index}. "
-                        f"Adjusting split index from {split_index} to {adjusted_split_index} to keep GRASP/PLACE together."
-                    )
-                    split_index = adjusted_split_index
-                    found_place = True
-                    break  # 첫 번째 PLACE 액션만 찾으면 됨
-
-            if not found_place:
-                log.warning(
-                    f"Object '{held_object_at_split}' was held at split index {split_index}, but no subsequent PLACE action was found in the remaining sequence. Split will occur after GRASP."
-                )
-        elif full_simulation_log.results[split_index].held_object is None:
-            log.debug(
-                f"No object held or action failed at split index {split_index}. No GRASP/PLACE adjustment needed."
-            )
-        else:
-            log.debug(
-                "Split index is -1 (all actions are post-cutoff) or invalid. No adjustment needed."
-            )
-
-        # 4. 초기 로그 생성 (조정된 split_index 기준)
-        pre_log.results = full_simulation_log.results[: split_index + 1]
-        post_log.results = full_simulation_log.results[split_index + 1 :]
-
+                break  # cutoff_time을 초과하는 첫 액션 앞에서 멈춤
         log.debug(
-            f"Final split index: {split_index}. "
-            f"Pre-cutoff log contains {len(pre_log.results)} results. "
-            f"Post-cutoff log contains {len(post_log.results)} results."
+            f"Initial split index based on target_cutoff_time ({target_cutoff_time:.2f}): {initial_split_index}"
         )
 
-        # 5. 결과 반환
-        return pre_log, post_log
+        # 모든 액션이 cutoff 이후이거나, 액션이 아예 없는 경우
+        if initial_split_index == -1:
+            if full_simulation_log.results:  # 액션은 있지만 모두 cutoff 이후
+                post_log.results = full_simulation_log.results[:]
+                log.debug(
+                    "All actions occur after target_cutoff_time. Pre-log is empty."
+                )
+                # post_log에만 액션이 있다면 유의미한 분할은 아님 (또는 성공으로 볼 수도 있음, 정책에 따라)
+                return pre_log, post_log, False, False  # 여기서는 분할 실패로 간주
+            else:  # 액션이 아예 없는 경우
+                log.debug("No actions in primitive_actions. Both logs empty.")
+                return pre_log, post_log, False, False
+
+        # --- 초기 분할 상태 ---
+        current_split_index = initial_split_index
+
+        # 3. GRASP / PLACE 제약 조건 및 TIMING_TOLERANCE 기반 분할 지점 조정
+        last_action_at_initial_split = full_simulation_log.results[initial_split_index]
+        object_held_at_initial_split = last_action_at_initial_split.held_object
+
+        if object_held_at_initial_split is not None:
+            log.debug(
+                f"Object '{object_held_at_initial_split}' is held at initial split index {initial_split_index} "
+                f"(time: {last_action_at_initial_split.cumulative_time:.2f}). Checking for subsequent PLACE action."
+            )
+
+            found_place_action_index_in_full_log = -1
+            for j, next_result in enumerate(
+                full_simulation_log.results[initial_split_index + 1 :]
+            ):
+                if next_result.action_type.startswith("PLACE_"):
+                    found_place_action_index_in_full_log = initial_split_index + 1 + j
+                    break
+
+            if found_place_action_index_in_full_log != -1:
+                duration_if_place_included = full_simulation_log.results[
+                    found_place_action_index_in_full_log
+                ].cumulative_time
+
+                # TIMING_TOLERANCE 검사
+                # (조정 후 pre_log 완료 시간 - 목표 cutoff 시간) / 목표 cutoff 시간이 TIMING_TOLERANCE 이내인가?
+                # 또는, |조정 후 pre_log 완료 시간 - 목표 cutoff 시간| <= 목표 cutoff 시간 * TIMING_TOLERANCE
+                allowable_deviation = (
+                    max(EPSILON, target_cutoff_time) * TIMING_TOLERANCE
+                )
+
+                if (
+                    abs(duration_if_place_included - target_cutoff_time)
+                    <= allowable_deviation
+                ):
+                    log.info(
+                        f"Found subsequent PLACE action. Including it in pre_log. "
+                        f"New pre_log duration: {duration_if_place_included:.2f} (target_cutoff: {target_cutoff_time:.2f}, "
+                        f"deviation: {abs(duration_if_place_included - target_cutoff_time):.2f} <= allowable: {allowable_deviation:.2f})."
+                    )
+                    current_split_index = found_place_action_index_in_full_log
+                    pre_ends_holding_object = False  # PLACE로 끝났으므로
+                else:
+                    log.warning(
+                        f"Found subsequent PLACE action, but including it would make pre_log duration ({duration_if_place_included:.2f}) "
+                        f"exceed target_cutoff_time ({target_cutoff_time:.2f}) beyond TIMING_TOLERANCE (allowable deviation: {allowable_deviation:.2f}). "
+                        f"Splitting after GRASP at index {initial_split_index}."
+                    )
+                    # GRASP/PLACE 묶기 포기, 초기 분할 지점 유지.
+                    pre_ends_holding_object = True  # 초기 분할 지점에서 들고 있었음
+            else:  # PLACE 액션이 아예 없는 경우
+                log.warning(
+                    f"Object '{object_held_at_initial_split}' was held at initial split index {initial_split_index}, "
+                    f"but no subsequent PLACE action was found. EARLY_ subtask will end holding the object."
+                )
+                pre_ends_holding_object = True
+        else:  # 초기 분할 지점에서 객체를 들고 있지 않은 경우
+            pre_ends_holding_object = False
+            log.debug(
+                f"No object held at initial split index {initial_split_index}. No GRASP/PLACE adjustment needed."
+            )
+
+        # 4. 최종 로그 생성
+        pre_log.results = full_simulation_log.results[: current_split_index + 1]
+        post_log.results = full_simulation_log.results[current_split_index + 1 :]
+
+        # 5. 분할 성공 여부 판단
+        # pre_log에 액션이 있고, post_log에도 액션이 있어야 유의미한 분할로 간주
+        if pre_log.results and post_log.results:
+            split_successful = True
+            # 추가적으로, pre_log의 최종 완료 시간이 target_cutoff_time 대비 TIMING_TOLERANCE를 만족하는지 확인
+            final_pre_log_duration = pre_log.results[-1].cumulative_time
+            allowable_deviation = max(EPSILON, target_cutoff_time) * TIMING_TOLERANCE
+            if (
+                abs(final_pre_log_duration - target_cutoff_time)
+                > allowable_deviation + EPSILON
+            ):  # EPSILON 추가는 부동소수점 오차 감안
+                log.warning(
+                    f"Final pre_log duration {final_pre_log_duration:.2f} significantly deviates from target_cutoff_time {target_cutoff_time:.2f} "
+                    f"(allowable deviation: {allowable_deviation:.2f}). This split might be suboptimal."
+                )
+                # 이 경우, split_successful을 False로 설정하여 상위에서 fallback하도록 할 수도 있음.
+                # split_successful = False # 정책에 따라 주석 해제 또는 변경
+        else:
+            split_successful = (
+                False  # pre 또는 post 중 하나라도 비어있으면 유의미한 분할 아님
+            )
+            if not pre_log.results:
+                log.debug("No actions in pre_log after split attempt.")
+            if not post_log.results:
+                log.debug(
+                    "No actions in post_log after split attempt. All actions in pre_log."
+                )
+
+        log.debug(
+            f"Final split index: {current_split_index}. "
+            f"Pre-log ({len(pre_log.results)} actions, ends holding: {pre_ends_holding_object}). "
+            f"Post-log ({len(post_log.results)} actions). Split successful: {split_successful}"
+        )
+
+        return pre_log, post_log, split_successful, pre_ends_holding_object

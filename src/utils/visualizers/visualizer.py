@@ -1116,6 +1116,7 @@ def plot_gantt_chart(
         Path(save_folder_path) / f"task_schedule_gantt_{len(completed_subtasks)}.png"
     )
     plt.savefig(save_path)
+    print(f"Old Gantt chart saved at {save_path}")
 
     if is_display:
         plt.show()
