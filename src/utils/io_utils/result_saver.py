@@ -91,13 +91,18 @@ def calculate_timing_success_rate(
         if is_critical:
             # Critical edge: 가우시안 90% 범위 내에서 시작해야 함
             # expected_start_sim = pred_end_time_sim + interval - sim_nav_time
-            
-
-            if abs(interval -((succ_start_time_sim+sim_nav_time) - pred_end_time_sim)) <= 0.1 + interval * TIMING_TOLERANCE:
-                timing_success_flag = True
+            if interval == 0:
+                if abs(interval -((succ_start_time_sim) - pred_end_time_sim)) <= 0.1 + interval * TIMING_TOLERANCE:
+                    timing_success_flag = True
                 succeeded_timing_constraints_sim_cnt += 1
-            if abs(interval -((succ_start_time_sched+schedule_nav_time) - pred_end_time_sched)) <= 0.1 + interval * TIMING_TOLERANCE:
-                succeeded_timing_constraints_sched_cnt += 1
+                if abs(interval -((succ_start_time_sched) - pred_end_time_sched)) <= 0.1 + interval * TIMING_TOLERANCE:
+                    succeeded_timing_constraints_sched_cnt += 1
+            else:
+                if abs(interval -((succ_start_time_sim+sim_nav_time) - pred_end_time_sim)) <= 0.1 + interval * TIMING_TOLERANCE:
+                    timing_success_flag = True
+                    succeeded_timing_constraints_sim_cnt += 1
+                if abs(interval -((succ_start_time_sched+schedule_nav_time) - pred_end_time_sched)) <= 0.1 + interval * TIMING_TOLERANCE:
+                    succeeded_timing_constraints_sched_cnt += 1
         else:
             # Non-critical edge: interval 이후에 시작하면 됨
             if (interval - ((succ_start_time_sim+sim_nav_time) - pred_end_time_sim))  <= 0.1 + interval * TIMING_TOLERANCE:
