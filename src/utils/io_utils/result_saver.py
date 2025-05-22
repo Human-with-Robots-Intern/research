@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from src.models.dataclass import CompletedEntry
 
 from utils.common.logger import create_module_logger
-from utils.config.constants import RESULT_PATH
+from utils.config.constants import RESULT_PATH, TIMING_TOLERANCE
 from utils.visualizers.visualizer import visualize
 
 log = create_module_logger(__name__, module_log=True, level=logging.INFO)
@@ -91,22 +91,19 @@ def calculate_timing_success_rate(
         if is_critical:
             # Critical edge: 가우시안 90% 범위 내에서 시작해야 함
             # 일단 간단히 ±10% 범위를 사용
-            expected_start_sim = pred_end_time_sim + interval - sim_nav_time
-            expected_start_sched = pred_end_time_sched + interval - schedule_nav_time
-            tolerance = (
-                0.2 + interval * 0.1
-            )  # 10% 허용 오차 #추후에 interval의 std를 확인해서 허용오차를 조정해야함.
-            if abs(succ_start_time_sim - expected_start_sim) <= tolerance:
+
+           
+            if abs(interval -(succ_start_time_sim - pred_end_time_sim))/interval <= TIMING_TOLERANCE:
                 timing_success_flag = True
                 succeeded_timing_constraints_sim_cnt += 1
-            if abs(succ_start_time_sched - expected_start_sched) <= tolerance:
+            if abs(interval -(succ_start_time_sched - pred_end_time_sched))/interval <= TIMING_TOLERANCE:
                 succeeded_timing_constraints_sched_cnt += 1
         else:
             # Non-critical edge: interval 이후에 시작하면 됨
-            if succ_start_time_sim >= pred_end_time_sim + interval:
+            if (interval - (succ_start_time_sim - pred_end_time_sim))/interval  <= TIMING_TOLERANCE/2:
                 timing_success_flag = True
                 succeeded_timing_constraints_sim_cnt += 1
-            if succ_start_time_sched >= pred_end_time_sched + interval:
+            if (interval - (succ_start_time_sched - pred_end_time_sched))/interval <= TIMING_TOLERANCE/2:
                 succeeded_timing_constraints_sched_cnt += 1
         # 제약 시작 작업 끝 작업, 원본 제약 기준 (interval, is_critical)
         # 실제 스케쥴 결과 : pred_end_time_sched -> succ_start_time_sched,
