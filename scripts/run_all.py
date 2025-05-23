@@ -14,6 +14,8 @@ def parse_args():
     parser.add_argument('--log-level', type=str, default='WARNING',
                     choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                     help='Set the logging level (default: WARNING)')
+    parser.add_argument('--predefined', type=bool, default=False,
+                    help='Use predefined numbered instructions (default: False)')
     return parser.parse_args()
 
 def run_with_retries(script: Path, input_str: str, scene_name: str, max_retries: int = 10) -> tuple[bool, int]:
@@ -196,9 +198,10 @@ def main() -> None:
         instructions = load_instructions_from_json(scene_name)
 
         # predefine instruction을 사용하려면 활성화
-        numbers = list(range(1, 31))
+        
 
-        if numbers:            
+        if args.predefined: 
+            numbers = list(range(1, 31))           
             for instruction, i in product(numbers, range(num_runs_per_instruction)):
                 print(f"task_name : {instruction}")
                 print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i}")
