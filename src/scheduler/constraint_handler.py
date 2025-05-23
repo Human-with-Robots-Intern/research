@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 import networkx as nx
 from networkx import DiGraph
@@ -15,11 +15,13 @@ from src.models.dataclass import (
     TimeSlot,
 )
 from src.models.task import Subtask
+from src.utils.common import create_module_logger
 from utils.config import EPSILON
+from utils.config.constants import TIMING_TOLERANCE
 
 from .action_handler import ActionHandler
 
-log = logging.getLogger(__name__)
+log = create_module_logger(__name__, True, logging.DEBUG)
 
 
 class ConstraintHandler:
@@ -258,7 +260,7 @@ class ConstraintHandler:
                 )
         # 선행 작업 성공 / 실패 여부 확인
         if any_predecessor_failed:
-            log.info(
+            log.ERROR(
                 f"Final status for '{sub.name}': FAILED_PREDECESSOR ({failure_reason})"
             )
             return None, False, "FAILED_PREDECESSOR"
@@ -277,6 +279,7 @@ class ConstraintHandler:
                         f"CRITICAL CONSTRAINT CONFLICT for '{sub.name}': Multiple distinct critical start times required: {sorted(critical_times)}. Check constraint logic."
                     )
                     tc_conflict_detected = True
+
                 else:
                     final_start_time = earliest_critical_time
 
@@ -291,7 +294,7 @@ class ConstraintHandler:
                     )
                     tc_conflict_detected = True
                 if tc_conflict_detected:
-                    log.info(f"Final status for '{sub.name}': CONFLICT")
+                    log.ERROR(f"Final status for '{sub.name}': CONFLICT")
                     return None, True, "CONFLICT"
             else:
                 final_start_time = non_critical_earliest_start

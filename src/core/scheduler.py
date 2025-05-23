@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, List, Optional
 
 from src.models.dataclass import (
     ActionResult,
+    ActionSimulationLog,
     Candidate,
     CompletedEntry,
     SchedulerState,
@@ -214,7 +215,9 @@ class Scheduler:
                         f"Critical candidate {candidate.subtask.name} has None LST. Skipping."
                     )
                     continue
-
+                candidate.logical_interaction_start_time = max(
+                    EPSILON, candidate.logical_interaction_start_time
+                )
                 physical_earliest_interaction_start_time = (
                     curr_node.state.current_time
                     + candidate.estimated_first_nav_duration
@@ -225,7 +228,8 @@ class Scheduler:
                         candidate.logical_interaction_start_time
                         - physical_earliest_interaction_start_time
                     )
-                    < EPSILON
+                    / candidate.logical_interaction_start_time
+                    < TIMING_TOLERANCE
                 ):
                     log.debug(
                         f"[_expand_candidates] Policy 1: Found ON-TIME CRITICAL candidate: {candidate.subtask.name}."
@@ -246,7 +250,13 @@ class Scheduler:
             )
             if child_node is not None:
                 expansions.append(child_node)
-            return expansions  # 정시 Critical 확장 시 즉시 반환
+                return expansions  # 정시 Critical 확장 시 즉시 반환
+            else:
+                log.warning(
+                    f"On-time critical candidate '{on_time_critical_candidate_to_expand.subtask.name}' "
+                    f"was found to be infeasible during expansion. "
+                    f"Proceeding to evaluate other candidates or WAIT policy."
+                )
 
         # --- 단계 1에서 정시 Critical 확장이 없었던 경우 다음 단계로 진행 ---
         # is_expanded 플래그를 사용하여 작업 수행 확장이 일어났는지 추적
@@ -583,22 +593,22 @@ class Scheduler:
             )
             return False
 
-        # (2) If subtask is already decomposed => no monitoring needed
+        # # (2) If subtask is already decomposed => no monitoring needed
         # if candidate.subtask.decomposed:
         #     log.debug(
         #         f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} is already decomposed => No monitoring."
         #     )
         #     return False
 
-        # (3) critical-constraint end => no
-        in_slots = self.constraint_handler.get_time_slots(
-            candidate.subtask.name, curr_node.state.constraints, direction="in"
-        )
-        if any(slot.is_critical for slot in in_slots):
-            log.debug(
-                f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} is a critical-constraint end => No monitoring."
-            )
-            return False
+        # # (3) critical-constraint end => no
+        # in_slots = self.constraint_handler.get_time_slots(
+        #     candidate.subtask.name, curr_node.state.constraints, direction="in"
+        # )
+        # if any(slot.is_critical for slot in in_slots):
+        #     log.debug(
+        #         f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} is a critical-constraint end => No monitoring."
+        #     )
+        #     return False
 
         return True
 
@@ -697,7 +707,7 @@ class Scheduler:
         log.info(
             f"Expanded {original_task_name} (wo_monitoring): \n"
             f"  Nav Start: {planned_nav_start_time:.2f}, Interaction Start: {planned_interaction_start_time:.2f}, Completion: {planned_subtask_completion_time:.2f}\n"
-            f"  Cost: +{step_cost:.2f} -> Total: {new_cost:.2f}. Depth: {curr_depth + 1}"
+            f"  Score: +{step_cost:.2f} -> Total: {new_cost:.2f}. Depth: {curr_depth + 1}"
         )
 
         return SimulationNode(
@@ -827,6 +837,10 @@ class Scheduler:
             and candidate_expected_completion_time_wo_split
             > original_absolute_monitoring_trigger_time
         )
+
+        log.info(f"{original_absolute_monitoring_trigger_time=}")
+        log.info(f"{candidate_expected_completion_time_wo_split=}")
+
         if not should_even_try_split:
             log.debug(
                 f"Candidate {original_task_name} (expected_completion: {candidate_expected_completion_time_wo_split:.2f}) "
@@ -834,13 +848,22 @@ class Scheduler:
             )
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
-        pre_actions_log, post_actions_log = (
+        pre_actions_log, post_actions_log, split_successful, pre_ends_holding_object = (
             self.action_handler.split_subtask_by_cutoff_time(
                 curr_node,
                 candidate.subtask.execution.primitive_actions,
                 duration_for_early_sub_target,
             )
         )
+
+        if not split_successful or pre_ends_holding_object:
+            log.warning(
+                f"Failed to split {original_task_name} with cutoff {duration_for_early_sub_target:.2f}. Will try to add WAIT or fallback."
+            )
+            return None
+
+        log.info(f"{pre_actions_log.total_time_used()},{pre_actions_log=}")
+        log.info(f"{post_actions_log.total_time_used()},{post_actions_log=}")
 
         early_sub_actions = []
         actual_early_sub_duration = 0.0
@@ -878,19 +901,6 @@ class Scheduler:
             f"[_expand_subtask_with_monitoring] Subtask '{original_task_name}' (actual early_duration: {actual_early_sub_duration:.2f}) "
             f"meets timing tolerance for ideal early_duration ({ideal_early_sub_duration:.2f}). Proceeding with monitoring split."
         )
-
-        # if actual_early_sub_duration < ideal_early_sub_duration:
-        #     remaining_time_to_fill = ideal_early_sub_duration - actual_early_sub_duration
-        #     if remaining_time_to_fill > EPSILON and (actual_early_sub_duration + remaining_time_to_fill) <= upper_bound: # Tolerance 상한 초과 방지
-        #         wait_action_str = f"WAIT {remaining_time_to_fill}"
-        #         if not early_sub_actions: # 분할된 액션이 없을 경우에만 WAIT 추가 (또는 다른 조건)
-        #              early_sub_actions = [wait_action_str] # pre_actions_log.get_actions()가 비었을 수 있음
-        #         else:
-        #              early_sub_actions.append(wait_action_str)
-        #         actual_early_sub_duration += remaining_time_to_fill
-        #         log.info(
-        #             # ? 여기서 만약, 할게 없으면 기다린다고 해야 하나?
-        #         )
 
         # --- Phase 3: early_sub 확장 및 실제 모니터링 시점 결정 ---
         early_sub_task = copy.deepcopy(candidate.subtask)
@@ -945,14 +955,24 @@ class Scheduler:
             if post_actions_log and post_actions_log.results
             else []
         )
+        if not remain_sub_actions[0].startswith("NAVIGATE_TO"):
+            if remain_sub_actions[0].split()[1] in curr_state.scene_positions:
+                remain_sub_actions = [
+                    f"NAVIGATE_TO {remain_sub_actions[0].split()[1]}"
+                ] + remain_sub_actions
+            else:
+                remain_sub_actions = [
+                    f"NAVIGATE_TO {remain_sub_actions[1].split()[1]}"
+                ] + remain_sub_actions
+        elif remain_sub_actions[0].startswith("WAIT"):
+            remain_sub_actions = [
+                f"NAVIGATE_TO {remain_sub_actions[1].split()[1]}"
+            ] + remain_sub_actions
+
         if remain_sub_actions:
             remain_sub_task = copy.deepcopy(candidate.subtask)
             remain_sub_task.name = f"REMAIN_{original_task_name}"
-            remain_sub_task.execution.primitive_actions = (
-                [f"NAVIGATE_TO {remain_sub_actions[0].split()[1]}"]
-                if not remain_sub_actions[0].startswith("NAVIGATE_TO")
-                else [] + remain_sub_actions
-            )
+            remain_sub_task.execution.primitive_actions = remain_sub_actions
             remain_sub_task.decomposed = True
             log.debug(
                 f"Prepared REMAIN subtask: {remain_sub_task.name} with {len(remain_sub_actions)} actions."

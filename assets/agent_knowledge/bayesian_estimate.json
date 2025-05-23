@@ -60,8 +60,8 @@
         "variance": 1.0
     },
     "stop filling pot and place on stoveburner": {
-        "expected_duration": 10,
-        "variance": 1.0
+        "expected_duration": 11.00864757907316,
+        "variance": 0.7424671645634819
     },
     "retrieve bread from microwave": {
         "expected_duration": 5,
@@ -69,14 +69,6 @@
     },
     "turn off kettle": {
         "expected_duration": 5,
-        "variance": 1.0
-    },
-    "stop filling pot and place on stoveburner": {
-        "expected_duration": 10,
-        "variance": 1.0
-    },
-    "cook egg in pan": {
-        "expected_duration": 0,
         "variance": 1.0
     }
 }

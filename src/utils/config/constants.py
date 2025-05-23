@@ -60,7 +60,7 @@ DYNAMIC_ACTION_SET = {
 PRIMITIVE_ACTION_DURATION = 1.0
 MONITORING_DURATION = 0.1
 NAV_STEP_DURATION = 0.1
-REACHABLE_DISTANCE_THRESHOLD = 1.5
+REACHABLE_DISTANCE_THRESHOLD = 2.0
 # Heuristic constants have been reduced to align with the updated algorithm's expectations:
 # - ALPHA_HEURISTIC: Reduced to 2.0 to balance the weight of heuristic influence on decision-making.
 # - BETA_HEURISTIC: Reduced to 3.0 to ensure smoother scaling in probabilistic calculations.
@@ -69,16 +69,16 @@ ALPHA_HEURISTIC = 2.0
 BETA_HEURISTIC = 3.0
 GAMMA_HEURISTIC = 0.3
 # ========== 베이지안 ==========
-BAYESIAN_CRITERIA = 0.3
+BAYESIAN_CRITERIA = 0.7
 INIT_PRIOR_MEAN = 10.0
 INIT_PRIOR_VARIANCE = 100.0
 FACTOR_ALPHA = 0.3
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
-TIMING_TOLERANCE = 0.15
+TIMING_TOLERANCE = 0.10
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 1
-BEAM_WIDTH = 1
+SIMULATION_DEPTH = 3
+BEAM_WIDTH = 3
 EPSILON = 1e-1
 LARGE_NUMBER = 1e2
 TOP_K = 1
