@@ -89,7 +89,7 @@ def calculate_timing_success_rate(
         )  # navigation time이 없으면 0으로 처리
         sim_nav_time = succ_entry.sim_nav_time
         if is_critical:
-            # Critical edge: 가우시안 90% 범위 내에서 시작해야 함
+
             # expected_start_sim = pred_end_time_sim + interval - sim_nav_time
             if interval == 0:
                 if abs(interval -((succ_start_time_sim) - pred_end_time_sim)) <= 0.1 + interval * TIMING_TOLERANCE:
@@ -114,7 +114,7 @@ def calculate_timing_success_rate(
         # 실제 스케쥴 결과 : pred_end_time_sched -> succ_start_time_sched,
         log.info(f"Original Timing Constraint : {u} -> {v} ({interval}, {is_critical})")
         log.info(
-            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s\n\n"
+            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched+schedule_nav_time}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s\n\n"
         )
         detail_log[f"{u} -> {v}"] = {}
         detail_log[f"{u} -> {v}"][
@@ -122,7 +122,7 @@ def calculate_timing_success_rate(
         ] = f"({interval}, {is_critical})"
         detail_log[f"{u} -> {v}"][
             "Schedule Result"
-        ] = f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched})s"
+        ] = f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched-schedule_nav_time})s"
 
     timing_success_rate_sim = (
         succeeded_timing_constraints_sim_cnt / total_timing_constraints

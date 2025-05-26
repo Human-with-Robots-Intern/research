@@ -412,7 +412,7 @@ def get_final_entries(
                 <= remaining_interval - info.nav_time_to_succ
             }
 
-            if not candidate_subtasks and remaining_interval > 0:
+            if not candidate_subtasks and remaining_interval >= 0:
                 if (
                     expected_ne_subtask_info and not is_critical
                 ):  # Check if expected_info_dict is not empty
