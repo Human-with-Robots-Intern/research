@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 
-# from scipy.sparse import csr_matrix # MST 계산에 필요할 수 있음
-# from scipy.sparse.csgraph import minimum_spanning_tree # MST 계산에 필요할 수 있음
+from scipy.sparse import csr_matrix # MST 계산에 필요할 수 있음
+from scipy.sparse.csgraph import minimum_spanning_tree # MST 계산에 필요할 수 있음
 import numpy as np  # 거리 계산 등에 사용될 수 있음
 
 from src.utils.common import create_module_logger
