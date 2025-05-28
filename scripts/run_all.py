@@ -11,10 +11,10 @@ from src.utils.common import create_module_logger
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run all scripts with specified log level')
-    parser.add_argument('--log-level', type=str, default='WARNING',
+    parser.add_argument('--log-level', type=str, default='DEBUG',
                     choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-                    help='Set the logging level (default: WARNING)')
-    parser.add_argument('--predefined', type=bool, default=False,
+                    help='Set the logging level (default: DEBUG)')
+    parser.add_argument('--predefined','-p', type=bool, default=True,
                     help='Use predefined numbered instructions (default: False)')
     return parser.parse_args()
 
@@ -168,7 +168,7 @@ def main() -> None:
         # Path("src/dag_bayesian.py"),
         # Path("src/baselines/progprompt/prog_ai2thor.py"),
         # Path("src/baselines/cap/cap_ai2thor.py"),   
-        # Path("src/baselines/edf/dag_edf.py"),
+        Path("src/baselines/edf/dag_edf.py"),
         Path("src/baselines/cpm.py"),
     ]
 
@@ -180,10 +180,10 @@ def main() -> None:
 
     scene_list = [
         "FloorPlan1",
-        # "FloorPlan7",
-        # "FloorPlan13",
-        # "FloorPlan18",
-        # "FloorPlan27",
+        "FloorPlan7",
+        "FloorPlan13",
+        "FloorPlan18",
+        "FloorPlan27",
         # "FloorPlan401",
         # "FloorPlan419",
         # "FloorPlan422",
@@ -201,7 +201,7 @@ def main() -> None:
         
 
         if args.predefined: 
-            numbers = list(range(1, 31))           
+            numbers = list(range(1, 21))           
             for instruction, i in product(numbers, range(num_runs_per_instruction)):
                 print(f"task_name : {instruction}")
                 print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i}")

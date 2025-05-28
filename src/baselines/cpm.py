@@ -511,10 +511,10 @@ def main() -> None:
     task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
     task_data = load_task_data_from_file(task_file_name)
     input_natural_language = task_file_name
-    if choice != 0:
-        input_natural_language = task_io.get_natural_language_from_task_file(
-            f"{choice}"
-        )
+    # if choice != 0:
+    #     input_natural_language = task_io.get_natural_language_from_task_file(
+    #         f"{choice}"
+    #     )
 
     # Build tasks and constraints
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
