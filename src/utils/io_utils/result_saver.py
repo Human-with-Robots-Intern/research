@@ -68,17 +68,25 @@ def calculate_timing_success_rate(
     # 모든 edge를 순회하며 timing constraint 검사
     for u, v, data in constraints.edges(data=True):
         timing_success_flag = False
+        
+
+        # Check if u or v starts with "monitoring" (case-insensitive)
+        if u.lower().startswith("monitoring") or v.lower().startswith("monitoring"):
+            log.debug(f"Skipping monitoring task edge: {u} -> {v}")
+            # Decrement as this constraint is not counted
+            continue
         total_timing_constraints += 1
         edge_info = data.get("info", {})
-
         interval = edge_info.get("Interval", 0)  # interval이 없으면 0으로 처리
         is_critical = edge_info.get("IsCritical")
+        
         # plans에서 선행/후행 subtask 찾기
         pred_entry = next((ce for ce in result_schedule if ce.subtask.name == u), None)
         succ_entry = next((ce for ce in result_schedule if ce.subtask.name == v), None)
         if not pred_entry or not succ_entry:
             log.warning(f"pred_subtask or succ_subtask not found: {u} -> {v}")
             continue
+
         # 선행 subtask의 종료 시간과 후행 subtask의 시작 시간
         pred_end_time_sim = pred_entry.sim_end_time
         succ_start_time_sim = succ_entry.sim_start_time
@@ -89,7 +97,6 @@ def calculate_timing_success_rate(
         )  # navigation time이 없으면 0으로 처리
         sim_nav_time = succ_entry.sim_nav_time
         if is_critical:
-            # Critical edge: 가우시안 90% 범위 내에서 시작해야 함
             # expected_start_sim = pred_end_time_sim + interval - sim_nav_time
             if interval == 0:
                 if abs(interval -((succ_start_time_sim) - pred_end_time_sim)) <= 0.1 + interval * TIMING_TOLERANCE:
@@ -114,7 +121,7 @@ def calculate_timing_success_rate(
         # 실제 스케쥴 결과 : pred_end_time_sched -> succ_start_time_sched,
         log.info(f"Original Timing Constraint : {u} -> {v} ({interval}, {is_critical})")
         log.info(
-            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s\n\n"
+            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched+schedule_nav_time}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s\n\n"
         )
         detail_log[f"{u} -> {v}"] = {}
         detail_log[f"{u} -> {v}"][
@@ -122,7 +129,7 @@ def calculate_timing_success_rate(
         ] = f"({interval}, {is_critical})"
         detail_log[f"{u} -> {v}"][
             "Schedule Result"
-        ] = f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched})s"
+        ] = f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched}s-{-schedule_nav_time}s)"
 
     timing_success_rate_sim = (
         succeeded_timing_constraints_sim_cnt / total_timing_constraints
@@ -188,8 +195,8 @@ def result_save(
         "scheduler_makespan": round(scheduler_makespan, 2),
         "realworld_makespan": None,
         "success_rate": round(success_rate, 2),
-        "timing_success_rate_sim": round(timing_success_rate_sim, 2),
-        "timing_success_rate_sched": round(timing_success_rate_sched, 2),
+        "timing_success_rate_sim": None if timing_success_rate_sim is None else round(timing_success_rate_sim, 2),
+        "timing_success_rate_sched": None if timing_success_rate_sched is None else round(timing_success_rate_sched, 2),
         "detail_log": detail_log,
     }
 

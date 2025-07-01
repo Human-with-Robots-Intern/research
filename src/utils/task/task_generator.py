@@ -51,9 +51,10 @@ class TaskGenerator:
     등
     """
 
-    def __init__(self, is_rag: bool = False):
+    def __init__(self, is_rag: bool = False, is_test: bool = False):
         self.client = initialize_openai()
         self.is_rag = is_rag
+        self.is_test = is_test
         # 추가적으로 필요한 상태(예: knowledge 등) 여기서 관리 가능
 
     def load_file(self, file_path: Path, file_type: str) -> Any:
@@ -183,6 +184,8 @@ class TaskGenerator:
         output_file_path = Path(TASK_PATH) / output_file_name
 
         self.save_to_file(output, output_file_path)
+        if self.is_test:
+            return output
         return output_file_name
 
     def _call_openai(

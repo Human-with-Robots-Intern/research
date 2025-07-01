@@ -11,9 +11,11 @@ from src.utils.common import create_module_logger
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run all scripts with specified log level')
-    parser.add_argument('--log-level', type=str, default='WARNING',
+    parser.add_argument('--log-level', type=str, default='DEBUG',
                     choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-                    help='Set the logging level (default: WARNING)')
+                    help='Set the logging level (default: DEBUG)')
+    parser.add_argument('--predefined','-p', type=bool, default=True,
+                    help='Use predefined numbered instructions (default: False)')
     return parser.parse_args()
 
 def run_with_retries(script: Path, input_str: str, scene_name: str, max_retries: int = 10) -> tuple[bool, int]:
@@ -124,6 +126,38 @@ def process_normal_script(script: Path, instruction: str, scene_name: str) -> No
         if stderr_output:
             log.error(f"Error output: {stderr_output}")
 
+def load_instructions_from_json(scene_name: str) -> list[str]:
+    """
+    주어진 scene에 대한 instruction을 JSON 파일에서 로드합니다.
+    """
+    number = int(scene_name.lstrip("FloorPlan"))
+    if number >= 400:
+        base_file = "bathroom_scene.json"
+    else:
+        base_file = "kitchen_scene.json"
+    
+    instructions = []
+    
+    # Load base instructions
+    base_path = Path("assets/tasks/nl_instructions") / base_file
+    try:
+        with base_path.open("r", encoding="utf-8") as f:
+            base_data = json.load(f)
+            instructions.extend(base_data["instructions"])
+    except Exception as e:
+        log.error(f"Failed to load base instructions from {base_path}: {e}")
+    
+    # Load scene-specific instructions
+    scene_path = Path("assets/tasks/nl_instructions") / f"{scene_name}.json"
+    try:
+        with scene_path.open("r", encoding="utf-8") as f:
+            scene_data = json.load(f)
+            instructions.extend(scene_data["instructions"])
+    except Exception as e:
+        log.error(f"Failed to load scene-specific instructions from {scene_path}: {e}")
+    
+    return instructions
+
 def main() -> None:
     args = parse_args()
     global log
@@ -136,7 +170,6 @@ def main() -> None:
         # Path("src/baselines/cap/cap_ai2thor.py"),   
         Path("src/baselines/edf/dag_edf.py"),
         Path("src/baselines/cpm.py"),
-
     ]
 
     # 재시도 대상 (LLM 방식) 스크립트 집합
@@ -145,229 +178,12 @@ def main() -> None:
         Path("src/baselines/cap/cap_ai2thor.py")
     }
 
-    
-    #나중엔 각 scene 별로 instruction 목록이 생길것이다. 
-    kitchen_scene_instructions = [
-    "heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table and prepare_a_water_cup_with_mug",
-    "heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and set_the_table and put_saltshaker_on_the_table",
-    "make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table and put_saltshaker_on_the_table",
-    "heat_the_bread_using_microwave and make_a_coffee and wash_apple_and_lettuce and set_the_table and put_saltshaker_on_the_table",
-    "heat_the_bread_using_microwave and make_a_coffee and put_apple_and_lettuce_in_fridge and set_the_table and put_saltshaker_on_the_table",
-    "boil_potato and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and prepare_a_water_cup_with_mug",
-    "boil_potato and make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and put_saltshaker_on_the_table",
-    "boil_potato and make_a_coffee and wash_all_fork_and_spoon and set_the_table and put_saltshaker_on_the_table"
-    "cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and put_saltshaker_on_the_table",
-    "cook_egg and make_a_coffee and wash_apple_and_lettuce and set_the_table and put_saltshaker_on_the_table",
-    "cook_egg and make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table",
-    "cook_egg and heat_the_potato_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table",
-    "fill_pot_with_water and make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table",
-    "fill_pot_with_water and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and prepare_a_water_cup_with_mug",# "cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table and put_saltshaker_on_the_table",
-    "fill_pot_with_water and heat_the_potato_using_microwave and wash_apple_and_lettuce and prepare_a_water_cup_with_mug and put_saltshaker_on_the_table",
-    "fill_pot_with_water and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and put_saltshaker_on_the_table",
-    "boil_potato and cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and set_the_table",
-    "boil_potato and cook_egg and make_a_coffee and wash_all_fork_and_spoon and put_saltshaker_on_the_table",
-    "cook_egg and fill_pot_with_water and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon",
-    ]
-    bathroom_scene_instructions=[
-    "wet_the_handtowel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
-    "wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth and close_shower_curtain",
-    "wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
-    "wet_the_towel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_cloth and close_shower_curtain",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth",
-    "fill_bathtub_with_water and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and throw_away_cloth and close_shower_curtain",
-    "fill_bathtub_with_water and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth",
-    "fill_bathtub_with_water and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth",
-    "fill_bathtub_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth",
-    "fill_bathtub_with_water and wet_the_towel_with_water and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
-    "clean_the_toilet and wet_the_handtowel_with_water and turn_on_the_candle and throw_away_cloth and close_shower_curtain",
-    "clean_the_toilet and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and close_shower_curtain",
-    "clean_the_toilet and wet_the_towel_with_water and turn_on_the_light and throw_away_cloth and close_shower_curtain",
-    "clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light",
-    "clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and close_shower_curtain"
-    "fill_bathtub_with_water and clean_the_toilet and wet_the_handtowel_with_water and turn_on_the_candle and close_shower_curtain",
-    "fill_bathtub_with_water and clean_the_toilet and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and throw_away_cloth",
-    "fill_bathtub_with_water and clean_the_toilet and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light",
-    "fill_bathtub_with_water and clean_the_toilet and wet_the_towel_with_water and turn_on_the_light and close_shower_curtain",
-    "fill_bathtub_with_water and clean_the_toilet and wet_the_towel_with_water and turn_on_the_light and throw_away_cloth"
-    ]
-    FloorPlan1_instructions=[
-    "heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and throw_away_paper_towel_roll and put_the_wine_bottle_inside_a_cabinet",
-    "make_a_coffee and throw_away_paper_towel_roll and put_the_creditcard_on_the_countertop and put_the_book_in_cabinet and set_the_table",
-    "heat_the_bread_using_microwave and make_a_coffee and put_the_creditcard_on_the_countertop and put_the_book_in_cabinet and set_the_table",
-    "make_a_coffee and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and put_the_creditcard_on_the_countertop and put_the_book_in_cabinet",
-    "heat_the_potato_using_microwave and wash_all_fork_and_spoon and put_the_wine_bottle_inside_a_cabinet and put_the_creditcard_on_the_countertop and put_the_book_in_cabinet",
-    "boil_water_with_kettle and heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and put_the_book_in_cabinet",
-    "boil_water_with_kettle and make_a_coffee and throw_away_paper_towel_roll and put_the_creditcard_on_the_countertop and put_the_book_in_cabinet",
-    "boil_water_with_kettle and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and put_the_wine_bottle_inside_a_cabinet and put_the_creditcard_on_the_countertop",
-    "cook_egg and heat_the_potato_using_microwave and prepare_a_water_cup_with_mug and throw_away_paper_towel_roll and put_the_book_in_cabinet",
-    "boil_potato and make_a_coffee and wash_all_fork_and_spoon and put_the_wine_bottle_inside_a_cabinet and put_the_creditcard_on_the_countertop",
-    "cook_egg and boil_water_with_kettle and heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and throw_away_paper_towel_roll",
-    "cook_egg and boil_water_with_kettle and heat_the_bread_using_microwave and put_the_wine_bottle_inside_a_cabinet and set_the_table",
-    "boil_potato and boil_water_with_kettle and heat_the_bread_using_microwave and wash_apple_and_lettuce and put_the_book_in_cabinet",
-    "boil_potato and boil_water_with_kettle and heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and put_the_wine_bottle_inside_a_cabinet",
-    "boil_potato and cook_egg and boil_water_with_kettle and put_the_book_in_cabinet and set_the_table",
-    ]
-    FloorPlan7_instructions=[
-
-    "make_a_coffee and heat_the_potato_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and put_a_statue_on_the_table",
-    "heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and put_the_wine_bottle_inside_a_cabinet and put_a_statue_on_the_table",
-    "make_a_coffee and wash_apple_and_lettuce and set_the_table and put_the_wine_bottle_inside_a_cabinet and put_a_statue_on_the_table",
-    "heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table and put_the_wine_bottle_inside_a_cabinet",
-    "heat_the_bread_using_microwave and make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table",
-    "boil_water_with_kettle and heat_the_bread_using_microwave and wash_apple_and_lettuce and put_the_wine_bottle_inside_a_cabinet and put_a_statue_on_the_table",
-    "boil_water_with_kettle and make_a_coffee and wash_apple_and_lettuce and set_the_table and put_the_wine_bottle_inside_a_cabinet",
-    "boil_water_with_kettle and heat_the_potato_using_microwave and wash_apple_and_lettuce and put_the_wine_bottle_inside_a_cabinet and put_a_statue_on_the_table",
-    "fill_pot_with_water and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and put_the_wine_bottle_inside_a_cabinet and put_a_statue_on_the_table",
-    "cook_egg and heat_the_potato_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and put_a_statue_on_the_table",
-    "boil_potato and boil_water_with_kettle and heat_the_bread_using_microwave and set_the_table and put_the_wine_bottle_inside_a_cabinet",
-    "boil_potato and boil_water_with_kettle and heat_the_bread_using_microwave and wash_apple_and_lettuce and put_a_statue_on_the_table",
-    "boil_potato and boil_water_with_kettle and make_a_coffee and set_the_table and put_the_wine_bottle_inside_a_cabinet",
-    "cook_egg and boil_water_with_kettle and make_a_coffee and set_the_table and put_the_wine_bottle_inside_a_cabinet",
-    "fill_pot_with_water and boil_water_with_kettle and heat_the_bread_using_microwave and set_the_table and put_the_wine_bottle_inside_a_cabinet",
-    ]
-    FloorPlan13_instructions=[
-    "heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and set_the_table and put_the_pencil_on_somewhere",
-    "make_a_coffee and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and set_the_table and throw_away_paper_towel_roll",
-    "heat_the_potato_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table and put_the_pencil_on_somewhere",
-    "heat_the_bread_using_microwave and make_a_coffee and put_apple_and_lettuce_in_fridge and throw_away_paper_towel_roll and put_the_pencil_on_somewhere",
-    "make_a_coffee and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and put_the_pencil_on_somewhere",
-    "boil_potato and make_a_coffee and wash_all_fork_and_spoon and throw_away_paper_towel_roll and put_the_pencil_on_somewhere",
-    "cook_egg and heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and put_the_pencil_on_somewhere",
-    "cook_egg and make_a_coffee and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and throw_away_paper_towel_roll",
-    "fill_pot_with_water and heat_the_bread_using_microwave and wash_all_fork_and_spoon and throw_away_paper_towel_roll and put_the_pencil_on_somewhere",
-    "fill_pot_with_water and make_a_coffee and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and throw_away_paper_towel_roll",
-    "cook_egg and fill_pot_with_water and heat_the_bread_using_microwave and wash_all_fork_and_spoon and set_the_table",
-    "boil_potato and cook_egg and make_a_coffee and put_apple_and_lettuce_in_fridge and throw_away_paper_towel_roll",
-    "cook_egg and fill_pot_with_water and make_a_coffee and set_the_table and throw_away_paper_towel_roll",
-    "cook_egg and fill_pot_with_water and make_a_coffee and wash_all_fork_and_spoon and throw_away_paper_towel_roll",
-    "cook_egg and fill_pot_with_water and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and put_the_pencil_on_somewhere",
-    ]
-    FloorPlan18_instructions=[
-    "heat_the_bread_using_microwave and wash_all_fork_and_spoon and set_the_table and throw_away_paper_towel_roll and roll_down_the_blinds",
-    "make_a_coffee and put_apple_and_lettuce_in_fridge and set_the_table and throw_away_paper_towel_roll and put_salt_shaker_inside_the_safe",
-    "make_a_coffee and put_apple_and_lettuce_in_fridge and set_the_table and throw_away_paper_towel_roll and roll_down_the_blinds",
-    "heat_the_potato_using_microwave and wash_all_fork_and_spoon and set_the_table and throw_away_paper_towel_roll and put_salt_shaker_inside_the_safe",
-    "make_a_coffee and heat_the_potato_using_microwave and set_the_table and throw_away_paper_towel_roll and roll_down_the_blinds",
-    "boil_water_with_kettle and heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and roll_down_the_blinds",
-    "boil_water_with_kettle and make_a_coffee and put_apple_and_lettuce_in_fridge and throw_away_paper_towel_roll and roll_down_the_blinds",
-    "boil_water_with_kettle and heat_the_potato_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and put_salt_shaker_inside_the_safe",
-    "fill_pot_with_water and heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and set_the_table and throw_away_paper_towel_roll",
-    "cook_egg and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and throw_away_paper_towel_roll and put_salt_shaker_inside_the_safe",
-    "boil_potato and boil_water_with_kettle and make_a_coffee and roll_down_the_blinds and put_salt_shaker_inside_the_safe",
-    "boil_potato and boil_water_with_kettle and heat_the_bread_using_microwave and wash_all_fork_and_spoon and put_salt_shaker_inside_the_safe",
-    "cook_egg and fill_pot_with_water and heat_the_bread_using_microwave and set_the_table and roll_down_the_blinds",
-    "cook_egg and boil_water_with_kettle and heat_the_potato_using_microwave and throw_away_paper_towel_roll and put_salt_shaker_inside_the_safe",
-    "boil_potato and cook_egg and boil_water_with_kettle and wash_all_fork_and_spoon and roll_down_the_blinds",
-    ]
-    FloorPlan27_instructions=[
-    "heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and set_the_table and put_the_wine_bottle_inside_a_cabinet",
-    "heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and set_the_table and wash_two_ladles",
-    "heat_the_bread_using_microwave and make_a_coffee and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and wash_two_ladles",
-    "make_a_coffee and wash_apple_and_lettuce and set_the_table and wash_two_ladles and put_the_wine_bottle_inside_a_cabinet",
-    "make_a_coffee and heat_the_potato_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and wash_two_ladles",
-    "boil_potato and heat_the_bread_using_microwave and wash_all_fork_and_spoon and set_the_table and wash_two_ladles",
-    "cook_egg and make_a_coffee and wash_all_fork_and_spoon and wash_two_ladles and put_the_wine_bottle_inside_a_cabinet",
-    "fill_pot_with_water and make_a_coffee and set_the_table and wash_two_ladles and put_the_wine_bottle_inside_a_cabinet",
-    "fill_pot_with_water and make_a_coffee and wash_apple_and_lettuce and wash_two_ladles and put_the_wine_bottle_inside_a_cabinet",
-    "cook_egg and make_a_coffee and wash_all_fork_and_spoon and set_the_table and put_the_wine_bottle_inside_a_cabinet",
-    "boil_potato and cook_egg and heat_the_bread_using_microwave and set_the_table and put_the_wine_bottle_inside_a_cabinet",
-    "boil_potato and cook_egg and heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and wash_two_ladles",
-    "cook_egg and fill_pot_with_water and make_a_coffee and set_the_table and wash_two_ladles",
-    "cook_egg and fill_pot_with_water and heat_the_potato_using_microwave and wash_apple_and_lettuce and set_the_table",
-    "cook_egg and fill_pot_with_water and heat_the_potato_using_microwave and wash_two_ladles and put_the_wine_bottle_inside_a_cabinet"
-    ]
-    FloorPlan401_instructions=[
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and put_soap_bar_on_a_side_table",
-    "wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and throw_away_cloth and close_shower_curtain and put_soap_bar_on_a_side_table",
-    "wet_the_towel_with_water and turn_on_the_candle and turn_on_the_light and close_shower_curtain and put_soap_bar_on_a_side_table",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and put_soap_bar_on_a_side_table",
-    "fill_bathtub_with_water and wet_the_handtowel_with_water and throw_away_cloth and close_shower_curtain and put_soap_bar_on_a_side_table",
-    "fill_bathtub_with_water and wet_the_towel_with_water and turn_on_the_candle and throw_away_cloth and put_soap_bar_on_a_side_table",
-    "clean_the_sink_with_dish_sponge and wet_the_handtowel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_cloth",
-    "clean_the_sink_with_dish_sponge and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth",
-    "clean_the_sink_with_dish_sponge and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and put_soap_bar_on_a_side_table",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and turn_on_the_candle and throw_away_cloth",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and close_shower_curtain and put_soap_bar_on_a_side_table",
-    "fill_bathtub_with_water and clean_the_sink_with_dish_sponge and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_soap_bar_on_a_side_table",
-    "clean_the_toilet_with_scrub_brush and clean_the_sink_with_dish_sponge and wet_the_towel_with_water and close_shower_curtain and put_soap_bar_on_a_side_table",
-    "clean_the_toilet_with_scrub_brush and clean_the_sink_with_dish_sponge and wet_the_towel_with_water and throw_away_cloth and put_soap_bar_on_a_side_table",
-    ]
-    FloorPlan419_instructions=[
-    "wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth and put_tissue_box_inside_the_drawer",
-    "wet_the_handtowel_with_water and turn_on_the_light and throw_away_cloth and close_shower_curtain and put_tissue_box_inside_the_drawer",
-    "wet_the_towel_with_water and turn_on_the_candle and turn_on_the_light and close_shower_curtain and put_tissue_box_inside_the_drawer",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and turn_on_the_candle and turn_on_the_light and put_tissue_box_inside_the_drawer",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and close_shower_curtain",
-    "fill_bathtub_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and put_tissue_box_inside_the_drawer",
-    "clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and turn_on_the_candle and close_shower_curtain and put_tissue_box_inside_the_drawer",
-    "clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and put_tissue_box_inside_the_drawer",
-    "clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and throw_away_cloth and close_shower_curtain",
-    "clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and turn_on_the_candle and throw_away_cloth and put_tissue_box_inside_the_drawer",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and turn_on_the_light and close_shower_curtain",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and turn_on_the_candle and close_shower_curtain",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and close_shower_curtain and put_tissue_box_inside_the_drawer",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and turn_on_the_candle and put_tissue_box_inside_the_drawer",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_tissue_box_inside_the_drawer"
-    ]
-    FloorPlan422_instructions=[
-    "wet_the_handtowel_with_water and turn_on_the_candle and turn_on_the_light and put_soap_bar_in_a_cabinet and put_tissue_box_inside_the_drawer",
-    "wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and throw_away_cloth and put_soap_bar_in_a_cabinet",
-    "wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and put_soap_bar_in_a_cabinet and throw_away_empty_toilet_paper_on_the_counter_top",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_empty_toilet_paper_on_the_counter_top",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and throw_away_cloth and put_soap_bar_in_a_cabinet",
-    "fill_bathtub_with_water and wet_the_handtowel_with_water and turn_on_the_light and put_tissue_box_inside_the_drawer and throw_away_empty_toilet_paper_on_the_counter_top",
-    "fill_bathtub_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light",
-    "clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and turn_on_the_light and close_shower_curtain and put_soap_bar_in_a_cabinet",
-    "clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and throw_away_cloth and close_shower_curtain and throw_away_empty_toilet_paper_on_the_counter_top",
-    "clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and put_soap_bar_in_a_cabinet and put_tissue_box_inside_the_drawer and throw_away_empty_toilet_paper_on_the_counter_top",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and throw_away_cloth and close_shower_curtain",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and turn_on_the_light and put_soap_bar_in_a_cabinet",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and turn_on_the_light and put_tissue_box_inside_the_drawer",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and throw_away_empty_toilet_paper_on_the_counter_top",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and close_shower_curtain and put_soap_bar_in_a_cabinet",
-    ]
-    FloorPlan426_instructions=[
-    "wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and throw_away_cloth and close_shower_curtain and throw_away_empty_toilet_paper_on_the_counter_top",
-    "wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_soap_bar_in_a_cabinet and put_tissue_box_inside_the_drawer and throw_away_empty_toilet_paper_on_the_counter_top",
-    "wet_the_towel_with_water and turn_on_the_light and throw_away_cloth and close_shower_curtain and put_soap_bar_in_a_cabinet",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and turn_on_the_light and close_shower_curtain and throw_away_empty_toilet_paper_on_the_counter_top",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and turn_on_the_light and throw_away_cloth and put_soap_bar_in_a_cabinet"
-    "fill_bathtub_with_water and wet_the_towel_with_water and throw_away_cloth and close_shower_curtain and put_tissue_box_inside_the_drawer",
-    "fill_bathtub_with_water and wet_the_towel_with_water and turn_on_the_candle and turn_on_the_light and throw_away_empty_toilet_paper_on_the_counter_top",
-    "clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and throw_away_cloth and put_soap_bar_in_a_cabinet and put_tissue_box_inside_the_drawer",
-    "clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and close_shower_curtain and put_tissue_box_inside_the_drawer",
-    "clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and put_tissue_box_inside_the_drawer",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and turn_on_the_light and throw_away_empty_toilet_paper_on_the_counter_top",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and turn_on_the_candle and throw_away_cloth",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and turn_on_the_candle and throw_away_empty_toilet_paper_on_the_counter_top",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and close_shower_curtain",
-    ]
-    FloorPlan427_instructions=[
-    "wet_the_handtowel_with_water and throw_away_cloth and close_shower_curtain and put_a_soap_bar_on_the_sink and put_the_candle_inside_the_drawer",
-    "wet_the_handtowel_with_water and turn_on_the_light and throw_away_cloth and put_tissue_box_inside_a_drawer and put_a_soap_bar_on_the_sink",
-    "wet_the_towel_with_water and turn_on_the_light and throw_away_cloth and put_a_soap_bar_on_the_sink and put_the_candle_inside_the_drawer",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_a_soap_bar_on_the_sink and put_the_candle_inside_the_drawer",
-    "wet_the_handtowel_with_water and wet_the_towel_with_water and turn_on_the_candle and turn_on_the_light and put_the_candle_inside_the_drawer",
-    "fill_bathtub_with_water and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and close_shower_curtain and put_a_soap_bar_on_the_sink",
-    "fill_bathtub_with_water and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and close_shower_curtain",
-    "clean_the_sink_with_dish_sponge and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and close_shower_curtain",
-    "clean_the_sink_with_dish_sponge and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_tissue_box_inside_a_drawer and put_the_candle_inside_the_drawer",
-    "clean_the_sink_with_dish_sponge and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_tissue_box_inside_a_drawer",
-    "fill_bathtub_with_water and clean_the_toilet_with_scrub_brush and wet_the_towel_with_water and put_tissue_box_inside_a_drawer and put_the_candle_inside_the_drawer",
-    "fill_bathtub_with_water and clean_the_sink_with_dish_sponge and wet_the_handtowel_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_a_soap_bar_on_the_sink",
-    "fill_bathtub_with_water and clean_the_sink_with_dish_sponge and wet_the_towel_with_water and turn_on_the_light and put_a_soap_bar_on_the_sink",
-    "clean_the_toilet_with_scrub_brush and clean_the_sink_with_dish_sponge and wet_the_handtowel_with_water and close_shower_curtain and put_tissue_box_inside_a_drawer",
-    ]
-    
     scene_list = [
         "FloorPlan1",
-        # "FloorPlan7",
-        # "FloorPlan13",
-        # "FloorPlan18",
-        # "FloorPlan27",
+        "FloorPlan7",
+        "FloorPlan13",
+        "FloorPlan18",
+        "FloorPlan27",
         # "FloorPlan401",
         # "FloorPlan419",
         # "FloorPlan422",
@@ -378,23 +194,14 @@ def main() -> None:
 
     # itertools.product를 사용하여 네 개의 반복 범위를 하나로 결합
     for scene_name, approach in product(scene_list, approaches):
+        # Load instructions from JSON files
+        instructions = load_instructions_from_json(scene_name)
 
-        number = int(scene_name.lstrip("FloorPlan"))
-        if number >= 400:
-            common_instructions = bathroom_scene_instructions
-        else:
-            common_instructions = kitchen_scene_instructions
+        # predefine instruction을 사용하려면 활성화
         
-        # Get scene-specific instructions using globals()
-        scene_specific_instructions = globals().get(f"{scene_name}_instructions", [])
-        
-        # Combine base instructions with scene-specific instructions
-        instructions = common_instructions + scene_specific_instructions
 
-        # predefine instruction을 사용하려면  활성화
-        numbers = list(range(1, 31))
-
-        if numbers:            
+        if args.predefined: 
+            numbers = list(range(1, 21))           
             for instruction, i in product(numbers, range(num_runs_per_instruction)):
                 print(f"task_name : {instruction}")
                 print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i}")

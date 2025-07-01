@@ -282,7 +282,7 @@ def nav_and_wait_during_interval(
     # Calculate navigation time
     nav_time, nav_positions = compute_nav_time(next_subtask, current_state)
 
-    if nav_time <= interval:
+    if 0.0 < nav_time <= interval:
         # Create NAVIGATE subtask
         nav_subtask = Subtask(
             task_name=next_subtask.task_name,
@@ -303,25 +303,25 @@ def nav_and_wait_during_interval(
         current_time += nav_time
 
         # Create wait subtask if needed
-        wait_time = interval - nav_time
-        if wait_time > 0:
-            wait_subtask = Subtask(
-                task_name=next_subtask.task_name,
-                name=f"WAIT {wait_time} to {next_subtask.name}",
-                repetition=1,
-                subtask_type="WAIT",
-                execution=Execution(
-                    objects={}, primitive_actions=[f"WAIT {wait_time}"]
-                ),
-                duration=Duration(type="WAIT", interval=wait_time),
-                temporal_constraints=[],
-            )
-            wait_entry = CompletedEntry(
-                subtask=wait_subtask,
-                schedule_start_time=current_time,
-                schedule_end_time=current_time + wait_time,
-            )
-            entries.append(wait_entry)
+    wait_time = interval - nav_time
+    if wait_time > 0:
+        wait_subtask = Subtask(
+            task_name=next_subtask.task_name,
+            name=f"WAIT {wait_time} to {next_subtask.name}",
+            repetition=1,
+            subtask_type="WAIT",
+            execution=Execution(
+                objects={}, primitive_actions=[f"WAIT {wait_time}"]
+            ),
+            duration=Duration(type="WAIT", interval=wait_time),
+            temporal_constraints=[],
+        )
+        wait_entry = CompletedEntry(
+            subtask=wait_subtask,
+            schedule_start_time=current_time,
+            schedule_end_time=current_time + wait_time,
+        )
+        entries.append(wait_entry)
 
         new_state = SchedulerState(
             subtask=current_state.subtask,
@@ -511,10 +511,10 @@ def main() -> None:
     task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
     task_data = load_task_data_from_file(task_file_name)
     input_natural_language = task_file_name
-    if choice != 0:
-        input_natural_language = task_io.get_natural_language_from_task_file(
-            f"{choice}"
-        )
+    # if choice != 0:
+    #     input_natural_language = task_io.get_natural_language_from_task_file(
+    #         f"{choice}"
+    #     )
 
     # Build tasks and constraints
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(

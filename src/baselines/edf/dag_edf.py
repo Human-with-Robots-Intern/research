@@ -141,7 +141,7 @@ def nav_and_wait_during_interval(
     next_subtask: Subtask,
     is_critical: bool,
     action_handler: ActionHandler,
-) -> Tuple[List[CompletedEntry], SchedulerState]:
+) -> Tuple[ SchedulerState,bool]:
     """
     주어진 시간(interval) 동안 이동(NAVIGATE)과 대기(WAIT)를 위한 서브태스크를 생성합니다.
     next_subtask의 첫 번째 액션이 NAVIGATE_TO여야 하며,
@@ -193,25 +193,25 @@ def nav_and_wait_during_interval(
         entries.append(nav_entry)
         current_time += nav_time
         # Create WAIT subtask for remaining time
-        wait_time = interval - nav_time
-        if wait_time > 0:
-            wait_subtask = Subtask(
-                task_name=next_subtask.task_name,
-                name=f"WAIT {wait_time} to {next_subtask.name}",
-                repetition=1,
-                subtask_type="WAIT",
-                execution=Execution(
-                    objects={}, primitive_actions=[f"WAIT {wait_time}"]
-                ),
-                duration=Duration(type="WAIT", interval=wait_time),
-                temporal_constraints=[],
-            )
-            wait_entry = CompletedEntry(
-                subtask=wait_subtask,
-                schedule_start_time=current_time,
-                schedule_end_time=current_time + wait_time,
-            )
-            entries.append(wait_entry)
+    wait_time = interval - nav_time
+    if wait_time >= 0:
+        wait_subtask = Subtask(
+            task_name=next_subtask.task_name,
+            name=f"WAIT {wait_time} to {next_subtask.name}",
+            repetition=1,
+            subtask_type="WAIT",
+            execution=Execution(
+                objects={}, primitive_actions=[f"WAIT {wait_time}"]
+            ),
+            duration=Duration(type="WAIT", interval=wait_time),
+            temporal_constraints=[],
+        )
+        wait_entry = CompletedEntry(
+            subtask=wait_subtask,
+            schedule_start_time=current_time,
+            schedule_end_time=current_time + wait_time,
+        )
+        entries.append(wait_entry)
         # Create new state with updated time and positions
         new_state = SchedulerState(
             subtask=current_state.subtask,
@@ -223,9 +223,9 @@ def nav_and_wait_during_interval(
             held_object=current_state.held_object,
             agent_location=current_state.agent_location,
         )
-        return new_state
+        return new_state, True
     # If interval < nav_time, unchanged state
-    return current_state
+    return current_state, False
 
 
 def compute_deadline_for_subtask(
@@ -365,10 +365,13 @@ def update(
         if current_time < designated_start:
             # 남은 시간(= designated_start - current_time) 만큼 NAVIGATE + WAIT
             interval = designated_start - current_time
-            new_state = nav_and_wait_during_interval(
+            new_state, is_nav_and_wait = nav_and_wait_during_interval(
                 current_state, interval, next_subtask, False, action_handler
             )
             current_state = new_state
+            if is_nav_and_wait:
+                nav_time = 0.0
+
 
     exec_info = offline_subtask_execution(next_subtask, current_state, action_handler)
     # -------------------------------
@@ -435,10 +438,10 @@ def main():
     task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
     task_data = load_task_data_from_file(task_file_name)
     input_natural_language = task_file_name
-    if choice != 0:
-        input_natural_language = task_io.get_natural_language_from_task_file(
-            f"{choice}"
-        )
+    # if choice != 0:
+    #     input_natural_language = task_io.get_natural_language_from_task_file(
+    #         f"{choice}"
+    #     )
     # Build tasks and constraints
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
         task_data, scene_file_name=f"{scene_name}_physics_environment.json"

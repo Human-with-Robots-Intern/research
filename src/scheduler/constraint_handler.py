@@ -294,7 +294,7 @@ class ConstraintHandler:
                     )
                     tc_conflict_detected = True
                 if tc_conflict_detected:
-                    log.ERROR(f"Final status for '{sub.name}': CONFLICT")
+                    log.error(f"Final status for '{sub.name}': CONFLICT")
                     return None, True, "CONFLICT"
             else:
                 final_start_time = non_critical_earliest_start
