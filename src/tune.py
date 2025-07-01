@@ -1414,10 +1414,10 @@ if __name__ == "__main__":
         description="Heuristic Parameter Tuning using Optuna"
     )
     parser.add_argument(
-        "-n", "--n_trials", type=int, default=10000, help="Number of Optuna trials"
+        "-n", "--n_trials", type=int, default=1000000, help="Number of Optuna trials"
     )
     parser.add_argument(
-        "--timeout", type=int, default=36000, help="Maximum tuning time in seconds"
+        "--timeout", type=int, default=180000, help="Maximum tuning time in seconds"
     )
     parser.add_argument(
         "--scene", type=str, default="FloorPlan1", help=f"AI-THOR scene name"
@@ -1437,13 +1437,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_samples_per_trial",
         type=int,
-        default=5,
+        default=10,
         help="Number of tasks to sample per trial",
     )
     parser.add_argument(
         "--n_jobs",
         type=int,
-        default=10,
+        default=5,
         help="Number of parallel jobs for Optuna trials",
     )
 

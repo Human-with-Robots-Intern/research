@@ -4,8 +4,8 @@
         "variance": 1.0
     },
     "turn off stove after cooking": {
-        "expected_duration": 10.0,
-        "variance": 1.0
+        "expected_duration": 9.930535818727993,
+        "variance": 0.04249168955051282
     },
     "prepare potato": {
         "expected_duration": 10.0,
@@ -32,8 +32,8 @@
         "variance": 1.0
     },
     "turn off stove after boiling": {
-        "expected_duration": 10.842126917350162,
-        "variance": 0.2653778790470067
+        "expected_duration": 9.507247228536393,
+        "variance": 0.09459903210633454
     },
     "retrieve heated potato and place on countertop": {
         "expected_duration": 0,
