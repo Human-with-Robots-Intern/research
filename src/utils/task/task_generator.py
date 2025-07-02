@@ -88,9 +88,17 @@ class TaskGenerator:
         user_input = user_input.strip()
         if not user_input:
             raise ValueError("User input cannot be empty.")
+        scene_number = int(scene_name.replace("FloorPlan", ""))
+        if scene_number > 400:
+            scene_type = "bathroom"
+        else:
+            scene_type = "kitchen"
 
         # Prompt(예제) 로드
-        examples_prompt = self.load_file(Path(PROMPT_PATH) / PROMPT_FILE_PATH, "txt")
+        if scene_type == "bathroom":
+            examples_prompt = self.load_file(Path(PROMPT_PATH) / "e2e_generator_ver11_bathroom.txt", "txt")
+        else:
+            examples_prompt = self.load_file(Path(PROMPT_PATH) / "e2e_generator_ver11_kitchen.txt", "txt")
 
         # RAG 모드 활성화 시, FewShotRetriever 활용
         if self.is_rag:
@@ -101,16 +109,6 @@ class TaskGenerator:
             examples_prompt = examples_prompt.replace(
                 "<Example>", retrieved_few_shot_prompts
             )
-
-        number = int(scene_name.lstrip("FloorPlan"))
-        if number < 100:
-            scene_type = "kitchen"
-        elif number < 200:
-            scene_type = "living_room"
-        elif number < 300:
-            scene_type = "bedroom"
-        else:
-            scene_type = "bathroom"
 
         # 환경 정보 로드 및 주입 (environment_file_name이 제공된 경우)
         environment_info_str = ""

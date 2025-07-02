@@ -5,6 +5,7 @@ ROOT_PATH = Path(__file__).resolve().parents[3]
 ASSETS_PATH = ROOT_PATH / "assets"
 SRC_PATH = ROOT_PATH / "src"
 LOG_PATH = ROOT_PATH / "logs"
+SCRIPTS_PATH = ROOT_PATH / "scripts"
 
 AGENT_KNOWLEDGE_PATH = ASSETS_PATH / "agent_knowledge"
 SCENE_KNOWLEDGE_PATH = ASSETS_PATH / "scene_knowledge"
@@ -20,7 +21,6 @@ RESULT_PATH = ASSETS_PATH / "results"
 
 
 # ========== 파일명 상수 ==========
-PROMPT_FILE_PATH = "e2e_generator_ver10.txt"
 ESTIMATE_FILE_NAME = "bayesian_estimate.json"
 GROUND_TRUTH_FILE_NAME = "bayesian_ground_truth.json"
 
