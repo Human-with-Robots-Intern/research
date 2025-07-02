@@ -14,28 +14,40 @@ def parse_args():
     parser.add_argument('--log-level', type=str, default='DEBUG',
                     choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                     help='Set the logging level (default: DEBUG)')
-    parser.add_argument('--predefined','-p', type=bool, default=True,
+    parser.add_argument('--predefined','-p', type=bool, default=False,
                     help='Use predefined numbered instructions (default: False)')
+    parser.add_argument('--scene-type', type=str, default='bathroom',
+                        choices=['kitchen', 'bathroom'],
+                        help='Set the scene type to run (default: kitchen)')
     return parser.parse_args()
 
-def run_with_retries(script: Path, input_str: str, scene_name: str, max_retries: int = 10) -> tuple[bool, int]:
+def run_with_retries(script: Path, input_str: str, scene_name: str, max_retries: int = 10) -> tuple[bool, int, str]:
     """
     주어진 스크립트를 최대 max_retries 회까지 재시도하며 실행합니다.
-    성공하면 (True, 시도 횟수), 실패하면 (False, 마지막 시도 횟수)를 반환합니다.
+    성공하면 (True, 시도 횟수, 결과 파일 경로), 실패하면 (False, 마지막 시도 횟수, None)를 반환합니다.
     """
     for attempt in range(1, max_retries + 1):
         log.debug(f"Running {script} (Attempt {attempt})...")
         result = subprocess.run(
-            ["python", str(script), "--scene", scene_name],
-            input=input_str,
+            ["python", str(script), "--scene", scene_name, "--instruction", input_str],
+            capture_output=True,  # stdout, stderr 캡처
             text=True
         )
         if result.returncode == 0:
-            return True, attempt
+            # stdout에서 결과 파일 경로 파싱
+            output_lines = result.stdout.strip().split('\n')
+            result_path_line = [line for line in output_lines if line.startswith("result_path:")]
+            if result_path_line:
+                result_path = result_path_line[0].split(":")[1].strip()
+                return True, attempt, result_path
+            else:
+                log.error(f"Could not find result_path in stdout of {script}")
+                return False, attempt, None
+
         elif attempt < max_retries:
             log.warning(f"Retrying {script} after failure (Attempt {attempt})...")
             time.sleep(2)  # 짧은 대기 시간 후 재시도
-    return False, attempt  # 모든 시도 실패
+    return False, attempt, None  # 모든 시도 실패
 
 def process_retry_script(script: Path, instruction: str, scene_name: str) -> None:
     """
@@ -43,24 +55,30 @@ def process_retry_script(script: Path, instruction: str, scene_name: str) -> Non
     모든 시도 실패 시 더미 데이터를 생성합니다.
     """
     approach = script.stem  # 파일명에서 확장자 제거
-    json_path = Path("assets") / "results" / instruction / "approach" / f"{approach}_simulation.json"
     input_str = f"{instruction}\n"
 
-    success, attempt = run_with_retries(script, input_str, scene_name, max_retries=10)
-    json_path.parent.mkdir(parents=True, exist_ok=True)
+    success, attempt, result_path = run_with_retries(script, input_str, scene_name, max_retries=10)
 
-    if success:
+    if success and result_path:
+        json_path = Path(result_path)
+        if json_path.is_dir():
+            # If the path is a directory, construct the full file path
+            json_path = json_path / "approach" / f"{approach}_simulation.json"
+        
         try:
             with json_path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
-        except Exception as e:
+        except (FileNotFoundError, json.JSONDecodeError) as e:
             log.error(f"JSON 파일 {json_path} 로드 실패: {e}")
             data = {}
         data["attempt"] = attempt
     else:
+        # 실패 시 더미 데이터 생성
+        json_path = Path("assets") / "results" / instruction / "approach" / f"{approach}_simulation.json"
+        json_path.parent.mkdir(parents=True, exist_ok=True)
         now = datetime.now()
         time_str = now.strftime("%Y-%m-%d %H:%M")
-        default_data = {
+        data = {
             "saved_time": time_str,
             "approach": approach,
             "attempt": attempt,
@@ -72,11 +90,6 @@ def process_retry_script(script: Path, instruction: str, scene_name: str) -> Non
             "simulation_makespan": -1,  # inf 대신 -1 사용
             "realworld_makespan": None
         }
-        try:
-            with json_path.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-        except FileNotFoundError:
-            data = default_data
 
     with json_path.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
@@ -166,10 +179,10 @@ def main() -> None:
 
     approaches = [
         # Path("src/dag_bayesian.py"),
-        # Path("src/baselines/progprompt/prog_ai2thor.py"),
-        # Path("src/baselines/cap/cap_ai2thor.py"),   
-        Path("src/baselines/edf/dag_edf.py"),
-        Path("src/baselines/cpm.py"),
+        Path("src/baselines/progprompt/prog_ai2thor.py"),
+        # Path("src/baselines/cap/cap_ai2thor.py"),
+        # Path("src/baselines/edf/dag_edf.py"),
+        # Path("src/baselines/cpm.py"),
     ]
 
     # 재시도 대상 (LLM 방식) 스크립트 집합
@@ -178,18 +191,22 @@ def main() -> None:
         Path("src/baselines/cap/cap_ai2thor.py")
     }
 
-    scene_list = [
-        "FloorPlan1",
-        "FloorPlan7",
-        "FloorPlan13",
-        "FloorPlan18",
-        "FloorPlan27",
-        # "FloorPlan401",
-        # "FloorPlan419",
-        # "FloorPlan422",
-        # "FloorPlan426",
-        # "FloorPlan427"
-    ]
+    if args.scene_type == "kitchen":
+        scene_list = [
+            "FloorPlan1",
+            # "FloorPlan7",
+            # "FloorPlan13",
+            # "FloorPlan18",
+            # "FloorPlan27",
+        ]
+    else:  # bathroom
+        scene_list = [
+            "FloorPlan401",
+            # "FloorPlan419",
+            # "FloorPlan422",
+            # "FloorPlan426",
+            # "FloorPlan427",
+        ]
     num_runs_per_instruction = 1
 
     # itertools.product를 사용하여 네 개의 반복 범위를 하나로 결합
@@ -204,19 +221,19 @@ def main() -> None:
             numbers = list(range(1, 21))           
             for instruction, i in product(numbers, range(num_runs_per_instruction)):
                 print(f"task_name : {instruction}")
-                print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i}")
+                print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i+1}")
                 if approach in llm_scripts:
-                    process_retry_script(approach, instruction, scene_name)
+                    process_retry_script(approach, str(instruction), scene_name);
                 else:
-                    process_normal_script(approach, instruction, scene_name)
+                    process_normal_script(approach, str(instruction), scene_name);
         else:
             for instruction, i in product(instructions, range(num_runs_per_instruction)):
                 print(f"task_name : {instruction}")
-                print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i}")
+                print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i+1}")
                 if approach in llm_scripts:
-                    process_retry_script(approach, instruction, scene_name)
+                    process_retry_script(approach, instruction, scene_name);
                 else:
-                    process_normal_script(approach, instruction, scene_name)
+                    process_normal_script(approach, instruction, scene_name);
 
 if __name__ == "__main__":
     main()

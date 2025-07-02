@@ -83,15 +83,17 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--openai-api-key", type=str, default=os.getenv("OPENAI_API_KEY"))
     
     parser.add_argument("--prompt-task-examples", type=str, default="default")
+    parser.add_argument("--instruction", type=str, default=None)
     return parser.parse_args()
 
 def generate_plan(controller, args):
     # 현재 scene에 있는 object들을 가져옴
+    # 이거 env json으로 해야하나 contoller로 하면 되나?
     obj = list(
         set(obj["objectType"] for obj in controller.step("Pass").metadata["objects"])
     )
     # ithor에서 할 수 있는 action들
-    prompt = "from actions import walk <obj>, pickup <obj>, put <obj> <obj>, drop <obj>, open <obj>, close <obj>, toggleon <obj>, toggleoff <obj>, slice <obj>, fill <obj> <obj>"
+    prompt = "from actions import walk <obj>, pickup <obj>, put <obj> <obj>, drop <obj>, open <obj>, close <obj>, toggleon <obj>, toggleoff <obj>, slice <obj>"
     # 현재 scene에 있는 objects
     prompt += f"\nobjects(name) = {obj}\n\n"
 
@@ -104,10 +106,11 @@ def generate_plan(controller, args):
             prompt_egs[k] = v
     if args.prompt_task_examples == "default":
         default_examples = [
-            "Wash_Tomato_and_Potato_and_egg_and_Cook_Egg_Fry",
-            "Use_coffee_machine_to_make_coffee_then_pick_up_the_Apple",
-            "make_me_a_toast_and_set_the_table_for_lunch",
-            "put_tomato_and_apple_in_fridge_and_put_book_in_shelf",
+            "Heat Potato using Microwave and set the table for lunch",
+            "use coffee machine to make coffee then pick up the apple",
+            "Fill the bathtub with water",
+            "wash tomato, potato and egg, and cook egg fry",
+            "put tomato and apple in fridge and put book in shelf"
         ]
         for i in range(args.prompt_num_examples):
             prompt += (
@@ -128,7 +131,7 @@ def generate_plan(controller, args):
     computation_time_start = time.time()
 
     # Read task from input
-    task = input()
+    task = args.instruction.strip()
     print(f"Generating plan for: {task}\n")
     curr_prompt = f"{prompt}\ntask : {task}\n"  ## 주어진 정보 + 수행할 task 이어서 prompt 만듦
     _, text = LM(
@@ -153,7 +156,7 @@ def generate_plan(controller, args):
     log_file = open(prog_log_path, "w", buffering=1)
     approach_name = "prog_ai2thor_simulation"
     result_path = f"{task}"
-    # simulate_execution 함수도 execute_subtask로 변경 가능한지 검토할 필요가 있다. 
+
     simulate_execution(controller, [task], [text], log_file, args)
     result_args={
         "approach_name": approach_name,
