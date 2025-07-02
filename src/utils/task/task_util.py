@@ -175,39 +175,61 @@ class TaskUtil:
         Subtask의 primitive_actions에 사용된 obj_id가 유효한지 확인 후,
         유효하지 않다면 문장 유사도 기반으로 가장 가까운 후보로 교체한다.
         """
-        # 1) scene에서 사용 가능한 모든 object ID 로드
-        # SCENE_KNOWLEDGE_PATH 대신 AGENT_KNOWLEDGE_PATH를 사용하여 object ID 로드
-        object_ids_map = cls._load_object_ids(scene_name)
-        # 모든 object id를 flatten (AGENT_KNOWLEDGE_PATH 기반)
-        all_object_ids = {
-            obj for category in object_ids_map for obj in object_ids_map[category]
-        }
-        all_object_ids = list(all_object_ids)
+        from utils.io_utils.task_io import load_scene_positions
+        
+        # 1) Load all available object IDs and their categories for the scene
+        object_categories = cls._load_object_ids(scene_name)
+        scene_positions = load_scene_positions(scene_name)
+        all_object_ids_in_scene = list(scene_positions.keys())
+
+        # Create a reverse map from object type to a list of full object IDs in the scene
+        object_map_in_scene = {}
+        for category, object_types in object_categories.items():
+            for obj_type in object_types:
+                # Find all instances of this object type in the current scene
+                matching_instances = [full_id for full_id in all_object_ids_in_scene if full_id.startswith(obj_type)]
+                if matching_instances:
+                    if category not in object_map_in_scene:
+                        object_map_in_scene[category] = []
+                    object_map_in_scene[category].extend(matching_instances)
 
         def transform_action(action: str) -> str:
             parts = action.split(" ", 1)
             if len(parts) < 2:
-                return action  # 예: "ACTION"만 있는 형태 등
+                return action  # e.g., "ACTION" only
+
             base_action, target_obj = parts
 
-            # 액션 종류별 후보 목록
-            if base_action == "NAVIGATE_TO":
-                candidates = all_object_ids
-            elif base_action in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
-                candidates = object_ids_map.get("RECEPTACLE", [])
-            else:
-                candidates = object_ids_map.get(base_action, [])
-
-            # 후보에 없으면 유사도 가장 높은 후보로 교체
-            if target_obj not in candidates:
-                matched = cls._sentence_sim_model.get_similar_ref(
-                    target_obj, candidates
-                )
-                return f"{base_action} {matched}"
-            else:
+            # If the target object is already valid in the scene, no change needed
+            if target_obj in all_object_ids_in_scene:
                 return action
 
-        # 모든 Subtask에 대해 action 교정
+            # Determine the candidate list based on the action type
+            if base_action == "NAVIGATE_TO":
+                candidates = all_object_ids_in_scene
+            elif base_action in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
+                candidates = object_map_in_scene.get("RECEPTACLE", [])
+            else:
+                # Fallback for other actions, get candidates of the same type
+                target_obj_type = target_obj.split('|')[0]
+                candidates = [obj_id for obj_id in all_object_ids_in_scene if obj_id.startswith(target_obj_type)]
+                # If no candidates of the same type, use all objects as a last resort
+                if not candidates:
+                    candidates = all_object_ids_in_scene
+
+            # If there are no candidates, we cannot correct the action
+            if not candidates:
+                log.warning(f"Could not find any candidates for action: {action}")
+                return action
+
+            # Find the most similar valid object and replace it
+            matched = cls._sentence_sim_model.get_similar_ref(
+                target_obj, candidates
+            )
+            log.debug(f"Correcting object in action '{action}': replaced '{target_obj}' with '{matched}'")
+            return f"{base_action} {matched}"
+
+        # Correct actions for all subtasks
         subtasks = cls.tasks_to_subtasks(tasks, mode="all")
         for st in subtasks:
             st.execution.primitive_actions = [
