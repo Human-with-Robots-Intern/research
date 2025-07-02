@@ -386,7 +386,10 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                 action = action.split(")")[0]
                 action = re.findall(r"\b[a-z]+", action.lower())
                 log_file.write(f"Executing action: {action}\n")
-                objID = find_objID(controller, action[1])
+                if action[0] == "wait":
+                    wait_time = action[1]
+                else:   
+                    objID = find_objID(controller, action[1])
 
                 # assert 먼저 해결
                 log_file.write(f"start_time:{str(round(elapsed_time,2))} \n")
@@ -422,6 +425,8 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                     case "fill":
                         liquid = find_objID(controller, action[2])
                         elapsed_time += Act.fill(objID)
+                    case "wait":
+                        elapsed_time += Act.wait(wait_time)
                     case "done":
                         time.sleep(0.3)
                         pass
