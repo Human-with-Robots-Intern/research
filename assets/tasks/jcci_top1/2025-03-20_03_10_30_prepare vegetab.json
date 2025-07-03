@@ -13,8 +13,8 @@
                     "PrimitiveActions": [
                         "NAVIGATE_TO Tomato|-00.39|+01.14|-00.81",
                         "GRASP Tomato|-00.39|+01.14|-00.81",
-                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
-                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00",
                         "SLICE Tomato|-00.39|+01.14|-00.81"
                     ]
                 },
@@ -35,8 +35,8 @@
                     "PrimitiveActions": [
                         "NAVIGATE_TO Potato|-01.66|+00.93|-02.15",
                         "GRASP Potato|-01.66|+00.93|-02.15",
-                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
-                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00",
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00",
                         "SLICE Potato|-01.66|+00.93|-02.15"
                     ]
                 },
