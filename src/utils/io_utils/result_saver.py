@@ -330,5 +330,5 @@ def result_save_llm(
     file_path.parent.mkdir(parents=True, exist_ok=True)
     with file_path.open("w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=4)
-
     print(f"JSON file saved at {file_path}")
+    print(f"result_path:{file_path}")

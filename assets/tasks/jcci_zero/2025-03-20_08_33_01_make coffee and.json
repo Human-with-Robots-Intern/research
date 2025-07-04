@@ -67,7 +67,7 @@
                         "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
                         "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
                         "GRASP Plate|+00.96|+01.65|-02.61",
-                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
                     ]
                 },
                 "Duration": {

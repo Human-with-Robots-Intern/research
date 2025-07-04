@@ -89,7 +89,7 @@ prompt_fgen = read_txt(prompt_fgen_path).strip()
 cfg_scene = {
     "lmps": {
         "scene_ui": {
-            "prompt_text": prompt_scene_ui,
+            "prompt_text": prompt_scene_ui + "\nobjects = [{objects}]",
             "engine": "gpt-4o",
             "max_tokens": 512,
             "temperature": 0,
@@ -189,16 +189,16 @@ def setup_LMP(controller, Act, cfg_scene, log_file):
 
     # 위에서 update된 액션들을 한 번씩 래핑
     for action_name in [
-        "pickup",
-        "slice",
-        "put",
-        "drop",
-        "toggle_on",
-        "toggle_off",
-        "open",
-        "close",
-        "move_to",
-    ]:
+                            "pickup",
+                            "slice",
+                            "put",
+                            "drop",
+                            "toggle_on",
+                            "toggle_off",
+                            "open",
+                            "close",
+                            "move_to",
+                        ]:
         original_func = variable_vars[action_name]
         variable_vars[action_name] = timed_action(
             log_file, action_name, original_func, controller
@@ -298,16 +298,21 @@ def parse_arguments() -> argparse.Namespace:
         # 추후에 scene 목록이 생기면 choices = [] 으로 구현한다.
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)"
     )
+    parser.add_argument("--instruction", type=str, default=None)
     return parser.parse_args()
 
 if __name__ == "__main__":
     approach_name = "cap_ai2thor_simulation"
     args = parse_arguments()
     scene_name = args.scene
-    user_input = input()
+    instruction = args.instruction
+    if instruction is None:
+        print("Instruction not provided via arguments, waiting for user input...")
+        instruction = input()
+
 
     log_file = open(
-        f"src/baselines/cap/result/cap_logs_{user_input}.txt", "w", buffering=1
+        f"src/baselines/cap/result/cap_logs_{instruction}.txt", "w", buffering=1
     )
     controller = init_ai2thor_controller(scene_name)
     
@@ -326,15 +331,15 @@ if __name__ == "__main__":
     objs = list(
         set(obj["objectType"] for obj in controller.step("Pass").metadata["objects"])
     )
-    cap_log_path = f"src/baselines/cap/result/cap_logs_{user_input}.txt"
+    cap_log_path = f"src/baselines/cap/result/cap_logs_{instruction}.txt"
     computation_time_start = time.time()
-    lmp_scene_ui(user_input, objects=f"{objs}")
+    lmp_scene_ui(instruction, objects=f"{objs}")
     # 현재 computaion_time은 시뮬레이션 타임을 포함해서 정확하지 않음. 추후에 llmgeneration 방식의 computation_time을 폐기할 수 있으므로 일단 스킵
     computation_time = time.time() - computation_time_start
-    result_path = f"{user_input}"
+    result_path = f"{instruction}"
     result_args = {
         "approach_name": approach_name,
-        "user_input": user_input,
+        "user_input": instruction,
         "result_txt": cap_log_path,
         "json_output_path": result_path,
         "computation_time": computation_time,

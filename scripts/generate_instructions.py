@@ -43,14 +43,14 @@ def generate_simple_instructions(non_critical_list, not_constrained_list):
     """Generates simple instructions (1-2 non-critical + 3-4 not-constrained, total 5)."""
     simple_instructions = []
     
-    # Case 1: 1 non-critical + 5 not-constrained
+    # Case 1: 1 non-critical + 4 not-constrained
     if len(not_constrained_list) >= 4:
         for non_critical in non_critical_list:
             simple_instructions.extend(
                 _generate_and_sample_instructions([non_critical], not_constrained_list, 4)
             )
             
-    # Case 2: 2 non-critical + 4 not-constrained
+    # Case 2: 2 non-critical + 3 not-constrained
     if len(non_critical_list) >= 2 and len(not_constrained_list) >= 3:
         for non_critical_combo in combinations(non_critical_list, 2):
             simple_instructions.extend(

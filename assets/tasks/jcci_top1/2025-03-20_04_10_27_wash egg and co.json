@@ -129,13 +129,13 @@
                 "Executions": {
                     "Objects": {
                         "Mug|-01.76|+00.90|-00.62": 1,
-                        "CounterTop|-00.08|+01.15|00.00": 1
+                        "CounterTop|-00.08|+01.15|+00.00": 1
                     },
                     "PrimitiveActions": [
                         "NAVIGATE_TO Mug|-01.76|+00.90|-00.62",
                         "GRASP Mug|-01.76|+00.90|-00.62",
-                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
-                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
                     ]
                 },
                 "Duration": {
@@ -190,13 +190,13 @@
                 "Executions": {
                     "Objects": {
                         "PaperTowelRoll|-02.06|+01.01|-00.81": 1,
-                        "GarbageCan|-01.94|00.00|+02.03": 1
+                        "GarbageCan|-01.94|+00.00|+02.03": 1
                     },
                     "PrimitiveActions": [
                         "NAVIGATE_TO PaperTowelRoll|-02.06|+01.01|-00.81",
                         "GRASP PaperTowelRoll|-02.06|+01.01|-00.81",
-                        "NAVIGATE_TO GarbageCan|-01.94|00.00|+02.03",
-                        "PLACE_INSIDE GarbageCan|-01.94|00.00|+02.03"
+                        "NAVIGATE_TO GarbageCan|-01.94|+00.00|+02.03",
+                        "PLACE_INSIDE GarbageCan|-01.94|+00.00|+02.03"
                     ]
                 },
                 "Duration": {
@@ -226,7 +226,7 @@
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
                         "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
                         "GRASP Fork|+00.95|+00.77|-02.37",
-                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
                     ]
                 },
                 "Duration": {
@@ -251,7 +251,7 @@
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
                         "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
                         "GRASP Spoon|+00.98|+00.77|-02.29",
-                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
                     ]
                 },
                 "Duration": {
@@ -281,8 +281,8 @@
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
                         "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
                         "GRASP Plate|+00.96|+01.65|-02.61",
-                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
-                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
                     ]
                 },
                 "Duration": {
@@ -312,8 +312,8 @@
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
                         "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
                         "GRASP Lettuce|-01.81|+00.97|-00.94",
-                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
-                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
                     ]
                 },
                 "Duration": {
@@ -338,8 +338,8 @@
                         "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
                         "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
                         "GRASP Tomato|-00.39|+01.14|-00.81",
-                        "NAVIGATE_TO CounterTop|-00.08|+01.15|00.00",
-                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|00.00"
+                        "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
+                        "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
                     ]
                 },
                 "Duration": {
