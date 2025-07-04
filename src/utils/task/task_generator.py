@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 from utils.common import create_module_logger
 from utils.config.constants import (
     ENV_PLACEHOLDER,
-    PROMPT_FILE_PATH,
     PROMPT_PATH,
     SCENE_KNOWLEDGE_PATH,
     TASK_PATH,
