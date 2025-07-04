@@ -9,7 +9,6 @@ __all__ = [
     "TASK_PATH",
     "RESULT_PATH",
     "LOG_PATH",
-    "PROMPT_FILE_PATH",
     "ESTIMATE_FILE_NAME",
     "GROUND_TRUTH_FILE_NAME",
     "PRIMITIVE_ACTION_SET",

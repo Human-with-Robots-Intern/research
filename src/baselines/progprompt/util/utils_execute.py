@@ -141,9 +141,23 @@ def fun_processing(plan):  # gen plan이 들어오면 각 단계별로 나눠서
     return subgoals
 
 
-def find_objID(controller, obj_type):  ## object type과 object id를 매칭
+def find_objID(controller, obj_type: str) -> str | None:
+    """
+    Find object ID by matching object type (case-insensitive).
+    
+    Args:
+        controller: AI2Thor controller
+        obj_type: Object type name to search for
+        
+    Returns:
+        str | None: Object ID if found, None otherwise
+    """
+    if not obj_type:
+        return None
+        
+    obj_type_lower = obj_type.lower()
     for obj in controller.last_event.metadata["objects"]:
-        if obj["objectType"].lower() == obj_type:
+        if obj["objectType"].lower() == obj_type_lower:
             return obj["objectId"]
     return None
 
@@ -390,6 +404,13 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                     wait_time = action[1]
                 else:   
                     objID = find_objID(controller, action[1])
+                    if objID is None:
+                        log_file.write(f"WARNING: Could not find object '{action[1]}' in scene\n")
+                        logger.warning(f"Could not find object '{action[1]}' in scene")
+                        # List available objects for debugging
+                        available_objects = [obj["objectType"] for obj in controller.last_event.metadata["objects"]]
+                        log_file.write(f"Available objects: {available_objects}\n")
+                        continue  # Skip this action and continue with next one
 
                 # assert 먼저 해결
                 log_file.write(f"start_time:{str(round(elapsed_time,2))} \n")
