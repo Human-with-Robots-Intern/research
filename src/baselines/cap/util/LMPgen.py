@@ -49,7 +49,7 @@ class LMP:
     def clear_exec_hist(self):
         self.exec_hist = ""
 
-    def build_prompt(self, query, context=""):
+    def build_prompt(self, query, context="", **kwargs):
         if len(self._variable_vars) > 0:
             # 할수 있는 함수들 정의한거 str 로 묶기.
             variable_vars_imports_str = (
@@ -58,8 +58,8 @@ class LMP:
         else:
             variable_vars_imports_str = ""
 
-        prompt = self._base_prompt.replace(
-            "{variable_vars_imports}", variable_vars_imports_str
+        prompt = self._base_prompt.format(
+            variable_vars_imports=variable_vars_imports_str, **kwargs
         )
 
         if self._cfg["maintain_session"]:
@@ -68,7 +68,7 @@ class LMP:
 
         if context != "":
             # context 가 빈 문자열이 아니라면 prompt 에 추가
-            prompt += f"\n{context}"
+            prompt += f"\n{context.format(**kwargs)}"
 
         # "query_prefix": "# ",
         # "query_suffix": ".",
@@ -83,7 +83,7 @@ class LMP:
 
     def __call__(self, query, context="", **kwargs):
         # __call__ 은 class를 함수처럼 사용할 때 불러와지는거임. 원래는 class 정의한 다음에 class.fun(123) 이런식인데 얘는 class(123) 이렇게 부르는거 가능
-        prompt, use_query = self.build_prompt(query, context=context)
+        prompt, use_query = self.build_prompt(query, context=context, **kwargs)
         sys_guide = """You are a highly intelligent and context-aware Household AI Robot Assistant.
         """
         guide = """
@@ -373,7 +373,7 @@ class LMP_wrapper:
         self._cfg = cfg
         self.object_names = list(
             set(
-                obj["objectType"].lower
+                obj["objectType"].lower()
                 for obj in controller.step("Pass").metadata["objects"]
             )
         )
