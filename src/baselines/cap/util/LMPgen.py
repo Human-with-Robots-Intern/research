@@ -559,8 +559,11 @@ class LMP_wrapper:
         Returns:
             Optional[str]: 찾은 객체의 ID. 없으면 None을 반환합니다.
         """
+
         for obj in self.controller.last_event.metadata["objects"]:
-            if obj["objectType"].lower() == obj_name:
+
+            if obj["objectType"].lower() == obj_name.lower():
+
                 return obj["objectId"]
         return None
 
