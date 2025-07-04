@@ -51,15 +51,7 @@ venv/
 *.npy
 *.npz
 
-# OmniGibson / Simulation specific
-log_*/
-data/
-dataset/
-examples/train/models/
-omnigibson.egg-info
-omnigibson/utils/data_utils/mesh_decimation/collision/
-omnigibson/utils/data_utils/mesh_decimation/visual/
-omnigibson/utils/data_utils/mesh_decimation/final_videos/
+
 
 # System
 .DS_Store
