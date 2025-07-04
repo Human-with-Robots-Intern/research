@@ -79,8 +79,10 @@ def timed_action(
     def wrapper(*args: Any, **kwargs: Any) -> float:
         """래퍼 함수는 실제 액션을 실행하고 로깅합니다."""
         global last_end_time
-        # 액션 시작 로그
-        log_file.write(f"Executing action: ['{action_name}']\n")
+        # 액션 시작 로그: 액션 이름과 대상을 공백으로 구분된 단일 문자열로 기록하도록 수정합니다.
+        action_log_str = " ".join([action_name] + [str(arg) for arg in args])
+        # 최종 JSON에서 단일 문자열로 인식되도록, 로그 파일에 문자열 리터럴 형식으로 기록합니다.
+        log_file.write(f'Executing action: "{action_log_str}"\n')
 
         # 이전 액션의 종료 시간을 현재 액션의 시작 시간으로 사용
         start_time = last_end_time
