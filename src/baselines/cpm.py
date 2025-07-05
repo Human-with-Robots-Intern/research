@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import copy
 import heapq
@@ -17,6 +19,12 @@ from models.dataclass import (
     SimulationNode,
 )
 from models.task import Duration, Execution, Subtask
+from ros.ros_communicate import (
+    communicate,
+    init_ros_communication,
+    shutdown_ros_communication,
+)
+from ros.translate import InstructionTranslator
 from scheduler.action_handler import ActionHandler
 from utils.io_utils import task_io
 
@@ -66,9 +74,15 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-s",
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
-        help="시뮬레이션 실행 여부 (default: True)",
+        help="시뮬레이션 실행 여부 (default: False)",
+    )
+    parser.add_argument(
+        "--ros",
+        default=False,
+        action="store_true",
+        help="ROS 실행 여부 (default: False)",
     )
     parser.add_argument(
         "-l",
@@ -570,6 +584,29 @@ def main() -> None:
         }
         result_save(**result_args)
         print("end")
+    if args.ros:
+        init_ros_communication()
+        try:
+            for entry in final_scheduled_entries:
+                subtask = entry.subtask
+                primitive_actions = subtask.execution.primitive_actions
+                if not primitive_actions:
+                    continue
+                for primitive_action in primitive_actions:
+                    translated_primitive_action = InstructionTranslator.translate(
+                        primitive_action
+                    )
+                    success = communicate(translated_primitive_action)
+                    if not success:
+                        print(f"Action '{primitive_action}' failed. Stopping task.")
+                        # 여기서 루프를 중단할지 여부는 정책에 따라 결정할 수 있습니다.
+                        # 여기서는 바깥 루프까지 중단하도록 처리합니다.
+                        break
+                else:  # 내부 루프가 break 없이 완료된 경우
+                    continue
+                break  # 내부 루프가 break로 중단된 경우 외부 루프도 중단
+        finally:
+            shutdown_ros_communication()
 
 
 if __name__ == "__main__":
