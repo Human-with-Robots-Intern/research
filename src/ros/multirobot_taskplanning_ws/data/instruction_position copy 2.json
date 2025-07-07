@@ -1,0 +1,259 @@
+{
+    "nodes": [
+        {
+            "id": 0,
+            "category": "Characters",
+            "class_name": "husky_panda",
+            "room": "bathroom",
+            "location": "character"
+        },
+        {
+            "id": 1,
+            "category": "Characters",
+            "class_name": "jackal",
+            "room": "livingroom",
+            "location": "character"
+        },
+        {
+            "id": 2,
+            "category": "Characters",
+            "class_name": "ur5e",
+            "room": "kitchen",
+            "location": "character"
+        },
+        {
+            "id": 3,
+            "category": "Rooms",
+            "class_name": "livingroom",
+            "room": null,
+            "location": "livingroom"
+        },
+        {
+            "id": 4,
+            "category": "Rooms",
+            "class_name": "kitchen",
+            "room": null,
+            "location": "kitchen"
+        },
+        {
+            "id": 5,
+            "category": "Rooms",
+            "class_name": "bathroom",
+            "room": null,
+            "location": "bathroom"
+        },
+        {
+            "id": 6,
+            "category": "Furniture",
+            "class_name": "desk",
+            "room": "livingroom",
+            "location": "desk"
+        },
+        {
+            "id": 7,
+            "category": "Furniture",
+            "class_name": "bookshelf",
+            "room": "livingroom",
+            "location": "bookshelf"
+        },
+        {
+            "id": 8,
+            "category": "Furniture",
+            "class_name": "kitchentable",
+            "room": "kitchen",
+            "location": "kitchentable"
+        },
+        {
+            "id": 9,
+            "category": "Furniture",
+            "class_name": "kitchencabinet",
+            "room": "kitchen",
+            "location": "kitchencabinet"
+        },
+        {
+            "id": 10,
+            "category": "Furniture",
+            "class_name": "washstand",
+            "room": "bathroom",
+            "location": "washstand"
+        },
+        {
+            "id": 11,
+            "category": "Furniture",
+            "class_name": "bathroomcabinet",
+            "room": "bathroom",
+            "location": "bathroomcabinet"
+        },
+        {
+            "id": 12,
+            "category": "Electronics",
+            "class_name": "mouse",
+            "room": "livingroom",
+            "location": "desk"
+        },
+        {
+            "id": 13,
+            "category": "Electronics",
+            "class_name": "keyboard",
+            "room": "livingroom",
+            "location": "desk"
+        },
+        {
+            "id": 14,
+            "category": "Electronics",
+            "class_name": "Computer",
+            "room": "livingroom",
+            "location": "desk"
+        },
+        {
+            "id": 15,
+            "category": "Electronics",
+            "class_name": "lightswitch",
+            "room": "bathroom",
+            "location": "lightswitch"
+        },
+        {
+            "id": 16,
+            "category": "Lamps",
+            "class_name": "tablelamp",
+            "room": "kitchen",
+            "location": "kitchentable"
+        },
+        {
+            "id": 17,
+            "category": "Props",
+            "class_name": "remotecontrol",
+            "room": "livingroom",
+            "location": "desk"
+        },
+        {
+            "id": 18,
+            "category": "Props",
+            "class_name": "book",
+            "room": "livingroom",
+            "location": "bookshelf"
+        },
+        {
+            "id": 19,
+            "category": "Props",
+            "class_name": "box",
+            "room": "livingroom",
+            "location": "bookshelf"
+        },
+        {
+            "id": 20,
+            "category": "Props",
+            "class_name": "cellphone",
+            "room": "livingroom",
+            "location": "desk"
+        },
+        {
+            "id": 21,
+            "category": "Props",
+            "class_name": "plate",
+            "room": "kitchen",
+            "location": "plate"
+        },
+        {
+            "id": 22,
+            "category": "Props",
+            "class_name": "mug",
+            "room": "kitchen",
+            "location": "kitchentable"
+        },
+        {
+            "id": 23,
+            "category": "Food",
+            "class_name": "apple",
+            "room": "kitchen",
+            "location": "kitchentable"
+        },
+        {
+            "id": 24,
+            "category": "Food",
+            "class_name": "bananas",
+            "room": "kitchen",
+            "location": "kitchentable"
+        },
+        {
+            "id": 25,
+            "category": "Props",
+            "class_name": "barsoap",
+            "room": "bathroom",
+            "location": "washstand"
+        },
+        {
+            "id": 26,
+            "category": "Doors",
+            "class_name": "door",
+            "room": "bathroom",
+            "location": "door"
+        },
+        {
+            "id": 27,
+            "category": "Appliances",
+            "class_name": "microwave",
+            "room": "kitchen",
+            "location": "kitchentable"
+        }
+    ],
+    "positions": [
+        {
+            "bathroom": [
+                -0.90696,
+                -0.31167,
+                3.141592
+            ],
+            "livingroom": [
+                0.22122,
+                -0.14416,
+                0.0
+            ],
+            "kitchen": [
+                -0.30146,
+                0.16187,
+                3.141592
+            ],
+            "kitchencabinet": [
+                -0.43655,
+                0.38015,
+                1.57079632679
+            ],
+            "kitchentable": [
+                -0.45037,
+                -0.64525,
+                -1.57079632679
+            ],
+            "bathroomcabinet": [
+                -1.1767,
+                0.48569,
+                2.152449809
+            ],
+            "washstand": [
+                -1.5056,
+                -0.31167,
+                3.141592
+            ],
+            "desk": [
+                0.92967,
+                0.26768,
+                1.2217304764
+            ],
+            "bookshelf": [
+                0.72575,
+                -0.8163,
+                -0.9062589006
+            ],
+            "lightswitch": [
+                -1.5056,
+                0.066877,
+                3.141592
+            ],
+            "plate": [
+                -0.43655,
+                0.38015,
+                1.57079632679
+            ]
+        }
+    ]
+}

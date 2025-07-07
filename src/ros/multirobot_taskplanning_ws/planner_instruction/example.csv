@@ -1,0 +1,135 @@
+instruction,A,B
+
+"Turn off the light switch in the bathroom"
+<char0> [walk] <bathroom> (23)
+<char0> [find] <lightswitch> (2)
+<char0> [switchoff] <lightswitch> (2)
+8,23,
+1,2,
+6,2,
+
+2. "Store the bar soap in the bathroom cabinet"
+<char0> [walk] <bathroom> (23)
+<char0> [find] <barsoap> (4)
+<char0> [grab] <barsoap> (4)
+<char0> [find] <bathroomcabinet> (9)
+<char0> [open] <bathroomcabinet> (9)
+<char0> [putin] <barsoap> (4) <bathroomcabinet> (9)
+<char0> [close] <bathroomcabinet> (9)
+3. "Store the mug in the kitchen cabinet"
+<char0> [walk] <kitchen> (20)
+<char0> [find] <mug> (25)
+<char0> [grab] <mug> (25)
+<char0> [find] <kitchencabinet> (21)
+<char0> [open] <kitchencabinet> (21)
+<char0> [putin] <mug> (25) <kitchencabinet> (21)
+<char0> [close] <kitchencabinet> (21)
+
+
+"Store the bar soap in the bathroom cabinet":
+["<char0> [walk] <bathroom> (23)",
+"<char0> [find] <barsoap> (4)",
+"<char0> [grab] <barsoap> (4)",
+"<char0> [find] <bathroomcabinet> (9)",
+"<char0> [open] <bathroomcabinet> (9)",
+"<char0> [putin] <barsoap> (4) <bathroomcabinet> (9)",
+"<char0> [close] <bathroomcabinet> (9)"],
+8,23,
+1,4,
+2,4,
+1,9,
+3,9,
+5,4,9
+0,9,
+
+
+"Store the mug in the kitchen cabinet":
+["<char0> [walk] <kitchen> (20)",
+"<char0> [find] <mug> (25)",
+"<char0> [grab] <mug> (25)",
+"<char0> [find] <kitchencabinet> (21)",
+"<char0> [open] <kitchencabinet> (21)",
+"<char0> [putin] <mug> (25) <kitchencabinet> (21)",
+"<char0> [close] <kitchencabinet> (21)"],
+8,20,
+1,25,
+2,25,
+1,21,
+3,21,
+5,25,21
+0,21,
+
+
+4. "Move the cellphone to the kitchen table"
+<char0> [walk] <livingroom> (1)
+<char0> [find] <cellphone> (18)
+<char0> [grab] <cellphone> (18)
+<char0> [walk] <kitchen> (20)'
+<char0> [find] <kitchentable> (17)
+<char0> [putback] <cellphone> (18) <kitchentable> (17)
+8,1,
+1,18,
+2,18,
+8,20,
+1,17,
+4,18,17
+
+5. "Turn off the table lamp in the livingroom" 일단 제외
+
+6. 'Place the apple on the plate'
+<char0> [walk] <kitchen> (20)
+<char0> [find] <apple> (6)
+<char0> [grab] <apple> (6)
+<char0> [find] <plate> (15)
+<char0> [putback] <apple> (6) <plate> (15)
+8,20,
+1,6,
+2,6,
+1,15,
+4,6,15
+
+7. 'Put the bananas on the desk in the living room’
+<char0> [walk] <kitchen> (20)
+<char0> [find] <bananas> (7)
+<char0> [grab] <bananas> (7)
+<char0> [walk] <livingroom> (1)
+<char0> [find] <desk> (8)
+<char0> [putback] <bananas> (7) <desk> (8)
+8,20,
+1,7,
+2,7,
+8,1,
+1,8,
+4,7,8
+
+
+#1
+1,1,26,
+0,0,18,
+0,2,18,
+0,1,20,
+0,0,17,
+0,4,18,17
+
+#2
+[‘<char1> [walk] <livingroom> (351)‘,
+‘<char1> [walk] <transition_section> ()‘,
+‘<char0> [find] <apple> (413)‘,
+‘<char0> [grab] <apple> (413)‘,
+‘<char0> [walk] <kitchen> (233)‘,
+‘<char0> [find] <garbagecan> (275)‘,
+‘<char0> [open] <garbagecan> (275)‘,
+‘<char0> [putin] <apple> (413) <garbagecan> (275)‘,
+‘<char0> [close] <garbagecan> (275)‘,
+‘<char0> [finish]’]
+
+1,1,1,
+1,1,26,
+0,0,6,
+0,2,6,
+0,1,20,
+0,0,27,
+0,8,27,
+0,5,6,27
+0,9,27,
+

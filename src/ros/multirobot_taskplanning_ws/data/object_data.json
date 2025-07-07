@@ -1,0 +1,160 @@
+{
+    "0": {
+        "0": {
+            "3": {
+                "0": {
+                    "sub_action": "move",
+                    "position": {
+                        "x": 0.306891,
+                        "y": 0.0,
+                        "z": 0.590282
+                    },
+                    "orientation": {
+                        "x": 0.92388,
+                        "y": -0.382683,
+                        "z": 0.0,
+                        "w": 0.0
+                    },
+                    "is_relative": false
+                },
+                "1": {
+                    "sub_action": "move",
+                    "position": {
+                        "x": 0.306891,
+                        "y": 0.0,
+                        "z": 0.690282
+                    },
+                    "orientation": {
+                        "x": 0.92388,
+                        "y": -0.382683,
+                        "z": 0.0,
+                        "w": 0.0
+                    },
+                    "is_relative": false
+                },
+                "2": {
+                    "sub_action": "gripper_open",
+                    "position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "orientation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 0.1
+                    },
+                    "is_relative": false
+                },
+                "3": {
+                    "sub_action": "gripper_grab",
+                    "position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "orientation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 0.1
+                    },
+                    "is_relative": false
+                },
+                "4": {
+                    "sub_action": "gripper_open",
+                    "position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "orientation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 0.1
+                    },
+                    "is_relative": false
+                },
+                "5": {
+                    "sub_action": "gripper_close",
+                    "position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "orientation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 0.1
+                    },
+                    "is_relative": false
+                },
+                "6": {
+                    "sub_action": "gripper_open",
+                    "position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "orientation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 0.1
+                    },
+                    "is_relative": false
+                },
+                "7": {
+                    "sub_action": "move",
+                    "position": {
+                        "x": 0.306891,
+                        "y": 0.0,
+                        "z": 0.590282
+                    },
+                    "orientation": {
+                        "x": 0.92388,
+                        "y": -0.382683,
+                        "z": 0.0,
+                        "w": 0.0
+                    },
+                    "is_relative": false
+                },
+                "8": {
+                    "sub_action": "terminate",
+                    "position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "orientation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 0.0
+                    },
+                    "is_relative": false
+                }
+            },
+            "0": {
+                "1": {
+                    "sub_action": "start",
+                    "position": {
+                        "x": 3.0,
+                        "y": 3.0,
+                        "z": 3.0
+                    },
+                    "orientation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "is_relative": true
+                }
+            }
+        }
+    }
+}

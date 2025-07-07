@@ -1,0 +1,198 @@
+{
+    "1": {
+        "data": {
+            "width": 0.04,
+            "speed": 0.03
+        },
+        "type": "soft"
+    },
+    "2": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "3": {
+        "data": {
+            "width": 0.04,
+            "speed": 0.03
+        },
+        "type": "soft"
+    },
+    "4": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "5": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "6": {
+        "data": {
+            "width": 0.05,
+            "speed": 0.03
+        },
+        "type": "soft"
+    },
+    "7": {
+        "data": {
+            "width": 0.06,
+            "force": 2.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "8": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "9": {
+        "data": {
+            "width": 0.04,
+            "speed": 0.03
+        },
+        "type": "soft"
+    },
+    "10": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "11": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "12": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "13": {
+        "data": {
+            "width": 0.04,
+            "speed": 0.03
+        },
+        "type": "soft"
+    },
+    "14": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "15": {
+        "data": {
+            "width": 0.04,
+            "speed": 0.03
+        },
+        "type": "soft"
+    },
+    "16": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "17": {
+        "data": {
+            "width": 0.04,
+            "speed": 0.03
+        },
+        "type": "soft"
+    },
+    "18": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.02}
+        },
+        "type": "hard"
+    },
+    "19": {
+        "data": {
+            "width": 0.04,
+            "speed": 0.03
+        },
+        "type": "soft"
+    },
+    "20": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "21": {
+        "data": {
+            "width": 0.04,
+            "speed": 0.03
+        },
+        "type": "soft"
+    },
+    "22": {
+        "data": {
+            "width": 0.06,
+            "force": 5.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.06, "outer": 0.001}
+        },
+        "type": "hard"
+    },
+    "23": {
+        "data": {
+            "width": 0.04,
+            "speed": 0.03
+        },
+        "type": "soft"
+    },
+    "25": {
+        "data": {
+            "width": 0.07,
+            "force": 1.0,
+            "speed": 0.03,
+            "epsilon": {"inner": 0.07, "outer": 0.001}
+        },
+        "type": "hard"
+    }
+}
