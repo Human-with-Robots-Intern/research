@@ -5,7 +5,7 @@ from typing import Dict, List
 
 import numpy as np
 
-from utils.nlp.sentence_transformer import SentenceSimilarityModel
+from src.utils.nlp.sentence_transformer import SentenceSimilarityModel
 
 
 class FewShotRetriever:

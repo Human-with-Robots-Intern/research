@@ -13,9 +13,9 @@ from networkx import DiGraph
 if TYPE_CHECKING:
     from src.models.dataclass import CompletedEntry
 
-from utils.common.logger import create_module_logger
-from utils.config.constants import EPSILON, RESULT_PATH, TIMING_TOLERANCE
-from utils.visualizers.visualizer import visualize
+from src.utils.common.logger import create_module_logger
+from src.utils.config.constants import EPSILON, RESULT_PATH, TIMING_TOLERANCE
+from src.utils.visualizers.visualizer import visualize
 
 log = create_module_logger(__name__, module_log=True, level=logging.INFO)
 

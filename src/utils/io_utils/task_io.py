@@ -3,8 +3,8 @@ import json
 from pathlib import Path
 from typing import NamedTuple, Optional, Tuple
 
-from utils.config.constants import ROOM_TYPE, SCENE_KNOWLEDGE_PATH, TASK_PATH
-from utils.task.task_generator import TaskGenerator
+from src.utils.config.constants import ROOM_TYPE, SCENE_KNOWLEDGE_PATH, TASK_PATH
+from src.utils.task.task_generator import TaskGenerator
 
 
 class SceneData(NamedTuple):

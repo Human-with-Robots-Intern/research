@@ -12,7 +12,6 @@ import networkx as nx
 import numpy as np
 from matplotlib.patches import Rectangle
 
-from models.dataclass import CompletedEntry
 from src.models.dataclass import CompletedEntry
 
 from . import dag

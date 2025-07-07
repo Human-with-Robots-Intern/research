@@ -3,7 +3,7 @@ import logging
 
 from colorlog import ColoredFormatter
 
-from utils.config.constants import LOG_PATH
+from src.utils.config.constants import LOG_PATH
 
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 COLOR_LOG_FORMAT = "%(log_color)s%(levelname)-8s%(reset)s %(log_color)s%(message)s"

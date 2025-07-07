@@ -12,19 +12,19 @@ from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 import networkx as nx
 from networkx import DiGraph
 
-from models.dataclass import (
+from src.models.dataclass import (
     ActionResult,
     CompletedEntry,
     SchedulerState,
     SimulationNode,
 )
-from models.task import Duration, Execution, Subtask
+from src.models.task import Duration, Execution, Subtask
 
 
-from ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
-from ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
-from scheduler.action_handler import ActionHandler
-from utils.io_utils import task_io
+from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
+from src.ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
+from src.scheduler.action_handler import ActionHandler
+from src.utils.io_utils import task_io
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 from core.agent import Agent
@@ -583,6 +583,7 @@ def main() -> None:
         result_save(**result_args)
         print("end")
     if args.ros:
+        translator = InstructionTranslator()
         init_ros_communication()
         try:
             for entry in final_scheduled_entries:
@@ -591,9 +592,7 @@ def main() -> None:
                 if not primitive_actions:
                     continue
                 for primitive_action in primitive_actions:
-                    translated_primitive_action = InstructionTranslator.translate(
-                        primitive_action
-                    )
+                    translated_primitive_action = translator.translate(primitive_action)
                     success = communicate(translated_primitive_action)
                     if not success:
                         print(f"Action '{primitive_action}' failed. Stopping task.")

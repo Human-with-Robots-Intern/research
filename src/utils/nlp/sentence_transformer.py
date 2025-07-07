@@ -2,8 +2,8 @@
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from utils.common import create_module_logger
-from utils.config.constants import SIMILARITY_THRESHOLD
+from src.utils.common import create_module_logger
+from src.utils.config.constants import SIMILARITY_THRESHOLD
 
 log = create_module_logger(__name__, module_log=True)
 
