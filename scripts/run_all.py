@@ -11,7 +11,7 @@ import sys
 import re
 
 from src.utils.common import create_module_logger
-from utils.config.constants import RESULT_PATH
+from src.utils.config.constants import RESULT_PATH
 
 def load_config() -> dict:
     """Loads configuration from scripts/config.yaml."""
@@ -32,7 +32,7 @@ def run_with_retries(script: Path, input_str: str, scene_name: str, config: dict
         logger.info(f"Starting {script} (Attempt {attempt}) with scene={scene_name}, instruction={input_str.strip()}")
         logger.info(f"=" * 80)
         
-        cmd = ["python", str(script), "--scene", scene_name, "--instruction", input_str]
+        cmd = ["python3", str(script), "--scene", scene_name, "--instruction", input_str]
         if config.get("ros"):
             cmd.append("--ros")
         if config.get("simulation"):
@@ -149,7 +149,7 @@ def process_normal_script(script: Path, instruction: str, scene_name: str, confi
     logger.info(f"Starting {script} with scene={scene_name}, instruction={instruction}")
     logger.info(f"=" * 80)
     
-    cmd = ["python", str(script), "--scene", scene_name]
+    cmd = ["python3", str(script), "--scene", scene_name]
     if config.get("ros"):
         cmd.append("--ros")
     if config.get("simulation"):
