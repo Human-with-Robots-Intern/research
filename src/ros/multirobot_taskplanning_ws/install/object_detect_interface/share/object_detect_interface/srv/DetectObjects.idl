@@ -1,0 +1,18 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from object_detect_interface/srv/DetectObjects.srv
+// generated code does not contain a copyright notice
+
+#include "object_detect_interface/msg/ObjectData.idl"
+
+module object_detect_interface {
+  module srv {
+    struct DetectObjects_Request {
+      uint8 structure_needs_at_least_one_member;
+    };
+    struct DetectObjects_Response {
+      int16 entity_num;
+
+      sequence<object_detect_interface::msg::ObjectData> object_list;
+    };
+  };
+};

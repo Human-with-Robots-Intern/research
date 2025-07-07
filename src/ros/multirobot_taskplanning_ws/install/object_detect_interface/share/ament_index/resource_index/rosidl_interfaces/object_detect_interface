@@ -1,0 +1,6 @@
+msg/ObjectData.idl
+msg/ObjectData.msg
+srv/DetectObjects.idl
+srv/DetectObjects.srv
+srv/DetectObjects_Request.msg
+srv/DetectObjects_Response.msg
