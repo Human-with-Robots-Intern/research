@@ -19,12 +19,10 @@ from models.dataclass import (
     SimulationNode,
 )
 from models.task import Duration, Execution, Subtask
-from ros.ros_communicate import (
-    communicate,
-    init_ros_communication,
-    shutdown_ros_communication,
-)
-from ros.translate import InstructionTranslator
+
+
+from ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
+from ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
 from scheduler.action_handler import ActionHandler
 from utils.io_utils import task_io
 

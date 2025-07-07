@@ -1,0 +1,11 @@
+*log/*
+*build/*
+*install/*
+
+log
+build
+install
+
+.vscode
+
+*.mp4

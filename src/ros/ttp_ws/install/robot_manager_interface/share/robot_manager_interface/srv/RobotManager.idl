@@ -1,0 +1,21 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from robot_manager_interface/srv/RobotManager.srv
+// generated code does not contain a copyright notice
+
+
+module robot_manager_interface {
+  module srv {
+    struct RobotManager_Request {
+      int64 robot_model;
+
+      int64 instruction;
+
+      int64 a;
+
+      int64 b;
+    };
+    struct RobotManager_Response {
+      boolean success;
+    };
+  };
+};
