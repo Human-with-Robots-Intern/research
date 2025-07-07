@@ -1,7 +1,7 @@
 # Python
 __pycache__/
 *.py[cod]
-*.so
+*.o
 *.pyo
 
 # Build / Packaging
@@ -61,6 +61,5 @@ archive/
 *.dot
 ./temp_env.yml
 sync_repos.sh
-setup.py
 llm_as_a_judge.py
 assets/knowledge/bayesian_estimate.json

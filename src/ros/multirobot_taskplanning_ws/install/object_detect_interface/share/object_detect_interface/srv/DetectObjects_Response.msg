@@ -1,0 +1,3 @@
+
+int16 entity_num
+object_detect_interface/ObjectData[] object_list

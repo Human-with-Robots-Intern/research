@@ -1,0 +1,17 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from object_detect_interface/msg/ObjectData.msg
+// generated code does not contain a copyright notice
+
+#include "geometry_msgs/msg/Pose.idl"
+
+module object_detect_interface {
+  module msg {
+    @verbatim (language="comment", text=
+      "ArUco 마커의 id 와 Pose 정보를 전달하는 메시지")
+    struct ObjectData {
+      int16 id;
+
+      geometry_msgs::msg::Pose pose;
+    };
+  };
+};

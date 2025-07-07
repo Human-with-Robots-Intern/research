@@ -1,0 +1,19 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from robotiq_gripper_interface/srv/GetGripperStateCommand.srv
+// generated code does not contain a copyright notice
+
+
+module robotiq_gripper_interface {
+  module srv {
+    struct GetGripperStateCommand_Request {
+      uint8 structure_needs_at_least_one_member;
+    };
+    struct GetGripperStateCommand_Response {
+      float position;
+
+      float speed;
+
+      float force;
+    };
+  };
+};
