@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 from ai2thor.controller import Controller
 
 from ithor.handlers.action import Action
-from utils.common.logger import create_module_logger
+from src.utils.common.logger import create_module_logger
 
 # Action handler import
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 # Constants (unify your constants in one place)
-from utils.config.constants import (
+from src.utils.config.constants import (
     DEFAULT_SCENE_NAME,
     GRID_SIZE,
     SCREEN_HEIGHT,

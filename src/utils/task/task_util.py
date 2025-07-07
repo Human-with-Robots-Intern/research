@@ -13,8 +13,8 @@ from src.models.dataclass import CompletedEntry, SchedulerState
 from src.models.task import Duration, Execution, Subtask, Task
 
 # 내부 프로젝트 모듈
-from utils.common import create_module_logger
-from utils.config.constants import (
+from src.utils.common import create_module_logger
+from src.utils.config.constants import (
     AGENT_KNOWLEDGE_PATH,
     ESTIMATE_FILE_NAME,
     GROUND_TRUTH_FILE_NAME,
@@ -23,7 +23,7 @@ from utils.config.constants import (
     PRIMITIVE_ACTION_SET,
     SCENE_KNOWLEDGE_PATH,
 )
-from utils.nlp.sentence_transformer import SentenceSimilarityModel
+from src.utils.nlp.sentence_transformer import SentenceSimilarityModel
 
 load_dotenv()
 log = create_module_logger(__name__, module_log=True)
@@ -175,7 +175,7 @@ class TaskUtil:
         Subtask의 primitive_actions에 사용된 obj_id가 유효한지 확인 후,
         유효하지 않다면 문장 유사도 기반으로 가장 가까운 후보로 교체한다.
         """
-        from utils.io_utils.task_io import load_scene_positions
+        from src.utils.io_utils.task_io import load_scene_positions
         
         # 1) Load all available object IDs and their categories for the scene
         object_categories = cls._load_object_ids(scene_name)
