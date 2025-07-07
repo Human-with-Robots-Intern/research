@@ -16,14 +16,14 @@ from src.models.dataclass import (
 from src.models.task import Duration, Execution, Subtask
 from src.utils.common import create_module_logger
 from src.utils.common.decorators import time_logger
-from utils.config import BAYESIAN_CRITERIA, EPSILON, MONITORING_DURATION, RED, RESET
-from utils.config.constants import (
+from src.utils.config import BAYESIAN_CRITERIA, EPSILON, MONITORING_DURATION, RED, RESET
+from src.utils.config.constants import (
     BEAM_WIDTH,
     NAV_STEP_DURATION,
     SIMULATION_DEPTH,
     TIMING_TOLERANCE,
 )
-from utils.task import TaskUtil
+from src.utils.task import TaskUtil
 
 if TYPE_CHECKING:
     from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
-from utils.config.constants import PRIMITIVE_ACTION_DURATION
+from src.utils.config.constants import PRIMITIVE_ACTION_DURATION
 
 
 class Scheduler:

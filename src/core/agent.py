@@ -15,8 +15,8 @@ from src.utils.config import (
     INIT_PRIOR_MEAN,
     INIT_PRIOR_VARIANCE,
 )
-from utils.config.constants import AGENT_KNOWLEDGE_PATH, MIN_VARIANCE, TIMING_TOLERANCE
-from utils.nlp import SentenceSimilarityModel
+from src.utils.config.constants import AGENT_KNOWLEDGE_PATH, MIN_VARIANCE, TIMING_TOLERANCE
+from src.utils.nlp import SentenceSimilarityModel
 
 if TYPE_CHECKING:
     from scheduler import ConstraintHandler

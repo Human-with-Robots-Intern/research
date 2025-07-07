@@ -21,24 +21,24 @@ from src.models.dataclass import (
 from src.models.task import Duration, Execution, Subtask
 
 
+# ROS imports
 from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
 from src.ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
 from src.scheduler.action_handler import ActionHandler
 from src.utils.io_utils import task_io
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
-from core.agent import Agent
+from src.core.agent import Agent
 from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
-from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
-from utils.common import create_module_logger
-from utils.io_utils.result_saver import result_save
-from utils.io_utils.task_io import (
+from src.simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
+from src.utils.common import create_module_logger
+from src.utils.io_utils.result_saver import result_save
+from src.utils.io_utils.task_io import (
     get_user_task_choice,
     list_task_files,
     load_scene_positions,
     load_task_data_from_file,
 )
-from utils.task.task_util import TaskUtil
+from src.utils.task.task_util import TaskUtil
 
 
 class ExecutionPredictionInfo(NamedTuple):
@@ -592,6 +592,10 @@ def main() -> None:
                 if not primitive_actions:
                     continue
                 for primitive_action in primitive_actions:
+                    primitive_action_parts = primitive_action.split(" ")
+                    if primitive_action_parts[0].lower() == "wait":
+                        time.sleep(float(primitive_action_parts[1]))
+                        continue
                     translated_primitive_action = translator.translate(primitive_action)
                     success = communicate(translated_primitive_action)
                     if not success:

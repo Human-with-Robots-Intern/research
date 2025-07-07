@@ -25,6 +25,7 @@ def run_with_retries(script: Path, input_str: str, scene_name: str, config: dict
     주어진 스크립트를 최대 max_retries 회까지 재시도하며 실행합니다.
     성공하면 (True, 시도 횟수), 실패하면 (False, 마지막 시도 횟수)를 반환합니다.
     """
+    wrapper_script = Path(__file__).parent / "run_with_ros_env.sh"
     for attempt in range(1, max_retries + 1):
         logger.debug(f"Running {script} (Attempt {attempt})...")
         
@@ -32,7 +33,7 @@ def run_with_retries(script: Path, input_str: str, scene_name: str, config: dict
         logger.info(f"Starting {script} (Attempt {attempt}) with scene={scene_name}, instruction={input_str.strip()}")
         logger.info(f"=" * 80)
         
-        cmd = ["python3", str(script), "--scene", scene_name, "--instruction", input_str]
+        cmd = [str(wrapper_script), "python3", str(script), "--scene", scene_name, "--instruction", input_str]
         if config.get("ros"):
             cmd.append("--ros")
         if config.get("simulation"):
@@ -100,6 +101,7 @@ def process_retry_script(script: Path, instruction: str, scene_name: str, config
     재시도가 필요한 스크립트를 실행하고 결과 JSON 파일에 attempt 값을 기록하거나,
     모든 시도 실패 시 더미 데이터를 생성합니다.
     """
+    wrapper_script = Path(__file__).parent / "run_with_ros_env.sh"
     approach = script.stem
     input_str = f"{instruction}\n"
 
@@ -143,13 +145,14 @@ def process_normal_script(script: Path, instruction: str, scene_name: str, confi
     재시도 대상이 아닌 스크립트를 단순 실행합니다.
     instruction이 1~30 사이의 숫자인 경우 첫 번째 입력 전송을 건너뜁니다.
     """
+    wrapper_script = Path(__file__).parent / "run_with_ros_env.sh"
     logger.warning(f"Running {script},{scene_name},{instruction}...")
     
     logger.info(f"=" * 80)
     logger.info(f"Starting {script} with scene={scene_name}, instruction={instruction}")
     logger.info(f"=" * 80)
     
-    cmd = ["python3", str(script), "--scene", scene_name]
+    cmd = [str(wrapper_script), "python3", str(script), "--scene", scene_name]
     if config.get("ros"):
         cmd.append("--ros")
     if config.get("simulation"):
