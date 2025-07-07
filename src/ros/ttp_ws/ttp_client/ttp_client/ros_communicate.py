@@ -96,10 +96,10 @@ def communicate(action_parts: List[int]) -> bool:
         _ros_client_node.get_logger().error(f"Invalid action_parts received: {action_parts}")
         return False
 
-    robot_model = 0
-    instruction = action_parts[0]
-    a = action_parts[1] if len(action_parts) > 1 else ""
-    b = action_parts[2] if len(action_parts) > 2 else ""
+    robot_model = action_parts[0]
+    instruction = action_parts[1]
+    a = action_parts[2] 
+    b = action_parts[3]
 
     action_str = f"{instruction} {a} {b}".strip()
     _ros_client_node.get_logger().info(f"Sending action: '{action_str}'")

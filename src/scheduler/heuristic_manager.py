@@ -20,7 +20,7 @@ from src.utils.config import (  # INIT_PRIOR_MEAN, # 더 이상 직접 사용하
     GAMMA_HEURISTIC,
     LARGE_NUMBER,
 )
-from utils.config.constants import NAV_STEP_DURATION, PRIMITIVE_ACTION_DURATION
+from src.utils.config.constants import NAV_STEP_DURATION, PRIMITIVE_ACTION_DURATION
 
 # Forward declarations for type hinting
 if TYPE_CHECKING:
