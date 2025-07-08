@@ -20,8 +20,8 @@ class InstructionTranslator:
         
         action, object= instruction.split(" ")        
         action_id = self.action_mapping[action]        
-        object_id = self.object_mapping[object]
-        
+        object_id = self.object_mapping[object.lower()]
+        # 지금 없어서 주석처리 
         # object_position = self.object_positions[object][0]
         return [0, action_id, object_id, 0]
     

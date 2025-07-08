@@ -1,22 +1,16 @@
-
 {
-    "banana": 1,
-    "cooker": 2,
-    "toilet": 3,
-    "spray_bottle": 4,
-    "scrub_brush": 5,
-    "soap_bottle": 6,
-    "sink": 7,
-    "faucet": 8,
-    "toilet_paper": 9,
-    "SoapBar|-00.24|+00.47|-02.54": 10,
-    "Sink|-02.10|00.00|-02.03|SinkBasin": 11,
-    "Faucet|-02.35|+01.01|-02.03": 12,
-    "Toilet|-00.47|+00.00|-01.88": 13,
-    "Candle|-00.10|+00.47|-02.58": 14,
-    "LightSwitch|-01.25|+01.42|+00.00": 15,
-    "GarbageCan|-00.24|-00.03|-01.36": 16,
-    "ShowerCurtain|-02.33|+01.96|-02.46": 17,
-    "Cloth|-02.19|+00.67|-01.36": 18
-
+    "banana": 7,
+    "plate" : 15,
+    "pan" : 31,
+    "sausage" : 32,
+    "stove": 33,
+    "orange_bowl": 34,
+    "blue_bowl": 35,
+    "toilet": 80,
+    "spray_bottle": 81,
+    "scrub_brush": 82,
+    "soap_bottle": 83,
+    "sink|sinkbasin": 84,
+    "faucet": 85,
+    "toilet_paper": 86
 }
