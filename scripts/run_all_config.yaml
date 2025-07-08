@@ -4,7 +4,7 @@ log_level: "INFO" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNING
 
 # Execution mode
 predefined: false # Use predefined numbered instructions (1-20) instead of loading from JSON files
-scene_type: "bathroom" # Default scene type to run. Options: 'kitchen', 'bathroom'
+scene_type: "realworld" # Default scene type to run. Options: 'kitchen', 'bathroom'
 capture_output: false # Capture subprocess output instead of showing in terminal
 ros: true # Enable ROS communication
 simulation: false # Enable Simulation mode
@@ -36,6 +36,8 @@ scene_lists:
     # - "FloorPlan422"
     # - "FloorPlan426"
     # - "FloorPlan427"
+  realworld:
+    - "FloorPlan301"
 
 # Number of times to run each instruction
 num_runs_per_instruction: 1

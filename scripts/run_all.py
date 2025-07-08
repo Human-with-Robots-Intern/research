@@ -210,6 +210,8 @@ def load_instructions_from_json(scene_name: str) -> list[str]:
     number = int(scene_name.lstrip("FloorPlan"))
     if number >= 400:
         base_file = "bathroom_scene.json"
+    elif number >= 300:
+        base_file = "real_world_scene.json"
     else:
         base_file = "kitchen_scene.json"
     
@@ -231,7 +233,7 @@ def load_instructions_from_json(scene_name: str) -> list[str]:
             scene_data = json.load(f)
             instructions.extend(scene_data["instructions"])
     except Exception as e:
-        logger.error(f"Failed to load scene-specific instructions from {scene_path}: {e}")
+        logger.warning(f"Failed to load scene-specific instructions from {scene_path}: {e}")
     
     return instructions
 

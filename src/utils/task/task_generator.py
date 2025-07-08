@@ -90,6 +90,8 @@ class TaskGenerator:
         scene_number = int(scene_name.replace("FloorPlan", ""))
         if scene_number > 400:
             scene_type = "bathroom"
+        elif scene_number > 300:
+            scene_type = "real_world"        
         else:
             scene_type = "kitchen"
 

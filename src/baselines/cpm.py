@@ -22,8 +22,7 @@ from src.models.task import Duration, Execution, Subtask
 
 
 # ROS imports
-from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
-from src.ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
+
 from src.scheduler.action_handler import ActionHandler
 from src.utils.io_utils import task_io
 
@@ -78,7 +77,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--ros",
-        default=False,
+        default=True,
         action="store_true",
         help="ROS 실행 여부 (default: False)",
     )
@@ -93,7 +92,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan422",
+        default="FloorPlan301",
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
     return parser.parse_args()
@@ -399,7 +398,6 @@ def get_final_entries(
                 predicted_next_state = update_state(
                     current_state, non_edge_subtask, predicted_exec_info
                 )
-
                 # Get the succeeding subtask from critical path
                 succ_subtask = (
                     critical_path[i + 1][0] if i + 1 < len(critical_path) else None
@@ -507,16 +505,24 @@ def get_final_entries(
 
 def main() -> None:
     """Main execution function for the CPM scheduler."""
+    
     approach_name = "cpm"
     args: argparse.Namespace = parse_arguments()
     scene_name: str = args.scene
 
-    # Initialize controller, navigation graph, and scene
-    controller = init_ai2thor_controller(scene_name)
-    nav_graph = load_navigation_graph(controller)
     global action_handler, constraints
+    # Initialize controller, navigation graph, and scene
+    if args.ros:
+        controller = None
+        nav_graph = {(0, 0, 0): {(0, 0, 0)}}
+        action_handler = ActionHandler(nav_graph, log_level=args.log_level)
+    else:
+        controller = init_ai2thor_controller(scene_name)
+        nav_graph = load_navigation_graph(controller)
+        action_handler = ActionHandler(nav_graph, log_level=args.log_level)
+
     scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
-    action_handler = ActionHandler(nav_graph, log_level=args.log_level)
+
 
     # Load task data
     task_files = list_task_files()
@@ -583,6 +589,8 @@ def main() -> None:
         result_save(**result_args)
         print("end")
     if args.ros:
+        from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
+        from src.ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
         translator = InstructionTranslator()
         init_ros_communication()
         try:

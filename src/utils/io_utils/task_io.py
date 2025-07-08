@@ -194,18 +194,14 @@ def load_scene_positions(file_name: str) -> dict[str, tuple[float, float, float]
     객체별 3D 위치를 담은 JSON 파일 로드
     """
     scene_num = int(file_name.replace("FloorPlan", "").replace("_positions.json", "").replace("_physics_environment.json", ""))
-    if scene_num >= 1 and scene_num < 100:
-        room_type = "kitchen"
-    elif scene_num >= 200 and scene_num < 300:
-        room_type = "living_room"
-    elif scene_num >= 300 and scene_num < 400:
-        room_type = "bedroom"
-    elif scene_num >= 400 and scene_num < 500:
-        room_type = "bathroom"
+    if  scene_num > 400:
+        scene_type = "bathroom"
+    elif  scene_num > 300:
+        scene_type = "real_world"
     else:
-        raise ValueError(f"Unexpected room number in file name: {file_name}")
+        scene_type = "kitchen"
 
-    file_path = SCENE_KNOWLEDGE_PATH / room_type / "object_init_positions" / file_name.replace("_environment", "")
+    file_path = SCENE_KNOWLEDGE_PATH / scene_type / "object_init_positions" / file_name.replace("_environment", "")
     with file_path.open("r", encoding="utf-8") as f:
         raw_data = json.load(f)
     return {k: tuple(v) for k, v in raw_data.items()}
