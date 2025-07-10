@@ -43,11 +43,14 @@ def load_file(file_path: Path, file_type: str) -> dict | list | str:
             return f.read()
 
 
-def list_task_files() -> list[Path]:
+def list_task_files(scene_name=None) -> list[Path]:
     """
     TASK_PATH 디렉토리 내 JSON 파일 목록을 이름 기준으로 정렬하여 반환.
     """
-    return sorted(TASK_PATH.glob("*.json"), key=lambda p: p.name)
+    if scene_name is None:
+        return sorted(TASK_PATH.glob("*.json"), key=lambda p: p.name)
+    else:
+        return sorted((TASK_PATH/scene_name).glob("*.json"), key=lambda p: p.name)
 
 
 def load_scene_data(room_type: str, file_name: str) -> SceneData:
@@ -174,19 +177,19 @@ def get_user_task_choice(
         choice = None
 
 
-def load_task_data_from_file(task_file_name: str) -> dict:
-    """
-    특정 task 파일에서 JSON 데이터를 불러옴.
-    """
+# def load_task_data_from_file(task_file_name: str) -> dict:
+#     """
+#     특정 task 파일에서 JSON 데이터를 불러옴.
+#     """
 
-    if not task_file_name.endswith(".json"):
-        task_file_name = f"{task_file_name}.json"
-    target_path = TASK_PATH / task_file_name
-    if not target_path.exists():
-        raise FileNotFoundError(f"Task file not found: {target_path}")
+#     if not task_file_name.endswith(".json"):
+#         task_file_name = f"{task_file_name}.json"
+#     target_path = TASK_PATH / task_file_name
+#     if not target_path.exists():
+#         raise FileNotFoundError(f"Task file not found: {target_path}")
 
-    with target_path.open("r", encoding="utf-8") as file:
-        return json.load(file)
+#     with target_path.open("r", encoding="utf-8") as file:
+#         return json.load(file)
 
 
 def load_scene_positions(file_name: str) -> dict[str, tuple[float, float, float]]:

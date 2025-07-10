@@ -38,14 +38,11 @@ def run_with_retries(script: Path, input_str: str, scene_name: str, config: dict
             cmd.append("--ros")
         if config.get("simulation"):
             cmd.append("--simulation")
-            
-        stdout_dest = subprocess.PIPE if config.get('capture_output') else None
-        stderr_dest = subprocess.PIPE if config.get('capture_output') else None
         
         result = subprocess.run(
             cmd,
-            stdout=stdout_dest,
-            stderr=stderr_dest,
+            stdout=None,
+            stderr=None,
             text=True
         )
         
@@ -55,7 +52,6 @@ def run_with_retries(script: Path, input_str: str, scene_name: str, config: dict
         
         if result.returncode == 0:
             return True, attempt
-
         if attempt < max_retries:
             logger.warning(f"Retrying {script} after failure (Attempt {attempt})...")
             time.sleep(config.get("retry_delay_seconds", 2))
@@ -143,65 +139,40 @@ def process_retry_script(script: Path, instruction: str, scene_name: str, config
 def process_normal_script(script: Path, instruction: str, scene_name: str, config: dict) -> None:
     """
     재시도 대상이 아닌 스크립트를 단순 실행합니다.
-    instruction이 1~30 사이의 숫자인 경우 첫 번째 입력 전송을 건너뜁니다.
+    instruction을 command-line 인자로 전달합니다.
     """
     wrapper_script = Path(__file__).parent / "run_with_ros_env.sh"
     logger.warning(f"Running {script},{scene_name},{instruction}...")
-    
+
     logger.info(f"=" * 80)
     logger.info(f"Starting {script} with scene={scene_name}, instruction={instruction}")
     logger.info(f"=" * 80)
-    
-    cmd = [str(wrapper_script), "python3", str(script), "--scene", scene_name]
+
+    cmd = [
+        str(wrapper_script),
+        "python3",
+        str(script),
+        "--scene",
+        scene_name,
+        "--instruction",
+        instruction,
+    ]
     if config.get("ros"):
         cmd.append("--ros")
     if config.get("simulation"):
         cmd.append("--simulation")
-    
-    capture_output = config.get('capture_output', False)
-    stdout_dest = subprocess.PIPE if capture_output else None
-    stderr_dest = subprocess.PIPE if capture_output else None
 
-    process = subprocess.Popen(
-        cmd,
-        stdin=subprocess.PIPE,
-        stdout=stdout_dest,
-        stderr=stderr_dest,
-        text=True,
-        bufsize=1
-    )
-    
-    try:
-        instruction_num = int(instruction)
-        if not (1 <= instruction_num <= 30):
-            process.stdin.write("0\n")
-            process.stdin.flush()
-            time.sleep(0.1)
-    except ValueError:
-        process.stdin.write("0\n")
-        process.stdin.flush()
-        time.sleep(0.1)
-    
-    process.stdin.write(f"{instruction}\n")
-    process.stdin.flush()
-    
-    stderr_output = None
-    if capture_output:
-        # We can safely call communicate and get output.
-        _, stderr_output = process.communicate()
-    else:
-        # We should just wait for it to complete.
-        process.wait()
 
-    if not capture_output:
-        logger.info(f"=" * 80)
-        logger.info(f"Finished {script} with return code: {process.returncode}")
-        logger.info(f"=" * 80)
-    
-    if process.returncode != 0:
-        logger.error(f"Script {script} failed with error code: {process.returncode}")
-        if capture_output and stderr_output:
-            logger.error(f"Error output: {stderr_output}")
+    result = subprocess.run(cmd, stdout=None, stderr=None, text=True)
+
+    logger.info(f"=" * 80)
+    logger.info(f"Finished {script} with return code: {result.returncode}")
+    logger.info(f"=" * 80)
+
+    if result.returncode != 0:
+        logger.error(f"Script {script} failed with error code: {result.returncode}")
+        if result.stderr:
+            logger.error(f"Error output: {result.stderr}")
 
 def load_instructions_from_json(scene_name: str) -> list[str]:
     """
@@ -250,18 +221,28 @@ def main() -> None:
     scene_list = config.get("scene_lists", {}).get(scene_type, [])
     
     num_runs_per_instruction = config.get("num_runs_per_instruction", 1)
-
-    logger.info(f"Capture output mode: {config.get('capture_output')}")
-    if not config.get('capture_output'):
-        logger.info("Child process logs will be displayed in real-time in the terminal")
-    else:
-        logger.info("Child process outputs will be captured (original behavior)")
-
+    
+    # Log current configuration
+    logger.info("Current configuration:")
+    logger.info("-" * 40)
+    logger.info(f"Log level: {config.get('log_level')}")
+    # logger.info(f"Scene type: {scene_type}")
+    # logger.info(f"Scenes to run: {scene_list}")
+    logger.info(f"Predefined mode: {config.get('predefined', False)}")
+    logger.info(f"ROS enabled: {config.get('ros', False)}")
+    logger.info(f"Simulation mode: {config.get('simulation', False)}")
+    # logger.info(f"Approaches: {[str(p) for p in approaches]}")
+    # logger.info(f"LLM scripts: {[str(p) for p in llm_scripts]}")
+    # logger.info(f"Runs per instruction: {num_runs_per_instruction}")
+    # logger.info(f"Max retries: {config.get('max_retries', 10)}")
+    # logger.info(f"Retry delay: {config.get('retry_delay_seconds', 2)} seconds")
+    logger.info("-" * 40)
+    
     for scene_name, approach in product(scene_list, approaches):
         instructions = load_instructions_from_json(scene_name)
         
         if config.get("predefined"): 
-            numbers = list(range(1, 21))           
+            numbers = list(range(1, len(instructions)))           
             for instruction, i in product(numbers, range(num_runs_per_instruction)):
                 print(f"task_name : {instruction}")
                 print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i+1}")
