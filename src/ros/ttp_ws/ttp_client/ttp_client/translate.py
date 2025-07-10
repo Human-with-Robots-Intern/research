@@ -12,18 +12,17 @@ class InstructionTranslator:
     def __init__(self):
         self.action_mapping = json.load(open("src/ros/ttp_ws/data/action_mapping.json"))
         self.object_mapping = json.load(open("src/ros/ttp_ws/data/object_mapping.json"))
-        self.object_positions = json.load(open("src/ros/ttp_ws/data/object_positions.json"))
         pass
     
     def translate(self, instruction: str) -> List[int]:
         print(f"instruction: {instruction}")
-        
+        # 매번 불러와서 물체의 최신 위치를 가져와야함. 
+        self.object_positions = json.load(open("src/ros/ttp_ws/data/object_positions.json"))
         action, object= instruction.split(" ")        
         action_id = self.action_mapping[action]        
         object_id = self.object_mapping[object.lower()]
-        # 지금 없어서 주석처리 
-        # object_position = self.object_positions[object][0]
-        return [0, action_id, object_id, 0]
+        object_position = self.object_positions[object.lower()]
+        return [0, action_id, object_id, object_position]
     
     def _get_obj_id(self, obj_name: str) -> int:
         with open("src/ros/object_mapping.json", "r") as f:

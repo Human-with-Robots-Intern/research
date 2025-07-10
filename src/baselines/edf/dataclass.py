@@ -3,7 +3,7 @@ from typing import List, NamedTuple, Optional, Tuple
 
 from networkx import DiGraph
 
-from models.task import Subtask
+from src.models.task import Subtask
 
 
 @dataclass
