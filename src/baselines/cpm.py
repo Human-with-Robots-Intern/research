@@ -95,6 +95,12 @@ def parse_arguments() -> argparse.Namespace:
         default="FloorPlan301",
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
+    parser.add_argument(
+        "--instruction",
+        type=str,
+        default=None,
+        help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
+    )
     return parser.parse_args()
 
 
@@ -525,14 +531,32 @@ def main() -> None:
 
 
     # Load task data
-    task_files = list_task_files()
-    task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
-    task_data = load_task_data_from_file(task_file_name)
-    input_natural_language = task_file_name
-    # if choice != 0:
-    #     input_natural_language = task_io.get_natural_language_from_task_file(
-    #         f"{choice}"
-    #     )
+    task_files = list_task_files(scene_name)
+
+    if args.instruction:
+        instruction = args.instruction
+        input_natural_language = instruction
+        task_data = None
+        try:
+            choice = int(instruction)
+            if 1 <= choice <= len(task_files):
+                task_file_name = task_files[choice - 1]
+                task_data = load_task_data_from_file(task_file_name)
+                input_natural_language = task_file_name
+        except ValueError:
+            # It's a natural language instruction, not a number
+            pass
+
+        if task_data is None:
+            # It was a natural language instruction or an invalid number choice.
+            # In both cases, we treat it as a natural language instruction.
+            task_data = {"instruction": instruction}
+    else:
+        task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
+        task_data = load_task_data_from_file(task_file_name)
+        input_natural_language = task_file_name
+        if choice != 0:
+            input_natural_language = task_file_name
 
     # Build tasks and constraints
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
@@ -591,9 +615,15 @@ def main() -> None:
     if args.ros:
         from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
         from src.ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
+        from src.ros.ttp_ws.ttp_client.ttp_client.simulate_object_pos_change import SimulateObjectPosChange
+        simulate_object_pos_change = SimulateObjectPosChange()
         translator = InstructionTranslator()
         init_ros_communication()
         try:
+            #디버깅용 코드
+            agent_location = [0,0,0]
+            held_object = None
+            ###
             for entry in final_scheduled_entries:
                 subtask = entry.subtask
                 primitive_actions = subtask.execution.primitive_actions
@@ -606,6 +636,23 @@ def main() -> None:
                         continue
                     translated_primitive_action = translator.translate(primitive_action)
                     success = communicate(translated_primitive_action)
+                    # 물건의 위치를 추적하기 위한 코드
+                    if primitive_action_parts[0].lower() == "grasp":
+                        simulate_object_pos_change._simulate_grasp(
+                            primitive_action_parts[1].lower()
+                        )
+                        # 디버깅 용
+                        held_object = primitive_action_parts[1]
+                        print(f"held_object: {held_object}")
+                        ###
+                    elif primitive_action_parts[0].lower().startswith("place"):
+                        simulate_object_pos_change._simulate_place(
+                            primitive_action_parts[1].lower()
+                        )
+                        # 디버깅 용
+                        print(f"simulate_object_pos_change._get_object_pos(held_object): {simulate_object_pos_change._get_object_pos(held_object.lower())}")
+                        ###
+
                     if not success:
                         print(f"Action '{primitive_action}' failed. Stopping task.")
                         # 여기서 루프를 중단할지 여부는 정책에 따라 결정할 수 있습니다.
