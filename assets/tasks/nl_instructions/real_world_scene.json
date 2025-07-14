@@ -1,0 +1,13 @@
+{
+    "instructions": [
+        "Pick Pan and Put it on Cooker, Pick Sausage and put it on Pan and Turn on Cooker and Put the orange_bowl on sink",
+        "Pick tomato from countertop and put it on the table and pick banana and put it on the table and pick orange_bowl and put it on the table",
+        "Pick blue_bowl and put on table and then pick tomato and put in blue_bowl ",
+        "Pick Pan and Put it on CounterTop, Pick Mushroom and Put it on Pan",
+        "Pick cleaning brush and put in cabinet and pick toilet paper and put it on sink",
+        "Wet_the_soapbar_with_water and wet_the_soapbottle_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and close_shower_curtain",
+        "Pick Pan and Put it on Cooker, Pick Sausage and put it on Cooker and Turn on Cooker",
+        "Open the laundry machine and then close the laundry machine and then toggle on the laundry machine, put the bowl on sink",
+        "Open the laundry machine and then close the laundry machine and then toggle on the laundry machine and Pick Pan and Put it on Cooker, Pick Sausage and put it on Cooker and Turn on Cooker and put the bowl on sink"
+        ]
+}
