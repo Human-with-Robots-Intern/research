@@ -6,10 +6,10 @@ from typing import List, Optional, Tuple
 
 import networkx as nx
 
-from simulation.runner_ai2thor import execute_subtask
-from utils.common.logger import create_module_logger
-from utils.io_utils import task_io
-from utils.io_utils.result_saver import result_save
+from src.simulation.runner_ai2thor import execute_subtask
+from src.utils.common.logger import create_module_logger
+from src.utils.io_utils import task_io
+from src.utils.io_utils.result_saver import result_save
 
 PROJECT_ROOT = (
     Path(__file__).resolve().parent.parent.parent.parent
@@ -18,18 +18,18 @@ ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 from dataclass import ActionResult, CompletedEntry, SchedulerState, SimulationNode
 
 from ithor.utils.math_utils import load_navigation_graph
-from models.task import *
-from scheduler.action_handler import ActionHandler
-from simulation.runner_ai2thor import init_ai2thor_controller
-from utils.config.constants import RESULT_PATH
-from utils.io_utils.task_io import (
+from src.models.task import *
+from src.scheduler.action_handler import ActionHandler
+from src.simulation.runner_ai2thor import init_ai2thor_controller
+from src.utils.config.constants import RESULT_PATH
+from src.utils.io_utils.task_io import (
     get_natural_language_from_task_file,
     get_user_task_choice,
     list_task_files,
     load_scene_positions,
     load_task_data_from_file,
 )
-from utils.task.task_util import TaskUtil
+from src.utils.task.task_util import TaskUtil
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
@@ -402,7 +402,7 @@ def parse_arguments():
     parser.add_argument(
         "-s",
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
     )
     parser.add_argument(
@@ -418,6 +418,18 @@ def parse_arguments():
         default="FloorPlan1",
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
+    parser.add_argument(
+        "--instruction",
+        type=str,
+        default=None,
+        help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
+    )
+    parser.add_argument(
+        "--ros",
+        default=False,
+        action="store_true",
+        help="ROS 실행 여부 (default: False)",
+    )
     return parser.parse_args()
 
 
@@ -428,20 +440,43 @@ def main():
     args = parse_arguments()
     scene_name = args.scene
 
-    controller = init_ai2thor_controller(scene_name)
-    nav_graph = load_navigation_graph(controller)
+    if args.ros:
+        controller = None
+        nav_graph = {(0, 0, 0): {(0, 0, 0)}}
+        action_handler = ActionHandler(nav_graph, log_level=args.log_level)
+    else:
+        controller = init_ai2thor_controller(scene_name)
+        nav_graph = load_navigation_graph(controller)
+        action_handler = ActionHandler(nav_graph, log_level=args.log_level)
+
     scene_poses = load_scene_positions(f"{scene_name}_positions.json")
-    action_handler = ActionHandler(nav_graph, log_level=args.log_level)
 
     # Load the chosen task data
     task_files = list_task_files()
-    task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
-    task_data = load_task_data_from_file(task_file_name)
-    input_natural_language = task_file_name
-    # if choice != 0:
-    #     input_natural_language = task_io.get_natural_language_from_task_file(
-    #         f"{choice}"
-    #     )
+    if args.instruction:
+        instruction = args.instruction
+        input_natural_language = instruction
+        task_data = None
+        try:
+            choice = int(instruction)
+            if 1 <= choice <= len(task_files):
+                task_file_name = task_files[choice - 1]
+                task_data = load_task_data_from_file(task_file_name)
+                input_natural_language = task_file_name
+        except ValueError:
+            # It's a natural language instruction, not a number
+            pass
+
+        if task_data is None:
+            # It was a natural language instruction or an invalid number choice.
+            # In both cases, we treat it as a natural language instruction.
+            task_data = {"instruction": instruction}
+    else:
+        task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
+        task_data = load_task_data_from_file(task_file_name)
+        input_natural_language = task_file_name
+        if choice != 0:
+            input_natural_language = task_file_name
     # Build tasks and constraints
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
         task_data, scene_file_name=f"{scene_name}_physics_environment.json"
@@ -496,18 +531,69 @@ def main():
             entry.execution_status = execution_status
             entry.sim_nav_time = sim_nav_time
             simulation_current_time += subtask_time
+            result_args = {
+            "task_name": input_natural_language,
+            "approach_name": approach_name,
+            "result_schedule": result_schedule,
+            "computation_time": computation_time,
+            "scene_name": scene_name,
+            "constraints": constraints,
+            "initial_plan_data": task_data,
+        }
 
-    result_args = {
-        "task_name": input_natural_language,
-        "approach_name": approach_name,
-        "result_schedule": result_schedule,
-        "computation_time": computation_time,
-        "scene_name": scene_name,
-        "constraints": constraints,
-        "initial_plan_data": task_data,
-    }
+        result_save(**result_args)
+        
+    if args.ros:
+        from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
+        from src.ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
+        from src.ros.ttp_ws.ttp_client.ttp_client.simulate_object_pos_change import SimulateObjectPosChange
+        simulate_object_pos_change = SimulateObjectPosChange()
+        translator = InstructionTranslator()
+        init_ros_communication()
+        try:
+            #디버깅용 코드
+            agent_location = [0,0,0]
+            held_object = None
+            ###
+            for entry in result_schedule:
+                subtask = entry.subtask
+                primitive_actions = subtask.execution.primitive_actions
+                if not primitive_actions:
+                    continue
+                for primitive_action in primitive_actions:
+                    primitive_action_parts = primitive_action.split(" ")
+                    if primitive_action_parts[0].lower() == "wait":
+                        time.sleep(float(primitive_action_parts[1]))
+                        continue
+                    translated_primitive_action = translator.translate(primitive_action)
+                    success = communicate(translated_primitive_action)
+                    # 물건의 위치를 추적하기 위한 코드
+                    if primitive_action_parts[0].lower() == "grasp":
+                        simulate_object_pos_change._simulate_grasp(
+                            primitive_action_parts[1].lower()
+                        )
+                        # 디버깅 용
+                        held_object = primitive_action_parts[1]
+                        print(f"held_object: {held_object}")
+                        ###
+                    elif primitive_action_parts[0].lower().startswith("place"):
+                        simulate_object_pos_change._simulate_place(
+                            primitive_action_parts[1].lower()
+                        )
+                        # 디버깅 용
+                        print(f"simulate_object_pos_change._get_object_pos(held_object): {simulate_object_pos_change._get_object_pos(held_object.lower())}")
+                        ###
 
-    result_save(**result_args)
+                    if not success:
+                        print(f"Action '{primitive_action}' failed. Stopping task.")
+                        # 여기서 루프를 중단할지 여부는 정책에 따라 결정할 수 있습니다.
+                        # 여기서는 바깥 루프까지 중단하도록 처리합니다.
+                        break
+                else:  # 내부 루프가 break 없이 완료된 경우
+                    continue
+                break  # 내부 루프가 break로 중단된 경우 외부 루프도 중단
+        finally:
+            shutdown_ros_communication()
 
 
 if __name__ == "__main__":

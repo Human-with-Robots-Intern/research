@@ -1,102 +1,16 @@
 {
-    "agent": [
-        0.0,
-        0.0,
-        0.0
-    ],
-    "Tomato": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Banana": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Mushroom": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Sausage": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Chicken": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Pan": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Cup": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Plate": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "blue_bowl": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "orange_bowl": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Tableware": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Cleaning brush": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Toilet paper": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Light": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Table": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Cabinet": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Laundry Machine": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Stove": [
-        1.0,
-        0.0,
-        0.0
-    ],
-    "Sink|SinkBasin": [
-        1.0,
-        0.0,
-        0.0
-    ]
+    "banana": 7,
+    "plate": 15,
+    "pan": 33,
+    "sausage": 33,
+    "stove": 33,
+    "orange_bowl": 84,
+    "blue_bowl": 35,
+    "toilet": 80,
+    "spray_bottle": 81,
+    "scrub_brush": 82,
+    "soap_bottle": 83,
+    "sink|sinkbasin": 84,
+    "faucet": 85,
+    "toilet_paper": 86
 }
