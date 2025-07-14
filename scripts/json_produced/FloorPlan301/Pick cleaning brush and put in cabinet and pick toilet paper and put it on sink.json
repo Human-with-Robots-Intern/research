@@ -1,0 +1,53 @@
+[
+  {
+    "Task": "Organize Cleaning Items",
+    "Subtasks": [
+      {
+        "Name": "Put Cleaning Brush in Cabinet",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cleaning brush": 1,
+            "Cabinet": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Cleaning brush",
+            "GRASP Cleaning brush",
+            "NAVIGATE_TO Cabinet",
+            "OPEN Cabinet",
+            "PLACE_INSIDE Cabinet",
+            "CLOSE Cabinet"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Put Toilet Paper on Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Toilet paper": 1,
+            "Sink|SinkBasin": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Toilet paper",
+            "GRASP Toilet paper",
+            "NAVIGATE_TO Sink|SinkBasin",
+            "PLACE_ON_TOP Sink|SinkBasin"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

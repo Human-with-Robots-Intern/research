@@ -1,0 +1,51 @@
+[
+  {
+    "Task": "Place Pan on CounterTop and Mushroom on Pan",
+    "Subtasks": [
+      {
+        "Name": "Place Pan on CounterTop",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Pan": 1,
+            "CounterTop": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Pan",
+            "GRASP Pan",
+            "NAVIGATE_TO CounterTop",
+            "PLACE_ON_TOP Pan CounterTop"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Place Mushroom on Pan",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mushroom": 1,
+            "Pan": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Mushroom",
+            "GRASP Mushroom",
+            "NAVIGATE_TO Pan",
+            "PLACE_ON_TOP Mushroom Pan"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]
