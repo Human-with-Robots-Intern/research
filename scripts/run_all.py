@@ -9,6 +9,7 @@ from itertools import product
 import argparse
 import sys
 import re
+import shutil
 
 from src.utils.common import create_module_logger
 from src.utils.config.constants import RESULT_PATH
@@ -244,6 +245,16 @@ def main() -> None:
         if config.get("predefined"): 
             numbers = list(range(1, len(instructions)))           
             for instruction, i in product(numbers, range(num_runs_per_instruction)):
+                object_mapping = Path(__file__).parent.parent / "src/ros/ttp_ws/data/object_mapping.json"
+                object_positions = Path(__file__).parent.parent / "src/ros/ttp_ws/data/object_positions.json"
+                
+                # Copy object_mapping.json to object_positions.json
+                if object_mapping.exists():
+                    shutil.copy2(object_mapping, object_positions)
+                    logger.info(f"Copied {object_mapping} to {object_positions}")
+                else:
+                    logger.warning(f"Source file {object_mapping} does not exist")
+
                 print(f"task_name : {instruction}")
                 print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i+1}")
                 if approach in llm_scripts:
