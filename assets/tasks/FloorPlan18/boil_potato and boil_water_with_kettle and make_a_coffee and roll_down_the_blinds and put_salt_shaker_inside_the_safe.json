@@ -1,0 +1,385 @@
+[
+  {
+    "Task": "Boil Potato",
+    "Subtasks": [
+      {
+        "Name": "Place Pot in Sink and Start Filling",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Pot|+00.73|+00.98|+00.38": 1,
+            "Sink|+01.39|+01.01|+02.33|SinkBasin": 1,
+            "Faucet|+01.62|+00.99|+02.33": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Pot|+00.73|+00.98|+00.38",
+            "GRASP Pot|+00.73|+00.98|+00.38",
+            "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
+            "PLACE_INSIDE Sink|+01.39|+01.01|+02.33|SinkBasin",
+            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
+            "TOGGLE_ON Faucet|+01.62|+00.99|+02.33"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Turn Off Faucet after Pot is Filled",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Faucet|+01.62|+00.99|+02.33": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
+            "TOGGLE_OFF Faucet|+01.62|+00.99|+02.33"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Pot in Sink and Start Filling",
+            "Interval": 10,
+            "Urgency": true
+          }
+        ]
+      },
+      {
+        "Name": "Place Potato in Pot and Start Boiling on Stove",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Potato|-00.73|+01.02|+00.61": 1,
+            "Pot|+00.73|+00.98|+00.38": 1,
+            "StoveBurner|+01.32|+00.98|+04.29": 1,
+            "StoveKnob|+01.14|+00.93|+04.31": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Potato|-00.73|+01.02|+00.61",
+            "GRASP Potato|-00.73|+01.02|+00.61",
+            "NAVIGATE_TO Pot|+00.73|+00.98|+00.38",
+            "PLACE_INSIDE Pot|+00.73|+00.98|+00.38",
+            "NAVIGATE_TO StoveBurner|+01.32|+00.98|+04.29",
+            "GRASP Pot|+00.73|+00.98|+00.38",
+            "PLACE_ON_TOP StoveBurner|+01.32|+00.98|+04.29",
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+04.31",
+            "TOGGLE_ON StoveKnob|+01.14|+00.93|+04.31"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 5
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Turn Off Faucet after Pot is Filled",
+            "Interval": 0,
+            "Urgency": true
+          }
+        ]
+      },
+      {
+        "Name": "Turn Off Stove after Boiling Potato",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "StoveKnob|+01.14|+00.93|+04.31": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+04.31",
+            "TOGGLE_OFF StoveKnob|+01.14|+00.93|+04.31"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Potato in Pot and Start Boiling on Stove",
+            "Interval": 15,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Boil Water with Kettle",
+    "Subtasks": [
+      {
+        "Name": "Fill Kettle with Water",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Kettle|+01.59|+00.99|+03.25": 1,
+            "Sink|+01.39|+01.01|+02.33|SinkBasin": 1,
+            "Faucet|+01.62|+00.99|+02.33": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Kettle|+01.59|+00.99|+03.25",
+            "GRASP Kettle|+01.59|+00.99|+03.25",
+            "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
+            "PLACE_INSIDE Sink|+01.39|+01.01|+02.33|SinkBasin",
+            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
+            "TOGGLE_ON Faucet|+01.62|+00.99|+02.33"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Turn Off Faucet after Kettle is Filled",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Faucet|+01.62|+00.99|+02.33": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
+            "TOGGLE_OFF Faucet|+01.62|+00.99|+02.33"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Fill Kettle with Water",
+            "Interval": 3,
+            "Urgency": true
+          }
+        ]
+      },
+      {
+        "Name": "Place Kettle on Stove and Start Boiling",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Kettle|+01.59|+00.99|+03.25": 1,
+            "StoveBurner|+01.56|+00.98|+03.85": 1,
+            "StoveKnob|+01.14|+00.93|+03.99": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Kettle|+01.59|+00.99|+03.25",
+            "GRASP Kettle|+01.59|+00.99|+03.25",
+            "NAVIGATE_TO StoveBurner|+01.56|+00.98|+03.85",
+            "PLACE_ON_TOP StoveBurner|+01.56|+00.98|+03.85",
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.99",
+            "TOGGLE_ON StoveKnob|+01.14|+00.93|+03.99"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Turn Off Faucet after Kettle is Filled",
+            "Interval": 0,
+            "Urgency": true
+          }
+        ]
+      },
+      {
+        "Name": "Turn Off Stove after Boiling Water in Kettle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "StoveKnob|+01.14|+00.93|+03.99": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.99",
+            "TOGGLE_OFF StoveKnob|+01.14|+00.93|+03.99"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Kettle on Stove and Start Boiling",
+            "Interval": 10,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Make a Coffee",
+    "Subtasks": [
+      {
+        "Name": "Prepare Coffee Machine with Cup",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cup|+01.18|+00.98|+03.39": 1,
+            "CoffeeMachine|+01.55|+00.98|+00.95": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Cup|+01.18|+00.98|+03.39",
+            "GRASP Cup|+01.18|+00.98|+03.39",
+            "NAVIGATE_TO CoffeeMachine|+01.55|+00.98|+00.95",
+            "PLACE_ON_TOP CoffeeMachine|+01.55|+00.98|+00.95"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Start Coffee Machine",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "CoffeeMachine|+01.55|+00.98|+00.95": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO CoffeeMachine|+01.55|+00.98|+00.95",
+            "TOGGLE_ON CoffeeMachine|+01.55|+00.98|+00.95"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Prepare Coffee Machine with Cup",
+            "Interval": 0,
+            "Urgency": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Roll Down the Blinds",
+    "Subtasks": [
+      {
+        "Name": "Impossible: Roll down the blinds cannot be achieved with current Environment Context",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {},
+          "PrimitiveActions": []
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 0
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Put Salt Shaker Inside the Safe",
+    "Subtasks": [
+      {
+        "Name": "Open Safe",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Safe|+02.05|+00.00|+07.05": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Safe|+02.05|+00.00|+07.05",
+            "OPEN Safe|+02.05|+00.00|+07.05"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Place Salt Shaker Inside Safe",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SaltShaker|+01.62|+00.98|+03.50": 1,
+            "Safe|+02.05|+00.00|+07.05": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SaltShaker|+01.62|+00.98|+03.50",
+            "GRASP SaltShaker|+01.62|+00.98|+03.50",
+            "NAVIGATE_TO Safe|+02.05|+00.00|+07.05",
+            "PLACE_INSIDE Safe|+02.05|+00.00|+07.05"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Open Safe",
+            "Interval": 0,
+            "Urgency": false
+          }
+        ]
+      },
+      {
+        "Name": "Close Safe",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Safe|+02.05|+00.00|+07.05": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Safe|+02.05|+00.00|+07.05",
+            "CLOSE Safe|+02.05|+00.00|+07.05"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Salt Shaker Inside Safe",
+            "Interval": 0,
+            "Urgency": false
+          }
+        ]
+      }
+    ]
+  }
+]

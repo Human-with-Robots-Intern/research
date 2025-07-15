@@ -1,0 +1,139 @@
+[
+  {
+    "Task": "Wet the SoapBottle with Water",
+    "Subtasks": [
+      {
+        "Name": "Wet SoapBottle in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBottle|-02.27|+00.67|-01.52": 1,
+            "Sink|-02.10|00.00|-02.03|SinkBasin": 1,
+            "Faucet|-02.35|+01.01|-02.03": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBottle|-02.27|+00.67|-01.52",
+            "GRASP SoapBottle|-02.27|+00.67|-01.52",
+            "NAVIGATE_TO Sink|-02.10|00.00|-02.03|SinkBasin",
+            "PLACE_INSIDE Sink|-02.10|00.00|-02.03|SinkBasin",
+            "NAVIGATE_TO Faucet|-02.35|+01.01|-02.03",
+            "TOGGLE_ON Faucet|-02.35|+01.01|-02.03",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-02.35|+01.01|-02.03",
+            "NAVIGATE_TO Sink|-02.10|00.00|-02.03|SinkBasin",
+            "GRASP SoapBottle|-02.27|+00.67|-01.52",
+            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
+            "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Turn On the Candle",
+    "Subtasks": [
+      {
+        "Name": "Turn on Candle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Candle|-00.10|+00.47|-02.58": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Candle|-00.10|+00.47|-02.58",
+            "TOGGLE_ON Candle|-00.10|+00.47|-02.58"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Turn On the Light",
+    "Subtasks": [
+      {
+        "Name": "Turn on Light",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "LightSwitch|-01.25|+01.42|+00.00": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO LightSwitch|-01.25|+01.42|+00.00",
+            "TOGGLE_ON LightSwitch|-01.25|+01.42|+00.00"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Close Shower Curtain",
+    "Subtasks": [
+      {
+        "Name": "Close Shower Curtain",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerCurtain|-02.33|+01.96|-02.46": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerCurtain|-02.33|+01.96|-02.46",
+            "CLOSE ShowerCurtain|-02.33|+01.96|-02.46"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Put Tissue Box Inside the Drawer",
+    "Subtasks": [
+      {
+        "Name": "Put Tissue Box Inside Drawer",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "TissueBox|-02.19|+00.67|-01.12": 1,
+            "Drawer|-02.11|+00.16|-01.31": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO TissueBox|-02.19|+00.67|-01.12",
+            "GRASP TissueBox|-02.19|+00.67|-01.12",
+            "NAVIGATE_TO Drawer|-02.11|+00.16|-01.31",
+            "OPEN Drawer|-02.11|+00.16|-01.31",
+            "PLACE_INSIDE Drawer|-02.11|+00.16|-01.31",
+            "CLOSE Drawer|-02.11|+00.16|-01.31"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

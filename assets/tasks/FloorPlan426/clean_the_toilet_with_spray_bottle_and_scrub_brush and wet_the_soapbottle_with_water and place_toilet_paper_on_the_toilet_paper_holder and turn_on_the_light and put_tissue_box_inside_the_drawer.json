@@ -1,0 +1,173 @@
+[
+  {
+    "Task": "Clean the Toilet",
+    "Subtasks": [
+      {
+        "Name": "Spray toilet with spray bottle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SprayBottle|-01.53|+00.80|+00.22": 1,
+            "Toilet|-01.84|+00.00|+02.50": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SprayBottle|-01.53|+00.80|+00.22",
+            "GRASP SprayBottle|-01.53|+00.80|+00.22",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Scrub toilet with scrub brush",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ScrubBrush|-02.19|+00.00|+03.03": 1,
+            "Toilet|-01.84|+00.00|+02.50": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ScrubBrush|-02.19|+00.00|+03.03",
+            "GRASP ScrubBrush|-02.19|+00.00|+03.03",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Spray toilet with spray bottle",
+            "Interval": 0,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Wet the SoapBottle",
+    "Subtasks": [
+      {
+        "Name": "Wet SoapBottle in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBottle|-00.64|+00.95|+03.22": 1,
+            "Sink|-00.46|-00.01|+03.05|SinkBasin": 1,
+            "Faucet|-00.46|+00.97|+03.21": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBottle|-00.64|+00.95|+03.22",
+            "GRASP SoapBottle|-00.64|+00.95|+03.22",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "PLACE_INSIDE Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "TOGGLE_ON Faucet|-00.46|+00.97|+03.21",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
+            "GRASP SoapBottle|-00.64|+00.95|+03.22",
+            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Place Toilet Paper on Holder",
+    "Subtasks": [
+      {
+        "Name": "Place Toilet Paper on Toilet Paper Holder",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ToiletPaper|-02.25|+00.94|+02.67": 1,
+            "ToiletPaperHanger|-01.63|+00.84|+03.31": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ToiletPaper|-02.25|+00.94|+02.67",
+            "GRASP ToiletPaper|-02.25|+00.94|+02.67",
+            "NAVIGATE_TO ToiletPaperHanger|-01.63|+00.84|+03.31",
+            "PLACE_ON_TOP ToiletPaperHanger|-01.63|+00.84|+03.31"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Turn On the Light",
+    "Subtasks": [
+      {
+        "Name": "Turn on Light Switch",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "LightSwitch|+00.00|+01.37|+01.99": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO LightSwitch|+00.00|+01.37|+01.99",
+            "TOGGLE_ON LightSwitch|+00.00|+01.37|+01.99"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Put Tissue Box Inside Drawer",
+    "Subtasks": [
+      {
+        "Name": "Place Tissue Box Inside Drawer",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "TissueBox|-01.45|+00.80|+00.39": 1,
+            "Drawer|-01.32|+00.31|+00.31": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO TissueBox|-01.45|+00.80|+00.39",
+            "GRASP TissueBox|-01.45|+00.80|+00.39",
+            "NAVIGATE_TO Drawer|-01.32|+00.31|+00.31",
+            "OPEN Drawer|-01.32|+00.31|+00.31",
+            "PLACE_INSIDE Drawer|-01.32|+00.31|+00.31",
+            "CLOSE Drawer|-01.32|+00.31|+00.31"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 5
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

@@ -223,7 +223,7 @@ def main() -> None:
     
     num_runs_per_instruction = config.get("num_runs_per_instruction", 1)
     
-    # Log current configuration
+    # Log current  configuration
     logger.info("Current configuration:")
     logger.info("-" * 40)
     logger.info(f"Log level: {config.get('log_level')}")

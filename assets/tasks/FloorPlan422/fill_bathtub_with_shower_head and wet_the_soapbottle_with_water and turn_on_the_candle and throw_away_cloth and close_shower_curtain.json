@@ -1,0 +1,163 @@
+[
+  {
+    "Task": "Fill Bathtub with Shower Head",
+    "Subtasks": [
+      {
+        "Name": "Start Filling Bathtub with Shower Head",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerHead|-03.52|+01.72|+01.82": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerHead|-03.52|+01.72|+01.82",
+            "TOGGLE_ON ShowerHead|-03.52|+01.72|+01.82"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Turn Off Shower Head after Bathtub is Filled",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerHead|-03.52|+01.72|+01.82": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerHead|-03.52|+01.72|+01.82",
+            "TOGGLE_OFF ShowerHead|-03.52|+01.72|+01.82"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Start Filling Bathtub with Shower Head",
+            "Interval": 20,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Wet the SoapBottle with Water",
+    "Subtasks": [
+      {
+        "Name": "Wet SoapBottle in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBottle|-00.95|+01.13|+00.42": 1,
+            "Sink|-01.93|+00.77|+00.33|SinkBasin": 1,
+            "Faucet|-01.93|+00.96|+00.18": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBottle|-00.95|+01.13|+00.42",
+            "GRASP SoapBottle|-00.95|+01.13|+00.42",
+            "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
+            "PLACE_INSIDE Sink|-01.93|+00.77|+00.33|SinkBasin",
+            "NAVIGATE_TO Faucet|-01.93|+00.96|+00.18",
+            "TOGGLE_ON Faucet|-01.93|+00.96|+00.18",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
+            "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
+            "GRASP SoapBottle|-00.95|+01.13|+00.42",
+            "NAVIGATE_TO CounterTop|-01.92|+00.00|+00.29",
+            "PLACE_ON_TOP CounterTop|-01.92|+00.00|+00.29"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Turn On the Candle",
+    "Subtasks": [
+      {
+        "Name": "Turn On Candle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Candle|-01.99|+01.08|+02.26": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Candle|-01.99|+01.08|+02.26",
+            "TOGGLE_ON Candle|-01.99|+01.08|+02.26"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Throw Away Cloth",
+    "Subtasks": [
+      {
+        "Name": "Throw Cloth in Garbage Can",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cloth|-00.51|+00.94|+02.72": 1,
+            "GarbageCan|-00.26|+00.00|+00.26": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Cloth|-00.51|+00.94|+02.72",
+            "GRASP Cloth|-00.51|+00.94|+02.72",
+            "NAVIGATE_TO GarbageCan|-00.26|+00.00|+00.26",
+            "PLACE_INSIDE GarbageCan|-00.26|+00.00|+00.26"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Close Shower Curtain",
+    "Subtasks": [
+      {
+        "Name": "Close Shower Curtain",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerCurtain|-03.31|+02.48|+00.20": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerCurtain|-03.31|+02.48|+00.20",
+            "CLOSE ShowerCurtain|-03.31|+02.48|+00.20"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

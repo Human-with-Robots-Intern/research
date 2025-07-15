@@ -1,0 +1,171 @@
+[
+  {
+    "Task": "Clean Toilet",
+    "Subtasks": [
+      {
+        "Name": "Spray toilet with spray bottle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SprayBottle|-00.20|+01.04|-01.97": 1,
+            "Toilet|-00.47|+00.00|-01.88": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SprayBottle|-00.20|+01.04|-01.97",
+            "GRASP SprayBottle|-00.20|+01.04|-01.97",
+            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Scrub toilet with scrub brush",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ScrubBrush|-00.16|+00.00|-02.16": 1,
+            "Toilet|-00.47|+00.00|-01.88": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ScrubBrush|-00.16|+00.00|-02.16",
+            "GRASP ScrubBrush|-00.16|+00.00|-02.16",
+            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Spray toilet with spray bottle",
+            "Interval": 10,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Wet the SoapBar",
+    "Subtasks": [
+      {
+        "Name": "Wet soapbar in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBar|-00.24|+00.47|-02.54": 1,
+            "Sink|-02.10|00.00|-02.03|SinkBasin": 1,
+            "Faucet|-02.35|+01.01|-02.03": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-00.24|+00.47|-02.54",
+            "GRASP SoapBar|-00.24|+00.47|-02.54",
+            "NAVIGATE_TO Sink|-02.10|00.00|-02.03|SinkBasin",
+            "PLACE_INSIDE Sink|-02.10|00.00|-02.03|SinkBasin",
+            "NAVIGATE_TO Faucet|-02.35|+01.01|-02.03",
+            "TOGGLE_ON Faucet|-02.35|+01.01|-02.03",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-02.35|+01.01|-02.03",
+            "NAVIGATE_TO Sink|-02.10|00.00|-02.03|SinkBasin",
+            "GRASP SoapBar|-00.24|+00.47|-02.54",
+            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
+            "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Place Toilet Paper on Holder",
+    "Subtasks": [
+      {
+        "Name": "Place toilet paper on holder",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ToiletPaper|-00.18|+01.04|-01.85": 1,
+            "ToiletPaperHanger|+00.00|+00.99|-01.40": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ToiletPaper|-00.18|+01.04|-01.85",
+            "GRASP ToiletPaper|-00.18|+01.04|-01.85",
+            "NAVIGATE_TO ToiletPaperHanger|+00.00|+00.99|-01.40",
+            "PLACE_ON_TOP ToiletPaperHanger|+00.00|+00.99|-01.40"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Turn On Candle",
+    "Subtasks": [
+      {
+        "Name": "Turn on the candle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Candle|-00.10|+00.47|-02.58": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Candle|-00.10|+00.47|-02.58",
+            "TOGGLE_ON Candle|-00.10|+00.47|-02.58"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Close Shower Curtain",
+    "Subtasks": [
+      {
+        "Name": "Close the shower curtain",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerCurtain|-02.33|+01.96|-02.46": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerCurtain|-02.33|+01.96|-02.46",
+            "CLOSE ShowerCurtain|-02.33|+01.96|-02.46"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]
