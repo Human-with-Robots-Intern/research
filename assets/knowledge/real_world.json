@@ -1,19 +1,15 @@
 {
     "OPEN": [
-        "Laundry Machine",
-        "Cabinet"
+        "Laundry Machine"
     ],
     "CLOSE": [
-        "Laundry Machine",
-        "Cabinet"
+        "Laundry Machine"
     ],
     "TOGGLE_ON": [
-        "Light",
         "Stove",
         "Laundry Machine"
     ],
     "TOGGLE_OFF": [
-        "Light",
         "Stove",
         "Laundry Machine"
     ],

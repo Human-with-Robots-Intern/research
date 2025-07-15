@@ -1,19 +1,23 @@
 {
-    "instructions": {
-        "Simple": [
-            "Pick Sausage from CounterTop and put it on the table and pick banana and put it on the table and pick orange_bowl and put it on the table",
-            "Pick blue_bowl and put on table and then pick Sausage and put in blue_bowl",
-            "Pick Pan and Put it on CounterTop, Pick Chicken and Put it on Pan"
-        ],
-        "Normal": [
-            "Pick Pan and Put it on Stove, Pick Sausage and put it on Pan, Turn on Stove, and then Put the orange_bowl on sink",
-            "Open the laundry machine and then close the laundry machine and then toggle on the laundry machine, and then put the blue_bowl on the table",
-            "Toggle on the Light, Pick Pan and Put it on Stove, Pick Chicken and Put it in the Pan, and then Turn on the Stove"
-        ],
-        "Hard": [
-            "Open and toggle on the laundry machine, and then Pick Pan, Put it on Stove, Pick Sausage, put it in the Pan, and then Turn on the Stove",
-            "Pick the Pan and put it on the Stove to cook Chicken and Turn on the Stove, and at the same time Open the Laundry Machine and Toggle it on",
-            "Turn on the Stove to cook Sausage in a Pan, Turn on the Laundry Machine, and then place the Plate on the CounterTop"
-        ]
-    }
+    "Simple": [
+        "put_chicken_on_plate and put_sausage_in_blue_bowl and put_orange_bowl_on_table and move_plate_to_sink and move_cup_to_sink",
+        "put_chicken_on_plate and put_sausage_in_blue_bowl and put_orange_bowl_on_table and move_plate_to_sink and place_pan_on_stove",
+        "put_chicken_on_plate and put_sausage_in_blue_bowl and put_orange_bowl_on_table and move_cup_to_sink and move_pan_to_countertop",
+        "put_chicken_on_plate and put_sausage_in_blue_bowl and move_plate_to_sink and move_cup_to_sink and put_orange_bowl_on_table",
+        "put_chicken_on_plate and put_orange_bowl_on_table and move_plate_to_sink and move_cup_to_sink and move_blue_bowl_to_countertop"
+    ],
+    "Normal": [
+        "cook_sausage and put_chicken_on_plate and put_orange_bowl_on_table and move_plate_to_sink and move_cup_to_sink",
+        "do_the_laundry and put_chicken_on_plate and put_sausage_in_blue_bowl and put_orange_bowl_on_table and move_plate_to_sink",
+        "cook_chicken and put_sausage_in_blue_bowl and put_orange_bowl_on_table and move_plate_to_sink and move_cup_to_sink",
+        "do_the_laundry and put_chicken_on_plate and put_sausage_in_blue_bowl and move_plate_to_sink and move_cup_to_sink",
+        "cook_sausage and put_chicken_on_plate and put_orange_bowl_on_table and move_plate_to_sink and move_blue_bowl_to_countertop"
+    ],
+    "Hard": [
+        "cook_sausage and do_the_laundry and put_chicken_on_plate and put_orange_bowl_on_table and move_cup_to_sink",
+        "cook_chicken and do_the_laundry and put_sausage_in_blue_bowl and put_orange_bowl_on_table and move_plate_to_sink",
+        "cook_sausage and do_the_laundry and put_chicken_on_plate and move_plate_to_sink and move_cup_to_sink",
+        "cook_chicken and do_the_laundry and put_sausage_in_blue_bowl and move_plate_to_sink and move_cup_to_sink",
+        "cook_sausage and do_the_laundry and put_chicken_on_plate and put_orange_bowl_on_table and move_plate_to_sink"
+    ]
 }
