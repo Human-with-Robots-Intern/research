@@ -1,0 +1,194 @@
+[
+  {
+    "Task": "Fill Bathtub with Shower Head",
+    "Subtasks": [
+      {
+        "Name": "Start Filling Bathtub with Shower Head",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerHead|-03.74|+01.86|+01.83": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerHead|-03.74|+01.86|+01.83",
+            "TOGGLE_ON ShowerHead|-03.74|+01.86|+01.83"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Stop Filling Bathtub with Shower Head",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerHead|-03.74|+01.86|+01.83": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerHead|-03.74|+01.86|+01.83",
+            "TOGGLE_OFF ShowerHead|-03.74|+01.86|+01.83"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Start Filling Bathtub with Shower Head",
+            "Interval": 20,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Clean the Sink with Spray and Dish Sponge",
+    "Subtasks": [
+      {
+        "Name": "Spray Sink with Spray Bottle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SprayBottle|-02.86|+00.70|-00.52": 1,
+            "Sink|-01.92|+00.44|+02.03|SinkBasin": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SprayBottle|-02.86|+00.70|-00.52",
+            "GRASP SprayBottle|-02.86|+00.70|-00.52",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Sink|-01.92|+00.44|+02.03|SinkBasin"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Clean Sink with Dish Sponge",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "DishSponge|-03.25|+00.60|-00.37": 1,
+            "Sink|-01.92|+00.44|+02.03|SinkBasin": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO DishSponge|-03.25|+00.60|-00.37",
+            "GRASP DishSponge|-03.25|+00.60|-00.37",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Sink|-01.92|+00.44|+02.03|SinkBasin"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Spray Sink with Spray Bottle",
+            "Interval": 0,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Wet the SoapBottle with Water",
+    "Subtasks": [
+      {
+        "Name": "Wet SoapBottle in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBottle|-00.90|+00.95|-00.74": 1,
+            "Sink|-01.92|+00.44|+02.03|SinkBasin": 1,
+            "Faucet|-01.92|+01.06|+02.18": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBottle|-00.90|+00.95|-00.74",
+            "GRASP SoapBottle|-00.90|+00.95|-00.74",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
+            "PLACE_INSIDE Sink|-01.92|+00.44|+02.03|SinkBasin",
+            "TOGGLE_ON Faucet|-01.92|+01.06|+02.18",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-01.92|+01.06|+02.18",
+            "GRASP SoapBottle|-00.90|+00.95|-00.74",
+            "PLACE_ON_TOP Sink|-01.92|+00.44|+02.03|SinkBasin"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Turn On the Light",
+    "Subtasks": [
+      {
+        "Name": "Turn On Light Switch",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "LightSwitch|-00.56|+01.28|+02.28": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO LightSwitch|-00.56|+01.28|+02.28",
+            "TOGGLE_ON LightSwitch|-00.56|+01.28|+02.28"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Put a Soap Bar on the Sink",
+    "Subtasks": [
+      {
+        "Name": "Place Soap Bar on Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBar|-02.58|+00.70|-00.54": 1,
+            "Sink|-01.92|+00.44|+02.03|SinkBasin": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-02.58|+00.70|-00.54",
+            "GRASP SoapBar|-02.58|+00.70|-00.54",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
+            "PLACE_ON_TOP Sink|-01.92|+00.44|+02.03|SinkBasin"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

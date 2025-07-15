@@ -77,7 +77,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--ros",
-        default=True,
+        default=False,
         action="store_true",
         help="ROS 실행 여부 (default: False)",
     )

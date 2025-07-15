@@ -1,0 +1,140 @@
+[
+  {
+    "Task": "Wet the soapbar with water",
+    "Subtasks": [
+      {
+        "Name": "Wet soapbar in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBar|-01.99|+01.29|+02.08": 1,
+            "Sink|-01.93|+00.77|+00.33|SinkBasin": 1,
+            "Faucet|-01.93|+00.96|+00.18": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-01.99|+01.29|+02.08",
+            "GRASP SoapBar|-01.99|+01.29|+02.08",
+            "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
+            "PLACE_INSIDE Sink|-01.93|+00.77|+00.33|SinkBasin",
+            "NAVIGATE_TO Faucet|-01.93|+00.96|+00.18",
+            "TOGGLE_ON Faucet|-01.93|+00.96|+00.18",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
+            "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
+            "GRASP SoapBar|-01.99|+01.29|+02.08",
+            "NAVIGATE_TO CounterTop|-01.92|+00.00|+00.29",
+            "PLACE_ON_TOP CounterTop|-01.92|+00.00|+00.29"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Place toilet paper on the toilet paper holder",
+    "Subtasks": [
+      {
+        "Name": "Place toilet paper on holder",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ToiletPaper|-01.53|+00.80|+00.16": 1,
+            "ToiletPaperHanger|+00.00|+01.02|+02.24": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ToiletPaper|-01.53|+00.80|+00.16",
+            "GRASP ToiletPaper|-01.53|+00.80|+00.16",
+            "NAVIGATE_TO ToiletPaperHanger|+00.00|+01.02|+02.24",
+            "PLACE_ON_TOP ToiletPaperHanger|+00.00|+01.02|+02.24"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Turn on the light",
+    "Subtasks": [
+      {
+        "Name": "Turn on light switch",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "LightSwitch|+00.00|+01.43|+01.99": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO LightSwitch|+00.00|+01.43|+01.99",
+            "TOGGLE_ON LightSwitch|+00.00|+01.43|+01.99"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Throw away cloth",
+    "Subtasks": [
+      {
+        "Name": "Throw cloth in garbage can",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cloth|-00.51|+00.94|+02.72": 1,
+            "GarbageCan|-00.26|+00.00|+00.26": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Cloth|-00.51|+00.94|+02.72",
+            "GRASP Cloth|-00.51|+00.94|+02.72",
+            "NAVIGATE_TO GarbageCan|-00.26|+00.00|+00.26",
+            "PLACE_INSIDE GarbageCan|-00.26|+00.00|+00.26"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Close shower curtain",
+    "Subtasks": [
+      {
+        "Name": "Close shower curtain",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerCurtain|-03.31|+02.48|+00.20": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerCurtain|-03.31|+02.48|+00.20",
+            "CLOSE ShowerCurtain|-03.31|+02.48|+00.20"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

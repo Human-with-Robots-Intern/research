@@ -1,0 +1,173 @@
+[
+  {
+    "Task": "Clean Toilet",
+    "Subtasks": [
+      {
+        "Name": "Spray toilet with spray bottle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SprayBottle|-01.53|+00.80|+00.22": 1,
+            "Toilet|-01.84|+00.00|+02.50": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SprayBottle|-01.53|+00.80|+00.22",
+            "GRASP SprayBottle|-01.53|+00.80|+00.22",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Scrub toilet with scrub brush",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ScrubBrush|-02.19|+00.00|+03.03": 1,
+            "Toilet|-01.84|+00.00|+02.50": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ScrubBrush|-02.19|+00.00|+03.03",
+            "GRASP ScrubBrush|-02.19|+00.00|+03.03",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Spray toilet with spray bottle",
+            "Interval": 10,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Wet the SoapBar",
+    "Subtasks": [
+      {
+        "Name": "Wet soapbar in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBar|-03.10|+00.68|+01.74": 1,
+            "Sink|-00.46|-00.01|+03.05|SinkBasin": 1,
+            "Faucet|-00.46|+00.97|+03.21": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-03.10|+00.68|+01.74",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "PLACE_INSIDE Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "NAVIGATE_TO Faucet|-00.46|+00.97|+03.21",
+            "TOGGLE_ON Faucet|-00.46|+00.97|+03.21",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Throw Away Cloth",
+    "Subtasks": [
+      {
+        "Name": "Dispose of cloth in garbage can",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cloth|-00.15|+00.80|+00.38": 1,
+            "GarbageCan|-02.11|00.00|+01.96": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Cloth|-00.15|+00.80|+00.38",
+            "GRASP Cloth|-00.15|+00.80|+00.38",
+            "NAVIGATE_TO GarbageCan|-02.11|00.00|+01.96",
+            "PLACE_INSIDE GarbageCan|-02.11|00.00|+01.96"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Put SoapBar in a Cabinet",
+    "Subtasks": [
+      {
+        "Name": "Impossible: Ambiguous object reference. Please specify which cabinet.",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {},
+          "PrimitiveActions": []
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 0
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Put Tissue Box Inside the Drawer",
+    "Subtasks": [
+      {
+        "Name": "Place tissue box inside drawer",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "TissueBox|-01.45|+00.80|+00.39": 1,
+            "Drawer|-01.32|+00.31|+00.31": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO TissueBox|-01.45|+00.80|+00.39",
+            "GRASP TissueBox|-01.45|+00.80|+00.39",
+            "NAVIGATE_TO Drawer|-01.32|+00.31|+00.31",
+            "OPEN Drawer|-01.32|+00.31|+00.31",
+            "PLACE_INSIDE Drawer|-01.32|+00.31|+00.31",
+            "CLOSE Drawer|-01.32|+00.31|+00.31"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 5
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

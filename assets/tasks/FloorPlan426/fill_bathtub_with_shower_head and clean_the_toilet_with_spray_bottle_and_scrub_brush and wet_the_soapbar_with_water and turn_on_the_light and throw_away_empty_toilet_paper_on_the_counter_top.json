@@ -1,0 +1,189 @@
+[
+  {
+    "Task": "Fill Bathtub with Shower Head",
+    "Subtasks": [
+      {
+        "Name": "Start Filling Bathtub with Shower Head",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerHead|-03.54|+02.03|+01.82": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerHead|-03.54|+02.03|+01.82",
+            "TOGGLE_ON ShowerHead|-03.54|+02.03|+01.82"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Turn Off Shower Head after Bathtub is Filled",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerHead|-03.54|+02.03|+01.82": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerHead|-03.54|+02.03|+01.82",
+            "TOGGLE_OFF ShowerHead|-03.54|+02.03|+01.82"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Start Filling Bathtub with Shower Head",
+            "Interval": 20,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Clean Toilet",
+    "Subtasks": [
+      {
+        "Name": "Spray toilet with spray bottle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SprayBottle|-01.53|+00.80|+00.22": 1,
+            "Toilet|-01.84|+00.00|+02.50": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SprayBottle|-01.53|+00.80|+00.22",
+            "GRASP SprayBottle|-01.53|+00.80|+00.22",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Scrub toilet with scrub brush",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ScrubBrush|-02.19|+00.00|+03.03": 1,
+            "Toilet|-01.84|+00.00|+02.50": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ScrubBrush|-02.19|+00.00|+03.03",
+            "GRASP ScrubBrush|-02.19|+00.00|+03.03",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Spray toilet with spray bottle",
+            "Interval": 0,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Wet the SoapBar",
+    "Subtasks": [
+      {
+        "Name": "Wet soapbar in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBar|-03.10|+00.68|+01.74": 1,
+            "Sink|-00.46|-00.01|+03.05|SinkBasin": 1,
+            "Faucet|-00.46|+00.97|+03.21": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-03.10|+00.68|+01.74",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "PLACE_INSIDE Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "NAVIGATE_TO Faucet|-00.46|+00.97|+03.21",
+            "TOGGLE_ON Faucet|-00.46|+00.97|+03.21",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
+            "NAVIGATE_TO CounterTop|-01.85|+00.00|+00.34",
+            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Turn On the Light",
+    "Subtasks": [
+      {
+        "Name": "Turn on the light switch",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "LightSwitch|+00.00|+01.37|+01.99": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO LightSwitch|+00.00|+01.37|+01.99",
+            "TOGGLE_ON LightSwitch|+00.00|+01.37|+01.99"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Throw Away Empty Toilet Paper",
+    "Subtasks": [
+      {
+        "Name": "Impossible: Empty toilet paper on the counter top cannot be achieved with current Environment Context",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {},
+          "PrimitiveActions": []
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 0
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

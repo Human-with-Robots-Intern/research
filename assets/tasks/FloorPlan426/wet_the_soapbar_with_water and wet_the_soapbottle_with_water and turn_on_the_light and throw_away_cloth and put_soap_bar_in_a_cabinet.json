@@ -1,0 +1,144 @@
+[
+  {
+    "Task": "Wet the soapbar with water",
+    "Subtasks": [
+      {
+        "Name": "Wet soapbar in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBar|-03.10|+00.68|+01.74": 1,
+            "Sink|-00.46|-00.01|+03.05|SinkBasin": 1,
+            "Faucet|-00.46|+00.97|+03.21": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-03.10|+00.68|+01.74",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "PLACE_INSIDE Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "NAVIGATE_TO Faucet|-00.46|+00.97|+03.21",
+            "TOGGLE_ON Faucet|-00.46|+00.97|+03.21",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Wet the soapbottle with water",
+    "Subtasks": [
+      {
+        "Name": "Wet soapbottle in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBottle|-00.64|+00.95|+03.22": 1,
+            "Sink|-00.46|-00.01|+03.05|SinkBasin": 1,
+            "Faucet|-00.46|+00.97|+03.21": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBottle|-00.64|+00.95|+03.22",
+            "GRASP SoapBottle|-00.64|+00.95|+03.22",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "PLACE_INSIDE Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "NAVIGATE_TO Faucet|-00.46|+00.97|+03.21",
+            "TOGGLE_ON Faucet|-00.46|+00.97|+03.21",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "GRASP SoapBottle|-00.64|+00.95|+03.22",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Turn on the light",
+    "Subtasks": [
+      {
+        "Name": "Turn on light switch",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "LightSwitch|+00.00|+01.37|+01.99": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO LightSwitch|+00.00|+01.37|+01.99",
+            "TOGGLE_ON LightSwitch|+00.00|+01.37|+01.99"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Throw away cloth",
+    "Subtasks": [
+      {
+        "Name": "Throw cloth in garbage can",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cloth|-00.15|+00.80|+00.38": 1,
+            "GarbageCan|-02.11|00.00|+01.96": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Cloth|-00.15|+00.80|+00.38",
+            "GRASP Cloth|-00.15|+00.80|+00.38",
+            "NAVIGATE_TO GarbageCan|-02.11|00.00|+01.96",
+            "PLACE_INSIDE GarbageCan|-02.11|00.00|+01.96"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Put soap bar in a cabinet",
+    "Subtasks": [
+      {
+        "Name": "Impossible: Put soap bar in a cabinet cannot be achieved with current Environment Context",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {},
+          "PrimitiveActions": []
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 0
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

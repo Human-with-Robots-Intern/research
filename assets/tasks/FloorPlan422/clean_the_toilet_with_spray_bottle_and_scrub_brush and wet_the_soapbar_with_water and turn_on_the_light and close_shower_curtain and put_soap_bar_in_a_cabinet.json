@@ -1,0 +1,170 @@
+[
+  {
+    "Task": "Clean Toilet",
+    "Subtasks": [
+      {
+        "Name": "Spray toilet with spray bottle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SprayBottle|-00.84|+01.64|+00.35": 1,
+            "Toilet|-00.46|00.00|+02.26": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SprayBottle|-00.84|+01.64|+00.35",
+            "GRASP SprayBottle|-00.84|+01.64|+00.35",
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Scrub toilet with scrub brush",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ScrubBrush|-00.66|00.00|+02.56": 1,
+            "Toilet|-00.46|00.00|+02.26": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ScrubBrush|-00.66|00.00|+02.56",
+            "GRASP ScrubBrush|-00.66|00.00|+02.56",
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Spray toilet with spray bottle",
+            "Interval": 10,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Wet the SoapBar",
+    "Subtasks": [
+      {
+        "Name": "Wet soapbar in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBar|-01.99|+01.29|+02.08": 1,
+            "Sink|-01.93|+00.77|+00.33|SinkBasin": 1,
+            "Faucet|-01.93|+00.96|+00.18": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-01.99|+01.29|+02.08",
+            "GRASP SoapBar|-01.99|+01.29|+02.08",
+            "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
+            "PLACE_INSIDE Sink|-01.93|+00.77|+00.33|SinkBasin",
+            "TOGGLE_ON Faucet|-01.93|+00.96|+00.18",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
+            "GRASP SoapBar|-01.99|+01.29|+02.08",
+            "PLACE_ON_TOP CounterTop|-01.92|+00.00|+00.29"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Turn on the Light",
+    "Subtasks": [
+      {
+        "Name": "Turn on the light",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "LightSwitch|+00.00|+01.43|+01.99": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO LightSwitch|+00.00|+01.43|+01.99",
+            "TOGGLE_ON LightSwitch|+00.00|+01.43|+01.99"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Close Shower Curtain",
+    "Subtasks": [
+      {
+        "Name": "Close shower curtain",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerCurtain|-03.31|+02.48|+00.20": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerCurtain|-03.31|+02.48|+00.20",
+            "CLOSE ShowerCurtain|-03.31|+02.48|+00.20"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Put SoapBar in a Cabinet",
+    "Subtasks": [
+      {
+        "Name": "Put soap bar in a cabinet",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBar|-01.99|+01.29|+02.08": 1,
+            "Cabinet|-02.34|+00.46|+00.52": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-01.99|+01.29|+02.08",
+            "GRASP SoapBar|-01.99|+01.29|+02.08",
+            "NAVIGATE_TO Cabinet|-02.34|+00.46|+00.52",
+            "OPEN Cabinet|-02.34|+00.46|+00.52",
+            "PLACE_INSIDE Cabinet|-02.34|+00.46|+00.52",
+            "CLOSE Cabinet|-02.34|+00.46|+00.52"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 6
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]
