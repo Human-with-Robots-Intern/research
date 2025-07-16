@@ -10,12 +10,12 @@ from pathlib import Path
 import numpy as np
 import openai
 from ai2thor.controller import Controller
-from simulation.runner_ai2thor import init_ai2thor_controller
+from src.simulation.runner_ai2thor import init_ai2thor_controller
 from util.utils_execute import *
 
 
-from utils.config.constants import *
-from utils.io_utils.result_saver import result_save_llm
+from src.utils.config.constants import *
+from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
 
 current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
@@ -88,7 +88,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--instruction", type=str, default=None)
     return parser.parse_args()
 
-def generate_plan(controller, args):
+def generate_plan(controller, task: str, args: argparse.Namespace):
     # 현재 scene에 있는 object들을 가져옴
     # 이거 env json으로 해야하나 contoller로 하면 되나?
     obj = list(
@@ -133,7 +133,6 @@ def generate_plan(controller, args):
     computation_time_start = time.time()
 
     # Read task from input
-    task = args.instruction.strip()
     print(f"Generating plan for: {task}\n")
     curr_prompt = f"{prompt}\ntask : {task}\n"  ## 주어진 정보 + 수행할 task 이어서 prompt 만듦
     _, text = LM(
@@ -172,33 +171,35 @@ def generate_plan(controller, args):
 
 
 
-def planner_executer(args):
+def planner_executer(args: argparse.Namespace, task: str):
     scene_name = args.scene
     controller = init_ai2thor_controller(scene_name)
-    generate_plan(controller, args)
+    generate_plan(controller, task, args)
 
 
 if __name__ == "__main__":
     args: argparse.Namespace = parse_arguments()    
 
     instruction = args.instruction
+    task = ""
     if instruction:
         try:
             choice = int(instruction)
             task_files = list_task_files(args.scene)
             if 1 <= choice <= len(task_files):
-                args.instruction = Path(task_files[choice - 1]).stem
+                task = Path(task_files[choice - 1]).stem
             else:
                 print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
                 sys.exit(1)
         except ValueError:
-            pass
+            # It's a natural language instruction, not a number
+            task = instruction.strip()
     else:
         print("명령어가 인자로 제공되지 않았습니다. 사용자 입력을 기다립니다...")
-        args.instruction = input()
+        task = input().strip()
 
     openai.api_key = args.openai_api_key
 
-    planner_executer(args=args)
+    planner_executer(args=args, task=task)
 
 

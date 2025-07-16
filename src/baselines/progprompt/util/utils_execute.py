@@ -9,7 +9,7 @@ import numpy as np
 from ai2thor.controller import Controller
 from openai import OpenAI
 
-from utils.common import create_module_logger
+from src.utils.common import create_module_logger
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
@@ -456,5 +456,9 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
                         break
                 log_file.write(f"end_time: {str(round(elapsed_time,2))}\n")
                 log_file.write(f"execution_status: {last_action_success(controller)}\n")
+
+                # Synchronize state after each action
+                controller.step(action="Pass")
+                
     print(f"{round(elapsed_time, 2)=}")
     log_file.write(f"Total time spent : {round(elapsed_time, 2)}")
