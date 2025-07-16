@@ -5,6 +5,7 @@ import os.path as osp
 import random
 import sys
 import time
+from pathlib import Path
 
 import numpy as np
 import openai
@@ -15,6 +16,7 @@ from util.utils_execute import *
 
 from utils.config.constants import *
 from utils.io_utils.result_saver import result_save_llm
+from src.utils.io_utils.task_io import list_task_files
 
 current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
 
@@ -178,6 +180,22 @@ def planner_executer(args):
 
 if __name__ == "__main__":
     args: argparse.Namespace = parse_arguments()    
+
+    instruction = args.instruction
+    if instruction:
+        try:
+            choice = int(instruction)
+            task_files = list_task_files(args.scene)
+            if 1 <= choice <= len(task_files):
+                args.instruction = Path(task_files[choice - 1]).stem
+            else:
+                print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
+                sys.exit(1)
+        except ValueError:
+            pass
+    else:
+        print("명령어가 인자로 제공되지 않았습니다. 사용자 입력을 기다립니다...")
+        args.instruction = input()
 
     openai.api_key = args.openai_api_key
 
