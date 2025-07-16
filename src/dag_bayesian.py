@@ -50,12 +50,12 @@ def parse_arguments():
     parser.add_argument(
         "--instruction",
         type=str,
-        default=None,
+        default=25,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
         "--simulation",
-        default=False,
+        default=True,
         action="store_true",
         help="Simulation 모드 사용 여부 (default: False)",
     )
@@ -142,7 +142,6 @@ def main():
         subtasks, constraints, scene_poses
     )
 
-    result_schedule = []
     is_end = False
 
     total_compute_time, total_sim_time = 0, 0
@@ -173,31 +172,16 @@ def main():
             current_state = next_state
             if not current_state.remaining_subtasks:
                 is_end = True
-            for ce in current_state.completed_entries:
-                if ce.subtask.name == "Init":
-                    continue
 
+            last_entry = current_state.completed_entries[-1]
+            if last_entry.subtask.name != "Init":
                 log.info(
-                    f"{ce.subtask.name} ({round(ce.sim_start_time, LOG_ROUND)} ~ {round(ce.sim_end_time,LOG_ROUND)})"
+                    f"{last_entry.subtask.name} ({round(last_entry.sim_start_time, LOG_ROUND)} ~ {round(last_entry.sim_end_time,LOG_ROUND)})"
                 )
-                log.info(f"Primitive actions: {ce.subtask.execution.primitive_actions}\n")
-                ce.start_time_scheduled = round(ce.sim_start_time, LOG_ROUND)
-                ce.end_time_scheduled = round(ce.sim_end_time, LOG_ROUND)
-                result_schedule.append(ce)
-
-            approach_name = f"{approach_name}_simulation"
-            result_args = {
-                "task_name": input_natural_language,
-                "approach_name": approach_name,
-                "result_schedule": result_schedule,
-                "computation_time": total_compute_time,
-                "scene_name": scene_name,
-                "constraints": current_state.constraints,
-                "initial_plan_data": task_data,
-                # "simulationTime": total_sim_time,
-            }
-
-            result_save(**result_args)
+                log.info(f"Primitive actions: {last_entry.subtask.execution.primitive_actions}\n")
+                last_entry.start_time_scheduled = round(last_entry.sim_start_time, LOG_ROUND)
+                last_entry.end_time_scheduled = round(last_entry.sim_end_time, LOG_ROUND)
+            
 
         if args.ros:
             from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
@@ -247,7 +231,24 @@ def main():
             if not current_state.remaining_subtasks:
                 is_end = True
                 shutdown_ros_communication()
-
+    if args.simulation:
+        result_schedule = [
+            entry
+            for entry in current_state.completed_entries
+            if entry.subtask.name != "Init"
+        ]
+        approach_name = f"{approach_name}_simulation"
+        result_args = {
+            "task_name": input_natural_language,
+            "approach_name": approach_name,
+            "result_schedule": result_schedule,
+            "computation_time": total_compute_time,
+            "scene_name": scene_name,
+            "constraints": current_state.constraints,
+            "initial_plan_data": task_data,
+            # "simulationTime": total_sim_time,
+        }
+        result_save(**result_args)
 
 if __name__ == "__main__":
     main()
