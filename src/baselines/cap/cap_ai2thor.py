@@ -105,6 +105,9 @@ def timed_action(
         else:
             log_file.write(f"execution_status: {False}\n")
 
+        # Synchronize state after the action has been executed and logged.
+        controller.step(action="Pass")
+
         return elapsed_time
 
     return wrapper
@@ -350,7 +353,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan419",
+        default="FloorPlan1",
         # 추후에 scene 목록이 생기면 choices = [] 으로 구현한다.
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
