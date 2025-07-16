@@ -408,7 +408,7 @@ def parse_arguments():
     parser.add_argument(
         "--log-level",
         type=str,
-        default="ERROR",
+        default="DEBUG",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="로그 출력 수준 설정 (default: ERROR)",
     )
@@ -523,7 +523,7 @@ def main():
         # Execute each subtask in the schedule
         for entry in result_schedule:
             subtask_time, execution_status, sim_nav_time = execute_subtask(
-                controller, entry.subtask, "WARNING"
+                controller, entry.subtask, args.log_level
             )
             # Update the entry with simulation times and execution status
             entry.sim_start_time = simulation_current_time
