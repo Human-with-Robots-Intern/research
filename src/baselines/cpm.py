@@ -8,6 +8,7 @@ import sys
 import time
 from collections import defaultdict
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from pathlib import Path
 
 import networkx as nx
 from networkx import DiGraph
@@ -535,28 +536,29 @@ def main() -> None:
 
     if args.instruction:
         instruction = args.instruction
-        input_natural_language = instruction
         task_data = None
         try:
             choice = int(instruction)
             if 1 <= choice <= len(task_files):
                 task_file_name = task_files[choice - 1]
                 task_data = load_task_data_from_file(task_file_name)
-                input_natural_language = task_file_name
+                input_natural_language = Path(task_file_name).stem  # Pass only the file stem
         except ValueError:
             # It's a natural language instruction, not a number
+            input_natural_language = instruction
             pass
 
         if task_data is None:
             # It was a natural language instruction or an invalid number choice.
             # In both cases, we treat it as a natural language instruction.
             task_data = {"instruction": instruction}
+            input_natural_language = instruction
     else:
         task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
         task_data = load_task_data_from_file(task_file_name)
-        input_natural_language = task_file_name
+        input_natural_language = Path(task_file_name).stem # Pass only the file stem
         if choice != 0:
-            input_natural_language = task_file_name
+            input_natural_language = Path(task_file_name).stem # Pass only the file stem
 
     # Build tasks and constraints
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(

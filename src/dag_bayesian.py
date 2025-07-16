@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 import time
 from typing import Any, Dict
 
@@ -88,7 +89,7 @@ def main():
         action_handler = ActionHandler(nav_graph, log_level=args.log_level)
 
     # Load the chosen task data
-    task_files = list_task_files()
+    task_files = list_task_files(scene_name=scene_name)
 
     if args.instruction:
         instruction = args.instruction
@@ -99,7 +100,7 @@ def main():
             if 1 <= choice <= len(task_files):
                 task_file_name = task_files[choice - 1]
                 task_data = load_task_data_from_file(task_file_name)
-                input_natural_language = task_file_name
+                input_natural_language = Path(task_file_name).stem
         except ValueError:
             # It's a natural language instruction, not a number
             pass

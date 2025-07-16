@@ -452,7 +452,7 @@ def main():
     scene_poses = load_scene_positions(f"{scene_name}_positions.json")
 
     # Load the chosen task data
-    task_files = list_task_files()
+    task_files = list_task_files(scene_name=scene_name)
     if args.instruction:
         instruction = args.instruction
         input_natural_language = instruction
@@ -462,7 +462,7 @@ def main():
             if 1 <= choice <= len(task_files):
                 task_file_name = task_files[choice - 1]
                 task_data = load_task_data_from_file(task_file_name)
-                input_natural_language = task_file_name
+                input_natural_language = Path(task_file_name).stem
         except ValueError:
             # It's a natural language instruction, not a number
             pass
