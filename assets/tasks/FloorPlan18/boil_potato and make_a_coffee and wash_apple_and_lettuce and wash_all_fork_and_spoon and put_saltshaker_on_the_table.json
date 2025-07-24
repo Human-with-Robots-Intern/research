@@ -54,14 +54,14 @@
         ]
       },
       {
-        "Name": "Place Potato in Pot and Start Boiling",
+        "Name": "Place Potato in Pot and Start Boiling on Stove",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Potato|-00.73|+01.02|+00.61": 1,
             "Pot|+00.73|+00.98|+00.38": 1,
-            "StoveBurner|+01.56|+00.98|+03.85": 1,
+            "StoveBurner|+01.32|+00.98|+03.85": 1,
             "StoveKnob|+01.14|+00.93|+03.99": 1
           },
           "PrimitiveActions": [
@@ -69,16 +69,17 @@
             "GRASP Potato|-00.73|+01.02|+00.61",
             "NAVIGATE_TO Pot|+00.73|+00.98|+00.38",
             "PLACE_INSIDE Pot|+00.73|+00.98|+00.38",
-            "NAVIGATE_TO StoveBurner|+01.56|+00.98|+03.85",
+            "NAVIGATE_TO Pot|+00.73|+00.98|+00.38",
             "GRASP Pot|+00.73|+00.98|+00.38",
-            "PLACE_ON_TOP StoveBurner|+01.56|+00.98|+03.85",
+            "NAVIGATE_TO StoveBurner|+01.32|+00.98|+03.85",
+            "PLACE_ON_TOP Pot|+00.73|+00.98|+00.38 StoveBurner|+01.32|+00.98|+03.85",
             "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.99",
             "TOGGLE_ON StoveKnob|+01.14|+00.93|+03.99"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 5
+          "Interval": 4
         },
         "TemporalConstraints": [
           {
@@ -109,7 +110,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Potato in Pot and Start Boiling",
+            "Subtask": "Place Potato in Pot and Start Boiling on Stove",
             "Interval": 15,
             "Urgency": true
           }
@@ -174,7 +175,7 @@
     "Task": "Wash Apple and Lettuce",
     "Subtasks": [
       {
-        "Name": "Wash Apple and place on CounterTop",
+        "Name": "Wash Apple and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -205,7 +206,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Lettuce and place on CounterTop",
+        "Name": "Wash Lettuce and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -241,7 +242,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on CounterTop",
+        "Name": "Wash Fork and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -272,7 +273,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on CounterTop",
+        "Name": "Wash Spoon and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

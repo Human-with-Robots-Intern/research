@@ -54,7 +54,7 @@
         ]
       },
       {
-        "Name": "Place Potato in Pot and Start Boiling",
+        "Name": "Place Potato in Pot and Start Boiling on Stove",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -62,23 +62,24 @@
             "Potato|-04.08|+00.95|+02.68": 1,
             "Pot|-00.40|+00.91|+05.93": 1,
             "StoveBurner|-02.92|+00.92|+02.01": 1,
-            "StoveKnob|-02.51|+01.10|+01.56": 1
+            "StoveKnob|-02.97|+01.10|+01.56": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Potato|-04.08|+00.95|+02.68",
             "GRASP Potato|-04.08|+00.95|+02.68",
             "NAVIGATE_TO Pot|-00.40|+00.91|+05.93",
             "PLACE_INSIDE Pot|-00.40|+00.91|+05.93",
-            "NAVIGATE_TO StoveBurner|-02.92|+00.92|+02.01",
+            "NAVIGATE_TO Pot|-00.40|+00.91|+05.93",
             "GRASP Pot|-00.40|+00.91|+05.93",
-            "PLACE_ON_TOP StoveBurner|-02.92|+00.92|+02.01",
-            "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
-            "TOGGLE_ON StoveKnob|-02.51|+01.10|+01.56"
+            "NAVIGATE_TO StoveBurner|-02.92|+00.92|+02.01",
+            "PLACE_ON_TOP Pot|-00.40|+00.91|+05.93 StoveBurner|-02.92|+00.92|+02.01",
+            "NAVIGATE_TO StoveKnob|-02.97|+01.10|+01.56",
+            "TOGGLE_ON StoveKnob|-02.97|+01.10|+01.56"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 5
+          "Interval": 4
         },
         "TemporalConstraints": [
           {
@@ -95,11 +96,11 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|-02.51|+01.10|+01.56": 1
+            "StoveKnob|-02.97|+01.10|+01.56": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
-            "TOGGLE_OFF StoveKnob|-02.51|+01.10|+01.56"
+            "NAVIGATE_TO StoveKnob|-02.97|+01.10|+01.56",
+            "TOGGLE_OFF StoveKnob|-02.97|+01.10|+01.56"
           ]
         },
         "Duration": {
@@ -109,38 +110,8 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Potato in Pot and Start Boiling",
+            "Subtask": "Place Potato in Pot and Start Boiling on Stove",
             "Interval": 15,
-            "Urgency": true
-          }
-        ]
-      },
-      {
-        "Name": "Retrieve Boiled Potato",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Potato|-04.08|+00.95|+02.68": 1,
-            "Pot|-00.40|+00.91|+05.93": 1,
-            "CounterTop|-04.26|+00.96|+04.94": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Pot|-00.40|+00.91|+05.93",
-            "GRASP Potato|-04.08|+00.95|+02.68",
-            "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Turn Off Stove after Boiling Potato",
-            "Interval": 0,
             "Urgency": true
           }
         ]

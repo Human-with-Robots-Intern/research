@@ -54,7 +54,7 @@
         ]
       },
       {
-        "Name": "Place Potato in Pot and Start Boiling",
+        "Name": "Place Potato in Pot and Start Boiling on Stove",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -69,6 +69,8 @@
             "GRASP Potato|-00.73|+01.02|+00.61",
             "NAVIGATE_TO Pot|+00.73|+00.98|+00.38",
             "PLACE_INSIDE Pot|+00.73|+00.98|+00.38",
+            "NAVIGATE_TO Pot|+00.73|+00.98|+00.38",
+            "GRASP Pot|+00.73|+00.98|+00.38",
             "NAVIGATE_TO StoveBurner|+01.32|+00.98|+03.85",
             "PLACE_ON_TOP Pot|+00.73|+00.98|+00.38 StoveBurner|+01.32|+00.98|+03.85",
             "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.99",
@@ -108,7 +110,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Potato in Pot and Start Boiling",
+            "Subtask": "Place Potato in Pot and Start Boiling on Stove",
             "Interval": 15,
             "Urgency": true
           }
@@ -133,7 +135,7 @@
             "NAVIGATE_TO Pan|+01.31|+00.99|+04.30",
             "GRASP Pan|+01.31|+00.99|+04.30",
             "NAVIGATE_TO StoveBurner|+01.56|+00.98|+04.29",
-            "PLACE_ON_TOP StoveBurner|+01.56|+00.98|+04.29",
+            "PLACE_ON_TOP Pan|+01.31|+00.99|+04.30 StoveBurner|+01.56|+00.98|+04.29",
             "NAVIGATE_TO StoveKnob|+01.14|+00.93|+04.31",
             "TOGGLE_ON StoveKnob|+01.14|+00.93|+04.31"
           ]
@@ -157,7 +159,7 @@
             "NAVIGATE_TO Egg|+01.97|+01.53|+05.73",
             "GRASP Egg|+01.97|+01.53|+05.73",
             "NAVIGATE_TO Pan|+01.31|+00.99|+04.30",
-            "PLACE_ON_TOP Pan|+01.31|+00.99|+04.30",
+            "PLACE_ON_TOP Egg|+01.97|+01.53|+05.73 Pan|+01.31|+00.99|+04.30",
             "SLICE Egg|+01.97|+01.53|+05.73"
           ]
         },
@@ -175,7 +177,7 @@
         ]
       },
       {
-        "Name": "Turn Off Stove after Cooking Egg",
+        "Name": "Turn Off Stove After Cooking Egg",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -239,7 +241,7 @@
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Microwave|+00.11|+00.98|+00.26",
-            "TOGGLE_ON Microwave|+00.11|+00.98|+00.26"
+            "TOGGLE_ON Microwave|+00.11|++00.98|+00.26"
           ]
         },
         "Duration": {
@@ -336,6 +338,7 @@
             "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
             "TOGGLE_ON Faucet|+01.62|+00.99|+02.33",
             "WAIT 1.0",
+            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
             "TOGGLE_OFF Faucet|+01.62|+00.99|+02.33",
             "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
             "GRASP Apple|+01.38|+01.04|+03.33",
@@ -367,6 +370,7 @@
             "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
             "TOGGLE_ON Faucet|+01.62|+00.99|+02.33",
             "WAIT 1.0",
+            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
             "TOGGLE_OFF Faucet|+01.62|+00.99|+02.33",
             "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
             "GRASP Lettuce|+01.46|+00.96|+02.07",
@@ -443,6 +447,28 @@
             "GRASP Spoon|+01.36|+00.98|+01.49",
             "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
             "PLACE_ON_TOP Spoon|+01.36|+00.98|+01.49 DiningTable|-00.16|+00.00|+06.47"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Place Cup on DiningTable",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cup|+01.18|+00.98|+03.39": 1,
+            "DiningTable|-00.16|+00.00|+06.47": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Cup|+01.18|+00.98|+03.39",
+            "GRASP Cup|+01.18|+00.98|+03.39",
+            "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
+            "PLACE_ON_TOP Cup|+01.18|+00.98|+03.39 DiningTable|-00.16|+00.00|+06.47"
           ]
         },
         "Duration": {

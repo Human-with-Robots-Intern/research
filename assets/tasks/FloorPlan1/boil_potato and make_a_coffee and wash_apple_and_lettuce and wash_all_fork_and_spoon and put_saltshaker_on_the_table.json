@@ -54,25 +54,27 @@
         ]
       },
       {
-        "Name": "Place Potato in Pot and Start Boiling",
+        "Name": "Place Potato in Pot and Start Boiling on Stove",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Potato|-01.66|+00.93|-02.15": 1,
             "Pot|-01.22|+00.90|-02.36": 1,
-            "StoveBurner|-00.04|+00.92|-02.37": 1,
-            "StoveKnob|-00.02|+00.88|-02.19": 1
+            "StoveBurner|-00.47|+00.92|-02.37": 1,
+            "StoveKnob|-00.48|+00.88|-02.19": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Potato|-01.66|+00.93|-02.15",
             "GRASP Potato|-01.66|+00.93|-02.15",
             "NAVIGATE_TO Pot|-01.22|+00.90|-02.36",
             "PLACE_INSIDE Pot|-01.22|+00.90|-02.36",
-            "NAVIGATE_TO StoveBurner|-00.04|+00.92|-02.37",
-            "PLACE_ON_TOP Pot|-01.22|+00.90|-02.36 StoveBurner|-00.04|+00.92|-02.37",
-            "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
-            "TOGGLE_ON StoveKnob|-00.02|+00.88|-02.19"
+            "NAVIGATE_TO Pot|-01.22|+00.90|-02.36",
+            "GRASP Pot|-01.22|+00.90|-02.36",
+            "NAVIGATE_TO StoveBurner|-00.47|+00.92|-02.37",
+            "PLACE_ON_TOP Pot|-01.22|+00.90|-02.36 StoveBurner|-00.47|+00.92|-02.37",
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19"
           ]
         },
         "Duration": {
@@ -94,11 +96,11 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|-00.02|+00.88|-02.19": 1
+            "StoveKnob|-00.48|+00.88|-02.19": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
-            "TOGGLE_OFF StoveKnob|-00.02|+00.88|-02.19"
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_OFF StoveKnob|-00.48|+00.88|-02.19"
           ]
         },
         "Duration": {
@@ -108,7 +110,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Potato in Pot and Start Boiling",
+            "Subtask": "Place Potato in Pot and Start Boiling on Stove",
             "Interval": 15,
             "Urgency": true
           }
