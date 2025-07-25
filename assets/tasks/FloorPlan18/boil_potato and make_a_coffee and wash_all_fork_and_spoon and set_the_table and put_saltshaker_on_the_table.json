@@ -61,8 +61,8 @@
           "Objects": {
             "Potato|-00.73|+01.02|+00.61": 1,
             "Pot|+00.73|+00.98|+00.38": 1,
-            "StoveBurner|+01.32|+00.98|+03.85": 1,
-            "StoveKnob|+01.14|+00.93|+03.99": 1
+            "StoveBurner|+01.56|+00.98|+03.85": 1,
+            "StoveKnob|+01.14|+00.93|+03.82": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Potato|-00.73|+01.02|+00.61",
@@ -71,10 +71,10 @@
             "PLACE_INSIDE Pot|+00.73|+00.98|+00.38",
             "NAVIGATE_TO Pot|+00.73|+00.98|+00.38",
             "GRASP Pot|+00.73|+00.98|+00.38",
-            "NAVIGATE_TO StoveBurner|+01.32|+00.98|+03.85",
-            "PLACE_ON_TOP Pot|+00.73|+00.98|+00.38 StoveBurner|+01.32|+00.98|+03.85",
-            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.99",
-            "TOGGLE_ON StoveKnob|+01.14|+00.93|+03.99"
+            "NAVIGATE_TO StoveBurner|+01.56|+00.98|+03.85",
+            "PLACE_ON_TOP Pot|+00.73|+00.98|+00.38 StoveBurner|+01.56|+00.98|+03.85",
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.82",
+            "TOGGLE_ON StoveKnob|+01.14|+00.93|+03.82"
           ]
         },
         "Duration": {
@@ -96,11 +96,11 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|+01.14|+00.93|+03.99": 1
+            "StoveKnob|+01.14|+00.93|+03.82": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.99",
-            "TOGGLE_OFF StoveKnob|+01.14|+00.93|+03.99"
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.82",
+            "TOGGLE_OFF StoveKnob|+01.14|+00.93|+03.82"
           ]
         },
         "Duration": {
@@ -271,7 +271,7 @@
     ]
   },
   {
-    "Task": "Set the Table",
+    "Task": "Set the Table and Place SaltShaker",
     "Subtasks": [
       {
         "Name": "Place Plate on DiningTable",
@@ -295,55 +295,6 @@
         },
         "TemporalConstraints": []
       },
-      {
-        "Name": "Place Fork on DiningTable",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Fork|+01.27|+00.98|+01.24": 1,
-            "DiningTable|-00.16|+00.00|+06.47": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Fork|+01.27|+00.98|+01.24",
-            "GRASP Fork|+01.27|+00.98|+01.24",
-            "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
-            "PLACE_ON_TOP DiningTable|-00.16|+00.00|+06.47"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": []
-      },
-      {
-        "Name": "Place Spoon on DiningTable",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Spoon|+01.36|+00.98|+01.49": 1,
-            "DiningTable|-00.16|+00.00|+06.47": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Spoon|+01.36|+00.98|+01.49",
-            "GRASP Spoon|+01.36|+00.98|+01.49",
-            "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
-            "PLACE_ON_TOP DiningTable|-00.16|+00.00|+06.47"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Put SaltShaker on the Table",
-    "Subtasks": [
       {
         "Name": "Place SaltShaker on DiningTable",
         "Repetition": 1,

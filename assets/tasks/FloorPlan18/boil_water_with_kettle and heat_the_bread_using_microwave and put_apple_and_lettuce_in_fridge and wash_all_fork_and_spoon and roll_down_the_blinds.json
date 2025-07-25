@@ -3,18 +3,55 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Impossible: Boil water with Kettle|+01.59|+00.99|+03.25 cannot be achieved with current Environment Context",
+        "Name": "Place Kettle on StoveBurner and Start Boiling",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "Kettle|+01.59|+00.99|+03.25": 1,
+            "StoveBurner|+01.56|+00.98|+03.85": 1,
+            "StoveKnob|+01.14|+00.93|+03.82": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Kettle|+01.59|+00.99|+03.25",
+            "GRASP Kettle|+01.59|+00.99|+03.25",
+            "NAVIGATE_TO StoveBurner|+01.56|+00.98|+03.85",
+            "PLACE_ON_TOP StoveBurner|+01.56|+00.98|+03.85",
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.82",
+            "TOGGLE_ON StoveKnob|+01.14|+00.93|+03.82"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 3
         },
         "TemporalConstraints": []
+      },
+      {
+        "Name": "Turn Off Stove after Boiling Water",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "StoveKnob|+01.14|+00.93|+03.82": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.82",
+            "TOGGLE_OFF StoveKnob|+01.14|+00.93|+03.82"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Kettle on StoveBurner and Start Boiling",
+            "Interval": 10,
+            "Urgency": true
+          }
+        ]
       }
     ]
   },
@@ -113,7 +150,7 @@
             "GRASP Bread|+01.10|+01.05|+00.43",
             "CLOSE Microwave|+00.11|+00.98|+00.26",
             "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP Bread|+01.10|+01.05|+00.43 CounterTop|+01.39|+01.03|+00.90"
+            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
           ]
         },
         "Duration": {
@@ -223,7 +260,7 @@
             "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
             "GRASP Spoon|+01.36|+00.98|+01.49",
             "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP Spoon|+01.36|+00.98|+01.49 CounterTop|+01.39|+01.03|+00.90"
+            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
           ]
         },
         "Duration": {
@@ -238,16 +275,21 @@
     "Task": "Roll Down the Blinds",
     "Subtasks": [
       {
-        "Name": "Impossible: Roll down the Blinds|+01.74|+02.56|+02.31 cannot be achieved with current Environment Context",
+        "Name": "Roll Down Blinds",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "Blinds|+01.74|+02.56|+02.31": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Blinds|+01.74|+02.56|+02.31",
+            "CLOSE Blinds|+01.74|+02.56|+02.31"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 1
         },
         "TemporalConstraints": []
       }

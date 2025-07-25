@@ -1,0 +1,219 @@
+[
+  {
+    "Task": "Boil Water with Kettle",
+    "Subtasks": [
+      {
+        "Name": "Place Kettle on StoveBurner and Start Boiling",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Kettle|+01.04|+00.90|-02.60": 1,
+            "StoveBurner|-00.47|+00.92|-02.37": 1,
+            "StoveKnob|-00.48|+00.88|-02.19": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Kettle|+01.04|+00.90|-02.60",
+            "GRASP Kettle|+01.04|+00.90|-02.60",
+            "NAVIGATE_TO StoveBurner|-00.47|+00.92|-02.37",
+            "PLACE_ON_TOP Kettle|+01.04|+00.90|-02.60 StoveBurner|-00.47|+00.92|-02.37",
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Turn Off Stove after Boiling Water",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "StoveKnob|-00.48|+00.88|-02.19": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_OFF StoveKnob|-00.48|+00.88|-02.19"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Kettle on StoveBurner and Start Boiling",
+            "Interval": 10,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Make Coffee",
+    "Subtasks": [
+      {
+        "Name": "Prepare Coffee Machine with Mug",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mug|-01.76|+00.90|-00.62": 1,
+            "CoffeeMachine|-01.98|+00.90|-00.19": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Mug|-01.76|+00.90|-00.62",
+            "GRASP Mug|-01.76|+00.90|-00.62",
+            "NAVIGATE_TO CoffeeMachine|-01.98|+00.90|-00.19",
+            "PLACE_ON_TOP CoffeeMachine|-01.98|+00.90|-00.19"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Start Coffee Machine",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "CoffeeMachine|-01.98|+00.90|-00.19": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO CoffeeMachine|-01.98|+00.90|-00.19",
+            "TOGGLE_ON CoffeeMachine|-01.98|+00.90|-00.19"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Prepare Coffee Machine with Mug",
+            "Interval": 0,
+            "Urgency": false
+          }
+        ]
+      },
+      {
+        "Name": "Retrieve Coffee from Machine and Place on CounterTop",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mug|-01.76|+00.90|-00.62": 1,
+            "CoffeeMachine|-01.98|+00.90|-00.19": 1,
+            "CounterTop|-00.08|+01.15|+00.00": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO CoffeeMachine|-01.98|+00.90|-00.19",
+            "GRASP Mug|-01.76|+00.90|-00.62",
+            "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
+            "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Start Coffee Machine",
+            "Interval": 5,
+            "Urgency": false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Dispose of Paper Towel Roll",
+    "Subtasks": [
+      {
+        "Name": "Throw Away Paper Towel Roll",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "PaperTowelRoll|-02.06|+01.01|-00.81": 1,
+            "GarbageCan|-01.94|00.00|+02.03": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO PaperTowelRoll|-02.06|+01.01|-00.81",
+            "GRASP PaperTowelRoll|-02.06|+01.01|-00.81",
+            "NAVIGATE_TO GarbageCan|-01.94|00.00|+02.03",
+            "PLACE_INSIDE GarbageCan|-01.94|00.00|+02.03"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Organize Items",
+    "Subtasks": [
+      {
+        "Name": "Place Credit Card on CounterTop",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "CreditCard|-00.46|+01.10|+00.87": 1,
+            "CounterTop|-00.08|+01.15|+00.00": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO CreditCard|-00.46|+01.10|+00.87",
+            "GRASP CreditCard|-00.46|+01.10|+00.87",
+            "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
+            "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Put Book in Cabinet",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Book|+00.15|+01.10|+00.62": 1,
+            "Cabinet|+00.68|+00.50|-02.20": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Book|+00.15|+01.10|+00.62",
+            "GRASP Book|+00.15|+01.10|+00.62",
+            "NAVIGATE_TO Cabinet|+00.68|+00.50|-02.20",
+            "OPEN Cabinet|+00.68|+00.50|-02.20",
+            "PLACE_INSIDE Cabinet|+00.68|+00.50|-02.20",
+            "CLOSE Cabinet|+00.68|+00.50|-02.20"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

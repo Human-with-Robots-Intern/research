@@ -129,15 +129,15 @@
           "Objects": {
             "Pan|-02.45|+00.93|+02.02": 1,
             "StoveBurner|-02.47|+00.92|+01.71": 1,
-            "StoveKnob|-02.79|+01.10|+01.56": 1
+            "StoveKnob|-02.51|+01.10|+01.56": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Pan|-02.45|+00.93|+02.02",
             "GRASP Pan|-02.45|+00.93|+02.02",
             "NAVIGATE_TO StoveBurner|-02.47|+00.92|+01.71",
             "PLACE_ON_TOP Pan|-02.45|+00.93|+02.02",
-            "NAVIGATE_TO StoveKnob|-02.79|+01.10|+01.56",
-            "TOGGLE_ON StoveKnob|-02.79|+01.10|+01.56"
+            "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
+            "TOGGLE_ON StoveKnob|-02.51|+01.10|+01.56"
           ]
         },
         "Duration": {
@@ -175,11 +175,11 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|-02.79|+01.10|+01.56": 1
+            "StoveKnob|-02.51|+01.10|+01.56": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|-02.79|+01.10|+01.56",
-            "TOGGLE_OFF StoveKnob|-02.79|+01.10|+01.56"
+            "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
+            "TOGGLE_OFF StoveKnob|-02.51|+01.10|+01.56"
           ]
         },
         "Duration": {

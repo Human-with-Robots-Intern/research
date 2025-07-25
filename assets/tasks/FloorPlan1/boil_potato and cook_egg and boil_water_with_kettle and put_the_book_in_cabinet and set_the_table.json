@@ -208,18 +208,55 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Impossible: Boil water with Kettle|+01.04|+00.90|-02.60 cannot be achieved with current Environment Context",
+        "Name": "Place Kettle on Stove and Start Boiling",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "Kettle|+01.04|+00.90|-02.60": 1,
+            "StoveBurner|-00.04|+00.92|-02.58": 1,
+            "StoveKnob|-00.18|+00.88|-02.19": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Kettle|+01.04|+00.90|-02.60",
+            "GRASP Kettle|+01.04|+00.90|-02.60",
+            "NAVIGATE_TO StoveBurner|-00.04|+00.92|-02.58",
+            "PLACE_ON_TOP StoveBurner|-00.04|+00.92|-02.58",
+            "NAVIGATE_TO StoveKnob|-00.18|+00.88|-02.19",
+            "TOGGLE_ON StoveKnob|-00.18|+00.88|-02.19"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 3
         },
         "TemporalConstraints": []
+      },
+      {
+        "Name": "Turn Off Stove After Boiling Water in Kettle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "StoveKnob|-00.18|+00.88|-02.19": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO StoveKnob|-00.18|+00.88|-02.19",
+            "TOGGLE_OFF StoveKnob|-00.18|+00.88|-02.19"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Kettle on Stove and Start Boiling",
+            "Interval": 10,
+            "Urgency": true
+          }
+        ]
       }
     ]
   },
@@ -227,21 +264,21 @@
     "Task": "Put the Book in Cabinet",
     "Subtasks": [
       {
-        "Name": "Put Book|+00.15|+01.10|+00.62 in Cabinet|-01.18|+00.50|-02.20",
+        "Name": "Put Book in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Book|+00.15|+01.10|+00.62": 1,
-            "Cabinet|-01.18|+00.50|-02.20": 1
+            "Cabinet|+00.68|+00.50|-02.20": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Book|+00.15|+01.10|+00.62",
             "GRASP Book|+00.15|+01.10|+00.62",
-            "NAVIGATE_TO Cabinet|-01.18|+00.50|-02.20",
-            "OPEN Cabinet|-01.18|+00.50|-02.20",
-            "PLACE_INSIDE Cabinet|-01.18|+00.50|-02.20",
-            "CLOSE Cabinet|-01.18|+00.50|-02.20"
+            "NAVIGATE_TO Cabinet|+00.68|+00.50|-02.20",
+            "OPEN Cabinet|+00.68|+00.50|-02.20",
+            "PLACE_INSIDE Cabinet|+00.68|+00.50|-02.20",
+            "CLOSE Cabinet|+00.68|+00.50|-02.20"
           ]
         },
         "Duration": {

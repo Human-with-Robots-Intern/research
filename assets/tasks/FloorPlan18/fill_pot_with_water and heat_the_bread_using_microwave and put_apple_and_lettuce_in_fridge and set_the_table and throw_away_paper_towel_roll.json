@@ -150,7 +150,7 @@
             "GRASP Bread|+01.10|+01.05|+00.43",
             "CLOSE Microwave|+00.11|+00.98|+00.26",
             "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP Bread|+01.39|+01.03|+00.90"
+            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
           ]
         },
         "Duration": {

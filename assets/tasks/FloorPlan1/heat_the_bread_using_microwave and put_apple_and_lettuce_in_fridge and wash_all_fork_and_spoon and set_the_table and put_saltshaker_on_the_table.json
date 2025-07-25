@@ -169,7 +169,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork",
+        "Name": "Wash Fork and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -186,6 +186,7 @@
             "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
             "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
             "WAIT 1.0",
+            "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
             "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
             "NAVIGATE_TO Sink|-01.90|+00.97|-01.50|SinkBasin",
             "GRASP Fork|+00.95|+00.77|-02.37",
@@ -200,7 +201,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon",
+        "Name": "Wash Spoon and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -217,6 +218,7 @@
             "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
             "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
             "WAIT 1.0",
+            "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
             "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
             "NAVIGATE_TO Sink|-01.90|+00.97|-01.50|SinkBasin",
             "GRASP Spoon|+00.98|+00.77|-02.29",
@@ -236,7 +238,7 @@
     "Task": "Set the Table",
     "Subtasks": [
       {
-        "Name": "Place Plate on Table",
+        "Name": "Place Plate on CounterTop for Meal",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -258,7 +260,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Fork on Table",
+        "Name": "Place Fork on CounterTop for Meal",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -280,7 +282,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Spoon on Table",
+        "Name": "Place Spoon on CounterTop for Meal",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -307,7 +309,7 @@
     "Task": "Place SaltShaker on Table",
     "Subtasks": [
       {
-        "Name": "Place SaltShaker on Table",
+        "Name": "Place SaltShaker on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

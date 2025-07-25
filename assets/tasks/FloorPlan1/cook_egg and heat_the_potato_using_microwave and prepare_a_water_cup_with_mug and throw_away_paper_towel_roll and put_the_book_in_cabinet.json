@@ -53,7 +53,7 @@
             "Type": "After",
             "Subtask": "Prepare Pan on Stove and Heat",
             "Interval": 0,
-            "Urgency": false
+            "Urgency": true
           }
         ]
       },
@@ -115,7 +115,7 @@
     ]
   },
   {
-    "Task": "Heat Potato using Microwave",
+    "Task": "Heat the Potato using Microwave",
     "Subtasks": [
       {
         "Name": "Place Potato in Microwave",
@@ -228,7 +228,7 @@
     ]
   },
   {
-    "Task": "Prepare Water Cup with Mug",
+    "Task": "Prepare a Water Cup with Mug",
     "Subtasks": [
       {
         "Name": "Place Mug in Sink and Start Filling",
@@ -287,26 +287,34 @@
     "Task": "Throw Away Paper Towel Roll",
     "Subtasks": [
       {
-        "Name": "Impossible: Paper Towel Roll not in environment",
+        "Name": "Dispose of Paper Towel Roll in Garbage Can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "PaperTowelRoll|-02.06|+01.01|-00.81": 1,
+            "GarbageCan|-01.94|00.00|+02.03": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO PaperTowelRoll|-02.06|+01.01|-00.81",
+            "GRASP PaperTowelRoll|-02.06|+01.01|-00.81",
+            "NAVIGATE_TO GarbageCan|-01.94|00.00|+02.03",
+            "PLACE_INSIDE GarbageCan|-01.94|00.00|+02.03"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 2
         },
         "TemporalConstraints": []
       }
     ]
   },
   {
-    "Task": "Put Book in Cabinet",
+    "Task": "Put the Book in Cabinet",
     "Subtasks": [
       {
-        "Name": "Put Book in Cabinet",
+        "Name": "Store Book in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

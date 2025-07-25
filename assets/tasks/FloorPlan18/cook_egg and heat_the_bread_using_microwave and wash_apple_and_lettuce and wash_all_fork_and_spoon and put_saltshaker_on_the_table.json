@@ -16,7 +16,7 @@
             "NAVIGATE_TO Pan|+01.31|+00.99|+04.30",
             "GRASP Pan|+01.31|+00.99|+04.30",
             "NAVIGATE_TO StoveBurner|+01.32|+00.98|+04.29",
-            "PLACE_ON_TOP StoveBurner|+01.32|+00.98|+04.29",
+            "PLACE_ON_TOP Pan|+01.31|+00.99|+04.30 StoveBurner|+01.32|+00.98|+04.29",
             "NAVIGATE_TO StoveKnob|+01.14|+00.93|+04.31",
             "TOGGLE_ON StoveKnob|+01.14|+00.93|+04.31"
           ]
@@ -295,7 +295,7 @@
     ]
   },
   {
-    "Task": "Wash all Fork and Spoon",
+    "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
         "Name": "Wash Fork and place on counterTop",

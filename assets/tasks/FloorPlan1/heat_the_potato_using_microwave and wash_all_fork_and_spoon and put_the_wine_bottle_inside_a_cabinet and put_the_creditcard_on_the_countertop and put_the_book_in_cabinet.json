@@ -113,7 +113,7 @@
     ]
   },
   {
-    "Task": "Wash all Fork and Spoon",
+    "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
         "Name": "Wash Fork and place on counterTop",
@@ -182,7 +182,7 @@
     ]
   },
   {
-    "Task": "Put Wine Bottle inside a Cabinet",
+    "Task": "Store Wine Bottle and Credit Card, Place Book in Cabinet",
     "Subtasks": [
       {
         "Name": "Put Wine Bottle in Cabinet",
@@ -207,12 +207,7 @@
           "Interval": 3
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Put Credit Card on CounterTop",
-    "Subtasks": [
+      },
       {
         "Name": "Place Credit Card on CounterTop",
         "Repetition": 1,
@@ -234,12 +229,7 @@
           "Interval": 2
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Put Book in Cabinet",
-    "Subtasks": [
+      },
       {
         "Name": "Put Book in Cabinet",
         "Repetition": 1,

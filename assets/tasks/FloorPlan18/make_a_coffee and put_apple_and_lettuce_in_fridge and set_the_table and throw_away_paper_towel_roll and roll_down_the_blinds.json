@@ -129,58 +129,14 @@
           "Interval": 2
         },
         "TemporalConstraints": []
-      },
-      {
-        "Name": "Place Fork on DiningTable",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Fork|+01.27|+00.98|+01.24": 1,
-            "DiningTable|-00.16|+00.00|+06.47": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Fork|+01.27|+00.98|+01.24",
-            "GRASP Fork|+01.27|+00.98|+01.24",
-            "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
-            "PLACE_ON_TOP DiningTable|-00.16|+00.00|+06.47"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": []
-      },
-      {
-        "Name": "Place Spoon on DiningTable",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Spoon|+01.36|+00.98|+01.49": 1,
-            "DiningTable|-00.16|+00.00|+06.47": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Spoon|+01.36|+00.98|+01.49",
-            "GRASP Spoon|+01.36|+00.98|+01.49",
-            "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
-            "PLACE_ON_TOP DiningTable|-00.16|+00.00|+06.47"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": []
       }
     ]
   },
   {
-    "Task": "Throw Away Paper Towel Roll",
+    "Task": "Dispose of Paper Towel Roll",
     "Subtasks": [
       {
-        "Name": "Dispose of Paper Towel Roll in GarbageCan",
+        "Name": "Throw Away Paper Towel Roll",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -207,21 +163,16 @@
     "Task": "Roll Down the Blinds",
     "Subtasks": [
       {
-        "Name": "Roll Down Blinds",
+        "Name": "Impossible: Roll down the blinds cannot be achieved with current Environment Context",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {
-            "Blinds|+01.74|+02.56|+02.31": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Blinds|+01.74|+02.56|+02.31",
-            "CLOSE Blinds|+01.74|+02.56|+02.31"
-          ]
+          "Objects": {},
+          "PrimitiveActions": []
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 1
+          "Interval": 0
         },
         "TemporalConstraints": []
       }

@@ -90,13 +90,13 @@
         "Executions": {
           "Objects": {
             "Pan|+01.31|+00.99|+04.30": 1,
-            "CounterTop|+01.39|+01.03|+00.90": 1
+            "CounterTop|+01.39|+01.03|+04.72": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Pan|+01.31|+00.99|+04.30",
             "GRASP Pan|+01.31|+00.99|+04.30",
-            "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+            "NAVIGATE_TO CounterTop|+01.39|+01.03|+04.72",
+            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+04.72"
           ]
         },
         "Duration": {
@@ -201,15 +201,15 @@
           "Objects": {
             "Potato|-00.73|+01.02|+00.61": 1,
             "Microwave|+00.11|+00.98|+00.26": 1,
-            "CounterTop|+01.39|+01.03|+00.90": 1
+            "CounterTop|+01.39|+01.03|+04.72": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Microwave|+00.11|+00.98|+00.26",
             "OPEN Microwave|+00.11|+00.98|+00.26",
             "GRASP Potato|-00.73|+01.02|+00.61",
             "CLOSE Microwave|+00.11|+00.98|+00.26",
-            "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+            "NAVIGATE_TO CounterTop|+01.39|+01.03|+04.72",
+            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+04.72"
           ]
         },
         "Duration": {
@@ -228,7 +228,7 @@
     ]
   },
   {
-    "Task": "Store Apple and Lettuce in Fridge",
+    "Task": "Put Apple and Lettuce in Fridge",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",
@@ -281,7 +281,7 @@
     ]
   },
   {
-    "Task": "Dispose of Paper Towel Roll",
+    "Task": "Throw Away Paper Towel Roll",
     "Subtasks": [
       {
         "Name": "Throw Away Paper Towel Roll",
@@ -308,10 +308,10 @@
     ]
   },
   {
-    "Task": "Store Salt Shaker in Safe",
+    "Task": "Put Salt Shaker Inside the Safe",
     "Subtasks": [
       {
-        "Name": "Put Salt Shaker inside Safe",
+        "Name": "Put Salt Shaker Inside the Safe",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

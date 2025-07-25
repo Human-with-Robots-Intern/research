@@ -3,87 +3,29 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Fill Kettle with Water",
+        "Name": "Place Kettle on StoveBurner and Start Boiling",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Kettle|+01.59|+00.99|+03.25": 1,
-            "Sink|+01.39|+01.01|+02.33|SinkBasin": 1,
-            "Faucet|+01.62|+00.99|+02.33": 1
+            "StoveBurner|+01.56|+00.98|+03.85": 1,
+            "StoveKnob|+01.14|+00.93|+03.82": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Kettle|+01.59|+00.99|+03.25",
             "GRASP Kettle|+01.59|+00.99|+03.25",
-            "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
-            "PLACE_INSIDE Sink|+01.39|+01.01|+02.33|SinkBasin",
-            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
-            "TOGGLE_ON Faucet|+01.62|+00.99|+02.33"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 4
-        },
-        "TemporalConstraints": []
-      },
-      {
-        "Name": "Turn Off Faucet after Kettle is Filled",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Faucet|+01.62|+00.99|+02.33": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
-            "TOGGLE_OFF Faucet|+01.62|+00.99|+02.33"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 1
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Fill Kettle with Water",
-            "Interval": 3,
-            "Urgency": true
-          }
-        ]
-      },
-      {
-        "Name": "Place Kettle on StoveBurner and Boil",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Kettle|+01.59|+00.99|+03.25": 1,
-            "StoveBurner|+01.32|+00.98|+03.85": 1,
-            "StoveKnob|+01.14|+00.93|+03.99": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
-            "GRASP Kettle|+01.59|+00.99|+03.25",
-            "NAVIGATE_TO StoveBurner|+01.32|+00.98|+03.85",
-            "PLACE_ON_TOP StoveBurner|+01.32|+00.98|+03.85",
-            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.99",
-            "TOGGLE_ON StoveKnob|+01.14|+00.93|+03.99"
+            "NAVIGATE_TO StoveBurner|+01.56|+00.98|+03.85",
+            "PLACE_ON_TOP StoveBurner|+01.56|+00.98|+03.85",
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.82",
+            "TOGGLE_ON StoveKnob|+01.14|+00.93|+03.82"
           ]
         },
         "Duration": {
           "Type": "Controllable",
           "Interval": 3
         },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Turn Off Faucet after Kettle is Filled",
-            "Interval": 0,
-            "Urgency": true
-          }
-        ]
+        "TemporalConstraints": []
       },
       {
         "Name": "Turn Off Stove after Boiling Water",
@@ -91,11 +33,11 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|+01.14|+00.93|+03.99": 1
+            "StoveKnob|+01.14|+00.93|+03.82": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.99",
-            "TOGGLE_OFF StoveKnob|+01.14|+00.93|+03.99"
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.82",
+            "TOGGLE_OFF StoveKnob|+01.14|+00.93|+03.82"
           ]
         },
         "Duration": {
@@ -105,7 +47,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Kettle on StoveBurner and Boil",
+            "Subtask": "Place Kettle on StoveBurner and Start Boiling",
             "Interval": 10,
             "Urgency": true
           }
@@ -364,7 +306,7 @@
     "Task": "Put Salt Shaker inside the Safe",
     "Subtasks": [
       {
-        "Name": "Place Salt Shaker in Safe",
+        "Name": "Put Salt Shaker inside Safe",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

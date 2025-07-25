@@ -49,11 +49,41 @@
             "Urgency": false
           }
         ]
+      },
+      {
+        "Name": "Retrieve Coffee from Machine and Place on CounterTop",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mug|+01.48|+00.88|+02.61": 1,
+            "CoffeeMachine|+01.55|+00.98|+00.95": 1,
+            "CounterTop|+01.39|+01.03|+00.90": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO CoffeeMachine|+01.55|+00.98|+00.95",
+            "GRASP Mug|+01.48|+00.88|+02.61",
+            "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
+            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Start Coffee Machine",
+            "Interval": 5,
+            "Urgency": false
+          }
+        ]
       }
     ]
   },
   {
-    "Task": "Store Apple and Lettuce in Fridge",
+    "Task": "Put Apple and Lettuce in Fridge",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",
@@ -133,10 +163,10 @@
     ]
   },
   {
-    "Task": "Dispose of Paper Towel Roll",
+    "Task": "Throw Away Paper Towel Roll",
     "Subtasks": [
       {
-        "Name": "Throw Away Paper Towel Roll",
+        "Name": "Dispose of Paper Towel Roll in GarbageCan",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -160,29 +190,19 @@
     ]
   },
   {
-    "Task": "Store Salt Shaker in Safe",
+    "Task": "Put Salt Shaker Inside the Safe",
     "Subtasks": [
       {
-        "Name": "Put Salt Shaker in Safe",
+        "Name": "Impossible: Safe cannot be opened with current Environment Context",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {
-            "SaltShaker|+01.62|+00.98|+03.50": 1,
-            "Safe|+02.05|+00.00|+07.05": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO SaltShaker|+01.62|+00.98|+03.50",
-            "GRASP SaltShaker|+01.62|+00.98|+03.50",
-            "NAVIGATE_TO Safe|+02.05|+00.00|+07.05",
-            "OPEN Safe|+02.05|+00.00|+07.05",
-            "PLACE_INSIDE Safe|+02.05|+00.00|+07.05",
-            "CLOSE Safe|+02.05|+00.00|+07.05"
-          ]
+          "Objects": {},
+          "PrimitiveActions": []
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 3
+          "Interval": 0
         },
         "TemporalConstraints": []
       }

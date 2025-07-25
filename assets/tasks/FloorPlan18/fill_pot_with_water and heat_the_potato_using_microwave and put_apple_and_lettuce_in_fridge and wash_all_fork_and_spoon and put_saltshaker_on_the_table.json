@@ -169,7 +169,7 @@
     ]
   },
   {
-    "Task": "Store Apple and Lettuce in Fridge",
+    "Task": "Put Apple and Lettuce in Fridge",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",
@@ -225,21 +225,38 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Impossible: Ambiguous object reference. Please specify which Fork.",
+        "Name": "Wash Fork",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "Fork|+01.27|+00.98|+01.24": 1,
+            "Sink|+01.39|+01.01|+02.33|SinkBasin": 1,
+            "Faucet|+01.62|+00.99|+02.33": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Fork|+01.27|+00.98|+01.24",
+            "GRASP Fork|+01.27|+00.98|+01.24",
+            "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
+            "PLACE_INSIDE Sink|+01.39|+01.01|+02.33|SinkBasin",
+            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
+            "TOGGLE_ON Faucet|+01.62|+00.99|+02.33",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|+01.62|+00.99|+02.33",
+            "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
+            "GRASP Fork|+01.27|+00.98|+01.24",
+            "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
+            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 7
         },
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -275,7 +292,7 @@
     "Task": "Put SaltShaker on the Table",
     "Subtasks": [
       {
-        "Name": "Put SaltShaker on DiningTable",
+        "Name": "Place SaltShaker on DiningTable",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
