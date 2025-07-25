@@ -30,6 +30,7 @@ from src.utils.io_utils.task_io import (
     load_task_data_from_file,
 )
 from src.utils.task.task_util import TaskUtil
+from src.utils.ros_executor import RosExecutor
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
@@ -544,56 +545,19 @@ def main():
         result_save(**result_args)
         
     if args.ros:
-        from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
-        from src.ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
-        from src.ros.ttp_ws.ttp_client.ttp_client.simulate_object_pos_change import SimulateObjectPosChange
-        simulate_object_pos_change = SimulateObjectPosChange()
-        translator = InstructionTranslator()
-        init_ros_communication()
-        try:
-            #디버깅용 코드
-            agent_location = [0,0,0]
-            held_object = None
-            ###
-            for entry in result_schedule:
-                subtask = entry.subtask
-                primitive_actions = subtask.execution.primitive_actions
-                if not primitive_actions:
-                    continue
-                for primitive_action in primitive_actions:
-                    primitive_action_parts = primitive_action.split(" ")
-                    if primitive_action_parts[0].lower() == "wait":
-                        time.sleep(float(primitive_action_parts[1]))
-                        continue
-                    translated_primitive_action = translator.translate(primitive_action)
-                    success = communicate(translated_primitive_action)
-                    # 물건의 위치를 추적하기 위한 코드
-                    if primitive_action_parts[0].lower() == "grasp":
-                        simulate_object_pos_change._simulate_grasp(
-                            primitive_action_parts[1].lower()
-                        )
-                        # 디버깅 용
-                        held_object = primitive_action_parts[1]
-                        print(f"held_object: {held_object}")
-                        ###
-                    elif primitive_action_parts[0].lower().startswith("place"):
-                        simulate_object_pos_change._simulate_place(
-                            primitive_action_parts[1].lower()
-                        )
-                        # 디버깅 용
-                        print(f"simulate_object_pos_change._get_object_pos(held_object): {simulate_object_pos_change._get_object_pos(held_object.lower())}")
-                        ###
-
-                    if not success:
-                        print(f"Action '{primitive_action}' failed. Stopping task.")
-                        # 여기서 루프를 중단할지 여부는 정책에 따라 결정할 수 있습니다.
-                        # 여기서는 바깥 루프까지 중단하도록 처리합니다.
-                        break
-                else:  # 내부 루프가 break 없이 완료된 경우
-                    continue
-                break  # 내부 루프가 break로 중단된 경우 외부 루프도 중단
-        finally:
-            shutdown_ros_communication()
+        ros_executor = RosExecutor()
+        ros_executor.execute_schedule(result_schedule)
+        
+        result_args = {
+            "task_name": input_natural_language,
+            "approach_name": f"{approach_name}_ros",
+            "result_schedule": result_schedule,
+            "computation_time": computation_time,
+            "scene_name": scene_name,
+            "constraints": constraints,
+            "initial_plan_data": task_data,
+        }
+        result_save(**result_args)
 
 
 if __name__ == "__main__":

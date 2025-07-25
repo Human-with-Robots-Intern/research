@@ -18,6 +18,7 @@ from utils.io_utils import (
 )
 from utils.io_utils.task_io import get_user_scene_choice, load_scene_positions
 from utils.task import TaskUtil
+from src.utils.ros_executor import RosExecutor
 
 log = create_module_logger(__name__, module_log=True)
 
@@ -145,92 +146,89 @@ def main():
     is_end = False
 
     total_compute_time, total_sim_time = 0, 0
+    
+    ros_executor = RosExecutor() if args.ros else None
+    
+    try:
+        while not is_end:
 
-    while not is_end:
+            next_state, computation_elapsed_time = scheduler.get_next_state(current_state)
+            total_compute_time += computation_elapsed_time
 
-        next_state, computation_elapsed_time = scheduler.get_next_state(current_state)
-        total_compute_time += computation_elapsed_time
-
-        if next_state is None:
-            log.error("No feasible solution found.")
-            break
-        if args.simulation:
-            sim_elapsed_time, execution_status, sim_nav_time = execute_subtask(
-                controller, next_state.subtask, args.log_level
-            )
-            # 시뮬레이션에서 흐른 시간과 실행 상태를 저장.
-            last_entry = next_state.completed_entries[-1]
-            last_entry.sim_start_time = total_sim_time
-            last_entry.sim_end_time = total_sim_time + sim_elapsed_time
-            last_entry.execution_status = execution_status
-            last_entry.sim_nav_time = sim_nav_time
-            total_sim_time += sim_elapsed_time
-            if next_state.subtask.subtask_type == "Monitor":
-                # ? 정말 constraint가 잘 전파된 것이 맞나?
-                next_state, monitored_subtask = agent.bayesian_estimate(next_state)
-                next_state.completed_entries[-1].monitored_subtask = monitored_subtask
-            current_state = next_state
-            if not current_state.remaining_subtasks:
-                is_end = True
-
-            last_entry = current_state.completed_entries[-1]
-            if last_entry.subtask.name != "Init":
-                log.info(
-                    f"{last_entry.subtask.name} ({round(last_entry.sim_start_time, LOG_ROUND)} ~ {round(last_entry.sim_end_time,LOG_ROUND)})"
-                )
-                log.info(f"Primitive actions: {last_entry.subtask.execution.primitive_actions}\n")
-                last_entry.start_time_scheduled = round(last_entry.sim_start_time, LOG_ROUND)
-                last_entry.end_time_scheduled = round(last_entry.sim_end_time, LOG_ROUND)
+            if next_state is None:
+                log.error("No feasible solution found.")
+                break
             
+            if args.simulation:
+                sim_elapsed_time, execution_status, sim_nav_time = execute_subtask(
+                    controller, next_state.subtask, args.log_level
+                )
+                # 시뮬레이션에서 흐른 시간과 실행 상태를 저장.
+                last_entry = next_state.completed_entries[-1]
+                last_entry.sim_start_time = total_sim_time
+                last_entry.sim_end_time = total_sim_time + sim_elapsed_time
+                last_entry.execution_status = execution_status
+                last_entry.sim_nav_time = sim_nav_time
+                total_sim_time += sim_elapsed_time
+                if next_state.subtask.subtask_type == "Monitor":
+                    # ? 정말 constraint가 잘 전파된 것이 맞나?
+                    next_state, monitored_subtask = agent.bayesian_estimate(next_state)
+                    next_state.completed_entries[-1].monitored_subtask = monitored_subtask
+                current_state = next_state
+                if not current_state.remaining_subtasks:
+                    is_end = True
 
-        if args.ros:
-            from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
-            from src.ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
-            from src.ros.ttp_ws.ttp_client.ttp_client.simulate_object_pos_change import SimulateObjectPosChange
-            simulate_object_pos_change = SimulateObjectPosChange()
-            translator = InstructionTranslator()
-            init_ros_communication()
-            #디버깅용 코드
-            agent_location = [0,0,0]
-            held_object = None
-            ###
-            primitive_actions = next_state.subtask.execution.primitive_actions
-            if not primitive_actions:
-                continue
-            for primitive_action in primitive_actions:
-                primitive_action_parts = primitive_action.split(" ")
-                if primitive_action_parts[0].lower() == "wait":
-                    time.sleep(float(primitive_action_parts[1]))
-                    continue
-                translated_primitive_action = translator.translate(primitive_action)
-                success = communicate(translated_primitive_action)
-                # 물건의 위치를 추적하기 위한 코드
-                if primitive_action_parts[0].lower() == "grasp":
-                    simulate_object_pos_change._simulate_grasp(
-                        primitive_action_parts[1].lower()
+                last_entry = current_state.completed_entries[-1]
+                if last_entry.subtask.name != "Init":
+                    log.info(
+                        f"{last_entry.subtask.name} ({round(last_entry.sim_start_time, LOG_ROUND)} ~ {round(last_entry.sim_end_time,LOG_ROUND)})"
                     )
-                    # 디버깅 용
-                    held_object = primitive_action_parts[1]
-                    print(f"held_object: {held_object}")
-                    ###
-                elif primitive_action_parts[0].lower().startswith("place"):
-                    simulate_object_pos_change._simulate_place(
-                        primitive_action_parts[1].lower()
-                    )
-                    # 디버깅 용
-                    print(f"simulate_object_pos_change._get_object_pos(held_object): {simulate_object_pos_change._get_object_pos(held_object.lower())}")
-                    ###
+                    log.info(f"Primitive actions: {last_entry.subtask.execution.primitive_actions}\n")
+                    last_entry.start_time_scheduled = round(last_entry.sim_start_time, LOG_ROUND)
+                    last_entry.end_time_scheduled = round(last_entry.sim_end_time, LOG_ROUND)
+            
+            if args.ros and ros_executor:
+                ros_start_offset = ros_executor.total_ros_time
+                success, elapsed_time, action_logs = ros_executor.execute_subtask(next_state.subtask)
+                
+                last_entry = next_state.completed_entries[-1]
+                last_entry.sim_start_time = ros_start_offset
+                last_entry.sim_end_time = ros_start_offset + elapsed_time
+                last_entry.execution_status = success
+                last_entry.primitive_action_log = action_logs
+
                 if not success:
-                    print(f"Action '{primitive_action}' failed. Stopping task.")
+                    break
 
-            if next_state.subtask.subtask_type == "Monitor":
-                # ? 정말 constraint가 잘 전파된 것이 맞나?
-                next_state, monitored_subtask = agent.bayesian_estimate(next_state)
-                next_state.completed_entries[-1].monitored_subtask = monitored_subtask
-            current_state = next_state
-            if not current_state.remaining_subtasks:
-                is_end = True
-                shutdown_ros_communication()
+                if next_state.subtask.subtask_type == "Monitor":
+                    next_state, monitored_subtask = agent.bayesian_estimate(next_state)
+                    next_state.completed_entries[-1].monitored_subtask = monitored_subtask
+                
+                current_state = next_state
+                if not current_state.remaining_subtasks:
+                    is_end = True
+    finally:
+        if ros_executor:
+            ros_executor.shutdown()
+            
+    if args.ros:
+        result_schedule = [
+            entry
+            for entry in current_state.completed_entries
+            if entry.subtask.name != "Init"
+        ]
+        approach_name = f"{approach_name}_ros"
+        result_args = {
+            "task_name": input_natural_language,
+            "approach_name": approach_name,
+            "result_schedule": result_schedule,
+            "computation_time": total_compute_time,
+            "scene_name": scene_name,
+            "constraints": current_state.constraints,
+            "initial_plan_data": task_data,
+        }
+        result_save(**result_args)
+
     if args.simulation:
         result_schedule = [
             entry

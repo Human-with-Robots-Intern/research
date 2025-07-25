@@ -178,6 +178,13 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             "end_time_scheduled": round(entry.schedule_end_time, 2),
             "execution_status": entry.execution_status,
         }
+        if hasattr(entry, "primitive_action_log"):
+            serialized_entry["primitive_action_log"] = [
+                {
+                    "action": log["action"],
+                    "duration": round(log["duration"], 2)
+                } for log in entry.primitive_action_log
+            ]
         serialized_entries.append(serialized_entry)
     return serialized_entries
 
@@ -205,6 +212,22 @@ def result_save(
     # Serialize the result schedule
     serialized_plans = serialize_completed_entries(result_schedule)
 
+    total_primitive_actions = sum(
+        len(entry.subtask.execution.primitive_actions)
+        for entry in result_schedule
+        if (
+            hasattr(entry, "subtask")
+            and hasattr(entry.subtask, "execution")
+            and entry.subtask.execution is not None
+            and hasattr(entry.subtask.execution, "primitive_actions")
+            and entry.subtask.execution.primitive_actions is not None
+        )
+    )
+    
+    realworld_makespan = None
+    if "ros" in approach_name:
+        realworld_makespan = round(simulation_makespan, 2)
+
     result_data = {
         "saved_time": get_now_str(),
         "approach": approach_name,
@@ -213,7 +236,8 @@ def result_save(
         "computation_time": round(computation_time, 5),
         "simulation_makespan": round(simulation_makespan, 2),
         "scheduler_makespan": round(scheduler_makespan, 2),
-        "realworld_makespan": None,
+        "total_primitive_actions": total_primitive_actions,
+        "realworld_makespan": realworld_makespan,
         "success_rate": round(success_rate, 2),
         "timing_success_rate_sim": None if timing_success_rate_sim is None else round(timing_success_rate_sim, 2),
         "timing_success_rate_sched": None if timing_success_rate_sched is None else round(timing_success_rate_sched, 2),
