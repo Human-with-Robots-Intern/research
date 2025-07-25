@@ -172,6 +172,7 @@ class TaskUtil:
     @classmethod
     def check_obj_id(cls, scene_name: str, tasks: List[Task]) -> List[Task]:
         """
+        scene_name 은 physics_environment.json 으로 끝남
         Subtask의 primitive_actions에 사용된 obj_id가 유효한지 확인 후,
         유효하지 않다면 문장 유사도 기반으로 가장 가까운 후보로 교체한다.
         """
@@ -209,6 +210,30 @@ class TaskUtil:
                 candidates = all_object_ids_in_scene
             elif base_action in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
                 candidates = object_map_in_scene.get("RECEPTACLE", [])
+                split_obj = target_obj.split(' ', 1)
+                if len(split_obj) > 1:
+                    obj1, obj2 = split_obj
+                    obj1_type = obj1.split('|')[0]
+                    obj2_type = obj2.split('|')[0]
+
+                    receptacle_types = object_categories.get("RECEPTACLE", [])
+                    recepacles = set()
+                    for receptacle_type in receptacle_types:
+                        receptacle_type = receptacle_type.split('|')[0]
+                        recepacles.add(receptacle_type)
+                        
+                    is_obj1_receptacle = obj1_type in recepacles
+                    is_obj2_receptacle = obj2_type in recepacles
+
+                    if is_obj2_receptacle:
+                        target_obj = obj2
+                    elif is_obj1_receptacle:
+                        target_obj = obj1
+                    else:
+                        raise ValueError(f"For action '{action}', neither '{obj1}' nor '{obj2}' is a valid receptacle.")
+                else:
+                    # When only one object is specified for a PLACE action, it's assumed to be the receptacle.
+                    target_obj = target_obj
             else:
                 # Fallback for other actions, get candidates of the same type
                 target_obj_type = target_obj.split('|')[0]
