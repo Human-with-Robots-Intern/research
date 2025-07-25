@@ -7,15 +7,15 @@ predefined: true # Use predefined numbered instructions (1-20) instead of loadin
 scene_type: "kitchen" # Default scene type to run. Options: 'kitchen', 'bathroom'
 ros: false # Enable ROS communication
 simulation: true # Enable Simulation mode
-
+start_idx: 30 # Start index for the instruction
 # Execution settings
 # List of approaches (scripts) to run
 approaches:
   - "src/baselines/cpm.py"
-  - "src/baselines/edf/dag_edf.py"
-  - "src/dag_bayesian.py"
-  - "src/baselines/progprompt/prog_ai2thor.py"
-  - "src/baselines/cap/cap_ai2thor.py"
+  # - "src/baselines/edf/dag_edf.py"
+  # - "src/dag_bayesian.py"
+  # - "src/baselines/progprompt/prog_ai2thor.py"
+  # - "src/baselines/cap/cap_ai2thor.py"
 
 
 # Scripts that use LLMs and are subject to retries on failure
@@ -26,7 +26,7 @@ llm_scripts:
 # Scene lists for each scene type
 scene_lists:
   kitchen:
-    - "FloorPlan1"
+    - "FloorPlan1"  
     - "FloorPlan7"
     - "FloorPlan13"
     - "FloorPlan18"
