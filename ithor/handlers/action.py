@@ -106,6 +106,8 @@ class Action:
                 forceAction=True,
                 manualInteract=False,
             )
+            self.controller.step(action="Pass")
+
             if result.metadata["lastActionSuccess"]:
                 self.close(receptacle_id)
                 elapsed_time += 1
@@ -423,7 +425,7 @@ class Action:
                 success = self.controller.last_event.metadata["lastActionSuccess"]
                 if not success:
                     error_message = result.metadata.get('errorMessage', 'No error message.')
-                    log.warning(f"NAV_DEBUG: Final rotation to {object_id} failed. Error: {error_message}")
+                    log.warning(f"NAV_DEBUG: Final rotati?on to {object_id} failed. Error: {error_message}")
                     # 회전 실패 시 각도대로 살짝 이동 후 재시도
                     self.navi.move_in_direction(-obj_angle, 0.2)
                     recovery_result = self.controller.step(
@@ -431,7 +433,7 @@ class Action:
                     )
                     if not recovery_result.metadata["lastActionSuccess"]:
                         rec_error = recovery_result.metadata.get('errorMessage', 'No error message.')
-                        log.error(f"NAV_DEBUG: Rotation recovery also failed. Error: {rec_error}")
+                        # log.error(f"NAV_DEBUG: Rotation recovery also failed. Error: {rec_error}")
 
 
         # 카메라 각도 조정
