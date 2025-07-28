@@ -97,9 +97,11 @@ class TaskGenerator:
 
         # Prompt(예제) 로드
         if scene_type == "bathroom":
-            examples_prompt = self.load_file(Path(PROMPT_PATH) / "e2e_generator_ver11_bathroom.txt", "txt")
+            examples_prompt = self.load_file(Path(PROMPT_PATH) / "e2e_generator_ver12_bathroom.txt", "txt")
+        elif scene_type == "kitchen":
+            examples_prompt = self.load_file(Path(PROMPT_PATH) / "e2e_generator_ver12_kitchen.txt", "txt")
         else:
-            examples_prompt = self.load_file(Path(PROMPT_PATH) / "e2e_generator_ver11_kitchen.txt", "txt")
+            examples_prompt = self.load_file(Path(PROMPT_PATH) / "e2e_generator_ver12_real.txt", "txt")
 
         # RAG 모드 활성화 시, FewShotRetriever 활용
         if self.is_rag:
