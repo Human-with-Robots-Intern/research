@@ -126,7 +126,7 @@
     "Task": "Throw away cloth",
     "Subtasks": [
       {
-        "Name": "Throw cloth in garbage can",
+        "Name": "Throw cloth in garbage",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

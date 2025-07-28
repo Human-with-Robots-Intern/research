@@ -59,15 +59,14 @@
         "Executions": {
           "Objects": {
             "SprayBottle|-00.84|+01.64|+00.35": 1,
-            "Toilet|-00.46|00.00|+02.26": 1
+            "Toilet|-00.46|+00.00|+02.26": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO SprayBottle|-00.84|+01.64|+00.35",
             "GRASP SprayBottle|-00.84|+01.64|+00.35",
-            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "NAVIGATE_TO Toilet|-00.46|+00.00|+02.26",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
-            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
+            "PLACE_ON_TOP Toilet|-00.46|+00.00|+02.26"
           ]
         },
         "Duration": {
@@ -83,15 +82,14 @@
         "Executions": {
           "Objects": {
             "ScrubBrush|-00.66|00.00|+02.56": 1,
-            "Toilet|-00.46|00.00|+02.26": 1
+            "Toilet|-00.46|+00.00|+02.26": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO ScrubBrush|-00.66|00.00|+02.56",
             "GRASP ScrubBrush|-00.66|00.00|+02.56",
-            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "NAVIGATE_TO Toilet|-00.46|+00.00|+02.26",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
-            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
+            "PLACE_ON_TOP Toilet|-00.46|+00.00|+02.26"
           ]
         },
         "Duration": {
@@ -133,8 +131,8 @@
             "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
             "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
             "GRASP SoapBottle|-00.95|+01.13|+00.42",
-            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
-            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
+            "NAVIGATE_TO Toilet|-00.46|+00.00|+02.26",
+            "PLACE_ON_TOP Toilet|-00.46|+00.00|+02.26"
           ]
         },
         "Duration": {
@@ -149,7 +147,7 @@
     "Task": "Place Toilet Paper on Holder",
     "Subtasks": [
       {
-        "Name": "Place Toilet Paper on Toilet Paper Holder",
+        "Name": "Place Toilet Paper on Holder",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -176,7 +174,7 @@
     "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn On Light Switch",
+        "Name": "Turn On Light",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

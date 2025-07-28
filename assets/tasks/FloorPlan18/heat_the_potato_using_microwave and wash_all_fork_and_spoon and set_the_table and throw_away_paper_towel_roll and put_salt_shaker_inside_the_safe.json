@@ -116,7 +116,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Wash Fork and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -147,7 +147,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -278,7 +278,7 @@
     ]
   },
   {
-    "Task": "Put Salt Shaker Inside the Safe",
+    "Task": "Put Salt Shaker inside the Safe",
     "Subtasks": [
       {
         "Name": "Place Salt Shaker in Safe",

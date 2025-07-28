@@ -265,7 +265,7 @@
     ]
   },
   {
-    "Task": "Set the Table",
+    "Task": "Set the Table and Place SaltShaker",
     "Subtasks": [
       {
         "Name": "Place Plate on CounterTop for Meal",
@@ -290,63 +290,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Tomato on CounterTop for Meal",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Tomato|-00.39|+01.14|-00.81": 1,
-            "CounterTop|-00.08|+01.15|+00.00": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Tomato|-00.39|+01.14|-00.81",
-            "GRASP Tomato|-00.39|+01.14|-00.81",
-            "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
-            "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": []
-      },
-      {
-        "Name": "Serve Toasted Bread on Plate",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Bread|-00.52|+01.17|-00.03": 1,
-            "Plate|+00.96|+01.65|-02.61": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Bread|-00.52|+01.17|-00.03",
-            "GRASP Bread|-00.52|+01.17|-00.03",
-            "NAVIGATE_TO Plate|+00.96|+01.65|-02.61",
-            "PLACE_ON_TOP Plate|+00.96|+01.65|-02.61"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Place Plate on CounterTop for Meal",
-            "Interval": 0,
-            "Urgency": false
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "Task": "Put SaltShaker on the Table",
-    "Subtasks": [
-      {
-        "Name": "Place SaltShaker on CounterTop",
+        "Name": "Place SaltShaker on CounterTop for Meal",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

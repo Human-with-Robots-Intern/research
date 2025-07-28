@@ -1,6 +1,6 @@
 [
   {
-    "Task": "Heat the Potato using Microwave",
+    "Task": "Heat Potato using Microwave",
     "Subtasks": [
       {
         "Name": "Place Potato in Microwave",
@@ -113,7 +113,7 @@
     ]
   },
   {
-    "Task": "Wash all Fork and Spoon",
+    "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
         "Name": "Wash Fork and place on counterTop",
@@ -182,10 +182,10 @@
     ]
   },
   {
-    "Task": "Put Wine Bottle inside a Cabinet",
+    "Task": "Store Items and Organize",
     "Subtasks": [
       {
-        "Name": "Put Wine Bottle in Cabinet",
+        "Name": "Put WineBottle in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -207,14 +207,9 @@
           "Interval": 3
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Put Credit Card on CounterTop",
-    "Subtasks": [
+      },
       {
-        "Name": "Place Credit Card on CounterTop",
+        "Name": "Put CreditCard on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -234,12 +229,7 @@
           "Interval": 2
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Put Book in Cabinet",
-    "Subtasks": [
+      },
       {
         "Name": "Put Book in Cabinet",
         "Repetition": 1,

@@ -50,10 +50,10 @@
     ]
   },
   {
-    "Task": "Wet the SoapBar with Water",
+    "Task": "Wet the Soapbar",
     "Subtasks": [
       {
-        "Name": "Wet SoapBar in Sink",
+        "Name": "Wet soapbar in Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -116,7 +116,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in Garbage Can",
+        "Name": "Dispose of Cloth in Garbage Can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -143,7 +143,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close Shower Curtain",
+        "Name": "Close the Shower Curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -157,7 +157,7 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 1
+          "Interval": 2
         },
         "TemporalConstraints": []
       }

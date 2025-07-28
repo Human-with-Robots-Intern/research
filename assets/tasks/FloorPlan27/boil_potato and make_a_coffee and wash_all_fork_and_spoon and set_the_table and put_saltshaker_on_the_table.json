@@ -54,7 +54,7 @@
         ]
       },
       {
-        "Name": "Place Potato in Pot and Start Boiling",
+        "Name": "Place Potato in Pot and Start Boiling on Stove",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -69,8 +69,10 @@
             "GRASP Potato|+01.92|+00.97|+02.20",
             "NAVIGATE_TO Pot|+01.85|+00.93|+01.50",
             "PLACE_INSIDE Pot|+01.85|+00.93|+01.50",
+            "NAVIGATE_TO Pot|+01.85|+00.93|+01.50",
+            "GRASP Pot|+01.85|+00.93|+01.50",
             "NAVIGATE_TO StoveBurner|+01.87|+00.93|+01.50",
-            "PLACE_ON_TOP StoveBurner|+01.87|+00.93|+01.50",
+            "PLACE_ON_TOP Pot|+01.85|+00.93|+01.50 StoveBurner|+01.87|+00.93|+01.50",
             "NAVIGATE_TO StoveKnob|+02.33|+01.09|+01.46",
             "TOGGLE_ON StoveKnob|+02.33|+01.09|+01.46"
           ]
@@ -108,7 +110,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Potato in Pot and Start Boiling",
+            "Subtask": "Place Potato in Pot and Start Boiling on Stove",
             "Interval": 15,
             "Urgency": true
           }
@@ -203,7 +205,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Wash Fork",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -220,7 +222,6 @@
             "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
             "TOGGLE_ON Faucet|+01.18|+00.93|+02.95",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
             "TOGGLE_OFF Faucet|+01.18|+00.93|+02.95",
             "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
             "GRASP Fork|+01.64|+00.93|+02.60",
@@ -235,7 +236,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -252,7 +253,6 @@
             "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
             "TOGGLE_ON Faucet|+01.18|+00.93|+02.95",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
             "TOGGLE_OFF Faucet|+01.18|+00.93|+02.95",
             "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
             "GRASP Spoon|+01.59|+00.93|+02.69",

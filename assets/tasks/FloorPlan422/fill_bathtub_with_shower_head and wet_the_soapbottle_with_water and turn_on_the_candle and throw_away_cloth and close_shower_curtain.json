@@ -22,7 +22,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Turn Off Shower Head after Bathtub is Filled",
+        "Name": "Stop Filling Bathtub with Shower Head",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -73,8 +73,8 @@
             "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
             "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
             "GRASP SoapBottle|-00.95|+01.13|+00.42",
-            "NAVIGATE_TO CounterTop|-01.92|+00.00|+00.29",
-            "PLACE_ON_TOP CounterTop|-01.92|+00.00|+00.29"
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
         "Duration": {
@@ -89,7 +89,7 @@
     "Task": "Turn On the Candle",
     "Subtasks": [
       {
-        "Name": "Turn On Candle",
+        "Name": "Light the Candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -113,19 +113,19 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in Garbage Can",
+        "Name": "Dispose of Cloth in Garbage Can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Cloth|-00.51|+00.94|+02.72": 1,
-            "GarbageCan|-00.26|+00.00|+00.26": 1
+            "GarbageCan|-00.26|00.00|+00.26": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Cloth|-00.51|+00.94|+02.72",
             "GRASP Cloth|-00.51|+00.94|+02.72",
-            "NAVIGATE_TO GarbageCan|-00.26|+00.00|+00.26",
-            "PLACE_INSIDE GarbageCan|-00.26|+00.00|+00.26"
+            "NAVIGATE_TO GarbageCan|-00.26|00.00|+00.26",
+            "PLACE_INSIDE GarbageCan|-00.26|00.00|+00.26"
           ]
         },
         "Duration": {
@@ -140,7 +140,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close Shower Curtain",
+        "Name": "Close the Shower Curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

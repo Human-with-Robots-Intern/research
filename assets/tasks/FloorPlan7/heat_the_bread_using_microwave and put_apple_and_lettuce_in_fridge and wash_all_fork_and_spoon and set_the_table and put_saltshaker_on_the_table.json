@@ -86,15 +86,15 @@
           "Objects": {
             "Bread|-01.60|+00.98|-00.84": 1,
             "Microwave|+01.15|+01.66|-01.61": 1,
-            "CounterTop|+01.65|+00.95|-01.53": 1
+            "CounterTop|-01.87|+00.95|-00.61": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Microwave|+01.15|+01.66|-01.61",
             "OPEN Microwave|+01.15|+01.66|-01.61",
             "GRASP Bread|-01.60|+00.98|-00.84",
             "CLOSE Microwave|+01.15|+01.66|-01.61",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -113,7 +113,7 @@
     ]
   },
   {
-    "Task": "Put Apple and Lettuce in Fridge",
+    "Task": "Store Apple and Lettuce in Fridge",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",
@@ -189,8 +189,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Fork|-02.04|+00.71|-01.66",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -220,8 +220,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Spoon|-02.05|+00.71|-01.46",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -233,7 +233,7 @@
     ]
   },
   {
-    "Task": "Set the Table and Place SaltShaker",
+    "Task": "Set the Table",
     "Subtasks": [
       {
         "Name": "Place Plate on DiningTable",
@@ -300,7 +300,12 @@
           "Interval": 2
         },
         "TemporalConstraints": []
-      },
+      }
+    ]
+  },
+  {
+    "Task": "Place SaltShaker on DiningTable",
+    "Subtasks": [
       {
         "Name": "Place SaltShaker on DiningTable",
         "Repetition": 1,

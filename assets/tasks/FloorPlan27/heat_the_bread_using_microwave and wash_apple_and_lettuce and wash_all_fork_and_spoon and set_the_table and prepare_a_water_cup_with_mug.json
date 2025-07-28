@@ -366,7 +366,7 @@
           {
             "Type": "After",
             "Subtask": "Place Mug in Sink and Start Filling",
-            "Interval": 1,
+            "Interval": 3,
             "Urgency": true
           }
         ]

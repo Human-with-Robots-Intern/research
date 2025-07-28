@@ -212,7 +212,7 @@ class ActionHandler:
                 f"    State after : Time={current_cumulative_time:.2f}, Held={current_held_object}"
             )
             log.debug(f"--- End simulation step {i+1} ---")
-            log.warning(f"action_str: {action_str}, action_duration: {action_duration}")
+            log.debug(f"action_str: {action_str}, action_duration: {action_duration}")
             action_log.add_result(
                 action_full_name=action_str,
                 action_type=action_type,

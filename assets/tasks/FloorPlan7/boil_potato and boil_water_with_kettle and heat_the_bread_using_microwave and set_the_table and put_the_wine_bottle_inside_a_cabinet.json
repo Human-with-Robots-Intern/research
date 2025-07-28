@@ -54,7 +54,7 @@
         ]
       },
       {
-        "Name": "Place Potato in Pot and Start Boiling",
+        "Name": "Place Potato in Pot and Start Boiling on Stove",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -69,8 +69,10 @@
             "GRASP Potato|+00.22|+01.16|+02.16",
             "NAVIGATE_TO Pot|-01.60|+00.90|-00.17",
             "PLACE_INSIDE Pot|-01.60|+00.90|-00.17",
+            "NAVIGATE_TO Pot|-01.60|+00.90|-00.17",
+            "GRASP Pot|-01.60|+00.90|-00.17",
             "NAVIGATE_TO StoveBurner|+01.33|+00.96|-01.42",
-            "PLACE_ON_TOP StoveBurner|+01.33|+00.96|-01.42",
+            "PLACE_ON_TOP Pot|-01.60|+00.90|-00.17 StoveBurner|+01.33|+00.96|-01.42",
             "NAVIGATE_TO StoveKnob|+01.34|+00.91|-01.24",
             "TOGGLE_ON StoveKnob|+01.34|+00.91|-01.24"
           ]
@@ -108,7 +110,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Potato in Pot and Start Boiling",
+            "Subtask": "Place Potato in Pot and Start Boiling on Stove",
             "Interval": 15,
             "Urgency": true
           }
@@ -133,7 +135,7 @@
             "NAVIGATE_TO Kettle|-00.83|+00.90|-01.76",
             "GRASP Kettle|-00.83|+00.90|-01.76",
             "NAVIGATE_TO StoveBurner|+01.33|+00.96|-01.69",
-            "PLACE_ON_TOP StoveBurner|+01.33|+00.96|-01.69",
+            "PLACE_ON_TOP Kettle|-00.83|+00.90|-01.76 StoveBurner|+01.33|+00.96|-01.69",
             "NAVIGATE_TO StoveKnob|+01.21|+00.91|-01.24",
             "TOGGLE_ON StoveKnob|+01.21|+00.91|-01.24"
           ]
@@ -259,15 +261,15 @@
           "Objects": {
             "Bread|-01.60|+00.98|-00.84": 1,
             "Microwave|+01.15|+01.66|-01.61": 1,
-            "CounterTop|+01.65|+00.95|-01.53": 1
+            "CounterTop|-01.87|+00.95|-00.61": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Microwave|+01.15|+01.66|-01.61",
             "OPEN Microwave|+01.15|+01.66|-01.61",
             "GRASP Bread|-01.60|+00.98|-00.84",
             "CLOSE Microwave|+01.15|+01.66|-01.61",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP Bread|-01.60|+00.98|-00.84 CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -301,7 +303,7 @@
             "NAVIGATE_TO Plate|+00.14|+00.92|-01.50",
             "GRASP Plate|+00.14|+00.92|-01.50",
             "NAVIGATE_TO DiningTable|-02.66|+00.00|+03.21",
-            "PLACE_ON_TOP DiningTable|-02.66|+00.00|+03.21"
+            "PLACE_ON_TOP Plate|+00.14|+00.92|-01.50 DiningTable|-02.66|+00.00|+03.21"
           ]
         },
         "Duration": {
@@ -323,7 +325,7 @@
             "NAVIGATE_TO Fork|-02.04|+00.71|-01.66",
             "GRASP Fork|-02.04|+00.71|-01.66",
             "NAVIGATE_TO DiningTable|-02.66|+00.00|+03.21",
-            "PLACE_ON_TOP DiningTable|-02.66|+00.00|+03.21"
+            "PLACE_ON_TOP Fork|-02.04|+00.71|-01.66 DiningTable|-02.66|+00.00|+03.21"
           ]
         },
         "Duration": {
@@ -345,7 +347,7 @@
             "NAVIGATE_TO Spoon|-02.05|+00.71|-01.46",
             "GRASP Spoon|-02.05|+00.71|-01.46",
             "NAVIGATE_TO DiningTable|-02.66|+00.00|+03.21",
-            "PLACE_ON_TOP DiningTable|-02.66|+00.00|+03.21"
+            "PLACE_ON_TOP Spoon|-02.05|+00.71|-01.46 DiningTable|-02.66|+00.00|+03.21"
           ]
         },
         "Duration": {
@@ -357,10 +359,10 @@
     ]
   },
   {
-    "Task": "Store Wine Bottle",
+    "Task": "Put Wine Bottle inside Cabinet",
     "Subtasks": [
       {
-        "Name": "Put WineBottle in Cabinet",
+        "Name": "Store Wine Bottle in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -373,7 +375,7 @@
             "GRASP WineBottle|-00.16|+00.78|+02.00",
             "NAVIGATE_TO Cabinet|-01.67|+02.01|-01.54",
             "OPEN Cabinet|-01.67|+02.01|-01.54",
-            "PLACE_INSIDE Cabinet|-01.67|+02.01|-01.54",
+            "PLACE_INSIDE WineBottle|-00.16|+00.78|+02.00 Cabinet|-01.67|+02.01|-01.54",
             "CLOSE Cabinet|-01.67|+02.01|-01.54"
           ]
         },

@@ -113,7 +113,7 @@
     ]
   },
   {
-    "Task": "Put Apple and Lettuce in Fridge",
+    "Task": "Store Apple and Lettuce in Fridge",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",
@@ -304,7 +304,7 @@
     ]
   },
   {
-    "Task": "Put SaltShaker on the Table",
+    "Task": "Place SaltShaker on DiningTable",
     "Subtasks": [
       {
         "Name": "Place SaltShaker on DiningTable",

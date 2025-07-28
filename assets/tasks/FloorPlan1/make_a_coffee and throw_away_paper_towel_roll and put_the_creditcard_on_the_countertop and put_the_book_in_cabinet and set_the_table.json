@@ -110,10 +110,10 @@
     ]
   },
   {
-    "Task": "Organize Items",
+    "Task": "Place Credit Card on CounterTop",
     "Subtasks": [
       {
-        "Name": "Place Credit Card on CounterTop",
+        "Name": "Put Credit Card on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -133,7 +133,12 @@
           "Interval": 2
         },
         "TemporalConstraints": []
-      },
+      }
+    ]
+  },
+  {
+    "Task": "Store Book in Cabinet",
+    "Subtasks": [
       {
         "Name": "Put Book in Cabinet",
         "Repetition": 1,
@@ -219,28 +224,6 @@
           "PrimitiveActions": [
             "NAVIGATE_TO Spoon|+00.98|+00.77|-02.29",
             "GRASP Spoon|+00.98|+00.77|-02.29",
-            "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
-            "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": []
-      },
-      {
-        "Name": "Place Cup on CounterTop for Meal",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Cup|+00.37|+01.64|-02.58": 1,
-            "CounterTop|-00.08|+01.15|+00.00": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Cup|+00.37|+01.64|-02.58",
-            "GRASP Cup|+00.37|+01.64|-02.58",
             "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
             "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
           ]

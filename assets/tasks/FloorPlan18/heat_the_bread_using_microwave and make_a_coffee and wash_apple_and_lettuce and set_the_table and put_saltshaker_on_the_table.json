@@ -92,9 +92,9 @@
             "NAVIGATE_TO Microwave|+00.11|+00.98|+00.26",
             "OPEN Microwave|+00.11|+00.98|+00.26",
             "GRASP Bread|+01.10|+01.05|+00.43",
-            "CLOSE Microwave|+00.11|++00.98|+00.26",
+            "CLOSE Microwave|+00.11|+00.98|+00.26",
             "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+            "PLACE_ON_TOP Bread|+01.10|+01.05|+00.43 CounterTop|+01.39|+01.03|+00.90"
           ]
         },
         "Duration": {
@@ -128,7 +128,7 @@
             "NAVIGATE_TO Mug|+01.48|+00.88|+02.61",
             "GRASP Mug|+01.48|+00.88|+02.61",
             "NAVIGATE_TO CoffeeMachine|+01.55|+00.98|+00.95",
-            "PLACE_ON_TOP CoffeeMachine|+01.55|+00.98|+00.95"
+            "PLACE_ON_TOP Mug|+01.48|+00.88|+02.61 CoffeeMachine|+01.55|+00.98|+00.95"
           ]
         },
         "Duration": {
@@ -177,7 +177,7 @@
             "NAVIGATE_TO CoffeeMachine|+01.55|+00.98|+00.95",
             "GRASP Mug|+01.48|+00.88|+02.61",
             "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+            "PLACE_ON_TOP Mug|+01.48|+00.88|+02.61 CounterTop|+01.39|+01.03|+00.90"
           ]
         },
         "Duration": {
@@ -220,7 +220,7 @@
             "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
             "GRASP Apple|+01.38|+01.04|+03.33",
             "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+            "PLACE_ON_TOP Apple|+01.38|+01.04|+03.33 CounterTop|+01.39|+01.03|+00.90"
           ]
         },
         "Duration": {
@@ -251,7 +251,7 @@
             "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
             "GRASP Lettuce|+01.46|+00.96|+02.07",
             "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+            "PLACE_ON_TOP Lettuce|+01.46|+00.96|+02.07 CounterTop|+01.39|+01.03|+00.90"
           ]
         },
         "Duration": {
@@ -263,7 +263,7 @@
     ]
   },
   {
-    "Task": "Set the Table and Place SaltShaker",
+    "Task": "Set the Table",
     "Subtasks": [
       {
         "Name": "Place Plate on DiningTable",
@@ -278,7 +278,7 @@
             "NAVIGATE_TO Plate|-00.23|+00.83|+06.06",
             "GRASP Plate|-00.23|+00.83|+06.06",
             "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
-            "PLACE_ON_TOP DiningTable|-00.16|+00.00|+06.47"
+            "PLACE_ON_TOP Plate|-00.23|+00.83|+06.06 DiningTable|-00.16|+00.00|+06.47"
           ]
         },
         "Duration": {
@@ -300,7 +300,7 @@
             "NAVIGATE_TO SaltShaker|+01.62|+00.98|+03.50",
             "GRASP SaltShaker|+01.62|+00.98|+03.50",
             "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
-            "PLACE_ON_TOP DiningTable|-00.16|+00.00|+06.47"
+            "PLACE_ON_TOP SaltShaker|+01.62|+00.98|+03.50 DiningTable|-00.16|+00.00|+06.47"
           ]
         },
         "Duration": {

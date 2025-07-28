@@ -3,22 +3,22 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Fill Kettle with Water",
+        "Name": "Place Kettle on StoveBurner and Start Boiling",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Kettle|+01.04|+00.90|-02.60": 1,
-            "Sink|-01.90|+00.97|-01.50|SinkBasin": 1,
-            "Faucet|-02.15|+00.91|-01.50": 1
+            "StoveBurner|-00.47|+00.92|-02.37": 1,
+            "StoveKnob|-00.48|+00.88|-02.19": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Kettle|+01.04|+00.90|-02.60",
             "GRASP Kettle|+01.04|+00.90|-02.60",
-            "NAVIGATE_TO Sink|-01.90|+00.97|-01.50|SinkBasin",
-            "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
-            "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
-            "TOGGLE_ON Faucet|-02.15|+00.91|-01.50"
+            "NAVIGATE_TO StoveBurner|-00.47|+00.92|-02.37",
+            "PLACE_ON_TOP StoveBurner|-00.47|+00.92|-02.37",
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19"
           ]
         },
         "Duration": {
@@ -28,74 +28,16 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Turn Off Faucet after Kettle is Filled",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Faucet|-02.15|+00.91|-01.50": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
-            "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 1
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Fill Kettle with Water",
-            "Interval": 2,
-            "Urgency": true
-          }
-        ]
-      },
-      {
-        "Name": "Place Kettle on StoveBurner and Boil",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Kettle|+01.04|+00.90|-02.60": 1,
-            "StoveBurner|-00.04|+00.92|-02.37": 1,
-            "StoveKnob|-00.02|+00.88|-02.19": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Kettle|+01.04|+00.90|-02.60",
-            "GRASP Kettle|+01.04|+00.90|-02.60",
-            "NAVIGATE_TO StoveBurner|-00.04|+00.92|-02.37",
-            "PLACE_ON_TOP StoveBurner|-00.04|+00.92|-02.37",
-            "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
-            "TOGGLE_ON StoveKnob|-00.02|+00.88|-02.19"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 3
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Turn Off Faucet after Kettle is Filled",
-            "Interval": 0,
-            "Urgency": true
-          }
-        ]
-      },
-      {
         "Name": "Turn Off Stove after Boiling Water",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|-00.02|+00.88|-02.19": 1
+            "StoveKnob|-00.48|+00.88|-02.19": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
-            "TOGGLE_OFF StoveKnob|-00.02|+00.88|-02.19"
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_OFF StoveKnob|-00.48|+00.88|-02.19"
           ]
         },
         "Duration": {
@@ -105,7 +47,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Kettle on StoveBurner and Boil",
+            "Subtask": "Place Kettle on StoveBurner and Start Boiling",
             "Interval": 10,
             "Urgency": true
           }
@@ -114,7 +56,7 @@
     ]
   },
   {
-    "Task": "Heat the Potato using Microwave",
+    "Task": "Heat Potato using Microwave",
     "Subtasks": [
       {
         "Name": "Place Potato in Microwave",
@@ -227,7 +169,7 @@
     ]
   },
   {
-    "Task": "Put Apple and Lettuce in Fridge",
+    "Task": "Store Items in Fridge and Cabinet",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",
@@ -276,12 +218,7 @@
           "Interval": 3
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Put Wine Bottle inside a Cabinet",
-    "Subtasks": [
+      },
       {
         "Name": "Put Wine Bottle in Cabinet",
         "Repetition": 1,
@@ -309,7 +246,7 @@
     ]
   },
   {
-    "Task": "Put Credit Card on CounterTop",
+    "Task": "Place Credit Card on CounterTop",
     "Subtasks": [
       {
         "Name": "Place Credit Card on CounterTop",

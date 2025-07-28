@@ -4,16 +4,18 @@ import os
 import sys
 import time
 from typing import Any, Callable, Dict, Optional, TextIO
+from pathlib import Path
 
 import numpy as np
 
 # import for ai2thor
 from ai2thor.controller import Controller
 
-import baselines.cap.util.LMPgen as gen
+import src.baselines.cap.util.LMPgen as gen
 from simulation.runner_ai2thor import init_ai2thor_controller
 from utils.config.constants import *
 from utils.io_utils.result_saver import result_save_llm
+from src.utils.io_utils.task_io import list_task_files
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
@@ -102,6 +104,9 @@ def timed_action(
             log_file.write(f"execution_status: {True}\n")
         else:
             log_file.write(f"execution_status: {False}\n")
+
+        # Synchronize state after the action has been executed and logged.
+        controller.step(action="Pass")
 
         return elapsed_time
 
@@ -348,7 +353,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan419",
+        default="FloorPlan1",
         # 추후에 scene 목록이 생기면 choices = [] 으로 구현한다.
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
@@ -364,7 +369,21 @@ if __name__ == "__main__":
     args = parse_arguments()
     scene_name = args.scene
     instruction = args.instruction
-    if instruction is None:
+    
+    task_files = list_task_files(scene_name)
+
+    if instruction:
+        try:
+            choice = int(instruction)
+            if 1 <= choice <= len(task_files):
+                instruction = Path(task_files[choice - 1]).stem
+            else:
+                print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
+                sys.exit(1)
+        except ValueError:
+            # instruction is not a number, so we treat it as a natural language command.
+            pass
+    else:
         print("명령어가 인자로 제공되지 않았습니다. 사용자 입력을 기다립니다...")
         instruction = input()
 

@@ -53,7 +53,7 @@
             "Type": "After",
             "Subtask": "Prepare Pan on Stove and Heat",
             "Interval": 0,
-            "Urgency": false
+            "Urgency": true
           }
         ]
       },
@@ -292,17 +292,17 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Spoon on CounterTop for Meal",
+        "Name": "Place Tomato on CounterTop for Meal",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Spoon|+00.98|+00.77|-02.29": 1,
+            "Tomato|-00.39|+01.14|-00.81": 1,
             "CounterTop|-00.08|+01.15|+00.00": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Spoon|+00.98|+00.77|-02.29",
-            "GRASP Spoon|+00.98|+00.77|-02.29",
+            "NAVIGATE_TO Tomato|-00.39|+01.14|-00.81",
+            "GRASP Tomato|-00.39|+01.14|-00.81",
             "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
             "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
           ]
@@ -314,26 +314,33 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Fork on CounterTop for Meal",
+        "Name": "Serve Toasted Bread on Plate",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Fork|+00.95|+00.77|-02.37": 1,
-            "CounterTop|-00.08|+01.15|+00.00": 1
+            "Bread|-00.52|+01.17|-00.03": 1,
+            "Plate|+00.96|+01.65|-02.61": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Fork|+00.95|+00.77|-02.37",
-            "GRASP Fork|+00.95|+00.77|-02.37",
-            "NAVIGATE_TO CounterTop|-00.08|+01.15|+00.00",
-            "PLACE_ON_TOP CounterTop|-00.08|+01.15|+00.00"
+            "NAVIGATE_TO Bread|-00.52|+01.17|-00.03",
+            "GRASP Bread|-00.52|+01.17|-00.03",
+            "NAVIGATE_TO Plate|+00.96|+01.65|-02.61",
+            "PLACE_ON_TOP Plate|+00.96|+01.65|-02.61"
           ]
         },
         "Duration": {
           "Type": "Controllable",
           "Interval": 2
         },
-        "TemporalConstraints": []
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Plate on CounterTop for Meal",
+            "Interval": 0,
+            "Urgency": false
+          }
+        ]
       }
     ]
   },

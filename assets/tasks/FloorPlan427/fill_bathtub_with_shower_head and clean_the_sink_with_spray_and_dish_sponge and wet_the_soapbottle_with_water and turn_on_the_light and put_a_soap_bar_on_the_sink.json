@@ -22,7 +22,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Stop Filling Bathtub with Shower Head",
+        "Name": "Turn Off Shower Head after Bathtub is Filled",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -66,6 +66,7 @@
             "GRASP SprayBottle|-02.86|+00.70|-00.52",
             "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "WAIT 1.0",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "PLACE_ON_TOP Sink|-01.92|+00.44|+02.03|SinkBasin"
           ]
         },
@@ -76,7 +77,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Clean Sink with Dish Sponge",
+        "Name": "Wipe Sink with Dish Sponge",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -89,6 +90,7 @@
             "GRASP DishSponge|-03.25|+00.60|-00.37",
             "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "WAIT 1.0",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "PLACE_ON_TOP Sink|-01.92|+00.44|+02.03|SinkBasin"
           ]
         },
@@ -125,11 +127,14 @@
             "GRASP SoapBottle|-00.90|+00.95|-00.74",
             "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "PLACE_INSIDE Sink|-01.92|+00.44|+02.03|SinkBasin",
+            "NAVIGATE_TO Faucet|-01.92|+01.06|+02.18",
             "TOGGLE_ON Faucet|-01.92|+01.06|+02.18",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-01.92|+01.06|+02.18",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "GRASP SoapBottle|-00.90|+00.95|-00.74",
-            "PLACE_ON_TOP Sink|-01.92|+00.44|+02.03|SinkBasin"
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
+            "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
         "Duration": {

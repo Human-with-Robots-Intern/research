@@ -50,7 +50,7 @@
           {
             "Type": "After",
             "Subtask": "Spray toilet with spray bottle",
-            "Interval": 0,
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -99,19 +99,19 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "ToiletPaper|-03.20|+00.60|-00.47": 1,
+            "ToiletPaper|-01.38|+00.69|-00.75": 1,
             "ToiletPaperHanger|-00.43|+00.94|+00.19": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO ToiletPaper|-03.20|+00.60|-00.47",
-            "GRASP ToiletPaper|-03.20|+00.60|-00.47",
+            "NAVIGATE_TO ToiletPaper|-01.38|+00.69|-00.75",
+            "GRASP ToiletPaper|-01.38|+00.69|-00.75",
             "NAVIGATE_TO ToiletPaperHanger|-00.43|+00.94|+00.19",
             "PLACE_ON_TOP ToiletPaperHanger|-00.43|+00.94|+00.19"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 4
+          "Interval": 3
         },
         "TemporalConstraints": []
       }
@@ -121,7 +121,7 @@
     "Task": "Turn On Candle",
     "Subtasks": [
       {
-        "Name": "Turn on the candle",
+        "Name": "Turn on candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -145,7 +145,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close the shower curtain",
+        "Name": "Close shower curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

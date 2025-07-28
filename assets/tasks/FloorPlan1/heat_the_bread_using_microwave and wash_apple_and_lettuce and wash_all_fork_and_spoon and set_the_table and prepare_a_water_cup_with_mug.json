@@ -1,6 +1,6 @@
 [
   {
-    "Task": "Heat the Bread using Microwave",
+    "Task": "Heat Bread using Microwave",
     "Subtasks": [
       {
         "Name": "Place Bread in Microwave",
@@ -182,7 +182,7 @@
     ]
   },
   {
-    "Task": "Wash all Fork and Spoon",
+    "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
         "Name": "Wash Fork and place on counterTop",

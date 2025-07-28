@@ -23,8 +23,8 @@
             "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
             "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "GRASP SoapBottle|-00.64|+00.95|+03.22",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
-            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+            "NAVIGATE_TO CounterTop|-01.85|+00.00|+00.34",
+            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
           ]
         },
         "Duration": {
@@ -90,7 +90,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close ShowerCurtain",
+        "Name": "Close Shower Curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -114,16 +114,26 @@
     "Task": "Put SoapBar in a Cabinet",
     "Subtasks": [
       {
-        "Name": "Impossible: Ambiguous object reference. Please specify which cabinet.",
+        "Name": "Place SoapBar in Drawer",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "SoapBar|-03.10|+00.68|+01.74": 1,
+            "Drawer|-01.32|+00.31|+00.31": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-03.10|+00.68|+01.74",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
+            "NAVIGATE_TO Drawer|-01.32|+00.31|+00.31",
+            "OPEN Drawer|-01.32|+00.31|+00.31",
+            "PLACE_INSIDE Drawer|-01.32|+00.31|+00.31",
+            "CLOSE Drawer|-01.32|+00.31|+00.31"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 5
         },
         "TemporalConstraints": []
       }

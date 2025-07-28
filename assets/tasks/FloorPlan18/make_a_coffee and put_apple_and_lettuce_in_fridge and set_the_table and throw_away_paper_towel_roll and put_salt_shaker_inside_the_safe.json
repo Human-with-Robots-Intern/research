@@ -49,6 +49,36 @@
             "Urgency": false
           }
         ]
+      },
+      {
+        "Name": "Retrieve Coffee from Machine and Place on CounterTop",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mug|+01.48|+00.88|+02.61": 1,
+            "CoffeeMachine|+01.55|+00.98|+00.95": 1,
+            "CounterTop|+01.39|+01.03|+00.90": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO CoffeeMachine|+01.55|+00.98|+00.95",
+            "GRASP Mug|+01.48|+00.88|+02.61",
+            "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
+            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Start Coffee Machine",
+            "Interval": 5,
+            "Urgency": false
+          }
+        ]
       }
     ]
   },
@@ -120,6 +150,50 @@
           "PrimitiveActions": [
             "NAVIGATE_TO Plate|-00.23|+00.83|+06.06",
             "GRASP Plate|-00.23|+00.83|+06.06",
+            "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
+            "PLACE_ON_TOP DiningTable|-00.16|+00.00|+06.47"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Place Fork on DiningTable",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Fork|+01.27|+00.98|+01.24": 1,
+            "DiningTable|-00.16|+00.00|+06.47": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Fork|+01.27|+00.98|+01.24",
+            "GRASP Fork|+01.27|+00.98|+01.24",
+            "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
+            "PLACE_ON_TOP DiningTable|-00.16|+00.00|+06.47"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Place Spoon on DiningTable",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Spoon|+01.36|+00.98|+01.49": 1,
+            "DiningTable|-00.16|+00.00|+06.47": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Spoon|+01.36|+00.98|+01.49",
+            "GRASP Spoon|+01.36|+00.98|+01.49",
             "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
             "PLACE_ON_TOP DiningTable|-00.16|+00.00|+06.47"
           ]

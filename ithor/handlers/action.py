@@ -5,7 +5,7 @@ from src.utils.config.constants import SMOOTH_LEVEL
 
 from .navigation_handler import NavigationHandler
 
-log = create_module_logger(module_name=__name__, module_log=True)
+log = create_module_logger(module_name=__name__, module_log=True, level="DEBUG")
 
 
 class Action:
@@ -22,7 +22,7 @@ class Action:
         elapsed_time (float): Time taken to perform the action.
     """
 
-    def __init__(self, controller, log_level: str = "WARNING"):
+    def __init__(self, controller, log_level: str = "DEBUG"):
         self.controller = controller
         self.navi = NavigationHandler(controller)
         log.setLevel(log_level)
@@ -87,7 +87,6 @@ class Action:
 
         if result.metadata["lastActionSuccess"]:
             self.success_log(result, f"pickup {object_id}")
-            self.controller.step(action="Pass")
             time.sleep(0.3)
             elapsed_time += 1
             return elapsed_time
@@ -107,6 +106,8 @@ class Action:
                 forceAction=True,
                 manualInteract=False,
             )
+            self.controller.step(action="Pass")
+
             if result.metadata["lastActionSuccess"]:
                 self.close(receptacle_id)
                 elapsed_time += 1
@@ -131,7 +132,6 @@ class Action:
                 manualInteract=False,
             )
             self.success_log(result, f"pickup {object_id}")
-            self.controller.step(action="Pass")
             time.sleep(0.3)
             elapsed_time += 1
             return elapsed_time
@@ -148,7 +148,6 @@ class Action:
         """
         result = self.controller.step(action="SliceObject", objectId=object_id)
         self.success_log(result, f"slice {object_id}")
-        self.controller.step(action="Pass")
         time.sleep(0.3)
         return 1
 
@@ -192,7 +191,6 @@ class Action:
             # elapsed_time += 1
             self.success_log(result, "drop")
             log.debug("Alternative Action: Drop")
-        self.controller.step(action="Pass")
         time.sleep(0.3)
         return elapsed_time
 
@@ -213,7 +211,6 @@ class Action:
             result = self.controller.step(action="DropHandObject", forceAction=False)
             step += 1
         self.success_log(result, "drop")
-        self.controller.step(action="Pass")
         time.sleep(0.3)
         return 1
 
@@ -229,7 +226,6 @@ class Action:
         """
         result = self.controller.step(action="ToggleObjectOn", objectId=object_id)
         self.success_log(result, f"toggle on {object_id}")
-        self.controller.step(action="Pass")
         time.sleep(0.3)
         return 1
 
@@ -245,7 +241,6 @@ class Action:
         """
         result = self.controller.step(action="ToggleObjectOff", objectId=object_id)
         self.success_log(result, f"toggle off {object_id}")
-        self.controller.step(action="Pass")
         time.sleep(0.3)
         return 1
 
@@ -273,7 +268,6 @@ class Action:
             forceAction=False,
         )
         self.success_log(result, f"open {object_id}")
-        self.controller.step(action="Pass")
         time.sleep(0.3)
         elapsed_time += 1
         return elapsed_time
@@ -294,7 +288,6 @@ class Action:
             forceAction=False,
         )
         self.success_log(result, f"close {object_id}")
-        self.controller.step(action="Pass")
         time.sleep(0.3)
         return 1
 
@@ -342,7 +335,6 @@ class Action:
             for _ in range(SMOOTH_LEVEL):
                 self.controller.step(action="RotateLeft", degrees=degree / SMOOTH_LEVEL)
 
-        self.controller.step(action="Pass")
         time.sleep(0.1)
         return 0.1
 
@@ -375,7 +367,6 @@ class Action:
             forceAction=True,
         )
         self.success_log(result, f"fill {object_id} with water")
-        self.controller.step(action="Pass")
         time.sleep(0.3)
         return 1
 
@@ -428,21 +419,27 @@ class Action:
         # stop_time이 없을 때에만 최종 회전 진행
         if degree != 0 and stop_time is None:
             for _ in range(SMOOTH_LEVEL):
-                self.controller.step(
+                result = self.controller.step(
                     action="RotateRight", degrees=degree / SMOOTH_LEVEL
                 )
                 success = self.controller.last_event.metadata["lastActionSuccess"]
                 if not success:
+                    error_message = result.metadata.get('errorMessage', 'No error message.')
+                    log.warning(f"NAV_DEBUG: Final rotati?on to {object_id} failed. Error: {error_message}")
                     # 회전 실패 시 각도대로 살짝 이동 후 재시도
                     self.navi.move_in_direction(-obj_angle, 0.2)
-                    self.controller.step(
+                    recovery_result = self.controller.step(
                         action="RotateRight", degrees=degree / SMOOTH_LEVEL
                     )
+                    if not recovery_result.metadata["lastActionSuccess"]:
+                        rec_error = recovery_result.metadata.get('errorMessage', 'No error message.')
+                        # log.error(f"NAV_DEBUG: Rotation recovery also failed. Error: {rec_error}")
+
 
         # 카메라 각도 조정
         self.navi.adjust_camera_to_object(object_id)
         log.debug(f"move to {object_id}")
         log.debug(f"move to {object_id} elapsed_time in action.py: {elapsed_time}")
-        self.controller.step(action="Pass")
         time.sleep(0.2)
+        self.controller.step(action="Pass")
         return elapsed_time

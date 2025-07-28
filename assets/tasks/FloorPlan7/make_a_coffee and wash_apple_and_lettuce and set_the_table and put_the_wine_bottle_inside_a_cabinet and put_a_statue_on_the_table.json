@@ -49,36 +49,6 @@
             "Urgency": false
           }
         ]
-      },
-      {
-        "Name": "Retrieve Coffee from Machine and Place on CounterTop",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Mug|+01.67|+00.90|-01.32": 1,
-            "CoffeeMachine|-01.11|+00.90|-01.73": 1,
-            "CounterTop|+01.65|+00.95|-01.53": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO CoffeeMachine|-01.11|+00.90|-01.73",
-            "GRASP Mug|+01.67|+00.90|-01.32",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Start Coffee Machine",
-            "Interval": 5,
-            "Urgency": false
-          }
-        ]
       }
     ]
   },
@@ -106,8 +76,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Apple|-00.63|+00.96|-01.44",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -137,8 +107,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Lettuce|-01.65|+00.96|-01.05",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -224,7 +194,7 @@
     "Task": "Store Wine Bottle and Place Statue",
     "Subtasks": [
       {
-        "Name": "Put WineBottle inside Cabinet",
+        "Name": "Put WineBottle in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

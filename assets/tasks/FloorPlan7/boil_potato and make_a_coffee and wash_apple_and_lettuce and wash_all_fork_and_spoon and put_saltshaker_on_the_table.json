@@ -54,7 +54,7 @@
         ]
       },
       {
-        "Name": "Place Potato in Pot and Start Boiling",
+        "Name": "Place Potato in Pot and Start Boiling on Stove",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -69,16 +69,17 @@
             "GRASP Potato|+00.22|+01.16|+02.16",
             "NAVIGATE_TO Pot|-01.60|+00.90|-00.17",
             "PLACE_INSIDE Pot|-01.60|+00.90|-00.17",
-            "NAVIGATE_TO StoveBurner|+01.33|+00.96|-01.42",
+            "NAVIGATE_TO Pot|-01.60|+00.90|-00.17",
             "GRASP Pot|-01.60|+00.90|-00.17",
-            "PLACE_ON_TOP StoveBurner|+01.33|+00.96|-01.42",
+            "NAVIGATE_TO StoveBurner|+01.33|+00.96|-01.42",
+            "PLACE_ON_TOP Pot|-01.60|+00.90|-00.17 StoveBurner|+01.33|+00.96|-01.42",
             "NAVIGATE_TO StoveKnob|+01.34|+00.91|-01.24",
             "TOGGLE_ON StoveKnob|+01.34|+00.91|-01.24"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 5
+          "Interval": 4
         },
         "TemporalConstraints": [
           {
@@ -109,7 +110,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Potato in Pot and Start Boiling",
+            "Subtask": "Place Potato in Pot and Start Boiling on Stove",
             "Interval": 15,
             "Urgency": true
           }
@@ -167,36 +168,6 @@
             "Urgency": false
           }
         ]
-      },
-      {
-        "Name": "Retrieve Coffee from Machine and Place on CounterTop",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Mug|+01.67|+00.90|-01.32": 1,
-            "CoffeeMachine|-01.11|+00.90|-01.73": 1,
-            "CounterTop|+01.65|+00.95|-01.53": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO CoffeeMachine|-01.11|+00.90|-01.73",
-            "GRASP Mug|+01.67|+00.90|-01.32",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Start Coffee Machine",
-            "Interval": 5,
-            "Urgency": false
-          }
-        ]
       }
     ]
   },
@@ -204,7 +175,7 @@
     "Task": "Wash Apple and Lettuce",
     "Subtasks": [
       {
-        "Name": "Wash Apple and place on counterTop",
+        "Name": "Wash Apple and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -224,8 +195,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Apple|-00.63|+00.96|-01.44",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -235,7 +206,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Lettuce and place on counterTop",
+        "Name": "Wash Lettuce and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -255,8 +226,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Lettuce|-01.65|+00.96|-01.05",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -271,7 +242,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Wash Fork and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -291,8 +262,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Fork|-02.04|+00.71|-01.66",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -302,7 +273,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -322,8 +293,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Spoon|-02.05|+00.71|-01.46",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {

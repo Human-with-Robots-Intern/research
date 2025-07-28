@@ -13,6 +13,8 @@ import shutil
 
 from src.utils.common import create_module_logger
 from src.utils.config.constants import RESULT_PATH
+from src.utils.io_utils.task_io import list_task_files
+
 
 def load_config() -> dict:
     """Loads configuration from scripts/config.yaml."""
@@ -71,7 +73,6 @@ def find_highest_instruction_folder(base_instruction: str) -> str:
         가장 높은 번호를 가진 폴더명 (예: "cook egg_3")
     """
     
-
     
     # base_instruction으로 시작하는 폴더들을 찾기
     matching_folders = []
@@ -98,14 +99,27 @@ def process_retry_script(script: Path, instruction: str, scene_name: str, config
     재시도가 필요한 스크립트를 실행하고 결과 JSON 파일에 attempt 값을 기록하거나,
     모든 시도 실패 시 더미 데이터를 생성합니다.
     """
-    wrapper_script = Path(__file__).parent / "run_with_ros_env.sh"
+
     approach = script.stem
     input_str = f"{instruction}\n"
 
     max_retries = config.get("max_retries", 10)
     success, attempt = run_with_retries(script, input_str, scene_name, config, max_retries=max_retries)
     
-    highest_instruction_folder = find_highest_instruction_folder(instruction)
+    task_name_for_result_folder = instruction
+    try:
+        choice = int(instruction)
+        tasks = list_task_files(scene_name)
+        if 1 <= choice <= len(tasks):
+            task_name_for_result_folder = Path(tasks[choice - 1]).stem
+            logger.info(f"Instruction '{instruction}' resolved to task name: '{task_name_for_result_folder}'")
+        else:
+            logger.warning(f"Instruction number {choice} is out of range for scene {scene_name}. Using the number itself as the task name.")
+    except (ValueError, TypeError):
+        pass  # Not a numeric instruction, use as is.
+        
+
+    highest_instruction_folder = find_highest_instruction_folder(task_name_for_result_folder)
     result_path = RESULT_PATH / highest_instruction_folder / scene_name / "approach" / f"{approach}_simulation.json"
     
     if success:
@@ -127,7 +141,7 @@ def process_retry_script(script: Path, instruction: str, scene_name: str, config
             "approach": approach,
             "attempt": attempt,
             "scene_name": scene_name,
-            "plans": [{"plan_name": instruction}],
+            "plans": [{"plan_name": task_name_for_result_folder}],
             "computation_time": -1,
             "success_rate": 0,
             "scheduler_makespan": None,
@@ -222,7 +236,7 @@ def main() -> None:
     scene_list = config.get("scene_lists", {}).get(scene_type, [])
     
     num_runs_per_instruction = config.get("num_runs_per_instruction", 1)
-    
+    start_idx = config.get("start_idx", 0)
     # Log current  configuration
     logger.info("Current configuration:")
     logger.info("-" * 40)
@@ -243,28 +257,30 @@ def main() -> None:
         instructions = load_instructions_from_json(scene_name)
         
         if config.get("predefined"): 
-            numbers = list(range(1, len(instructions)))           
+            numbers = list(range(1, len(instructions) + 1))           
             for instruction, i in product(numbers, range(num_runs_per_instruction)):
+                if instruction < start_idx:
+                    continue
                 object_mapping = Path(__file__).parent.parent / "src/ros/ttp_ws/data/object_mapping.json"
                 object_positions = Path(__file__).parent.parent / "src/ros/ttp_ws/data/object_positions.json"
                 
                 # Copy object_mapping.json to object_positions.json
                 if object_mapping.exists():
                     shutil.copy2(object_mapping, object_positions)
-                    logger.info(f"Copied {object_mapping} to {object_positions}")
+                    logger.info(f"{object_mapping} initialized")
                 else:
                     logger.warning(f"Source file {object_mapping} does not exist")
 
-                print(f"task_name : {instruction}")
-                print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i+1}")
+                logger.info(f"task_name : {instruction}")
+                logger.info(f"scene_name : {scene_name}, approach : {approach}, run_num : {i+1}")
                 if approach in llm_scripts:
                     process_retry_script(approach, str(instruction), scene_name, config)
                 else:
                     process_normal_script(approach, str(instruction), scene_name, config)
         else:
             for instruction, i in product(instructions, range(num_runs_per_instruction)):
-                print(f"task_name : {instruction}")
-                print(f"scene_name : {scene_name}, approach : {approach}, run_num : {i+1}")
+                logger.info(f"task_name : {instruction}")
+                logger.info(f"scene_name : {scene_name}, approach : {approach}, run_num : {i+1}")
                 if approach in llm_scripts:
                     process_retry_script(approach, instruction, scene_name, config)
                 else:

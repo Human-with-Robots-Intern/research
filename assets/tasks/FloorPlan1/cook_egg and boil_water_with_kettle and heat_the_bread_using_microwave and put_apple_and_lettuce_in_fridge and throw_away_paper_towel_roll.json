@@ -118,7 +118,7 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Place Kettle on Stove and Start Heating",
+        "Name": "Place Kettle on StoveBurner and Start Boiling",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -131,7 +131,7 @@
             "NAVIGATE_TO Kettle|+01.04|+00.90|-02.60",
             "GRASP Kettle|+01.04|+00.90|-02.60",
             "NAVIGATE_TO StoveBurner|-00.47|+00.92|-02.37",
-            "PLACE_ON_TOP StoveBurner|-00.47|+00.92|-02.37",
+            "PLACE_ON_TOP Kettle|+01.04|+00.90|-02.60 StoveBurner|-00.47|+00.92|-02.37",
             "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
             "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19"
           ]
@@ -162,7 +162,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Kettle on Stove and Start Heating",
+            "Subtask": "Place Kettle on StoveBurner and Start Boiling",
             "Interval": 10,
             "Urgency": true
           }
@@ -284,7 +284,7 @@
     ]
   },
   {
-    "Task": "Store Apple and Lettuce in Fridge",
+    "Task": "Put Apple and Lettuce in Fridge",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",

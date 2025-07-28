@@ -28,28 +28,21 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Stop Filling Pot and Place on StoveBurner",
+        "Name": "Turn Off Faucet after Pot is Filled",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Pot|-00.40|+00.91|+05.93": 1,
-            "Sink|-04.19|+00.92|+03.28|SinkBasin": 1,
-            "Faucet|-04.44|+00.91|+03.29": 1,
-            "StoveBurner|-02.92|+00.92|+02.01": 1
+            "Faucet|-04.44|+00.91|+03.29": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Faucet|-04.44|+00.91|+03.29",
-            "TOGGLE_OFF Faucet|-04.44|+00.91|+03.29",
-            "NAVIGATE_TO Sink|-04.19|+00.92|+03.28|SinkBasin",
-            "GRASP Pot|-00.40|+00.91|+05.93",
-            "NAVIGATE_TO StoveBurner|-02.92|+00.92|+02.01",
-            "PLACE_ON_TOP StoveBurner|-02.92|+00.92|+02.01"
+            "TOGGLE_OFF Faucet|-04.44|+00.91|+03.29"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 3
+          "Interval": 1
         },
         "TemporalConstraints": [
           {
@@ -61,48 +54,53 @@
         ]
       },
       {
-        "Name": "Place Potato in Pot and Start Boiling",
+        "Name": "Place Potato in Pot and Start Boiling on Stove",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Potato|-04.08|+00.95|+02.68": 1,
             "Pot|-00.40|+00.91|+05.93": 1,
-            "StoveKnob|-02.51|+01.10|+01.56": 1
+            "StoveBurner|-02.92|+00.92|+02.01": 1,
+            "StoveKnob|-02.97|+01.10|+01.56": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Potato|-04.08|+00.95|+02.68",
             "GRASP Potato|-04.08|+00.95|+02.68",
             "NAVIGATE_TO Pot|-00.40|+00.91|+05.93",
             "PLACE_INSIDE Pot|-00.40|+00.91|+05.93",
-            "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
-            "TOGGLE_ON StoveKnob|-02.51|+01.10|+01.56"
+            "NAVIGATE_TO Pot|-00.40|+00.91|+05.93",
+            "GRASP Pot|-00.40|+00.91|+05.93",
+            "NAVIGATE_TO StoveBurner|-02.92|+00.92|+02.01",
+            "PLACE_ON_TOP Pot|-00.40|+00.91|+05.93 StoveBurner|-02.92|+00.92|+02.01",
+            "NAVIGATE_TO StoveKnob|-02.97|+01.10|+01.56",
+            "TOGGLE_ON StoveKnob|-02.97|+01.10|+01.56"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 3
+          "Interval": 4
         },
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Stop Filling Pot and Place on StoveBurner",
+            "Subtask": "Turn Off Faucet after Pot is Filled",
             "Interval": 0,
             "Urgency": true
           }
         ]
       },
       {
-        "Name": "Turn Off Stove After Boiling Potato",
+        "Name": "Turn Off Stove after Boiling Potato",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|-02.51|+01.10|+01.56": 1
+            "StoveKnob|-02.97|+01.10|+01.56": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
-            "TOGGLE_OFF StoveKnob|-02.51|+01.10|+01.56"
+            "NAVIGATE_TO StoveKnob|-02.97|+01.10|+01.56",
+            "TOGGLE_OFF StoveKnob|-02.97|+01.10|+01.56"
           ]
         },
         "Duration": {
@@ -112,7 +110,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Potato in Pot and Start Boiling",
+            "Subtask": "Place Potato in Pot and Start Boiling on Stove",
             "Interval": 15,
             "Urgency": true
           }
@@ -131,15 +129,15 @@
           "Objects": {
             "Pan|-02.45|+00.93|+02.02": 1,
             "StoveBurner|-02.47|+00.92|+01.71": 1,
-            "StoveKnob|-02.79|+01.10|+01.56": 1
+            "StoveKnob|-02.51|+01.10|+01.56": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Pan|-02.45|+00.93|+02.02",
             "GRASP Pan|-02.45|+00.93|+02.02",
             "NAVIGATE_TO StoveBurner|-02.47|+00.92|+01.71",
-            "PLACE_ON_TOP StoveBurner|-02.47|+00.92|+01.71",
-            "NAVIGATE_TO StoveKnob|-02.79|+01.10|+01.56",
-            "TOGGLE_ON StoveKnob|-02.79|+01.10|+01.56"
+            "PLACE_ON_TOP Pan|-02.45|+00.93|+02.02 StoveBurner|-02.47|+00.92|+01.71",
+            "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
+            "TOGGLE_ON StoveKnob|-02.51|+01.10|+01.56"
           ]
         },
         "Duration": {
@@ -184,11 +182,11 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|-02.79|+01.10|+01.56": 1
+            "StoveKnob|-02.51|+01.10|+01.56": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|-02.79|+01.10|+01.56",
-            "TOGGLE_OFF StoveKnob|-02.79|+01.10|+01.56"
+            "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
+            "TOGGLE_OFF StoveKnob|-02.51|+01.10|+01.56"
           ]
         },
         "Duration": {
@@ -210,17 +208,17 @@
     "Task": "Make Coffee",
     "Subtasks": [
       {
-        "Name": "Prepare Coffee Machine with Mug",
+        "Name": "Prepare Coffee Machine with Cup",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Mug|-04.19|+00.91|+03.70": 1,
+            "Cup|-01.70|+00.91|+01.95": 1,
             "CoffeeMachine|-00.28|+00.91|+06.56": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Mug|-04.19|+00.91|+03.70",
-            "GRASP Mug|-04.19|+00.91|+03.70",
+            "NAVIGATE_TO Cup|-01.70|+00.91|+01.95",
+            "GRASP Cup|-01.70|+00.91|+01.95",
             "NAVIGATE_TO CoffeeMachine|-00.28|+00.91|+06.56",
             "PLACE_ON_TOP CoffeeMachine|-00.28|+00.91|+06.56"
           ]
@@ -251,8 +249,38 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Prepare Coffee Machine with Mug",
+            "Subtask": "Prepare Coffee Machine with Cup",
             "Interval": 0,
+            "Urgency": false
+          }
+        ]
+      },
+      {
+        "Name": "Retrieve Coffee from Machine and Place on CounterTop",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cup|-01.70|+00.91|+01.95": 1,
+            "CoffeeMachine|-00.28|+00.91|+06.56": 1,
+            "CounterTop|-04.26|+00.96|+04.94": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO CoffeeMachine|-00.28|+00.91|+06.56",
+            "GRASP Cup|-01.70|+00.91|+01.95",
+            "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
+            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Start Coffee Machine",
+            "Interval": 5,
             "Urgency": false
           }
         ]
@@ -263,7 +291,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork",
+        "Name": "Wash Fork and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -294,7 +322,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon",
+        "Name": "Wash Spoon and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

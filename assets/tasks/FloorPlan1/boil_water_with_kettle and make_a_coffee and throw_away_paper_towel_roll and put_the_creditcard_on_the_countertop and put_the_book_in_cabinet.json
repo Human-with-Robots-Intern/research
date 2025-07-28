@@ -3,41 +3,41 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Place Kettle on StoveBurner and Start Heating",
+        "Name": "Place Kettle on StoveBurner and Start Boiling",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Kettle|+01.04|+00.90|-02.60": 1,
-            "StoveBurner|-00.04|+00.92|-02.37": 1,
-            "StoveKnob|-00.02|+00.88|-02.19": 1
+            "StoveBurner|-00.47|+00.92|-02.37": 1,
+            "StoveKnob|-00.48|+00.88|-02.19": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Kettle|+01.04|+00.90|-02.60",
             "GRASP Kettle|+01.04|+00.90|-02.60",
-            "NAVIGATE_TO StoveBurner|-00.04|+00.92|-02.37",
-            "PLACE_ON_TOP StoveBurner|-00.04|+00.92|-02.37",
-            "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
-            "TOGGLE_ON StoveKnob|-00.02|+00.88|-02.19"
+            "NAVIGATE_TO StoveBurner|-00.47|+00.92|-02.37",
+            "PLACE_ON_TOP Kettle|+01.04|+00.90|-02.60 StoveBurner|-00.47|+00.92|-02.37",
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 3
+          "Interval": 4
         },
         "TemporalConstraints": []
       },
       {
-        "Name": "Turn Off Stove After Boiling Water",
+        "Name": "Turn Off Stove after Boiling Water",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|-00.02|+00.88|-02.19": 1
+            "StoveKnob|-00.48|+00.88|-02.19": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
-            "TOGGLE_OFF StoveKnob|-00.02|+00.88|-02.19"
+            "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
+            "TOGGLE_OFF StoveKnob|-00.48|+00.88|-02.19"
           ]
         },
         "Duration": {
@@ -47,7 +47,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Kettle on StoveBurner and Start Heating",
+            "Subtask": "Place Kettle on StoveBurner and Start Boiling",
             "Interval": 10,
             "Urgency": true
           }
@@ -159,7 +159,7 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 2
+          "Interval": 3
         },
         "TemporalConstraints": []
       }

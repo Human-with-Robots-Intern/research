@@ -572,9 +572,8 @@ def plot_gantt_final_cutoff(
     simulation_data: Dict[str, Any],
     initial_plan_json_data: List[Dict],
     save_dir: str = "gantt_charts_final_cutoff_executable",
-):
-    plt.style.use("seaborn-v0_8-paper")
-
+):    
+    plt.style.use("seaborn-paper")
     if not simulation_data.get("plans") or not simulation_data["plans"][0].get(
         "subtasks"
     ):

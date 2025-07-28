@@ -54,7 +54,7 @@
         ]
       },
       {
-        "Name": "Place Potato in Pot and Start Boiling",
+        "Name": "Place Potato in Pot and Start Boiling on Stove",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -69,8 +69,10 @@
             "GRASP Potato|+00.22|+01.16|+02.16",
             "NAVIGATE_TO Pot|-01.60|+00.90|-00.17",
             "PLACE_INSIDE Pot|-01.60|+00.90|-00.17",
+            "NAVIGATE_TO Pot|-01.60|+00.90|-00.17",
+            "GRASP Pot|-01.60|+00.90|-00.17",
             "NAVIGATE_TO StoveBurner|+01.33|+00.96|-01.42",
-            "PLACE_ON_TOP StoveBurner|+01.33|+00.96|-01.42",
+            "PLACE_ON_TOP Pot|-01.60|+00.90|-00.17 StoveBurner|+01.33|+00.96|-01.42",
             "NAVIGATE_TO StoveKnob|+01.34|+00.91|-01.24",
             "TOGGLE_ON StoveKnob|+01.34|+00.91|-01.24"
           ]
@@ -108,37 +110,8 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Potato in Pot and Start Boiling",
+            "Subtask": "Place Potato in Pot and Start Boiling on Stove",
             "Interval": 15,
-            "Urgency": true
-          }
-        ]
-      },
-      {
-        "Name": "Retrieve Boiled Potato",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Pot|-01.60|+00.90|-00.17": 1,
-            "CounterTop|+01.65|+00.95|-01.53": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Pot|-01.60|+00.90|-00.17",
-            "GRASP Pot|-01.60|+00.90|-00.17",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Turn Off Stove after Boiling Potato",
-            "Interval": 0,
             "Urgency": true
           }
         ]
@@ -204,7 +177,7 @@
         ]
       },
       {
-        "Name": "Turn Off Stove after Cooking Egg",
+        "Name": "Turn Off Stove After Cooking Egg",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -225,35 +198,6 @@
             "Type": "After",
             "Subtask": "Cook Egg in Pan",
             "Interval": 10,
-            "Urgency": true
-          }
-        ]
-      },
-      {
-        "Name": "Place Cooked Egg in Pan on CounterTop",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Pan|+00.97|+00.96|-01.43": 1,
-            "CounterTop|+01.65|+00.95|-01.53": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Pan|+00.97|+00.96|-01.43",
-            "GRASP Pan|+00.97|+00.96|-01.43",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Turn Off Stove after Cooking Egg",
-            "Interval": 0,
             "Urgency": true
           }
         ]
@@ -347,15 +291,15 @@
           "Objects": {
             "Bread|-01.60|+00.98|-00.84": 1,
             "Microwave|+01.15|+01.66|-01.61": 1,
-            "CounterTop|+01.65|+00.95|-01.53": 1
+            "CounterTop|-01.87|+00.95|-00.61": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Microwave|+01.15|+01.66|-01.61",
             "OPEN Microwave|+01.15|+01.66|-01.61",
             "GRASP Bread|-01.60|+00.98|-00.84",
             "CLOSE Microwave|+01.15|+01.66|-01.61",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -397,8 +341,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Apple|-00.63|+00.96|-01.44",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -428,8 +372,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Lettuce|-01.65|+00.96|-01.05",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {

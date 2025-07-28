@@ -67,9 +67,9 @@ class NavigationHandler:
 
         reachable = set(self.get_reachable_positions())
         if start not in reachable:
-            start = quantize_position(self.adjust_to_nearest_reachable(start))
+            start = self.adjust_to_nearest_reachable(start)
         if end not in reachable:
-            end = quantize_position(self.adjust_to_nearest_reachable(end))
+            end = self.adjust_to_nearest_reachable(end)
 
         def calculate_direction(p1, p2):
             return p2[0] - p1[0], p2[2] - p1[2]

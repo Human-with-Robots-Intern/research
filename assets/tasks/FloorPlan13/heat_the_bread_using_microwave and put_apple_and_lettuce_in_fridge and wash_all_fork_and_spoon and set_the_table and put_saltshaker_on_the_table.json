@@ -242,13 +242,13 @@
         "Executions": {
           "Objects": {
             "Plate|-04.23|+00.91|+04.72": 1,
-            "CounterTop|-04.26|+00.96|+04.94": 1
+            "CounterTop|-01.87|+00.96|+01.80": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Plate|-04.23|+00.91|+04.72",
             "GRASP Plate|-04.23|+00.91|+04.72",
-            "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
+            "NAVIGATE_TO CounterTop|-01.87|+00.96|+01.80",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.96|+01.80"
           ]
         },
         "Duration": {
@@ -264,13 +264,13 @@
         "Executions": {
           "Objects": {
             "Fork|-03.20|+00.92|+05.46": 1,
-            "CounterTop|-04.26|+00.96|+04.94": 1
+            "CounterTop|-01.87|+00.96|+01.80": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Fork|-03.20|+00.92|+05.46",
             "GRASP Fork|-03.20|+00.92|+05.46",
-            "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
+            "NAVIGATE_TO CounterTop|-01.87|+00.96|+01.80",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.96|+01.80"
           ]
         },
         "Duration": {
@@ -286,13 +286,13 @@
         "Executions": {
           "Objects": {
             "Spoon|-03.17|+00.91|+05.37": 1,
-            "CounterTop|-04.26|+00.96|+04.94": 1
+            "CounterTop|-01.87|+00.96|+01.80": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Spoon|-03.17|+00.91|+05.37",
             "GRASP Spoon|-03.17|+00.91|+05.37",
-            "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
+            "NAVIGATE_TO CounterTop|-01.87|+00.96|+01.80",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.96|+01.80"
           ]
         },
         "Duration": {
@@ -313,13 +313,13 @@
         "Executions": {
           "Objects": {
             "SaltShaker|-02.13|+00.91|+01.60": 1,
-            "CounterTop|-04.26|+00.96|+04.94": 1
+            "CounterTop|-01.87|+00.96|+01.80": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO SaltShaker|-02.13|+00.91|+01.60",
             "GRASP SaltShaker|-02.13|+00.91|+01.60",
-            "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
+            "NAVIGATE_TO CounterTop|-01.87|+00.96|+01.80",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.96|+01.80"
           ]
         },
         "Duration": {

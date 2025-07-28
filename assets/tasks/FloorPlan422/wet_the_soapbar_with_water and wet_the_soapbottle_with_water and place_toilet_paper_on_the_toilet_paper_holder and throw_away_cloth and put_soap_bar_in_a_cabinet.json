@@ -1,9 +1,9 @@
 [
   {
-    "Task": "Wet the soapbar with water",
+    "Task": "Wet SoapBar and SoapBottle",
     "Subtasks": [
       {
-        "Name": "Wet soapbar in Sink",
+        "Name": "Wet SoapBar in Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -32,14 +32,9 @@
           "Interval": 8
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Wet the soapbottle with water",
-    "Subtasks": [
+      },
       {
-        "Name": "Wet soapbottle in Sink",
+        "Name": "Wet SoapBottle in Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -72,10 +67,10 @@
     ]
   },
   {
-    "Task": "Place toilet paper on the toilet paper holder",
+    "Task": "Place Toilet Paper and Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Place toilet paper on holder",
+        "Name": "Place Toilet Paper on Holder",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -95,14 +90,9 @@
           "Interval": 3
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Throw away cloth",
-    "Subtasks": [
+      },
       {
-        "Name": "Throw cloth in garbage can",
+        "Name": "Throw Away Cloth",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

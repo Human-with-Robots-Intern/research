@@ -196,7 +196,7 @@
     ]
   },
   {
-    "Task": "Store Apple and Lettuce in Fridge",
+    "Task": "Store Items in Fridge",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",

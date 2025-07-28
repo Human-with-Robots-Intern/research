@@ -146,10 +146,10 @@
     ]
   },
   {
-    "Task": "Turn On the Candle",
+    "Task": "Turn On Candle",
     "Subtasks": [
       {
-        "Name": "Turn on Candle",
+        "Name": "Turn on the candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -170,7 +170,7 @@
     ]
   },
   {
-    "Task": "Put Tissue Box Inside the Drawer",
+    "Task": "Put Tissue Box Inside Drawer",
     "Subtasks": [
       {
         "Name": "Place Tissue Box in Drawer",

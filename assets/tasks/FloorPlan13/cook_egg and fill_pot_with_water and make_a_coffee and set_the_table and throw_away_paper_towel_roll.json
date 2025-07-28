@@ -10,15 +10,15 @@
           "Objects": {
             "Pan|-02.45|+00.93|+02.02": 1,
             "StoveBurner|-02.92|+00.92|+02.01": 1,
-            "StoveKnob|-02.51|+01.10|+01.56": 1
+            "StoveKnob|-02.97|+01.10|+01.56": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Pan|-02.45|+00.93|+02.02",
             "GRASP Pan|-02.45|+00.93|+02.02",
             "NAVIGATE_TO StoveBurner|-02.92|+00.92|+02.01",
             "PLACE_ON_TOP StoveBurner|-02.92|+00.92|+02.01",
-            "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
-            "TOGGLE_ON StoveKnob|-02.51|+01.10|+01.56"
+            "NAVIGATE_TO StoveKnob|-02.97|+01.10|+01.56",
+            "TOGGLE_ON StoveKnob|-02.97|+01.10|+01.56"
           ]
         },
         "Duration": {
@@ -53,7 +53,7 @@
             "Type": "After",
             "Subtask": "Prepare Pan on Stove and Heat",
             "Interval": 0,
-            "Urgency": true
+            "Urgency": false
           }
         ]
       },
@@ -63,11 +63,11 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|-02.51|+01.10|+01.56": 1
+            "StoveKnob|-02.97|+01.10|+01.56": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
-            "TOGGLE_OFF StoveKnob|-02.51|+01.10|+01.56"
+            "NAVIGATE_TO StoveKnob|-02.97|+01.10|+01.56",
+            "TOGGLE_OFF StoveKnob|-02.97|+01.10|+01.56"
           ]
         },
         "Duration": {
@@ -174,17 +174,17 @@
     "Task": "Make Coffee",
     "Subtasks": [
       {
-        "Name": "Prepare Coffee Machine with Mug",
+        "Name": "Prepare Coffee Machine with Cup",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Mug|-04.19|+00.91|+03.70": 1,
+            "Cup|-01.70|+00.91|+01.95": 1,
             "CoffeeMachine|-00.28|+00.91|+06.56": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Mug|-04.19|+00.91|+03.70",
-            "GRASP Mug|-04.19|+00.91|+03.70",
+            "NAVIGATE_TO Cup|-01.70|+00.91|+01.95",
+            "GRASP Cup|-01.70|+00.91|+01.95",
             "NAVIGATE_TO CoffeeMachine|-00.28|+00.91|+06.56",
             "PLACE_ON_TOP CoffeeMachine|-00.28|+00.91|+06.56"
           ]
@@ -215,7 +215,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Prepare Coffee Machine with Mug",
+            "Subtask": "Prepare Coffee Machine with Cup",
             "Interval": 0,
             "Urgency": false
           }
@@ -227,13 +227,13 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Mug|-04.19|+00.91|+03.70": 1,
+            "Cup|-01.70|+00.91|+01.95": 1,
             "CoffeeMachine|-00.28|+00.91|+06.56": 1,
             "CounterTop|-04.26|+00.96|+04.94": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO CoffeeMachine|-00.28|+00.91|+06.56",
-            "GRASP Mug|-04.19|+00.91|+03.70",
+            "GRASP Cup|-01.70|+00.91|+01.95",
             "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
             "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
           ]
@@ -312,28 +312,6 @@
           "PrimitiveActions": [
             "NAVIGATE_TO Spoon|-03.17|+00.91|+05.37",
             "GRASP Spoon|-03.17|+00.91|+05.37",
-            "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": []
-      },
-      {
-        "Name": "Place Cup on CounterTop for Meal",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Cup|-01.70|+00.91|+01.95": 1,
-            "CounterTop|-04.26|+00.96|+04.94": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Cup|-01.70|+00.91|+01.95",
-            "GRASP Cup|-01.70|+00.91|+01.95",
             "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
             "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
           ]

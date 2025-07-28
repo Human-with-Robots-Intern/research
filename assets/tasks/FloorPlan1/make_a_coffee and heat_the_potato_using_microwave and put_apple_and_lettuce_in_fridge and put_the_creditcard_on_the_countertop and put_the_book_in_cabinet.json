@@ -196,7 +196,7 @@
     ]
   },
   {
-    "Task": "Store Items in Fridge and Place Credit Card on CounterTop",
+    "Task": "Store Items in Fridge and Place Credit Card and Book",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",
@@ -267,12 +267,7 @@
           "Interval": 2
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Store Book in Cabinet",
-    "Subtasks": [
+      },
       {
         "Name": "Put Book in Cabinet",
         "Repetition": 1,

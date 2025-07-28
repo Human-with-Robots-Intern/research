@@ -91,10 +91,10 @@
     ]
   },
   {
-    "Task": "Turn on the Light",
+    "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn on LightSwitch",
+        "Name": "Turn on the light switch",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -118,7 +118,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in GarbageCan",
+        "Name": "Throw cloth into garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -145,7 +145,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close Shower Curtain",
+        "Name": "Close the shower curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

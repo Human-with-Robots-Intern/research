@@ -66,7 +66,6 @@
             "GRASP SprayBottle|-01.53|+00.80|+00.22",
             "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
@@ -90,7 +89,6 @@
             "GRASP ScrubBrush|-02.19|+00.00|+03.03",
             "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
@@ -133,8 +131,8 @@
             "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
             "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "GRASP SoapBottle|-00.64|+00.95|+03.22",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
-            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+            "NAVIGATE_TO CounterTop|-01.85|+00.00|+00.34",
+            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
           ]
         },
         "Duration": {

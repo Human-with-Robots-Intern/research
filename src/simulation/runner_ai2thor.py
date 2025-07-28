@@ -177,12 +177,16 @@ def execute_subtask(
             continue
         # Check success of the last action
         success = controller.last_event.metadata.get("lastActionSuccess", "N/A")
+        
         if success is False:
             log.warning(f"Action '{action_str}' failed.")
             is_execution_success = False
-        log.warning(
+        log.info(
             f"Action: {action_str}, duration: {round(action_duration, 2)}, success: {success}"
         )
+        
+        # Pass action to synchronize state after each real action
+        controller.step(action="Pass")
 
     elapsed_time = round(elapsed_time, 2)
     log.info(f"Subtask '{subtask.name}' completed. Elapsed time: {elapsed_time}")

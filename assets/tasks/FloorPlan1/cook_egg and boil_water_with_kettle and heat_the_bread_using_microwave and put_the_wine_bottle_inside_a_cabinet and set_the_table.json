@@ -118,7 +118,7 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Place Kettle on Stove and Start Heating",
+        "Name": "Place Kettle on StoveBurner and Start Heating",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -162,7 +162,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Kettle on Stove and Start Heating",
+            "Subtask": "Place Kettle on StoveBurner and Start Heating",
             "Interval": 10,
             "Urgency": true
           }
@@ -284,10 +284,10 @@
     ]
   },
   {
-    "Task": "Store Wine Bottle",
+    "Task": "Put Wine Bottle inside Cabinet",
     "Subtasks": [
       {
-        "Name": "Put WineBottle in Cabinet",
+        "Name": "Store Wine Bottle in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

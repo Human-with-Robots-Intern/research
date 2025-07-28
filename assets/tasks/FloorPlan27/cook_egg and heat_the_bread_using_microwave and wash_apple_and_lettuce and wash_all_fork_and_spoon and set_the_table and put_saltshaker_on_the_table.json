@@ -209,7 +209,7 @@
             "GRASP Bread|-00.25|+00.80|+00.81",
             "CLOSE Microwave|-00.31|+00.93|+02.08",
             "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
-            "PLACE_ON_TOP Bread|-00.25|+00.80|+00.81 CounterTop|+02.06|+00.97|+00.58"
+            "PLACE_ON_TOP CounterTop|+02.06|+00.97|+00.58"
           ]
         },
         "Duration": {
@@ -231,7 +231,7 @@
     "Task": "Wash Apple and Lettuce",
     "Subtasks": [
       {
-        "Name": "Wash Apple and place on counterTop",
+        "Name": "Wash Apple and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -252,7 +252,7 @@
             "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
             "GRASP Apple|+02.05|+00.63|-00.41",
             "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
-            "PLACE_ON_TOP Apple|+02.05|+00.63|-00.41 CounterTop|+02.06|+00.97|+00.58"
+            "PLACE_ON_TOP CounterTop|+02.06|+00.97|+00.58"
           ]
         },
         "Duration": {
@@ -262,7 +262,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Lettuce and place on counterTop",
+        "Name": "Wash Lettuce and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -283,7 +283,7 @@
             "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
             "GRASP Lettuce|+00.23|+00.98|+02.71",
             "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
-            "PLACE_ON_TOP Lettuce|+00.23|+00.98|+02.71 CounterTop|+02.06|+00.97|+00.58"
+            "PLACE_ON_TOP CounterTop|+02.06|+00.97|+00.58"
           ]
         },
         "Duration": {
@@ -298,7 +298,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Wash Fork and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -319,7 +319,7 @@
             "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
             "GRASP Fork|+01.64|+00.93|+02.60",
             "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
-            "PLACE_ON_TOP Fork|+01.64|+00.93|+02.60 CounterTop|+02.06|+00.97|+00.58"
+            "PLACE_ON_TOP CounterTop|+02.06|+00.97|+00.58"
           ]
         },
         "Duration": {
@@ -329,7 +329,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -350,7 +350,7 @@
             "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
             "GRASP Spoon|+01.59|+00.93|+02.69",
             "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
-            "PLACE_ON_TOP Spoon|+01.59|+00.93|+02.69 CounterTop|+02.06|+00.97|+00.58"
+            "PLACE_ON_TOP CounterTop|+02.06|+00.97|+00.58"
           ]
         },
         "Duration": {
@@ -377,7 +377,7 @@
             "NAVIGATE_TO Plate|+00.01|+00.76|+00.59",
             "GRASP Plate|+00.01|+00.76|+00.59",
             "NAVIGATE_TO DiningTable|-00.15|00.00|+01.07",
-            "PLACE_ON_TOP Plate|+00.01|+00.76|+00.59 DiningTable|-00.15|00.00|+01.07"
+            "PLACE_ON_TOP DiningTable|-00.15|00.00|+01.07"
           ]
         },
         "Duration": {
@@ -399,7 +399,7 @@
             "NAVIGATE_TO Fork|+01.64|+00.93|+02.60",
             "GRASP Fork|+01.64|+00.93|+02.60",
             "NAVIGATE_TO DiningTable|-00.15|00.00|+01.07",
-            "PLACE_ON_TOP Fork|+01.64|+00.93|+02.60 DiningTable|-00.15|00.00|+01.07"
+            "PLACE_ON_TOP DiningTable|-00.15|00.00|+01.07"
           ]
         },
         "Duration": {
@@ -421,7 +421,7 @@
             "NAVIGATE_TO Spoon|+01.59|+00.93|+02.69",
             "GRASP Spoon|+01.59|+00.93|+02.69",
             "NAVIGATE_TO DiningTable|-00.15|00.00|+01.07",
-            "PLACE_ON_TOP Spoon|+01.59|+00.93|+02.69 DiningTable|-00.15|00.00|+01.07"
+            "PLACE_ON_TOP DiningTable|-00.15|00.00|+01.07"
           ]
         },
         "Duration": {
@@ -448,7 +448,7 @@
             "NAVIGATE_TO SaltShaker|+02.24|+00.93|+01.92",
             "GRASP SaltShaker|+02.24|+00.93|+01.92",
             "NAVIGATE_TO DiningTable|-00.15|00.00|+01.07",
-            "PLACE_ON_TOP SaltShaker|+02.24|+00.93|+01.92 DiningTable|-00.15|00.00|+01.07"
+            "PLACE_ON_TOP DiningTable|-00.15|00.00|+01.07"
           ]
         },
         "Duration": {

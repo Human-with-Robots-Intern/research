@@ -56,80 +56,100 @@ def compose_plans(
 
 def calculate_timing_success_rate(
     constraints: DiGraph, result_schedule: List[CompletedEntry]
-) -> float:
+) -> Tuple[float | None, float | None, Dict[str, Any]]:
     """
-    constraints 의 모든 edge를 확인해서 plans의 결과를 토대로 timing constraint 준수율을 계산한다.
+    Calculates the success rate of timing constraints based on simulation and schedule results.
+
+    Args:
+        constraints: A DiGraph representing the constraints between subtasks.
+        result_schedule: A list of CompletedEntry objects containing execution results.
+
+    Returns:
+        A tuple containing:
+        - The timing success rate for the simulation (float | None).
+        - The timing success rate for the schedule (float | None).
+        - A dictionary with detailed logging information.
     """
     total_timing_constraints = 0
     succeeded_timing_constraints_sim_cnt = 0
     succeeded_timing_constraints_sched_cnt = 0
     detail_log = {}
 
-    # 모든 edge를 순회하며 timing constraint 검사
+    # Create a mapping from task names to completed entries for efficient lookup
+    entry_map = {ce.subtask.name: ce for ce in result_schedule}
+
     for u, v, data in constraints.edges(data=True):
         timing_success_flag = False
-        
 
-        # Check if u or v starts with "monitoring" (case-insensitive)
         if u.lower().startswith("monitoring") or v.lower().startswith("monitoring"):
             log.debug(f"Skipping monitoring task edge: {u} -> {v}")
-            # Decrement as this constraint is not counted
-            continue
-        total_timing_constraints += 1
-        edge_info = data.get("info", {})
-        interval = edge_info.get("Interval", 0)  # interval이 없으면 0으로 처리
-        is_critical = edge_info.get("IsCritical")
-        
-        # plans에서 선행/후행 subtask 찾기
-        pred_entry = next((ce for ce in result_schedule if ce.subtask.name == u), None)
-        succ_entry = next((ce for ce in result_schedule if ce.subtask.name == v), None)
-        if not pred_entry or not succ_entry:
-            log.warning(f"pred_subtask or succ_subtask not found: {u} -> {v}")
             continue
 
-        # 선행 subtask의 종료 시간과 후행 subtask의 시작 시간
+        
+
+        pred_entry = entry_map.get(u)
+        succ_entry = entry_map.get(v)
+
+        if not pred_entry or not succ_entry:
+            log.warning(f"Predecessor or successor task not found in results: {u} -> {v}")
+            continue
+        
+        total_timing_constraints += 1
+        # log.info(f"total_timing_constraints increased: {total_timing_constraints}")
+        edge_info = data.get("info", {})
+        interval = edge_info.get("Interval", 0)
+        is_critical = edge_info.get("IsCritical", False)
+
+        # --- Check timing constraints for simulation results ---
         pred_end_time_sim = pred_entry.sim_end_time
         succ_start_time_sim = succ_entry.sim_start_time
-        succ_start_time_sched = succ_entry.schedule_start_time
-        pred_end_time_sched = pred_entry.schedule_end_time
-        schedule_nav_time = (
-            succ_entry.schedule_nav_time
-        )  # navigation time이 없으면 0으로 처리
         sim_nav_time = succ_entry.sim_nav_time
+        tolerance = 0.1 + interval * TIMING_TOLERANCE
+        
+        actual_diff_sim = (succ_start_time_sim + sim_nav_time) - pred_end_time_sim
+
+        sim_constraint_met = False
         if is_critical:
-            # expected_start_sim = pred_end_time_sim + interval - sim_nav_time
             if interval == 0:
-                if abs(interval -((succ_start_time_sim) - pred_end_time_sim)) <= 0.1 + interval * TIMING_TOLERANCE:
-                    timing_success_flag = True
-                succeeded_timing_constraints_sim_cnt += 1
-                if abs(interval -((succ_start_time_sched) - pred_end_time_sched)) <= 0.1 + interval * TIMING_TOLERANCE:
-                    succeeded_timing_constraints_sched_cnt += 1
+                succeeded_timing_constraints_sim_cnt += 1  # Intended logic
+                sim_constraint_met = True
             else:
-                if abs(interval -((succ_start_time_sim+sim_nav_time) - pred_end_time_sim)) <= 0.1 + interval * TIMING_TOLERANCE:
-                    timing_success_flag = True
+                if abs(interval - actual_diff_sim) <= tolerance:
                     succeeded_timing_constraints_sim_cnt += 1
-                if abs(interval -((succ_start_time_sched+schedule_nav_time) - pred_end_time_sched)) <= 0.1 + interval * TIMING_TOLERANCE:
-                    succeeded_timing_constraints_sched_cnt += 1
-        else:
-            # Non-critical edge: interval 이후에 시작하면 됨
-            if (interval - ((succ_start_time_sim+sim_nav_time) - pred_end_time_sim))  <= 0.1 + interval * TIMING_TOLERANCE:
-                timing_success_flag = True
+                    sim_constraint_met = True
+        else:  # Non-critical
+            if (interval - actual_diff_sim) <= tolerance:
                 succeeded_timing_constraints_sim_cnt += 1
-            if (interval - ((succ_start_time_sched+schedule_nav_time) - pred_end_time_sched))  <= 0.1 + interval * TIMING_TOLERANCE:
+                sim_constraint_met = True
+        
+        timing_success_flag = sim_constraint_met
+
+        # --- Check timing constraints for schedule results ---
+        pred_end_time_sched = pred_entry.schedule_end_time
+        succ_start_time_sched = succ_entry.schedule_start_time
+        schedule_nav_time = succ_entry.schedule_nav_time
+        
+        actual_diff_sched = (succ_start_time_sched + schedule_nav_time) - pred_end_time_sched
+
+        if is_critical:
+            if interval == 0:
                 succeeded_timing_constraints_sched_cnt += 1
-        # 제약 시작 작업 끝 작업, 원본 제약 기준 (interval, is_critical)
-        # 실제 스케쥴 결과 : pred_end_time_sched -> succ_start_time_sched,
+            else:
+                if abs(interval - actual_diff_sched) <= tolerance:
+                    succeeded_timing_constraints_sched_cnt += 1
+        else:  # Non-critical
+            if (interval - actual_diff_sched) <= tolerance:
+                succeeded_timing_constraints_sched_cnt += 1
+
+        # --- Logging ---
         log.info(f"Original Timing Constraint : {u} -> {v} ({interval}, {is_critical})")
         log.info(
             f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched+schedule_nav_time}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s\n\n"
         )
-        detail_log[f"{u} -> {v}"] = {}
-        detail_log[f"{u} -> {v}"][
-            "Original Timing Constraint"
-        ] = f"({interval}, {is_critical})"
-        detail_log[f"{u} -> {v}"][
-            "Schedule Result"
-        ] = f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched}s-{-schedule_nav_time}s)"
+        detail_log[f"{u} -> {v}"] = {
+            "Original Timing Constraint": f"({interval}, {is_critical})",
+            "Schedule Result": f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched}s-{-schedule_nav_time}s)"
+        }
 
     timing_success_rate_sim = (
         succeeded_timing_constraints_sim_cnt / total_timing_constraints
@@ -158,6 +178,13 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             "end_time_scheduled": round(entry.schedule_end_time, 2),
             "execution_status": entry.execution_status,
         }
+        if hasattr(entry, "primitive_action_log"):
+            serialized_entry["primitive_action_log"] = [
+                {
+                    "action": log["action"],
+                    "duration": round(log["duration"], 2)
+                } for log in entry.primitive_action_log
+            ]
         serialized_entries.append(serialized_entry)
     return serialized_entries
 
@@ -185,6 +212,22 @@ def result_save(
     # Serialize the result schedule
     serialized_plans = serialize_completed_entries(result_schedule)
 
+    total_primitive_actions = sum(
+        len(entry.subtask.execution.primitive_actions)
+        for entry in result_schedule
+        if (
+            hasattr(entry, "subtask")
+            and hasattr(entry.subtask, "execution")
+            and entry.subtask.execution is not None
+            and hasattr(entry.subtask.execution, "primitive_actions")
+            and entry.subtask.execution.primitive_actions is not None
+        )
+    )
+    
+    realworld_makespan = None
+    if "ros" in approach_name:
+        realworld_makespan = round(simulation_makespan, 2)
+
     result_data = {
         "saved_time": get_now_str(),
         "approach": approach_name,
@@ -193,7 +236,8 @@ def result_save(
         "computation_time": round(computation_time, 5),
         "simulation_makespan": round(simulation_makespan, 2),
         "scheduler_makespan": round(scheduler_makespan, 2),
-        "realworld_makespan": None,
+        "total_primitive_actions": total_primitive_actions,
+        "realworld_makespan": realworld_makespan,
         "success_rate": round(success_rate, 2),
         "timing_success_rate_sim": None if timing_success_rate_sim is None else round(timing_success_rate_sim, 2),
         "timing_success_rate_sched": None if timing_success_rate_sched is None else round(timing_success_rate_sched, 2),

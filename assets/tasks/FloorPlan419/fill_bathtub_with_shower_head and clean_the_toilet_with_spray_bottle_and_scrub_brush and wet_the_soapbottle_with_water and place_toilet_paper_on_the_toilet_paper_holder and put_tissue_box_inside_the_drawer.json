@@ -66,7 +66,6 @@
             "GRASP SprayBottle|-00.20|+01.04|-01.97",
             "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
           ]
         },
@@ -90,7 +89,6 @@
             "GRASP ScrubBrush|-00.16|+00.00|-02.16",
             "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
           ]
         },
@@ -146,7 +144,7 @@
     ]
   },
   {
-    "Task": "Place Toilet Paper on the Toilet Paper Holder",
+    "Task": "Place Toilet Paper on Holder",
     "Subtasks": [
       {
         "Name": "Place Toilet Paper on Holder",
@@ -173,7 +171,7 @@
     ]
   },
   {
-    "Task": "Put Tissue Box Inside the Drawer",
+    "Task": "Put Tissue Box Inside Drawer",
     "Subtasks": [
       {
         "Name": "Put Tissue Box Inside Drawer",
@@ -182,15 +180,15 @@
         "Executions": {
           "Objects": {
             "TissueBox|-02.19|+00.67|-01.12": 1,
-            "Drawer|-02.11|+00.16|-01.31": 1
+            "Drawer|-02.11|+00.46|-01.31": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO TissueBox|-02.19|+00.67|-01.12",
             "GRASP TissueBox|-02.19|+00.67|-01.12",
-            "NAVIGATE_TO Drawer|-02.11|+00.16|-01.31",
-            "OPEN Drawer|-02.11|+00.16|-01.31",
-            "PLACE_INSIDE Drawer|-02.11|+00.16|-01.31",
-            "CLOSE Drawer|-02.11|+00.16|-01.31"
+            "NAVIGATE_TO Drawer|-02.11|+00.46|-01.31",
+            "OPEN Drawer|-02.11|+00.46|-01.31",
+            "PLACE_INSIDE Drawer|-02.11|+00.46|-01.31",
+            "CLOSE Drawer|-02.11|+00.46|-01.31"
           ]
         },
         "Duration": {

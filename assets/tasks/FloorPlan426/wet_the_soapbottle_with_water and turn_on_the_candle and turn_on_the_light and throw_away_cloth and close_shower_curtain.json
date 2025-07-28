@@ -39,7 +39,7 @@
     "Task": "Turn On the Candle",
     "Subtasks": [
       {
-        "Name": "Turn On Candle",
+        "Name": "Turn on Candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -63,7 +63,7 @@
     "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn On Light",
+        "Name": "Turn on Light",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

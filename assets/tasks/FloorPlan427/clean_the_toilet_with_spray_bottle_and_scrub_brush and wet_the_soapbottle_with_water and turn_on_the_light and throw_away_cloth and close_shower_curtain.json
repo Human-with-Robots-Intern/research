@@ -50,7 +50,7 @@
           {
             "Type": "After",
             "Subtask": "Spray toilet with spray bottle",
-            "Interval": 0,
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -94,7 +94,7 @@
     "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn on the light switch",
+        "Name": "Turn on light switch",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -118,7 +118,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw cloth into garbage can",
+        "Name": "Dispose of cloth in garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -145,7 +145,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close the shower curtain",
+        "Name": "Close shower curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

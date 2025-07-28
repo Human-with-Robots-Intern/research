@@ -1,6 +1,6 @@
 [
   {
-    "Task": "Clean the Toilet",
+    "Task": "Clean Toilet",
     "Subtasks": [
       {
         "Name": "Spray toilet with spray bottle",
@@ -50,7 +50,7 @@
           {
             "Type": "After",
             "Subtask": "Spray toilet with spray bottle",
-            "Interval": 0,
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -94,7 +94,7 @@
     "Task": "Place Toilet Paper on Holder",
     "Subtasks": [
       {
-        "Name": "Place Toilet Paper on Toilet Paper Holder",
+        "Name": "Place Toilet Paper on Holder",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -121,7 +121,7 @@
     "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn on Light Switch",
+        "Name": "Turn On Light",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -145,7 +145,7 @@
     "Task": "Put Tissue Box Inside Drawer",
     "Subtasks": [
       {
-        "Name": "Place Tissue Box Inside Drawer",
+        "Name": "Put Tissue Box Inside Drawer",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

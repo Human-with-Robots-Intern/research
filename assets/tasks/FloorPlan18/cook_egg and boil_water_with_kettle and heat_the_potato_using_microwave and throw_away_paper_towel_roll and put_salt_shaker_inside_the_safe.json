@@ -16,7 +16,7 @@
             "NAVIGATE_TO Pan|+01.31|+00.99|+04.30",
             "GRASP Pan|+01.31|+00.99|+04.30",
             "NAVIGATE_TO StoveBurner|+01.32|+00.98|+04.29",
-            "PLACE_ON_TOP StoveBurner|+01.32|+00.98|+04.29",
+            "PLACE_ON_TOP Pan|+01.31|+00.99|+04.30 StoveBurner|+01.32|+00.98|+04.29",
             "NAVIGATE_TO StoveKnob|+01.14|+00.93|+04.31",
             "TOGGLE_ON StoveKnob|+01.14|+00.93|+04.31"
           ]
@@ -40,7 +40,7 @@
             "NAVIGATE_TO Egg|+01.97|+01.53|+05.73",
             "GRASP Egg|+01.97|+01.53|+05.73",
             "NAVIGATE_TO Pan|+01.31|+00.99|+04.30",
-            "PLACE_ON_TOP Pan|+01.31|+00.99|+04.30",
+            "PLACE_ON_TOP Egg|+01.97|+01.53|+05.73 Pan|+01.31|+00.99|+04.30",
             "SLICE Egg|+01.97|+01.53|+05.73"
           ]
         },
@@ -96,7 +96,7 @@
             "NAVIGATE_TO Pan|+01.31|+00.99|+04.30",
             "GRASP Pan|+01.31|+00.99|+04.30",
             "NAVIGATE_TO CounterTop|+01.39|+01.03|+04.72",
-            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+04.72"
+            "PLACE_ON_TOP Pan|+01.31|+00.99|+04.30 CounterTop|+01.39|+01.03|+04.72"
           ]
         },
         "Duration": {
@@ -131,7 +131,7 @@
             "NAVIGATE_TO Kettle|+01.59|+00.99|+03.25",
             "GRASP Kettle|+01.59|+00.99|+03.25",
             "NAVIGATE_TO StoveBurner|+01.56|+00.98|+03.85",
-            "PLACE_ON_TOP StoveBurner|+01.56|+00.98|+03.85",
+            "PLACE_ON_TOP Kettle|+01.59|+00.99|+03.25 StoveBurner|+01.56|+00.98|+03.85",
             "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.99",
             "TOGGLE_ON StoveKnob|+01.14|+00.93|+03.99"
           ]
@@ -163,7 +163,7 @@
           {
             "Type": "After",
             "Subtask": "Place Kettle on StoveBurner and Start Heating",
-            "Interval": 15,
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -187,7 +187,7 @@
             "GRASP Potato|-00.73|+01.02|+00.61",
             "NAVIGATE_TO Microwave|+00.11|+00.98|+00.26",
             "OPEN Microwave|+00.11|+00.98|+00.26",
-            "PLACE_INSIDE Microwave|+00.11|+00.98|+00.26",
+            "PLACE_INSIDE Potato|-00.73|+01.02|+00.61 Microwave|+00.11|+00.98|+00.26",
             "CLOSE Microwave|+00.11|+00.98|+00.26"
           ]
         },
@@ -265,7 +265,7 @@
             "GRASP Potato|-00.73|+01.02|+00.61",
             "CLOSE Microwave|+00.11|+00.98|+00.26",
             "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+            "PLACE_ON_TOP Potato|-00.73|+01.02|+00.61 CounterTop|+01.39|+01.03|+00.90"
           ]
         },
         "Duration": {
@@ -314,26 +314,7 @@
     "Task": "Put Salt Shaker Inside the Safe",
     "Subtasks": [
       {
-        "Name": "Open Safe",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Safe|+02.05|+00.00|+07.05": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Safe|+02.05|+00.00|+07.05",
-            "OPEN Safe|+02.05|+00.00|+07.05"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 1
-        },
-        "TemporalConstraints": []
-      },
-      {
-        "Name": "Place Salt Shaker Inside Safe",
+        "Name": "Store Salt Shaker in Safe",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -345,47 +326,16 @@
             "NAVIGATE_TO SaltShaker|+01.62|+00.98|+03.50",
             "GRASP SaltShaker|+01.62|+00.98|+03.50",
             "NAVIGATE_TO Safe|+02.05|+00.00|+07.05",
-            "PLACE_INSIDE Safe|+02.05|+00.00|+07.05"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Open Safe",
-            "Interval": 0,
-            "Urgency": false
-          }
-        ]
-      },
-      {
-        "Name": "Close Safe",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Safe|+02.05|+00.00|+07.05": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Safe|+02.05|+00.00|+07.05",
+            "OPEN Safe|+02.05|+00.00|+07.05",
+            "PLACE_INSIDE SaltShaker|+01.62|+00.98|+03.50 Safe|+02.05|+00.00|+07.05",
             "CLOSE Safe|+02.05|+00.00|+07.05"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 1
+          "Interval": 3
         },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Place Salt Shaker Inside Safe",
-            "Interval": 0,
-            "Urgency": false
-          }
-        ]
+        "TemporalConstraints": []
       }
     ]
   }

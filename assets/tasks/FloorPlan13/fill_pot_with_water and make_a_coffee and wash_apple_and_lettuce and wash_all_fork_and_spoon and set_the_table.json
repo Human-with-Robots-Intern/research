@@ -59,17 +59,17 @@
     "Task": "Make Coffee",
     "Subtasks": [
       {
-        "Name": "Prepare Coffee Machine with Mug",
+        "Name": "Prepare Coffee Machine with Cup",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Mug|-04.19|+00.91|+03.70": 1,
+            "Cup|-01.70|+00.91|+01.95": 1,
             "CoffeeMachine|-00.28|+00.91|+06.56": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Mug|-04.19|+00.91|+03.70",
-            "GRASP Mug|-04.19|+00.91|+03.70",
+            "NAVIGATE_TO Cup|-01.70|+00.91|+01.95",
+            "GRASP Cup|-01.70|+00.91|+01.95",
             "NAVIGATE_TO CoffeeMachine|-00.28|+00.91|+06.56",
             "PLACE_ON_TOP CoffeeMachine|-00.28|+00.91|+06.56"
           ]
@@ -100,38 +100,8 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Prepare Coffee Machine with Mug",
+            "Subtask": "Prepare Coffee Machine with Cup",
             "Interval": 0,
-            "Urgency": false
-          }
-        ]
-      },
-      {
-        "Name": "Retrieve Coffee from Machine and Place on CounterTop",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Mug|-04.19|+00.91|+03.70": 1,
-            "CoffeeMachine|-00.28|+00.91|+06.56": 1,
-            "CounterTop|-04.26|+00.96|+04.94": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO CoffeeMachine|-00.28|+00.91|+06.56",
-            "GRASP Mug|-04.19|+00.91|+03.70",
-            "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Start Coffee Machine",
-            "Interval": 5,
             "Urgency": false
           }
         ]
@@ -142,7 +112,7 @@
     "Task": "Wash Apple and Lettuce",
     "Subtasks": [
       {
-        "Name": "Wash Apple and place on counterTop",
+        "Name": "Wash Apple",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -173,7 +143,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Lettuce and place on counterTop",
+        "Name": "Wash Lettuce",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -209,7 +179,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Wash Fork",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -240,7 +210,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -276,7 +246,7 @@
     "Task": "Set the Table",
     "Subtasks": [
       {
-        "Name": "Place Plate on CounterTop for Meal",
+        "Name": "Place Plate on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -298,7 +268,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Fork on CounterTop for Meal",
+        "Name": "Place Fork on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -320,7 +290,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Spoon on CounterTop for Meal",
+        "Name": "Place Spoon on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

@@ -66,6 +66,7 @@
             "GRASP SprayBottle|-00.84|+01.64|+00.35",
             "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
             "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
@@ -89,6 +90,7 @@
             "GRASP ScrubBrush|-00.66|00.00|+02.56",
             "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
             "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
@@ -190,7 +192,7 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 5
+          "Interval": 4
         },
         "TemporalConstraints": []
       }

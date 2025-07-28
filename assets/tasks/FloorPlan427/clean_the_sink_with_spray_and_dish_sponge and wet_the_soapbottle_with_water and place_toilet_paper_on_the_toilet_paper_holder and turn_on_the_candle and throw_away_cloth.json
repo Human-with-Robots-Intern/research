@@ -121,7 +121,7 @@
     "Task": "Turn on the candle",
     "Subtasks": [
       {
-        "Name": "Turn on candle",
+        "Name": "Light the candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -145,7 +145,7 @@
     "Task": "Throw away cloth",
     "Subtasks": [
       {
-        "Name": "Throw cloth in garbage can",
+        "Name": "Dispose of cloth in garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

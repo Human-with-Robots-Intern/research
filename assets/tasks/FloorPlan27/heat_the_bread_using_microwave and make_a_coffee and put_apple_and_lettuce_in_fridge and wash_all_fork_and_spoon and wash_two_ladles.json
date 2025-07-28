@@ -94,7 +94,7 @@
             "GRASP Bread|-00.25|+00.80|+00.81",
             "CLOSE Microwave|-00.31|+00.93|+02.08",
             "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
-            "PLACE_ON_TOP CounterTop|+02.06|+00.97|+00.58"
+            "PLACE_ON_TOP Bread|-00.25|+00.80|+00.81 CounterTop|+02.06|+00.97|+00.58"
           ]
         },
         "Duration": {
@@ -128,7 +128,7 @@
             "NAVIGATE_TO Mug|+02.19|+00.93|+02.14",
             "GRASP Mug|+02.19|+00.93|+02.14",
             "NAVIGATE_TO CoffeeMachine|+02.08|+00.93|+02.67",
-            "PLACE_ON_TOP CoffeeMachine|+02.08|+00.93|+02.67"
+            "PLACE_ON_TOP Mug|+02.19|+00.93|+02.14 CoffeeMachine|+02.08|+00.93|+02.67"
           ]
         },
         "Duration": {
@@ -177,7 +177,7 @@
             "NAVIGATE_TO CoffeeMachine|+02.08|+00.93|+02.67",
             "GRASP Mug|+02.19|+00.93|+02.14",
             "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
-            "PLACE_ON_TOP CounterTop|+02.06|+00.97|+00.58"
+            "PLACE_ON_TOP Mug|+02.19|+00.93|+02.14 CounterTop|+02.06|+00.97|+00.58"
           ]
         },
         "Duration": {
@@ -212,7 +212,7 @@
             "GRASP Apple|+02.05|+00.63|-00.41",
             "NAVIGATE_TO Fridge|+02.10|+00.00|-00.28",
             "OPEN Fridge|+02.10|+00.00|-00.28",
-            "PLACE_INSIDE Fridge|+02.10|+00.00|-00.28",
+            "PLACE_INSIDE Apple|+02.05|+00.63|-00.41 Fridge|+02.10|+00.00|-00.28",
             "CLOSE Fridge|+02.10|+00.00|-00.28"
           ]
         },
@@ -236,7 +236,7 @@
             "GRASP Lettuce|+00.23|+00.98|+02.71",
             "NAVIGATE_TO Fridge|+02.10|+00.00|-00.28",
             "OPEN Fridge|+02.10|+00.00|-00.28",
-            "PLACE_INSIDE Fridge|+02.10|+00.00|-00.28",
+            "PLACE_INSIDE Lettuce|+00.23|+00.98|+02.71 Fridge|+02.10|+00.00|-00.28",
             "CLOSE Fridge|+02.10|+00.00|-00.28"
           ]
         },
@@ -249,19 +249,67 @@
     ]
   },
   {
-    "Task": "Wash All Fork and Spoon",
+    "Task": "Wash All Forks and Spoons",
     "Subtasks": [
       {
-        "Name": "Impossible: Wash all fork and spoon cannot be achieved with current Environment Context",
+        "Name": "Wash Fork",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "Fork|+01.64|+00.93|+02.60": 1,
+            "Sink|+00.94|+00.94|+02.65|SinkBasin": 1,
+            "Faucet|+01.18|+00.93|+02.95": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Fork|+01.64|+00.93|+02.60",
+            "GRASP Fork|+01.64|+00.93|+02.60",
+            "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
+            "PLACE_INSIDE Fork|+01.64|+00.93|+02.60 Sink|+00.94|+00.94|+02.65|SinkBasin",
+            "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
+            "TOGGLE_ON Faucet|+01.18|+00.93|+02.95",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|+01.18|+00.93|+02.95",
+            "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
+            "GRASP Fork|+01.64|+00.93|+02.60",
+            "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
+            "PLACE_ON_TOP Fork|+01.64|+00.93|+02.60 CounterTop|+02.06|+00.97|+00.58"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 7
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Wash Spoon",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Spoon|+01.59|+00.93|+02.69": 1,
+            "Sink|+00.94|+00.94|+02.65|SinkBasin": 1,
+            "Faucet|+01.18|+00.93|+02.95": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Spoon|+01.59|+00.93|+02.69",
+            "GRASP Spoon|+01.59|+00.93|+02.69",
+            "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
+            "PLACE_INSIDE Spoon|+01.59|+00.93|+02.69 Sink|+00.94|+00.94|+02.65|SinkBasin",
+            "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
+            "TOGGLE_ON Faucet|+01.18|+00.93|+02.95",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|+01.18|+00.93|+02.95",
+            "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
+            "GRASP Spoon|+01.59|+00.93|+02.69",
+            "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
+            "PLACE_ON_TOP Spoon|+01.59|+00.93|+02.69 CounterTop|+02.06|+00.97|+00.58"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 7
         },
         "TemporalConstraints": []
       }
@@ -271,8 +319,8 @@
     "Task": "Wash Two Ladles",
     "Subtasks": [
       {
-        "Name": "Wash Ladle and place on counterTop",
-        "Repetition": 2,
+        "Name": "Wash Ladle 1",
+        "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
@@ -284,7 +332,7 @@
             "NAVIGATE_TO Ladle|+02.00|+00.95|+00.81",
             "GRASP Ladle|+02.00|+00.95|+00.81",
             "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
-            "PLACE_INSIDE Sink|+00.94|+00.94|+02.65|SinkBasin",
+            "PLACE_INSIDE Ladle|+02.00|+00.95|+00.81 Sink|+00.94|+00.94|+02.65|SinkBasin",
             "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
             "TOGGLE_ON Faucet|+01.18|+00.93|+02.95",
             "WAIT 1.0",
@@ -292,7 +340,38 @@
             "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
             "GRASP Ladle|+02.00|+00.95|+00.81",
             "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
-            "PLACE_ON_TOP CounterTop|+02.06|+00.97|+00.58"
+            "PLACE_ON_TOP Ladle|+02.00|+00.95|+00.81 CounterTop|+02.06|+00.97|+00.58"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 7
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Wash Ladle 2",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Ladle|-00.10|+00.95|+02.55": 1,
+            "Sink|+00.94|+00.94|+02.65|SinkBasin": 1,
+            "Faucet|+01.18|+00.93|+02.95": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Ladle|-00.10|+00.95|+02.55",
+            "GRASP Ladle|-00.10|+00.95|+02.55",
+            "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
+            "PLACE_INSIDE Ladle|-00.10|+00.95|+02.55 Sink|+00.94|+00.94|+02.65|SinkBasin",
+            "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
+            "TOGGLE_ON Faucet|+01.18|+00.93|+02.95",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|+01.18|+00.93|+02.95",
+            "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
+            "GRASP Ladle|-00.10|+00.95|+02.55",
+            "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
+            "PLACE_ON_TOP Ladle|-00.10|+00.95|+02.55 CounterTop|+02.06|+00.97|+00.58"
           ]
         },
         "Duration": {

@@ -1,0 +1,143 @@
+[
+  {
+    "Task": "Wet the soapbar with water",
+    "Subtasks": [
+      {
+        "Name": "Wet soapbar in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SoapBar|-03.10|+00.68|+01.74": 1,
+            "Sink|-00.46|-00.01|+03.05|SinkBasin": 1,
+            "Faucet|-00.46|+00.97|+03.21": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-03.10|+00.68|+01.74",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "PLACE_INSIDE Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "NAVIGATE_TO Faucet|-00.46|+00.97|+03.21",
+            "TOGGLE_ON Faucet|-00.46|+00.97|+03.21",
+            "WAIT 1.0",
+            "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 8
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Place toilet paper on the toilet paper holder",
+    "Subtasks": [
+      {
+        "Name": "Place toilet paper on holder",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ToiletPaper|-02.25|+00.94|+02.67": 1,
+            "ToiletPaperHanger|-01.63|+00.84|+03.31": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ToiletPaper|-02.25|+00.94|+02.67",
+            "GRASP ToiletPaper|-02.25|+00.94|+02.67",
+            "NAVIGATE_TO ToiletPaperHanger|-01.63|+00.84|+03.31",
+            "PLACE_ON_TOP ToiletPaperHanger|-01.63|+00.84|+03.31"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Throw away cloth",
+    "Subtasks": [
+      {
+        "Name": "Dispose of cloth in garbage can",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cloth|-00.15|+00.80|+00.38": 1,
+            "GarbageCan|-02.11|00.00|+01.96": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Cloth|-00.15|+00.80|+00.38",
+            "GRASP Cloth|-00.15|+00.80|+00.38",
+            "NAVIGATE_TO GarbageCan|-02.11|00.00|+01.96",
+            "PLACE_INSIDE GarbageCan|-02.11|00.00|+01.96"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Close shower curtain",
+    "Subtasks": [
+      {
+        "Name": "Close the shower curtain",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ShowerCurtain|-03.24|+02.61|+00.27": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ShowerCurtain|-03.24|+02.61|+00.27",
+            "CLOSE ShowerCurtain|-03.24|+02.61|+00.27"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Throw away toilet paper",
+    "Subtasks": [
+      {
+        "Name": "Dispose of toilet paper in garbage can",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ToiletPaper|-02.31|+00.95|+02.50": 1,
+            "GarbageCan|-02.11|00.00|+01.96": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ToiletPaper|-02.31|+00.95|+02.50",
+            "GRASP ToiletPaper|-02.31|+00.95|+02.50",
+            "NAVIGATE_TO GarbageCan|-02.11|00.00|+01.96",
+            "PLACE_INSIDE GarbageCan|-02.11|00.00|+01.96"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  }
+]

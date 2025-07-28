@@ -260,7 +260,7 @@ class ConstraintHandler:
                 )
         # 선행 작업 성공 / 실패 여부 확인
         if any_predecessor_failed:
-            log.ERROR(
+            log.error(
                 f"Final status for '{sub.name}': FAILED_PREDECESSOR ({failure_reason})"
             )
             return None, False, "FAILED_PREDECESSOR"

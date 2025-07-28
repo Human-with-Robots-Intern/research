@@ -59,18 +59,55 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Impossible: Boil water with Kettle|-00.83|+00.90|-01.76 cannot be achieved with current Environment Context",
+        "Name": "Place Kettle on StoveBurner and Start Boiling",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "Kettle|-00.83|+00.90|-01.76": 1,
+            "StoveBurner|+01.33|+00.96|-01.42": 1,
+            "StoveKnob|+01.34|+00.91|-01.24": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Kettle|-00.83|+00.90|-01.76",
+            "GRASP Kettle|-00.83|+00.90|-01.76",
+            "NAVIGATE_TO StoveBurner|+01.33|+00.96|-01.42",
+            "PLACE_ON_TOP StoveBurner|+01.33|+00.96|-01.42",
+            "NAVIGATE_TO StoveKnob|+01.34|+00.91|-01.24",
+            "TOGGLE_ON StoveKnob|+01.34|+00.91|-01.24"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 3
         },
         "TemporalConstraints": []
+      },
+      {
+        "Name": "Turn Off Stove after Boiling Water",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "StoveKnob|+01.34|+00.91|-01.24": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO StoveKnob|+01.34|+00.91|-01.24",
+            "TOGGLE_OFF StoveKnob|+01.34|+00.91|-01.24"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Kettle on StoveBurner and Start Boiling",
+            "Interval": 15,
+            "Urgency": true
+          }
+        ]
       }
     ]
   },
@@ -161,15 +198,15 @@
           "Objects": {
             "Bread|-01.60|+00.98|-00.84": 1,
             "Microwave|+01.15|+01.66|-01.61": 1,
-            "CounterTop|+01.65|+00.95|-01.53": 1
+            "CounterTop|-01.87|+00.95|-00.61": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Microwave|+01.15|+01.66|-01.61",
             "OPEN Microwave|+01.15|+01.66|-01.61",
             "GRASP Bread|-01.60|+00.98|-00.84",
             "CLOSE Microwave|+01.15|+01.66|-01.61",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -255,28 +292,6 @@
           "Interval": 2
         },
         "TemporalConstraints": []
-      },
-      {
-        "Name": "Place Cup on DiningTable",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Cup|-01.91|+00.90|-00.02": 1,
-            "DiningTable|-02.66|+00.00|+03.21": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Cup|-01.91|+00.90|-00.02",
-            "GRASP Cup|-01.91|+00.90|-00.02",
-            "NAVIGATE_TO DiningTable|-02.66|+00.00|+03.21",
-            "PLACE_ON_TOP DiningTable|-02.66|+00.00|+03.21"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": []
       }
     ]
   },
@@ -284,7 +299,7 @@
     "Task": "Put Wine Bottle inside a Cabinet",
     "Subtasks": [
       {
-        "Name": "Put WineBottle inside Cabinet",
+        "Name": "Store Wine Bottle in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

@@ -22,7 +22,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Stop Filling Bathtub with Shower Head",
+        "Name": "Turn Off Shower Head after Bathtub is Filled",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -66,6 +66,7 @@
             "GRASP SprayBottle|-02.86|+00.70|-00.52",
             "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
@@ -89,6 +90,7 @@
             "GRASP ScrubBrush|-01.04|+00.00|-00.71",
             "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
@@ -100,7 +102,7 @@
           {
             "Type": "After",
             "Subtask": "Spray toilet with spray bottle",
-            "Interval": 0,
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -125,11 +127,14 @@
             "GRASP SoapBottle|-00.90|+00.95|-00.74",
             "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "PLACE_INSIDE Sink|-01.92|+00.44|+02.03|SinkBasin",
+            "NAVIGATE_TO Faucet|-01.92|+01.06|+02.18",
             "TOGGLE_ON Faucet|-01.92|+01.06|+02.18",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-01.92|+01.06|+02.18",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "GRASP SoapBottle|-00.90|+00.95|-00.74",
-            "PLACE_ON_TOP CounterTop|-02.80|+00.00|-00.59"
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
+            "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
         "Duration": {
@@ -144,7 +149,7 @@
     "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn on the light",
+        "Name": "Turn on the light switch",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -168,7 +173,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw away cloth",
+        "Name": "Dispose of the cloth in the garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

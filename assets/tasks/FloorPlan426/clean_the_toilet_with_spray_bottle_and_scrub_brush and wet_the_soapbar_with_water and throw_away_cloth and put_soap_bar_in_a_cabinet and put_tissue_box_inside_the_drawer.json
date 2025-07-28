@@ -16,7 +16,6 @@
             "GRASP SprayBottle|-01.53|+00.80|+00.22",
             "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
@@ -40,7 +39,6 @@
             "GRASP ScrubBrush|-02.19|+00.00|+03.03",
             "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
@@ -52,7 +50,7 @@
           {
             "Type": "After",
             "Subtask": "Spray toilet with spray bottle",
-            "Interval": 10,
+            "Interval": 0,
             "Urgency": true
           }
         ]
@@ -77,14 +75,11 @@
             "GRASP SoapBar|-03.10|+00.68|+01.74",
             "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "PLACE_INSIDE Sink|-00.46|-00.01|+03.05|SinkBasin",
-            "NAVIGATE_TO Faucet|-00.46|+00.97|+03.21",
             "TOGGLE_ON Faucet|-00.46|+00.97|+03.21",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
-            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "GRASP SoapBar|-03.10|+00.68|+01.74",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
-            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
           ]
         },
         "Duration": {
@@ -116,46 +111,27 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 3
+          "Interval": 4
         },
         "TemporalConstraints": []
       }
     ]
   },
   {
-    "Task": "Put SoapBar in a Cabinet",
+    "Task": "Put SoapBar in Cabinet",
     "Subtasks": [
       {
-        "Name": "Impossible: Ambiguous object reference. Please specify which cabinet.",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 0
-        },
-        "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Put Tissue Box Inside the Drawer",
-    "Subtasks": [
-      {
-        "Name": "Place tissue box inside drawer",
+        "Name": "Place soap bar in drawer",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "TissueBox|-01.45|+00.80|+00.39": 1,
+            "SoapBar|-03.10|+00.68|+01.74": 1,
             "Drawer|-01.32|+00.31|+00.31": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO TissueBox|-01.45|+00.80|+00.39",
-            "GRASP TissueBox|-01.45|+00.80|+00.39",
+            "NAVIGATE_TO SoapBar|-03.10|+00.68|+01.74",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
             "NAVIGATE_TO Drawer|-01.32|+00.31|+00.31",
             "OPEN Drawer|-01.32|+00.31|+00.31",
             "PLACE_INSIDE Drawer|-01.32|+00.31|+00.31",
@@ -164,7 +140,36 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 5
+          "Interval": 6
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Put Tissue Box in Drawer",
+    "Subtasks": [
+      {
+        "Name": "Place tissue box in drawer",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "TissueBox|-01.45|+00.80|+00.39": 1,
+            "Drawer|-01.84|+00.61|+00.31": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO TissueBox|-01.45|+00.80|+00.39",
+            "GRASP TissueBox|-01.45|+00.80|+00.39",
+            "NAVIGATE_TO Drawer|-01.84|+00.61|+00.31",
+            "OPEN Drawer|-01.84|+00.61|+00.31",
+            "PLACE_INSIDE Drawer|-01.84|+00.61|+00.31",
+            "CLOSE Drawer|-01.84|+00.61|+00.31"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 6
         },
         "TemporalConstraints": []
       }

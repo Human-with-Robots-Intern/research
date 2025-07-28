@@ -8,6 +8,7 @@ import sys
 import time
 from collections import defaultdict
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from pathlib import Path
 
 import networkx as nx
 from networkx import DiGraph
@@ -38,6 +39,7 @@ from src.utils.io_utils.task_io import (
     load_task_data_from_file,
 )
 from src.utils.task.task_util import TaskUtil
+from src.utils.ros_executor import RosExecutor
 
 
 class ExecutionPredictionInfo(NamedTuple):
@@ -71,7 +73,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-s",
         "--simulation",
-        default=False,
+        default=True,
         action="store_true",
         help="시뮬레이션 실행 여부 (default: False)",
     )
@@ -92,13 +94,13 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan301",
+        default="FloorPlan7",
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default=None,
+        default=2,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     return parser.parse_args()
@@ -535,28 +537,29 @@ def main() -> None:
 
     if args.instruction:
         instruction = args.instruction
-        input_natural_language = instruction
         task_data = None
         try:
             choice = int(instruction)
             if 1 <= choice <= len(task_files):
                 task_file_name = task_files[choice - 1]
                 task_data = load_task_data_from_file(task_file_name)
-                input_natural_language = task_file_name
+                input_natural_language = Path(task_file_name).stem  # Pass only the file stem
         except ValueError:
             # It's a natural language instruction, not a number
+            input_natural_language = instruction
             pass
 
         if task_data is None:
             # It was a natural language instruction or an invalid number choice.
             # In both cases, we treat it as a natural language instruction.
             task_data = {"instruction": instruction}
+            input_natural_language = instruction
     else:
         task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
         task_data = load_task_data_from_file(task_file_name)
-        input_natural_language = task_file_name
+        input_natural_language = Path(task_file_name).stem # Pass only the file stem
         if choice != 0:
-            input_natural_language = task_file_name
+            input_natural_language = Path(task_file_name).stem # Pass only the file stem
 
     # Build tasks and constraints
     subtasks, constraints = TaskUtil.build_tasks_and_constraints(
@@ -613,56 +616,19 @@ def main() -> None:
         result_save(**result_args)
         print("end")
     if args.ros:
-        from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate, init_ros_communication, shutdown_ros_communication
-        from src.ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
-        from src.ros.ttp_ws.ttp_client.ttp_client.simulate_object_pos_change import SimulateObjectPosChange
-        simulate_object_pos_change = SimulateObjectPosChange()
-        translator = InstructionTranslator()
-        init_ros_communication()
-        try:
-            #디버깅용 코드
-            agent_location = [0,0,0]
-            held_object = None
-            ###
-            for entry in final_scheduled_entries:
-                subtask = entry.subtask
-                primitive_actions = subtask.execution.primitive_actions
-                if not primitive_actions:
-                    continue
-                for primitive_action in primitive_actions:
-                    primitive_action_parts = primitive_action.split(" ")
-                    if primitive_action_parts[0].lower() == "wait":
-                        time.sleep(float(primitive_action_parts[1]))
-                        continue
-                    translated_primitive_action = translator.translate(primitive_action)
-                    success = communicate(translated_primitive_action)
-                    # 물건의 위치를 추적하기 위한 코드
-                    if primitive_action_parts[0].lower() == "grasp":
-                        simulate_object_pos_change._simulate_grasp(
-                            primitive_action_parts[1].lower()
-                        )
-                        # 디버깅 용
-                        held_object = primitive_action_parts[1]
-                        print(f"held_object: {held_object}")
-                        ###
-                    elif primitive_action_parts[0].lower().startswith("place"):
-                        simulate_object_pos_change._simulate_place(
-                            primitive_action_parts[1].lower()
-                        )
-                        # 디버깅 용
-                        print(f"simulate_object_pos_change._get_object_pos(held_object): {simulate_object_pos_change._get_object_pos(held_object.lower())}")
-                        ###
-
-                    if not success:
-                        print(f"Action '{primitive_action}' failed. Stopping task.")
-                        # 여기서 루프를 중단할지 여부는 정책에 따라 결정할 수 있습니다.
-                        # 여기서는 바깥 루프까지 중단하도록 처리합니다.
-                        break
-                else:  # 내부 루프가 break 없이 완료된 경우
-                    continue
-                break  # 내부 루프가 break로 중단된 경우 외부 루프도 중단
-        finally:
-            shutdown_ros_communication()
+        ros_executor = RosExecutor()
+        ros_executor.execute_schedule(final_scheduled_entries)
+        
+        result_args = {
+            "task_name": input_natural_language,
+            "approach_name": f"{approach_name}_ros",
+            "result_schedule": final_scheduled_entries,
+            "computation_time": computation_time,
+            "scene_name": scene_name,
+            "constraints": constraints,
+            "initial_plan_data": task_data,
+        }
+        result_save(**result_args)
 
 
 if __name__ == "__main__":

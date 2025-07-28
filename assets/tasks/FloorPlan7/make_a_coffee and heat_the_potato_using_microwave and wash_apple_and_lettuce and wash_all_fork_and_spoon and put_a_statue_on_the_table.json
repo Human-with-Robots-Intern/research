@@ -139,15 +139,15 @@
           "Objects": {
             "Potato|+00.22|+01.16|+02.16": 1,
             "Microwave|+01.15|+01.66|-01.61": 1,
-            "CounterTop|+01.65|+00.95|-01.53": 1
+            "CounterTop|-01.87|+00.95|-00.61": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Microwave|+01.15|+01.66|-01.61",
             "OPEN Microwave|+01.15|+01.66|-01.61",
             "GRASP Potato|+00.22|+01.16|+02.16",
             "CLOSE Microwave|+01.15|+01.66|-01.61",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -169,7 +169,7 @@
     "Task": "Wash Apple and Lettuce",
     "Subtasks": [
       {
-        "Name": "Wash Apple and place on counterTop",
+        "Name": "Wash Apple",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -189,8 +189,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Apple|-00.63|+00.96|-01.44",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -200,7 +200,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Lettuce and place on counterTop",
+        "Name": "Wash Lettuce",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -220,8 +220,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Lettuce|-01.65|+00.96|-01.05",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -236,7 +236,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Wash Fork",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -256,8 +256,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Fork|-02.04|+00.71|-01.66",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -267,7 +267,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -287,8 +287,8 @@
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Spoon|-02.05|+00.71|-01.46",
-            "NAVIGATE_TO CounterTop|+01.65|+00.95|-01.53",
-            "PLACE_ON_TOP CounterTop|+01.65|+00.95|-01.53"
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -303,7 +303,7 @@
     "Task": "Put a Statue on the Table",
     "Subtasks": [
       {
-        "Name": "Put Statue on DiningTable",
+        "Name": "Place Statue on Dining Table",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
