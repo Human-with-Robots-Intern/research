@@ -93,14 +93,14 @@ def init_ai2thor_controller(
 
 def execute_subtask(
     controller: Controller, subtask: Subtask, logger: logging.Logger
-) -> tuple[float, str, float]:
+) -> tuple[float, TaskExecutionStatus, float]:
     """
     Executes a given subtask using the provided AI2-THOR controller.
 
     Returns:
-        tuple[float, str, float]:
+        tuple[float, TaskExecutionStatus, float]:
             - float: The total elapsed time taken to execute the subtask.
-            - str: Whether the subtask succeeded ('SUCCESS' or 'FAILURE').
+            - TaskExecutionStatus: Whether the subtask succeeded ('SUCCESS' or 'FAILURE').
             - float: 실제 첫 NAVIGATE_TO primitive action의 소요 시간(sim_nav_time)
     """
     act = Action(controller, logger=logger)

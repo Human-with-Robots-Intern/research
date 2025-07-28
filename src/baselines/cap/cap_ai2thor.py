@@ -12,10 +12,11 @@ import numpy as np
 from ai2thor.controller import Controller
 
 import src.baselines.cap.util.LMPgen as gen
-from simulation.runner_ai2thor import init_ai2thor_controller
-from utils.config.constants import *
-from utils.io_utils.result_saver import result_save_llm
+from src.simulation.runner_ai2thor import init_ai2thor_controller
+from src.utils.config.constants import *
+from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
+from src.utils.common import create_module_logger
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
@@ -373,6 +374,11 @@ if __name__ == "__main__":
     # --- 스크립트 설정 및 초기화 ---
     approach_name = "cap_ai2thor_simulation"
     args = parse_arguments()
+    logger = create_module_logger(
+        module_name=approach_name,
+        log_file_path=Path(args.log_path) if args.log_path else None,
+        level=args.log_level,
+    )
     scene_name = args.scene
     instruction = args.instruction
     ithor_main_controller = None
@@ -410,7 +416,7 @@ if __name__ == "__main__":
         ithor_main_controller = init_ai2thor_controller(scene_name)
 
         # Action 핸들러 초기화
-        ithor_action_controller = Action(ithor_main_controller)
+        ithor_action_controller = Action(ithor_main_controller, logger=logger)
 
         # LMP 환경 설정
         lmp_scene_ui = setup_LMP(

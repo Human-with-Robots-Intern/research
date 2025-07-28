@@ -15,6 +15,7 @@ from util.utils_execute import *
 
 
 from src.utils.config.constants import *
+from src.utils.common import create_module_logger
 from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
 
@@ -94,7 +95,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-def generate_plan(controller, task: str, args: argparse.Namespace):
+def generate_plan(controller, task: str, args: argparse.Namespace, logger):
     # 현재 scene에 있는 object들을 가져옴
     # 이거 env json으로 해야하나 contoller로 하면 되나?
     obj = list(
@@ -164,7 +165,7 @@ def generate_plan(controller, task: str, args: argparse.Namespace):
     approach_name = "prog_ai2thor_simulation"
     result_path = f"{task}"
 
-    simulate_execution(controller, [task], [text], log_file, args)
+    simulate_execution(controller, [task], [text], log_file, args, logger)
     result_args={
         "approach_name": approach_name,
         "user_input": task,
@@ -177,11 +178,11 @@ def generate_plan(controller, task: str, args: argparse.Namespace):
 
 
 
-def planner_executer(args: argparse.Namespace, task: str):
+def planner_executer(args: argparse.Namespace, task: str, logger):
     scene_name = args.scene
     controller = init_ai2thor_controller(scene_name)
     try:
-        generate_plan(controller, task, args)
+        generate_plan(controller, task, args, logger)
     finally:
         controller.stop()
 
@@ -214,6 +215,6 @@ if __name__ == "__main__":
 
     openai.api_key = args.openai_api_key
 
-    planner_executer(args=args, task=task)
+    planner_executer(args=args, task=task, logger=logger)
 
 

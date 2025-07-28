@@ -314,9 +314,9 @@ def get_current_state_prompt():
 current_state_prompt = get_current_state_prompt()
 
 
-def simulate_execution(controller, test_tasks, gen_plan, log_file, args):
+def simulate_execution(controller, test_tasks, gen_plan, log_file, args, logger):
     elapsed_time = 0
-    Act = Action(controller)
+    Act = Action(controller, logger=logger)
     ## gen plan 토대로 실행
     for task, plan in zip(test_tasks, gen_plan):
         log_file.write(f"Starting simulation for task: {task}\n")

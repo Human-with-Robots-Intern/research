@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum, auto
 from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple
 
 from networkx import DiGraph
 
 if TYPE_CHECKING:
     from src.models.task import Subtask
+
+
+class TaskExecutionStatus(Enum):
+    """
+    Subtask 실행 상태를 나타내는 Enum
+    """
+
+    NOT_EXECUTED = auto()
+    SUCCESS = auto()
+    FAILURE = auto()
 
 
 class SchedulerState(NamedTuple):
@@ -185,7 +196,7 @@ class CompletedEntry:
     sim_nav_time: Optional[float] = None
     schedule_nav_time: Optional[float] = None
     # Simulation / Real-world에서 실행 성공 상태
-    execution_status: bool = False
+    execution_status: "TaskExecutionStatus" = TaskExecutionStatus.NOT_EXECUTED
 
     def __repr__(self):
         return f"({self.subtask.name}, {self.schedule_start_time} ~ {self.schedule_end_time}, {self.sim_start_time} ~ {self.sim_end_time}, {self.execution_status})"

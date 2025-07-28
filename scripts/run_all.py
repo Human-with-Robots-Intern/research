@@ -351,7 +351,7 @@ def main() -> None:
     
     num_runs_per_instruction = config.get("num_runs_per_instruction", 1)
     start_idx = config.get("start_idx", 0)
-    max_workers = config.get("max_workers", 5)
+    max_workers = config.get("max_workers", 1)
     file_copy_lock = threading.Lock()
     
     # Log current  configuration

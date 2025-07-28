@@ -206,13 +206,13 @@ class ActionHandler:
             current_cumulative_time += action_duration
 
             log_entry = ActionResult(
-                action_str=action_str,
+                action_full_name=action_str,
                 action_type=action_type,
-                action_duration=action_duration,
-                action_success=action_success,
                 cumulative_time=current_cumulative_time,
+                action_duration=action_duration,
                 scene_positions=copy.deepcopy(current_scene_positions),
                 held_object=copy.deepcopy(current_held_object),
+                success=action_success,
             )
             action_log.results.append(log_entry)
             self.log.debug(

@@ -18,6 +18,7 @@ from src.models.dataclass import (
     CompletedEntry,
     SchedulerState,
     SimulationNode,
+    TaskExecutionStatus,
 )
 from src.models.task import Duration, Execution, Subtask
 

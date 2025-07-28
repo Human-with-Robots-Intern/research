@@ -14,8 +14,8 @@ approaches:
   - "src/baselines/cpm.py"
   - "src/baselines/edf/dag_edf.py"
   - "src/dag_bayesian.py"
-  # - "src/baselines/progprompt/prog_ai2thor.py"
-  # - "src/baselines/cap/cap_ai2thor.py"
+  - "src/baselines/progprompt/prog_ai2thor.py"
+  - "src/baselines/cap/cap_ai2thor.py"
 
 
 # Scripts that use LLMs and are subject to retries on failure
@@ -47,4 +47,4 @@ num_runs_per_instruction: 1
 max_retries: 10
 # Delay in seconds between retries
 retry_delay_seconds: 2 
-max_workers: 5 
+max_workers: 5
