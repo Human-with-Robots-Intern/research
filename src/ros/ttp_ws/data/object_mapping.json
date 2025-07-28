@@ -6,11 +6,10 @@
     "stove": 33,
     "orange_bowl": 34,
     "blue_bowl": 35,
-    "toilet": 80,
-    "spray_bottle": 81,
-    "scrub_brush": 82,
-    "soap_bottle": 83,
-    "sink|sinkbasin": 84,
-    "faucet": 85,
-    "toilet_paper": 86
+    "countertop": 36,
+    "sink|sinkbasin": 37,
+    "laundry machine": 38,
+    "chicken": 39,
+    "cup": 40,
+    "toggle": 41
 }

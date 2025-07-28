@@ -1,13 +1,14 @@
 {
     "instructions": [
-        "Pick Pan and Put it on Cooker, Pick Sausage and put it on Pan and Turn on Cooker and Put the orange_bowl on sink",
-        "Pick tomato from countertop and put it on the table and pick banana and put it on the table and pick orange_bowl and put it on the table",
-        "Pick blue_bowl and put on table and then pick tomato and put in blue_bowl ",
-        "Pick Pan and Put it on CounterTop, Pick Mushroom and Put it on Pan",
-        "Pick cleaning brush and put in cabinet and pick toilet paper and put it on sink",
-        "Wet_the_soapbar_with_water and wet_the_soapbottle_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_light and close_shower_curtain",
-        "Pick Pan and Put it on Cooker, Pick Sausage and put it on Cooker and Turn on Cooker",
-        "Open the laundry machine and then close the laundry machine and then toggle on the laundry machine, put the bowl on sink",
-        "Open the laundry machine and then close the laundry machine and then toggle on the laundry machine and Pick Pan and Put it on Cooker, Pick Sausage and put it on Cooker and Turn on Cooker and put the bowl on sink"
-        ]
+        "cook_sausage and move_cooked_sausage_to_plate and put_orange_bowl_on_sink and move_blue_bowl_to_sink and move_cup_to_sink",
+        "do_the_laundry and place_pan_on_stove and put_banana_on_plate and put_orange_bowl_on_sink and move_cup_to_sink",
+        "cook_chicken and move_cooked_chicken_to_plate and put_orange_bowl_on_sink and move_blue_bowl_to_sink and move_cup_to_sink",
+        "do_the_laundry and place_pan_on_stove and put_banana_on_plate and move_blue_bowl_to_sink and move_cup_to_sink",
+        "cook_sausage and move_cooked_sausage_to_plate and move_cup_to_sink and put_orange_bowl_on_sink and move_blue_bowl_to_sink",
+        "cook_sausage and do_the_laundry and move_cooked_sausage_to_plate and put_orange_bowl_on_sink and move_cup_to_sink",
+        "cook_chicken and do_the_laundry and move_cooked_chicken_to_plate and put_orange_bowl_on_sink and move_blue_bowl_to_sink",
+        "cook_sausage and do_the_laundry and move_cooked_sausage_to_plate and move_blue_bowl_to_sink and move_cup_to_sink",
+        "cook_chicken and do_the_laundry and move_cooked_chicken_to_plate and put_orange_bowl_on_sink and move_cup_to_sink",
+        "cook_sausage and do_the_laundry and move_cooked_sausage_to_plate and put_orange_bowl_on_sink and move_blue_bowl_to_sink"
+    ]
 }

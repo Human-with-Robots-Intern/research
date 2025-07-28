@@ -391,8 +391,6 @@ Return a **JSON array**, where each element represents a main **Task**:
                     "Objects": { "Laundry Machine": 1 },
                     "PrimitiveActions": [
                         "NAVIGATE_TO Laundry Machine",
-                        "OPEN Laundry Machine",
-                        "CLOSE Laundry Machine",
                         "TOGGLE_ON Laundry Machine"
                     ]
                 },
@@ -459,8 +457,7 @@ Return a **JSON array**, where each element represents a main **Task**:
                     "Objects": { "Laundry Machine": 1 },
                     "PrimitiveActions": [
                         "NAVIGATE_TO Laundry Machine",
-                        "TOGGLE_OFF Laundry Machine",
-                        "OPEN Laundry Machine"
+                        "TOGGLE_OFF Laundry Machine"
                     ]
                 },
                 "Duration": { "Type": "Controllable", "Interval": 2 },

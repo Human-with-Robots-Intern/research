@@ -1,17 +1,15 @@
 {
     "OPEN": [
-        "Laundry Machine"
+        "Cabinet"
     ],
     "CLOSE": [
-        "Laundry Machine"
+        "Cabinet"
     ],
     "TOGGLE_ON": [
-        "Stove",
-        "Laundry Machine"
+        "Stove"
     ],
     "TOGGLE_OFF": [
-        "Stove",
-        "Laundry Machine"
+        "Stove"
     ],
     "GRASP": [
         "Banana",
