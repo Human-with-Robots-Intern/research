@@ -5,7 +5,7 @@
     "PLACE_INSIDE": 17,
     "TOGGLE_ON": 18,
     "TOGGLE_OFF": 19,
-    "WAIT": 20,
+    "MONITORING": 20,
     "SLICE": 21,
     "OPEN": 22,
     "CLOSE": 23
