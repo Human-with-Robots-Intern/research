@@ -103,11 +103,17 @@ def parse_arguments() -> argparse.Namespace:
         default=1,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
+    parser.add_argument(
+        "--log-path",
+        type=str,
+        default=None,
+        help="Path to the log file for this specific run.",
+    )
     return parser.parse_args()
 
 
 def compute_nav_time(
-    subtask: Subtask, current_state: SchedulerState
+    subtask: Subtask, current_state: SchedulerState, action_handler: ActionHandler
 ) -> Tuple[float, Dict[str, Tuple[float, float, float]]]:
     """
     subtask의 첫 번째 primitive action이 NAVIGATE_TO일 경우, 해당 액션의 소요 시간을 계산합니다.
@@ -152,7 +158,7 @@ def compute_nav_time(
 
 
 def offline_subtask_execution(
-    current_state: SchedulerState, next_subtask: Subtask
+    current_state: SchedulerState, next_subtask: Subtask, action_handler: ActionHandler
 ) -> ActionResult:
     """
     Simulate subtask execution offline to predict execution time and results.
@@ -273,6 +279,7 @@ def nav_and_wait_during_interval(
     interval: float,
     next_subtask: Subtask,
     is_critical: bool,
+    action_handler: ActionHandler,
 ) -> Tuple[List[CompletedEntry], SchedulerState]:
     """
     Create navigation and wait subtasks during a given time interval.
@@ -299,7 +306,7 @@ def nav_and_wait_during_interval(
             f"[{next_subtask.name}] 첫 번째 액션이 NAVIGATE_TO가 아닙니다."
         )
     # Calculate navigation time
-    nav_time, nav_positions = compute_nav_time(next_subtask, current_state)
+    nav_time, nav_positions = compute_nav_time(next_subtask, current_state, action_handler)
 
     if 0.0 < nav_time <= interval:
         # Create NAVIGATE subtask
@@ -361,6 +368,7 @@ def get_final_entries(
     critical_path: List[Tuple[Subtask, float, bool]],
     subtasks_without_edge: List[Subtask],
     init_state: SchedulerState,
+    action_handler: ActionHandler,
 ) -> List[CompletedEntry]:
     """
     Generate final schedule entries considering critical path and unconstrained subtasks.
@@ -377,8 +385,8 @@ def get_final_entries(
 
     for i, (subtask, interval, is_critical) in enumerate(critical_path):
         # 우선 schedule_order에 있는 subtask를 돌면서 simulate_subtask_execution을 해준다.
-        exec_info = offline_subtask_execution(current_state, subtask)
-        nav_time, _ = compute_nav_time(subtask, current_state)
+        exec_info = offline_subtask_execution(current_state, subtask, action_handler)
+        nav_time, _ = compute_nav_time(subtask, current_state, action_handler)
 
         final_entry_schedule.append(
             CompletedEntry(
@@ -400,7 +408,7 @@ def get_final_entries(
             expected_ne_subtask_info: Dict[Subtask, ExecutionPredictionInfo] = {}
             for non_edge_subtask in subtasks_without_edge:
                 predicted_exec_info = offline_subtask_execution(
-                    current_state, non_edge_subtask
+                    current_state, non_edge_subtask, action_handler
                 )
                 predicted_exec_time = predicted_exec_info.cumulative_time
                 predicted_next_state = update_state(
@@ -411,7 +419,7 @@ def get_final_entries(
                     critical_path[i + 1][0] if i + 1 < len(critical_path) else None
                 )
                 nav_time_to_succ = (
-                    compute_nav_time(succ_subtask, predicted_next_state)[0]
+                    compute_nav_time(succ_subtask, predicted_next_state, action_handler)[0]
                     if succ_subtask
                     else 0.0
                 )
@@ -466,6 +474,7 @@ def get_final_entries(
                         remaining_interval,
                         next_subtask_in_cp,
                         is_critical,
+                        action_handler,
                     )
                     final_entry_schedule.extend(nav_wait_entries)
                 break
@@ -493,7 +502,7 @@ def get_final_entries(
 
     # Schedule remaining unconstrained subtasks
     for left_subtask in subtasks_without_edge:
-        left_exec_info = offline_subtask_execution(current_state, left_subtask)
+        left_exec_info = offline_subtask_execution(current_state, left_subtask, action_handler)
         final_entry_schedule.append(
             CompletedEntry(
                 subtask=left_subtask,
@@ -516,119 +525,128 @@ def main() -> None:
     
     approach_name = "cpm"
     args: argparse.Namespace = parse_arguments()
+    logger = create_module_logger(
+        module_name=approach_name,
+        log_file_path=Path(args.log_path) if args.log_path else None,
+        level=args.log_level,
+    )
     scene_name: str = args.scene
+    controller = None
+    global constraints
 
-    global action_handler, constraints
-    # Initialize controller, navigation graph, and scene
-    if args.ros:
-        controller = None
-        nav_graph = {(0, 0, 0): {(0, 0, 0)}}
-        action_handler = ActionHandler(nav_graph, log_level=args.log_level)
-    else:
-        controller = init_ai2thor_controller(scene_name)
-        nav_graph = load_navigation_graph(controller)
-        action_handler = ActionHandler(nav_graph, log_level=args.log_level)
+    try:
+        # Initialize controller, navigation graph, and scene
+        if args.ros:
+            controller = None
+            nav_graph = {(0, 0, 0): {(0, 0, 0)}}
+            action_handler = ActionHandler(nav_graph, logger=logger)
+        else:
+            controller = init_ai2thor_controller(scene_name)
+            nav_graph = load_navigation_graph(controller)
+            action_handler = ActionHandler(nav_graph, logger=logger)
 
-    scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
+        scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
 
+        # Load task data
+        task_files = list_task_files(scene_name)
 
-    # Load task data
-    task_files = list_task_files(scene_name)
+        if args.instruction:
+            instruction = args.instruction
+            task_data = None
+            try:
+                choice = int(instruction)
+                if 1 <= choice <= len(task_files):
+                    task_file_name = task_files[choice - 1]
+                    task_data = load_task_data_from_file(task_file_name)
+                    input_natural_language = Path(task_file_name).stem  # Pass only the file stem
+            except ValueError:
+                # It's a natural language instruction, not a number
+                input_natural_language = instruction
+                pass
 
-    if args.instruction:
-        instruction = args.instruction
-        task_data = None
-        try:
-            choice = int(instruction)
-            if 1 <= choice <= len(task_files):
-                task_file_name = task_files[choice - 1]
-                task_data = load_task_data_from_file(task_file_name)
-                input_natural_language = Path(task_file_name).stem  # Pass only the file stem
-        except ValueError:
-            # It's a natural language instruction, not a number
-            input_natural_language = instruction
-            pass
-
-        if task_data is None:
-            # It was a natural language instruction or an invalid number choice.
-            # In both cases, we treat it as a natural language instruction.
-            task_data = {"instruction": instruction}
-            input_natural_language = instruction
-    else:
-        task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
-        task_data = load_task_data_from_file(task_file_name)
-        input_natural_language = Path(task_file_name).stem # Pass only the file stem
-        if choice != 0:
+            if task_data is None:
+                # It was a natural language instruction or an invalid number choice.
+                # In both cases, we treat it as a natural language instruction.
+                task_data = {"instruction": instruction}
+                input_natural_language = instruction
+        else:
+            task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
+            task_data = load_task_data_from_file(task_file_name)
             input_natural_language = Path(task_file_name).stem # Pass only the file stem
+            if choice != 0:
+                input_natural_language = Path(task_file_name).stem # Pass only the file stem
 
-    # Build tasks and constraints
-    subtasks, constraints = TaskUtil.build_tasks_and_constraints(
-        task_data,
-        scene_file_name=f"{scene_name}_physics_environment.json",
-        enable_decomposition=args.decomposition,
-    )
-
-    # Find subtasks without edge constraints
-    subtasks_without_edge = [
-        s
-        for s in subtasks
-        if all(
-            s.name != str1 and s.name != str2
-            for (str1, str2) in list(constraints.edges)
+        # Build tasks and constraints
+        subtasks, constraints = TaskUtil.build_tasks_and_constraints(
+            task_data,
+            scene_file_name=f"{scene_name}_physics_environment.json",
+            enable_decomposition=args.decomposition,
         )
-    ]
 
-    init_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
-
-    # Calculate schedule
-    start_time = time.time()
-    critical_path = find_critical_path(subtasks)
-    final_scheduled_entries = get_final_entries(
-        critical_path, subtasks_without_edge, init_state
-    )
-    computation_time = time.time() - start_time
-
-    # Run simulation if enabled
-    if args.simulation:
-        approach_name = f"{approach_name}_simulation"
-        simulation_time = 0.0
-
-        for entry in final_scheduled_entries:
-            subtask = entry.subtask
-            subtask_time, execution_status, sim_nav_time = execute_subtask(
-                controller, subtask, args.log_level
+        # Find subtasks without edge constraints
+        subtasks_without_edge = [
+            s
+            for s in subtasks
+            if all(
+                s.name != str1 and s.name != str2
+                for (str1, str2) in list(constraints.edges)
             )
-            entry.sim_start_time = simulation_time
-            entry.sim_end_time = simulation_time + subtask_time
-            simulation_time += subtask_time
-            entry.execution_status = execution_status
-            entry.sim_nav_time = sim_nav_time
+        ]
 
-        result_args = {
-            "task_name": input_natural_language,
-            "approach_name": approach_name,
-            "result_schedule": final_scheduled_entries,
-            "computation_time": computation_time,
-            "scene_name": scene_name,
-            "constraints": constraints,
-            "initial_plan_data": task_data,
-        }
-        result_save(**result_args)
-        print("end")
-    if args.ros:
-        ros_executor = RosExecutor()
-        real_executed_scheduled_entries = ros_executor.execute_schedule(final_scheduled_entries)
-        
-        result_args = {
-            "task_name": input_natural_language,
-            "approach_name": f"{approach_name}_ros",
-            "result_schedule": real_executed_scheduled_entries,
-            "computation_time": computation_time,
-            "scene_name": scene_name,
-            "constraints": constraints,
-            "initial_plan_data": task_data,
-        }
-        result_save(**result_args)
+        init_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
+
+        # Calculate schedule
+        start_time = time.time()
+        critical_path = find_critical_path(subtasks)
+        final_scheduled_entries = get_final_entries(
+            critical_path, subtasks_without_edge, init_state, action_handler
+        )
+        computation_time = time.time() - start_time
+
+        # Run simulation if enabled
+        if args.simulation:
+            approach_name = f"{approach_name}_simulation"
+            simulation_time = 0.0
+
+            for entry in final_scheduled_entries:
+                subtask = entry.subtask
+                subtask_time, execution_status, sim_nav_time = execute_subtask(
+                    controller, subtask, logger
+                )
+                entry.sim_start_time = simulation_time
+                entry.sim_end_time = simulation_time + subtask_time
+                simulation_time += subtask_time
+                entry.execution_status = execution_status
+                entry.sim_nav_time = sim_nav_time
+
+            result_args = {
+                "task_name": input_natural_language,
+                "approach_name": approach_name,
+                "result_schedule": final_scheduled_entries,
+                "computation_time": computation_time,
+                "scene_name": scene_name,
+                "constraints": constraints,
+                "initial_plan_data": task_data,
+            }
+            result_save(**result_args)
+            print("end")
+        if args.ros:
+            ros_executor = RosExecutor()
+            real_executed_scheduled_entries = ros_executor.execute_schedule(final_scheduled_entries)
+            
+            result_args = {
+                "task_name": input_natural_language,
+                "approach_name": f"{approach_name}_ros",
+                "result_schedule": real_executed_scheduled_entries,
+                "computation_time": computation_time,
+                "scene_name": scene_name,
+                "constraints": constraints,
+                "initial_plan_data": task_data,
+            }
+            result_save(**result_args)
+    finally:
+        if controller:
+            controller.stop()
 
 
 if __name__ == "__main__":

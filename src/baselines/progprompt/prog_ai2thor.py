@@ -86,6 +86,12 @@ def parse_arguments() -> argparse.Namespace:
     
     parser.add_argument("--prompt-task-examples", type=str, default="default")
     parser.add_argument("--instruction", type=str, default=None)
+    parser.add_argument(
+        "--log-path",
+        type=str,
+        default=None,
+        help="Path to the log file for this specific run.",
+    )
     return parser.parse_args()
 
 def generate_plan(controller, task: str, args: argparse.Namespace):
@@ -174,11 +180,19 @@ def generate_plan(controller, task: str, args: argparse.Namespace):
 def planner_executer(args: argparse.Namespace, task: str):
     scene_name = args.scene
     controller = init_ai2thor_controller(scene_name)
-    generate_plan(controller, task, args)
+    try:
+        generate_plan(controller, task, args)
+    finally:
+        controller.stop()
 
 
 if __name__ == "__main__":
     args: argparse.Namespace = parse_arguments()    
+    logger = create_module_logger(
+        module_name="prog_ai2thor",
+        log_file_path=Path(args.log_path) if args.log_path else None,
+        level=args.log_level,
+    )
 
     instruction = args.instruction
     task = ""

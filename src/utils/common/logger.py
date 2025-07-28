@@ -1,5 +1,7 @@
 import datetime
 import logging
+from pathlib import Path
+from typing import Optional
 
 from colorlog import ColoredFormatter
 
@@ -33,18 +35,22 @@ def _get_file_handler(filepath, mode="a"):
     return handler
 
 
-def create_module_logger(module_name, module_log=False, level=logging.DEBUG):
+def create_module_logger(module_name, module_log=False, level=logging.DEBUG, log_file_path: Optional[Path] = None):
     logger = logging.getLogger(module_name)
     logger.setLevel(level)
     logger.propagate = False
 
     if logger.hasHandlers():
-        return logger
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
 
     logger.addHandler(_get_console_handler())
 
-    # 로그 파일 경로 생성
-    log_file = LOG_PATH / "all_log" / f"{datetime.datetime.now():%Y%m%d_%H%M}.log"
+    if log_file_path:
+        log_file = log_file_path
+    else:
+        log_file = LOG_PATH / "all_log" / f"{datetime.datetime.now():%Y%m%d_%H%M}.log"
+        
     # 폴더가 없으면 생성
     log_file.parent.mkdir(parents=True, exist_ok=True)
 

@@ -431,6 +431,12 @@ def parse_arguments():
         action="store_true",
         help="ROS 실행 여부 (default: False)",
     )
+    parser.add_argument(
+        "--log-path",
+        type=str,
+        default=None,
+        help="Path to the log file for this specific run.",
+    )
     return parser.parse_args()
 
 
@@ -439,126 +445,140 @@ def main():
     approach_name = "dag_edf"
 
     args = parse_arguments()
-    scene_name = args.scene
-
-    if args.ros:
-        controller = None
-        nav_graph = {(0, 0, 0): {(0, 0, 0)}}
-        action_handler = ActionHandler(nav_graph, log_level=args.log_level)
-    else:
-        controller = init_ai2thor_controller(scene_name)
-        nav_graph = load_navigation_graph(controller)
-        action_handler = ActionHandler(nav_graph, log_level=args.log_level)
-
-    scene_poses = load_scene_positions(f"{scene_name}_positions.json")
-
-    # Load the chosen task data
-    task_files = list_task_files(scene_name=scene_name)
-    if args.instruction:
-        instruction = args.instruction
-        input_natural_language = instruction
-        task_data = None
-        try:
-            choice = int(instruction)
-            if 1 <= choice <= len(task_files):
-                task_file_name = task_files[choice - 1]
-                task_data = load_task_data_from_file(task_file_name)
-                input_natural_language = Path(task_file_name).stem
-        except ValueError:
-            # It's a natural language instruction, not a number
-            pass
-
-        if task_data is None:
-            # It was a natural language instruction or an invalid number choice.
-            # In both cases, we treat it as a natural language instruction.
-            task_data = {"instruction": instruction}
-    else:
-        task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
-        task_data = load_task_data_from_file(task_file_name)
-        input_natural_language = task_file_name
-        if choice != 0:
-            input_natural_language = task_file_name
-    # Build tasks and constraints
-    subtasks, constraints = TaskUtil.build_tasks_and_constraints(
-        task_data, scene_file_name=f"{scene_name}_physics_environment.json"
+    logger = create_module_logger(
+        module_name=approach_name,
+        log_file_path=Path(args.log_path) if args.log_path else None,
+        level=args.log_level,
     )
+    scene_name = args.scene
+    controller = None
 
-    computation_time = 0
-    init_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
-    current_state = init_state
-    result_schedule = []
+    try:
+        if args.ros:
+            controller = None
+            nav_graph = {(0, 0, 0): {(0, 0, 0)}}
+            action_handler = ActionHandler(nav_graph, logger=logger)
+        else:
+            controller = init_ai2thor_controller(scene_name)
+            nav_graph = load_navigation_graph(controller)
+            action_handler = ActionHandler(nav_graph, logger=logger)
 
-    # Phase 1: Complete scheduling
-    for i in range(len(subtasks)):
-        subtask_scheduling_time_start = time.time()
-        next_subtask = get_next_subtask_edf(current_state, action_handler)
+        scene_poses = load_scene_positions(f"{scene_name}_positions.json")
 
-        if next_subtask is None:
-            break
-        current_state = update(current_state, next_subtask, action_handler)
-        subtask_scheduling_time = time.time() - subtask_scheduling_time_start
-        computation_time += subtask_scheduling_time
+        # Load the chosen task data
+        task_files = list_task_files(scene_name=scene_name)
+        if args.instruction:
+            instruction = args.instruction
+            input_natural_language = instruction
+            task_data = None
+            try:
+                choice = int(instruction)
+                if 1 <= choice <= len(task_files):
+                    task_file_name = task_files[choice - 1]
+                    task_data = load_task_data_from_file(task_file_name)
+                    input_natural_language = Path(task_file_name).stem
+            except ValueError:
+                # It's a natural language instruction, not a number
+                pass
 
-    result_schedule = current_state.completed_entries
-    result_schedule.pop(0)  # Remove the init entry
-
-    # Print execution times for each entry
-    print("\n=== Execution Times for Each Entry ===")
-    current_state = init_state
-    for entry in result_schedule:
-        action_handler = ActionHandler(nav_graph, log_level="WARNING")
-        exec_info = offline_subtask_execution(
-            entry.subtask, current_state, action_handler
+            if task_data is None:
+                # It was a natural language instruction or an invalid number choice.
+                # In both cases, we treat it as a natural language instruction.
+                task_data = {"instruction": instruction}
+        else:
+            task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
+            task_data = load_task_data_from_file(task_file_name)
+            input_natural_language = task_file_name
+            if choice != 0:
+                input_natural_language = task_file_name
+        # Build tasks and constraints
+        subtasks, constraints = TaskUtil.build_tasks_and_constraints(
+            task_data, scene_file_name=f"{scene_name}_physics_environment.json"
         )
-        action_handler = ActionHandler(nav_graph, log_level=args.log_level)
 
-        current_state = update_state(
-            current_state, entry.subtask, exec_info, entry.schedule_nav_time
-        )
+        computation_time = 0
+        init_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
+        current_state = init_state
+        result_schedule = []
 
+        # Phase 1: Complete scheduling
+        for i in range(len(subtasks)):
+            subtask_scheduling_time_start = time.time()
+            next_subtask = get_next_subtask_edf(current_state, action_handler)
 
-    # Phase 2: Execute simulation if requested
-    if args.simulation:
-        approach_name = f"{approach_name}_simulation"
-        simulation_current_time = 0.0
-        # Execute each subtask in the schedule
+            if next_subtask is None:
+                break
+            current_state = update(current_state, next_subtask, action_handler)
+            subtask_scheduling_time = time.time() - subtask_scheduling_time_start
+            computation_time += subtask_scheduling_time
+
+        result_schedule = current_state.completed_entries
+        result_schedule.pop(0)  # Remove the init entry
+
+        # Print execution times for each entry
+        print("\n=== Execution Times for Each Entry ===")
+        current_state = init_state
         for entry in result_schedule:
-            subtask_time, execution_status, sim_nav_time = execute_subtask(
-                controller, entry.subtask, args.log_level
+            warning_logger = create_module_logger(
+                module_name=f"{approach_name}_warning",
+                level="WARNING",
             )
-            # Update the entry with simulation times and execution status
-            entry.sim_start_time = simulation_current_time
-            entry.sim_end_time = simulation_current_time + subtask_time
-            entry.execution_status = execution_status
-            entry.sim_nav_time = sim_nav_time
-            simulation_current_time += subtask_time
-            
-        result_args = {
-        "task_name": input_natural_language,
-        "approach_name": approach_name,
-        "result_schedule": result_schedule,
-        "computation_time": computation_time,
-        "scene_name": scene_name,
-        "constraints": constraints,
-        "initial_plan_data": task_data,
-        }
+            action_handler = ActionHandler(nav_graph, logger=warning_logger)
+            exec_info = offline_subtask_execution(
+                entry.subtask, current_state, action_handler
+            )
+            action_handler = ActionHandler(nav_graph, logger=logger)
 
-        result_save(**result_args)
-        
-    if args.ros:
-        ros_executor = RosExecutor()
-        real_executed_result_schedule = ros_executor.execute_schedule(result_schedule)
-        
-        result_args = {
+            current_state = update_state(
+                current_state, entry.subtask, exec_info, entry.schedule_nav_time
+            )
+
+
+        # Phase 2: Execute simulation if requested
+        if args.simulation:
+            approach_name = f"{approach_name}_simulation"
+            simulation_current_time = 0.0
+            # Execute each subtask in the schedule
+            for entry in result_schedule:
+                subtask_time, execution_status, sim_nav_time = execute_subtask(
+                    controller, entry.subtask, logger
+                )
+                # Update the entry with simulation times and execution status
+                entry.sim_start_time = simulation_current_time
+                entry.sim_end_time = simulation_current_time + subtask_time
+                entry.execution_status = execution_status
+                entry.sim_nav_time = sim_nav_time
+                simulation_current_time += subtask_time
+                
+            result_args = {
             "task_name": input_natural_language,
-            "approach_name": f"{approach_name}_ros",
-            "result_schedule": real_executed_result_schedule,
+            "approach_name": approach_name,
+            "result_schedule": result_schedule,
             "computation_time": computation_time,
             "scene_name": scene_name,
             "constraints": constraints,
             "initial_plan_data": task_data,
-        }
-        result_save(**result_args)
+            }
+
+            result_save(**result_args)
+            
+        if args.ros:
+            ros_executor = RosExecutor()
+            real_executed_result_schedule = ros_executor.execute_schedule(result_schedule)
+            
+            result_args = {
+                "task_name": input_natural_language,
+                "approach_name": f"{approach_name}_ros",
+                "result_schedule": real_executed_result_schedule,
+                "computation_time": computation_time,
+                "scene_name": scene_name,
+                "constraints": constraints,
+                "initial_plan_data": task_data,
+            }
+            result_save(**result_args)
+    finally:
+        if controller:
+            controller.stop()
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import time
+import logging
 
 from src.utils.common import create_module_logger
 from src.utils.config.constants import SMOOTH_LEVEL
@@ -16,16 +17,16 @@ class Action:
 
     Args:
         controller: The AI2-THOR controller used to interact with the environment.
-        log_level (str): Log level for the action logger.
+        logger (logging.Logger): The logger instance to use.
 
     Returns (for all actions):
         elapsed_time (float): Time taken to perform the action.
     """
 
-    def __init__(self, controller, log_level: str = "DEBUG"):
+    def __init__(self, controller, logger: logging.Logger):
         self.controller = controller
         self.navi = NavigationHandler(controller)
-        log.setLevel(log_level)
+        self.log = logger
 
     def success_log(self, result, action: str):
         """
@@ -36,9 +37,9 @@ class Action:
             action (str): The action description for logging.
         """
         if result.metadata["lastActionSuccess"]:
-            log.debug(f"{action}: success")
+            self.log.debug(f"{action}: success")
         else:
-            log.debug(
+            self.log.debug(
                 f"{action}: failure. {result.metadata.get('errorMessage', 'Unknown error')}"
             )
 
@@ -58,7 +59,7 @@ class Action:
                 # parentReceptacles 키가 없을 수도 있으므로 get으로 가져오기
                 parent_receptacle_ids = obj.get("parentReceptacles")
                 if parent_receptacle_ids:
-                    log.debug(f"Found parent receptacles: {parent_receptacle_ids}")
+                    self.log.debug(f"Found parent receptacles: {parent_receptacle_ids}")
                     return parent_receptacle_ids[0]
         return None
 
@@ -111,13 +112,13 @@ class Action:
             if result.metadata["lastActionSuccess"]:
                 self.close(receptacle_id)
                 elapsed_time += 1
-                log.debug(
+                self.log.debug(
                     f"Pick up action after opening receptacle "
                     f"{receptacle_id} was successful."
                 )
                 return elapsed_time
             else:
-                log.warning(
+                self.log.warning(
                     f"Failed to pick up object {object_id} even after "
                     f"opening the receptacle {receptacle_id}."
                 )
@@ -190,7 +191,7 @@ class Action:
             result = self.controller.step(action="DropHandObject", forceAction=True)
             # elapsed_time += 1
             self.success_log(result, "drop")
-            log.debug("Alternative Action: Drop")
+            self.log.debug("Alternative Action: Drop")
         time.sleep(0.3)
         return elapsed_time
 
@@ -304,7 +305,7 @@ class Action:
         """
         agent_position = self.navi.get_agent_position()
         object_position = self.navi.get_object_position(object_id)
-        log.debug(f"Monitoring: focusing on {object_id}")
+        self.log.debug(f"Monitoring: focusing on {object_id}")
 
         obj_angle, degree = self.navi.agent_rotate_angle(
             agent_position, object_position
@@ -347,7 +348,7 @@ class Action:
             float: Elapsed time for the wait action.
         """
         time.sleep(wait_time)
-        log.debug(f"wait: {wait_time}")
+        self.log.debug(f"wait: {wait_time}")
         return wait_time
 
     def fill(self, object_id: str):
@@ -425,7 +426,7 @@ class Action:
                 success = self.controller.last_event.metadata["lastActionSuccess"]
                 if not success:
                     error_message = result.metadata.get('errorMessage', 'No error message.')
-                    log.warning(f"NAV_DEBUG: Final rotati?on to {object_id} failed. Error: {error_message}")
+                    self.log.warning(f"NAV_DEBUG: Final rotati?on to {object_id} failed. Error: {error_message}")
                     # 회전 실패 시 각도대로 살짝 이동 후 재시도
                     self.navi.move_in_direction(-obj_angle, 0.2)
                     recovery_result = self.controller.step(
@@ -433,13 +434,13 @@ class Action:
                     )
                     if not recovery_result.metadata["lastActionSuccess"]:
                         rec_error = recovery_result.metadata.get('errorMessage', 'No error message.')
-                        # log.error(f"NAV_DEBUG: Rotation recovery also failed. Error: {rec_error}")
+                        # self.log.error(f"NAV_DEBUG: Rotation recovery also failed. Error: {rec_error}")
 
 
         # 카메라 각도 조정
         self.navi.adjust_camera_to_object(object_id)
-        log.debug(f"move to {object_id}")
-        log.debug(f"move to {object_id} elapsed_time in action.py: {elapsed_time}")
+        self.log.debug(f"move to {object_id}")
+        self.log.debug(f"move to {object_id} elapsed_time in action.py: {elapsed_time}")
         time.sleep(0.2)
         self.controller.step(action="Pass")
         return elapsed_time
