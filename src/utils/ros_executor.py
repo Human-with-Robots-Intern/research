@@ -123,7 +123,7 @@ class RosExecutor:
 
     def execute_schedule(
         self, schedule: List[CompletedEntry]
-    ) -> None:
+    ) -> List[CompletedEntry]:
         """
         Executes a pre-defined schedule of subtasks.
 
@@ -133,6 +133,9 @@ class RosExecutor:
 
         Args:
             schedule: A list of CompletedEntry objects representing the schedule.
+        
+        Returns:
+            The schedule with updated execution information.
         """
         try:
             for entry in schedule:
@@ -149,6 +152,7 @@ class RosExecutor:
                     break
         finally:
             self.shutdown()
+        return schedule
 
     def shutdown(self) -> None:
         """Shuts down the ROS communication."""

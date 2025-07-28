@@ -532,26 +532,27 @@ def main():
             entry.execution_status = execution_status
             entry.sim_nav_time = sim_nav_time
             simulation_current_time += subtask_time
-            result_args = {
-            "task_name": input_natural_language,
-            "approach_name": approach_name,
-            "result_schedule": result_schedule,
-            "computation_time": computation_time,
-            "scene_name": scene_name,
-            "constraints": constraints,
-            "initial_plan_data": task_data,
+            
+        result_args = {
+        "task_name": input_natural_language,
+        "approach_name": approach_name,
+        "result_schedule": result_schedule,
+        "computation_time": computation_time,
+        "scene_name": scene_name,
+        "constraints": constraints,
+        "initial_plan_data": task_data,
         }
 
         result_save(**result_args)
         
     if args.ros:
         ros_executor = RosExecutor()
-        ros_executor.execute_schedule(result_schedule)
+        real_executed_result_schedule = ros_executor.execute_schedule(result_schedule)
         
         result_args = {
             "task_name": input_natural_language,
             "approach_name": f"{approach_name}_ros",
-            "result_schedule": result_schedule,
+            "result_schedule": real_executed_result_schedule,
             "computation_time": computation_time,
             "scene_name": scene_name,
             "constraints": constraints,

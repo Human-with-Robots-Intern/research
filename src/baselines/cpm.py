@@ -73,7 +73,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-s",
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
         help="시뮬레이션 실행 여부 (default: False)",
     )
@@ -94,13 +94,13 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan7",
+        default="FloorPlan1",
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default=2,
+        default=1,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     return parser.parse_args()
@@ -617,12 +617,12 @@ def main() -> None:
         print("end")
     if args.ros:
         ros_executor = RosExecutor()
-        ros_executor.execute_schedule(final_scheduled_entries)
+        real_executed_scheduled_entries = ros_executor.execute_schedule(final_scheduled_entries)
         
         result_args = {
             "task_name": input_natural_language,
             "approach_name": f"{approach_name}_ros",
-            "result_schedule": final_scheduled_entries,
+            "result_schedule": real_executed_scheduled_entries,
             "computation_time": computation_time,
             "scene_name": scene_name,
             "constraints": constraints,
