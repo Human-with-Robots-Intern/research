@@ -1,9 +1,16 @@
 import json
 from pathlib import Path
+import sys
+
+# Add the project root to the Python path
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+
+from src.utils.task.difficulty_analyzer import get_task_difficulty
+
 
 MIN_REQUIRED_SIMULATIONS = 5
 
-def load_simulation_data(file_path: Path) -> dict:
+def load_result_data(file_path: Path) -> dict:
     """
     주어진 파일 경로에서 JSON 데이터를 읽어 반환.
     """
@@ -14,24 +21,6 @@ def load_simulation_data(file_path: Path) -> dict:
         print(f"[Error] 파일 읽기 실패: {file_path} - {e}")
         return {}
 
-# def count_executing_actions(plans: list) -> int:
-#     """
-#     plans 리스트 내 각 액션의 'Executing_action' 개수를 누적하여 반환합니다.
-#     """
-#     count = 0
-#     for plan in plans:
-#         for action in plan.get("actions", []):
-#             count += len(action.get("Executing_action", []))
-#     return count
-
-# def count_subtasks(plans: list) -> int:
-#     """
-#     plans 리스트 내 각 plan의 'subtasks' 개수를 누적하여 반환합니다.
-#     """
-#     count = 0
-#     for plan in plans:
-#         count += len(plan.get("subtasks", []))
-#     return count
 
 def build_summary_entry(file_name: str, data: dict) -> dict:
     """
@@ -88,7 +77,7 @@ def process_summary_for_task(task_dir: Path) -> None:
 
         approach_comparisons = []
         for sim_file in simulation_files:
-            data = load_simulation_data(sim_file)
+            data = load_result_data(sim_file)
             if not data:
                 continue
             entry = build_summary_entry(sim_file.name, data)
@@ -96,6 +85,7 @@ def process_summary_for_task(task_dir: Path) -> None:
         
         summary_data = {
             "task": task_dir.name,
+            "difficulty": get_task_difficulty(task_dir.name, scene_dir.name),
             "scene": scene_dir.name,
             "approach_comparisons": approach_comparisons
         }
@@ -131,7 +121,7 @@ def process_metadata_for_task(task_dir: Path) -> None:
             source_file = candidates[0]
             print(f"[Info] 'dag_bayesian_simulation.json' not found. Using '{source_file.name}' instead.")
 
-        data = load_simulation_data(source_file)
+        data = load_result_data(source_file)
         if not data:
             continue
         
