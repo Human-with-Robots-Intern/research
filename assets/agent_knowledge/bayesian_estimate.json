@@ -15,6 +15,10 @@
         "expected_duration": 10.0,
         "variance": 1.0
     },
+    "Place Potato in Pot and Start Boiling on Stove": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
     "retrieve potato from microwave and place on plate": {
         "expected_duration": 10.0,
         "variance": 1.0
@@ -78,6 +82,10 @@
     "turn off faucet after mug is filled": {
         "expected_duration": 1.5730746482328701,
         "variance": 0.8948792604431993
+    },
+    "turn off faucet after pot is filled": {
+        "expected_duration": 10,
+        "variance": 1.0
     },
     "place kettle on stoveburner and boil": {
         "expected_duration": 0,

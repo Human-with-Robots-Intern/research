@@ -34,11 +34,14 @@
     "retrieve heated bread and place on countertop": 10,
     "turn on stove to cook sausage": 10,
     "turn off faucet after mug is filled": 5,
+    "turn off faucet after pot is filled": 10,
+    "Place Potato in Pot and Start Boiling on Stove": 0,
     "retrieve heated potato and place on countertop": 10,
     "place kettle on stoveburner and boil": 10,
-    "turn off shower head after bathtub is filled": 10,
+    "turn off shower head after bathtub is filled": 30,
     "scrub toilet with scrub brush": 10,
     "place tissue box inside drawer": 10,
     "wipe sink with dish sponge": 10,
-    "close drawer": 10
+    "close drawer": 10,
+    "place potato in pot and start boiling on stove": 10
 }
