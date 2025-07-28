@@ -71,6 +71,7 @@ class RosExecutor:
 
             action_end_time = time.time()
             elapsed_time = action_end_time - action_start_time
+            logger.info(f"Action '{primitive_action}' took {elapsed_time} seconds")
             total_elapsed_time += elapsed_time
             action_log.append(
                 {"action": primitive_action, "duration": elapsed_time}
