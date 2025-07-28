@@ -3,19 +3,19 @@
 log_level: "INFO" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 
 # Execution mode
-predefined: true # Use predefined numbered instructions (1-20) instead of loading from JSON files
+predefined: True # Use predefined numbered instructions (1-20) instead of loading from JSON files
 scene_type: "kitchen" # Default scene type to run. Options: 'kitchen', 'bathroom'
 ros: false # Enable ROS communication
 simulation: true # Enable Simulation mode
-start_idx: 30 # Start index for the instruction
+start_idx: 1 # Start index for the instruction
 # Execution settings
 # List of approaches (scripts) to run
 approaches:
   - "src/baselines/cpm.py"
-  # - "src/baselines/edf/dag_edf.py"
-  # - "src/dag_bayesian.py"
-  # - "src/baselines/progprompt/prog_ai2thor.py"
-  # - "src/baselines/cap/cap_ai2thor.py"
+  - "src/baselines/edf/dag_edf.py"
+  - "src/dag_bayesian.py"
+  - "src/baselines/progprompt/prog_ai2thor.py"
+  - "src/baselines/cap/cap_ai2thor.py"
 
 
 # Scripts that use LLMs and are subject to retries on failure
@@ -32,10 +32,10 @@ scene_lists:
     - "FloorPlan18"
     - "FloorPlan27"
   bathroom:
-    # - "FloorPlan419"
-    # - "FloorPlan422"
-    # - "FloorPlan426"
-    # - "FloorPlan427"
+    - "FloorPlan419"
+    - "FloorPlan422"
+    - "FloorPlan426"
+    - "FloorPlan427"
   realworld:
     # - "FloorPlan301"
 
@@ -47,3 +47,4 @@ num_runs_per_instruction: 1
 max_retries: 10
 # Delay in seconds between retries
 retry_delay_seconds: 2 
+max_workers: 5

@@ -10,9 +10,11 @@ import argparse
 import sys
 import re
 import shutil
+import concurrent.futures
+import threading
 
 from src.utils.common import create_module_logger
-from src.utils.config.constants import RESULT_PATH
+from src.utils.config.constants import RESULT_PATH, LOG_PATH
 from src.utils.io_utils.task_io import list_task_files
 
 
@@ -36,11 +38,13 @@ def run_with_retries(script: Path, input_str: str, scene_name: str, config: dict
         logger.info(f"Starting {script} (Attempt {attempt}) with scene={scene_name}, instruction={input_str.strip()}")
         logger.info(f"=" * 80)
         
-        cmd = [str(wrapper_script), "python3", str(script), "--scene", scene_name, "--instruction", input_str]
+        cmd = [str(wrapper_script), "python3", str(script), "--scene", scene_name, "--reset", "--instruction", input_str]
         if config.get("ros"):
             cmd.append("--ros")
         if config.get("simulation"):
             cmd.append("--simulation")
+        if config.get("log_level"):
+            cmd.extend(["--log-level", config["log_level"]])
         
         result = subprocess.run(
             cmd,
@@ -94,18 +98,72 @@ def find_highest_instruction_folder(base_instruction: str) -> str:
     
     return best_folder
 
-def process_retry_script(script: Path, instruction: str, scene_name: str, config: dict) -> None:
+def process_retry_script(script: Path, instruction: str, scene_name: str, config: dict, log_path: Path) -> None:
     """
     재시도가 필요한 스크립트를 실행하고 결과 JSON 파일에 attempt 값을 기록하거나,
     모든 시도 실패 시 더미 데이터를 생성합니다.
     """
-
     approach = script.stem
     input_str = f"{instruction}\n"
 
     max_retries = config.get("max_retries", 10)
-    success, attempt = run_with_retries(script, input_str, scene_name, config, max_retries=max_retries)
     
+    wrapper_script = Path(__file__).parent / "run_with_ros_env.sh"
+    for attempt in range(1, max_retries + 1):
+        logger.debug(f"Running {script} (Attempt {attempt})...")
+        
+        logger.info(f"=" * 80)
+        logger.info(f"Starting {script} (Attempt {attempt}) with scene={scene_name}, instruction={input_str.strip()}")
+        logger.info(f"=" * 80)
+        
+        cmd = [str(wrapper_script), "python3", str(script), "--scene", scene_name, "--reset", "--instruction", input_str]
+        if config.get("ros"):
+            cmd.append("--ros")
+        if config.get("simulation"):
+            cmd.append("--simulation")
+        if config.get("log_level"):
+            cmd.extend(["--log-level", config["log_level"]])
+        if log_path:
+            cmd.extend(["--log-path", str(log_path)])
+            
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True
+        )
+        
+        logger.info(f"=" * 80)
+        logger.info(f"Finished {script} (Attempt {attempt}) with return code: {result.returncode}")
+        logger.info(f"=" * 80)
+        
+        if result.returncode == 0:
+            # 성공 로그
+            with log_path.open("a", encoding="utf-8") as f:
+                f.write(f"\n--- SUCCESS (Attempt {attempt}) ---\n")
+                f.write(result.stdout)
+            return
+        
+        if attempt < max_retries:
+            logger.warning(f"Retrying {script} after failure (Attempt {attempt})...")
+            # 실패 로그
+            with log_path.open("a", encoding="utf-8") as f:
+                f.write(f"\n--- FAILURE (Attempt {attempt}) ---\n")
+                f.write(f"Return Code: {result.returncode}\n")
+                f.write("--- STDOUT ---\n")
+                f.write(result.stdout)
+                f.write("\n--- STDERR ---\n")
+                f.write(result.stderr)
+            time.sleep(config.get("retry_delay_seconds", 2))
+            
+    # 모든 재시도 실패 후 최종 로그
+    with log_path.open("a", encoding="utf-8") as f:
+        f.write(f"\n--- FINAL FAILURE (After {max_retries} attempts) ---\n")
+        f.write(f"Return Code: {result.returncode}\n")
+        f.write("--- STDOUT ---\n")
+        f.write(result.stdout)
+        f.write("\n--- STDERR ---\n")
+        f.write(result.stderr)
+        
     task_name_for_result_folder = instruction
     try:
         choice = int(instruction)
@@ -122,36 +180,26 @@ def process_retry_script(script: Path, instruction: str, scene_name: str, config
     highest_instruction_folder = find_highest_instruction_folder(task_name_for_result_folder)
     result_path = RESULT_PATH / highest_instruction_folder / scene_name / "approach" / f"{approach}_simulation.json"
     
-    if success:
-        try:
-            with result_path.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            logger.error(f"JSON 파일 {result_path} 로드 실패: {e}")
-            data = {}
-        data["attempt"] = attempt
-        with result_path.open("w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-    else:
-        result_path.parent.mkdir(parents=True, exist_ok=True)
-        now = datetime.now()
-        time_str = now.strftime("%Y-%m-%d %H:%M")
-        data = {
-            "saved_time": time_str,
-            "approach": approach,
-            "attempt": attempt,
-            "scene_name": scene_name,
-            "plans": [{"plan_name": task_name_for_result_folder}],
-            "computation_time": -1,
-            "success_rate": 0,
-            "scheduler_makespan": None,
-            "simulation_makespan": -1,
-            "realworld_makespan": None
-        }
-        with result_path.open("w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    now = datetime.now()
+    time_str = now.strftime("%Y-%m-%d %H:%M")
+    data = {
+        "saved_time": time_str,
+        "approach": approach,
+        "attempt": max_retries,
+        "scene_name": scene_name,
+        "plans": [{"plan_name": task_name_for_result_folder}],
+        "computation_time": -1,
+        "success_rate": 0,
+        "scheduler_makespan": None,
+        "simulation_makespan": -1,
+        "realworld_makespan": None
+    }
+    with result_path.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
-def process_normal_script(script: Path, instruction: str, scene_name: str, config: dict) -> None:
+
+def process_normal_script(script: Path, instruction: str, scene_name: str, config: dict, log_path: Path) -> None:
     """
     재시도 대상이 아닌 스크립트를 단순 실행합니다.
     instruction을 command-line 인자로 전달합니다.
@@ -169,6 +217,7 @@ def process_normal_script(script: Path, instruction: str, scene_name: str, confi
         str(script),
         "--scene",
         scene_name,
+        "--reset",
         "--instruction",
         instruction,
     ]
@@ -176,9 +225,13 @@ def process_normal_script(script: Path, instruction: str, scene_name: str, confi
         cmd.append("--ros")
     if config.get("simulation"):
         cmd.append("--simulation")
+    if config.get("log_level"):
+        cmd.extend(["--log-level", config["log_level"]])
+    if log_path:
+        cmd.extend(["--log-path", str(log_path)])
 
 
-    result = subprocess.run(cmd, stdout=None, stderr=None, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
 
     logger.info(f"=" * 80)
     logger.info(f"Finished {script} with return code: {result.returncode}")
@@ -186,9 +239,65 @@ def process_normal_script(script: Path, instruction: str, scene_name: str, confi
 
     if result.returncode != 0:
         logger.error(f"Script {script} failed with error code: {result.returncode}")
-        if result.stderr:
-            logger.error(f"Error output: {result.stderr}")
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(f"\n--- FAILURE ---\n")
+            f.write(f"Return Code: {result.returncode}\n")
+            f.write("--- STDOUT ---\n")
+            f.write(result.stdout)
+            f.write("\n--- STDERR ---\n")
+            f.write(result.stderr)
+    else:
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(f"\n--- SUCCESS ---\n")
+            f.write(result.stdout)
 
+def worker(
+    scene_name: str,
+    approach: Path,
+    instruction: str | int,
+    run_idx: int,
+    config: dict,
+    llm_scripts: set[Path],
+    start_idx: int,
+    file_copy_lock: threading.Lock,
+) -> None:
+    """
+    단일 instruction 실행을 위한 작업자 함수.
+    """
+    # Create a unique log file path for this worker
+    log_file_name = f"{scene_name}_{Path(approach).stem}_{instruction}_{run_idx + 1}.log"
+    log_file_path = LOG_PATH / "worker_logs" / log_file_name
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+    if config.get("predefined"):
+        if isinstance(instruction, int) and instruction < start_idx:
+            return
+
+        with file_copy_lock:
+            object_mapping = (
+                Path(__file__).parent.parent
+                / "src/ros/ttp_ws/data/object_mapping.json"
+            )
+            object_positions = (
+                Path(__file__).parent.parent
+                / "src/ros/ttp_ws/data/object_positions.json"
+            )
+            if object_mapping.exists():
+                shutil.copy2(object_mapping, object_positions)
+                logger.info(f"Initialized {object_positions} for instruction {instruction}")
+            else:
+                logger.warning(f"Source file {object_mapping} does not exist")
+    
+    logger.info(f"task_name : {instruction}")
+    logger.info(f"scene_name : {scene_name}, approach : {approach}, run_num : {run_idx+1}")
+
+    instr_str = str(instruction)
+    if approach in llm_scripts:
+        process_retry_script(approach, instr_str, scene_name, config, log_file_path)
+    else:
+        process_normal_script(approach, instr_str, scene_name, config, log_file_path)
+        
 def load_instructions_from_json(scene_name: str) -> list[str]:
     """
     주어진 scene에 대한 instruction을 JSON 파일에서 로드합니다.
@@ -225,9 +334,14 @@ def load_instructions_from_json(scene_name: str) -> list[str]:
 
 def main() -> None:
     config = load_config()
+    
+    # Initialize a global logger for the main script
     global logger
-    logger = create_module_logger(module_name=__name__, module_log=True)
-    logger.setLevel(config.get("log_level", "DEBUG"))
+    logger = create_module_logger(
+        module_name=__name__,
+        module_log=True,
+        level=config.get("log_level", "DEBUG")
+    )
 
     approaches = [Path(p) for p in config.get("approaches", [])]
     llm_scripts = {Path(p) for p in config.get("llm_scripts", [])}
@@ -237,6 +351,9 @@ def main() -> None:
     
     num_runs_per_instruction = config.get("num_runs_per_instruction", 1)
     start_idx = config.get("start_idx", 0)
+    max_workers = config.get("max_workers", 1)
+    file_copy_lock = threading.Lock()
+    
     # Log current  configuration
     logger.info("Current configuration:")
     logger.info("-" * 40)
@@ -246,6 +363,7 @@ def main() -> None:
     logger.info(f"Predefined mode: {config.get('predefined', False)}")
     logger.info(f"ROS enabled: {config.get('ros', False)}")
     logger.info(f"Simulation mode: {config.get('simulation', False)}")
+    logger.info(f"Max workers: {max_workers}")
     # logger.info(f"Approaches: {[str(p) for p in approaches]}")
     # logger.info(f"LLM scripts: {[str(p) for p in llm_scripts]}")
     # logger.info(f"Runs per instruction: {num_runs_per_instruction}")
@@ -253,38 +371,37 @@ def main() -> None:
     # logger.info(f"Retry delay: {config.get('retry_delay_seconds', 2)} seconds")
     logger.info("-" * 40)
     
-    for scene_name, approach in product(scene_list, approaches):
-        instructions = load_instructions_from_json(scene_name)
-        
-        if config.get("predefined"): 
-            numbers = list(range(1, len(instructions) + 1))           
-            for instruction, i in product(numbers, range(num_runs_per_instruction)):
-                if instruction < start_idx:
-                    continue
-                object_mapping = Path(__file__).parent.parent / "src/ros/ttp_ws/data/object_mapping.json"
-                object_positions = Path(__file__).parent.parent / "src/ros/ttp_ws/data/object_positions.json"
-                
-                # Copy object_mapping.json to object_positions.json
-                if object_mapping.exists():
-                    shutil.copy2(object_mapping, object_positions)
-                    logger.info(f"{object_mapping} initialized")
-                else:
-                    logger.warning(f"Source file {object_mapping} does not exist")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for scene_name, approach in product(scene_list, approaches):
+            instructions = load_instructions_from_json(scene_name)
+            
+            instruction_source: list[str] | list[int]
+            if config.get("predefined"): 
+                instruction_source = list(range(1, len(instructions) + 1))
+            else:
+                instruction_source = instructions
 
-                logger.info(f"task_name : {instruction}")
-                logger.info(f"scene_name : {scene_name}, approach : {approach}, run_num : {i+1}")
-                if approach in llm_scripts:
-                    process_retry_script(approach, str(instruction), scene_name, config)
-                else:
-                    process_normal_script(approach, str(instruction), scene_name, config)
-        else:
-            for instruction, i in product(instructions, range(num_runs_per_instruction)):
-                logger.info(f"task_name : {instruction}")
-                logger.info(f"scene_name : {scene_name}, approach : {approach}, run_num : {i+1}")
-                if approach in llm_scripts:
-                    process_retry_script(approach, instruction, scene_name, config)
-                else:
-                    process_normal_script(approach, instruction, scene_name, config)
+            for instruction, i in product(instruction_source, range(num_runs_per_instruction)):
+                futures.append(
+                    executor.submit(
+                        worker,
+                        scene_name,
+                        approach,
+                        instruction,
+                        i,
+                        config,
+                        llm_scripts,
+                        start_idx,
+                        file_copy_lock,
+                    )
+                )
+
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                future.result()
+            except Exception as e:
+                logger.error(f"A task generated an exception: {e}")
 
 if __name__ == "__main__":
     main()

@@ -15,13 +15,13 @@ Example usage:
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from ai2thor.controller import Controller
 
 from ithor.handlers.action import Action
-from src.utils.common.logger import create_module_logger
-
+from src.models.dataclass import TaskExecutionStatus
 # Action handler import
 if TYPE_CHECKING:
     from src.models.task import Subtask
@@ -92,45 +92,37 @@ def init_ai2thor_controller(
 
 
 def execute_subtask(
-    controller: Controller, subtask: Subtask, log_level: str
-) -> tuple[float, bool, float]:
+    controller: Controller, subtask: Subtask, logger: logging.Logger
+) -> tuple[float, TaskExecutionStatus, float]:
     """
     Executes a given subtask using the provided AI2-THOR controller.
 
     Returns:
-        tuple[float, bool, float]:
+        tuple[float, TaskExecutionStatus, float]:
             - float: The total elapsed time taken to execute the subtask.
-            - bool: Whether the subtask succeeded (based on last action success).
+            - TaskExecutionStatus: Whether the subtask succeeded ('SUCCESS' or 'FAILURE').
             - float: 실제 첫 NAVIGATE_TO primitive action의 소요 시간(sim_nav_time)
     """
-    log = create_module_logger(module_name=__name__, module_log=True)
-    log.setLevel(log_level)
+    act = Action(controller, logger=logger)
 
-    act = Action(controller, log_level=log_level)
-
-    # If the subtask is just for initialization, skip
     if subtask.name == "Init":
-        return 0.0, True, 0.0
+        return 0.0, TaskExecutionStatus.SUCCESS, 0.0
 
-    log.info(f"Executing Subtask: {subtask.name}")
+    logger.info(f"Executing Subtask: {subtask.name}")
 
-    # Parse execution details
     execution = subtask.execution
     primitive_actions = execution.primitive_actions
     objects = execution.objects
 
-    # Optional debugging
     for action_str in primitive_actions:
-        log.debug(f"Primitive action: {action_str}")
+        logger.debug(f"Primitive action: {action_str}")
 
-    # Object registry setup if needed
     object_registry = {}
     if objects is not None:
         controller.step("Pass")
         all_obj_ids = {
             obj["objectId"] for obj in controller.last_event.metadata["objects"]
         }
-
         for obj_id in objects:
             obj_id_copy_1 = obj_id.replace("00.00", "+00.00")
             obj_id_copy_2 = obj_id.replace("+00.00", "00.00")
@@ -154,40 +146,35 @@ def execute_subtask(
     }
 
     elapsed_time = 0.0
-    is_execution_success = True
+    execution_status = TaskExecutionStatus.SUCCESS
     sim_nav_time = 0.0
     nav_time_found = False
 
-    # Execute each primitive action in sequence
     for action_str in primitive_actions:
         parts = action_str.split(" ", 1)
-        if len(parts) != 2:
-            log.warning(f"Invalid action format: {action_str}.")
-            raise ValueError(f"Invalid action format: {action_str}")
-        action_type, target_obj_id = parts
+        action_type = parts[0]
+        target_obj_id = parts[1] if len(parts) > 1 else None
+
         if action_type in action_mapping:
             action_duration = action_mapping[action_type](target_obj_id)
             elapsed_time += action_duration
-            # 첫 NAVIGATE_TO의 시간 기록
             if not nav_time_found and action_type == "NAVIGATE_TO":
                 sim_nav_time = action_duration
                 nav_time_found = True
         else:
-            log.warning(f"Unknown action type: {action_type}. Skipping.")
+            logger.warning(f"Unknown action type: {action_type}. Skipping.")
             continue
-        # Check success of the last action
-        success = controller.last_event.metadata.get("lastActionSuccess", "N/A")
-        
-        if success is False:
-            log.warning(f"Action '{action_str}' failed.")
-            is_execution_success = False
-        log.info(
+
+        success = controller.last_event.metadata.get("lastActionSuccess", False)
+        if not success:
+            logger.warning(f"Action '{action_str}' failed.")
+            execution_status = TaskExecutionStatus.FAILURE
+
+        logger.info(
             f"Action: {action_str}, duration: {round(action_duration, 2)}, success: {success}"
         )
-        
-        # Pass action to synchronize state after each real action
         controller.step(action="Pass")
 
     elapsed_time = round(elapsed_time, 2)
-    log.info(f"Subtask '{subtask.name}' completed. Elapsed time: {elapsed_time}")
-    return elapsed_time, is_execution_success, sim_nav_time
+    logger.info(f"Subtask '{subtask.name}' completed. Elapsed time: {elapsed_time}")
+    return elapsed_time, execution_status, sim_nav_time

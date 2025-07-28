@@ -66,6 +66,12 @@ def parse_arguments():
         action="store_true",
         help="ROS 통신 사용 여부 (default: False)",
     )
+    parser.add_argument(
+        "--log-path",
+        type=str,
+        default=None,
+        help="Path to the log file for this specific run.",
+    )
     return parser.parse_args()
 
 
@@ -73,95 +79,101 @@ def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
     approach_name = "dag_bayesian"
+    logger = create_module_logger(
+        module_name=approach_name,
+        log_file_path=Path(args.log_path) if args.log_path else None,
+        level=args.log_level,
+    )
     scene_name = args.scene
+    controller = None
 
     # Set up the AI2-THOR controller and navigation graph
-    if scene_name is None:
-        scene_data = get_user_scene_choice()
-        scene_name = scene_data.file_name.split("_")[0]
-
-    if args.ros:
-        controller = None
-        nav_graph = {(0, 0, 0): {(0, 0, 0)}}
-        action_handler = ActionHandler(nav_graph, log_level=args.log_level)
-    else:
-        controller = init_ai2thor_controller(scene_name)
-        nav_graph = load_navigation_graph(controller)
-        action_handler = ActionHandler(nav_graph, log_level=args.log_level)
-
-    # Load the chosen task data
-    task_files = list_task_files(scene_name=scene_name)
-
-    if args.instruction:
-        instruction = args.instruction
-        input_natural_language = instruction
-        task_data = None
-        try:
-            choice = int(instruction)
-            if 1 <= choice <= len(task_files):
-                task_file_name = task_files[choice - 1]
-                task_data = load_task_data_from_file(task_file_name)
-                input_natural_language = Path(task_file_name).stem
-        except ValueError:
-            # It's a natural language instruction, not a number
-            pass
-
-        if task_data is None:
-            # It was a natural language instruction or an invalid number choice.
-            # In both cases, we treat it as a natural language instruction.
-            task_data = {"instruction": instruction}
-    else:
-        task_file_name, choice = get_user_task_choice(task_files)
-        task_data = load_task_data_from_file(task_file_name)
-        input_natural_language = task_file_name
-        if choice != 0:
-            input_natural_language = task_file_name
-
-
-    # Build tasks and constraints
-    # subtasks, constraints = TaskUtil.build_tasks_and_constraints(
-    #     task_data, scene_file_name=scene_data.file_name,
-    # )
-    subtasks, constraints = TaskUtil.build_tasks_and_constraints(
-        task_data, scene_file_name=f"{scene_name}_physics_environment.json",
-    )
-
-    # Initialize the agent and scheduler
-    constraint_handler = ConstraintHandler(action_handler)
-    agent = Agent(constraint_handler)
-    cost_calculator = HeuristicManager(action_handler)
-    scheduler = Scheduler(
-        action_handler=action_handler,
-        constraint_handler=constraint_handler,
-        heuristic_manager=cost_calculator,
-    )
-    scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
-    # current_state = TaskUtil.get_init_state(
-    #     subtasks, constraints, scene_data.object_positions
-    # )
-    current_state = TaskUtil.get_init_state(
-        subtasks, constraints, scene_poses
-    )
-
-    is_end = False
-
-    total_compute_time, total_sim_time = 0, 0
-    
-    ros_executor = RosExecutor() if args.ros else None
-    
     try:
+        if scene_name is None:
+            scene_data = get_user_scene_choice()
+            scene_name = scene_data.file_name.split("_")[0]
+
+        if args.ros:
+            controller = None
+            nav_graph = {(0, 0, 0): {(0, 0, 0)}}
+            action_handler = ActionHandler(nav_graph, logger=logger)
+        else:
+            controller = init_ai2thor_controller(scene_name)
+            nav_graph = load_navigation_graph(controller)
+            action_handler = ActionHandler(nav_graph, logger=logger)
+
+        # Load the chosen task data
+        task_files = list_task_files(scene_name=scene_name)
+
+        if args.instruction:
+            instruction = args.instruction
+            input_natural_language = instruction
+            task_data = None
+            try:
+                choice = int(instruction)
+                if 1 <= choice <= len(task_files):
+                    task_file_name = task_files[choice - 1]
+                    task_data = load_task_data_from_file(task_file_name)
+                    input_natural_language = Path(task_file_name).stem
+            except ValueError:
+                # It's a natural language instruction, not a number
+                pass
+
+            if task_data is None:
+                # It was a natural language instruction or an invalid number choice.
+                # In both cases, we treat it as a natural language instruction.
+                task_data = {"instruction": instruction}
+        else:
+            task_file_name, choice = get_user_task_choice(task_files)
+            task_data = load_task_data_from_file(task_file_name)
+            input_natural_language = task_file_name
+            if choice != 0:
+                input_natural_language = task_file_name
+
+
+        # Build tasks and constraints
+        # subtasks, constraints = TaskUtil.build_tasks_and_constraints(
+        #     task_data, scene_file_name=scene_data.file_name,
+        # )
+        subtasks, constraints = TaskUtil.build_tasks_and_constraints(
+            task_data, scene_file_name=f"{scene_name}_physics_environment.json",
+        )
+
+        # Initialize the agent and scheduler
+        constraint_handler = ConstraintHandler(action_handler)
+        agent = Agent(constraint_handler)
+        cost_calculator = HeuristicManager(action_handler)
+        scheduler = Scheduler(
+            action_handler=action_handler,
+            constraint_handler=constraint_handler,
+            heuristic_manager=cost_calculator,
+        )
+        scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
+        # current_state = TaskUtil.get_init_state(
+        #     subtasks, constraints, scene_data.object_positions
+        # )
+        current_state = TaskUtil.get_init_state(
+            subtasks, constraints, scene_poses
+        )
+
+        is_end = False
+
+        total_compute_time, total_sim_time = 0, 0
+        
+        ros_executor = RosExecutor() if args.ros else None
+        
         while not is_end:
 
             next_state, computation_elapsed_time = scheduler.get_next_state(current_state)
             total_compute_time += computation_elapsed_time
 
             if next_state is None:
-                log.error("No feasible solution found.")
+                logger.error("No feasible solution found.")
                 break
             
             if args.simulation:
                 sim_elapsed_time, execution_status, sim_nav_time = execute_subtask(
-                    controller, next_state.subtask, args.log_level
+                    controller, next_state.subtask, logger
                 )
                 # 시뮬레이션에서 흐른 시간과 실행 상태를 저장.
                 last_entry = next_state.completed_entries[-1]
@@ -180,10 +192,10 @@ def main():
 
                 last_entry = current_state.completed_entries[-1]
                 if last_entry.subtask.name != "Init":
-                    log.info(
+                    logger.info(
                         f"{last_entry.subtask.name} ({round(last_entry.sim_start_time, LOG_ROUND)} ~ {round(last_entry.sim_end_time,LOG_ROUND)})"
                     )
-                    log.info(f"Primitive actions: {last_entry.subtask.execution.primitive_actions}\n")
+                    logger.info(f"Primitive actions: {last_entry.subtask.execution.primitive_actions}\n")
                     last_entry.start_time_scheduled = round(last_entry.sim_start_time, LOG_ROUND)
                     last_entry.end_time_scheduled = round(last_entry.sim_end_time, LOG_ROUND)
             
@@ -210,6 +222,8 @@ def main():
     finally:
         if ros_executor:
             ros_executor.shutdown()
+        if controller:
+            controller.stop()
             
     if args.ros:
         result_schedule = [

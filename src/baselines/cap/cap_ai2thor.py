@@ -12,10 +12,11 @@ import numpy as np
 from ai2thor.controller import Controller
 
 import src.baselines.cap.util.LMPgen as gen
-from simulation.runner_ai2thor import init_ai2thor_controller
-from utils.config.constants import *
-from utils.io_utils.result_saver import result_save_llm
+from src.simulation.runner_ai2thor import init_ai2thor_controller
+from src.utils.config.constants import *
+from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
+from src.utils.common import create_module_logger
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
@@ -360,6 +361,12 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--instruction", type=str, default=None, help="실행할 자연어 명령어"
     )
+    parser.add_argument(
+        "--log-path",
+        type=str,
+        default=None,
+        help="Path to the log file for this specific run.",
+    )
     return parser.parse_args()
 
 
@@ -367,81 +374,96 @@ if __name__ == "__main__":
     # --- 스크립트 설정 및 초기화 ---
     approach_name = "cap_ai2thor_simulation"
     args = parse_arguments()
+    logger = create_module_logger(
+        module_name=approach_name,
+        log_file_path=Path(args.log_path) if args.log_path else None,
+        level=args.log_level,
+    )
     scene_name = args.scene
     instruction = args.instruction
-    
-    task_files = list_task_files(scene_name)
+    ithor_main_controller = None
 
-    if instruction:
-        try:
-            choice = int(instruction)
-            if 1 <= choice <= len(task_files):
-                instruction = Path(task_files[choice - 1]).stem
-            else:
-                print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
-                sys.exit(1)
-        except ValueError:
-            # instruction is not a number, so we treat it as a natural language command.
-            pass
-    else:
-        print("명령어가 인자로 제공되지 않았습니다. 사용자 입력을 기다립니다...")
-        instruction = input()
+    try:
+        task_files = list_task_files(scene_name)
 
-    # 결과 로깅을 위한 파일 열기
-    log_dir = "src/baselines/cap/result"
-    os.makedirs(log_dir, exist_ok=True)
-    log_file_path = os.path.join(log_dir, f"cap_logs_{instruction}.txt")
-    log_file = open(log_file_path, "w", buffering=1)
+        if instruction:
+            try:
+                choice = int(instruction)
+                if 1 <= choice <= len(task_files):
+                    instruction = Path(task_files[choice - 1]).stem
+                else:
+                    print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
+                    sys.exit(1)
+            except ValueError:
+                # instruction is not a number, so we treat it as a natural language command.
+                pass
+        else:
+            print("명령어가 인자로 제공되지 않았습니다. 사용자 입력을 기다립니다...")
+            instruction = input()
 
-    # AI2-THOR 컨트롤러 초기화
-    ithor_main_controller = init_ai2thor_controller(scene_name)
+        # 결과 로깅을 위한 파일 열기
+        if args.log_path:
+            log_file_path = Path(args.log_path)
+        else:
+            log_dir = Path("src/baselines/cap/result")
+            log_dir.mkdir(exist_ok=True)
+            log_file_path = log_dir / f"cap_logs_{instruction}.txt"
+        
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file = open(log_file_path, "w", buffering=1)
 
-    # Action 핸들러 초기화
-    ithor_action_controller = Action(ithor_main_controller)
+        # AI2-THOR 컨트롤러 초기화
+        ithor_main_controller = init_ai2thor_controller(scene_name)
 
-    # LMP 환경 설정
-    lmp_scene_ui = setup_LMP(
-        ithor_main_controller, ithor_action_controller, cfg_scene, log_file
-    )
+        # Action 핸들러 초기화
+        ithor_action_controller = Action(ithor_main_controller, logger=logger)
 
-    # --- 태스크 실행 ---
-    # 사용 예시:
-    # toast the bread
-    # put tomato in the fridge
-    # put egg in the pan : 냉장고 문을 안열고 계란 집음
-    # put the book in the sinkbasin : put 상호작용이 불가능해서 던짐
-    # toast the bread and put tomato in the fridge. put egg in the pan.
-    # pick the apple and drop the apple
-
-    # 현재 장면에 있는 객체 목록 가져오기
-    objs = list(
-        set(
-            obj["objectType"]
-            for obj in ithor_main_controller.step("Pass").metadata["objects"]
+        # LMP 환경 설정
+        lmp_scene_ui = setup_LMP(
+            ithor_main_controller, ithor_action_controller, cfg_scene, log_file
         )
-    )
-    print(f"objs: {objs}")
-    cap_log_path = log_file_path
-    print(f"'{instruction}' 명령을 실행합니다...")
-    computation_time_start = time.time()
 
-    # LMP를 통해 명령어 실행
-    lmp_scene_ui(instruction, objects=f"{objs}")
+        # --- 태스크 실행 ---
+        # 사용 예시:
+        # toast the bread
+        # put tomato in the fridge
+        # put egg in the pan : 냉장고 문을 안열고 계란 집음
+        # put the book in the sinkbasin : put 상호작용이 불가능해서 던짐
+        # toast the bread and put tomato in the fridge. put egg in the pan.
+        # pick the apple and drop the apple
 
-    # --- 결과 저장 ---
-    # 현재 computaion_time은 시뮬레이션 타임을 포함해서 정확하지 않음.
-    # 추후에 llmgeneration 방식의 computation_time을 폐기할 수 있으므로 일단 스킵
-    computation_time = time.time() - computation_time_start
-    result_path = f"{instruction}"
-    result_args = {
-        "approach_name": approach_name,
-        "user_input": instruction,
-        "result_txt": cap_log_path,
-        "json_output_path": result_path,
-        "computation_time": computation_time,
-        "scene_name": scene_name,
-    }
+        # 현재 장면에 있는 객체 목록 가져오기
+        objs = list(
+            set(
+                obj["objectType"]
+                for obj in ithor_main_controller.step("Pass").metadata["objects"]
+            )
+        )
+        print(f"objs: {objs}")
+        cap_log_path = log_file_path
+        print(f"'{instruction}' 명령을 실행합니다...")
+        computation_time_start = time.time()
 
-    result_save_llm(**result_args)
-    log_file.close()
-    print("실행이 완료되었습니다.")
+        # LMP를 통해 명령어 실행
+        lmp_scene_ui(instruction, objects=f"{objs}")
+
+        # --- 결과 저장 ---
+        # 현재 computaion_time은 시뮬레이션 타임을 포함해서 정확하지 않음.
+        # 추후에 llmgeneration 방식의 computation_time을 폐기할 수 있으므로 일단 스킵
+        computation_time = time.time() - computation_time_start
+        result_path = f"{instruction}"
+        result_args = {
+            "approach_name": approach_name,
+            "user_input": instruction,
+            "result_txt": str(cap_log_path),
+            "json_output_path": result_path,
+            "computation_time": computation_time,
+            "scene_name": scene_name,
+        }
+
+        result_save_llm(**result_args)
+        log_file.close()
+        print("실행이 완료되었습니다.")
+    finally:
+        if ithor_main_controller:
+            ithor_main_controller.stop()
