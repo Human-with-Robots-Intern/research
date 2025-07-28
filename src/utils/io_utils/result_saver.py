@@ -103,7 +103,7 @@ def calculate_timing_success_rate(
         # --- Check timing constraints for simulation results ---
         pred_end_time_sim = pred_entry.sim_end_time
         succ_start_time_sim = succ_entry.sim_start_time
-        sim_nav_time = succ_entry.sim_nav_time
+        sim_nav_time = succ_entry.sim_nav_time if succ_entry.sim_nav_time is not None else 0.0
         tolerance = 0.1 + interval * TIMING_TOLERANCE
         
         actual_diff_sim = (succ_start_time_sim + sim_nav_time) - pred_end_time_sim
@@ -127,7 +127,7 @@ def calculate_timing_success_rate(
         # --- Check timing constraints for schedule results ---
         pred_end_time_sched = pred_entry.schedule_end_time
         succ_start_time_sched = succ_entry.schedule_start_time
-        schedule_nav_time = succ_entry.schedule_nav_time
+        schedule_nav_time = succ_entry.schedule_nav_time if succ_entry.schedule_nav_time is not None else 0.0
         
         actual_diff_sched = (succ_start_time_sched + schedule_nav_time) - pred_end_time_sched
 
