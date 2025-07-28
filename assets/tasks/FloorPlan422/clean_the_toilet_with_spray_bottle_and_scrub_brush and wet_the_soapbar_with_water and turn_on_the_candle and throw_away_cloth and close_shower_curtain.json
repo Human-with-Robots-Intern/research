@@ -79,7 +79,7 @@
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
             "GRASP SoapBar|-01.99|+01.29|+02.08",
-            "PLACE_ON_TOP CounterTop|-01.92|+00.00|+00.29"
+            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
         "Duration": {
@@ -91,10 +91,10 @@
     ]
   },
   {
-    "Task": "Turn On Candle",
+    "Task": "Turn on the Candle",
     "Subtasks": [
       {
-        "Name": "Turn on the candle",
+        "Name": "Turn on Candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -118,19 +118,19 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw away the cloth",
+        "Name": "Throw cloth in garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Cloth|-00.51|+00.94|+02.72": 1,
-            "GarbageCan|-00.26|+00.00|+00.26": 1
+            "GarbageCan|-00.26|00.00|+00.26": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Cloth|-00.51|+00.94|+02.72",
             "GRASP Cloth|-00.51|+00.94|+02.72",
-            "NAVIGATE_TO GarbageCan|-00.26|+00.00|+00.26",
-            "PLACE_INSIDE GarbageCan|-00.26|+00.00|+00.26"
+            "NAVIGATE_TO GarbageCan|-00.26|00.00|+00.26",
+            "PLACE_INSIDE GarbageCan|-00.26|00.00|+00.26"
           ]
         },
         "Duration": {
@@ -145,7 +145,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close the shower curtain",
+        "Name": "Close shower curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

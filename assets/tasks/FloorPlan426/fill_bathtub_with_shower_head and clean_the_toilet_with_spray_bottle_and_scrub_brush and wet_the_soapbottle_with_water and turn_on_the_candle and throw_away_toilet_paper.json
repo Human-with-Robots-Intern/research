@@ -50,7 +50,65 @@
     ]
   },
   {
-    "Task": "Wet the SoapBottle with Water",
+    "Task": "Clean Toilet",
+    "Subtasks": [
+      {
+        "Name": "Spray toilet with spray bottle",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SprayBottle|-01.53|+00.80|+00.22": 1,
+            "Toilet|-01.84|+00.00|+02.50": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SprayBottle|-01.53|+00.80|+00.22",
+            "GRASP SprayBottle|-01.53|+00.80|+00.22",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Scrub toilet with scrub brush",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ScrubBrush|-02.19|+00.00|+03.03": 1,
+            "Toilet|-01.84|+00.00|+02.50": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ScrubBrush|-02.19|+00.00|+03.03",
+            "GRASP ScrubBrush|-02.19|+00.00|+03.03",
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "WAIT 1.0",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Spray toilet with spray bottle",
+            "Interval": 10,
+            "Urgency": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "Task": "Wet the SoapBottle",
     "Subtasks": [
       {
         "Name": "Wet SoapBottle in Sink",
@@ -73,8 +131,8 @@
             "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
             "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "GRASP SoapBottle|-00.64|+00.95|+03.22",
-            "NAVIGATE_TO CounterTop|-01.85|+00.00|+00.34",
-            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
         "Duration": {
@@ -86,10 +144,10 @@
     ]
   },
   {
-    "Task": "Turn On the Candle",
+    "Task": "Turn On Candle",
     "Subtasks": [
       {
-        "Name": "Turn On Candle",
+        "Name": "Turn on the candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -110,43 +168,27 @@
     ]
   },
   {
-    "Task": "Turn On the Light",
+    "Task": "Throw Away Toilet Paper",
     "Subtasks": [
       {
-        "Name": "Turn On Light",
+        "Name": "Throw away toilet paper",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "LightSwitch|+00.00|+01.37|+01.99": 1
+            "ToiletPaper|-02.25|+00.94|+02.67": 1,
+            "GarbageCan|-02.11|00.00|+01.96": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO LightSwitch|+00.00|+01.37|+01.99",
-            "TOGGLE_ON LightSwitch|+00.00|+01.37|+01.99"
+            "NAVIGATE_TO ToiletPaper|-02.25|+00.94|+02.67",
+            "GRASP ToiletPaper|-02.25|+00.94|+02.67",
+            "NAVIGATE_TO GarbageCan|-02.11|00.00|+01.96",
+            "PLACE_INSIDE GarbageCan|-02.11|00.00|+01.96"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 1
-        },
-        "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Throw Away Empty Toilet Paper on the Counter Top",
-    "Subtasks": [
-      {
-        "Name": "Impossible: Empty Toilet Paper on the Counter Top cannot be achieved with current Environment Context",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 0
+          "Interval": 3
         },
         "TemporalConstraints": []
       }

@@ -66,6 +66,7 @@
             "GRASP SprayBottle|-00.84|+01.64|+00.35",
             "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
             "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
@@ -89,6 +90,7 @@
             "GRASP ScrubBrush|-00.66|00.00|+02.56",
             "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
             "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
@@ -131,8 +133,8 @@
             "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
             "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
             "GRASP SoapBottle|-00.95|+01.13|+00.42",
-            "NAVIGATE_TO CounterTop|-00.81|+00.09|+00.29",
-            "PLACE_ON_TOP CounterTop|-00.81|+00.09|+00.29"
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
         "Duration": {
@@ -171,22 +173,22 @@
     ]
   },
   {
-    "Task": "Throw Away Empty Toilet Paper",
+    "Task": "Throw Away Toilet Paper",
     "Subtasks": [
       {
-        "Name": "Throw Away Empty Toilet Paper on Counter Top",
+        "Name": "Throw Away Toilet Paper",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "ToiletPaper|-00.92|+01.12|+00.21": 1,
-            "GarbageCan|-00.26|+00.00|+00.26": 1
+            "GarbageCan|-00.26|00.00|+00.26": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO ToiletPaper|-00.92|+01.12|+00.21",
             "GRASP ToiletPaper|-00.92|+01.12|+00.21",
-            "NAVIGATE_TO GarbageCan|-00.26|+00.00|+00.26",
-            "PLACE_INSIDE GarbageCan|-00.26|+00.00|+00.26"
+            "NAVIGATE_TO GarbageCan|-00.26|00.00|+00.26",
+            "PLACE_INSIDE GarbageCan|-00.26|00.00|+00.26"
           ]
         },
         "Duration": {

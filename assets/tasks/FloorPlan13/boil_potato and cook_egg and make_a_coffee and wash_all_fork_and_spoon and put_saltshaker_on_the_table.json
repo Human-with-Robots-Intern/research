@@ -135,7 +135,7 @@
             "NAVIGATE_TO Pan|-02.45|+00.93|+02.02",
             "GRASP Pan|-02.45|+00.93|+02.02",
             "NAVIGATE_TO StoveBurner|-02.47|+00.92|+01.71",
-            "PLACE_ON_TOP StoveBurner|-02.47|+00.92|+01.71",
+            "PLACE_ON_TOP Pan|-02.45|+00.93|+02.02 StoveBurner|-02.47|+00.92|+01.71",
             "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
             "TOGGLE_ON StoveKnob|-02.51|+01.10|+01.56"
           ]
@@ -251,6 +251,36 @@
             "Type": "After",
             "Subtask": "Prepare Coffee Machine with Cup",
             "Interval": 0,
+            "Urgency": false
+          }
+        ]
+      },
+      {
+        "Name": "Retrieve Coffee from Machine and Place on CounterTop",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cup|-01.70|+00.91|+01.95": 1,
+            "CoffeeMachine|-00.28|+00.91|+06.56": 1,
+            "CounterTop|-04.26|+00.96|+04.94": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO CoffeeMachine|-00.28|+00.91|+06.56",
+            "GRASP Cup|-01.70|+00.91|+01.95",
+            "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
+            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Start Coffee Machine",
+            "Interval": 5,
             "Urgency": false
           }
         ]

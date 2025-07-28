@@ -235,7 +235,7 @@
     "Task": "Wash Apple and Lettuce",
     "Subtasks": [
       {
-        "Name": "Wash Apple and place on counterTop",
+        "Name": "Wash Apple and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -252,7 +252,6 @@
             "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_ON Faucet|-00.11|+00.92|-01.82",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Apple|-00.63|+00.96|-01.44",
@@ -267,7 +266,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Lettuce and place on counterTop",
+        "Name": "Wash Lettuce and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -284,7 +283,6 @@
             "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_ON Faucet|-00.11|+00.92|-01.82",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Lettuce|-01.65|+00.96|-01.05",
@@ -301,10 +299,10 @@
     ]
   },
   {
-    "Task": "Wash all Fork and Spoon",
+    "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Wash Fork and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -321,7 +319,6 @@
             "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_ON Faucet|-00.11|+00.92|-01.82",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Fork|-02.04|+00.71|-01.66",
@@ -336,7 +333,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -353,7 +350,6 @@
             "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_ON Faucet|-00.11|+00.92|-01.82",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Spoon|-02.05|+00.71|-01.46",
@@ -418,7 +414,7 @@
           {
             "Type": "After",
             "Subtask": "Place Mug in Sink and Start Filling",
-            "Interval": 1,
+            "Interval": 3,
             "Urgency": true
           }
         ]

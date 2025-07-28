@@ -22,7 +22,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Turn Off Shower Head after Bathtub is Filled",
+        "Name": "Stop Filling Bathtub with Shower Head",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -146,10 +146,10 @@
     ]
   },
   {
-    "Task": "Turn On the Candle",
+    "Task": "Turn On Candle",
     "Subtasks": [
       {
-        "Name": "Turn on Candle",
+        "Name": "Turn on the candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -173,7 +173,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close Shower Curtain",
+        "Name": "Close the shower curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

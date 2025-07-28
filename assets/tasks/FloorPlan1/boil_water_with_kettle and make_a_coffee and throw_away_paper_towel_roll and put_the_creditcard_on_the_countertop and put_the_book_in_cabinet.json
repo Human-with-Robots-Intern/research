@@ -159,7 +159,7 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 2
+          "Interval": 3
         },
         "TemporalConstraints": []
       }

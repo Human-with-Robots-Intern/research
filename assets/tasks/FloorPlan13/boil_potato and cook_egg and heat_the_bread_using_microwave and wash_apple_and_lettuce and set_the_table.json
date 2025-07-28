@@ -135,7 +135,7 @@
             "NAVIGATE_TO Pan|-02.45|+00.93|+02.02",
             "GRASP Pan|-02.45|+00.93|+02.02",
             "NAVIGATE_TO StoveBurner|-02.47|+00.92|+01.71",
-            "PLACE_ON_TOP Pan|-02.45|+00.93|+02.02 StoveBurner|-02.47|+00.92|+01.71",
+            "PLACE_ON_TOP StoveBurner|-02.47|+00.92|+01.71",
             "NAVIGATE_TO StoveKnob|-02.51|+01.10|+01.56",
             "TOGGLE_ON StoveKnob|-02.51|+01.10|+01.56"
           ]
@@ -167,7 +167,14 @@
           "Type": "Controllable",
           "Interval": 3
         },
-        "TemporalConstraints": []
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Prepare Pan on Stove and Heat",
+            "Interval": 0,
+            "Urgency": true
+          }
+        ]
       },
       {
         "Name": "Turn Off Stove After Cooking Egg",

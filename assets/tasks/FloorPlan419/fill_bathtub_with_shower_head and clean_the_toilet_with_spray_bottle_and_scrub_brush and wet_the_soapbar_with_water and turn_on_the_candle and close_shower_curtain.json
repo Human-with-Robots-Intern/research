@@ -22,7 +22,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Turn Off Shower Head after Bathtub is Filled",
+        "Name": "Stop Filling Bathtub with Shower Head",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -66,7 +66,6 @@
             "GRASP SprayBottle|-00.20|+01.04|-01.97",
             "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
           ]
         },
@@ -90,7 +89,6 @@
             "GRASP ScrubBrush|-00.16|+00.00|-02.16",
             "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
           ]
         },

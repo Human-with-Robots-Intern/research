@@ -16,7 +16,6 @@
             "GRASP SprayBottle|-01.53|+00.80|+00.22",
             "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
@@ -40,7 +39,6 @@
             "GRASP ScrubBrush|-02.19|+00.00|+03.03",
             "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
@@ -60,7 +58,7 @@
     ]
   },
   {
-    "Task": "Wet SoapBottle",
+    "Task": "Wet the SoapBottle",
     "Subtasks": [
       {
         "Name": "Wet SoapBottle in Sink",
@@ -77,14 +75,11 @@
             "GRASP SoapBottle|-00.64|+00.95|+03.22",
             "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "PLACE_INSIDE Sink|-00.46|-00.01|+03.05|SinkBasin",
-            "NAVIGATE_TO Faucet|-00.46|+00.97|+03.21",
             "TOGGLE_ON Faucet|-00.46|+00.97|+03.21",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
-            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "GRASP SoapBottle|-00.64|+00.95|+03.22",
-            "NAVIGATE_TO CounterTop|-01.85|+00.00|+00.34",
-            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
         "Duration": {
@@ -96,7 +91,7 @@
     ]
   },
   {
-    "Task": "Turn On Light",
+    "Task": "Turn On the Light",
     "Subtasks": [
       {
         "Name": "Turn on light switch",
@@ -123,7 +118,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw cloth in garbage can",
+        "Name": "Dispose of cloth in garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -140,7 +135,7 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 2
+          "Interval": 3
         },
         "TemporalConstraints": []
       }

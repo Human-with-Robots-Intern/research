@@ -201,7 +201,7 @@
     "Task": "Wash Apple and Lettuce",
     "Subtasks": [
       {
-        "Name": "Wash Apple and place on counterTop",
+        "Name": "Wash Apple and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -232,7 +232,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Lettuce and place on counterTop",
+        "Name": "Wash Lettuce and place on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -301,6 +301,28 @@
           "PrimitiveActions": [
             "NAVIGATE_TO Fork|+01.64|+00.93|+02.60",
             "GRASP Fork|+01.64|+00.93|+02.60",
+            "NAVIGATE_TO DiningTable|-00.15|00.00|+01.07",
+            "PLACE_ON_TOP DiningTable|-00.15|00.00|+01.07"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Place Spoon on DiningTable",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Spoon|+01.59|+00.93|+02.69": 1,
+            "DiningTable|-00.15|00.00|+01.07": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Spoon|+01.59|+00.93|+02.69",
+            "GRASP Spoon|+01.59|+00.93|+02.69",
             "NAVIGATE_TO DiningTable|-00.15|00.00|+01.07",
             "PLACE_ON_TOP DiningTable|-00.15|00.00|+01.07"
           ]

@@ -73,8 +73,8 @@
             "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
             "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
             "GRASP SoapBottle|-00.95|+01.13|+00.42",
-            "NAVIGATE_TO CounterTop|-01.92|+00.00|+00.29",
-            "PLACE_ON_TOP CounterTop|-01.92|+00.00|+00.29"
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
         "Duration": {
@@ -86,10 +86,10 @@
     ]
   },
   {
-    "Task": "Place Toilet Paper on the Toilet Paper Holder",
+    "Task": "Place Toilet Paper on the Toilet Paper Hanger",
     "Subtasks": [
       {
-        "Name": "Place Toilet Paper on Holder",
+        "Name": "Place Toilet Paper on Hanger",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -140,7 +140,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in Garbage Can",
+        "Name": "Dispose of Cloth in Garbage Can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

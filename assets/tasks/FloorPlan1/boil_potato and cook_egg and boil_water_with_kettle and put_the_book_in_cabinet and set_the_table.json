@@ -233,7 +233,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Turn Off Stove After Boiling Water in Kettle",
+        "Name": "Turn Off Stove After Boiling Water",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

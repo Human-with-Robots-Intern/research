@@ -66,7 +66,7 @@
     "Task": "Throw away cloth",
     "Subtasks": [
       {
-        "Name": "Throw cloth in garbage can",
+        "Name": "Dispose of cloth in garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -93,7 +93,7 @@
     "Task": "Close shower curtain",
     "Subtasks": [
       {
-        "Name": "Close shower curtain",
+        "Name": "Close the shower curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -114,19 +114,27 @@
     ]
   },
   {
-    "Task": "Throw away empty toilet paper on the counter top",
+    "Task": "Throw away toilet paper",
     "Subtasks": [
       {
-        "Name": "Impossible: Empty toilet paper on the counter top cannot be achieved with current Environment Context",
+        "Name": "Dispose of toilet paper in garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "ToiletPaper|-02.31|+00.95|+02.50": 1,
+            "GarbageCan|-02.11|00.00|+01.96": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ToiletPaper|-02.31|+00.95|+02.50",
+            "GRASP ToiletPaper|-02.31|+00.95|+02.50",
+            "NAVIGATE_TO GarbageCan|-02.11|00.00|+01.96",
+            "PLACE_INSIDE GarbageCan|-02.11|00.00|+01.96"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 3
         },
         "TemporalConstraints": []
       }

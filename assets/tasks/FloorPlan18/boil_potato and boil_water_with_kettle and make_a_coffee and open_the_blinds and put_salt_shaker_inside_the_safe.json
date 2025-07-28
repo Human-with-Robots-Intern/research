@@ -62,7 +62,7 @@
             "Potato|-00.73|+01.02|+00.61": 1,
             "Pot|+00.73|+00.98|+00.38": 1,
             "StoveBurner|+01.56|+00.98|+03.85": 1,
-            "StoveKnob|+01.14|+00.93|+03.82": 1
+            "StoveKnob|+01.14|+00.93|+03.99": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Potato|-00.73|+01.02|+00.61",
@@ -73,8 +73,8 @@
             "GRASP Pot|+00.73|+00.98|+00.38",
             "NAVIGATE_TO StoveBurner|+01.56|+00.98|+03.85",
             "PLACE_ON_TOP Pot|+00.73|+00.98|+00.38 StoveBurner|+01.56|+00.98|+03.85",
-            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.82",
-            "TOGGLE_ON StoveKnob|+01.14|+00.93|+03.82"
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.99",
+            "TOGGLE_ON StoveKnob|+01.14|+00.93|+03.99"
           ]
         },
         "Duration": {
@@ -96,11 +96,11 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|+01.14|+00.93|+03.82": 1
+            "StoveKnob|+01.14|+00.93|+03.99": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.82",
-            "TOGGLE_OFF StoveKnob|+01.14|+00.93|+03.82"
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.99",
+            "TOGGLE_OFF StoveKnob|+01.14|+00.93|+03.99"
           ]
         },
         "Duration": {
@@ -119,25 +119,25 @@
     ]
   },
   {
-    "Task": "Cook Egg",
+    "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Prepare Pan on Stove and Heat",
+        "Name": "Place Kettle on Stove and Start Boiling",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Pan|+01.31|+00.99|+04.30": 1,
-            "StoveBurner|+01.32|+00.98|+04.29": 1,
-            "StoveKnob|+01.14|+00.93|+04.31": 1
+            "Kettle|+01.59|+00.99|+03.25": 1,
+            "StoveBurner|+01.32|+00.98|+03.85": 1,
+            "StoveKnob|+01.14|+00.93|+03.82": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Pan|+01.31|+00.99|+04.30",
-            "GRASP Pan|+01.31|+00.99|+04.30",
-            "NAVIGATE_TO StoveBurner|+01.32|+00.98|+04.29",
-            "PLACE_ON_TOP Pan|+01.31|+00.99|+04.30",
-            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+04.31",
-            "TOGGLE_ON StoveKnob|+01.14|+00.93|+04.31"
+            "NAVIGATE_TO Kettle|+01.59|+00.99|+03.25",
+            "GRASP Kettle|+01.59|+00.99|+03.25",
+            "NAVIGATE_TO StoveBurner|+01.32|+00.98|+03.85",
+            "PLACE_ON_TOP Kettle|+01.59|+00.99|+03.25 StoveBurner|+01.32|+00.98|+03.85",
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.82",
+            "TOGGLE_ON StoveKnob|+01.14|+00.93|+03.82"
           ]
         },
         "Duration": {
@@ -147,46 +147,16 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Cook Egg in Pan",
+        "Name": "Turn Off Stove after Boiling Water",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Egg|+01.97|+01.53|+05.73": 1,
-            "Pan|+01.31|+00.99|+04.30": 1
+            "StoveKnob|+01.14|+00.93|+03.82": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Egg|+01.97|+01.53|+05.73",
-            "GRASP Egg|+01.97|+01.53|+05.73",
-            "NAVIGATE_TO Pan|+01.31|+00.99|+04.30",
-            "PLACE_ON_TOP Pan|+01.31|+00.99|+04.30",
-            "SLICE Egg|+01.97|+01.53|+05.73"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 3
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Prepare Pan on Stove and Heat",
-            "Interval": 0,
-            "Urgency": true
-          }
-        ]
-      },
-      {
-        "Name": "Turn Off Stove After Cooking Egg",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "StoveKnob|+01.14|+00.93|+04.31": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+04.31",
-            "TOGGLE_OFF StoveKnob|+01.14|+00.93|+04.31"
+            "NAVIGATE_TO StoveKnob|+01.14|+00.93|+03.82",
+            "TOGGLE_OFF StoveKnob|+01.14|+00.93|+03.82"
           ]
         },
         "Duration": {
@@ -196,7 +166,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Cook Egg in Pan",
+            "Subtask": "Place Kettle on Stove and Start Boiling",
             "Interval": 10,
             "Urgency": true
           }
@@ -205,95 +175,90 @@
     ]
   },
   {
-    "Task": "Boil Water with Kettle",
+    "Task": "Make a Coffee",
     "Subtasks": [
       {
-        "Name": "Impossible: Boil water with Kettle|+01.59|+00.99|+03.25 cannot be achieved with current Environment Context",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 0
-        },
-        "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Wash All Fork and Spoon",
-    "Subtasks": [
-      {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Prepare Coffee Machine with Cup",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Fork|+01.27|+00.98|+01.24": 1,
-            "Sink|+01.39|+01.01|+02.33|SinkBasin": 1,
-            "Faucet|+01.62|+00.99|+02.33": 1
+            "Cup|+01.18|+00.98|+03.39": 1,
+            "CoffeeMachine|+01.55|+00.98|+00.95": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Fork|+01.27|+00.98|+01.24",
-            "GRASP Fork|+01.27|+00.98|+01.24",
-            "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
-            "PLACE_INSIDE Sink|+01.39|+01.01|+02.33|SinkBasin",
-            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
-            "TOGGLE_ON Faucet|+01.62|+00.99|+02.33",
-            "WAIT 1.0",
-            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
-            "TOGGLE_OFF Faucet|+01.62|+00.99|+02.33",
-            "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
-            "GRASP Fork|+01.27|+00.98|+01.24",
-            "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+            "NAVIGATE_TO Cup|+01.18|+00.98|+03.39",
+            "GRASP Cup|+01.18|+00.98|+03.39",
+            "NAVIGATE_TO CoffeeMachine|+01.55|+00.98|+00.95",
+            "PLACE_ON_TOP Cup|+01.18|+00.98|+03.39 CoffeeMachine|+01.55|+00.98|+00.95"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 7
+          "Interval": 2
         },
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Start Coffee Machine",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Spoon|+01.36|+00.98|+01.49": 1,
-            "Sink|+01.39|+01.01|+02.33|SinkBasin": 1,
-            "Faucet|+01.62|+00.99|+02.33": 1
+            "CoffeeMachine|+01.55|+00.98|+00.95": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Spoon|+01.36|+00.98|+01.49",
-            "GRASP Spoon|+01.36|+00.98|+01.49",
-            "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
-            "PLACE_INSIDE Sink|+01.39|+01.01|+02.33|SinkBasin",
-            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
-            "TOGGLE_ON Faucet|+01.62|+00.99|+02.33",
-            "WAIT 1.0",
-            "NAVIGATE_TO Faucet|+01.62|+00.99|+02.33",
-            "TOGGLE_OFF Faucet|+01.62|+00.99|+02.33",
-            "NAVIGATE_TO Sink|+01.39|+01.01|+02.33|SinkBasin",
-            "GRASP Spoon|+01.36|+00.98|+01.49",
-            "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+            "NAVIGATE_TO CoffeeMachine|+01.55|+00.98|+00.95",
+            "TOGGLE_ON CoffeeMachine|+01.55|+00.98|+00.95"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 7
+          "Interval": 1
         },
-        "TemporalConstraints": []
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Prepare Coffee Machine with Cup",
+            "Interval": 0,
+            "Urgency": false
+          }
+        ]
+      },
+      {
+        "Name": "Retrieve Coffee from Machine and Place on CounterTop",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cup|+01.18|+00.98|+03.39": 1,
+            "CoffeeMachine|+01.55|+00.98|+00.95": 1,
+            "CounterTop|+01.39|+01.03|+00.90": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO CoffeeMachine|+01.55|+00.98|+00.95",
+            "GRASP Cup|+01.18|+00.98|+03.39",
+            "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
+            "PLACE_ON_TOP Cup|+01.18|+00.98|+03.39 CounterTop|+01.39|+01.03|+00.90"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Start Coffee Machine",
+            "Interval": 5,
+            "Urgency": false
+          }
+        ]
       }
     ]
   },
   {
-    "Task": "Roll Down the Blinds",
+    "Task": "Open the Blinds",
     "Subtasks": [
       {
         "Name": "Open Blinds",
@@ -311,6 +276,35 @@
         "Duration": {
           "Type": "Controllable",
           "Interval": 1
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Put Salt Shaker inside the Safe",
+    "Subtasks": [
+      {
+        "Name": "Place Salt Shaker in Safe",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "SaltShaker|+01.62|+00.98|+03.50": 1,
+            "Safe|+02.05|+00.00|+07.05": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SaltShaker|+01.62|+00.98|+03.50",
+            "GRASP SaltShaker|+01.62|+00.98|+03.50",
+            "NAVIGATE_TO Safe|+02.05|+00.00|+07.05",
+            "OPEN Safe|+02.05|+00.00|+07.05",
+            "PLACE_INSIDE Safe|+02.05|+00.00|+07.05 SaltShaker|+01.62|+00.98|+03.50",
+            "CLOSE Safe|+02.05|+00.00|+07.05"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 3
         },
         "TemporalConstraints": []
       }

@@ -171,7 +171,7 @@
     ]
   },
   {
-    "Task": "Make a Coffee",
+    "Task": "Make Coffee",
     "Subtasks": [
       {
         "Name": "Prepare Coffee Machine with Mug",
@@ -347,7 +347,7 @@
     ]
   },
   {
-    "Task": "Put the Wine Bottle Inside a Cabinet",
+    "Task": "Store Wine Bottle",
     "Subtasks": [
       {
         "Name": "Put WineBottle in Cabinet",

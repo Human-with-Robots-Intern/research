@@ -1,9 +1,9 @@
 [
   {
-    "Task": "Wet the SoapBar with Water",
+    "Task": "Wet the soapbar with water",
     "Subtasks": [
       {
-        "Name": "Wet SoapBar in Sink",
+        "Name": "Wet soapbar in Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -17,11 +17,14 @@
             "GRASP SoapBar|-03.10|+00.68|+01.74",
             "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "PLACE_INSIDE Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "NAVIGATE_TO Faucet|-00.46|+00.97|+03.21",
             "TOGGLE_ON Faucet|-00.46|+00.97|+03.21",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "GRASP SoapBar|-03.10|+00.68|+01.74",
-            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
+            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
+            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
         "Duration": {
@@ -33,10 +36,10 @@
     ]
   },
   {
-    "Task": "Turn On the Candle",
+    "Task": "Turn on the candle",
     "Subtasks": [
       {
-        "Name": "Turn On Candle",
+        "Name": "Turn on Candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -57,10 +60,10 @@
     ]
   },
   {
-    "Task": "Turn On the Light",
+    "Task": "Turn on the light",
     "Subtasks": [
       {
-        "Name": "Turn On Light",
+        "Name": "Turn on Light",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -81,10 +84,10 @@
     ]
   },
   {
-    "Task": "Throw Away Cloth",
+    "Task": "Throw away cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in Garbage Can",
+        "Name": "Dispose of Cloth",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -108,7 +111,7 @@
     ]
   },
   {
-    "Task": "Close Shower Curtain",
+    "Task": "Close shower curtain",
     "Subtasks": [
       {
         "Name": "Close Shower Curtain",

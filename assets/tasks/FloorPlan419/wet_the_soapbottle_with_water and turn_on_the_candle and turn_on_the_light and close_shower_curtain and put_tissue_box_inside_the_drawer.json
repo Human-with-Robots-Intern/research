@@ -111,7 +111,7 @@
     "Task": "Put Tissue Box Inside the Drawer",
     "Subtasks": [
       {
-        "Name": "Put Tissue Box Inside Drawer",
+        "Name": "Place Tissue Box in Drawer",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

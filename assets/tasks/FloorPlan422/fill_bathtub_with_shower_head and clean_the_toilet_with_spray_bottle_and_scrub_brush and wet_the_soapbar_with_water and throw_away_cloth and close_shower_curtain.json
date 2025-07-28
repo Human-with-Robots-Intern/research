@@ -147,19 +147,19 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw cloth into garbage can",
+        "Name": "Dispose of Cloth in Garbage Can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Cloth|-00.51|+00.94|+02.72": 1,
-            "GarbageCan|-00.26|+00.00|+00.26": 1
+            "GarbageCan|-00.26|00.00|+00.26": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Cloth|-00.51|+00.94|+02.72",
             "GRASP Cloth|-00.51|+00.94|+02.72",
-            "NAVIGATE_TO GarbageCan|-00.26|+00.00|+00.26",
-            "PLACE_INSIDE GarbageCan|-00.26|+00.00|+00.26"
+            "NAVIGATE_TO GarbageCan|-00.26|00.00|+00.26",
+            "PLACE_INSIDE GarbageCan|-00.26|00.00|+00.26"
           ]
         },
         "Duration": {
@@ -174,7 +174,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close shower curtain",
+        "Name": "Close Shower Curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -188,7 +188,7 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 2
+          "Interval": 1
         },
         "TemporalConstraints": []
       }

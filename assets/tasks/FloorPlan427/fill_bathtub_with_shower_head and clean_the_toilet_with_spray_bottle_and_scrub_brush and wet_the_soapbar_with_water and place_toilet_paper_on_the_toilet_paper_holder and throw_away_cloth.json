@@ -66,6 +66,7 @@
             "GRASP SprayBottle|-02.86|+00.70|-00.52",
             "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
@@ -89,6 +90,7 @@
             "GRASP ScrubBrush|-01.04|+00.00|-00.71",
             "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
@@ -100,7 +102,7 @@
           {
             "Type": "After",
             "Subtask": "Spray toilet with spray bottle",
-            "Interval": 0,
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -125,11 +127,14 @@
             "GRASP SoapBar|-02.58|+00.70|-00.54",
             "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "PLACE_INSIDE Sink|-01.92|+00.44|+02.03|SinkBasin",
+            "NAVIGATE_TO Faucet|-01.92|+01.06|+02.18",
             "TOGGLE_ON Faucet|-01.92|+01.06|+02.18",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-01.92|+01.06|+02.18",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "GRASP SoapBar|-02.58|+00.70|-00.54",
-            "PLACE_ON_TOP CounterTop|-02.80|+00.00|-00.59"
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
+            "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
         "Duration": {
@@ -141,20 +146,20 @@
     ]
   },
   {
-    "Task": "Place Toilet Paper on the Toilet Paper Holder",
+    "Task": "Place Toilet Paper on Holder",
     "Subtasks": [
       {
-        "Name": "Place Toilet Paper on Holder",
+        "Name": "Place toilet paper on holder",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "ToiletPaper|-03.20|+00.60|-00.47": 1,
+            "ToiletPaper|-01.38|+00.69|-00.75": 1,
             "ToiletPaperHanger|-00.43|+00.94|+00.19": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO ToiletPaper|-03.20|+00.60|-00.47",
-            "GRASP ToiletPaper|-03.20|+00.60|-00.47",
+            "NAVIGATE_TO ToiletPaper|-01.38|+00.69|-00.75",
+            "GRASP ToiletPaper|-01.38|+00.69|-00.75",
             "NAVIGATE_TO ToiletPaperHanger|-00.43|+00.94|+00.19",
             "PLACE_ON_TOP ToiletPaperHanger|-00.43|+00.94|+00.19"
           ]
@@ -171,7 +176,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in Garbage Can",
+        "Name": "Throw away cloth",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

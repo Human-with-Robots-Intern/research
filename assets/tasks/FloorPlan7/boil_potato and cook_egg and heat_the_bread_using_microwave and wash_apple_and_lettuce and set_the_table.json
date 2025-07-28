@@ -135,7 +135,7 @@
             "NAVIGATE_TO Pan|+00.97|+00.96|-01.43",
             "GRASP Pan|+00.97|+00.96|-01.43",
             "NAVIGATE_TO StoveBurner|+01.33|+00.96|-01.42",
-            "PLACE_ON_TOP Pan|+00.97|+00.96|-01.43",
+            "PLACE_ON_TOP StoveBurner|+01.33|+00.96|-01.42",
             "NAVIGATE_TO StoveKnob|+01.34|+00.91|-01.24",
             "TOGGLE_ON StoveKnob|+01.34|+00.91|-01.24"
           ]
@@ -177,7 +177,7 @@
         ]
       },
       {
-        "Name": "Turn Off Stove after Cooking Egg",
+        "Name": "Turn Off Stove After Cooking Egg",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -299,7 +299,7 @@
             "GRASP Bread|-01.60|+00.98|-00.84",
             "CLOSE Microwave|+01.15|+01.66|-01.61",
             "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
-            "PLACE_ON_TOP Bread|-01.60|+00.98|-00.84 CounterTop|-01.87|+00.95|-00.61"
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -342,7 +342,7 @@
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Apple|-00.63|+00.96|-01.44",
             "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
-            "PLACE_ON_TOP Apple|-00.63|+00.96|-01.44 CounterTop|-01.87|+00.95|-00.61"
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -373,7 +373,7 @@
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Lettuce|-01.65|+00.96|-01.05",
             "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
-            "PLACE_ON_TOP Lettuce|-01.65|+00.96|-01.05 CounterTop|-01.87|+00.95|-00.61"
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -400,7 +400,7 @@
             "NAVIGATE_TO Plate|+00.14|+00.92|-01.50",
             "GRASP Plate|+00.14|+00.92|-01.50",
             "NAVIGATE_TO DiningTable|-02.66|+00.00|+03.21",
-            "PLACE_ON_TOP Plate|+00.14|+00.92|-01.50 DiningTable|-02.66|+00.00|+03.21"
+            "PLACE_ON_TOP DiningTable|-02.66|+00.00|+03.21"
           ]
         },
         "Duration": {
@@ -422,7 +422,7 @@
             "NAVIGATE_TO Fork|-02.04|+00.71|-01.66",
             "GRASP Fork|-02.04|+00.71|-01.66",
             "NAVIGATE_TO DiningTable|-02.66|+00.00|+03.21",
-            "PLACE_ON_TOP Fork|-02.04|+00.71|-01.66 DiningTable|-02.66|+00.00|+03.21"
+            "PLACE_ON_TOP DiningTable|-02.66|+00.00|+03.21"
           ]
         },
         "Duration": {
@@ -444,7 +444,7 @@
             "NAVIGATE_TO Spoon|-02.05|+00.71|-01.46",
             "GRASP Spoon|-02.05|+00.71|-01.46",
             "NAVIGATE_TO DiningTable|-02.66|+00.00|+03.21",
-            "PLACE_ON_TOP Spoon|-02.05|+00.71|-01.46 DiningTable|-02.66|+00.00|+03.21"
+            "PLACE_ON_TOP DiningTable|-02.66|+00.00|+03.21"
           ]
         },
         "Duration": {
@@ -466,7 +466,7 @@
             "NAVIGATE_TO Cup|-01.91|+00.90|-00.02",
             "GRASP Cup|-01.91|+00.90|-00.02",
             "NAVIGATE_TO DiningTable|-02.66|+00.00|+03.21",
-            "PLACE_ON_TOP Cup|-01.91|+00.90|-00.02 DiningTable|-02.66|+00.00|+03.21"
+            "PLACE_ON_TOP DiningTable|-02.66|+00.00|+03.21"
           ]
         },
         "Duration": {

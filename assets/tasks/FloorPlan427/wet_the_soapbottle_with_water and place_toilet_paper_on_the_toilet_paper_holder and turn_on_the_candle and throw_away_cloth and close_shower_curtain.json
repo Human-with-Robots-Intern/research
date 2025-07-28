@@ -36,7 +36,7 @@
     ]
   },
   {
-    "Task": "Place Toilet Paper on the Toilet Paper Holder",
+    "Task": "Place Toilet Paper on Toilet Paper Holder",
     "Subtasks": [
       {
         "Name": "Place Toilet Paper on Holder",
@@ -44,12 +44,12 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "ToiletPaper|-03.20|+00.60|-00.47": 1,
+            "ToiletPaper|-01.38|+00.69|-00.75": 1,
             "ToiletPaperHanger|-00.43|+00.94|+00.19": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO ToiletPaper|-03.20|+00.60|-00.47",
-            "GRASP ToiletPaper|-03.20|+00.60|-00.47",
+            "NAVIGATE_TO ToiletPaper|-01.38|+00.69|-00.75",
+            "GRASP ToiletPaper|-01.38|+00.69|-00.75",
             "NAVIGATE_TO ToiletPaperHanger|-00.43|+00.94|+00.19",
             "PLACE_ON_TOP ToiletPaperHanger|-00.43|+00.94|+00.19"
           ]

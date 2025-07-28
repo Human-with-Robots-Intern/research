@@ -135,7 +135,7 @@
             "NAVIGATE_TO Pan|+01.93|+00.07|+00.64",
             "GRASP Pan|+01.93|+00.07|+00.64",
             "NAVIGATE_TO StoveBurner|+01.87|+00.93|+01.50",
-            "PLACE_ON_TOP Pan|+01.93|+00.07|+00.64 StoveBurner|+01.87|+00.93|+01.50",
+            "PLACE_ON_TOP StoveBurner|+01.87|+00.93|+01.50",
             "NAVIGATE_TO StoveKnob|+02.33|+01.09|+01.46",
             "TOGGLE_ON StoveKnob|+02.33|+01.09|+01.46"
           ]
@@ -385,36 +385,14 @@
           "Interval": 2
         },
         "TemporalConstraints": []
-      },
-      {
-        "Name": "Place Cup on DiningTable",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Cup|-00.33|+00.76|+01.08": 1,
-            "DiningTable|-00.15|00.00|+01.07": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Cup|-00.33|+00.76|+01.08",
-            "GRASP Cup|-00.33|+00.76|+01.08",
-            "NAVIGATE_TO DiningTable|-00.15|00.00|+01.07",
-            "PLACE_ON_TOP Cup|-00.33|+00.76|+01.08 DiningTable|-00.15|00.00|+01.07"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": []
       }
     ]
   },
   {
-    "Task": "Store Wine Bottle",
+    "Task": "Put Wine Bottle inside a Cabinet",
     "Subtasks": [
       {
-        "Name": "Put WineBottle in Cabinet",
+        "Name": "Place Wine Bottle in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

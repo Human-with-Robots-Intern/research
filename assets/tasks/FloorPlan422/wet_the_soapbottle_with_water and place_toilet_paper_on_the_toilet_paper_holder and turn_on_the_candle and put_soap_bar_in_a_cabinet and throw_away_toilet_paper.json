@@ -1,45 +1,9 @@
 [
   {
-    "Task": "Wet the soapbar with water",
+    "Task": "Wet the SoapBottle with Water",
     "Subtasks": [
       {
-        "Name": "Wet soapbar in Sink",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "SoapBar|-01.99|+01.29|+02.08": 1,
-            "Sink|-01.93|+00.77|+00.33|SinkBasin": 1,
-            "Faucet|-01.93|+00.96|+00.18": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO SoapBar|-01.99|+01.29|+02.08",
-            "GRASP SoapBar|-01.99|+01.29|+02.08",
-            "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
-            "PLACE_INSIDE Sink|-01.93|+00.77|+00.33|SinkBasin",
-            "NAVIGATE_TO Faucet|-01.93|+00.96|+00.18",
-            "TOGGLE_ON Faucet|-01.93|+00.96|+00.18",
-            "WAIT 1.0",
-            "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
-            "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
-            "GRASP SoapBar|-01.99|+01.29|+02.08",
-            "NAVIGATE_TO CounterTop|-01.92|+00.00|+00.29",
-            "PLACE_ON_TOP CounterTop|-01.92|+00.00|+00.29"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 8
-        },
-        "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Wet the soapbottle with water",
-    "Subtasks": [
-      {
-        "Name": "Wet soapbottle in Sink",
+        "Name": "Wet SoapBottle in Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -72,20 +36,20 @@
     ]
   },
   {
-    "Task": "Place toilet paper on the toilet paper holder",
+    "Task": "Place Toilet Paper on the Toilet Paper Holder",
     "Subtasks": [
       {
-        "Name": "Place toilet paper on holder",
+        "Name": "Place Toilet Paper on Holder",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "ToiletPaper|-00.92|+01.12|+00.21": 1,
+            "ToiletPaper|-01.53|+00.80|+00.16": 1,
             "ToiletPaperHanger|+00.00|+01.02|+02.24": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO ToiletPaper|-00.92|+01.12|+00.21",
-            "GRASP ToiletPaper|-00.92|+01.12|+00.21",
+            "NAVIGATE_TO ToiletPaper|-01.53|+00.80|+00.16",
+            "GRASP ToiletPaper|-01.53|+00.80|+00.16",
             "NAVIGATE_TO ToiletPaperHanger|+00.00|+01.02|+02.24",
             "PLACE_ON_TOP ToiletPaperHanger|+00.00|+01.02|+02.24"
           ]
@@ -99,10 +63,10 @@
     ]
   },
   {
-    "Task": "Turn on the candle",
+    "Task": "Turn On the Candle",
     "Subtasks": [
       {
-        "Name": "Turn on candle",
+        "Name": "Turn On Candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -123,20 +87,49 @@
     ]
   },
   {
-    "Task": "Throw away empty toilet paper on the counter top",
+    "Task": "Put Soap Bar in a Cabinet",
     "Subtasks": [
       {
-        "Name": "Throw away empty toilet paper",
+        "Name": "Place Soap Bar in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "ToiletPaper|-01.53|+00.80|+00.16": 1,
+            "SoapBar|-01.99|+01.29|+02.08": 1,
+            "Cabinet|-02.34|+00.46|+00.52": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-01.99|+01.29|+02.08",
+            "GRASP SoapBar|-01.99|+01.29|+02.08",
+            "NAVIGATE_TO Cabinet|-02.34|+00.46|+00.52",
+            "OPEN Cabinet|-02.34|+00.46|+00.52",
+            "PLACE_INSIDE Cabinet|-02.34|+00.46|+00.52",
+            "CLOSE Cabinet|-02.34|+00.46|+00.52"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Throw Away Toilet Paper",
+    "Subtasks": [
+      {
+        "Name": "Dispose of Toilet Paper",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "ToiletPaper|-00.92|+01.12|+00.21": 1,
             "GarbageCan|-00.26|+00.00|+00.26": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO ToiletPaper|-01.53|+00.80|+00.16",
-            "GRASP ToiletPaper|-01.53|+00.80|+00.16",
+            "NAVIGATE_TO ToiletPaper|-00.92|+01.12|+00.21",
+            "GRASP ToiletPaper|-00.92|+01.12|+00.21",
             "NAVIGATE_TO GarbageCan|-00.26|+00.00|+00.26",
             "PLACE_INSIDE GarbageCan|-00.26|+00.00|+00.26"
           ]

@@ -16,6 +16,7 @@
             "GRASP SprayBottle|-02.86|+00.70|-00.52",
             "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
@@ -39,6 +40,7 @@
             "GRASP ScrubBrush|-01.04|+00.00|-00.71",
             "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
@@ -50,7 +52,7 @@
           {
             "Type": "After",
             "Subtask": "Spray toilet with spray bottle",
-            "Interval": 0,
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -75,11 +77,14 @@
             "GRASP SoapBar|-02.58|+00.70|-00.54",
             "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "PLACE_INSIDE Sink|-01.92|+00.44|+02.03|SinkBasin",
+            "NAVIGATE_TO Faucet|-01.92|+01.06|+02.18",
             "TOGGLE_ON Faucet|-01.92|+01.06|+02.18",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-01.92|+01.06|+02.18",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "GRASP SoapBar|-02.58|+00.70|-00.54",
-            "PLACE_ON_TOP CounterTop|-02.80|+00.00|-00.59"
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
+            "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
         "Duration": {
@@ -91,7 +96,7 @@
     ]
   },
   {
-    "Task": "Turn on the Candle",
+    "Task": "Turn On Candle",
     "Subtasks": [
       {
         "Name": "Turn on the candle",
@@ -115,10 +120,10 @@
     ]
   },
   {
-    "Task": "Throw away Cloth",
+    "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw away cloth",
+        "Name": "Throw cloth into garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -135,7 +140,7 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 3
+          "Interval": 2
         },
         "TemporalConstraints": []
       }
@@ -145,7 +150,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close shower curtain",
+        "Name": "Close the shower curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

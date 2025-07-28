@@ -23,8 +23,8 @@
             "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
             "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
             "GRASP SoapBar|-01.99|+01.29|+02.08",
-            "NAVIGATE_TO Cabinet|-02.34|+00.46|+00.52",
-            "PLACE_ON_TOP Cabinet|-02.34|+00.46|+00.52"
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
         "Duration": {
@@ -90,7 +90,7 @@
     "Task": "Throw away cloth",
     "Subtasks": [
       {
-        "Name": "Throw cloth in garbage can",
+        "Name": "Dispose of cloth in garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -117,16 +117,26 @@
     "Task": "Put soap bar in a cabinet",
     "Subtasks": [
       {
-        "Name": "Impossible: Ambiguous object reference. Please specify which cabinet.",
+        "Name": "Place soap bar in cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "SoapBar|-01.99|+01.29|+02.08": 1,
+            "Cabinet|-02.34|+00.46|+00.52": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-01.99|+01.29|+02.08",
+            "GRASP SoapBar|-01.99|+01.29|+02.08",
+            "NAVIGATE_TO Cabinet|-02.34|+00.46|+00.52",
+            "OPEN Cabinet|-02.34|+00.46|+00.52",
+            "PLACE_INSIDE Cabinet|-02.34|+00.46|+00.52",
+            "CLOSE Cabinet|-02.34|+00.46|+00.52"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 4
         },
         "TemporalConstraints": []
       }

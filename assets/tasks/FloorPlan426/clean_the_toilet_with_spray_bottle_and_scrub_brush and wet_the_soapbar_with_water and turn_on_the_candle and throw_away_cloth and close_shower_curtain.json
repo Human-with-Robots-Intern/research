@@ -50,7 +50,7 @@
           {
             "Type": "After",
             "Subtask": "Spray toilet with spray bottle",
-            "Interval": 10,
+            "Interval": 0,
             "Urgency": true
           }
         ]
@@ -79,7 +79,7 @@
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
             "GRASP SoapBar|-03.10|+00.68|+01.74",
-            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
           ]
         },
         "Duration": {
@@ -91,10 +91,10 @@
     ]
   },
   {
-    "Task": "Turn on the Candle",
+    "Task": "Turn On Candle",
     "Subtasks": [
       {
-        "Name": "Turn on Candle",
+        "Name": "Turn on the candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -115,10 +115,10 @@
     ]
   },
   {
-    "Task": "Throw away Cloth",
+    "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in GarbageCan",
+        "Name": "Throw cloth into garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -145,7 +145,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close Shower Curtain",
+        "Name": "Close the shower curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

@@ -149,7 +149,7 @@
     "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn on the light",
+        "Name": "Turn on the light switch",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -173,7 +173,7 @@
     "Task": "Put Tissue Box Inside the Drawer",
     "Subtasks": [
       {
-        "Name": "Put tissue box inside the drawer",
+        "Name": "Place tissue box inside drawer",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -192,7 +192,7 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 5
+          "Interval": 6
         },
         "TemporalConstraints": []
       }

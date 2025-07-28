@@ -50,10 +50,10 @@
     ]
   },
   {
-    "Task": "Wet the SoapBar with Water",
+    "Task": "Wet the Soapbar",
     "Subtasks": [
       {
-        "Name": "Wet SoapBar in Sink",
+        "Name": "Wet soapbar in Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -86,7 +86,7 @@
     ]
   },
   {
-    "Task": "Place Toilet Paper on the Toilet Paper Holder",
+    "Task": "Place Toilet Paper on Holder",
     "Subtasks": [
       {
         "Name": "Place Toilet Paper on Holder",
@@ -140,7 +140,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in Garbage Can",
+        "Name": "Throw Cloth in Garbage",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

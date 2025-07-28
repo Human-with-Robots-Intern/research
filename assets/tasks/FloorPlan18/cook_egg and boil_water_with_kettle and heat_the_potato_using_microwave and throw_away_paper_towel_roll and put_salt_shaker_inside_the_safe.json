@@ -82,6 +82,35 @@
             "Urgency": true
           }
         ]
+      },
+      {
+        "Name": "Place Cooked Egg in Pan on CounterTop",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Pan|+01.31|+00.99|+04.30": 1,
+            "CounterTop|+01.39|+01.03|+04.72": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Pan|+01.31|+00.99|+04.30",
+            "GRASP Pan|+01.31|+00.99|+04.30",
+            "NAVIGATE_TO CounterTop|+01.39|+01.03|+04.72",
+            "PLACE_ON_TOP Pan|+01.31|+00.99|+04.30 CounterTop|+01.39|+01.03|+04.72"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Turn Off Stove After Cooking Egg",
+            "Interval": 0,
+            "Urgency": true
+          }
+        ]
       }
     ]
   },
@@ -89,7 +118,7 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Place Kettle on StoveBurner and Start Boiling",
+        "Name": "Place Kettle on StoveBurner and Start Heating",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -133,7 +162,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Kettle on StoveBurner and Start Boiling",
+            "Subtask": "Place Kettle on StoveBurner and Start Heating",
             "Interval": 10,
             "Urgency": true
           }
@@ -142,7 +171,7 @@
     ]
   },
   {
-    "Task": "Heat Potato using Microwave",
+    "Task": "Heat the Potato using Microwave",
     "Subtasks": [
       {
         "Name": "Place Potato in Microwave",
@@ -158,7 +187,7 @@
             "GRASP Potato|-00.73|+01.02|+00.61",
             "NAVIGATE_TO Microwave|+00.11|+00.98|+00.26",
             "OPEN Microwave|+00.11|+00.98|+00.26",
-            "PLACE_INSIDE Microwave|+00.11|+00.98|+00.26",
+            "PLACE_INSIDE Potato|-00.73|+01.02|+00.61 Microwave|+00.11|+00.98|+00.26",
             "CLOSE Microwave|+00.11|+00.98|+00.26"
           ]
         },
@@ -236,7 +265,7 @@
             "GRASP Potato|-00.73|+01.02|+00.61",
             "CLOSE Microwave|+00.11|+00.98|+00.26",
             "NAVIGATE_TO CounterTop|+01.39|+01.03|+00.90",
-            "PLACE_ON_TOP CounterTop|+01.39|+01.03|+00.90"
+            "PLACE_ON_TOP Potato|-00.73|+01.02|+00.61 CounterTop|+01.39|+01.03|+00.90"
           ]
         },
         "Duration": {
@@ -285,27 +314,26 @@
     "Task": "Put Salt Shaker Inside the Safe",
     "Subtasks": [
       {
-        "Name": "Open Safe and Place Salt Shaker Inside",
+        "Name": "Store Salt Shaker in Safe",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Safe|+02.05|+00.00|+07.05": 1,
-            "SaltShaker|+01.62|+00.98|+03.50": 1
+            "SaltShaker|+01.62|+00.98|+03.50": 1,
+            "Safe|+02.05|+00.00|+07.05": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Safe|+02.05|+00.00|+07.05",
-            "OPEN Safe|+02.05|+00.00|+07.05",
             "NAVIGATE_TO SaltShaker|+01.62|+00.98|+03.50",
             "GRASP SaltShaker|+01.62|+00.98|+03.50",
             "NAVIGATE_TO Safe|+02.05|+00.00|+07.05",
-            "PLACE_INSIDE Safe|+02.05|+00.00|+07.05",
+            "OPEN Safe|+02.05|+00.00|+07.05",
+            "PLACE_INSIDE SaltShaker|+01.62|+00.98|+03.50 Safe|+02.05|+00.00|+07.05",
             "CLOSE Safe|+02.05|+00.00|+07.05"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 4
+          "Interval": 3
         },
         "TemporalConstraints": []
       }

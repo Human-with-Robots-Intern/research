@@ -339,7 +339,7 @@
     "Task": "Put the Wine Bottle Inside a Cabinet",
     "Subtasks": [
       {
-        "Name": "Put WineBottle in Cabinet",
+        "Name": "Place Wine Bottle in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

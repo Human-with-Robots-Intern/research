@@ -135,7 +135,7 @@
             "NAVIGATE_TO Kettle|+01.04|+00.90|-02.60",
             "GRASP Kettle|+01.04|+00.90|-02.60",
             "NAVIGATE_TO StoveBurner|-00.04|+00.92|-02.37",
-            "PLACE_ON_TOP StoveBurner|-00.04|+00.92|-02.37",
+            "PLACE_ON_TOP Kettle|+01.04|+00.90|-02.60 StoveBurner|-00.04|+00.92|-02.37",
             "NAVIGATE_TO StoveKnob|-00.02|+00.88|-02.19",
             "TOGGLE_ON StoveKnob|-00.02|+00.88|-02.19"
           ]

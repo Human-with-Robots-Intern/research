@@ -1,9 +1,9 @@
 [
   {
-    "Task": "Wet the SoapBar with Water",
+    "Task": "Wet the soapbar with water",
     "Subtasks": [
       {
-        "Name": "Wet SoapBar in Sink",
+        "Name": "Wet soapbar in Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -17,11 +17,14 @@
             "GRASP SoapBar|-02.58|+00.70|-00.54",
             "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "PLACE_INSIDE Sink|-01.92|+00.44|+02.03|SinkBasin",
+            "NAVIGATE_TO Faucet|-01.92|+01.06|+02.18",
             "TOGGLE_ON Faucet|-01.92|+01.06|+02.18",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-01.92|+01.06|+02.18",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03|SinkBasin",
             "GRASP SoapBar|-02.58|+00.70|-00.54",
-            "PLACE_ON_TOP Sink|-01.92|+00.44|+02.03|SinkBasin"
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
+            "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
         "Duration": {
@@ -33,10 +36,10 @@
     ]
   },
   {
-    "Task": "Throw Away Cloth",
+    "Task": "Throw away cloth",
     "Subtasks": [
       {
-        "Name": "Dispose of Cloth in GarbageCan",
+        "Name": "Dispose of cloth in garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -60,10 +63,10 @@
     ]
   },
   {
-    "Task": "Close Shower Curtain",
+    "Task": "Close shower curtain",
     "Subtasks": [
       {
-        "Name": "Close Shower Curtain",
+        "Name": "Close the shower curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -84,29 +87,37 @@
     ]
   },
   {
-    "Task": "Put a SoapBar on the Sink",
+    "Task": "Put a soap bar on the sink",
     "Subtasks": [
       {
-        "Name": "Impossible: Ambiguous object reference. Please specify which SoapBar.",
+        "Name": "Place soap bar on sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "SoapBar|-02.58|+00.70|-00.54": 1,
+            "Sink|-01.92|+00.44|+02.03": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-02.58|+00.70|-00.54",
+            "GRASP SoapBar|-02.58|+00.70|-00.54",
+            "NAVIGATE_TO Sink|-01.92|+00.44|+02.03",
+            "PLACE_ON_TOP Sink|-01.92|+00.44|+02.03"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 3
         },
         "TemporalConstraints": []
       }
     ]
   },
   {
-    "Task": "Put the Candle Inside the Drawer",
+    "Task": "Put the candle inside the drawer",
     "Subtasks": [
       {
-        "Name": "Place Candle in Drawer",
+        "Name": "Place candle inside drawer",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

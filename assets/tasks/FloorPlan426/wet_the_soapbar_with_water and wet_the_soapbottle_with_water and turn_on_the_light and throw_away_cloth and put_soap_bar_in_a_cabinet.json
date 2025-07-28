@@ -1,9 +1,9 @@
 [
   {
-    "Task": "Wet the soapbar with water",
+    "Task": "Wet SoapBar and SoapBottle with Water",
     "Subtasks": [
       {
-        "Name": "Wet soapbar in Sink",
+        "Name": "Wet SoapBar in Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -23,8 +23,8 @@
             "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
             "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "GRASP SoapBar|-03.10|+00.68|+01.74",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
-            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+            "NAVIGATE_TO CounterTop|-01.85|+00.00|+00.34",
+            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
           ]
         },
         "Duration": {
@@ -32,14 +32,9 @@
           "Interval": 8
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Wet the soapbottle with water",
-    "Subtasks": [
+      },
       {
-        "Name": "Wet soapbottle in Sink",
+        "Name": "Wet SoapBottle in Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -59,8 +54,8 @@
             "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
             "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "GRASP SoapBottle|-00.64|+00.95|+03.22",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
-            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+            "NAVIGATE_TO CounterTop|-01.85|+00.00|+00.34",
+            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
           ]
         },
         "Duration": {
@@ -72,10 +67,10 @@
     ]
   },
   {
-    "Task": "Turn on the light",
+    "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn on light switch",
+        "Name": "Turn On LightSwitch",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -96,10 +91,10 @@
     ]
   },
   {
-    "Task": "Throw away cloth",
+    "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw cloth in garbage can",
+        "Name": "Dispose of Cloth in GarbageCan",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -123,19 +118,29 @@
     ]
   },
   {
-    "Task": "Put soap bar in a cabinet",
+    "Task": "Put SoapBar in a Cabinet",
     "Subtasks": [
       {
-        "Name": "Impossible: Put soap bar in a cabinet cannot be achieved with current Environment Context",
+        "Name": "Place SoapBar in Drawer",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "SoapBar|-03.10|+00.68|+01.74": 1,
+            "Drawer|-01.32|+00.31|+00.31": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SoapBar|-03.10|+00.68|+01.74",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
+            "NAVIGATE_TO Drawer|-01.32|+00.31|+00.31",
+            "OPEN Drawer|-01.32|+00.31|+00.31",
+            "PLACE_INSIDE Drawer|-01.32|+00.31|+00.31",
+            "CLOSE Drawer|-01.32|+00.31|+00.31"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 4
         },
         "TemporalConstraints": []
       }

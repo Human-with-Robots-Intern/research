@@ -128,16 +128,16 @@
         "Executions": {
           "Objects": {
             "Pan|+00.97|+00.96|-01.43": 1,
-            "StoveBurner|+00.97|+00.96|-01.42": 1,
-            "StoveKnob|+01.21|+00.91|-01.24": 1
+            "StoveBurner|+01.33|+00.96|-01.42": 1,
+            "StoveKnob|+01.34|+00.91|-01.24": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Pan|+00.97|+00.96|-01.43",
             "GRASP Pan|+00.97|+00.96|-01.43",
-            "NAVIGATE_TO StoveBurner|+00.97|+00.96|-01.42",
-            "PLACE_ON_TOP Pan|+00.97|+00.96|-01.42",
-            "NAVIGATE_TO StoveKnob|+01.21|+00.91|-01.24",
-            "TOGGLE_ON StoveKnob|+01.21|+00.91|-01.24"
+            "NAVIGATE_TO StoveBurner|+01.33|+00.96|-01.42",
+            "PLACE_ON_TOP Pan|+00.97|+00.96|-01.43",
+            "NAVIGATE_TO StoveKnob|+01.34|+00.91|-01.24",
+            "TOGGLE_ON StoveKnob|+01.34|+00.91|-01.24"
           ]
         },
         "Duration": {
@@ -177,16 +177,16 @@
         ]
       },
       {
-        "Name": "Turn Off Stove after Cooking Egg",
+        "Name": "Turn Off Stove After Cooking Egg",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "StoveKnob|+01.21|+00.91|-01.24": 1
+            "StoveKnob|+01.34|+00.91|-01.24": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO StoveKnob|+01.21|+00.91|-01.24",
-            "TOGGLE_OFF StoveKnob|+01.21|+00.91|-01.24"
+            "NAVIGATE_TO StoveKnob|+01.34|+00.91|-01.24",
+            "TOGGLE_OFF StoveKnob|+01.34|+00.91|-01.24"
           ]
         },
         "Duration": {
@@ -261,7 +261,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Wash Fork",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -278,7 +278,6 @@
             "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_ON Faucet|-00.11|+00.92|-01.82",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Fork|-02.04|+00.71|-01.66",
@@ -293,7 +292,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -310,7 +309,6 @@
             "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_ON Faucet|-00.11|+00.92|-01.82",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Spoon|-02.05|+00.71|-01.46",

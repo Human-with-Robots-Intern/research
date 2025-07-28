@@ -16,14 +16,14 @@
             "NAVIGATE_TO Kettle|+01.04|+00.90|-02.60",
             "GRASP Kettle|+01.04|+00.90|-02.60",
             "NAVIGATE_TO StoveBurner|-00.47|+00.92|-02.37",
-            "PLACE_ON_TOP Kettle|+01.04|+00.90|-02.60 StoveBurner|-00.47|+00.92|-02.37",
+            "PLACE_ON_TOP StoveBurner|-00.47|+00.92|-02.37",
             "NAVIGATE_TO StoveKnob|-00.48|+00.88|-02.19",
             "TOGGLE_ON StoveKnob|-00.48|+00.88|-02.19"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 3
+          "Interval": 4
         },
         "TemporalConstraints": []
       },
@@ -56,7 +56,7 @@
     ]
   },
   {
-    "Task": "Heat the Potato using Microwave",
+    "Task": "Heat Potato using Microwave",
     "Subtasks": [
       {
         "Name": "Place Potato in Microwave",
@@ -169,7 +169,7 @@
     ]
   },
   {
-    "Task": "Put Apple and Lettuce in Fridge",
+    "Task": "Store Items in Fridge and Cabinet",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",
@@ -218,12 +218,7 @@
           "Interval": 3
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Put Wine Bottle inside a Cabinet",
-    "Subtasks": [
+      },
       {
         "Name": "Put Wine Bottle in Cabinet",
         "Repetition": 1,
@@ -251,7 +246,7 @@
     ]
   },
   {
-    "Task": "Put Credit Card on CounterTop",
+    "Task": "Place Credit Card on CounterTop",
     "Subtasks": [
       {
         "Name": "Place Credit Card on CounterTop",

@@ -100,7 +100,7 @@
           {
             "Type": "After",
             "Subtask": "Spray toilet with spray bottle",
-            "Interval": 0,
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -108,21 +108,21 @@
     ]
   },
   {
-    "Task": "Wet the SoapBottle",
+    "Task": "Wet the SoapBar",
     "Subtasks": [
       {
-        "Name": "Wet SoapBottle in Sink",
+        "Name": "Wet soapbar in Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "SoapBottle|-00.64|+00.95|+03.22": 1,
+            "SoapBar|-03.10|+00.68|+01.74": 1,
             "Sink|-00.46|-00.01|+03.05|SinkBasin": 1,
             "Faucet|-00.46|+00.97|+03.21": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO SoapBottle|-00.64|+00.95|+03.22",
-            "GRASP SoapBottle|-00.64|+00.95|+03.22",
+            "NAVIGATE_TO SoapBar|-03.10|+00.68|+01.74",
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
             "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "PLACE_INSIDE Sink|-00.46|-00.01|+03.05|SinkBasin",
             "NAVIGATE_TO Faucet|-00.46|+00.97|+03.21",
@@ -130,9 +130,9 @@
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
             "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
-            "GRASP SoapBottle|-00.64|+00.95|+03.22",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
-            "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
+            "GRASP SoapBar|-03.10|+00.68|+01.74",
+            "NAVIGATE_TO CounterTop|-01.85|+00.00|+00.34",
+            "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
           ]
         },
         "Duration": {
@@ -144,19 +144,19 @@
     ]
   },
   {
-    "Task": "Turn On Candle",
+    "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn on the candle",
+        "Name": "Turn on the light switch",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Candle|-01.96|+00.80|+00.37": 1
+            "LightSwitch|+00.00|+01.37|+01.99": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Candle|-01.96|+00.80|+00.37",
-            "TOGGLE_ON Candle|-01.96|+00.80|+00.37"
+            "NAVIGATE_TO LightSwitch|+00.00|+01.37|+01.99",
+            "TOGGLE_ON LightSwitch|+00.00|+01.37|+01.99"
           ]
         },
         "Duration": {
@@ -168,19 +168,27 @@
     ]
   },
   {
-    "Task": "Throw Away Empty Toilet Paper",
+    "Task": "Throw Away Toilet Paper",
     "Subtasks": [
       {
-        "Name": "Impossible: Empty toilet paper on the counter top cannot be achieved with current Environment Context",
+        "Name": "Dispose of toilet paper in garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "ToiletPaper|-02.25|+00.94|+02.67": 1,
+            "GarbageCan|-02.11|00.00|+01.96": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO ToiletPaper|-02.25|+00.94|+02.67",
+            "GRASP ToiletPaper|-02.25|+00.94|+02.67",
+            "NAVIGATE_TO GarbageCan|-02.11|00.00|+01.96",
+            "PLACE_INSIDE GarbageCan|-02.11|00.00|+01.96"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 3
         },
         "TemporalConstraints": []
       }

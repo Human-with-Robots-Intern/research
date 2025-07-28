@@ -23,8 +23,8 @@
             "TOGGLE_OFF Faucet|-02.35|+01.01|-02.03",
             "NAVIGATE_TO Sink|-02.10|00.00|-02.03|SinkBasin",
             "GRASP SoapBottle|-02.27|+00.67|-01.52",
-            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
-            "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
+            "NAVIGATE_TO SideTable|-02.18|00.00|-01.31",
+            "PLACE_ON_TOP SideTable|-02.18|00.00|-01.31"
           ]
         },
         "Duration": {
@@ -36,10 +36,10 @@
     ]
   },
   {
-    "Task": "Place Toilet Paper on the Toilet Paper Hanger",
+    "Task": "Place Toilet Paper on the Toilet Paper Holder",
     "Subtasks": [
       {
-        "Name": "Place Toilet Paper on Hanger",
+        "Name": "Place Toilet Paper on Holder",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

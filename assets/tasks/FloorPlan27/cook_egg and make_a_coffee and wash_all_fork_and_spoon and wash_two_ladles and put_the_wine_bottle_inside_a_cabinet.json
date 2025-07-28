@@ -201,7 +201,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Wash Fork",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -232,7 +232,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -268,7 +268,7 @@
     "Task": "Wash Two Ladles",
     "Subtasks": [
       {
-        "Name": "Wash Ladle and place on counterTop",
+        "Name": "Wash Ladle 1",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -299,7 +299,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Ladle and place on counterTop",
+        "Name": "Wash Ladle 2",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -332,10 +332,10 @@
     ]
   },
   {
-    "Task": "Put Wine Bottle Inside a Cabinet",
+    "Task": "Put Wine Bottle Inside Cabinet",
     "Subtasks": [
       {
-        "Name": "Put Wine Bottle in Cabinet",
+        "Name": "Store Wine Bottle in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

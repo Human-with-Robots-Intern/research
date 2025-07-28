@@ -238,7 +238,7 @@
     "Task": "Set the Table",
     "Subtasks": [
       {
-        "Name": "Place Plate on CounterTop for Meal",
+        "Name": "Place Plate on Table",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -260,7 +260,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Fork on CounterTop for Meal",
+        "Name": "Place Fork on Table",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -282,7 +282,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Spoon on CounterTop for Meal",
+        "Name": "Place Spoon on Table",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -309,7 +309,7 @@
     "Task": "Place SaltShaker on Table",
     "Subtasks": [
       {
-        "Name": "Place SaltShaker on CounterTop",
+        "Name": "Place SaltShaker on Table",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

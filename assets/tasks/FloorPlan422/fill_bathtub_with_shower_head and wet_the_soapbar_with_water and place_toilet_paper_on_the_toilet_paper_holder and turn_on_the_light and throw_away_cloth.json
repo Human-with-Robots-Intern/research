@@ -86,7 +86,7 @@
     ]
   },
   {
-    "Task": "Place Toilet Paper on the Toilet Paper Holder",
+    "Task": "Place Toilet Paper on Toilet Paper Holder",
     "Subtasks": [
       {
         "Name": "Place Toilet Paper on Holder",
@@ -116,7 +116,7 @@
     "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn On Light",
+        "Name": "Turn On Light Switch",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -140,19 +140,19 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in Garbage Can",
+        "Name": "Dispose of Cloth in Garbage Can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Cloth|-00.51|+00.94|+02.72": 1,
-            "GarbageCan|-00.26|+00.00|+00.26": 1
+            "GarbageCan|-00.26|00.00|+00.26": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Cloth|-00.51|+00.94|+02.72",
             "GRASP Cloth|-00.51|+00.94|+02.72",
-            "NAVIGATE_TO GarbageCan|-00.26|+00.00|+00.26",
-            "PLACE_INSIDE GarbageCan|-00.26|+00.00|+00.26"
+            "NAVIGATE_TO GarbageCan|-00.26|00.00|+00.26",
+            "PLACE_INSIDE GarbageCan|-00.26|00.00|+00.26"
           ]
         },
         "Duration": {

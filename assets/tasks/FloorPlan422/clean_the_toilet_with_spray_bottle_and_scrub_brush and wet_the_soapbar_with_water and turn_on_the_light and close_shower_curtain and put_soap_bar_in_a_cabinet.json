@@ -9,14 +9,14 @@
         "Executions": {
           "Objects": {
             "SprayBottle|-00.84|+01.64|+00.35": 1,
-            "Toilet|-00.46|00.00|+02.26": 1
+            "Toilet|-00.46|+00.00|+02.26": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO SprayBottle|-00.84|+01.64|+00.35",
             "GRASP SprayBottle|-00.84|+01.64|+00.35",
-            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "NAVIGATE_TO Toilet|-00.46|+00.00|+02.26",
             "WAIT 1.0",
-            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
+            "PLACE_ON_TOP Toilet|-00.46|+00.00|+02.26"
           ]
         },
         "Duration": {
@@ -32,14 +32,14 @@
         "Executions": {
           "Objects": {
             "ScrubBrush|-00.66|00.00|+02.56": 1,
-            "Toilet|-00.46|00.00|+02.26": 1
+            "Toilet|-00.46|+00.00|+02.26": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO ScrubBrush|-00.66|00.00|+02.56",
             "GRASP ScrubBrush|-00.66|00.00|+02.56",
-            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "NAVIGATE_TO Toilet|-00.46|+00.00|+02.26",
             "WAIT 1.0",
-            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
+            "PLACE_ON_TOP Toilet|-00.46|+00.00|+02.26"
           ]
         },
         "Duration": {
@@ -79,7 +79,7 @@
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
             "GRASP SoapBar|-01.99|+01.29|+02.08",
-            "PLACE_ON_TOP CounterTop|-01.92|+00.00|+00.29"
+            "PLACE_ON_TOP Toilet|-00.46|+00.00|+02.26"
           ]
         },
         "Duration": {
@@ -142,7 +142,7 @@
     "Task": "Put SoapBar in a Cabinet",
     "Subtasks": [
       {
-        "Name": "Put soap bar in a cabinet",
+        "Name": "Put soap bar in cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

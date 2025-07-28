@@ -146,10 +146,10 @@
     ]
   },
   {
-    "Task": "Place Toilet Paper on the Toilet Paper Holder",
+    "Task": "Place Toilet Paper on Holder",
     "Subtasks": [
       {
-        "Name": "Place Toilet Paper on Holder",
+        "Name": "Place toilet paper on holder",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -176,7 +176,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in Garbage Can",
+        "Name": "Throw cloth in garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

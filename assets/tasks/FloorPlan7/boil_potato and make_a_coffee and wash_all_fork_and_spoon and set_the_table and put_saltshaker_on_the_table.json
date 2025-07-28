@@ -168,6 +168,36 @@
             "Urgency": false
           }
         ]
+      },
+      {
+        "Name": "Retrieve Coffee from Machine and Place on CounterTop",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Mug|+01.67|+00.90|-01.32": 1,
+            "CoffeeMachine|-01.11|+00.90|-01.73": 1,
+            "CounterTop|-01.87|+00.95|-00.61": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO CoffeeMachine|-01.11|+00.90|-01.73",
+            "GRASP Mug|+01.67|+00.90|-01.32",
+            "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
+            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Start Coffee Machine",
+            "Interval": 5,
+            "Urgency": false
+          }
+        ]
       }
     ]
   },
@@ -175,7 +205,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Wash Fork",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -206,7 +236,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -239,7 +269,7 @@
     ]
   },
   {
-    "Task": "Set the Table and Place SaltShaker",
+    "Task": "Set the Table",
     "Subtasks": [
       {
         "Name": "Place Plate on DiningTable",
@@ -306,7 +336,12 @@
           "Interval": 2
         },
         "TemporalConstraints": []
-      },
+      }
+    ]
+  },
+  {
+    "Task": "Put SaltShaker on the Table",
+    "Subtasks": [
       {
         "Name": "Place SaltShaker on DiningTable",
         "Repetition": 1,

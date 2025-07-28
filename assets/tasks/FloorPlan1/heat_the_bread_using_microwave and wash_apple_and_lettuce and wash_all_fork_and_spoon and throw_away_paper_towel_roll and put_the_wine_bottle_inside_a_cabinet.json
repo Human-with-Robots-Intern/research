@@ -116,7 +116,7 @@
     "Task": "Wash Apple and Lettuce",
     "Subtasks": [
       {
-        "Name": "Wash Apple and place on CounterTop",
+        "Name": "Wash Apple and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -148,7 +148,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Lettuce and place on CounterTop",
+        "Name": "Wash Lettuce and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -185,7 +185,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on CounterTop",
+        "Name": "Wash Fork and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -217,7 +217,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on CounterTop",
+        "Name": "Wash Spoon and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -254,7 +254,7 @@
     "Task": "Throw Away Paper Towel Roll",
     "Subtasks": [
       {
-        "Name": "Throw Away Paper Towel Roll",
+        "Name": "Dispose of Paper Towel Roll in Garbage Can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -281,21 +281,21 @@
     "Task": "Put Wine Bottle inside a Cabinet",
     "Subtasks": [
       {
-        "Name": "Put Wine Bottle inside Cabinet",
+        "Name": "Store Wine Bottle in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "WineBottle|-01.00|+01.65|-02.58": 1,
-            "Cabinet|+00.68|+00.50|-02.20": 1
+            "Cabinet|-01.18|+00.50|-02.20": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO WineBottle|-01.00|+01.65|-02.58",
             "GRASP WineBottle|-01.00|+01.65|-02.58",
-            "NAVIGATE_TO Cabinet|+00.68|+00.50|-02.20",
-            "OPEN Cabinet|+00.68|+00.50|-02.20",
-            "PLACE_INSIDE Cabinet|+00.68|+00.50|-02.20",
-            "CLOSE Cabinet|+00.68|+00.50|-02.20"
+            "NAVIGATE_TO Cabinet|-01.18|+00.50|-02.20",
+            "OPEN Cabinet|-01.18|+00.50|-02.20",
+            "PLACE_INSIDE Cabinet|-01.18|+00.50|-02.20",
+            "CLOSE Cabinet|-01.18|+00.50|-02.20"
           ]
         },
         "Duration": {

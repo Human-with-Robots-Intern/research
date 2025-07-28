@@ -75,11 +75,14 @@
             "GRASP SoapBar|-01.99|+01.29|+02.08",
             "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
             "PLACE_INSIDE Sink|-01.93|+00.77|+00.33|SinkBasin",
+            "NAVIGATE_TO Faucet|-01.93|+00.96|+00.18",
             "TOGGLE_ON Faucet|-01.93|+00.96|+00.18",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
+            "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
             "GRASP SoapBar|-01.99|+01.29|+02.08",
-            "PLACE_ON_TOP Sink|-01.93|+00.77|+00.33"
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
         "Duration": {
@@ -121,7 +124,7 @@
     "Task": "Turn On Candle",
     "Subtasks": [
       {
-        "Name": "Turn on the candle",
+        "Name": "Turn on candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -145,7 +148,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close the shower curtain",
+        "Name": "Close shower curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

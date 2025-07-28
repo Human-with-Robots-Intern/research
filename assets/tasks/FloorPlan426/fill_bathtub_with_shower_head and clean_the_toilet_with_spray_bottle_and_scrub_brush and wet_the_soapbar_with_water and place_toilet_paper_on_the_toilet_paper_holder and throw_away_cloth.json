@@ -66,7 +66,6 @@
             "GRASP SprayBottle|-01.53|+00.80|+00.22",
             "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
@@ -90,7 +89,6 @@
             "GRASP ScrubBrush|-02.19|+00.00|+03.03",
             "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
@@ -146,10 +144,10 @@
     ]
   },
   {
-    "Task": "Place Toilet Paper on the Toilet Paper Holder",
+    "Task": "Place Toilet Paper on Holder",
     "Subtasks": [
       {
-        "Name": "Place Toilet Paper on Holder",
+        "Name": "Place toilet paper on holder",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -176,7 +174,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in Garbage Can",
+        "Name": "Throw cloth in garbage can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

@@ -66,6 +66,7 @@
             "GRASP SprayBottle|-02.86|+00.70|-00.52",
             "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
@@ -89,6 +90,7 @@
             "GRASP ScrubBrush|-01.04|+00.00|-00.71",
             "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "WAIT 1.0",
+            "NAVIGATE_TO Toilet|-00.72|+00.00|-00.31",
             "PLACE_ON_TOP Toilet|-00.72|+00.00|-00.31"
           ]
         },
@@ -100,7 +102,7 @@
           {
             "Type": "After",
             "Subtask": "Spray toilet with spray bottle",
-            "Interval": 0,
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -144,10 +146,10 @@
     ]
   },
   {
-    "Task": "Put Tissue Box Inside a Drawer",
+    "Task": "Put Tissue Box and Candle Inside Drawer",
     "Subtasks": [
       {
-        "Name": "Place Tissue Box in Drawer",
+        "Name": "Put Tissue Box inside Drawer",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -166,36 +168,31 @@
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 6
+          "Interval": 5
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Put the Candle Inside the Drawer",
-    "Subtasks": [
+      },
       {
-        "Name": "Place Candle in Drawer",
+        "Name": "Put Candle inside Drawer",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "Candle|-02.53|+00.70|-00.68": 1,
-            "Drawer|-02.79|+00.53|-00.62": 1
+            "Drawer|-02.79|+00.27|-00.62": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO Candle|-02.53|+00.70|-00.68",
             "GRASP Candle|-02.53|+00.70|-00.68",
-            "NAVIGATE_TO Drawer|-02.79|+00.53|-00.62",
-            "OPEN Drawer|-02.79|+00.53|-00.62",
-            "PLACE_INSIDE Drawer|-02.79|+00.53|-00.62",
-            "CLOSE Drawer|-02.79|+00.53|-00.62"
+            "NAVIGATE_TO Drawer|-02.79|+00.27|-00.62",
+            "OPEN Drawer|-02.79|+00.27|-00.62",
+            "PLACE_INSIDE Drawer|-02.79|+00.27|-00.62",
+            "CLOSE Drawer|-02.79|+00.27|-00.62"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 6
+          "Interval": 5
         },
         "TemporalConstraints": []
       }

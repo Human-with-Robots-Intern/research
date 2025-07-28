@@ -22,7 +22,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Stop Filling Bathtub with Shower Head",
+        "Name": "Turn Off Shower Head after Bathtub is Filled",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -66,7 +66,6 @@
             "GRASP SprayBottle|-01.53|+00.80|+00.22",
             "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
@@ -90,7 +89,6 @@
             "GRASP ScrubBrush|-02.19|+00.00|+03.03",
             "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-01.84|+00.00|+02.50",
             "PLACE_ON_TOP Toilet|-01.84|+00.00|+02.50"
           ]
         },
@@ -173,7 +171,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw away cloth",
+        "Name": "Throw away the cloth",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

@@ -23,8 +23,8 @@
             "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
             "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
             "GRASP SoapBar|-01.99|+01.29|+02.08",
-            "NAVIGATE_TO CounterTop|-01.92|+00.00|+00.29",
-            "PLACE_ON_TOP CounterTop|-01.92|+00.00|+00.29"
+            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
+            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
         "Duration": {
@@ -66,7 +66,7 @@
     "Task": "Turn on the light",
     "Subtasks": [
       {
-        "Name": "Turn on light switch",
+        "Name": "Turn on light",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

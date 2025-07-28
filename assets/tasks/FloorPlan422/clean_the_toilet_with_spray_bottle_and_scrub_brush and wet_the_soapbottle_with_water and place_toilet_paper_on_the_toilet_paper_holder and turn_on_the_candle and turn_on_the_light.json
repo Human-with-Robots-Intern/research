@@ -79,7 +79,7 @@
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
             "GRASP SoapBottle|-00.95|+01.13|+00.42",
-            "PLACE_ON_TOP CounterTop|-01.92|+00.00|+00.29"
+            "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
         "Duration": {

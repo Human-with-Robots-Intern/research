@@ -213,7 +213,7 @@
             "GRASP Bread|-04.23|+00.99|+03.99",
             "CLOSE Microwave|-02.69|+01.43|+01.69",
             "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP Bread|-04.23|+00.99|+03.99 CounterTop|-04.26|+00.96|+04.94"
+            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
           ]
         },
         "Duration": {
@@ -256,7 +256,7 @@
             "NAVIGATE_TO Sink|-04.19|+00.92|+03.28|SinkBasin",
             "GRASP Apple|-04.23|+00.96|+02.73",
             "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP Apple|-04.23|+00.96|+02.73 CounterTop|-04.26|+00.96|+04.94"
+            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
           ]
         },
         "Duration": {
@@ -287,7 +287,7 @@
             "NAVIGATE_TO Sink|-04.19|+00.92|+03.28|SinkBasin",
             "GRASP Lettuce|-04.25|+00.98|+02.40",
             "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP Lettuce|-04.25|+00.98|+02.40 CounterTop|-04.26|+00.96|+04.94"
+            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
           ]
         },
         "Duration": {
@@ -299,7 +299,7 @@
     ]
   },
   {
-    "Task": "Wash All Fork and Spoon",
+    "Task": "Wash all Fork and Spoon",
     "Subtasks": [
       {
         "Name": "Wash Fork and place on CounterTop",
@@ -323,7 +323,7 @@
             "NAVIGATE_TO Sink|-04.19|+00.92|+03.28|SinkBasin",
             "GRASP Fork|-03.20|+00.92|+05.46",
             "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP Fork|-03.20|+00.92|+05.46 CounterTop|-04.26|+00.96|+04.94"
+            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
           ]
         },
         "Duration": {
@@ -354,7 +354,7 @@
             "NAVIGATE_TO Sink|-04.19|+00.92|+03.28|SinkBasin",
             "GRASP Spoon|-03.17|+00.91|+05.37",
             "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP Spoon|-03.17|+00.91|+05.37 CounterTop|-04.26|+00.96|+04.94"
+            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
           ]
         },
         "Duration": {
@@ -414,7 +414,7 @@
           {
             "Type": "After",
             "Subtask": "Place Mug in Sink and Start Filling",
-            "Interval": 1,
+            "Interval": 3,
             "Urgency": true
           }
         ]

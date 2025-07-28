@@ -83,7 +83,7 @@
     ]
   },
   {
-    "Task": "Put Apple and Lettuce in Fridge",
+    "Task": "Store Apple and Lettuce in Fridge",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",
@@ -159,14 +159,58 @@
           "Interval": 2
         },
         "TemporalConstraints": []
+      },
+      {
+        "Name": "Place Fork on DiningTable",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Fork|+01.27|+00.98|+01.24": 1,
+            "DiningTable|-00.16|+00.00|+06.47": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Fork|+01.27|+00.98|+01.24",
+            "GRASP Fork|+01.27|+00.98|+01.24",
+            "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
+            "PLACE_ON_TOP DiningTable|-00.16|+00.00|+06.47"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Place Spoon on DiningTable",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Spoon|+01.36|+00.98|+01.49": 1,
+            "DiningTable|-00.16|+00.00|+06.47": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Spoon|+01.36|+00.98|+01.49",
+            "GRASP Spoon|+01.36|+00.98|+01.49",
+            "NAVIGATE_TO DiningTable|-00.16|+00.00|+06.47",
+            "PLACE_ON_TOP DiningTable|-00.16|+00.00|+06.47"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
       }
     ]
   },
   {
-    "Task": "Throw Away Paper Towel Roll",
+    "Task": "Dispose of Paper Towel Roll",
     "Subtasks": [
       {
-        "Name": "Dispose of Paper Towel Roll in GarbageCan",
+        "Name": "Throw Away Paper Towel Roll",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -190,19 +234,29 @@
     ]
   },
   {
-    "Task": "Put Salt Shaker Inside the Safe",
+    "Task": "Store Salt Shaker in Safe",
     "Subtasks": [
       {
-        "Name": "Impossible: Safe cannot be opened with current Environment Context",
+        "Name": "Put Salt Shaker in Safe",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "SaltShaker|+01.62|+00.98|+03.50": 1,
+            "Safe|+02.05|+00.00|+07.05": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO SaltShaker|+01.62|+00.98|+03.50",
+            "GRASP SaltShaker|+01.62|+00.98|+03.50",
+            "NAVIGATE_TO Safe|+02.05|+00.00|+07.05",
+            "OPEN Safe|+02.05|+00.00|+07.05",
+            "PLACE_INSIDE Safe|+02.05|+00.00|+07.05",
+            "CLOSE Safe|+02.05|+00.00|+07.05"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 3
         },
         "TemporalConstraints": []
       }

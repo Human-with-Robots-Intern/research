@@ -3,58 +3,7 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Fill Kettle with Water",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Kettle|-00.83|+00.90|-01.76": 1,
-            "Sink|+00.02|+00.77|-01.71|SinkBasin": 1,
-            "Faucet|-00.11|+00.92|-01.82": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Kettle|-00.83|+00.90|-01.76",
-            "GRASP Kettle|-00.83|+00.90|-01.76",
-            "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
-            "PLACE_INSIDE Sink|+00.02|+00.77|-01.71|SinkBasin",
-            "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
-            "TOGGLE_ON Faucet|-00.11|+00.92|-01.82"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 4
-        },
-        "TemporalConstraints": []
-      },
-      {
-        "Name": "Turn Off Faucet after Kettle is Filled",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Faucet|-00.11|+00.92|-01.82": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
-            "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 1
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Fill Kettle with Water",
-            "Interval": 2,
-            "Urgency": true
-          }
-        ]
-      },
-      {
-        "Name": "Place Kettle on StoveBurner and Boil",
+        "Name": "Place Kettle on StoveBurner and Start Boiling",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -67,7 +16,7 @@
             "NAVIGATE_TO Kettle|-00.83|+00.90|-01.76",
             "GRASP Kettle|-00.83|+00.90|-01.76",
             "NAVIGATE_TO StoveBurner|+01.33|+00.96|-01.42",
-            "PLACE_ON_TOP StoveBurner|+01.33|+00.96|-01.42",
+            "PLACE_ON_TOP Kettle|-00.83|+00.90|-01.76 StoveBurner|+01.33|+00.96|-01.42",
             "NAVIGATE_TO StoveKnob|+01.34|+00.91|-01.24",
             "TOGGLE_ON StoveKnob|+01.34|+00.91|-01.24"
           ]
@@ -76,14 +25,7 @@
           "Type": "Controllable",
           "Interval": 3
         },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Turn Off Faucet after Kettle is Filled",
-            "Interval": 0,
-            "Urgency": true
-          }
-        ]
+        "TemporalConstraints": []
       },
       {
         "Name": "Turn Off Stove after Boiling Water",
@@ -105,7 +47,7 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Kettle on StoveBurner and Boil",
+            "Subtask": "Place Kettle on StoveBurner and Start Boiling",
             "Interval": 10,
             "Urgency": true
           }
@@ -230,7 +172,7 @@
     "Task": "Wash Apple and Lettuce",
     "Subtasks": [
       {
-        "Name": "Wash Apple and place on counterTop",
+        "Name": "Wash Apple",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -247,7 +189,6 @@
             "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_ON Faucet|-00.11|+00.92|-01.82",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Apple|-00.63|+00.96|-01.44",
@@ -262,7 +203,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Lettuce and place on counterTop",
+        "Name": "Wash Lettuce",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -279,7 +220,6 @@
             "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_ON Faucet|-00.11|+00.92|-01.82",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|-00.11|+00.92|-01.82",
             "TOGGLE_OFF Faucet|-00.11|+00.92|-01.82",
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Lettuce|-01.65|+00.96|-01.05",
@@ -296,10 +236,10 @@
     ]
   },
   {
-    "Task": "Put the Wine Bottle inside a Cabinet",
+    "Task": "Put Wine Bottle inside a Cabinet",
     "Subtasks": [
       {
-        "Name": "Put Wine Bottle in Cabinet",
+        "Name": "Store Wine Bottle in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -328,16 +268,24 @@
     "Task": "Put a Statue on the Table",
     "Subtasks": [
       {
-        "Name": "Impossible: Ambiguous object reference. Please specify which Statue.",
+        "Name": "Place Statue on Dining Table",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "Statue|+03.72|+00.22|+01.91": 1,
+            "DiningTable|-02.66|+00.00|+03.21": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Statue|+03.72|+00.22|+01.91",
+            "GRASP Statue|+03.72|+00.22|+01.91",
+            "NAVIGATE_TO DiningTable|-02.66|+00.00|+03.21",
+            "PLACE_ON_TOP DiningTable|-02.66|+00.00|+03.21"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 2
         },
         "TemporalConstraints": []
       }

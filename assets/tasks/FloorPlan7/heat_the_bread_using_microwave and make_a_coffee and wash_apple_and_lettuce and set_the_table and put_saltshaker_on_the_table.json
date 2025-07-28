@@ -94,7 +94,7 @@
             "GRASP Bread|-01.60|+00.98|-00.84",
             "CLOSE Microwave|+01.15|+01.66|-01.61",
             "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
-            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
+            "PLACE_ON_TOP Bread|-01.60|+00.98|-00.84 CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -177,7 +177,7 @@
             "NAVIGATE_TO CoffeeMachine|-01.11|+00.90|-01.73",
             "GRASP Mug|+01.67|+00.90|-01.32",
             "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
-            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
+            "PLACE_ON_TOP Mug|+01.67|+00.90|-01.32 CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -220,7 +220,7 @@
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Apple|-00.63|+00.96|-01.44",
             "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
-            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
+            "PLACE_ON_TOP Apple|-00.63|+00.96|-01.44 CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -251,7 +251,7 @@
             "NAVIGATE_TO Sink|+00.02|+00.77|-01.71|SinkBasin",
             "GRASP Lettuce|-01.65|+00.96|-01.05",
             "NAVIGATE_TO CounterTop|-01.87|+00.95|-00.61",
-            "PLACE_ON_TOP CounterTop|-01.87|+00.95|-00.61"
+            "PLACE_ON_TOP Lettuce|-01.65|+00.96|-01.05 CounterTop|-01.87|+00.95|-00.61"
           ]
         },
         "Duration": {
@@ -278,7 +278,7 @@
             "NAVIGATE_TO Plate|+00.14|+00.92|-01.50",
             "GRASP Plate|+00.14|+00.92|-01.50",
             "NAVIGATE_TO DiningTable|-02.66|+00.00|+03.21",
-            "PLACE_ON_TOP DiningTable|-02.66|+00.00|+03.21"
+            "PLACE_ON_TOP Plate|+00.14|+00.92|-01.50 DiningTable|-02.66|+00.00|+03.21"
           ]
         },
         "Duration": {
@@ -300,7 +300,7 @@
             "NAVIGATE_TO SaltShaker|+00.70|+00.90|-01.53",
             "GRASP SaltShaker|+00.70|+00.90|-01.53",
             "NAVIGATE_TO DiningTable|-02.66|+00.00|+03.21",
-            "PLACE_ON_TOP DiningTable|-02.66|+00.00|+03.21"
+            "PLACE_ON_TOP SaltShaker|+00.70|+00.90|-01.53 DiningTable|-02.66|+00.00|+03.21"
           ]
         },
         "Duration": {

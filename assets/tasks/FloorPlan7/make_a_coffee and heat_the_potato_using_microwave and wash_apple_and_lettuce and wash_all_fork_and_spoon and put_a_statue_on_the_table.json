@@ -169,7 +169,7 @@
     "Task": "Wash Apple and Lettuce",
     "Subtasks": [
       {
-        "Name": "Wash Apple and place on counterTop",
+        "Name": "Wash Apple",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -200,7 +200,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Lettuce and place on counterTop",
+        "Name": "Wash Lettuce",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -236,7 +236,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork and place on counterTop",
+        "Name": "Wash Fork",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -267,7 +267,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon and place on counterTop",
+        "Name": "Wash Spoon",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -303,7 +303,7 @@
     "Task": "Put a Statue on the Table",
     "Subtasks": [
       {
-        "Name": "Put Statue on DiningTable",
+        "Name": "Place Statue on Dining Table",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

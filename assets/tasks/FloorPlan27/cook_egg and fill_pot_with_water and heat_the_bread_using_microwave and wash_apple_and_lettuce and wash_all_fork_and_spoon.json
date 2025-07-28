@@ -265,7 +265,7 @@
             "GRASP Bread|-00.25|+00.80|+00.81",
             "CLOSE Microwave|-00.31|+00.93|+02.08",
             "NAVIGATE_TO CounterTop|+02.06|+00.97|+00.58",
-            "PLACE_ON_TOP Bread CounterTop|+02.06|+00.97|+00.58"
+            "PLACE_ON_TOP CounterTop|+02.06|+00.97|+00.58"
           ]
         },
         "Duration": {
@@ -351,7 +351,7 @@
     ]
   },
   {
-    "Task": "Wash all Fork and Spoon",
+    "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
         "Name": "Wash Fork and place on counterTop",

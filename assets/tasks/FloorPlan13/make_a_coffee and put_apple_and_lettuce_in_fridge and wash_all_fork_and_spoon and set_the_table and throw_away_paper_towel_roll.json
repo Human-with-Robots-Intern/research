@@ -49,36 +49,6 @@
             "Urgency": false
           }
         ]
-      },
-      {
-        "Name": "Retrieve Coffee from Machine and Place on CounterTop",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Mug|-04.19|+00.91|+03.70": 1,
-            "CoffeeMachine|-00.28|+00.91|+06.56": 1,
-            "CounterTop|-04.26|+00.96|+04.94": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO CoffeeMachine|-00.28|+00.91|+06.56",
-            "GRASP Mug|-04.19|+00.91|+03.70",
-            "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
-            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 2
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Start Coffee Machine",
-            "Interval": 5,
-            "Urgency": false
-          }
-        ]
       }
     ]
   },
@@ -277,7 +247,7 @@
     "Task": "Throw Away Paper Towel Roll",
     "Subtasks": [
       {
-        "Name": "Dispose of Paper Towel Roll in Garbage",
+        "Name": "Dispose of Paper Towel Roll in Garbage Can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

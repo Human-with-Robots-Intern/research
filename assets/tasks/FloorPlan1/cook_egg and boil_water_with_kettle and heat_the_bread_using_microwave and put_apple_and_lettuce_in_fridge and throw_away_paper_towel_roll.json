@@ -53,7 +53,7 @@
             "Type": "After",
             "Subtask": "Prepare Pan on Stove and Heat",
             "Interval": 0,
-            "Urgency": false
+            "Urgency": true
           }
         ]
       },
@@ -284,7 +284,7 @@
     ]
   },
   {
-    "Task": "Store Apple and Lettuce in Fridge",
+    "Task": "Put Apple and Lettuce in Fridge",
     "Subtasks": [
       {
         "Name": "Put Apple in Fridge",

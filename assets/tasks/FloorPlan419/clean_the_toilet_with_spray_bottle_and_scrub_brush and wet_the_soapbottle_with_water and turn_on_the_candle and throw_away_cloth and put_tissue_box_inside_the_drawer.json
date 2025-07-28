@@ -16,7 +16,6 @@
             "GRASP SprayBottle|-00.20|+01.04|-01.97",
             "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
           ]
         },
@@ -40,7 +39,6 @@
             "GRASP ScrubBrush|-00.16|+00.00|-02.16",
             "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "WAIT 1.0",
-            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
           ]
         },
@@ -77,13 +75,10 @@
             "GRASP SoapBottle|-02.27|+00.67|-01.52",
             "NAVIGATE_TO Sink|-02.10|00.00|-02.03|SinkBasin",
             "PLACE_INSIDE Sink|-02.10|00.00|-02.03|SinkBasin",
-            "NAVIGATE_TO Faucet|-02.35|+01.01|-02.03",
             "TOGGLE_ON Faucet|-02.35|+01.01|-02.03",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-02.35|+01.01|-02.03",
-            "NAVIGATE_TO Sink|-02.10|00.00|-02.03|SinkBasin",
             "GRASP SoapBottle|-02.27|+00.67|-01.52",
-            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
             "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
           ]
         },
@@ -96,10 +91,10 @@
     ]
   },
   {
-    "Task": "Turn On Candle",
+    "Task": "Turn on the Candle",
     "Subtasks": [
       {
-        "Name": "Turn on the candle",
+        "Name": "Turn on Candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -120,10 +115,10 @@
     ]
   },
   {
-    "Task": "Throw Away Cloth",
+    "Task": "Throw away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw away the cloth",
+        "Name": "Throw Cloth in Garbage Can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -147,10 +142,10 @@
     ]
   },
   {
-    "Task": "Put Tissue Box Inside Drawer",
+    "Task": "Put Tissue Box inside Drawer",
     "Subtasks": [
       {
-        "Name": "Put tissue box inside drawer",
+        "Name": "Place Tissue Box in Drawer",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

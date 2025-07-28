@@ -304,7 +304,6 @@
             "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
             "TOGGLE_ON Faucet|+01.18|+00.93|+02.95",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
             "TOGGLE_OFF Faucet|+01.18|+00.93|+02.95",
             "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
             "GRASP Apple|+02.05|+00.63|-00.41",
@@ -336,7 +335,6 @@
             "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
             "TOGGLE_ON Faucet|+01.18|+00.93|+02.95",
             "WAIT 1.0",
-            "NAVIGATE_TO Faucet|+01.18|+00.93|+02.95",
             "TOGGLE_OFF Faucet|+01.18|+00.93|+02.95",
             "NAVIGATE_TO Sink|+00.94|+00.94|+02.65|SinkBasin",
             "GRASP Lettuce|+00.23|+00.98|+02.71",
@@ -422,17 +420,17 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Cup on DiningTable",
+        "Name": "Place Knife on DiningTable",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Cup|-00.33|+00.76|+01.08": 1,
+            "Knife|+01.17|+00.79|+02.71": 1,
             "DiningTable|-00.15|00.00|+01.07": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Cup|-00.33|+00.76|+01.08",
-            "GRASP Cup|-00.33|+00.76|+01.08",
+            "NAVIGATE_TO Knife|+01.17|+00.79|+02.71",
+            "GRASP Knife|+01.17|+00.79|+02.71",
             "NAVIGATE_TO DiningTable|-00.15|00.00|+01.07",
             "PLACE_ON_TOP DiningTable|-00.15|00.00|+01.07"
           ]

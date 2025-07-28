@@ -271,10 +271,10 @@
     ]
   },
   {
-    "Task": "Put the Wine Bottle inside a Cabinet",
+    "Task": "Store Wine Bottle and Place Credit Card",
     "Subtasks": [
       {
-        "Name": "Put WineBottle inside Cabinet",
+        "Name": "Put Wine Bottle in Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -296,14 +296,9 @@
           "Interval": 3
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Put the Credit Card on the CounterTop",
-    "Subtasks": [
+      },
       {
-        "Name": "Place CreditCard on CounterTop",
+        "Name": "Place Credit Card on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

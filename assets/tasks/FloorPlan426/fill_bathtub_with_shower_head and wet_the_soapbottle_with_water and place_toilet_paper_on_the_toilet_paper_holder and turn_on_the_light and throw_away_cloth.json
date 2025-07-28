@@ -50,7 +50,7 @@
     ]
   },
   {
-    "Task": "Wet the SoapBottle",
+    "Task": "Wet the SoapBottle with Water",
     "Subtasks": [
       {
         "Name": "Wet SoapBottle in Sink",
@@ -116,7 +116,7 @@
     "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn On Light",
+        "Name": "Turn On Light Switch",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -140,7 +140,7 @@
     "Task": "Throw Away Cloth",
     "Subtasks": [
       {
-        "Name": "Throw Cloth in Garbage Can",
+        "Name": "Dispose of Cloth in Garbage Can",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

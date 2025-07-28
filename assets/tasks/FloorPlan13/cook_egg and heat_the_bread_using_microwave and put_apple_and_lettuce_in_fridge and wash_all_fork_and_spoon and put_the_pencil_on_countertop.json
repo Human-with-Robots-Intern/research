@@ -53,7 +53,7 @@
             "Type": "After",
             "Subtask": "Prepare Pan on Stove and Heat",
             "Interval": 0,
-            "Urgency": true
+            "Urgency": false
           }
         ]
       },
@@ -281,10 +281,10 @@
     ]
   },
   {
-    "Task": "Wash all Fork and Spoon",
+    "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork",
+        "Name": "Wash Fork and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -315,7 +315,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon",
+        "Name": "Wash Spoon and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -348,19 +348,27 @@
     ]
   },
   {
-    "Task": "Put the Pencil on somewhere",
+    "Task": "Put the Pencil on CounterTop",
     "Subtasks": [
       {
-        "Name": "Impossible: Ambiguous object reference. Please specify where to put the Pencil.",
+        "Name": "Place Pencil on CounterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "Pencil|-00.55|+00.92|+04.42": 1,
+            "CounterTop|-04.26|+00.96|+04.94": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Pencil|-00.55|+00.92|+04.42",
+            "GRASP Pencil|-00.55|+00.92|+04.42",
+            "NAVIGATE_TO CounterTop|-04.26|+00.96|+04.94",
+            "PLACE_ON_TOP CounterTop|-04.26|+00.96|+04.94"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 2
         },
         "TemporalConstraints": []
       }

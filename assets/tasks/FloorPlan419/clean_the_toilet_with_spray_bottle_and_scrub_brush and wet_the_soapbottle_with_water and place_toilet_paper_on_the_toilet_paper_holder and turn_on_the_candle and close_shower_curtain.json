@@ -75,14 +75,11 @@
             "GRASP SoapBottle|-02.27|+00.67|-01.52",
             "NAVIGATE_TO Sink|-02.10|00.00|-02.03|SinkBasin",
             "PLACE_INSIDE Sink|-02.10|00.00|-02.03|SinkBasin",
-            "NAVIGATE_TO Faucet|-02.35|+01.01|-02.03",
             "TOGGLE_ON Faucet|-02.35|+01.01|-02.03",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-02.35|+01.01|-02.03",
-            "NAVIGATE_TO Sink|-02.10|00.00|-02.03|SinkBasin",
             "GRASP SoapBottle|-02.27|+00.67|-01.52",
-            "NAVIGATE_TO Toilet|-00.47|+00.00|-01.88",
-            "PLACE_ON_TOP Toilet|-00.47|+00.00|-01.88"
+            "PLACE_ON_TOP Sink|-02.10|00.00|-02.03|SinkBasin"
           ]
         },
         "Duration": {

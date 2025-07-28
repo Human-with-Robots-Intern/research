@@ -122,18 +122,55 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
-        "Name": "Impossible: Boil water with Kettle cannot be achieved with current Environment Context",
+        "Name": "Place Kettle on Stove and Start Boiling",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
-          "Objects": {},
-          "PrimitiveActions": []
+          "Objects": {
+            "Kettle|-00.83|+00.90|-01.76": 1,
+            "StoveBurner|+01.33|+00.96|-01.69": 1,
+            "StoveKnob|+01.21|+00.91|-01.24": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Kettle|-00.83|+00.90|-01.76",
+            "GRASP Kettle|-00.83|+00.90|-01.76",
+            "NAVIGATE_TO StoveBurner|+01.33|+00.96|-01.69",
+            "PLACE_ON_TOP Kettle|-00.83|+00.90|-01.76 StoveBurner|+01.33|+00.96|-01.69",
+            "NAVIGATE_TO StoveKnob|+01.21|+00.91|-01.24",
+            "TOGGLE_ON StoveKnob|+01.21|+00.91|-01.24"
+          ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 0
+          "Interval": 3
         },
         "TemporalConstraints": []
+      },
+      {
+        "Name": "Turn Off Stove after Boiling Water",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "StoveKnob|+01.21|+00.91|-01.24": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO StoveKnob|+01.21|+00.91|-01.24",
+            "TOGGLE_OFF StoveKnob|+01.21|+00.91|-01.24"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Kettle on Stove and Start Boiling",
+            "Interval": 10,
+            "Urgency": true
+          }
+        ]
       }
     ]
   },
@@ -321,7 +358,7 @@
     "Task": "Put a Statue on the Table",
     "Subtasks": [
       {
-        "Name": "Put Statue on DiningTable",
+        "Name": "Place Statue on DiningTable",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

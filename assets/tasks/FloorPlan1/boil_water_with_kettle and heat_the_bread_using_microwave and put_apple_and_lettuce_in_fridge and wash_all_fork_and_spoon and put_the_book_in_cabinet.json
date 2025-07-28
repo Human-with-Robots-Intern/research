@@ -3,6 +3,57 @@
     "Task": "Boil Water with Kettle",
     "Subtasks": [
       {
+        "Name": "Place Kettle in Sink and Start Filling",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Kettle|+01.04|+00.90|-02.60": 1,
+            "Sink|-01.90|+00.97|-01.50|SinkBasin": 1,
+            "Faucet|-02.15|+00.91|-01.50": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Kettle|+01.04|+00.90|-02.60",
+            "GRASP Kettle|+01.04|+00.90|-02.60",
+            "NAVIGATE_TO Sink|-01.90|+00.97|-01.50|SinkBasin",
+            "PLACE_INSIDE Sink|-01.90|+00.97|-01.50|SinkBasin",
+            "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+            "TOGGLE_ON Faucet|-02.15|+00.91|-01.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 4
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Turn Off Faucet after Kettle is Filled",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Faucet|-02.15|+00.91|-01.50": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
+            "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 1
+        },
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Place Kettle in Sink and Start Filling",
+            "Interval": 2,
+            "Urgency": true
+          }
+        ]
+      },
+      {
         "Name": "Place Kettle on StoveBurner and Start Boiling",
         "Repetition": 1,
         "Type": "Interaction",
@@ -13,7 +64,7 @@
             "StoveKnob|-00.48|+00.88|-02.19": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Kettle|+01.04|+00.90|-02.60",
+            "NAVIGATE_TO Sink|-01.90|+00.97|-01.50|SinkBasin",
             "GRASP Kettle|+01.04|+00.90|-02.60",
             "NAVIGATE_TO StoveBurner|-00.47|+00.92|-02.37",
             "PLACE_ON_TOP Kettle|+01.04|+00.90|-02.60 StoveBurner|-00.47|+00.92|-02.37",
@@ -25,7 +76,14 @@
           "Type": "Controllable",
           "Interval": 4
         },
-        "TemporalConstraints": []
+        "TemporalConstraints": [
+          {
+            "Type": "After",
+            "Subtask": "Turn Off Faucet after Kettle is Filled",
+            "Interval": 0,
+            "Urgency": true
+          }
+        ]
       },
       {
         "Name": "Turn Off Stove after Boiling Water",
@@ -56,7 +114,7 @@
     ]
   },
   {
-    "Task": "Heat the Bread using Microwave",
+    "Task": "Heat Bread using Microwave",
     "Subtasks": [
       {
         "Name": "Place Bread in Microwave",
@@ -225,7 +283,7 @@
     "Task": "Wash All Fork and Spoon",
     "Subtasks": [
       {
-        "Name": "Wash Fork",
+        "Name": "Wash Fork and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -242,6 +300,7 @@
             "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
             "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
             "WAIT 1.0",
+            "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
             "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
             "NAVIGATE_TO Sink|-01.90|+00.97|-01.50|SinkBasin",
             "GRASP Fork|+00.95|+00.77|-02.37",
@@ -256,7 +315,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Wash Spoon",
+        "Name": "Wash Spoon and place on counterTop",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -273,6 +332,7 @@
             "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
             "TOGGLE_ON Faucet|-02.15|+00.91|-01.50",
             "WAIT 1.0",
+            "NAVIGATE_TO Faucet|-02.15|+00.91|-01.50",
             "TOGGLE_OFF Faucet|-02.15|+00.91|-01.50",
             "NAVIGATE_TO Sink|-01.90|+00.97|-01.50|SinkBasin",
             "GRASP Spoon|+00.98|+00.77|-02.29",

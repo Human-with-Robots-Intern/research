@@ -1,6 +1,6 @@
 [
   {
-    "Task": "Clean Toilet",
+    "Task": "Clean Toilet and Wet SoapBottle",
     "Subtasks": [
       {
         "Name": "Spray toilet with spray bottle",
@@ -54,12 +54,7 @@
             "Urgency": true
           }
         ]
-      }
-    ]
-  },
-  {
-    "Task": "Wet the SoapBottle",
-    "Subtasks": [
+      },
       {
         "Name": "Wet SoapBottle in Sink",
         "Repetition": 1,
@@ -75,13 +70,10 @@
             "GRASP SoapBottle|-00.95|+01.13|+00.42",
             "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
             "PLACE_INSIDE Sink|-01.93|+00.77|+00.33|SinkBasin",
-            "NAVIGATE_TO Faucet|-01.93|+00.96|+00.18",
             "TOGGLE_ON Faucet|-01.93|+00.96|+00.18",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-01.93|+00.96|+00.18",
-            "NAVIGATE_TO Sink|-01.93|+00.77|+00.33|SinkBasin",
             "GRASP SoapBottle|-00.95|+01.13|+00.42",
-            "NAVIGATE_TO Toilet|-00.46|00.00|+02.26",
             "PLACE_ON_TOP Toilet|-00.46|00.00|+02.26"
           ]
         },
@@ -94,10 +86,10 @@
     ]
   },
   {
-    "Task": "Place Toilet Paper on Holder",
+    "Task": "Place Toilet Paper and Turn On Candle",
     "Subtasks": [
       {
-        "Name": "Place Toilet Paper on Toilet Paper Holder",
+        "Name": "Place toilet paper on holder",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -117,14 +109,9 @@
           "Interval": 3
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Turn On Candle",
-    "Subtasks": [
+      },
       {
-        "Name": "Turn on Candle",
+        "Name": "Turn on candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -148,7 +135,7 @@
     "Task": "Close Shower Curtain",
     "Subtasks": [
       {
-        "Name": "Close Shower Curtain",
+        "Name": "Close shower curtain",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

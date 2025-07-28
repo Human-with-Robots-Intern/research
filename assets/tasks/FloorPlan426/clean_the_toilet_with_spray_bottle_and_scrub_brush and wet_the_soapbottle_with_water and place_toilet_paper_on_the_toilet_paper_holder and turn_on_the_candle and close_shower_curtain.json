@@ -50,7 +50,7 @@
           {
             "Type": "After",
             "Subtask": "Spray toilet with spray bottle",
-            "Interval": 0,
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -75,10 +75,13 @@
             "GRASP SoapBottle|-00.64|+00.95|+03.22",
             "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "PLACE_INSIDE Sink|-00.46|-00.01|+03.05|SinkBasin",
+            "NAVIGATE_TO Faucet|-00.46|+00.97|+03.21",
             "TOGGLE_ON Faucet|-00.46|+00.97|+03.21",
             "WAIT 1.0",
             "TOGGLE_OFF Faucet|-00.46|+00.97|+03.21",
+            "NAVIGATE_TO Sink|-00.46|-00.01|+03.05|SinkBasin",
             "GRASP SoapBottle|-00.64|+00.95|+03.22",
+            "NAVIGATE_TO CounterTop|-01.85|+00.00|+00.34",
             "PLACE_ON_TOP CounterTop|-01.85|+00.00|+00.34"
           ]
         },
@@ -94,7 +97,7 @@
     "Task": "Place Toilet Paper on Holder",
     "Subtasks": [
       {
-        "Name": "Place Toilet Paper on Toilet Paper Holder",
+        "Name": "Place Toilet Paper on Holder",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -121,7 +124,7 @@
     "Task": "Turn On Candle",
     "Subtasks": [
       {
-        "Name": "Turn on Candle",
+        "Name": "Turn On Candle",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

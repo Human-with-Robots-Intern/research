@@ -176,7 +176,7 @@
     "Task": "Turn On the Light",
     "Subtasks": [
       {
-        "Name": "Turn On Light",
+        "Name": "Turn On Light Switch",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

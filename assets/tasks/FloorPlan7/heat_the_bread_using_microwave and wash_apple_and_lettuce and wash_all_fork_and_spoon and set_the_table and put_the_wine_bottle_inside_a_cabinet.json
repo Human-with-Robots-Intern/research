@@ -318,10 +318,10 @@
     ]
   },
   {
-    "Task": "Store Wine Bottle",
+    "Task": "Put the Wine Bottle inside a Cabinet",
     "Subtasks": [
       {
-        "Name": "Put WineBottle inside Cabinet",
+        "Name": "Place Wine Bottle inside Cabinet",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
