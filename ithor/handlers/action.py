@@ -409,7 +409,12 @@ class Action:
         # --- 보정 완료 ---
 
         object_position = self.navi.get_object_position(object_id)
-        # 이제 에이전트는 항상 유효한 위치에 있으므로, 안전하게 경로 탐색을 호출합니다.
+        if object_position is None:
+            self.log.error(
+                f"목표 오브젝트 '{object_id}'를 찾을 수 없어 이동에 실패했습니다."
+            )
+            return 0
+
         path = self.navi.find_shortest_path(agent_position, object_position)
 
         if path:
@@ -428,6 +433,7 @@ class Action:
 
         # 목표 지점에 도달한 뒤 오브젝트 쪽으로 에이전트 회전
         agent_position = self.navi.get_agent_position()
+        # object_position이 회전 전에 다시 필요하므로, None 체크를 위에서 수행한 것을 재활용
         obj_angle, degree = self.navi.agent_rotate_angle(
             agent_position, object_position
         )
@@ -444,7 +450,7 @@ class Action:
                         "errorMessage", "No error message."
                     )
                     self.log.warning(
-                        f"NAV_DEBUG: Final rotati?on to {object_id} failed. Error: {error_message}"
+                        f"NAV_DEBUG: Final rotation to {object_id} failed. Error: {error_message}"
                     )
                     # 회전 실패 시 각도대로 살짝 이동 후 재시도
                     self.navi.move_in_direction(-obj_angle, 0.2)

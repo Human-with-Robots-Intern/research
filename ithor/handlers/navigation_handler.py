@@ -2,18 +2,123 @@ import heapq
 import math
 import time
 
-from src.utils.config.constants import SMOOTH_LEVEL
-from ithor.utils.math_utils import (
-    closest_position,
-    load_navigation_graph,
-    quantize_position,
-)
+from ithor.utils.math_utils import closest_position, quantize_position
+from src.utils.config.constants import GRID_SIZE, SMOOTH_LEVEL
 
 
 class NavigationHandler:
     def __init__(self, controller):
+        """
+        AI2-THOR 컨트롤러를 초기화합니다.
+        실시간 내비게이션을 위해 더 이상 정적 그래프를 미리 로드하지 않습니다.
+        """
         self.controller = controller
-        self.neighbors = load_navigation_graph(controller)
+
+    def find_shortest_path(self, start, end):
+        """
+        실시간으로 '도달 가능한 위치' 정보를 가져와 동적으로 그래프를 생성하고,
+        이를 기반으로 최단 경로를 탐색합니다.
+        """
+        start = quantize_position(start)
+        end = quantize_position(end)
+
+        if start == end:
+            return [start]
+
+        # 실시간으로 도달 가능한 위치 정보를 리스트와 집합 형태로 가져옵니다.
+        positions_data = self.controller.step("GetReachablePositions").metadata[
+            "actionReturn"
+        ]
+        reachable_positions_list = [
+            quantize_position((p["x"], p["y"], p["z"])) for p in positions_data
+        ]
+        reachable_set = set(reachable_positions_list)
+
+        # 실시간 지도 위에서 시작점과 도착점을 보정합니다.
+        if start not in reachable_set:
+            start = closest_position(start, reachable_positions_list)
+        if end not in reachable_set:
+            end = closest_position(end, reachable_positions_list)
+
+        if start == end:
+            return [start]
+
+        # 실시간 도달 가능 위치를 기반으로 임시 네비게이션 그래프를 구축합니다.
+        temp_neighbors = {pos: set() for pos in reachable_set}
+        for p1 in reachable_set:
+            for p2 in reachable_set:
+                if p1 == p2:
+                    continue
+                dx = abs(p1[0] - p2[0])
+                dy = abs(p1[1] - p2[1])
+                dz = abs(p1[2] - p2[2])
+                if abs((dx + dy + dz) - GRID_SIZE) < 1e-5:
+                    temp_neighbors[p1].add(p2)
+
+        # 동적으로 생성된 실시간 그래프 위에서 A* 탐색을 수행합니다.
+        def calculate_direction(p1, p2):
+            return p2[0] - p1[0], p2[2] - p1[2]
+
+        pq = []
+        heapq.heappush(pq, (0, start, None, [start]))
+        visited = {}
+
+        while pq:
+            turn_count, current, curr_dir, path = heapq.heappop(pq)
+            if current == end:
+                return path
+
+            if current in visited and visited[current] <= turn_count:
+                continue
+            visited[current] = turn_count
+
+            for neighbor in temp_neighbors.get(current, []):
+                new_dir = calculate_direction(current, neighbor)
+                new_turn_count = (
+                    turn_count
+                    if curr_dir is None or new_dir == curr_dir
+                    else turn_count + 1
+                )
+                heapq.heappush(
+                    pq, (new_turn_count, neighbor, new_dir, path + [neighbor])
+                )
+
+        raise Exception(
+            f"실시간 동적 그래프에서도 {start}에서 {end}로 가는 경로를 찾을 수 없습니다."
+        )
+
+    def is_reachable(self, target_position):
+        """
+        실시간으로 도달 가능한 위치를 확인하여, 주어진 위치가 포함되어 있는지 확인합니다.
+        """
+        positions_data = self.controller.step("GetReachablePositions").metadata[
+            "actionReturn"
+        ]
+        reachable_set = {
+            quantize_position((p["x"], p["y"], p["z"])) for p in positions_data
+        }
+        return quantize_position(target_position) in reachable_set
+
+    def adjust_to_nearest_reachable(self, target_position):
+        """
+        실시간으로 도달 가능한 위치 목록 내에서, 주어진 위치와 가장 가까운 지점을 찾습니다.
+        """
+        positions_data = self.controller.step("GetReachablePositions").metadata[
+            "actionReturn"
+        ]
+        reachable_positions_list = [
+            quantize_position((p["x"], p["y"], p["z"])) for p in positions_data
+        ]
+        return closest_position(target_position, reachable_positions_list)
+
+    def get_reachable_positions(self):
+        """
+        실시간으로 도달 가능한 모든 위치를 반환합니다.
+        """
+        positions_data = self.controller.step("GetReachablePositions").metadata[
+            "actionReturn"
+        ]
+        return [quantize_position((p["x"], p["y"], p["z"])) for p in positions_data]
 
     def adjust_camera_to_object(self, object_id):
         """
@@ -47,100 +152,6 @@ class NavigationHandler:
         for _ in range(SMOOTH_LEVEL):
             current_pitch += diff / SMOOTH_LEVEL
             self.controller.step(action="Teleport", horizon=current_pitch)
-
-    def find_shortest_path(self, start, end):
-        """
-        Finds the shortest path from start to end using a priority queue (A*-like).
-
-        Args:
-            start (tuple): Starting coordinates.
-            end (tuple): Destination coordinates.
-
-        Returns:
-            list: List of positions representing the path.
-        """
-        start = quantize_position(start)
-        end = quantize_position(end)
-
-        if start == end:
-            return [start]
-
-        reachable = set(self.get_reachable_positions())
-        if start not in reachable:
-            start = self.adjust_to_nearest_reachable(start)
-        if end not in reachable:
-            end = self.adjust_to_nearest_reachable(end)
-
-        def calculate_direction(p1, p2):
-            return p2[0] - p1[0], p2[2] - p1[2]
-
-        pq = []
-        heapq.heappush(pq, (0, start, None, [start]))
-        visited = {}
-
-        while pq:
-            turn_count, current, curr_dir, path = heapq.heappop(pq)
-            if current == end:
-                return path
-
-            if current in visited and visited[current] <= turn_count:
-                continue
-            visited[current] = turn_count
-
-            for neighbor in self.neighbors.get(current, []):
-                if neighbor in path or neighbor not in reachable:
-                    continue
-
-                new_dir = calculate_direction(current, neighbor)
-                new_turn_count = (
-                    turn_count
-                    if curr_dir is None or new_dir == curr_dir
-                    else turn_count + 1
-                )
-
-                heapq.heappush(
-                    pq, (new_turn_count, neighbor, new_dir, path + [neighbor])
-                )
-
-        raise Exception(f"No path found between {start} and {end}. Check reachability.")
-
-    def is_reachable(self, target_position):
-        """
-        Checks if the target position is reachable by the agent.
-
-        Args:
-            target_position (tuple): The target coordinates.
-
-        Returns:
-            bool: True if reachable, False otherwise.
-        """
-        reachable = self.get_reachable_positions()
-        return quantize_position(target_position) in reachable
-
-    def adjust_to_nearest_reachable(self, target_position):
-        """
-        Adjusts the target position to the nearest reachable point if it's unreachable.
-
-        Args:
-            target_position (tuple): The target coordinates.
-
-        Returns:
-            tuple: The nearest reachable position.
-        """
-        reachable = self.get_reachable_positions()
-        return closest_position(target_position, reachable)
-
-    def get_reachable_positions(self):
-        """
-        Returns all reachable positions for the agent, quantized to the grid.
-
-        Returns:
-            list: Reachable positions as tuples.
-        """
-        positions = self.controller.step("GetReachablePositions").metadata[
-            "actionReturn"
-        ]
-        return [quantize_position((p["x"], p["y"], p["z"])) for p in positions]
 
     def get_agent_position(self):
         """
