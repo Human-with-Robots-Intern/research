@@ -374,8 +374,6 @@ class Action:
     def move_to(self, object_id: str):
         """
         Move the agent to the nearest reachable point near the specified object.
-        If the agent's starting position is unreachable, it's moved to the
-        nearest valid position before pathfinding.
 
         Args:
             object_id (str): The identifier of the target object.
@@ -395,21 +393,10 @@ class Action:
             except ValueError:
                 stop_time = None
 
-        # --- 출발점 유효성 검사 및 물리적 보정 ---
         agent_position = self.navi.get_agent_position()
-        if not self.navi.is_reachable(agent_position):
-            self.log.warning(f"현재 위치 {agent_position}는 유효하지 않습니다.")
-            adjusted_start = self.navi.adjust_to_nearest_reachable(agent_position)
-            self.log.info(
-                f" -> 가장 가까운 유효 지점 {adjusted_start}(으)로 에이전트를 이동시킵니다."
-            )
-            self.navi.teleport_to_position(adjusted_start)
-            # 물리적 위치가 변경되었으므로, 에이전트 위치를 다시 가져옵니다.
-            agent_position = self.navi.get_agent_position()
-        # --- 보정 완료 ---
-
         object_position = self.navi.get_object_position(object_id)
-        # 이제 에이전트는 항상 유효한 위치에 있으므로, 안전하게 경로 탐색을 호출합니다.
+        # 이제 find_shortest_path가 실시간으로 모든 것을 처리하므로,
+        # 사전 보정 로직 없이 바로 호출합니다.
         path = self.navi.find_shortest_path(agent_position, object_position)
 
         if path:
@@ -428,6 +415,11 @@ class Action:
 
         # 목표 지점에 도달한 뒤 오브젝트 쪽으로 에이전트 회전
         agent_position = self.navi.get_agent_position()
+        object_position = self.navi.get_object_position(object_id)
+        if object_position is None:
+            self.log.warning(f"Could not find object {object_id} to rotate towards.")
+            return elapsed_time
+
         obj_angle, degree = self.navi.agent_rotate_angle(
             agent_position, object_position
         )
@@ -444,7 +436,7 @@ class Action:
                         "errorMessage", "No error message."
                     )
                     self.log.warning(
-                        f"NAV_DEBUG: Final rotati?on to {object_id} failed. Error: {error_message}"
+                        f"NAV_DEBUG: Final rotation to {object_id} failed. Error: {error_message}"
                     )
                     # 회전 실패 시 각도대로 살짝 이동 후 재시도
                     self.navi.move_in_direction(-obj_angle, 0.2)

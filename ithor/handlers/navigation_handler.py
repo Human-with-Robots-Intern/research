@@ -2,18 +2,17 @@ import heapq
 import math
 import time
 
-from src.utils.config.constants import SMOOTH_LEVEL
-from ithor.utils.math_utils import (
-    closest_position,
-    load_navigation_graph,
-    quantize_position,
-)
+from ithor.utils.math_utils import closest_position, quantize_position
+from src.utils.config.constants import GRID_SIZE, SMOOTH_LEVEL
 
 
 class NavigationHandler:
     def __init__(self, controller):
+        """
+        AI2-THOR 컨트롤러를 초기화합니다.
+        더 이상 정적 네비게이션 그래프를 미리 로드하지 않습니다.
+        """
         self.controller = controller
-        self.neighbors = load_navigation_graph(controller)
 
     def adjust_camera_to_object(self, object_id):
         """
@@ -50,14 +49,15 @@ class NavigationHandler:
 
     def find_shortest_path(self, start, end):
         """
-        Finds the shortest path from start to end using a priority queue (A*-like).
+        실시간으로 '도달 가능한 위치' 정보를 가져와 동적으로 그래프를 생성하고,
+        이를 기반으로 최단 경로를 탐색합니다.
 
         Args:
-            start (tuple): Starting coordinates.
-            end (tuple): Destination coordinates.
+            start (tuple): 시작 좌표.
+            end (tuple): 종료 좌표.
 
         Returns:
-            list: List of positions representing the path.
+            list: 경로를 나타내는 위치의 리스트.
         """
         start = quantize_position(start)
         end = quantize_position(end)
@@ -65,17 +65,46 @@ class NavigationHandler:
         if start == end:
             return [start]
 
-        reachable = set(self.get_reachable_positions())
-        if start not in reachable:
-            start = self.adjust_to_nearest_reachable(start)
-        if end not in reachable:
-            end = self.adjust_to_nearest_reachable(end)
+        # 1. 시뮬레이터에서 실시간으로 도달 가능한 위치 정보를 가져옵니다.
+        positions_data = self.controller.step("GetReachablePositions").metadata[
+            "actionReturn"
+        ]
+        reachable_positions_list = [
+            quantize_position((p["x"], p["y"], p["z"])) for p in positions_data
+        ]
+        reachable_set = set(reachable_positions_list)
 
+        # 2. 실시간 지도 위에서 시작점과 도착점을 보정합니다.
+        #    closest_position 함수는 리스트를 인자로 받습니다.
+        if start not in reachable_set:
+            start = closest_position(start, reachable_positions_list)
+        if end not in reachable_set:
+            end = closest_position(end, reachable_positions_list)
+
+        if start == end:
+            return [start]
+
+        # 3. 실시간 도달 가능 위치를 기반으로 임시 네비게이션 그래프를 구축합니다.
+        temp_neighbors = {pos: set() for pos in reachable_set}
+        for p1 in reachable_set:
+            for p2 in reachable_set:
+                if p1 == p2:
+                    continue
+                dx = abs(p1[0] - p2[0])
+                dy = abs(p1[1] - p2[1])
+                dz = abs(p1[2] - p2[2])
+                # 부동 소수점 정밀도를 고려하여 약간의 허용 오차를 두고 이웃을 찾습니다.
+                if (GRID_SIZE - 1e-5) < (dx + dy + dz) < (GRID_SIZE + 1e-5):
+                    temp_neighbors[p1].add(p2)
+
+        # 4. 동적으로 생성된 실시간 그래프 위에서 A* 탐색을 수행합니다.
         def calculate_direction(p1, p2):
             return p2[0] - p1[0], p2[2] - p1[2]
 
         pq = []
-        heapq.heappush(pq, (0, start, None, [start]))
+        heapq.heappush(
+            pq, (0, start, None, [start])
+        )  # (회전 횟수, 현재 위치, 현재 방향, 경로)
         visited = {}
 
         while pq:
@@ -87,22 +116,22 @@ class NavigationHandler:
                 continue
             visited[current] = turn_count
 
-            for neighbor in self.neighbors.get(current, []):
-                if neighbor in path or neighbor not in reachable:
-                    continue
-
+            for neighbor in temp_neighbors.get(current, []):
                 new_dir = calculate_direction(current, neighbor)
                 new_turn_count = (
                     turn_count
                     if curr_dir is None or new_dir == curr_dir
                     else turn_count + 1
                 )
-
                 heapq.heappush(
                     pq, (new_turn_count, neighbor, new_dir, path + [neighbor])
                 )
 
-        raise Exception(f"No path found between {start} and {end}. Check reachability.")
+        # 실시간 그래프에서도 경로를 찾지 못했다면, 실제로 두 지점은 단절된 것입니다.
+        raise Exception(
+            f"실시간 동적 그래프에서도 {start}에서 {end}로 가는 경로를 찾을 수 없습니다. "
+            f"두 지점이 실제로 단절된 지역에 있을 수 있습니다."
+        )
 
     def is_reachable(self, target_position):
         """
