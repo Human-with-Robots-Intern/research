@@ -1,5 +1,5 @@
-import time
 import logging
+import time
 
 from src.utils.common import create_module_logger
 from src.utils.config.constants import SMOOTH_LEVEL
@@ -374,11 +374,13 @@ class Action:
     def move_to(self, object_id: str):
         """
         Move the agent to the nearest reachable point near the specified object.
+        If the agent's starting position is unreachable, it's moved to the
+        nearest valid position before pathfinding.
 
         Args:
             object_id (str): The identifier of the target object.
-                            (Optionally can include a stop_time after a space,
-                            e.g., 'Tomato 2.0' -> objectId='Tomato', stop_time=2.0)
+                           (Optionally can include a stop_time after a space,
+                           e.g., 'Tomato 2.0' -> objectId='Tomato', stop_time=2.0)
 
         Returns:
             float: Elapsed time for the move action.
@@ -393,8 +395,21 @@ class Action:
             except ValueError:
                 stop_time = None
 
+        # --- 출발점 유효성 검사 및 물리적 보정 ---
         agent_position = self.navi.get_agent_position()
+        if not self.navi.is_reachable(agent_position):
+            self.log.warning(f"현재 위치 {agent_position}는 유효하지 않습니다.")
+            adjusted_start = self.navi.adjust_to_nearest_reachable(agent_position)
+            self.log.info(
+                f" -> 가장 가까운 유효 지점 {adjusted_start}(으)로 에이전트를 이동시킵니다."
+            )
+            self.navi.teleport_to_position(adjusted_start)
+            # 물리적 위치가 변경되었으므로, 에이전트 위치를 다시 가져옵니다.
+            agent_position = self.navi.get_agent_position()
+        # --- 보정 완료 ---
+
         object_position = self.navi.get_object_position(object_id)
+        # 이제 에이전트는 항상 유효한 위치에 있으므로, 안전하게 경로 탐색을 호출합니다.
         path = self.navi.find_shortest_path(agent_position, object_position)
 
         if path:
@@ -425,17 +440,22 @@ class Action:
                 )
                 success = self.controller.last_event.metadata["lastActionSuccess"]
                 if not success:
-                    error_message = result.metadata.get('errorMessage', 'No error message.')
-                    self.log.warning(f"NAV_DEBUG: Final rotati?on to {object_id} failed. Error: {error_message}")
+                    error_message = result.metadata.get(
+                        "errorMessage", "No error message."
+                    )
+                    self.log.warning(
+                        f"NAV_DEBUG: Final rotati?on to {object_id} failed. Error: {error_message}"
+                    )
                     # 회전 실패 시 각도대로 살짝 이동 후 재시도
                     self.navi.move_in_direction(-obj_angle, 0.2)
                     recovery_result = self.controller.step(
                         action="RotateRight", degrees=degree / SMOOTH_LEVEL
                     )
                     if not recovery_result.metadata["lastActionSuccess"]:
-                        rec_error = recovery_result.metadata.get('errorMessage', 'No error message.')
+                        rec_error = recovery_result.metadata.get(
+                            "errorMessage", "No error message."
+                        )
                         # self.log.error(f"NAV_DEBUG: Rotation recovery also failed. Error: {rec_error}")
-
 
         # 카메라 각도 조정
         self.navi.adjust_camera_to_object(object_id)
