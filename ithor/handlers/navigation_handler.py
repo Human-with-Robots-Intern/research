@@ -4,6 +4,8 @@ import time
 
 from ithor.utils.math_utils import closest_position, quantize_position
 from src.utils.config.constants import GRID_SIZE, SMOOTH_LEVEL
+from ithor.utils.math_utils import closest_position, quantize_position
+from src.utils.config.constants import GRID_SIZE, SMOOTH_LEVEL
 
 
 class NavigationHandler:

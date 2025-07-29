@@ -238,8 +238,8 @@ def find_critical_path(subtasks: List[Subtask]) -> List[Tuple[Subtask, float, bo
     Returns:
         List of tuples containing (subtask, interval, is_critical) for each node in critical path
     """
-    start_nodes = [n for n in constraints.nodes if constraints.in_degree(n) == 0]
-    end_nodes = [n for n in constraints.nodes if constraints.out_degree(n) == 0]
+    start_nodes = [n for n in constraints.nodes if constraints.in_degree(n) == 0 and constraints.out_degree(n) != 0]
+    end_nodes = [n for n in constraints.nodes if constraints.out_degree(n) == 0 and constraints.in_degree(n) != 0]
     # 모든 경로 파악
     all_paths: List[List[str]] = []
     for start in start_nodes:
@@ -383,7 +383,7 @@ def get_final_entries(
     """
     current_state = init_state
     final_entry_schedule: List[CompletedEntry] = []
-
+    local_subtasks_without_edge = subtasks_without_edge.copy()
     for i, (subtask, interval, is_critical) in enumerate(critical_path):
         # 우선 schedule_order에 있는 subtask를 돌면서 simulate_subtask_execution을 해준다.
         exec_info = offline_subtask_execution(current_state, subtask, action_handler)
@@ -407,7 +407,7 @@ def get_final_entries(
         while True:
             # Calculate execution predictions for all non-edge subtasks
             expected_ne_subtask_info: Dict[Subtask, ExecutionPredictionInfo] = {}
-            for non_edge_subtask in subtasks_without_edge:
+            for non_edge_subtask in local_subtasks_without_edge:
                 predicted_exec_info = offline_subtask_execution(
                     current_state, non_edge_subtask, action_handler
                 )
@@ -432,42 +432,43 @@ def get_final_entries(
                 )
             # 남은 interval 시간 내에 실행 가능한 subtask만 후보로 선택
             remaining_interval = interval - interval_time_used
-            candidate_subtasks = {
+            candidate_ne_subtasks = {
                 st: info.predicted_exec_time
                 for st, info in expected_ne_subtask_info.items()
                 if info.predicted_exec_time
                 <= remaining_interval - info.nav_time_to_succ
             }
 
-            if not candidate_subtasks and remaining_interval >= 0:
+            if not candidate_ne_subtasks and remaining_interval >= 0:
                 if (
                     expected_ne_subtask_info and not is_critical
                 ):  # Check if expected_info_dict is not empty
                     # non critical edge가 활성화 되어 있고 실행 가능한 subtask는 있으면 그 중 제일 짧은걸 실행시킨다.
-                    shortest_subtask = min(
+                    shortest_ne_subtask = min(
                         expected_ne_subtask_info.items(),
                         key=lambda item: item[1].predicted_exec_time,
                     )[0]
                     shortest_exec_info = expected_ne_subtask_info[
-                        shortest_subtask
+                        shortest_ne_subtask
                     ].predicted_exec_info
                     shortest_nav_time = expected_ne_subtask_info[
-                        shortest_subtask
+                        shortest_ne_subtask
                     ].nav_time_to_succ
 
-                    shortest_entry = CompletedEntry(
-                        subtask=shortest_subtask,
-                        schedule_start_time=current_state.current_time,
-                        schedule_end_time=current_state.current_time
-                        + shortest_exec_info.cumulative_time,
-                        schedule_nav_time=shortest_nav_time,
-                    )
-                    final_entry_schedule.append(shortest_entry)
-                    current_state = update_state(
-                        current_state, shortest_subtask, shortest_exec_info
-                    )
-                    subtasks_without_edge.remove(shortest_subtask)
-                    break
+                    if shortest_exec_info.cumulative_time <= remaining_interval - shortest_nav_time:
+                        shortest_entry = CompletedEntry(
+                            subtask=shortest_ne_subtask,
+                            schedule_start_time=current_state.current_time,
+                            schedule_end_time=current_state.current_time
+                            + shortest_exec_info.cumulative_time,
+                            schedule_nav_time=shortest_nav_time,
+                        )
+                        final_entry_schedule.append(shortest_entry)
+                        current_state = update_state(
+                            current_state, shortest_ne_subtask, shortest_exec_info
+                        )
+                        local_subtasks_without_edge.remove(shortest_ne_subtask)
+                        break
                 if i + 1 < len(critical_path):
                     next_subtask_in_cp = critical_path[i + 1][0]
                     nav_wait_entries, current_state = nav_and_wait_during_interval(
@@ -481,28 +482,28 @@ def get_final_entries(
                 break
 
             # Execute longest fitting subtask
-            best_subtask = max(candidate_subtasks.items(), key=lambda item: item[1])[0]
-            best_exec_info = expected_ne_subtask_info[best_subtask].predicted_exec_info
+            best_ne_subtask = max(candidate_ne_subtasks.items(), key=lambda item: item[1])[0]
+            best_exec_info = expected_ne_subtask_info[best_ne_subtask].predicted_exec_info
             interval_time_used += best_exec_info.cumulative_time
 
             final_entry_schedule.append(
                 CompletedEntry(
-                    subtask=best_subtask,
+                    subtask=best_ne_subtask,
                     schedule_start_time=current_state.current_time,
                     schedule_end_time=current_state.current_time
                     + best_exec_info.cumulative_time,
                 )
             )
 
-            best_subtask.start_time_scheduled = current_state.current_time
-            best_subtask.end_time_scheduled = (
+            best_ne_subtask.start_time_scheduled = current_state.current_time
+            best_ne_subtask.end_time_scheduled = (
                 current_state.current_time + best_exec_info.cumulative_time
             )
-            current_state = update_state(current_state, best_subtask, best_exec_info)
-            subtasks_without_edge.remove(best_subtask)
+            current_state = update_state(current_state, best_ne_subtask, best_exec_info)
+            local_subtasks_without_edge.remove(best_ne_subtask)
 
     # Schedule remaining unconstrained subtasks
-    for left_subtask in subtasks_without_edge:
+    for left_subtask in local_subtasks_without_edge:
         left_exec_info = offline_subtask_execution(current_state, left_subtask, action_handler)
         final_entry_schedule.append(
             CompletedEntry(
