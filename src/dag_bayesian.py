@@ -3,7 +3,7 @@ from pathlib import Path
 import time
 from typing import Any, Dict
 
-from ithor.handlers.navigation_handler import load_navigation_graph
+from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
