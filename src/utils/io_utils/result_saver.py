@@ -176,7 +176,7 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             "end_time_simulation": round(entry.sim_end_time, 2),
             "start_time_scheduled": round(entry.schedule_start_time, 2),
             "end_time_scheduled": round(entry.schedule_end_time, 2),
-            "execution_status": entry.execution_status.name,
+            "execution_status": entry.execution_status if isinstance(entry.execution_status, bool) else entry.execution_status.name,
         }
         if hasattr(entry, "primitive_action_log"):
             serialized_entry["primitive_action_log"] = [
