@@ -367,6 +367,12 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         help="Path to the log file for this specific run.",
     )
+    parser.add_argument(
+        "--attempt",
+        type=int,
+        default=1,
+        help="The attempt number for the run.",
+    )
     return parser.parse_args()
 
 
@@ -455,10 +461,11 @@ if __name__ == "__main__":
         result_args = {
             "approach_name": approach_name,
             "user_input": instruction,
-            "result_txt": str(cap_log_path),
+            "result": str(cap_log_path),
             "json_output_path": result_path,
             "computation_time": computation_time,
             "scene_name": scene_name,
+            "attempt": args.attempt,
         }
 
         result_save_llm(**result_args)

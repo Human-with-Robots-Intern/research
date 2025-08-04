@@ -93,6 +93,12 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         help="Path to the log file for this specific run.",
     )
+    parser.add_argument(
+        "--attempt",
+        type=int,
+        default=1,
+        help="The attempt number for the run.",
+    )
     return parser.parse_args()
 
 def generate_plan(controller, task: str, args: argparse.Namespace, logger):
@@ -169,10 +175,11 @@ def generate_plan(controller, task: str, args: argparse.Namespace, logger):
     result_args={
         "approach_name": approach_name,
         "user_input": task,
-        "result_txt":prog_log_path,
+        "result":prog_log_path,
         "json_output_path":result_path,
         "computation_time":computation_time,
         "scene_name": args.scene,
+        "attempt": args.attempt,
     }
     result_save_llm(**result_args)
 

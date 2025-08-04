@@ -176,7 +176,7 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             "end_time_simulation": round(entry.sim_end_time, 2),
             "start_time_scheduled": round(entry.schedule_start_time, 2),
             "end_time_scheduled": round(entry.schedule_end_time, 2),
-            "execution_status": entry.execution_status.name,
+            "execution_status": entry.execution_status if isinstance(entry.execution_status, bool) else entry.execution_status.name,
         }
         if hasattr(entry, "primitive_action_log"):
             serialized_entry["primitive_action_log"] = [
@@ -271,7 +271,7 @@ def result_save(
     print(f"JSON file saved at {file_path}")
 
 
-def parse_llm_log(lines: List[str]) -> Tuple[List[dict], float, int, int]:
+def parse_prog_log(lines: List[str]) -> Tuple[List[dict], float, int, int]:
     actions = []
     current_action = None
     start_time, end_time = None, None
@@ -331,21 +331,87 @@ def parse_llm_log(lines: List[str]) -> Tuple[List[dict], float, int, int]:
     return actions, last_end_time, success_count, total_count
 
 
+def parse_cap_log(lines: List[str]) -> Tuple[List[dict], float, int, int]:
+    """Parse log from CAP approach."""
+    actions = []
+    current_action = None
+    start_time, end_time = None, None
+    execution_status = None
+    last_end_time = 0.0
+    total_count = 0
+    success_count = 0
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        if line.startswith("Executing action:"):
+            if current_action is not None and start_time is not None:
+                current_action.update(
+                    {
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "execution_status": execution_status,
+                    }
+                )
+                actions.append(current_action)
+
+            action_match = re.search(r"\['(.*?)'\]", line)
+            action = action_match.group(1).split("', '") if action_match else [""]
+            current_action = {"Executing_action": action}
+            start_time, end_time, execution_status = None, None, None
+
+        elif line.startswith("start_time:"):
+            start_time = float(line.split(":")[1].strip())
+        elif line.startswith("end_time:"):
+            end_time = float(line.split(":")[1].strip())
+            last_end_time = max(last_end_time, end_time)
+        elif line.startswith("execution_status:"):
+            status = line.split(":")[1].strip()
+            if status.lower() == "true":
+                execution_status = True
+                success_count += 1
+            elif status.lower() == "false":
+                execution_status = False
+            total_count += 1
+
+    if current_action is not None and start_time is not None:
+        current_action.update(
+            {
+                "start_time": start_time,
+                "end_time": end_time,
+                "execution_status": execution_status,
+            }
+        )
+        actions.append(current_action)
+
+    return actions, last_end_time, success_count, total_count
+
+
 def result_save_llm(
     approach_name: str,
     user_input: str,
-    result_txt: str,
+    result: str,
     json_output_path: str,
     computation_time: float,
     scene_name: str,
+    attempt: int = 1,
 ):
-    with open(result_txt, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-    actions, last_end_time, success_count, total_count = parse_llm_log(lines)
+
+    if approach_name == "cap_ai2thor_simulation":
+        with open(result, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        actions, last_end_time, success_count, total_count = parse_cap_log(lines)
+    else:
+        with open(result, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        actions, last_end_time, success_count, total_count = parse_prog_log(lines)
 
     result_data = {
         "saved_time": get_now_str(),
         "approach": approach_name,
+        "attempt": attempt,
         "scene_name": scene_name,
         "plans": [{"plan_name": user_input, "actions": actions}],
         "computation_time": computation_time,
