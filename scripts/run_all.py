@@ -125,6 +125,7 @@ def process_retry_script(script: Path, instruction: str, scene_name: str, config
             cmd.extend(["--log-level", config["log_level"]])
         if log_path:
             cmd.extend(["--log-path", str(log_path)])
+        cmd.extend(["--attempt", str(attempt)])
             
         result = subprocess.run(
             cmd,
