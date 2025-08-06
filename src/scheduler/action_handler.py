@@ -133,7 +133,9 @@ class ActionHandler:
             # 액션 파싱
             tokens = action_str.split()
             if not tokens:
-                self.log.warning(f"Empty action string encountered at index {i}. Skipping.")
+                self.log.warning(
+                    f"Empty action string encountered at index {i}. Skipping."
+                )
                 continue  # 다음 액션으로
 
             action_type = tokens[0].upper()
@@ -296,16 +298,22 @@ class ActionHandler:
 
         # 3. 부분 시간 이동 처리
         if partial_time_str:
-            self.log.debug(f"  Processing NAVIGATE_TO with partial time: {partial_time_str}")
+            self.log.debug(
+                f"  Processing NAVIGATE_TO with partial time: {partial_time_str}"
+            )
             partial_duration = float(partial_time_str)
             duration = partial_duration  # 액션 소요 시간은 주어진 부분 시간
-            success = True  # 부분 시간 이동은 일단 성공으로 간주
 
             # 이동할 스텝 수 계산 (올림/내림 정책 확인 필요, 여기선 내림 사용)
             steps_can_take = int(math.floor(partial_duration / NAV_STEP_DURATION))
             # 경로 길이 내에서만 이동 가능
             actual_steps = min(steps_can_take, len(navigate_path))
-            new_agent_pos = navigate_path[actual_steps - 1]
+
+            if navigate_path and actual_steps > 0:
+                new_agent_pos = navigate_path[actual_steps - 1]
+            else:
+                new_agent_pos = agent_pos
+            success = True  # 부분 시간 이동은 일단 성공으로 간주
 
         # 4. 전체 경로 이동 처리
         else:
@@ -374,7 +382,9 @@ class ActionHandler:
         new_held_object = current_held_object
 
         if not current_held_object:
-            self.log.warning(f"Agent not holding anything. Cannot place. Action FAILED.")
+            self.log.warning(
+                f"Agent not holding anything. Cannot place. Action FAILED."
+            )
             success = False
         elif not receptacle_id or receptacle_id not in scene_positions:
             raise ValueError(
@@ -385,7 +395,9 @@ class ActionHandler:
             if self._check_reachability(
                 agent_pos, receptacle_pos, "Place", receptacle_id
             ):
-                self.log.debug(f"  Placing '{current_held_object}' on/in '{receptacle_id}'.")
+                self.log.debug(
+                    f"  Placing '{current_held_object}' on/in '{receptacle_id}'."
+                )
                 # 객체 상태 업데이트 (시뮬레이션 모델에 따라 달라짐)
                 # 여기서는 단순히 손을 비우는 것으로 처리
                 if current_held_object in scene_positions:
