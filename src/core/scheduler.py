@@ -883,13 +883,17 @@ class Scheduler:
 
         ideal_early_sub_duration = duration_for_early_sub_target
 
-        if actual_early_sub_duration > ideal_early_sub_duration + EPSILON:
+        # 목표 시간보다 너무 늦게 끝나는 경우에만 분할을 포기합니다.
+        # 일찍 끝나는 것은 허용하여, 모니터링 전까지 약간의 대기가 발생하더라도
+        # 모니터링 자체를 수행하는 것을 보장합니다.
+        upper_bound = ideal_early_sub_duration * (1 + TIMING_TOLERANCE)
+        if actual_early_sub_duration > upper_bound:
             log.warning(
-                f"[_expand_subtask_with_monitoring] Actual early_duration ({actual_early_sub_duration:.2f}) for '{original_task_name}' "
-                f"exceeds ideal duration ({ideal_early_sub_duration:.2f}). "
-                f"This would delay monitoring. Fallback to non-monitoring execution."
+                f"[_expand_subtask_with_monitoring] Subtask '{original_task_name}' (actual early_duration: {actual_early_sub_duration:.2f}) "
+                f"is too long and would make monitoring late (ideal: {ideal_early_sub_duration:.2f}, upper bound: {upper_bound:.2f}). "
+                f"This plan is infeasible."
             )
-            return self._expand_subtask_wo_monitoring(curr_node, candidate)
+            return None
 
         log.debug(
             f"[_expand_subtask_with_monitoring] Subtask '{original_task_name}' (actual early_duration: {actual_early_sub_duration:.2f}) "
