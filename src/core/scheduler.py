@@ -31,9 +31,6 @@ if TYPE_CHECKING:
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
-from src.utils.config.constants import PRIMITIVE_ACTION_DURATION
-
-
 class Scheduler:
     """
     Beam Search based Scheduler with n-step lookahead.
@@ -576,8 +573,8 @@ class Scheduler:
 
         Conditions checked here:
         1) The subtask has a finite scheduling due.
-        2) The subtask has not been decomposed yet (decomposed=False).
-        3) The subtask is long enough that it won't finish before the monitoring cutoff.
+        # 2) The subtask has not been decomposed yet (decomposed=False).
+        # 3) The subtask is long enough that it won't finish before the monitoring cutoff.
 
         Args:
             curr_node (SimulationNode): Current node in the search tree.
@@ -661,7 +658,7 @@ class Scheduler:
 
         if (
             candidate.scheduling_due
-            and candidate.scheduling_due.due_date <= planned_subtask_completion_time
+            and candidate.scheduling_due.due_date < planned_subtask_completion_time
         ):
             # 현재 candidate의 완료 시간이 due_date를 넘는 경우에는 Infeasible case; 확장 불가
             log.warning(
@@ -886,16 +883,13 @@ class Scheduler:
 
         ideal_early_sub_duration = duration_for_early_sub_target
 
-        lower_bound = ideal_early_sub_duration * (1 - TIMING_TOLERANCE)
-        upper_bound = ideal_early_sub_duration * (1 + TIMING_TOLERANCE)
-
-        if not (lower_bound <= actual_early_sub_duration <= upper_bound):
-            log.info(
-                f"[_expand_subtask_with_monitoring] Subtask '{original_task_name}' (actual early_duration: {actual_early_sub_duration:.2f}) "
-                f"does not meet timing tolerance for ideal early_duration ({ideal_early_sub_duration:.2f}, bounds: [{lower_bound:.2f}, {upper_bound:.2f}]). "
-                f"Skipping monitoring split for this candidate."
+        if actual_early_sub_duration > ideal_early_sub_duration + EPSILON:
+            log.warning(
+                f"[_expand_subtask_with_monitoring] Actual early_duration ({actual_early_sub_duration:.2f}) for '{original_task_name}' "
+                f"exceeds ideal duration ({ideal_early_sub_duration:.2f}). "
+                f"This would delay monitoring. Fallback to non-monitoring execution."
             )
-            return None
+            return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
         log.debug(
             f"[_expand_subtask_with_monitoring] Subtask '{original_task_name}' (actual early_duration: {actual_early_sub_duration:.2f}) "
