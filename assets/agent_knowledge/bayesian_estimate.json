@@ -4,15 +4,15 @@
         "variance": 1.0
     },
     "turn off stove after cooking": {
-        "expected_duration": 9.930535818727993,
-        "variance": 0.04249168955051282
+        "expected_duration": 80,
+        "variance": 1.0
     },
     "prepare potato": {
         "expected_duration": 10.0,
         "variance": 1.0
     },
     "turn off stove after cooking potato": {
-        "expected_duration": 10.0,
+        "expected_duration": 80,
         "variance": 1.0
     },
     "Place Potato in Pot and Start Boiling on Stove": {
@@ -24,23 +24,23 @@
         "variance": 1.0
     },
     "retrieve potato from microwave": {
-        "expected_duration": 9.98075077377359,
-        "variance": 0.05835512419097493
+        "expected_duration": 80,
+        "variance": 1.0
     },
     "turn off stove after boiling potato": {
-        "expected_duration": 9.80964808514742,
-        "variance": 0.008731434481522504
+        "expected_duration": 80,
+        "variance": 1.0
     },
     "turn off stove after cooking egg fry": {
-        "expected_duration": 10.0,
+        "expected_duration": 80,
         "variance": 1.0
     },
     "turn off stove after boiling": {
-        "expected_duration": 9.507247228536393,
-        "variance": 0.09459903210633454
+        "expected_duration": 80,
+        "variance": 1.0
     },
     "retrieve heated potato and place on countertop": {
-        "expected_duration": 0,
+        "expected_duration": 80,
         "variance": 1.0
     },
     "cook egg in pan": {
@@ -52,11 +52,11 @@
         "variance": 1.0
     },
     "turn off microwave after heating bread": {
-        "expected_duration": 5.834526167250541,
-        "variance": 0.9247441300421433
+        "expected_duration": 80,
+        "variance": 1.0
     },
     "retrieve heated bread and place on countertop": {
-        "expected_duration": 0,
+        "expected_duration": 80,
         "variance": 1.0
     },
     "boil potato in pot": {
@@ -64,15 +64,15 @@
         "variance": 1.0
     },
     "stop filling pot and place on stoveburner": {
-        "expected_duration": 11.00864757907316,
-        "variance": 0.7424671645634819
+        "expected_duration": 80,
+        "variance": 1.0
     },
     "retrieve bread from microwave": {
-        "expected_duration": 5,
+        "expected_duration": 0,
         "variance": 1.0
     },
     "turn off kettle": {
-        "expected_duration": 5,
+        "expected_duration": 80,
         "variance": 1.0
     },
     "turn on stove to cook sausage": {
@@ -80,19 +80,19 @@
         "variance": 1.0
     },
     "turn off faucet after mug is filled": {
-        "expected_duration": 1.5730746482328701,
-        "variance": 0.8948792604431993
+        "expected_duration": 80,
+        "variance": 1.0
     },
     "turn off faucet after pot is filled": {
-        "expected_duration": 10,
+        "expected_duration": 80,
         "variance": 1.0
     },
     "place kettle on stoveburner and boil": {
         "expected_duration": 0,
         "variance": 1.0
     },
-    "turn off laundry machine": {
-        "expected_duration": 10,
+    "turn off laundry_machine": {
+        "expected_duration": 80,
         "variance": 1.0
     },
     "cook chicken in pan": {
@@ -101,6 +101,14 @@
     },
     "move cooked chicken to plate": {
         "expected_duration": 0,
+        "variance": 1.0
+    },
+    "move cooked sausage to plate": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "Turn Off Stove after Cooking Sausage": {
+        "expected_duration": 80,
         "variance": 1.0
     }
 }
