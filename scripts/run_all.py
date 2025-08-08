@@ -211,6 +211,18 @@ def process_normal_script(script: Path, instruction: str, scene_name: str, confi
     logger.info(f"=" * 80)
     logger.info(f"Starting {script} with scene={scene_name}, instruction={instruction}")
     logger.info(f"=" * 80)
+            
+    logger.info(f"=" * 80)
+    # logger.info(f"Waiting 1 minute before running instruction")
+    # time.sleep(30)
+    logger.info(f"30 seconds left before running instruction")
+    time.sleep(20)
+    logger.info(f"10 seconds left before running instruction")
+    time.sleep(7)
+    logger.info(f"3 seconds left before running instruction")
+    time.sleep(3)
+    logger.info(f"Start!")
+    logger.info(f"=" * 80)
 
     cmd = [
         str(wrapper_script),
@@ -376,7 +388,6 @@ def main() -> None:
         futures = []
         for scene_name, approach in product(scene_list, approaches):
             instructions = load_instructions_from_json(scene_name)
-            
             instruction_source: list[str] | list[int]
             if config.get("predefined"): 
                 instruction_source = list(range(1, len(instructions) + 1))
@@ -398,11 +409,16 @@ def main() -> None:
                     )
                 )
 
+
+        import traceback
+        print("futures: ", futures)
         for future in concurrent.futures.as_completed(futures):
+            print("future", future)
             try:
                 future.result()
             except Exception as e:
                 logger.error(f"A task generated an exception: {e}")
+                logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
     main()

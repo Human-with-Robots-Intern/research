@@ -56,7 +56,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
         help="Simulation 모드 사용 여부 (default: False)",
     )
