@@ -15,10 +15,11 @@ from src.models.dataclass import (
     TimeSlot,
 )
 from src.models.task import Subtask
-from src.scheduler.action_handler import ActionHandler
 from src.utils.common import create_module_logger
 from src.utils.config import EPSILON
 from src.utils.config.constants import TIMING_TOLERANCE
+
+from src.scheduler.action_handler import ActionHandler
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
