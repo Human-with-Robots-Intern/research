@@ -64,10 +64,10 @@ def main() -> None:
     # Define scene lists by type
     kitchen_scenes = ["FloorPlan1", "FloorPlan18"]
     bathroom_scenes = ["FloorPlan419"]
-    # real_world_scenes = ["FloorPlan301"]
+    real_world_scenes = ["FloorPlan301"]
     
     # Combine all scenes
-    scene_name_list =  bathroom_scenes
+    scene_name_list =  real_world_scenes
     
     is_rag = False
     
