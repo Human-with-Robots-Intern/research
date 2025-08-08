@@ -13,6 +13,10 @@ from src.utils.config.constants import (
     NAV_STEP_DURATION,
     PRIMITIVE_ACTION_DURATION,
     REACHABLE_DISTANCE_THRESHOLD,
+    REAL_GRASP_DURATION,
+    REAL_NAV_DURATION,
+    REAL_PLACE_DURATION,
+    REAL_TOGGLE_DURATION,
     STATIC_ACTION_SET,
     TIMING_TOLERANCE,
     GRASP_ACTION_DURATION,
@@ -28,7 +32,7 @@ NavGraph: TypeAlias = Dict[Position, List[Position]]  # 네비게이션 그래�
 
 
 class ActionHandler:
-    def __init__(self, nav_graph: NavGraph, logger: logging.Logger):
+    def __init__(self, nav_graph: NavGraph, real_world_mode: bool = False):
         """
         ActionHandler를 초기화합니다.
 
@@ -37,7 +41,7 @@ class ActionHandler:
             logger: The logger instance to use.
         """
         self.nav_graph = nav_graph
-        self.log = logger
+        self.real_world_mode = real_world_mode
 
     def get_actions_info(
         self, current_node: SimulationNode, actions: list[str]
@@ -55,7 +59,7 @@ class ActionHandler:
             시뮬레이션 성공 시 마지막 액션의 결과(ActionResult), 실패 시 None.
         """
         if not actions:
-            self.log.warning(
+            log.warning(
                 "get_actions_info called with empty actions list. Returning None."
             )
             return None
@@ -66,7 +70,7 @@ class ActionHandler:
 
         # action_sim_info가 None이거나, 결과가 비어있는 경우 처리
         if not action_sim_info or not action_sim_info.results:
-            self.log.warning(
+            log.warning(
                 "Action simulation did not produce any results. Returning None."
             )
             return None
@@ -83,7 +87,7 @@ class ActionHandler:
         try:
             last_action_result.first_nav_duration = first_nav_duration
         except AttributeError:
-            self.log.warning(
+            log.warning(
                 "ActionResult dataclass does not have 'first_nav_duration' attribute. "
                 "This information will not be directly added to the returned ActionResult object. "
                 "Consider modifying the ActionResult dataclass or using the ActionSimulationLog object."
@@ -114,7 +118,7 @@ class ActionHandler:
             치명적인 오류 발생 시 None을 반환할 수 있습니다. (예: 초기 상태 오류)
         """
         if not initial_node or not initial_node.state:
-            self.log.error(
+            log.error(
                 "Cannot simulate actions with invalid initial_node or state. Returning None."
             )
             return None
@@ -127,17 +131,17 @@ class ActionHandler:
         new_held_object = None
         current_cumulative_time = 0.0
         for i, action_str in enumerate(primitive_actions):
-            self.log.debug(
+            log.debug(
                 f"--- Simulating action {i+1}/{len(primitive_actions)}: '{action_str}' ---"
             )
-            self.log.debug(
+            log.debug(
                 f"    State before: Time={current_cumulative_time:.2f}, Held={current_held_object}"
             )
 
             # 액션 파싱
             tokens = action_str.split()
             if not tokens:
-                self.log.warning(f"Empty action string encountered at index {i}. Skipping.")
+                log.warning(f"Empty action string encountered at index {i}. Skipping.")
                 continue  # 다음 액션으로
 
             action_type = tokens[0].upper()
@@ -197,7 +201,7 @@ class ActionHandler:
             elif action_type == "MONITORING":
                 action_duration, action_success = self._simulate_monitoring()
             else:
-                self.log.warning(
+                log.warning(
                     f"Unhandled action type in internal simulation: {action_type}. Assuming default duration and failure."
                 )
                 action_duration = 0.0
@@ -219,15 +223,15 @@ class ActionHandler:
                 success=action_success,
             )
             action_log.results.append(log_entry)
-            self.log.debug(
+            log.debug(
                 f"    Action Result: Success={action_success}, Duration={action_duration:.2f}"
             )
-            self.log.debug(
+            log.debug(
                 f"    State after:  Time={current_cumulative_time:.2f}, Held={current_held_object}"
             )
             # 액션 실패 시 시뮬레이션 중단
             if not action_success:
-                self.log.warning(
+                log.warning(
                     f"Action '{action_str}' failed. Stopping simulation sequence."
                 )
                 break
@@ -244,7 +248,7 @@ class ActionHandler:
         """주어진 위치에서 타겟 위치가 상호작용 가능한 거리 내에 있는지 확인합니다."""
         dist = math.dist(agent_pos, target_pos)
         if dist > REACHABLE_DISTANCE_THRESHOLD:
-            self.log.warning(
+            log.warning(
                 f"  {action_name} target '{target_id}' might be unreachable "
                 f"(Distance: {dist:.2f} > {REACHABLE_DISTANCE_THRESHOLD:.2f}). Action FAILED."
             )
@@ -278,6 +282,10 @@ class ActionHandler:
         duration = 0.0
         success = False
         new_agent_pos: Optional[Position] = None  # 액션 완료 후의 최종 위치
+
+        if self.real_world_mode:
+            return REAL_NAV_DURATION, True, (0, 0, 0)
+
         # 1. 목표 유효성 검사 및 위치 가져오기
         if not target_obj_id or target_obj_id not in scene_positions:
             # raise ValueError(
@@ -287,29 +295,34 @@ class ActionHandler:
         target_pos = tuple(scene_positions[target_obj_id])
         # 2. 경로 탐색 시도 (partial time 여부와 관계없이 일단 시도)
         navigate_path: Optional[List[Position]] = None
-        self.log.debug(
+
+
+        log.debug(
+
             f"  Finding path from {agent_pos} to {target_pos} for '{target_obj_id}'"
         )
         navigate_path = self._find_shortest_path(agent_pos, target_pos)
         # 3. 부분 시간 이동 처리
         if partial_time_str:
-            self.log.debug(
-                f"  Processing NAVIGATE_TO with partial time: {partial_time_str}"
-            )
+
+            log.debug(f"  Processing NAVIGATE_TO with partial time: {partial_time_str}")
             partial_duration = float(partial_time_str)
             duration = partial_duration  # 액션 소요 시간은 주어진 부분 시간
+
             # 이동할 스텝 수 계산 (올림/내림 정책 확인 필요, 여기선 내림 사용)
             steps_can_take = int(math.floor(partial_duration / NAV_STEP_DURATION))
             # 경로 길이 내에서만 이동 가능
             actual_steps = min(steps_can_take, len(navigate_path))
+
             if navigate_path and actual_steps > 0:
                 new_agent_pos = navigate_path[actual_steps - 1]
             else:
                 new_agent_pos = agent_pos
             success = True  # 부분 시간 이동은 일단 성공으로 간주
+
         # 4. 전체 경로 이동 처리
         else:
-            self.log.debug(f"  Processing NAVIGATE_TO for full path.")
+            log.debug(f"  Processing NAVIGATE_TO for full path.")
             # ithor의 action.py에서는 첫좌표를 제거하므로 여기서도 동일하게 제거
             if navigate_path:
                 navigate_path.pop(0)
@@ -318,7 +331,7 @@ class ActionHandler:
             # 경로의 마지막 위치가 새로운 에이전트 위치 (경로가 비었으면 현재 위치)
             new_agent_pos = navigate_path[-1] if navigate_path else agent_pos
             success = True
-            self.log.debug(
+            log.debug(
                 f"    Path found to {target_obj_id} with {path_steps} steps. Duration: {duration:.2f}s. Final pos: {new_agent_pos}"
             )
         # 5. 결과 반환
@@ -342,7 +355,7 @@ class ActionHandler:
                 f"Grasp target '{target_obj_id}' not found in scene positions."
             )
         if current_held_object:
-            self.log.warning(
+            log.warning(
                 f"Agent already holding '{current_held_object}'. Cannot grasp '{target_obj_id}'. Action FAILED."
             )
             success = False
@@ -352,9 +365,15 @@ class ActionHandler:
                 agent_pos, target_actual_pos, "Grasp", target_obj_id
             ):
                 new_held_object = target_obj_id
-                duration = GRASP_ACTION_DURATION
+
+                duration = (
+                    PRIMITIVE_ACTION_DURATION
+                    if not self.real_world_mode
+                    else REAL_GRASP_DURATION
+                )
+
                 success = True
-                self.log.debug(f"  Grasped '{target_obj_id}'.")
+                log.debug(f"  Grasped '{target_obj_id}'.")
             else:
                 success = False  # Unreachable
 
@@ -373,7 +392,7 @@ class ActionHandler:
         new_held_object = current_held_object
 
         if not current_held_object:
-            self.log.warning(f"Agent not holding anything. Cannot place. Action FAILED.")
+            log.warning(f"Agent not holding anything. Cannot place. Action FAILED.")
             success = False
         elif not receptacle_id or receptacle_id not in scene_positions:
             raise ValueError(
@@ -384,7 +403,7 @@ class ActionHandler:
             if self._check_reachability(
                 agent_pos, receptacle_pos, "Place", receptacle_id
             ):
-                self.log.debug(f"  Placing '{current_held_object}' on/in '{receptacle_id}'.")
+                log.debug(f"  Placing '{current_held_object}' on/in '{receptacle_id}'.")
                 # 객체 상태 업데이트 (시뮬레이션 모델에 따라 달라짐)
                 # 여기서는 단순히 손을 비우는 것으로 처리
                 if current_held_object in scene_positions:
@@ -392,7 +411,11 @@ class ActionHandler:
                         receptacle_id
                     ]
                 new_held_object = None
-                duration = PLACE_ACTION_DURATION
+                duration = (
+                    PRIMITIVE_ACTION_DURATION
+                    if not self.real_world_mode
+                    else REAL_PLACE_DURATION
+                )
                 success = True
             else:
                 success = False  # Unreachable
@@ -419,9 +442,15 @@ class ActionHandler:
         if self._check_reachability(
             agent_pos, target_actual_pos, action_type, target_obj_id
         ):
-            duration = TOGGLE_ACTION_DURATION
+
+            duration = (
+                PRIMITIVE_ACTION_DURATION
+                if not self.real_world_mode
+                else REAL_TOGGLE_DURATION
+            )
+
             success = True
-            self.log.debug(f"  Simulated {action_type} on '{target_obj_id}'.")
+            log.debug(f"  Simulated {action_type} on '{target_obj_id}'.")
         else:
             success = False  # Unreachable
 
@@ -436,12 +465,12 @@ class ActionHandler:
         try:
             wait_time = float(wait_time_str)
             if wait_time < 0:
-                self.log.warning(f"Invalid negative wait time: {wait_time}. Using 0.")
+                log.warning(f"Invalid negative wait time: {wait_time}. Using 0.")
                 duration = 0.0
             else:
                 duration = wait_time
             success = True
-            self.log.debug(f"  Simulated WAIT for {duration:.2f}s.")
+            log.debug(f"  Simulated WAIT for {duration:.2f}s.")
         except (TypeError, ValueError):
             raise ValueError(f"Invalid WAIT duration: {wait_time_str}")
 
@@ -451,7 +480,7 @@ class ActionHandler:
         """MONITORING 액션을 시뮬레이션합니다."""
         duration = MONITORING_DURATION
         success = True
-        self.log.debug(f"  Simulated MONITORING for {duration:.2f}s.")
+        log.debug(f"  Simulated MONITORING for {duration:.2f}s.")
         return duration, success
 
     def _find_shortest_path(
@@ -516,7 +545,7 @@ class ActionHandler:
                    split_successful: 유의미한 분할이 이루어졌는지 여부.
                    pre_ends_holding_object: pre_actions_log 완료 시 객체를 들고 있는지 여부.
         """
-        self.log.debug(
+        log.debug(
             f"Attempting to split actions with target_cutoff_time: {target_cutoff_time:.2f} "
             f"(Node time: {current_node.state.current_time:.2f})"
         )
@@ -528,7 +557,7 @@ class ActionHandler:
 
         # target_cutoff_time이 너무 작으면 분할 의미 없음 (상대 시간이므로 0보다 커야 함)
         if target_cutoff_time < EPSILON:
-            self.log.warning(
+            log.warning(
                 f"Target cutoff time {target_cutoff_time:.2f} is too small. No effective split will be performed."
             )
             # 전체 액션 시뮬레이션 결과를 pre_log로 간주 (분할 실패)
@@ -543,7 +572,7 @@ class ActionHandler:
         full_simulation_log = self._simulate_actions(current_node, primitive_actions)
 
         if not full_simulation_log or not full_simulation_log.results:
-            self.log.error(
+            log.error(
                 "Full internal simulation failed or produced no results. Returning empty logs and split_failed."
             )
             return pre_log, post_log, False, False
@@ -555,7 +584,7 @@ class ActionHandler:
                 initial_split_index = i
             else:
                 break  # cutoff_time을 초과하는 첫 액션 앞에서 멈춤
-        self.log.debug(
+        log.debug(
             f"Initial split index based on target_cutoff_time ({target_cutoff_time:.2f}): {initial_split_index}"
         )
 
@@ -563,13 +592,13 @@ class ActionHandler:
         if initial_split_index == -1:
             if full_simulation_log.results:  # 액션은 있지만 모두 cutoff 이후
                 post_log.results = full_simulation_log.results[:]
-                self.log.debug(
+                log.debug(
                     "All actions occur after target_cutoff_time. Pre-log is empty."
                 )
                 # post_log에만 액션이 있다면 유의미한 분할은 아님 (또는 성공으로 볼 수도 있음, 정책에 따라)
                 return pre_log, post_log, False, False  # 여기서는 분할 실패로 간주
             else:  # 액션이 아예 없는 경우
-                self.log.debug("No actions in primitive_actions. Both logs empty.")
+                log.debug("No actions in primitive_actions. Both logs empty.")
                 return pre_log, post_log, False, False
 
         # --- 초기 분할 상태 ---
@@ -580,7 +609,7 @@ class ActionHandler:
         object_held_at_initial_split = last_action_at_initial_split.held_object
 
         if object_held_at_initial_split is not None:
-            self.log.debug(
+            log.debug(
                 f"Object '{object_held_at_initial_split}' is held at initial split index {initial_split_index} "
                 f"(time: {last_action_at_initial_split.cumulative_time:.2f}). Checking for subsequent PLACE action."
             )
@@ -609,7 +638,7 @@ class ActionHandler:
                     abs(duration_if_place_included - target_cutoff_time)
                     <= allowable_deviation
                 ):
-                    self.log.info(
+                    log.info(
                         f"Found subsequent PLACE action. Including it in pre_log. "
                         f"New pre_log duration: {duration_if_place_included:.2f} (target_cutoff: {target_cutoff_time:.2f}, "
                         f"deviation: {abs(duration_if_place_included - target_cutoff_time):.2f} <= allowable: {allowable_deviation:.2f})."
@@ -617,7 +646,7 @@ class ActionHandler:
                     current_split_index = found_place_action_index_in_full_log
                     pre_ends_holding_object = False  # PLACE로 끝났으므로
                 else:
-                    self.log.warning(
+                    log.warning(
                         f"Found subsequent PLACE action, but including it would make pre_log duration ({duration_if_place_included:.2f}) "
                         f"exceed target_cutoff_time ({target_cutoff_time:.2f}) beyond TIMING_TOLERANCE (allowable deviation: {allowable_deviation:.2f}). "
                         f"Splitting after GRASP at index {initial_split_index}."
@@ -625,14 +654,14 @@ class ActionHandler:
                     # GRASP/PLACE 묶기 포기, 초기 분할 지점 유지.
                     pre_ends_holding_object = True  # 초기 분할 지점에서 들고 있었음
             else:  # PLACE 액션이 아예 없는 경우
-                self.log.warning(
+                log.warning(
                     f"Object '{object_held_at_initial_split}' was held at initial split index {initial_split_index}, "
                     f"but no subsequent PLACE action was found. EARLY_ subtask will end holding the object."
                 )
                 pre_ends_holding_object = True
         else:  # 초기 분할 지점에서 객체를 들고 있지 않은 경우
             pre_ends_holding_object = False
-            self.log.debug(
+            log.debug(
                 f"No object held at initial split index {initial_split_index}. No GRASP/PLACE adjustment needed."
             )
 
@@ -651,7 +680,7 @@ class ActionHandler:
                 abs(final_pre_log_duration - target_cutoff_time)
                 > allowable_deviation + EPSILON
             ):  # EPSILON 추가는 부동소수점 오차 감안
-                self.log.warning(
+                log.warning(
                     f"Final pre_log duration {final_pre_log_duration:.2f} significantly deviates from target_cutoff_time {target_cutoff_time:.2f} "
                     f"(allowable deviation: {allowable_deviation:.2f}). This split might be suboptimal."
                 )
@@ -662,13 +691,13 @@ class ActionHandler:
                 False  # pre 또는 post 중 하나라도 비어있으면 유의미한 분할 아님
             )
             if not pre_log.results:
-                self.log.debug("No actions in pre_log after split attempt.")
+                log.debug("No actions in pre_log after split attempt.")
             if not post_log.results:
-                self.log.debug(
+                log.debug(
                     "No actions in post_log after split attempt. All actions in pre_log."
                 )
 
-        self.log.debug(
+        log.debug(
             f"Final split index: {current_split_index}. "
             f"Pre-log ({len(pre_log.results)} actions, ends holding: {pre_ends_holding_object}). "
             f"Post-log ({len(post_log.results)} actions). Split successful: {split_successful}"

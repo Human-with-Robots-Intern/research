@@ -66,6 +66,11 @@ TOGGLE_ACTION_DURATION = 15.97
 GRASP_ACTION_DURATION = 14.28
 PLACE_ACTION_DURATION = 14.88
 REACHABLE_DISTANCE_THRESHOLD = 2.0
+REAL_NAV_DURATION = 1.55
+REAL_TOGGLE_DURATION = 15.97
+REAL_GRASP_DURATION = 14.28
+REAL_PLACE_DURATION = 14.88
+
 # Heuristic constants have been reduced to align with the updated algorithm's expectations:
 # - ALPHA_HEURISTIC: Reduced to 2.0 to balance the weight of heuristic influence on decision-making.
 # - BETA_HEURISTIC: Reduced to 3.0 to ensure smoother scaling in probabilistic calculations.

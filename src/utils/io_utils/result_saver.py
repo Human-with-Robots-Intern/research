@@ -85,15 +85,15 @@ def calculate_timing_success_rate(
             log.debug(f"Skipping monitoring task edge: {u} -> {v}")
             continue
 
-        
-
         pred_entry = entry_map.get(u)
         succ_entry = entry_map.get(v)
 
         if not pred_entry or not succ_entry:
-            log.warning(f"Predecessor or successor task not found in results: {u} -> {v}")
+            log.warning(
+                f"Predecessor or successor task not found in results: {u} -> {v}"
+            )
             continue
-        
+
         total_timing_constraints += 1
         # log.info(f"total_timing_constraints increased: {total_timing_constraints}")
         edge_info = data.get("info", {})
@@ -103,9 +103,11 @@ def calculate_timing_success_rate(
         # --- Check timing constraints for simulation results ---
         pred_end_time_sim = pred_entry.sim_end_time
         succ_start_time_sim = succ_entry.sim_start_time
-        sim_nav_time = succ_entry.sim_nav_time if succ_entry.sim_nav_time is not None else 0.0
+        sim_nav_time = (
+            succ_entry.sim_nav_time if succ_entry.sim_nav_time is not None else 0.0
+        )
         tolerance = 0.1 + interval * TIMING_TOLERANCE
-        
+
         actual_diff_sim = (succ_start_time_sim + sim_nav_time) - pred_end_time_sim
 
         sim_constraint_met = False
@@ -121,15 +123,21 @@ def calculate_timing_success_rate(
             if (interval - actual_diff_sim) <= tolerance:
                 succeeded_timing_constraints_sim_cnt += 1
                 sim_constraint_met = True
-        
+
         timing_success_flag = sim_constraint_met
 
         # --- Check timing constraints for schedule results ---
         pred_end_time_sched = pred_entry.schedule_end_time
         succ_start_time_sched = succ_entry.schedule_start_time
-        schedule_nav_time = succ_entry.schedule_nav_time if succ_entry.schedule_nav_time is not None else 0.0
-        
-        actual_diff_sched = (succ_start_time_sched + schedule_nav_time) - pred_end_time_sched
+        schedule_nav_time = (
+            succ_entry.schedule_nav_time
+            if succ_entry.schedule_nav_time is not None
+            else 0.0
+        )
+
+        actual_diff_sched = (
+            succ_start_time_sched + schedule_nav_time
+        ) - pred_end_time_sched
 
         if is_critical:
             if interval == 0:
@@ -148,7 +156,7 @@ def calculate_timing_success_rate(
         )
         detail_log[f"{u} -> {v}"] = {
             "Original Timing Constraint": f"({interval}, {is_critical})",
-            "Schedule Result": f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched}s-{-schedule_nav_time}s)"
+            "Schedule Result": f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched}s-{-schedule_nav_time}s)",
         }
 
     timing_success_rate_sim = (
@@ -176,14 +184,16 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             "end_time_simulation": round(entry.sim_end_time, 2),
             "start_time_scheduled": round(entry.schedule_start_time, 2),
             "end_time_scheduled": round(entry.schedule_end_time, 2),
-            "execution_status": entry.execution_status if isinstance(entry.execution_status, bool) else entry.execution_status.name,
+            "execution_status": (
+                entry.execution_status
+                if isinstance(entry.execution_status, bool)
+                else str(entry.execution_status.name)
+            ),
         }
         if hasattr(entry, "primitive_action_log"):
             serialized_entry["primitive_action_log"] = [
-                {
-                    "action": log["action"],
-                    "duration": round(log["duration"], 2)
-                } for log in entry.primitive_action_log
+                {"action": log["action"], "duration": round(log["duration"], 2)}
+                for log in entry.primitive_action_log
             ]
         serialized_entries.append(serialized_entry)
     return serialized_entries
@@ -223,7 +233,7 @@ def result_save(
             and entry.subtask.execution.primitive_actions is not None
         )
     )
-    
+
     realworld_makespan = None
     if "ros" in approach_name:
         realworld_makespan = round(simulation_makespan, 2)
@@ -239,8 +249,16 @@ def result_save(
         "total_primitive_actions": total_primitive_actions,
         "realworld_makespan": realworld_makespan,
         "success_rate": round(success_rate, 2),
-        "timing_success_rate_sim": None if timing_success_rate_sim is None else round(timing_success_rate_sim, 2),
-        "timing_success_rate_sched": None if timing_success_rate_sched is None else round(timing_success_rate_sched, 2),
+        "timing_success_rate_sim": (
+            None
+            if timing_success_rate_sim is None
+            else round(timing_success_rate_sim, 2)
+        ),
+        "timing_success_rate_sched": (
+            None
+            if timing_success_rate_sched is None
+            else round(timing_success_rate_sched, 2)
+        ),
         "detail_log": detail_log,
     }
 
