@@ -1,0 +1,175 @@
+{
+    "saved_time": "2025-08-06 17:52",
+    "approach": "cpm_ros",
+    "scene_name": "FloorPlan301",
+    "plans": [
+        {
+            "subtask_name": "Start laundry_machine",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 17.39,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 15.97,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Laundry_Machine",
+                    "duration": 1.9
+                },
+                {
+                    "action": "TOGGLE_ON Laundry_Machine",
+                    "duration": 15.49
+                }
+            ]
+        },
+        {
+            "subtask_name": "Place Pan on Stove",
+            "start_time_simulation": 17.39,
+            "end_time_simulation": 54.01,
+            "start_time_scheduled": 15.97,
+            "end_time_scheduled": 45.13,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Pan",
+                    "duration": 0.38
+                },
+                {
+                    "action": "GRASP Pan",
+                    "duration": 16.21
+                },
+                {
+                    "action": "NAVIGATE_TO Stove",
+                    "duration": 1.8
+                },
+                {
+                    "action": "PLACE_ON_TOP Stove",
+                    "duration": 18.23
+                }
+            ]
+        },
+        {
+            "subtask_name": "Place Banana on Plate",
+            "start_time_simulation": 54.01,
+            "end_time_simulation": 92.03,
+            "start_time_scheduled": 45.13,
+            "end_time_scheduled": 74.29,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Banana",
+                    "duration": 3.66
+                },
+                {
+                    "action": "GRASP Banana",
+                    "duration": 16.47
+                },
+                {
+                    "action": "NAVIGATE_TO Plate",
+                    "duration": 2.6
+                },
+                {
+                    "action": "PLACE_ON_TOP Plate",
+                    "duration": 15.29
+                }
+            ]
+        },
+        {
+            "subtask_name": "WAIT 16.68 to Unload laundry_machine",
+            "start_time_simulation": 92.03,
+            "end_time_simulation": 108.73,
+            "start_time_scheduled": 74.29,
+            "end_time_scheduled": 90.97,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "WAIT 16.68",
+                    "duration": 16.69
+                }
+            ]
+        },
+        {
+            "subtask_name": "Unload laundry_machine",
+            "start_time_simulation": 108.73,
+            "end_time_simulation": 126.26,
+            "start_time_scheduled": 90.97,
+            "end_time_scheduled": 106.94,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Laundry_Machine",
+                    "duration": 1.88
+                },
+                {
+                    "action": "TOGGLE_OFF Laundry_Machine",
+                    "duration": 15.65
+                }
+            ]
+        },
+        {
+            "subtask_name": "Move Blue Bowl to Sink",
+            "start_time_simulation": 126.26,
+            "end_time_simulation": 161.04,
+            "start_time_scheduled": 106.94,
+            "end_time_scheduled": 136.1,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO blue_bowl",
+                    "duration": 1.98
+                },
+                {
+                    "action": "GRASP blue_bowl",
+                    "duration": 15.5
+                },
+                {
+                    "action": "NAVIGATE_TO Sink|SinkBasin",
+                    "duration": 4.09
+                },
+                {
+                    "action": "PLACE_ON_TOP Sink|SinkBasin",
+                    "duration": 13.21
+                }
+            ]
+        },
+        {
+            "subtask_name": "Move Cup to Sink",
+            "start_time_simulation": 161.04,
+            "end_time_simulation": 196.51,
+            "start_time_scheduled": 136.1,
+            "end_time_scheduled": 165.26,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Cup",
+                    "duration": 1.9
+                },
+                {
+                    "action": "GRASP Cup",
+                    "duration": 16.75
+                },
+                {
+                    "action": "NAVIGATE_TO Sink|SinkBasin",
+                    "duration": 3.38
+                },
+                {
+                    "action": "PLACE_ON_TOP Sink|SinkBasin",
+                    "duration": 13.43
+                }
+            ]
+        }
+    ],
+    "computation_time": 0.01605,
+    "simulation_makespan": 196.51,
+    "scheduler_makespan": 165.26,
+    "total_primitive_actions": 21,
+    "realworld_makespan": 196.51,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Start laundry_machine -> Unload laundry_machine": {
+            "Original Timing Constraint": "(75, True)",
+            "Schedule Result": "[True] : (15.97) -> (90.97s--0.0s)"
+        }
+    }
+}

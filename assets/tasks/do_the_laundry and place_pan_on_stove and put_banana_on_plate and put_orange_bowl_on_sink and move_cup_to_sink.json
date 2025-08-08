@@ -1,18 +1,18 @@
 [
     {
-        "Task": "Do the Laundry",
+        "Task": "Do Laundry",
         "Subtasks": [
             {
-                "Name": "Open Laundry Machine",
+                "Name": "Start laundry_machine",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Laundry Machine": 1
+                        "Laundry_Machine": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Laundry Machine",
-                        "OPEN Laundry Machine"
+                        "NAVIGATE_TO Laundry_Machine",
+                        "TOGGLE_ON Laundry_Machine"
                     ]
                 },
                 "Duration": {
@@ -22,16 +22,16 @@
                 "TemporalConstraints": []
             },
             {
-                "Name": "Start Laundry Machine",
+                "Name": "Unload laundry_machine",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
-                        "Laundry Machine": 1
+                        "Laundry_Machine": 1
                     },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Laundry Machine",
-                        "TOGGLE_ON Laundry Machine"
+                        "NAVIGATE_TO Laundry_Machine",
+                        "TOGGLE_OFF Laundry_Machine"
                     ]
                 },
                 "Duration": {
@@ -41,61 +41,9 @@
                 "TemporalConstraints": [
                     {
                         "Type": "After",
-                        "Subtask": "Open Laundry Machine",
-                        "Interval": 0,
-                        "Urgency": false
-                    }
-                ]
-            },
-            {
-                "Name": "Turn Off Laundry Machine",
-                "Repetition": 1,
-                "Type": "Interaction",
-                "Executions": {
-                    "Objects": {
-                        "Laundry Machine": 1
-                    },
-                    "PrimitiveActions": [
-                        "NAVIGATE_TO Laundry Machine",
-                        "TOGGLE_OFF Laundry Machine"
-                    ]
-                },
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 1
-                },
-                "TemporalConstraints": [
-                    {
-                        "Type": "After",
-                        "Subtask": "Start Laundry Machine",
-                        "Interval": 10,
+                        "Subtask": "Start laundry_machine",
+                        "Interval": 20,
                         "Urgency": true
-                    }
-                ]
-            },
-            {
-                "Name": "Close Laundry Machine",
-                "Repetition": 1,
-                "Type": "Interaction",
-                "Executions": {
-                    "Objects": {
-                        "Laundry Machine": 1
-                    },
-                    "PrimitiveActions": [
-                        "NAVIGATE_TO Laundry Machine",
-                        "CLOSE Laundry Machine"
-                    ]
-                },
-                "Duration": {
-                    "Type": "Controllable",
-                    "Interval": 1
-                },
-                "TemporalConstraints": [
-                    {
-                        "Type": "After",
-                        "Subtask": "Turn Off Laundry Machine",
-                        "Interval": 0,
-                        "Urgency": false
                     }
                 ]
             }
@@ -132,7 +80,7 @@
         "Task": "Put Banana on Plate",
         "Subtasks": [
             {
-                "Name": "Put Banana on Plate",
+                "Name": "Place Banana on Plate",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
@@ -159,19 +107,19 @@
         "Task": "Put Orange Bowl on Sink",
         "Subtasks": [
             {
-                "Name": "Put Orange Bowl on Sink",
+                "Name": "Place Orange Bowl on Sink",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
                         "orange_bowl": 1,
-                        "Sink|SinkBasin": 1
+                        "Sink": 1
                     },
                     "PrimitiveActions": [
                         "NAVIGATE_TO orange_bowl",
                         "GRASP orange_bowl",
-                        "NAVIGATE_TO Sink|SinkBasin",
-                        "PLACE_ON_TOP Sink|SinkBasin"
+                        "NAVIGATE_TO Sink",
+                        "PLACE_ON_TOP Sink"
                     ]
                 },
                 "Duration": {
@@ -186,19 +134,19 @@
         "Task": "Move Cup to Sink",
         "Subtasks": [
             {
-                "Name": "Move Cup to Sink",
+                "Name": "Place Cup on Sink",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
                     "Objects": {
                         "Cup": 1,
-                        "Sink|SinkBasin": 1
+                        "Sink": 1
                     },
                     "PrimitiveActions": [
                         "NAVIGATE_TO Cup",
                         "GRASP Cup",
-                        "NAVIGATE_TO Sink|SinkBasin",
-                        "PLACE_ON_TOP Sink|SinkBasin"
+                        "NAVIGATE_TO Sink",
+                        "PLACE_ON_TOP Sink"
                     ]
                 },
                 "Duration": {

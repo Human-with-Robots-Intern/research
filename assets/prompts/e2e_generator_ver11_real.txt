@@ -404,16 +404,16 @@ Return a **JSON array**, where each element represents a main **Task**:
         "Task": "Do Laundry and Prepare Sausage Snack",
         "Subtasks": [
             {
-                "Name": "Start Laundry Machine",
+                "Name": "Start laundry_machine",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
-                    "Objects": { "Laundry Machine": 1 },
+                    "Objects": { "laundry_machine": 1 },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Laundry Machine",
-                        "OPEN Laundry Machine",
-                        "CLOSE Laundry Machine",
-                        "TOGGLE_ON Laundry Machine"
+                        "NAVIGATE_TO laundry_machine",
+                        "OPEN laundry_machine",
+                        "CLOSE laundry_machine",
+                        "TOGGLE_ON laundry_machine"
                     ]
                 },
                 "Duration": { "Type": "Controllable", "Interval": 3 },
@@ -472,20 +472,20 @@ Return a **JSON array**, where each element represents a main **Task**:
                 ]
             },
             {
-                "Name": "Unload Laundry Machine",
+                "Name": "Unload laundry_machine",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
-                    "Objects": { "Laundry Machine": 1 },
+                    "Objects": { "laundry_machine": 1 },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Laundry Machine",
-                        "TOGGLE_OFF Laundry Machine",
-                        "OPEN Laundry Machine"
+                        "NAVIGATE_TO laundry_machine",
+                        "TOGGLE_OFF laundry_machine",
+                        "OPEN laundry_machine"
                     ]
                 },
                 "Duration": { "Type": "Controllable", "Interval": 2 },
                 "TemporalConstraints": [
-                    { "Type": "After", "Subtask": "Start Laundry Machine", "Interval": 20, "Urgency": true }
+                    { "Type": "After", "Subtask": "Start laundry_machine", "Interval": 20, "Urgency": true }
                 ]
             }
         ]

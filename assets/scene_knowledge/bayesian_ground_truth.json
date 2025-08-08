@@ -1,10 +1,10 @@
 {
     "brew coffee": 5,
     "prepare egg fry": 10,
-    "prepare potato": 100,
-    "turn off stove after cooking potato": 10,
-    "turn off stove after boiling": 10,
-    "turn off stove after boiling potato": 10,
+    "prepare potato": 250,
+    "turn off stove after cooking potato": 250,
+    "turn off stove after boiling": 250,
+    "turn off stove after boiling potato": 250,
     "retrieve potato from microwave": 10,
     "retrieve bread": 10,
     "retrieve heated bread": 10,
@@ -22,12 +22,13 @@
     "finish cooking egg": 10,
     "retrieve bread from microwave": 10,
     "start cooking eggs": 10,
-    "turn off stove after cooking": 10,
-    "Turn off Stove after cooking": 10,
-    "Turn off Stove after Boiling": 10,
-    "turn off faucet after filling pot": 10,
+    "turn off stove after cooking": 250,
+    "Turn off Stove after cooking": 250,
+    "Turn off Stove after Boiling": 250,
+    "turn off faucet after filling pot": 250,
     "stop filling bathtub": 10,
     "turn off faucet": 10,
     "stop filling pot": 10,
-    "turn off shower": 10
+    "turn off shower": 10,
+    "Unload laundry_machine": 250
 }
