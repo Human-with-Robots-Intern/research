@@ -1,10 +1,10 @@
 {
-    "faucet": {
-        "expected_duration": 80.0,
-        "variance": 100.0
+    "Faucet": {
+        "expected_duration": 68.55443898829996,
+        "variance": 30.34307775628082
     },
-    "coffeemachine": {
-        "expected_duration": 80.0,
+    "CoffeeMachine": {
+        "expected_duration": 0.0,
         "variance": 100.0
     }
 }

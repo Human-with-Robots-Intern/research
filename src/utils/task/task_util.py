@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from networkx import DiGraph
 
 from src.models.dataclass import CompletedEntry, SchedulerState
-from src.models.task import Duration, Execution, Subtask, Task
+from src.models.task import Duration, Execution, Subtask, Task, TemporalConstraint
 
 # 내부 프로젝트 모듈
 from src.utils.common import create_module_logger
@@ -281,20 +281,23 @@ class TaskUtil:
 
     @classmethod
     def _update_constraint_belief(
-        cls, predecessor_name: str, temporal_constraint, bayesian_load: dict
+        cls,
+        predecessor_name: str,
+        temporal_constraint: "TemporalConstraint",
+        bayesian_load: dict,
     ) -> None:
         """
         주어진 객체 유형을 key로 하여, interval과 초기 Belief를 INIT_PRIOR_MEAN으로 통일한다.
         """
-        belief_value = INIT_PRIOR_MEAN
+        belief_value = INIT_PRIOR_MEAN if temporal_constraint.interval != 0.0 else 0.0
         temporal_constraint.interval = belief_value
-        predecessor_name_lower = predecessor_name.lower()  # 인자를 명확히 변경
+        # 인자를 명확히 변경
 
-        if predecessor_name_lower not in bayesian_load:
+        if predecessor_name not in bayesian_load:
             log.info(
-                f"Setting initial belief for '{predecessor_name_lower}' to {belief_value:.2f}"
+                f"Setting initial belief for '{predecessor_name}' to {belief_value:.2f}"
             )
-            bayesian_load[predecessor_name_lower] = {
+            bayesian_load[predecessor_name] = {
                 "expected_duration": belief_value,
                 "variance": INIT_PRIOR_VARIANCE,
             }
@@ -394,6 +397,7 @@ class TaskUtil:
                     key_for_belief = (
                         triggering_obj_type if triggering_obj_type else st.name
                     )
+                    print(f"key_for_belief: {key_for_belief}")
                     cls._update_constraint_belief(key_for_belief, tc, bayesian_load)
 
         # 5) 생성된 belief 딕셔너리를 디버깅용으로 저장
@@ -408,7 +412,7 @@ class TaskUtil:
         task_graph_builder = TaskGraphBuilder()
         task_graph = task_graph_builder.build_graph(tasks)
 
-        return subtasks, task_graph
+        return subtasks, task_graph, bayesian_load
 
     @staticmethod
     def get_init_state(

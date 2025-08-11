@@ -56,7 +56,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--simulation",
-        default=False,
+        default=True,
         action="store_true",
         help="Simulation 모드 사용 여부 (default: False)",
     )
@@ -134,14 +134,14 @@ def main():
         # subtasks, constraints = TaskUtil.build_tasks_and_constraints(
         #     task_data, scene_file_name=scene_data.file_name,
         # )
-        subtasks, constraints = TaskUtil.build_tasks_and_constraints(
+        subtasks, constraints, bayesian_load = TaskUtil.build_tasks_and_constraints(
             task_data,
             scene_file_name=f"{scene_name}_physics_environment.json",
         )
 
         # Initialize the agent and scheduler
         constraint_handler = ConstraintHandler(action_handler)
-        agent = Agent(constraint_handler)
+        agent = Agent(constraint_handler, bayesian_load)
         cost_calculator = HeuristicManager(action_handler)
         scheduler = Scheduler(
             action_handler=action_handler,

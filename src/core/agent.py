@@ -28,11 +28,11 @@ log = create_module_logger(module_name=__name__, module_log=True)
 
 
 class Agent:
-    def __init__(self, constraint_handler: ConstraintHandler):
+    def __init__(self, constraint_handler: ConstraintHandler, bayesian_load: dict):
         """Initializes the Agent with empty knowledge bases."""
         # TODO 1-1: 파일 로딩 로직을 제거하고 빈 딕셔너리로 초기화합니다.
-        self.estimate_knowledge: Dict[str, Dict[str, float]] = {}
-        self.ground_truth_knowledge: Dict[str, float] = {}
+        self.estimate_knowledge: Dict[str, Dict[str, float]] = bayesian_load
+
         self.constraint_handler = constraint_handler
 
     def _update_knowledge_and_constraints(
@@ -48,6 +48,10 @@ class Agent:
         """
         메모리 상의 knowledge와 constraints 그래프를 업데이트합니다.
         """
+        # Key가 없는 경우를 대비하여 먼저 확인하고, 없으면 생성
+        if monitoring_target_obj_name not in self.estimate_knowledge:
+            self.estimate_knowledge[monitoring_target_obj_name] = {}
+
         # 1) 메모리 내 knowledge 업데이트
         self.estimate_knowledge[monitoring_target_obj_name][
             "expected_duration"
@@ -55,6 +59,9 @@ class Agent:
         self.estimate_knowledge[monitoring_target_obj_name][
             "variance"
         ] = posterior_variance
+
+        with open(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME, "w") as f:
+            json.dump(self.estimate_knowledge, f, indent=4)
 
         # 2) constraints 그래프 업데이트 (이 로직은 유지)
         #    - (critical_start_sub_name, monitoring_target_sub_name)에 posterior_mean 반영
@@ -171,7 +178,8 @@ class Agent:
         )
 
         bayesian_diff = abs(posterior_mean - prior_mean) / prior_mean
-        if bayesian_diff > TIMING_TOLERANCE:
+        log.info(f"bayesian_diff: {bayesian_diff}")
+        if bayesian_diff > 0.1:
             self._update_knowledge_and_constraints(
                 state=state,
                 monitoring_target_obj_name=monitoring_target_obj_name,
