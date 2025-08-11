@@ -9,12 +9,16 @@ from src.models.dataclass import ActionResult, ActionSimulationLog, SimulationNo
 from src.utils.common import create_module_logger
 from src.utils.config.constants import (
     EPSILON,
+    GRASP_ACTION_DURATION,
     MONITORING_DURATION,
     NAV_STEP_DURATION,
+    PLACE_ACTION_DURATION,
     PRIMITIVE_ACTION_DURATION,
     REACHABLE_DISTANCE_THRESHOLD,
+    REAL_NAV_DURATION,
     STATIC_ACTION_SET,
     TIMING_TOLERANCE,
+    TOGGLE_ACTION_DURATION,
 )
 
 log = create_module_logger(__name__, module_log=True, level=logging.DEBUG)
@@ -24,7 +28,7 @@ NavGraph: TypeAlias = Dict[Position, List[Position]]  # 네비게이션 그래�
 
 
 class ActionHandler:
-    def __init__(self, nav_graph: NavGraph, real_world_experiment: bool = False):
+    def __init__(self, nav_graph: NavGraph, real_world_mode: bool = False):
         """
         ActionHandler를 초기화합니다.
 
@@ -33,7 +37,7 @@ class ActionHandler:
             logger: The logger instance to use.
         """
         self.nav_graph = nav_graph
-        self.real_world_experiment = real_world_experiment
+        self.real_world_mode = real_world_mode
 
     def get_actions_info(
         self, current_node: SimulationNode, actions: list[str]
@@ -257,26 +261,26 @@ class ActionHandler:
         """
         NAVIGATE_TO 액션을 시뮬레이션합니다. 전체 경로 또는 부분 시간을 기반으로
         소요 시간, 성공 여부, 그리고 액션 후 에이전트의 최종 위치를 계산합니다.
-
         Args:
             agent_pos: 현재 에이전트 위치.
             target_obj_id: 목표 객체 ID.
             partial_time_str: 부분 이동 시간을 나타내는 문자열 (있는 경우).
             scene_positions: 현재 씬의 객체 위치 정보.
-
         Returns:
             Tuple[float, bool, Optional[Position]]:
             - 소요 시간 (float).
             - 성공 여부 (bool).
             - 액션 후 에이전트의 새로운 위치 (Optional[Position]). 부분 시간 이동 시
               정확한 최종 위치를 알 수 없으면 None일 수 있음.
-
         Raises:
             ValueError: 목표 객체를 찾을 수 없거나, 부분 시간 문자열이 잘못된 경우.
         """
         duration = 0.0
         success = False
         new_agent_pos: Optional[Position] = None  # 액션 완료 후의 최종 위치
+
+        if self.real_world_mode:
+            return REAL_NAV_DURATION, True, (0, 0, 0)
 
         # 1. 목표 유효성 검사 및 위치 가져오기
         if not target_obj_id or target_obj_id not in scene_positions:
@@ -285,7 +289,6 @@ class ActionHandler:
             # )
             return 0.0, True, agent_pos
         target_pos = tuple(scene_positions[target_obj_id])
-
         # 2. 경로 탐색 시도 (partial time 여부와 관계없이 일단 시도)
         navigate_path: Optional[List[Position]] = None
 
@@ -293,7 +296,6 @@ class ActionHandler:
             f"  Finding path from {agent_pos} to {target_pos} for '{target_obj_id}'"
         )
         navigate_path = self._find_shortest_path(agent_pos, target_pos)
-
         # 3. 부분 시간 이동 처리
         if partial_time_str:
             log.debug(f"  Processing NAVIGATE_TO with partial time: {partial_time_str}")
@@ -318,7 +320,6 @@ class ActionHandler:
             if navigate_path:
                 navigate_path.pop(0)
             path_steps = len(navigate_path)  # 실제 이동 스텝 수
-
             duration = round(path_steps * NAV_STEP_DURATION, 2)
             # 경로의 마지막 위치가 새로운 에이전트 위치 (경로가 비었으면 현재 위치)
             new_agent_pos = navigate_path[-1] if navigate_path else agent_pos
@@ -326,7 +327,6 @@ class ActionHandler:
             log.debug(
                 f"    Path found to {target_obj_id} with {path_steps} steps. Duration: {duration:.2f}s. Final pos: {new_agent_pos}"
             )
-
         # 5. 결과 반환
         return duration, success, new_agent_pos
 
@@ -357,7 +357,13 @@ class ActionHandler:
                 agent_pos, target_actual_pos, "Grasp", target_obj_id
             ):
                 new_held_object = target_obj_id
-                duration = PRIMITIVE_ACTION_DURATION
+
+                duration = (
+                    PRIMITIVE_ACTION_DURATION
+                    if not self.real_world_mode
+                    else GRASP_ACTION_DURATION
+                )
+
                 success = True
                 log.debug(f"  Grasped '{target_obj_id}'.")
             else:
@@ -397,7 +403,11 @@ class ActionHandler:
                         receptacle_id
                     ]
                 new_held_object = None
-                duration = PRIMITIVE_ACTION_DURATION
+                duration = (
+                    PRIMITIVE_ACTION_DURATION
+                    if not self.real_world_mode
+                    else PLACE_ACTION_DURATION
+                )
                 success = True
             else:
                 success = False  # Unreachable
@@ -424,7 +434,13 @@ class ActionHandler:
         if self._check_reachability(
             agent_pos, target_actual_pos, action_type, target_obj_id
         ):
-            duration = PRIMITIVE_ACTION_DURATION
+
+            duration = (
+                PRIMITIVE_ACTION_DURATION
+                if not self.real_world_mode
+                else TOGGLE_ACTION_DURATION
+            )
+
             success = True
             log.debug(f"  Simulated {action_type} on '{target_obj_id}'.")
         else:

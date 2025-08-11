@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import random
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Literal, Tuple, Union
@@ -10,15 +11,20 @@ from dotenv import load_dotenv
 from networkx import DiGraph
 
 from src.models.dataclass import CompletedEntry, SchedulerState
-from src.models.task import Duration, Execution, Subtask, Task
+from src.models.task import Duration, Execution, Subtask, Task, TemporalConstraint
 
 # 내부 프로젝트 모듈
 from src.utils.common import create_module_logger
-from src.utils.config.constants import (
+from src.utils.config.constants import (  # 분산 값도 상수로 사용하기 위해 추가
     AGENT_KNOWLEDGE_PATH,
+    CRITICAL_OBJECT_INTERVALS,
+    EPSILON,
     ESTIMATE_FILE_NAME,
-    GROUND_TRUTH_FILE_NAME,
+    GT_INTERVAL,
+    INIT_PRIOR_MEAN,
+    INIT_PRIOR_VARIANCE,
     MONITORING_DURATION,
+    NON_CRITICAL_OBJECT_INTERVALS,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
     SCENE_KNOWLEDGE_PATH,
@@ -274,43 +280,60 @@ class TaskUtil:
         return tasks
 
     @classmethod
-    def _update_critical_constraint(
+    def _update_constraint_belief(
         cls,
-        subtask: Subtask,
-        temporal_constraint,
+        predecessor_name: str,
+        temporal_constraint: "TemporalConstraint",
         bayesian_load: dict,
-        ground_truth_load: dict,
-        similarity_threshold: float = 0.9,
     ) -> None:
         """
-        critical constraint인 경우,
-        1) subtask.name과 bayesian_load 키들의 유사도를 비교해 가장 가까운 항목 찾기
-        2) threshold 이상이면 해당 key의 expected_duration을 사용, 아니면 subtask.name 사용
-        3) ground_truth_load에 항목이 없으면 기본값(10)으로 추가
+        주어진 객체 유형을 key로 하여, interval과 초기 Belief를 INIT_PRIOR_MEAN으로 통일한다.
         """
-        bayesian_keys = list(bayesian_load.keys())
-        if not bayesian_keys:
-            return
+        belief_value = INIT_PRIOR_MEAN if temporal_constraint.interval != 0.0 else 0.0
+        temporal_constraint.interval = belief_value
+        # 인자를 명확히 변경
 
-        similar_subtask = cls._sentence_sim_model.get_similar_ref(
-            subtask.name, bayesian_keys
-        )
-
-        # bayesian_load 갱신
-        if similar_subtask in bayesian_load:
-            temporal_constraint.interval = bayesian_load[similar_subtask][
-                "expected_duration"
-            ]
-        else:
-            # 새로 추가
-            bayesian_load[subtask.name.lower()] = {
-                "expected_duration": temporal_constraint.interval,
-                "variance": 1.0,
+        if predecessor_name not in bayesian_load:
+            log.info(
+                f"Setting initial belief for '{predecessor_name}' to {belief_value:.2f}"
+            )
+            bayesian_load[predecessor_name] = {
+                "expected_duration": belief_value,
+                "variance": INIT_PRIOR_VARIANCE,
             }
 
-        # ground_truth_load 갱신
-        if similar_subtask.lower() not in ground_truth_load:
-            ground_truth_load[similar_subtask.lower()] = 10
+    @classmethod
+    def _update_critical_constraint(
+        cls, st: Subtask, tc: Duration, bayesian_load: dict
+    ) -> None:
+        """
+        Critical constraint의 interval을 INIT_PRIOR_MEAN으로 통일하고,
+        Belief를 업데이트한다.
+        """
+        tc.interval = INIT_PRIOR_MEAN
+        obj_type = st.name.split("|")[0] if "|" in st.name else st.name
+        cls._update_constraint_belief(obj_type, tc, bayesian_load)
+
+    @classmethod
+    def _update_non_critical_constraint(cls, tc: Duration, bayesian_load: dict) -> None:
+        """
+        Non-critical constraint의 interval을 규칙 기반 값으로 통일하고,
+        Belief를 업데이트한다.
+        """
+        forced_interval = None
+        for obj_type in tc.objects:
+            if obj_type in NON_CRITICAL_OBJECT_INTERVALS:
+                forced_interval = NON_CRITICAL_OBJECT_INTERVALS[obj_type]
+                break
+        if forced_interval is not None:
+            tc.interval = forced_interval
+
+        # Belief 저장을 위한 key는 선행 subtask 이름
+        # (에이전트가 Monitor할 때 subtask 이름을 보기 때문)
+        key_for_belief = (
+            tc.objects[0].split("|")[0] if "|" in tc.objects[0] else tc.objects[0]
+        )
+        cls._update_constraint_belief(key_for_belief, tc, bayesian_load)
 
     @classmethod
     def build_tasks_and_constraints(
@@ -323,8 +346,8 @@ class TaskUtil:
         1) JSON 형태의 raw task_data를 Task로 파싱
         2) Object ID 검사 + 액션 정제(check_obj_id, refine_primitive_actions)
         3) 필요 시 enable_decomposition=True → 서브태스크 분해
-        4) critical constraint 업데이트
-        5) 파일(bayesian_estimate.json, bayesian_ground_truth.json) 저장
+        4) critical/non-critical constraint의 interval 값을 규칙 기반으로 설정하고, belief 딕셔너리 생성
+        5) 생성된 belief 딕셔너리를 파일(bayesian_estimate.json)에 저장 (디버깅용)
         6) 다시 액션 정제 + Subtask duration 보정
         7) TaskGraph 빌드
 
@@ -334,11 +357,11 @@ class TaskUtil:
         """
         from src.models.task import Task, TaskGraphBuilder
 
-        # 1) bayesian/groundtruth 정보 로드 (AGENT_KNOWLEDGE_PATH에서 로드)
-        bayesian_load = cls._load_json_file(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME)
-        ground_truth_load = cls._load_json_file(
-            AGENT_KNOWLEDGE_PATH / GROUND_TRUTH_FILE_NAME
-        )
+        # 재현 가능한 실험을 위해 시드 고정
+        random.seed(42)
+
+        # 1) 빈 belief 딕셔너리 생성 (파일 로드 제거)
+        bayesian_load = {}
 
         # 2) Task 파싱, Object ID/액션 보정
         tasks = Task.parse_instruction(task_data)
@@ -349,25 +372,36 @@ class TaskUtil:
         if enable_decomposition:
             tasks = [t.decompose_subtasks() for t in tasks]
 
-        # 4) critical constraint 처리
+        # 4) temporal constraint 처리 (규칙 기반 Interval 설정 포함)
         subtasks = cls.tasks_to_subtasks(tasks, mode="all")
         for st in subtasks:
-            for tc in st.temporal_constraints:
-                if tc.is_critical:
-                    cls._update_critical_constraint(
-                        st,
-                        tc,
-                        bayesian_load,
-                        ground_truth_load,
-                    )
+            involved_object_types = set()
+            if st.execution and st.execution.objects:
+                for obj_name in st.execution.objects.keys():
+                    involved_object_types.add(obj_name.split("|")[0])
 
-        # 5) 변경 사항 저장
-        cls._save_json_file(
-            AGENT_KNOWLEDGE_PATH / "bayesian_estimate.json", bayesian_load
-        )
-        cls._save_json_file(
-            AGENT_KNOWLEDGE_PATH / "bayesian_ground_truth.json", ground_truth_load
-        )
+            for tc in st.temporal_constraints:
+                triggering_obj_type = None
+                for obj_type in involved_object_types:
+                    if (
+                        obj_type in CRITICAL_OBJECT_INTERVALS
+                        or obj_type in NON_CRITICAL_OBJECT_INTERVALS
+                    ):
+                        triggering_obj_type = obj_type
+                        break
+
+                # 규칙 기반 객체가 있거나, LLM이 critical로 지정한 경우
+                if triggering_obj_type or tc.is_critical:
+                    # Key는 발견된 객체 유형을 최우선으로 사용
+                    # 객체가 규칙에 없는데 critical인 경우, subtask 이름을 key로 사용
+                    key_for_belief = (
+                        triggering_obj_type if triggering_obj_type else st.name
+                    )
+                    print(f"key_for_belief: {key_for_belief}")
+                    cls._update_constraint_belief(key_for_belief, tc, bayesian_load)
+
+        # 5) 생성된 belief 딕셔너리를 디버깅용으로 저장
+        cls._save_json_file(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME, bayesian_load)
 
         # 6) 액션 정제(재적용) + duration 조정
         tasks = cls.refine_primitive_actions(tasks)
@@ -378,7 +412,7 @@ class TaskUtil:
         task_graph_builder = TaskGraphBuilder()
         task_graph = task_graph_builder.build_graph(tasks)
 
-        return subtasks, task_graph
+        return subtasks, task_graph, bayesian_load
 
     @staticmethod
     def get_init_state(
@@ -429,7 +463,7 @@ class TaskUtil:
             ),
             repetition=1,
             subtask_type="Monitor",
-            execution=Execution(objects=[], primitive_actions=monitoring_action),
+            execution=Execution(objects=[obj], primitive_actions=monitoring_action),
             temporal_constraints=None,
             decomposed=True,
         )

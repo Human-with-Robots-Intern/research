@@ -1,0 +1,249 @@
+{
+    "saved_time": "2025-08-07 13:09",
+    "approach": "dag_bayesian_ros",
+    "scene_name": "FloorPlan301",
+    "plans": [
+        {
+            "subtask_name": "Place Pan on Stove",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 38.59,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 29.16,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Pan",
+                    "duration": 1.9
+                },
+                {
+                    "action": "GRASP Pan",
+                    "duration": 16.73
+                },
+                {
+                    "action": "NAVIGATE_TO Stove",
+                    "duration": 1.73
+                },
+                {
+                    "action": "PLACE_ON_TOP Stove",
+                    "duration": 18.23
+                }
+            ]
+        },
+        {
+            "subtask_name": "Place Sausage in Pan and Start Stove",
+            "start_time_simulation": 38.59,
+            "end_time_simulation": 82.74,
+            "start_time_scheduled": 29.16,
+            "end_time_scheduled": 74.29,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Sausage",
+                    "duration": 0.92
+                },
+                {
+                    "action": "GRASP Sausage",
+                    "duration": 13.71
+                },
+                {
+                    "action": "NAVIGATE_TO Pan",
+                    "duration": 1.04
+                },
+                {
+                    "action": "PLACE_INSIDE Pan",
+                    "duration": 12.51
+                },
+                {
+                    "action": "NAVIGATE_TO Stove",
+                    "duration": 0.36
+                },
+                {
+                    "action": "TOGGLE_ON Stove",
+                    "duration": 15.61
+                }
+            ]
+        },
+        {
+            "subtask_name": "Start Laundry Machine",
+            "start_time_simulation": 82.74,
+            "end_time_simulation": 100.0,
+            "start_time_scheduled": 74.29,
+            "end_time_scheduled": 90.26,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Laundry_Machine",
+                    "duration": 1.79
+                },
+                {
+                    "action": "TOGGLE_ON Laundry_Machine",
+                    "duration": 15.47
+                }
+            ]
+        },
+        {
+            "subtask_name": "Place Chicken on Plate",
+            "start_time_simulation": 100.0,
+            "end_time_simulation": 129.43,
+            "start_time_scheduled": 90.26,
+            "end_time_scheduled": 119.42,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Chicken",
+                    "duration": 1.99
+                },
+                {
+                    "action": "GRASP Chicken",
+                    "duration": 11.34
+                },
+                {
+                    "action": "NAVIGATE_TO Plate",
+                    "duration": 0.5
+                },
+                {
+                    "action": "PLACE_ON_TOP Plate",
+                    "duration": 15.6
+                }
+            ]
+        },
+        {
+            "subtask_name": "Wait for Turn Off Stove after Cooking Sausage",
+            "start_time_simulation": 129.43,
+            "end_time_simulation": 159.35,
+            "start_time_scheduled": 119.42,
+            "end_time_scheduled": 149.29,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "WAIT 29.87000000000002",
+                    "duration": 29.91
+                }
+            ]
+        },
+        {
+            "subtask_name": "Wait for Unload Laundry Machine",
+            "start_time_simulation": 159.35,
+            "end_time_simulation": 175.4,
+            "start_time_scheduled": 149.29,
+            "end_time_scheduled": 165.26,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "WAIT 15.96999999999997",
+                    "duration": 16.05
+                }
+            ]
+        },
+        {
+            "subtask_name": "Turn Off Stove after Cooking Sausage",
+            "start_time_simulation": 175.4,
+            "end_time_simulation": 191.82,
+            "start_time_scheduled": 165.26,
+            "end_time_scheduled": 181.23,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Stove",
+                    "duration": 0.9
+                },
+                {
+                    "action": "TOGGLE_OFF Stove",
+                    "duration": 15.52
+                }
+            ]
+        },
+        {
+            "subtask_name": "Unload Laundry Machine",
+            "start_time_simulation": 191.82,
+            "end_time_simulation": 208.84,
+            "start_time_scheduled": 181.23,
+            "end_time_scheduled": 197.2,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Laundry_Machine",
+                    "duration": 1.81
+                },
+                {
+                    "action": "TOGGLE_OFF Laundry_Machine",
+                    "duration": 15.21
+                }
+            ]
+        },
+        {
+            "subtask_name": "Place Blue Bowl in Sink",
+            "start_time_simulation": 208.84,
+            "end_time_simulation": 243.89,
+            "start_time_scheduled": 197.2,
+            "end_time_scheduled": 226.36,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO blue_bowl",
+                    "duration": 2.03
+                },
+                {
+                    "action": "GRASP blue_bowl",
+                    "duration": 15.16
+                },
+                {
+                    "action": "NAVIGATE_TO Sink|SinkBasin",
+                    "duration": 4.07
+                },
+                {
+                    "action": "PLACE_INSIDE Sink|SinkBasin",
+                    "duration": 13.8
+                }
+            ]
+        },
+        {
+            "subtask_name": "Place Cup in Sink",
+            "start_time_simulation": 243.89,
+            "end_time_simulation": 279.22,
+            "start_time_scheduled": 226.36,
+            "end_time_scheduled": 255.52,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Cup",
+                    "duration": 1.91
+                },
+                {
+                    "action": "GRASP Cup",
+                    "duration": 16.37
+                },
+                {
+                    "action": "NAVIGATE_TO Sink|SinkBasin",
+                    "duration": 3.37
+                },
+                {
+                    "action": "PLACE_INSIDE Sink|SinkBasin",
+                    "duration": 13.7
+                }
+            ]
+        }
+    ],
+    "computation_time": 0.40132,
+    "simulation_makespan": 279.22,
+    "scheduler_makespan": 255.52,
+    "total_primitive_actions": 30,
+    "realworld_makespan": 279.22,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Pan on Stove -> Place Sausage in Pan and Start Stove": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (29.16) -> (29.16s--0.0s)"
+        },
+        "Place Sausage in Pan and Start Stove -> Turn Off Stove after Cooking Sausage": {
+            "Original Timing Constraint": "(75, True)",
+            "Schedule Result": "[True] : (74.29) -> (165.26s--0.0s)"
+        },
+        "Start Laundry Machine -> Unload Laundry Machine": {
+            "Original Timing Constraint": "(75, True)",
+            "Schedule Result": "[True] : (90.26) -> (181.23s--0.0s)"
+        }
+    }
+}

@@ -1,0 +1,249 @@
+{
+    "saved_time": "2025-08-08 11:09",
+    "approach": "cpm_ros",
+    "scene_name": "FloorPlan301",
+    "plans": [
+        {
+            "subtask_name": "Place Pan on Stove",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 35.57,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 29.16,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Pan",
+                    "duration": 0.41
+                },
+                {
+                    "action": "GRASP Pan",
+                    "duration": 16.0
+                },
+                {
+                    "action": "NAVIGATE_TO Stove",
+                    "duration": 1.69
+                },
+                {
+                    "action": "PLACE_ON_TOP Stove",
+                    "duration": 17.48
+                }
+            ]
+        },
+        {
+            "subtask_name": "Place Chicken in Pan and Start Stove",
+            "start_time_simulation": 35.57,
+            "end_time_simulation": 78.34,
+            "start_time_scheduled": 29.16,
+            "end_time_scheduled": 74.29,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Chicken",
+                    "duration": 0.97
+                },
+                {
+                    "action": "GRASP Chicken",
+                    "duration": 12.33
+                },
+                {
+                    "action": "NAVIGATE_TO Pan",
+                    "duration": 0.89
+                },
+                {
+                    "action": "PLACE_INSIDE Pan",
+                    "duration": 12.97
+                },
+                {
+                    "action": "NAVIGATE_TO Stove",
+                    "duration": 0.36
+                },
+                {
+                    "action": "TOGGLE_ON Stove",
+                    "duration": 15.24
+                }
+            ]
+        },
+        {
+            "subtask_name": "Place Sausage on Plate",
+            "start_time_simulation": 78.34,
+            "end_time_simulation": 109.0,
+            "start_time_scheduled": 74.29,
+            "end_time_scheduled": 103.45,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Sausage",
+                    "duration": 0.96
+                },
+                {
+                    "action": "GRASP Sausage",
+                    "duration": 13.87
+                },
+                {
+                    "action": "NAVIGATE_TO Plate",
+                    "duration": 0.41
+                },
+                {
+                    "action": "PLACE_ON_TOP Plate",
+                    "duration": 15.43
+                }
+            ]
+        },
+        {
+            "subtask_name": "Place Orange Bowl on Sink",
+            "start_time_simulation": 109.0,
+            "end_time_simulation": 141.1,
+            "start_time_scheduled": 103.45,
+            "end_time_scheduled": 132.61,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO orange_bowl",
+                    "duration": 1.8
+                },
+                {
+                    "action": "GRASP orange_bowl",
+                    "duration": 13.5
+                },
+                {
+                    "action": "NAVIGATE_TO Sink|SinkBasin",
+                    "duration": 3.43
+                },
+                {
+                    "action": "PLACE_ON_TOP Sink|SinkBasin",
+                    "duration": 13.36
+                }
+            ]
+        },
+        {
+            "subtask_name": "WAIT 21.68 to Turn Off Stove after Cooking Chicken",
+            "start_time_simulation": 141.1,
+            "end_time_simulation": 162.81,
+            "start_time_scheduled": 132.61,
+            "end_time_scheduled": 154.29,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "WAIT 21.68",
+                    "duration": 21.71
+                }
+            ]
+        },
+        {
+            "subtask_name": "Turn Off Stove after Cooking Chicken",
+            "start_time_simulation": 162.81,
+            "end_time_simulation": 180.83,
+            "start_time_scheduled": 154.29,
+            "end_time_scheduled": 170.26,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Stove",
+                    "duration": 2.49
+                },
+                {
+                    "action": "TOGGLE_OFF Stove",
+                    "duration": 15.54
+                }
+            ]
+        },
+        {
+            "subtask_name": "Start Laundry Machine",
+            "start_time_simulation": 180.83,
+            "end_time_simulation": 197.73,
+            "start_time_scheduled": 170.26,
+            "end_time_scheduled": 186.23,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Laundry_Machine",
+                    "duration": 1.8
+                },
+                {
+                    "action": "TOGGLE_ON Laundry_Machine",
+                    "duration": 15.1
+                }
+            ]
+        },
+        {
+            "subtask_name": "Place Cup on Sink",
+            "start_time_simulation": 197.73,
+            "end_time_simulation": 231.16,
+            "start_time_scheduled": 186.23,
+            "end_time_scheduled": 215.39,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Cup",
+                    "duration": 0.41
+                },
+                {
+                    "action": "GRASP Cup",
+                    "duration": 16.23
+                },
+                {
+                    "action": "NAVIGATE_TO Sink|SinkBasin",
+                    "duration": 3.36
+                },
+                {
+                    "action": "PLACE_ON_TOP Sink|SinkBasin",
+                    "duration": 13.43
+                }
+            ]
+        },
+        {
+            "subtask_name": "WAIT 50.84 to Turn Off Laundry Machine",
+            "start_time_simulation": 231.16,
+            "end_time_simulation": 282.03,
+            "start_time_scheduled": 215.39,
+            "end_time_scheduled": 266.23,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "WAIT 50.84",
+                    "duration": 50.87
+                }
+            ]
+        },
+        {
+            "subtask_name": "Turn Off Laundry Machine",
+            "start_time_simulation": 282.03,
+            "end_time_simulation": 298.96,
+            "start_time_scheduled": 266.23,
+            "end_time_scheduled": 282.2,
+            "execution_status": true,
+            "primitive_action_log": [
+                {
+                    "action": "NAVIGATE_TO Laundry_Machine",
+                    "duration": 1.9
+                },
+                {
+                    "action": "TOGGLE_OFF Laundry_Machine",
+                    "duration": 15.02
+                }
+            ]
+        }
+    ],
+    "computation_time": 0.06292,
+    "simulation_makespan": 298.96,
+    "scheduler_makespan": 282.2,
+    "total_primitive_actions": 30,
+    "realworld_makespan": 298.96,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Pan on Stove -> Place Chicken in Pan and Start Stove": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (29.16) -> (29.16s--0.0s)"
+        },
+        "Place Chicken in Pan and Start Stove -> Turn Off Stove after Cooking Chicken": {
+            "Original Timing Constraint": "(80, True)",
+            "Schedule Result": "[True] : (74.29) -> (154.29000000000002s--0.0s)"
+        },
+        "Start Laundry Machine -> Turn Off Laundry Machine": {
+            "Original Timing Constraint": "(80, True)",
+            "Schedule Result": "[True] : (186.23000000000002) -> (266.23s--0.0s)"
+        }
+    }
+}

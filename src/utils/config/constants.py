@@ -58,8 +58,13 @@ DYNAMIC_ACTION_SET = {
     "MONITORING",
 }
 PRIMITIVE_ACTION_DURATION = 15.0
-MONITORING_DURATION = 1.5
+
+MONITORING_DURATION = 1.55
 NAV_STEP_DURATION = 0.05
+REAL_NAV_DURATION = 1.55
+TOGGLE_ACTION_DURATION = 15.97
+GRASP_ACTION_DURATION = 14.28
+PLACE_ACTION_DURATION = 14.88
 REACHABLE_DISTANCE_THRESHOLD = 2.0
 # Heuristic constants have been reduced to align with the updated algorithm's expectations:
 # - ALPHA_HEURISTIC: Reduced to 2.0 to balance the weight of heuristic influence on decision-making.
@@ -70,15 +75,19 @@ BETA_HEURISTIC = 3.0
 GAMMA_HEURISTIC = 0.3
 # ========== 베이지안 ==========
 BAYESIAN_CRITERIA = 0.7
-INIT_PRIOR_MEAN = 10.0
+INIT_PRIOR_MEAN = 80.0
+GT_INTERVAL = 60.0
 INIT_PRIOR_VARIANCE = 100.0
+
 FACTOR_ALPHA = 0.3
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
-TIMING_TOLERANCE = 0.10
+TIMING_TOLERANCE = (
+    0.5  # when we do the simulation experiment, then set ths constant to 0.3
+)
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 3
-BEAM_WIDTH = 3
+SIMULATION_DEPTH = 1
+BEAM_WIDTH = 1
 EPSILON = 1e-1
 LARGE_NUMBER = 1e2
 TOP_K = 1
@@ -139,3 +148,42 @@ OBJECT_INTERESTS = {
 
 # ========== 환경 상수 ==========
 ENV_PLACEHOLDER = "<ENVIRONMENT_INFO>"
+
+# ========== 시간 제약 규칙 ==========
+# 시간 제약이 중요한(critical) 객체 유형과 기본 Interval(초)
+# 'After' 제약, Urgency: True 목록 기반
+CRITICAL_OBJECT_INTERVALS = {
+    "StoveBurner": INIT_PRIOR_MEAN,
+    "Microwave": INIT_PRIOR_MEAN,
+    "Faucet": INIT_PRIOR_MEAN,
+    "Kettle": INIT_PRIOR_MEAN,
+    "Laundry_Machine": INIT_PRIOR_MEAN,
+    "ShowerHead": INIT_PRIOR_MEAN,
+    "StoveKnob": INIT_PRIOR_MEAN,  # StoveBurner와 연관
+    "Stove": INIT_PRIOR_MEAN,  # StoveBurner와 연관
+    "Toilet": INIT_PRIOR_MEAN,
+}
+
+# Non-critical이지만 일관된 시간을 적용하고 싶은 객체
+# 'After' 제약, Urgency: False 목록 기반
+NON_CRITICAL_OBJECT_INTERVALS = {
+    "CoffeeMachine": INIT_PRIOR_MEAN,
+    "Cup": INIT_PRIOR_MEAN,
+    "Mug": INIT_PRIOR_MEAN,
+    "Plate": INIT_PRIOR_MEAN,
+    "Bread": INIT_PRIOR_MEAN,
+    "Egg": INIT_PRIOR_MEAN,
+    "CounterTop": INIT_PRIOR_MEAN,
+}
+
+CRITICAL_OBJECT_GROUND_TRUTH = {
+    "StoveBurner": GT_INTERVAL,
+    "Microwave": GT_INTERVAL,
+    "Faucet": GT_INTERVAL,
+    "Kettle": GT_INTERVAL,
+    "Laundry_Machine": GT_INTERVAL,
+    "ShowerHead": GT_INTERVAL,
+    "StoveKnob": GT_INTERVAL,
+    "Stove": GT_INTERVAL,
+    "Toilet": GT_INTERVAL,
+}

@@ -6,10 +6,12 @@
         "Cabinet"
     ],
     "TOGGLE_ON": [
-        "Stove"
+        "Stove",
+        "washing_machine"
     ],
     "TOGGLE_OFF": [
-        "Stove"
+        "Stove",
+        "washing_machine"
     ],
     "GRASP": [
         "Banana",
