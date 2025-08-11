@@ -362,7 +362,7 @@ class ActionHandler:
                 duration = (
                     PRIMITIVE_ACTION_DURATION
                     if not self.real_world_mode
-                    else REAL_GRASP_DURATION
+                    else GRASP_ACTION_DURATION
                 )
 
                 success = True
@@ -404,7 +404,11 @@ class ActionHandler:
                         receptacle_id
                     ]
                 new_held_object = None
-                duration = PRIMITIVE_ACTION_DURATION
+                duration = (
+                    PRIMITIVE_ACTION_DURATION
+                    if not self.real_world_mode
+                    else PLACE_ACTION_DURATION
+                )
                 success = True
             else:
                 success = False  # Unreachable
@@ -435,7 +439,7 @@ class ActionHandler:
             duration = (
                 PRIMITIVE_ACTION_DURATION
                 if not self.real_world_mode
-                else REAL_TOGGLE_DURATION
+                else TOGGLE_ACTION_DURATION
             )
 
             success = True

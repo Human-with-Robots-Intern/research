@@ -4,7 +4,7 @@ log_level: "DEBUG" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNIN
 
 # Execution mode
 predefined: True # Use predefined numbered instructions (1-20) instead of loading from JSON files
-scene_type: "real_world" # Default scene type to run. Options: 'kitchen', 'bathroom'
+scene_type: "kitchen" # Default scene type to run. Options: 'kitchen', 'bathroom'
 ros: true # Enable ROS communication
 simulation: false # Enable Simulation mode
 start_idx: 1 # Start index for the instruction
