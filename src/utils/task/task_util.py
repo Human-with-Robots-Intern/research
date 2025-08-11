@@ -281,23 +281,56 @@ class TaskUtil:
 
     @classmethod
     def _update_constraint_belief(
-        cls, subtask_name: str, temporal_constraint, bayesian_load: dict
+        cls, predecessor_name: str, temporal_constraint, bayesian_load: dict
     ) -> None:
         """
-        주어진 제약조건의 interval과 초기 Belief를 INIT_PRIOR_MEAN으로 통일한다.
+        주어진 객체 유형을 key로 하여, interval과 초기 Belief를 INIT_PRIOR_MEAN으로 통일한다.
         """
         belief_value = INIT_PRIOR_MEAN
         temporal_constraint.interval = belief_value
-        subtask_name_lower = subtask_name.lower()
+        predecessor_name_lower = predecessor_name.lower()  # 인자를 명확히 변경
 
-        if subtask_name_lower not in bayesian_load:
+        if predecessor_name_lower not in bayesian_load:
             log.info(
-                f"Setting initial belief for '{subtask_name_lower}' to {belief_value:.2f}"
+                f"Setting initial belief for '{predecessor_name_lower}' to {belief_value:.2f}"
             )
-            bayesian_load[subtask_name_lower] = {
+            bayesian_load[predecessor_name_lower] = {
                 "expected_duration": belief_value,
                 "variance": INIT_PRIOR_VARIANCE,
             }
+
+    @classmethod
+    def _update_critical_constraint(
+        cls, st: Subtask, tc: Duration, bayesian_load: dict
+    ) -> None:
+        """
+        Critical constraint의 interval을 INIT_PRIOR_MEAN으로 통일하고,
+        Belief를 업데이트한다.
+        """
+        tc.interval = INIT_PRIOR_MEAN
+        obj_type = st.name.split("|")[0] if "|" in st.name else st.name
+        cls._update_constraint_belief(obj_type, tc, bayesian_load)
+
+    @classmethod
+    def _update_non_critical_constraint(cls, tc: Duration, bayesian_load: dict) -> None:
+        """
+        Non-critical constraint의 interval을 규칙 기반 값으로 통일하고,
+        Belief를 업데이트한다.
+        """
+        forced_interval = None
+        for obj_type in tc.objects:
+            if obj_type in NON_CRITICAL_OBJECT_INTERVALS:
+                forced_interval = NON_CRITICAL_OBJECT_INTERVALS[obj_type]
+                break
+        if forced_interval is not None:
+            tc.interval = forced_interval
+
+        # Belief 저장을 위한 key는 선행 subtask 이름
+        # (에이전트가 Monitor할 때 subtask 이름을 보기 때문)
+        key_for_belief = (
+            tc.objects[0].split("|")[0] if "|" in tc.objects[0] else tc.objects[0]
+        )
+        cls._update_constraint_belief(key_for_belief, tc, bayesian_load)
 
     @classmethod
     def build_tasks_and_constraints(
@@ -339,27 +372,29 @@ class TaskUtil:
         # 4) temporal constraint 처리 (규칙 기반 Interval 설정 포함)
         subtasks = cls.tasks_to_subtasks(tasks, mode="all")
         for st in subtasks:
-            # 이 subtask와 관련된 객체 유형들을 미리 추출
             involved_object_types = set()
             if st.execution and st.execution.objects:
                 for obj_name in st.execution.objects.keys():
                     involved_object_types.add(obj_name.split("|")[0])
 
             for tc in st.temporal_constraints:
-                # 규칙 맵에 객체가 포함되는지 여부만 확인
-                is_rule_based = False
+                triggering_obj_type = None
                 for obj_type in involved_object_types:
                     if (
                         obj_type in CRITICAL_OBJECT_INTERVALS
                         or obj_type in NON_CRITICAL_OBJECT_INTERVALS
                     ):
-                        is_rule_based = True
+                        triggering_obj_type = obj_type
                         break
 
-                # 규칙 기반이거나, LLM이 critical로 판단한 경우 Belief 업데이트
-                if is_rule_based or tc.is_critical:
-                    # critical/non-critical 구분 없이 동일한 함수 호출
-                    cls._update_constraint_belief(st.name, tc, bayesian_load)
+                # 규칙 기반 객체가 있거나, LLM이 critical로 지정한 경우
+                if triggering_obj_type or tc.is_critical:
+                    # Key는 발견된 객체 유형을 최우선으로 사용
+                    # 객체가 규칙에 없는데 critical인 경우, subtask 이름을 key로 사용
+                    key_for_belief = (
+                        triggering_obj_type if triggering_obj_type else st.name
+                    )
+                    cls._update_constraint_belief(key_for_belief, tc, bayesian_load)
 
         # 5) 생성된 belief 딕셔너리를 디버깅용으로 저장
         cls._save_json_file(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME, bayesian_load)
@@ -424,7 +459,7 @@ class TaskUtil:
             ),
             repetition=1,
             subtask_type="Monitor",
-            execution=Execution(objects=[], primitive_actions=monitoring_action),
+            execution=Execution(objects=[obj], primitive_actions=monitoring_action),
             temporal_constraints=None,
             decomposed=True,
         )
