@@ -177,7 +177,7 @@ class TaskUtil:
         유효하지 않다면 문장 유사도 기반으로 가장 가까운 후보로 교체한다.
         """
         from src.utils.io_utils.task_io import load_scene_positions
-        
+
         # 1) Load all available object IDs and their categories for the scene
         object_categories = cls._load_object_ids(scene_name)
         scene_positions = load_scene_positions(scene_name)
@@ -188,7 +188,11 @@ class TaskUtil:
         for category, object_types in object_categories.items():
             for obj_type in object_types:
                 # Find all instances of this object type in the current scene
-                matching_instances = [full_id for full_id in all_object_ids_in_scene if full_id.startswith(obj_type)]
+                matching_instances = [
+                    full_id
+                    for full_id in all_object_ids_in_scene
+                    if full_id.startswith(obj_type)
+                ]
                 if matching_instances:
                     if category not in object_map_in_scene:
                         object_map_in_scene[category] = []
@@ -210,18 +214,18 @@ class TaskUtil:
                 candidates = all_object_ids_in_scene
             elif base_action in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
                 candidates = object_map_in_scene.get("RECEPTACLE", [])
-                split_obj = target_obj.split(' ', 1)
+                split_obj = target_obj.split(" ", 1)
                 if len(split_obj) > 1:
                     obj1, obj2 = split_obj
-                    obj1_type = obj1.split('|')[0]
-                    obj2_type = obj2.split('|')[0]
+                    obj1_type = obj1.split("|")[0]
+                    obj2_type = obj2.split("|")[0]
 
                     receptacle_types = object_categories.get("RECEPTACLE", [])
                     recepacles = set()
                     for receptacle_type in receptacle_types:
-                        receptacle_type = receptacle_type.split('|')[0]
+                        receptacle_type = receptacle_type.split("|")[0]
                         recepacles.add(receptacle_type)
-                        
+
                     is_obj1_receptacle = obj1_type in recepacles
                     is_obj2_receptacle = obj2_type in recepacles
 
@@ -230,14 +234,20 @@ class TaskUtil:
                     elif is_obj1_receptacle:
                         target_obj = obj1
                     else:
-                        raise ValueError(f"For action '{action}', neither '{obj1}' nor '{obj2}' is a valid receptacle.")
+                        raise ValueError(
+                            f"For action '{action}', neither '{obj1}' nor '{obj2}' is a valid receptacle."
+                        )
                 else:
                     # When only one object is specified for a PLACE action, it's assumed to be the receptacle.
                     target_obj = target_obj
             else:
                 # Fallback for other actions, get candidates of the same type
-                target_obj_type = target_obj.split('|')[0]
-                candidates = [obj_id for obj_id in all_object_ids_in_scene if obj_id.startswith(target_obj_type)]
+                target_obj_type = target_obj.split("|")[0]
+                candidates = [
+                    obj_id
+                    for obj_id in all_object_ids_in_scene
+                    if obj_id.startswith(target_obj_type)
+                ]
                 # If no candidates of the same type, use all objects as a last resort
                 if not candidates:
                     candidates = all_object_ids_in_scene
@@ -248,10 +258,10 @@ class TaskUtil:
                 return action
 
             # Find the most similar valid object and replace it
-            matched = cls._sentence_sim_model.get_similar_ref(
-                target_obj, candidates
+            matched = cls._sentence_sim_model.get_similar_ref(target_obj, candidates)
+            log.debug(
+                f"Correcting object in action '{action}': replaced '{target_obj}' with '{matched}'"
             )
-            log.debug(f"Correcting object in action '{action}': replaced '{target_obj}' with '{matched}'")
             return f"{base_action} {matched}"
 
         # Correct actions for all subtasks
