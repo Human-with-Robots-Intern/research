@@ -28,7 +28,7 @@ NavGraph: TypeAlias = Dict[Position, List[Position]]  # 네비게이션 그래�
 
 
 class ActionHandler:
-    def __init__(self, nav_graph: NavGraph, real_world_mode: bool = False):
+    def __init__(self, nav_graph: NavGraph, real_world_experiment: bool = False):
         """
         ActionHandler를 초기화합니다.
 
@@ -37,7 +37,7 @@ class ActionHandler:
             logger: The logger instance to use.
         """
         self.nav_graph = nav_graph
-        self.real_world_mode = real_world_mode
+        self.real_world_experiment = real_world_experiment
 
     def get_actions_info(
         self, current_node: SimulationNode, actions: list[str]
@@ -298,7 +298,6 @@ class ActionHandler:
         navigate_path = self._find_shortest_path(agent_pos, target_pos)
         # 3. 부분 시간 이동 처리
         if partial_time_str:
-
             log.debug(f"  Processing NAVIGATE_TO with partial time: {partial_time_str}")
             partial_duration = float(partial_time_str)
             duration = partial_duration  # 액션 소요 시간은 주어진 부분 시간

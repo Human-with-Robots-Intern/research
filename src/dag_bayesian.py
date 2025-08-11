@@ -86,6 +86,7 @@ def main():
     )
     scene_name = args.scene
     controller = None
+    ros_executor = None  # ros_executor를 None으로 미리 초기화
 
     # Set up the AI2-THOR controller and navigation graph
     try:
@@ -234,7 +235,7 @@ def main():
                 if not current_state.remaining_subtasks:
                     is_end = True
     finally:
-        if ros_executor:
+        if ros_executor and args.ros:
             ros_executor.shutdown()
         if controller:
             controller.stop()
