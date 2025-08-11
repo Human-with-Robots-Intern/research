@@ -1,0 +1,125 @@
+{
+    "saved_time": "2025-07-29 22:38",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan7",
+    "plans": [
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 0,
+            "end_time_simulation": 4.6,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 4.6,
+            "end_time_simulation": 5.6,
+            "start_time_scheduled": 4.6,
+            "end_time_scheduled": 5.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 5.6,
+            "end_time_simulation": 11.6,
+            "start_time_scheduled": 5.6,
+            "end_time_scheduled": 11.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 11.6,
+            "end_time_simulation": 12.6,
+            "start_time_scheduled": 11.4,
+            "end_time_scheduled": 12.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place SaltShaker on DiningTable",
+            "start_time_simulation": 12.6,
+            "end_time_simulation": 19.8,
+            "start_time_scheduled": 12.4,
+            "end_time_scheduled": 19.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Lettuce in Fridge",
+            "start_time_simulation": 19.8,
+            "end_time_simulation": 30.5,
+            "start_time_scheduled": 19.6,
+            "end_time_scheduled": 29.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 30.5,
+            "end_time_simulation": 34.2,
+            "start_time_scheduled": 29.8,
+            "end_time_scheduled": 33.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 34.2,
+            "end_time_simulation": 39.7,
+            "start_time_scheduled": 33.6,
+            "end_time_scheduled": 39.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 39.7,
+            "end_time_simulation": 42.7,
+            "start_time_scheduled": 39.6,
+            "end_time_scheduled": 42.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Apple in Fridge",
+            "start_time_simulation": 42.7,
+            "end_time_simulation": 49.9,
+            "start_time_scheduled": 42.0,
+            "end_time_scheduled": 49.0,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 49.9,
+            "end_time_simulation": 58.8,
+            "start_time_scheduled": 49.0,
+            "end_time_scheduled": 57.4,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 8.89948,
+    "simulation_makespan": 58.8,
+    "scheduler_makespan": 57.4,
+    "total_primitive_actions": 49,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Bread in Microwave -> Start Microwave for Heating Bread": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (11.399999999999999) -> (11.399999999999999s--0.0s)"
+        },
+        "Start Microwave for Heating Bread -> Turn Off Microwave after Heating Bread": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (12.399999999999999) -> (29.799999999999997s--2.8s)"
+        },
+        "Turn Off Microwave after Heating Bread -> Retrieve Heated Bread and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (33.599999999999994) -> (33.599999999999994s--0.0s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (4.6) -> (4.6s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (5.6) -> (39.599999999999994s--0.2s)"
+        }
+    }
+}

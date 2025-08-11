@@ -1,0 +1,40 @@
+{
+    "task": "clean_the_sink_with_spray_and_dish_sponge and wet_the_soapbottle_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and throw_away_cloth_1",
+    "difficulty": "normal",
+    "scene": "FloorPlan427",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 35.4,
+            "simulation_makespan": 35.0,
+            "realWorld_makespan": null,
+            "computation_time": 0.56043,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 39.2,
+            "simulation_makespan": 37.2,
+            "realWorld_makespan": null,
+            "computation_time": 0.01911,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 39.3,
+            "simulation_makespan": 37.8,
+            "realWorld_makespan": null,
+            "computation_time": 0.05399,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        }
+    ]
+}

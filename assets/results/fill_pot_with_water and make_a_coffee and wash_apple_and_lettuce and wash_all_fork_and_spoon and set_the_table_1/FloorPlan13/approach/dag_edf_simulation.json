@@ -1,0 +1,113 @@
+{
+    "saved_time": "2025-07-29 15:13",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan13",
+    "plans": [
+        {
+            "subtask_name": "Place Plate on CounterTop",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 5.4,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on CounterTop",
+            "start_time_simulation": 5.4,
+            "end_time_simulation": 12.0,
+            "start_time_scheduled": 4.2,
+            "end_time_scheduled": 8.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on CounterTop",
+            "start_time_simulation": 12.0,
+            "end_time_simulation": 18.8,
+            "start_time_scheduled": 8.8,
+            "end_time_scheduled": 13.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Coffee Machine with Cup",
+            "start_time_simulation": 18.8,
+            "end_time_simulation": 27.3,
+            "start_time_scheduled": 13.6,
+            "end_time_scheduled": 23.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 27.3,
+            "end_time_simulation": 28.3,
+            "start_time_scheduled": 23.1,
+            "end_time_scheduled": 24.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 28.3,
+            "end_time_simulation": 31.3,
+            "start_time_scheduled": 24.1,
+            "end_time_scheduled": 32.0,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wash Apple",
+            "start_time_simulation": 31.3,
+            "end_time_simulation": 38.3,
+            "start_time_scheduled": 32.0,
+            "end_time_scheduled": 40.8,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 38.3,
+            "end_time_simulation": 39.3,
+            "start_time_scheduled": 40.8,
+            "end_time_scheduled": 43.2,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wash Lettuce",
+            "start_time_simulation": 39.3,
+            "end_time_simulation": 46.3,
+            "start_time_scheduled": 43.2,
+            "end_time_scheduled": 53.2,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wash Fork",
+            "start_time_simulation": 46.3,
+            "end_time_simulation": 53.3,
+            "start_time_scheduled": 53.2,
+            "end_time_scheduled": 63.0,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wash Spoon",
+            "start_time_simulation": 53.3,
+            "end_time_simulation": 60.3,
+            "start_time_scheduled": 63.0,
+            "end_time_scheduled": 72.8,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 0.47052,
+    "simulation_makespan": 60.3,
+    "scheduler_makespan": 72.8,
+    "total_primitive_actions": 74,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.5,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[False] : (32.0) -> (40.8s--1.4s)"
+        },
+        "Prepare Coffee Machine with Cup -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (23.1) -> (23.1s--0.0s)"
+        }
+    }
+}

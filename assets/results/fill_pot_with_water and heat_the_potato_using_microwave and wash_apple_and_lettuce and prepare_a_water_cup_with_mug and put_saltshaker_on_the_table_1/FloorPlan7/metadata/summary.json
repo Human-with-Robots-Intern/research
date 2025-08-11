@@ -1,0 +1,40 @@
+{
+    "task": "fill_pot_with_water and heat_the_potato_using_microwave and wash_apple_and_lettuce and prepare_a_water_cup_with_mug and put_saltshaker_on_the_table_1",
+    "difficulty": "normal",
+    "scene": "FloorPlan7",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 67.69,
+            "simulation_makespan": 65.48,
+            "realWorld_makespan": null,
+            "computation_time": 5.45169,
+            "actionSuccess_rate": 0.8421052631578947,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 72.09,
+            "simulation_makespan": 70.18,
+            "realWorld_makespan": null,
+            "computation_time": 0.15245,
+            "actionSuccess_rate": 0.8666666666666667,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 71.12,
+            "simulation_makespan": 74.92,
+            "realWorld_makespan": null,
+            "computation_time": 0.26961,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        }
+    ]
+}

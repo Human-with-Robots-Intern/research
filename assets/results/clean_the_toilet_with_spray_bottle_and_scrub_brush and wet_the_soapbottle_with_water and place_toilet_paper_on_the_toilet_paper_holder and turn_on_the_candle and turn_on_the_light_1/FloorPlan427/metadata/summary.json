@@ -1,0 +1,40 @@
+{
+    "task": "clean_the_toilet_with_spray_bottle_and_scrub_brush and wet_the_soapbottle_with_water and place_toilet_paper_on_the_toilet_paper_holder and turn_on_the_candle and turn_on_the_light_1",
+    "difficulty": "normal",
+    "scene": "FloorPlan427",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 33.3,
+            "simulation_makespan": 31.7,
+            "realWorld_makespan": null,
+            "computation_time": 0.8101,
+            "actionSuccess_rate": 0.8888888888888888,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 36.5,
+            "simulation_makespan": 32.7,
+            "realWorld_makespan": null,
+            "computation_time": 0.02478,
+            "actionSuccess_rate": 0.875,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 41.7,
+            "simulation_makespan": 38.4,
+            "realWorld_makespan": null,
+            "computation_time": 0.05329,
+            "actionSuccess_rate": 0.875,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 0.0,
+            "attempt": "Not related"
+        }
+    ]
+}

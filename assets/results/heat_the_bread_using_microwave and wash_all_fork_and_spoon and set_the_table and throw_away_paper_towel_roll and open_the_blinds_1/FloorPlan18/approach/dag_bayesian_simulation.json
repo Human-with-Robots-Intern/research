@@ -1,0 +1,117 @@
+{
+    "saved_time": "2025-07-30 14:10",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan18",
+    "plans": [
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 0,
+            "end_time_simulation": 6.7,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 6.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 6.7,
+            "end_time_simulation": 7.7,
+            "start_time_scheduled": 6.5,
+            "end_time_scheduled": 7.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on CounterTop",
+            "start_time_simulation": 7.7,
+            "end_time_simulation": 17.0,
+            "start_time_scheduled": 7.5,
+            "end_time_scheduled": 17.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on CounterTop",
+            "start_time_simulation": 17.0,
+            "end_time_simulation": 26.2,
+            "start_time_scheduled": 17.2,
+            "end_time_scheduled": 26.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 26.2,
+            "end_time_simulation": 28.1,
+            "start_time_scheduled": 26.4,
+            "end_time_scheduled": 27.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 28.1,
+            "end_time_simulation": 32.8,
+            "start_time_scheduled": 27.9,
+            "end_time_scheduled": 32.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Open Blinds",
+            "start_time_simulation": 32.8,
+            "end_time_simulation": 34.5,
+            "start_time_scheduled": 32.4,
+            "end_time_scheduled": 34.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on DiningTable",
+            "start_time_simulation": 34.5,
+            "end_time_simulation": 40.5,
+            "start_time_scheduled": 34.4,
+            "end_time_scheduled": 42.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on DiningTable",
+            "start_time_simulation": 40.5,
+            "end_time_simulation": 49.1,
+            "start_time_scheduled": 42.3,
+            "end_time_scheduled": 54.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of Paper Towel Roll in GarbageCan",
+            "start_time_simulation": 49.1,
+            "end_time_simulation": 62.8,
+            "start_time_scheduled": 54.1,
+            "end_time_scheduled": 67.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 62.8,
+            "end_time_simulation": 69.1,
+            "start_time_scheduled": 67.8,
+            "end_time_scheduled": 74.1,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 18.12238,
+    "simulation_makespan": 69.1,
+    "scheduler_makespan": 74.1,
+    "total_primitive_actions": 59,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Bread in Microwave -> Start Microwave for Heating Bread": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (6.5) -> (6.5s--0.0s)"
+        },
+        "Start Microwave for Heating Bread -> Turn Off Microwave after Heating Bread": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (7.5) -> (26.4s--0.5s)"
+        },
+        "Turn Off Microwave after Heating Bread -> Retrieve Heated Bread and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (27.9) -> (27.9s--0.0s)"
+        }
+    }
+}

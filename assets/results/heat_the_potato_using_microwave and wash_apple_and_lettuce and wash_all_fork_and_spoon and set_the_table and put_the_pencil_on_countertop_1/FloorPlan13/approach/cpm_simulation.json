@@ -1,0 +1,133 @@
+{
+    "saved_time": "2025-07-29 14:57",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan13",
+    "plans": [
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 7.2,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 7.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Potato",
+            "start_time_simulation": 7.2,
+            "end_time_simulation": 8.2,
+            "start_time_scheduled": 7.0,
+            "end_time_scheduled": 8.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 8.2,
+            "end_time_simulation": 13.2,
+            "start_time_scheduled": 8.0,
+            "end_time_scheduled": 13.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 13.2,
+            "end_time_simulation": 14.2,
+            "start_time_scheduled": 13.0,
+            "end_time_scheduled": 14.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Potato and Place on CounterTop",
+            "start_time_simulation": 14.2,
+            "end_time_simulation": 19.6,
+            "start_time_scheduled": 14.0,
+            "end_time_scheduled": 20.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple and place on CounterTop",
+            "start_time_simulation": 19.6,
+            "end_time_simulation": 27.4,
+            "start_time_scheduled": 20.6,
+            "end_time_scheduled": 30.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce and place on CounterTop",
+            "start_time_simulation": 27.4,
+            "end_time_simulation": 36.4,
+            "start_time_scheduled": 30.8,
+            "end_time_scheduled": 42.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on CounterTop",
+            "start_time_simulation": 36.4,
+            "end_time_simulation": 48.6,
+            "start_time_scheduled": 42.0,
+            "end_time_scheduled": 54.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on CounterTop",
+            "start_time_simulation": 48.6,
+            "end_time_simulation": 60.6,
+            "start_time_scheduled": 54.4,
+            "end_time_scheduled": 66.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on CounterTop for Meal",
+            "start_time_simulation": 60.6,
+            "end_time_simulation": 65.0,
+            "start_time_scheduled": 66.6,
+            "end_time_scheduled": 68.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on CounterTop for Meal",
+            "start_time_simulation": 65.0,
+            "end_time_simulation": 67.1,
+            "start_time_scheduled": 68.6,
+            "end_time_scheduled": 70.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on CounterTop for Meal",
+            "start_time_simulation": 67.1,
+            "end_time_simulation": 69.3,
+            "start_time_scheduled": 70.6,
+            "end_time_scheduled": 72.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pencil on CounterTop",
+            "start_time_simulation": 69.3,
+            "end_time_simulation": 77.3,
+            "start_time_scheduled": 72.6,
+            "end_time_scheduled": 79.8,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.21228,
+    "simulation_makespan": 77.3,
+    "scheduler_makespan": 79.8,
+    "total_primitive_actions": 82,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Potato in Microwave -> Start Microwave for Heating Potato": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (7.0) -> (7.0s--0.0s)"
+        },
+        "Start Microwave for Heating Potato -> Turn Off Microwave after Heating Potato": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (8.0) -> (13.0s--0.0s)"
+        },
+        "Turn Off Microwave after Heating Potato -> Retrieve Heated Potato and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (14.0) -> (14.0s--0.0s)"
+        }
+    }
+}

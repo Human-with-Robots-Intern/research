@@ -1,0 +1,40 @@
+{
+    "task": "fill_bathtub_with_shower_head and wet_the_soapbar_with_water and place_toilet_paper_on_the_toilet_paper_holder and close_shower_curtain and put_a_soap_bar_on_the_sink_1",
+    "difficulty": "normal",
+    "scene": "FloorPlan427",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 30.9,
+            "simulation_makespan": 28.9,
+            "realWorld_makespan": null,
+            "computation_time": 0.70553,
+            "actionSuccess_rate": 0.625,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 29.6,
+            "simulation_makespan": 27.8,
+            "realWorld_makespan": null,
+            "computation_time": 0.03606,
+            "actionSuccess_rate": 0.5714285714285714,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 32.9,
+            "simulation_makespan": 32.4,
+            "realWorld_makespan": null,
+            "computation_time": 0.05441,
+            "actionSuccess_rate": 0.625,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        }
+    ]
+}

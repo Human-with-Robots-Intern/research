@@ -1,0 +1,16 @@
+{
+    "metadata": {
+        "task": "boil_potato and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and prepare_a_water_cup_with_mug_1",
+        "scene": "FloorPlan27",
+        "creation_date": "2025-07-29 18:27",
+        "instructions": null,
+        "model_version": "gpt-4o"
+    },
+    "environment_info": {
+        "simulator": "AI2-THOR",
+        "simulation_version": "4.2.0",
+        "scene": "FloorPlan27",
+        "gpu": null,
+        "cpu": null
+    }
+}

@@ -1,0 +1,40 @@
+{
+    "task": "cook_egg and boil_water_with_kettle and heat_the_bread_using_microwave and put_apple_and_lettuce_in_fridge and throw_away_paper_towel_roll_1",
+    "difficulty": "hard",
+    "scene": "FloorPlan1",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 75.61,
+            "simulation_makespan": 82.81,
+            "realWorld_makespan": null,
+            "computation_time": 7.52142,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 103.45,
+            "simulation_makespan": 101.96,
+            "realWorld_makespan": null,
+            "computation_time": 0.09021,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 73.65,
+            "simulation_makespan": 72.05,
+            "realWorld_makespan": null,
+            "computation_time": 0.19505,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 0.86,
+            "attempt": "Not related"
+        }
+    ]
+}

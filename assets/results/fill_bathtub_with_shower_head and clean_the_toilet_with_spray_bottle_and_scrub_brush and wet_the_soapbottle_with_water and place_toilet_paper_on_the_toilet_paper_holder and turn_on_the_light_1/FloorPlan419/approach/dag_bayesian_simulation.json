@@ -1,0 +1,129 @@
+{
+    "saved_time": "2025-07-30 14:55",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan419",
+    "plans": [
+        {
+            "subtask_name": "Start Filling Bathtub with Shower Head",
+            "start_time_simulation": 0,
+            "end_time_simulation": 2.2,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Spray toilet with spray bottle",
+            "start_time_simulation": 2.2,
+            "end_time_simulation": 6.3,
+            "start_time_scheduled": 2.2,
+            "end_time_scheduled": 6.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Toilet Paper on Holder",
+            "start_time_simulation": 6.3,
+            "end_time_simulation": 9.1,
+            "start_time_scheduled": 6.3,
+            "end_time_scheduled": 9.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn On Light Switch",
+            "start_time_simulation": 9.1,
+            "end_time_simulation": 11.3,
+            "start_time_scheduled": 9.1,
+            "end_time_scheduled": 11.4,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Navigate to ScrubBrush|-00.16|+00.00|-02.16 during 1.3",
+            "start_time_simulation": 11.3,
+            "end_time_simulation": 12.6,
+            "start_time_scheduled": 11.4,
+            "end_time_scheduled": 12.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Scrub toilet with scrub brush_4b39a8b0",
+            "start_time_simulation": 12.6,
+            "end_time_simulation": 12.7,
+            "start_time_scheduled": 12.7,
+            "end_time_scheduled": 12.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Scrub toilet with scrub brush",
+            "start_time_simulation": 12.7,
+            "end_time_simulation": 16.2,
+            "start_time_scheduled": 12.8,
+            "end_time_scheduled": 16.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Scrub toilet with scrub brush",
+            "start_time_simulation": 16.2,
+            "end_time_simulation": 19.6,
+            "start_time_scheduled": 16.3,
+            "end_time_scheduled": 19.4,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Navigate to ShowerHead|00.00|+01.72|-02.98 during 1.1",
+            "start_time_simulation": 19.6,
+            "end_time_simulation": 20.7,
+            "start_time_scheduled": 19.4,
+            "end_time_scheduled": 20.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Shower Head after Bathtub is Filled_c5d6979d",
+            "start_time_simulation": 20.7,
+            "end_time_simulation": 20.8,
+            "start_time_scheduled": 20.5,
+            "end_time_scheduled": 20.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Shower Head after Bathtub is Filled",
+            "start_time_simulation": 20.8,
+            "end_time_simulation": 22.4,
+            "start_time_scheduled": 20.6,
+            "end_time_scheduled": 22.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Shower Head after Bathtub is Filled",
+            "start_time_simulation": 22.4,
+            "end_time_simulation": 23.4,
+            "start_time_scheduled": 22.2,
+            "end_time_scheduled": 23.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet SoapBottle in Sink",
+            "start_time_simulation": 23.4,
+            "end_time_simulation": 33.3,
+            "start_time_scheduled": 23.3,
+            "end_time_scheduled": 33.2,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.79123,
+    "simulation_makespan": 33.3,
+    "scheduler_makespan": 33.2,
+    "total_primitive_actions": 40,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Start Filling Bathtub with Shower Head -> Turn Off Shower Head after Bathtub is Filled": {
+            "Original Timing Constraint": "(20, True)",
+            "Schedule Result": "[True] : (2.2) -> (22.2s--0.1s)"
+        },
+        "Spray toilet with spray bottle -> Scrub toilet with scrub brush": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[True] : (6.3) -> (16.3s--0.1s)"
+        }
+    }
+}

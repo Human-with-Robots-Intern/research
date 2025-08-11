@@ -1,0 +1,56 @@
+{
+    "saved_time": "2025-07-30 16:44",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan422",
+    "plans": [
+        {
+            "subtask_name": "Wet soapbar in Sink",
+            "start_time_simulation": 0,
+            "end_time_simulation": 11.4,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 11.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place soap bar in cabinet",
+            "start_time_simulation": 11.4,
+            "end_time_simulation": 17.9,
+            "start_time_scheduled": 11.2,
+            "end_time_scheduled": 17.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place toilet paper on holder",
+            "start_time_simulation": 17.9,
+            "end_time_simulation": 22.1,
+            "start_time_scheduled": 17.5,
+            "end_time_scheduled": 22.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn on light switch",
+            "start_time_simulation": 22.1,
+            "end_time_simulation": 23.1,
+            "start_time_scheduled": 22.1,
+            "end_time_scheduled": 23.1,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Dispose of cloth in garbage can",
+            "start_time_simulation": 23.1,
+            "end_time_simulation": 28.2,
+            "start_time_scheduled": 23.1,
+            "end_time_scheduled": 28.2,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.45247,
+    "simulation_makespan": 28.2,
+    "scheduler_makespan": 28.2,
+    "total_primitive_actions": 29,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": null,
+    "timing_success_rate_sched": null,
+    "detail_log": {}
+}

@@ -1,0 +1,40 @@
+{
+    "task": "heat_the_bread_using_microwave and make_a_coffee and put_apple_and_lettuce_in_fridge and set_the_table and put_saltshaker_on_the_table_1",
+    "difficulty": "simple",
+    "scene": "FloorPlan13",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 63.4,
+            "simulation_makespan": 64.4,
+            "realWorld_makespan": null,
+            "computation_time": 9.79829,
+            "actionSuccess_rate": 0.8333333333333334,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 74.8,
+            "simulation_makespan": 73.6,
+            "realWorld_makespan": null,
+            "computation_time": 0.16017,
+            "actionSuccess_rate": 0.8461538461538461,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 68.6,
+            "simulation_makespan": 67.6,
+            "realWorld_makespan": null,
+            "computation_time": 0.25626,
+            "actionSuccess_rate": 0.8461538461538461,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        }
+    ]
+}

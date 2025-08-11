@@ -1,0 +1,129 @@
+{
+    "saved_time": "2025-07-29 19:59",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "subtask_name": "Place Credit Card on CounterTop",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 2.9,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Apple in Fridge",
+            "start_time_simulation": 2.9,
+            "end_time_simulation": 8.6,
+            "start_time_scheduled": 2.9,
+            "end_time_scheduled": 8.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 8.6,
+            "end_time_simulation": 16.0,
+            "start_time_scheduled": 8.2,
+            "end_time_scheduled": 15.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Potato",
+            "start_time_simulation": 16.0,
+            "end_time_simulation": 17.0,
+            "start_time_scheduled": 15.5,
+            "end_time_scheduled": 16.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 17.0,
+            "end_time_simulation": 22.0,
+            "start_time_scheduled": 16.5,
+            "end_time_scheduled": 21.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 22.0,
+            "end_time_simulation": 23.0,
+            "start_time_scheduled": 21.5,
+            "end_time_scheduled": 22.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Potato and Place on CounterTop",
+            "start_time_simulation": 23.0,
+            "end_time_simulation": 28.8,
+            "start_time_scheduled": 22.5,
+            "end_time_scheduled": 28.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Lettuce in Fridge",
+            "start_time_simulation": 28.8,
+            "end_time_simulation": 35.9,
+            "start_time_scheduled": 28.5,
+            "end_time_scheduled": 35.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Wine Bottle in Cabinet",
+            "start_time_simulation": 35.9,
+            "end_time_simulation": 44.2,
+            "start_time_scheduled": 35.4,
+            "end_time_scheduled": 43.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Kettle on StoveBurner and Start Boiling",
+            "start_time_simulation": 44.2,
+            "end_time_simulation": 50.2,
+            "start_time_scheduled": 43.4,
+            "end_time_scheduled": 49.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 9.507247228536393 to Turn Off Stove after Boiling Water",
+            "start_time_simulation": 50.2,
+            "end_time_simulation": 59.71,
+            "start_time_scheduled": 49.1,
+            "end_time_scheduled": 58.61,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Water",
+            "start_time_simulation": 59.71,
+            "end_time_simulation": 60.71,
+            "start_time_scheduled": 58.61,
+            "end_time_scheduled": 59.61,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.40886,
+    "simulation_makespan": 60.71,
+    "scheduler_makespan": 59.61,
+    "total_primitive_actions": 52,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Kettle on StoveBurner and Start Boiling -> Turn Off Stove after Boiling Water": {
+            "Original Timing Constraint": "(9.507247228536393, True)",
+            "Schedule Result": "[True] : (49.1) -> (58.607247228536394s--0.0s)"
+        },
+        "Place Potato in Microwave -> Start Microwave for Heating Potato": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (15.5) -> (15.5s--0.0s)"
+        },
+        "Start Microwave for Heating Potato -> Turn Off Microwave after Heating Potato": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (16.5) -> (21.5s--0.0s)"
+        },
+        "Turn Off Microwave after Heating Potato -> Retrieve Heated Potato and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (22.5) -> (22.5s--0.0s)"
+        }
+    }
+}

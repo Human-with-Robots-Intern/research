@@ -1,0 +1,56 @@
+{
+    "saved_time": "2025-07-30 16:26",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan422",
+    "plans": [
+        {
+            "subtask_name": "Wet soapbar in Sink",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 11.4,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 11.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place toilet paper on holder",
+            "start_time_simulation": 11.4,
+            "end_time_simulation": 16.7,
+            "start_time_scheduled": 11.2,
+            "end_time_scheduled": 16.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn on light",
+            "start_time_simulation": 16.7,
+            "end_time_simulation": 17.7,
+            "start_time_scheduled": 16.3,
+            "end_time_scheduled": 17.3,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Throw cloth in garbage can",
+            "start_time_simulation": 17.7,
+            "end_time_simulation": 22.8,
+            "start_time_scheduled": 17.3,
+            "end_time_scheduled": 22.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Close shower curtain",
+            "start_time_simulation": 22.8,
+            "end_time_simulation": 26.0,
+            "start_time_scheduled": 22.4,
+            "end_time_scheduled": 25.7,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.00907,
+    "simulation_makespan": 26.0,
+    "scheduler_makespan": 25.7,
+    "total_primitive_actions": 24,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": null,
+    "timing_success_rate_sched": null,
+    "detail_log": {}
+}

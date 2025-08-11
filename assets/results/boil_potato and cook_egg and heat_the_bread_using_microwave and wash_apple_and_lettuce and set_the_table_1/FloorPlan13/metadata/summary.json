@@ -1,0 +1,40 @@
+{
+    "task": "boil_potato and cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and set_the_table_1",
+    "difficulty": "hard",
+    "scene": "FloorPlan13",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 103.81,
+            "simulation_makespan": 105.81,
+            "realWorld_makespan": null,
+            "computation_time": 43.72446,
+            "actionSuccess_rate": 0.8333333333333334,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 0.88,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 111.86,
+            "simulation_makespan": 107.46,
+            "realWorld_makespan": null,
+            "computation_time": 0.36428,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 0.75,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 105.7,
+            "simulation_makespan": 104.0,
+            "realWorld_makespan": null,
+            "computation_time": 0.56425,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 0.75,
+            "simulation_timingSuccess_rate": 0.88,
+            "attempt": "Not related"
+        }
+    ]
+}

@@ -1,0 +1,113 @@
+{
+    "saved_time": "2025-07-30 21:04",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan427",
+    "plans": [
+        {
+            "subtask_name": "Start Filling Bathtub with Shower Head",
+            "start_time_simulation": 0,
+            "end_time_simulation": 2.9,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.9,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Spray Sink with Spray Bottle",
+            "start_time_simulation": 2.9,
+            "end_time_simulation": 10.1,
+            "start_time_scheduled": 2.9,
+            "end_time_scheduled": 10.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "EARLY_Wet SoapBottle in Sink",
+            "start_time_simulation": 10.1,
+            "end_time_simulation": 17.6,
+            "start_time_scheduled": 10.1,
+            "end_time_scheduled": 16.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Shower Head after Bathtub is Filled_67409bb1",
+            "start_time_simulation": 17.6,
+            "end_time_simulation": 17.7,
+            "start_time_scheduled": 16.7,
+            "end_time_scheduled": 16.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to ShowerHead|-03.74|+01.86|+01.83 during 1.2",
+            "start_time_simulation": 17.7,
+            "end_time_simulation": 18.0,
+            "start_time_scheduled": 16.8,
+            "end_time_scheduled": 18.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Shower Head after Bathtub is Filled_9d056338",
+            "start_time_simulation": 18.0,
+            "end_time_simulation": 18.1,
+            "start_time_scheduled": 18.0,
+            "end_time_scheduled": 18.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn On Light Switch",
+            "start_time_simulation": 18.1,
+            "end_time_simulation": 22.0,
+            "start_time_scheduled": 18.1,
+            "end_time_scheduled": 21.6,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Turn Off Shower Head after Bathtub is Filled",
+            "start_time_simulation": 22.0,
+            "end_time_simulation": 25.9,
+            "start_time_scheduled": 21.6,
+            "end_time_scheduled": 25.3,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wipe Sink with Dish Sponge",
+            "start_time_simulation": 25.9,
+            "end_time_simulation": 32.9,
+            "start_time_scheduled": 25.3,
+            "end_time_scheduled": 32.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "REMAIN_Wet SoapBottle in Sink",
+            "start_time_simulation": 32.9,
+            "end_time_simulation": 40.1,
+            "start_time_scheduled": 32.5,
+            "end_time_scheduled": 38.4,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place Soap Bar on Sink",
+            "start_time_simulation": 40.1,
+            "end_time_simulation": 44.9,
+            "start_time_scheduled": 38.4,
+            "end_time_scheduled": 44.1,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 1.21028,
+    "simulation_makespan": 44.9,
+    "scheduler_makespan": 44.1,
+    "total_primitive_actions": 38,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Start Filling Bathtub with Shower Head -> Turn Off Shower Head after Bathtub is Filled": {
+            "Original Timing Constraint": "(20, True)",
+            "Schedule Result": "[True] : (2.9) -> (21.6s--2.7s)"
+        },
+        "Spray Sink with Spray Bottle -> Wipe Sink with Dish Sponge": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (10.1) -> (25.3s--2.1s)"
+        }
+    }
+}

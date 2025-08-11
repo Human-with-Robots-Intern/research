@@ -1,0 +1,40 @@
+{
+    "task": "cook_egg and fill_pot_with_water and heat_the_bread_using_microwave and wash_all_fork_and_spoon and set_the_table_1",
+    "difficulty": "hard",
+    "scene": "FloorPlan13",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 93.21,
+            "simulation_makespan": 90.51,
+            "realWorld_makespan": null,
+            "computation_time": 20.65883,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 0.86,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 105.54,
+            "simulation_makespan": 102.85,
+            "realWorld_makespan": null,
+            "computation_time": 0.30186,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 0.86,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 100.9,
+            "simulation_makespan": 98.1,
+            "realWorld_makespan": null,
+            "computation_time": 0.56235,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 0.86,
+            "attempt": "Not related"
+        }
+    ]
+}

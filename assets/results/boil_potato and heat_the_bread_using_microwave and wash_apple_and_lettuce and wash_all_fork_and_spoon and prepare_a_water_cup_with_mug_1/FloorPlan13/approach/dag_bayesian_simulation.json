@@ -1,0 +1,221 @@
+{
+    "saved_time": "2025-07-30 13:32",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan13",
+    "plans": [
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 0,
+            "end_time_simulation": 10.0,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 10.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Mug in Sink and Start Filling",
+            "start_time_simulation": 10.0,
+            "end_time_simulation": 13.6,
+            "start_time_scheduled": 10.0,
+            "end_time_scheduled": 13.6,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "EARLY_Wash Apple and place on CounterTop",
+            "start_time_simulation": 13.6,
+            "end_time_simulation": 17.0,
+            "start_time_scheduled": 13.6,
+            "end_time_scheduled": 17.0,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Faucet after Mug is Filled_057d2083",
+            "start_time_simulation": 17.0,
+            "end_time_simulation": 17.1,
+            "start_time_scheduled": 17.0,
+            "end_time_scheduled": 17.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Faucet after Mug is Filled",
+            "start_time_simulation": 17.1,
+            "end_time_simulation": 18.52,
+            "start_time_scheduled": 17.1,
+            "end_time_scheduled": 18.52,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Mug is Filled",
+            "start_time_simulation": 18.52,
+            "end_time_simulation": 19.52,
+            "start_time_scheduled": 18.52,
+            "end_time_scheduled": 19.52,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 19.52,
+            "end_time_simulation": 21.16,
+            "start_time_scheduled": 19.52,
+            "end_time_scheduled": 21.16,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 21.16,
+            "end_time_simulation": 22.16,
+            "start_time_scheduled": 21.16,
+            "end_time_scheduled": 22.16,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place Potato in Pot and Start Boiling on Stove",
+            "start_time_simulation": 22.16,
+            "end_time_simulation": 30.56,
+            "start_time_scheduled": 22.16,
+            "end_time_scheduled": 30.16,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "EARLY_Place Bread in Microwave",
+            "start_time_simulation": 30.56,
+            "end_time_simulation": 36.76,
+            "start_time_scheduled": 30.16,
+            "end_time_scheduled": 36.56,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove after Boiling Potato_dbafb87c",
+            "start_time_simulation": 36.76,
+            "end_time_simulation": 36.86,
+            "start_time_scheduled": 36.56,
+            "end_time_scheduled": 36.66,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to StoveKnob|-02.97|+01.10|+01.56 during 0.6",
+            "start_time_simulation": 36.86,
+            "end_time_simulation": 37.46,
+            "start_time_scheduled": 36.66,
+            "end_time_scheduled": 37.26,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove after Boiling Potato_d2362ae7",
+            "start_time_simulation": 37.46,
+            "end_time_simulation": 37.56,
+            "start_time_scheduled": 37.26,
+            "end_time_scheduled": 37.36,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "REMAIN_Place Bread in Microwave",
+            "start_time_simulation": 37.56,
+            "end_time_simulation": 39.16,
+            "start_time_scheduled": 37.36,
+            "end_time_scheduled": 38.76,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 39.16,
+            "end_time_simulation": 40.16,
+            "start_time_scheduled": 38.76,
+            "end_time_scheduled": 39.76,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Potato",
+            "start_time_simulation": 40.16,
+            "end_time_simulation": 41.76,
+            "start_time_scheduled": 39.76,
+            "end_time_scheduled": 41.36,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce and place on CounterTop",
+            "start_time_simulation": 41.76,
+            "end_time_simulation": 49.96,
+            "start_time_scheduled": 41.36,
+            "end_time_scheduled": 50.76,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on CounterTop",
+            "start_time_simulation": 49.96,
+            "end_time_simulation": 62.16,
+            "start_time_scheduled": 50.76,
+            "end_time_scheduled": 63.16,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on CounterTop",
+            "start_time_simulation": 62.16,
+            "end_time_simulation": 74.16,
+            "start_time_scheduled": 63.16,
+            "end_time_scheduled": 75.36,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "REMAIN_Wash Apple and place on CounterTop",
+            "start_time_simulation": 74.16,
+            "end_time_simulation": 78.56,
+            "start_time_scheduled": 75.36,
+            "end_time_scheduled": 82.16,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 78.56,
+            "end_time_simulation": 81.16,
+            "start_time_scheduled": 82.16,
+            "end_time_scheduled": 85.76,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 81.16,
+            "end_time_simulation": 86.56,
+            "start_time_scheduled": 85.76,
+            "end_time_scheduled": 92.36,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 9.45482,
+    "simulation_makespan": 86.56,
+    "scheduler_makespan": 92.36,
+    "total_primitive_actions": 101,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(11.16468452247413, True)",
+            "Schedule Result": "[True] : (10.0) -> (21.16468452247413s--0.0s)"
+        },
+        "Turn Off Faucet after Pot is Filled -> Place Potato in Pot and Start Boiling on Stove": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (22.16468452247413) -> (22.16468452247413s--0.6s)"
+        },
+        "Place Potato in Pot and Start Boiling on Stove -> Turn Off Stove after Boiling Potato": {
+            "Original Timing Constraint": "(9.80964808514742, True)",
+            "Schedule Result": "[True] : (30.16468452247413) -> (39.764684522474134s--0.6s)"
+        },
+        "Start Microwave for Heating Bread -> Turn Off Microwave after Heating Bread": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (39.764684522474134) -> (82.16468452247413s--2.6s)"
+        },
+        "Turn Off Microwave after Heating Bread -> Retrieve Heated Bread and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (85.76468452247413) -> (85.76468452247413s--0.0s)"
+        },
+        "Place Mug in Sink and Start Filling -> Turn Off Faucet after Mug is Filled": {
+            "Original Timing Constraint": "(4.92216253176939, True)",
+            "Schedule Result": "[True] : (13.6) -> (18.52216253176939s--0.0s)"
+        },
+        "REMAIN_Place Bread in Microwave -> Start Microwave for Heating Bread": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (38.764684522474134) -> (38.764684522474134s--0.0s)"
+        }
+    }
+}

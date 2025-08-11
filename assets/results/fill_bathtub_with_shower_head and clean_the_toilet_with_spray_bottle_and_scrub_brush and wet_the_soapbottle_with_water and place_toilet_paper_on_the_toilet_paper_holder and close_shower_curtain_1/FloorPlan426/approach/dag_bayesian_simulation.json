@@ -1,0 +1,89 @@
+{
+    "saved_time": "2025-07-30 18:51",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan426",
+    "plans": [
+        {
+            "subtask_name": "Start Filling Bathtub with Shower Head",
+            "start_time_simulation": 0,
+            "end_time_simulation": 2.0,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Close Shower Curtain",
+            "start_time_simulation": 2.0,
+            "end_time_simulation": 3.8,
+            "start_time_scheduled": 2.0,
+            "end_time_scheduled": 3.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Spray toilet with spray bottle",
+            "start_time_simulation": 3.8,
+            "end_time_simulation": 10.5,
+            "start_time_scheduled": 3.9,
+            "end_time_scheduled": 10.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Toilet Paper on Holder",
+            "start_time_simulation": 10.5,
+            "end_time_simulation": 12.7,
+            "start_time_scheduled": 10.7,
+            "end_time_scheduled": 12.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Scrub toilet with scrub brush",
+            "start_time_simulation": 12.7,
+            "end_time_simulation": 20.5,
+            "start_time_scheduled": 12.9,
+            "end_time_scheduled": 20.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Shower Head after Bathtub is Filled",
+            "start_time_simulation": 20.5,
+            "end_time_simulation": 24.4,
+            "start_time_scheduled": 20.7,
+            "end_time_scheduled": 24.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Scrub toilet with scrub brush",
+            "start_time_simulation": 24.4,
+            "end_time_simulation": 31.5,
+            "start_time_scheduled": 24.6,
+            "end_time_scheduled": 30.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet SoapBottle in Sink",
+            "start_time_simulation": 31.5,
+            "end_time_simulation": 42.3,
+            "start_time_scheduled": 30.9,
+            "end_time_scheduled": 42.3,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.81139,
+    "simulation_makespan": 42.3,
+    "scheduler_makespan": 42.3,
+    "total_primitive_actions": 35,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.5,
+    "timing_success_rate_sched": 0.5,
+    "detail_log": {
+        "Start Filling Bathtub with Shower Head -> Turn Off Shower Head after Bathtub is Filled": {
+            "Original Timing Constraint": "(20, True)",
+            "Schedule Result": "[True] : (2.0) -> (20.7s--2.9s)"
+        },
+        "Spray toilet with spray bottle -> Scrub toilet with scrub brush": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[False] : (10.7) -> (24.599999999999998s--3.3s)"
+        }
+    }
+}

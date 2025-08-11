@@ -1,0 +1,40 @@
+{
+    "task": "boil_potato and boil_water_with_kettle and heat_the_bread_using_microwave and wash_all_fork_and_spoon and put_salt_shaker_inside_the_safe_1",
+    "difficulty": "hard",
+    "scene": "FloorPlan18",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 79.31,
+            "simulation_makespan": 80.11,
+            "realWorld_makespan": null,
+            "computation_time": 7.92161,
+            "actionSuccess_rate": 0.8333333333333334,
+            "scheduler_timingSuccess_rate": 0.86,
+            "simulation_timingSuccess_rate": 0.86,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 100.12,
+            "simulation_makespan": 100.52,
+            "realWorld_makespan": null,
+            "computation_time": 0.19004,
+            "actionSuccess_rate": 0.9411764705882353,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 81.0,
+            "simulation_makespan": 81.8,
+            "realWorld_makespan": null,
+            "computation_time": 0.36502,
+            "actionSuccess_rate": 0.9411764705882353,
+            "scheduler_timingSuccess_rate": 0.71,
+            "simulation_timingSuccess_rate": 0.71,
+            "attempt": "Not related"
+        }
+    ]
+}

@@ -1,0 +1,109 @@
+{
+    "saved_time": "2025-07-30 21:02",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan427",
+    "plans": [
+        {
+            "subtask_name": "Spray toilet with spray bottle",
+            "start_time_simulation": 0,
+            "end_time_simulation": 6.3,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 7.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn on the candle",
+            "start_time_simulation": 6.3,
+            "end_time_simulation": 8.3,
+            "start_time_scheduled": 7.0,
+            "end_time_scheduled": 9.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "EARLY_Wet soapbar in Sink",
+            "start_time_simulation": 8.3,
+            "end_time_simulation": 12.3,
+            "start_time_scheduled": 9.7,
+            "end_time_scheduled": 13.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Scrub toilet with scrub brush_74435c8f",
+            "start_time_simulation": 12.3,
+            "end_time_simulation": 12.4,
+            "start_time_scheduled": 13.7,
+            "end_time_scheduled": 13.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to ScrubBrush|-01.04|+00.00|-00.71 during 1.8",
+            "start_time_simulation": 12.4,
+            "end_time_simulation": 14.2,
+            "start_time_scheduled": 13.8,
+            "end_time_scheduled": 15.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Scrub toilet with scrub brush_3a3eda7a",
+            "start_time_simulation": 14.2,
+            "end_time_simulation": 14.3,
+            "start_time_scheduled": 15.6,
+            "end_time_scheduled": 15.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Scrub toilet with scrub brush",
+            "start_time_simulation": 14.3,
+            "end_time_simulation": 15.6,
+            "start_time_scheduled": 15.7,
+            "end_time_scheduled": 17.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Scrub toilet with scrub brush",
+            "start_time_simulation": 15.6,
+            "end_time_simulation": 18.6,
+            "start_time_scheduled": 17.0,
+            "end_time_scheduled": 20.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "REMAIN_Wet soapbar in Sink",
+            "start_time_simulation": 18.6,
+            "end_time_simulation": 27.2,
+            "start_time_scheduled": 20.8,
+            "end_time_scheduled": 29.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Throw cloth into garbage can",
+            "start_time_simulation": 27.2,
+            "end_time_simulation": 30.7,
+            "start_time_scheduled": 29.6,
+            "end_time_scheduled": 33.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Close the shower curtain",
+            "start_time_simulation": 30.7,
+            "end_time_simulation": 32.8,
+            "start_time_scheduled": 33.8,
+            "end_time_scheduled": 36.5,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 0.96818,
+    "simulation_makespan": 32.8,
+    "scheduler_makespan": 36.5,
+    "total_primitive_actions": 37,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Spray toilet with spray bottle -> Scrub toilet with scrub brush": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[True] : (7.0) -> (17.0s--0.1s)"
+        }
+    }
+}

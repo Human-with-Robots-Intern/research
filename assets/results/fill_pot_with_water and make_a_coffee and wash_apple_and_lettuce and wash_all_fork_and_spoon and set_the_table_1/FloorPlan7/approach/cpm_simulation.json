@@ -1,0 +1,145 @@
+{
+    "saved_time": "2025-07-29 21:49",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan7",
+    "plans": [
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 6.5,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 6.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce and place on CounterTop",
+            "start_time_simulation": 6.5,
+            "end_time_simulation": 16.0,
+            "start_time_scheduled": 6.6,
+            "end_time_scheduled": 16.2,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_Faucet|-00.11|+00.92|-01.82",
+            "start_time_simulation": 16.0,
+            "end_time_simulation": 16.7,
+            "start_time_scheduled": 16.2,
+            "end_time_scheduled": 17.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 0.5646845224741295 to Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 16.7,
+            "end_time_simulation": 17.26,
+            "start_time_scheduled": 17.2,
+            "end_time_scheduled": 17.76,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 17.26,
+            "end_time_simulation": 18.26,
+            "start_time_scheduled": 17.76,
+            "end_time_scheduled": 18.76,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 18.26,
+            "end_time_simulation": 23.86,
+            "start_time_scheduled": 18.76,
+            "end_time_scheduled": 24.16,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 23.86,
+            "end_time_simulation": 24.86,
+            "start_time_scheduled": 24.16,
+            "end_time_scheduled": 25.16,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple and place on CounterTop",
+            "start_time_simulation": 24.86,
+            "end_time_simulation": 33.56,
+            "start_time_scheduled": 25.16,
+            "end_time_scheduled": 33.96,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on CounterTop",
+            "start_time_simulation": 33.56,
+            "end_time_simulation": 52.76,
+            "start_time_scheduled": 33.96,
+            "end_time_scheduled": 53.16,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on CounterTop",
+            "start_time_simulation": 52.76,
+            "end_time_simulation": 71.76,
+            "start_time_scheduled": 53.16,
+            "end_time_scheduled": 72.16,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 71.76,
+            "end_time_simulation": 79.06,
+            "start_time_scheduled": 72.16,
+            "end_time_scheduled": 79.76,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on DiningTable",
+            "start_time_simulation": 79.06,
+            "end_time_simulation": 88.46,
+            "start_time_scheduled": 79.76,
+            "end_time_scheduled": 88.16,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on DiningTable",
+            "start_time_simulation": 88.46,
+            "end_time_simulation": 97.46,
+            "start_time_scheduled": 88.16,
+            "end_time_scheduled": 96.56,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Apple on DiningTable",
+            "start_time_simulation": 97.46,
+            "end_time_simulation": 106.86,
+            "start_time_scheduled": 96.56,
+            "end_time_scheduled": 104.96,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Lettuce on DiningTable",
+            "start_time_simulation": 106.86,
+            "end_time_simulation": 115.66,
+            "start_time_scheduled": 104.96,
+            "end_time_scheduled": 113.36,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.32949,
+    "simulation_makespan": 115.66,
+    "scheduler_makespan": 113.36,
+    "total_primitive_actions": 84,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(11.16468452247413, True)",
+            "Schedule Result": "[True] : (6.6000000000000005) -> (17.764684522474127s--0.0s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (24.164684522474126) -> (24.164684522474126s--0.0s)"
+        }
+    }
+}

@@ -1,0 +1,48 @@
+{
+    "saved_time": "2025-07-30 16:35",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan422",
+    "plans": [
+        {
+            "subtask_name": "Place Toilet Paper on Holder",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 4.5,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Throw Away Cloth",
+            "start_time_simulation": 4.5,
+            "end_time_simulation": 9.6,
+            "start_time_scheduled": 4.5,
+            "end_time_scheduled": 9.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet SoapBottle in Sink",
+            "start_time_simulation": 9.6,
+            "end_time_simulation": 18.1,
+            "start_time_scheduled": 9.6,
+            "end_time_scheduled": 18.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet SoapBar in Sink",
+            "start_time_simulation": 18.1,
+            "end_time_simulation": 26.7,
+            "start_time_scheduled": 18.5,
+            "end_time_scheduled": 28.9,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 0.02992,
+    "simulation_makespan": 26.7,
+    "scheduler_makespan": 28.9,
+    "total_primitive_actions": 32,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": null,
+    "timing_success_rate_sched": null,
+    "detail_log": {}
+}
