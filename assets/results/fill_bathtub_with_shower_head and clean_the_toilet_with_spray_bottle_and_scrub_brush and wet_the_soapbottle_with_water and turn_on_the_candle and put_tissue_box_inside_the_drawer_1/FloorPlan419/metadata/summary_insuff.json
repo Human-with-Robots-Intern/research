@@ -1,0 +1,40 @@
+{
+    "task": "fill_bathtub_with_shower_head and clean_the_toilet_with_spray_bottle_and_scrub_brush and wet_the_soapbottle_with_water and turn_on_the_candle and put_tissue_box_inside_the_drawer_1",
+    "difficulty": "hard",
+    "scene": "FloorPlan419",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 33.2,
+            "simulation_makespan": 33.4,
+            "realWorld_makespan": null,
+            "computation_time": 0.79332,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 40.3,
+            "simulation_makespan": 40.5,
+            "realWorld_makespan": null,
+            "computation_time": 0.02199,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 32.0,
+            "simulation_makespan": 32.2,
+            "realWorld_makespan": null,
+            "computation_time": 0.05373,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        }
+    ]
+}

@@ -1,0 +1,56 @@
+{
+    "saved_time": "2025-07-30 21:09",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan427",
+    "plans": [
+        {
+            "subtask_name": "Wet SoapBottle in Sink",
+            "start_time_simulation": 0,
+            "end_time_simulation": 11.4,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 11.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn on Candle",
+            "start_time_simulation": 11.4,
+            "end_time_simulation": 12.7,
+            "start_time_scheduled": 11.9,
+            "end_time_scheduled": 13.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of Cloth",
+            "start_time_simulation": 12.7,
+            "end_time_simulation": 17.0,
+            "start_time_scheduled": 13.1,
+            "end_time_scheduled": 17.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn on Light",
+            "start_time_simulation": 17.0,
+            "end_time_simulation": 19.0,
+            "start_time_scheduled": 17.4,
+            "end_time_scheduled": 19.4,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Close Shower Curtain",
+            "start_time_simulation": 19.0,
+            "end_time_simulation": 22.1,
+            "start_time_scheduled": 19.4,
+            "end_time_scheduled": 23.1,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 0.55853,
+    "simulation_makespan": 22.1,
+    "scheduler_makespan": 23.1,
+    "total_primitive_actions": 22,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": null,
+    "timing_success_rate_sched": null,
+    "detail_log": {}
+}

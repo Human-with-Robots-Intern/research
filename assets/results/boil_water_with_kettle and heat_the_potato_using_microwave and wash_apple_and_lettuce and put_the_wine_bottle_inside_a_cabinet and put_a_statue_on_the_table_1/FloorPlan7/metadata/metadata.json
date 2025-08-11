@@ -1,0 +1,16 @@
+{
+    "metadata": {
+        "task": "boil_water_with_kettle and heat_the_potato_using_microwave and wash_apple_and_lettuce and put_the_wine_bottle_inside_a_cabinet and put_a_statue_on_the_table_1",
+        "scene": "FloorPlan7",
+        "creation_date": "2025-07-29 22:26",
+        "instructions": null,
+        "model_version": "gpt-4o"
+    },
+    "environment_info": {
+        "simulator": "AI2-THOR",
+        "simulation_version": "4.2.0",
+        "scene": "FloorPlan7",
+        "gpu": null,
+        "cpu": null
+    }
+}

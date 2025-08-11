@@ -1,10 +1,118 @@
 {
-    "faucet": {
-        "expected_duration": 80.0,
-        "variance": 100.0
+    "prepare egg fry": {
+        "expected_duration": 75.0,
+        "variance": 1.0
     },
-    "coffeemachine": {
-        "expected_duration": 80.0,
-        "variance": 100.0
+    "turn off stove after cooking": {
+        "expected_duration": 75.0,
+        "variance": 0.04249168955051282
+    },
+    "prepare potato": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "turn off stove after cooking potato": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "place potato in pot and start boiling on stove": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "retrieve potato from microwave and place on plate": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "retrieve potato from microwave": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "turn off stove after boiling potato": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "turn off stove after cooking egg fry": {
+        "expected_duration": 75.14791211975466,
+        "variance": 1.0
+    },
+    "turn off stove after boiling": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "retrieve heated potato and place on countertop": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "cook egg in pan": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "retrieve cooked egg and place on plate": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "turn off microwave after heating bread": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "retrieve heated bread and place on countertop": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "boil potato in pot": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "stop filling pot and place on stoveburner": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "retrieve bread from microwave": {
+        "expected_duration": 5,
+        "variance": 1.0
+    },
+    "turn off kettle": {
+        "expected_duration": 5,
+        "variance": 1.0
+    },
+    "turn on stove to cook sausage": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "turn off faucet after mug is filled": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "turn off faucet after pot is filled": {
+        "expected_duration": 75.0,
+        "variance": 1.0
+    },
+    "place kettle on stoveburner and boil": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "turn off laundry machine": {
+        "expected_duration": 75,
+        "variance": 1.0
+    },
+    "cook chicken in pan": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "move cooked chicken to plate": {
+        "expected_duration": 0,
+        "variance": 1.0
+    },
+    "scrub toilet with scrub brush": {
+        "expected_duration": 75,
+        "variance": 1.0
+    },
+    "turn off shower head after bathtub is filled": {
+        "expected_duration": 75,
+        "variance": 1.0
+    },
+    "wipe sink with dish sponge": {
+        "expected_duration": 0,
+        "variance": 1.0
     }
 }

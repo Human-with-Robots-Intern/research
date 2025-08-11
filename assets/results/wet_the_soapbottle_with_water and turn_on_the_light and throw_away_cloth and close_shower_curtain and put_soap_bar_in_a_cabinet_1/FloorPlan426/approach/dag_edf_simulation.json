@@ -1,0 +1,56 @@
+{
+    "saved_time": "2025-07-30 18:48",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan426",
+    "plans": [
+        {
+            "subtask_name": "Close Shower Curtain",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 2.0,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn on LightSwitch",
+            "start_time_simulation": 2.0,
+            "end_time_simulation": 6.2,
+            "start_time_scheduled": 2.1,
+            "end_time_scheduled": 6.4,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Dispose of Cloth in GarbageCan",
+            "start_time_simulation": 6.2,
+            "end_time_simulation": 11.5,
+            "start_time_scheduled": 6.4,
+            "end_time_scheduled": 11.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place SoapBar in Drawer",
+            "start_time_simulation": 11.5,
+            "end_time_simulation": 18.6,
+            "start_time_scheduled": 11.7,
+            "end_time_scheduled": 18.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet SoapBottle in Sink",
+            "start_time_simulation": 18.6,
+            "end_time_simulation": 30.3,
+            "start_time_scheduled": 18.0,
+            "end_time_scheduled": 31.6,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.04494,
+    "simulation_makespan": 30.3,
+    "scheduler_makespan": 31.6,
+    "total_primitive_actions": 27,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": null,
+    "timing_success_rate_sched": null,
+    "detail_log": {}
+}

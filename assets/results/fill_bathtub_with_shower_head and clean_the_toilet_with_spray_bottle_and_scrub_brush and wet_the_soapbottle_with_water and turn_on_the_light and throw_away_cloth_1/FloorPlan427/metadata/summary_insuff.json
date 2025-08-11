@@ -1,0 +1,40 @@
+{
+    "task": "fill_bathtub_with_shower_head and clean_the_toilet_with_spray_bottle_and_scrub_brush and wet_the_soapbottle_with_water and turn_on_the_light and throw_away_cloth_1",
+    "difficulty": "hard",
+    "scene": "FloorPlan427",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 42.6,
+            "simulation_makespan": 42.9,
+            "realWorld_makespan": null,
+            "computation_time": 1.35366,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 0.5,
+            "simulation_timingSuccess_rate": 0.5,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 44.7,
+            "simulation_makespan": 43.2,
+            "realWorld_makespan": null,
+            "computation_time": 0.02787,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 42.1,
+            "simulation_makespan": 39.8,
+            "realWorld_makespan": null,
+            "computation_time": 0.07039,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 0.0,
+            "simulation_timingSuccess_rate": 0.0,
+            "attempt": "Not related"
+        }
+    ]
+}

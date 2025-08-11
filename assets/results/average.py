@@ -53,33 +53,47 @@ def load_summary_data(file_path: Path) -> Dict[str, Any]:
 
 def compute_stats(metrics_dict: Dict[str, List[float]], min_samples: int) -> Dict[str, float]:
     """
-    Computes the average and variance for each metric in the dictionary.
+    Computes the average and standard deviation for each metric in the dictionary.
 
     Args:
         metrics_dict: A dictionary where keys are metric names and values are lists of numbers.
         min_samples: The minimum number of data points required to compute stats.
 
     Returns:
-        A dictionary with computed average and variance for each metric.
+        A dictionary with computed average and standard deviation for each metric.
     """
+    # Define the desired order for metrics
+    METRIC_ORDER = [
+        "simulation_makespan",
+        "scheduler_makespan",
+        "simulation_timingSuccess_rate",
+        "scheduler_timingSuccess_rate",
+    ]
+
+    # Sort metrics based on the desired order, placing others at the end
+    sorted_metric_items = sorted(
+        metrics_dict.items(),
+        key=lambda item: METRIC_ORDER.index(item[0]) if item[0] in METRIC_ORDER else len(METRIC_ORDER),
+    )
+
     results = {}
-    for metric, values in metrics_dict.items():
+    for metric, values in sorted_metric_items:
         # Ensure values are valid floats
         valid_values = [v for v in values if isinstance(v, (int, float)) and not math.isinf(v)]
         
         if len(valid_values) >= min_samples:
             mean = statistics.mean(valid_values)
-            variance = statistics.variance(valid_values) if len(valid_values) > 1 else 0.0
+            std_dev = statistics.stdev(valid_values) if len(valid_values) > 1 else 0.0
             results[f"{metric}_average"] = mean
-            results[f"{metric}_variance"] = variance
+            results[f"{metric}_std"] = std_dev
         else:
             results[f"{metric}_average"] = None
-            results[f"{metric}_variance"] = None
+            results[f"{metric}_std"] = None
     return results
 
 def make_average(base_dir: Path) -> None:
     """
-    Analyzes simulation results to compute and store average and variance statistics,
+    Analyzes simulation results to compute and store average and standard deviation statistics,
     grouped by difficulty, scene type, and individual scenes.
     """
     # Nested defaultdict for flexible and deep metric storage
@@ -182,7 +196,7 @@ def make_average(base_dir: Path) -> None:
     try:
         with output_file.open("w", encoding="utf-8") as f:
             json.dump(final_results, f, indent=4)
-        log.info(f"Average and variance results saved to '{output_file}'")
+        log.info(f"Average and standard deviation results saved to '{output_file}'")
     except Exception as e:
         log.error(f"Failed to save results file: {e}")
 

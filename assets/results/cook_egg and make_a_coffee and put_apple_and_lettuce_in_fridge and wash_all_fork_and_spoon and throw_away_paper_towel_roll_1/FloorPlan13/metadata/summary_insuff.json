@@ -1,0 +1,40 @@
+{
+    "task": "cook_egg and make_a_coffee and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and throw_away_paper_towel_roll_1",
+    "difficulty": "normal",
+    "scene": "FloorPlan13",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 93.85,
+            "simulation_makespan": 91.85,
+            "realWorld_makespan": null,
+            "computation_time": 12.50917,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 117.04,
+            "simulation_makespan": 113.85,
+            "realWorld_makespan": null,
+            "computation_time": 0.23608,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 90.0,
+            "simulation_makespan": 91.0,
+            "realWorld_makespan": null,
+            "computation_time": 0.37503,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 0.8,
+            "attempt": "Not related"
+        }
+    ]
+}

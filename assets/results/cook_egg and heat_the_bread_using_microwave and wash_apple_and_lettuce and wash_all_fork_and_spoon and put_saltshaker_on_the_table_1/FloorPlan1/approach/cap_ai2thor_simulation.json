@@ -1,0 +1,331 @@
+{
+    "saved_time": "2025-08-05 10:27",
+    "approach": "cap_ai2thor_simulation",
+    "attempt": 3,
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "plan_name": "cook_egg and heat_the_bread_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and put_saltshaker_on_the_table",
+            "actions": [
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 0.0,
+                    "end_time": 0.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 0.5,
+                    "end_time": 1.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 1.5,
+                    "end_time": 5.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 5.5,
+                    "end_time": 6.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 6.5,
+                    "end_time": 7.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 7.5,
+                    "end_time": 8.5,
+                    "execution_status": false
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 8.5,
+                    "end_time": 9.5,
+                    "execution_status": false
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 9.5,
+                    "end_time": 12.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 12.3,
+                    "end_time": 13.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 13.3,
+                    "end_time": 15.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 15.3,
+                    "end_time": 16.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 16.3,
+                    "end_time": 17.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 17.3,
+                    "end_time": 18.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 18.3,
+                    "end_time": 19.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 19.3,
+                    "end_time": 20.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 20.3,
+                    "end_time": 21.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 21.3,
+                    "end_time": 22.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 22.3,
+                    "end_time": 24.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 24.3,
+                    "end_time": 25.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 25.3,
+                    "end_time": 27.0,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 27.0,
+                    "end_time": 28.0,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 28.0,
+                    "end_time": 29.0,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 29.0,
+                    "end_time": 30.0,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 30.0,
+                    "end_time": 31.0,
+                    "execution_status": false
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 31.0,
+                    "end_time": 31.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 31.5,
+                    "end_time": 32.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 32.5,
+                    "end_time": 33.4,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 33.4,
+                    "end_time": 34.4,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 34.4,
+                    "end_time": 35.4,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 35.4,
+                    "end_time": 36.4,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 36.4,
+                    "end_time": 37.4,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 37.4,
+                    "end_time": 39.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 39.3,
+                    "end_time": 40.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 40.3,
+                    "end_time": 42.2,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 42.2,
+                    "end_time": 43.2,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 43.2,
+                    "end_time": 45.1,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 45.1,
+                    "end_time": 46.1,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 46.1,
+                    "end_time": 48.2,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 48.2,
+                    "end_time": 49.2,
+                    "execution_status": false
+                }
+            ]
+        }
+    ],
+    "computation_time": 99.49344682693481,
+    "success_rate": 0.897,
+    "timing_success_rate": null,
+    "scheduler_makespan": null,
+    "simulation_makespan": 49.2,
+    "realworld_makespan": null
+}

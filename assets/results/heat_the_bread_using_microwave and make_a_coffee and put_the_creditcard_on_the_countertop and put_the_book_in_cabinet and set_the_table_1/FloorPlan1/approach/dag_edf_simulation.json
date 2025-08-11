@@ -1,0 +1,157 @@
+{
+    "saved_time": "2025-07-29 20:09",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "subtask_name": "Place Credit Card on CounterTop",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 2.9,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 2.9,
+            "end_time_simulation": 6.0,
+            "start_time_scheduled": 2.9,
+            "end_time_scheduled": 6.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 6.0,
+            "end_time_simulation": 7.0,
+            "start_time_scheduled": 6.0,
+            "end_time_scheduled": 7.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 7.0,
+            "end_time_simulation": 12.0,
+            "start_time_scheduled": 7.0,
+            "end_time_scheduled": 12.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 12.0,
+            "end_time_simulation": 14.5,
+            "start_time_scheduled": 12.0,
+            "end_time_scheduled": 14.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 14.5,
+            "end_time_simulation": 20.7,
+            "start_time_scheduled": 14.5,
+            "end_time_scheduled": 20.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 20.7,
+            "end_time_simulation": 21.8,
+            "start_time_scheduled": 20.5,
+            "end_time_scheduled": 21.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 21.8,
+            "end_time_simulation": 26.8,
+            "start_time_scheduled": 21.5,
+            "end_time_scheduled": 26.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 26.8,
+            "end_time_simulation": 27.8,
+            "start_time_scheduled": 26.5,
+            "end_time_scheduled": 27.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 27.8,
+            "end_time_simulation": 33.6,
+            "start_time_scheduled": 27.5,
+            "end_time_scheduled": 33.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Cup on CounterTop for Meal",
+            "start_time_simulation": 33.6,
+            "end_time_simulation": 40.4,
+            "start_time_scheduled": 33.5,
+            "end_time_scheduled": 40.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on CounterTop for Meal",
+            "start_time_simulation": 40.4,
+            "end_time_simulation": 46.2,
+            "start_time_scheduled": 40.5,
+            "end_time_scheduled": 48.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on CounterTop for Meal",
+            "start_time_simulation": 46.2,
+            "end_time_simulation": 52.0,
+            "start_time_scheduled": 48.5,
+            "end_time_scheduled": 56.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on CounterTop for Meal",
+            "start_time_simulation": 52.0,
+            "end_time_simulation": 58.4,
+            "start_time_scheduled": 56.5,
+            "end_time_scheduled": 65.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Book in Cabinet",
+            "start_time_simulation": 58.4,
+            "end_time_simulation": 69.3,
+            "start_time_scheduled": 65.7,
+            "end_time_scheduled": 76.0,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.34161,
+    "simulation_makespan": 69.3,
+    "scheduler_makespan": 76.0,
+    "total_primitive_actions": 56,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Bread in Microwave -> Start Microwave for Heating Bread": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (20.5) -> (20.5s--0.0s)"
+        },
+        "Start Microwave for Heating Bread -> Turn Off Microwave after Heating Bread": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (21.5) -> (26.5s--0.0s)"
+        },
+        "Turn Off Microwave after Heating Bread -> Retrieve Heated Bread and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (27.5) -> (27.5s--0.0s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (6.0) -> (6.0s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (7.0) -> (12.0s--0.0s)"
+        }
+    }
+}

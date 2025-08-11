@@ -11,10 +11,10 @@ start_idx: 1 # Start index for the instruction
 # Execution settings
 # List of approaches (scripts) to run
 approaches:
-  #- "src/baselines/cpm.py"
-  #- "src/baselines/edf/dag_edf.py"
+  # - "src/baselines/cpm.py"
+  # - "src/baselines/edf/dag_edf.py"
   - "src/dag_bayesian.py"
-  #- "src/baselines/progprompt/prog_ai2thor.py"
+  # - "src/baselines/progprompt/prog_ai2thor.py"
   # - "src/baselines/cap/cap_ai2thor.py"
 
 
@@ -26,18 +26,19 @@ llm_scripts:
 # Scene lists for each scene type
 scene_lists:
   kitchen:
-    # - "FloorPlan1"  
+    - "FloorPlan1"  
     # - "FloorPlan7"
     # - "FloorPlan13"
     # - "FloorPlan18"
-    #- "FloorPlan27"
+    # - "FloorPlan27"
+
   bathroom:
     # - "FloorPlan419"
     # - "FloorPlan422"
     # - "FloorPlan426"
     # - "FloorPlan427"
   real_world:
-    - "FloorPlan301"
+    # - "FloorPlan301"
 
 # Number of times to run each instruction
 num_runs_per_instruction: 1

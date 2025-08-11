@@ -1,0 +1,157 @@
+{
+    "saved_time": "2025-07-29 22:00",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan7",
+    "plans": [
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 4.6,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 4.6,
+            "end_time_simulation": 5.6,
+            "start_time_scheduled": 4.6,
+            "end_time_scheduled": 5.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 5.6,
+            "end_time_simulation": 10.5,
+            "start_time_scheduled": 5.6,
+            "end_time_scheduled": 10.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 10.5,
+            "end_time_simulation": 13.8,
+            "start_time_scheduled": 10.6,
+            "end_time_scheduled": 13.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_Faucet|-00.11|+00.92|-01.82",
+            "start_time_simulation": 13.8,
+            "end_time_simulation": 14.5,
+            "start_time_scheduled": 13.6,
+            "end_time_scheduled": 14.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 6.164684522474127 to Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 14.5,
+            "end_time_simulation": 20.66,
+            "start_time_scheduled": 14.6,
+            "end_time_scheduled": 20.76,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 20.66,
+            "end_time_simulation": 21.66,
+            "start_time_scheduled": 20.76,
+            "end_time_scheduled": 21.76,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Pot and Start Boiling on Stove",
+            "start_time_simulation": 21.66,
+            "end_time_simulation": 34.46,
+            "start_time_scheduled": 21.76,
+            "end_time_scheduled": 34.96,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 34.46,
+            "end_time_simulation": 41.86,
+            "start_time_scheduled": 34.96,
+            "end_time_scheduled": 42.36,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Potato",
+            "start_time_simulation": 41.86,
+            "end_time_simulation": 48.26,
+            "start_time_scheduled": 42.36,
+            "end_time_scheduled": 48.76,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place SaltShaker on DiningTable",
+            "start_time_simulation": 48.26,
+            "end_time_simulation": 55.66,
+            "start_time_scheduled": 48.76,
+            "end_time_scheduled": 56.16,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on DiningTable",
+            "start_time_simulation": 55.66,
+            "end_time_simulation": 66.06,
+            "start_time_scheduled": 56.16,
+            "end_time_scheduled": 66.96,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place Fork on DiningTable",
+            "start_time_simulation": 66.06,
+            "end_time_simulation": 76.46,
+            "start_time_scheduled": 66.96,
+            "end_time_scheduled": 77.96,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wash Fork",
+            "start_time_simulation": 76.46,
+            "end_time_simulation": 88.16,
+            "start_time_scheduled": 77.96,
+            "end_time_scheduled": 90.16,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon",
+            "start_time_simulation": 88.16,
+            "end_time_simulation": 103.36,
+            "start_time_scheduled": 90.16,
+            "end_time_scheduled": 105.56,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.89563,
+    "simulation_makespan": 103.36,
+    "scheduler_makespan": 105.56,
+    "total_primitive_actions": 72,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.8,
+    "timing_success_rate_sched": 0.8,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(11.16468452247413, True)",
+            "Schedule Result": "[True] : (10.6) -> (20.764684522474127s--0.0s)"
+        },
+        "Turn Off Faucet after Pot is Filled -> Place Potato in Pot and Start Boiling on Stove": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (21.764684522474127) -> (21.764684522474127s--3.3s)"
+        },
+        "Place Potato in Pot and Start Boiling on Stove -> Turn Off Stove after Boiling Potato": {
+            "Original Timing Constraint": "(9.80964808514742, True)",
+            "Schedule Result": "[False] : (34.96468452247413) -> (42.36468452247413s--5.4s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (4.6) -> (4.6s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (5.6) -> (10.6s--0.8s)"
+        }
+    }
+}

@@ -2,7 +2,12 @@ import logging
 import time
 
 from src.utils.common import create_module_logger
-from src.utils.config.constants import SMOOTH_LEVEL
+from src.utils.config.constants import (
+    MONITORING_DURATION,
+    NAV_STEP_DURATION,
+    PRIMITIVE_ACTION_DURATION,
+    SMOOTH_LEVEL,
+)
 
 from .navigation_handler import NavigationHandler
 
@@ -89,7 +94,7 @@ class Action:
         if result.metadata["lastActionSuccess"]:
             self.success_log(result, f"pickup {object_id}")
             time.sleep(0.3)
-            elapsed_time += 1
+            elapsed_time += PRIMITIVE_ACTION_DURATION
             return elapsed_time
 
         # 만약 첫 시도에 실패한 경우
@@ -111,7 +116,7 @@ class Action:
 
             if result.metadata["lastActionSuccess"]:
                 self.close(receptacle_id)
-                elapsed_time += 1
+                elapsed_time += PRIMITIVE_ACTION_DURATION
                 self.log.debug(
                     f"Pick up action after opening receptacle "
                     f"{receptacle_id} was successful."
@@ -122,7 +127,7 @@ class Action:
                     f"Failed to pick up object {object_id} even after "
                     f"opening the receptacle {receptacle_id}."
                 )
-                elapsed_time += 1
+                elapsed_time += PRIMITIVE_ACTION_DURATION
                 return elapsed_time
         else:
             # Re-try once more (또 한 번 시도)
@@ -134,7 +139,7 @@ class Action:
             )
             self.success_log(result, f"pickup {object_id}")
             time.sleep(0.3)
-            elapsed_time += 1
+            elapsed_time += PRIMITIVE_ACTION_DURATION
             return elapsed_time
 
     def slice(self, object_id: str):
@@ -150,7 +155,7 @@ class Action:
         result = self.controller.step(action="SliceObject", objectId=object_id)
         self.success_log(result, f"slice {object_id}")
         time.sleep(0.3)
-        return 1
+        return PRIMITIVE_ACTION_DURATION
 
     def put(self, target_id: str):
         """
@@ -167,7 +172,7 @@ class Action:
         Returns:
             float: Elapsed time for the put action.
         """
-        elapsed_time = 1
+        elapsed_time = PRIMITIVE_ACTION_DURATION
         result = self.controller.step(
             action="PutObject",
             objectId=target_id,
@@ -213,7 +218,7 @@ class Action:
             step += 1
         self.success_log(result, "drop")
         time.sleep(0.3)
-        return 1
+        return PRIMITIVE_ACTION_DURATION
 
     def toggle_on(self, object_id: str):
         """
@@ -228,7 +233,7 @@ class Action:
         result = self.controller.step(action="ToggleObjectOn", objectId=object_id)
         self.success_log(result, f"toggle on {object_id}")
         time.sleep(0.3)
-        return 1
+        return PRIMITIVE_ACTION_DURATION
 
     def toggle_off(self, object_id: str):
         """
@@ -243,7 +248,7 @@ class Action:
         result = self.controller.step(action="ToggleObjectOff", objectId=object_id)
         self.success_log(result, f"toggle off {object_id}")
         time.sleep(0.3)
-        return 1
+        return PRIMITIVE_ACTION_DURATION
 
     def open(self, object_id: str):
         """
@@ -270,7 +275,7 @@ class Action:
         )
         self.success_log(result, f"open {object_id}")
         time.sleep(0.3)
-        elapsed_time += 1
+        elapsed_time += PRIMITIVE_ACTION_DURATION
         return elapsed_time
 
     def close(self, object_id: str):
@@ -290,7 +295,7 @@ class Action:
         )
         self.success_log(result, f"close {object_id}")
         time.sleep(0.3)
-        return 1
+        return PRIMITIVE_ACTION_DURATION
 
     def monitoring(self, object_id: str):
         """
@@ -336,8 +341,8 @@ class Action:
             for _ in range(SMOOTH_LEVEL):
                 self.controller.step(action="RotateLeft", degrees=degree / SMOOTH_LEVEL)
 
-        time.sleep(0.1)
-        return 0.1
+        time.sleep(MONITORING_DURATION)
+        return MONITORING_DURATION
 
     def wait(self, wait_time=1):
         """
@@ -369,7 +374,7 @@ class Action:
         )
         self.success_log(result, f"fill {object_id} with water")
         time.sleep(0.3)
-        return 1
+        return PRIMITIVE_ACTION_DURATION
 
     def move_to(self, object_id: str):
         """
@@ -410,7 +415,7 @@ class Action:
         elapsed_time = 0
         for position in path:
             # 이동 하나 당 0.1초 정도 소요된다고 가정
-            elapsed_time += 0.1
+            elapsed_time += NAV_STEP_DURATION
             self.navi.teleport_to_position(position)
 
             # stop_time이 설정되어 있고, elapsed_time이 일정값에 도달하면 중단

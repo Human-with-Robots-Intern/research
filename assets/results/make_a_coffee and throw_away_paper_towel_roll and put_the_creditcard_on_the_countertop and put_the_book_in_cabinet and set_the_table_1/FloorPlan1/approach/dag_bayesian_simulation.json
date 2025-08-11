@@ -1,0 +1,97 @@
+{
+    "saved_time": "2025-07-29 20:34",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "subtask_name": "Put Credit Card on CounterTop",
+            "start_time_simulation": 0,
+            "end_time_simulation": 2.9,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 2.9,
+            "end_time_simulation": 6.0,
+            "start_time_scheduled": 2.9,
+            "end_time_scheduled": 6.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 6.0,
+            "end_time_simulation": 7.0,
+            "start_time_scheduled": 6.0,
+            "end_time_scheduled": 7.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Book in Cabinet",
+            "start_time_simulation": 7.0,
+            "end_time_simulation": 18.0,
+            "start_time_scheduled": 7.0,
+            "end_time_scheduled": 17.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on CounterTop for Meal",
+            "start_time_simulation": 18.0,
+            "end_time_simulation": 22.3,
+            "start_time_scheduled": 17.8,
+            "end_time_scheduled": 23.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 22.3,
+            "end_time_simulation": 28.9,
+            "start_time_scheduled": 23.1,
+            "end_time_scheduled": 26.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on CounterTop for Meal",
+            "start_time_simulation": 28.9,
+            "end_time_simulation": 36.7,
+            "start_time_scheduled": 26.1,
+            "end_time_scheduled": 35.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on CounterTop for Meal",
+            "start_time_simulation": 36.7,
+            "end_time_simulation": 42.5,
+            "start_time_scheduled": 35.3,
+            "end_time_scheduled": 43.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Throw Away Paper Towel Roll",
+            "start_time_simulation": 42.5,
+            "end_time_simulation": 50.6,
+            "start_time_scheduled": 43.3,
+            "end_time_scheduled": 48.8,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 5.70111,
+    "simulation_makespan": 50.6,
+    "scheduler_makespan": 48.8,
+    "total_primitive_actions": 37,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (6.0) -> (6.0s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (7.0) -> (23.1s--0.5s)"
+        }
+    }
+}

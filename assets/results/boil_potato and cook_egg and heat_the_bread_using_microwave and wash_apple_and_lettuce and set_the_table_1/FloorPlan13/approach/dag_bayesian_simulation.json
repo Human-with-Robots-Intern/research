@@ -1,0 +1,289 @@
+{
+    "saved_time": "2025-07-30 13:33",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan13",
+    "plans": [
+        {
+            "subtask_name": "Place Cup on CounterTop for Meal",
+            "start_time_simulation": 0,
+            "end_time_simulation": 5.8,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 6.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on CounterTop for Meal",
+            "start_time_simulation": 5.8,
+            "end_time_simulation": 10.2,
+            "start_time_scheduled": 6.8,
+            "end_time_scheduled": 8.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 10.2,
+            "end_time_simulation": 16.2,
+            "start_time_scheduled": 8.8,
+            "end_time_scheduled": 15.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Pan on Stove and Heat",
+            "start_time_simulation": 16.2,
+            "end_time_simulation": 19.6,
+            "start_time_scheduled": 15.4,
+            "end_time_scheduled": 18.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 19.6,
+            "end_time_simulation": 20.8,
+            "start_time_scheduled": 18.6,
+            "end_time_scheduled": 19.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "EARLY_Wash Apple and place on counterTop",
+            "start_time_simulation": 20.8,
+            "end_time_simulation": 26.2,
+            "start_time_scheduled": 19.8,
+            "end_time_scheduled": 25.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Cook Egg in Pan_5982808e",
+            "start_time_simulation": 26.2,
+            "end_time_simulation": 26.3,
+            "start_time_scheduled": 25.2,
+            "end_time_scheduled": 25.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Cook Egg in Pan",
+            "start_time_simulation": 26.3,
+            "end_time_simulation": 29.3,
+            "start_time_scheduled": 25.3,
+            "end_time_scheduled": 28.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Cook Egg in Pan",
+            "start_time_simulation": 29.3,
+            "end_time_simulation": 34.4,
+            "start_time_scheduled": 28.3,
+            "end_time_scheduled": 32.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 34.4,
+            "end_time_simulation": 36.1,
+            "start_time_scheduled": 32.9,
+            "end_time_scheduled": 34.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "EARLY_Wash Lettuce and place on counterTop",
+            "start_time_simulation": 36.1,
+            "end_time_simulation": 41.7,
+            "start_time_scheduled": 34.1,
+            "end_time_scheduled": 39.7,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove After Cooking Egg_718e52ec",
+            "start_time_simulation": 41.7,
+            "end_time_simulation": 41.8,
+            "start_time_scheduled": 39.7,
+            "end_time_scheduled": 39.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to StoveKnob|-02.51|+01.10|+01.56 during 1.6",
+            "start_time_simulation": 41.8,
+            "end_time_simulation": 43.4,
+            "start_time_scheduled": 39.8,
+            "end_time_scheduled": 41.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove After Cooking Egg_bcae59a9",
+            "start_time_simulation": 43.4,
+            "end_time_simulation": 43.5,
+            "start_time_scheduled": 41.4,
+            "end_time_scheduled": 41.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 43.5,
+            "end_time_simulation": 45.05,
+            "start_time_scheduled": 41.5,
+            "end_time_scheduled": 43.05,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 45.05,
+            "end_time_simulation": 46.05,
+            "start_time_scheduled": 43.05,
+            "end_time_scheduled": 44.15,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 46.05,
+            "end_time_simulation": 51.65,
+            "start_time_scheduled": 44.15,
+            "end_time_scheduled": 50.95,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 51.65,
+            "end_time_simulation": 63.25,
+            "start_time_scheduled": 50.95,
+            "end_time_scheduled": 61.55,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "REMAIN_Wash Apple and place on counterTop",
+            "start_time_simulation": 63.25,
+            "end_time_simulation": 66.65,
+            "start_time_scheduled": 61.55,
+            "end_time_scheduled": 65.95,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Navigate to Faucet|-04.44|+00.91|+03.29 during 1.4",
+            "start_time_simulation": 66.65,
+            "end_time_simulation": 66.85,
+            "start_time_scheduled": 65.95,
+            "end_time_scheduled": 67.35,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Faucet after Pot is Filled_1fb94257",
+            "start_time_simulation": 66.85,
+            "end_time_simulation": 66.95,
+            "start_time_scheduled": 67.35,
+            "end_time_scheduled": 67.45,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 66.95,
+            "end_time_simulation": 72.21,
+            "start_time_scheduled": 67.45,
+            "end_time_scheduled": 72.71,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 72.21,
+            "end_time_simulation": 73.21,
+            "start_time_scheduled": 72.71,
+            "end_time_scheduled": 73.91,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place Potato in Pot and Start Boiling on Stove",
+            "start_time_simulation": 73.21,
+            "end_time_simulation": 81.11,
+            "start_time_scheduled": 73.91,
+            "end_time_scheduled": 81.91,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "REMAIN_Wash Lettuce and place on counterTop",
+            "start_time_simulation": 81.11,
+            "end_time_simulation": 85.31,
+            "start_time_scheduled": 81.91,
+            "end_time_scheduled": 87.31,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "EARLY_Place Fork on CounterTop for Meal",
+            "start_time_simulation": 85.31,
+            "end_time_simulation": 87.71,
+            "start_time_scheduled": 87.31,
+            "end_time_scheduled": 88.71,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove after Boiling Potato_f0206d10",
+            "start_time_simulation": 87.71,
+            "end_time_simulation": 87.81,
+            "start_time_scheduled": 88.71,
+            "end_time_scheduled": 88.81,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Potato",
+            "start_time_simulation": 87.81,
+            "end_time_simulation": 91.81,
+            "start_time_scheduled": 88.81,
+            "end_time_scheduled": 92.81,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "REMAIN_Place Fork on CounterTop for Meal",
+            "start_time_simulation": 91.81,
+            "end_time_simulation": 99.21,
+            "start_time_scheduled": 92.81,
+            "end_time_scheduled": 99.21,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on CounterTop for Meal",
+            "start_time_simulation": 99.21,
+            "end_time_simulation": 105.81,
+            "start_time_scheduled": 99.21,
+            "end_time_scheduled": 103.81,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 43.72446,
+    "simulation_makespan": 105.81,
+    "scheduler_makespan": 103.81,
+    "total_primitive_actions": 105,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.88,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(11.16468452247413, True)",
+            "Schedule Result": "[False] : (61.5461689080634) -> (72.71085343053753s--0.2s)"
+        },
+        "Turn Off Faucet after Pot is Filled -> Place Potato in Pot and Start Boiling on Stove": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (73.91085343053753) -> (73.91085343053753s--0.6s)"
+        },
+        "Place Potato in Pot and Start Boiling on Stove -> Turn Off Stove after Boiling Potato": {
+            "Original Timing Constraint": "(9.80964808514742, True)",
+            "Schedule Result": "[True] : (81.91085343053753) -> (88.81085343053753s--3.0s)"
+        },
+        "Prepare Pan on Stove and Heat -> Cook Egg in Pan": {
+            "Original Timing Constraint": "(9.698256788958723, True)",
+            "Schedule Result": "[True] : (18.6) -> (28.298256788958724s--0.2s)"
+        },
+        "Cook Egg in Pan -> Turn Off Stove After Cooking Egg": {
+            "Original Timing Constraint": "(10.147912119104667, True)",
+            "Schedule Result": "[True] : (32.898256788958726) -> (43.04616890806339s--0.1s)"
+        },
+        "Place Bread in Microwave -> Start Microwave for Heating Bread": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (15.4) -> (18.6s--0.2s)"
+        },
+        "Start Microwave for Heating Bread -> Turn Off Microwave after Heating Bread": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (19.8) -> (32.898256788958726s--0.2s)"
+        },
+        "Turn Off Microwave after Heating Bread -> Retrieve Heated Bread and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (34.09825678895873) -> (44.146168908063395s--0.2s)"
+        }
+    }
+}

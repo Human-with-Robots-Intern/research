@@ -1,0 +1,69 @@
+{
+    "saved_time": "2025-07-30 20:42",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan427",
+    "plans": [
+        {
+            "subtask_name": "Spray sink with spray bottle",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 8.6,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 9.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wipe sink with dish sponge",
+            "start_time_simulation": 8.6,
+            "end_time_simulation": 15.8,
+            "start_time_scheduled": 9.1,
+            "end_time_scheduled": 16.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet soapbar in Sink",
+            "start_time_simulation": 15.8,
+            "end_time_simulation": 26.6,
+            "start_time_scheduled": 16.3,
+            "end_time_scheduled": 27.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place toilet paper on holder",
+            "start_time_simulation": 26.6,
+            "end_time_simulation": 30.0,
+            "start_time_scheduled": 27.3,
+            "end_time_scheduled": 31.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn on light switch",
+            "start_time_simulation": 30.0,
+            "end_time_simulation": 32.4,
+            "start_time_scheduled": 31.2,
+            "end_time_scheduled": 33.6,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Close shower curtain",
+            "start_time_simulation": 32.4,
+            "end_time_simulation": 35.5,
+            "start_time_scheduled": 33.6,
+            "end_time_scheduled": 37.3,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 0.01701,
+    "simulation_makespan": 35.5,
+    "scheduler_makespan": 37.3,
+    "total_primitive_actions": 30,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Spray sink with spray bottle -> Wipe sink with dish sponge": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (9.1) -> (9.1s--0.1s)"
+        }
+    }
+}

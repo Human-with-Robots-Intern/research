@@ -1,0 +1,56 @@
+{
+    "saved_time": "2025-07-30 16:36",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan422",
+    "plans": [
+        {
+            "subtask_name": "Turn On Candle",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 2.1,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of Toilet Paper",
+            "start_time_simulation": 2.1,
+            "end_time_simulation": 6.4,
+            "start_time_scheduled": 2.1,
+            "end_time_scheduled": 6.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Toilet Paper on Holder",
+            "start_time_simulation": 6.4,
+            "end_time_simulation": 10.8,
+            "start_time_scheduled": 6.4,
+            "end_time_scheduled": 10.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Soap Bar in Cabinet",
+            "start_time_simulation": 10.8,
+            "end_time_simulation": 17.8,
+            "start_time_scheduled": 10.9,
+            "end_time_scheduled": 17.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet SoapBottle in Sink",
+            "start_time_simulation": 17.8,
+            "end_time_simulation": 26.0,
+            "start_time_scheduled": 17.9,
+            "end_time_scheduled": 26.5,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.06021,
+    "simulation_makespan": 26.0,
+    "scheduler_makespan": 26.5,
+    "total_primitive_actions": 29,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": null,
+    "timing_success_rate_sched": null,
+    "detail_log": {}
+}

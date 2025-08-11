@@ -1,0 +1,145 @@
+{
+    "saved_time": "2025-07-29 22:01",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan7",
+    "plans": [
+        {
+            "subtask_name": "Place Kettle on StoveBurner and Start Boiling",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 6.8,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 6.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 6.8,
+            "end_time_simulation": 14.8,
+            "start_time_scheduled": 6.8,
+            "end_time_scheduled": 14.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 14.8,
+            "end_time_simulation": 15.8,
+            "start_time_scheduled": 14.6,
+            "end_time_scheduled": 15.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_StoveKnob|+01.34|+00.91|-01.24",
+            "start_time_simulation": 15.8,
+            "end_time_simulation": 16.0,
+            "start_time_scheduled": 15.6,
+            "end_time_scheduled": 15.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 0.3072472285363947 to Turn Off Stove after Boiling Water",
+            "start_time_simulation": 16.0,
+            "end_time_simulation": 16.31,
+            "start_time_scheduled": 15.8,
+            "end_time_scheduled": 16.11,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Water",
+            "start_time_simulation": 16.31,
+            "end_time_simulation": 17.31,
+            "start_time_scheduled": 16.11,
+            "end_time_scheduled": 17.11,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_Microwave|+01.15|+01.66|-01.61",
+            "start_time_simulation": 17.31,
+            "end_time_simulation": 17.51,
+            "start_time_scheduled": 17.11,
+            "end_time_scheduled": 17.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 3.0927527714636076 to Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 17.51,
+            "end_time_simulation": 20.6,
+            "start_time_scheduled": 17.31,
+            "end_time_scheduled": 20.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 20.6,
+            "end_time_simulation": 21.6,
+            "start_time_scheduled": 20.4,
+            "end_time_scheduled": 21.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 21.6,
+            "end_time_simulation": 27.1,
+            "start_time_scheduled": 21.4,
+            "end_time_scheduled": 27.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple and place on CounterTop",
+            "start_time_simulation": 27.1,
+            "end_time_simulation": 35.3,
+            "start_time_scheduled": 27.4,
+            "end_time_scheduled": 36.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce and place on CounterTop",
+            "start_time_simulation": 35.3,
+            "end_time_simulation": 44.1,
+            "start_time_scheduled": 36.4,
+            "end_time_scheduled": 45.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Wine Bottle in Cabinet",
+            "start_time_simulation": 44.1,
+            "end_time_simulation": 53.0,
+            "start_time_scheduled": 45.4,
+            "end_time_scheduled": 54.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Statue on Dining Table",
+            "start_time_simulation": 53.0,
+            "end_time_simulation": 66.2,
+            "start_time_scheduled": 54.6,
+            "end_time_scheduled": 67.6,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.32006,
+    "simulation_makespan": 66.2,
+    "scheduler_makespan": 67.6,
+    "total_primitive_actions": 64,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Kettle on StoveBurner and Start Boiling -> Turn Off Stove after Boiling Water": {
+            "Original Timing Constraint": "(9.507247228536393, True)",
+            "Schedule Result": "[True] : (6.8) -> (16.107247228536394s--0.0s)"
+        },
+        "Place Bread in Microwave -> Start Microwave for Heating Bread": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (14.6) -> (14.6s--0.0s)"
+        },
+        "Start Microwave for Heating Bread -> Turn Off Microwave after Heating Bread": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (15.6) -> (20.400000000000002s--0.0s)"
+        },
+        "Turn Off Microwave after Heating Bread -> Retrieve Heated Bread and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (21.400000000000002) -> (21.400000000000002s--0.0s)"
+        }
+    }
+}

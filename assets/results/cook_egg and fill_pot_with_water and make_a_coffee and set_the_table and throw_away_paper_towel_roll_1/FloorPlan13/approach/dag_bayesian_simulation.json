@@ -1,0 +1,149 @@
+{
+    "saved_time": "2025-07-30 13:37",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan13",
+    "plans": [
+        {
+            "subtask_name": "Prepare Pan on Stove and Heat",
+            "start_time_simulation": 0,
+            "end_time_simulation": 5.2,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 5.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Coffee Machine with Cup",
+            "start_time_simulation": 5.2,
+            "end_time_simulation": 12.7,
+            "start_time_scheduled": 5.2,
+            "end_time_scheduled": 12.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 12.7,
+            "end_time_simulation": 20.6,
+            "start_time_scheduled": 12.7,
+            "end_time_scheduled": 20.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Cook Egg in Pan",
+            "start_time_simulation": 20.6,
+            "end_time_simulation": 24.9,
+            "start_time_scheduled": 20.6,
+            "end_time_scheduled": 24.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to Faucet|-04.44|+00.91|+03.29 during 1.3",
+            "start_time_simulation": 24.9,
+            "end_time_simulation": 26.2,
+            "start_time_scheduled": 24.9,
+            "end_time_scheduled": 26.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Faucet after Pot is Filled_1dd2fe67",
+            "start_time_simulation": 26.2,
+            "end_time_simulation": 26.3,
+            "start_time_scheduled": 26.2,
+            "end_time_scheduled": 26.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 26.3,
+            "end_time_simulation": 31.76,
+            "start_time_scheduled": 26.3,
+            "end_time_scheduled": 31.76,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to StoveKnob|-02.97|+01.10|+01.56 during 0.9",
+            "start_time_simulation": 31.76,
+            "end_time_simulation": 32.76,
+            "start_time_scheduled": 31.76,
+            "end_time_scheduled": 32.66,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 32.76,
+            "end_time_simulation": 34.76,
+            "start_time_scheduled": 32.66,
+            "end_time_scheduled": 34.56,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove After Cooking Egg_6bb888ce",
+            "start_time_simulation": 34.76,
+            "end_time_simulation": 34.86,
+            "start_time_scheduled": 34.56,
+            "end_time_scheduled": 34.66,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of Paper Towel Roll in Garbage Can",
+            "start_time_simulation": 34.86,
+            "end_time_simulation": 41.96,
+            "start_time_scheduled": 34.66,
+            "end_time_scheduled": 41.76,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on CounterTop for Meal",
+            "start_time_simulation": 41.96,
+            "end_time_simulation": 47.46,
+            "start_time_scheduled": 41.76,
+            "end_time_scheduled": 46.26,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on CounterTop for Meal",
+            "start_time_simulation": 47.46,
+            "end_time_simulation": 51.86,
+            "start_time_scheduled": 46.26,
+            "end_time_scheduled": 48.26,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on CounterTop for Meal",
+            "start_time_simulation": 51.86,
+            "end_time_simulation": 58.46,
+            "start_time_scheduled": 48.26,
+            "end_time_scheduled": 52.86,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 58.46,
+            "end_time_simulation": 63.96,
+            "start_time_scheduled": 52.86,
+            "end_time_scheduled": 57.56,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 22.71033,
+    "simulation_makespan": 63.96,
+    "scheduler_makespan": 57.56,
+    "total_primitive_actions": 46,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.67,
+    "timing_success_rate_sched": 0.67,
+    "detail_log": {
+        "Prepare Pan on Stove and Heat -> Cook Egg in Pan": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (5.199999999999999) -> (20.6s--0.2s)"
+        },
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(11.16468452247413, True)",
+            "Schedule Result": "[False] : (20.6) -> (32.66468452247413s--0.9s)"
+        },
+        "Prepare Coffee Machine with Cup -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (12.7) -> (52.864684522474136s--3.7s)"
+        }
+    }
+}

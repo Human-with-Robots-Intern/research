@@ -1,0 +1,40 @@
+{
+    "task": "boil_water_with_kettle and make_a_coffee and put_apple_and_lettuce_in_fridge and throw_away_paper_towel_roll and open_the_blinds_1",
+    "difficulty": "normal",
+    "scene": "FloorPlan18",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 47.51,
+            "simulation_makespan": 47.51,
+            "realWorld_makespan": null,
+            "computation_time": 3.73653,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 47.51,
+            "simulation_makespan": 47.61,
+            "realWorld_makespan": null,
+            "computation_time": 0.12082,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 43.4,
+            "simulation_makespan": 43.9,
+            "realWorld_makespan": null,
+            "computation_time": 0.19118,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        }
+    ]
+}

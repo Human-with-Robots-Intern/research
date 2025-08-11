@@ -1,0 +1,153 @@
+{
+    "saved_time": "2025-07-29 14:52",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan13",
+    "plans": [
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 10.0,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 10.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Apple in Fridge",
+            "start_time_simulation": 10.0,
+            "end_time_simulation": 18.3,
+            "start_time_scheduled": 10.0,
+            "end_time_scheduled": 17.0,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_Faucet|-04.44|+00.91|+03.29",
+            "start_time_simulation": 18.3,
+            "end_time_simulation": 21.0,
+            "start_time_scheduled": 17.0,
+            "end_time_scheduled": 19.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 0.3999999999999999 to Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 21.0,
+            "end_time_simulation": 21.4,
+            "start_time_scheduled": 19.6,
+            "end_time_scheduled": 20.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 21.4,
+            "end_time_simulation": 22.4,
+            "start_time_scheduled": 20.0,
+            "end_time_scheduled": 21.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 22.4,
+            "end_time_simulation": 28.0,
+            "start_time_scheduled": 21.0,
+            "end_time_scheduled": 26.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Potato",
+            "start_time_simulation": 28.0,
+            "end_time_simulation": 29.0,
+            "start_time_scheduled": 26.4,
+            "end_time_scheduled": 27.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place SaltShaker on Table",
+            "start_time_simulation": 29.0,
+            "end_time_simulation": 31.8,
+            "start_time_scheduled": 27.4,
+            "end_time_scheduled": 30.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_Microwave|-02.69|+01.43|+01.69",
+            "start_time_simulation": 31.8,
+            "end_time_simulation": 32.6,
+            "start_time_scheduled": 30.2,
+            "end_time_scheduled": 31.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 1.4000000000000001 to Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 32.6,
+            "end_time_simulation": 34.0,
+            "start_time_scheduled": 31.0,
+            "end_time_scheduled": 32.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 34.0,
+            "end_time_simulation": 35.0,
+            "start_time_scheduled": 32.4,
+            "end_time_scheduled": 33.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Potato and Place on CounterTop",
+            "start_time_simulation": 35.0,
+            "end_time_simulation": 40.4,
+            "start_time_scheduled": 33.4,
+            "end_time_scheduled": 40.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Lettuce in Fridge",
+            "start_time_simulation": 40.4,
+            "end_time_simulation": 48.9,
+            "start_time_scheduled": 40.0,
+            "end_time_scheduled": 49.2,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wash Fork",
+            "start_time_simulation": 48.9,
+            "end_time_simulation": 61.8,
+            "start_time_scheduled": 49.2,
+            "end_time_scheduled": 63.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon",
+            "start_time_simulation": 61.8,
+            "end_time_simulation": 73.8,
+            "start_time_scheduled": 63.2,
+            "end_time_scheduled": 75.4,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.19405,
+    "simulation_makespan": 73.8,
+    "scheduler_makespan": 75.4,
+    "total_primitive_actions": 71,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.75,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[False] : (10.0) -> (20.0s--0.0s)"
+        },
+        "Place Potato in Microwave -> Start Microwave for Heating Potato": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (26.4) -> (26.4s--0.0s)"
+        },
+        "Start Microwave for Heating Potato -> Turn Off Microwave after Heating Potato": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (27.4) -> (32.4s--0.0s)"
+        },
+        "Turn Off Microwave after Heating Potato -> Retrieve Heated Potato and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (33.4) -> (33.4s--0.0s)"
+        }
+    }
+}

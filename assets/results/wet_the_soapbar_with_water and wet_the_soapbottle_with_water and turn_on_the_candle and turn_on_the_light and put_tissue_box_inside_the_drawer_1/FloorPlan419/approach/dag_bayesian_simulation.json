@@ -1,0 +1,56 @@
+{
+    "saved_time": "2025-07-30 14:58",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan419",
+    "plans": [
+        {
+            "subtask_name": "Place Tissue Box in Drawer",
+            "start_time_simulation": 0,
+            "end_time_simulation": 5.7,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 5.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet soapbottle in Sink",
+            "start_time_simulation": 5.7,
+            "end_time_simulation": 14.7,
+            "start_time_scheduled": 5.7,
+            "end_time_scheduled": 14.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn on Candle",
+            "start_time_simulation": 14.7,
+            "end_time_simulation": 16.8,
+            "start_time_scheduled": 14.5,
+            "end_time_scheduled": 16.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet soapbar in Sink",
+            "start_time_simulation": 16.8,
+            "end_time_simulation": 25.3,
+            "start_time_scheduled": 16.6,
+            "end_time_scheduled": 25.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn on Light",
+            "start_time_simulation": 25.3,
+            "end_time_simulation": 27.6,
+            "start_time_scheduled": 25.1,
+            "end_time_scheduled": 27.4,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 0.42212,
+    "simulation_makespan": 27.6,
+    "scheduler_makespan": 27.4,
+    "total_primitive_actions": 35,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": null,
+    "timing_success_rate_sched": null,
+    "detail_log": {}
+}

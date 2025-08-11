@@ -1,0 +1,40 @@
+{
+    "task": "wet_the_soapbar_with_water and wet_the_soapbottle_with_water and turn_on_the_light and close_shower_curtain and throw_away_toilet_paper_1",
+    "difficulty": "simple",
+    "scene": "FloorPlan426",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 40.7,
+            "simulation_makespan": 36.2,
+            "realWorld_makespan": null,
+            "computation_time": 0.58916,
+            "actionSuccess_rate": 0.8,
+            "scheduler_timingSuccess_rate": null,
+            "simulation_timingSuccess_rate": null,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 44.5,
+            "simulation_makespan": 38.9,
+            "realWorld_makespan": null,
+            "computation_time": 0.00826,
+            "actionSuccess_rate": 0.8,
+            "scheduler_timingSuccess_rate": null,
+            "simulation_timingSuccess_rate": null,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 41.6,
+            "simulation_makespan": 37.1,
+            "realWorld_makespan": null,
+            "computation_time": 0.05297,
+            "actionSuccess_rate": 0.8,
+            "scheduler_timingSuccess_rate": null,
+            "simulation_timingSuccess_rate": null,
+            "attempt": "Not related"
+        }
+    ]
+}

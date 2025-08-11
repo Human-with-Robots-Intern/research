@@ -1,0 +1,40 @@
+{
+    "task": "fill_pot_with_water and make_a_coffee and wash_apple_and_lettuce and wash_two_ladles and put_the_wine_bottle_inside_a_cabinet_1",
+    "difficulty": "normal",
+    "scene": "FloorPlan27",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 63.2,
+            "simulation_makespan": 60.8,
+            "realWorld_makespan": null,
+            "computation_time": 3.31944,
+            "actionSuccess_rate": 0.8571428571428571,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 66.3,
+            "simulation_makespan": 63.9,
+            "realWorld_makespan": null,
+            "computation_time": 0.08029,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 64.0,
+            "simulation_makespan": 63.6,
+            "realWorld_makespan": null,
+            "computation_time": 0.15659,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        }
+    ]
+}

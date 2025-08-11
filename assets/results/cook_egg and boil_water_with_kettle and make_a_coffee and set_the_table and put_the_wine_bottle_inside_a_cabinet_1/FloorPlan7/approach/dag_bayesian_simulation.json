@@ -1,0 +1,217 @@
+{
+    "saved_time": "2025-07-29 22:29",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan7",
+    "plans": [
+        {
+            "subtask_name": "Prepare Pan on Stove and Heat",
+            "start_time_simulation": 0,
+            "end_time_simulation": 3.8,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 3.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 3.8,
+            "end_time_simulation": 8.0,
+            "start_time_scheduled": 3.8,
+            "end_time_scheduled": 8.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 8.0,
+            "end_time_simulation": 9.0,
+            "start_time_scheduled": 8.0,
+            "end_time_scheduled": 9.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Cook Egg in Pan",
+            "start_time_simulation": 9.0,
+            "end_time_simulation": 13.5,
+            "start_time_scheduled": 9.0,
+            "end_time_scheduled": 13.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Cook Egg in Pan",
+            "start_time_simulation": 13.5,
+            "end_time_simulation": 19.1,
+            "start_time_scheduled": 13.5,
+            "end_time_scheduled": 19.1,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place Kettle on StoveBurner and Start Heating",
+            "start_time_simulation": 19.1,
+            "end_time_simulation": 25.8,
+            "start_time_scheduled": 19.1,
+            "end_time_scheduled": 25.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 25.8,
+            "end_time_simulation": 29.25,
+            "start_time_scheduled": 25.8,
+            "end_time_scheduled": 29.25,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 29.25,
+            "end_time_simulation": 30.35,
+            "start_time_scheduled": 29.25,
+            "end_time_scheduled": 30.35,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "EARLY_Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 30.35,
+            "end_time_simulation": 32.35,
+            "start_time_scheduled": 30.35,
+            "end_time_scheduled": 32.35,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove After Boiling Water_c3657778",
+            "start_time_simulation": 32.35,
+            "end_time_simulation": 32.45,
+            "start_time_scheduled": 32.35,
+            "end_time_scheduled": 32.45,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to StoveKnob|+01.21|+00.91|-01.24 during 1.9",
+            "start_time_simulation": 32.45,
+            "end_time_simulation": 34.35,
+            "start_time_scheduled": 32.45,
+            "end_time_scheduled": 34.35,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove After Boiling Water_f2c01113",
+            "start_time_simulation": 34.35,
+            "end_time_simulation": 34.45,
+            "start_time_scheduled": 34.35,
+            "end_time_scheduled": 34.45,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Stove After Boiling Water",
+            "start_time_simulation": 34.45,
+            "end_time_simulation": 35.31,
+            "start_time_scheduled": 34.45,
+            "end_time_scheduled": 35.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove After Boiling Water",
+            "start_time_simulation": 35.31,
+            "end_time_simulation": 36.31,
+            "start_time_scheduled": 35.31,
+            "end_time_scheduled": 36.51,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Place Cooked Egg in Pan on CounterTop",
+            "start_time_simulation": 36.31,
+            "end_time_simulation": 39.85,
+            "start_time_scheduled": 36.51,
+            "end_time_scheduled": 40.04,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Cooked Egg in Pan on CounterTop",
+            "start_time_simulation": 39.85,
+            "end_time_simulation": 43.85,
+            "start_time_scheduled": 40.04,
+            "end_time_scheduled": 44.34,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Cup on DiningTable",
+            "start_time_simulation": 43.85,
+            "end_time_simulation": 49.35,
+            "start_time_scheduled": 44.34,
+            "end_time_scheduled": 49.54,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put WineBottle in Cabinet",
+            "start_time_simulation": 49.35,
+            "end_time_simulation": 58.35,
+            "start_time_scheduled": 49.54,
+            "end_time_scheduled": 58.54,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "REMAIN_Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 58.35,
+            "end_time_simulation": 60.85,
+            "start_time_scheduled": 58.54,
+            "end_time_scheduled": 60.74,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 60.85,
+            "end_time_simulation": 68.15,
+            "start_time_scheduled": 60.74,
+            "end_time_scheduled": 68.34,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on DiningTable",
+            "start_time_simulation": 68.15,
+            "end_time_simulation": 78.75,
+            "start_time_scheduled": 68.34,
+            "end_time_scheduled": 79.34,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place Spoon on DiningTable",
+            "start_time_simulation": 78.75,
+            "end_time_simulation": 88.95,
+            "start_time_scheduled": 79.34,
+            "end_time_scheduled": 90.14,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 22.03538,
+    "simulation_makespan": 88.95,
+    "scheduler_makespan": 90.14,
+    "total_primitive_actions": 66,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Prepare Pan on Stove and Heat -> Cook Egg in Pan": {
+            "Original Timing Constraint": "(9.698256788958723, True)",
+            "Schedule Result": "[True] : (3.8) -> (13.498256788958724s--0.3s)"
+        },
+        "Cook Egg in Pan -> Turn Off Stove After Cooking Egg": {
+            "Original Timing Constraint": "(10.147912119104667, True)",
+            "Schedule Result": "[True] : (19.09825678895872) -> (29.24616890806339s--0.1s)"
+        },
+        "Turn Off Stove After Cooking Egg -> Place Cooked Egg in Pan on CounterTop": {
+            "Original Timing Constraint": "(9.698256788958723, True)",
+            "Schedule Result": "[True] : (30.34616890806339) -> (40.04442569702211s--0.1s)"
+        },
+        "Place Kettle on StoveBurner and Start Heating -> Turn Off Stove After Boiling Water": {
+            "Original Timing Constraint": "(9.507247228536393, True)",
+            "Schedule Result": "[True] : (25.79825678895872) -> (35.30550401749511s--0.2s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (8.0) -> (8.0s--0.0s)"
+        },
+        "Start Coffee Machine -> EARLY_Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (9.0) -> (30.34616890806339s--2.0s)"
+        }
+    }
+}

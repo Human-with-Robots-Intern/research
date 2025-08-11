@@ -1,0 +1,85 @@
+{
+    "saved_time": "2025-07-30 20:44",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan427",
+    "plans": [
+        {
+            "subtask_name": "Spray toilet with spray bottle",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 6.3,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 7.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of cloth in garbage can",
+            "start_time_simulation": 6.3,
+            "end_time_simulation": 9.8,
+            "start_time_scheduled": 7.0,
+            "end_time_scheduled": 11.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Close shower curtain",
+            "start_time_simulation": 9.8,
+            "end_time_simulation": 11.9,
+            "start_time_scheduled": 11.2,
+            "end_time_scheduled": 13.9,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_ScrubBrush|-01.04|+00.00|-00.71",
+            "start_time_simulation": 11.9,
+            "end_time_simulation": 14.3,
+            "start_time_scheduled": 13.9,
+            "end_time_scheduled": 16.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 0.09999999999999964 to Scrub toilet with scrub brush",
+            "start_time_simulation": 14.3,
+            "end_time_simulation": 14.4,
+            "start_time_scheduled": 16.9,
+            "end_time_scheduled": 17.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Scrub toilet with scrub brush",
+            "start_time_simulation": 14.4,
+            "end_time_simulation": 17.4,
+            "start_time_scheduled": 17.0,
+            "end_time_scheduled": 20.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet SoapBottle in Sink",
+            "start_time_simulation": 17.4,
+            "end_time_simulation": 27.7,
+            "start_time_scheduled": 20.7,
+            "end_time_scheduled": 32.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn on light switch",
+            "start_time_simulation": 27.7,
+            "end_time_simulation": 31.5,
+            "start_time_scheduled": 32.2,
+            "end_time_scheduled": 36.5,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 0.02632,
+    "simulation_makespan": 31.5,
+    "scheduler_makespan": 36.5,
+    "total_primitive_actions": 32,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Spray toilet with spray bottle -> Scrub toilet with scrub brush": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[False] : (7.0) -> (17.0s--0.0s)"
+        }
+    }
+}

@@ -1,0 +1,69 @@
+{
+    "saved_time": "2025-07-30 18:40",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan426",
+    "plans": [
+        {
+            "subtask_name": "Dispose of cloth in garbage can",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 5.5,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 5.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place tissue box in drawer",
+            "start_time_simulation": 5.5,
+            "end_time_simulation": 12.0,
+            "start_time_scheduled": 5.5,
+            "end_time_scheduled": 11.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Spray toilet with spray bottle",
+            "start_time_simulation": 12.0,
+            "end_time_simulation": 18.3,
+            "start_time_scheduled": 11.6,
+            "end_time_scheduled": 18.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place soap bar in drawer",
+            "start_time_simulation": 18.3,
+            "end_time_simulation": 27.0,
+            "start_time_scheduled": 18.1,
+            "end_time_scheduled": 26.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Scrub toilet with scrub brush",
+            "start_time_simulation": 27.0,
+            "end_time_simulation": 32.2,
+            "start_time_scheduled": 26.8,
+            "end_time_scheduled": 32.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet soapbar in Sink",
+            "start_time_simulation": 32.2,
+            "end_time_simulation": 44.7,
+            "start_time_scheduled": 32.1,
+            "end_time_scheduled": 45.6,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.04496,
+    "simulation_makespan": 44.7,
+    "scheduler_makespan": 45.6,
+    "total_primitive_actions": 40,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Spray toilet with spray bottle -> Scrub toilet with scrub brush": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[True] : (18.1) -> (26.8s--2.3s)"
+        }
+    }
+}

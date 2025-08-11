@@ -1,0 +1,16 @@
+{
+    "metadata": {
+        "task": "boil_potato and cook_egg and make_a_coffee and wash_all_fork_and_spoon and put_saltshaker_on_the_table_1",
+        "scene": "FloorPlan7",
+        "creation_date": "2025-07-29 22:23",
+        "instructions": null,
+        "model_version": "gpt-4o"
+    },
+    "environment_info": {
+        "simulator": "AI2-THOR",
+        "simulation_version": "4.2.0",
+        "scene": "FloorPlan7",
+        "gpu": null,
+        "cpu": null
+    }
+}

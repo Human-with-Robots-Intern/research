@@ -1,0 +1,85 @@
+{
+    "saved_time": "2025-07-30 16:43",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan422",
+    "plans": [
+        {
+            "subtask_name": "Start Filling Bathtub with Shower Head",
+            "start_time_simulation": 0,
+            "end_time_simulation": 2.4,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet SoapBar in Sink",
+            "start_time_simulation": 2.4,
+            "end_time_simulation": 13.0,
+            "start_time_scheduled": 2.4,
+            "end_time_scheduled": 14.0,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Turn On Light Switch",
+            "start_time_simulation": 13.0,
+            "end_time_simulation": 15.1,
+            "start_time_scheduled": 14.0,
+            "end_time_scheduled": 15.1,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Navigate to ShowerHead|-03.52|+01.72|+01.82 during 2.1",
+            "start_time_simulation": 15.1,
+            "end_time_simulation": 17.2,
+            "start_time_scheduled": 15.1,
+            "end_time_scheduled": 17.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Shower Head after Bathtub is Filled_f3b5b78c",
+            "start_time_simulation": 17.2,
+            "end_time_simulation": 17.3,
+            "start_time_scheduled": 17.2,
+            "end_time_scheduled": 17.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of Toilet Paper in Garbage Can",
+            "start_time_simulation": 17.3,
+            "end_time_simulation": 22.1,
+            "start_time_scheduled": 17.3,
+            "end_time_scheduled": 22.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Shower Head after Bathtub is Filled",
+            "start_time_simulation": 22.1,
+            "end_time_simulation": 25.6,
+            "start_time_scheduled": 22.0,
+            "end_time_scheduled": 25.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Tissue Box in Drawer",
+            "start_time_simulation": 25.6,
+            "end_time_simulation": 31.5,
+            "start_time_scheduled": 25.6,
+            "end_time_scheduled": 31.1,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 0.58236,
+    "simulation_makespan": 31.5,
+    "scheduler_makespan": 31.1,
+    "total_primitive_actions": 31,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.0,
+    "timing_success_rate_sched": 0.0,
+    "detail_log": {
+        "Start Filling Bathtub with Shower Head -> Turn Off Shower Head after Bathtub is Filled": {
+            "Original Timing Constraint": "(20, True)",
+            "Schedule Result": "[False] : (2.4) -> (22.0s--2.6s)"
+        }
+    }
+}

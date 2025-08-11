@@ -1,0 +1,40 @@
+{
+    "task": "wet_the_soapbar_with_water and turn_on_the_light and throw_away_cloth and put_tissue_box_inside_a_drawer and put_a_soap_bar_on_the_sink_1",
+    "difficulty": "simple",
+    "scene": "FloorPlan427",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 25.0,
+            "simulation_makespan": 24.0,
+            "realWorld_makespan": null,
+            "computation_time": 0.54474,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": null,
+            "simulation_timingSuccess_rate": null,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 30.9,
+            "simulation_makespan": 30.9,
+            "realWorld_makespan": null,
+            "computation_time": 0.01155,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": null,
+            "simulation_timingSuccess_rate": null,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 27.2,
+            "simulation_makespan": 27.3,
+            "realWorld_makespan": null,
+            "computation_time": 0.04279,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": null,
+            "simulation_timingSuccess_rate": null,
+            "attempt": "Not related"
+        }
+    ]
+}

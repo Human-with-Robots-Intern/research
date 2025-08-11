@@ -1,0 +1,40 @@
+{
+    "task": "boil_potato and boil_water_with_kettle and make_a_coffee and set_the_table and put_the_wine_bottle_inside_a_cabinet_1",
+    "difficulty": "hard",
+    "scene": "FloorPlan7",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 87.97,
+            "simulation_makespan": 94.17,
+            "realWorld_makespan": null,
+            "computation_time": 16.10804,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 0.83,
+            "simulation_timingSuccess_rate": 0.83,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 102.88,
+            "simulation_makespan": 102.38,
+            "realWorld_makespan": null,
+            "computation_time": 0.3093,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 82.46,
+            "simulation_makespan": 80.96,
+            "realWorld_makespan": null,
+            "computation_time": 0.61552,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 0.67,
+            "simulation_timingSuccess_rate": 0.67,
+            "attempt": "Not related"
+        }
+    ]
+}

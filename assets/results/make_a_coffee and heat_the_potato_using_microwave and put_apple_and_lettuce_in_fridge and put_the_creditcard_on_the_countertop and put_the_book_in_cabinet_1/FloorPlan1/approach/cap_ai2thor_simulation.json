@@ -1,0 +1,299 @@
+{
+    "saved_time": "2025-08-05 10:41",
+    "approach": "cap_ai2thor_simulation",
+    "attempt": 5,
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "plan_name": "make_a_coffee and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and put_the_creditcard_on_the_countertop and put_the_book_in_cabinet",
+            "actions": [
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 0.0,
+                    "end_time": 1.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 1.5,
+                    "end_time": 2.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 2.5,
+                    "end_time": 2.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 2.8,
+                    "end_time": 3.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 3.8,
+                    "end_time": 4.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 4.8,
+                    "end_time": 5.8,
+                    "execution_status": false
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 5.8,
+                    "end_time": 6.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 6.8,
+                    "end_time": 7.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 7.3,
+                    "end_time": 8.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 8.3,
+                    "end_time": 10.1,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 10.1,
+                    "end_time": 11.1,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 11.1,
+                    "end_time": 11.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 11.9,
+                    "end_time": 12.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 12.9,
+                    "end_time": 13.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 13.9,
+                    "end_time": 14.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 14.9,
+                    "end_time": 15.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 15.9,
+                    "end_time": 16.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 16.9,
+                    "end_time": 17.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 17.9,
+                    "end_time": 18.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 18.9,
+                    "end_time": 20.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 20.5,
+                    "end_time": 21.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 21.5,
+                    "end_time": 21.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 21.9,
+                    "end_time": 22.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 22.9,
+                    "end_time": 23.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 23.8,
+                    "end_time": 24.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 24.8,
+                    "end_time": 25.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 25.8,
+                    "end_time": 32.0,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 32.0,
+                    "end_time": 33.0,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 33.0,
+                    "end_time": 39.6,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 39.6,
+                    "end_time": 40.6,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 40.6,
+                    "end_time": 41.6,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 41.6,
+                    "end_time": 42.1,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 42.1,
+                    "end_time": 43.1,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 43.1,
+                    "end_time": 43.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 43.8,
+                    "end_time": 44.8,
+                    "execution_status": true
+                }
+            ]
+        }
+    ],
+    "computation_time": 91.69811487197876,
+    "success_rate": 0.971,
+    "timing_success_rate": null,
+    "scheduler_makespan": null,
+    "simulation_makespan": 44.8,
+    "realworld_makespan": null
+}

@@ -62,12 +62,12 @@ def main() -> None:
     logger = create_module_logger(__name__, module_log=True)
     
     # Define scene lists by type
-    kitchen_scenes = ["FloorPlan1", "FloorPlan18"]
-    bathroom_scenes = ["FloorPlan419"]
-    real_world_scenes = ["FloorPlan301"]
+    kitchen_scenes = ["FloorPlan1", "FloorPlan7", "FloorPlan13", "FloorPlan18", "FloorPlan27"]
+    bathroom_scenes = ["FloorPlan419", "FloorPlan422", "FloorPlan426", "FloorPlan427"]
+    # real_world_scenes = ["FloorPlan301"]
     
     # Combine all scenes
-    scene_name_list =  real_world_scenes
+    scene_name_list =  kitchen_scenes + bathroom_scenes
     
     is_rag = False
     

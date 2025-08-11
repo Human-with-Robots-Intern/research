@@ -1,0 +1,105 @@
+{
+    "saved_time": "2025-07-30 14:13",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan18",
+    "plans": [
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 0,
+            "end_time_simulation": 4.6,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 4.6,
+            "end_time_simulation": 5.6,
+            "start_time_scheduled": 4.6,
+            "end_time_scheduled": 5.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Open Blinds",
+            "start_time_simulation": 5.6,
+            "end_time_simulation": 7.6,
+            "start_time_scheduled": 5.6,
+            "end_time_scheduled": 7.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Lettuce in Fridge",
+            "start_time_simulation": 7.6,
+            "end_time_simulation": 15.7,
+            "start_time_scheduled": 7.6,
+            "end_time_scheduled": 15.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Apple in Fridge",
+            "start_time_simulation": 15.7,
+            "end_time_simulation": 24.4,
+            "start_time_scheduled": 15.0,
+            "end_time_scheduled": 23.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 24.4,
+            "end_time_simulation": 29.8,
+            "start_time_scheduled": 23.6,
+            "end_time_scheduled": 29.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on DiningTable",
+            "start_time_simulation": 29.8,
+            "end_time_simulation": 40.8,
+            "start_time_scheduled": 29.1,
+            "end_time_scheduled": 40.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 40.8,
+            "end_time_simulation": 48.5,
+            "start_time_scheduled": 40.1,
+            "end_time_scheduled": 47.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Throw Away Paper Towel Roll",
+            "start_time_simulation": 48.5,
+            "end_time_simulation": 57.7,
+            "start_time_scheduled": 47.0,
+            "end_time_scheduled": 55.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on DiningTable",
+            "start_time_simulation": 57.7,
+            "end_time_simulation": 69.2,
+            "start_time_scheduled": 55.8,
+            "end_time_scheduled": 67.3,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 21.24786,
+    "simulation_makespan": 69.2,
+    "scheduler_makespan": 67.3,
+    "total_primitive_actions": 42,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (4.6) -> (4.6s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (5.6) -> (40.1s--4.9s)"
+        }
+    }
+}
