@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import random
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Literal, Tuple, Union
@@ -14,11 +15,16 @@ from src.models.task import Duration, Execution, Subtask, Task
 
 # 내부 프로젝트 모듈
 from src.utils.common import create_module_logger
-from src.utils.config.constants import (
+from src.utils.config.constants import (  # 분산 값도 상수로 사용하기 위해 추가
     AGENT_KNOWLEDGE_PATH,
+    CRITICAL_OBJECT_INTERVALS,
+    EPSILON,
     ESTIMATE_FILE_NAME,
-    GROUND_TRUTH_FILE_NAME,
+    GT_INTERVAL,
+    INIT_PRIOR_MEAN,
+    INIT_PRIOR_VARIANCE,
     MONITORING_DURATION,
+    NON_CRITICAL_OBJECT_INTERVALS,
     PRIMITIVE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
     SCENE_KNOWLEDGE_PATH,
@@ -177,7 +183,7 @@ class TaskUtil:
         유효하지 않다면 문장 유사도 기반으로 가장 가까운 후보로 교체한다.
         """
         from src.utils.io_utils.task_io import load_scene_positions
-        
+
         # 1) Load all available object IDs and their categories for the scene
         object_categories = cls._load_object_ids(scene_name)
         scene_positions = load_scene_positions(scene_name)
@@ -188,7 +194,11 @@ class TaskUtil:
         for category, object_types in object_categories.items():
             for obj_type in object_types:
                 # Find all instances of this object type in the current scene
-                matching_instances = [full_id for full_id in all_object_ids_in_scene if full_id.startswith(obj_type)]
+                matching_instances = [
+                    full_id
+                    for full_id in all_object_ids_in_scene
+                    if full_id.startswith(obj_type)
+                ]
                 if matching_instances:
                     if category not in object_map_in_scene:
                         object_map_in_scene[category] = []
@@ -210,18 +220,18 @@ class TaskUtil:
                 candidates = all_object_ids_in_scene
             elif base_action in ["PLACE_INSIDE", "PLACE_ON_TOP"]:
                 candidates = object_map_in_scene.get("RECEPTACLE", [])
-                split_obj = target_obj.split(' ', 1)
+                split_obj = target_obj.split(" ", 1)
                 if len(split_obj) > 1:
                     obj1, obj2 = split_obj
-                    obj1_type = obj1.split('|')[0]
-                    obj2_type = obj2.split('|')[0]
+                    obj1_type = obj1.split("|")[0]
+                    obj2_type = obj2.split("|")[0]
 
                     receptacle_types = object_categories.get("RECEPTACLE", [])
                     recepacles = set()
                     for receptacle_type in receptacle_types:
-                        receptacle_type = receptacle_type.split('|')[0]
+                        receptacle_type = receptacle_type.split("|")[0]
                         recepacles.add(receptacle_type)
-                        
+
                     is_obj1_receptacle = obj1_type in recepacles
                     is_obj2_receptacle = obj2_type in recepacles
 
@@ -230,14 +240,20 @@ class TaskUtil:
                     elif is_obj1_receptacle:
                         target_obj = obj1
                     else:
-                        raise ValueError(f"For action '{action}', neither '{obj1}' nor '{obj2}' is a valid receptacle.")
+                        raise ValueError(
+                            f"For action '{action}', neither '{obj1}' nor '{obj2}' is a valid receptacle."
+                        )
                 else:
                     # When only one object is specified for a PLACE action, it's assumed to be the receptacle.
                     target_obj = target_obj
             else:
                 # Fallback for other actions, get candidates of the same type
-                target_obj_type = target_obj.split('|')[0]
-                candidates = [obj_id for obj_id in all_object_ids_in_scene if obj_id.startswith(target_obj_type)]
+                target_obj_type = target_obj.split("|")[0]
+                candidates = [
+                    obj_id
+                    for obj_id in all_object_ids_in_scene
+                    if obj_id.startswith(target_obj_type)
+                ]
                 # If no candidates of the same type, use all objects as a last resort
                 if not candidates:
                     candidates = all_object_ids_in_scene
@@ -248,10 +264,10 @@ class TaskUtil:
                 return action
 
             # Find the most similar valid object and replace it
-            matched = cls._sentence_sim_model.get_similar_ref(
-                target_obj, candidates
+            matched = cls._sentence_sim_model.get_similar_ref(target_obj, candidates)
+            log.debug(
+                f"Correcting object in action '{action}': replaced '{target_obj}' with '{matched}'"
             )
-            log.debug(f"Correcting object in action '{action}': replaced '{target_obj}' with '{matched}'")
             return f"{base_action} {matched}"
 
         # Correct actions for all subtasks
@@ -264,43 +280,24 @@ class TaskUtil:
         return tasks
 
     @classmethod
-    def _update_critical_constraint(
-        cls,
-        subtask: Subtask,
-        temporal_constraint,
-        bayesian_load: dict,
-        ground_truth_load: dict,
-        similarity_threshold: float = 0.9,
+    def _update_constraint_belief(
+        cls, subtask_name: str, temporal_constraint, bayesian_load: dict
     ) -> None:
         """
-        critical constraint인 경우,
-        1) subtask.name과 bayesian_load 키들의 유사도를 비교해 가장 가까운 항목 찾기
-        2) threshold 이상이면 해당 key의 expected_duration을 사용, 아니면 subtask.name 사용
-        3) ground_truth_load에 항목이 없으면 기본값(10)으로 추가
+        주어진 제약조건의 interval과 초기 Belief를 INIT_PRIOR_MEAN으로 통일한다.
         """
-        bayesian_keys = list(bayesian_load.keys())
-        if not bayesian_keys:
-            return
+        belief_value = INIT_PRIOR_MEAN
+        temporal_constraint.interval = belief_value
+        subtask_name_lower = subtask_name.lower()
 
-        similar_subtask = cls._sentence_sim_model.get_similar_ref(
-            subtask.name, bayesian_keys
-        )
-
-        # bayesian_load 갱신
-        if similar_subtask in bayesian_load:
-            temporal_constraint.interval = bayesian_load[similar_subtask][
-                "expected_duration"
-            ]
-        else:
-            # 새로 추가
-            bayesian_load[subtask.name.lower()] = {
-                "expected_duration": temporal_constraint.interval,
-                "variance": 1.0,
+        if subtask_name_lower not in bayesian_load:
+            log.info(
+                f"Setting initial belief for '{subtask_name_lower}' to {belief_value:.2f}"
+            )
+            bayesian_load[subtask_name_lower] = {
+                "expected_duration": belief_value,
+                "variance": INIT_PRIOR_VARIANCE,
             }
-
-        # ground_truth_load 갱신
-        if similar_subtask.lower() not in ground_truth_load:
-            ground_truth_load[similar_subtask.lower()] = 10
 
     @classmethod
     def build_tasks_and_constraints(
@@ -313,8 +310,8 @@ class TaskUtil:
         1) JSON 형태의 raw task_data를 Task로 파싱
         2) Object ID 검사 + 액션 정제(check_obj_id, refine_primitive_actions)
         3) 필요 시 enable_decomposition=True → 서브태스크 분해
-        4) critical constraint 업데이트
-        5) 파일(bayesian_estimate.json, bayesian_ground_truth.json) 저장
+        4) critical/non-critical constraint의 interval 값을 규칙 기반으로 설정하고, belief 딕셔너리 생성
+        5) 생성된 belief 딕셔너리를 파일(bayesian_estimate.json)에 저장 (디버깅용)
         6) 다시 액션 정제 + Subtask duration 보정
         7) TaskGraph 빌드
 
@@ -324,11 +321,11 @@ class TaskUtil:
         """
         from src.models.task import Task, TaskGraphBuilder
 
-        # 1) bayesian/groundtruth 정보 로드 (AGENT_KNOWLEDGE_PATH에서 로드)
-        bayesian_load = cls._load_json_file(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME)
-        ground_truth_load = cls._load_json_file(
-            AGENT_KNOWLEDGE_PATH / GROUND_TRUTH_FILE_NAME
-        )
+        # 재현 가능한 실험을 위해 시드 고정
+        random.seed(42)
+
+        # 1) 빈 belief 딕셔너리 생성 (파일 로드 제거)
+        bayesian_load = {}
 
         # 2) Task 파싱, Object ID/액션 보정
         tasks = Task.parse_instruction(task_data)
@@ -339,25 +336,33 @@ class TaskUtil:
         if enable_decomposition:
             tasks = [t.decompose_subtasks() for t in tasks]
 
-        # 4) critical constraint 처리
+        # 4) temporal constraint 처리 (규칙 기반 Interval 설정 포함)
         subtasks = cls.tasks_to_subtasks(tasks, mode="all")
         for st in subtasks:
-            for tc in st.temporal_constraints:
-                if tc.is_critical:
-                    cls._update_critical_constraint(
-                        st,
-                        tc,
-                        bayesian_load,
-                        ground_truth_load,
-                    )
+            # 이 subtask와 관련된 객체 유형들을 미리 추출
+            involved_object_types = set()
+            if st.execution and st.execution.objects:
+                for obj_name in st.execution.objects.keys():
+                    involved_object_types.add(obj_name.split("|")[0])
 
-        # 5) 변경 사항 저장
-        cls._save_json_file(
-            AGENT_KNOWLEDGE_PATH / "bayesian_estimate.json", bayesian_load
-        )
-        cls._save_json_file(
-            AGENT_KNOWLEDGE_PATH / "bayesian_ground_truth.json", ground_truth_load
-        )
+            for tc in st.temporal_constraints:
+                # 규칙 맵에 객체가 포함되는지 여부만 확인
+                is_rule_based = False
+                for obj_type in involved_object_types:
+                    if (
+                        obj_type in CRITICAL_OBJECT_INTERVALS
+                        or obj_type in NON_CRITICAL_OBJECT_INTERVALS
+                    ):
+                        is_rule_based = True
+                        break
+
+                # 규칙 기반이거나, LLM이 critical로 판단한 경우 Belief 업데이트
+                if is_rule_based or tc.is_critical:
+                    # critical/non-critical 구분 없이 동일한 함수 호출
+                    cls._update_constraint_belief(st.name, tc, bayesian_load)
+
+        # 5) 생성된 belief 딕셔너리를 디버깅용으로 저장
+        cls._save_json_file(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME, bayesian_load)
 
         # 6) 액션 정제(재적용) + duration 조정
         tasks = cls.refine_primitive_actions(tasks)
