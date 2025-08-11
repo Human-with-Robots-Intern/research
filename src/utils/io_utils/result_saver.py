@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from src.models.dataclass import CompletedEntry
 
 from src.utils.common.logger import create_module_logger
-from src.utils.config.constants import EPSILON, RESULT_PATH, TIMING_TOLERANCE
+from src.utils.config.constants import EPSILON, INIT_PRIOR_MEAN, RESULT_PATH, TIMING_TOLERANCE
 from src.utils.visualizers.visualizer import visualize
 
 log = create_module_logger(__name__, module_log=True, level=logging.INFO)
@@ -70,6 +70,13 @@ def calculate_timing_success_rate(
         - The timing success rate for the schedule (float | None).
         - A dictionary with detailed logging information.
     """
+    try:
+        from src.utils.config.constants import GT_INTERVAL
+    except ImportError:
+        # GT_INTERVAL will be added to constants in the future
+        # Using a default value for now
+        GT_INTERVAL = 60.0  # Default ground truth interval value
+        
     total_timing_constraints = 0
     succeeded_timing_constraints_sim_cnt = 0
     succeeded_timing_constraints_sched_cnt = 0
@@ -99,6 +106,11 @@ def calculate_timing_success_rate(
         edge_info = data.get("info", {})
         interval = edge_info.get("Interval", 0)
         is_critical = edge_info.get("IsCritical", False)
+
+        if interval != 0 and is_critical:
+            interval = GT_INTERVAL
+        elif interval != 0 and not is_critical:
+            interval = INIT_PRIOR_MEAN
 
         # --- Check timing constraints for simulation results ---
         pred_end_time_sim = pred_entry.sim_end_time
