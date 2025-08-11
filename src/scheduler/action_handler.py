@@ -28,7 +28,7 @@ NavGraph: TypeAlias = Dict[Position, List[Position]]  # 네비게이션 그래�
 
 
 class ActionHandler:
-    def __init__(self, nav_graph: NavGraph, real_world_experiment: bool = False):
+    def __init__(self, nav_graph: NavGraph, real_world_mode: bool = False):
         """
         ActionHandler를 초기화합니다.
 
@@ -37,7 +37,7 @@ class ActionHandler:
             logger: The logger instance to use.
         """
         self.nav_graph = nav_graph
-        self.real_world_experiment = real_world_experiment
+        self.real_world_mode = real_world_mode
 
     def get_actions_info(
         self, current_node: SimulationNode, actions: list[str]
