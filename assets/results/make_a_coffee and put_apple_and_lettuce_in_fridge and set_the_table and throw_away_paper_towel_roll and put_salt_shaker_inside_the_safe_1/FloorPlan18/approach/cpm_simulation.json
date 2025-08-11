@@ -1,0 +1,113 @@
+{
+    "saved_time": "2025-07-29 16:33",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan18",
+    "plans": [
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 4.6,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 4.6,
+            "end_time_simulation": 5.6,
+            "start_time_scheduled": 4.6,
+            "end_time_scheduled": 5.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 5.6,
+            "end_time_simulation": 10.6,
+            "start_time_scheduled": 5.6,
+            "end_time_scheduled": 10.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 10.6,
+            "end_time_simulation": 13.4,
+            "start_time_scheduled": 10.6,
+            "end_time_scheduled": 12.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Apple in Fridge",
+            "start_time_simulation": 13.4,
+            "end_time_simulation": 21.4,
+            "start_time_scheduled": 12.6,
+            "end_time_scheduled": 20.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Lettuce in Fridge",
+            "start_time_simulation": 21.4,
+            "end_time_simulation": 32.4,
+            "start_time_scheduled": 20.8,
+            "end_time_scheduled": 31.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 32.4,
+            "end_time_simulation": 37.7,
+            "start_time_scheduled": 31.4,
+            "end_time_scheduled": 36.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on DiningTable",
+            "start_time_simulation": 37.7,
+            "end_time_simulation": 49.1,
+            "start_time_scheduled": 36.9,
+            "end_time_scheduled": 48.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on DiningTable",
+            "start_time_simulation": 49.1,
+            "end_time_simulation": 60.1,
+            "start_time_scheduled": 48.3,
+            "end_time_scheduled": 59.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Throw Away Paper Towel Roll",
+            "start_time_simulation": 60.1,
+            "end_time_simulation": 73.8,
+            "start_time_scheduled": 59.3,
+            "end_time_scheduled": 73.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Salt Shaker in Safe",
+            "start_time_simulation": 73.8,
+            "end_time_simulation": 84.4,
+            "start_time_scheduled": 73.0,
+            "end_time_scheduled": 83.4,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 0.17555,
+    "simulation_makespan": 84.4,
+    "scheduler_makespan": 83.4,
+    "total_primitive_actions": 48,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (4.6) -> (4.6s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (5.6) -> (10.6s--0.0s)"
+        }
+    }
+}

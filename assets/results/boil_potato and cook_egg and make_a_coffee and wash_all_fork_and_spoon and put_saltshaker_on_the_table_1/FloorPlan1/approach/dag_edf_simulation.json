@@ -1,0 +1,173 @@
+{
+    "saved_time": "2025-07-29 19:57",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 3.8,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 3.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 3.8,
+            "end_time_simulation": 4.8,
+            "start_time_scheduled": 3.8,
+            "end_time_scheduled": 4.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 4.8,
+            "end_time_simulation": 9.4,
+            "start_time_scheduled": 4.8,
+            "end_time_scheduled": 9.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 9.4,
+            "end_time_simulation": 12.9,
+            "start_time_scheduled": 9.4,
+            "end_time_scheduled": 12.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_Faucet|-02.15|+00.91|-01.50",
+            "start_time_simulation": 12.9,
+            "end_time_simulation": 14.4,
+            "start_time_scheduled": 12.9,
+            "end_time_scheduled": 14.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 3.5 to Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 14.4,
+            "end_time_simulation": 17.9,
+            "start_time_scheduled": 14.4,
+            "end_time_scheduled": 17.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 17.9,
+            "end_time_simulation": 18.9,
+            "start_time_scheduled": 17.9,
+            "end_time_scheduled": 18.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Pot and Start Boiling on Stove",
+            "start_time_simulation": 18.9,
+            "end_time_simulation": 25.6,
+            "start_time_scheduled": 18.9,
+            "end_time_scheduled": 25.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Pan on Stove and Heat",
+            "start_time_simulation": 25.6,
+            "end_time_simulation": 30.2,
+            "start_time_scheduled": 25.4,
+            "end_time_scheduled": 30.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place SaltShaker on CounterTop",
+            "start_time_simulation": 30.2,
+            "end_time_simulation": 35.0,
+            "start_time_scheduled": 30.0,
+            "end_time_scheduled": 34.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Potato",
+            "start_time_simulation": 35.0,
+            "end_time_simulation": 39.2,
+            "start_time_scheduled": 34.8,
+            "end_time_scheduled": 37.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Cook Egg in Pan",
+            "start_time_simulation": 39.2,
+            "end_time_simulation": 48.8,
+            "start_time_scheduled": 37.6,
+            "end_time_scheduled": 49.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 10.147912119104667 to Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 48.8,
+            "end_time_simulation": 58.95,
+            "start_time_scheduled": 49.4,
+            "end_time_scheduled": 59.55,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 58.95,
+            "end_time_simulation": 59.95,
+            "start_time_scheduled": 59.55,
+            "end_time_scheduled": 60.55,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on counterTop",
+            "start_time_simulation": 59.95,
+            "end_time_simulation": 71.15,
+            "start_time_scheduled": 60.55,
+            "end_time_scheduled": 71.95,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on counterTop",
+            "start_time_simulation": 71.15,
+            "end_time_simulation": 84.55,
+            "start_time_scheduled": 71.95,
+            "end_time_scheduled": 85.55,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.24528,
+    "simulation_makespan": 84.55,
+    "scheduler_makespan": 85.55,
+    "total_primitive_actions": 76,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.57,
+    "timing_success_rate_sched": 0.57,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[False] : (9.399999999999999) -> (17.9s--0.0s)"
+        },
+        "Turn Off Faucet after Pot is Filled -> Place Potato in Pot and Start Boiling on Stove": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (18.9) -> (18.9s--0.3s)"
+        },
+        "Place Potato in Pot and Start Boiling on Stove -> Turn Off Stove after Boiling Potato": {
+            "Original Timing Constraint": "(9.80964808514742, True)",
+            "Schedule Result": "[False] : (25.4) -> (34.8s--1.8s)"
+        },
+        "Prepare Pan on Stove and Heat -> Cook Egg in Pan": {
+            "Original Timing Constraint": "(9.698256788958723, True)",
+            "Schedule Result": "[False] : (30.0) -> (37.599999999999994s--3.2s)"
+        },
+        "Cook Egg in Pan -> Turn Off Stove After Cooking Egg": {
+            "Original Timing Constraint": "(10.147912119104667, True)",
+            "Schedule Result": "[True] : (49.39999999999999) -> (59.54791211910466s--0.0s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (3.8) -> (3.8s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (4.8) -> (9.399999999999999s--1.0s)"
+        }
+    }
+}

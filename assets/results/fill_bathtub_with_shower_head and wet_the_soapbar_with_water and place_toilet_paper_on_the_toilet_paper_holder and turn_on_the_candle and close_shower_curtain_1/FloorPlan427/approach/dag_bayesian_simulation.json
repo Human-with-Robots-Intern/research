@@ -1,0 +1,85 @@
+{
+    "saved_time": "2025-07-30 21:06",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan427",
+    "plans": [
+        {
+            "subtask_name": "Start Filling Bathtub with Shower Head",
+            "start_time_simulation": 0,
+            "end_time_simulation": 2.9,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.9,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Close the Shower Curtain",
+            "start_time_simulation": 2.9,
+            "end_time_simulation": 4.5,
+            "start_time_scheduled": 2.9,
+            "end_time_scheduled": 3.9,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wet Soapbar in Sink",
+            "start_time_simulation": 4.5,
+            "end_time_simulation": 16.5,
+            "start_time_scheduled": 3.9,
+            "end_time_scheduled": 16.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to ShowerHead|-03.74|+01.86|+01.83 during 3.1",
+            "start_time_simulation": 16.5,
+            "end_time_simulation": 18.7,
+            "start_time_scheduled": 16.6,
+            "end_time_scheduled": 19.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Shower Head after Bathtub is Filled_37048092",
+            "start_time_simulation": 18.7,
+            "end_time_simulation": 18.8,
+            "start_time_scheduled": 19.7,
+            "end_time_scheduled": 19.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Light the Candle",
+            "start_time_simulation": 18.8,
+            "end_time_simulation": 21.0,
+            "start_time_scheduled": 19.8,
+            "end_time_scheduled": 22.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Shower Head after Bathtub is Filled",
+            "start_time_simulation": 21.0,
+            "end_time_simulation": 23.2,
+            "start_time_scheduled": 22.7,
+            "end_time_scheduled": 25.7,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place Toilet Paper on Holder",
+            "start_time_simulation": 23.2,
+            "end_time_simulation": 28.1,
+            "start_time_scheduled": 25.7,
+            "end_time_scheduled": 31.8,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.69702,
+    "simulation_makespan": 28.1,
+    "scheduler_makespan": 31.8,
+    "total_primitive_actions": 26,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Start Filling Bathtub with Shower Head -> Turn Off Shower Head after Bathtub is Filled": {
+            "Original Timing Constraint": "(20, True)",
+            "Schedule Result": "[True] : (2.9) -> (22.700000000000003s--2.0s)"
+        }
+    }
+}

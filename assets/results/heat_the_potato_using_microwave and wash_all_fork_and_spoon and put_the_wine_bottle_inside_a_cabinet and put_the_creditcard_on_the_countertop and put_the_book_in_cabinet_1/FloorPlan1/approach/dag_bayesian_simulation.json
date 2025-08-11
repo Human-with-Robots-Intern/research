@@ -1,0 +1,101 @@
+{
+    "saved_time": "2025-07-29 20:32",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 0,
+            "end_time_simulation": 7.5,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 7.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Potato",
+            "start_time_simulation": 7.5,
+            "end_time_simulation": 8.5,
+            "start_time_scheduled": 7.3,
+            "end_time_scheduled": 8.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put WineBottle in Cabinet",
+            "start_time_simulation": 8.5,
+            "end_time_simulation": 14.8,
+            "start_time_scheduled": 8.3,
+            "end_time_scheduled": 14.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on counterTop",
+            "start_time_simulation": 14.8,
+            "end_time_simulation": 25.8,
+            "start_time_scheduled": 14.2,
+            "end_time_scheduled": 25.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Book in Cabinet",
+            "start_time_simulation": 25.8,
+            "end_time_simulation": 36.3,
+            "start_time_scheduled": 25.1,
+            "end_time_scheduled": 35.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on counterTop",
+            "start_time_simulation": 36.3,
+            "end_time_simulation": 47.2,
+            "start_time_scheduled": 35.4,
+            "end_time_scheduled": 46.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put CreditCard on CounterTop",
+            "start_time_simulation": 47.2,
+            "end_time_simulation": 50.6,
+            "start_time_scheduled": 46.3,
+            "end_time_scheduled": 49.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 50.6,
+            "end_time_simulation": 53.6,
+            "start_time_scheduled": 49.7,
+            "end_time_scheduled": 52.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Potato and Place on CounterTop",
+            "start_time_simulation": 53.6,
+            "end_time_simulation": 59.4,
+            "start_time_scheduled": 52.7,
+            "end_time_scheduled": 58.7,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 3.47411,
+    "simulation_makespan": 59.4,
+    "scheduler_makespan": 58.7,
+    "total_primitive_actions": 61,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Potato in Microwave -> Start Microwave for Heating Potato": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (7.3) -> (7.3s--0.0s)"
+        },
+        "Start Microwave for Heating Potato -> Turn Off Microwave after Heating Potato": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (8.3) -> (49.7s--2.0s)"
+        },
+        "Turn Off Microwave after Heating Potato -> Retrieve Heated Potato and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (52.7) -> (52.7s--0.0s)"
+        }
+    }
+}

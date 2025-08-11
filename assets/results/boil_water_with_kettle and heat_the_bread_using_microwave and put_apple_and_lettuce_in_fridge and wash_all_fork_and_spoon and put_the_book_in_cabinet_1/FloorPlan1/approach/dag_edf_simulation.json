@@ -1,0 +1,169 @@
+{
+    "saved_time": "2025-07-29 20:00",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "subtask_name": "Put Apple in Fridge",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 5.8,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 5.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 5.8,
+            "end_time_simulation": 13.2,
+            "start_time_scheduled": 5.4,
+            "end_time_scheduled": 12.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 13.2,
+            "end_time_simulation": 14.3,
+            "start_time_scheduled": 12.7,
+            "end_time_scheduled": 13.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 14.3,
+            "end_time_simulation": 19.3,
+            "start_time_scheduled": 13.7,
+            "end_time_scheduled": 18.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 19.3,
+            "end_time_simulation": 20.3,
+            "start_time_scheduled": 18.7,
+            "end_time_scheduled": 19.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 20.3,
+            "end_time_simulation": 26.1,
+            "start_time_scheduled": 19.7,
+            "end_time_scheduled": 25.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Lettuce in Fridge",
+            "start_time_simulation": 26.1,
+            "end_time_simulation": 33.2,
+            "start_time_scheduled": 25.7,
+            "end_time_scheduled": 32.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Book in Cabinet",
+            "start_time_simulation": 33.2,
+            "end_time_simulation": 43.3,
+            "start_time_scheduled": 32.6,
+            "end_time_scheduled": 42.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Kettle in Sink and Start Filling",
+            "start_time_simulation": 43.3,
+            "end_time_simulation": 50.1,
+            "start_time_scheduled": 42.4,
+            "end_time_scheduled": 49.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 10.0 to Turn Off Faucet after Kettle is Filled",
+            "start_time_simulation": 50.1,
+            "end_time_simulation": 60.1,
+            "start_time_scheduled": 49.0,
+            "end_time_scheduled": 59.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Kettle is Filled",
+            "start_time_simulation": 60.1,
+            "end_time_simulation": 61.1,
+            "start_time_scheduled": 59.0,
+            "end_time_scheduled": 60.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Kettle on StoveBurner and Start Boiling",
+            "start_time_simulation": 61.1,
+            "end_time_simulation": 65.0,
+            "start_time_scheduled": 60.0,
+            "end_time_scheduled": 63.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 9.507247228536386 to Turn Off Stove after Boiling Water",
+            "start_time_simulation": 65.0,
+            "end_time_simulation": 74.51,
+            "start_time_scheduled": 63.9,
+            "end_time_scheduled": 73.41,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Water",
+            "start_time_simulation": 74.51,
+            "end_time_simulation": 75.51,
+            "start_time_scheduled": 73.41,
+            "end_time_scheduled": 74.41,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on counterTop",
+            "start_time_simulation": 75.51,
+            "end_time_simulation": 87.11,
+            "start_time_scheduled": 74.41,
+            "end_time_scheduled": 86.21,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on counterTop",
+            "start_time_simulation": 87.11,
+            "end_time_simulation": 100.51,
+            "start_time_scheduled": 86.21,
+            "end_time_scheduled": 99.81,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.43518,
+    "simulation_makespan": 100.51,
+    "scheduler_makespan": 99.81,
+    "total_primitive_actions": 83,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Kettle in Sink and Start Filling -> Turn Off Faucet after Kettle is Filled": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[True] : (49.00000000000001) -> (59.00000000000001s--0.0s)"
+        },
+        "Turn Off Faucet after Kettle is Filled -> Place Kettle on StoveBurner and Start Boiling": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (60.00000000000001) -> (60.00000000000001s--0.0s)"
+        },
+        "Place Kettle on StoveBurner and Start Boiling -> Turn Off Stove after Boiling Water": {
+            "Original Timing Constraint": "(9.507247228536393, True)",
+            "Schedule Result": "[True] : (63.900000000000006) -> (73.40724722853639s--0.0s)"
+        },
+        "Place Bread in Microwave -> Start Microwave for Heating Bread": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (12.7) -> (12.7s--0.0s)"
+        },
+        "Start Microwave for Heating Bread -> Turn Off Microwave after Heating Bread": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (13.7) -> (18.7s--0.0s)"
+        },
+        "Turn Off Microwave after Heating Bread -> Retrieve Heated Bread and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (19.7) -> (19.7s--0.0s)"
+        }
+    }
+}

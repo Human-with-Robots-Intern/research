@@ -1,0 +1,16 @@
+{
+    "metadata": {
+        "task": "wet_the_soapbar_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_soap_bar_in_a_cabinet and put_tissue_box_inside_the_drawer and throw_away_toilet_paper_1",
+        "scene": "FloorPlan426",
+        "creation_date": "2025-07-30 18:54",
+        "instructions": null,
+        "model_version": "gpt-4o"
+    },
+    "environment_info": {
+        "simulator": "AI2-THOR",
+        "simulation_version": "4.2.0",
+        "scene": "FloorPlan426",
+        "gpu": null,
+        "cpu": null
+    }
+}

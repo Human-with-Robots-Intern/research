@@ -1,0 +1,69 @@
+{
+    "saved_time": "2025-07-30 21:01",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan427",
+    "plans": [
+        {
+            "subtask_name": "Wet soapbottle in Sink",
+            "start_time_simulation": 0,
+            "end_time_simulation": 11.4,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 11.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place candle inside drawer",
+            "start_time_simulation": 11.4,
+            "end_time_simulation": 16.1,
+            "start_time_scheduled": 11.9,
+            "end_time_scheduled": 16.3,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place tissue box inside drawer",
+            "start_time_simulation": 16.1,
+            "end_time_simulation": 21.3,
+            "start_time_scheduled": 16.3,
+            "end_time_scheduled": 21.3,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place toilet paper on holder",
+            "start_time_simulation": 21.3,
+            "end_time_simulation": 24.3,
+            "start_time_scheduled": 21.3,
+            "end_time_scheduled": 24.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Spray sink with spray bottle",
+            "start_time_simulation": 24.3,
+            "end_time_simulation": 31.4,
+            "start_time_scheduled": 24.2,
+            "end_time_scheduled": 31.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Scrub sink with dish sponge",
+            "start_time_simulation": 31.4,
+            "end_time_simulation": 38.5,
+            "start_time_scheduled": 31.3,
+            "end_time_scheduled": 38.5,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.50934,
+    "simulation_makespan": 38.5,
+    "scheduler_makespan": 38.5,
+    "total_primitive_actions": 42,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Spray sink with spray bottle -> Scrub sink with dish sponge": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (31.300000000000004) -> (31.300000000000004s--2.1s)"
+        }
+    }
+}

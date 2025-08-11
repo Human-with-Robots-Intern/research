@@ -1,0 +1,219 @@
+{
+    "saved_time": "2025-08-05 10:26",
+    "approach": "cap_ai2thor_simulation",
+    "attempt": 6,
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "plan_name": "cook_egg and heat_the_potato_using_microwave and prepare_a_water_cup_with_mug and throw_away_paper_towel_roll and put_the_book_in_cabinet",
+            "actions": [
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 0.0,
+                    "end_time": 0.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 0.5,
+                    "end_time": 1.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 1.5,
+                    "end_time": 5.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 5.5,
+                    "end_time": 6.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 6.5,
+                    "end_time": 7.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 7.5,
+                    "end_time": 8.5,
+                    "execution_status": false
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 8.5,
+                    "end_time": 9.5,
+                    "execution_status": false
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 9.5,
+                    "end_time": 11.1,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 11.1,
+                    "end_time": 12.1,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 12.1,
+                    "end_time": 12.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 12.9,
+                    "end_time": 13.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 13.9,
+                    "end_time": 14.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 14.9,
+                    "end_time": 15.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 15.9,
+                    "end_time": 16.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 16.9,
+                    "end_time": 17.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 17.9,
+                    "end_time": 18.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 18.9,
+                    "end_time": 19.9,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 19.9,
+                    "end_time": 21.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 21.3,
+                    "end_time": 22.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 22.3,
+                    "end_time": 23.2,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 23.2,
+                    "end_time": 24.2,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 24.2,
+                    "end_time": 25.2,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 25.2,
+                    "end_time": 26.2,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 26.2,
+                    "end_time": 27.7,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 27.7,
+                    "end_time": 28.7,
+                    "execution_status": true
+                }
+            ]
+        }
+    ],
+    "computation_time": 55.10469579696655,
+    "success_rate": 0.92,
+    "timing_success_rate": null,
+    "scheduler_makespan": null,
+    "simulation_makespan": 28.7,
+    "realworld_makespan": null
+}

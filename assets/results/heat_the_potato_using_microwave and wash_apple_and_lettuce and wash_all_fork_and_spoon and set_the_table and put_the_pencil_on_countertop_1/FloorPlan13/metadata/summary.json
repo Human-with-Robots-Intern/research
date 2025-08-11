@@ -1,0 +1,40 @@
+{
+    "task": "heat_the_potato_using_microwave and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table and put_the_pencil_on_countertop_1",
+    "difficulty": "simple",
+    "scene": "FloorPlan13",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 76.2,
+            "simulation_makespan": 77.0,
+            "realWorld_makespan": null,
+            "computation_time": 18.10365,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 79.8,
+            "simulation_makespan": 77.3,
+            "realWorld_makespan": null,
+            "computation_time": 0.21228,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 82.0,
+            "simulation_makespan": 76.6,
+            "realWorld_makespan": null,
+            "computation_time": 0.55471,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        }
+    ]
+}

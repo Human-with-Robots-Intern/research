@@ -1,0 +1,121 @@
+{
+    "saved_time": "2025-07-29 19:54",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 3.8,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 3.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 3.8,
+            "end_time_simulation": 4.8,
+            "start_time_scheduled": 3.8,
+            "end_time_scheduled": 4.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 4.8,
+            "end_time_simulation": 9.8,
+            "start_time_scheduled": 4.8,
+            "end_time_scheduled": 9.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 9.8,
+            "end_time_simulation": 12.3,
+            "start_time_scheduled": 9.8,
+            "end_time_scheduled": 12.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple and place on counterTop",
+            "start_time_simulation": 12.3,
+            "end_time_simulation": 23.1,
+            "start_time_scheduled": 12.3,
+            "end_time_scheduled": 23.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce and place on counterTop",
+            "start_time_simulation": 23.1,
+            "end_time_simulation": 33.1,
+            "start_time_scheduled": 23.1,
+            "end_time_scheduled": 33.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on counterTop",
+            "start_time_simulation": 33.1,
+            "end_time_simulation": 46.5,
+            "start_time_scheduled": 33.1,
+            "end_time_scheduled": 46.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on counterTop",
+            "start_time_simulation": 46.5,
+            "end_time_simulation": 59.9,
+            "start_time_scheduled": 46.7,
+            "end_time_scheduled": 60.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on CounterTop for Meal",
+            "start_time_simulation": 59.9,
+            "end_time_simulation": 67.7,
+            "start_time_scheduled": 60.3,
+            "end_time_scheduled": 69.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on CounterTop for Meal",
+            "start_time_simulation": 67.7,
+            "end_time_simulation": 73.7,
+            "start_time_scheduled": 69.5,
+            "end_time_scheduled": 71.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on CounterTop for Meal",
+            "start_time_simulation": 73.7,
+            "end_time_simulation": 76.1,
+            "start_time_scheduled": 71.5,
+            "end_time_scheduled": 73.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place SaltShaker on CounterTop",
+            "start_time_simulation": 76.1,
+            "end_time_simulation": 83.1,
+            "start_time_scheduled": 73.5,
+            "end_time_scheduled": 80.5,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.11916,
+    "simulation_makespan": 83.1,
+    "scheduler_makespan": 80.5,
+    "total_primitive_actions": 79,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (3.8) -> (3.8s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (4.8) -> (9.8s--0.0s)"
+        }
+    }
+}

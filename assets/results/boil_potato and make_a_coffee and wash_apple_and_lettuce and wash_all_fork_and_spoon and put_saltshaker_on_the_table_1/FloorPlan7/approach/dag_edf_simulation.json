@@ -1,0 +1,129 @@
+{
+    "saved_time": "2025-07-29 22:01",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan7",
+    "plans": [
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 4.6,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 4.6,
+            "end_time_simulation": 5.6,
+            "start_time_scheduled": 4.6,
+            "end_time_scheduled": 5.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 5.6,
+            "end_time_simulation": 10.5,
+            "start_time_scheduled": 5.6,
+            "end_time_scheduled": 10.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place SaltShaker on DiningTable",
+            "start_time_simulation": 10.5,
+            "end_time_simulation": 18.3,
+            "start_time_scheduled": 10.6,
+            "end_time_scheduled": 18.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 18.3,
+            "end_time_simulation": 23.7,
+            "start_time_scheduled": 18.2,
+            "end_time_scheduled": 23.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Pot and Start Boiling on Stove",
+            "start_time_simulation": 23.7,
+            "end_time_simulation": 36.5,
+            "start_time_scheduled": 23.4,
+            "end_time_scheduled": 36.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 9.809648085147423 to Turn Off Stove after Boiling Potato",
+            "start_time_simulation": 36.5,
+            "end_time_simulation": 46.31,
+            "start_time_scheduled": 36.6,
+            "end_time_scheduled": 46.41,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Potato",
+            "start_time_simulation": 46.31,
+            "end_time_simulation": 47.31,
+            "start_time_scheduled": 46.41,
+            "end_time_scheduled": 47.41,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple and place on CounterTop",
+            "start_time_simulation": 47.31,
+            "end_time_simulation": 56.81,
+            "start_time_scheduled": 47.41,
+            "end_time_scheduled": 57.41,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce and place on CounterTop",
+            "start_time_simulation": 56.81,
+            "end_time_simulation": 65.61,
+            "start_time_scheduled": 57.41,
+            "end_time_scheduled": 66.41,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on CounterTop",
+            "start_time_simulation": 65.61,
+            "end_time_simulation": 84.21,
+            "start_time_scheduled": 66.41,
+            "end_time_scheduled": 85.41,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wash Fork and place on CounterTop",
+            "start_time_simulation": 84.21,
+            "end_time_simulation": 103.01,
+            "start_time_scheduled": 85.41,
+            "end_time_scheduled": 104.61,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 0.53787,
+    "simulation_makespan": 103.01,
+    "scheduler_makespan": 104.61,
+    "total_primitive_actions": 79,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(11.16468452247413, True)",
+            "Schedule Result": "[True] : (10.6) -> (18.2s--4.2s)"
+        },
+        "Turn Off Faucet after Pot is Filled -> Place Potato in Pot and Start Boiling on Stove": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (23.4) -> (23.4s--3.3s)"
+        },
+        "Place Potato in Pot and Start Boiling on Stove -> Turn Off Stove after Boiling Potato": {
+            "Original Timing Constraint": "(9.80964808514742, True)",
+            "Schedule Result": "[True] : (36.6) -> (46.409648085147424s--0.0s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (4.6) -> (4.6s--0.0s)"
+        }
+    }
+}

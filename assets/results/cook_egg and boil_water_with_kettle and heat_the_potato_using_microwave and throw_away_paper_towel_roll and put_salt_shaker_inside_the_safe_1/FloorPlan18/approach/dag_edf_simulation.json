@@ -1,0 +1,165 @@
+{
+    "saved_time": "2025-07-29 16:41",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan18",
+    "plans": [
+        {
+            "subtask_name": "Place Kettle on StoveBurner and Start Heating",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 5.4,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 5.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Pan on Stove and Heat",
+            "start_time_simulation": 5.4,
+            "end_time_simulation": 8.6,
+            "start_time_scheduled": 5.4,
+            "end_time_scheduled": 8.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_StoveKnob|+01.14|+00.93|+03.99",
+            "start_time_simulation": 8.6,
+            "end_time_simulation": 8.8,
+            "start_time_scheduled": 8.6,
+            "end_time_scheduled": 8.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.907247228536392 to Turn Off Stove After Boiling Water",
+            "start_time_simulation": 8.8,
+            "end_time_simulation": 14.71,
+            "start_time_scheduled": 8.8,
+            "end_time_scheduled": 14.71,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove After Boiling Water",
+            "start_time_simulation": 14.71,
+            "end_time_simulation": 15.71,
+            "start_time_scheduled": 14.71,
+            "end_time_scheduled": 15.71,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Cook Egg in Pan",
+            "start_time_simulation": 15.71,
+            "end_time_simulation": 22.11,
+            "start_time_scheduled": 15.71,
+            "end_time_scheduled": 22.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Store Salt Shaker in Safe",
+            "start_time_simulation": 22.11,
+            "end_time_simulation": 30.31,
+            "start_time_scheduled": 22.31,
+            "end_time_scheduled": 30.31,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 30.31,
+            "end_time_simulation": 34.11,
+            "start_time_scheduled": 30.31,
+            "end_time_scheduled": 34.11,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 34.11,
+            "end_time_simulation": 43.41,
+            "start_time_scheduled": 34.11,
+            "end_time_scheduled": 43.21,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Cooked Egg in Pan on CounterTop",
+            "start_time_simulation": 43.41,
+            "end_time_simulation": 49.71,
+            "start_time_scheduled": 43.21,
+            "end_time_scheduled": 49.51,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Potato",
+            "start_time_simulation": 49.71,
+            "end_time_simulation": 54.91,
+            "start_time_scheduled": 49.51,
+            "end_time_scheduled": 54.81,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 54.91,
+            "end_time_simulation": 59.91,
+            "start_time_scheduled": 54.81,
+            "end_time_scheduled": 59.81,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 59.91,
+            "end_time_simulation": 60.91,
+            "start_time_scheduled": 59.81,
+            "end_time_scheduled": 60.81,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Potato and Place on CounterTop",
+            "start_time_simulation": 60.91,
+            "end_time_simulation": 65.61,
+            "start_time_scheduled": 60.81,
+            "end_time_scheduled": 65.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of Paper Towel Roll in Garbage Can",
+            "start_time_simulation": 65.61,
+            "end_time_simulation": 74.81,
+            "start_time_scheduled": 65.31,
+            "end_time_scheduled": 74.11,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.36087,
+    "simulation_makespan": 74.81,
+    "scheduler_makespan": 74.11,
+    "total_primitive_actions": 56,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.86,
+    "timing_success_rate_sched": 0.86,
+    "detail_log": {
+        "Prepare Pan on Stove and Heat -> Cook Egg in Pan": {
+            "Original Timing Constraint": "(9.698256788958723, True)",
+            "Schedule Result": "[True] : (8.6) -> (15.707247228536392s--1.9s)"
+        },
+        "Cook Egg in Pan -> Turn Off Stove After Cooking Egg": {
+            "Original Timing Constraint": "(10.147912119104667, True)",
+            "Schedule Result": "[True] : (22.30724722853639) -> (30.30724722853639s--2.8s)"
+        },
+        "Turn Off Stove After Cooking Egg -> Place Cooked Egg in Pan on CounterTop": {
+            "Original Timing Constraint": "(9.698256788958723, True)",
+            "Schedule Result": "[False] : (34.10724722853639) -> (43.20724722853639s--3.1s)"
+        },
+        "Place Kettle on StoveBurner and Start Heating -> Turn Off Stove After Boiling Water": {
+            "Original Timing Constraint": "(9.507247228536393, True)",
+            "Schedule Result": "[True] : (5.3999999999999995) -> (14.707247228536392s--0.0s)"
+        },
+        "Place Potato in Microwave -> Start Microwave for Heating Potato": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (43.20724722853639) -> (49.507247228536386s--4.3s)"
+        },
+        "Start Microwave for Heating Potato -> Turn Off Microwave after Heating Potato": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (54.80724722853638) -> (59.80724722853638s--0.0s)"
+        },
+        "Turn Off Microwave after Heating Potato -> Retrieve Heated Potato and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (60.80724722853638) -> (60.80724722853638s--0.0s)"
+        }
+    }
+}

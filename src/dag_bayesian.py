@@ -100,7 +100,7 @@ def main():
         else:
             controller = init_ai2thor_controller(scene_name)
             nav_graph = load_navigation_graph(controller)
-            action_handler = ActionHandler(nav_graph, logger=logger)
+            action_handler = ActionHandler(nav_graph)
 
         # Load the chosen task data
         task_files = list_task_files(scene_name=scene_name)

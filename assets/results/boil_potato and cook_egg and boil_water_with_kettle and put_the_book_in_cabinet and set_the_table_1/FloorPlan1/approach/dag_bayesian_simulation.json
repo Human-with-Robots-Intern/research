@@ -1,0 +1,265 @@
+{
+    "saved_time": "2025-07-29 20:15",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "subtask_name": "Put Book in Cabinet",
+            "start_time_simulation": 0,
+            "end_time_simulation": 9.8,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 9.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Pan on Stove and Heat",
+            "start_time_simulation": 9.8,
+            "end_time_simulation": 13.7,
+            "start_time_scheduled": 9.6,
+            "end_time_scheduled": 13.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 13.7,
+            "end_time_simulation": 18.0,
+            "start_time_scheduled": 13.3,
+            "end_time_scheduled": 17.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to Egg|-02.04|+00.81|+01.24 during 2.3",
+            "start_time_simulation": 18.0,
+            "end_time_simulation": 20.3,
+            "start_time_scheduled": 17.6,
+            "end_time_scheduled": 19.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Cook Egg in Pan_bd1d6403",
+            "start_time_simulation": 20.3,
+            "end_time_simulation": 20.4,
+            "start_time_scheduled": 19.9,
+            "end_time_scheduled": 20.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Cook Egg in Pan",
+            "start_time_simulation": 20.4,
+            "end_time_simulation": 23.4,
+            "start_time_scheduled": 20.0,
+            "end_time_scheduled": 23.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to Faucet|-02.15|+00.91|-01.50 during 2.1",
+            "start_time_simulation": 23.4,
+            "end_time_simulation": 25.5,
+            "start_time_scheduled": 23.0,
+            "end_time_scheduled": 25.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Faucet after Pot is Filled_24588d1f",
+            "start_time_simulation": 25.5,
+            "end_time_simulation": 25.6,
+            "start_time_scheduled": 25.1,
+            "end_time_scheduled": 25.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 25.6,
+            "end_time_simulation": 28.0,
+            "start_time_scheduled": 25.2,
+            "end_time_scheduled": 27.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 28.0,
+            "end_time_simulation": 29.2,
+            "start_time_scheduled": 27.6,
+            "end_time_scheduled": 28.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Pot and Start Boiling on Stove",
+            "start_time_simulation": 29.2,
+            "end_time_simulation": 35.9,
+            "start_time_scheduled": 28.7,
+            "end_time_scheduled": 35.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Kettle on Stove and Start Boiling",
+            "start_time_simulation": 35.9,
+            "end_time_simulation": 42.1,
+            "start_time_scheduled": 35.2,
+            "end_time_scheduled": 41.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Stove after Boiling Potato",
+            "start_time_simulation": 42.1,
+            "end_time_simulation": 45.61,
+            "start_time_scheduled": 41.5,
+            "end_time_scheduled": 45.01,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Potato",
+            "start_time_simulation": 45.61,
+            "end_time_simulation": 47.21,
+            "start_time_scheduled": 45.01,
+            "end_time_scheduled": 46.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "EARLY_Place Plate on CounterTop for Meal",
+            "start_time_simulation": 47.21,
+            "end_time_simulation": 49.61,
+            "start_time_scheduled": 46.31,
+            "end_time_scheduled": 48.11,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove After Boiling Water_a591a6f1",
+            "start_time_simulation": 49.61,
+            "end_time_simulation": 49.71,
+            "start_time_scheduled": 48.11,
+            "end_time_scheduled": 48.21,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to StoveKnob|-00.18|+00.88|-02.19 during 1.5",
+            "start_time_simulation": 49.71,
+            "end_time_simulation": 51.21,
+            "start_time_scheduled": 48.21,
+            "end_time_scheduled": 49.71,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove After Boiling Water_fde9e469",
+            "start_time_simulation": 51.21,
+            "end_time_simulation": 51.31,
+            "start_time_scheduled": 49.71,
+            "end_time_scheduled": 49.81,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Stove After Boiling Water",
+            "start_time_simulation": 51.31,
+            "end_time_simulation": 52.51,
+            "start_time_scheduled": 49.81,
+            "end_time_scheduled": 51.01,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove After Boiling Water",
+            "start_time_simulation": 52.51,
+            "end_time_simulation": 54.31,
+            "start_time_scheduled": 51.01,
+            "end_time_scheduled": 52.11,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Cook Egg in Pan",
+            "start_time_simulation": 54.31,
+            "end_time_simulation": 63.71,
+            "start_time_scheduled": 52.11,
+            "end_time_scheduled": 64.21,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on CounterTop for Meal",
+            "start_time_simulation": 63.71,
+            "end_time_simulation": 69.21,
+            "start_time_scheduled": 64.21,
+            "end_time_scheduled": 70.01,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to StoveKnob|-00.02|+00.88|-02.19 during 2.2",
+            "start_time_simulation": 69.21,
+            "end_time_simulation": 71.41,
+            "start_time_scheduled": 70.01,
+            "end_time_scheduled": 72.21,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Stove After Cooking Egg_3ff3f5d6",
+            "start_time_simulation": 71.41,
+            "end_time_simulation": 71.51,
+            "start_time_scheduled": 72.21,
+            "end_time_scheduled": 72.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 71.51,
+            "end_time_simulation": 73.56,
+            "start_time_scheduled": 72.31,
+            "end_time_scheduled": 74.36,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 73.56,
+            "end_time_simulation": 74.86,
+            "start_time_scheduled": 74.36,
+            "end_time_scheduled": 75.46,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "REMAIN_Place Plate on CounterTop for Meal",
+            "start_time_simulation": 74.86,
+            "end_time_simulation": 80.36,
+            "start_time_scheduled": 75.46,
+            "end_time_scheduled": 82.46,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on CounterTop for Meal",
+            "start_time_simulation": 80.36,
+            "end_time_simulation": 86.16,
+            "start_time_scheduled": 82.46,
+            "end_time_scheduled": 90.46,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 8.87991,
+    "simulation_makespan": 86.16,
+    "scheduler_makespan": 90.46,
+    "total_primitive_actions": 75,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.67,
+    "timing_success_rate_sched": 0.83,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[True] : (17.6) -> (27.6s--0.1s)"
+        },
+        "Turn Off Faucet after Pot is Filled -> Place Potato in Pot and Start Boiling on Stove": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (28.700000000000003) -> (28.700000000000003s--0.3s)"
+        },
+        "Place Potato in Pot and Start Boiling on Stove -> Turn Off Stove after Boiling Potato": {
+            "Original Timing Constraint": "(9.80964808514742, True)",
+            "Schedule Result": "[True] : (35.2) -> (45.009648085147425s--0.3s)"
+        },
+        "Prepare Pan on Stove and Heat -> Cook Egg in Pan": {
+            "Original Timing Constraint": "(9.698256788958723, True)",
+            "Schedule Result": "[False] : (13.3) -> (52.107247228536394s--3.5s)"
+        },
+        "Cook Egg in Pan -> Turn Off Stove After Cooking Egg": {
+            "Original Timing Constraint": "(10.147912119104667, True)",
+            "Schedule Result": "[True] : (64.20724722853639) -> (74.35515934764106s--0.1s)"
+        },
+        "Place Kettle on Stove and Start Boiling -> Turn Off Stove After Boiling Water": {
+            "Original Timing Constraint": "(9.507247228536393, True)",
+            "Schedule Result": "[False] : (41.5) -> (51.00724722853639s--0.1s)"
+        }
+    }
+}

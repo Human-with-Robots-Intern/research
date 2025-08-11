@@ -1,0 +1,40 @@
+{
+    "task": "cook_egg and fill_pot_with_water and heat_the_potato_using_microwave and wash_two_ladles and put_the_wine_bottle_inside_a_cabinet_1",
+    "difficulty": "hard",
+    "scene": "FloorPlan27",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 60.9,
+            "simulation_makespan": 64.6,
+            "realWorld_makespan": null,
+            "computation_time": 2.95951,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 0.83,
+            "simulation_timingSuccess_rate": 0.67,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 97.84,
+            "simulation_makespan": 102.95,
+            "realWorld_makespan": null,
+            "computation_time": 0.04838,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 71.9,
+            "simulation_makespan": 75.1,
+            "realWorld_makespan": null,
+            "computation_time": 0.17501,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        }
+    ]
+}

@@ -1,0 +1,161 @@
+{
+    "saved_time": "2025-07-30 14:10",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan18",
+    "plans": [
+        {
+            "subtask_name": "Wash Lettuce and place on CounterTop",
+            "start_time_simulation": 0,
+            "end_time_simulation": 9.2,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 9.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 9.2,
+            "end_time_simulation": 14.7,
+            "start_time_scheduled": 9.4,
+            "end_time_scheduled": 13.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 14.7,
+            "end_time_simulation": 15.7,
+            "start_time_scheduled": 13.9,
+            "end_time_scheduled": 14.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on CounterTop",
+            "start_time_simulation": 15.7,
+            "end_time_simulation": 25.0,
+            "start_time_scheduled": 14.9,
+            "end_time_scheduled": 24.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 25.0,
+            "end_time_simulation": 26.9,
+            "start_time_scheduled": 24.6,
+            "end_time_scheduled": 26.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 26.9,
+            "end_time_simulation": 31.6,
+            "start_time_scheduled": 26.1,
+            "end_time_scheduled": 30.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Mug in Sink and Start Filling",
+            "start_time_simulation": 31.6,
+            "end_time_simulation": 34.9,
+            "start_time_scheduled": 30.6,
+            "end_time_scheduled": 35.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "EARLY_Wash Apple and place on CounterTop",
+            "start_time_simulation": 34.9,
+            "end_time_simulation": 37.1,
+            "start_time_scheduled": 35.1,
+            "end_time_scheduled": 38.7,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Faucet after Mug is Filled_7956b22b",
+            "start_time_simulation": 37.1,
+            "end_time_simulation": 37.2,
+            "start_time_scheduled": 38.7,
+            "end_time_scheduled": 38.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Faucet after Mug is Filled",
+            "start_time_simulation": 37.2,
+            "end_time_simulation": 38.42,
+            "start_time_scheduled": 38.8,
+            "end_time_scheduled": 40.02,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Mug is Filled",
+            "start_time_simulation": 38.42,
+            "end_time_simulation": 39.42,
+            "start_time_scheduled": 40.02,
+            "end_time_scheduled": 41.02,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "REMAIN_Wash Apple and place on CounterTop",
+            "start_time_simulation": 39.42,
+            "end_time_simulation": 44.72,
+            "start_time_scheduled": 41.02,
+            "end_time_scheduled": 47.12,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on DiningTable",
+            "start_time_simulation": 44.72,
+            "end_time_simulation": 47.52,
+            "start_time_scheduled": 47.12,
+            "end_time_scheduled": 54.02,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on CounterTop",
+            "start_time_simulation": 47.52,
+            "end_time_simulation": 54.92,
+            "start_time_scheduled": 54.02,
+            "end_time_scheduled": 65.92,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on DiningTable",
+            "start_time_simulation": 54.92,
+            "end_time_simulation": 57.12,
+            "start_time_scheduled": 65.92,
+            "end_time_scheduled": 72.82,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 57.12,
+            "end_time_simulation": 59.32,
+            "start_time_scheduled": 72.82,
+            "end_time_scheduled": 79.02,
+            "execution_status": "FAILURE"
+        }
+    ],
+    "computation_time": 26.84485,
+    "simulation_makespan": 59.32,
+    "scheduler_makespan": 79.02,
+    "total_primitive_actions": 87,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.75,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Bread in Microwave -> Start Microwave for Heating Bread": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (13.9) -> (13.9s--0.0s)"
+        },
+        "Start Microwave for Heating Bread -> Turn Off Microwave after Heating Bread": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (14.9) -> (24.6s--0.5s)"
+        },
+        "Turn Off Microwave after Heating Bread -> Retrieve Heated Bread and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (26.1) -> (26.1s--0.0s)"
+        },
+        "Place Mug in Sink and Start Filling -> Turn Off Faucet after Mug is Filled": {
+            "Original Timing Constraint": "(4.92216253176939, True)",
+            "Schedule Result": "[False] : (35.1) -> (40.02216253176939s--0.0s)"
+        }
+    }
+}

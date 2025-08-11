@@ -1,0 +1,40 @@
+{
+    "task": "boil_potato and cook_egg and boil_water_with_kettle and wash_all_fork_and_spoon and open_the_blinds_1",
+    "difficulty": "hard",
+    "scene": "FloorPlan18",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 84.62,
+            "simulation_makespan": 86.02,
+            "realWorld_makespan": null,
+            "computation_time": 7.36356,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 0.67,
+            "simulation_timingSuccess_rate": 0.33,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 103.26,
+            "simulation_makespan": 104.47,
+            "realWorld_makespan": null,
+            "computation_time": 0.10513,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 81.72,
+            "simulation_makespan": 81.12,
+            "realWorld_makespan": null,
+            "computation_time": 0.232,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 0.67,
+            "simulation_timingSuccess_rate": 0.67,
+            "attempt": "Not related"
+        }
+    ]
+}

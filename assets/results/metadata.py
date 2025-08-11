@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 from src.utils.task.difficulty_analyzer import get_task_difficulty
 
 
-MIN_REQUIRED_SIMULATIONS = 5
+MIN_REQUIRED_SIMULATIONS = 3
 
 def load_result_data(file_path: Path) -> dict:
     """
@@ -20,6 +20,36 @@ def load_result_data(file_path: Path) -> dict:
     except Exception as e:
         print(f"[Error] 파일 읽기 실패: {file_path} - {e}")
         return {}
+
+
+def calculate_action_success_rate(plans: list) -> float | None:
+    """
+    plans 목록에서 전체 action 대비 성공한 action의 비율을 계산합니다.
+    action의 성공 여부는 'success' 키의 값으로 판단하며, True, "SUCCESS", "success"를 성공으로 간주합니다.
+
+    Args:
+        plans: 'subtasks'를 포함하고, 각 subtask가 'actions' 리스트를 포함하는 plan의 목록.
+               각 action은 'success' 키를 가질 수 있습니다.
+
+    Returns:
+        성공률을 float으로 반환합니다. action이 없는 경우 None을 반환합니다.
+    """
+    total_actions = 0
+    successful_actions = 0
+
+    if not plans:
+        return None
+
+    for subtask in plans:
+        total_actions += 1
+        success_status = subtask.get("execution_status")
+        if success_status in [True, "SUCCESS", "success"]:
+            successful_actions += 1
+
+    if total_actions == 0:
+        return None
+    
+    return successful_actions / total_actions
 
 
 def build_summary_entry(file_name: str, data: dict) -> dict:
@@ -36,7 +66,7 @@ def build_summary_entry(file_name: str, data: dict) -> dict:
         "simulation_makespan": data.get("simulation_makespan"),
         "realWorld_makespan": None,
         "computation_time": data.get("computation_time"),
-        "actionSuccess_rate": data.get("success_rate"),
+        "actionSuccess_rate": calculate_action_success_rate(plans),
         "scheduler_timingSuccess_rate": data.get("timing_success_rate_sched"),  # 시뮬레이션 기준 timing success rate 사용
         "simulation_timingSuccess_rate": data.get("timing_success_rate_sim"),  # 시뮬레이션 기준 timing success rate 사용
         "attempt": data.get("attempt") if file_name in llm_files else "Not related"

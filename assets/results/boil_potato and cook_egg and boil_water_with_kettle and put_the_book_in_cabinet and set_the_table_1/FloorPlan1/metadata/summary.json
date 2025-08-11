@@ -1,0 +1,40 @@
+{
+    "task": "boil_potato and cook_egg and boil_water_with_kettle and put_the_book_in_cabinet and set_the_table_1",
+    "difficulty": "hard",
+    "scene": "FloorPlan1",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 90.46,
+            "simulation_makespan": 86.16,
+            "realWorld_makespan": null,
+            "computation_time": 8.87991,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 0.83,
+            "simulation_timingSuccess_rate": 0.67,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 96.96,
+            "simulation_makespan": 88.07,
+            "realWorld_makespan": null,
+            "computation_time": 0.12369,
+            "actionSuccess_rate": 0.9523809523809523,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 81.1,
+            "simulation_makespan": 74.7,
+            "realWorld_makespan": null,
+            "computation_time": 0.34638,
+            "actionSuccess_rate": 0.9333333333333333,
+            "scheduler_timingSuccess_rate": 0.5,
+            "simulation_timingSuccess_rate": 0.67,
+            "attempt": "Not related"
+        }
+    ]
+}

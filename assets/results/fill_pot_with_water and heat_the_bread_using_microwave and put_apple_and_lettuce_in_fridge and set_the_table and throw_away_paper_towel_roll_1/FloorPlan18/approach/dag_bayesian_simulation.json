@@ -1,0 +1,185 @@
+{
+    "saved_time": "2025-07-30 14:07",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan18",
+    "plans": [
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 0,
+            "end_time_simulation": 6.7,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 6.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 6.7,
+            "end_time_simulation": 7.7,
+            "start_time_scheduled": 6.5,
+            "end_time_scheduled": 7.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 7.7,
+            "end_time_simulation": 12.3,
+            "start_time_scheduled": 7.5,
+            "end_time_scheduled": 12.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 12.3,
+            "end_time_simulation": 14.9,
+            "start_time_scheduled": 12.1,
+            "end_time_scheduled": 14.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to Faucet|+01.62|+00.99|+02.33 during 1.6",
+            "start_time_simulation": 14.9,
+            "end_time_simulation": 16.5,
+            "start_time_scheduled": 14.7,
+            "end_time_scheduled": 16.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Faucet after Pot is Filled_a34f1d34",
+            "start_time_simulation": 16.5,
+            "end_time_simulation": 16.6,
+            "start_time_scheduled": 16.3,
+            "end_time_scheduled": 16.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "EARLY_Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 16.6,
+            "end_time_simulation": 19.2,
+            "start_time_scheduled": 16.4,
+            "end_time_scheduled": 18.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Faucet after Pot is Filled_baae6fee",
+            "start_time_simulation": 19.2,
+            "end_time_simulation": 19.3,
+            "start_time_scheduled": 18.9,
+            "end_time_scheduled": 19.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to Faucet|+01.62|+00.99|+02.33 during 1.6",
+            "start_time_simulation": 19.3,
+            "end_time_simulation": 20.7,
+            "start_time_scheduled": 19.0,
+            "end_time_scheduled": 20.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Monitoring for Turn Off Faucet after Pot is Filled_60bc998f",
+            "start_time_simulation": 20.7,
+            "end_time_simulation": 20.8,
+            "start_time_scheduled": 20.6,
+            "end_time_scheduled": 20.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wait for Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 20.8,
+            "end_time_simulation": 22.2,
+            "start_time_scheduled": 20.7,
+            "end_time_scheduled": 22.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 22.2,
+            "end_time_simulation": 23.2,
+            "start_time_scheduled": 22.1,
+            "end_time_scheduled": 23.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Lettuce in Fridge",
+            "start_time_simulation": 23.2,
+            "end_time_simulation": 31.2,
+            "start_time_scheduled": 23.2,
+            "end_time_scheduled": 30.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 31.2,
+            "end_time_simulation": 36.7,
+            "start_time_scheduled": 30.7,
+            "end_time_scheduled": 36.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Apple in Fridge",
+            "start_time_simulation": 36.7,
+            "end_time_simulation": 46.1,
+            "start_time_scheduled": 36.2,
+            "end_time_scheduled": 45.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "REMAIN_Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 46.1,
+            "end_time_simulation": 54.8,
+            "start_time_scheduled": 45.5,
+            "end_time_scheduled": 53.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of Paper Towel Roll in GarbageCan",
+            "start_time_simulation": 54.8,
+            "end_time_simulation": 64.6,
+            "start_time_scheduled": 53.7,
+            "end_time_scheduled": 62.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on DiningTable",
+            "start_time_simulation": 64.6,
+            "end_time_simulation": 76.1,
+            "start_time_scheduled": 62.5,
+            "end_time_scheduled": 74.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on DiningTable",
+            "start_time_simulation": 76.1,
+            "end_time_simulation": 87.1,
+            "start_time_scheduled": 74.0,
+            "end_time_scheduled": 85.0,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 28.45548,
+    "simulation_makespan": 87.1,
+    "scheduler_makespan": 85.0,
+    "total_primitive_actions": 62,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(9.99874375028076, True)",
+            "Schedule Result": "[True] : (12.1) -> (22.09874375028076s--0.1s)"
+        },
+        "Place Bread in Microwave -> Start Microwave for Heating Bread": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (6.5) -> (6.5s--0.0s)"
+        },
+        "Start Microwave for Heating Bread -> Turn Off Microwave after Heating Bread": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (7.5) -> (12.1s--1.6s)"
+        },
+        "Turn Off Microwave after Heating Bread -> EARLY_Retrieve Heated Bread and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (14.7) -> (16.400000000000002s--1.5s)"
+        }
+    }
+}

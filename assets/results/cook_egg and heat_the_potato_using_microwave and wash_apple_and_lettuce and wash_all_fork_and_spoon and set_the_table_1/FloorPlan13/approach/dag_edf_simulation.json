@@ -1,0 +1,193 @@
+{
+    "saved_time": "2025-07-29 15:08",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan13",
+    "plans": [
+        {
+            "subtask_name": "Place Plate on CounterTop for Meal",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 5.4,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on CounterTop for Meal",
+            "start_time_simulation": 5.4,
+            "end_time_simulation": 12.0,
+            "start_time_scheduled": 4.2,
+            "end_time_scheduled": 8.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on CounterTop for Meal",
+            "start_time_simulation": 12.0,
+            "end_time_simulation": 18.8,
+            "start_time_scheduled": 8.8,
+            "end_time_scheduled": 13.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Pan on Stove and Heat",
+            "start_time_simulation": 18.8,
+            "end_time_simulation": 24.6,
+            "start_time_scheduled": 13.6,
+            "end_time_scheduled": 20.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 24.6,
+            "end_time_simulation": 30.0,
+            "start_time_scheduled": 20.2,
+            "end_time_scheduled": 25.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Potato",
+            "start_time_simulation": 30.0,
+            "end_time_simulation": 31.0,
+            "start_time_scheduled": 25.4,
+            "end_time_scheduled": 26.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_Egg|-04.07|+00.94|+02.81",
+            "start_time_simulation": 31.0,
+            "end_time_simulation": 32.2,
+            "start_time_scheduled": 26.4,
+            "end_time_scheduled": 27.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 1.0982567889587245 to Cook Egg in Pan",
+            "start_time_simulation": 32.2,
+            "end_time_simulation": 33.3,
+            "start_time_scheduled": 27.6,
+            "end_time_scheduled": 28.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Cook Egg in Pan",
+            "start_time_simulation": 33.3,
+            "end_time_simulation": 37.4,
+            "start_time_scheduled": 28.7,
+            "end_time_scheduled": 32.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 37.4,
+            "end_time_simulation": 38.5,
+            "start_time_scheduled": 32.8,
+            "end_time_scheduled": 33.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Potato and Place on CounterTop",
+            "start_time_simulation": 38.5,
+            "end_time_simulation": 43.9,
+            "start_time_scheduled": 33.9,
+            "end_time_scheduled": 40.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove After Cooking Egg",
+            "start_time_simulation": 43.9,
+            "end_time_simulation": 46.1,
+            "start_time_scheduled": 40.5,
+            "end_time_scheduled": 43.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_Pan|-02.45|+00.93|+02.02",
+            "start_time_simulation": 46.1,
+            "end_time_simulation": 46.6,
+            "start_time_scheduled": 43.7,
+            "end_time_scheduled": 44.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 8.698256788958723 to Place Cooked Egg in Pan on CounterTop",
+            "start_time_simulation": 46.6,
+            "end_time_simulation": 55.3,
+            "start_time_scheduled": 44.2,
+            "end_time_scheduled": 52.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Cooked Egg in Pan on CounterTop",
+            "start_time_simulation": 55.3,
+            "end_time_simulation": 58.8,
+            "start_time_scheduled": 52.9,
+            "end_time_scheduled": 57.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on counterTop",
+            "start_time_simulation": 58.8,
+            "end_time_simulation": 66.2,
+            "start_time_scheduled": 57.4,
+            "end_time_scheduled": 67.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on counterTop",
+            "start_time_simulation": 66.2,
+            "end_time_simulation": 73.6,
+            "start_time_scheduled": 67.2,
+            "end_time_scheduled": 77.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple and place on counterTop",
+            "start_time_simulation": 73.6,
+            "end_time_simulation": 81.4,
+            "start_time_scheduled": 77.0,
+            "end_time_scheduled": 87.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce and place on counterTop",
+            "start_time_simulation": 81.4,
+            "end_time_simulation": 91.2,
+            "start_time_scheduled": 87.2,
+            "end_time_scheduled": 98.4,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.64659,
+    "simulation_makespan": 91.2,
+    "scheduler_makespan": 98.4,
+    "total_primitive_actions": 98,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.83,
+    "timing_success_rate_sched": 0.83,
+    "detail_log": {
+        "Prepare Pan on Stove and Heat -> Cook Egg in Pan": {
+            "Original Timing Constraint": "(9.698256788958723, True)",
+            "Schedule Result": "[True] : (20.200000000000003) -> (28.698256788958727s--0.0s)"
+        },
+        "Cook Egg in Pan -> Turn Off Stove After Cooking Egg": {
+            "Original Timing Constraint": "(10.147912119104667, True)",
+            "Schedule Result": "[False] : (32.798256788958724) -> (40.49825678895873s--2.2s)"
+        },
+        "Turn Off Stove After Cooking Egg -> Place Cooked Egg in Pan on CounterTop": {
+            "Original Timing Constraint": "(9.698256788958723, True)",
+            "Schedule Result": "[True] : (43.69825678895873) -> (52.89651357791745s--0.0s)"
+        },
+        "Place Potato in Microwave -> Start Microwave for Heating Potato": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (25.400000000000002) -> (25.400000000000002s--0.0s)"
+        },
+        "Start Microwave for Heating Potato -> Turn Off Microwave after Heating Potato": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (26.400000000000002) -> (32.798256788958724s--0.1s)"
+        },
+        "Turn Off Microwave after Heating Potato -> Retrieve Heated Potato and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (33.898256788958726) -> (33.898256788958726s--0.0s)"
+        }
+    }
+}

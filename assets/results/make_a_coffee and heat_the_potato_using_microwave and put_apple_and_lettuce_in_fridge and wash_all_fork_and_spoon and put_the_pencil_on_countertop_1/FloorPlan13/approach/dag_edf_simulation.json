@@ -1,0 +1,97 @@
+{
+    "saved_time": "2025-07-29 15:17",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan13",
+    "plans": [
+        {
+            "subtask_name": "Place Pencil on CounterTop",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 6.4,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 6.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 6.4,
+            "end_time_simulation": 12.2,
+            "start_time_scheduled": 6.0,
+            "end_time_scheduled": 12.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Potato",
+            "start_time_simulation": 12.2,
+            "end_time_simulation": 13.2,
+            "start_time_scheduled": 12.6,
+            "end_time_scheduled": 13.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Apple in Fridge",
+            "start_time_simulation": 13.2,
+            "end_time_simulation": 22.5,
+            "start_time_scheduled": 13.6,
+            "end_time_scheduled": 21.6,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 22.5,
+            "end_time_simulation": 31.5,
+            "start_time_scheduled": 21.6,
+            "end_time_scheduled": 30.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 31.5,
+            "end_time_simulation": 32.5,
+            "start_time_scheduled": 30.5,
+            "end_time_scheduled": 31.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Lettuce in Fridge",
+            "start_time_simulation": 32.5,
+            "end_time_simulation": 45.5,
+            "start_time_scheduled": 31.5,
+            "end_time_scheduled": 44.2,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wash Spoon",
+            "start_time_simulation": 45.5,
+            "end_time_simulation": 58.2,
+            "start_time_scheduled": 44.2,
+            "end_time_scheduled": 58.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork",
+            "start_time_simulation": 58.2,
+            "end_time_simulation": 70.4,
+            "start_time_scheduled": 58.0,
+            "end_time_scheduled": 70.4,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.3134,
+    "simulation_makespan": 70.4,
+    "scheduler_makespan": 70.4,
+    "total_primitive_actions": 57,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (30.5) -> (30.5s--0.0s)"
+        },
+        "Place Potato in Microwave -> Start Microwave for Heating Potato": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (12.6) -> (12.6s--0.0s)"
+        }
+    }
+}

@@ -57,9 +57,9 @@ DYNAMIC_ACTION_SET = {
     "WAIT",
     "MONITORING",
 }
-PRIMITIVE_ACTION_DURATION = 1.0
-MONITORING_DURATION = 0.1
-NAV_STEP_DURATION = 0.1
+PRIMITIVE_ACTION_DURATION = 15.0
+MONITORING_DURATION = 1.5
+NAV_STEP_DURATION = 1.5
 REACHABLE_DISTANCE_THRESHOLD = 2.0
 # Heuristic constants have been reduced to align with the updated algorithm's expectations:
 # - ALPHA_HEURISTIC: Reduced to 2.0 to balance the weight of heuristic influence on decision-making.
