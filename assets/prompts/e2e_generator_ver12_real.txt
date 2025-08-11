@@ -384,14 +384,14 @@ Return a **JSON array**, where each element represents a main **Task**:
         "Task": "Do Laundry and Prepare Sausage Snack",
         "Subtasks": [
             {
-                "Name": "Start Laundry Machine",
+                "Name": "Start laundry_machine",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
-                    "Objects": { "Laundry Machine": 1 },
+                    "Objects": { "laundry_machine": 1 },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Laundry Machine",
-                        "TOGGLE_ON Laundry Machine"
+                        "NAVIGATE_TO laundry_machine",
+                        "TOGGLE_ON laundry_machine"
                     ]
                 },
                 "Duration": { "Type": "Controllable", "Interval": 3 },
@@ -450,19 +450,66 @@ Return a **JSON array**, where each element represents a main **Task**:
                 ]
             },
             {
-                "Name": "Unload Laundry Machine",
+                "Name": "Unload laundry_machine",
                 "Repetition": 1,
                 "Type": "Interaction",
                 "Executions": {
-                    "Objects": { "Laundry Machine": 1 },
+                    "Objects": { "laundry_machine": 1 },
                     "PrimitiveActions": [
-                        "NAVIGATE_TO Laundry Machine",
-                        "TOGGLE_OFF Laundry Machine"
+                        "NAVIGATE_TO laundry_machine",
+                        "TOGGLE_OFF laundry_machine"
                     ]
                 },
                 "Duration": { "Type": "Controllable", "Interval": 2 },
                 "TemporalConstraints": [
-                    { "Type": "After", "Subtask": "Start Laundry Machine", "Interval": 20, "Urgency": true }
+                    { "Type": "After", "Subtask": "Start laundry_machine", "Interval": 20, "Urgency": true }
+                ]
+            }
+        ]
+    }
+]
+```
+
+### **Example 3**
+
+**Input**:
+`"Do the laundry and prepare a sausage snack"`
+
+**Output**:
+
+```json
+[
+    {
+        "Task": "Do Laundry",
+        "Subtasks": [
+            {
+                "Name": "Start laundry_machine",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": { "laundry_machine": 1 },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO laundry_machine",
+                        "TOGGLE_ON laundry_machine"
+                    ]
+                },
+                "Duration": { "Type": "Controllable", "Interval": 3 },
+                "TemporalConstraints": []
+            },
+            {
+                "Name": "Unload laundry_machine",
+                "Repetition": 1,
+                "Type": "Interaction",
+                "Executions": {
+                    "Objects": { "laundry_machine": 1 },
+                    "PrimitiveActions": [
+                        "NAVIGATE_TO laundry_machine",
+                        "TOGGLE_OFF laundry_machine"
+                    ]
+                },
+                "Duration": { "Type": "Controllable", "Interval": 2 },
+                "TemporalConstraints": [
+                    { "Type": "After", "Subtask": "Start laundry_machine", "Interval": 20, "Urgency": true }
                 ]
             }
         ]
@@ -489,6 +536,7 @@ Return a **JSON array**, where each element represents a main **Task**:
 ## 13)  **`WAIT` Action**: Is `WAIT <duration_float>` (e.g. `WAIT 1.0`) used correctly for the "Wash" subtask as per Guideline #3.2 and Guideline #5? 
 ## 14) **JSON Schema Adherence**: Does the output strictly follow the schema? 
 ## 15) **Boiling Tasks**: If washing precedes boiling, is the washing structured per Guideline #3.2, and filling per Guideline #3.1?
+## 16) **If you perform a toggle on action for the stove or washing machine, you must also perform a toggle off action for that same appliance.
 
 
 ## **[INSTRUCTIONS TO THE MODEL]**
