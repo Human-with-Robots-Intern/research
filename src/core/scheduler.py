@@ -31,6 +31,9 @@ if TYPE_CHECKING:
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
+from src.utils.config.constants import PRIMITIVE_ACTION_DURATION
+
+
 class Scheduler:
     """
     Beam Search based Scheduler with n-step lookahead.
@@ -573,8 +576,8 @@ class Scheduler:
 
         Conditions checked here:
         1) The subtask has a finite scheduling due.
-        # 2) The subtask has not been decomposed yet (decomposed=False).
-        # 3) The subtask is long enough that it won't finish before the monitoring cutoff.
+        2) The subtask has not been decomposed yet (decomposed=False).
+        3) The subtask is long enough that it won't finish before the monitoring cutoff.
 
         Args:
             curr_node (SimulationNode): Current node in the search tree.
@@ -658,7 +661,7 @@ class Scheduler:
 
         if (
             candidate.scheduling_due
-            and candidate.scheduling_due.due_date < planned_subtask_completion_time
+            and candidate.scheduling_due.due_date <= planned_subtask_completion_time
         ):
             # 현재 candidate의 완료 시간이 due_date를 넘는 경우에는 Infeasible case; 확장 불가
             log.warning(
@@ -883,15 +886,14 @@ class Scheduler:
 
         ideal_early_sub_duration = duration_for_early_sub_target
 
-        # 목표 시간보다 너무 늦게 끝나는 경우에만 분할을 포기합니다.
-        # 일찍 끝나는 것은 허용하여, 모니터링 전까지 약간의 대기가 발생하더라도
-        # 모니터링 자체를 수행하는 것을 보장합니다.
+        lower_bound = ideal_early_sub_duration * (1 - TIMING_TOLERANCE)
         upper_bound = ideal_early_sub_duration * (1 + TIMING_TOLERANCE)
-        if actual_early_sub_duration > upper_bound:
-            log.warning(
+
+        if not (lower_bound <= actual_early_sub_duration <= upper_bound):
+            log.info(
                 f"[_expand_subtask_with_monitoring] Subtask '{original_task_name}' (actual early_duration: {actual_early_sub_duration:.2f}) "
-                f"is too long and would make monitoring late (ideal: {ideal_early_sub_duration:.2f}, upper bound: {upper_bound:.2f}). "
-                f"This plan is infeasible."
+                f"does not meet timing tolerance for ideal early_duration ({ideal_early_sub_duration:.2f}, bounds: [{lower_bound:.2f}, {upper_bound:.2f}]). "
+                f"Skipping monitoring split for this candidate."
             )
             return None
 

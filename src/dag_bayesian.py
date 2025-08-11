@@ -1,13 +1,12 @@
 import argparse
-import time
 from pathlib import Path
+import time
 from typing import Any, Dict
 
 from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
-from src.utils.ros_executor import RosExecutor
 from utils.common.logger import create_module_logger
 from utils.config import LOG_ROUND
 from utils.io_utils import (
@@ -19,6 +18,7 @@ from utils.io_utils import (
 )
 from utils.io_utils.task_io import get_user_scene_choice, load_scene_positions
 from utils.task import TaskUtil
+from src.utils.ros_executor import RosExecutor
 
 log = create_module_logger(__name__, module_log=True)
 
@@ -96,9 +96,7 @@ def main():
         if args.ros:
             controller = None
             nav_graph = {(0, 0, 0): {(0, 0, 0)}}
-            action_handler = ActionHandler(
-                nav_graph, logger=logger, real_world_mode=True
-            )
+            action_handler = ActionHandler(nav_graph, logger=logger)
         else:
             controller = init_ai2thor_controller(scene_name)
             nav_graph = load_navigation_graph(controller)
@@ -132,13 +130,13 @@ def main():
             if choice != 0:
                 input_natural_language = task_file_name
 
+
         # Build tasks and constraints
         # subtasks, constraints = TaskUtil.build_tasks_and_constraints(
         #     task_data, scene_file_name=scene_data.file_name,
         # )
         subtasks, constraints = TaskUtil.build_tasks_and_constraints(
-            task_data,
-            scene_file_name=f"{scene_name}_physics_environment.json",
+            task_data, scene_file_name=f"{scene_name}_physics_environment.json",
         )
 
         # Initialize the agent and scheduler
@@ -150,31 +148,29 @@ def main():
             constraint_handler=constraint_handler,
             heuristic_manager=cost_calculator,
         )
-        scene_poses: Dict[str, Any] = load_scene_positions(
-            f"{scene_name}_positions.json"
-        )
+        scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
         # current_state = TaskUtil.get_init_state(
         #     subtasks, constraints, scene_data.object_positions
         # )
-        current_state = TaskUtil.get_init_state(subtasks, constraints, scene_poses)
+        current_state = TaskUtil.get_init_state(
+            subtasks, constraints, scene_poses
+        )
 
         is_end = False
 
         total_compute_time, total_sim_time = 0, 0
-
+        
         ros_executor = RosExecutor() if args.ros else None
-
+        
         while not is_end:
 
-            next_state, computation_elapsed_time = scheduler.get_next_state(
-                current_state
-            )
+            next_state, computation_elapsed_time = scheduler.get_next_state(current_state)
             total_compute_time += computation_elapsed_time
 
             if next_state is None:
                 logger.error("No feasible solution found.")
                 break
-
+            
             if args.simulation:
                 sim_elapsed_time, execution_status, sim_nav_time = execute_subtask(
                     controller, next_state.subtask, logger
@@ -189,9 +185,7 @@ def main():
                 if next_state.subtask.subtask_type == "Monitor":
                     # ? 정말 constraint가 잘 전파된 것이 맞나?
                     next_state, monitored_subtask = agent.bayesian_estimate(next_state)
-                    next_state.completed_entries[-1].monitored_subtask = (
-                        monitored_subtask
-                    )
+                    next_state.completed_entries[-1].monitored_subtask = monitored_subtask
                 current_state = next_state
                 if not current_state.remaining_subtasks:
                     is_end = True
@@ -201,22 +195,14 @@ def main():
                     logger.info(
                         f"{last_entry.subtask.name} ({round(last_entry.sim_start_time, LOG_ROUND)} ~ {round(last_entry.sim_end_time,LOG_ROUND)})"
                     )
-                    logger.info(
-                        f"Primitive actions: {last_entry.subtask.execution.primitive_actions}\n"
-                    )
-                    last_entry.start_time_scheduled = round(
-                        last_entry.sim_start_time, LOG_ROUND
-                    )
-                    last_entry.end_time_scheduled = round(
-                        last_entry.sim_end_time, LOG_ROUND
-                    )
-
+                    logger.info(f"Primitive actions: {last_entry.subtask.execution.primitive_actions}\n")
+                    last_entry.start_time_scheduled = round(last_entry.sim_start_time, LOG_ROUND)
+                    last_entry.end_time_scheduled = round(last_entry.sim_end_time, LOG_ROUND)
+            
             if args.ros and ros_executor:
                 ros_start_offset = ros_executor.total_ros_time
-                success, elapsed_time, action_logs = ros_executor.execute_subtask(
-                    next_state.subtask
-                )
-
+                success, elapsed_time, action_logs = ros_executor.execute_subtask(next_state.subtask)
+                
                 last_entry = next_state.completed_entries[-1]
                 last_entry.sim_start_time = ros_start_offset
                 last_entry.sim_end_time = ros_start_offset + elapsed_time
@@ -228,10 +214,8 @@ def main():
 
                 if next_state.subtask.subtask_type == "Monitor":
                     next_state, monitored_subtask = agent.bayesian_estimate(next_state)
-                    next_state.completed_entries[-1].monitored_subtask = (
-                        monitored_subtask
-                    )
-
+                    next_state.completed_entries[-1].monitored_subtask = monitored_subtask
+                
                 current_state = next_state
                 if not current_state.remaining_subtasks:
                     is_end = True
@@ -240,7 +224,7 @@ def main():
             ros_executor.shutdown()
         if controller:
             controller.stop()
-
+            
     if args.ros:
         result_schedule = [
             entry
@@ -277,7 +261,6 @@ def main():
             # "simulationTime": total_sim_time,
         }
         result_save(**result_args)
-
 
 if __name__ == "__main__":
     main()
