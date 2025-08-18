@@ -1,0 +1,117 @@
+{
+    "saved_time": "2025-07-29 19:39",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "subtask_name": "Place Kettle on StoveBurner and Start Boiling",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 9.3,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 9.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Credit Card on CounterTop",
+            "start_time_simulation": 9.3,
+            "end_time_simulation": 14.5,
+            "start_time_scheduled": 9.3,
+            "end_time_scheduled": 14.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_StoveKnob|-00.48|+00.88|-02.19",
+            "start_time_simulation": 14.5,
+            "end_time_simulation": 16.3,
+            "start_time_scheduled": 14.5,
+            "end_time_scheduled": 16.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 2.507247228536393 to Turn Off Stove after Boiling Water",
+            "start_time_simulation": 16.3,
+            "end_time_simulation": 18.81,
+            "start_time_scheduled": 16.3,
+            "end_time_scheduled": 18.81,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Water",
+            "start_time_simulation": 18.81,
+            "end_time_simulation": 19.81,
+            "start_time_scheduled": 18.81,
+            "end_time_scheduled": 19.81,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 19.81,
+            "end_time_simulation": 23.71,
+            "start_time_scheduled": 19.81,
+            "end_time_scheduled": 23.71,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 23.71,
+            "end_time_simulation": 24.71,
+            "start_time_scheduled": 23.71,
+            "end_time_scheduled": 24.71,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 24.71,
+            "end_time_simulation": 29.71,
+            "start_time_scheduled": 24.71,
+            "end_time_scheduled": 29.71,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 29.71,
+            "end_time_simulation": 32.21,
+            "start_time_scheduled": 29.71,
+            "end_time_scheduled": 32.21,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Throw Away Paper Towel Roll",
+            "start_time_simulation": 32.21,
+            "end_time_simulation": 37.71,
+            "start_time_scheduled": 32.21,
+            "end_time_scheduled": 37.71,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Book in Cabinet",
+            "start_time_simulation": 37.71,
+            "end_time_simulation": 48.31,
+            "start_time_scheduled": 37.71,
+            "end_time_scheduled": 48.11,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.07849,
+    "simulation_makespan": 48.31,
+    "scheduler_makespan": 48.11,
+    "total_primitive_actions": 36,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Kettle on StoveBurner and Start Boiling -> Turn Off Stove after Boiling Water": {
+            "Original Timing Constraint": "(9.507247228536393, True)",
+            "Schedule Result": "[True] : (9.3) -> (18.807247228536394s--0.0s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (23.707247228536392) -> (23.707247228536392s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (24.707247228536392) -> (29.707247228536392s--0.0s)"
+        }
+    }
+}

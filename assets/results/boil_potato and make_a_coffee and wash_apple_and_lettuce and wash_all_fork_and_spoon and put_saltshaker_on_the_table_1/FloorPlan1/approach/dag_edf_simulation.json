@@ -1,0 +1,165 @@
+{
+    "saved_time": "2025-07-29 20:00",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 3.8,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 3.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 3.8,
+            "end_time_simulation": 4.8,
+            "start_time_scheduled": 3.8,
+            "end_time_scheduled": 4.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 4.8,
+            "end_time_simulation": 9.4,
+            "start_time_scheduled": 4.8,
+            "end_time_scheduled": 9.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 9.4,
+            "end_time_simulation": 12.9,
+            "start_time_scheduled": 9.4,
+            "end_time_scheduled": 12.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_Faucet|-02.15|+00.91|-01.50",
+            "start_time_simulation": 12.9,
+            "end_time_simulation": 14.4,
+            "start_time_scheduled": 12.9,
+            "end_time_scheduled": 14.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 3.5 to Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 14.4,
+            "end_time_simulation": 17.9,
+            "start_time_scheduled": 14.4,
+            "end_time_scheduled": 17.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 17.9,
+            "end_time_simulation": 18.9,
+            "start_time_scheduled": 17.9,
+            "end_time_scheduled": 18.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Pot and Start Boiling on Stove",
+            "start_time_simulation": 18.9,
+            "end_time_simulation": 25.6,
+            "start_time_scheduled": 18.9,
+            "end_time_scheduled": 25.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place SaltShaker on CounterTop",
+            "start_time_simulation": 25.6,
+            "end_time_simulation": 30.8,
+            "start_time_scheduled": 25.4,
+            "end_time_scheduled": 30.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_StoveKnob|-00.48|+00.88|-02.19",
+            "start_time_simulation": 30.8,
+            "end_time_simulation": 34.0,
+            "start_time_scheduled": 30.6,
+            "end_time_scheduled": 32.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 1.009648085147426 to Turn Off Stove after Boiling Potato",
+            "start_time_simulation": 34.0,
+            "end_time_simulation": 35.01,
+            "start_time_scheduled": 32.4,
+            "end_time_scheduled": 33.41,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Potato",
+            "start_time_simulation": 35.01,
+            "end_time_simulation": 36.01,
+            "start_time_scheduled": 33.41,
+            "end_time_scheduled": 34.41,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce and place on counterTop",
+            "start_time_simulation": 36.01,
+            "end_time_simulation": 46.41,
+            "start_time_scheduled": 34.41,
+            "end_time_scheduled": 44.61,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple and place on counterTop",
+            "start_time_simulation": 46.41,
+            "end_time_simulation": 57.21,
+            "start_time_scheduled": 44.61,
+            "end_time_scheduled": 55.41,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on counterTop",
+            "start_time_simulation": 57.21,
+            "end_time_simulation": 70.61,
+            "start_time_scheduled": 55.41,
+            "end_time_scheduled": 69.01,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on counterTop",
+            "start_time_simulation": 70.61,
+            "end_time_simulation": 84.01,
+            "start_time_scheduled": 69.01,
+            "end_time_scheduled": 82.61,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.2817,
+    "simulation_makespan": 84.01,
+    "scheduler_makespan": 82.61,
+    "total_primitive_actions": 90,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.8,
+    "timing_success_rate_sched": 0.6,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[False] : (9.399999999999999) -> (17.9s--0.0s)"
+        },
+        "Turn Off Faucet after Pot is Filled -> Place Potato in Pot and Start Boiling on Stove": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (18.9) -> (18.9s--0.3s)"
+        },
+        "Place Potato in Pot and Start Boiling on Stove -> Turn Off Stove after Boiling Potato": {
+            "Original Timing Constraint": "(9.80964808514742, True)",
+            "Schedule Result": "[True] : (25.4) -> (33.409648085147424s--0.0s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (3.8) -> (3.8s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (4.8) -> (9.399999999999999s--1.0s)"
+        }
+    }
+}

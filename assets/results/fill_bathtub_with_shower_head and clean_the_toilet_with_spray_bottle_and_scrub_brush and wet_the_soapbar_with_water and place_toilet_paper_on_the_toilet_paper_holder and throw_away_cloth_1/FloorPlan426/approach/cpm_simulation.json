@@ -1,0 +1,113 @@
+{
+    "saved_time": "2025-07-30 18:31",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan426",
+    "plans": [
+        {
+            "subtask_name": "Start Filling Bathtub with Shower Head",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 2.0,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet soapbar in Sink",
+            "start_time_simulation": 2.0,
+            "end_time_simulation": 13.9,
+            "start_time_scheduled": 2.0,
+            "end_time_scheduled": 14.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place toilet paper on holder",
+            "start_time_simulation": 13.9,
+            "end_time_simulation": 16.1,
+            "start_time_scheduled": 14.9,
+            "end_time_scheduled": 17.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_ShowerHead|-03.54|+02.03|+01.82",
+            "start_time_simulation": 16.1,
+            "end_time_simulation": 19.0,
+            "start_time_scheduled": 17.1,
+            "end_time_scheduled": 20.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 1.9999999999999987 to Turn Off Shower Head after Bathtub is Filled",
+            "start_time_simulation": 19.0,
+            "end_time_simulation": 21.0,
+            "start_time_scheduled": 20.0,
+            "end_time_scheduled": 22.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Shower Head after Bathtub is Filled",
+            "start_time_simulation": 21.0,
+            "end_time_simulation": 22.0,
+            "start_time_scheduled": 22.0,
+            "end_time_scheduled": 23.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Spray toilet with spray bottle",
+            "start_time_simulation": 22.0,
+            "end_time_simulation": 27.5,
+            "start_time_scheduled": 23.0,
+            "end_time_scheduled": 29.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Throw cloth in garbage can",
+            "start_time_simulation": 27.5,
+            "end_time_simulation": 33.5,
+            "start_time_scheduled": 29.9,
+            "end_time_scheduled": 36.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_ScrubBrush|-02.19|+00.00|+03.03",
+            "start_time_simulation": 33.5,
+            "end_time_simulation": 34.7,
+            "start_time_scheduled": 36.9,
+            "end_time_scheduled": 39.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 0.6000000000000001 to Scrub toilet with scrub brush",
+            "start_time_simulation": 34.7,
+            "end_time_simulation": 35.3,
+            "start_time_scheduled": 39.3,
+            "end_time_scheduled": 39.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Scrub toilet with scrub brush",
+            "start_time_simulation": 35.3,
+            "end_time_simulation": 39.5,
+            "start_time_scheduled": 39.9,
+            "end_time_scheduled": 42.9,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.03831,
+    "simulation_makespan": 39.5,
+    "scheduler_makespan": 42.9,
+    "total_primitive_actions": 40,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.5,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Start Filling Bathtub with Shower Head -> Turn Off Shower Head after Bathtub is Filled": {
+            "Original Timing Constraint": "(20, True)",
+            "Schedule Result": "[True] : (2.0) -> (22.0s--0.0s)"
+        },
+        "Spray toilet with spray bottle -> Scrub toilet with scrub brush": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[False] : (29.9) -> (39.9s--0.0s)"
+        }
+    }
+}

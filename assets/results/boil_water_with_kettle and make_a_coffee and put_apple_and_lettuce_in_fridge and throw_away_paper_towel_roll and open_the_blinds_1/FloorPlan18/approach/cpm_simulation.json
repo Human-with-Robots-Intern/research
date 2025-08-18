@@ -1,0 +1,105 @@
+{
+    "saved_time": "2025-07-29 16:19",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan18",
+    "plans": [
+        {
+            "subtask_name": "Place Kettle on StoveBurner and Start Boiling",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 5.4,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 5.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Apple in Fridge",
+            "start_time_simulation": 5.4,
+            "end_time_simulation": 12.4,
+            "start_time_scheduled": 5.4,
+            "end_time_scheduled": 12.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_StoveKnob|+01.14|+00.93|+03.99",
+            "start_time_simulation": 12.4,
+            "end_time_simulation": 14.2,
+            "start_time_scheduled": 12.2,
+            "end_time_scheduled": 14.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 0.9072472285363931 to Turn Off Stove after Boiling Water",
+            "start_time_simulation": 14.2,
+            "end_time_simulation": 15.11,
+            "start_time_scheduled": 14.0,
+            "end_time_scheduled": 14.91,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Water",
+            "start_time_simulation": 15.11,
+            "end_time_simulation": 16.11,
+            "start_time_scheduled": 14.91,
+            "end_time_scheduled": 15.91,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 16.11,
+            "end_time_simulation": 20.51,
+            "start_time_scheduled": 15.91,
+            "end_time_scheduled": 20.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 20.51,
+            "end_time_simulation": 21.51,
+            "start_time_scheduled": 20.31,
+            "end_time_scheduled": 21.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Put Lettuce in Fridge",
+            "start_time_simulation": 21.51,
+            "end_time_simulation": 29.81,
+            "start_time_scheduled": 21.31,
+            "end_time_scheduled": 29.51,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of Paper Towel Roll in Garbage Can",
+            "start_time_simulation": 29.81,
+            "end_time_simulation": 42.61,
+            "start_time_scheduled": 29.51,
+            "end_time_scheduled": 42.51,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Open Blinds",
+            "start_time_simulation": 42.61,
+            "end_time_simulation": 47.61,
+            "start_time_scheduled": 42.51,
+            "end_time_scheduled": 47.51,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.12082,
+    "simulation_makespan": 47.61,
+    "scheduler_makespan": 47.51,
+    "total_primitive_actions": 36,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Kettle on StoveBurner and Start Boiling -> Turn Off Stove after Boiling Water": {
+            "Original Timing Constraint": "(9.507247228536393, True)",
+            "Schedule Result": "[True] : (5.3999999999999995) -> (14.907247228536393s--0.0s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (20.307247228536394) -> (20.307247228536394s--0.0s)"
+        }
+    }
+}

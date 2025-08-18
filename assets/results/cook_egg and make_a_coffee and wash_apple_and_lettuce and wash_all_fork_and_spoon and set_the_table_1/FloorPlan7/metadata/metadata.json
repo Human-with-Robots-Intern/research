@@ -1,0 +1,16 @@
+{
+    "metadata": {
+        "task": "cook_egg and make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table_1",
+        "scene": "FloorPlan7",
+        "creation_date": "2025-07-29 22:36",
+        "instructions": null,
+        "model_version": "gpt-4o"
+    },
+    "environment_info": {
+        "simulator": "AI2-THOR",
+        "simulation_version": "4.2.0",
+        "scene": "FloorPlan7",
+        "gpu": null,
+        "cpu": null
+    }
+}

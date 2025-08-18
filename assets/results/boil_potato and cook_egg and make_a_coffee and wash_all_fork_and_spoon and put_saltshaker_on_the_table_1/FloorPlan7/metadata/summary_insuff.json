@@ -1,0 +1,40 @@
+{
+    "task": "boil_potato and cook_egg and make_a_coffee and wash_all_fork_and_spoon and put_saltshaker_on_the_table_1",
+    "difficulty": "hard",
+    "scene": "FloorPlan7",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 110.16,
+            "simulation_makespan": 108.05,
+            "realWorld_makespan": null,
+            "computation_time": 15.34183,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 0.83,
+            "simulation_timingSuccess_rate": 0.83,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 125.02,
+            "simulation_makespan": 124.82,
+            "realWorld_makespan": null,
+            "computation_time": 0.28103,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 103.86,
+            "simulation_makespan": 102.07,
+            "realWorld_makespan": null,
+            "computation_time": 0.55852,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 0.67,
+            "simulation_timingSuccess_rate": 0.83,
+            "attempt": "Not related"
+        }
+    ]
+}

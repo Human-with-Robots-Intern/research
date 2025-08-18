@@ -1,0 +1,149 @@
+{
+    "saved_time": "2025-07-29 15:12",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan13",
+    "plans": [
+        {
+            "subtask_name": "Place Mug in Sink and Start Filling",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 4.8,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 3.8288418147564487 to Turn Off Faucet after Mug is Filled",
+            "start_time_simulation": 4.8,
+            "end_time_simulation": 8.63,
+            "start_time_scheduled": 4.8,
+            "end_time_scheduled": 8.63,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Mug is Filled",
+            "start_time_simulation": 8.63,
+            "end_time_simulation": 9.63,
+            "start_time_scheduled": 8.63,
+            "end_time_scheduled": 9.63,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 9.63,
+            "end_time_simulation": 15.23,
+            "start_time_scheduled": 9.63,
+            "end_time_scheduled": 15.03,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Potato",
+            "start_time_simulation": 15.23,
+            "end_time_simulation": 16.23,
+            "start_time_scheduled": 15.03,
+            "end_time_scheduled": 16.03,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 16.23,
+            "end_time_simulation": 21.23,
+            "start_time_scheduled": 16.03,
+            "end_time_scheduled": 21.03,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 21.23,
+            "end_time_simulation": 22.23,
+            "start_time_scheduled": 21.03,
+            "end_time_scheduled": 22.03,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Potato and Place on CounterTop",
+            "start_time_simulation": 22.23,
+            "end_time_simulation": 27.63,
+            "start_time_scheduled": 22.03,
+            "end_time_scheduled": 28.63,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place SaltShaker on CounterTop",
+            "start_time_simulation": 27.63,
+            "end_time_simulation": 34.23,
+            "start_time_scheduled": 28.63,
+            "end_time_scheduled": 37.23,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple and place on counterTop",
+            "start_time_simulation": 34.23,
+            "end_time_simulation": 42.03,
+            "start_time_scheduled": 37.23,
+            "end_time_scheduled": 47.43,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 42.03,
+            "end_time_simulation": 53.63,
+            "start_time_scheduled": 47.43,
+            "end_time_scheduled": 58.03,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 9.999999999999993 to Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 53.63,
+            "end_time_simulation": 63.63,
+            "start_time_scheduled": 58.03,
+            "end_time_scheduled": 68.03,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 63.63,
+            "end_time_simulation": 64.63,
+            "start_time_scheduled": 68.03,
+            "end_time_scheduled": 69.03,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce and place on counterTop",
+            "start_time_simulation": 64.63,
+            "end_time_simulation": 73.43,
+            "start_time_scheduled": 69.03,
+            "end_time_scheduled": 79.03,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.40176,
+    "simulation_makespan": 73.43,
+    "scheduler_makespan": 79.03,
+    "total_primitive_actions": 64,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[True] : (58.028841814756454) -> (68.02884181475645s--0.0s)"
+        },
+        "Place Potato in Microwave -> Start Microwave for Heating Potato": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (15.028841814756449) -> (15.028841814756449s--0.0s)"
+        },
+        "Start Microwave for Heating Potato -> Turn Off Microwave after Heating Potato": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (16.028841814756447) -> (21.028841814756447s--0.0s)"
+        },
+        "Turn Off Microwave after Heating Potato -> Retrieve Heated Potato and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (22.028841814756447) -> (22.028841814756447s--0.0s)"
+        },
+        "Place Mug in Sink and Start Filling -> Turn Off Faucet after Mug is Filled": {
+            "Original Timing Constraint": "(3.8288418147564496, True)",
+            "Schedule Result": "[True] : (4.8) -> (8.628841814756449s--0.0s)"
+        }
+    }
+}

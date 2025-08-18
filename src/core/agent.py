@@ -8,15 +8,18 @@ import numpy as np
 
 from src.models.dataclass import SchedulerState
 from src.utils.common import create_module_logger, extract_monitoring_target_name
-from src.utils.config import (
+from src.utils.config.constants import (
+    AGENT_KNOWLEDGE_PATH,
+    CRITICAL_OBJECT_GROUND_TRUTH,
+    CRITICAL_OBJECT_INTERVALS,
     ESTIMATE_FILE_NAME,
     FACTOR_ALPHA,
     GROUND_TRUTH_FILE_NAME,
     INIT_PRIOR_MEAN,
     INIT_PRIOR_VARIANCE,
+    MIN_VARIANCE,
+    TIMING_TOLERANCE,
 )
-from src.utils.config.constants import AGENT_KNOWLEDGE_PATH, MIN_VARIANCE, TIMING_TOLERANCE
-from src.utils.nlp import SentenceSimilarityModel
 
 if TYPE_CHECKING:
     from scheduler import ConstraintHandler
@@ -25,84 +28,17 @@ log = create_module_logger(module_name=__name__, module_log=True)
 
 
 class Agent:
-    def __init__(self, constraint_handler: ConstraintHandler):
-        """Initializes the Agent, loading prior knowledge and helpers."""
-        self.estimate_knowledge: Dict[str, Dict[str, float]] = (
-            self._load_lower_case_knowledge(ESTIMATE_FILE_NAME)
-        )
-        self.ground_truth_knowledge: Dict[str, float] = self._load_lower_case_knowledge(
-            GROUND_TRUTH_FILE_NAME
-        )
+    def __init__(self, constraint_handler: ConstraintHandler, bayesian_load: dict):
+        """Initializes the Agent with empty knowledge bases."""
+        # TODO 1-1: 파일 로딩 로직을 제거하고 빈 딕셔너리로 초기화합니다.
+        self.estimate_knowledge: Dict[str, Dict[str, float]] = bayesian_load
 
-        self.sentence_sim_model = SentenceSimilarityModel.get_instance()
         self.constraint_handler = constraint_handler
-
-    def _load_lower_case_knowledge(self, filename: str) -> Dict[str, Dict]:
-        """Loads knowledge from file or returns an empty dict if not found."""
-        from utils.io_utils import load_file
-
-        knowledge_path = AGENT_KNOWLEDGE_PATH / filename
-        try:
-            knowledge = load_file(knowledge_path, "json")
-            log.info(f"Successfully loaded knowledge from {filename}.")
-            processed_knowledge = {}
-
-            for key, value in knowledge.items():
-                processed_knowledge[str(key).lower()] = value
-
-            return processed_knowledge
-
-        except FileNotFoundError:
-            log.warning(
-                f"Knowledge file {filename} not found. Initializing empty knowledge base."
-            )
-            return {}
-
-    def reset_knowledge_to_gaussian(self) -> None:
-        """
-        Reset the knowledge base:
-        every key (e.g. 'Brew Coffee') is re-initialized with a new Gaussian (mean=1, var=1).
-        """
-        for key in self.estimate_knowledge:
-            self.estimate_knowledge[key] = {
-                "expected_duration": INIT_PRIOR_MEAN,
-                "variance": INIT_PRIOR_VARIANCE,
-            }
-
-        knowledge_path = AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME
-        with open(knowledge_path, "w", encoding="utf-8") as f:
-            json.dump(self.estimate_knowledge, f, indent=4, ensure_ascii=False)
-
-    def _find_most_similar_subtask(
-        self, query_sub_name: str, candidate_sub_names: List[str]
-    ) -> str:
-        """
-        sentence_transformer 싱글톤 인스턴스(self.sentence_sim_model)를 직접 사용하여,
-        가장 유사한 sub_name 후보를 반환합니다.
-        """
-        if not candidate_sub_names:
-            log.warning(
-                f"No candidate subtask names provided for similarity check with '{query_sub_name}'."
-            )
-            return query_sub_name
-        query_sub_name_lower = query_sub_name.lower()
-
-        # Check if the exact lowercase name already exists
-        if query_sub_name_lower in candidate_sub_names:
-            log.debug(f"Exact lowercase match found for '{query_sub_name_lower}'.")
-            return query_sub_name_lower
-
-        # Compute cosine similarities
-        similar_subtask_name = self.sentence_sim_model.get_similar_ref(
-            query=query_sub_name_lower,
-            references=candidate_sub_names,  # Assuming candidates are already lowercase from _load_or_init_knowledge
-        )
-        return similar_subtask_name.lower()
 
     def _update_knowledge_and_constraints(
         self,
         state: SchedulerState,
-        known_sub_name: str,
+        monitoring_target_obj_name: str,
         posterior_mean: float,
         posterior_variance: float,
         critical_start_sub_name: str,
@@ -110,17 +46,24 @@ class Agent:
         critical_start_sub_end_time: float,
     ) -> None:
         """
-        추정된 posterior_mean, posterior_variance를 knowledge에 저장하고,
-        constraints 그래프에 반영한다.
+        메모리 상의 knowledge와 constraints 그래프를 업데이트합니다.
         """
-        # 1) knowledge에 반영
-        self.estimate_knowledge[known_sub_name]["expected_duration"] = posterior_mean
-        self.estimate_knowledge[known_sub_name]["variance"] = posterior_variance
-        estimate_knowledge_path = AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME
-        with open(estimate_knowledge_path, "w", encoding="utf-8") as f:
-            json.dump(self.estimate_knowledge, f, indent=4, ensure_ascii=False)
+        # Key가 없는 경우를 대비하여 먼저 확인하고, 없으면 생성
+        if monitoring_target_obj_name not in self.estimate_knowledge:
+            self.estimate_knowledge[monitoring_target_obj_name] = {}
 
-        # 2) constraints 그래프 업데이트
+        # 1) 메모리 내 knowledge 업데이트
+        self.estimate_knowledge[monitoring_target_obj_name][
+            "expected_duration"
+        ] = posterior_mean
+        self.estimate_knowledge[monitoring_target_obj_name][
+            "variance"
+        ] = posterior_variance
+
+        with open(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME, "w") as f:
+            json.dump(self.estimate_knowledge, f, indent=4)
+
+        # 2) constraints 그래프 업데이트 (이 로직은 유지)
         #    - (critical_start_sub_name, monitoring_target_sub_name)에 posterior_mean 반영
 
         nx.set_edge_attributes(
@@ -145,28 +88,33 @@ class Agent:
             },
         )
 
-    def _get_prior_estimate(self, sub_name: str) -> Tuple[float, float]:
+    def set_knowledge(
+        self, estimate_knowledge: Dict, ground_truth_knowledge: Dict
+    ) -> None:
+        self.estimate_knowledge = {k.lower(): v for k, v in estimate_knowledge.items()}
+        self.ground_truth_knowledge = {
+            k.lower(): v for k, v in ground_truth_knowledge.items()
+        }
+
+    def _get_prior_estimate(self, obj_name: str) -> Tuple[float, float]:
         """
         Retrieves the prior mean and variance for a subtask (lowercase name).
         Initializes with defaults if not found or invalid. Ensures variance > MIN_VARIANCE.
         """
         prior_mean = INIT_PRIOR_MEAN
         prior_variance = INIT_PRIOR_VARIANCE
-        source = "default"
 
-        if sub_name in self.estimate_knowledge:
-            known_data = self.estimate_knowledge[sub_name]
-
-            mean_val = float(known_data.get("expected_duration", INIT_PRIOR_MEAN))
-            var_val = float(known_data.get("variance", INIT_PRIOR_VARIANCE))
+        if obj_name in CRITICAL_OBJECT_INTERVALS:
+            known_data = self.estimate_knowledge.get(obj_name)
+            mean_val = known_data.get("expected_duration", INIT_PRIOR_MEAN)
+            var_val = known_data.get("variance", INIT_PRIOR_VARIANCE)
 
             # Ensure values are reasonable (non-negative)
             prior_mean = max(0, mean_val)
             prior_variance = max(MIN_VARIANCE, var_val)
-            source = "knowledge_base"
 
         else:
-            log.debug(f"No prior knowledge found for '{sub_name}'. Using defaults.")
+            log.debug(f"No prior knowledge found for '{obj_name}'. Using defaults.")
 
         return prior_mean, max(prior_variance, MIN_VARIANCE)
 
@@ -185,24 +133,22 @@ class Agent:
         """
         from utils.task.constraints_util import get_critical_start_info
 
-        # 1) Extract target subtask name
         monitoring_target_sub_name = extract_monitoring_target_name(state.subtask.name)
-
-        # 2) 문장 유사도 모델로 실제 known_sub_name 결정
-        known_sub_name_lower = self._find_most_similar_subtask(
-            monitoring_target_sub_name,
-            list(
-                self.estimate_knowledge.keys(),
-            ),
+        monitoring_target_obj_name = (
+            state.subtask.execution.objects[0].split("|")[0]
+            if state.subtask.execution.objects[0]
+            else None
         )
 
-        # 3) ground_truth / prior_mean / prior_variance 가져오기
-        gt_interval = self.ground_truth_knowledge.get(known_sub_name_lower)
-        prior_mean, prior_variance = self._get_prior_estimate(known_sub_name_lower)
+        # 3-3. G.T.와 prior를 직접 조회합니다.
+        gt_interval = CRITICAL_OBJECT_GROUND_TRUTH.get(monitoring_target_obj_name)
+        prior_mean, prior_variance = self._get_prior_estimate(
+            monitoring_target_obj_name
+        )
 
         # 4) Find critical start subtask and its end time
         critical_start_sub_name, critical_start_sub_end_time = get_critical_start_info(
-            subtask_name=monitoring_target_sub_name,
+            subtask_name=state.subtask.name,
             completed=state.completed_entries,
             constraints=state.constraints,
             constraint_handler=self.constraint_handler,
@@ -232,10 +178,11 @@ class Agent:
         )
 
         bayesian_diff = abs(posterior_mean - prior_mean) / prior_mean
-        if bayesian_diff > TIMING_TOLERANCE:
+        log.info(f"bayesian_diff: {bayesian_diff}")
+        if bayesian_diff > 0.1:
             self._update_knowledge_and_constraints(
                 state=state,
-                known_sub_name=known_sub_name_lower,
+                monitoring_target_obj_name=monitoring_target_obj_name,
                 posterior_mean=posterior_mean,
                 posterior_variance=posterior_variance,
                 critical_start_sub_name=critical_start_sub_name,
@@ -254,6 +201,16 @@ class Agent:
                 "original_expected_time": prior_mean,
                 "updated_expected_time": prior_mean,
                 "ground_truth_time": gt_interval,
+            }
+
+        # TODO 4: (중요) G.T. 값이 없을 경우의 처리
+        # gt_interval이 None일 경우 (e.g., non-critical subtask를 모니터링하는 예외상황)
+        # 베이지안 업데이트를 건너뛰거나, 기본값을 사용하는 등의 처리가 필요합니다.
+        if gt_interval is None:
+            # 업데이트 없이 원래 상태와 정보 반환
+            return state, {
+                "updated_subtask_name": "N/A",
+                "error": "Ground truth not found for this object.",
             }
 
         return state, monitored_subtask

@@ -1,0 +1,69 @@
+{
+    "saved_time": "2025-07-30 18:51",
+    "approach": "dag_bayesian_simulation",
+    "scene_name": "FloorPlan426",
+    "plans": [
+        {
+            "subtask_name": "Start Filling Bathtub with Shower Head",
+            "start_time_simulation": 0,
+            "end_time_simulation": 2.0,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Spray toilet with spray bottle",
+            "start_time_simulation": 2.0,
+            "end_time_simulation": 8.9,
+            "start_time_scheduled": 2.0,
+            "end_time_scheduled": 8.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Throw away toilet paper",
+            "start_time_simulation": 8.9,
+            "end_time_simulation": 12.5,
+            "start_time_scheduled": 8.9,
+            "end_time_scheduled": 13.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn on the candle",
+            "start_time_simulation": 12.5,
+            "end_time_simulation": 15.4,
+            "start_time_scheduled": 13.3,
+            "end_time_scheduled": 15.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Navigate to ShowerHead|-03.54|+02.03|+01.82 during 1.2",
+            "start_time_simulation": 15.4,
+            "end_time_simulation": 16.6,
+            "start_time_scheduled": 15.4,
+            "end_time_scheduled": 16.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Scrub toilet with scrub brush",
+            "start_time_simulation": 16.6,
+            "end_time_simulation": 23.0,
+            "start_time_scheduled": 16.6,
+            "end_time_scheduled": 22.7,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.82006,
+    "simulation_makespan": 23.0,
+    "scheduler_makespan": 22.7,
+    "total_primitive_actions": 21,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Spray toilet with spray bottle -> Scrub toilet with scrub brush": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[True] : (8.9) -> (16.6s--3.1s)"
+        }
+    }
+}

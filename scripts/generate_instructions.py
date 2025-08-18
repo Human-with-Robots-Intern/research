@@ -246,24 +246,6 @@ Floorplan_bathroom_not_constrained_list = [
     "close_shower_curtain"
 ]
 
-# Floorplan401
-Floorplan401_critical_list = [
-    "fill_bathtub_with_water_with_shower_head",    
-    "clean_the_toilet", 
-    "clean_the_sink",
-]
-Floorplan401_non_critical_list = [
-    "wet_the_handtowel_with_water",
-    "wet_the_towel_with_water"
-]
-Floorplan401_not_constrained_list = [
-    "place_toilet_paper_on_the_toilet_paper_holder",
-    "turn_on_the_candle",
-    "turn_on_the_light",
-    "throw_away_cloth",
-    "close_shower_curtain"
-]
-
 # Floorplan415
 Floorplan415_critical_list = [
     "fill_bathtub_with_water_with_shower_head",

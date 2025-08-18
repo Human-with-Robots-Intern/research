@@ -1,0 +1,85 @@
+{
+    "saved_time": "2025-07-30 16:21",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan422",
+    "plans": [
+        {
+            "subtask_name": "Spray toilet with spray bottle",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 5.0,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of Cloth in GarbageCan",
+            "start_time_simulation": 5.0,
+            "end_time_simulation": 9.0,
+            "start_time_scheduled": 4.8,
+            "end_time_scheduled": 9.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_ScrubBrush|-00.66|00.00|+02.56",
+            "start_time_simulation": 9.0,
+            "end_time_simulation": 10.9,
+            "start_time_scheduled": 9.8,
+            "end_time_scheduled": 11.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 3.0 to Scrub toilet with scrub brush",
+            "start_time_simulation": 10.9,
+            "end_time_simulation": 13.9,
+            "start_time_scheduled": 11.8,
+            "end_time_scheduled": 14.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Scrub toilet with scrub brush",
+            "start_time_simulation": 13.9,
+            "end_time_simulation": 16.9,
+            "start_time_scheduled": 14.8,
+            "end_time_scheduled": 18.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet SoapBottle in Sink",
+            "start_time_simulation": 16.9,
+            "end_time_simulation": 28.3,
+            "start_time_scheduled": 18.8,
+            "end_time_scheduled": 29.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Close Shower Curtain",
+            "start_time_simulation": 28.3,
+            "end_time_simulation": 32.4,
+            "start_time_scheduled": 29.8,
+            "end_time_scheduled": 33.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of Toilet Paper in GarbageCan",
+            "start_time_simulation": 32.4,
+            "end_time_simulation": 36.9,
+            "start_time_scheduled": 33.7,
+            "end_time_scheduled": 38.2,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.04032,
+    "simulation_makespan": 36.9,
+    "scheduler_makespan": 38.2,
+    "total_primitive_actions": 36,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Spray toilet with spray bottle -> Scrub toilet with scrub brush": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[True] : (4.8) -> (14.8s--0.0s)"
+        }
+    }
+}

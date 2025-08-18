@@ -56,7 +56,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--simulation",
-        default=False,
+        default=True,
         action="store_true",
         help="Simulation 모드 사용 여부 (default: False)",
     )
@@ -86,6 +86,7 @@ def main():
     )
     scene_name = args.scene
     controller = None
+    ros_executor = None  # ros_executor를 None으로 미리 초기화
 
     # Set up the AI2-THOR controller and navigation graph
     try:
@@ -96,13 +97,12 @@ def main():
         if args.ros:
             controller = None
             nav_graph = {(0, 0, 0): {(0, 0, 0)}}
-            action_handler = ActionHandler(
-                nav_graph, real_world_mode=True
-            )
+
+            action_handler = ActionHandler(nav_graph, real_world_mode=True)
         else:
             controller = init_ai2thor_controller(scene_name)
             nav_graph = load_navigation_graph(controller)
-            action_handler = ActionHandler(nav_graph)
+            action_handler = ActionHandler(nav_graph, real_world_mode=False)
 
         # Load the chosen task data
         task_files = list_task_files(scene_name=scene_name)
@@ -136,14 +136,14 @@ def main():
         # subtasks, constraints = TaskUtil.build_tasks_and_constraints(
         #     task_data, scene_file_name=scene_data.file_name,
         # )
-        subtasks, constraints = TaskUtil.build_tasks_and_constraints(
+        subtasks, constraints, bayesian_load = TaskUtil.build_tasks_and_constraints(
             task_data,
             scene_file_name=f"{scene_name}_physics_environment.json",
         )
 
         # Initialize the agent and scheduler
         constraint_handler = ConstraintHandler(action_handler)
-        agent = Agent(constraint_handler)
+        agent = Agent(constraint_handler, bayesian_load)
         cost_calculator = HeuristicManager(action_handler)
         scheduler = Scheduler(
             action_handler=action_handler,
@@ -236,7 +236,7 @@ def main():
                 if not current_state.remaining_subtasks:
                     is_end = True
     finally:
-        if ros_executor:
+        if ros_executor and args.ros:
             ros_executor.shutdown()
         if controller:
             controller.stop()

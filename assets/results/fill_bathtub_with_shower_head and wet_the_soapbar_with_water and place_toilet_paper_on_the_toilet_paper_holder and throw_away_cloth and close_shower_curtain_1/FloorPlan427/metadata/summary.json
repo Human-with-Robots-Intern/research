@@ -1,0 +1,40 @@
+{
+    "task": "fill_bathtub_with_shower_head and wet_the_soapbar_with_water and place_toilet_paper_on_the_toilet_paper_holder and throw_away_cloth and close_shower_curtain_1",
+    "difficulty": "normal",
+    "scene": "FloorPlan427",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 33.9,
+            "simulation_makespan": 32.0,
+            "realWorld_makespan": null,
+            "computation_time": 0.86255,
+            "actionSuccess_rate": 0.6666666666666666,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 29.6,
+            "simulation_makespan": 28.0,
+            "realWorld_makespan": null,
+            "computation_time": 0.02609,
+            "actionSuccess_rate": 0.5714285714285714,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 34.9,
+            "simulation_makespan": 33.8,
+            "realWorld_makespan": null,
+            "computation_time": 0.05551,
+            "actionSuccess_rate": 0.625,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        }
+    ]
+}

@@ -1,0 +1,40 @@
+{
+    "task": "wet_the_soapbar_with_water and place_toilet_paper_on_the_toilet_paper_holder and put_soap_bar_in_a_cabinet and put_tissue_box_inside_the_drawer and throw_away_toilet_paper_1",
+    "difficulty": "simple",
+    "scene": "FloorPlan426",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 34.4,
+            "simulation_makespan": 27.9,
+            "realWorld_makespan": null,
+            "computation_time": 0.50387,
+            "actionSuccess_rate": 0.8,
+            "scheduler_timingSuccess_rate": null,
+            "simulation_timingSuccess_rate": null,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 39.7,
+            "simulation_makespan": 33.7,
+            "realWorld_makespan": null,
+            "computation_time": 0.0121,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": null,
+            "simulation_timingSuccess_rate": null,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 35.2,
+            "simulation_makespan": 22.1,
+            "realWorld_makespan": null,
+            "computation_time": 0.04477,
+            "actionSuccess_rate": 0.6,
+            "scheduler_timingSuccess_rate": null,
+            "simulation_timingSuccess_rate": null,
+            "attempt": "Not related"
+        }
+    ]
+}

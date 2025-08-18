@@ -1,0 +1,157 @@
+{
+    "saved_time": "2025-07-29 16:31",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan18",
+    "plans": [
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 4.6,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 4.6,
+            "end_time_simulation": 5.6,
+            "start_time_scheduled": 4.6,
+            "end_time_scheduled": 5.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Open Blinds",
+            "start_time_simulation": 5.6,
+            "end_time_simulation": 7.6,
+            "start_time_scheduled": 5.6,
+            "end_time_scheduled": 7.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_CoffeeMachine|+01.55|+00.98|+00.95",
+            "start_time_simulation": 7.6,
+            "end_time_simulation": 8.8,
+            "start_time_scheduled": 7.6,
+            "end_time_scheduled": 8.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 2.0 to Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 8.8,
+            "end_time_simulation": 10.8,
+            "start_time_scheduled": 8.6,
+            "end_time_scheduled": 10.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 10.8,
+            "end_time_simulation": 13.6,
+            "start_time_scheduled": 10.6,
+            "end_time_scheduled": 12.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Potato in Microwave",
+            "start_time_simulation": 13.6,
+            "end_time_simulation": 20.7,
+            "start_time_scheduled": 12.6,
+            "end_time_scheduled": 19.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Potato",
+            "start_time_simulation": 20.7,
+            "end_time_simulation": 21.7,
+            "start_time_scheduled": 19.1,
+            "end_time_scheduled": 20.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 21.7,
+            "end_time_simulation": 26.7,
+            "start_time_scheduled": 20.1,
+            "end_time_scheduled": 25.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Potato",
+            "start_time_simulation": 26.7,
+            "end_time_simulation": 27.7,
+            "start_time_scheduled": 25.1,
+            "end_time_scheduled": 26.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Potato and Place on CounterTop",
+            "start_time_simulation": 27.7,
+            "end_time_simulation": 32.4,
+            "start_time_scheduled": 26.1,
+            "end_time_scheduled": 30.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 32.4,
+            "end_time_simulation": 40.3,
+            "start_time_scheduled": 30.6,
+            "end_time_scheduled": 39.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on DiningTable",
+            "start_time_simulation": 40.3,
+            "end_time_simulation": 51.7,
+            "start_time_scheduled": 39.1,
+            "end_time_scheduled": 50.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on DiningTable",
+            "start_time_simulation": 51.7,
+            "end_time_simulation": 62.7,
+            "start_time_scheduled": 50.5,
+            "end_time_scheduled": 61.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of Paper Towel Roll in GarbageCan",
+            "start_time_simulation": 62.7,
+            "end_time_simulation": 76.4,
+            "start_time_scheduled": 61.5,
+            "end_time_scheduled": 75.2,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.33981,
+    "simulation_makespan": 76.4,
+    "scheduler_makespan": 75.2,
+    "total_primitive_actions": 48,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (4.6) -> (4.6s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (5.6) -> (10.6s--0.0s)"
+        },
+        "Place Potato in Microwave -> Start Microwave for Heating Potato": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (19.1) -> (19.1s--0.0s)"
+        },
+        "Start Microwave for Heating Potato -> Turn Off Microwave after Heating Potato": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (20.1) -> (25.1s--0.0s)"
+        },
+        "Turn Off Microwave after Heating Potato -> Retrieve Heated Potato and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (26.1) -> (26.1s--0.0s)"
+        }
+    }
+}

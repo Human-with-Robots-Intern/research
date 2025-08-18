@@ -1,0 +1,113 @@
+{
+    "saved_time": "2025-07-29 21:37",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan7",
+    "plans": [
+        {
+            "subtask_name": "Place Kettle on StoveBurner and Start Boiling",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 6.8,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 6.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 9.507247228536393 to Turn Off Stove after Boiling Water",
+            "start_time_simulation": 6.8,
+            "end_time_simulation": 16.31,
+            "start_time_scheduled": 6.8,
+            "end_time_scheduled": 16.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Stove after Boiling Water",
+            "start_time_simulation": 16.31,
+            "end_time_simulation": 17.31,
+            "start_time_scheduled": 16.31,
+            "end_time_scheduled": 17.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 17.31,
+            "end_time_simulation": 21.51,
+            "start_time_scheduled": 17.31,
+            "end_time_scheduled": 21.51,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 21.51,
+            "end_time_simulation": 22.51,
+            "start_time_scheduled": 21.51,
+            "end_time_scheduled": 22.51,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple",
+            "start_time_simulation": 22.51,
+            "end_time_simulation": 30.81,
+            "start_time_scheduled": 22.51,
+            "end_time_scheduled": 31.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce",
+            "start_time_simulation": 30.81,
+            "end_time_simulation": 39.61,
+            "start_time_scheduled": 31.31,
+            "end_time_scheduled": 40.31,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 39.61,
+            "end_time_simulation": 46.91,
+            "start_time_scheduled": 40.31,
+            "end_time_scheduled": 47.91,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on DiningTable",
+            "start_time_simulation": 46.91,
+            "end_time_simulation": 57.51,
+            "start_time_scheduled": 47.91,
+            "end_time_scheduled": 58.91,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place Spoon on DiningTable",
+            "start_time_simulation": 57.51,
+            "end_time_simulation": 67.71,
+            "start_time_scheduled": 58.91,
+            "end_time_scheduled": 69.71,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Store Wine Bottle in Cabinet",
+            "start_time_simulation": 67.71,
+            "end_time_simulation": 76.71,
+            "start_time_scheduled": 69.71,
+            "end_time_scheduled": 78.71,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.1602,
+    "simulation_makespan": 76.71,
+    "scheduler_makespan": 78.71,
+    "total_primitive_actions": 58,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Kettle on StoveBurner and Start Boiling -> Turn Off Stove after Boiling Water": {
+            "Original Timing Constraint": "(9.507247228536393, True)",
+            "Schedule Result": "[True] : (6.8) -> (16.307247228536394s--0.0s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (21.507247228536393) -> (21.507247228536393s--0.0s)"
+        }
+    }
+}

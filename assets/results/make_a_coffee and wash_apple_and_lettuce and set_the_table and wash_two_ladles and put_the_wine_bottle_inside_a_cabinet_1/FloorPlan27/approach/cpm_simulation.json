@@ -1,0 +1,121 @@
+{
+    "saved_time": "2025-07-29 18:03",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan27",
+    "plans": [
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 3.3,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 3.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 3.3,
+            "end_time_simulation": 4.3,
+            "start_time_scheduled": 3.3,
+            "end_time_scheduled": 4.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 4.3,
+            "end_time_simulation": 9.3,
+            "start_time_scheduled": 4.3,
+            "end_time_scheduled": 9.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 9.3,
+            "end_time_simulation": 12.9,
+            "start_time_scheduled": 9.3,
+            "end_time_scheduled": 12.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple",
+            "start_time_simulation": 12.9,
+            "end_time_simulation": 25.1,
+            "start_time_scheduled": 12.9,
+            "end_time_scheduled": 25.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce",
+            "start_time_simulation": 25.1,
+            "end_time_simulation": 36.7,
+            "start_time_scheduled": 25.3,
+            "end_time_scheduled": 36.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on DiningTable",
+            "start_time_simulation": 36.7,
+            "end_time_simulation": 39.9,
+            "start_time_scheduled": 36.9,
+            "end_time_scheduled": 40.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on DiningTable",
+            "start_time_simulation": 39.9,
+            "end_time_simulation": 45.1,
+            "start_time_scheduled": 40.1,
+            "end_time_scheduled": 45.3,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on DiningTable",
+            "start_time_simulation": 45.1,
+            "end_time_simulation": 50.3,
+            "start_time_scheduled": 45.3,
+            "end_time_scheduled": 50.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash First Ladle",
+            "start_time_simulation": 50.3,
+            "end_time_simulation": 62.3,
+            "start_time_scheduled": 50.5,
+            "end_time_scheduled": 62.5,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Second Ladle",
+            "start_time_simulation": 62.3,
+            "end_time_simulation": 73.9,
+            "start_time_scheduled": 62.5,
+            "end_time_scheduled": 74.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Store Wine Bottle in Cabinet",
+            "start_time_simulation": 73.9,
+            "end_time_simulation": 80.9,
+            "start_time_scheduled": 74.1,
+            "end_time_scheduled": 80.9,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.09912,
+    "simulation_makespan": 80.9,
+    "scheduler_makespan": 80.9,
+    "total_primitive_actions": 78,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (3.3) -> (3.3s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (4.3) -> (9.3s--0.0s)"
+        }
+    }
+}

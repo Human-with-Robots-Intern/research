@@ -1,0 +1,153 @@
+{
+    "saved_time": "2025-07-29 15:15",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan13",
+    "plans": [
+        {
+            "subtask_name": "Place Plate on CounterTop for Meal",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 5.4,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 4.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Mug in Sink and Start Filling",
+            "start_time_simulation": 5.4,
+            "end_time_simulation": 8.8,
+            "start_time_scheduled": 4.2,
+            "end_time_scheduled": 8.6,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 3.8288418147564496 to Turn Off Faucet after Mug is Filled",
+            "start_time_simulation": 8.8,
+            "end_time_simulation": 12.63,
+            "start_time_scheduled": 8.6,
+            "end_time_scheduled": 12.43,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Mug is Filled",
+            "start_time_simulation": 12.63,
+            "end_time_simulation": 13.63,
+            "start_time_scheduled": 12.43,
+            "end_time_scheduled": 13.43,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on CounterTop for Meal",
+            "start_time_simulation": 13.63,
+            "end_time_simulation": 20.43,
+            "start_time_scheduled": 13.43,
+            "end_time_scheduled": 19.23,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on CounterTop for Meal",
+            "start_time_simulation": 20.43,
+            "end_time_simulation": 27.23,
+            "start_time_scheduled": 19.23,
+            "end_time_scheduled": 24.03,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Bread in Microwave",
+            "start_time_simulation": 27.23,
+            "end_time_simulation": 33.23,
+            "start_time_scheduled": 24.03,
+            "end_time_scheduled": 30.63,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Microwave for Heating Bread",
+            "start_time_simulation": 33.23,
+            "end_time_simulation": 34.23,
+            "start_time_scheduled": 30.63,
+            "end_time_scheduled": 31.63,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 5.0 to Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 34.23,
+            "end_time_simulation": 39.23,
+            "start_time_scheduled": 31.63,
+            "end_time_scheduled": 36.63,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Microwave after Heating Bread",
+            "start_time_simulation": 39.23,
+            "end_time_simulation": 40.23,
+            "start_time_scheduled": 36.63,
+            "end_time_scheduled": 37.63,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Heated Bread and Place on CounterTop",
+            "start_time_simulation": 40.23,
+            "end_time_simulation": 45.63,
+            "start_time_scheduled": 37.63,
+            "end_time_scheduled": 44.23,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on CounterTop",
+            "start_time_simulation": 45.63,
+            "end_time_simulation": 53.03,
+            "start_time_scheduled": 44.23,
+            "end_time_scheduled": 54.03,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on CounterTop",
+            "start_time_simulation": 53.03,
+            "end_time_simulation": 60.43,
+            "start_time_scheduled": 54.03,
+            "end_time_scheduled": 63.83,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple and place on CounterTop",
+            "start_time_simulation": 60.43,
+            "end_time_simulation": 68.23,
+            "start_time_scheduled": 63.83,
+            "end_time_scheduled": 74.03,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce and place on CounterTop",
+            "start_time_simulation": 68.23,
+            "end_time_simulation": 77.23,
+            "start_time_scheduled": 74.03,
+            "end_time_scheduled": 85.23,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.5404,
+    "simulation_makespan": 77.23,
+    "scheduler_makespan": 85.23,
+    "total_primitive_actions": 87,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 1.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Place Bread in Microwave -> Start Microwave for Heating Bread": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (30.62884181475645) -> (30.62884181475645s--0.0s)"
+        },
+        "Start Microwave for Heating Bread -> Turn Off Microwave after Heating Bread": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (31.62884181475645) -> (36.62884181475645s--0.0s)"
+        },
+        "Turn Off Microwave after Heating Bread -> Retrieve Heated Bread and Place on CounterTop": {
+            "Original Timing Constraint": "(0, True)",
+            "Schedule Result": "[True] : (37.62884181475645) -> (37.62884181475645s--0.0s)"
+        },
+        "Place Mug in Sink and Start Filling -> Turn Off Faucet after Mug is Filled": {
+            "Original Timing Constraint": "(3.8288418147564496, True)",
+            "Schedule Result": "[True] : (8.600000000000001) -> (12.428841814756451s--0.0s)"
+        }
+    }
+}

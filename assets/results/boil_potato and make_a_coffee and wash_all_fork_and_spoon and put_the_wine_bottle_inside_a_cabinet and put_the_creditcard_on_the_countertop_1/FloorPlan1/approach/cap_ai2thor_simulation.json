@@ -1,0 +1,283 @@
+{
+    "saved_time": "2025-08-05 10:20",
+    "approach": "cap_ai2thor_simulation",
+    "attempt": 1,
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "plan_name": "boil_potato and make_a_coffee and wash_all_fork_and_spoon and put_the_wine_bottle_inside_a_cabinet and put_the_creditcard_on_the_countertop",
+            "actions": [
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 0.0,
+                    "end_time": 2.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 2.5,
+                    "end_time": 3.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 3.5,
+                    "end_time": 4.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 4.5,
+                    "end_time": 5.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 5.5,
+                    "end_time": 6.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 6.5,
+                    "end_time": 7.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 7.5,
+                    "end_time": 8.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 8.5,
+                    "end_time": 9.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 9.5,
+                    "end_time": 10.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 10.8,
+                    "end_time": 11.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 11.8,
+                    "end_time": 12.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 12.8,
+                    "end_time": 13.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 13.8,
+                    "end_time": 14.8,
+                    "execution_status": false
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 14.8,
+                    "end_time": 15.8,
+                    "execution_status": false
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 15.8,
+                    "end_time": 16.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 16.5,
+                    "end_time": 17.5,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 17.5,
+                    "end_time": 17.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 17.8,
+                    "end_time": 18.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 18.8,
+                    "end_time": 19.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 19.8,
+                    "end_time": 20.8,
+                    "execution_status": false
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 20.8,
+                    "end_time": 21.8,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 21.8,
+                    "end_time": 22.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 22.3,
+                    "end_time": 23.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 23.3,
+                    "end_time": 26.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 26.3,
+                    "end_time": 27.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 27.3,
+                    "end_time": 29.2,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 29.2,
+                    "end_time": 30.2,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 30.2,
+                    "end_time": 31.2,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 31.2,
+                    "end_time": 33.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 33.3,
+                    "end_time": 34.3,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 34.3,
+                    "end_time": 36.2,
+                    "execution_status": true
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 36.2,
+                    "end_time": 37.2,
+                    "execution_status": false
+                },
+                {
+                    "Executing_action": [
+                        ""
+                    ],
+                    "start_time": 37.2,
+                    "end_time": 38.2,
+                    "execution_status": true
+                }
+            ]
+        }
+    ],
+    "computation_time": 82.78857135772705,
+    "success_rate": 0.879,
+    "timing_success_rate": null,
+    "scheduler_makespan": null,
+    "simulation_makespan": 38.2,
+    "realworld_makespan": null
+}

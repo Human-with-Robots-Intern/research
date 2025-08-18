@@ -9,20 +9,16 @@ from src.models.dataclass import ActionResult, ActionSimulationLog, SimulationNo
 from src.utils.common import create_module_logger
 from src.utils.config.constants import (
     EPSILON,
+    GRASP_ACTION_DURATION,
     MONITORING_DURATION,
     NAV_STEP_DURATION,
+    PLACE_ACTION_DURATION,
     PRIMITIVE_ACTION_DURATION,
     REACHABLE_DISTANCE_THRESHOLD,
-    REAL_GRASP_DURATION,
     REAL_NAV_DURATION,
-    REAL_PLACE_DURATION,
-    REAL_TOGGLE_DURATION,
     STATIC_ACTION_SET,
     TIMING_TOLERANCE,
-    GRASP_ACTION_DURATION,
-    PLACE_ACTION_DURATION,
     TOGGLE_ACTION_DURATION,
-    REAL_NAV_DURATION,
 )
 
 log = create_module_logger(__name__, module_log=True, level=logging.DEBUG)
@@ -296,15 +292,12 @@ class ActionHandler:
         # 2. 경로 탐색 시도 (partial time 여부와 관계없이 일단 시도)
         navigate_path: Optional[List[Position]] = None
 
-
         log.debug(
-
             f"  Finding path from {agent_pos} to {target_pos} for '{target_obj_id}'"
         )
         navigate_path = self._find_shortest_path(agent_pos, target_pos)
         # 3. 부분 시간 이동 처리
         if partial_time_str:
-
             log.debug(f"  Processing NAVIGATE_TO with partial time: {partial_time_str}")
             partial_duration = float(partial_time_str)
             duration = partial_duration  # 액션 소요 시간은 주어진 부분 시간
@@ -337,7 +330,6 @@ class ActionHandler:
         # 5. 결과 반환
         return duration, success, new_agent_pos
 
-
     def _simulate_grasp(
         self,
         agent_pos: Position,
@@ -369,7 +361,7 @@ class ActionHandler:
                 duration = (
                     PRIMITIVE_ACTION_DURATION
                     if not self.real_world_mode
-                    else REAL_GRASP_DURATION
+                    else GRASP_ACTION_DURATION
                 )
 
                 success = True
@@ -414,7 +406,7 @@ class ActionHandler:
                 duration = (
                     PRIMITIVE_ACTION_DURATION
                     if not self.real_world_mode
-                    else REAL_PLACE_DURATION
+                    else PLACE_ACTION_DURATION
                 )
                 success = True
             else:
@@ -446,7 +438,7 @@ class ActionHandler:
             duration = (
                 PRIMITIVE_ACTION_DURATION
                 if not self.real_world_mode
-                else REAL_TOGGLE_DURATION
+                else TOGGLE_ACTION_DURATION
             )
 
             success = True

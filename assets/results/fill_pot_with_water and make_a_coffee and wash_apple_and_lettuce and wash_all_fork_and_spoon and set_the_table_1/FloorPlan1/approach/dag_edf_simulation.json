@@ -1,0 +1,141 @@
+{
+    "saved_time": "2025-07-29 20:09",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan1",
+    "plans": [
+        {
+            "subtask_name": "Prepare Coffee Machine with Mug",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 3.8,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 3.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Start Coffee Machine",
+            "start_time_simulation": 3.8,
+            "end_time_simulation": 4.8,
+            "start_time_scheduled": 3.8,
+            "end_time_scheduled": 4.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Pot in Sink and Start Filling",
+            "start_time_simulation": 4.8,
+            "end_time_simulation": 9.4,
+            "start_time_scheduled": 4.8,
+            "end_time_scheduled": 9.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Retrieve Coffee from Machine and Place on CounterTop",
+            "start_time_simulation": 9.4,
+            "end_time_simulation": 12.9,
+            "start_time_scheduled": 9.4,
+            "end_time_scheduled": 12.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_Faucet|-02.15|+00.91|-01.50",
+            "start_time_simulation": 12.9,
+            "end_time_simulation": 14.4,
+            "start_time_scheduled": 12.9,
+            "end_time_scheduled": 14.4,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 3.5 to Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 14.4,
+            "end_time_simulation": 17.9,
+            "start_time_scheduled": 14.4,
+            "end_time_scheduled": 17.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Turn Off Faucet after Pot is Filled",
+            "start_time_simulation": 17.9,
+            "end_time_simulation": 18.9,
+            "start_time_scheduled": 17.9,
+            "end_time_scheduled": 18.9,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Fork on CounterTop for Meal",
+            "start_time_simulation": 18.9,
+            "end_time_simulation": 24.8,
+            "start_time_scheduled": 18.9,
+            "end_time_scheduled": 26.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Spoon on CounterTop for Meal",
+            "start_time_simulation": 24.8,
+            "end_time_simulation": 30.6,
+            "start_time_scheduled": 26.0,
+            "end_time_scheduled": 34.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Plate on CounterTop for Meal",
+            "start_time_simulation": 30.6,
+            "end_time_simulation": 37.0,
+            "start_time_scheduled": 34.0,
+            "end_time_scheduled": 43.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Lettuce and place on counterTop",
+            "start_time_simulation": 37.0,
+            "end_time_simulation": 49.6,
+            "start_time_scheduled": 43.2,
+            "end_time_scheduled": 53.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Fork and place on counterTop",
+            "start_time_simulation": 49.6,
+            "end_time_simulation": 65.6,
+            "start_time_scheduled": 53.2,
+            "end_time_scheduled": 63.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Spoon and place on counterTop",
+            "start_time_simulation": 65.6,
+            "end_time_simulation": 81.6,
+            "start_time_scheduled": 63.2,
+            "end_time_scheduled": 73.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wash Apple and place on counterTop",
+            "start_time_simulation": 81.6,
+            "end_time_simulation": 92.4,
+            "start_time_scheduled": 73.2,
+            "end_time_scheduled": 84.0,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.35747,
+    "simulation_makespan": 92.4,
+    "scheduler_makespan": 84.0,
+    "total_primitive_actions": 84,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.67,
+    "timing_success_rate_sched": 0.67,
+    "detail_log": {
+        "Place Pot in Sink and Start Filling -> Turn Off Faucet after Pot is Filled": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[False] : (9.399999999999999) -> (17.9s--0.0s)"
+        },
+        "Prepare Coffee Machine with Mug -> Start Coffee Machine": {
+            "Original Timing Constraint": "(0, False)",
+            "Schedule Result": "[True] : (3.8) -> (3.8s--0.0s)"
+        },
+        "Start Coffee Machine -> Retrieve Coffee from Machine and Place on CounterTop": {
+            "Original Timing Constraint": "(5, False)",
+            "Schedule Result": "[True] : (4.8) -> (9.399999999999999s--1.0s)"
+        }
+    }
+}

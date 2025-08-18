@@ -1,0 +1,56 @@
+{
+    "saved_time": "2025-07-30 20:58",
+    "approach": "dag_edf_simulation",
+    "scene_name": "FloorPlan427",
+    "plans": [
+        {
+            "subtask_name": "Close the shower curtain",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 2.3,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 2.9,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Place soap bar on sink",
+            "start_time_simulation": 2.3,
+            "end_time_simulation": 7.5,
+            "start_time_scheduled": 2.9,
+            "end_time_scheduled": 8.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Dispose of cloth in garbage can",
+            "start_time_simulation": 7.5,
+            "end_time_simulation": 12.6,
+            "start_time_scheduled": 8.7,
+            "end_time_scheduled": 13.8,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place candle inside drawer",
+            "start_time_simulation": 12.6,
+            "end_time_simulation": 19.7,
+            "start_time_scheduled": 13.8,
+            "end_time_scheduled": 20.7,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Wet soapbar in Sink",
+            "start_time_simulation": 19.7,
+            "end_time_simulation": 30.1,
+            "start_time_scheduled": 20.7,
+            "end_time_scheduled": 31.2,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.04299,
+    "simulation_makespan": 30.1,
+    "scheduler_makespan": 31.2,
+    "total_primitive_actions": 30,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": null,
+    "timing_success_rate_sched": null,
+    "detail_log": {}
+}

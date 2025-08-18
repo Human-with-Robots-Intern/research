@@ -1,0 +1,85 @@
+{
+    "saved_time": "2025-07-30 20:44",
+    "approach": "cpm_simulation",
+    "scene_name": "FloorPlan427",
+    "plans": [
+        {
+            "subtask_name": "Spray toilet with spray bottle",
+            "start_time_simulation": 0.0,
+            "end_time_simulation": 6.3,
+            "start_time_scheduled": 0,
+            "end_time_scheduled": 7.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Close Shower Curtain",
+            "start_time_simulation": 6.3,
+            "end_time_simulation": 9.7,
+            "start_time_scheduled": 7.0,
+            "end_time_scheduled": 11.1,
+            "execution_status": "FAILURE"
+        },
+        {
+            "subtask_name": "Turn On Candle",
+            "start_time_simulation": 9.7,
+            "end_time_simulation": 12.1,
+            "start_time_scheduled": 11.1,
+            "end_time_scheduled": 14.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "NAVIGATE_TO_ScrubBrush|-01.04|+00.00|-00.71",
+            "start_time_simulation": 12.1,
+            "end_time_simulation": 13.1,
+            "start_time_scheduled": 14.1,
+            "end_time_scheduled": 15.1,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "WAIT 1.9000000000000004 to Scrub toilet with scrub brush",
+            "start_time_simulation": 13.1,
+            "end_time_simulation": 15.0,
+            "start_time_scheduled": 15.1,
+            "end_time_scheduled": 17.0,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Scrub toilet with scrub brush",
+            "start_time_simulation": 15.0,
+            "end_time_simulation": 18.0,
+            "start_time_scheduled": 17.0,
+            "end_time_scheduled": 20.7,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Wet SoapBottle in Sink",
+            "start_time_simulation": 18.0,
+            "end_time_simulation": 28.3,
+            "start_time_scheduled": 20.7,
+            "end_time_scheduled": 32.2,
+            "execution_status": "SUCCESS"
+        },
+        {
+            "subtask_name": "Place Toilet Paper on Holder",
+            "start_time_simulation": 28.3,
+            "end_time_simulation": 31.7,
+            "start_time_scheduled": 32.2,
+            "end_time_scheduled": 36.1,
+            "execution_status": "SUCCESS"
+        }
+    ],
+    "computation_time": 0.03415,
+    "simulation_makespan": 31.7,
+    "scheduler_makespan": 36.1,
+    "total_primitive_actions": 32,
+    "realworld_makespan": null,
+    "success_rate": 1.0,
+    "timing_success_rate_sim": 0.0,
+    "timing_success_rate_sched": 1.0,
+    "detail_log": {
+        "Spray toilet with spray bottle -> Scrub toilet with scrub brush": {
+            "Original Timing Constraint": "(10, True)",
+            "Schedule Result": "[False] : (7.0) -> (17.0s--0.0s)"
+        }
+    }
+}

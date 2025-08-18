@@ -1,0 +1,40 @@
+{
+    "task": "make_a_coffee and throw_away_paper_towel_roll and put_the_creditcard_on_the_countertop and put_the_book_in_cabinet and set_the_table_1",
+    "difficulty": "simple",
+    "scene": "FloorPlan1",
+    "approach_comparisons": [
+        {
+            "approach_name": "dag_bayesian_simulation.json",
+            "scheduler_makespan": 48.8,
+            "simulation_makespan": 50.6,
+            "realWorld_makespan": null,
+            "computation_time": 5.70111,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "cpm_simulation.json",
+            "scheduler_makespan": 50.7,
+            "simulation_makespan": 45.3,
+            "realWorld_makespan": null,
+            "computation_time": 0.11242,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        },
+        {
+            "approach_name": "dag_edf_simulation.json",
+            "scheduler_makespan": 57.6,
+            "simulation_makespan": 52.0,
+            "realWorld_makespan": null,
+            "computation_time": 0.24237,
+            "actionSuccess_rate": 1.0,
+            "scheduler_timingSuccess_rate": 1.0,
+            "simulation_timingSuccess_rate": 1.0,
+            "attempt": "Not related"
+        }
+    ]
+}
