@@ -97,12 +97,12 @@ def main():
             controller = None
             nav_graph = {(0, 0, 0): {(0, 0, 0)}}
             action_handler = ActionHandler(
-                nav_graph, logger=logger, real_world_mode=True
+                nav_graph, real_world_mode=True
             )
         else:
             controller = init_ai2thor_controller(scene_name)
             nav_graph = load_navigation_graph(controller)
-            action_handler = ActionHandler(nav_graph, logger=logger)
+            action_handler = ActionHandler(nav_graph)
 
         # Load the chosen task data
         task_files = list_task_files(scene_name=scene_name)
