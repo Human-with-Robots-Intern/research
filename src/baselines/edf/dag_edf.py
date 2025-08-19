@@ -457,11 +457,11 @@ def main():
         if args.ros:
             controller = None
             nav_graph = {(0, 0, 0): {(0, 0, 0)}}
-            action_handler = ActionHandler(nav_graph, logger=logger)
+            action_handler = ActionHandler(nav_graph)
         else:
             controller = init_ai2thor_controller(scene_name)
             nav_graph = load_navigation_graph(controller)
-            action_handler = ActionHandler(nav_graph, logger=logger)
+            action_handler = ActionHandler(nav_graph)
 
         scene_poses = load_scene_positions(f"{scene_name}_positions.json")
 
@@ -492,7 +492,7 @@ def main():
             if choice != 0:
                 input_natural_language = task_file_name
         # Build tasks and constraints
-        subtasks, constraints = TaskUtil.build_tasks_and_constraints(
+        subtasks, constraints, bayesian_load = TaskUtil.build_tasks_and_constraints(
             task_data, scene_file_name=f"{scene_name}_physics_environment.json"
         )
 
@@ -527,7 +527,7 @@ def main():
             exec_info = offline_subtask_execution(
                 entry.subtask, current_state, action_handler
             )
-            action_handler = ActionHandler(nav_graph, logger=logger)
+            action_handler = ActionHandler(nav_graph)
 
             current_state = update_state(
                 current_state, entry.subtask, exec_info, entry.schedule_nav_time
