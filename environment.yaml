@@ -226,7 +226,7 @@ dependencies:
   - yaml=0.2.5
   - zstd=1.5.7
   - pip:
-      - ai2thor==5.0.0
+      - ai2thor==4.2.0
       - annotated-types==0.7.0
       - anyio==4.9.0
       - aws-requests-auth==0.4.3
