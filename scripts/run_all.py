@@ -7,6 +7,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 from datetime import datetime
 from itertools import product
 from math import inf
@@ -58,6 +59,8 @@ def run_with_retries(
             cmd.append("--ros")
         if config.get("simulation"):
             cmd.append("--simulation")
+        if config.get("headless"):
+            cmd.append("--headless")
         if config.get("log_level"):
             cmd.extend(["--log-level", config["log_level"]])
 
@@ -147,6 +150,8 @@ def process_retry_script(
             cmd.append("--ros")
         if config.get("simulation"):
             cmd.append("--simulation")
+        if config.get("headless"):
+            cmd.append("--headless")
         if config.get("log_level"):
             cmd.extend(["--log-level", config["log_level"]])
         if log_path:
@@ -250,14 +255,9 @@ def process_normal_script(
     logger.info(f"=" * 80)
 
     logger.info(f"=" * 80)
-    # logger.info(f"Waiting 1 minute before running instruction")
-    # time.sleep(30)
-    logger.info(f"30 seconds left before running instruction")
-    time.sleep(20)
-    logger.info(f"10 seconds left before running instruction")
-    time.sleep(7)
-    logger.info(f"3 seconds left before running instruction")
-    time.sleep(3)
+    for i in range(config.get("instruction_delay_seconds", 30), 0, -5):
+        logger.info(f"{i} seconds left before running instruction")
+        time.sleep(5)
     logger.info(f"Start!")
     logger.info(f"=" * 80)
 
@@ -275,6 +275,8 @@ def process_normal_script(
         cmd.append("--ros")
     if config.get("simulation"):
         cmd.append("--simulation")
+    if config.get("headless"):
+        cmd.append("--headless")
     if config.get("log_level"):
         cmd.extend(["--log-level", config["log_level"]])
     if log_path:
@@ -419,6 +421,7 @@ def main() -> None:
     logger.info(f"Predefined mode: {config.get('predefined', False)}")
     logger.info(f"ROS enabled: {config.get('ros', False)}")
     logger.info(f"Simulation mode: {config.get('simulation', False)}")
+    logger.info(f"Headless mode: {config.get('headless', False)}")
     logger.info(f"Max workers: {max_workers}")
     logger.info(f"Approaches: {[str(p) for p in approaches]}")
     logger.info(f"LLM scripts: {[str(p) for p in llm_scripts]}")
@@ -426,7 +429,7 @@ def main() -> None:
     logger.info(f"Max retries: {config.get('max_retries', 10)}")
     logger.info(f"Retry delay: {config.get('retry_delay_seconds', 2)} seconds")
     logger.info("-" * 40)
-
+    
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         for scene_name, approach in product(scene_list, approaches):
@@ -454,11 +457,7 @@ def main() -> None:
                     )
                 )
 
-        import traceback
-
-        print("futures: ", futures)
         for future in concurrent.futures.as_completed(futures):
-            print("future", future)
             try:
                 future.result()
             except Exception as e:
@@ -467,5 +466,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
     main()

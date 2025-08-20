@@ -55,6 +55,11 @@ def parse_arguments() -> argparse.Namespace:
         help="시뮬레이션 실행 여부 (default: True)",
     )
     parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run in headless mode.",
+    )
+    parser.add_argument(
         "--log-level",
         type=str,
         default="INFO",
@@ -187,7 +192,7 @@ def generate_plan(controller, task: str, args: argparse.Namespace, logger):
 
 def planner_executer(args: argparse.Namespace, task: str, logger):
     scene_name = args.scene
-    controller = init_ai2thor_controller(scene_name)
+    controller = init_ai2thor_controller(scene_name, headless=args.headless)
     try:
         generate_plan(controller, task, args, logger)
     finally:
