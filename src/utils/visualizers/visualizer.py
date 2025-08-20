@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from matplotlib.patches import Rectangle
+import matplotlib.font_manager as fm
 
 from src.models.dataclass import CompletedEntry
 
@@ -573,7 +574,10 @@ def plot_gantt_final_cutoff(
     initial_plan_json_data: List[Dict],
     save_dir: str = "gantt_charts_final_cutoff_executable",
 ):    
-    plt.style.use("seaborn-paper")
+    plt.style.use("seaborn-v0_8-paper")
+    font_path = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+    font_prop = fm.FontProperties(fname=font_path, size=10)
+    plt.rcParams["font.family"] = font_prop.get_name()
     if not simulation_data.get("plans") or not simulation_data["plans"][0].get(
         "subtasks"
     ):
