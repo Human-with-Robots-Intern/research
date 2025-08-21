@@ -79,6 +79,11 @@ def parse_arguments() -> argparse.Namespace:
         help="시뮬레이션 실행 여부 (default: False)",
     )
     parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run in headless mode.",
+    )
+    parser.add_argument(
         "--ros",
         default=False,
         action="store_true",
@@ -543,7 +548,7 @@ def main() -> None:
             nav_graph = {(0, 0, 0): {(0, 0, 0)}}
             action_handler = ActionHandler(nav_graph)
         else:
-            controller = init_ai2thor_controller(scene_name)
+            controller = init_ai2thor_controller(scene_name, headless=args.headless)
             nav_graph = load_navigation_graph(controller)
             action_handler = ActionHandler(nav_graph)
 

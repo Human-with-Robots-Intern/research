@@ -407,6 +407,11 @@ def parse_arguments():
         action="store_true",
     )
     parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run in headless mode.",
+    )
+    parser.add_argument(
         "--log-level",
         type=str,
         default="DEBUG",
@@ -459,7 +464,7 @@ def main():
             nav_graph = {(0, 0, 0): {(0, 0, 0)}}
             action_handler = ActionHandler(nav_graph)
         else:
-            controller = init_ai2thor_controller(scene_name)
+            controller = init_ai2thor_controller(scene_name, headless=args.headless)
             nav_graph = load_navigation_graph(controller)
             action_handler = ActionHandler(nav_graph)
 

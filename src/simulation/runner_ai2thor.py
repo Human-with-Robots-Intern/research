@@ -52,6 +52,7 @@ def init_ai2thor_controller(
     height: int = SCREEN_HEIGHT,
     render_third_party_cameras: bool = False,
     field_of_view: int = 60,
+    headless: bool = False,
 ) -> Controller:
     """
     Initializes and returns an AI2-THOR controller instance with default or user-defined settings.
@@ -69,6 +70,7 @@ def init_ai2thor_controller(
         height (int, optional): Screen height. Defaults to SCREEN_HEIGHT.
         render_third_party_cameras (bool, optional): Whether to render third-party cameras. Defaults to False.
         field_of_view (int, optional): Camera field of view. Defaults to 60.
+        headless (bool, optional): Whether to run in headless mode. Defaults to False.
 
     Returns:
         Controller: Configured AI2-THOR Controller.
@@ -86,6 +88,7 @@ def init_ai2thor_controller(
         renderThirdPartyCameras=render_third_party_cameras,
         fieldOfView=field_of_view,
         platform=platform,
+        headless=headless,
     )
 
     return controller

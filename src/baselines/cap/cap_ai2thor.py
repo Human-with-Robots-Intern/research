@@ -345,6 +345,11 @@ def parse_arguments() -> argparse.Namespace:
         help="시뮬레이션 실행 여부 (default: True)",
     )
     parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run in headless mode.",
+    )
+    parser.add_argument(
         "--log-level",
         type=str,
         default="INFO",
@@ -419,7 +424,7 @@ if __name__ == "__main__":
         log_file = open(log_file_path, "w", buffering=1)
 
         # AI2-THOR 컨트롤러 초기화
-        ithor_main_controller = init_ai2thor_controller(scene_name)
+        ithor_main_controller = init_ai2thor_controller(scene_name, headless=args.headless)
 
         # Action 핸들러 초기화
         ithor_action_controller = Action(ithor_main_controller, logger=logger)
