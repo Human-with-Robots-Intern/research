@@ -13,6 +13,7 @@ from pathlib import Path
 import networkx as nx
 from networkx import DiGraph
 
+from ai2thor.platform import CloudRendering
 from src.models.dataclass import (
     ActionResult,
     CompletedEntry,
@@ -74,20 +75,20 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-s",
         "--simulation",
-        default=False,
+        default=True,
         action="store_true",
         help="시뮬레이션 실행 여부 (default: False)",
-    )
-    parser.add_argument(
-        "--headless",
-        action="store_true",
-        help="Run in headless mode.",
     )
     parser.add_argument(
         "--ros",
         default=False,
         action="store_true",
         help="ROS 실행 여부 (default: False)",
+    )
+    parser.add_argument(
+        "--cloud-rendering",
+        action="store_true",
+        help="Use CloudRendering platform for AI2-THOR.",
     )
     parser.add_argument(
         "-l",
@@ -541,6 +542,10 @@ def main() -> None:
     controller = None
     global constraints
 
+    platform_obj = None
+    if args.cloud_rendering:
+        platform_obj = CloudRendering
+
     try:
         # Initialize controller, navigation graph, and scene
         if args.ros:
@@ -548,7 +553,7 @@ def main() -> None:
             nav_graph = {(0, 0, 0): {(0, 0, 0)}}
             action_handler = ActionHandler(nav_graph)
         else:
-            controller = init_ai2thor_controller(scene_name, headless=args.headless)
+            controller = init_ai2thor_controller(scene_name, platform=platform_obj)
             nav_graph = load_navigation_graph(controller)
             action_handler = ActionHandler(nav_graph)
 
@@ -609,6 +614,7 @@ def main() -> None:
             critical_path, subtasks_without_edge, init_state, action_handler
         )
         computation_time = time.time() - start_time
+       
 
         # Run simulation if enabled
         if args.simulation:
