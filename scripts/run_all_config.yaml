@@ -50,5 +50,11 @@ max_retries: 10
 retry_delay_seconds: 2 
 max_workers: 7
 instruction_delay_seconds: 0
-# Run in headless mode (no simulation window)
-headless: true
+
+# The monitor to display the agent view on (1-indexed)
+# monitor: 2
+# Platform for AI2-THOR (e.g., "CloudRendering" for headless)
+# platform: "CloudRendering"
+# Use CloudRendering platform for AI2-THOR
+cloud_rendering: true
+

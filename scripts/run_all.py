@@ -59,8 +59,8 @@ def run_with_retries(
             cmd.append("--ros")
         if config.get("simulation"):
             cmd.append("--simulation")
-        if config.get("headless"):
-            cmd.append("--headless")
+        if config.get("cloud_rendering"):
+            cmd.append("--cloud-rendering")
         if config.get("log_level"):
             cmd.extend(["--log-level", config["log_level"]])
 
@@ -136,10 +136,13 @@ def process_retry_script(
         )
         logger.info(f"=" * 80)
 
+        base_cmd = ["python3", str(script)]
+        if config.get("headless"):
+            base_cmd = ["xvfb-run", "-a"] + base_cmd
+
         cmd = [
             str(wrapper_script),
-            "python3",
-            str(script),
+            *base_cmd,
             "--scene",
             scene_name,
             "--reset",
@@ -150,8 +153,8 @@ def process_retry_script(
             cmd.append("--ros")
         if config.get("simulation"):
             cmd.append("--simulation")
-        if config.get("headless"):
-            cmd.append("--headless")
+        if config.get("cloud_rendering"):
+            cmd.append("--cloud-rendering")
         if config.get("log_level"):
             cmd.extend(["--log-level", config["log_level"]])
         if log_path:
@@ -261,10 +264,13 @@ def process_normal_script(
     logger.info(f"Start!")
     logger.info(f"=" * 80)
 
+    base_cmd = ["python3", str(script)]
+    if config.get("headless"):
+        base_cmd = ["xvfb-run", "-a"] + base_cmd
+
     cmd = [
         str(wrapper_script),
-        "python3",
-        str(script),
+        *base_cmd,
         "--scene",
         scene_name,
         "--reset",
@@ -275,8 +281,8 @@ def process_normal_script(
         cmd.append("--ros")
     if config.get("simulation"):
         cmd.append("--simulation")
-    if config.get("headless"):
-        cmd.append("--headless")
+    if config.get("cloud_rendering"):
+        cmd.append("--cloud-rendering")
     if config.get("log_level"):
         cmd.extend(["--log-level", config["log_level"]])
     if log_path:
@@ -421,7 +427,7 @@ def main() -> None:
     logger.info(f"Predefined mode: {config.get('predefined', False)}")
     logger.info(f"ROS enabled: {config.get('ros', False)}")
     logger.info(f"Simulation mode: {config.get('simulation', False)}")
-    logger.info(f"Headless mode: {config.get('headless', False)}")
+    logger.info(f"Cloud Rendering: {config.get('cloud_rendering', False)}")
     logger.info(f"Max workers: {max_workers}")
     logger.info(f"Approaches: {[str(p) for p in approaches]}")
     logger.info(f"LLM scripts: {[str(p) for p in llm_scripts]}")
