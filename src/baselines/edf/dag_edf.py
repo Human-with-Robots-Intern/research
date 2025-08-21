@@ -7,14 +7,10 @@ from typing import List, Optional, Tuple
 import networkx as nx
 
 from src.simulation.runner_ai2thor import execute_subtask
+from ai2thor.platform import CloudRendering
 from src.utils.common.logger import create_module_logger
 from src.utils.io_utils import task_io
 from src.utils.io_utils.result_saver import result_save
-
-PROJECT_ROOT = (
-    Path(__file__).resolve().parent.parent.parent.parent
-)  # 프로젝트 루트 경로
-ASSETS_PATH = PROJECT_ROOT / Path("assets")  # assets 폴더 경로
 from dataclass import ActionResult, CompletedEntry, SchedulerState, SimulationNode
 
 from ithor.utils.math_utils import load_navigation_graph
@@ -437,6 +433,11 @@ def parse_arguments():
         help="ROS 실행 여부 (default: False)",
     )
     parser.add_argument(
+        "--cloud-rendering",
+        action="store_true",
+        help="Use CloudRendering platform for AI2-THOR.",
+    )
+    parser.add_argument(
         "--log-path",
         type=str,
         default=None,
@@ -458,13 +459,17 @@ def main():
     scene_name = args.scene
     controller = None
 
+    platform_obj = None
+    if args.cloud_rendering:
+        platform_obj = CloudRendering
+
     try:
         if args.ros:
             controller = None
             nav_graph = {(0, 0, 0): {(0, 0, 0)}}
             action_handler = ActionHandler(nav_graph)
         else:
-            controller = init_ai2thor_controller(scene_name, headless=args.headless)
+            controller = init_ai2thor_controller(scene_name, platform=platform_obj)
             nav_graph = load_navigation_graph(controller)
             action_handler = ActionHandler(nav_graph)
 
@@ -524,11 +529,8 @@ def main():
         print("\n=== Execution Times for Each Entry ===")
         current_state = init_state
         for entry in result_schedule:
-            warning_logger = create_module_logger(
-                module_name=f"{approach_name}_warning",
-                level="WARNING",
-            )
-            action_handler = ActionHandler(nav_graph, logger=warning_logger)
+            
+            action_handler = ActionHandler(nav_graph)
             exec_info = offline_subtask_execution(
                 entry.subtask, current_state, action_handler
             )
