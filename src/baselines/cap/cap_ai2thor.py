@@ -10,6 +10,7 @@ import numpy as np
 
 # import for ai2thor
 from ai2thor.controller import Controller
+from ai2thor.platform import CloudRendering
 
 import src.baselines.cap.util.LMPgen as gen
 from src.simulation.runner_ai2thor import init_ai2thor_controller
@@ -345,6 +346,11 @@ def parse_arguments() -> argparse.Namespace:
         help="시뮬레이션 실행 여부 (default: True)",
     )
     parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run in headless mode.",
+    )
+    parser.add_argument(
         "--log-level",
         type=str,
         default="INFO",
@@ -371,7 +377,12 @@ def parse_arguments() -> argparse.Namespace:
         "--attempt",
         type=int,
         default=1,
-        help="The attempt number for the run.",
+        help="The attempt number for a run.",
+    )
+    parser.add_argument(
+        "--cloud-rendering",
+        action="store_true",
+        help="Use CloudRendering platform for AI2-THOR.",
     )
     return parser.parse_args()
 
@@ -388,6 +399,10 @@ if __name__ == "__main__":
     scene_name = args.scene
     instruction = args.instruction
     ithor_main_controller = None
+
+    platform_obj = None
+    if args.cloud_rendering:
+        platform_obj = CloudRendering
 
     try:
         task_files = list_task_files(scene_name)
@@ -419,7 +434,7 @@ if __name__ == "__main__":
         log_file = open(log_file_path, "w", buffering=1)
 
         # AI2-THOR 컨트롤러 초기화
-        ithor_main_controller = init_ai2thor_controller(scene_name)
+        ithor_main_controller = init_ai2thor_controller(scene_name, platform=platform_obj)
 
         # Action 핸들러 초기화
         ithor_action_controller = Action(ithor_main_controller, logger=logger)

@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict
 
+from ai2thor.platform import CloudRendering
 from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
@@ -61,10 +62,20 @@ def parse_arguments():
         help="Simulation 모드 사용 여부 (default: False)",
     )
     parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run in headless mode.",
+    )
+    parser.add_argument(
         "--ros",
         default=False,
         action="store_true",
         help="ROS 통신 사용 여부 (default: False)",
+    )
+    parser.add_argument(
+        "--cloud-rendering",
+        action="store_true",
+        help="Use CloudRendering platform for AI2-THOR.",
     )
     parser.add_argument(
         "--log-path",
@@ -89,6 +100,10 @@ def main():
     ros_executor = None  # ros_executor를 None으로 미리 초기화
 
     # Set up the AI2-THOR controller and navigation graph
+    platform_obj = None
+    if args.cloud_rendering:
+        platform_obj = CloudRendering
+
     try:
         if scene_name is None:
             scene_data = get_user_scene_choice()
@@ -100,7 +115,7 @@ def main():
 
             action_handler = ActionHandler(nav_graph, real_world_mode=True)
         else:
-            controller = init_ai2thor_controller(scene_name)
+            controller = init_ai2thor_controller(scene_name, platform=platform_obj)
             nav_graph = load_navigation_graph(controller)
             action_handler = ActionHandler(nav_graph, real_world_mode=False)
 

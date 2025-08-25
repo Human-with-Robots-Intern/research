@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 import openai
 from ai2thor.controller import Controller
+from ai2thor.platform import CloudRendering
 from src.simulation.runner_ai2thor import init_ai2thor_controller
 from util.utils_execute import *
 
@@ -55,6 +56,11 @@ def parse_arguments() -> argparse.Namespace:
         help="시뮬레이션 실행 여부 (default: True)",
     )
     parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run in headless mode.",
+    )
+    parser.add_argument(
         "--log-level",
         type=str,
         default="INFO",
@@ -98,6 +104,11 @@ def parse_arguments() -> argparse.Namespace:
         type=int,
         default=1,
         help="The attempt number for the run.",
+    )
+    parser.add_argument(
+        "--cloud-rendering",
+        action="store_true",
+        help="Use CloudRendering platform for AI2-THOR.",
     )
     return parser.parse_args()
 
@@ -187,7 +198,10 @@ def generate_plan(controller, task: str, args: argparse.Namespace, logger):
 
 def planner_executer(args: argparse.Namespace, task: str, logger):
     scene_name = args.scene
-    controller = init_ai2thor_controller(scene_name)
+    platform_obj = None
+    if args.cloud_rendering:
+        platform_obj = CloudRendering
+    controller = init_ai2thor_controller(scene_name, platform=platform_obj)
     try:
         generate_plan(controller, task, args, logger)
     finally:

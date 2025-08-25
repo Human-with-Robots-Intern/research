@@ -13,6 +13,7 @@ from pathlib import Path
 import networkx as nx
 from networkx import DiGraph
 
+from ai2thor.platform import CloudRendering
 from src.models.dataclass import (
     ActionResult,
     CompletedEntry,
@@ -28,7 +29,7 @@ from src.models.task import Duration, Execution, Subtask
 from src.scheduler.action_handler import ActionHandler
 from src.utils.io_utils import task_io
 
-from src.core.agent import Agent
+
 from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
 from src.simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.utils.common import create_module_logger
@@ -74,7 +75,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-s",
         "--simulation",
-        default=False,
+        default=True,
         action="store_true",
         help="시뮬레이션 실행 여부 (default: False)",
     )
@@ -83,6 +84,11 @@ def parse_arguments() -> argparse.Namespace:
         default=False,
         action="store_true",
         help="ROS 실행 여부 (default: False)",
+    )
+    parser.add_argument(
+        "--cloud-rendering",
+        action="store_true",
+        help="Use CloudRendering platform for AI2-THOR.",
     )
     parser.add_argument(
         "-l",
@@ -536,16 +542,20 @@ def main() -> None:
     controller = None
     global constraints
 
+    platform_obj = None
+    if args.cloud_rendering:
+        platform_obj = CloudRendering
+
     try:
         # Initialize controller, navigation graph, and scene
         if args.ros:
             controller = None
             nav_graph = {(0, 0, 0): {(0, 0, 0)}}
-            action_handler = ActionHandler(nav_graph, logger=logger)
+            action_handler = ActionHandler(nav_graph)
         else:
-            controller = init_ai2thor_controller(scene_name)
+            controller = init_ai2thor_controller(scene_name, platform=platform_obj)
             nav_graph = load_navigation_graph(controller)
-            action_handler = ActionHandler(nav_graph, logger=logger)
+            action_handler = ActionHandler(nav_graph)
 
         scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
 
@@ -579,7 +589,7 @@ def main() -> None:
                 input_natural_language = Path(task_file_name).stem # Pass only the file stem
 
         # Build tasks and constraints
-        subtasks, constraints = TaskUtil.build_tasks_and_constraints(
+        subtasks, constraints, bayesian_load = TaskUtil.build_tasks_and_constraints(
             task_data,
             scene_file_name=f"{scene_name}_physics_environment.json",
             enable_decomposition=args.decomposition,
@@ -604,6 +614,7 @@ def main() -> None:
             critical_path, subtasks_without_edge, init_state, action_handler
         )
         computation_time = time.time() - start_time
+       
 
         # Run simulation if enabled
         if args.simulation:
