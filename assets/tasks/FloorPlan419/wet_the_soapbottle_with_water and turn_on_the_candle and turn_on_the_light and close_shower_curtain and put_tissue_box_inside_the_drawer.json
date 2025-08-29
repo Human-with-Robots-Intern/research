@@ -92,11 +92,11 @@
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "ShowerCurtain|-02.33|+01.96|-02.46": 1
+            "ShowerCurtain|-02.33|+01.98|-02.54": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO ShowerCurtain|-02.33|+01.96|-02.46",
-            "CLOSE ShowerCurtain|-02.33|+01.96|-02.46"
+            "NAVIGATE_TO ShowerCurtain|-02.33|+01.98|-02.54",
+            "CLOSE ShowerCurtain|-02.33|+01.98|-02.54"
           ]
         },
         "Duration": {

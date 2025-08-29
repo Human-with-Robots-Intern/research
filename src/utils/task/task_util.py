@@ -401,7 +401,7 @@ class TaskUtil:
                     cls._update_constraint_belief(key_for_belief, tc, bayesian_load)
 
         # 5) 생성된 belief 딕셔너리를 디버깅용으로 저장
-        cls._save_json_file(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME, bayesian_load)
+        # cls._save_json_file(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME, bayesian_load)
 
         # 6) 액션 정제(재적용) + duration 조정
         tasks = cls.refine_primitive_actions(tasks)
