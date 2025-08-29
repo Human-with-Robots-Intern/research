@@ -46,13 +46,13 @@ def parse_arguments():
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan1",
+        default="FloorPlan419",
         help="input scene name (default: FloorPlan1)",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default=25,
+        default=1,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
@@ -62,11 +62,6 @@ def parse_arguments():
         help="Simulation 모드 사용 여부 (default: False)",
     )
     parser.add_argument(
-        "--headless",
-        action="store_true",
-        help="Run in headless mode.",
-    )
-    parser.add_argument(
         "--ros",
         default=False,
         action="store_true",
@@ -74,6 +69,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--cloud-rendering",
+        default=False,
         action="store_true",
         help="Use CloudRendering platform for AI2-THOR.",
     )
