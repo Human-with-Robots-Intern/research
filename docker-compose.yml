@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  uttp:
+    build: .
+    container_name: uttp
+    volumes:
+      - .:/app
+    ports:
+      - "5679:5679"  # Python debugger port
+    stdin_open: true
+    tty: true
+    command: tail -f /dev/null
+    working_dir: /app
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
