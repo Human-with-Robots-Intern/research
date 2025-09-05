@@ -1,4 +1,5 @@
 # make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table and put_saltshaker_on_the_table.
+# make a coffee
 mug_id = get_obj_id('mug')
 if mug_id:
     move_to(mug_id)
@@ -16,6 +17,7 @@ if mug_id:
 else:
     say("I can't find the mug.")
 
+# wash apple and lettuce
 apple_id = get_obj_id('apple')
 if apple_id:
     move_to(apple_id)
@@ -24,18 +26,11 @@ if apple_id:
     move_to(sinkbasin_id)
     faucet_id = get_obj_id('faucet')
     toggle_on(faucet_id)
-    if parse_question('isn\'t apple in hand?'):
-        move_to(apple_id)
-        pickup(apple_id)
-        move_to(sinkbasin_id)
     put(sinkbasin_id)
     toggle_off(faucet_id)
     pickup(apple_id)
+    countertop_id = get_obj_id('countertop')
     move_to(countertop_id)
-    if parse_question('isn\'t apple in hand?'):
-        move_to(apple_id)
-        pickup(apple_id)
-        move_to(countertop_id)
     put(countertop_id)
 else:
     say("I can't find the apple.")
@@ -48,42 +43,32 @@ if lettuce_id:
     move_to(sinkbasin_id)
     faucet_id = get_obj_id('faucet')
     toggle_on(faucet_id)
-    if parse_question('isn\'t lettuce in hand?'):
-        move_to(lettuce_id)
-        pickup(lettuce_id)
-        move_to(sinkbasin_id)
     put(sinkbasin_id)
     toggle_off(faucet_id)
     pickup(lettuce_id)
+    countertop_id = get_obj_id('countertop')
     move_to(countertop_id)
-    if parse_question('isn\'t lettuce in hand?'):
-        move_to(lettuce_id)
-        pickup(lettuce_id)
-        move_to(countertop_id)
     put(countertop_id)
 else:
     say("I can't find the lettuce.")
 
-fork_ids = get_obj_names
+# wash all fork and spoon
+fork_id = get_obj_id('fork')
+if fork_id:
+    move_to(fork_id)
+    pickup(fork_id)
+    sinkbasin_id = get_obj_id('sinkbasin')
+    move_to(sinkbasin_id)
+    faucet_id = get_obj_id('faucet')
+    toggle_on(faucet_id)
+    put(sinkbasin_id)
+    toggle_off(faucet_id)
+    pickup(fork_id)
+    countertop_id = get_obj_id('countertop')
+    move_to(countertop_id)
 
 # is mug filled with coffee?.
 mug = get_obj_id('mug')
 true_states = get_true_states(mug)
 ret_val = any("filled with coffee".lower() in state.lower() for state in true_states)
-
-# isn't apple in hand?.
-apple_id = get_obj_id('apple')
-ret_val = get_obj_in_hand() != apple_id
-
-# isn't apple in hand?.
-apple_id = get_obj_id('apple')
-ret_val = get_obj_in_hand() != apple_id
-
-# isn't lettuce in hand?.
-lettuce_id = get_obj_id('lettuce')
-ret_val = get_obj_in_hand() != lettuce_id
-
-# isn't lettuce in hand?.
-lettuce_id = get_obj_id('lettuce')
-ret_val = get_obj_in_hand() != lettuce_id
 

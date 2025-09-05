@@ -1,0 +1,16 @@
+{
+  "saved_time": "2025-09-05 08:36",
+  "approach": "cap_ai2thor",
+  "attempt": 10,
+  "scene_name": "FloorPlan7",
+  "plans": [
+    {
+      "plan_name": "fill_pot_with_water and make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and set_the_table"
+    }
+  ],
+  "computation_time": -1,
+  "success_rate": 0,
+  "scheduler_makespan": null,
+  "simulation_makespan": -1,
+  "realworld_makespan": null
+}

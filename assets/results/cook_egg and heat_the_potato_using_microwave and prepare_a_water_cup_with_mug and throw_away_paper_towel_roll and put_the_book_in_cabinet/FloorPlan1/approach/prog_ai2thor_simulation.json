@@ -1,0 +1,16 @@
+{
+  "saved_time": "2025-09-05 08:30",
+  "approach": "prog_ai2thor",
+  "attempt": 10,
+  "scene_name": "FloorPlan1",
+  "plans": [
+    {
+      "plan_name": "cook_egg and heat_the_potato_using_microwave and prepare_a_water_cup_with_mug and throw_away_paper_towel_roll and put_the_book_in_cabinet"
+    }
+  ],
+  "computation_time": -1,
+  "success_rate": 0,
+  "scheduler_makespan": null,
+  "simulation_makespan": -1,
+  "realworld_makespan": null
+}

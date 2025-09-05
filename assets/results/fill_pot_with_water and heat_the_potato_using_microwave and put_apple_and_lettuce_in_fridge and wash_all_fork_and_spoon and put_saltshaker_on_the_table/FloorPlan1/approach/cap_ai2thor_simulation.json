@@ -1,0 +1,16 @@
+{
+  "saved_time": "2025-09-05 08:32",
+  "approach": "cap_ai2thor",
+  "attempt": 10,
+  "scene_name": "FloorPlan1",
+  "plans": [
+    {
+      "plan_name": "fill_pot_with_water and heat_the_potato_using_microwave and put_apple_and_lettuce_in_fridge and wash_all_fork_and_spoon and put_saltshaker_on_the_table"
+    }
+  ],
+  "computation_time": -1,
+  "success_rate": 0,
+  "scheduler_makespan": null,
+  "simulation_makespan": -1,
+  "realworld_makespan": null
+}

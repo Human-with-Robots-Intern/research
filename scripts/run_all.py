@@ -435,7 +435,7 @@ def main() -> None:
     logger.info(f"Max retries: {config.get('max_retries', 10)}")
     logger.info(f"Retry delay: {config.get('retry_delay_seconds', 2)} seconds")
     logger.info("-" * 40)
-    
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         for scene_name, approach in product(scene_list, approaches):

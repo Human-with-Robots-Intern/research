@@ -1,0 +1,16 @@
+{
+  "saved_time": "2025-09-05 08:37",
+  "approach": "prog_ai2thor",
+  "attempt": 10,
+  "scene_name": "FloorPlan13",
+  "plans": [
+    {
+      "plan_name": "boil_potato and make_a_coffee and wash_apple_and_lettuce and wash_all_fork_and_spoon and put_saltshaker_on_the_table"
+    }
+  ],
+  "computation_time": -1,
+  "success_rate": 0,
+  "scheduler_makespan": null,
+  "simulation_makespan": -1,
+  "realworld_makespan": null
+}

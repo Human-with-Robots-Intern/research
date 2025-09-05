@@ -1,0 +1,16 @@
+{
+  "saved_time": "2025-09-05 08:33",
+  "approach": "cap_ai2thor",
+  "attempt": 10,
+  "scene_name": "FloorPlan1",
+  "plans": [
+    {
+      "plan_name": "make_a_coffee and throw_away_paper_towel_roll and put_the_creditcard_on_the_countertop and put_the_book_in_cabinet and set_the_table"
+    }
+  ],
+  "computation_time": -1,
+  "success_rate": 0,
+  "scheduler_makespan": null,
+  "simulation_makespan": -1,
+  "realworld_makespan": null
+}
