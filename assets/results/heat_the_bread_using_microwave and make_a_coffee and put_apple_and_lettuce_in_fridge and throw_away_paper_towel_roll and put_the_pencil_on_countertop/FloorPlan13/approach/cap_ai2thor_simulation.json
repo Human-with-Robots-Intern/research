@@ -1,0 +1,16 @@
+{
+  "saved_time": "2025-09-05 08:40",
+  "approach": "cap_ai2thor",
+  "attempt": 10,
+  "scene_name": "FloorPlan13",
+  "plans": [
+    {
+      "plan_name": "heat_the_bread_using_microwave and make_a_coffee and put_apple_and_lettuce_in_fridge and throw_away_paper_towel_roll and put_the_pencil_on_countertop"
+    }
+  ],
+  "computation_time": -1,
+  "success_rate": 0,
+  "scheduler_makespan": null,
+  "simulation_makespan": -1,
+  "realworld_makespan": null
+}

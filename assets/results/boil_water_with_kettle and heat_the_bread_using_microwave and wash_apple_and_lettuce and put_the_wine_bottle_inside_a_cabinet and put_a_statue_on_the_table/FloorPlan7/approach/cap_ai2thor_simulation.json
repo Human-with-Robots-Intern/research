@@ -1,0 +1,16 @@
+{
+  "saved_time": "2025-09-05 08:36",
+  "approach": "cap_ai2thor",
+  "attempt": 10,
+  "scene_name": "FloorPlan7",
+  "plans": [
+    {
+      "plan_name": "boil_water_with_kettle and heat_the_bread_using_microwave and wash_apple_and_lettuce and put_the_wine_bottle_inside_a_cabinet and put_a_statue_on_the_table"
+    }
+  ],
+  "computation_time": -1,
+  "success_rate": 0,
+  "scheduler_makespan": null,
+  "simulation_makespan": -1,
+  "realworld_makespan": null
+}

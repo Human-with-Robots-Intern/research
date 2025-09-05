@@ -1,6 +1,14 @@
 {
-    "ScrubBrush": {
-        "expected_duration": 66.25548245465139,
-        "variance": 29.81618859793802
+    "Microwave": {
+        "expected_duration": 0.0,
+        "variance": 100.0
+    },
+    "CounterTop": {
+        "expected_duration": 0.0,
+        "variance": 100.0
+    },
+    "Faucet": {
+        "expected_duration": 68.26087080043088,
+        "variance": 30.167597765362927
     }
 }
