@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from ai2thor.platform import CloudRendering
+
 from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
@@ -108,7 +109,6 @@ def main():
         if args.ros:
             controller = None
             nav_graph = {(0, 0, 0): {(0, 0, 0)}}
-
             action_handler = ActionHandler(nav_graph, real_world_mode=True)
         else:
             controller = init_ai2thor_controller(scene_name, platform=platform_obj)
@@ -198,7 +198,7 @@ def main():
                 last_entry.sim_nav_time = sim_nav_time
                 total_sim_time += sim_elapsed_time
                 if next_state.subtask.subtask_type == "Monitor":
-                    # ? 정말 constraint가 잘 전파된 것이 맞나?
+
                     next_state, monitored_subtask = agent.bayesian_estimate(next_state)
                     next_state.completed_entries[-1].monitored_subtask = (
                         monitored_subtask
@@ -291,4 +291,5 @@ def main():
 
 
 if __name__ == "__main__":
+    main()
     main()

@@ -39,16 +39,20 @@ class Execution:
 
 class TemporalConstraint:
     def __init__(
-        self, constraint_type: str, subtask: str, interval: int, is_critical: bool
+        self,
+        constraint_type: str,
+        rel_subtask_name: str,
+        interval: int,
+        is_critical: bool,
     ):
         self.constraint_type = constraint_type
-        self.subtask = subtask
+        self.rel_subtask_name = rel_subtask_name
         self.interval = interval
         self.is_critical = is_critical
 
     def __repr__(self):
         return (
-            f"TemporalConstraint(type={self.constraint_type}, subtask={self.subtask}, "
+            f"TemporalConstraint(type={self.constraint_type}, subtask={self.rel_subtask_name}, "
             f"interval={self.interval}, is_critical={self.is_critical})"
         )
 
@@ -56,7 +60,7 @@ class TemporalConstraint:
     def from_dict(cls, data: Dict) -> "TemporalConstraint":
         return cls(
             constraint_type=data["Type"],
-            subtask=data["Subtask"],
+            rel_subtask_name=data["Subtask"],
             interval=data["Interval"],
             is_critical=data["Urgency"],
         )
@@ -153,7 +157,7 @@ class Subtask:
             return [
                 TemporalConstraint(
                     constraint_type="After",
-                    subtask=f"{self.name}_part_{part_index}",
+                    rel_subtask_name=f"{self.name}_part_{part_index}",
                     interval=0,
                     is_critical=False,
                 )
@@ -214,12 +218,14 @@ class Task:
             # decompose된 subtask에 대하여
             for constraint in subtask.temporal_constraints:
                 # decompose된 subtask가 기존 subtask의 temporal constraints에 포함되어 있는 경우
-                if constraint.subtask in subtask_mapping:
-                    last_decomposed_part = subtask_mapping[constraint.subtask][-1]
+                if constraint.rel_subtask_name in subtask_mapping:
+                    last_decomposed_part = subtask_mapping[constraint.rel_subtask_name][
+                        -1
+                    ]
                     updated_constraints.append(
                         TemporalConstraint(
                             constraint_type=constraint.constraint_type,
-                            subtask=last_decomposed_part.name,
+                            rel_subtask_name=last_decomposed_part.name,
                             interval=constraint.interval,
                             is_critical=constraint.is_critical,
                         )
@@ -242,7 +248,7 @@ class TaskGraphBuilder:
 
                 # 엣지 추가
                 for constraint in subtask.temporal_constraints:
-                    if constraint.subtask:
+                    if constraint.rel_subtask_name:
                         edge_data = {
                             "info": {
                                 "Type": constraint.constraint_type,
@@ -252,11 +258,11 @@ class TaskGraphBuilder:
                         }
                         if constraint.constraint_type == "Before":
                             self.graph.add_edge(
-                                subtask_node, constraint.subtask, **edge_data
+                                subtask_node, constraint.rel_subtask_name, **edge_data
                             )
                         elif constraint.constraint_type == "After":
                             self.graph.add_edge(
-                                constraint.subtask, subtask_node, **edge_data
+                                constraint.rel_subtask_name, subtask_node, **edge_data
                             )
                     else:
                         raise ValueError("Constrained Node does not exist")

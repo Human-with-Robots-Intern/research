@@ -142,6 +142,17 @@ class Agent:
 
         # 3-3. G.T.와 prior를 직접 조회합니다.
         gt_interval = CRITICAL_OBJECT_GROUND_TRUTH.get(monitoring_target_obj_name)
+
+        # TODO 4: (중요) G.T. 값이 없을 경우의 처리 - 계산 전에 미리 확인하여 TypeError 방지
+        if gt_interval is None:
+            log.warning(
+                f"Ground truth not found for '{monitoring_target_obj_name}'. Skipping Bayesian update."
+            )
+            return state, {
+                "updated_subtask_name": "N/A",
+                "error": "Ground truth not found for this object.",
+            }
+
         prior_mean, prior_variance = self._get_prior_estimate(
             monitoring_target_obj_name
         )
@@ -177,7 +188,13 @@ class Agent:
             epsilon_k_sq + prior_variance
         )
 
-        bayesian_diff = abs(posterior_mean - prior_mean) / prior_mean
+        # ZeroDivisionError 방지
+        if prior_mean > 0:
+            bayesian_diff = abs(posterior_mean - prior_mean) / prior_mean
+        else:
+            # prior_mean이 0일 경우, posterior_mean이 0이 아니면 무한대의 차이로 간주하여 항상 업데이트
+            bayesian_diff = float("inf") if posterior_mean != 0 else 0.0
+
         log.info(f"bayesian_diff: {bayesian_diff}")
         if bayesian_diff > 0.1:
             self._update_knowledge_and_constraints(
@@ -201,16 +218,6 @@ class Agent:
                 "original_expected_time": prior_mean,
                 "updated_expected_time": prior_mean,
                 "ground_truth_time": gt_interval,
-            }
-
-        # TODO 4: (중요) G.T. 값이 없을 경우의 처리
-        # gt_interval이 None일 경우 (e.g., non-critical subtask를 모니터링하는 예외상황)
-        # 베이지안 업데이트를 건너뛰거나, 기본값을 사용하는 등의 처리가 필요합니다.
-        if gt_interval is None:
-            # 업데이트 없이 원래 상태와 정보 반환
-            return state, {
-                "updated_subtask_name": "N/A",
-                "error": "Ground truth not found for this object.",
             }
 
         return state, monitored_subtask
