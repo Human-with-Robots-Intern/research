@@ -67,3 +67,4 @@ assets/knowledge/bayesian_estimate.json
 src/baselines/cap/data/*
 src/baselines/cap/result/*
 src/baselines/progprompt/result/*
+assets/results/*
