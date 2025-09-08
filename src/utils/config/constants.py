@@ -86,8 +86,8 @@ TIMING_TOLERANCE = (
     0.5  # when we do the simulation experiment, then set ths constant to 0.3
 )
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 1
-BEAM_WIDTH = 1
+SIMULATION_DEPTH = 3
+BEAM_WIDTH = 3
 EPSILON = 1e-1
 LARGE_NUMBER = 1e2
 TOP_K = 1
