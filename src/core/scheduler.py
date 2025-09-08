@@ -1231,8 +1231,10 @@ class Scheduler:
             name=candidate.subtask.name, obj=target_obj
         )
 
-        new_remain = [r for r in curr_state.remaining_subtasks]
-        new_remain.extend([mon_sub])
+        new_remain = [
+            r for r in curr_state.remaining_subtasks if r.name != navigate_sub.name
+        ]
+        new_remain.append(mon_sub)
 
         start_time = curr_state.current_time
         end_time = start_time + nav_time

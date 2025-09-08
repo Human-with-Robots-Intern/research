@@ -163,6 +163,9 @@ CRITICAL_OBJECT_INTERVALS = {
     "Stove": INIT_PRIOR_MEAN,  # StoveBurner와 연관
     "Toilet": INIT_PRIOR_MEAN,
     "ScrubBrush": INIT_PRIOR_MEAN,
+    "POT": INIT_PRIOR_MEAN,
+    "Egg": INIT_PRIOR_MEAN,
+    "CounterTop": INIT_PRIOR_MEAN,
 }
 
 # Non-critical이지만 일관된 시간을 적용하고 싶은 객체
@@ -188,4 +191,7 @@ CRITICAL_OBJECT_GROUND_TRUTH = {
     "Stove": GT_INTERVAL,
     "Toilet": GT_INTERVAL,
     "ScrubBrush": GT_INTERVAL,
+    "POT": GT_INTERVAL,
+    "Egg": GT_INTERVAL,
+    "CounterTop": GT_INTERVAL,
 }
