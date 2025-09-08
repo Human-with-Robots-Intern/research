@@ -437,13 +437,12 @@ def main() -> None:
     logger.info("-" * 40)
 
     execute_dict = config.get("execute_dict", {})
-    
-    
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         for scene_name, approach in product(scene_list, approaches):
             instructions = load_instructions_from_json(scene_name)
-            
+
             instruction_source: list[str] or list[int]
             if config.get("predefined"):
                 instruction_source = list(range(1, len(instructions) + 1))
@@ -453,7 +452,10 @@ def main() -> None:
             for instruction, i in product(
                 instruction_source, range(num_runs_per_instruction)
             ):
-                if instruction not in execute_dict[scene_name]:
+                if (
+                    instruction not in execute_dict[scene_name]
+                    and execute_dict[scene_name]
+                ):
                     continue
                 futures.append(
                     executor.submit(

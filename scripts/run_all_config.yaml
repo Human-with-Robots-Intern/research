@@ -60,7 +60,7 @@ cloud_rendering: true
 
 execute_dict: {
         "FloorPlan1": [],
-        "FloorPlan7": [1],
+        "FloorPlan7": [],
         "FloorPlan13": [],
         "FloorPlan18": [],
         "FloorPlan27": []
