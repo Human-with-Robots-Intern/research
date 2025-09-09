@@ -119,7 +119,10 @@ def sample_duration():
 @pytest.fixture
 def sample_constraint():
     return TemporalConstraint(
-        constraint_type="After", subtask="Prep", interval=2.0, is_critical=False
+        constraint_type="After",
+        rel_subtask_name="Prep",
+        interval=2.0,
+        is_critical=False,
     )
 
 
@@ -262,7 +265,10 @@ def test_task_decompose_subtasks(sample_subtask1, sample_subtask_repeat):
     )
     final_step_in_task = next(s for s in task.subtasks if s.name == "FinalStep")
     assert len(final_step_in_task.temporal_constraints) == 1
-    assert final_step_in_task.temporal_constraints[0].subtask == "WashMultiple_part_3"
+    assert (
+        final_step_in_task.temporal_constraints[0].rel_subtask_name
+        == "WashMultiple_part_3"
+    )
     assert final_step_in_task.temporal_constraints[0].constraint_type == "After"
 
 

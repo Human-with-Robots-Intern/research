@@ -6,12 +6,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import matplotlib.colors as mcolors
+import matplotlib.font_manager as fm
 import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from matplotlib.patches import Rectangle
-import matplotlib.font_manager as fm
 
 from src.models.dataclass import CompletedEntry
 
@@ -444,23 +444,16 @@ def merge_groups_for_lanes(
                 uf.union(first_part_in_group, sorted_parts_for_union[i])
 
     # 2. Constraint-based grouping (Optional, can be added if needed)
-    # If constraints_graph should also influence grouping (e.g., connecting unrelated tasks
-    # that must be on the same lane due to some other logic), that logic would go here.
-    # Care must be taken if constraint-based grouping can override name-based grouping.
-    # For the stated goal, name-based grouping for split tasks should typically have high precedence.
     if constraints_graph:
         for u, v in constraints_graph.edges():
             # Ensure u and v are known tasks before attempting union
             if u in ordered_subtask_names and v in ordered_subtask_names:
-                # Check if they are already part of the same name-based group.
-                # If this constraint-based grouping should be weaker than name-based,
-                # you might skip unioning if u and v have the same base name but are somehow
-                # forced apart by constraints (which would be contradictory).
-                # For now, simple union:
                 uf.union(u, v)
             elif u not in ordered_subtask_names:
+                # 더 자세한 로그로 디버깅 정보 제공
                 print(
-                    f"Warning: Task '{u}' in constraint edge not in ordered_subtask_names. Skipping this edge for grouping."
+                    f"Warning: Task '{u}' in constraint edge ({u} -> {v}) not in ordered_subtask_names. "
+                    f"This may indicate that the task was planned but not executed. Skipping this edge for grouping."
                 )
             elif v not in ordered_subtask_names:
                 print(
@@ -573,7 +566,7 @@ def plot_gantt_final_cutoff(
     simulation_data: Dict[str, Any],
     initial_plan_json_data: List[Dict],
     save_dir: str = "gantt_charts_final_cutoff_executable",
-):    
+):
     plt.style.use("seaborn-v0_8-paper")
     font_path = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
     font_prop = fm.FontProperties(fname=font_path, size=10)

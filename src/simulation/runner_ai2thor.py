@@ -22,6 +22,7 @@ from ai2thor.controller import Controller
 
 from ithor.handlers.action import Action
 from src.models.dataclass import TaskExecutionStatus
+
 # Action handler import
 if TYPE_CHECKING:
     from src.models.task import Subtask
@@ -126,9 +127,15 @@ def execute_subtask(
         for obj_id in objects:
             obj_id_copy_1 = obj_id.replace("00.00", "+00.00")
             obj_id_copy_2 = obj_id.replace("+00.00", "00.00")
-            if obj_id not in all_obj_ids and obj_id_copy_1 not in all_obj_ids and obj_id_copy_2 not in all_obj_ids:
+            if (
+                obj_id not in all_obj_ids
+                and obj_id_copy_1 not in all_obj_ids
+                and obj_id_copy_2 not in all_obj_ids
+            ):
                 raise ValueError(f"Object '{obj_id}' not found in the environment.")
-            object_registry[obj_id] = obj_id_copy_1 if obj_id_copy_1 in all_obj_ids else obj_id_copy_2
+            object_registry[obj_id] = (
+                obj_id_copy_1 if obj_id_copy_1 in all_obj_ids else obj_id_copy_2
+            )
 
     action_mapping = {
         "NAVIGATE_TO": lambda target_obj: act.move_to(target_obj),

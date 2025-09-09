@@ -74,8 +74,8 @@ class Action:
 
         Steps:
             1. Attempt to pick up the object.
-            2. If pickup fails, retrieve the parent receptacle and open it,
-               then try picking up again and finally close the receptacle.
+            2. If pickup fails, retrieve the parent receptacle, check if it's openable,
+               and open it, then try picking up again and finally close the receptacle.
 
         Args:
             object_id (str): The identifier of the object to pick up.
@@ -83,7 +83,9 @@ class Action:
         Returns:
             float: Elapsed time for the pickup action, or False on failure.
         """
-        elapsed_time = 0
+        elapsed_time = PRIMITIVE_ACTION_DURATION
+
+        # 1. 첫 번째 시도
         result = self.controller.step(
             action="PickupObject",
             objectId=object_id,
@@ -92,55 +94,81 @@ class Action:
         )
 
         if result.metadata["lastActionSuccess"]:
-            self.success_log(result, f"pickup {object_id}")
+            self.success_log(result, f"pickup {object_id} (initial attempt)")
             time.sleep(0.3)
-            elapsed_time += PRIMITIVE_ACTION_DURATION
             return elapsed_time
 
-        # 만약 첫 시도에 실패한 경우
+        # 2. 첫 시도 실패 시, 부모 컨테이너 확인 및 열기 후 재시도
+        self.log.warning(
+            f"Initial pickup failed for {object_id}. Checking for a receptacle."
+        )
         receptacle_id = self.get_parent_receptacle(object_id)
-        if receptacle_id:
-            # schedule time과 시간을 align하기 위해 주석처리
-            # elapsed_time += self.move_to(receptacle_id)
-            self.open(receptacle_id)
-            # schedule time과 시간을 align하기 위해 주석처리
-            # elapsed_time += 1
-            time.sleep(0.5)
-            result = self.controller.step(
-                action="PickupObject",
-                objectId=object_id,
-                forceAction=True,
-                manualInteract=False,
-            )
-            self.controller.step(action="Pass")
 
-            if result.metadata["lastActionSuccess"]:
-                self.close(receptacle_id)
-                elapsed_time += PRIMITIVE_ACTION_DURATION
-                self.log.debug(
-                    f"Pick up action after opening receptacle "
-                    f"{receptacle_id} was successful."
-                )
-                return elapsed_time
-            else:
-                self.log.warning(
-                    f"Failed to pick up object {object_id} even after "
-                    f"opening the receptacle {receptacle_id}."
-                )
-                elapsed_time += PRIMITIVE_ACTION_DURATION
-                return elapsed_time
-        else:
-            # Re-try once more (또 한 번 시도)
-            result = self.controller.step(
-                action="PickupObject",
-                objectId=object_id,
-                forceAction=False,
-                manualInteract=False,
+        if receptacle_id:
+            receptacle_obj = next(
+                (
+                    obj
+                    for obj in self.controller.last_event.metadata["objects"]
+                    if obj["objectId"] == receptacle_id
+                ),
+                None,
             )
-            self.success_log(result, f"pickup {object_id}")
+
+            # 부모가 '열 수 있는' 객체일 경우에만 진행
+            if receptacle_obj and receptacle_obj.get("openable"):
+                self.log.debug(
+                    f"Parent {receptacle_id} is openable. Opening it to retry pickup."
+                )
+                self.open(receptacle_id)
+                time.sleep(0.5)
+
+                # 열고 나서 forceAction으로 재시도
+                result = self.controller.step(
+                    action="PickupObject",
+                    objectId=object_id,
+                    forceAction=True,
+                    manualInteract=False,
+                )
+                self.controller.step(action="Pass")
+
+                if result.metadata["lastActionSuccess"]:
+                    self.success_log(
+                        result, f"pickup {object_id} (after opening {receptacle_id})"
+                    )
+                    self.close(receptacle_id)
+                    self.log.debug(
+                        f"Pick up action after opening receptacle {receptacle_id} was successful."
+                    )
+                    time.sleep(0.3)
+                    return elapsed_time
+                else:
+                    self.log.error(
+                        f"Pickup of {object_id} failed even after opening parent {receptacle_id}."
+                    )
+                    return False
+            else:
+                self.log.debug(
+                    f"Parent receptacle {receptacle_id} is not openable. Skipping open action."
+                )
+
+        # 3. 부모가 없거나, 열 수 없는 객체이거나, 다른 이유로 실패 시 최종 재시도
+        self.log.warning(
+            f"Falling back to a final force pickup attempt for {object_id}."
+        )
+        result = self.controller.step(
+            action="PickupObject",
+            objectId=object_id,
+            forceAction=True,
+            manualInteract=False,
+        )
+
+        if result.metadata["lastActionSuccess"]:
+            self.success_log(result, f"pickup {object_id} (final force attempt)")
             time.sleep(0.3)
-            elapsed_time += PRIMITIVE_ACTION_DURATION
             return elapsed_time
+
+        self.log.error(f"All pickup attempts for {object_id} have failed.")
+        return False
 
     def slice(self, object_id: str):
         """
@@ -160,11 +188,8 @@ class Action:
     def put(self, target_id: str):
         """
         Put the held object into the target container.
-
-        Steps:
-            1. Attempt to put the object.
-            2. If unsuccessful, move back and try again.
-            3. If still unsuccessful, drop the object.
+        If the initial attempt fails, it tries various recovery strategies
+        before finally dropping the object as a last resort.
 
         Args:
             target_id (str): The identifier of the target container.
@@ -182,21 +207,76 @@ class Action:
         self.success_log(result, f"put {target_id}")
 
         if not result.metadata["lastActionSuccess"]:
-            self.controller.step(action="MoveBack")
-            result = self.controller.step(
-                action="PutObject",
-                objectId=target_id,
-                forceAction=False,
-                placeStationary=True,
+            self.log.warning(
+                f"Initial 'PutObject' on {target_id} failed. Attempting recovery with Teleport."
             )
-            self.success_log(result, f"MoveBack and put {target_id}")
+            reachable_positions_event = self.controller.step(
+                action="GetReachablePositions"
+            )
+            if reachable_positions_event.metadata["lastActionSuccess"]:
+                positions = reachable_positions_event.metadata["actionReturn"]
+                if positions:
+                    best_pos = positions[0]
+                    agent_meta = self.controller.last_event.metadata["agent"]
+                    self.controller.step(
+                        action="Teleport",
+                        position=best_pos,
+                        rotation=agent_meta["rotation"],
+                        horizon=agent_meta["cameraHorizon"],
+                        standing=True,
+                    )
+                    self.log.info(
+                        f"Teleported to a reachable position {best_pos} for retrying 'PutObject'."
+                    )
+                    result = self.controller.step(
+                        action="PutObject",
+                        objectId=target_id,
+                        forceAction=True,
+                        placeStationary=True,
+                    )
+                    self.success_log(result, f"Retry put {target_id} after Teleport")
 
-        if not self.controller.last_event.metadata["lastActionSuccess"]:
-            self.controller.step(action="MoveAhead")
+        if not result.metadata["lastActionSuccess"]:
+            error_message = result.metadata.get("errorMessage", "")
+            if "CLOSED" in error_message.upper():
+                self.log.warning(
+                    f"Put failed because '{target_id}' is closed. Forcing it open and retrying."
+                )
+                self.open(target_id)
+                target_obj_state = next(
+                    (
+                        obj
+                        for obj in self.controller.last_event.metadata["objects"]
+                        if obj["objectId"] == target_id
+                    ),
+                    None,
+                )
+                if target_obj_state and target_obj_state.get("isOpen"):
+                    self.log.debug(
+                        f"Successfully opened '{target_id}'. Final retry for PutObject."
+                    )
+                    result = self.controller.step(
+                        action="PutObject",
+                        objectId=target_id,
+                        forceAction=True,
+                        placeStationary=True,
+                    )
+                    self.success_log(
+                        result, f"Final retry put {target_id} after force open"
+                    )
+                else:
+                    self.log.error(
+                        f"Could not open '{target_id}' even with force. Cannot place object inside."
+                    )
+
+        if not result.metadata["lastActionSuccess"]:
+            self.log.error(
+                f"'PutObject' on {target_id} failed through all recovery attempts. Dropping object as last resort."
+            )
             result = self.controller.step(action="DropHandObject", forceAction=True)
-            # elapsed_time += 1
             self.success_log(result, "drop")
             self.log.debug("Alternative Action: Drop")
+
         time.sleep(0.3)
         return elapsed_time
 
@@ -222,14 +302,24 @@ class Action:
 
     def toggle_on(self, object_id: str):
         """
-        Toggle the specified object on.
+        Toggle the specified object on. Checks if the object is already on
+        to prevent unnecessary actions and errors.
 
         Args:
-            object_id (str): The identifier of the object.
+            object_id (str): The identifier of the object to toggle on.
 
         Returns:
             float: Elapsed time for the toggle on action.
         """
+        for obj in self.controller.last_event.metadata["objects"]:
+            if obj["objectId"] == object_id:
+                if obj["isToggled"]:
+                    self.log.info(
+                        f"Object {object_id} is already on. Skipping toggle on action."
+                    )
+                    return PRIMITIVE_ACTION_DURATION
+                break
+
         result = self.controller.step(action="ToggleObjectOn", objectId=object_id)
         self.success_log(result, f"toggle on {object_id}")
         time.sleep(0.3)
@@ -237,14 +327,24 @@ class Action:
 
     def toggle_off(self, object_id: str):
         """
-        Toggle the specified object off.
+        Toggle the specified object off. Checks if the object is already off
+        to prevent unnecessary actions and errors.
 
         Args:
-            object_id (str): The identifier of the object.
+            object_id (str): The identifier of the object to toggle off.
 
         Returns:
             float: Elapsed time for the toggle off action.
         """
+        for obj in self.controller.last_event.metadata["objects"]:
+            if obj["objectId"] == object_id:
+                if not obj["isToggled"]:
+                    self.log.info(
+                        f"Object {object_id} is already off. Skipping toggle off action."
+                    )
+                    return PRIMITIVE_ACTION_DURATION
+                break
+
         result = self.controller.step(action="ToggleObjectOff", objectId=object_id)
         self.success_log(result, f"toggle off {object_id}")
         time.sleep(0.3)
@@ -253,6 +353,9 @@ class Action:
     def open(self, object_id: str):
         """
         Open the specified object (e.g., a container).
+        If the initial attempt fails, it tries to teleport to a reachable
+        position and retries the action. As a final resort, it forces
+        the object's state to be open.
 
         Args:
             object_id (str): The identifier of the object to open.
@@ -260,13 +363,7 @@ class Action:
         Returns:
             float: Elapsed time for the open action.
         """
-        elapsed_time = 0
-        # 너무 가까우면 열기 실패할 수 있으므로 살짝 뒤로 이동
-        for _ in range(2):
-            self.controller.step(action="MoveBack")
-            self.controller.step(action="Pass")
-        time.sleep(0.1)
-
+        elapsed_time = PRIMITIVE_ACTION_DURATION
         result = self.controller.step(
             action="OpenObject",
             objectId=object_id,
@@ -274,13 +371,56 @@ class Action:
             forceAction=False,
         )
         self.success_log(result, f"open {object_id}")
+
+        if not result.metadata["lastActionSuccess"]:
+            self.log.warning(
+                f"Initial 'OpenObject' on {object_id} failed. Attempting recovery with Teleport."
+            )
+            reachable_positions_event = self.controller.step(
+                action="GetReachablePositions"
+            )
+            if reachable_positions_event.metadata["lastActionSuccess"]:
+                positions = reachable_positions_event.metadata["actionReturn"]
+                if positions:
+                    best_pos = positions[0]
+                    agent_meta = self.controller.last_event.metadata["agent"]
+                    self.controller.step(
+                        action="Teleport",
+                        position=best_pos,
+                        rotation=agent_meta["rotation"],
+                        horizon=agent_meta["cameraHorizon"],
+                        standing=True,
+                    )
+                    self.log.info(
+                        f"Teleported to a reachable position {best_pos} for retrying 'OpenObject'."
+                    )
+                    result = self.controller.step(
+                        action="OpenObject",
+                        objectId=object_id,
+                        openness=1,
+                        forceAction=True,
+                    )
+                    self.success_log(result, f"Retry open {object_id} after Teleport")
+
+        if not result.metadata["lastActionSuccess"]:
+            self.log.warning(
+                f"'OpenObject' on {object_id} failed again. Brute-forcing with forceAction."
+            )
+            result = self.controller.step(
+                action="OpenObject",
+                objectId=object_id,
+                openness=1,
+                forceAction=True,
+            )
+            self.success_log(result, f"Force open {object_id} via forceAction")
+
         time.sleep(0.3)
-        elapsed_time += PRIMITIVE_ACTION_DURATION
         return elapsed_time
 
     def close(self, object_id: str):
         """
         Close the specified object.
+        Includes a fallback mechanism to force the state if the action fails.
 
         Args:
             object_id (str): The identifier of the object to close.
@@ -294,6 +434,18 @@ class Action:
             forceAction=False,
         )
         self.success_log(result, f"close {object_id}")
+
+        if not result.metadata["lastActionSuccess"]:
+            self.log.warning(
+                f"'CloseObject' on {object_id} failed. Brute-forcing with forceAction."
+            )
+            result = self.controller.step(
+                action="CloseObject",
+                objectId=object_id,
+                forceAction=True,
+            )
+            self.success_log(result, f"Force close {object_id} via forceAction")
+
         time.sleep(0.3)
         return PRIMITIVE_ACTION_DURATION
 
@@ -344,7 +496,7 @@ class Action:
         time.sleep(MONITORING_DURATION)
         return MONITORING_DURATION
 
-    def wait(self, wait_time=1):
+    def wait(self, wait_time: float):
         """
         Wait for the specified duration.
         Args:
@@ -352,7 +504,7 @@ class Action:
         Returns:
             float: Elapsed time for the wait action.
         """
-        time.sleep(wait_time)
+        time.sleep(0.5)
         self.log.debug(f"wait: {wait_time}")
         return wait_time
 

@@ -3,12 +3,12 @@
         "expected_duration": 0.0,
         "variance": 100.0
     },
-    "CounterTop": {
-        "expected_duration": 0.0,
-        "variance": 100.0
-    },
     "Faucet": {
-        "expected_duration": 68.26087080043088,
-        "variance": 30.167597765362927
+        "expected_duration": 66.70242269208835,
+        "variance": 30.16759776536308
+    },
+    "CounterTop": {
+        "expected_duration": 80.0,
+        "variance": 100.0
     }
 }

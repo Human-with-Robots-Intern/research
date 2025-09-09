@@ -75,7 +75,7 @@ BETA_HEURISTIC = 3.0
 GAMMA_HEURISTIC = 0.3
 # ========== 베이지안 ==========
 BAYESIAN_CRITERIA = 0.7
-INIT_PRIOR_MEAN = 80.0
+INIT_PRIOR_MEAN = 60.0
 GT_INTERVAL = 60.0
 INIT_PRIOR_VARIANCE = 100.0
 
@@ -86,8 +86,8 @@ TIMING_TOLERANCE = (
     0.5  # when we do the simulation experiment, then set ths constant to 0.3
 )
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 1
-BEAM_WIDTH = 1
+SIMULATION_DEPTH = 3
+BEAM_WIDTH = 3
 EPSILON = 1e-1
 LARGE_NUMBER = 1e2
 TOP_K = 1
@@ -163,6 +163,9 @@ CRITICAL_OBJECT_INTERVALS = {
     "Stove": INIT_PRIOR_MEAN,  # StoveBurner와 연관
     "Toilet": INIT_PRIOR_MEAN,
     "ScrubBrush": INIT_PRIOR_MEAN,
+    "POT": INIT_PRIOR_MEAN,
+    "Egg": INIT_PRIOR_MEAN,
+    "CounterTop": INIT_PRIOR_MEAN,
 }
 
 # Non-critical이지만 일관된 시간을 적용하고 싶은 객체
@@ -188,4 +191,7 @@ CRITICAL_OBJECT_GROUND_TRUTH = {
     "Stove": GT_INTERVAL,
     "Toilet": GT_INTERVAL,
     "ScrubBrush": GT_INTERVAL,
+    "POT": GT_INTERVAL,
+    "Egg": GT_INTERVAL,
+    "CounterTop": GT_INTERVAL,
 }
