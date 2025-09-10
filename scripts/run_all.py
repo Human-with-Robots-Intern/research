@@ -453,8 +453,8 @@ def main() -> None:
                 instruction_source, range(num_runs_per_instruction)
             ):
                 if (
-                    instruction not in execute_dict[scene_name]
-                    and execute_dict[scene_name]
+                    execute_dict and instruction not in execute_dict[scene_name]
+                    and execute_dict[scene_name] 
                 ):
                     continue
                 futures.append(
