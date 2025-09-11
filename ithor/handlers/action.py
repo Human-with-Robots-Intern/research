@@ -404,15 +404,37 @@ class Action:
 
         if not result.metadata["lastActionSuccess"]:
             self.log.warning(
-                f"'OpenObject' on {object_id} failed again. Brute-forcing with forceAction."
+                f"'OpenObject' on {object_id} failed again. Trying to move back and retry."
             )
-            result = self.controller.step(
-                action="OpenObject",
-                objectId=object_id,
-                openness=1,
-                forceAction=True,
-            )
-            self.success_log(result, f"Force open {object_id} via forceAction")
+
+            # Try moving back up to 3 times to create space
+            for i in range(3):
+                move_dist = 0.15
+                self.log.debug(f"Recovery attempt {i + 1}: Moving back by {move_dist}.")
+                move_event = self.controller.step(
+                    action="MoveBack", moveMagnitude=move_dist
+                )
+
+                # If we can't move back, further attempts are pointless
+                if not move_event.metadata["lastActionSuccess"]:
+                    self.log.warning(
+                        "Could not move back to create space. Aborting open retries."
+                    )
+                    break
+
+                result = self.controller.step(
+                    action="OpenObject",
+                    objectId=object_id,
+                    openness=1,
+                    forceAction=True,
+                )
+                if result.metadata["lastActionSuccess"]:
+                    self.log.info(
+                        f"Successfully opened '{object_id}' after moving back."
+                    )
+                    break  # Success, exit loop
+
+            self.success_log(result, f"Force open {object_id} after moving back")
 
         time.sleep(0.3)
         return elapsed_time

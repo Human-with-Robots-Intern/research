@@ -65,7 +65,7 @@ REAL_NAV_DURATION = 1.55
 TOGGLE_ACTION_DURATION = 15.97
 GRASP_ACTION_DURATION = 14.28
 PLACE_ACTION_DURATION = 14.88
-REACHABLE_DISTANCE_THRESHOLD = 2.0
+REACHABLE_DISTANCE_THRESHOLD = 30.0
 # Heuristic constants have been reduced to align with the updated algorithm's expectations:
 # - ALPHA_HEURISTIC: Reduced to 2.0 to balance the weight of heuristic influence on decision-making.
 # - BETA_HEURISTIC: Reduced to 3.0 to ensure smoother scaling in probabilistic calculations.
@@ -75,7 +75,7 @@ BETA_HEURISTIC = 3.0
 GAMMA_HEURISTIC = 0.3
 # ========== 베이지안 ==========
 BAYESIAN_CRITERIA = 0.7
-INIT_PRIOR_MEAN = 60.0
+INIT_PRIOR_MEAN = 40.0
 GT_INTERVAL = 60.0
 INIT_PRIOR_VARIANCE = 100.0
 

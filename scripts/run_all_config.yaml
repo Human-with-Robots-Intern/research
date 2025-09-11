@@ -33,7 +33,7 @@ scene_lists:
     - "FloorPlan27"
 
   bathroom:
-    - "FloorPlan419"
+    # - "FloorPlan419"
     - "FloorPlan422"
     - "FloorPlan426"
     - "FloorPlan427"
@@ -58,10 +58,10 @@ instruction_delay_seconds: 0
 # Use CloudRendering platform for AI2-THOR
 cloud_rendering: true
 
-execute_dict: {
-        "FloorPlan1": [],
-        "FloorPlan7": [],
-        "FloorPlan13": [],
-        "FloorPlan18": [],
-        "FloorPlan27": []
-    }
+# execute_dict: {
+#         "FloorPlan1": [],
+#         "FloorPlan7": [],
+#         "FloorPlan13": [],
+#         "FloorPlan18": [],
+#         "FloorPlan27": []
+#     }

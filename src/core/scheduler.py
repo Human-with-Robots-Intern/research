@@ -31,9 +31,6 @@ if TYPE_CHECKING:
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
-from src.utils.config.constants import PRIMITIVE_ACTION_DURATION
-
-
 class Scheduler:
     """
     Beam Search based Scheduler with n-step lookahead.
@@ -175,13 +172,22 @@ class Scheduler:
                 curr_node, feasible_candidates, not_yet_candidates
             )
             expanded_nodes.sort(key=lambda nd: nd.heuristic_cost)
+            log.debug(
+                f"[_simulate_search] Expanded {len(expanded_nodes)} nodes from current node."
+            )
 
             # (3) Local Beam Pruning: Keep only the top-K expansions
+            pruned_nodes = 0
             for i, nd in enumerate(expanded_nodes):
                 if i < self.search_width:
                     queue.put(nd)
                 else:
-                    break
+                    pruned_nodes += 1
+                    # No need to process further if we've filled the beam
+            if pruned_nodes > 0:
+                log.debug(
+                    f"[_simulate_search] Kept {self.search_width} best nodes, pruned {pruned_nodes} nodes."
+                )
 
         if not best_solutions:
             log.error("[_simulate_search] best_solutions empty => no feasible path")
@@ -206,6 +212,8 @@ class Scheduler:
 
         # --- 단계 1: 정책 1 - 정시(On-time) CRITICAL 서브태스크 우선 처리 ---
         # "즉시 실행 가능한 Time-critical" 후보를 찾아, 있다면 그것 하나만 확장하고 즉시 반환.
+        # "정시(On-time)"란, 물리적으로 가장 빨리 상호작용을 시작할 수 있는 시간과
+        # 논리적으로 계획된 상호작용 시작 시간(LST)의 차이가 거의 없는 경우를 의미.
         on_time_critical_candidate_to_expand: Optional[Candidate] = None
 
         for candidate in feasible_candidates:
@@ -263,6 +271,8 @@ class Scheduler:
         is_expanded_from_feasible = False
 
         # --- 단계 2.1: 놓친 CRITICAL 서브태스크 우선 처리 ---
+        # LST(논리적 시작 시간)가 이미 물리적으로 가능한 가장 빠른 시작 시간을 지난 경우 "놓친(MISSED)" 것으로 간주.
+        # 이런 태스크들은 지연을 최소화하기 위해 즉시 실행(ASAP) 대상으로 우선 확장.
         urgent_criticals_to_expand: List[Candidate] = []
         other_feasible_candidates_for_later: List[Candidate] = []
 
@@ -397,6 +407,9 @@ class Scheduler:
                 f"[_expand_candidates] Policy WAIT: No task-performing subtask expanded. Considering WAIT."
             )
             # not_yet_candidates 정렬 키 개선: 유효한 미래 시간 우선
+            # 1. ConstraintHandler가 계산한 예상 실제 시작 시간 (미래인 경우)
+            # 2. 1번이 없으면, 논리적 시작 시간 (미래인 경우)
+            # 3. 둘 다 없거나 과거 시간이면 우선순위를 낮춤 (inf)
             sorted_not_feasible = sorted(
                 not_yet_candidates,
                 key=lambda c: (
@@ -554,6 +567,8 @@ class Scheduler:
             f"[_expand_single_wait] Subtask {candidate.subtask.name}'s navigation time: {nav_time}. ({target_obj_id})"
         )
 
+        # Critical 태스크를 기다릴 때, 이동 시간이 길다면(e.g., 0.5초 이상)
+        # 중간에 세상의 상태가 변할 수 있다는 불확실성을 고려하여 모니터링을 포함한 대기(wait)를 수행.
         if nav_time > 0.5 and candidate.is_critical:
             log.debug(
                 f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITH monitoring."
@@ -593,14 +608,14 @@ class Scheduler:
             )
             return False
 
-        # # (2) If subtask is already decomposed => no monitoring needed
+        # (2) If subtask is already decomposed => no monitoring needed
         # if candidate.subtask.decomposed:
         #     log.debug(
         #         f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} is already decomposed => No monitoring."
         #     )
         #     return False
 
-        # # (3) critical-constraint end => no
+        # (3) critical-constraint end => no
         # in_slots = self.constraint_handler.get_time_slots(
         #     candidate.subtask.name, curr_node.state.constraints, direction="in"
         # )
@@ -610,6 +625,7 @@ class Scheduler:
         #     )
         #     return False
 
+        # 현재 로직에서는 유한한 due_date를 가진 모든 태스크가 모니터링 분할 대상이 됨.
         return True
 
     # -----------------------------------------------------
@@ -659,6 +675,7 @@ class Scheduler:
             planned_nav_start_time + total_subtask_duration_from_sim
         )
 
+        # due_date(마감 시간)가 설정된 경우, 태스크 완료 예상 시간이 마감 시간을 넘지 않는지 확인.
         if (
             candidate.scheduling_due
             and candidate.scheduling_due.due_date <= planned_subtask_completion_time
@@ -848,6 +865,7 @@ class Scheduler:
             )
             return self._expand_subtask_wo_monitoring(curr_node, candidate)
 
+        # 액션 핸들러를 통해 현재 태스크를 모니터링 시점을 기준으로 두 부분(pre/post)으로 나눔.
         pre_actions_log, post_actions_log, split_successful, pre_ends_holding_object = (
             self.action_handler.split_subtask_by_cutoff_time(
                 curr_node,
@@ -979,6 +997,8 @@ class Scheduler:
             )
 
         # --- Phase 5: 제약 조건 그래프 및 remaining_subtasks 업데이트 ---
+        # 분할된 태스크(early, mon, remain)들을 제약조건 그래프에 통합.
+        # 기존 태스크 노드를 제거하고, 분할된 새 노드들을 추가한 뒤, 의존 관계를 재설정.
         new_constraints_graph = copy.deepcopy(state_after_early_expansion.constraints)
 
         original_task_in_edges_data = []
@@ -1001,6 +1021,7 @@ class Scheduler:
         if remain_sub_task and not new_constraints_graph.has_node(remain_sub_task.name):
             new_constraints_graph.add_node(remain_sub_task.name)
 
+        # 5-1. 기존 태스크로 들어오던 엣지들을 early_sub로 연결
         for pred_name, _, data in original_task_in_edges_data:
             if pred_name not in [
                 early_sub_task.name,
@@ -1018,6 +1039,7 @@ class Scheduler:
                         f"Rerouted incoming constraint from '{pred_name}' to '{early_sub_task.name}'."
                     )
 
+        # 5-2. 기존 태스크에서 나가던 엣지들을 가장 마지막 태스크(remain_sub 또는 mon_sub)에서 나가도록 연결
         source_for_outgoing_edges = (
             remain_sub_task.name
             if remain_sub_task
@@ -1042,6 +1064,7 @@ class Scheduler:
                         f"Rerouted outgoing constraint from '{source_for_outgoing_edges}' to '{succ_name}'."
                     )
 
+        # 5-3. 분할된 태스크들 간의 내부 순서 제약조건 추가 (early -> mon -> remain)
         info_early_to_mon = {"Interval": 0.0, "IsCritical": True}
         if not new_constraints_graph.has_edge(
             early_sub_task.name, mon_sub_task_for_main_interval.name
@@ -1069,6 +1092,8 @@ class Scheduler:
                     f"Added internal constraint: '{mon_sub_task_for_main_interval.name}' -> '{remain_sub_task.name}'."
                 )
 
+        # 5-4. 메인 Critical Interval 제약조건을 모니터링 태스크 기준으로 재설정
+        # (CritStart -> mon_sub)
         interval_crit_start_to_mon = (
             actual_monitoring_trigger_time - critical_start_sub_actual_end_time
         )
@@ -1092,6 +1117,7 @@ class Scheduler:
             f"Added/Updated main monitoring constraint: '{critical_start_sub_name}' -> '{mon_sub_task_for_main_interval.name}', Interval: {info_crit_start_to_mon['Interval']:.2f}."
         )
 
+        # (mon_sub -> CritEnd)
         critical_end_sub_original_deadline = (
             critical_start_sub_actual_end_time + original_critical_interval_duration
         )
@@ -1123,6 +1149,7 @@ class Scheduler:
             f"Added/Updated main monitoring constraint: '{mon_sub_task_for_main_interval.name}' -> '{critical_end_sub_name}', Interval: {info_mon_to_crit_end['Interval']:.2f}."
         )
 
+        # 5-5. remaining_subtasks 리스트 업데이트
         remaining_after_early_executed = list(
             state_after_early_expansion.remaining_subtasks
         )
@@ -1193,6 +1220,8 @@ class Scheduler:
             curr_node, [f"NAVIGATE_TO {target_obj}"]
         ).action_duration
         #!  Refactoring 필요
+        # 대기 시간 동안 가능한 만큼 미리 이동(partial navigation)하는 시간을 계산.
+        # NAV_STEP_DURATION 단위로 시간을 양자화하여, 대기 시간 내에 끝낼 수 있는 최대 이동 시간을 구함.
         partial_nav_time = min(
             (
                 int(
@@ -1247,6 +1276,8 @@ class Scheduler:
         new_completed = curr_state.completed_entries + [completed_entry]
 
         # ! ------------------- Constraints Update -------------------
+        # 대기 액션으로 인해 생성된 모니터링 태스크를 제약조건 그래프에 추가.
+        # 기존 태스크 -> 모니터링 -> 기다리던 태스크 순서로 엣지를 연결하여 의존성 생성.
         new_constraints = copy.deepcopy(curr_state.constraints)
         new_constraints.add_node(mon_sub.name)
 

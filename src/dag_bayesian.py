@@ -47,7 +47,7 @@ def parse_arguments():
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan419",
+        default="FloorPlan1",
         help="input scene name (default: FloorPlan1)",
     )
     parser.add_argument(
@@ -157,6 +157,8 @@ def main():
         agent = Agent(constraint_handler, bayesian_load)
         cost_calculator = HeuristicManager(action_handler)
         scheduler = Scheduler(
+            beam_width=1,
+            simulation_depth=1,
             action_handler=action_handler,
             constraint_handler=constraint_handler,
             heuristic_manager=cost_calculator,

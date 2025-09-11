@@ -4,7 +4,7 @@ mug_id = get_obj_id('mug')
 if mug_id:
     move_to(mug_id)
     pickup(mug_id)
-    coffee_machine_id = get_obj_id('coffee_machine')
+    coffee_machine_id = get_obj_id('coffeemachine')
     move_to(coffee_machine_id)
     put(coffee_machine_id)
     toggle_on(coffee_machine_id)
@@ -26,11 +26,19 @@ if apple_id:
     move_to(sinkbasin_id)
     faucet_id = get_obj_id('faucet')
     toggle_on(faucet_id)
+    if parse_question('isn\'t apple in hand?'):
+        move_to(apple_id)
+        pickup(apple_id)
+        move_to(sinkbasin_id)
     put(sinkbasin_id)
     toggle_off(faucet_id)
     pickup(apple_id)
     countertop_id = get_obj_id('countertop')
     move_to(countertop_id)
+    if parse_question('isn\'t apple in hand?'):
+        move_to(apple_id)
+        pickup(apple_id)
+        move_to(countertop_id)
     put(countertop_id)
 else:
     say("I can't find the apple.")
@@ -43,28 +51,16 @@ if lettuce_id:
     move_to(sinkbasin_id)
     faucet_id = get_obj_id('faucet')
     toggle_on(faucet_id)
+    if parse_question('isn\'t lettuce in hand?'):
+        move_to(lettuce_id)
+        pickup(lettuce_id)
+        move_to(sinkbasin_id)
     put(sinkbasin_id)
     toggle_off(faucet_id)
     pickup(lettuce_id)
     countertop_id = get_obj_id('countertop')
     move_to(countertop_id)
-    put(countertop_id)
-else:
-    say("I can't find the lettuce.")
-
-# wash all fork and spoon
-fork_id = get_obj_id('fork')
-if fork_id:
-    move_to(fork_id)
-    pickup(fork_id)
-    sinkbasin_id = get_obj_id('sinkbasin')
-    move_to(sinkbasin_id)
-    faucet_id = get_obj_id('faucet')
-    toggle_on(faucet_id)
-    put(sinkbasin_id)
-    toggle_off(faucet_id)
-    pickup(fork_id)
-    countertop_id = get_obj_id('countertop')
-    move_to(countertop_id)
-    put(counter
+    if parse_question('isn\'t lettuce in hand?'):
+        move_to(lettuce_id)
+        pickup(lett
 
