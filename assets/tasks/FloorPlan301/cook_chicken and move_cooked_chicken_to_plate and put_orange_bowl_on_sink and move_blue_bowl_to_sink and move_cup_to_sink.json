@@ -1,6 +1,6 @@
 [
   {
-    "Task": "Cook Chicken",
+    "Task": "Cook Chicken and Move to Plate",
     "Subtasks": [
       {
         "Name": "Place Pan on Stove",
@@ -85,70 +85,20 @@
     ]
   },
   {
-    "Task": "Do Laundry",
+    "Task": "Put Banana on Plate",
     "Subtasks": [
       {
-        "Name": "Start Laundry Machine",
+        "Name": "Place Banana on Plate",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Laundry_Machine": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Laundry_Machine",
-            "TOGGLE_ON Laundry_Machine"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 1
-        },
-        "TemporalConstraints": []
-      },
-      {
-        "Name": "Unload Laundry Machine",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Laundry_Machine": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Laundry_Machine",
-            "TOGGLE_OFF Laundry_Machine"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 1
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Start Laundry Machine",
-            "Interval": 20,
-            "Urgency": true
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "Task": "Move Sausage to Plate",
-    "Subtasks": [
-      {
-        "Name": "Place Sausage on Plate",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Sausage": 1,
+            "Banana": 1,
             "Plate": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Sausage",
-            "GRASP Sausage",
+            "NAVIGATE_TO Banana",
+            "GRASP Banana",
             "NAVIGATE_TO Plate",
             "PLACE_ON_TOP Plate"
           ]
@@ -162,22 +112,22 @@
     ]
   },
   {
-    "Task": "Put Orange Bowl on Sink",
+    "Task": "Move Items to Sink",
     "Subtasks": [
       {
-        "Name": "Place Orange Bowl on Sink",
+        "Name": "Move Orange Bowl to Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "orange_bowl": 1,
-            "Sink": 1
+            "Sink|SinkBasin": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO orange_bowl",
             "GRASP orange_bowl",
-            "NAVIGATE_TO Sink",
-            "PLACE_ON_TOP Sink"
+            "NAVIGATE_TO Sink|SinkBasin",
+            "PLACE_ON_TOP Sink|SinkBasin"
           ]
         },
         "Duration": {
@@ -185,26 +135,43 @@
           "Interval": 2
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Move Blue Bowl to Sink",
-    "Subtasks": [
+      },
       {
-        "Name": "Place Blue Bowl on Sink",
+        "Name": "Move Blue Bowl to Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "blue_bowl": 1,
-            "Sink": 1
+            "Sink|SinkBasin": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO blue_bowl",
             "GRASP blue_bowl",
-            "NAVIGATE_TO Sink",
-            "PLACE_ON_TOP Sink"
+            "NAVIGATE_TO Sink|SinkBasin",
+            "PLACE_ON_TOP Sink|SinkBasin"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      },
+      {
+        "Name": "Move Cup to Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cup": 1,
+            "Sink|SinkBasin": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Cup",
+            "GRASP Cup",
+            "NAVIGATE_TO Sink|SinkBasin",
+            "PLACE_ON_TOP Sink|SinkBasin"
           ]
         },
         "Duration": {
