@@ -554,7 +554,7 @@ class Scheduler:
             f"[_expand_single_wait] Subtask {candidate.subtask.name}'s navigation time: {nav_time}. ({target_obj_id})"
         )
 
-        if nav_time > 0.5 and candidate.is_critical:
+        if nav_time > 10 and candidate.is_critical:
             log.debug(
                 f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITH monitoring."
             )
@@ -593,12 +593,12 @@ class Scheduler:
             )
             return False
 
-        # # (2) If subtask is already decomposed => no monitoring needed
-        # if candidate.subtask.decomposed:
-        #     log.debug(
-        #         f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} is already decomposed => No monitoring."
-        #     )
-        #     return False
+        # (2) If subtask is already decomposed => no monitoring needed
+        if candidate.subtask.decomposed:
+            log.debug(
+                f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} is already decomposed => No monitoring."
+            )
+            return False
 
         # # (3) critical-constraint end => no
         # in_slots = self.constraint_handler.get_time_slots(
