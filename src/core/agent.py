@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 import networkx as nx
 import numpy as np
@@ -14,11 +14,9 @@ from src.utils.config.constants import (
     CRITICAL_OBJECT_INTERVALS,
     ESTIMATE_FILE_NAME,
     FACTOR_ALPHA,
-    GROUND_TRUTH_FILE_NAME,
     INIT_PRIOR_MEAN,
     INIT_PRIOR_VARIANCE,
     MIN_VARIANCE,
-    TIMING_TOLERANCE,
 )
 
 if TYPE_CHECKING:
