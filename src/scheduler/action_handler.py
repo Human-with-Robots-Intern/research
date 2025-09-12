@@ -17,7 +17,7 @@ from src.utils.config.constants import (
     REACHABLE_DISTANCE_THRESHOLD,
     REAL_NAV_DURATION,
     STATIC_ACTION_SET,
-    TIMING_TOLERANCE,
+    TASK_SPLIT_TIMING_TOLERANCE,
     TOGGLE_ACTION_DURATION,
 )
 
@@ -623,7 +623,7 @@ class ActionHandler:
                 # (조정 후 pre_log 완료 시간 - 목표 cutoff 시간) / 목표 cutoff 시간이 TIMING_TOLERANCE 이내인가?
                 # 또는, |조정 후 pre_log 완료 시간 - 목표 cutoff 시간| <= 목표 cutoff 시간 * TIMING_TOLERANCE
                 allowable_deviation = (
-                    max(EPSILON, target_cutoff_time) * TIMING_TOLERANCE
+                    max(EPSILON, target_cutoff_time) * TASK_SPLIT_TIMING_TOLERANCE
                 )
 
                 if (
@@ -667,7 +667,9 @@ class ActionHandler:
             split_successful = True
             # 추가적으로, pre_log의 최종 완료 시간이 target_cutoff_time 대비 TIMING_TOLERANCE를 만족하는지 확인
             final_pre_log_duration = pre_log.results[-1].cumulative_time
-            allowable_deviation = max(EPSILON, target_cutoff_time) * TIMING_TOLERANCE
+            allowable_deviation = (
+                max(EPSILON, target_cutoff_time) * TASK_SPLIT_TIMING_TOLERANCE
+            )
             if (
                 abs(final_pre_log_duration - target_cutoff_time)
                 > allowable_deviation + EPSILON

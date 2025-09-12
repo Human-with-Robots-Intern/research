@@ -20,8 +20,9 @@ from src.utils.config import BAYESIAN_CRITERIA, EPSILON, MONITORING_DURATION, RE
 from src.utils.config.constants import (
     BEAM_WIDTH,
     NAV_STEP_DURATION,
+    ON_TIME_CRITICAL_TOLERANCE,  # TIMING_TOLERANCE 대신 사용
     SIMULATION_DEPTH,
-    TIMING_TOLERANCE,
+    TASK_SPLIT_TIMING_TOLERANCE,
 )
 from src.utils.task import TaskUtil
 
@@ -236,9 +237,9 @@ class Scheduler:
                         candidate.logical_interaction_start_time
                         - physical_earliest_interaction_start_time
                     )
-                    / candidate.logical_interaction_start_time
-                    < TIMING_TOLERANCE
+                    < ON_TIME_CRITICAL_TOLERANCE
                 ):
+                    # 정시성 조건이 충족된 경우
                     log.debug(
                         f"[_expand_candidates] Policy 1: Found ON-TIME CRITICAL candidate: {candidate.subtask.name}."
                     )
@@ -904,8 +905,8 @@ class Scheduler:
 
         ideal_early_sub_duration = duration_for_early_sub_target
 
-        lower_bound = ideal_early_sub_duration * (1 - TIMING_TOLERANCE)
-        upper_bound = ideal_early_sub_duration * (1 + TIMING_TOLERANCE)
+        lower_bound = ideal_early_sub_duration * (1 - TASK_SPLIT_TIMING_TOLERANCE)
+        upper_bound = ideal_early_sub_duration * (1 + TASK_SPLIT_TIMING_TOLERANCE)
 
         if not (lower_bound <= actual_early_sub_duration <= upper_bound):
             log.info(

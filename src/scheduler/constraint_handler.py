@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import networkx as nx
 from networkx import DiGraph
@@ -15,11 +15,9 @@ from src.models.dataclass import (
     TimeSlot,
 )
 from src.models.task import Subtask
+from src.scheduler.action_handler import ActionHandler
 from src.utils.common import create_module_logger
 from src.utils.config import EPSILON
-from src.utils.config.constants import TIMING_TOLERANCE
-
-from src.scheduler.action_handler import ActionHandler
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
