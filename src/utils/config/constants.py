@@ -82,9 +82,18 @@ INIT_PRIOR_VARIANCE = 100.0
 FACTOR_ALPHA = 0.3
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
-TIMING_TOLERANCE = (
-    0.5  # when we do the simulation experiment, then set ths constant to 0.3
-)
+# 스케줄러의 정시성 판단 (절대값)
+ON_TIME_CRITICAL_THRESHOLD = 0.5  # 초
+
+# 작업 분할 허용 오차 (절대값)
+TASK_SPLIT_TOLERANCE = 1.0  # 초
+
+# 평가 기준 - 기본 물리적 오차 (절대값)
+EVALUATION_BASE_TOLERANCE = 0.1  # 초
+
+# 평가 기준 - 간격 비례 오차 (비율)
+EVALUATION_PROPORTIONAL_TOLERANCE = 0.05  # 5%
+
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 3
 BEAM_WIDTH = 3
