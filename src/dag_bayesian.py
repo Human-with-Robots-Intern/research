@@ -1,11 +1,10 @@
 import argparse
-import time
 from pathlib import Path
 from typing import Any, Dict
 
 from ai2thor.platform import CloudRendering
 
-from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
+from ithor.utils.math_utils import load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
@@ -13,7 +12,6 @@ from src.utils.ros_executor import RosExecutor
 from utils.common.logger import create_module_logger
 from utils.config import LOG_ROUND
 from utils.io_utils import (
-    get_natural_language_from_task_file,
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file,
@@ -28,14 +26,6 @@ log = create_module_logger(__name__, module_log=True)
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Task Scheduler")
-
-    parser.add_argument(
-        "-r",
-        "--reset",
-        default=True,
-        help="Reset the knowledge base to Gaussian",
-        action="store_true",
-    )
 
     parser.add_argument(
         "--log-level",
@@ -144,9 +134,6 @@ def main():
                 input_natural_language = task_file_name
 
         # Build tasks and constraints
-        # subtasks, constraints = TaskUtil.build_tasks_and_constraints(
-        #     task_data, scene_file_name=scene_data.file_name,
-        # )
         subtasks, constraints, bayesian_load = TaskUtil.build_tasks_and_constraints(
             task_data,
             scene_file_name=f"{scene_name}_physics_environment.json",
