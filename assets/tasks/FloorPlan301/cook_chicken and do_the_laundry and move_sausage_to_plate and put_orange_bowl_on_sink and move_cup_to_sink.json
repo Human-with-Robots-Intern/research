@@ -107,7 +107,7 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Unload Laundry Machine",
+        "Name": "Turn Off Laundry Machine",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -189,20 +189,20 @@
     ]
   },
   {
-    "Task": "Move Blue Bowl to Sink",
+    "Task": "Move Cup to Sink",
     "Subtasks": [
       {
-        "Name": "Place Blue Bowl on Sink",
+        "Name": "Place Cup on Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "blue_bowl": 1,
+            "Cup": 1,
             "Sink": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO blue_bowl",
-            "GRASP blue_bowl",
+            "NAVIGATE_TO Cup",
+            "GRASP Cup",
             "NAVIGATE_TO Sink",
             "PLACE_ON_TOP Sink"
           ]
