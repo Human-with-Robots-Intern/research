@@ -70,6 +70,25 @@ class Scheduler:
         self.cost_calculator = heuristic_manager
         self._counter = itertools.count()
 
+    # ---------------- Helper: Monitoring detection ----------------
+    def _is_monitoring_subtask(self, subtask: Subtask) -> bool:
+        """Return True if the given subtask is a monitoring subtask.
+
+        The detection first checks subtask_type equals 'MONITORING'. If that
+        metadata is unavailable, it falls back to checking the name prefix
+        'Monitoring'.
+
+        Args:
+            subtask: Subtask instance to check.
+
+        Returns:
+            True if the subtask is a monitoring subtask, otherwise False.
+        """
+        try:
+            return (subtask.subtask_type or "").upper() == "MONITORING"
+        except Exception:
+            return subtask.name.startswith("Monitoring")
+
     # ======================
     # Public method
     # ======================
@@ -209,6 +228,8 @@ class Scheduler:
         on_time_critical_candidate_to_expand: Optional[Candidate] = None
 
         for candidate in feasible_candidates:
+            if self._is_monitoring_subtask(candidate.subtask):
+                continue
             if candidate.is_critical:
                 if candidate.logical_interaction_start_time is None:
                     log.error(
@@ -268,6 +289,9 @@ class Scheduler:
 
         if feasible_candidates:  # feasible_candidates가 있을 때만 이 로직 수행
             for candidate in feasible_candidates:
+                if self._is_monitoring_subtask(candidate.subtask):
+                    other_feasible_candidates_for_later.append(candidate)
+                    continue
                 physical_earliest_interaction_start_time = (
                     curr_node.state.current_time
                     + candidate.estimated_first_nav_duration
@@ -366,6 +390,7 @@ class Scheduler:
             )
             other_feasible_candidates_for_later.sort(
                 key=lambda c: (
+                    1 if self._is_monitoring_subtask(c.subtask) else 0,
                     (
                         c.actual_interaction_start_time
                         if c.actual_interaction_start_time is not None
@@ -554,16 +579,19 @@ class Scheduler:
             f"[_expand_single_wait] Subtask {candidate.subtask.name}'s navigation time: {nav_time}. ({target_obj_id})"
         )
 
-        if nav_time > 0.5 and candidate.is_critical:
-            log.debug(
-                f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITH monitoring."
-            )
-            return self._expand_wait_with_monitoring(curr_node, candidate)
-        else:
-            log.debug(
-                f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITHOUT monitoring."
-            )
-            return self._expand_wait_wo_monitoring(curr_node, candidate)
+        # wait_duration = max(
+        #     0.0, candidate.actual_interaction_start_time - curr_node.state.current_time
+        # )
+        # if candidate.is_critical and (wait_duration >= MONITORING_DURATION):
+        #     log.debug(
+        #         f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITH monitoring."
+        #     )
+        #     return self._expand_wait_with_monitoring(curr_node, candidate)
+        # else:
+        log.debug(
+            f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITHOUT monitoring."
+        )
+        return self._expand_wait_wo_monitoring(curr_node, candidate)
 
     # ======================
     # Helper: 모니터링 필요한지
@@ -886,8 +914,8 @@ class Scheduler:
 
         ideal_early_sub_duration = duration_for_early_sub_target
 
-        lower_bound = ideal_early_sub_duration * (1 - TIMING_TOLERANCE)
-        upper_bound = ideal_early_sub_duration * (1 + TIMING_TOLERANCE)
+        lower_bound = ideal_early_sub_duration - 10
+        upper_bound = ideal_early_sub_duration + 10
 
         if not (lower_bound <= actual_early_sub_duration <= upper_bound):
             log.info(
@@ -1130,9 +1158,16 @@ class Scheduler:
             r for r in remaining_after_early_executed if r.name != original_task_name
         ]
 
-        if mon_sub_task_for_main_interval.name not in {
-            r.name for r in final_remaining_subtasks_list
-        }:
+        # Avoid duplicate monitoring for the same critical end (prefix match)
+        mon_prefix = f"Monitoring for {critical_end_sub_name}"
+        if not any(
+            (
+                getattr(r, "subtask_type", "").upper() == "MONITORING"
+                or r.name.startswith("Monitoring")
+            )
+            and r.name.startswith(mon_prefix)
+            for r in final_remaining_subtasks_list
+        ):
             final_remaining_subtasks_list.append(mon_sub_task_for_main_interval)
         if remain_sub_task and remain_sub_task.name not in {
             r.name for r in final_remaining_subtasks_list
@@ -1226,6 +1261,21 @@ class Scheduler:
             execution=Execution(objects=None, primitive_actions=nav_action),
             temporal_constraints=None,
         )
+
+        # Prevent duplicate monitoring creation for the same target subtask (prefix based)
+        mon_prefix = f"Monitoring for {candidate.subtask.name}"
+        if any(
+            (
+                getattr(r, "subtask_type", "").upper() == "MONITORING"
+                or r.name.startswith("Monitoring")
+            )
+            and r.name.startswith(mon_prefix)
+            for r in curr_state.remaining_subtasks
+        ):
+            log.debug(
+                f"[_expand_wait_with_monitoring] Monitoring for '{candidate.subtask.name}' already exists. Falling back to WAIT without monitoring."
+            )
+            return self._expand_wait_wo_monitoring(curr_node, candidate)
 
         mon_sub = TaskUtil.create_monitoring_subtask(
             name=candidate.subtask.name, obj=target_obj

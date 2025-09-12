@@ -6,13 +6,12 @@ import math
 from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
 
 import networkx as nx
-
-from scipy.sparse import csr_matrix # MST 계산에 필요할 수 있음
-from scipy.sparse.csgraph import minimum_spanning_tree # MST 계산에 필요할 수 있음
 import numpy as np  # 거리 계산 등에 사용될 수 있음
+from scipy.sparse import csr_matrix  # MST 계산에 필요할 수 있음
+from scipy.sparse.csgraph import minimum_spanning_tree  # MST 계산에 필요할 수 있음
 
-from src.utils.common import create_module_logger
 from src.models.dataclass import ActionResult, Candidate, SimulationNode
+from src.utils.common import create_module_logger
 from src.utils.config import (  # INIT_PRIOR_MEAN, # 더 이상 직접 사용하지 않거나, interaction 추정에 활용
     ALPHA_HEURISTIC,
     BETA_HEURISTIC,
@@ -460,6 +459,14 @@ class HeuristicManager:
             + self.beta * urgency_cost_for_candidate
             + self.gamma * remaining_work_cost
         )
+
+        # Monitoring tasks get a tiny penalty so ties favor real work
+        try:
+            stype = (candidate.subtask.subtask_type or "").upper()
+            if stype == "MONITORING" or candidate.subtask.name.startswith("Monitoring"):
+                total_heuristic_cost += 0.1
+        except Exception:
+            pass
 
         log.debug(
             f"  Heuristic for '{candidate.subtask.name}': "
