@@ -831,6 +831,42 @@ class Scheduler:
             f"CritEnd='{critical_end_sub_name}', OriginalInterval={original_critical_interval_duration:.2f}."
         )
 
+        # --- Minimal hotfix: cap monitoring occurrences per critical end ---
+        MAX_MON_PER_CRIT_END = 2
+        mon_prefix = f"Monitoring for {critical_end_sub_name}"
+        existing_mon_cnt = sum(
+            1
+            for r in curr_state.remaining_subtasks
+            if (
+                (
+                    ((getattr(r, "subtask_type", "") or "").upper() == "MONITORING")
+                    or r.name.startswith("Monitoring")
+                )
+                and (
+                    r.name.startswith(mon_prefix)
+                    or (
+                        r.name.startswith("Monitoring")
+                        and critical_end_sub_name in r.name
+                    )
+                )
+            )
+        ) + sum(
+            1
+            for ce in curr_state.completed_entries
+            if (
+                ce.subtask.name.startswith(mon_prefix)
+                or (
+                    ce.subtask.name.startswith("Monitoring")
+                    and critical_end_sub_name in ce.subtask.name
+                )
+            )
+        )
+        if existing_mon_cnt >= MAX_MON_PER_CRIT_END:
+            log.debug(
+                f"Monitoring cap reached ({existing_mon_cnt}) for '{critical_end_sub_name}'. Fallback to non-monitoring."
+            )
+            return self._expand_subtask_wo_monitoring(curr_node, candidate)
+
         # --- Phase 2: early_sub 실행 시간 계산 및 조정 (정책 2 - 1.1.3) ---
 
         original_absolute_monitoring_trigger_time = (
