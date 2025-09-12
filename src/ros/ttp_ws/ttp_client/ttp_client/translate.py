@@ -18,7 +18,9 @@ class InstructionTranslator:
         print(f"instruction: {instruction}")
         # 매번 불러와서 물체의 최신 위치를 가져와야함. 
         self.object_positions = json.load(open("src/ros/ttp_ws/data/object_positions.json"))
-        action, object= instruction.split(" ")        
+        
+        split_instruction= instruction.split(" ")        
+        action, object = split_instruction[0], split_instruction[1]
         action_id = self.action_mapping[action]        
         object_id = self.object_mapping[object.lower()]
         object_position = self.object_positions[object.lower()]
