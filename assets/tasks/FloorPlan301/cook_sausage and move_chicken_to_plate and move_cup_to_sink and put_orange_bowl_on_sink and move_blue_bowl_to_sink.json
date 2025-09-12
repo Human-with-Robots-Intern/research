@@ -1,6 +1,6 @@
 [
   {
-    "Task": "Cook Chicken",
+    "Task": "Cook Sausage",
     "Subtasks": [
       {
         "Name": "Place Pan on Stove",
@@ -25,18 +25,18 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Chicken in Pan and Start Stove",
+        "Name": "Place Sausage in Pan and Start Stove",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Chicken": 1,
+            "Sausage": 1,
             "Pan": 1,
             "Stove": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Chicken",
-            "GRASP Chicken",
+            "NAVIGATE_TO Sausage",
+            "GRASP Sausage",
             "NAVIGATE_TO Pan",
             "PLACE_INSIDE Pan",
             "NAVIGATE_TO Stove",
@@ -57,7 +57,7 @@
         ]
       },
       {
-        "Name": "Turn Off Stove after Cooking Chicken",
+        "Name": "Turn Off Stove after Cooking Sausage",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -76,8 +76,8 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Chicken in Pan and Start Stove",
-            "Interval": 15,
+            "Subtask": "Place Sausage in Pan and Start Stove",
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -85,72 +85,49 @@
     ]
   },
   {
-    "Task": "Do Laundry",
+    "Task": "Move Chicken to Plate",
     "Subtasks": [
       {
-        "Name": "Start Laundry Machine",
+        "Name": "Place Chicken on Plate",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Laundry_Machine": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Laundry_Machine",
-            "TOGGLE_ON Laundry_Machine"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 1
-        },
-        "TemporalConstraints": []
-      },
-      {
-        "Name": "Unload Laundry Machine",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Laundry_Machine": 1
-          },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Laundry_Machine",
-            "TOGGLE_OFF Laundry_Machine"
-          ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 1
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Start Laundry Machine",
-            "Interval": 20,
-            "Urgency": true
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "Task": "Move Sausage to Plate",
-    "Subtasks": [
-      {
-        "Name": "Place Sausage on Plate",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Sausage": 1,
+            "Chicken": 1,
             "Plate": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Sausage",
-            "GRASP Sausage",
+            "NAVIGATE_TO Chicken",
+            "GRASP Chicken",
             "NAVIGATE_TO Plate",
             "PLACE_ON_TOP Plate"
+          ]
+        },
+        "Duration": {
+          "Type": "Controllable",
+          "Interval": 2
+        },
+        "TemporalConstraints": []
+      }
+    ]
+  },
+  {
+    "Task": "Move Cup to Sink",
+    "Subtasks": [
+      {
+        "Name": "Place Cup in Sink",
+        "Repetition": 1,
+        "Type": "Interaction",
+        "Executions": {
+          "Objects": {
+            "Cup": 1,
+            "Sink": 1
+          },
+          "PrimitiveActions": [
+            "NAVIGATE_TO Cup",
+            "GRASP Cup",
+            "NAVIGATE_TO Sink",
+            "PLACE_INSIDE Sink"
           ]
         },
         "Duration": {
@@ -192,7 +169,7 @@
     "Task": "Move Blue Bowl to Sink",
     "Subtasks": [
       {
-        "Name": "Place Blue Bowl on Sink",
+        "Name": "Place Blue Bowl in Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -204,7 +181,7 @@
             "NAVIGATE_TO blue_bowl",
             "GRASP blue_bowl",
             "NAVIGATE_TO Sink",
-            "PLACE_ON_TOP Sink"
+            "PLACE_INSIDE Sink"
           ]
         },
         "Duration": {
