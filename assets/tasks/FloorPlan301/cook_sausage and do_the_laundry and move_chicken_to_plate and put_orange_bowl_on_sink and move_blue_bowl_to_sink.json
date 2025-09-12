@@ -1,6 +1,6 @@
 [
   {
-    "Task": "Cook Chicken",
+    "Task": "Cook Sausage",
     "Subtasks": [
       {
         "Name": "Place Pan on Stove",
@@ -25,18 +25,18 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Chicken in Pan and Start Stove",
+        "Name": "Place Sausage in Pan and Start Stove",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Chicken": 1,
+            "Sausage": 1,
             "Pan": 1,
             "Stove": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Chicken",
-            "GRASP Chicken",
+            "NAVIGATE_TO Sausage",
+            "GRASP Sausage",
             "NAVIGATE_TO Pan",
             "PLACE_INSIDE Pan",
             "NAVIGATE_TO Stove",
@@ -57,7 +57,7 @@
         ]
       },
       {
-        "Name": "Turn Off Stove after Cooking Chicken",
+        "Name": "Turn Off Stove after Cooking Sausage",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -76,8 +76,8 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Chicken in Pan and Start Stove",
-            "Interval": 15,
+            "Subtask": "Place Sausage in Pan and Start Stove",
+            "Interval": 10,
             "Urgency": true
           }
         ]
@@ -135,20 +135,20 @@
     ]
   },
   {
-    "Task": "Move Sausage to Plate",
+    "Task": "Move Chicken to Plate",
     "Subtasks": [
       {
-        "Name": "Place Sausage on Plate",
+        "Name": "Place Chicken on Plate",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Sausage": 1,
+            "Chicken": 1,
             "Plate": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Sausage",
-            "GRASP Sausage",
+            "NAVIGATE_TO Chicken",
+            "GRASP Chicken",
             "NAVIGATE_TO Plate",
             "PLACE_ON_TOP Plate"
           ]
@@ -162,7 +162,7 @@
     ]
   },
   {
-    "Task": "Put Orange Bowl on Sink",
+    "Task": "Move Orange Bowl to Sink",
     "Subtasks": [
       {
         "Name": "Place Orange Bowl on Sink",

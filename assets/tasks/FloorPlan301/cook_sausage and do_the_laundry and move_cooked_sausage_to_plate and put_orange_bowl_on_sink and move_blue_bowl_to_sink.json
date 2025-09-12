@@ -1,9 +1,9 @@
 [
   {
-    "Task": "Cook Chicken",
+    "Task": "Cook Sausage and Do Laundry",
     "Subtasks": [
       {
-        "Name": "Place Pan on Stove",
+        "Name": "Prepare Pan for Sausage",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -25,18 +25,18 @@
         "TemporalConstraints": []
       },
       {
-        "Name": "Place Chicken in Pan and Start Stove",
+        "Name": "Cook Sausage",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Chicken": 1,
+            "Sausage": 1,
             "Pan": 1,
             "Stove": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Chicken",
-            "GRASP Chicken",
+            "NAVIGATE_TO Sausage",
+            "GRASP Sausage",
             "NAVIGATE_TO Pan",
             "PLACE_INSIDE Pan",
             "NAVIGATE_TO Stove",
@@ -50,14 +50,14 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Pan on Stove",
+            "Subtask": "Prepare Pan for Sausage",
             "Interval": 0,
             "Urgency": true
           }
         ]
       },
       {
-        "Name": "Turn Off Stove after Cooking Chicken",
+        "Name": "Turn Off Stove after Cooking Sausage",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
@@ -76,79 +76,74 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Place Chicken in Pan and Start Stove",
-            "Interval": 15,
+            "Subtask": "Cook Sausage",
+            "Interval": 10,
             "Urgency": true
           }
         ]
-      }
-    ]
-  },
-  {
-    "Task": "Do Laundry",
-    "Subtasks": [
+      },
       {
-        "Name": "Start Laundry Machine",
+        "Name": "Start laundry_machine",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Laundry_Machine": 1
+            "laundry_machine": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Laundry_Machine",
-            "TOGGLE_ON Laundry_Machine"
+            "NAVIGATE_TO laundry_machine",
+            "TOGGLE_ON laundry_machine"
           ]
         },
         "Duration": {
           "Type": "Controllable",
-          "Interval": 1
+          "Interval": 3
         },
         "TemporalConstraints": []
       },
       {
-        "Name": "Unload Laundry Machine",
-        "Repetition": 1,
-        "Type": "Interaction",
-        "Executions": {
-          "Objects": {
-            "Laundry_Machine": 1
+          "Name": "Unload Laundry Machine",
+          "Repetition": 1,
+          "Type": "Interaction",
+          "Executions": {
+              "Objects": {
+                  "Laundry_Machine": 1
+              },
+              "PrimitiveActions": [
+                  "NAVIGATE_TO Laundry_Machine",
+                  "TOGGLE_OFF Laundry_Machine"
+              ]
           },
-          "PrimitiveActions": [
-            "NAVIGATE_TO Laundry_Machine",
-            "TOGGLE_OFF Laundry_Machine"
+          "Duration": {
+              "Type": "Controllable",
+              "Interval": 1
+          },
+          "TemporalConstraints": [
+              {
+                  "Type": "After",
+                  "Subtask": "Start Laundry Machine",
+                  "Interval": 20,
+                  "Urgency": true
+              }
           ]
-        },
-        "Duration": {
-          "Type": "Controllable",
-          "Interval": 1
-        },
-        "TemporalConstraints": [
-          {
-            "Type": "After",
-            "Subtask": "Start Laundry Machine",
-            "Interval": 20,
-            "Urgency": true
-          }
-        ]
       }
     ]
   },
   {
-    "Task": "Move Sausage to Plate",
+    "Task": "Put Banana on Plate",
     "Subtasks": [
       {
-        "Name": "Place Sausage on Plate",
+        "Name": "Place Banana on Plate",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
-            "Sausage": 1,
+            "Banana": 1,
             "Plate": 1
           },
           "PrimitiveActions": [
-            "NAVIGATE_TO Sausage",
-            "GRASP Sausage",
+            "NAVIGATE_TO Banana",
+            "GRASP Banana",
             "NAVIGATE_TO Plate",
             "PLACE_ON_TOP Plate"
           ]
@@ -162,7 +157,7 @@
     ]
   },
   {
-    "Task": "Put Orange Bowl on Sink",
+    "Task": "Move Bowls to Sink",
     "Subtasks": [
       {
         "Name": "Place Orange Bowl on Sink",
@@ -171,13 +166,13 @@
         "Executions": {
           "Objects": {
             "orange_bowl": 1,
-            "Sink": 1
+            "Sink|SinkBasin": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO orange_bowl",
             "GRASP orange_bowl",
-            "NAVIGATE_TO Sink",
-            "PLACE_ON_TOP Sink"
+            "NAVIGATE_TO Sink|SinkBasin",
+            "PLACE_ON_TOP Sink|SinkBasin"
           ]
         },
         "Duration": {
@@ -185,26 +180,21 @@
           "Interval": 2
         },
         "TemporalConstraints": []
-      }
-    ]
-  },
-  {
-    "Task": "Move Blue Bowl to Sink",
-    "Subtasks": [
+      },
       {
-        "Name": "Place Blue Bowl on Sink",
+        "Name": "Move Blue Bowl to Sink",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {
           "Objects": {
             "blue_bowl": 1,
-            "Sink": 1
+            "Sink|SinkBasin": 1
           },
           "PrimitiveActions": [
             "NAVIGATE_TO blue_bowl",
             "GRASP blue_bowl",
-            "NAVIGATE_TO Sink",
-            "PLACE_ON_TOP Sink"
+            "NAVIGATE_TO Sink|SinkBasin",
+            "PLACE_ON_TOP Sink|SinkBasin"
           ]
         },
         "Duration": {
