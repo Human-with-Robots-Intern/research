@@ -18,6 +18,7 @@ from src.models.task import Subtask
 from src.scheduler.action_handler import ActionHandler
 from src.utils.common import create_module_logger
 from src.utils.config import EPSILON
+from src.utils.config.constants import ON_TIME_CRITICAL_TOLERANCE
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
@@ -272,7 +273,10 @@ class ConstraintHandler:
                 # 하나의 Subtask u,v pair 간 복수의 Critical 제약이 존재하는 경우,
                 earliest_critical_time = min(critical_times)
                 latest_critical_time = max(critical_times)
-                if abs(earliest_critical_time - latest_critical_time) > EPSILON:
+                if (
+                    abs(earliest_critical_time - latest_critical_time)
+                    > ON_TIME_CRITICAL_TOLERANCE
+                ):
                     log.error(
                         f"CRITICAL CONSTRAINT CONFLICT for '{sub.name}': Multiple distinct critical start times required: {sorted(critical_times)}. Check constraint logic."
                     )
@@ -284,11 +288,12 @@ class ConstraintHandler:
                 is_final_critical = True
                 if (
                     not tc_conflict_detected
-                    and EPSILON < non_critical_earliest_start - final_start_time
+                    and (non_critical_earliest_start - final_start_time)
+                    > ON_TIME_CRITICAL_TOLERANCE
                 ):
                     log.error(
                         f"CRITICAL/NON-CRITICAL CONFLICT for '{sub.name}': Required critical start {final_start_time:.2f} "
-                        f"is EARLIER than latest non-critical requirement {non_critical_earliest_start:.2f}. Check constraint logic."
+                        f"is EARLIER than latest non-critical requirement {non_critical_earliest_start:.2f} beyond tolerance ({ON_TIME_CRITICAL_TOLERANCE:.2f}s)."
                     )
                     tc_conflict_detected = True
                 if tc_conflict_detected:

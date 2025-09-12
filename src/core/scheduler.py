@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, List, Optional
 
 from src.models.dataclass import (
     ActionResult,
-    ActionSimulationLog,
     Candidate,
     CompletedEntry,
     SchedulerState,
@@ -20,9 +19,9 @@ from src.utils.config import BAYESIAN_CRITERIA, EPSILON, MONITORING_DURATION, RE
 from src.utils.config.constants import (
     BEAM_WIDTH,
     NAV_STEP_DURATION,
-    ON_TIME_CRITICAL_TOLERANCE,  # TIMING_TOLERANCE 대신 사용
+    ON_TIME_CRITICAL_TOLERANCE,
     SIMULATION_DEPTH,
-    TASK_SPLIT_TIMING_TOLERANCE,
+    TASK_SPLIT_TOLERANCE,
 )
 from src.utils.task import TaskUtil
 
@@ -905,8 +904,9 @@ class Scheduler:
 
         ideal_early_sub_duration = duration_for_early_sub_target
 
-        lower_bound = ideal_early_sub_duration * (1 - TASK_SPLIT_TIMING_TOLERANCE)
-        upper_bound = ideal_early_sub_duration * (1 + TASK_SPLIT_TIMING_TOLERANCE)
+        allowable_abs_deviation = TASK_SPLIT_TOLERANCE
+        lower_bound = ideal_early_sub_duration - allowable_abs_deviation
+        upper_bound = ideal_early_sub_duration + allowable_abs_deviation
 
         if not (lower_bound <= actual_early_sub_duration <= upper_bound):
             log.info(
@@ -918,7 +918,7 @@ class Scheduler:
 
         log.debug(
             f"[_expand_subtask_with_monitoring] Subtask '{original_task_name}' (actual early_duration: {actual_early_sub_duration:.2f}) "
-            f"meets timing tolerance for ideal early_duration ({ideal_early_sub_duration:.2f}). Proceeding with monitoring split."
+            f"meets timing tolerance for ideal early_duration ({ideal_early_sub_duration:.2f}) within +/- {allowable_abs_deviation:.2f}s. Proceeding with monitoring split."
         )
 
         # --- Phase 3: early_sub 확장 및 실제 모니터링 시점 결정 ---

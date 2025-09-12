@@ -17,7 +17,7 @@ from src.utils.config.constants import (
     REACHABLE_DISTANCE_THRESHOLD,
     REAL_NAV_DURATION,
     STATIC_ACTION_SET,
-    TASK_SPLIT_TIMING_TOLERANCE,
+    TASK_SPLIT_TOLERANCE,
     TOGGLE_ACTION_DURATION,
 )
 
@@ -622,9 +622,7 @@ class ActionHandler:
                 # TIMING_TOLERANCE 검사
                 # (조정 후 pre_log 완료 시간 - 목표 cutoff 시간) / 목표 cutoff 시간이 TIMING_TOLERANCE 이내인가?
                 # 또는, |조정 후 pre_log 완료 시간 - 목표 cutoff 시간| <= 목표 cutoff 시간 * TIMING_TOLERANCE
-                allowable_deviation = (
-                    max(EPSILON, target_cutoff_time) * TASK_SPLIT_TIMING_TOLERANCE
-                )
+                allowable_deviation = TASK_SPLIT_TOLERANCE
 
                 if (
                     abs(duration_if_place_included - target_cutoff_time)
@@ -640,7 +638,7 @@ class ActionHandler:
                 else:
                     log.warning(
                         f"Found subsequent PLACE action, but including it would make pre_log duration ({duration_if_place_included:.2f}) "
-                        f"exceed target_cutoff_time ({target_cutoff_time:.2f}) beyond TIMING_TOLERANCE (allowable deviation: {allowable_deviation:.2f}). "
+                        f"exceed target_cutoff_time ({target_cutoff_time:.2f}) beyond allowable absolute tolerance ({allowable_deviation:.2f}s). "
                         f"Splitting after GRASP at index {initial_split_index}."
                     )
                     # GRASP/PLACE 묶기 포기, 초기 분할 지점 유지.
@@ -667,16 +665,14 @@ class ActionHandler:
             split_successful = True
             # 추가적으로, pre_log의 최종 완료 시간이 target_cutoff_time 대비 TIMING_TOLERANCE를 만족하는지 확인
             final_pre_log_duration = pre_log.results[-1].cumulative_time
-            allowable_deviation = (
-                max(EPSILON, target_cutoff_time) * TASK_SPLIT_TIMING_TOLERANCE
-            )
+            allowable_deviation = TASK_SPLIT_TOLERANCE
             if (
                 abs(final_pre_log_duration - target_cutoff_time)
                 > allowable_deviation + EPSILON
             ):  # EPSILON 추가는 부동소수점 오차 감안
                 log.warning(
                     f"Final pre_log duration {final_pre_log_duration:.2f} significantly deviates from target_cutoff_time {target_cutoff_time:.2f} "
-                    f"(allowable deviation: {allowable_deviation:.2f}). This split might be suboptimal."
+                    f"(allowable absolute deviation: {allowable_deviation:.2f}s). This split might be suboptimal."
                 )
                 # 이 경우, split_successful을 False로 설정하여 상위에서 fallback하도록 할 수도 있음.
                 # split_successful = False # 정책에 따라 주석 해제 또는 변경
