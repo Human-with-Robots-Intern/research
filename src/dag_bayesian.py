@@ -25,8 +25,14 @@ from utils.task import TaskUtil
 log = create_module_logger(__name__, module_log=True)
 
 
-def parse_arguments():
-    """Parse command-line arguments."""
+def parse_arguments() -> argparse.Namespace:
+    """Parse CLI arguments for the DAG-Bayesian scheduler.
+
+    Returns:
+        argparse.Namespace: Parsed arguments including flags for reset, log level,
+            scene name, instruction (natural language or numeric index), simulation,
+            ROS, cloud rendering, and log file path.
+    """
     parser = argparse.ArgumentParser(description="Task Scheduler")
 
     parser.add_argument(
@@ -47,7 +53,7 @@ def parse_arguments():
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan419",
+        default="FloorPlan1",
         help="input scene name (default: FloorPlan1)",
     )
     parser.add_argument(
@@ -83,8 +89,27 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def main():
-    """Main entry point for the Task Scheduler."""
+def main() -> None:
+    """Run the DAG-Bayesian scheduling pipeline.
+
+    This function performs the following high-level steps:
+        1) Parse CLI arguments.
+        2) Initialize AI2-THOR controller or ROS executor depending on flags.
+        3) Load task specification from user selection or natural language input.
+        4) Build subtasks and constraints and obtain the initial state.
+        5) Iterate scheduling to compute next states and, if enabled, execute
+           subtasks in simulation (AI2-THOR) or via ROS, applying Bayesian
+           monitoring for 'Monitor' subtasks.
+        6) Save the final schedule and metadata to result storage.
+
+    Notes:
+        When both '--simulation' and '--ros' are disabled, the loop will still
+        compute state transitions without side effects. '--instruction' may be a
+        natural language string or a numeric index in string form.
+
+    Raises:
+        Exception: Any unexpected error is propagated after resource cleanup.
+    """
     args = parse_arguments()
     approach_name = "dag_bayesian"
     logger = create_module_logger(
@@ -197,7 +222,7 @@ def main():
                 last_entry.execution_status = execution_status
                 last_entry.sim_nav_time = sim_nav_time
                 total_sim_time += sim_elapsed_time
-                if next_state.subtask.subtask_type == "Monitor":
+                if ((getattr(next_state.subtask, "subtask_type", "") or "").upper() == "MONITORING") or next_state.subtask.name.startswith("Monitoring"):
 
                     next_state, monitored_subtask = agent.bayesian_estimate(next_state)
                     next_state.completed_entries[-1].monitored_subtask = (
