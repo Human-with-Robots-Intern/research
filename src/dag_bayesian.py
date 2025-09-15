@@ -47,7 +47,7 @@ def parse_arguments():
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan419",
+        default="FloorPlan1",
         help="input scene name (default: FloorPlan1)",
     )
     parser.add_argument(
