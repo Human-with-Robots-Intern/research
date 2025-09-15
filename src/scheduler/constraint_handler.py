@@ -15,11 +15,10 @@ from src.models.dataclass import (
     TimeSlot,
 )
 from src.models.task import Subtask
+from src.scheduler.action_handler import ActionHandler
 from src.utils.common import create_module_logger
 from src.utils.config import EPSILON
 from src.utils.config.constants import TIMING_TOLERANCE
-
-from src.scheduler.action_handler import ActionHandler
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
@@ -275,27 +274,21 @@ class ConstraintHandler:
                 earliest_critical_time = min(critical_times)
                 latest_critical_time = max(critical_times)
                 if abs(earliest_critical_time - latest_critical_time) > EPSILON:
-                    log.error(
-                        f"CRITICAL CONSTRAINT CONFLICT for '{sub.name}': Multiple distinct critical start times required: {sorted(critical_times)}. Check constraint logic."
+                    # Do not break scheduling; resolve to earliest to honor the tightest window
+                    log.warning(
+                        f"CRITICAL CONSTRAINT MULTI-START for '{sub.name}': candidates={sorted(critical_times)} -> resolved={earliest_critical_time:.2f}"
                     )
-                    tc_conflict_detected = True
-
+                    final_start_time = earliest_critical_time
                 else:
                     final_start_time = earliest_critical_time
 
                 is_final_critical = True
-                if (
-                    not tc_conflict_detected
-                    and EPSILON < non_critical_earliest_start - final_start_time
-                ):
-                    log.error(
-                        f"CRITICAL/NON-CRITICAL CONFLICT for '{sub.name}': Required critical start {final_start_time:.2f} "
-                        f"is EARLIER than latest non-critical requirement {non_critical_earliest_start:.2f}. Check constraint logic."
+                if EPSILON < non_critical_earliest_start - final_start_time:
+                    # Prefer the stricter (later) non-critical requirement without failing scheduling
+                    log.warning(
+                        f"CRITICAL/NON-CRITICAL TENSION for '{sub.name}': crit_start {final_start_time:.2f} earlier than non-critical {non_critical_earliest_start:.2f}. Using non-critical."
                     )
-                    tc_conflict_detected = True
-                if tc_conflict_detected:
-                    log.error(f"Final status for '{sub.name}': CONFLICT")
-                    return None, True, "CONFLICT"
+                    final_start_time = non_critical_earliest_start
             else:
                 final_start_time = non_critical_earliest_start
                 is_final_critical = False
