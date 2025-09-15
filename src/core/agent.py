@@ -48,17 +48,14 @@ class Agent:
         """
         메모리 상의 knowledge와 constraints 그래프를 업데이트합니다.
         """
-        # Key가 없는 경우를 대비하여 먼저 확인하고, 없으면 생성
-        if monitoring_target_obj_name not in self.estimate_knowledge:
-            self.estimate_knowledge[monitoring_target_obj_name] = {}
+        # Key가 없는 경우를 대비하여 먼저 확인하고, 없으면 생성 (소문자 키 표준화)
+        key = monitoring_target_obj_name.lower() if isinstance(monitoring_target_obj_name, str) else monitoring_target_obj_name
+        if key not in self.estimate_knowledge:
+            self.estimate_knowledge[key] = {}
 
         # 1) 메모리 내 knowledge 업데이트
-        self.estimate_knowledge[monitoring_target_obj_name][
-            "expected_duration"
-        ] = posterior_mean
-        self.estimate_knowledge[monitoring_target_obj_name][
-            "variance"
-        ] = posterior_variance
+        self.estimate_knowledge[key]["expected_duration"] = posterior_mean
+        self.estimate_knowledge[key]["variance"] = posterior_variance
 
         with open(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME, "w") as f:
             json.dump(self.estimate_knowledge, f, indent=4)
@@ -105,7 +102,9 @@ class Agent:
         prior_variance = INIT_PRIOR_VARIANCE
 
         if obj_name in CRITICAL_OBJECT_INTERVALS:
-            known_data = self.estimate_knowledge.get(obj_name)
+            known_data = self.estimate_knowledge.get(obj_name) or self.estimate_knowledge.get(
+                obj_name.lower() if isinstance(obj_name, str) else obj_name, {}
+            )
             mean_val = known_data.get("expected_duration", INIT_PRIOR_MEAN)
             var_val = known_data.get("variance", INIT_PRIOR_VARIANCE)
 
