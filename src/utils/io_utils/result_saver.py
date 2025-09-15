@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from src.models.dataclass import CompletedEntry
 
 from src.utils.common.logger import create_module_logger
-from src.utils.config.constants import INIT_PRIOR_MEAN, RESULT_PATH
+from src.utils.config.constants import INIT_PRIOR_MEAN, RESULT_PATH, TIMING_TOLERANCE
 from src.utils.visualizers.visualizer import visualize
 
 log = create_module_logger(__name__, module_log=True, level=logging.INFO)
@@ -118,7 +118,7 @@ def calculate_timing_success_rate(
         sim_nav_time = (
             succ_entry.sim_nav_time if succ_entry.sim_nav_time is not None else 0.0
         )
-        tolerance = 10.0
+        tolerance = 0.1 + interval * TIMING_TOLERANCE
 
         actual_diff_sim = (succ_start_time_sim + sim_nav_time) - pred_end_time_sim
 
@@ -141,19 +141,15 @@ def calculate_timing_success_rate(
         # --- Check timing constraints for schedule results ---
         pred_end_time_sched = pred_entry.schedule_end_time
         succ_start_time_sched = succ_entry.schedule_start_time
-        schedule_nav_time = (
-            succ_entry.schedule_nav_time
-            if succ_entry.schedule_nav_time is not None
-            else 0.0
-        )
 
-        actual_diff_sched = (
-            succ_start_time_sched + schedule_nav_time
-        ) - pred_end_time_sched
+        # Pure start-to-end difference for schedule validation
+        actual_diff_sched = succ_start_time_sched - pred_end_time_sched
 
         if is_critical:
             if interval == 0:
-                succeeded_timing_constraints_sched_cnt += 1
+                # 0-interval must be within tolerance (no auto-pass)
+                if abs(actual_diff_sched) <= tolerance:
+                    succeeded_timing_constraints_sched_cnt += 1
             else:
                 if abs(interval - actual_diff_sched) <= tolerance:
                     succeeded_timing_constraints_sched_cnt += 1
@@ -164,11 +160,11 @@ def calculate_timing_success_rate(
         # --- Logging ---
         log.info(f"Original Timing Constraint : {u} -> {v} ({interval}, {is_critical})")
         log.info(
-            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched+schedule_nav_time}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s\n\n"
+            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s\n\n"
         )
         detail_log[f"{u} -> {v}"] = {
             "Original Timing Constraint": f"({interval}, {is_critical})",
-            "Schedule Result": f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched}s-{-schedule_nav_time}s)",
+            "Schedule Result": f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched}s)",
         }
 
     timing_success_rate_sim = (
