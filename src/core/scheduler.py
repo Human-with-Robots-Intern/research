@@ -405,10 +405,20 @@ class Scheduler:
             )
             for other_candidate in other_feasible_candidates_for_later:
                 # AST 설정은 위에서 이미 처리되었을 것임 (Future Critical, Non-Critical 모두)
+                safe_ast = (
+                    other_candidate.actual_interaction_start_time
+                    if other_candidate.actual_interaction_start_time is not None
+                    else float("inf")
+                )
+                safe_lst = (
+                    other_candidate.logical_interaction_start_time
+                    if other_candidate.logical_interaction_start_time is not None
+                    else float("inf")
+                )
                 log.debug(
                     f"[_expand_candidates] Stage 2.2: Expanding candidate: {other_candidate.subtask.name} "
-                    f"at AST: {other_candidate.actual_interaction_start_time:.2f} "
-                    f"(LST: {other_candidate.logical_interaction_start_time:.2f}, Critical: {other_candidate.is_critical})."
+                    f"at AST: {safe_ast:.2f} "
+                    f"(LST: {safe_lst:.2f}, Critical: {other_candidate.is_critical})."
                 )
                 child_node = self._expand_single_subtask(curr_node, other_candidate)
                 if child_node is not None:
@@ -691,7 +701,7 @@ class Scheduler:
             candidate.scheduling_due
             and candidate.scheduling_due.due_date <= planned_subtask_completion_time
         ):
-            # 현재 candidate의 완료 시간이 due_date를 넘는 경우에는 Infeasible case; 확장 불가
+            # 현재 candidate의 완료 + handoff 네비 시간이 due_date를 넘는 경우에는 Infeasible case; 확장 불가
             log.warning(
                 f"Scheduling due {candidate.scheduling_due.due_date:.2f} < "
                 f"planned_subtask_completion_time {planned_subtask_completion_time:.2f} for {original_task_name}. Infeasible."
@@ -1019,19 +1029,36 @@ class Scheduler:
             if post_actions_log and post_actions_log.results
             else []
         )
-        if not remain_sub_actions[0].startswith("NAVIGATE_TO"):
-            if remain_sub_actions[0].split()[1] in curr_state.scene_positions:
-                remain_sub_actions = [
-                    f"NAVIGATE_TO {remain_sub_actions[0].split()[1]}"
-                ] + remain_sub_actions
-            else:
-                remain_sub_actions = [
-                    f"NAVIGATE_TO {remain_sub_actions[1].split()[1]}"
-                ] + remain_sub_actions
-        elif remain_sub_actions[0].startswith("WAIT"):
-            remain_sub_actions = [
-                f"NAVIGATE_TO {remain_sub_actions[1].split()[1]}"
-            ] + remain_sub_actions
+        # Guard: empty remain_sub_actions
+        if remain_sub_actions:
+            if not remain_sub_actions[0].startswith("NAVIGATE_TO"):
+                # choose a plausible target safely
+                target_idx = 0 if len(remain_sub_actions) > 0 else None
+                if target_idx is not None:
+                    first_tokens = remain_sub_actions[target_idx].split()
+                    target_id = first_tokens[1] if len(first_tokens) > 1 else None
+                    if target_id and target_id in curr_state.scene_positions:
+                        remain_sub_actions = [
+                            f"NAVIGATE_TO {target_id}"
+                        ] + remain_sub_actions
+                    elif len(remain_sub_actions) > 1:
+                        second_tokens = remain_sub_actions[1].split()
+                        target_id2 = (
+                            second_tokens[1] if len(second_tokens) > 1 else None
+                        )
+                        if target_id2:
+                            remain_sub_actions = [
+                                f"NAVIGATE_TO {target_id2}"
+                            ] + remain_sub_actions
+            elif (
+                remain_sub_actions[0].startswith("WAIT") and len(remain_sub_actions) > 1
+            ):
+                second_tokens = remain_sub_actions[1].split()
+                target_id2 = second_tokens[1] if len(second_tokens) > 1 else None
+                if target_id2:
+                    remain_sub_actions = [
+                        f"NAVIGATE_TO {target_id2}"
+                    ] + remain_sub_actions
 
         if remain_sub_actions:
             remain_sub_task = copy.deepcopy(candidate.subtask)
