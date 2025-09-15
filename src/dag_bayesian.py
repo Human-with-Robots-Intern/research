@@ -222,7 +222,10 @@ def main() -> None:
                 last_entry.execution_status = execution_status
                 last_entry.sim_nav_time = sim_nav_time
                 total_sim_time += sim_elapsed_time
-                if ((getattr(next_state.subtask, "subtask_type", "") or "").upper() == "MONITORING") or next_state.subtask.name.startswith("Monitoring"):
+                if (
+                    (getattr(next_state.subtask, "subtask_type", "") or "").upper()
+                    == "MONITORING"
+                ) or next_state.subtask.name.startswith("Monitoring"):
 
                     next_state, monitored_subtask = agent.bayesian_estimate(next_state)
                     next_state.completed_entries[-1].monitored_subtask = (

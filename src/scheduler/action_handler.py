@@ -304,11 +304,15 @@ class ActionHandler:
 
             # 이동할 스텝 수 계산 (올림/내림 정책 확인 필요, 여기선 내림 사용)
             steps_can_take = int(math.floor(partial_duration / NAV_STEP_DURATION))
+            # 전체 경로 처리와의 일관성을 위해 시작 노드 제거
+            path_for_partial = navigate_path[:] if navigate_path else []
+            if path_for_partial:
+                path_for_partial.pop(0)
             # 경로 길이 내에서만 이동 가능
-            actual_steps = min(steps_can_take, len(navigate_path))
+            actual_steps = min(steps_can_take, len(path_for_partial))
 
-            if navigate_path and actual_steps > 0:
-                new_agent_pos = navigate_path[actual_steps - 1]
+            if path_for_partial and actual_steps > 0:
+                new_agent_pos = path_for_partial[actual_steps - 1]
             else:
                 new_agent_pos = agent_pos
             success = True  # 부분 시간 이동은 일단 성공으로 간주
