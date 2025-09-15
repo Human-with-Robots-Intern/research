@@ -448,7 +448,7 @@ class TaskUtil:
                 total_time=MONITORING_DURATION,
             ),
             repetition=1,
-            subtask_type="Monitor",
+            subtask_type="MONITORING",
             execution=Execution(objects=[obj], primitive_actions=monitoring_action),
             temporal_constraints=None,
             decomposed=True,
