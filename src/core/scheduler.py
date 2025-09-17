@@ -659,16 +659,16 @@ class Scheduler:
             planned_nav_start_time + total_subtask_duration_from_sim
         )
 
-        if (
-            candidate.scheduling_due
-            and candidate.scheduling_due.due_date <= planned_subtask_completion_time
-        ):
-            # 현재 candidate의 완료 시간이 due_date를 넘는 경우에는 Infeasible case; 확장 불가
-            log.warning(
-                f"Scheduling due {candidate.scheduling_due.due_date:.2f} < "
-                f"planned_subtask_completion_time {planned_subtask_completion_time:.2f} for {original_task_name}. Infeasible."
-            )
-            return None
+        # if (
+        #     candidate.scheduling_due
+        #     and candidate.scheduling_due.due_date <= planned_subtask_completion_time
+        # ):
+        #     # 현재 candidate의 완료 시간이 due_date를 넘는 경우에는 Infeasible case; 확장 불가
+        #     log.warning(
+        #         f"Scheduling due {candidate.scheduling_due.due_date:.2f} < "
+        #         f"planned_subtask_completion_time {planned_subtask_completion_time:.2f} for {original_task_name}. Infeasible."
+        #     )
+        #     return None
 
         copied_sub = copy.deepcopy(candidate.subtask)
         copied_sub.duration.total_time = total_subtask_duration_from_sim
