@@ -75,12 +75,8 @@ def calculate_timing_success_rate(
         - The timing success rate for the schedule (float | None).
         - A dictionary with detailed logging information.
     """
-    try:
-        from src.utils.config.constants import GT_INTERVAL
-    except ImportError:
-        # GT_INTERVAL will be added to constants in the future
-        # Using a default value for now
-        GT_INTERVAL = 60.0  # Default ground truth interval value
+
+    from src.utils.config.constants import GT_INTERVAL
 
     total_timing_constraints = 0
     succeeded_timing_constraints_sim_cnt = 0

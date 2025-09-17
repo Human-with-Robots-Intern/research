@@ -196,7 +196,7 @@ class Agent:
             bayesian_diff = float("inf") if posterior_mean != 0 else 0.0
 
         log.info(f"bayesian_diff: {bayesian_diff}")
-        if bayesian_diff > 0.1:
+        if bayesian_diff:
             self._update_knowledge_and_constraints(
                 state=state,
                 monitoring_target_obj_name=monitoring_target_obj_name,

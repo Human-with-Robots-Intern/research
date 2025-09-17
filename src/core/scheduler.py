@@ -554,16 +554,16 @@ class Scheduler:
             f"[_expand_single_wait] Subtask {candidate.subtask.name}'s navigation time: {nav_time}. ({target_obj_id})"
         )
 
-        if nav_time > 10 and candidate.is_critical:
-            log.debug(
-                f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITH monitoring."
-            )
-            return self._expand_wait_with_monitoring(curr_node, candidate)
-        else:
-            log.debug(
-                f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITHOUT monitoring."
-            )
-            return self._expand_wait_wo_monitoring(curr_node, candidate)
+        # if nav_time > 10 and candidate.is_critical:
+        #     log.debug(
+        #         f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITH monitoring."
+        #     )
+        #     return self._expand_wait_with_monitoring(curr_node, candidate)
+        # else:
+        #     log.debug(
+        #         f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITHOUT monitoring."
+        #     )
+        return self._expand_wait_wo_monitoring(curr_node, candidate)
 
     # ======================
     # Helper: 모니터링 필요한지
@@ -886,8 +886,8 @@ class Scheduler:
 
         ideal_early_sub_duration = duration_for_early_sub_target
 
-        lower_bound = ideal_early_sub_duration * (1 - TIMING_TOLERANCE)
-        upper_bound = ideal_early_sub_duration * (1 + TIMING_TOLERANCE)
+        lower_bound = ideal_early_sub_duration - 10
+        upper_bound = ideal_early_sub_duration + 10
 
         if not (lower_bound <= actual_early_sub_duration <= upper_bound):
             log.info(
