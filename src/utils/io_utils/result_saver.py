@@ -14,7 +14,12 @@ if TYPE_CHECKING:
     from src.models.dataclass import CompletedEntry
 
 from src.utils.common.logger import create_module_logger
-from src.utils.config.constants import EPSILON, INIT_PRIOR_MEAN, RESULT_PATH, TIMING_TOLERANCE
+from src.utils.config.constants import (
+    EPSILON,
+    INIT_PRIOR_MEAN,
+    RESULT_PATH,
+    TIMING_TOLERANCE,
+)
 from src.utils.visualizers.visualizer import visualize
 
 log = create_module_logger(__name__, module_log=True, level=logging.INFO)
@@ -76,7 +81,7 @@ def calculate_timing_success_rate(
         # GT_INTERVAL will be added to constants in the future
         # Using a default value for now
         GT_INTERVAL = 60.0  # Default ground truth interval value
-        
+
     total_timing_constraints = 0
     succeeded_timing_constraints_sim_cnt = 0
     succeeded_timing_constraints_sched_cnt = 0

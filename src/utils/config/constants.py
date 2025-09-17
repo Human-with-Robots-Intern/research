@@ -59,12 +59,12 @@ DYNAMIC_ACTION_SET = {
 }
 PRIMITIVE_ACTION_DURATION = 15.0
 
-MONITORING_DURATION = 1.55
-NAV_STEP_DURATION = 0.05
-REAL_NAV_DURATION = 1.55
+MONITORING_DURATION = 2.33
+NAV_STEP_DURATION = 0.13
+REAL_NAV_DURATION = 3.31
 TOGGLE_ACTION_DURATION = 15.97
-GRASP_ACTION_DURATION = 14.28
-PLACE_ACTION_DURATION = 14.88
+GRASP_ACTION_DURATION = 11.55
+PLACE_ACTION_DURATION = 8.79
 REACHABLE_DISTANCE_THRESHOLD = 50.0
 # Heuristic constants have been reduced to align with the updated algorithm's expectations:
 # - ALPHA_HEURISTIC: Reduced to 2.0 to balance the weight of heuristic influence on decision-making.
@@ -86,10 +86,10 @@ TIMING_TOLERANCE = (
     1.0  # when we do the simulation experiment, then set ths constant to 0.3
 )
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 3
-BEAM_WIDTH = 3
+SIMULATION_DEPTH = 4
+BEAM_WIDTH = 5
 EPSILON = 1e-1
-LARGE_NUMBER = 1e2
+LARGE_NUMBER = 1e4
 TOP_K = 1
 
 # ========== ANSI 로그 색상 ==========
