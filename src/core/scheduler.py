@@ -34,9 +34,6 @@ if TYPE_CHECKING:
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
-from src.utils.config.constants import PRIMITIVE_ACTION_DURATION
-
-
 def _resolve_timing_tolerance(reference_time: float) -> float:
     """Resolve tolerance using both ratio-based and absolute caps."""
     clamped_reference = max(EPSILON, reference_time)
@@ -1200,10 +1197,14 @@ class Scheduler:
         self, curr_node: SimulationNode, candidate: Candidate
     ) -> SimulationNode:
         """
-        Inserts a single "Wait" action until the candidate's actual_interaction_start_time.
+        Performs monitoring and, if needed, a follow-up wait until the
+        candidate's actual_interaction_start_time.
 
-        - If actual_interaction_start_time <= current_time, wait_duration becomes 0.
-        - This wait is modeled as a Subtask with Navigation, Monitoring and Wait actions.
+        - If `actual_interaction_start_time` <= current time, the logic falls
+          back to the non-monitoring wait policy.
+        - Navigation (partial) is executed before monitoring; any remaining
+          slack is converted into a dedicated wait subtask scheduled **after**
+          monitoring.
 
         Args:
             curr_node (SimulationNode): Current node in the search tree.
@@ -1224,10 +1225,9 @@ class Scheduler:
                 f"[_expand_wait_with_monitoring] Negative wait duration: {total_wait_duration}"
             )
 
-        wait_before_monitor = max(0.0, total_wait_duration - MONITORING_DURATION)
-        if wait_before_monitor <= EPSILON:
+        if total_wait_duration + EPSILON < MONITORING_DURATION:
             log.debug(
-                "[_expand_wait_with_monitoring] Insufficient pre-monitor wait window. "
+                "[_expand_wait_with_monitoring] Insufficient slack after monitoring. "
                 "Falling back to non-monitoring wait logic."
             )
             return self._expand_wait_wo_monitoring(curr_node, candidate)
@@ -1237,101 +1237,118 @@ class Scheduler:
             curr_node, [f"NAVIGATE_TO {target_obj}"]
         ).action_duration
 
-        max_nav_steps = int(wait_before_monitor // NAV_STEP_DURATION)
+        available_for_nav = max(0.0, total_wait_duration - MONITORING_DURATION)
+        max_nav_steps = int(available_for_nav // NAV_STEP_DURATION)
         planned_nav_time = max_nav_steps * NAV_STEP_DURATION
-        partial_nav_time = min(planned_nav_time, full_nav_time, wait_before_monitor)
+        partial_nav_time = min(planned_nav_time, full_nav_time, available_for_nav)
         if partial_nav_time < 0:
             raise ValueError(
                 f"[_expand_wait_with_monitoring] Negative partial navigation time: {partial_nav_time}"
             )
 
-        wait_actions: List[str] = []
-        if partial_nav_time > EPSILON:
-            wait_actions.append(f"NAVIGATE_TO {target_obj} {partial_nav_time}")
-
-        remaining_idle = max(0.0, wait_before_monitor - partial_nav_time)
-        if remaining_idle > EPSILON:
-            wait_actions.append(f"WAIT {remaining_idle}")
-
-        nav_time = 0.0
-        new_scene_positions = curr_state.scene_positions
-        new_held_obj = curr_state.held_object
-        if wait_actions:
-            wait_action_info = self.action_handler.get_actions_info(
-                curr_node, wait_actions
-            )
-            if wait_action_info is None or not wait_action_info.success:
-                log.warning(
-                    "[_expand_wait_with_monitoring] Failed to simulate wait actions. "
-                    "Fallback to non-monitoring wait."
-                )
-                return self._expand_wait_wo_monitoring(curr_node, candidate)
-            nav_time = wait_action_info.first_nav_duration or 0.0
-            new_scene_positions = wait_action_info.scene_positions
-            new_held_obj = wait_action_info.held_object
-
-        wait_sub_name = (
-            f"Wait (prep) for {candidate.subtask.name}"
-            if wait_actions
-            else f"Wait for {candidate.subtask.name}"
-        )
-        wait_sub = Subtask(
-            task_name=None,
-            name=wait_sub_name,
-            duration=Duration(interval=wait_before_monitor, type="Controllable"),
-            repetition=1,
-            subtask_type="Interaction",
-            execution=Execution(objects=None, primitive_actions=wait_actions),
-            temporal_constraints=None,
-        )
-
-        mon_sub = TaskUtil.create_monitoring_subtask(
+        monitor_sub = TaskUtil.create_monitoring_subtask(
             name=candidate.subtask.name, obj=target_obj
         )
+        monitor_actions: List[str] = []
+        if partial_nav_time > EPSILON:
+            monitor_actions.append(f"NAVIGATE_TO {target_obj} {partial_nav_time}")
+        monitor_actions.extend(monitor_sub.execution.primitive_actions or [])
 
-        new_remain = [r for r in curr_state.remaining_subtasks]
-        new_remain.append(mon_sub)
+        monitor_result = self.action_handler.get_actions_info(
+            curr_node, monitor_actions
+        )
+        if monitor_result is None or not monitor_result.success:
+            log.warning(
+                "[_expand_wait_with_monitoring] Failed to simulate monitoring actions. "
+                "Fallback to non-monitoring wait."
+            )
+            return self._expand_wait_wo_monitoring(curr_node, candidate)
 
-        start_time = curr_state.current_time
-        end_time = start_time + wait_before_monitor
+        monitor_duration = monitor_result.cumulative_time
+        monitor_nav_time = monitor_result.first_nav_duration or 0.0
+        wait_after_monitor = max(0.0, total_wait_duration - monitor_duration)
+
+        monitor_sub.execution.primitive_actions = monitor_actions
+        monitor_sub.duration = Duration(
+            interval=monitor_duration,
+            type=monitor_sub.duration.type,
+            total_time=monitor_duration,
+        )
+
+        wait_sub: Optional[Subtask] = None
+        if wait_after_monitor > EPSILON:
+            wait_actions = [f"WAIT {wait_after_monitor}"]
+            wait_sub = Subtask(
+                task_name=None,
+                name=f"Wait after monitoring for {candidate.subtask.name}",
+                duration=Duration(interval=wait_after_monitor, type="Controllable"),
+                repetition=1,
+                subtask_type="Interaction",
+                execution=Execution(objects=None, primitive_actions=wait_actions),
+                temporal_constraints=None,
+            )
+
+        monitor_start_time = curr_state.current_time
+        monitor_end_time = monitor_start_time + monitor_duration
 
         completed_entry = CompletedEntry(
-            subtask=wait_sub,
-            schedule_start_time=start_time,
-            schedule_end_time=end_time,
-            schedule_nav_time=nav_time,
-            actual_first_nav_duration=nav_time,
+            subtask=monitor_sub,
+            schedule_start_time=monitor_start_time,
+            schedule_end_time=monitor_end_time,
+            schedule_nav_time=monitor_nav_time,
+            actual_first_nav_duration=monitor_nav_time,
             execution_status=True,
         )
         new_completed = curr_state.completed_entries + [completed_entry]
 
+        new_scene_positions = monitor_result.scene_positions
+        new_held_obj = monitor_result.held_object
+
+        new_remain: List[Subtask] = []
+        wait_inserted = False
+        for remain in curr_state.remaining_subtasks:
+            if wait_sub and not wait_inserted and remain.name == candidate.subtask.name:
+                new_remain.append(wait_sub)
+                wait_inserted = True
+            new_remain.append(remain)
+        if wait_sub and not wait_inserted:
+            new_remain.append(wait_sub)
+
         new_constraints = copy.deepcopy(curr_state.constraints)
-        new_constraints.add_node(mon_sub.name)
+        new_constraints.add_node(monitor_sub.name)
+        if wait_sub:
+            new_constraints.add_node(wait_sub.name)
 
         new_constraints.add_edge(
             curr_node.state.subtask.name,
-            mon_sub.name,
-            info={"Interval": wait_before_monitor, "IsCritical": True},
+            monitor_sub.name,
+            info={"Interval": 0.0, "IsCritical": True},
         )
 
-        remaining_until_candidate = max(
-            0.0, total_wait_duration - wait_before_monitor - MONITORING_DURATION
-        )
-        new_constraints.add_edge(
-            mon_sub.name,
-            candidate.subtask.name,
-            info={
-                "Interval": remaining_until_candidate,
-                "IsCritical": True,
-            },
-        )
+        if wait_sub:
+            new_constraints.add_edge(
+                monitor_sub.name,
+                wait_sub.name,
+                info={"Interval": 0.0, "IsCritical": True},
+            )
+            new_constraints.add_edge(
+                wait_sub.name,
+                candidate.subtask.name,
+                info={"Interval": 0.0, "IsCritical": True},
+            )
+        else:
+            new_constraints.add_edge(
+                monitor_sub.name,
+                candidate.subtask.name,
+                info={"Interval": 0.0, "IsCritical": True},
+            )
 
         new_state = SchedulerState(
-            subtask=wait_sub,
+            subtask=monitor_sub,
             completed_entries=new_completed,
             remaining_subtasks=new_remain,
             constraints=new_constraints,
-            current_time=end_time,
+            current_time=monitor_end_time,
             scene_positions=new_scene_positions,
             held_object=new_held_obj,
         )
@@ -1340,9 +1357,9 @@ class Scheduler:
         new_cost = curr_cost + step_cost
 
         log.info(
-            f"[_expand_wait_with_monitoring] Subtask {wait_sub.name}\n"
+            f"[_expand_wait_with_monitoring] Subtask {monitor_sub.name}\n"
             f"  -> Score={round(new_cost, 2)}, "
-            f"Interval={round(start_time,2)}~{round(end_time,2)}\n"
+            f"Interval={round(monitor_start_time,2)}~{round(monitor_end_time,2)}\n"
             f"  -> Updated remain={[r.name for r in new_remain]}\n"
         )
 

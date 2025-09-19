@@ -52,7 +52,7 @@ DYNAMIC_ACTION_SET = {
     "WAIT",
     "MONITORING",
 }
-PRIMITIVE_ACTION_DURATION = 15.0
+# PRIMITIVE_ACTION_DURATION = 15.0
 MONITORING_DURATION = 2.33
 NAV_STEP_DURATION = 0.13
 REAL_NAV_DURATION = 3.31
@@ -66,7 +66,7 @@ ALPHA_HEURISTIC = 2.0
 BETA_HEURISTIC = 3.0
 GAMMA_HEURISTIC = 0.3
 # ========== 베이지안 ==========
-BAYESIAN_CRITERIA = 0.3
+BAYESIAN_CRITERIA = 0.5
 
 GT_INTERVAL = 100.0
 INIT_PRIOR_MEAN = 60.0
@@ -79,14 +79,14 @@ MIN_VARIANCE = 1e-6
 # The ratio (30%) mirrors the previous behaviour, while the absolute value
 # allows capping the tolerance window for large intervals.
 TIMING_TOLERANCE_RATIO = 0.3
-TIMING_TOLERANCE_ABS = 15.0
+TIMING_TOLERANCE_ABS = 10.0
 
 # Monitoring splits are more forgiving so that the scheduler keeps the
 # monitoring structure even when the early chunk deviates slightly from the
 # ideal cutoff. These constants are only used during the split evaluation;
 # result scoring still relies on the stricter tolerance above.
-MONITORING_SPLIT_TOLERANCE_RATIO = 0.6
-MONITORING_SPLIT_TOLERANCE_ABS = 20.0
+MONITORING_SPLIT_TOLERANCE_RATIO = 0.4
+MONITORING_SPLIT_TOLERANCE_ABS = 15.0
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 4
 BEAM_WIDTH = 5
