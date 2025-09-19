@@ -19,6 +19,8 @@ from src.utils.config import BAYESIAN_CRITERIA, EPSILON, MONITORING_DURATION, RE
 from src.utils.config.constants import (
     BEAM_WIDTH,
     CRITICAL_OBJECT_GROUND_TRUTH,
+    MONITORING_SPLIT_TOLERANCE_ABS,
+    MONITORING_SPLIT_TOLERANCE_RATIO,
     NAV_STEP_DURATION,
     SIMULATION_DEPTH,
     TIMING_TOLERANCE_ABS,
@@ -42,6 +44,15 @@ def _resolve_timing_tolerance(reference_time: float) -> float:
     if ratio_allowance <= 0:
         return TIMING_TOLERANCE_ABS
     return min(TIMING_TOLERANCE_ABS, ratio_allowance)
+
+
+def _resolve_monitoring_split_tolerance(reference_time: float) -> float:
+    """Lenient tolerance used only for monitoring-aware task splits."""
+    clamped_reference = max(EPSILON, reference_time)
+    ratio_allowance = clamped_reference * MONITORING_SPLIT_TOLERANCE_RATIO
+    if ratio_allowance <= 0:
+        return MONITORING_SPLIT_TOLERANCE_ABS
+    return min(MONITORING_SPLIT_TOLERANCE_ABS, ratio_allowance)
 
 
 class Scheduler:
@@ -803,7 +814,10 @@ class Scheduler:
         if monitoring_target_obj:
             monitoring_target_key = monitoring_target_obj.split("|")[0]
             gt_interval = CRITICAL_OBJECT_GROUND_TRUTH.get(monitoring_target_key)
-            if gt_interval is not None and gt_interval > original_critical_interval_duration:
+            if (
+                gt_interval is not None
+                and gt_interval > original_critical_interval_duration
+            ):
                 log.debug(
                     f"[_expand_subtask_with_monitoring] Upscaling critical interval for '{original_task_name}' "
                     f"using GT {gt_interval} (prev {original_critical_interval_duration})."
@@ -905,7 +919,7 @@ class Scheduler:
 
         ideal_early_sub_duration = duration_for_early_sub_target
 
-        tolerance_window = _resolve_timing_tolerance(ideal_early_sub_duration)
+        tolerance_window = _resolve_monitoring_split_tolerance(ideal_early_sub_duration)
         lower_bound = max(0.0, ideal_early_sub_duration - tolerance_window)
         upper_bound = ideal_early_sub_duration + tolerance_window
 
