@@ -85,8 +85,8 @@ TIMING_TOLERANCE_ABS = 10.0
 # monitoring structure even when the early chunk deviates slightly from the
 # ideal cutoff. These constants are only used during the split evaluation;
 # result scoring still relies on the stricter tolerance above.
-MONITORING_SPLIT_TOLERANCE_RATIO = 0.4
-MONITORING_SPLIT_TOLERANCE_ABS = 15.0
+MONITORING_SPLIT_TOLERANCE_RATIO = 1.0
+MONITORING_SPLIT_TOLERANCE_ABS = 50.0
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 4
 BEAM_WIDTH = 5

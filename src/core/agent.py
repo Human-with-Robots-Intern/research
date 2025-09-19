@@ -63,20 +63,36 @@ class Agent:
         # 2) constraints 그래프 업데이트 (이 로직은 유지)
         #    - (critical_start_sub_name, monitoring_target_sub_name)에 posterior_mean 반영
 
-        edge = state.constraints.get_edge_data(
-            critical_start_sub_name, monitoring_target_sub_name, default={}
-        )
-        edge.setdefault("info", {})["Interval"] = posterior_mean
+        if state.constraints.has_edge(
+            critical_start_sub_name, monitoring_target_sub_name
+        ):
+            edge_info = state.constraints.edges[
+                critical_start_sub_name, monitoring_target_sub_name
+            ].setdefault("info", {})
+            edge_info["Interval"] = posterior_mean
+        else:
+            log.warning(
+                "Constraint edge %s -> %s missing while updating posterior mean.",
+                critical_start_sub_name,
+                monitoring_target_sub_name,
+            )
 
         #    - (현재 모니터링 서브태스크, 모니터링 대상) 간 엣지에 잔여 구간 반영
         updated_interval = (
             critical_start_sub_end_time + posterior_mean - state.current_time
         )
 
-        edge = state.constraints.get_edge_data(
-            state.subtask.name, monitoring_target_sub_name, default={}
-        )
-        edge.setdefault("info", {})["Interval"] = updated_interval
+        if state.constraints.has_edge(state.subtask.name, monitoring_target_sub_name):
+            edge_info = state.constraints.edges[
+                state.subtask.name, monitoring_target_sub_name
+            ].setdefault("info", {})
+            edge_info["Interval"] = updated_interval
+        else:
+            log.warning(
+                "Constraint edge %s -> %s missing while updating monitor residual interval.",
+                state.subtask.name,
+                monitoring_target_sub_name,
+            )
 
     def _get_prior_estimate(self, obj_name: str) -> Tuple[float, float]:
         """
@@ -141,13 +157,21 @@ class Agent:
             monitoring_target_obj_name
         )
 
-        # 4) Find critical start subtask and its end time
         critical_start_sub_name, critical_start_sub_end_time = get_critical_start_info(
             subtask_name=state.subtask.name,
             completed=state.completed_entries,
             constraints=state.constraints,
             constraint_handler=self.constraint_handler,
         )
+
+        target_edge = state.constraints.get_edge_data(
+            critical_start_sub_name,
+            monitoring_target_sub_name,
+            default={},
+        )
+        current_interval = target_edge.get("info", {}).get("Interval")
+        if current_interval is not None:
+            gt_interval = max(gt_interval, current_interval)
 
         # 5) 베이지안 업데이트 계산
         # critical 제약이 시작 된 이후 경과된 separation interval

@@ -571,11 +571,22 @@ class Scheduler:
             f"[_expand_single_wait] Subtask {candidate.subtask.name}'s navigation time: {nav_time}. ({target_obj_id})"
         )
 
-        if candidate.is_critical:
+        if candidate.is_critical and not getattr(
+            candidate.subtask, "_monitoring_executed", False
+        ):
             log.debug(
                 f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITH monitoring."
             )
-            return self._expand_wait_with_monitoring(curr_node, candidate)
+            if curr_node.state.subtask.name.startswith("Monitoring"):
+                log.debug(
+                    f"[_expand_single_wait] Subtask {candidate.subtask.name} is a monitoring subtask. Using wait WITHOUT monitoring."
+                )
+                return self._expand_wait_wo_monitoring(curr_node, candidate)
+            else:
+                log.debug(
+                    f"[_expand_single_wait] Subtask {candidate.subtask.name} is a critical subtask. Using wait WITH monitoring."
+                )
+                return self._expand_wait_with_monitoring(curr_node, candidate)
         else:
             log.debug(
                 f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITHOUT monitoring."
@@ -1214,162 +1225,102 @@ class Scheduler:
             SimulationNode: The child node representing the new state after waiting.
         """
         curr_state = curr_node.state
-        curr_cost = curr_node.heuristic_cost
-        curr_depth = curr_node.depth
 
-        total_wait_duration = (
+        if candidate.actual_interaction_start_time is None:
+            log.warning(
+                f"[_expand_wait_with_monitoring] Candidate {candidate.subtask.name} has no actual start. Fallback to plain wait."
+            )
+            return self._expand_wait_wo_monitoring(curr_node, candidate)
+
+        slack_until_target = (
             candidate.actual_interaction_start_time - curr_state.current_time
         )
-        if total_wait_duration < 0:
-            raise ValueError(
-                f"[_expand_wait_with_monitoring] Negative wait duration: {total_wait_duration}"
-            )
-
-        if total_wait_duration + EPSILON < MONITORING_DURATION:
+        if slack_until_target <= MONITORING_DURATION + EPSILON:
             log.debug(
-                "[_expand_wait_with_monitoring] Insufficient slack after monitoring. "
-                "Falling back to non-monitoring wait logic."
+                f"[_expand_wait_with_monitoring] Insufficient slack ({slack_until_target:.2f}) for monitoring. Fallback to plain wait."
             )
             return self._expand_wait_wo_monitoring(curr_node, candidate)
 
-        target_obj = candidate.subtask.execution.primitive_actions[0].split()[1]
-        full_nav_time = self.action_handler.get_actions_info(
-            curr_node, [f"NAVIGATE_TO {target_obj}"]
-        ).action_duration
-
-        available_for_nav = max(0.0, total_wait_duration - MONITORING_DURATION)
-        max_nav_steps = int(available_for_nav // NAV_STEP_DURATION)
-        planned_nav_time = max_nav_steps * NAV_STEP_DURATION
-        partial_nav_time = min(planned_nav_time, full_nav_time, available_for_nav)
-        if partial_nav_time < 0:
-            raise ValueError(
-                f"[_expand_wait_with_monitoring] Negative partial navigation time: {partial_nav_time}"
+        if getattr(candidate.subtask, "_monitoring_executed", False):
+            log.debug(
+                f"[_expand_wait_with_monitoring] Monitoring already executed for {candidate.subtask.name}. Proceeding with waiting only."
             )
+            return self._expand_wait_wo_monitoring(curr_node, candidate)
 
-        monitor_sub = TaskUtil.create_monitoring_subtask(
-            name=candidate.subtask.name, obj=target_obj
+        target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
+        monitor_subtask_name = f"Monitoring for {candidate.subtask.name}"
+        mon_sub = TaskUtil.create_monitoring_subtask(
+            name=monitor_subtask_name, obj=target_obj_id
         )
-        monitor_actions: List[str] = []
-        if partial_nav_time > EPSILON:
-            monitor_actions.append(f"NAVIGATE_TO {target_obj} {partial_nav_time}")
-        monitor_actions.extend(monitor_sub.execution.primitive_actions or [])
+        mon_sub.decomposed = True
 
-        monitor_result = self.action_handler.get_actions_info(
-            curr_node, monitor_actions
+        monitor_candidate = Candidate(
+            subtask=mon_sub,
+            is_critical=True,
+            actual_interaction_start_time=curr_state.current_time,
+            logical_interaction_start_time=curr_state.current_time,
         )
-        if monitor_result is None or not monitor_result.success:
+
+        monitor_node = self._expand_subtask_wo_monitoring(curr_node, monitor_candidate)
+        if monitor_node is None:
             log.warning(
-                "[_expand_wait_with_monitoring] Failed to simulate monitoring actions. "
-                "Fallback to non-monitoring wait."
+                f"[_expand_wait_with_monitoring] Monitoring expansion failed for {candidate.subtask.name}. Fallback to plain wait."
             )
             return self._expand_wait_wo_monitoring(curr_node, candidate)
 
-        monitor_duration = monitor_result.cumulative_time
-        monitor_nav_time = monitor_result.first_nav_duration or 0.0
-        wait_after_monitor = max(0.0, total_wait_duration - monitor_duration)
+        monitor_state = monitor_node.state
+        remaining_with_flag: List[Subtask] = []
+        monitoring_flag_applied = False
+        for sub in monitor_state.remaining_subtasks:
+            if not monitoring_flag_applied and sub.name == candidate.subtask.name:
+                flagged_sub = copy.deepcopy(sub)
+                setattr(flagged_sub, "_monitoring_executed", True)
+                remaining_with_flag.append(flagged_sub)
+                monitoring_flag_applied = True
+            else:
+                remaining_with_flag.append(sub)
 
-        monitor_sub.execution.primitive_actions = monitor_actions
-        monitor_sub.duration = Duration(
-            interval=monitor_duration,
-            type=monitor_sub.duration.type,
-            total_time=monitor_duration,
+        if not monitoring_flag_applied:
+            flagged_sub = copy.deepcopy(candidate.subtask)
+            setattr(flagged_sub, "_monitoring_executed", True)
+            remaining_with_flag.append(flagged_sub)
+
+        remaining_slack = max(
+            0.0, candidate.actual_interaction_start_time - monitor_state.current_time
         )
 
-        wait_sub: Optional[Subtask] = None
-        if wait_after_monitor > EPSILON:
-            wait_actions = [f"WAIT {wait_after_monitor}"]
-            wait_sub = Subtask(
-                task_name=None,
-                name=f"Wait after monitoring for {candidate.subtask.name}",
-                duration=Duration(interval=wait_after_monitor, type="Controllable"),
-                repetition=1,
-                subtask_type="Interaction",
-                execution=Execution(objects=None, primitive_actions=wait_actions),
-                temporal_constraints=None,
-            )
-
-        monitor_start_time = curr_state.current_time
-        monitor_end_time = monitor_start_time + monitor_duration
-
-        completed_entry = CompletedEntry(
-            subtask=monitor_sub,
-            schedule_start_time=monitor_start_time,
-            schedule_end_time=monitor_end_time,
-            schedule_nav_time=monitor_nav_time,
-            actual_first_nav_duration=monitor_nav_time,
-            execution_status=True,
-        )
-        new_completed = curr_state.completed_entries + [completed_entry]
-
-        new_scene_positions = monitor_result.scene_positions
-        new_held_obj = monitor_result.held_object
-
-        new_remain: List[Subtask] = []
-        wait_inserted = False
-        for remain in curr_state.remaining_subtasks:
-            if wait_sub and not wait_inserted and remain.name == candidate.subtask.name:
-                new_remain.append(wait_sub)
-                wait_inserted = True
-            new_remain.append(remain)
-        if wait_sub and not wait_inserted:
-            new_remain.append(wait_sub)
-
-        new_constraints = copy.deepcopy(curr_state.constraints)
-        new_constraints.add_node(monitor_sub.name)
-        if wait_sub:
-            new_constraints.add_node(wait_sub.name)
-
-        new_constraints.add_edge(
-            curr_node.state.subtask.name,
-            monitor_sub.name,
-            info={"Interval": 0.0, "IsCritical": True},
-        )
-
-        if wait_sub:
+        new_constraints = copy.deepcopy(monitor_state.constraints)
+        if not new_constraints.has_node(mon_sub.name):
+            new_constraints.add_node(mon_sub.name)
+        if not new_constraints.has_node(candidate.subtask.name):
+            new_constraints.add_node(candidate.subtask.name)
+        if not new_constraints.has_edge(mon_sub.name, candidate.subtask.name):
             new_constraints.add_edge(
-                monitor_sub.name,
-                wait_sub.name,
-                info={"Interval": 0.0, "IsCritical": True},
-            )
-            new_constraints.add_edge(
-                wait_sub.name,
+                mon_sub.name,
                 candidate.subtask.name,
-                info={"Interval": 0.0, "IsCritical": True},
+                info={"Interval": remaining_slack, "IsCritical": True},
             )
         else:
-            new_constraints.add_edge(
-                monitor_sub.name,
-                candidate.subtask.name,
-                info={"Interval": 0.0, "IsCritical": True},
-            )
+            new_constraints.edges[mon_sub.name, candidate.subtask.name]["info"] = {
+                "Interval": remaining_slack,
+                "IsCritical": True,
+            }
 
-        new_state = SchedulerState(
-            subtask=monitor_sub,
-            completed_entries=new_completed,
-            remaining_subtasks=new_remain,
+        updated_state = SchedulerState(
+            subtask=monitor_state.subtask,
+            completed_entries=monitor_state.completed_entries,
+            remaining_subtasks=remaining_with_flag,
             constraints=new_constraints,
-            current_time=monitor_end_time,
-            scene_positions=new_scene_positions,
-            held_object=new_held_obj,
+            current_time=monitor_state.current_time,
+            scene_positions=monitor_state.scene_positions,
+            held_object=monitor_state.held_object,
         )
 
-        step_cost = self.cost_calculator.calc_heuristic(curr_node, candidate)
-        new_cost = curr_cost + step_cost
-
-        log.info(
-            f"[_expand_wait_with_monitoring] Subtask {monitor_sub.name}\n"
-            f"  -> Score={round(new_cost, 2)}, "
-            f"Interval={round(monitor_start_time,2)}~{round(monitor_end_time,2)}\n"
-            f"  -> Updated remain={[r.name for r in new_remain]}\n"
+        log.debug(
+            f"[_expand_wait_with_monitoring] Monitoring inserted before waiting for {candidate.subtask.name}. Remaining slack: {remaining_slack:.2f}."
         )
 
-        return SimulationNode(
-            parent_node=curr_node,
-            heuristic_cost=new_cost,
-            depth=curr_depth + 1,
-            tie_breaker=next(self._counter),
-            state=new_state,
-        )
+        return monitor_node._replace(state=updated_state)
 
     def _expand_wait_wo_monitoring(
         self, curr_node: SimulationNode, candidate: Candidate
