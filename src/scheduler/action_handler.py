@@ -13,11 +13,11 @@ from src.utils.config.constants import (
     MONITORING_DURATION,
     NAV_STEP_DURATION,
     PLACE_ACTION_DURATION,
-    PRIMITIVE_ACTION_DURATION,
     REACHABLE_DISTANCE_THRESHOLD,
     REAL_NAV_DURATION,
     STATIC_ACTION_SET,
-    TIMING_TOLERANCE,
+    TIMING_TOLERANCE_ABS,
+    TIMING_TOLERANCE_RATIO,
     TOGGLE_ACTION_DURATION,
 )
 
@@ -25,6 +25,13 @@ log = create_module_logger(__name__, module_log=True, level=logging.DEBUG)
 
 Position: TypeAlias = Tuple[float, float, float]
 NavGraph: TypeAlias = Dict[Position, List[Position]]  # 네비게이션 그래프 타입 정의
+
+
+def _resolve_timing_tolerance(reference_time: float) -> float:
+    """Return tolerance capped by absolute and ratio-based allowances."""
+    clamped_reference = max(EPSILON, reference_time)
+    ratio_allowance = clamped_reference * TIMING_TOLERANCE_RATIO
+    return min(TIMING_TOLERANCE_ABS, ratio_allowance)
 
 
 class ActionHandler:
@@ -315,7 +322,7 @@ class ActionHandler:
 
         # 4. 전체 경로 이동 처리
         else:
-            log.debug(f"  Processing NAVIGATE_TO for full path.")
+            log.debug("  Processing NAVIGATE_TO for full path.")
             # ithor의 action.py에서는 첫좌표를 제거하므로 여기서도 동일하게 제거
             if navigate_path:
                 navigate_path.pop(0)
@@ -357,13 +364,8 @@ class ActionHandler:
                 agent_pos, target_actual_pos, "Grasp", target_obj_id
             ):
                 new_held_object = target_obj_id
-
-                duration = (
-                    PRIMITIVE_ACTION_DURATION
-                    if not self.real_world_mode
-                    else GRASP_ACTION_DURATION
-                )
-
+                # Use per-action configured duration
+                duration = GRASP_ACTION_DURATION
                 success = True
                 log.debug(f"  Grasped '{target_obj_id}'.")
             else:
@@ -384,7 +386,7 @@ class ActionHandler:
         new_held_object = current_held_object
 
         if not current_held_object:
-            log.warning(f"Agent not holding anything. Cannot place. Action FAILED.")
+            log.warning("Agent not holding anything. Cannot place. Action FAILED.")
             success = False
         elif not receptacle_id or receptacle_id not in scene_positions:
             raise ValueError(
@@ -403,11 +405,8 @@ class ActionHandler:
                         receptacle_id
                     ]
                 new_held_object = None
-                duration = (
-                    PRIMITIVE_ACTION_DURATION
-                    if not self.real_world_mode
-                    else PLACE_ACTION_DURATION
-                )
+                # Use per-action configured duration
+                duration = PLACE_ACTION_DURATION
                 success = True
             else:
                 success = False  # Unreachable
@@ -434,12 +433,17 @@ class ActionHandler:
         if self._check_reachability(
             agent_pos, target_actual_pos, action_type, target_obj_id
         ):
-
-            duration = (
-                PRIMITIVE_ACTION_DURATION
-                if not self.real_world_mode
-                else TOGGLE_ACTION_DURATION
-            )
+            # Map static interactions to configured durations
+            # OPEN, CLOSE, TOGGLE_ON, TOGGLE_OFF, SLICE, FILL → TOGGLE_ACTION_DURATION by default
+            duration_map = {
+                "OPEN": TOGGLE_ACTION_DURATION,
+                "CLOSE": TOGGLE_ACTION_DURATION,
+                "TOGGLE_ON": TOGGLE_ACTION_DURATION,
+                "TOGGLE_OFF": TOGGLE_ACTION_DURATION,
+                "SLICE": TOGGLE_ACTION_DURATION,
+                "FILL": TOGGLE_ACTION_DURATION,
+            }
+            duration = duration_map.get(action_type, TOGGLE_ACTION_DURATION)
 
             success = True
             log.debug(f"  Simulated {action_type} on '{target_obj_id}'.")
@@ -524,7 +528,7 @@ class ActionHandler:
         3. pre_log의 마지막 액션에서 객체를 들고 있다면(GRASP 이후),
            다음 PLACE 액션까지를 pre_log에 포함시키려 시도합니다.
         4. 단, 이 조정으로 인해 pre_log의 완료 시간이 target_cutoff_time을 기준으로
-           TIMING_TOLERANCE 비율을 초과하지 않는 경우에만 조정을 확정합니다.
+           TIMING_TOLERANCE 허용 범위(비율/절대)를 초과하지 않는 경우에만 조정을 확정합니다.
         5. 분할 성공 여부와 pre_log 완료 시 객체를 들고 있는지 여부를 함께 반환합니다.
 
         Args:
@@ -619,12 +623,8 @@ class ActionHandler:
                     found_place_action_index_in_full_log
                 ].cumulative_time
 
-                # TIMING_TOLERANCE 검사
-                # (조정 후 pre_log 완료 시간 - 목표 cutoff 시간) / 목표 cutoff 시간이 TIMING_TOLERANCE 이내인가?
-                # 또는, |조정 후 pre_log 완료 시간 - 목표 cutoff 시간| <= 목표 cutoff 시간 * TIMING_TOLERANCE
-                allowable_deviation = (
-                    max(EPSILON, target_cutoff_time) * TIMING_TOLERANCE
-                )
+                # TIMING_TOLERANCE 검사: 비율과 절대 허용폭을 함께 고려
+                allowable_deviation = _resolve_timing_tolerance(target_cutoff_time)
 
                 if (
                     abs(duration_if_place_included - target_cutoff_time)
@@ -640,7 +640,7 @@ class ActionHandler:
                 else:
                     log.warning(
                         f"Found subsequent PLACE action, but including it would make pre_log duration ({duration_if_place_included:.2f}) "
-                        f"exceed target_cutoff_time ({target_cutoff_time:.2f}) beyond TIMING_TOLERANCE (allowable deviation: {allowable_deviation:.2f}). "
+                        f"exceed target_cutoff_time ({target_cutoff_time:.2f}) beyond the timing tolerance window (allowable deviation: {allowable_deviation:.2f}). "
                         f"Splitting after GRASP at index {initial_split_index}."
                     )
                     # GRASP/PLACE 묶기 포기, 초기 분할 지점 유지.
@@ -665,9 +665,9 @@ class ActionHandler:
         # pre_log에 액션이 있고, post_log에도 액션이 있어야 유의미한 분할로 간주
         if pre_log.results and post_log.results:
             split_successful = True
-            # 추가적으로, pre_log의 최종 완료 시간이 target_cutoff_time 대비 TIMING_TOLERANCE를 만족하는지 확인
+            # 추가적으로, pre_log의 최종 완료 시간이 target_cutoff_time 대비 허용 오차 창을 만족하는지 확인
             final_pre_log_duration = pre_log.results[-1].cumulative_time
-            allowable_deviation = max(EPSILON, target_cutoff_time) * TIMING_TOLERANCE
+            allowable_deviation = _resolve_timing_tolerance(target_cutoff_time)
             if (
                 abs(final_pre_log_duration - target_cutoff_time)
                 > allowable_deviation + EPSILON

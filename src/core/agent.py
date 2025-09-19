@@ -12,13 +12,10 @@ from src.utils.config.constants import (
     AGENT_KNOWLEDGE_PATH,
     CRITICAL_OBJECT_GROUND_TRUTH,
     CRITICAL_OBJECT_INTERVALS,
-    ESTIMATE_FILE_NAME,
     FACTOR_ALPHA,
-    GROUND_TRUTH_FILE_NAME,
     INIT_PRIOR_MEAN,
     INIT_PRIOR_VARIANCE,
     MIN_VARIANCE,
-    TIMING_TOLERANCE,
 )
 
 if TYPE_CHECKING:
@@ -60,41 +57,26 @@ class Agent:
             "variance"
         ] = posterior_variance
 
-        with open(AGENT_KNOWLEDGE_PATH / ESTIMATE_FILE_NAME, "w") as f:
+        with open(AGENT_KNOWLEDGE_PATH / "bayesian_estimate.json", "w") as f:
             json.dump(self.estimate_knowledge, f, indent=4)
 
         # 2) constraints 그래프 업데이트 (이 로직은 유지)
         #    - (critical_start_sub_name, monitoring_target_sub_name)에 posterior_mean 반영
 
-        nx.set_edge_attributes(
-            state.constraints,
-            {
-                (critical_start_sub_name, monitoring_target_sub_name): {
-                    "Interval": posterior_mean
-                }
-            },
+        edge = state.constraints.get_edge_data(
+            critical_start_sub_name, monitoring_target_sub_name, default={}
         )
+        edge.setdefault("info", {})["Interval"] = posterior_mean
 
         #    - (현재 모니터링 서브태스크, 모니터링 대상) 간 엣지에 잔여 구간 반영
         updated_interval = (
             critical_start_sub_end_time + posterior_mean - state.current_time
         )
-        nx.set_edge_attributes(
-            state.constraints,
-            {
-                (state.subtask.name, monitoring_target_sub_name): {
-                    "Interval": updated_interval
-                }
-            },
-        )
 
-    def set_knowledge(
-        self, estimate_knowledge: Dict, ground_truth_knowledge: Dict
-    ) -> None:
-        self.estimate_knowledge = {k.lower(): v for k, v in estimate_knowledge.items()}
-        self.ground_truth_knowledge = {
-            k.lower(): v for k, v in ground_truth_knowledge.items()
-        }
+        edge = state.constraints.get_edge_data(
+            state.subtask.name, monitoring_target_sub_name, default={}
+        )
+        edge.setdefault("info", {})["Interval"] = updated_interval
 
     def _get_prior_estimate(self, obj_name: str) -> Tuple[float, float]:
         """
@@ -114,6 +96,8 @@ class Agent:
             prior_variance = max(MIN_VARIANCE, var_val)
 
         else:
+            prior_mean = INIT_PRIOR_MEAN
+            prior_variance = INIT_PRIOR_VARIANCE
             log.debug(f"No prior knowledge found for '{obj_name}'. Using defaults.")
 
         return prior_mean, max(prior_variance, MIN_VARIANCE)
@@ -196,7 +180,7 @@ class Agent:
             bayesian_diff = float("inf") if posterior_mean != 0 else 0.0
 
         log.info(f"bayesian_diff: {bayesian_diff}")
-        if bayesian_diff > 0.1:
+        if bayesian_diff:
             self._update_knowledge_and_constraints(
                 state=state,
                 monitoring_target_obj_name=monitoring_target_obj_name,

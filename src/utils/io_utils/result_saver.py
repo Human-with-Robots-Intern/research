@@ -18,7 +18,8 @@ from src.utils.config.constants import (
     EPSILON,
     INIT_PRIOR_MEAN,
     RESULT_PATH,
-    TIMING_TOLERANCE,
+    TIMING_TOLERANCE_ABS,
+    TIMING_TOLERANCE_RATIO,
 )
 from src.utils.visualizers.visualizer import visualize
 
@@ -123,7 +124,8 @@ def calculate_timing_success_rate(
         sim_nav_time = (
             succ_entry.sim_nav_time if succ_entry.sim_nav_time is not None else 0.0
         )
-        tolerance = 0.1 + interval * TIMING_TOLERANCE
+        ratio_allowance = interval * TIMING_TOLERANCE_RATIO
+        tolerance = max(0.1, min(TIMING_TOLERANCE_ABS, ratio_allowance))
 
         actual_diff_sim = (succ_start_time_sim + sim_nav_time) - pred_end_time_sim
 
