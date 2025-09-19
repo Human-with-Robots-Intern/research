@@ -5,7 +5,7 @@ import json
 import random
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Literal, Tuple, Union
+from typing import Dict, List, Literal, Tuple, Union
 
 from dotenv import load_dotenv
 from networkx import DiGraph
@@ -16,18 +16,16 @@ from src.models.task import Duration, Execution, Subtask, Task, TemporalConstrai
 # 내부 프로젝트 모듈
 from src.utils.common import create_module_logger
 from src.utils.config.constants import (  # 분산 값도 상수로 사용하기 위해 추가
-    AGENT_KNOWLEDGE_PATH,
     CRITICAL_OBJECT_INTERVALS,
-    EPSILON,
-    ESTIMATE_FILE_NAME,
-    GT_INTERVAL,
+    GRASP_ACTION_DURATION,
     INIT_PRIOR_MEAN,
     INIT_PRIOR_VARIANCE,
     MONITORING_DURATION,
     NON_CRITICAL_OBJECT_INTERVALS,
-    PRIMITIVE_ACTION_DURATION,
+    PLACE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
     SCENE_KNOWLEDGE_PATH,
+    TOGGLE_ACTION_DURATION,
 )
 from src.utils.nlp.sentence_transformer import SentenceSimilarityModel
 
@@ -115,7 +113,21 @@ class TaskUtil:
                     )
                 # NAVIGATE_TO, MONITORING, WAIT 등은 지속시간 계산 제외
                 if action_name not in {"NAVIGATE_TO", "MONITORING", "WAIT"}:
-                    total_duration += PRIMITIVE_ACTION_DURATION
+                    # Per-action duration mapping
+                    duration_map = {
+                        "GRASP": GRASP_ACTION_DURATION,
+                        "PLACE_INSIDE": PLACE_ACTION_DURATION,
+                        "PLACE_ON_TOP": PLACE_ACTION_DURATION,
+                        "OPEN": TOGGLE_ACTION_DURATION,
+                        "CLOSE": TOGGLE_ACTION_DURATION,
+                        "TOGGLE_ON": TOGGLE_ACTION_DURATION,
+                        "TOGGLE_OFF": TOGGLE_ACTION_DURATION,
+                        "SLICE": TOGGLE_ACTION_DURATION,
+                        "FILL": PLACE_ACTION_DURATION,
+                    }
+                    total_duration += duration_map.get(
+                        action_name, TOGGLE_ACTION_DURATION
+                    )
             return total_duration
 
         for subtask in subtasks:
@@ -330,10 +342,14 @@ class TaskUtil:
             # 각 temporal constraint 별로 순회하여 `tc` 변수 범위 문제 해결
             for tc in st.temporal_constraints:
                 # 1. 제약 조건(tc)으로 연결된 두 subtask가 '공유하는' 객체를 찾음
-                related_st = subtask_map.get(tc.rel_subtask_name)
+                related_subtask = subtask_map.get(tc.rel_subtask_name)
                 related_obj_types = set()
-                if related_st and related_st.execution and related_st.execution.objects:
-                    for obj_name in related_st.execution.objects.keys():
+                if (
+                    related_subtask
+                    and related_subtask.execution
+                    and related_subtask.execution.objects
+                ):
+                    for obj_name in related_subtask.execution.objects.keys():
                         related_obj_types.add(obj_name.split("|")[0])
 
                 common_obj_types = current_obj_types.intersection(related_obj_types)

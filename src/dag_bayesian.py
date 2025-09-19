@@ -96,8 +96,8 @@ def main():
     controller = None
     ros_executor = None  # ros_executor를 None으로 미리 초기화
 
-    # Set up the AI2-THOR controller and navigation graph
-    platform_obj = None
+    platform_obj = None  # Set up the AI2-THOR controller and navigation graph
+
     if args.cloud_rendering:
         platform_obj = CloudRendering
 

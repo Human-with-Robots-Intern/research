@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import copy
 import logging
-import math
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Dict, Optional, Set, Tuple
 
 import networkx as nx
 import numpy as np  # 거리 계산 등에 사용될 수 있음
@@ -11,7 +9,6 @@ from scipy.sparse import csr_matrix  # MST 계산에 필요할 수 있음
 from scipy.sparse.csgraph import minimum_spanning_tree  # MST 계산에 필요할 수 있음
 
 from src.models.dataclass import ActionResult, Candidate, SimulationNode
-from src.utils.common import create_module_logger
 from src.utils.config import (  # INIT_PRIOR_MEAN, # 더 이상 직접 사용하지 않거나, interaction 추정에 활용
     ALPHA_HEURISTIC,
     BETA_HEURISTIC,
@@ -19,7 +16,12 @@ from src.utils.config import (  # INIT_PRIOR_MEAN, # 더 이상 직접 사용하
     GAMMA_HEURISTIC,
     LARGE_NUMBER,
 )
-from src.utils.config.constants import NAV_STEP_DURATION, PRIMITIVE_ACTION_DURATION
+from src.utils.config.constants import (
+    GRASP_ACTION_DURATION,
+    NAV_STEP_DURATION,
+    PLACE_ACTION_DURATION,
+    TOGGLE_ACTION_DURATION,
+)
 
 # Forward declarations for type hinting
 if TYPE_CHECKING:
@@ -67,21 +69,31 @@ class HeuristicManager:
             return max(0.0, subtask.duration.interval)  # 음수 방지
         else:
             # duration 정보가 없는 상호작용 subtask의 경우, 기본값 또는 액션 기반 추정 필요.
-            # 여기서는 PRIMITIVE_ACTION_DURATION을 기본값으로 사용하거나,
             # 더 정교하게는 primitive_actions를 분석해야 함.
-            # 우선은 간단하게 PRIMITIVE_ACTION_DURATION (상호작용 1회 가정) 또는 0 반환.
             num_interaction_actions = 0
+            duration_sum = 0.0
             if subtask.execution and subtask.execution.primitive_actions:
                 for action_str in subtask.execution.primitive_actions:
                     action_type = action_str.split(" ", 1)[0].upper()
                     if action_type not in ["NAVIGATE_TO", "WAIT", "MONITORING"]:
                         num_interaction_actions += 1
+                        duration_map = {
+                            "GRASP": GRASP_ACTION_DURATION,
+                            "PLACE_INSIDE": PLACE_ACTION_DURATION,
+                            "PLACE_ON_TOP": PLACE_ACTION_DURATION,
+                            "OPEN": TOGGLE_ACTION_DURATION,
+                            "CLOSE": TOGGLE_ACTION_DURATION,
+                            "TOGGLE_ON": TOGGLE_ACTION_DURATION,
+                            "TOGGLE_OFF": TOGGLE_ACTION_DURATION,
+                            "SLICE": TOGGLE_ACTION_DURATION,
+                            "FILL": PLACE_ACTION_DURATION,
+                        }
+                        duration_sum += duration_map.get(
+                            action_type, TOGGLE_ACTION_DURATION
+                        )
 
             if num_interaction_actions > 0:
-                # log.debug(f"Subtask '{subtask.name}' has no duration, estimating based on {num_interaction_actions} interaction primitive(s).")
-                return (
-                    num_interaction_actions * PRIMITIVE_ACTION_DURATION
-                )  # 각 프리미티브가 기본 시간 소요 가정
+                return duration_sum
             else:
                 # log.debug(f"Subtask '{subtask.name}' has no duration and no clear interaction primitives. Estimating interaction time as 0.")
                 return 0.0
@@ -288,7 +300,6 @@ class HeuristicManager:
             # SciPy 없을 시 매우 단순한 Fallback (모든 작업 위치로 현재 에이전트가 순차 이동 가정 - 매우 부정확)
             fallback_nav_time = 0.0
             if current_agent_pos and task_interaction_locations:
-                temp_agent_pos = current_agent_pos
                 # (이 부분은 TSP에 가까우므로 MST보다 더 부정확, 간단히 첫 작업까지만 고려하거나 다른 방법)
                 # 여기서는 가장 가까운 작업 하나만 가는 시간으로 단순화 또는 합계.
                 # 우선은 모든 작업 위치까지의 개별 네비 합으로 (중복 경로 고려 안됨)
