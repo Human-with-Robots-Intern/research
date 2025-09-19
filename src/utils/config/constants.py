@@ -19,11 +19,6 @@ PROMPT_PATH = ASSETS_PATH / "prompts"
 TASK_PATH = ASSETS_PATH / "tasks"
 RESULT_PATH = ASSETS_PATH / "results"
 
-
-# ========== 파일명 상수 ==========
-ESTIMATE_FILE_NAME = "bayesian_estimate.json"
-GROUND_TRUTH_FILE_NAME = "bayesian_ground_truth.json"
-
 # ========== 시뮬레이션 관련 ==========
 DEFAULT_SCENE_NAME = "FloorPlan1"
 ROOM_TYPE = ["bathroom", "bedroom", "kitchen", "living_room"]
@@ -58,36 +53,36 @@ DYNAMIC_ACTION_SET = {
     "MONITORING",
 }
 PRIMITIVE_ACTION_DURATION = 15.0
-
 MONITORING_DURATION = 2.33
 NAV_STEP_DURATION = 0.13
 REAL_NAV_DURATION = 3.31
-TOGGLE_ACTION_DURATION = 15.97
+TOGGLE_ACTION_DURATION = 11.33
 GRASP_ACTION_DURATION = 11.55
 PLACE_ACTION_DURATION = 8.79
+
 REACHABLE_DISTANCE_THRESHOLD = 50.0
-# Heuristic constants have been reduced to align with the updated algorithm's expectations:
-# - ALPHA_HEURISTIC: Reduced to 2.0 to balance the weight of heuristic influence on decision-making.
-# - BETA_HEURISTIC: Reduced to 3.0 to ensure smoother scaling in probabilistic calculations.
-# - GAMMA_HEURISTIC: Reduced to 0.3 to minimize overfitting and maintain generalization in predictions.
+
 ALPHA_HEURISTIC = 2.0
 BETA_HEURISTIC = 3.0
 GAMMA_HEURISTIC = 0.3
 # ========== 베이지안 ==========
-BAYESIAN_CRITERIA = 0.7
+BAYESIAN_CRITERIA = 0.5
+
+GT_INTERVAL = 100.0
 INIT_PRIOR_MEAN = 60.0
-GT_INTERVAL = 60.0
 INIT_PRIOR_VARIANCE = 100.0
 
-FACTOR_ALPHA = 0.3
+FACTOR_ALPHA = 0.01
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
-TIMING_TOLERANCE = (
-    1.0  # when we do the simulation experiment, then set ths constant to 0.3
-)
+# Timing tolerance can be interpreted both as a ratio and an absolute cap.
+# The ratio (30%) mirrors the previous behaviour, while the absolute value
+# allows capping the tolerance window for large intervals.
+TIMING_TOLERANCE_RATIO = 0.3
+TIMING_TOLERANCE_ABS = 20.0
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 4
-BEAM_WIDTH = 5
+SIMULATION_DEPTH = 1
+BEAM_WIDTH = 1
 EPSILON = 1e-1
 LARGE_NUMBER = 1e4
 TOP_K = 1

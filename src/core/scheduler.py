@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, List, Optional
 
 from src.models.dataclass import (
     ActionResult,
-    ActionSimulationLog,
     Candidate,
     CompletedEntry,
     SchedulerState,
@@ -19,9 +18,11 @@ from src.utils.common.decorators import time_logger
 from src.utils.config import BAYESIAN_CRITERIA, EPSILON, MONITORING_DURATION, RED, RESET
 from src.utils.config.constants import (
     BEAM_WIDTH,
+    CRITICAL_OBJECT_GROUND_TRUTH,
     NAV_STEP_DURATION,
     SIMULATION_DEPTH,
-    TIMING_TOLERANCE,
+    TIMING_TOLERANCE_ABS,
+    TIMING_TOLERANCE_RATIO,
 )
 from src.utils.task import TaskUtil
 
@@ -32,6 +33,15 @@ log = create_module_logger(module_name=__name__, module_log=True)
 
 
 from src.utils.config.constants import PRIMITIVE_ACTION_DURATION
+
+
+def _resolve_timing_tolerance(reference_time: float) -> float:
+    """Resolve tolerance using both ratio-based and absolute caps."""
+    clamped_reference = max(EPSILON, reference_time)
+    ratio_allowance = clamped_reference * TIMING_TOLERANCE_RATIO
+    if ratio_allowance <= 0:
+        return TIMING_TOLERANCE_ABS
+    return min(TIMING_TOLERANCE_ABS, ratio_allowance)
 
 
 class Scheduler:
@@ -223,14 +233,15 @@ class Scheduler:
                     + candidate.estimated_first_nav_duration
                 )
 
-                if (
-                    abs(
-                        candidate.logical_interaction_start_time
-                        - physical_earliest_interaction_start_time
-                    )
-                    / candidate.logical_interaction_start_time
-                    < TIMING_TOLERANCE
-                ):
+                timing_gap = abs(
+                    candidate.logical_interaction_start_time
+                    - physical_earliest_interaction_start_time
+                )
+                allowable_gap = _resolve_timing_tolerance(
+                    candidate.logical_interaction_start_time
+                )
+
+                if timing_gap <= allowable_gap:
                     log.debug(
                         f"[_expand_candidates] Policy 1: Found ON-TIME CRITICAL candidate: {candidate.subtask.name}."
                     )
@@ -543,8 +554,6 @@ class Scheduler:
         log.debug(
             f"[_expand_single_wait] Checking wait-based expansion for subtask: {candidate.subtask.name}."
         )
-        if candidate.subtask.name.startswith("Monitoring"):
-            print(candidate.subtask.execution.primitive_actions)
         target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
         nav_time = self.action_handler.get_actions_info(
             curr_node,
@@ -554,7 +563,7 @@ class Scheduler:
             f"[_expand_single_wait] Subtask {candidate.subtask.name}'s navigation time: {nav_time}. ({target_obj_id})"
         )
 
-        if nav_time > 10 and candidate.is_critical:
+        if candidate.is_critical:
             log.debug(
                 f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITH monitoring."
             )
@@ -791,6 +800,16 @@ class Scheduler:
             if remain_sub.name == critical_end_sub_name
         )
 
+        if monitoring_target_obj:
+            monitoring_target_key = monitoring_target_obj.split("|")[0]
+            gt_interval = CRITICAL_OBJECT_GROUND_TRUTH.get(monitoring_target_key)
+            if gt_interval is not None and gt_interval > original_critical_interval_duration:
+                log.debug(
+                    f"[_expand_subtask_with_monitoring] Upscaling critical interval for '{original_task_name}' "
+                    f"using GT {gt_interval} (prev {original_critical_interval_duration})."
+                )
+                original_critical_interval_duration = gt_interval
+
         if not monitoring_target_obj:
             log.warning(
                 f"Could not determine last interacted object for critical_start_subtask '{critical_start_sub_name}'. "
@@ -886,13 +905,15 @@ class Scheduler:
 
         ideal_early_sub_duration = duration_for_early_sub_target
 
-        lower_bound = ideal_early_sub_duration * (1 - TIMING_TOLERANCE)
-        upper_bound = ideal_early_sub_duration * (1 + TIMING_TOLERANCE)
+        tolerance_window = _resolve_timing_tolerance(ideal_early_sub_duration)
+        lower_bound = max(0.0, ideal_early_sub_duration - tolerance_window)
+        upper_bound = ideal_early_sub_duration + tolerance_window
 
         if not (lower_bound <= actual_early_sub_duration <= upper_bound):
             log.info(
                 f"[_expand_subtask_with_monitoring] Subtask '{original_task_name}' (actual early_duration: {actual_early_sub_duration:.2f}) "
-                f"does not meet timing tolerance for ideal early_duration ({ideal_early_sub_duration:.2f}, bounds: [{lower_bound:.2f}, {upper_bound:.2f}]). "
+                f"does not meet timing tolerance for ideal early_duration ({ideal_early_sub_duration:.2f}, "
+                f"bounds: [{lower_bound:.2f}, {upper_bound:.2f}]). "
                 f"Skipping monitoring split for this candidate."
             )
             return None
@@ -1188,42 +1209,65 @@ class Scheduler:
             raise ValueError(
                 f"[_expand_wait_with_monitoring] Negative wait duration: {total_wait_duration}"
             )
+
+        wait_before_monitor = max(0.0, total_wait_duration - MONITORING_DURATION)
+        if wait_before_monitor <= EPSILON:
+            log.debug(
+                "[_expand_wait_with_monitoring] Insufficient pre-monitor wait window. "
+                "Falling back to non-monitoring wait logic."
+            )
+            return self._expand_wait_wo_monitoring(curr_node, candidate)
+
         target_obj = candidate.subtask.execution.primitive_actions[0].split()[1]
         full_nav_time = self.action_handler.get_actions_info(
             curr_node, [f"NAVIGATE_TO {target_obj}"]
         ).action_duration
-        #!  Refactoring 필요
-        partial_nav_time = min(
-            (
-                int(
-                    (candidate.actual_interaction_start_time - curr_state.current_time)
-                    // NAV_STEP_DURATION
-                )
-                * NAV_STEP_DURATION
-            ),
-            full_nav_time,
-        )
-        log.warning(
-            f"Partial Navigation Time: {partial_nav_time} / {candidate.actual_interaction_start_time - curr_state.current_time}"
-        )
+
+        max_nav_steps = int(wait_before_monitor // NAV_STEP_DURATION)
+        planned_nav_time = max_nav_steps * NAV_STEP_DURATION
+        partial_nav_time = min(planned_nav_time, full_nav_time, wait_before_monitor)
         if partial_nav_time < 0:
             raise ValueError(
                 f"[_expand_wait_with_monitoring] Negative partial navigation time: {partial_nav_time}"
             )
 
-        nav_action = [f"NAVIGATE_TO {target_obj} {partial_nav_time}"]
-        nav_action_info = self.action_handler.get_actions_info(curr_node, nav_action)
-        nav_time = nav_action_info.cumulative_time
-        new_scene_positions = nav_action_info.scene_positions
-        new_held_obj = nav_action_info.held_object
+        wait_actions: List[str] = []
+        if partial_nav_time > EPSILON:
+            wait_actions.append(f"NAVIGATE_TO {target_obj} {partial_nav_time}")
 
-        navigate_sub = Subtask(
+        remaining_idle = max(0.0, wait_before_monitor - partial_nav_time)
+        if remaining_idle > EPSILON:
+            wait_actions.append(f"WAIT {remaining_idle}")
+
+        nav_time = 0.0
+        new_scene_positions = curr_state.scene_positions
+        new_held_obj = curr_state.held_object
+        if wait_actions:
+            wait_action_info = self.action_handler.get_actions_info(
+                curr_node, wait_actions
+            )
+            if wait_action_info is None or not wait_action_info.success:
+                log.warning(
+                    "[_expand_wait_with_monitoring] Failed to simulate wait actions. "
+                    "Fallback to non-monitoring wait."
+                )
+                return self._expand_wait_wo_monitoring(curr_node, candidate)
+            nav_time = wait_action_info.first_nav_duration or 0.0
+            new_scene_positions = wait_action_info.scene_positions
+            new_held_obj = wait_action_info.held_object
+
+        wait_sub_name = (
+            f"Wait (prep) for {candidate.subtask.name}"
+            if wait_actions
+            else f"Wait for {candidate.subtask.name}"
+        )
+        wait_sub = Subtask(
             task_name=None,
-            name=f"Navigate to {target_obj} during {partial_nav_time}",
-            duration=Duration(interval=nav_time, type="Controllable"),
+            name=wait_sub_name,
+            duration=Duration(interval=wait_before_monitor, type="Controllable"),
             repetition=1,
             subtask_type="Interaction",
-            execution=Execution(objects=None, primitive_actions=nav_action),
+            execution=Execution(objects=None, primitive_actions=wait_actions),
             temporal_constraints=None,
         )
 
@@ -1232,42 +1276,44 @@ class Scheduler:
         )
 
         new_remain = [r for r in curr_state.remaining_subtasks]
-        new_remain.extend([mon_sub])
+        new_remain.append(mon_sub)
 
         start_time = curr_state.current_time
-        end_time = start_time + nav_time
+        end_time = start_time + wait_before_monitor
 
         completed_entry = CompletedEntry(
-            subtask=navigate_sub,
+            subtask=wait_sub,
             schedule_start_time=start_time,
             schedule_end_time=end_time,
             schedule_nav_time=nav_time,
+            actual_first_nav_duration=nav_time,
             execution_status=True,
         )
         new_completed = curr_state.completed_entries + [completed_entry]
 
-        # ! ------------------- Constraints Update -------------------
         new_constraints = copy.deepcopy(curr_state.constraints)
         new_constraints.add_node(mon_sub.name)
 
         new_constraints.add_edge(
             curr_node.state.subtask.name,
             mon_sub.name,
-            info={"Interval": nav_time, "IsCritical": True},
+            info={"Interval": wait_before_monitor, "IsCritical": True},
         )
 
+        remaining_until_candidate = max(
+            0.0, total_wait_duration - wait_before_monitor - MONITORING_DURATION
+        )
         new_constraints.add_edge(
             mon_sub.name,
             candidate.subtask.name,
             info={
-                "Interval": total_wait_duration - MONITORING_DURATION - nav_time,
+                "Interval": remaining_until_candidate,
                 "IsCritical": True,
             },
         )
 
-        # Agent position/state 변경은 거의 없음(Wait)
         new_state = SchedulerState(
-            subtask=navigate_sub,
+            subtask=wait_sub,
             completed_entries=new_completed,
             remaining_subtasks=new_remain,
             constraints=new_constraints,
@@ -1280,7 +1326,7 @@ class Scheduler:
         new_cost = curr_cost + step_cost
 
         log.info(
-            f"[_expand_wait_with_monitoring] Subtask {navigate_sub.name}\n"
+            f"[_expand_wait_with_monitoring] Subtask {wait_sub.name}\n"
             f"  -> Score={round(new_cost, 2)}, "
             f"Interval={round(start_time,2)}~{round(end_time,2)}\n"
             f"  -> Updated remain={[r.name for r in new_remain]}\n"

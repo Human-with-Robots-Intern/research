@@ -3,10 +3,12 @@ import time
 
 from src.utils.common import create_module_logger
 from src.utils.config.constants import (
+    GRASP_ACTION_DURATION,
     MONITORING_DURATION,
     NAV_STEP_DURATION,
-    PRIMITIVE_ACTION_DURATION,
+    PLACE_ACTION_DURATION,
     SMOOTH_LEVEL,
+    TOGGLE_ACTION_DURATION,
 )
 
 from .navigation_handler import NavigationHandler
@@ -83,7 +85,7 @@ class Action:
         Returns:
             float: Elapsed time for the pickup action, or False on failure.
         """
-        elapsed_time = PRIMITIVE_ACTION_DURATION
+        elapsed_time = GRASP_ACTION_DURATION
 
         # 1. 첫 번째 시도
         result = self.controller.step(
@@ -183,7 +185,7 @@ class Action:
         result = self.controller.step(action="SliceObject", objectId=object_id)
         self.success_log(result, f"slice {object_id}")
         time.sleep(0.3)
-        return PRIMITIVE_ACTION_DURATION
+        return TOGGLE_ACTION_DURATION
 
     def put(self, target_id: str):
         """
@@ -197,7 +199,7 @@ class Action:
         Returns:
             float: Elapsed time for the put action.
         """
-        elapsed_time = PRIMITIVE_ACTION_DURATION
+        elapsed_time = PLACE_ACTION_DURATION
         result = self.controller.step(
             action="PutObject",
             objectId=target_id,
@@ -298,7 +300,7 @@ class Action:
             step += 1
         self.success_log(result, "drop")
         time.sleep(0.3)
-        return PRIMITIVE_ACTION_DURATION
+        return TOGGLE_ACTION_DURATION
 
     def toggle_on(self, object_id: str):
         """
@@ -317,13 +319,13 @@ class Action:
                     self.log.info(
                         f"Object {object_id} is already on. Skipping toggle on action."
                     )
-                    return PRIMITIVE_ACTION_DURATION
+                    return TOGGLE_ACTION_DURATION
                 break
 
         result = self.controller.step(action="ToggleObjectOn", objectId=object_id)
         self.success_log(result, f"toggle on {object_id}")
         time.sleep(0.3)
-        return PRIMITIVE_ACTION_DURATION
+        return TOGGLE_ACTION_DURATION
 
     def toggle_off(self, object_id: str):
         """
@@ -342,13 +344,13 @@ class Action:
                     self.log.info(
                         f"Object {object_id} is already off. Skipping toggle off action."
                     )
-                    return PRIMITIVE_ACTION_DURATION
+                    return TOGGLE_ACTION_DURATION
                 break
 
         result = self.controller.step(action="ToggleObjectOff", objectId=object_id)
         self.success_log(result, f"toggle off {object_id}")
         time.sleep(0.3)
-        return PRIMITIVE_ACTION_DURATION
+        return TOGGLE_ACTION_DURATION
 
     def open(self, object_id: str):
         """
@@ -363,7 +365,26 @@ class Action:
         Returns:
             float: Elapsed time for the open action.
         """
-        elapsed_time = PRIMITIVE_ACTION_DURATION
+        elapsed_time = TOGGLE_ACTION_DURATION
+        # Face the target and make a small backward offset to avoid door collision
+        agent_pos = self.navi.get_agent_position()
+        object_pos = self.navi.get_object_position(object_id)
+        if object_pos is not None:
+            obj_angle, degree = self.navi.agent_rotate_angle(agent_pos, object_pos)
+            if degree != 0:
+                for _ in range(SMOOTH_LEVEL):
+                    step_deg = abs(degree) / SMOOTH_LEVEL
+                    if degree > 0:
+                        self.controller.step(action="RotateRight", degrees=step_deg)
+                    else:
+                        self.controller.step(action="RotateLeft", degrees=step_deg)
+                    self.controller.step(action="Pass")
+            # Back off slightly away from the door plane
+            try:
+                self.navi.move_in_direction(-obj_angle, 0.15)
+            except Exception:
+                # non-fatal, continue
+                pass
         result = self.controller.step(
             action="OpenObject",
             objectId=object_id,
@@ -372,7 +393,21 @@ class Action:
         )
         self.success_log(result, f"open {object_id}")
 
-        if not result.metadata["lastActionSuccess"]:
+        # If door failed to stay open due to collision, back off and try once more with force
+        try:
+            obj_state = next(
+                (
+                    o
+                    for o in self.controller.last_event.metadata["objects"]
+                    if o["objectId"] == object_id
+                ),
+                None,
+            )
+            is_open_now = bool(obj_state and obj_state.get("isOpen"))
+        except Exception:
+            is_open_now = result.metadata.get("lastActionSuccess", False)
+
+        if not result.metadata["lastActionSuccess"] or not is_open_now:
             self.log.warning(
                 f"Initial 'OpenObject' on {object_id} failed. Attempting recovery with Teleport."
             )
@@ -394,6 +429,17 @@ class Action:
                     self.log.info(
                         f"Teleported to a reachable position {best_pos} for retrying 'OpenObject'."
                     )
+                    # Additional small backoff after teleport to reduce collision chance
+                    try:
+                        agent_pos = self.navi.get_agent_position()
+                        object_pos = self.navi.get_object_position(object_id)
+                        if object_pos is not None:
+                            obj_angle, _ = self.navi.agent_rotate_angle(
+                                agent_pos, object_pos
+                            )
+                            self.navi.move_in_direction(-obj_angle, 0.15)
+                    except Exception:
+                        pass
                     result = self.controller.step(
                         action="OpenObject",
                         objectId=object_id,
@@ -447,7 +493,7 @@ class Action:
             self.success_log(result, f"Force close {object_id} via forceAction")
 
         time.sleep(0.3)
-        return PRIMITIVE_ACTION_DURATION
+        return TOGGLE_ACTION_DURATION
 
     def monitoring(self, object_id: str):
         """
@@ -470,17 +516,26 @@ class Action:
         result = None
 
         if degree != 0:
-            # 부드럽게 회전
+            # 부드럽게 회전 (방향성 보장)
             for _ in range(SMOOTH_LEVEL):
-                result = self.controller.step(
-                    action="RotateRight", degrees=degree / SMOOTH_LEVEL
-                )
-                if not result.metadata["lastActionSuccess"]:
-                    # 회전 실패 시 약간 이동 후 재시도
-                    self.navi.move_in_direction(-obj_angle, 0.2)
+                step_deg = abs(degree) / SMOOTH_LEVEL
+                if degree > 0:
                     result = self.controller.step(
-                        action="RotateRight", degrees=degree / SMOOTH_LEVEL
+                        action="RotateRight", degrees=step_deg
                     )
+                else:
+                    result = self.controller.step(action="RotateLeft", degrees=step_deg)
+                if not result.metadata["lastActionSuccess"]:
+                    # 회전 실패 시 약간 이동 후 재시도 (문짝 등 충돌 완화)
+                    self.navi.move_in_direction(-obj_angle, 0.2)
+                    if degree > 0:
+                        result = self.controller.step(
+                            action="RotateRight", degrees=step_deg
+                        )
+                    else:
+                        result = self.controller.step(
+                            action="RotateLeft", degrees=step_deg
+                        )
                 self.controller.step(action="Pass")
 
         # 카메라 각도 조정
@@ -491,7 +546,12 @@ class Action:
         # 원위치로 회전
         if degree != 0:
             for _ in range(SMOOTH_LEVEL):
-                self.controller.step(action="RotateLeft", degrees=degree / SMOOTH_LEVEL)
+                step_deg = abs(degree) / SMOOTH_LEVEL
+                # 되돌릴 때는 반대 방향으로 회전
+                if degree > 0:
+                    self.controller.step(action="RotateLeft", degrees=step_deg)
+                else:
+                    self.controller.step(action="RotateRight", degrees=step_deg)
 
         time.sleep(MONITORING_DURATION)
         return MONITORING_DURATION
@@ -526,7 +586,7 @@ class Action:
         )
         self.success_log(result, f"fill {object_id} with water")
         time.sleep(0.3)
-        return PRIMITIVE_ACTION_DURATION
+        return PLACE_ACTION_DURATION
 
     def move_to(self, object_id: str):
         """
@@ -602,10 +662,10 @@ class Action:
                         action="RotateRight", degrees=degree / SMOOTH_LEVEL
                     )
                     if not recovery_result.metadata["lastActionSuccess"]:
-                        rec_error = recovery_result.metadata.get(
+                        _ = recovery_result.metadata.get(
                             "errorMessage", "No error message."
                         )
-                        # self.log.error(f"NAV_DEBUG: Rotation recovery also failed. Error: {rec_error}")
+                        # self.log.error(f"NAV_DEBUG: Rotation recovery also failed.")
 
         # 카메라 각도 조정
         self.navi.adjust_camera_to_object(object_id)

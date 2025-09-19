@@ -9,8 +9,6 @@ __all__ = [
     "TASK_PATH",
     "RESULT_PATH",
     "LOG_PATH",
-    "ESTIMATE_FILE_NAME",
-    "GROUND_TRUTH_FILE_NAME",
     "PRIMITIVE_ACTION_SET",
     "PRIMITIVE_ACTION_DURATION",
     "MONITORING_DURATION",
@@ -32,7 +30,7 @@ __all__ = [
     "RESET",
     "SCREEN_WIDTH",
     "SCREEN_HEIGHT",
-    #"SCENE_NAME", 이제 변수로 받아온다.
+    # "SCENE_NAME", 이제 변수로 받아온다.
     "GRID_SIZE",
     "SMOOTH_LEVEL",
     "MOVE_STEP",
