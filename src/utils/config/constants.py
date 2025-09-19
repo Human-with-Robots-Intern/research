@@ -66,7 +66,7 @@ ALPHA_HEURISTIC = 2.0
 BETA_HEURISTIC = 3.0
 GAMMA_HEURISTIC = 0.3
 # ========== 베이지안 ==========
-BAYESIAN_CRITERIA = 0.7
+BAYESIAN_CRITERIA = 0.5
 
 GT_INTERVAL = 100.0
 INIT_PRIOR_MEAN = 60.0
@@ -79,10 +79,10 @@ MIN_VARIANCE = 1e-6
 # The ratio (30%) mirrors the previous behaviour, while the absolute value
 # allows capping the tolerance window for large intervals.
 TIMING_TOLERANCE_RATIO = 0.3
-TIMING_TOLERANCE_ABS = 15.0
+TIMING_TOLERANCE_ABS = 20.0
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 4
-BEAM_WIDTH = 5
+SIMULATION_DEPTH = 1
+BEAM_WIDTH = 1
 EPSILON = 1e-1
 LARGE_NUMBER = 1e4
 TOP_K = 1

@@ -295,6 +295,10 @@ class ConstraintHandler:
             log.debug(
                 f"Final status for '{sub.name}': COMPLETED. Earliest logical start: {final_start_time:.2f} (Critical: {is_final_critical})"
             )
+
+            log.debug(
+                f"Final status for '{sub.name}': COMPLETED. Earliest logical start (post-adjust): {final_start_time:.2f} (Critical: {is_final_critical})"
+            )
             return (final_start_time, is_final_critical, "COMPLETED")
 
         log.debug(f"Final status for '{sub.name}': NOT_READY (no predecessor info)")
