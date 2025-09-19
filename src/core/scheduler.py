@@ -1296,6 +1296,11 @@ class Scheduler:
             new_constraints.add_node(candidate.subtask.name)
         if not new_constraints.has_edge(mon_sub.name, candidate.subtask.name):
             new_constraints.add_edge(
+                curr_node.state.subtask.name,
+                mon_sub.name,
+                info={"Interval": 0.0, "IsCritical": True},
+            )
+            new_constraints.add_edge(
                 mon_sub.name,
                 candidate.subtask.name,
                 info={"Interval": remaining_slack, "IsCritical": True},
