@@ -21,6 +21,7 @@ from src.utils.config.constants import (
     PLACE_ACTION_DURATION,
     TOGGLE_ACTION_DURATION,
     TARDINESS_WEIGHT,
+    MONITORING_RISK_WEIGHT,
 )
 
 # Forward declarations for type hinting
@@ -369,6 +370,9 @@ class HeuristicManager:
         )
         tardiness = max(0.0, -slack_time)
         tardiness_cost = TARDINESS_WEIGHT * tardiness
+        monitoring_penalty = self._calculate_monitoring_risk(
+            current_node, candidate
+        )
 
         # 후보 자체의 네비게이션이나 긴급도에서 이미 실행 불가능 판정 시
         if (
@@ -472,6 +476,7 @@ class HeuristicManager:
             + self.beta * urgency_cost_for_candidate
             + self.gamma * remaining_work_cost
             + tardiness_cost
+            + monitoring_penalty
         )
 
         log.debug(
@@ -479,6 +484,7 @@ class HeuristicManager:
             f"CandNavCost({self.alpha:.2f}*{nav_cost_for_candidate:.2f}) = {self.alpha * nav_cost_for_candidate:.2f}, "
             f"CandUrgCost({self.beta:.2f}*{urgency_cost_for_candidate:.2f}) = {self.beta * urgency_cost_for_candidate:.2f} (Slack={slack_time:.2f}), "
             f"TardinessCost({TARDINESS_WEIGHT:.2f}*{tardiness:.2f}) = {tardiness_cost:.2f}, "
+            f"MonRisk({MONITORING_RISK_WEIGHT:.2f}) = {monitoring_penalty:.2f}, "
             f"RemWorkCost({self.gamma:.2f}*{remaining_work_cost:.2f}) = {self.gamma * remaining_work_cost:.2f}"
         )
         log.info(
@@ -558,3 +564,40 @@ class HeuristicManager:
             urgency_cost = 1.0 / (slack + 1.0)
 
         return urgency_cost, slack
+
+    def _calculate_monitoring_risk(
+        self, current_node: SimulationNode, candidate: Candidate
+    ) -> float:
+        """Assign an additional penalty when a critical successor lacks a monitoring task."""
+        if candidate.is_critical:
+            return 0.0
+
+        scheduling_due = candidate.scheduling_due
+        if (
+            scheduling_due is None
+            or scheduling_due.due_date == float("inf")
+            or scheduling_due.due_related_sub_name is None
+        ):
+            return 0.0
+
+        constraints = current_node.state.constraints
+        critical_end_sub_name = scheduling_due.due_related_sub_name
+        if not constraints or not constraints.has_node(critical_end_sub_name):
+            return 0.0
+
+        has_monitoring_pred = False
+        for pred_name, _, _ in constraints.in_edges(critical_end_sub_name, data=True):
+            if pred_name.startswith("Monitoring for "):
+                has_monitoring_pred = True
+                break
+
+        if has_monitoring_pred:
+            return 0.0
+
+        time_until_due = scheduling_due.due_date - current_node.state.current_time
+        if time_until_due <= 0.0:
+            risk_factor = 1.0 / EPSILON
+        else:
+            risk_factor = 1.0 / (time_until_due + EPSILON)
+
+        return MONITORING_RISK_WEIGHT * risk_factor

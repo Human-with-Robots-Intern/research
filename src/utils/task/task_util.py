@@ -454,10 +454,13 @@ class TaskUtil:
         """
         MONITORING 액션을 수행하는 Subtask를 생성해 반환한다.
         """
+        base_name = name
+        if base_name.startswith("Monitoring for "):
+            base_name = base_name[len("Monitoring for ") :]
         monitoring_action = None if obj is None else [f"MONITORING {obj}"]
         monitoring_subtask = Subtask(
             task_name=None,
-            name=f"Monitoring for {name}_{uuid.uuid4().hex[:8]}",
+            name=f"Monitoring for {base_name}_{uuid.uuid4().hex[:8]}",
             duration=Duration(
                 interval=MONITORING_DURATION,
                 type="Monitor",

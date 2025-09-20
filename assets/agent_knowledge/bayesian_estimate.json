@@ -1,11 +1,11 @@
 {
     "Faucet": {
-        "expected_duration": 60.0,
-        "variance": 100.0
+        "expected_duration": 95.98963537141023,
+        "variance": 11.217937240306089
     },
     "StoveKnob": {
-        "expected_duration": 99.41640747086747,
-        "variance": 2.5670209430651596
+        "expected_duration": 97.90711639587322,
+        "variance": 6.415981512825423
     },
     "Microwave": {
         "expected_duration": 0.0,

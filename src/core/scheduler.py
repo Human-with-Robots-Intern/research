@@ -571,27 +571,25 @@ class Scheduler:
             f"[_expand_single_wait] Subtask {candidate.subtask.name}'s navigation time: {nav_time}. ({target_obj_id})"
         )
 
-        if candidate.is_critical and not getattr(
+        wants_monitoring = candidate.is_critical and not getattr(
             candidate.subtask, "_monitoring_executed", False
-        ):
+        )
+
+        if wants_monitoring:
             log.debug(
-                f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITH monitoring."
+                f"[_expand_single_wait] Subtask {candidate.subtask.name} (non-critical) will wait WITH monitoring."
             )
             if curr_node.state.subtask.name.startswith("Monitoring"):
                 log.debug(
-                    f"[_expand_single_wait] Subtask {candidate.subtask.name} is a monitoring subtask. Using wait WITHOUT monitoring."
+                    f"[_expand_single_wait] Current node already monitoring. Falling back to wait WITHOUT monitoring for {candidate.subtask.name}."
                 )
                 return self._expand_wait_wo_monitoring(curr_node, candidate)
-            else:
-                log.debug(
-                    f"[_expand_single_wait] Subtask {candidate.subtask.name} is a critical subtask. Using wait WITH monitoring."
-                )
-                return self._expand_wait_with_monitoring(curr_node, candidate)
-        else:
-            log.debug(
-                f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITHOUT monitoring."
-            )
-            return self._expand_wait_wo_monitoring(curr_node, candidate)
+            return self._expand_wait_with_monitoring(curr_node, candidate)
+
+        log.debug(
+            f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITHOUT monitoring."
+        )
+        return self._expand_wait_wo_monitoring(curr_node, candidate)
 
     # ======================
     # Helper: 모니터링 필요한지
@@ -614,6 +612,13 @@ class Scheduler:
         Returns:
             bool: True if we should expand the subtask with monitoring, False otherwise.
         """
+        # # (0) Critical 후보는 분해 대상에서 제외한다.
+        # if candidate.is_critical:
+        #     log.debug(
+        #         f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} is critical => No monitoring split."
+        #     )
+        #     return False
+
         # (1) If there's no scheduling due => no monitoring needed
         if candidate.scheduling_due.due_date == float("inf"):
             log.debug(
