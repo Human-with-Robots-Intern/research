@@ -20,6 +20,8 @@ from src.utils.config.constants import (
     NAV_STEP_DURATION,
     PLACE_ACTION_DURATION,
     TOGGLE_ACTION_DURATION,
+    TARDINESS_WEIGHT,
+    MONITORING_RISK_WEIGHT,
 )
 
 # Forward declarations for type hinting
@@ -366,6 +368,11 @@ class HeuristicManager:
         urgency_cost_for_candidate, slack_time = self._calculate_candidate_urgency_cost(
             current_node, candidate
         )
+        tardiness = max(0.0, -slack_time)
+        tardiness_cost = TARDINESS_WEIGHT * tardiness
+        monitoring_penalty = self._calculate_monitoring_risk(
+            current_node, candidate
+        )
 
         # 후보 자체의 네비게이션이나 긴급도에서 이미 실행 불가능 판정 시
         if (
@@ -468,12 +475,16 @@ class HeuristicManager:
             self.alpha * nav_cost_for_candidate
             + self.beta * urgency_cost_for_candidate
             + self.gamma * remaining_work_cost
+            + tardiness_cost
+            + monitoring_penalty
         )
 
         log.debug(
             f"  Heuristic for '{candidate.subtask.name}': "
             f"CandNavCost({self.alpha:.2f}*{nav_cost_for_candidate:.2f}) = {self.alpha * nav_cost_for_candidate:.2f}, "
             f"CandUrgCost({self.beta:.2f}*{urgency_cost_for_candidate:.2f}) = {self.beta * urgency_cost_for_candidate:.2f} (Slack={slack_time:.2f}), "
+            f"TardinessCost({TARDINESS_WEIGHT:.2f}*{tardiness:.2f}) = {tardiness_cost:.2f}, "
+            f"MonRisk({MONITORING_RISK_WEIGHT:.2f}) = {monitoring_penalty:.2f}, "
             f"RemWorkCost({self.gamma:.2f}*{remaining_work_cost:.2f}) = {self.gamma * remaining_work_cost:.2f}"
         )
         log.info(
@@ -545,13 +556,48 @@ class HeuristicManager:
         # )
 
         urgency_cost = 0.0
-        if slack < EPSILON:  # Slack이 거의 없거나 마이너스 (마감 임박 또는 이미 지남)
-            # 매우 높은 긴급도 비용 (마이너스 Slack이 클수록 더 높은 비용 - 현재는 LARGE_NUMBER로 통일)
-            # 또는, -slack 값에 비례하는 큰 값을 사용할 수도 있음.
-            urgency_cost = LARGE_NUMBER
-            # log.warning(f"  Urgency Alert for '{candidate.subtask.name}': Slack {slack:.2f} is critical. Cost set to LARGE_NUMBER.")
+        if slack <= 0.0:  # Slack이 없거나 이미 기한을 초과한 경우 → 최우선으로 다뤄야 함
+            urgency_cost = EPSILON  # 가능한 한 작은 비용으로 만들어 우선 확장되도록 유도
         else:
-            # Slack이 양수이면, Slack에 반비례하는 비용 (Slack이 클수록 긴급도 낮음 -> 비용 낮음)
-            urgency_cost = 1.0 / (slack + EPSILON)  # EPSILON은 분모 0 방지
+            # Slack이 커질수록 비용이 서서히 감소하도록 완만한 함수 사용
+            # (slack이 0에 가까우면 ~1, slack이 커질수록 0에 근접)
+            urgency_cost = 1.0 / (slack + 1.0)
 
         return urgency_cost, slack
+
+    def _calculate_monitoring_risk(
+        self, current_node: SimulationNode, candidate: Candidate
+    ) -> float:
+        """Assign an additional penalty when a critical successor lacks a monitoring task."""
+        if candidate.is_critical:
+            return 0.0
+
+        scheduling_due = candidate.scheduling_due
+        if (
+            scheduling_due is None
+            or scheduling_due.due_date == float("inf")
+            or scheduling_due.due_related_sub_name is None
+        ):
+            return 0.0
+
+        constraints = current_node.state.constraints
+        critical_end_sub_name = scheduling_due.due_related_sub_name
+        if not constraints or not constraints.has_node(critical_end_sub_name):
+            return 0.0
+
+        has_monitoring_pred = False
+        for pred_name, _, _ in constraints.in_edges(critical_end_sub_name, data=True):
+            if pred_name.startswith("Monitoring for "):
+                has_monitoring_pred = True
+                break
+
+        if has_monitoring_pred:
+            return 0.0
+
+        time_until_due = scheduling_due.due_date - current_node.state.current_time
+        if time_until_due <= 0.0:
+            risk_factor = 1.0 / EPSILON
+        else:
+            risk_factor = 1.0 / (time_until_due + EPSILON)
+
+        return MONITORING_RISK_WEIGHT * risk_factor

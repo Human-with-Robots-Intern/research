@@ -52,8 +52,8 @@ DYNAMIC_ACTION_SET = {
     "WAIT",
     "MONITORING",
 }
-PRIMITIVE_ACTION_DURATION = 15.0
-MONITORING_DURATION = 2.33
+# PRIMITIVE_ACTION_DURATION = 15.0
+MONITORING_DURATION = 0.1
 NAV_STEP_DURATION = 0.13
 REAL_NAV_DURATION = 3.31
 TOGGLE_ACTION_DURATION = 11.33
@@ -65,6 +65,8 @@ REACHABLE_DISTANCE_THRESHOLD = 50.0
 ALPHA_HEURISTIC = 2.0
 BETA_HEURISTIC = 3.0
 GAMMA_HEURISTIC = 0.3
+TARDINESS_WEIGHT = 10
+MONITORING_RISK_WEIGHT = 0.5
 # ========== 베이지안 ==========
 BAYESIAN_CRITERIA = 0.3
 
@@ -72,7 +74,7 @@ GT_INTERVAL = 100.0
 INIT_PRIOR_MEAN = 60.0
 INIT_PRIOR_VARIANCE = 100.0
 
-FACTOR_ALPHA = 0.01
+FACTOR_ALPHA = 0.005
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
 # Timing tolerance can be interpreted both as a ratio and an absolute cap.
@@ -85,8 +87,8 @@ TIMING_TOLERANCE_ABS = 15.0
 # monitoring structure even when the early chunk deviates slightly from the
 # ideal cutoff. These constants are only used during the split evaluation;
 # result scoring still relies on the stricter tolerance above.
-MONITORING_SPLIT_TOLERANCE_RATIO = 0.6
-MONITORING_SPLIT_TOLERANCE_ABS = 20.0
+MONITORING_SPLIT_TOLERANCE_RATIO = 0.3
+MONITORING_SPLIT_TOLERANCE_ABS = 15.0
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 4
 BEAM_WIDTH = 5
