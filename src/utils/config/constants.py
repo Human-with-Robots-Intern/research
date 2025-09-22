@@ -53,7 +53,7 @@ DYNAMIC_ACTION_SET = {
     "MONITORING",
 }
 # PRIMITIVE_ACTION_DURATION = 15.0
-MONITORING_DURATION = 2.33
+MONITORING_DURATION = 0.1
 NAV_STEP_DURATION = 0.13
 REAL_NAV_DURATION = 3.31
 TOGGLE_ACTION_DURATION = 11.33
@@ -62,24 +62,16 @@ PLACE_ACTION_DURATION = 8.79
 
 REACHABLE_DISTANCE_THRESHOLD = 50.0
 
-ALPHA_HEURISTIC = 1.0  # Weight for immediate navigation cost
-BETA_HEURISTIC = 1.5  # Weight for urgency (slack)
-GAMMA_HEURISTIC = 1.0  # Weight for future (remaining) work
-TARDINESS_WEIGHT = 2.0  # Penalty weight for being late (negative slack)
+ALPHA_HEURISTIC = 2.0
+BETA_HEURISTIC = 3.0
+GAMMA_HEURISTIC = 0.3
+TARDINESS_WEIGHT = 10
 MONITORING_RISK_WEIGHT = 0.5
-
-# Heuristic Normalization Caps (to scale raw cost values to a similar 0-1 range)
-NORMALIZATION_CAP_NAV = 30.0  # Cap for single-task navigation cost in seconds
-NORMALIZATION_CAP_REMAINING_WORK = (
-    300.0  # Cap for the estimated total remaining work in seconds
-)
-NORMALIZATION_CAP_TARDINESS = 50.0  # Cap for tardiness penalty in seconds
-
 # ========== 베이지안 ==========
 BAYESIAN_CRITERIA = 0.3
 
 GT_INTERVAL = 100.0
-INIT_PRIOR_MEAN = 140.0
+INIT_PRIOR_MEAN = 60.0
 INIT_PRIOR_VARIANCE = 100.0
 
 FACTOR_ALPHA = 0.005
@@ -178,7 +170,6 @@ CRITICAL_OBJECT_INTERVALS = {
     "POT": INIT_PRIOR_MEAN,
     "Egg": INIT_PRIOR_MEAN,
     "CounterTop": INIT_PRIOR_MEAN,
-    "Potato": INIT_PRIOR_MEAN,
 }
 
 # Non-critical이지만 일관된 시간을 적용하고 싶은 객체
@@ -207,5 +198,4 @@ CRITICAL_OBJECT_GROUND_TRUTH = {
     "POT": GT_INTERVAL,
     "Egg": GT_INTERVAL,
     "CounterTop": GT_INTERVAL,
-    "Potato": GT_INTERVAL,
 }

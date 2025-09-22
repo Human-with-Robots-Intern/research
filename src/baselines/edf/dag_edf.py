@@ -5,17 +5,19 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import networkx as nx
+
+from src.simulation.runner_ai2thor import execute_subtask
 from ai2thor.platform import CloudRendering
+from src.utils.common.logger import create_module_logger
+from src.utils.io_utils import task_io
+from src.utils.io_utils.result_saver import result_save
 from dataclass import ActionResult, CompletedEntry, SchedulerState, SimulationNode
 
 from ithor.utils.math_utils import load_navigation_graph
 from src.models.task import *
 from src.scheduler.action_handler import ActionHandler
-from src.simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
-from src.utils.common.logger import create_module_logger
+from src.simulation.runner_ai2thor import init_ai2thor_controller
 from src.utils.config.constants import RESULT_PATH
-from src.utils.io_utils import task_io
-from src.utils.io_utils.result_saver import result_save
 from src.utils.io_utils.task_io import (
     get_natural_language_from_task_file,
     get_user_task_choice,
@@ -23,8 +25,8 @@ from src.utils.io_utils.task_io import (
     load_scene_positions,
     load_task_data_from_file,
 )
-from src.utils.ros_executor import RosExecutor
 from src.utils.task.task_util import TaskUtil
+from src.utils.ros_executor import RosExecutor
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
@@ -81,7 +83,6 @@ def compute_nav_time(
 
     return nav_time, nav_positions
 
-
 def offline_subtask_execution(
     subtask: Subtask, current_state: SchedulerState, action_handler: ActionHandler
 ) -> float:
@@ -109,7 +110,7 @@ def update_state(
 ) -> SchedulerState:
     subtask_duration = exec_info.cumulative_time
     subtask_entry = CompletedEntry(
-        subtask=next_subtask,
+        subtask=next_subtask,    
         schedule_start_time=current_state.current_time,
         schedule_end_time=current_state.current_time + subtask_duration,
         schedule_nav_time=nav_time,
@@ -137,7 +138,7 @@ def nav_and_wait_during_interval(
     next_subtask: Subtask,
     is_critical: bool,
     action_handler: ActionHandler,
-) -> Tuple[SchedulerState, bool]:
+) -> Tuple[ SchedulerState,bool]:
     """
     주어진 시간(interval) 동안 이동(NAVIGATE)과 대기(WAIT)를 위한 서브태스크를 생성합니다.
     next_subtask의 첫 번째 액션이 NAVIGATE_TO여야 하며,
@@ -196,7 +197,9 @@ def nav_and_wait_during_interval(
             name=f"WAIT {wait_time} to {next_subtask.name}",
             repetition=1,
             subtask_type="WAIT",
-            execution=Execution(objects={}, primitive_actions=[f"WAIT {wait_time}"]),
+            execution=Execution(
+                objects={}, primitive_actions=[f"WAIT {wait_time}"]
+            ),
             duration=Duration(type="WAIT", interval=wait_time),
             temporal_constraints=[],
         )
@@ -366,6 +369,7 @@ def update(
             if is_nav_and_wait:
                 nav_time = 0.0
 
+
     exec_info = offline_subtask_execution(next_subtask, current_state, action_handler)
     # -------------------------------
     # 3) next_subtask 실행
@@ -439,12 +443,6 @@ def parse_arguments():
         default=None,
         help="Path to the log file for this specific run.",
     )
-    parser.add_argument(
-        "--result-path",
-        type=Path,
-        default=None,
-        help="The path to save the results.",
-    )
     return parser.parse_args()
 
 
@@ -498,9 +496,7 @@ def main():
                 # In both cases, we treat it as a natural language instruction.
                 task_data = {"instruction": instruction}
         else:
-            task_file_name, choice = get_user_task_choice(
-                task_files, scene_name=scene_name
-            )
+            task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
             task_data = load_task_data_from_file(task_file_name)
             input_natural_language = task_file_name
             if choice != 0:
@@ -533,7 +529,7 @@ def main():
         print("\n=== Execution Times for Each Entry ===")
         current_state = init_state
         for entry in result_schedule:
-
+            
             action_handler = ActionHandler(nav_graph)
             exec_info = offline_subtask_execution(
                 entry.subtask, current_state, action_handler
@@ -543,6 +539,7 @@ def main():
             current_state = update_state(
                 current_state, entry.subtask, exec_info, entry.schedule_nav_time
             )
+
 
         # Phase 2: Execute simulation if requested
         if args.simulation:
@@ -559,26 +556,23 @@ def main():
                 entry.execution_status = execution_status
                 entry.sim_nav_time = sim_nav_time
                 simulation_current_time += subtask_time
-
+                
             result_args = {
-                "task_name": input_natural_language,
-                "approach_name": approach_name,
-                "result_schedule": result_schedule,
-                "computation_time": computation_time,
-                "scene_name": scene_name,
-                "constraints": constraints,
-                "initial_plan_data": task_data,
-                "base_result_path": args.result_path,
+            "task_name": input_natural_language,
+            "approach_name": approach_name,
+            "result_schedule": result_schedule,
+            "computation_time": computation_time,
+            "scene_name": scene_name,
+            "constraints": constraints,
+            "initial_plan_data": task_data,
             }
 
             result_save(**result_args)
-
+            
         if args.ros:
             ros_executor = RosExecutor()
-            real_executed_result_schedule = ros_executor.execute_schedule(
-                result_schedule
-            )
-
+            real_executed_result_schedule = ros_executor.execute_schedule(result_schedule)
+            
             result_args = {
                 "task_name": input_natural_language,
                 "approach_name": f"{approach_name}_ros",
@@ -587,7 +581,6 @@ def main():
                 "scene_name": scene_name,
                 "constraints": constraints,
                 "initial_plan_data": task_data,
-                "base_result_path": args.result_path,
             }
             result_save(**result_args)
     finally:

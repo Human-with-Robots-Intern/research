@@ -3,8 +3,8 @@ import copy
 import os
 import sys
 import time
-from pathlib import Path
 from typing import Any, Callable, Dict, Optional, TextIO
+from pathlib import Path
 
 import numpy as np
 
@@ -14,10 +14,10 @@ from ai2thor.platform import CloudRendering
 
 import src.baselines.cap.util.LMPgen as gen
 from src.simulation.runner_ai2thor import init_ai2thor_controller
-from src.utils.common import create_module_logger
 from src.utils.config.constants import *
 from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
+from src.utils.common import create_module_logger
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
@@ -384,12 +384,6 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="Use CloudRendering platform for AI2-THOR.",
     )
-    parser.add_argument(
-        "--result-path",
-        type=Path,
-        default=None,
-        help="The path to save the results.",
-    )
     return parser.parse_args()
 
 
@@ -419,9 +413,7 @@ if __name__ == "__main__":
                 if 1 <= choice <= len(task_files):
                     instruction = Path(task_files[choice - 1]).stem
                 else:
-                    print(
-                        f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}."
-                    )
+                    print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
                     sys.exit(1)
             except ValueError:
                 # instruction is not a number, so we treat it as a natural language command.
@@ -437,14 +429,12 @@ if __name__ == "__main__":
             log_dir = Path("src/baselines/cap/result")
             log_dir.mkdir(exist_ok=True)
             log_file_path = log_dir / f"cap_logs_{instruction}.txt"
-
+        
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
         log_file = open(log_file_path, "w", buffering=1)
 
         # AI2-THOR 컨트롤러 초기화
-        ithor_main_controller = init_ai2thor_controller(
-            scene_name, platform=platform_obj
-        )
+        ithor_main_controller = init_ai2thor_controller(scene_name, platform=platform_obj)
 
         # Action 핸들러 초기화
         ithor_action_controller = Action(ithor_main_controller, logger=logger)
@@ -491,7 +481,6 @@ if __name__ == "__main__":
             "computation_time": computation_time,
             "scene_name": scene_name,
             "attempt": args.attempt,
-            "base_result_path": args.result_path,
         }
 
         result_save_llm(**result_args)

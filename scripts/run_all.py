@@ -1,69 +1,23 @@
+import argparse
 import concurrent.futures
 import json
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import traceback
 from datetime import datetime
 from itertools import product
+from math import inf
 from pathlib import Path
 
 import yaml
 
-import src.utils.config.constants as constants
 from src.utils.common import create_module_logger
+from src.utils.config.constants import LOG_PATH, RESULT_PATH
 from src.utils.io_utils.task_io import list_task_files
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-CONSTANTS_PATH = REPO_ROOT / "src" / "utils" / "config" / "constants.py"
-
-
-def _format_scalar(value: float) -> str:
-    """부동소수점 값을 문자열로 포맷팅합니다."""
-    if abs(value - round(value)) < 1e-9:
-        return f"{round(value):.1f}"
-    return f"{value}"
-
-
-def _format_tag(mean: float) -> str:
-    """태그 생성을 위해 mean 값을 문자열로 변환합니다."""
-    rounded = round(mean)
-    if abs(mean - rounded) < 1e-9:
-        mean_str = str(rounded)
-    else:
-        mean_str = str(mean).replace(".", "_")
-    return mean_str
-
-
-def _replace_assignment(content: str, name: str, expr: str) -> str:
-    """파일 내용에서 변수 할당 부분을 찾아 교체합니다."""
-    pattern = rf"^(?P<lhs>{name}\s*=\s*).*$"
-    replacement = rf"\g<lhs>{expr}"
-    updated, count = re.subn(pattern, replacement, content, count=1, flags=re.MULTILINE)
-    if count == 0:
-        raise ValueError(f"constants.py에서 '{name}' 변수를 찾지 못했습니다.")
-    return updated
-
-
-def prepare_constants(
-    baseline_content: str, init_prior_mean: float, gt_interval: float
-) -> str:
-    """INIT_PRIOR_MEAN과 GT_INTERVAL 값을 수정한 constants.py 파일 내용을 반환합니다."""
-    content = _replace_assignment(
-        baseline_content, "INIT_PRIOR_MEAN", _format_scalar(init_prior_mean)
-    )
-    content = _replace_assignment(content, "GT_INTERVAL", _format_scalar(gt_interval))
-    return content
-
-
-def ensure_directories(tag: str | None) -> None:
-    """실험 결과와 로그를 저장할 디렉토리를 생성합니다."""
-    if not tag:
-        return
-    (REPO_ROOT / "logs" / tag).mkdir(parents=True, exist_ok=True)
-    (REPO_ROOT / "assets" / "results" / tag).mkdir(parents=True, exist_ok=True)
 
 
 def load_config() -> dict:
@@ -85,11 +39,11 @@ def run_with_retries(
     for attempt in range(1, max_retries + 1):
         logger.debug(f"Running {script} (Attempt {attempt})...")
 
-        logger.info("=" * 80)
+        logger.info(f"=" * 80)
         logger.info(
             f"Starting {script} (Attempt {attempt}) with scene={scene_name}, instruction={input_str.strip()}"
         )
-        logger.info("=" * 80)
+        logger.info(f"=" * 80)
 
         cmd = [
             str(wrapper_script),
@@ -112,11 +66,11 @@ def run_with_retries(
 
         result = subprocess.run(cmd, stdout=None, stderr=None, text=True)
 
-        logger.info("=" * 80)
+        logger.info(f"=" * 80)
         logger.info(
             f"Finished {script} (Attempt {attempt}) with return code: {result.returncode}"
         )
-        logger.info("=" * 80)
+        logger.info(f"=" * 80)
 
         if result.returncode == 0:
             return True, attempt
@@ -141,7 +95,7 @@ def find_highest_instruction_folder(base_instruction: str) -> str:
 
     # base_instruction으로 시작하는 폴더들을 찾기
     matching_folders = []
-    for folder in constants.RESULT_PATH.iterdir():
+    for folder in RESULT_PATH.iterdir():
         if folder.is_dir() and folder.name.startswith(base_instruction):
             matching_folders.append(folder.name)
 
@@ -176,11 +130,11 @@ def process_retry_script(
     for attempt in range(1, max_retries + 1):
         logger.debug(f"Running {script} (Attempt {attempt})...")
 
-        logger.info("=" * 80)
+        logger.info(f"=" * 80)
         logger.info(
             f"Starting {script} (Attempt {attempt}) with scene={scene_name}, instruction={input_str.strip()}"
         )
-        logger.info("=" * 80)
+        logger.info(f"=" * 80)
 
         base_cmd = ["python3", str(script)]
         if config.get("headless"):
@@ -207,17 +161,13 @@ def process_retry_script(
             cmd.extend(["--log-path", str(log_path)])
         cmd.extend(["--attempt", str(attempt)])
 
-        # Add result path argument
-        result_path_for_subprocess = constants.RESULT_PATH
-        cmd.extend(["--result-path", str(result_path_for_subprocess)])
-
         result = subprocess.run(cmd, capture_output=True, text=True)
 
-        logger.info("=" * 80)
+        logger.info(f"=" * 80)
         logger.info(
             f"Finished {script} (Attempt {attempt}) with return code: {result.returncode}"
         )
-        logger.info("=" * 80)
+        logger.info(f"=" * 80)
 
         if result.returncode == 0:
             # 성공 로그
@@ -267,7 +217,7 @@ def process_retry_script(
         task_name_for_result_folder
     )
     result_path = (
-        constants.RESULT_PATH
+        RESULT_PATH
         / highest_instruction_folder
         / scene_name
         / "approach"
@@ -303,16 +253,16 @@ def process_normal_script(
     wrapper_script = Path(__file__).parent / "run_with_ros_env.sh"
     logger.warning(f"Running {script},{scene_name},{instruction}...")
 
-    logger.info("=" * 80)
+    logger.info(f"=" * 80)
     logger.info(f"Starting {script} with scene={scene_name}, instruction={instruction}")
-    logger.info("=" * 80)
+    logger.info(f"=" * 80)
 
-    logger.info("=" * 80)
+    logger.info(f"=" * 80)
     for i in range(config.get("instruction_delay_seconds", 30), 0, -5):
         logger.info(f"{i} seconds left before running instruction")
         time.sleep(5)
-    logger.info("Start!")
-    logger.info("=" * 80)
+    logger.info(f"Start!")
+    logger.info(f"=" * 80)
 
     base_cmd = ["python3", str(script)]
     if config.get("headless"):
@@ -338,20 +288,16 @@ def process_normal_script(
     if log_path:
         cmd.extend(["--log-path", str(log_path)])
 
-    # Add result path argument
-    result_path_for_subprocess = constants.RESULT_PATH
-    cmd.extend(["--result-path", str(result_path_for_subprocess)])
-
     result = subprocess.run(cmd, capture_output=True, text=True)
 
-    logger.info("=" * 80)
+    logger.info(f"=" * 80)
     logger.info(f"Finished {script} with return code: {result.returncode}")
-    logger.info("=" * 80)
+    logger.info(f"=" * 80)
 
     if result.returncode != 0:
         logger.error(f"Script {script} failed with error code: {result.returncode}")
         with log_path.open("a", encoding="utf-8") as f:
-            f.write("\n--- FAILURE ---\n")
+            f.write(f"\n--- FAILURE ---\n")
             f.write(f"Return Code: {result.returncode}\n")
             f.write("--- STDOUT ---\n")
             f.write(result.stdout)
@@ -359,7 +305,7 @@ def process_normal_script(
             f.write(result.stderr)
     else:
         with log_path.open("a", encoding="utf-8") as f:
-            f.write("\n--- SUCCESS ---\n")
+            f.write(f"\n--- SUCCESS ---\n")
             f.write(result.stdout)
 
 
@@ -380,7 +326,7 @@ def worker(
     log_file_name = (
         f"{scene_name}_{Path(approach).stem}_{instruction}_{run_idx + 1}.log"
     )
-    log_file_path = constants.LOG_PATH / "worker_logs" / log_file_name
+    log_file_path = LOG_PATH / "worker_logs" / log_file_name
     log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     if config.get("predefined"):
@@ -452,28 +398,32 @@ def load_instructions_from_json(scene_name: str) -> list[str]:
     return instructions
 
 
-def run_all_experiments(config: dict) -> None:
-    """단일 구성에 대한 모든 실험을 실행합니다."""
+def main() -> None:
+    config = load_config()
+
+    # Initialize a global logger for the main script
+    global logger
+    logger = create_module_logger(
+        module_name=__name__, module_log=True, level=config.get("log_level", "DEBUG")
+    )
+
     approaches = [Path(p) for p in config.get("approaches", [])]
     llm_scripts = {Path(p) for p in config.get("llm_scripts", [])}
 
-    scene_types = config.get("scene_types", [])
-    if not scene_types:
-        logger.error(
-            "`scene_types` is not defined or is empty in the config file. Aborting."
-        )
-        return
+    scene_type = config.get("scene_type", "kitchen")
+    scene_list = config.get("scene_lists", {}).get(scene_type, [])
 
     num_runs_per_instruction = config.get("num_runs_per_instruction", 1)
     start_idx = config.get("start_idx", 0)
     max_workers = config.get("max_workers", 1)
     file_copy_lock = threading.Lock()
 
-    # Log current configuration
+    # Log current  configuration
     logger.info("Current configuration:")
     logger.info("-" * 40)
     logger.info(f"Log level: {config.get('log_level')}")
-    logger.info(f"Scene types to run: {scene_types}")
+    logger.info(f"Scene type: {scene_type}")
+    logger.info(f"Scenes to run: {scene_list}")
     logger.info(f"Predefined mode: {config.get('predefined', False)}")
     logger.info(f"ROS enabled: {config.get('ros', False)}")
     logger.info(f"Simulation mode: {config.get('simulation', False)}")
@@ -488,135 +438,45 @@ def run_all_experiments(config: dict) -> None:
 
     execute_dict = config.get("execute_dict", {})
 
-    for scene_type in scene_types:
-        scene_list = config.get("scene_lists", {}).get(scene_type, [])
-        if not scene_list:
-            logger.warning(
-                f"No scenes found for scene_type '{scene_type}' in config, skipping."
-            )
-            continue
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for scene_name, approach in product(scene_list, approaches):
+            instructions = load_instructions_from_json(scene_name)
 
-        logger.info("=" * 80)
-        logger.info(f"STARTING SCENE TYPE: {scene_type.upper()}")
-        logger.info(f"Scenes: {scene_list}")
-        logger.info("=" * 80)
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = []
-            for scene_name, approach in product(scene_list, approaches):
-                instructions = load_instructions_from_json(scene_name)
-
-                instruction_source: list[str] or list[int]
-                if config.get("predefined"):
-                    instruction_source = list(range(1, len(instructions) + 1))
-                else:
-                    instruction_source = instructions
-
-                for instruction, i in product(
-                    instruction_source, range(num_runs_per_instruction)
-                ):
-                    if (
-                        execute_dict
-                        and execute_dict.get(scene_name)
-                        and instruction not in execute_dict[scene_name]
-                    ):
-                        continue
-                    futures.append(
-                        executor.submit(
-                            worker,
-                            scene_name,
-                            approach,
-                            instruction,
-                            i,
-                            config,
-                            llm_scripts,
-                            start_idx,
-                            file_copy_lock,
-                        )
-                    )
-
-            # Wait for all futures in the current scene_type to complete
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    future.result()
-                except Exception as e:
-                    logger.error(f"A task generated an exception: {e}")
-                    logger.error(traceback.format_exc())
-
-        logger.info("=" * 80)
-        logger.info(f"COMPLETED SCENE TYPE: {scene_type.upper()}")
-        logger.info("=" * 80)
-
-
-def main() -> None:
-    """스크립트의 메인 진입점. 설정을 로드하고 실행 스윕을 실행합니다."""
-    config = load_config()
-
-    # Initialize a global logger for the main script
-    global logger
-    logger = create_module_logger(
-        module_name=__name__, module_log=True, level=config.get("log_level", "DEBUG")
-    )
-
-    sweep_config = config.get("sweep_parameters")
-    if not sweep_config or not sweep_config.get("means"):
-        # 스윕 설정이 없으면 단일 실행
-        logger.info("No sweep parameters found in config, running a single experiment.")
-        run_all_experiments(config)
-        return
-
-    # 파라미터 스윕 실행
-    means = sweep_config["means"]
-    gt_interval = sweep_config.get("gt_interval", 100.0)
-    tag_template = sweep_config.get("tag_template", "prior_mean_{mean}")
-    stop_on_error = sweep_config.get("stop_on_error", False)
-    dry_run = sweep_config.get("dry_run", False)
-
-    baseline_content = CONSTANTS_PATH.read_text(encoding="utf-8")
-    original_log_path = constants.LOG_PATH
-    original_result_path = constants.RESULT_PATH
-
-    try:
-        for mean in means:
-            tag = None
-            if tag_template:
-                tag = tag_template.format(mean=_format_tag(mean))
-
-            updated_content = prepare_constants(baseline_content, mean, gt_interval)
-            CONSTANTS_PATH.write_text(updated_content, encoding="utf-8")
-            ensure_directories(tag)
-
-            if tag:
-                constants.RESULT_PATH = REPO_ROOT / "assets" / "results" / tag
-                constants.LOG_PATH = REPO_ROOT / "logs" / tag
+            instruction_source: list[str] or list[int]
+            if config.get("predefined"):
+                instruction_source = list(range(1, len(instructions) + 1))
             else:
-                # 태그가 없으면 원래 경로 복원
-                constants.RESULT_PATH = original_result_path
-                constants.LOG_PATH = original_log_path
+                instruction_source = instructions
 
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(
-                f"[{now}] INIT_PRIOR_MEAN={mean} GT_INTERVAL={gt_interval} tag={tag or 'default'}"
-            )
+            for instruction, i in product(
+                instruction_source, range(num_runs_per_instruction)
+            ):
+                if (
+                    execute_dict and instruction not in execute_dict[scene_name]
+                    and execute_dict[scene_name] 
+                ):
+                    continue
+                futures.append(
+                    executor.submit(
+                        worker,
+                        scene_name,
+                        approach,
+                        instruction,
+                        i,
+                        config,
+                        llm_scripts,
+                        start_idx,
+                        file_copy_lock,
+                    )
+                )
 
-            if dry_run:
-                print(f"  dry-run: Would execute experiments with current settings.")
-                continue
-
+        for future in concurrent.futures.as_completed(futures):
             try:
-                run_all_experiments(config)
+                future.result()
             except Exception as e:
-                logger.error(f"Experiment failed for INIT_PRIOR_MEAN={mean}: {e}")
+                logger.error(f"A task generated an exception: {e}")
                 logger.error(traceback.format_exc())
-                if stop_on_error:
-                    logger.error("Stopping sweep due to stop_on_error flag in config.")
-                    raise
-
-    finally:
-        CONSTANTS_PATH.write_text(baseline_content, encoding="utf-8")
-        constants.LOG_PATH = original_log_path
-        constants.RESULT_PATH = original_result_path
-        logger.info("Restored original constants.py and path variables.")
 
 
 if __name__ == "__main__":
