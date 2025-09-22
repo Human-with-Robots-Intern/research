@@ -223,6 +223,7 @@ def result_save(
     constraints: DiGraph,
     initial_plan_data: List[Dict],
     log_level: str = "INFO",
+    base_result_path: Path | None = None,
 ):
     global log
 
@@ -277,10 +278,13 @@ def result_save(
         "detail_log": detail_log,
     }
 
+    # Determine the base path for results
+    result_path_base = base_result_path if base_result_path is not None else RESULT_PATH
+
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = RESULT_PATH / f"{task_name}_{num}" / scene_name
+        output_path = result_path_base / f"{task_name}_{num}" / scene_name
         approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():
@@ -430,6 +434,7 @@ def result_save_llm(
     computation_time: float,
     scene_name: str,
     attempt: int = 1,
+    base_result_path: Path | None = None,
 ):
 
     if approach_name == "cap_ai2thor_simulation":
@@ -457,10 +462,13 @@ def result_save_llm(
         "realworld_makespan": None,
     }
 
+    # Determine the base path for results
+    result_path_base = base_result_path if base_result_path is not None else RESULT_PATH
+
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = RESULT_PATH / f"{user_input}_{num}" / scene_name
+        output_path = result_path_base / f"{user_input}_{num}" / scene_name
         approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():

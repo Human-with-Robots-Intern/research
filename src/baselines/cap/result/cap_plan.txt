@@ -4,7 +4,7 @@ mug_id = get_obj_id('mug')
 if mug_id:
     move_to(mug_id)
     pickup(mug_id)
-    coffee_machine_id = get_obj_id('coffee_machine')
+    coffee_machine_id = get_obj_id('coffeemachine')
     move_to(coffee_machine_id)
     put(coffee_machine_id)
     toggle_on(coffee_machine_id)
@@ -66,5 +66,9 @@ if fork_id:
     pickup(fork_id)
     countertop_id = get_obj_id('countertop')
     move_to(countertop_id)
-    put(counter
+
+# is mug filled with coffee?.
+mug = get_obj_id('mug')
+true_states = get_true_states(mug)
+ret_val = any("filled with coffee".lower() in state.lower() for state in true_states)
 

@@ -273,16 +273,15 @@ class Scheduler:
                     candidate.subtask, "_monitoring_executed", False
                 )
 
-                if (
-                    not has_monitoring_history
-                    and (
-                        interval_for_monitoring is None
-                        or interval_for_monitoring > EPSILON
-                    )
+                if not has_monitoring_history and (
+                    interval_for_monitoring is None or interval_for_monitoring > EPSILON
                 ):
                     log.debug(
                         "[_expand_candidates] Critical subtask %s skipped for on-time policy until monitoring executes.",
                         candidate.subtask.name,
+                    )
+                    log.debug(
+                        f"{candidate.subtask.name}, interval_for_monitoring: {interval_for_monitoring}"
                     )
                     continue
 
@@ -355,9 +354,7 @@ class Scheduler:
                         if monitor_node is not None:
                             expansions.append(monitor_node)
                             return expansions
-            child_node = self._expand_single_subtask(
-                curr_node, candidate
-            )
+            child_node = self._expand_single_subtask(curr_node, candidate)
             if child_node is not None:
                 expansions.append(child_node)
                 return expansions  # 정시 Critical 확장 시 즉시 반환
@@ -673,11 +670,23 @@ class Scheduler:
             )
             return False
 
-        if not candidate.is_critical:
+        critical_ctx = getattr(candidate, "critical_context", None)
+        if (
+            critical_ctx
+            and critical_ctx.interval is not None
+            and critical_ctx.interval <= EPSILON
+        ):
             log.debug(
-                f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} is non-critical => No monitoring."
+                "[_should_expand_with_monitoring] Subtask %s has zero critical interval => Monitoring skipped.",
+                candidate.subtask.name,
             )
             return False
+
+        # if not candidate.is_critical:
+        #     log.debug(
+        #         f"[_should_expand_with_monitoring] Subtask {candidate.subtask.name} is non-critical => No monitoring."
+        #     )
+        #     return False
 
         scheduling_due = getattr(candidate, "scheduling_due", None)
         inferred_due = None
@@ -778,7 +787,10 @@ class Scheduler:
         """Returns the last object id mentioned in the candidate's primitive actions."""
 
         actions = []
-        if candidate.subtask.execution and candidate.subtask.execution.primitive_actions:
+        if (
+            candidate.subtask.execution
+            and candidate.subtask.execution.primitive_actions
+        ):
             actions = candidate.subtask.execution.primitive_actions
 
         for action in reversed(actions):

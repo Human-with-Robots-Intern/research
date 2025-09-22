@@ -17,17 +17,22 @@ from src.utils.config import (  # INIT_PRIOR_MEAN, # 더 이상 직접 사용하
 )
 from src.utils.config.constants import (
     GRASP_ACTION_DURATION,
-    NAV_STEP_DURATION,
-    PLACE_ACTION_DURATION,
-    TOGGLE_ACTION_DURATION,
-    TARDINESS_WEIGHT,
     MONITORING_RISK_WEIGHT,
+    NAV_STEP_DURATION,
+    NORMALIZATION_CAP_NAV,
+    NORMALIZATION_CAP_REMAINING_WORK,
+    NORMALIZATION_CAP_TARDINESS,
+    PLACE_ACTION_DURATION,
+    TARDINESS_WEIGHT,
+    TOGGLE_ACTION_DURATION,
 )
 
 # Forward declarations for type hinting
 if TYPE_CHECKING:
     from src.models.task import Subtask
     from src.scheduler.action_handler import ActionHandler
+
+
 log = create_module_logger(__name__, True, logging.DEBUG)
 
 
@@ -36,8 +41,8 @@ class HeuristicManager:
     개선된 휴리스틱 매니저: 가상 다음 상태 기반 CP + MST 전략 사용
 
     비용 = alpha * 후보_네비게이션_비용
-           + beta * 후보_긴급도_비용
-           + gamma * (미래_CP_상호작용_시간 + 미래_MST_이동_시간)
+        + beta * 후보_긴급도_비용
+        + gamma * (미래_CP_상호작용_시간 + 미래_MST_이동_시간)
     """
 
     def __init__(
@@ -342,58 +347,80 @@ class HeuristicManager:
             )
             return LARGE_NUMBER
 
-        log.debug(
-            f"Calculating heuristic for Candidate: {candidate.subtask.name} (EstNav: {candidate.estimated_first_nav_duration:.2f}, ActualInteractStart: {candidate.actual_interaction_start_time:.2f}, Due: {candidate.scheduling_due.due_date if candidate.scheduling_due else 'N/A'})"
-        )
-
         # --- 1. 후보 자체의 비용 (Cost for the candidate itself) ---
-        # (a) 후보 실행을 위한 네비게이션 비용 (ConstraintHandler가 계산한 값 사용)
-        # candidate.estimated_first_nav_duration은 현재 에이전트 위치에서 후보의 첫 "상호작용" 위치까지의 예상 네비게이션 시간.
-        nav_cost_for_candidate = candidate.estimated_first_nav_duration
-        if nav_cost_for_candidate is None:  # 있어서는 안되지만 방어적 코드
-            log.error(
-                f"Candidate {candidate.subtask.name} has None for estimated_first_nav_duration!"
-            )
-            nav_cost_for_candidate = (
-                LARGE_NUMBER  # 또는 0, 정책에 따라. 여기서는 실행불가로.
-            )
-        elif nav_cost_for_candidate >= LARGE_NUMBER:  # 이미 이동 불가 판정
+        # (a) 후보 실행을 위한 네비게이션 비용
+        nav_cost_for_candidate = candidate.estimated_first_nav_duration or 0.0
+        if nav_cost_for_candidate >= LARGE_NUMBER:
             log.warning(
                 f"Candidate {candidate.subtask.name} nav cost is already LARGE_NUMBER."
             )
-            # 이 경우 더 계산할 필요 없이 높은 비용 반환 가능
             return LARGE_NUMBER
 
-        # (b) 후보의 긴급도 비용 (SchedulingDue까지 남은 시간 - Slack 기반)
+        # (b) 후보의 긴급도 비용 (Slack 기반) 및 지연 시간(Tardiness)
         urgency_cost_for_candidate, slack_time = self._calculate_candidate_urgency_cost(
             current_node, candidate
         )
         tardiness = max(0.0, -slack_time)
-        tardiness_cost = TARDINESS_WEIGHT * tardiness
-        monitoring_penalty = self._calculate_monitoring_risk(
+
+        # (c) 모니터링 위험도 계산
+        monitoring_risk_factor = self._calculate_monitoring_risk_factor(
             current_node, candidate
         )
 
-        # 후보 자체의 네비게이션이나 긴급도에서 이미 실행 불가능 판정 시
-        if (
-            nav_cost_for_candidate >= LARGE_NUMBER
-            or urgency_cost_for_candidate >= LARGE_NUMBER
-        ):
+        if urgency_cost_for_candidate >= LARGE_NUMBER:
             log.warning(
-                f"Candidate '{candidate.subtask.name}' infeasible: NavCost={nav_cost_for_candidate:.2f}, UrgencyCost={urgency_cost_for_candidate:.2f} (Slack={slack_time:.2f})"
+                f"Candidate '{candidate.subtask.name}' infeasible due to urgency: UrgencyCost={urgency_cost_for_candidate:.2f} (Slack={slack_time:.2f})"
             )
             return LARGE_NUMBER
 
-        # --- 2. 후보 실행 후 남은 작업들에 대한 예상 비용 (Estimated cost of remaining work) ---
-        # (a) 후보 실행 후의 가상 다음 상태 정보 예측
-        #    - 다음 에이전트 위치
-        #    - 다음 남은 작업 목록
-        #    - 다음 제약 조건 (근사치: 현재 제약 조건 사용)
-        #    - 다음 씬 객체 위치 (MST 계산용)
+        # --- 2. 후보 실행 후 남은 작업들에 대한 예상 비용 (Future work cost) ---
+        remaining_work_cost = self._estimate_remaining_work_cost(
+            current_node, candidate
+        )
+        if remaining_work_cost >= LARGE_NUMBER:
+            log.warning(
+                f"Future work cost for candidate '{candidate.subtask.name}' is LARGE_NUMBER. Marking as infeasible."
+            )
+            return LARGE_NUMBER
 
-        # 후보의 전체 실행 시간 (네비게이션 포함) 시뮬레이션
-        # 이 시뮬레이션은 `action_handler`를 통해 이루어지며, `candidate.subtask.execution.primitive_actions` 전체를 실행.
-        # `current_node` 상태에서 시작.
+        # --- 3. 비용 정규화 (Normalization) ---
+        norm_nav = min(nav_cost_for_candidate / NORMALIZATION_CAP_NAV, 1.0)
+        norm_urgency = urgency_cost_for_candidate  # Already in 0-1 range
+        norm_remaining_work = min(
+            remaining_work_cost / NORMALIZATION_CAP_REMAINING_WORK, 1.0
+        )
+        norm_tardiness = min(tardiness / NORMALIZATION_CAP_TARDINESS, 1.0)
+        norm_monitoring_risk = (
+            monitoring_risk_factor  # Already a small value risk factor
+        )
+
+        # --- 4. 최종 휴리스틱 비용 계산 ---
+        total_heuristic_cost = (
+            self.alpha * norm_nav
+            + self.beta * norm_urgency
+            + self.gamma * norm_remaining_work
+            + TARDINESS_WEIGHT * norm_tardiness
+            + MONITORING_RISK_WEIGHT * norm_monitoring_risk
+        )
+
+        log.debug(
+            f"  Heuristic for '{candidate.subtask.name}':\n"
+            f"    - Nav      (raw): {nav_cost_for_candidate:<7.2f} -> norm: {norm_nav:<5.2f} -> weighted: {self.alpha * norm_nav:<5.2f}\n"
+            f"    - Urgency  (raw): {urgency_cost_for_candidate:<7.2f} -> norm: {norm_urgency:<5.2f} -> weighted: {self.beta * norm_urgency:<5.2f} (Slack: {slack_time:.2f})\n"
+            f"    - RemWork  (raw): {remaining_work_cost:<7.2f} -> norm: {norm_remaining_work:<5.2f} -> weighted: {self.gamma * norm_remaining_work:<5.2f}\n"
+            f"    - Tardiness(raw): {tardiness:<7.2f} -> norm: {norm_tardiness:<5.2f} -> weighted: {TARDINESS_WEIGHT * norm_tardiness:<5.2f}\n"
+            f"    - MonRisk  (raw): {monitoring_risk_factor:<7.2f} -> norm: {norm_monitoring_risk:<5.2f} -> weighted: {MONITORING_RISK_WEIGHT * norm_monitoring_risk:<5.2f}"
+        )
+        log.info(
+            f"  => Total Heuristic Cost for '{candidate.subtask.name}': {total_heuristic_cost:.3f}"
+        )
+
+        return total_heuristic_cost
+
+    def _estimate_remaining_work_cost(
+        self, current_node: SimulationNode, candidate: Candidate
+    ) -> float:
+        """후보 실행 후 남은 작업들에 대한 예상 비용 (CP 상호작용 + MST 네비게이션)"""
         try:
             candidate_full_execution_info = self.action_handler.get_actions_info(
                 current_node, candidate.subtask.execution.primitive_actions
@@ -404,103 +431,52 @@ class HeuristicManager:
                 log.warning(
                     f"Full execution simulation of candidate '{candidate.subtask.name}' failed. Assigning high remaining work cost."
                 )
-                remaining_work_cost = LARGE_NUMBER
-            else:
-                # 가상 다음 상태 정보
-                virtual_next_agent_pos = (
-                    tuple(candidate_full_execution_info.scene_positions.get("agent"))
-                    if candidate_full_execution_info.scene_positions.get("agent")
-                    else current_node.state.scene_positions.get("agent")
+                return LARGE_NUMBER
+
+            virtual_next_agent_pos = tuple(
+                candidate_full_execution_info.scene_positions.get("agent")
+            )
+            virtual_next_remaining_tasks = {
+                task
+                for task in current_node.state.remaining_subtasks
+                if task.name != candidate.subtask.name
+            }
+            virtual_next_constraints = current_node.state.constraints
+            virtual_next_scene_positions = candidate_full_execution_info.scene_positions
+
+            future_cp_interaction_duration = (
+                self._calculate_critical_path_interaction_duration(
+                    virtual_next_remaining_tasks, virtual_next_constraints
                 )
+            )
 
-                # 남은 작업 목록: 현재 남은 작업에서 현재 후보를 제외.
-                # 중요: 만약 후보가 _early 등 분할된 작업이라면, _mon, _remain 등은
-                # current_node.state.remaining_subtasks에 아직 없음. 이들은 Scheduler가 확장 시 추가함.
-                # 따라서 이 휴리스틱은 분할로 인해 새로 생기는 subtask들의 비용은 "미래 작업 비용"에 직접 포함하지 않음.
-                # 이는 휴리스틱의 한계일 수 있지만, 일반적인 접근 방식임.
-                virtual_next_remaining_tasks = {
-                    task
-                    for task in current_node.state.remaining_subtasks
-                    if task.name != candidate.subtask.name
-                }
+            future_mst_navigation_time = self._calculate_mst_navigation_time(
+                virtual_next_agent_pos,
+                virtual_next_remaining_tasks,
+                virtual_next_scene_positions,
+            )
 
-                # 제약 조건은 현재 상태의 것을 근사치로 사용 (휴리스틱 계산 시점에서 정확한 다음 제약 예측은 어려움)
-                virtual_next_constraints = current_node.state.constraints
-                virtual_next_scene_positions = (
-                    candidate_full_execution_info.scene_positions
+            if (
+                future_cp_interaction_duration >= LARGE_NUMBER
+                or future_mst_navigation_time >= LARGE_NUMBER
+            ):
+                log.warning(
+                    f"Estimated future work cost is LARGE: CP={future_cp_interaction_duration:.2f}, MST={future_mst_navigation_time:.2f}"
                 )
+                return LARGE_NUMBER
 
-                # (b) 남은 작업들의 Critical Path 상호작용 시간 계산
-                future_cp_interaction_duration = (
-                    self._calculate_critical_path_interaction_duration(
-                        virtual_next_remaining_tasks, virtual_next_constraints
-                    )
-                )
+            return future_cp_interaction_duration + future_mst_navigation_time
 
-                # (c) 남은 작업들의 MST 네비게이션 시간 계산
-                future_mst_navigation_time = self._calculate_mst_navigation_time(
-                    virtual_next_agent_pos,
-                    virtual_next_remaining_tasks,
-                    virtual_next_scene_positions,
-                )
-
-                if (
-                    future_cp_interaction_duration >= LARGE_NUMBER
-                    or future_mst_navigation_time >= LARGE_NUMBER
-                ):
-                    log.warning(
-                        f"Estimated future work cost is LARGE: CP={future_cp_interaction_duration:.2f}, MST={future_mst_navigation_time:.2f}"
-                    )
-                    remaining_work_cost = LARGE_NUMBER
-                else:
-                    remaining_work_cost = (
-                        future_cp_interaction_duration + future_mst_navigation_time
-                    )
-
-        except (
-            ValueError
-        ) as e:  # action_handler.get_actions_info 에서 경로 탐색 등 실패 시
+        except ValueError as e:
             log.error(
                 f"Error simulating candidate {candidate.subtask.name} for future cost: {e}"
             )
-            remaining_work_cost = LARGE_NUMBER
+            return LARGE_NUMBER
         except Exception as e:
             log.error(
                 f"Unexpected error during future cost estimation for {candidate.subtask.name}: {e}"
             )
-            remaining_work_cost = LARGE_NUMBER
-
-        # --- 3. 최종 휴리스틱 비용 계산 ---
-        total_heuristic_cost = (
-            self.alpha * nav_cost_for_candidate
-            + self.beta * urgency_cost_for_candidate
-            + self.gamma * remaining_work_cost
-            + tardiness_cost
-            + monitoring_penalty
-        )
-
-        log.debug(
-            f"  Heuristic for '{candidate.subtask.name}': "
-            f"CandNavCost({self.alpha:.2f}*{nav_cost_for_candidate:.2f}) = {self.alpha * nav_cost_for_candidate:.2f}, "
-            f"CandUrgCost({self.beta:.2f}*{urgency_cost_for_candidate:.2f}) = {self.beta * urgency_cost_for_candidate:.2f} (Slack={slack_time:.2f}), "
-            f"TardinessCost({TARDINESS_WEIGHT:.2f}*{tardiness:.2f}) = {tardiness_cost:.2f}, "
-            f"MonRisk({MONITORING_RISK_WEIGHT:.2f}) = {monitoring_penalty:.2f}, "
-            f"RemWorkCost({self.gamma:.2f}*{remaining_work_cost:.2f}) = {self.gamma * remaining_work_cost:.2f}"
-        )
-        log.info(
-            f"  => Total Heuristic Cost for '{candidate.subtask.name}': {total_heuristic_cost:.3f}"
-        )
-
-        # 최종 비용이 비정상적으로 크거나 작을 경우 조정
-        if total_heuristic_cost >= LARGE_NUMBER:
             return LARGE_NUMBER
-        if total_heuristic_cost < 0:  # 있어서는 안되지만 방어
-            log.error(
-                f"Calculated negative total heuristic cost ({total_heuristic_cost:.2f}) for {candidate.subtask.name}. Returning 0."
-            )
-            return 0.0
-
-        return total_heuristic_cost
 
     def _calculate_candidate_urgency_cost(
         self, current_node: SimulationNode, candidate: Candidate
@@ -513,30 +489,15 @@ class HeuristicManager:
         if not candidate.scheduling_due or candidate.scheduling_due.due_date == float(
             "inf"
         ):
-            # log.debug(f"  Urgency: Candidate '{candidate.subtask.name}' has no finite scheduling_due. Cost: 0.0, Slack: inf")
-            return 0.0, float("inf")  # 긴급하지 않음
+            return 0.0, float("inf")
 
         current_time = current_node.state.current_time
         deadline_for_candidate_completion = candidate.scheduling_due.due_date
 
-        # 후보 실행에 필요한 총 시간 추정:
-        #   = (현재 위치에서 후보 상호작용 위치까지의 네비게이션 시간)
-        #   + (후보의 순수 상호작용 시간)
-
-        # 1. 네비게이션 시간 (Candidate 객체에서 가져옴)
-        time_needed_for_nav = candidate.estimated_first_nav_duration
-        if time_needed_for_nav is None:  # 방어 코드
-            log.error(
-                f"  Urgency: Candidate '{candidate.subtask.name}' has None for estimated_first_nav_duration."
-            )
-            return LARGE_NUMBER, -float("inf")
-        if time_needed_for_nav >= LARGE_NUMBER:  # 이미 이동 불가
-            log.warning(
-                f"  Urgency: Candidate '{candidate.subtask.name}' navigation is already LARGE_NUMBER."
-            )
+        time_needed_for_nav = candidate.estimated_first_nav_duration or 0.0
+        if time_needed_for_nav >= LARGE_NUMBER:
             return LARGE_NUMBER, -float("inf")
 
-        # 2. 순수 상호작용 시간
         time_needed_for_interaction = self._get_estimated_pure_interaction_time(
             candidate.subtask
         )
@@ -545,30 +506,25 @@ class HeuristicManager:
             time_needed_for_nav + time_needed_for_interaction
         )
 
-        # Slack 계산: (마감시각 - 현재시각) - 필요시간
         time_available_until_deadline = deadline_for_candidate_completion - current_time
         slack = time_available_until_deadline - total_time_needed_for_candidate
 
-        # log.debug(
-        #     f"  Urgency for '{candidate.subtask.name}': Due={deadline_for_candidate_completion:.2f}, CurrT={current_time:.2f}, "
-        #     f"AvailT={time_available_until_deadline:.2f}, NeedNavT={time_needed_for_nav:.2f}, NeedInteractT={time_needed_for_interaction:.2f}, "
-        #     f"TotalNeedT={total_time_needed_for_candidate:.2f} => Slack={slack:.2f}"
-        # )
-
         urgency_cost = 0.0
-        if slack <= 0.0:  # Slack이 없거나 이미 기한을 초과한 경우 → 최우선으로 다뤄야 함
-            urgency_cost = EPSILON  # 가능한 한 작은 비용으로 만들어 우선 확장되도록 유도
+        if slack < 0:
+            # Tardiness가 발생하면 긴급도는 최대. 페널티는 tardiness_cost에서 별도 부과.
+            urgency_cost = 1.0
         else:
-            # Slack이 커질수록 비용이 서서히 감소하도록 완만한 함수 사용
-            # (slack이 0에 가까우면 ~1, slack이 커질수록 0에 근접)
-            urgency_cost = 1.0 / (slack + 1.0)
+            # Slack이 0에 가까우면 1, 커질수록 0에 수렴.
+            urgency_cost = 1.0 / (
+                slack / 10.0 + 1.0
+            )  # Slack 10초당 긴급도가 절반으로 줄도록 스케일링
 
         return urgency_cost, slack
 
-    def _calculate_monitoring_risk(
+    def _calculate_monitoring_risk_factor(
         self, current_node: SimulationNode, candidate: Candidate
     ) -> float:
-        """Assign an additional penalty when a critical successor lacks a monitoring task."""
+
         if candidate.is_critical:
             return 0.0
 
@@ -595,9 +551,10 @@ class HeuristicManager:
             return 0.0
 
         time_until_due = scheduling_due.due_date - current_node.state.current_time
-        if time_until_due <= 0.0:
-            risk_factor = 1.0 / EPSILON
-        else:
-            risk_factor = 1.0 / (time_until_due + EPSILON)
+        if time_until_due <= 0:
+            return 1.0  # Already late, max risk
 
-        return MONITORING_RISK_WEIGHT * risk_factor
+        # due까지 30초 남았을 때 risk=0.5가 되도록 스케일링
+        risk_factor = 1.0 / (time_until_due / 30.0 + 1.0)
+
+        return risk_factor

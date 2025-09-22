@@ -4,7 +4,9 @@ log_level: "DEBUG" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNIN
 
 # Execution mode
 predefined: True # Use predefined numbered instructions (1-20) instead of loading from JSON files
-scene_type: "kitchen" # Default scene type to run. Options: 'kitchen', 'bathroom'
+scene_types: # List of scene types to run sequentially.
+  - "kitchen"
+  - "bathroom"
 ros: false # Enable ROS communication
 simulation: true # Enable Simulation mode
 start_idx: 1 # Start index for the instruction
@@ -58,10 +60,23 @@ instruction_delay_seconds: 0
 # Use CloudRendering platform for AI2-THOR
 cloud_rendering: true
 
-execute_dict: {
-        "FloorPlan1": [],
-        "FloorPlan7": [],
-        "FloorPlan13": [],
-        "FloorPlan18": [],
-        "FloorPlan27": []
-    }
+# execute_dict: {
+#         "FloorPlan1": [],
+#         "FloorPlan7": [],
+#         "FloorPlan13": [],
+#         "FloorPlan18": [],
+#         "FloorPlan27": []
+#     }
+
+# Parameter sweep settings
+sweep_parameters:
+  # List of INIT_PRIOR_MEAN values to test. If this is null or empty, no sweep will be performed.
+  means: [140.0]
+  # Fixed Ground-truth interval (GT_INTERVAL) for the sweep.
+  gt_interval: 100.0
+  # Directory name template for logs and results.
+  tag_template: "prior_mean_{mean}"
+  # If true, stops all experiments if one fails.
+  stop_on_error: false
+  # If true, prints commands without executing them.
+  dry_run: false

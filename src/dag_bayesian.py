@@ -80,6 +80,12 @@ def parse_arguments():
         default=None,
         help="Path to the log file for this specific run.",
     )
+    parser.add_argument(
+        "--result-path",
+        type=Path,
+        default=None,
+        help="The path to save the results.",
+    )
     return parser.parse_args()
 
 
