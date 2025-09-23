@@ -210,6 +210,11 @@ def main():
                 last_entry.execution_status = execution_status
                 last_entry.sim_nav_time = sim_nav_time
                 total_sim_time += sim_elapsed_time
+                intervallist = []
+                for name1 in current_state.constraints.in_edges._adjdict.keys():
+                        for name2 in current_state.constraints.in_edges._adjdict[name1].keys():
+                            if current_state.constraints.in_edges._adjdict[name1][name2]['info']['IsCritical']:
+                                intervallist.append({name2: current_state.constraints.in_edges._adjdict[name1][name2]['info']['Interval']})
                 if next_state.subtask.subtask_type == "Monitor":
                     next_state, monitored_subtask = agent.bayesian_estimate(next_state)
                     next_state.completed_entries[-1].monitored_subtask = (
@@ -218,7 +223,11 @@ def main():
                 current_state = next_state
                 if not current_state.remaining_subtasks:
                     is_end = True
-
+                intervallist = []
+                for name1 in current_state.constraints.in_edges._adjdict.keys():
+                        for name2 in current_state.constraints.in_edges._adjdict[name1].keys():
+                            if current_state.constraints.in_edges._adjdict[name1][name2]['info']['IsCritical']:
+                                intervallist.append({name2: current_state.constraints.in_edges._adjdict[name1][name2]['info']['Interval']})
                 last_entry = current_state.completed_entries[-1]
                 if last_entry.subtask.name != "Init":
                     logger.info(
