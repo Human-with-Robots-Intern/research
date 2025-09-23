@@ -80,6 +80,12 @@ def parse_arguments():
         default=None,
         help="Path to the log file for this specific run.",
     )
+    parser.add_argument(
+        "--init_prior_mean",
+        type=float,
+        default=None,
+        help="베이지안 추정을 위한 초기 평균값 (기본값: 60.0)",
+    )
     return parser.parse_args()
 
 
@@ -87,6 +93,13 @@ def main():
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
     approach_name = "dag_bayesian"
+
+    # Handle INIT_PRIOR_MEAN override
+    if args.init_prior_mean is not None:
+        from src.utils.config.constants import set_init_prior_mean
+
+        set_init_prior_mean(args.init_prior_mean)
+
     logger = create_module_logger(
         module_name=approach_name,
         log_file_path=Path(args.log_path) if args.log_path else None,
@@ -266,6 +279,7 @@ def main():
             "scene_name": scene_name,
             "constraints": current_state.constraints,
             "initial_plan_data": task_data,
+            "init_prior_mean": args.init_prior_mean,
         }
         result_save(**result_args)
 
@@ -284,6 +298,7 @@ def main():
             "scene_name": scene_name,
             "constraints": current_state.constraints,
             "initial_plan_data": task_data,
+            "init_prior_mean": args.init_prior_mean,
             # "simulationTime": total_sim_time,
         }
         result_save(**result_args)

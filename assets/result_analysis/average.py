@@ -1,10 +1,11 @@
 import json
 import math
+import re
 import statistics
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set, Union
 
 # Add the project root to the Python path to enable imports from 'src'
 sys.path.append(str(Path(__file__).resolve().parents[2]))
@@ -13,8 +14,9 @@ from src.utils.common import create_module_logger
 
 # --- Constants ---
 MIN_REQUIRED_SIMULATIONS = 1
-LLM_LIST: Set[str] = {"prog_ai2thor_simulation.json", "cap_ai2thor_simulation.json"}
-DAG_LIST: Set[str] = {
+APPROACH_LIST: Set[str] = {
+    "prog_ai2thor_simulation.json",
+    "cap_ai2thor_simulation.json",
     "dag_bayesian_simulation.json",
     "cpm_simulation.json",
     "dag_edf_simulation.json",
@@ -27,6 +29,18 @@ KITCHEN_SCENES: Set[str] = {
 BATHROOM_SCENES: Set[str] = {
     "FloorPlan419", "FloorPlan422", "FloorPlan426", "FloorPlan427", "FloorPlan_bathroom"
 }
+
+# Metrics to extract from JSON files
+METRIC_KEYS: List[str] = [
+    "computation_time",
+    "simulation_makespan",
+    "scheduler_makespan",
+    "total_primitive_actions",
+    "success_rate",
+    "timing_success_rate_sim",
+    "timing_success_rate_sched",
+]
+
 
 # --- Logger ---
 log = create_module_logger(module_name=__name__, module_log=True)
@@ -42,8 +56,27 @@ def get_scene_type(scene_name: str) -> str:
     log.warning(f"Scene '{scene_name}' could not be classified as 'kitchen' or 'bathroom'.")
     return "unknown"
 
-def load_summary_data(file_path: Path) -> Dict[str, Any]:
-    """Loads and returns data from a JSON summary file."""
+def get_difficulty(task_name: str) -> str:
+    """
+    Determines the difficulty of a task based on the number of sub-tasks in its name.
+
+    Args:
+        task_name: The name of the task directory.
+
+    Returns:
+        A string representing the difficulty ('easy', 'medium', 'hard').
+    """
+    # Remove trial number suffix like '_1'
+    cleaned_name = re.sub(r'_\d+$', '', task_name)
+    num_tasks = cleaned_name.count(" and ") + 1
+    if num_tasks <= 2:
+        return "easy"
+    if num_tasks <= 4:
+        return "medium"
+    return "hard"
+
+def load_json_data(file_path: Path) -> Dict[str, Any]:
+    """Loads and returns data from a JSON file."""
     try:
         with file_path.open("r", encoding="utf-8") as f:
             return json.load(f)
@@ -51,145 +84,125 @@ def load_summary_data(file_path: Path) -> Dict[str, Any]:
         log.error(f"Failed to read file: {file_path} - {e}")
         return {}
 
-def compute_stats(metrics_dict: Dict[str, List[float]], min_samples: int) -> Dict[str, float]:
+def compute_stats(values: List[Union[int, float]], min_samples: int) -> Dict[str, Optional[Union[float, int]]]:
     """
-    Computes the average and standard deviation for each metric in the dictionary.
+    Computes the average, standard deviation, and count for a list of values.
+    Filters out None and -1 values.
 
     Args:
-        metrics_dict: A dictionary where keys are metric names and values are lists of numbers.
+        values: A list of numbers.
         min_samples: The minimum number of data points required to compute stats.
 
     Returns:
-        A dictionary with computed average and standard deviation for each metric.
+        A dictionary with computed average, standard deviation, and count.
     """
-    # Define the desired order for metrics
-    METRIC_ORDER = [
-        "simulation_makespan",
-        "scheduler_makespan",
-        "simulation_timingSuccess_rate",
-        "scheduler_timingSuccess_rate",
-    ]
+    valid_values = [v for v in values if v is not None and v != -1 and isinstance(v, (int, float)) and not math.isinf(v)]
+    count = len(valid_values)
 
-    # Sort metrics based on the desired order, placing others at the end
-    sorted_metric_items = sorted(
-        metrics_dict.items(),
-        key=lambda item: METRIC_ORDER.index(item[0]) if item[0] in METRIC_ORDER else len(METRIC_ORDER),
-    )
+    if count >= min_samples:
+        mean = statistics.mean(valid_values) if count > 0 else 0.0
+        std_dev = statistics.stdev(valid_values) if count > 1 else 0.0
+        return {"average": mean, "std": std_dev, "count": count}
+    
+    return {"average": None, "std": None, "count": count}
 
-    results = {}
-    for metric, values in sorted_metric_items:
-        # Ensure values are valid floats
-        valid_values = [v for v in values if isinstance(v, (int, float)) and not math.isinf(v)]
-        
-        if len(valid_values) >= min_samples:
-            mean = statistics.mean(valid_values)
-            std_dev = statistics.stdev(valid_values) if len(valid_values) > 1 else 0.0
-            results[f"{metric}_average"] = mean
-            results[f"{metric}_std"] = std_dev
-        else:
-            results[f"{metric}_average"] = None
-            results[f"{metric}_std"] = None
-    return results
 
 def make_average(base_dir: Path) -> None:
     """
-    Analyzes simulation results to compute and store average and standard deviation statistics,
-    grouped by difficulty, scene type, and individual scenes.
+    Analyzes simulation results to compute and store average statistics,
+    grouped by various criteria.
     """
     # Nested defaultdict for flexible and deep metric storage
     metrics: Dict[str, Any] = {
-        "by_difficulty": defaultdict(lambda: defaultdict(lambda: defaultdict(list))),
-        "by_scene_type_and_difficulty": defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list)))),
+        "by_scene": defaultdict(lambda: defaultdict(lambda: defaultdict(list))),
+        "by_scene_type": defaultdict(lambda: defaultdict(lambda: defaultdict(list))),
         "by_scene_and_difficulty": defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list)))),
+        "by_scene_type_and_difficulty": defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list)))),
     }
-    
+
     # --- Data Accumulation ---
     for task_dir in base_dir.iterdir():
-        if not task_dir.is_dir():
+        if not task_dir.is_dir() or task_dir.name == "average":
             continue
+
+        task_name = task_dir.name
+        difficulty = get_difficulty(task_name)
 
         for scene_dir in task_dir.iterdir():
             if not scene_dir.is_dir():
                 continue
-
-            metadata_dir = scene_dir / "metadata"
-            summary_path = metadata_dir / "summary.json"
-            if not summary_path.exists():
-                summary_path = metadata_dir / "summary_insuff.json"
-                if not summary_path.exists():
-                    continue
             
-            summary_data = load_summary_data(summary_path)
-            if not summary_data:
+            scene_name = scene_dir.name
+            scene_type = get_scene_type(scene_name)
+            approach_dir = scene_dir / "approach"
+            
+            if not approach_dir.is_dir():
                 continue
 
-            difficulty = summary_data.get("difficulty", "unknown")
-            scene = summary_data.get("scene", "unknown_scene")
-            scene_type = get_scene_type(scene)
-
-            for entry in summary_data.get("approach_comparisons", []):
-                approach = entry.get("approach_name")
-                if not approach:
+            for json_file in approach_dir.glob("*.json"):
+                approach_name = json_file.name
+                if approach_name not in APPROACH_LIST:
                     continue
 
-                def accumulate(metric_name: str, value: Any):
-                    if value is None: return
-                    try:
-                        val = float(value)
-                        if not math.isinf(val):
-                            metrics["by_difficulty"][difficulty][approach][metric_name].append(val)
-                            metrics["by_scene_type_and_difficulty"][scene_type][difficulty][approach][metric_name].append(val)
-                            metrics["by_scene_and_difficulty"][scene][difficulty][approach][metric_name].append(val)
-                    except (ValueError, TypeError):
-                        pass
+                data = load_json_data(json_file)
+                if not data:
+                    continue
 
-                # Accumulate all relevant metrics
-                if approach in DAG_LIST:
-                    accumulate("scheduler_makespan", entry.get("scheduler_makespan"))
-                    accumulate("scheduler_timingSuccess_rate", entry.get("scheduler_timingSuccess_rate"))
-                if approach in LLM_LIST:
-                    accumulate("attempt", entry.get("attempt"))
-
-                accumulate("simulation_makespan", entry.get("simulation_makespan"))
-                accumulate("actionSuccess_rate", entry.get("actionSuccess_rate"))
-                accumulate("computation_time", entry.get("computation_time"))
-                accumulate("simulation_timingSuccess_rate", entry.get("simulation_timingSuccess_rate"))
-
+                for metric_key in METRIC_KEYS:
+                    value = data.get(metric_key)
+                    if value is not None:
+                        try:
+                            val = float(value)
+                            metrics["by_scene"][scene_name][approach_name][metric_key].append(val)
+                            metrics["by_scene_type"][scene_type][approach_name][metric_key].append(val)
+                            metrics["by_scene_and_difficulty"][scene_name][difficulty][approach_name][metric_key].append(val)
+                            metrics["by_scene_type_and_difficulty"][scene_type][difficulty][approach_name][metric_key].append(val)
+                        except (ValueError, TypeError):
+                            log.warning(f"Could not convert metric '{metric_key}' with value '{value}' to float in {json_file}")
+    
     # --- Statistics Computation ---
-    final_results = {}
-    
-    # 1. By Difficulty
-    final_results["by_difficulty"] = {
-        difficulty: {
-            approach: compute_stats(metrics_dict, MIN_REQUIRED_SIMULATIONS)
-            for approach, metrics_dict in approaches.items()
-        }
-        for difficulty, approaches in metrics["by_difficulty"].items()
+    final_results: Dict[str, Any] = {
+        "by_scene": defaultdict(dict),
+        "by_scene_type": defaultdict(dict),
+        "by_scene_and_difficulty": defaultdict(dict),
+        "by_scene_type_and_difficulty": defaultdict(dict),
     }
-    
-    # 2. By Scene Type and Difficulty
-    final_results["by_scene_type_and_difficulty"] = {
-        scene_type: {
-            difficulty: {
-                approach: compute_stats(metrics_dict, MIN_REQUIRED_SIMULATIONS)
-                for approach, metrics_dict in approaches.items()
+
+    # 1. By Scene
+    for scene, approaches in metrics["by_scene"].items():
+        for approach, metrics_dict in approaches.items():
+            final_results["by_scene"][scene][approach] = {
+                metric: compute_stats(values, MIN_REQUIRED_SIMULATIONS)
+                for metric, values in metrics_dict.items()
             }
-            for difficulty, approaches in difficulties.items()
-        }
-        for scene_type, difficulties in metrics["by_scene_type_and_difficulty"].items()
-    }
+    
+    # 2. By Scene Type
+    for scene_type, approaches in metrics["by_scene_type"].items():
+        for approach, metrics_dict in approaches.items():
+            final_results["by_scene_type"][scene_type][approach] = {
+                metric: compute_stats(values, MIN_REQUIRED_SIMULATIONS)
+                for metric, values in metrics_dict.items()
+            }
 
     # 3. By Scene and Difficulty
-    final_results["by_scene_and_difficulty"] = {
-        scene: {
-            difficulty: {
-                approach: compute_stats(metrics_dict, MIN_REQUIRED_SIMULATIONS)
-                for approach, metrics_dict in approaches.items()
-            }
-            for difficulty, approaches in difficulties.items()
-        }
-        for scene, difficulties in metrics["by_scene_and_difficulty"].items()
-    }
+    for scene, difficulties in metrics["by_scene_and_difficulty"].items():
+        final_results["by_scene_and_difficulty"][scene] = defaultdict(dict)
+        for difficulty, approaches in difficulties.items():
+            for approach, metrics_dict in approaches.items():
+                final_results["by_scene_and_difficulty"][scene][difficulty][approach] = {
+                    metric: compute_stats(values, MIN_REQUIRED_SIMULATIONS)
+                    for metric, values in metrics_dict.items()
+                }
+
+    # 4. By Scene Type and Difficulty
+    for scene_type, difficulties in metrics["by_scene_type_and_difficulty"].items():
+        final_results["by_scene_type_and_difficulty"][scene_type] = defaultdict(dict)
+        for difficulty, approaches in difficulties.items():
+            for approach, metrics_dict in approaches.items():
+                final_results["by_scene_type_and_difficulty"][scene_type][difficulty][approach] = {
+                    metric: compute_stats(values, MIN_REQUIRED_SIMULATIONS)
+                    for metric, values in metrics_dict.items()
+                }
 
     # --- Save Results ---
     output_file = base_dir / "average.json"
