@@ -261,26 +261,19 @@ class HeuristicManager:
                 dist_matrix[i, j] = nav_time
                 dist_matrix[j, i] = nav_time
 
-        try:
-            from scipy.sparse import csr_matrix
-            from scipy.sparse.csgraph import minimum_spanning_tree
+        from scipy.sparse import csr_matrix
+        from scipy.sparse.csgraph import minimum_spanning_tree
 
-            graph_sparse = csr_matrix(dist_matrix)
-            mst = minimum_spanning_tree(graph_sparse)
-            mst_total_nav_time = mst.sum()
+        graph_sparse = csr_matrix(dist_matrix)
+        mst = minimum_spanning_tree(graph_sparse)
+        mst_total_nav_time = mst.sum()
 
-            if mst_total_nav_time >= LARGE_NUMBER:
-                log.warning(
-                    "MST calculation resulted in LARGE_NUMBER, possibly due to unreachable locations."
-                )
-                return LARGE_NUMBER
-            return mst_total_nav_time
-        except ImportError:
-            log.error("SciPy not found. MST calculation is unavailable.")
+        if mst_total_nav_time >= LARGE_NUMBER:
+            log.warning(
+                "MST calculation resulted in LARGE_NUMBER, possibly due to unreachable locations."
+            )
             return LARGE_NUMBER
-        except Exception as e:
-            log.error(f"Error calculating MST navigation time: {e}")
-            return LARGE_NUMBER
+        return mst_total_nav_time
 
     # ========================================================================
     # Main Heuristic Calculation Method
@@ -307,6 +300,16 @@ class HeuristicManager:
             - mst_time (float): The calculated MST navigation time.
         """
         try:
+            # For synthetic candidates like 'Wait' or 'EARLY_', determine the original task name to exclude.
+            original_task_name = candidate.subtask.name
+            if original_task_name.startswith("Wait for "):
+                # Wait action doesn't consume a task, so we calculate the workload of all remaining tasks.
+                original_task_name = None
+            elif original_task_name.startswith("EARLY_"):
+                original_task_name = original_task_name.replace("EARLY_", "", 1)
+            elif original_task_name.startswith("REMAIN_"):
+                original_task_name = original_task_name.replace("REMAIN_", "", 1)
+
             exec_info = self.action_handler.get_actions_info(
                 current_node, candidate.subtask.execution.primitive_actions
             )
@@ -320,7 +323,7 @@ class HeuristicManager:
             next_tasks = {
                 t
                 for t in current_node.state.remaining_subtasks
-                if t.name != candidate.subtask.name
+                if t.name != original_task_name
             }
             next_constraints = current_node.state.constraints
             next_scene_pos = exec_info.scene_positions
@@ -335,6 +338,9 @@ class HeuristicManager:
             if cp_duration >= LARGE_NUMBER or mst_time >= LARGE_NUMBER:
                 return LARGE_NUMBER, cp_duration, mst_time
 
+            log.debug(
+                f"    RemainingWorkCost for '{candidate.subtask.name}': CP={cp_duration:.2f}, MST={mst_time:.2f} -> Total={cp_duration + mst_time:.2f}"
+            )
             return cp_duration + mst_time, cp_duration, mst_time
 
         except (ValueError, Exception) as e:
@@ -374,6 +380,9 @@ class HeuristicManager:
         # Monitoring Risk Penalty (for not monitoring before a critical task)
         monitoring_penalty = self._calculate_monitoring_risk(current_node, candidate)
 
+        log.debug(
+            f"    Penalties for '{candidate.subtask.name}': SlackConsumption={slack_consumption_penalty:.2f}, MonitoringRisk={monitoring_penalty:.2f}"
+        )
         return slack_consumption_penalty, monitoring_penalty
 
     def calc_heuristic(
@@ -438,8 +447,8 @@ class HeuristicManager:
             self.alpha * nav_cost_for_candidate
             + self.beta * urgency_cost
             + self.gamma * remaining_work_cost
-            + slack_consumption_penalty
-            + monitoring_penalty
+            # + slack_consumption_penalty
+            # + monitoring_penalty
         )
 
         log.debug(
@@ -465,8 +474,9 @@ class HeuristicManager:
         """
         Calculates a specialized heuristic cost for a 'Wait' action.
 
-        The cost of waiting is primarily the due date of the task being waited for,
-        making it directly comparable to executing other tasks.
+        The cost of waiting includes a slack-based urgency score and the cost of
+        all work remaining after the wait. A 'Wait' action fully consumes the
+        available slack, making its slack value 0.
 
         Args:
             current_node: The current simulation node.
@@ -476,16 +486,29 @@ class HeuristicManager:
         Returns:
             The calculated heuristic cost for waiting.
         """
-        # The primary cost of waiting is the deadline of the task we are waiting for.
-        # This makes it directly comparable to other actions whose cost is also based on their due dates.
-        wait_urgency_cost = wait_candidate.scheduling_due.due_date
+        # For a wait action, slack is defined as 0. Its urgency cost is therefore 0.
+        wait_urgency_cost = 0.0
 
-        total_heuristic_cost = self.beta * wait_urgency_cost
+        # PENALTY: Add the cost of work remaining *after* the wait. This prevents
+        # waiting from appearing deceptively "cheap".
+        remaining_work_cost, cp_dur, mst_time = self._calculate_remaining_work_cost(
+            current_node, wait_candidate
+        )
+        if remaining_work_cost >= LARGE_NUMBER:
+            return LARGE_NUMBER
 
-        log.info(
+        # --- Final Weighted Sum for Waiting ---
+        total_heuristic_cost = (
+            self.beta * wait_urgency_cost + self.gamma * remaining_work_cost
+        )
+
+        log.debug(
             f"  Heuristic for '{wait_candidate.subtask.name}': "
-            f"WaitUrgency({self.beta:.1f}*{wait_urgency_cost:.2f})={total_heuristic_cost:.2f} "
-            f"=> Total: {total_heuristic_cost:.3f}"
+            f"WaitUrgency({self.beta:.1f}*{wait_urgency_cost:.2f})={self.beta * wait_urgency_cost:.2f}, "
+            f"RemWorkAfterWait({self.gamma:.1f}*Rem[{cp_dur:.2f}+{mst_time:.2f}])={self.gamma * remaining_work_cost:.2f}"
+        )
+        log.info(
+            f"  => Total Heuristic Cost for '{wait_candidate.subtask.name}': {total_heuristic_cost:.3f}"
         )
 
         return total_heuristic_cost
@@ -494,11 +517,15 @@ class HeuristicManager:
         self, current_node: SimulationNode, candidate: Candidate
     ) -> Tuple[float, float, float, float]:
         """
-        Calculates the urgency cost for a candidate based on its due date.
-        This implements an Earliest Due Date (EDD) strategy.
+        Calculates the urgency cost for a candidate based on its slack time.
 
-        The urgency cost is the absolute due date. Lower due dates (earlier deadlines)
-        result in a lower cost, making them higher priority.
+        The urgency cost is defined as the slack time itself. This aligns with
+        the principle that lower costs are better:
+        - Negative Slack (Tardy): Results in a negative cost, making it the highest priority.
+        - Low Positive Slack (Urgent): Results in a low positive cost, making it high priority.
+        - High Positive Slack (Not Urgent): Results in a high positive cost, de-prioritizing it.
+
+        This ensures urgency is measured on a continuous, comparable scale.
 
         Args:
             current_node: The current simulation node.
@@ -506,7 +533,7 @@ class HeuristicManager:
 
         Returns:
             A tuple containing:
-            - urgency_cost (float): The task's due date.
+            - urgency_cost (float): The slack time, where lower is more urgent.
             - slack (float): The available slack time (for logging/penalties).
             - time_available_until_deadline (float): Time from now to deadline.
             - total_time_needed_for_candidate (float): Estimated time to finish the task.
@@ -537,7 +564,8 @@ class HeuristicManager:
             f"TotalNeedT={total_time_needed:.2f} => Slack={slack:.2f}"
         )
 
-        urgency_cost = deadline  # Earliest Due Date
+        # The urgency cost is simply the slack. Lower slack (including negative) means a lower cost, which is more favorable.
+        urgency_cost = slack
 
         return urgency_cost, slack, time_available, total_time_needed
 

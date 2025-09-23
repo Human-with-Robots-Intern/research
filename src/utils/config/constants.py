@@ -62,9 +62,9 @@ PLACE_ACTION_DURATION = 8.79
 
 REACHABLE_DISTANCE_THRESHOLD = 50.0
 
-ALPHA_HEURISTIC = 2.0
-BETA_HEURISTIC = 3.0
-GAMMA_HEURISTIC = 0.3
+ALPHA_HEURISTIC = 0
+BETA_HEURISTIC = 0.5
+GAMMA_HEURISTIC = 1.5
 TARDINESS_WEIGHT = 10
 MONITORING_RISK_WEIGHT = 0.5
 FUTURE_CRITICAL_RISK_WEIGHT = 1.0
@@ -108,7 +108,7 @@ EPSILON = 1e-1
 LARGE_NUMBER = 1e4
 TOP_K = 1
 MAX_WAIT_CANDIDATE_DURATION = (
-    80.0  # Maximum duration for a wait candidate to be considered
+    30.0  # Maximum duration for a wait candidate to be considered
 )
 
 # ========== ANSI 로그 색상 ==========

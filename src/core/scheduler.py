@@ -173,8 +173,14 @@ class Scheduler:
             expanded_nodes.sort(key=lambda nd: nd.heuristic_cost)
 
             # (3) Local Beam Pruning: Keep only the top-K expansions
+            log.debug(
+                f"[_simulate_search] Depth {curr_depth}: Top candidates after expansion:"
+            )
             for i, nd in enumerate(expanded_nodes):
                 if i < self.search_width:
+                    log.debug(
+                        f"  {i+1}. Task: {nd.state.subtask.name}, Cost: {nd.heuristic_cost:.2f}, Time: {nd.state.current_time:.2f}"
+                    )
                     queue.put(nd)
                 else:
                     break
