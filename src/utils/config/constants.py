@@ -67,23 +67,13 @@ BETA_HEURISTIC = 3.0
 GAMMA_HEURISTIC = 0.3
 TARDINESS_WEIGHT = 10
 MONITORING_RISK_WEIGHT = 0.5
+FUTURE_CRITICAL_RISK_WEIGHT = 1.0
 # ========== 베이지안 ==========
-BAYESIAN_CRITERIA = 0.3
+BAYESIAN_CRITERIA = 0.5
 
 GT_INTERVAL = 100.0
 INIT_PRIOR_MEAN = 60.0
 INIT_PRIOR_VARIANCE = 100.0
-
-
-def set_init_prior_mean(value: float) -> None:
-    """전역 INIT_PRIOR_MEAN 값을 설정합니다.
-
-    Args:
-        value (float): 새로 설정할 INIT_PRIOR_MEAN 값.
-    """
-    global INIT_PRIOR_MEAN
-    INIT_PRIOR_MEAN = value
-
 
 FACTOR_ALPHA = 0.005
 SIMILARITY_THRESHOLD = 0.7
@@ -101,11 +91,14 @@ TIMING_TOLERANCE_ABS = 15.0
 MONITORING_SPLIT_TOLERANCE_RATIO = 0.3
 MONITORING_SPLIT_TOLERANCE_ABS = 15.0
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 4
-BEAM_WIDTH = 5
+SIMULATION_DEPTH = 2
+BEAM_WIDTH = 2
 EPSILON = 1e-1
 LARGE_NUMBER = 1e4
 TOP_K = 1
+MAX_WAIT_CANDIDATE_DURATION = (
+    80.0  # Maximum duration for a wait candidate to be considered
+)
 
 # ========== ANSI 로그 색상 ==========
 LOG_ROUND = 3
