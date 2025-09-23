@@ -75,6 +75,17 @@ GT_INTERVAL = 100.0
 INIT_PRIOR_MEAN = 60.0
 INIT_PRIOR_VARIANCE = 100.0
 
+#지우지 마시오. 실험 돌릴동안만 쓰자구요 ㅎㅎㅎ
+def set_init_prior_mean(value: float) -> None:
+    """전역 INIT_PRIOR_MEAN 값을 설정합니다.
+
+    Args:
+        value (float): 새로 설정할 INIT_PRIOR_MEAN 값.
+    """
+    global INIT_PRIOR_MEAN
+    INIT_PRIOR_MEAN = value
+
+
 FACTOR_ALPHA = 0.005
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
