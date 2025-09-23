@@ -11,16 +11,16 @@ import numpy as np
 import openai
 from ai2thor.controller import Controller
 from ai2thor.platform import CloudRendering
+from src.simulation.runner_ai2thor import init_ai2thor_controller
 from util.utils_execute import *
 
-from src.simulation.runner_ai2thor import init_ai2thor_controller
-from src.utils.common import create_module_logger
+
 from src.utils.config.constants import *
+from src.utils.common import create_module_logger
 from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
 
-current_dir = os.path.dirname(os.path.abspath(__file__))  # 이 파일의 현재 경로
-
+current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
 
 def parse_arguments() -> argparse.Namespace:
     """
@@ -65,7 +65,7 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="로그 출력 수준 설정 (default: DEBUG)",
+        help="로그 출력 수준 설정 (default: DEBUG)"
     )
     parser.add_argument(
         "--gpt-version",
@@ -78,7 +78,7 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         default="FloorPlan1",
         # 추후에 scene 목록이 생기면 choices = [] 으로 구현한다.
-        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
+        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)"
     )
     parser.add_argument(
         "--prompt-num-examples", type=int, default=4, choices=range(1, 5)
@@ -89,10 +89,8 @@ def parse_arguments() -> argparse.Namespace:
         default="none",
         choices=["none", "no_comments", "no_feedback", "no_comments_feedback"],
     )
-    parser.add_argument(
-        "--openai-api-key", type=str, default=os.getenv("OPENAI_API_KEY")
-    )
-
+    parser.add_argument("--openai-api-key", type=str, default=os.getenv("OPENAI_API_KEY"))
+    
     parser.add_argument("--prompt-task-examples", type=str, default="default")
     parser.add_argument("--instruction", type=str, default=None)
     parser.add_argument(
@@ -113,13 +111,12 @@ def parse_arguments() -> argparse.Namespace:
         help="Use CloudRendering platform for AI2-THOR.",
     )
     parser.add_argument(
-        "--result-path",
-        type=Path,
+        "--init_prior_mean",
+        type=float,
         default=None,
-        help="The path to save the results.",
+        help="베이지안 추정을 위한 초기 평균값 (기본값: 60.0)",
     )
     return parser.parse_args()
-
 
 def generate_plan(controller, task: str, args: argparse.Namespace, logger):
     # 현재 scene에 있는 object들을 가져옴
@@ -145,7 +142,7 @@ def generate_plan(controller, task: str, args: argparse.Namespace, logger):
             "use coffee machine to make coffee then pick up the apple",
             "Fill the bathtub with water",
             "wash tomato, potato and egg, and cook egg fry",
-            "put tomato and apple in fridge and put book in shelf",
+            "put tomato and apple in fridge and put book in shelf"
         ]
         for i in range(args.prompt_num_examples):
             prompt += (
@@ -167,9 +164,7 @@ def generate_plan(controller, task: str, args: argparse.Namespace, logger):
 
     # Read task from input
     print(f"Generating plan for: {task}\n")
-    curr_prompt = (
-        f"{prompt}\ntask : {task}\n"  ## 주어진 정보 + 수행할 task 이어서 prompt 만듦
-    )
+    curr_prompt = f"{prompt}\ntask : {task}\n"  ## 주어진 정보 + 수행할 task 이어서 prompt 만듦
     _, text = LM(
         curr_prompt,
         args.gpt_version,
@@ -180,11 +175,11 @@ def generate_plan(controller, task: str, args: argparse.Namespace, logger):
     # save generated plan
     line = {}
     print(f"Saving generated plan at: {task}.json\n")
-    plan_of_task_path = os.path.join(current_dir, f"result/plans_of_{task}.json")
+    plan_of_task_path = os.path.join(current_dir,f"result/plans_of_{task}.json")
     with open(plan_of_task_path, "w") as f:
         line[task] = text
         json.dump(line, f)
-
+            
     computation_time = time.time() - computation_time_start
 
     prog_log_path = os.path.join(current_dir, f"result/prog_logs_{task}.txt")
@@ -194,17 +189,18 @@ def generate_plan(controller, task: str, args: argparse.Namespace, logger):
     result_path = f"{task}"
 
     simulate_execution(controller, [task], [text], log_file, args, logger)
-    result_args = {
+    result_args={
         "approach_name": approach_name,
         "user_input": task,
-        "result": prog_log_path,
-        "json_output_path": result_path,
-        "computation_time": computation_time,
+        "result":prog_log_path,
+        "json_output_path":result_path,
+        "computation_time":computation_time,
         "scene_name": args.scene,
         "attempt": args.attempt,
-        "base_result_path": args.result_path,
+        "init_prior_mean": args.init_prior_mean,
     }
     result_save_llm(**result_args)
+
 
 
 def planner_executer(args: argparse.Namespace, task: str, logger):
@@ -220,7 +216,14 @@ def planner_executer(args: argparse.Namespace, task: str, logger):
 
 
 if __name__ == "__main__":
-    args: argparse.Namespace = parse_arguments()
+    args: argparse.Namespace = parse_arguments()    
+
+    # Handle INIT_PRIOR_MEAN override
+    if args.init_prior_mean is not None:
+        from src.utils.config.constants import set_init_prior_mean
+
+        set_init_prior_mean(args.init_prior_mean)
+
     logger = create_module_logger(
         module_name="prog_ai2thor",
         log_file_path=Path(args.log_path) if args.log_path else None,
@@ -236,9 +239,7 @@ if __name__ == "__main__":
             if 1 <= choice <= len(task_files):
                 task = Path(task_files[choice - 1]).stem
             else:
-                print(
-                    f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}."
-                )
+                print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
                 sys.exit(1)
         except ValueError:
             # It's a natural language instruction, not a number
@@ -250,3 +251,5 @@ if __name__ == "__main__":
     openai.api_key = args.openai_api_key
 
     planner_executer(args=args, task=task, logger=logger)
+
+

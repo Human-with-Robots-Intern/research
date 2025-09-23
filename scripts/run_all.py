@@ -20,6 +20,18 @@ from src.utils.config.constants import LOG_PATH, RESULT_PATH
 from src.utils.io_utils.task_io import list_task_files
 
 
+def parse_arguments() -> argparse.Namespace:
+    """run_all.py 스크립트에 대한 명령행 인자를 파싱합니다."""
+    parser = argparse.ArgumentParser(description="모든 실험 실행 스크립트")
+    parser.add_argument(
+        "--init_prior_mean",
+        type=float,
+        default=None,
+        help="config 파일의 INIT_PRIOR_MEAN 값을 덮어씁니다.",
+    )
+    return parser.parse_args()
+
+
 def load_config() -> dict:
     """Loads configuration from scripts/config.yaml."""
     config_path = Path(__file__).parent / "run_all_config.yaml"
@@ -159,6 +171,8 @@ def process_retry_script(
             cmd.extend(["--log-level", config["log_level"]])
         if log_path:
             cmd.extend(["--log-path", str(log_path)])
+        if config.get("init_prior_mean") is not None:
+            cmd.extend(["--init_prior_mean", str(config["init_prior_mean"])])
         cmd.extend(["--attempt", str(attempt)])
 
         result = subprocess.run(cmd, capture_output=True, text=True)
@@ -287,6 +301,8 @@ def process_normal_script(
         cmd.extend(["--log-level", config["log_level"]])
     if log_path:
         cmd.extend(["--log-path", str(log_path)])
+    if config.get("init_prior_mean") is not None:
+        cmd.extend(["--init_prior_mean", str(config["init_prior_mean"])])
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -399,7 +415,12 @@ def load_instructions_from_json(scene_name: str) -> list[str]:
 
 
 def main() -> None:
+    args = parse_arguments()
     config = load_config()
+
+    # 명령행 인자가 제공된 경우, config 값을 덮어씁니다.
+    if args.init_prior_mean is not None:
+        config["init_prior_mean"] = args.init_prior_mean
 
     # Initialize a global logger for the main script
     global logger
@@ -410,8 +431,15 @@ def main() -> None:
     approaches = [Path(p) for p in config.get("approaches", [])]
     llm_scripts = {Path(p) for p in config.get("llm_scripts", [])}
 
-    scene_type = config.get("scene_type", "kitchen")
-    scene_list = config.get("scene_lists", {}).get(scene_type, [])
+    scene_type_config = config.get("scene_type", "kitchen")
+    if isinstance(scene_type_config, str):
+        scene_types = [scene_type_config]
+    else:
+        scene_types = scene_type_config
+
+    scene_list = []
+    for scene_type in scene_types:
+        scene_list.extend(config.get("scene_lists", {}).get(scene_type, []))
 
     num_runs_per_instruction = config.get("num_runs_per_instruction", 1)
     start_idx = config.get("start_idx", 0)
@@ -422,7 +450,7 @@ def main() -> None:
     logger.info("Current configuration:")
     logger.info("-" * 40)
     logger.info(f"Log level: {config.get('log_level')}")
-    logger.info(f"Scene type: {scene_type}")
+    logger.info(f"Scene types: {scene_types}")
     logger.info(f"Scenes to run: {scene_list}")
     logger.info(f"Predefined mode: {config.get('predefined', False)}")
     logger.info(f"ROS enabled: {config.get('ros', False)}")
@@ -434,6 +462,7 @@ def main() -> None:
     logger.info(f"Runs per instruction: {num_runs_per_instruction}")
     logger.info(f"Max retries: {config.get('max_retries', 10)}")
     logger.info(f"Retry delay: {config.get('retry_delay_seconds', 2)} seconds")
+    logger.info(f"Init Prior Mean: {config.get('init_prior_mean', 'Default (60.0)')}")
     logger.info("-" * 40)
 
     execute_dict = config.get("execute_dict", {})

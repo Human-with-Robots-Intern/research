@@ -384,6 +384,12 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="Use CloudRendering platform for AI2-THOR.",
     )
+    parser.add_argument(
+        "--init_prior_mean",
+        type=float,
+        default=None,
+        help="베이지안 추정을 위한 초기 평균값 (기본값: 60.0)",
+    )
     return parser.parse_args()
 
 
@@ -391,6 +397,13 @@ if __name__ == "__main__":
     # --- 스크립트 설정 및 초기화 ---
     approach_name = "cap_ai2thor_simulation"
     args = parse_arguments()
+
+    # Handle INIT_PRIOR_MEAN override
+    if args.init_prior_mean is not None:
+        from src.utils.config.constants import set_init_prior_mean
+
+        set_init_prior_mean(args.init_prior_mean)
+        
     logger = create_module_logger(
         module_name=approach_name,
         log_file_path=Path(args.log_path) if args.log_path else None,
@@ -481,6 +494,7 @@ if __name__ == "__main__":
             "computation_time": computation_time,
             "scene_name": scene_name,
             "attempt": args.attempt,
+            "init_prior_mean": args.init_prior_mean,
         }
 
         result_save_llm(**result_args)

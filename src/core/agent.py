@@ -8,12 +8,12 @@ import numpy as np
 
 from src.models.dataclass import SchedulerState
 from src.utils.common import create_module_logger, extract_monitoring_target_name
+from src.utils.config import constants
 from src.utils.config.constants import (
     AGENT_KNOWLEDGE_PATH,
     CRITICAL_OBJECT_GROUND_TRUTH,
     CRITICAL_OBJECT_INTERVALS,
     FACTOR_ALPHA,
-    INIT_PRIOR_MEAN,
     INIT_PRIOR_VARIANCE,
     MIN_VARIANCE,
 )
@@ -99,21 +99,21 @@ class Agent:
         Retrieves the prior mean and variance for a subtask (lowercase name).
         Initializes with defaults if not found or invalid. Ensures variance > MIN_VARIANCE.
         """
-        prior_mean = INIT_PRIOR_MEAN
-        prior_variance = INIT_PRIOR_VARIANCE
+        prior_mean = constants.INIT_PRIOR_MEAN
+        prior_variance = constants.INIT_PRIOR_VARIANCE
 
         if obj_name in CRITICAL_OBJECT_INTERVALS:
             known_data = self.estimate_knowledge.get(obj_name)
-            mean_val = known_data.get("expected_duration", INIT_PRIOR_MEAN)
-            var_val = known_data.get("variance", INIT_PRIOR_VARIANCE)
+            mean_val = known_data.get("expected_duration", constants.INIT_PRIOR_MEAN)
+            var_val = known_data.get("variance", constants.INIT_PRIOR_VARIANCE)
 
             # Ensure values are reasonable (non-negative)
             prior_mean = max(0, mean_val)
             prior_variance = max(MIN_VARIANCE, var_val)
 
         else:
-            prior_mean = INIT_PRIOR_MEAN
-            prior_variance = INIT_PRIOR_VARIANCE
+            prior_mean = constants.INIT_PRIOR_MEAN
+            prior_variance = constants.INIT_PRIOR_VARIANCE
             log.debug(f"No prior knowledge found for '{obj_name}'. Using defaults.")
 
         return prior_mean, max(prior_variance, MIN_VARIANCE)

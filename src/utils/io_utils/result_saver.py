@@ -14,9 +14,9 @@ if TYPE_CHECKING:
     from src.models.dataclass import CompletedEntry
 
 from src.utils.common.logger import create_module_logger
+from src.utils.config import constants
 from src.utils.config.constants import (
     EPSILON,
-    INIT_PRIOR_MEAN,
     RESULT_PATH,
     TIMING_TOLERANCE_ABS,
     TIMING_TOLERANCE_RATIO,
@@ -28,7 +28,6 @@ log = create_module_logger(__name__, module_log=True, level=logging.INFO)
 
 def get_now_str(fmt: str = "%Y-%m-%d %H:%M") -> str:
     return datetime.now().strftime(fmt)
-
 
 def compose_subtasks(
     result_schedule: List[CompletedEntry],
@@ -110,9 +109,9 @@ def calculate_timing_success_rate(
         is_critical = edge_info.get("IsCritical", False)
 
         if interval != 0 and is_critical:
-            interval = GT_INTERVAL
+            interval = constants.GT_INTERVAL
         elif interval != 0 and not is_critical:
-            interval = INIT_PRIOR_MEAN
+            interval = constants.INIT_PRIOR_MEAN
 
         # --- Check timing constraints for simulation results ---
         pred_end_time_sim = pred_entry.sim_end_time
@@ -223,8 +222,12 @@ def result_save(
     constraints: DiGraph,
     initial_plan_data: List[Dict],
     log_level: str = "INFO",
+    base_result_path: Path | None = None,
+    init_prior_mean: float | None = None,
 ):
     global log
+    if init_prior_mean is None:
+        init_prior_mean = constants.INIT_PRIOR_MEAN
 
     success_rate, simulation_makespan, scheduler_makespan = compose_plans(
         result_schedule, task_name
@@ -277,10 +280,14 @@ def result_save(
         "detail_log": detail_log,
     }
 
+    # Determine the base path for results
+    result_path_base = base_result_path if base_result_path is not None else RESULT_PATH
+    result_path_with_prior = result_path_base / f"init_{int(init_prior_mean)}"
+
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = RESULT_PATH / f"{task_name}_{num}" / scene_name
+        output_path = result_path_with_prior / f"{task_name}_{num}" / scene_name
         approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():
@@ -430,7 +437,11 @@ def result_save_llm(
     computation_time: float,
     scene_name: str,
     attempt: int = 1,
+    base_result_path: Path | None = None,
+    init_prior_mean: float | None = None,
 ):
+    if init_prior_mean is None:
+        init_prior_mean = constants.INIT_PRIOR_MEAN
 
     if approach_name == "cap_ai2thor_simulation":
         with open(result, "r", encoding="utf-8") as f:
@@ -457,10 +468,14 @@ def result_save_llm(
         "realworld_makespan": None,
     }
 
+    # Determine the base path for results
+    result_path_base = base_result_path if base_result_path is not None else RESULT_PATH
+    result_path_with_prior = result_path_base / f"init_{int(init_prior_mean)}"
+
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = RESULT_PATH / f"{user_input}_{num}" / scene_name
+        output_path = result_path_with_prior / f"{user_input}_{num}" / scene_name
         approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():
