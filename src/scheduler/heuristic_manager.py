@@ -9,19 +9,17 @@ import numpy as np  # 거리 계산 등에 사용될 수 있음
 from src.models.dataclass import Candidate, SimulationNode
 from src.utils.common import create_module_logger
 from src.utils.config import (  # INIT_PRIOR_MEAN, # 더 이상 직접 사용하지 않거나, interaction 추정에 활용
-    ALPHA_HEURISTIC,
-    BETA_HEURISTIC,
-    EPSILON,
-    GAMMA_HEURISTIC,
     LARGE_NUMBER,
 )
 from src.utils.config.constants import (
+    ALPHA_HEURISTIC,
+    BETA_HEURISTIC,
+    GAMMA_HEURISTIC,
     GRASP_ACTION_DURATION,
-    MONITORING_RISK_WEIGHT,
     NAV_STEP_DURATION,
     PLACE_ACTION_DURATION,
-    TARDINESS_WEIGHT,
     TOGGLE_ACTION_DURATION,
+    WAIT_ACTION_PENALTY,
 )
 
 # Forward declarations for type hinting
@@ -156,19 +154,9 @@ class HeuristicManager:
         """Estimates navigation time between two positions via the action_handler."""
         if pos1 is None or pos2 is None or pos1 == pos2:
             return 0.0
-        try:
-            path = self.action_handler._find_shortest_path(pos1, pos2)
-            return len(path) * NAV_STEP_DURATION if path else 0.0
-        except ValueError:  # Pathfinding failed
-            log.warning(
-                f"Pathfinding failed between {pos1} and {pos2}. Returning LARGE_NUMBER nav time."
-            )
-            return LARGE_NUMBER
-        except Exception as e:
-            log.error(
-                f"Unexpected error in _estimate_navigation_time_between_positions ({pos1} to {pos2}): {e}"
-            )
-            return LARGE_NUMBER
+
+        path = self.action_handler._find_shortest_path(pos1, pos2)
+        return len(path) * NAV_STEP_DURATION if path else 0.0
 
     # ========================================================================
     # Helper Functions - CP 및 MST 계산
@@ -187,41 +175,29 @@ class HeuristicManager:
         task_names_set = {sub.name for sub in remaining_tasks}
         subgraph = constraints.subgraph(task_names_set).copy()
 
-        if not nx.is_directed_acyclic_graph(subgraph):
-            log.error(
-                "Cycle detected in remaining task constraint subgraph for CP calculation."
-            )
-            return LARGE_NUMBER
-
         task_pure_interaction_times = {
             sub.name: self._get_estimated_pure_interaction_time(sub)
             for sub in remaining_tasks
         }
 
         earliest_finish_times = {task_name: 0.0 for task_name in task_names_set}
-        try:
-            for task_name in nx.topological_sort(subgraph):
-                max_earliest_finish_of_predecessors = 0.0
-                for pred_name, _, edge_data in subgraph.in_edges(task_name, data=True):
-                    if pred_name in earliest_finish_times:
-                        interval = edge_data.get("info", {}).get("Interval", 0.0)
-                        max_earliest_finish_of_predecessors = max(
-                            max_earliest_finish_of_predecessors,
-                            earliest_finish_times[pred_name] + interval,
-                        )
 
-                interaction_time = task_pure_interaction_times.get(task_name, 0.0)
-                earliest_finish_times[task_name] = (
-                    max_earliest_finish_of_predecessors + interaction_time
-                )
+        for task_name in nx.topological_sort(subgraph):
+            max_earliest_finish_of_predecessors = 0.0
+            for pred_name, _, edge_data in subgraph.in_edges(task_name, data=True):
+                if pred_name in earliest_finish_times:
+                    interval = edge_data.get("info", {}).get("Interval", 0.0)
+                    max_earliest_finish_of_predecessors = max(
+                        max_earliest_finish_of_predecessors,
+                        earliest_finish_times[pred_name] + interval,
+                    )
 
-            return max(earliest_finish_times.values()) if earliest_finish_times else 0.0
-        except nx.NetworkXUnfeasible:  # Cycle
-            log.error("Cycle detected during topological sort for CP calculation.")
-            return LARGE_NUMBER
-        except Exception as e:
-            log.error(f"Error calculating critical path duration: {e}")
-            return LARGE_NUMBER
+            interaction_time = task_pure_interaction_times.get(task_name, 0.0)
+            earliest_finish_times[task_name] = (
+                max_earliest_finish_of_predecessors + interaction_time
+            )
+
+        return max(earliest_finish_times.values()) if earliest_finish_times else 0.0
 
     def _calculate_mst_navigation_time(
         self,
@@ -268,11 +244,6 @@ class HeuristicManager:
         mst = minimum_spanning_tree(graph_sparse)
         mst_total_nav_time = mst.sum()
 
-        if mst_total_nav_time >= LARGE_NUMBER:
-            log.warning(
-                "MST calculation resulted in LARGE_NUMBER, possibly due to unreachable locations."
-            )
-            return LARGE_NUMBER
         return mst_total_nav_time
 
     # ========================================================================
@@ -299,91 +270,41 @@ class HeuristicManager:
             - cp_duration (float): The calculated critical path duration.
             - mst_time (float): The calculated MST navigation time.
         """
-        try:
-            # For synthetic candidates like 'Wait' or 'EARLY_', determine the original task name to exclude.
-            original_task_name = candidate.subtask.name
-            if original_task_name.startswith("Wait for "):
-                # Wait action doesn't consume a task, so we calculate the workload of all remaining tasks.
-                original_task_name = None
-            elif original_task_name.startswith("EARLY_"):
-                original_task_name = original_task_name.replace("EARLY_", "", 1)
-            elif original_task_name.startswith("REMAIN_"):
-                original_task_name = original_task_name.replace("REMAIN_", "", 1)
 
-            exec_info = self.action_handler.get_actions_info(
-                current_node, candidate.subtask.execution.primitive_actions
-            )
-            if not (exec_info and exec_info.success):
-                log.warning(
-                    f"Full execution sim of '{candidate.subtask.name}' failed. High cost."
-                )
-                return LARGE_NUMBER, LARGE_NUMBER, LARGE_NUMBER
+        # For synthetic candidates, determine which task name to exclude from the future workload calculation.
+        task_to_exclude = candidate.subtask.name
+        if task_to_exclude.startswith("Wait for "):
+            # Wait action doesn't consume a task, so no task is excluded.
+            task_to_exclude = None
+        elif task_to_exclude.startswith("EARLY_"):
+            # An EARLY action consumes the entire original task from the plan.
+            task_to_exclude = task_to_exclude.replace("EARLY_", "", 1)
+        # For REMAIN_ or normal tasks, the task to exclude is the task itself.
 
-            next_pos = tuple(exec_info.scene_positions.get("agent"))
-            next_tasks = {
-                t
-                for t in current_node.state.remaining_subtasks
-                if t.name != original_task_name
-            }
-            next_constraints = current_node.state.constraints
-            next_scene_pos = exec_info.scene_positions
+        exec_info = self.action_handler.get_actions_info(
+            current_node, candidate.subtask.execution.primitive_actions
+        )
 
-            cp_duration = self._calculate_critical_path_interaction_duration(
-                next_tasks, next_constraints
-            )
-            mst_time = self._calculate_mst_navigation_time(
-                next_pos, next_tasks, next_scene_pos
-            )
+        next_pos = tuple(exec_info.scene_positions.get("agent"))
+        next_tasks = {
+            t
+            for t in current_node.state.remaining_subtasks
+            if t.name != task_to_exclude
+        }
+        next_constraints = current_node.state.constraints
+        next_scene_pos = exec_info.scene_positions
 
-            if cp_duration >= LARGE_NUMBER or mst_time >= LARGE_NUMBER:
-                return LARGE_NUMBER, cp_duration, mst_time
-
-            log.debug(
-                f"    RemainingWorkCost for '{candidate.subtask.name}': CP={cp_duration:.2f}, MST={mst_time:.2f} -> Total={cp_duration + mst_time:.2f}"
-            )
-            return cp_duration + mst_time, cp_duration, mst_time
-
-        except (ValueError, Exception) as e:
-            log.error(f"Error simulating future for {candidate.subtask.name}: {e}")
-            return LARGE_NUMBER, LARGE_NUMBER, LARGE_NUMBER
-
-    def _calculate_penalties(
-        self,
-        current_node: SimulationNode,
-        candidate: Candidate,
-        slack_time: float,
-        time_available: float,
-        time_needed: float,
-    ) -> Tuple[float, float]:
-        """
-        Calculates various penalty costs for a candidate.
-
-        Args:
-            current_node: The current simulation node.
-            candidate: The candidate subtask to evaluate.
-            slack_time: The calculated slack time for the candidate.
-            time_available: Time available until the candidate's deadline.
-            time_needed: Total time estimated to complete the candidate.
-
-        Returns:
-            A tuple containing penalties for slack consumption and monitoring risk.
-        """
-        # Slack Consumption Penalty (for using up too much slack)
-        slack_consumption_penalty = 0.0
-        # This penalty should only apply if there is positive slack and enough time.
-        if slack_time > 0 and time_available > time_needed:
-            consumption_ratio = time_needed / time_available
-            # Penalize more heavily as consumption ratio increases
-            if consumption_ratio > 0.5:
-                slack_consumption_penalty = TARDINESS_WEIGHT * (consumption_ratio**2)
-
-        # Monitoring Risk Penalty (for not monitoring before a critical task)
-        monitoring_penalty = self._calculate_monitoring_risk(current_node, candidate)
+        cp_duration = self._calculate_critical_path_interaction_duration(
+            next_tasks, next_constraints
+        )
+        mst_time = self._calculate_mst_navigation_time(
+            next_pos, next_tasks, next_scene_pos
+        )
 
         log.debug(
-            f"    Penalties for '{candidate.subtask.name}': SlackConsumption={slack_consumption_penalty:.2f}, MonitoringRisk={monitoring_penalty:.2f}"
+            f"    RemainingWorkCost for '{candidate.subtask.name}': CP={cp_duration:.2f}, MST={mst_time:.2f} -> Total={cp_duration + mst_time:.2f}"
         )
-        return slack_consumption_penalty, monitoring_penalty
+        return cp_duration + mst_time, cp_duration, mst_time
 
     def calc_heuristic(
         self,
@@ -409,9 +330,6 @@ class HeuristicManager:
         Returns:
             The calculated heuristic cost (lower is better).
         """
-        if not candidate or not candidate.subtask:
-            log.error("Invalid candidate provided to calc_heuristic.")
-            return LARGE_NUMBER
 
         # --- Check for Wait Candidate ---
         if candidate.subtask.name.startswith("Wait for"):
@@ -421,42 +339,27 @@ class HeuristicManager:
 
         # --- 1. Immediate Costs & Penalties ---
         nav_cost_for_candidate = candidate.estimated_first_nav_duration or 0.0
-        if nav_cost_for_candidate >= LARGE_NUMBER:
-            return LARGE_NUMBER
 
-        (
-            urgency_cost,
-            slack_time,
-            _time_available,
-            _time_needed,
-        ) = self._calculate_candidate_urgency_cost(current_node, candidate)
-
-        slack_consumption_penalty, monitoring_penalty = self._calculate_penalties(
-            current_node, candidate, slack_time, _time_available, _time_needed
+        urgency_cost, slack = self._calculate_candidate_urgency_cost(
+            current_node, candidate
         )
 
         # --- 2. Future Workload Cost ---
         remaining_work_cost, cp_dur, mst_time = self._calculate_remaining_work_cost(
             current_node, candidate
         )
-        if remaining_work_cost >= LARGE_NUMBER:
-            return LARGE_NUMBER
 
         # --- 3. Final Weighted Sum ---
         total_heuristic_cost = (
             self.alpha * nav_cost_for_candidate
             + self.beta * urgency_cost
             + self.gamma * remaining_work_cost
-            # + slack_consumption_penalty
-            # + monitoring_penalty
         )
 
         log.debug(
             f"  Heuristic for '{candidate.subtask.name}': "
             f"CandNav({self.alpha:.1f}*{nav_cost_for_candidate:.2f})={self.alpha * nav_cost_for_candidate:.2f}, "
-            f"Urg({self.beta:.1f}*{urgency_cost:.2f})={self.beta * urgency_cost:.2f} (Slack={slack_time:.2f}), "
-            f"SlackP={slack_consumption_penalty:.2f}, "
-            f"MonRiskP={monitoring_penalty:.2f}, "
+            f"Urg({self.beta:.1f}*{urgency_cost:.2f})={self.beta * urgency_cost:.2f} (Slack={slack:.2f}), "
             f"RemWork({self.gamma:.1f}*Rem[{cp_dur:.2f}+{mst_time:.2f}])={self.gamma * remaining_work_cost:.2f}"
         )
         log.info(
@@ -486,26 +389,44 @@ class HeuristicManager:
         Returns:
             The calculated heuristic cost for waiting.
         """
-        # For a wait action, slack is defined as 0. Its urgency cost is therefore 0.
-        wait_urgency_cost = 0.0
+        # For a wait action, the urgency should be based on the task being waited for.
+        target_task_name = wait_candidate.subtask.name.replace("Wait for ", "")
+        target_candidate = next(
+            (
+                cand
+                for cand in not_yet_candidates
+                if cand.subtask.name == target_task_name
+            ),
+            None,
+        )
+
+        if target_candidate:
+            wait_urgency_cost, _ = self._calculate_candidate_urgency_cost(
+                current_node, target_candidate
+            )
+        else:
+            # Fallback if the target candidate is not found (should not happen in normal flow)
+            wait_urgency_cost = 0.0
 
         # PENALTY: Add the cost of work remaining *after* the wait. This prevents
         # waiting from appearing deceptively "cheap".
         remaining_work_cost, cp_dur, mst_time = self._calculate_remaining_work_cost(
             current_node, wait_candidate
         )
-        if remaining_work_cost >= LARGE_NUMBER:
-            return LARGE_NUMBER
 
         # --- Final Weighted Sum for Waiting ---
         total_heuristic_cost = (
             self.beta * wait_urgency_cost + self.gamma * remaining_work_cost
         )
 
+        # 'wait' 액션 자체에 대한 페널티 추가
+        total_heuristic_cost += WAIT_ACTION_PENALTY
+
         log.debug(
             f"  Heuristic for '{wait_candidate.subtask.name}': "
             f"WaitUrgency({self.beta:.1f}*{wait_urgency_cost:.2f})={self.beta * wait_urgency_cost:.2f}, "
-            f"RemWorkAfterWait({self.gamma:.1f}*Rem[{cp_dur:.2f}+{mst_time:.2f}])={self.gamma * remaining_work_cost:.2f}"
+            f"RemWorkAfterWait({self.gamma:.1f}*Rem[{cp_dur:.2f}+{mst_time:.2f}])={self.gamma * remaining_work_cost:.2f}, "
+            f"WaitPenalty={WAIT_ACTION_PENALTY:.2f}"
         )
         log.info(
             f"  => Total Heuristic Cost for '{wait_candidate.subtask.name}': {total_heuristic_cost:.3f}"
@@ -515,41 +436,35 @@ class HeuristicManager:
 
     def _calculate_candidate_urgency_cost(
         self, current_node: SimulationNode, candidate: Candidate
-    ) -> Tuple[float, float, float, float]:
+    ) -> float:
         """
         Calculates the urgency cost for a candidate based on its slack time.
 
-        The urgency cost is defined as the slack time itself. This aligns with
-        the principle that lower costs are better:
-        - Negative Slack (Tardy): Results in a negative cost, making it the highest priority.
-        - Low Positive Slack (Urgent): Results in a low positive cost, making it high priority.
-        - High Positive Slack (Not Urgent): Results in a high positive cost, de-prioritizing it.
-
-        This ensures urgency is measured on a continuous, comparable scale.
+        The cost function is designed to heavily penalize tardiness while
+        rewarding early completion.
+        - Positive Slack (Early): Cost is inversely proportional to slack (1 / (slack + 1)),
+          so finishing earlier results in a lower cost approaching zero.
+        - Negative Slack (Tardy): Cost is the square of the tardiness. This creates
+          a small penalty for minor delays but a rapidly growing, large penalty
+          for significant delays.
 
         Args:
             current_node: The current simulation node.
             candidate: The candidate subtask to evaluate.
 
         Returns:
-            A tuple containing:
-            - urgency_cost (float): The slack time, where lower is more urgent.
-            - slack (float): The available slack time (for logging/penalties).
-            - time_available_until_deadline (float): Time from now to deadline.
-            - total_time_needed_for_candidate (float): Estimated time to finish the task.
+            The calculated urgency cost. Lower is more urgent.
         """
         if not candidate.scheduling_due or candidate.scheduling_due.due_date == float(
             "inf"
         ):
-            # For non-urgent tasks, return a large positive cost to de-prioritize them.
-            return LARGE_NUMBER, float("inf"), float("inf"), 0.0
+            # For non-critical tasks that do not have a deadline from a critical task.
+            return 0.0, 0.0
 
         current_time = current_node.state.current_time
         deadline = candidate.scheduling_due.due_date
 
         time_needed_for_nav = candidate.estimated_first_nav_duration or 0.0
-        if time_needed_for_nav >= LARGE_NUMBER:
-            return LARGE_NUMBER, -float("inf"), 0.0, LARGE_NUMBER
 
         time_needed_for_interaction = self._get_estimated_pure_interaction_time(
             candidate.subtask
@@ -564,40 +479,23 @@ class HeuristicManager:
             f"TotalNeedT={total_time_needed:.2f} => Slack={slack:.2f}"
         )
 
-        # The urgency cost is simply the slack. Lower slack (including negative) means a lower cost, which is more favorable.
-        urgency_cost = slack
-
-        return urgency_cost, slack, time_available, total_time_needed
-
-    def _calculate_monitoring_risk(
-        self, current_node: SimulationNode, candidate: Candidate
-    ) -> float:
-        """Assigns a penalty for not having a monitoring task before a critical successor."""
+        urgency_cost = 0.0
         if candidate.is_critical:
-            return 0.0
+            # For critical tasks, the goal is to have slack be as close to 0 as possible.
+            # Being too early or too late is penalized.
+            if slack < 0:
+                tardiness = -slack
+                urgency_cost = tardiness * 10  # Heavily penalize being late
+            else:
+                # Penalize being too early to avoid blocking other tasks unnecessarily.
+                urgency_cost = slack
 
-        scheduling_due = candidate.scheduling_due
-        if not (
-            scheduling_due
-            and scheduling_due.due_date != float("inf")
-            and scheduling_due.due_related_sub_name
-        ):
-            return 0.0
-
-        constraints = current_node.state.constraints
-        critical_end_sub_name = scheduling_due.due_related_sub_name
-        if not constraints or not constraints.has_node(critical_end_sub_name):
-            return 0.0
-
-        if any(
-            pred.startswith("Monitoring for ")
-            for pred in constraints.predecessors(critical_end_sub_name)
-        ):
-            return 0.0
-
-        time_until_due = scheduling_due.due_date - current_node.state.current_time
-        risk_factor = (
-            1.0 / (time_until_due + EPSILON) if time_until_due > 0 else 1.0 / EPSILON
-        )
-
-        return MONITORING_RISK_WEIGHT * risk_factor
+        else:
+            # For non-critical tasks, being early (positive slack) is fine (cost 0).
+            # Being late (negative slack) is penalized quadratically.
+            if slack >= 0:
+                urgency_cost = 0.0
+            else:
+                tardiness = -slack
+                urgency_cost = tardiness**2
+        return urgency_cost, slack

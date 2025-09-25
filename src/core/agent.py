@@ -164,15 +164,7 @@ class Agent:
             constraint_handler=self.constraint_handler,
         )
 
-        target_edge = state.constraints.get_edge_data(
-            critical_start_sub_name,
-            monitoring_target_sub_name,
-            default={},
-        )
-        current_interval = target_edge.get("info", {}).get("Interval")
-        if current_interval is not None:
-            gt_interval = max(gt_interval, current_interval)
-
+       
         # 5) 베이지안 업데이트 계산
         # critical 제약이 시작 된 이후 경과된 separation interval
         critical_elapsed_interval = state.current_time - critical_start_sub_end_time
