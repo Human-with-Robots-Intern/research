@@ -10,7 +10,6 @@ import time
 import traceback
 from datetime import datetime
 from itertools import product
-from math import inf
 from pathlib import Path
 
 import yaml
@@ -24,6 +23,12 @@ def parse_arguments() -> argparse.Namespace:
     """run_all.py 스크립트에 대한 명령행 인자를 파싱합니다."""
     parser = argparse.ArgumentParser(description="모든 실험 실행 스크립트")
     parser.add_argument(
+        "--config",
+        type=str,
+        default="run_all_config.yaml",
+        help="사용할 설정 파일 이름 (예: run_all_config.yaml)",
+    )
+    parser.add_argument(
         "--init_prior_mean",
         type=float,
         default=None,
@@ -32,9 +37,12 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_config() -> dict:
-    """Loads configuration from scripts/config.yaml."""
-    config_path = Path(__file__).parent / "run_all_config.yaml"
+def load_config(config_name: str) -> dict:
+    """Loads configuration from the specified yaml file in the scripts directory."""
+    config_path = Path(__file__).parent / config_name
+    if not config_path.exists():
+        print(f"Error: Configuration file '{config_name}' not found.")
+        sys.exit(1)
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
     return config
@@ -416,7 +424,7 @@ def load_instructions_from_json(scene_name: str) -> list[str]:
 
 def main() -> None:
     args = parse_arguments()
-    config = load_config()
+    config = load_config(args.config)
 
     # 명령행 인자가 제공된 경우, config 값을 덮어씁니다.
     if args.init_prior_mean is not None:
@@ -484,12 +492,15 @@ def main() -> None:
             for instruction, i in product(
                 instruction_source, range(num_runs_per_instruction)
             ):
-                if (
-                    execute_dict
-                    and instruction not in execute_dict[scene_name]
-                    and execute_dict[scene_name]
-                ):
-                    continue
+                # If execute_dict is provided, only run instructions present in it
+                if execute_dict:
+                    # Check if the scene is in the dict and if the instruction is in the list for that scene
+                    if (
+                        scene_name not in execute_dict
+                        or instruction not in execute_dict.get(scene_name, [])
+                    ):
+                        continue
+
                 futures.append(
                     executor.submit(
                         worker,

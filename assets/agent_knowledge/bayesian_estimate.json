@@ -1,12 +1,4 @@
 {
-    "Faucet": {
-        "expected_duration": 99.9407867515421,
-        "variance": 0.001984460618379
-    },
-    "StoveKnob": {
-        "expected_duration": 99.78832430830779,
-        "variance": 6.602147609480587
-    },
     "Microwave": {
         "expected_duration": 0.0,
         "variance": 100.0
@@ -15,7 +7,11 @@
         "expected_duration": 140.0,
         "variance": 100.0
     },
-    "Kettle": {
+    "StoveKnob": {
+        "expected_duration": 103.04240368038103,
+        "variance": 8.772245235720824
+    },
+    "Egg": {
         "expected_duration": 140.0,
         "variance": 100.0
     },
