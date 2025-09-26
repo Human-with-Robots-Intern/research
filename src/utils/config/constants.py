@@ -52,7 +52,7 @@ DYNAMIC_ACTION_SET = {
     "WAIT",
     "MONITORING",
 }
-PRIMITIVE_ACTION_DURATION = 15.0
+# PRIMITIVE_ACTION_DURATION = 15.0
 MONITORING_DURATION = 2.33
 NAV_STEP_DURATION = 0.13
 REAL_NAV_DURATION = 3.31
@@ -62,30 +62,39 @@ PLACE_ACTION_DURATION = 8.79
 
 REACHABLE_DISTANCE_THRESHOLD = 50.0
 
-ALPHA_HEURISTIC = 2.0
-BETA_HEURISTIC = 3.0
-GAMMA_HEURISTIC = 0.3
+# Heuristic weights
+ALPHA_HEURISTIC = 1.0  # Navigation cost
+BETA_HEURISTIC = 100.0  # Urgency (slack) cost
+GAMMA_HEURISTIC = 1.0  # Remaining work cost
+
+# Wait action control
+WAIT_ACTION_PENALTY = 10.0  # 'wait' 액션 선택 시 부과되는 기본 페널티
+WAIT_TIME_UPPER_BOUND = 20.0  # 'wait' 액션의 최대 허용 시간 (초)
+
+
 # ========== 베이지안 ==========
-BAYESIAN_CRITERIA = 0.5
+BAYESIAN_CRITERIA = 0.7
 
 GT_INTERVAL = 100.0
-INIT_PRIOR_MEAN = 60.0
+INIT_PRIOR_MEAN = 140.0
 INIT_PRIOR_VARIANCE = 100.0
 
-FACTOR_ALPHA = 0.01
+FACTOR_ALPHA = 0.001
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
 # Timing tolerance can be interpreted both as a ratio and an absolute cap.
 # The ratio (30%) mirrors the previous behaviour, while the absolute value
 # allows capping the tolerance window for large intervals.
 TIMING_TOLERANCE_RATIO = 0.3
-TIMING_TOLERANCE_ABS = 20.0
+TIMING_TOLERANCE_ABS = 15.0
+MONITORING_SPLIT_TOLERANCE_ABS = 15.0
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 1
-BEAM_WIDTH = 1
+SIMULATION_DEPTH = 4
+BEAM_WIDTH = 5
 EPSILON = 1e-1
 LARGE_NUMBER = 1e4
 TOP_K = 1
+
 
 # ========== ANSI 로그 색상 ==========
 LOG_ROUND = 3

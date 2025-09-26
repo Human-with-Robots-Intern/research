@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import networkx as nx
 from networkx import DiGraph
@@ -10,6 +10,7 @@ from src.models.dataclass import (
     ActionResult,
     Candidate,
     CompletedEntry,
+    CriticalContext,
     SchedulingDue,
     SimulationNode,
     TimeSlot,
@@ -78,8 +79,18 @@ class ConstraintHandler:
 
         for sub in remaining_subtasks:
             # 1. 시간 제약 상 시작 가능한 시간 조건 확인
-            logical_interaction_start_time, is_critical, status = (
-                self.get_logical_interaction_start_time(curr_node, sub)
+            (
+                logical_interaction_start_time,
+                is_critical,
+                status,
+                critical_info,
+            ) = self.get_logical_interaction_start_time(curr_node, sub)
+
+            critical_ctx = CriticalContext(
+                source_subtask=critical_info.get("critical_source"),
+                source_end_time=critical_info.get("critical_source_end_time"),
+                interval=critical_info.get("critical_interval", 0.0),
+                logical_start_time=critical_info.get("critical_start_time"),
             )
 
             # 선행 태스크 실패 또는 제약 조건 오류/충돌 시 후보에서 제외
@@ -99,13 +110,28 @@ class ConstraintHandler:
                 # not_yet 후보에 필요한 정보 추가 (예: 예상 준비 시간 등)
                 # 여기서는 Candidate 객체만 추가하고, 추후 scheduling_due 할당 등에서 활용 가능
                 # NOT_READY 상태 Subtask는 최소 시작 시간이 None임
-                not_yet_candidates.append(
-                    Candidate(
-                        subtask=sub,
-                        is_critical=is_critical,
-                        logical_interaction_start_time=logical_interaction_start_time,
+                candidate = Candidate(
+                    subtask=sub,
+                    is_critical=is_critical,
+                    logical_interaction_start_time=logical_interaction_start_time,
+                    critical_context=critical_ctx,
+                )
+
+                if (
+                    candidate.is_critical
+                    and candidate.scheduling_due.due_date == float("inf")
+                    and critical_ctx.source_subtask
+                    and critical_ctx.source_end_time is not None
+                ):
+                    inferred_due = critical_ctx.source_end_time + critical_ctx.interval
+                    if inferred_due <= curr_node.state.current_time:
+                        inferred_due = curr_node.state.current_time + EPSILON
+                    candidate.scheduling_due = SchedulingDue(
+                        due_date=inferred_due,
+                        due_related_sub_name=candidate.subtask.name,
                     )
-                )  # status 추가
+
+                not_yet_candidates.append(candidate)  # status 추가
                 continue
 
             # 2. 물리적 제약 조건 확인 (네비게이션 시간 등)
@@ -152,7 +178,35 @@ class ConstraintHandler:
                 logical_interaction_start_time=logical_interaction_start_time,
                 actual_interaction_start_time=actual_interaction_start_time,
                 estimated_first_nav_duration=first_nav_duration,
+                critical_context=critical_ctx,
             )
+
+            # For (0, True) constraints, the due date is immediate.
+            is_consecutive_critical = False
+            if critical_ctx and critical_ctx.source_end_time is not None:
+                if critical_ctx.interval < EPSILON and candidate.is_critical:
+                    is_consecutive_critical = True
+
+            if is_consecutive_critical:
+                immediate_due_date = critical_ctx.source_end_time + EPSILON
+                candidate.scheduling_due = SchedulingDue(
+                    due_date=immediate_due_date,
+                    due_related_sub_name=candidate.subtask.name,
+                )
+
+            if (
+                candidate.is_critical
+                and candidate.scheduling_due.due_date == float("inf")
+                and critical_ctx.source_subtask
+                and critical_ctx.source_end_time is not None
+            ):
+                inferred_due = critical_ctx.source_end_time + critical_ctx.interval
+                if inferred_due <= curr_node.state.current_time:
+                    inferred_due = curr_node.state.current_time + EPSILON
+                candidate.scheduling_due = SchedulingDue(
+                    due_date=inferred_due,
+                    due_related_sub_name=candidate.subtask.name,
+                )
 
             # 현재 시간에 "상호작용을 시작"할 수 있는 경우 feasible
             # 즉, effective_interaction_start_time이 현재 시간과 거의 같아야 함.
@@ -193,20 +247,30 @@ class ConstraintHandler:
             log.error(
                 f"Invalid constraint graph provided for state at time {curr_node.state.current_time:.2f}. Cannot process subtask '{sub.name}'."
             )
-            return None, False, "CONSTRAINT_ERROR"
+            return None, False, "CONSTRAINT_ERROR", {}
         if not nx.is_directed_acyclic_graph(curr_constraints):
             log.error(
                 f"CONSTRAINT ERROR: Cycle detected in the constraint graph for state at time {curr_node.state.current_time:.2f}! "
                 f"Cannot reliably calculate earliest start time for '{sub.name}'. Check constraint update logic."
             )
-            return None, False, "CONSTRAINT_ERROR"
+            return None, False, "CONSTRAINT_ERROR", {}
 
         # COMPLETED: 태스크가 아직 제약 그래프에 없는 경우 -> 동적으로 생성된 것으로 간주
         if sub.name not in curr_constraints:
             log.debug(
                 f"Subtask '{sub.name}' not found in constraint graph. Assuming ready at time 0."
             )
-            return 0.0, False, "COMPLETED"
+            return (
+                0.0,
+                False,
+                "COMPLETED",
+                {
+                    "critical_source": None,
+                    "critical_source_end_time": None,
+                    "critical_interval": 0.0,
+                    "critical_start_time": 0.0,
+                },
+            )
 
         completed_subtasks_map = {
             ce.subtask.name: ce for ce in curr_node.state.completed_entries
@@ -215,10 +279,20 @@ class ConstraintHandler:
         in_edges = list(curr_constraints.in_edges(sub.name, data=True))
         if not in_edges:
             log.debug(f"Subtask '{sub.name}' has no predecessors. Ready at time 0.")
-            return 0.0, False, "COMPLETED"
+            return (
+                0.0,
+                False,
+                "COMPLETED",
+                {
+                    "critical_source": None,
+                    "critical_interval": 0.0,
+                    "critical_start_time": 0.0,
+                },
+            )
 
         # 선행 작업이 있는 Task에 대하여
         critical_times = []
+        critical_context = []
         non_critical_earliest_start = 0.0
         all_predecessors_finished = True
         any_predecessor_failed = False
@@ -252,6 +326,7 @@ class ConstraintHandler:
             # Critical / Non-critical 분리
             if is_crit:
                 critical_times.append(curr_logical_interaction_start_time)
+                critical_context.append((pred_name, pred_end_time, interval))
             else:
                 non_critical_earliest_start = max(
                     non_critical_earliest_start, curr_logical_interaction_start_time
@@ -261,12 +336,11 @@ class ConstraintHandler:
             log.error(
                 f"Final status for '{sub.name}': FAILED_PREDECESSOR ({failure_reason})"
             )
-            return None, False, "FAILED_PREDECESSOR"
+            return None, False, "FAILED_PREDECESSOR", {}
 
         if all_predecessors_finished:
             final_start_time = 0.0
             is_final_critical = False
-            tc_conflict_detected = False
 
             if critical_times:
                 # 하나의 Subtask u,v pair 간 복수의 Critical 제약이 존재하는 경우,
@@ -292,17 +366,69 @@ class ConstraintHandler:
                 final_start_time = non_critical_earliest_start
                 is_final_critical = False
 
-            log.debug(
-                f"Final status for '{sub.name}': COMPLETED. Earliest logical start: {final_start_time:.2f} (Critical: {is_final_critical})"
-            )
+            if is_final_critical:
+                if critical_context:
+                    latest_ctx = max(
+                        critical_context,
+                        key=lambda ctx: ctx[1] + ctx[2],
+                    )
+                    pred_name, pred_end, interval = latest_ctx
+                    critical_source = pred_name
+                    critical_source_end_time = pred_end
+                    critical_interval = interval
+                else:
+                    critical_source = None
+                    critical_source_end_time = None
+                    critical_interval = 0.0
+            else:
+                critical_source = None
+                critical_source_end_time = None
+                critical_interval = 0.0
+
+            if is_final_critical:
+                log.debug(
+                    "[get_logical_interaction_start_time] Critical context for %s: source=%s, end=%.2f, interval=%.2f",
+                    sub.name,
+                    critical_source,
+                    (
+                        critical_source_end_time
+                        if critical_source_end_time is not None
+                        else float("nan")
+                    ),
+                    critical_interval,
+                )
 
             log.debug(
                 f"Final status for '{sub.name}': COMPLETED. Earliest logical start (post-adjust): {final_start_time:.2f} (Critical: {is_final_critical})"
             )
-            return (final_start_time, is_final_critical, "COMPLETED")
+            return (
+                final_start_time,
+                is_final_critical,
+                "COMPLETED",
+                {
+                    "critical_source": critical_source,
+                    "critical_source_end_time": critical_source_end_time,
+                    "critical_interval": critical_interval,
+                    "critical_start_time": (
+                        non_critical_earliest_start
+                        if non_critical_earliest_start > final_start_time
+                        else final_start_time
+                    ),
+                },
+            )
 
         log.debug(f"Final status for '{sub.name}': NOT_READY (no predecessor info)")
-        return None, False, "NOT_READY"
+        return (
+            None,
+            False,
+            "NOT_READY",
+            {
+                "critical_source": None,
+                "critical_source_end_time": None,
+                "critical_interval": 0.0,
+                "critical_start_time": None,
+            },
+        )
 
     def _assign_scheduling_due(
         self,
@@ -315,6 +441,11 @@ class ConstraintHandler:
         of the next upcoming critical task found in the not_yet list.
         Modifies the feasible list IN-PLACE.
         """
+
+        if not not_yet_candidates and feasible_candidates:
+            for feasible_candidate in feasible_candidates:
+                if feasible_candidate.is_critical:
+                    print(f"feasible_candidate: {feasible_candidate}")
         # Find the earliest logical start time among upcoming critical tasks
         crit_candidates = [c for c in not_yet_candidates if c.is_critical]
 
@@ -351,11 +482,38 @@ class ConstraintHandler:
                 f"Next critical task '{due_related_sub_name}' sets scheduling_due at LogicalEST {scheduling_due:.2f}"
             )
 
-        # Assign the calculated scheduling_due to all feasible candidates (IN-PLACE)
+        # Assign the calculated scheduling_due (IN-PLACE) while preserving critical metadata.
         new_scheduling_due = SchedulingDue(
             due_date=scheduling_due, due_related_sub_name=due_related_sub_name
         )
+
         for feasible_candidate in feasible_candidates:
+            if feasible_candidate.is_critical:
+                # Preserve an existing finite deadline for the critical task.
+                current_due = getattr(feasible_candidate, "scheduling_due", None)
+                if current_due and current_due.due_date != float("inf"):
+                    continue
+
+                critical_ctx = getattr(feasible_candidate, "critical_context", None)
+                if (
+                    critical_ctx
+                    and critical_ctx.source_subtask
+                    and critical_ctx.source_end_time is not None
+                ):
+                    inferred_due = critical_ctx.source_end_time + critical_ctx.interval
+                    if inferred_due <= curr_node.state.current_time:
+                        inferred_due = curr_node.state.current_time + EPSILON
+
+                    feasible_candidate.scheduling_due = SchedulingDue(
+                        due_date=inferred_due,
+                        due_related_sub_name=feasible_candidate.subtask.name,
+                    )
+                    continue
+
+                # Fall back to the globally inferred due date only if it is meaningful.
+                if new_scheduling_due.due_date == float("inf"):
+                    continue
+
             feasible_candidate.scheduling_due = new_scheduling_due
 
         if feasible_candidates:

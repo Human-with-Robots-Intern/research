@@ -221,6 +221,18 @@ class Candidate:
     scheduling_due: SchedulingDue = SchedulingDue(
         due_date=float("inf"), due_related_sub_name=None
     )
+    critical_context: Optional["CriticalContext"] = None
 
     def __repr__(self):
-        return f"({self.subtask.name}; duration : {self.subtask.duration.interval}, actual_interaction_start_time = {self.actual_interaction_start_time}, logical_interaction_start_time = {self.logical_interaction_start_time}, scheduling_due = {self.scheduling_due}, is_critical = {self.is_critical})"
+        return (
+            f"({self.subtask.name}; duration : {self.subtask.duration.interval}, actual_interaction_start_time = {self.actual_interaction_start_time}, "
+            f"logical_interaction_start_time = {self.logical_interaction_start_time}, scheduling_due = {self.scheduling_due}, is_critical = {self.is_critical})"
+        )
+
+
+@dataclass
+class CriticalContext:
+    source_subtask: Optional[str]
+    source_end_time: Optional[float]
+    interval: float
+    logical_start_time: Optional[float]

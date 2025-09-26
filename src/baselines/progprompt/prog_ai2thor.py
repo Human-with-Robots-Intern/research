@@ -110,6 +110,12 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="Use CloudRendering platform for AI2-THOR.",
     )
+    parser.add_argument(
+        "--init_prior_mean",
+        type=float,
+        default=None,
+        help="베이지안 추정을 위한 초기 평균값 (기본값: 60.0)",
+    )
     return parser.parse_args()
 
 def generate_plan(controller, task: str, args: argparse.Namespace, logger):
@@ -191,6 +197,7 @@ def generate_plan(controller, task: str, args: argparse.Namespace, logger):
         "computation_time":computation_time,
         "scene_name": args.scene,
         "attempt": args.attempt,
+        "init_prior_mean": args.init_prior_mean,
     }
     result_save_llm(**result_args)
 
@@ -210,6 +217,13 @@ def planner_executer(args: argparse.Namespace, task: str, logger):
 
 if __name__ == "__main__":
     args: argparse.Namespace = parse_arguments()    
+
+    # Handle INIT_PRIOR_MEAN override
+    if args.init_prior_mean is not None:
+        from src.utils.config.constants import set_init_prior_mean
+
+        set_init_prior_mean(args.init_prior_mean)
+
     logger = create_module_logger(
         module_name="prog_ai2thor",
         log_file_path=Path(args.log_path) if args.log_path else None,

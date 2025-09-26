@@ -15,10 +15,10 @@ from src.models.task import Duration, Execution, Subtask, Task, TemporalConstrai
 
 # 내부 프로젝트 모듈
 from src.utils.common import create_module_logger
+from src.utils.config import constants
 from src.utils.config.constants import (  # 분산 값도 상수로 사용하기 위해 추가
     CRITICAL_OBJECT_INTERVALS,
     GRASP_ACTION_DURATION,
-    INIT_PRIOR_MEAN,
     INIT_PRIOR_VARIANCE,
     MONITORING_DURATION,
     NON_CRITICAL_OBJECT_INTERVALS,
@@ -358,8 +358,8 @@ class TaskUtil:
                 if common_obj_types:
                     for obj_type in common_obj_types:
                         if (
-                            obj_type in CRITICAL_OBJECT_INTERVALS
-                            or obj_type in NON_CRITICAL_OBJECT_INTERVALS
+                            obj_type in constants.CRITICAL_OBJECT_INTERVALS
+                            or obj_type in constants.NON_CRITICAL_OBJECT_INTERVALS
                         ):
                             # Key를 obj_type으로 하여 Belief 업데이트
                             cls._update_constraint_belief(obj_type, tc, bayesian_load)
@@ -370,13 +370,13 @@ class TaskUtil:
                 for obj_name in st.execution.objects.keys():
                     obj_type = obj_name.split("|")[0]
                     if (
-                        obj_type in CRITICAL_OBJECT_INTERVALS
+                        obj_type in constants.CRITICAL_OBJECT_INTERVALS
                         and obj_type not in bayesian_load
                     ):
                         default_tc = TemporalConstraint(
                             constraint_type="default",
                             rel_subtask_name="",
-                            interval=INIT_PRIOR_MEAN,
+                            interval=constants.INIT_PRIOR_MEAN,
                             is_critical=True,
                         )
                         cls._update_constraint_belief(
@@ -405,12 +405,14 @@ class TaskUtil:
         obj_type을 Key로 사용하여 bayesian_load에 Belief를 생성/업데이트한다.
         agent.py와 호환되도록 {"expected_duration": ..., "variance": ...} 구조를 사용한다.
         """
-        belief_value = INIT_PRIOR_MEAN if temporal_constraint.interval != 0.0 else 0.0
+        belief_value = (
+            constants.INIT_PRIOR_MEAN if temporal_constraint.interval != 0.0 else 0.0
+        )
 
         if obj_type not in bayesian_load:
             bayesian_load[obj_type] = {
                 "expected_duration": belief_value,
-                "variance": INIT_PRIOR_VARIANCE,
+                "variance": constants.INIT_PRIOR_VARIANCE,
             }
 
         # tc.interval 값도 시스템의 초기 믿음 값으로 통일시켜 일관성 유지
@@ -454,10 +456,13 @@ class TaskUtil:
         """
         MONITORING 액션을 수행하는 Subtask를 생성해 반환한다.
         """
+        base_name = name
+        if base_name.startswith("Monitoring for "):
+            base_name = base_name[len("Monitoring for ") :]
         monitoring_action = None if obj is None else [f"MONITORING {obj}"]
         monitoring_subtask = Subtask(
             task_name=None,
-            name=f"Monitoring for {name}_{uuid.uuid4().hex[:8]}",
+            name=f"Monitoring for {base_name}_{uuid.uuid4().hex[:8]}",
             duration=Duration(
                 interval=MONITORING_DURATION,
                 type="Monitor",

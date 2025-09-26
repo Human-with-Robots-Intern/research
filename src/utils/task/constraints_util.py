@@ -23,11 +23,18 @@ def get_critical_start_info(
     Finds the predecessor that dictates the latest start time among critical constraints.
     """
 
-    constraints_start_names = constraint_handler.get_time_slots(
-        subtask_name, constraints, direction="in"
-    )
-    critical_slots = [slot for slot in constraints_start_names if slot.is_critical]
+    slots = constraint_handler.get_time_slots(subtask_name, constraints, direction="in")
+    critical_slots = [slot for slot in slots if slot.is_critical]
+
     if not critical_slots:
+        for slot in slots:
+            if slot.related_subtask_name.startswith("Monitoring for"):
+                return get_critical_start_info(
+                    slot.related_subtask_name,
+                    completed,
+                    constraints,
+                    constraint_handler,
+                )
         raise ValueError(f"No critical slots found for {subtask_name}")
 
     max_critical = max(critical_slots, key=lambda x: x.interval)

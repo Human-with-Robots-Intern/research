@@ -8,12 +8,12 @@ import numpy as np
 
 from src.models.dataclass import SchedulerState
 from src.utils.common import create_module_logger, extract_monitoring_target_name
+from src.utils.config import constants
 from src.utils.config.constants import (
     AGENT_KNOWLEDGE_PATH,
     CRITICAL_OBJECT_GROUND_TRUTH,
     CRITICAL_OBJECT_INTERVALS,
     FACTOR_ALPHA,
-    INIT_PRIOR_MEAN,
     INIT_PRIOR_VARIANCE,
     MIN_VARIANCE,
 )
@@ -63,41 +63,57 @@ class Agent:
         # 2) constraints 그래프 업데이트 (이 로직은 유지)
         #    - (critical_start_sub_name, monitoring_target_sub_name)에 posterior_mean 반영
 
-        edge = state.constraints.get_edge_data(
-            critical_start_sub_name, monitoring_target_sub_name, default={}
-        )
-        edge.setdefault("info", {})["Interval"] = posterior_mean
+        if state.constraints.has_edge(
+            critical_start_sub_name, monitoring_target_sub_name
+        ):
+            edge_info = state.constraints.edges[
+                critical_start_sub_name, monitoring_target_sub_name
+            ].setdefault("info", {})
+            edge_info["Interval"] = posterior_mean
+        else:
+            log.warning(
+                "Constraint edge %s -> %s missing while updating posterior mean.",
+                critical_start_sub_name,
+                monitoring_target_sub_name,
+            )
 
         #    - (현재 모니터링 서브태스크, 모니터링 대상) 간 엣지에 잔여 구간 반영
         updated_interval = (
             critical_start_sub_end_time + posterior_mean - state.current_time
         )
 
-        edge = state.constraints.get_edge_data(
-            state.subtask.name, monitoring_target_sub_name, default={}
-        )
-        edge.setdefault("info", {})["Interval"] = updated_interval
+        if state.constraints.has_edge(state.subtask.name, monitoring_target_sub_name):
+            edge_info = state.constraints.edges[
+                state.subtask.name, monitoring_target_sub_name
+            ].setdefault("info", {})
+            edge_info["Interval"] = updated_interval
+        else:
+            log.warning(
+                "Constraint edge %s -> %s missing while updating monitor residual interval.",
+                state.subtask.name,
+                monitoring_target_sub_name,
+            )
 
     def _get_prior_estimate(self, obj_name: str) -> Tuple[float, float]:
         """
         Retrieves the prior mean and variance for a subtask (lowercase name).
         Initializes with defaults if not found or invalid. Ensures variance > MIN_VARIANCE.
         """
-        prior_mean = INIT_PRIOR_MEAN
-        prior_variance = INIT_PRIOR_VARIANCE
+        prior_mean = constants.INIT_PRIOR_MEAN
+        prior_variance = constants.INIT_PRIOR_VARIANCE
 
         if obj_name in CRITICAL_OBJECT_INTERVALS:
             known_data = self.estimate_knowledge.get(obj_name)
-            mean_val = known_data.get("expected_duration", INIT_PRIOR_MEAN)
-            var_val = known_data.get("variance", INIT_PRIOR_VARIANCE)
+            mean_val = known_data.get("expected_duration", constants.INIT_PRIOR_MEAN)
+            var_val = known_data.get("variance", constants.INIT_PRIOR_VARIANCE)
 
             # Ensure values are reasonable (non-negative)
             prior_mean = max(0, mean_val)
             prior_variance = max(MIN_VARIANCE, var_val)
 
         else:
-            prior_mean = INIT_PRIOR_MEAN
-            prior_variance = INIT_PRIOR_VARIANCE
+            prior_mean = constants.INIT_PRIOR_MEAN
+            prior_variance = constants.INIT_PRIOR_VARIANCE
             log.debug(f"No prior knowledge found for '{obj_name}'. Using defaults.")
 
         return prior_mean, max(prior_variance, MIN_VARIANCE)
@@ -141,7 +157,6 @@ class Agent:
             monitoring_target_obj_name
         )
 
-        # 4) Find critical start subtask and its end time
         critical_start_sub_name, critical_start_sub_end_time = get_critical_start_info(
             subtask_name=state.subtask.name,
             completed=state.completed_entries,

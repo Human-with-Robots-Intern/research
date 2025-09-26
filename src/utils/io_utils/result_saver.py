@@ -14,9 +14,9 @@ if TYPE_CHECKING:
     from src.models.dataclass import CompletedEntry
 
 from src.utils.common.logger import create_module_logger
+from src.utils.config import constants
 from src.utils.config.constants import (
     EPSILON,
-    INIT_PRIOR_MEAN,
     RESULT_PATH,
     TIMING_TOLERANCE_ABS,
     TIMING_TOLERANCE_RATIO,
@@ -76,12 +76,6 @@ def calculate_timing_success_rate(
         - The timing success rate for the schedule (float | None).
         - A dictionary with detailed logging information.
     """
-    try:
-        from src.utils.config.constants import GT_INTERVAL
-    except ImportError:
-        # GT_INTERVAL will be added to constants in the future
-        # Using a default value for now
-        GT_INTERVAL = 60.0  # Default ground truth interval value
 
     total_timing_constraints = 0
     succeeded_timing_constraints_sim_cnt = 0
@@ -92,7 +86,7 @@ def calculate_timing_success_rate(
     entry_map = {ce.subtask.name: ce for ce in result_schedule}
 
     for u, v, data in constraints.edges(data=True):
-        timing_success_flag = False
+        timing_success_flag_sched = False
 
         if u.lower().startswith("monitoring") or v.lower().startswith("monitoring"):
             log.debug(f"Skipping monitoring task edge: {u} -> {v}")
@@ -114,9 +108,9 @@ def calculate_timing_success_rate(
         is_critical = edge_info.get("IsCritical", False)
 
         if interval != 0 and is_critical:
-            interval = GT_INTERVAL
+            interval = constants.GT_INTERVAL
         elif interval != 0 and not is_critical:
-            interval = INIT_PRIOR_MEAN
+            interval = constants.INIT_PRIOR_MEAN
 
         # --- Check timing constraints for simulation results ---
         pred_end_time_sim = pred_entry.sim_end_time
@@ -125,25 +119,16 @@ def calculate_timing_success_rate(
             succ_entry.sim_nav_time if succ_entry.sim_nav_time is not None else 0.0
         )
         ratio_allowance = interval * TIMING_TOLERANCE_RATIO
-        tolerance = max(0.1, min(TIMING_TOLERANCE_ABS, ratio_allowance))
+        tolerance = max(5, min(TIMING_TOLERANCE_ABS, ratio_allowance))
 
         actual_diff_sim = (succ_start_time_sim + sim_nav_time) - pred_end_time_sim
 
-        sim_constraint_met = False
         if is_critical:
-            if interval == 0:
-                succeeded_timing_constraints_sim_cnt += 1  # Intended logic
-                sim_constraint_met = True
-            else:
-                if abs(interval - actual_diff_sim) <= tolerance:
-                    succeeded_timing_constraints_sim_cnt += 1
-                    sim_constraint_met = True
+            if abs(interval - actual_diff_sim) <= tolerance:
+                succeeded_timing_constraints_sim_cnt += 1
         else:  # Non-critical
             if (interval - actual_diff_sim) <= tolerance:
                 succeeded_timing_constraints_sim_cnt += 1
-                sim_constraint_met = True
-
-        timing_success_flag = sim_constraint_met
 
         # --- Check timing constraints for schedule results ---
         pred_end_time_sched = pred_entry.schedule_end_time
@@ -154,28 +139,39 @@ def calculate_timing_success_rate(
             else 0.0
         )
 
-        actual_diff_sched = (
-            succ_start_time_sched + schedule_nav_time
-        ) - pred_end_time_sched
+        # The actual interval is between the end of the predecessor and the start of the successor's INTERACTION.
+        succ_interaction_start_time_sched = succ_start_time_sched + schedule_nav_time
+        actual_diff_sched = succ_interaction_start_time_sched - pred_end_time_sched
 
+        sched_constraint_met = False
         if is_critical:
-            if interval == 0:
-                succeeded_timing_constraints_sched_cnt += 1
+            # For (0, True) constraint, tasks must be consecutive, meaning the successor's
+            # navigation starts immediately after the predecessor finishes. The "wait time" should be near zero.
+            if interval < EPSILON:
+                wait_time = succ_start_time_sched - pred_end_time_sched
+                if abs(wait_time) <= tolerance:
+                    succeeded_timing_constraints_sched_cnt += 1
+                    sched_constraint_met = True
+            # For other critical constraints, the total gap must match the interval.
             else:
                 if abs(interval - actual_diff_sched) <= tolerance:
                     succeeded_timing_constraints_sched_cnt += 1
+                    sched_constraint_met = True
         else:  # Non-critical
             if (interval - actual_diff_sched) <= tolerance:
                 succeeded_timing_constraints_sched_cnt += 1
+                sched_constraint_met = True
+
+        timing_success_flag_sched = sched_constraint_met
 
         # --- Logging ---
         log.info(f"Original Timing Constraint : {u} -> {v} ({interval}, {is_critical})")
         log.info(
-            f"Schedule Result [{timing_success_flag}] - {pred_entry.subtask.name} ({pred_end_time_sched+schedule_nav_time}) -> {succ_entry.subtask.name} ({succ_start_time_sched})s\n\n"
+            f"Schedule Result [{timing_success_flag_sched}] - {pred_entry.subtask.name} ({pred_end_time_sched:.2f}) -> {succ_entry.subtask.name} (interacts at {succ_interaction_start_time_sched:.2f})s\n\n"
         )
         detail_log[f"{u} -> {v}"] = {
             "Original Timing Constraint": f"({interval}, {is_critical})",
-            "Schedule Result": f"[{timing_success_flag}] : ({pred_end_time_sched}) -> ({succ_start_time_sched}s-{-schedule_nav_time}s)",
+            "Schedule Result": f"[{timing_success_flag_sched}] : ({pred_end_time_sched:.2f}) -> ({succ_interaction_start_time_sched:.2f}s)",
         }
 
     timing_success_rate_sim = (
@@ -227,8 +223,12 @@ def result_save(
     constraints: DiGraph,
     initial_plan_data: List[Dict],
     log_level: str = "INFO",
+    base_result_path: Path | None = None,
+    init_prior_mean: float | None = None,
 ):
     global log
+    if init_prior_mean is None:
+        init_prior_mean = constants.INIT_PRIOR_MEAN
 
     success_rate, simulation_makespan, scheduler_makespan = compose_plans(
         result_schedule, task_name
@@ -281,10 +281,14 @@ def result_save(
         "detail_log": detail_log,
     }
 
+    # Determine the base path for results
+    result_path_base = base_result_path if base_result_path is not None else RESULT_PATH
+    result_path_with_prior = result_path_base / f"init_{int(init_prior_mean)}"
+
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = RESULT_PATH / f"{task_name}_{num}" / scene_name
+        output_path = result_path_with_prior / f"{task_name}_{num}" / scene_name
         approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():
@@ -434,7 +438,11 @@ def result_save_llm(
     computation_time: float,
     scene_name: str,
     attempt: int = 1,
+    base_result_path: Path | None = None,
+    init_prior_mean: float | None = None,
 ):
+    if init_prior_mean is None:
+        init_prior_mean = constants.INIT_PRIOR_MEAN
 
     if approach_name == "cap_ai2thor_simulation":
         with open(result, "r", encoding="utf-8") as f:
@@ -461,10 +469,14 @@ def result_save_llm(
         "realworld_makespan": None,
     }
 
+    # Determine the base path for results
+    result_path_base = base_result_path if base_result_path is not None else RESULT_PATH
+    result_path_with_prior = result_path_base / f"init_{int(init_prior_mean)}"
+
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = RESULT_PATH / f"{user_input}_{num}" / scene_name
+        output_path = result_path_with_prior / f"{user_input}_{num}" / scene_name
         approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():
