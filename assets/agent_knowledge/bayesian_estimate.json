@@ -1,14 +1,26 @@
 {
+    "Faucet": {
+        "expected_duration": 99.9407867515421,
+        "variance": 0.001984460618379
+    },
+    "StoveKnob": {
+        "expected_duration": 99.78832430830779,
+        "variance": 6.602147609480587
+    },
     "Microwave": {
         "expected_duration": 0.0,
         "variance": 100.0
     },
-    "Faucet": {
-        "expected_duration": 100.45621522336629,
-        "variance": 6.1460983048948075
+    "StoveBurner": {
+        "expected_duration": 140.0,
+        "variance": 100.0
+    },
+    "Kettle": {
+        "expected_duration": 140.0,
+        "variance": 100.0
     },
     "CounterTop": {
-        "expected_duration": 100.0,
+        "expected_duration": 140.0,
         "variance": 100.0
     }
 }

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import networkx as nx
 from networkx import DiGraph
@@ -180,6 +180,19 @@ class ConstraintHandler:
                 estimated_first_nav_duration=first_nav_duration,
                 critical_context=critical_ctx,
             )
+
+            # For (0, True) constraints, the due date is immediate.
+            is_consecutive_critical = False
+            if critical_ctx and critical_ctx.source_end_time is not None:
+                if critical_ctx.interval < EPSILON and candidate.is_critical:
+                    is_consecutive_critical = True
+
+            if is_consecutive_critical:
+                immediate_due_date = critical_ctx.source_end_time + EPSILON
+                candidate.scheduling_due = SchedulingDue(
+                    due_date=immediate_due_date,
+                    due_related_sub_name=candidate.subtask.name,
+                )
 
             if (
                 candidate.is_critical
