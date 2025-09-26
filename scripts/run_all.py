@@ -138,7 +138,11 @@ def process_retry_script(
 
     max_retries = config.get("max_retries", 10)
 
-    wrapper_script = Path(__file__).parent / "run_with_ros_env.sh"
+    if config.get("ros"):
+        wrapper_script = Path(__file__).parent / "run_with_ros_env.sh"
+    else:
+        wrapper_script = Path(__file__).parent / "run_project.sh"
+
     for attempt in range(1, max_retries + 1):
         logger.debug(f"Running {script} (Attempt {attempt})...")
 
@@ -264,7 +268,10 @@ def process_normal_script(
     재시도 대상이 아닌 스크립트를 단순 실행합니다.
     instruction을 command-line 인자로 전달합니다.
     """
-    wrapper_script = Path(__file__).parent / "run_with_ros_env.sh"
+    if config.get("ros"):
+        wrapper_script = Path(__file__).parent / "run_with_ros_env.sh"
+    else:
+        wrapper_script = Path(__file__).parent / "run_project.sh"
     logger.warning(f"Running {script},{scene_name},{instruction}...")
 
     logger.info(f"=" * 80)
