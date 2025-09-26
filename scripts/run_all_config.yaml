@@ -16,14 +16,14 @@ approaches:
   - "src/baselines/cpm.py"
   - "src/baselines/edf/dag_edf.py"
   - "src/dag_bayesian.py"
-  - "src/baselines/progprompt/prog_ai2thor.py"
-  - "src/baselines/cap/cap_ai2thor.py"
+  # - "src/baselines/progprompt/prog_ai2thor.py"
+  # - "src/baselines/cap/cap_ai2thor.py"
 
 
 # Scripts that use LLMs and are subject to retries on failure
 llm_scripts:
-  - "src/baselines/progprompt/prog_ai2thor.py"
-  - "src/baselines/cap/cap_ai2thor.py"
+  # - "src/baselines/progprompt/prog_ai2thor.py"
+  # - "src/baselines/cap/cap_ai2thor.py"
 
 # Scene lists for each scene type
 scene_lists:

@@ -164,7 +164,6 @@ class Agent:
             constraint_handler=self.constraint_handler,
         )
 
-       
         # 5) 베이지안 업데이트 계산
         # critical 제약이 시작 된 이후 경과된 separation interval
         critical_elapsed_interval = state.current_time - critical_start_sub_end_time
