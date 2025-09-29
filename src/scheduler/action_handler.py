@@ -27,13 +27,6 @@ Position: TypeAlias = Tuple[float, float, float]
 NavGraph: TypeAlias = Dict[Position, List[Position]]  # 네비게이션 그래프 타입 정의
 
 
-def _resolve_timing_tolerance(reference_time: float) -> float:
-    """Return tolerance capped by absolute and ratio-based allowances."""
-    clamped_reference = max(EPSILON, reference_time)
-    ratio_allowance = clamped_reference * TIMING_TOLERANCE_RATIO
-    return min(TIMING_TOLERANCE_ABS, ratio_allowance)
-
-
 class ActionHandler:
     def __init__(self, nav_graph: NavGraph, real_world_mode: bool = False):
         """
@@ -134,12 +127,12 @@ class ActionHandler:
         new_held_object = None
         current_cumulative_time = 0.0
         for i, action_str in enumerate(primitive_actions):
-            log.debug(
-                f"--- Simulating action {i+1}/{len(primitive_actions)}: '{action_str}' ---"
-            )
-            log.debug(
-                f"    State before: Time={current_cumulative_time:.2f}, Held={current_held_object}"
-            )
+            # log.debug(
+            #     f"--- Simulating action {i+1}/{len(primitive_actions)}: '{action_str}' ---"
+            # )
+            # log.debug(
+            #     f"    State before: Time={current_cumulative_time:.2f}, Held={current_held_object}"
+            # )
 
             # 액션 파싱
             tokens = action_str.split()
@@ -226,12 +219,12 @@ class ActionHandler:
                 success=action_success,
             )
             action_log.results.append(log_entry)
-            log.debug(
-                f"    Action Result: Success={action_success}, Duration={action_duration:.2f}"
-            )
-            log.debug(
-                f"    State after:  Time={current_cumulative_time:.2f}, Held={current_held_object}"
-            )
+            # log.debug(
+            #     f"    Action Result: Success={action_success}, Duration={action_duration:.2f}"
+            # )
+            # log.debug(
+            #     f"    State after:  Time={current_cumulative_time:.2f}, Held={current_held_object}"
+            # )
             # 액션 실패 시 시뮬레이션 중단
             if not action_success:
                 log.warning(
@@ -299,13 +292,13 @@ class ActionHandler:
         # 2. 경로 탐색 시도 (partial time 여부와 관계없이 일단 시도)
         navigate_path: Optional[List[Position]] = None
 
-        log.debug(
-            f"  Finding path from {agent_pos} to {target_pos} for '{target_obj_id}'"
-        )
+        # log.debug(
+        #     f"  Finding path from {agent_pos} to {target_pos} for '{target_obj_id}'"
+        # )
         navigate_path = self._find_shortest_path(agent_pos, target_pos)
         # 3. 부분 시간 이동 처리
         if partial_time_str:
-            log.debug(f"  Processing NAVIGATE_TO with partial time: {partial_time_str}")
+            # log.debug(f"  Processing NAVIGATE_TO with partial time: {partial_time_str}")
             partial_duration = float(partial_time_str)
             duration = partial_duration  # 액션 소요 시간은 주어진 부분 시간
 
@@ -322,7 +315,7 @@ class ActionHandler:
 
         # 4. 전체 경로 이동 처리
         else:
-            log.debug("  Processing NAVIGATE_TO for full path.")
+            # log.debug("  Processing NAVIGATE_TO for full path.")
             # ithor의 action.py에서는 첫좌표를 제거하므로 여기서도 동일하게 제거
             if navigate_path:
                 navigate_path.pop(0)
@@ -331,9 +324,9 @@ class ActionHandler:
             # 경로의 마지막 위치가 새로운 에이전트 위치 (경로가 비었으면 현재 위치)
             new_agent_pos = navigate_path[-1] if navigate_path else agent_pos
             success = True
-            log.debug(
-                f"    Path found to {target_obj_id} with {path_steps} steps. Duration: {duration:.2f}s. Final pos: {new_agent_pos}"
-            )
+            # log.debug(
+            #     f"    Path found to {target_obj_id} with {path_steps} steps. Duration: {duration:.2f}s. Final pos: {new_agent_pos}"
+            # )
         # 5. 결과 반환
         return duration, success, new_agent_pos
 
@@ -367,7 +360,7 @@ class ActionHandler:
                 # Use per-action configured duration
                 duration = GRASP_ACTION_DURATION
                 success = True
-                log.debug(f"  Grasped '{target_obj_id}'.")
+                # log.debug(f"  Grasped '{target_obj_id}'.")
             else:
                 success = False  # Unreachable
 
@@ -397,7 +390,7 @@ class ActionHandler:
             if self._check_reachability(
                 agent_pos, receptacle_pos, "Place", receptacle_id
             ):
-                log.debug(f"  Placing '{current_held_object}' on/in '{receptacle_id}'.")
+                # log.debug(f"  Placing '{current_held_object}' on/in '{receptacle_id}'.")
                 # 객체 상태 업데이트 (시뮬레이션 모델에 따라 달라짐)
                 # 여기서는 단순히 손을 비우는 것으로 처리
                 if current_held_object in scene_positions:
@@ -446,7 +439,7 @@ class ActionHandler:
             duration = duration_map.get(action_type, TOGGLE_ACTION_DURATION)
 
             success = True
-            log.debug(f"  Simulated {action_type} on '{target_obj_id}'.")
+            # log.debug(f"  Simulated {action_type} on '{target_obj_id}'.")
         else:
             success = False  # Unreachable
 
@@ -466,7 +459,7 @@ class ActionHandler:
             else:
                 duration = wait_time
             success = True
-            log.debug(f"  Simulated WAIT for {duration:.2f}s.")
+            # log.debug(f"  Simulated WAIT for {duration:.2f}s.")
         except (TypeError, ValueError):
             raise ValueError(f"Invalid WAIT duration: {wait_time_str}")
 
@@ -476,7 +469,7 @@ class ActionHandler:
         """MONITORING 액션을 시뮬레이션합니다."""
         duration = MONITORING_DURATION
         success = True
-        log.debug(f"  Simulated MONITORING for {duration:.2f}s.")
+        # log.debug(f"  Simulated MONITORING for {duration:.2f}s.")
         return duration, success
 
     def _find_shortest_path(
@@ -624,7 +617,7 @@ class ActionHandler:
                 ].cumulative_time
 
                 # TIMING_TOLERANCE 검사: 비율과 절대 허용폭을 함께 고려
-                allowable_deviation = _resolve_timing_tolerance(target_cutoff_time)
+                allowable_deviation = TIMING_TOLERANCE_ABS
 
                 if (
                     abs(duration_if_place_included - target_cutoff_time)
@@ -662,22 +655,34 @@ class ActionHandler:
         post_log.results = full_simulation_log.results[current_split_index + 1 :]
 
         # 5. 분할 성공 여부 판단
-        # pre_log에 액션이 있고, post_log에도 액션이 있어야 유의미한 분할로 간주
+        # pre_log와 post_log 모두에 액션이 있고, pre_log에 네비게이션 외의 의미 있는 액션이 있어야
+        # 유의미한 분할로 간주
         if pre_log.results and post_log.results:
-            split_successful = True
-            # 추가적으로, pre_log의 최종 완료 시간이 target_cutoff_time 대비 허용 오차 창을 만족하는지 확인
-            final_pre_log_duration = pre_log.results[-1].cumulative_time
-            allowable_deviation = _resolve_timing_tolerance(target_cutoff_time)
-            if (
-                abs(final_pre_log_duration - target_cutoff_time)
-                > allowable_deviation + EPSILON
-            ):  # EPSILON 추가는 부동소수점 오차 감안
-                log.warning(
-                    f"Final pre_log duration {final_pre_log_duration:.2f} significantly deviates from target_cutoff_time {target_cutoff_time:.2f} "
-                    f"(allowable deviation: {allowable_deviation:.2f}). This split might be suboptimal."
+            has_meaningful_action = any(
+                not result.action_type.startswith("NAVIGATE_TO")
+                for result in pre_log.results
+            )
+
+            if has_meaningful_action:
+                split_successful = True
+                # 추가적으로, pre_log의 최종 완료 시간이 target_cutoff_time 대비 허용 오차 창을 만족하는지 확인
+                final_pre_log_duration = pre_log.results[-1].cumulative_time
+                allowable_deviation = TIMING_TOLERANCE_ABS
+                if (
+                    abs(final_pre_log_duration - target_cutoff_time)
+                    > allowable_deviation + EPSILON
+                ):  # EPSILON 추가는 부동소수점 오차 감안
+                    log.warning(
+                        f"Final pre_log duration {final_pre_log_duration:.2f} significantly deviates from target_cutoff_time {target_cutoff_time:.2f} "
+                        f"(allowable deviation: {allowable_deviation:.2f}). This split might be suboptimal."
+                    )
+                    # 이 경우, split_successful을 False로 설정하여 상위에서 fallback하도록 할 수도 있음.
+                    split_successful = False  # 정책에 따라 주석 해제 또는 변경
+            else:
+                split_successful = False
+                log.debug(
+                    "Split deemed unsuccessful as pre_log only contains navigation actions."
                 )
-                # 이 경우, split_successful을 False로 설정하여 상위에서 fallback하도록 할 수도 있음.
-                # split_successful = False # 정책에 따라 주석 해제 또는 변경
         else:
             split_successful = (
                 False  # pre 또는 post 중 하나라도 비어있으면 유의미한 분할 아님

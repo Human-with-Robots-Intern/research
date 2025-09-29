@@ -436,7 +436,10 @@ def main() -> None:
     )
 
     approaches = [Path(p) for p in config.get("approaches", [])]
-    llm_scripts = {Path(p) for p in config.get("llm_scripts", [])}
+    if config.get("llm_scripts", []):
+        llm_scripts = {Path(p) for p in config.get("llm_scripts", [])}
+    else:
+        llm_scripts = set()
 
     scene_type_config = config.get("scene_type", "kitchen")
     if isinstance(scene_type_config, str):
@@ -465,7 +468,7 @@ def main() -> None:
     logger.info(f"Cloud Rendering: {config.get('cloud_rendering', False)}")
     logger.info(f"Max workers: {max_workers}")
     logger.info(f"Approaches: {[str(p) for p in approaches]}")
-    logger.info(f"LLM scripts: {[str(p) for p in llm_scripts]}")
+    # logger.info(f"LLM scripts: {[str(p) for p in llm_scripts]}")
     logger.info(f"Runs per instruction: {num_runs_per_instruction}")
     logger.info(f"Max retries: {config.get('max_retries', 10)}")
     logger.info(f"Retry delay: {config.get('retry_delay_seconds', 2)} seconds")
@@ -489,8 +492,9 @@ def main() -> None:
                 instruction_source, range(num_runs_per_instruction)
             ):
                 if (
-                    execute_dict and instruction not in execute_dict[scene_name]
-                    and execute_dict[scene_name] 
+                    execute_dict
+                    and instruction not in execute_dict[scene_name]
+                    and execute_dict[scene_name]
                 ):
                     continue
                 futures.append(
@@ -501,7 +505,7 @@ def main() -> None:
                         instruction,
                         i,
                         config,
-                        llm_scripts,
+                        llm_scripts if llm_scripts else set(),
                         start_idx,
                         file_copy_lock,
                     )
