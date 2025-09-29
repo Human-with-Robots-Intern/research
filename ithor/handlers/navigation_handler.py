@@ -4,8 +4,8 @@ import time
 
 from ithor.utils.math_utils import closest_position, quantize_position
 from src.utils.config.constants import GRID_SIZE, SMOOTH_LEVEL
-from ithor.utils.math_utils import closest_position, quantize_position
-from src.utils.config.constants import GRID_SIZE, SMOOTH_LEVEL
+
+NAV_TIME_SLEEP = 0.01
 
 
 class NavigationHandler:
@@ -213,7 +213,7 @@ class NavigationHandler:
                     action="RotateRight", degrees=rotation_angle / SMOOTH_LEVEL
                 )
                 self.controller.step(action="Pass")
-        time.sleep(0.1)
+        time.sleep(NAV_TIME_SLEEP)
         updated_angle = self.get_agent_rotate()
         self.controller.step(
             action="Teleport",
@@ -222,7 +222,7 @@ class NavigationHandler:
             horizon=30,
             standing=True,
         )
-        time.sleep(0.1)
+        time.sleep(NAV_TIME_SLEEP)
 
     def _compute_required_rotation(self, current_rot, dx, dz):
         """

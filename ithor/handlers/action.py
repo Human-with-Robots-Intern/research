@@ -15,6 +15,9 @@ from .navigation_handler import NavigationHandler
 
 log = create_module_logger(module_name=__name__, module_log=True, level="DEBUG")
 
+ACTION_TIME_SLEEP = 0.01
+MOVE_BACKWARD_DISTANCE = 1
+
 
 class Action:
     """
@@ -97,7 +100,7 @@ class Action:
 
         if result.metadata["lastActionSuccess"]:
             self.success_log(result, f"pickup {object_id} (initial attempt)")
-            time.sleep(0.3)
+            time.sleep(ACTION_TIME_SLEEP)
             return elapsed_time
 
         # 2. 첫 시도 실패 시, 부모 컨테이너 확인 및 열기 후 재시도
@@ -122,7 +125,7 @@ class Action:
                     f"Parent {receptacle_id} is openable. Opening it to retry pickup."
                 )
                 self.open(receptacle_id)
-                time.sleep(0.5)
+                time.sleep(ACTION_TIME_SLEEP)
 
                 # 열고 나서 forceAction으로 재시도
                 result = self.controller.step(
@@ -141,7 +144,7 @@ class Action:
                     self.log.debug(
                         f"Pick up action after opening receptacle {receptacle_id} was successful."
                     )
-                    time.sleep(0.3)
+                    time.sleep(ACTION_TIME_SLEEP)
                     return elapsed_time
                 else:
                     self.log.error(
@@ -166,7 +169,7 @@ class Action:
 
         if result.metadata["lastActionSuccess"]:
             self.success_log(result, f"pickup {object_id} (final force attempt)")
-            time.sleep(0.3)
+            time.sleep(ACTION_TIME_SLEEP)
             return elapsed_time
 
         self.log.error(f"All pickup attempts for {object_id} have failed.")
@@ -184,7 +187,7 @@ class Action:
         """
         result = self.controller.step(action="SliceObject", objectId=object_id)
         self.success_log(result, f"slice {object_id}")
-        time.sleep(0.3)
+        time.sleep(ACTION_TIME_SLEEP)
         return TOGGLE_ACTION_DURATION
 
     def put(self, target_id: str):
@@ -279,7 +282,7 @@ class Action:
             self.success_log(result, "drop")
             self.log.debug("Alternative Action: Drop")
 
-        time.sleep(0.3)
+        time.sleep(ACTION_TIME_SLEEP)
         return elapsed_time
 
     def drop(self):
@@ -299,7 +302,7 @@ class Action:
             result = self.controller.step(action="DropHandObject", forceAction=False)
             step += 1
         self.success_log(result, "drop")
-        time.sleep(0.3)
+        time.sleep(ACTION_TIME_SLEEP)
         return TOGGLE_ACTION_DURATION
 
     def toggle_on(self, object_id: str):
@@ -324,7 +327,7 @@ class Action:
 
         result = self.controller.step(action="ToggleObjectOn", objectId=object_id)
         self.success_log(result, f"toggle on {object_id}")
-        time.sleep(0.3)
+        time.sleep(ACTION_TIME_SLEEP)
         return TOGGLE_ACTION_DURATION
 
     def toggle_off(self, object_id: str):
@@ -349,7 +352,7 @@ class Action:
 
         result = self.controller.step(action="ToggleObjectOff", objectId=object_id)
         self.success_log(result, f"toggle off {object_id}")
-        time.sleep(0.3)
+        time.sleep(ACTION_TIME_SLEEP)
         return TOGGLE_ACTION_DURATION
 
     def open(self, object_id: str):
@@ -381,7 +384,7 @@ class Action:
                     self.controller.step(action="Pass")
             # Back off slightly away from the door plane
             try:
-                self.navi.move_in_direction(-obj_angle, 0.15)
+                self.navi.move_in_direction(-obj_angle, MOVE_BACKWARD_DISTANCE)
             except Exception:
                 # non-fatal, continue
                 pass
@@ -437,7 +440,9 @@ class Action:
                             obj_angle, _ = self.navi.agent_rotate_angle(
                                 agent_pos, object_pos
                             )
-                            self.navi.move_in_direction(-obj_angle, 0.15)
+                            self.navi.move_in_direction(
+                                -obj_angle, MOVE_BACKWARD_DISTANCE
+                            )
                     except Exception:
                         pass
                     result = self.controller.step(
@@ -460,7 +465,7 @@ class Action:
             )
             self.success_log(result, f"Force open {object_id} via forceAction")
 
-        time.sleep(0.3)
+        time.sleep(ACTION_TIME_SLEEP)
         return elapsed_time
 
     def close(self, object_id: str):
@@ -492,7 +497,7 @@ class Action:
             )
             self.success_log(result, f"Force close {object_id} via forceAction")
 
-        time.sleep(0.3)
+        time.sleep(ACTION_TIME_SLEEP)
         return TOGGLE_ACTION_DURATION
 
     def monitoring(self, object_id: str):
@@ -541,7 +546,7 @@ class Action:
         # 카메라 각도 조정
         self.navi.adjust_camera_to_object(object_id)
         self.success_log(result, f"adjust camera to {object_id} for monitoring action")
-        time.sleep(2)
+        time.sleep(MONITORING_DURATION)
 
         # 원위치로 회전
         if degree != 0:
@@ -564,7 +569,7 @@ class Action:
         Returns:
             float: Elapsed time for the wait action.
         """
-        time.sleep(0.5)
+        time.sleep(ACTION_TIME_SLEEP)
         self.log.debug(f"wait: {wait_time}")
         return wait_time
 
@@ -585,7 +590,7 @@ class Action:
             forceAction=True,
         )
         self.success_log(result, f"fill {object_id} with water")
-        time.sleep(0.3)
+        time.sleep(ACTION_TIME_SLEEP)
         return PLACE_ACTION_DURATION
 
     def move_to(self, object_id: str):
@@ -671,6 +676,6 @@ class Action:
         self.navi.adjust_camera_to_object(object_id)
         self.log.debug(f"move to {object_id}")
         self.log.debug(f"move to {object_id} elapsed_time in action.py: {elapsed_time}")
-        time.sleep(0.2)
+        time.sleep(ACTION_TIME_SLEEP)
         self.controller.step(action="Pass")
         return elapsed_time
