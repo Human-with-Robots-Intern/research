@@ -23,6 +23,8 @@ from src.utils.config.constants import (
     WAIT_ACTION_PENALTY,
 )
 
+from src.utils.common.logger import create_module_logger
+
 # Forward declarations for type hinting
 if TYPE_CHECKING:
     from src.models.task import Subtask
@@ -164,42 +166,61 @@ class HeuristicManager:
     # ========================================================================
 
     def _calculate_critical_path_interaction_duration(
-        self, remaining_tasks: Set[Subtask], constraints: nx.DiGraph
+        self,
+        remaining_tasks: Set[Subtask],
+        constraints: nx.DiGraph,
+        executed_subtask: Optional[Subtask],
     ) -> float:
         """
         Calculates the total "pure interaction + interval" time along the critical path
         of the remaining tasks. (Navigation time is handled separately by MST).
+        If an executed_subtask is provided, it applies a discount to the critical
+        path duration for initiating a critical chain.
         """
         if not remaining_tasks:
             return 0.0
-
         task_names_set = {sub.name for sub in remaining_tasks}
         subgraph = constraints.subgraph(task_names_set).copy()
-
         task_pure_interaction_times = {
             sub.name: self._get_estimated_pure_interaction_time(sub)
             for sub in remaining_tasks
         }
-
         earliest_finish_times = {task_name: 0.0 for task_name in task_names_set}
-
         for task_name in nx.topological_sort(subgraph):
             max_earliest_finish_of_predecessors = 0.0
             for pred_name, _, edge_data in subgraph.in_edges(task_name, data=True):
                 if pred_name in earliest_finish_times:
                     interval = edge_data.get("info", {}).get("Interval", 0.0)
+                    log.debug(
+                        f"  CP Edge: {pred_name} (eft: {earliest_finish_times[pred_name]:.2f}) -> {task_name} "
+                        f"with interval {interval:.2f}"
+                    )
                     max_earliest_finish_of_predecessors = max(
                         max_earliest_finish_of_predecessors,
                         earliest_finish_times[pred_name] + interval,
                     )
-
             interaction_time = task_pure_interaction_times.get(task_name, 0.0)
             earliest_finish_times[task_name] = (
                 max_earliest_finish_of_predecessors + interaction_time
             )
-
-        return max(earliest_finish_times.values()) if earliest_finish_times else 0.0
-
+        cp_duration = (
+            max(earliest_finish_times.values()) if earliest_finish_times else 0.0
+        )
+        # Apply benefit for starting a critical chain
+        if executed_subtask and constraints.has_node(executed_subtask.name):
+            discount = 0.0
+            for _, succ, data in constraints.out_edges(
+                executed_subtask.name, data=True
+            ):
+                if succ in task_names_set and data.get("info", {}).get("IsCritical"):
+                    discount += data.get("info", {}).get("Interval", 0.0)
+            if discount > 0:
+                log.debug(
+                    f"  Applying critical start benefit from '{executed_subtask.name}'. Discount: {discount:.2f}"
+                )
+                cp_duration = max(0.0, cp_duration - discount)
+        return cp_duration
+    
     def _calculate_mst_navigation_time(
         self,
         current_agent_pos: Optional[Tuple[float, float, float]],
@@ -256,36 +277,23 @@ class HeuristicManager:
     ) -> Tuple[float, float, float]:
         """
         Estimates the cost of completing all tasks remaining *after* the candidate is executed.
-
         This simulates the candidate's execution to predict the next state and then
         calculates the Critical Path (CP) and Minimum Spanning Tree (MST) costs
         for the subsequent remaining tasks.
-
         Args:
             current_node: The current simulation node.
             candidate: The candidate subtask to evaluate.
-
         Returns:
             A tuple containing:
             - total_remaining_cost (float): The sum of CP and MST costs.
             - cp_duration (float): The calculated critical path duration.
             - mst_time (float): The calculated MST navigation time.
         """
-
         # For synthetic candidates, determine which task name to exclude from the future workload calculation.
         task_to_exclude = candidate.subtask.name
-        if task_to_exclude.startswith("Wait for "):
-            # Wait action doesn't consume a task, so no task is excluded.
-            task_to_exclude = None
-        elif task_to_exclude.startswith("EARLY_"):
-            # An EARLY action consumes the entire original task from the plan.
-            task_to_exclude = task_to_exclude.replace("EARLY_", "", 1)
-        # For REMAIN_ or normal tasks, the task to exclude is the task itself.
-
         exec_info = self.action_handler.get_actions_info(
             current_node, candidate.subtask.execution.primitive_actions
         )
-
         next_pos = tuple(exec_info.scene_positions.get("agent"))
         next_tasks = {
             t
@@ -294,14 +302,12 @@ class HeuristicManager:
         }
         next_constraints = current_node.state.constraints
         next_scene_pos = exec_info.scene_positions
-
         cp_duration = self._calculate_critical_path_interaction_duration(
-            next_tasks, next_constraints
+            next_tasks, next_constraints, candidate.subtask
         )
         mst_time = self._calculate_mst_navigation_time(
             next_pos, next_tasks, next_scene_pos
         )
-
         log.debug(
             f"    RemainingWorkCost for '{candidate.subtask.name}': CP={cp_duration:.2f}, MST={mst_time:.2f} -> Total={cp_duration + mst_time:.2f}"
         )
@@ -315,56 +321,37 @@ class HeuristicManager:
     ) -> float:
         """
         Calculates the heuristic cost for a given candidate subtask.
-
         The cost is a weighted sum of immediate costs (navigation, urgency) and
         estimated future costs (remaining workload), plus penalties.
-
         If the candidate is a 'Wait' action, it uses a specialized cost
         function `_calculate_wait_heuristic`.
-
         Args:
             current_node: The current simulation node.
             candidate: The candidate subtask to evaluate.
             not_yet_candidates: A list of candidates that require waiting.
-
-
         Returns:
             The calculated heuristic cost (lower is better).
         """
-
         # --- Check for Wait Candidate ---
         if candidate.subtask.name.startswith("Wait for"):
             return self._calculate_wait_heuristic(
                 current_node, candidate, not_yet_candidates
             )
-
         # --- 1. Immediate Costs & Penalties ---
         nav_cost_for_candidate = candidate.estimated_first_nav_duration or 0.0
-
         urgency_cost, slack = self._calculate_candidate_urgency_cost(
             current_node, candidate
         )
-
         # --- 2. Future Workload Cost ---
         remaining_work_cost, cp_dur, mst_time = self._calculate_remaining_work_cost(
             current_node, candidate
         )
-
         # --- 3. Final Weighted Sum ---
         total_heuristic_cost = (
             self.alpha * nav_cost_for_candidate
             + self.beta * urgency_cost
             + self.gamma * remaining_work_cost
         )
-
-        # Monitoring tasks get a tiny penalty so ties favor real work
-        try:
-            stype = (candidate.subtask.subtask_type or "").upper()
-            if stype == "MONITORING" or candidate.subtask.name.startswith("Monitoring"):
-                total_heuristic_cost += 0.1
-        except Exception:
-            pass
-
         log.debug(
             f"  Heuristic for '{candidate.subtask.name}': "
             f"CandNav({self.alpha:.1f}*{nav_cost_for_candidate:.2f})={self.alpha * nav_cost_for_candidate:.2f}, "
@@ -374,7 +361,6 @@ class HeuristicManager:
         log.info(
             f"  => Total Heuristic Cost for '{candidate.subtask.name}': {total_heuristic_cost:.3f}"
         )
-
         return total_heuristic_cost
 
     def _calculate_wait_heuristic(

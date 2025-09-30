@@ -107,7 +107,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--instruction",
         type=str,
-        default=6,
+        default=10,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
@@ -203,7 +203,9 @@ def offline_subtask_execution(
 
 
 def update_state(
-    current_state: SchedulerState, next_subtask: Subtask, exec_info: ActionResult
+    current_state: SchedulerState, 
+    next_subtask: Subtask, 
+    exec_info: ActionResult
 ) -> SchedulerState:
     """
     Update scheduler state after executing a subtask.

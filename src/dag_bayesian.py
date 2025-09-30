@@ -46,24 +46,25 @@ def parse_arguments():
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan1",
+        default="FloorPlan301",
         help="input scene name (default: FloorPlan1)",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default=1,
+        default=10,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
+    
     parser.add_argument(
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
         help="Simulation 모드 사용 여부 (default: False)",
     )
     parser.add_argument(
         "--ros",
-        default=False,
+        default=True,
         action="store_true",
         help="ROS 통신 사용 여부 (default: False)",
     )

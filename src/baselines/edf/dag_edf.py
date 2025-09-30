@@ -61,9 +61,10 @@ def compute_nav_time(
         ValueError: subtask의 첫 번째 액션이 NAVIGATE_TO가 아닐 경우
     """
     nav_time = 0.0
+    nav_positions = {}
 
     if not subtask.execution or not subtask.execution.primitive_actions:
-        return nav_time
+        return nav_time, nav_positions
 
     first_action = subtask.execution.primitive_actions[0]
     if not first_action.startswith("NAVIGATE_TO"):
@@ -417,18 +418,19 @@ def parse_arguments():
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan1",
+        default="FloorPlan301",
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default=None,
+        default=10,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
+    #8, 11
     parser.add_argument(
         "--ros",
-        default=False,
+        default=True,
         action="store_true",
         help="ROS 실행 여부 (default: False)",
     )
@@ -480,11 +482,11 @@ def main():
         if args.ros:
             controller = None
             nav_graph = {(0, 0, 0): {(0, 0, 0)}}
-            action_handler = ActionHandler(nav_graph)
+            action_handler = ActionHandler(nav_graph, real_world_mode= True if args.ros else False)
         else:
             controller = init_ai2thor_controller(scene_name, platform=platform_obj)
             nav_graph = load_navigation_graph(controller)
-            action_handler = ActionHandler(nav_graph)
+            action_handler = ActionHandler(nav_graph, real_world_mode= True if args.ros else False)
 
         scene_poses = load_scene_positions(f"{scene_name}_positions.json")
 

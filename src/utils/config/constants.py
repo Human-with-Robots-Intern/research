@@ -64,8 +64,8 @@ REACHABLE_DISTANCE_THRESHOLD = 50.0
 
 # Heuristic weights
 ALPHA_HEURISTIC = 1.0  # Navigation cost
-BETA_HEURISTIC = 100.0  # Urgency (slack) cost
-GAMMA_HEURISTIC = 1.0  # Remaining work cost
+BETA_HEURISTIC = 50.0  # Urgency (slack) cost
+GAMMA_HEURISTIC = 100.0  # Remaining work cost
 
 # Wait action control
 WAIT_ACTION_PENALTY = 10.0  # 'wait' 액션 선택 시 부과되는 기본 페널티

@@ -74,25 +74,6 @@ class Scheduler:
         self.cost_calculator = heuristic_manager
         self._counter = itertools.count()
 
-    # ---------------- Helper: Monitoring detection ----------------
-    def _is_monitoring_subtask(self, subtask: Subtask) -> bool:
-        """Return True if the given subtask is a monitoring subtask.
-
-        The detection first checks subtask_type equals 'MONITORING'. If that
-        metadata is unavailable, it falls back to checking the name prefix
-        'Monitoring'.
-
-        Args:
-            subtask: Subtask instance to check.
-
-        Returns:
-            True if the subtask is a monitoring subtask, otherwise False.
-        """
-        try:
-            return (subtask.subtask_type or "").upper() == "MONITORING"
-        except Exception:
-            return subtask.name.startswith("Monitoring")
-
     # ======================
     # Public method
     # ======================
@@ -648,12 +629,12 @@ class Scheduler:
                     if start_entry.subtask.subtask_type != "MONITORING":
                         interval = info.get("Interval", 0.0)
                         due_date = start_entry.schedule_end_time + interval
-                        if due_date > curr_node.state.current_time:
-                            active_intervals.append(
-                                SchedulingDue(
-                                    due_date=due_date, due_related_sub_name=end_name
-                                )
+                        # if due_date > curr_node.state.current_time:
+                        active_intervals.append(
+                            SchedulingDue(
+                                due_date=due_date, due_related_sub_name=end_name
                             )
+                        )
 
         if not active_intervals:
             log.debug(
@@ -664,7 +645,7 @@ class Scheduler:
         # If an active interval exists, a split is necessary.
         # Assign the most urgent due date for heuristic calculation purposes.
         most_urgent_due = min(active_intervals, key=lambda d: d.due_date)
-        # candidate.scheduling_due = most_urgent_due
+        candidate.scheduling_due = most_urgent_due
         log.debug(
             f"[_should_subtask_split_with_monitoring] Active interval found targeting '{most_urgent_due.due_related_sub_name}' (due: {most_urgent_due.due_date:.2f}). Splitting {candidate.subtask.name}."
         )
@@ -1434,16 +1415,9 @@ class Scheduler:
             r for r in remaining_after_early_executed if r.name != original_task_name
         ]
 
-        # Avoid duplicate monitoring for the same critical end (prefix match)
-        mon_prefix = f"Monitoring for {critical_end_sub_name}"
-        if not any(
-            (
-                getattr(r, "subtask_type", "").upper() == "MONITORING"
-                or r.name.startswith("Monitoring")
-            )
-            and r.name.startswith(mon_prefix)
-            for r in final_remaining_subtasks_list
-        ):
+        if mon_sub_task_for_main_interval.name not in {
+            r.name for r in final_remaining_subtasks_list
+        }:
             final_remaining_subtasks_list.append(mon_sub_task_for_main_interval)
         if remain_sub_task and remain_sub_task.name not in {
             r.name for r in final_remaining_subtasks_list

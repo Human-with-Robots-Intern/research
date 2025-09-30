@@ -65,11 +65,13 @@ class RosExecutor:
                 wait_duration = float(primitive_action_parts[1])
                 time.sleep(wait_duration)
                 success = True
+                action_end_time = time.time()
             else:
                 translated_action = self.translator.translate(primitive_action)
                 success = communicate(translated_action)
+                action_end_time = time.time()
 
-            action_end_time = time.time()
+            
             elapsed_time = action_end_time - action_start_time
             logger.info(f"Action '{primitive_action}' took {elapsed_time} seconds")
             total_elapsed_time += elapsed_time

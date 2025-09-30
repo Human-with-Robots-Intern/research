@@ -83,7 +83,7 @@
         ]
       },
       {
-        "Name": "Start laundry_machine",
+        "Name": "Start Laundry Machine",
         "Repetition": 1,
         "Type": "Interaction",
         "Executions": {

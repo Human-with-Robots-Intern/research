@@ -567,7 +567,7 @@ def plot_gantt_final_cutoff(
     initial_plan_json_data: List[Dict],
     save_dir: str = "gantt_charts_final_cutoff_executable",
 ):
-    plt.style.use("seaborn-v0_8-paper")
+    plt.style.use("seaborn-paper")
     font_path = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
     font_prop = fm.FontProperties(fname=font_path, size=10)
     plt.rcParams["font.family"] = font_prop.get_name()

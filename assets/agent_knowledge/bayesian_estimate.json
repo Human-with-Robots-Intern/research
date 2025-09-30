@@ -1,22 +1,10 @@
 {
-    "Microwave": {
-        "expected_duration": 0.0,
-        "variance": 100.0
+    "Stove": {
+        "expected_duration": 101.34667338585072,
+        "variance": 2.963986216246368
     },
-    "StoveBurner": {
-        "expected_duration": 140.0,
-        "variance": 100.0
-    },
-    "StoveKnob": {
-        "expected_duration": 103.04240368038103,
-        "variance": 8.772245235720824
-    },
-    "Egg": {
-        "expected_duration": 140.0,
-        "variance": 100.0
-    },
-    "CounterTop": {
-        "expected_duration": 140.0,
-        "variance": 100.0
+    "Laundry_Machine": {
+        "expected_duration": 99.97307640702272,
+        "variance": 0.023527552458326682
     }
 }
