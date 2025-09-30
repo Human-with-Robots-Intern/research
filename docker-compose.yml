@@ -1,17 +1,25 @@
 
 services:
-  uttp:
+  ttp:
     build:
       context: .
-      target: development
-    container_name: uttp
+      target: ttp_development
+      args:
+        - UID=${UID}
+        - GID=${GID}
+        - USERNAME=${USERNAME}
+    container_name: ttp
     volumes:
       - .:/app
-      # Vulkan ICD 디렉터리는 NVIDIA CDI가 주입하므로 별도 마운트하지 않음
     devices:
-      - /dev/dri:/dev/dri #/dev/dri가 노출되어 있어야 Vulkan이 DRM 디바이스를 통해 GPU를 식별합니다.
+      - /dev/dri:/dev/dri
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-modeset:/dev/nvidia-modeset
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
     ports:
-      - "5679:5679"  # Python debugger port
+      - "5679:5679"  # Python debugger port for ttp
     stdin_open: true
     tty: true
     command: tail -f /dev/null
@@ -20,4 +28,40 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
-      # ICD 강제 지정은 제거 (로더가 자동 탐색)
+    networks:
+      - uttp_net
+
+  ros:
+    build:
+      context: .
+      target: ros_development
+      args:
+        - UID=${UID}
+        - GID=${GID}
+        - USERNAME=${USERNAME}
+    container_name: ros
+    volumes:
+      - .:/app
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-modeset:/dev/nvidia-modeset
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
+    ports:
+      - "5680:5679"  # Python debugger port for ros
+    stdin_open: true
+    tty: true
+    command: tail -f /dev/null
+    working_dir: /app
+    gpus: all
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    networks:
+      - uttp_net
+
+networks:
+  uttp_net:
+    driver: bridge
