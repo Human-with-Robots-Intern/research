@@ -19,7 +19,6 @@ from src.utils.config.constants import (
     NAV_STEP_DURATION,
     PLACE_ACTION_DURATION,
     TOGGLE_ACTION_DURATION,
-    WAIT_ACTION_PENALTY,
 )
 
 # Forward declarations for type hinting
@@ -163,11 +162,17 @@ class HeuristicManager:
     # ========================================================================
 
     def _calculate_critical_path_interaction_duration(
-        self, remaining_tasks: Set[Subtask], constraints: nx.DiGraph
+        self,
+        remaining_tasks: Set[Subtask],
+        constraints: nx.DiGraph,
+        executed_subtask: Optional[Subtask],
     ) -> float:
         """
         Calculates the total "pure interaction + interval" time along the critical path
         of the remaining tasks. (Navigation time is handled separately by MST).
+
+        If an executed_subtask is provided, it applies a discount to the critical
+        path duration for initiating a critical chain.
         """
         if not remaining_tasks:
             return 0.0
@@ -187,6 +192,10 @@ class HeuristicManager:
             for pred_name, _, edge_data in subgraph.in_edges(task_name, data=True):
                 if pred_name in earliest_finish_times:
                     interval = edge_data.get("info", {}).get("Interval", 0.0)
+                    log.debug(
+                        f"  CP Edge: {pred_name} (eft: {earliest_finish_times[pred_name]:.2f}) -> {task_name} "
+                        f"with interval {interval:.2f}"
+                    )
                     max_earliest_finish_of_predecessors = max(
                         max_earliest_finish_of_predecessors,
                         earliest_finish_times[pred_name] + interval,
@@ -197,7 +206,26 @@ class HeuristicManager:
                 max_earliest_finish_of_predecessors + interaction_time
             )
 
-        return max(earliest_finish_times.values()) if earliest_finish_times else 0.0
+        cp_duration = (
+            max(earliest_finish_times.values()) if earliest_finish_times else 0.0
+        )
+
+        # Apply benefit for starting a critical chain
+        if executed_subtask and constraints.has_node(executed_subtask.name):
+            discount = 0.0
+            for _, succ, data in constraints.out_edges(
+                executed_subtask.name, data=True
+            ):
+                if succ in task_names_set and data.get("info", {}).get("IsCritical"):
+                    discount += data.get("info", {}).get("Interval", 0.0)
+
+            if discount > 0:
+                log.debug(
+                    f"  Applying critical start benefit from '{executed_subtask.name}'. Discount: {discount:.2f}"
+                )
+                cp_duration = max(0.0, cp_duration - discount)
+
+        return cp_duration
 
     def _calculate_mst_navigation_time(
         self,
@@ -276,10 +304,10 @@ class HeuristicManager:
         if task_to_exclude.startswith("Wait for "):
             # Wait action doesn't consume a task, so no task is excluded.
             task_to_exclude = None
-        elif task_to_exclude.startswith("EARLY_"):
-            # An EARLY action consumes the entire original task from the plan.
-            task_to_exclude = task_to_exclude.replace("EARLY_", "", 1)
-        # For REMAIN_ or normal tasks, the task to exclude is the task itself.
+        elif task_to_exclude.startswith("MONITORING_FOR_"):
+            # A monitoring action, for planning purposes, effectively "completes" the
+            # task it is monitoring from the perspective of future workload.
+            task_to_exclude = task_to_exclude.replace("MONITORING_FOR_", "", 1)
 
         exec_info = self.action_handler.get_actions_info(
             current_node, candidate.subtask.execution.primitive_actions
@@ -295,7 +323,7 @@ class HeuristicManager:
         next_scene_pos = exec_info.scene_positions
 
         cp_duration = self._calculate_critical_path_interaction_duration(
-            next_tasks, next_constraints
+            next_tasks, next_constraints, candidate.subtask
         )
         mst_time = self._calculate_mst_navigation_time(
             next_pos, next_tasks, next_scene_pos
@@ -419,14 +447,10 @@ class HeuristicManager:
             self.beta * wait_urgency_cost + self.gamma * remaining_work_cost
         )
 
-        # 'wait' 액션 자체에 대한 페널티 추가
-        total_heuristic_cost += WAIT_ACTION_PENALTY
-
         log.debug(
             f"  Heuristic for '{wait_candidate.subtask.name}': "
             f"WaitUrgency({self.beta:.1f}*{wait_urgency_cost:.2f})={self.beta * wait_urgency_cost:.2f}, "
             f"RemWorkAfterWait({self.gamma:.1f}*Rem[{cp_dur:.2f}+{mst_time:.2f}])={self.gamma * remaining_work_cost:.2f}, "
-            f"WaitPenalty={WAIT_ACTION_PENALTY:.2f}"
         )
         log.info(
             f"  => Total Heuristic Cost for '{wait_candidate.subtask.name}': {total_heuristic_cost:.3f}"
