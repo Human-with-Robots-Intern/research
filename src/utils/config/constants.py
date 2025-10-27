@@ -64,7 +64,7 @@ REACHABLE_DISTANCE_THRESHOLD = 50.0
 
 # Heuristic weights
 ALPHA_HEURISTIC = 1.0  # Navigation cost
-BETA_HEURISTIC = 50.0  # Urgency (slack) cost
+BETA_HEURISTIC = 10.0  # Urgency (slack) cost
 GAMMA_HEURISTIC = 100.0  # Remaining work cost
 
 # Wait action control
