@@ -19,7 +19,7 @@ from src.utils.config.constants import *
 from src.utils.common import create_module_logger
 from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
-
+from src.utils.get_state import save_scene_state
 current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
 
 def parse_arguments() -> argparse.Namespace:
@@ -200,19 +200,15 @@ def generate_plan(controller, task: str, args: argparse.Namespace, logger):
         "init_prior_mean": args.init_prior_mean,
     }
     result_save_llm(**result_args)
+    save_scene_state(controller=controller, 
+                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
+                            scene_name=args.scene, 
+                            instruction=task, 
+                            approach_name="progprompt",
+                            state_label="end")
 
 
 
-def planner_executer(args: argparse.Namespace, task: str, logger):
-    scene_name = args.scene
-    platform_obj = None
-    if args.cloud_rendering:
-        platform_obj = CloudRendering
-    controller = init_ai2thor_controller(scene_name, platform=platform_obj)
-    try:
-        generate_plan(controller, task, args, logger)
-    finally:
-        controller.stop()
 
 
 if __name__ == "__main__":
@@ -250,6 +246,21 @@ if __name__ == "__main__":
 
     openai.api_key = args.openai_api_key
 
-    planner_executer(args=args, task=task, logger=logger)
+    scene_name = args.scene
+    platform_obj = None
+    if args.cloud_rendering:
+        platform_obj = CloudRendering
+    controller = init_ai2thor_controller(scene_name, platform=platform_obj)
+    save_scene_state(controller=controller, 
+                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
+                            scene_name=scene_name, 
+                            instruction=instruction, 
+                            approach_name="progprompt",
+                            state_label="init")
+    try:
+        generate_plan(controller, task, args, logger)
+    finally:
+        controller.stop()
+    
 
 

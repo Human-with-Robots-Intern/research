@@ -24,7 +24,7 @@ from src.utils.io_utils.task_io import (
     load_task_data_from_file,
 )
 from src.utils.ros_executor import RosExecutor
-from src.utils.task.task_util import TaskUtil
+from src.utils.get_state import save_scene_state
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
@@ -487,9 +487,11 @@ def main():
         # Load the chosen task data
         task_files = list_task_files(scene_name=scene_name)
         if args.instruction:
+            
             instruction = args.instruction
             input_natural_language = instruction
             task_data = None
+            
             try:
                 choice = int(instruction)
                 if 1 <= choice <= len(task_files):
@@ -499,7 +501,12 @@ def main():
             except ValueError:
                 # It's a natural language instruction, not a number
                 pass
-
+            save_scene_state(controller=controller, 
+                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
+                            scene_name=scene_name, 
+                            instruction=input_natural_language, 
+                            approach_name=approach_name,
+                            state_label="init")
             if task_data is None:
                 # It was a natural language instruction or an invalid number choice.
                 # In both cases, we treat it as a natural language instruction.
@@ -553,7 +560,7 @@ def main():
 
         # Phase 2: Execute simulation if requested
         if args.simulation:
-            approach_name = f"{approach_name}_simulation"
+            
             simulation_current_time = 0.0
             # Execute each subtask in the schedule
             for entry in result_schedule:
@@ -567,6 +574,14 @@ def main():
                 entry.sim_nav_time = sim_nav_time
                 simulation_current_time += subtask_time
 
+            save_scene_state(controller=controller, 
+                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
+                            scene_name=scene_name, 
+                            instruction=input_natural_language, 
+                            approach_name=approach_name,
+                            state_label="end")
+
+            approach_name = f"{approach_name}_simulation"
             result_args = {
                 "task_name": input_natural_language,
                 "approach_name": approach_name,
@@ -577,8 +592,9 @@ def main():
                 "initial_plan_data": task_data,
                 "init_prior_mean": args.init_prior_mean,
             }
-
+            
             result_save(**result_args)
+            
 
         if args.ros:
             ros_executor = RosExecutor()

@@ -18,7 +18,7 @@ from src.utils.config.constants import *
 from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
 from src.utils.common import create_module_logger
-
+from src.utils.get_state import save_scene_state
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 from ithor.handlers.action import Action
@@ -411,7 +411,7 @@ if __name__ == "__main__":
     )
     scene_name = args.scene
     instruction = args.instruction
-    ithor_main_controller = None
+    controller = None
 
     platform_obj = None
     if args.cloud_rendering:
@@ -447,14 +447,19 @@ if __name__ == "__main__":
         log_file = open(log_file_path, "w", buffering=1)
 
         # AI2-THOR 컨트롤러 초기화
-        ithor_main_controller = init_ai2thor_controller(scene_name, platform=platform_obj)
-
+        controller = init_ai2thor_controller(scene_name, platform=platform_obj)
+        save_scene_state(controller=controller, 
+                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
+                            scene_name=scene_name, 
+                            instruction=instruction, 
+                            approach_name=approach_name,
+                            state_label="init")
         # Action 핸들러 초기화
-        ithor_action_controller = Action(ithor_main_controller, logger=logger)
+        ithor_action_controller = Action(controller, logger=logger)
 
         # LMP 환경 설정
         lmp_scene_ui = setup_LMP(
-            ithor_main_controller, ithor_action_controller, cfg_scene, log_file
+            controller, ithor_action_controller, cfg_scene, log_file
         )
 
         # --- 태스크 실행 ---
@@ -470,7 +475,7 @@ if __name__ == "__main__":
         objs = list(
             set(
                 obj["objectType"]
-                for obj in ithor_main_controller.step("Pass").metadata["objects"]
+                for obj in controller.step("Pass").metadata["objects"]
             )
         )
         print(f"objs: {objs}")
@@ -498,8 +503,14 @@ if __name__ == "__main__":
         }
 
         result_save_llm(**result_args)
+        save_scene_state(controller=controller, 
+                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
+                            scene_name=scene_name, 
+                            instruction=instruction, 
+                            approach_name=approach_name,
+                            state_label="end")
         log_file.close()
         print("실행이 완료되었습니다.")
     finally:
-        if ithor_main_controller:
-            ithor_main_controller.stop()
+        if controller:
+            controller.stop()

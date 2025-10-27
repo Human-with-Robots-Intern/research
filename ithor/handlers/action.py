@@ -361,14 +361,11 @@ class Action:
         If the initial attempt fails, it tries to teleport to a reachable
         position and retries the action. As a final resort, it forces
         the object's state to be open.
-
         Args:
             object_id (str): The identifier of the object to open.
-
         Returns:
             float: Elapsed time for the open action.
         """
-
         # Face the target and make a small backward offset to avoid door collision
         agent_pos = self.navi.get_agent_position()
         object_pos = self.navi.get_object_position(object_id)
@@ -382,7 +379,6 @@ class Action:
                     else:
                         self.controller.step(action="RotateLeft", degrees=step_deg)
                     self.controller.step(action="Pass")
-
         result = self.controller.step(
             action="OpenObject",
             objectId=object_id,
@@ -390,7 +386,6 @@ class Action:
             forceAction=False,
         )
         self.success_log(result, f"open {object_id}")
-
         if not result.metadata["lastActionSuccess"]:
             self.log.warning(
                 f"Initial 'OpenObject' on {object_id} failed. Attempting move backward."
@@ -408,7 +403,6 @@ class Action:
                 if result.metadata["lastActionSuccess"]:
                     self.success_log(result, f"open {object_id} after move backward")
                     break
-
         result = self.controller.step(
             action="OpenObject",
             objectId=object_id,

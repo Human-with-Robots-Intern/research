@@ -87,41 +87,45 @@ ALL_CRITICAL_LISTS: Dict[str, List[str]] = {
 }
 
 
-def get_task_difficulty(task_name: str, scene_name: str) -> str:
+def get_instruction_difficulty(instruction: str, scene_name: str) -> str:
     """
-    Determines the difficulty of a task based on the number of critical actions it contains.
+    Determines the difficulty of an instruction based on the number of critical tasks it contains.
 
     The difficulty is categorized as 'simple', 'normal', or 'hard' based on the count of
-    critical actions:
-    - 0 critical actions: 'simple'
-    - 1 critical action: 'normal'
-    - 2 or more critical actions: 'hard'
+    critical tasks:
+    - 0 critical tasks: 'simple'
+    - 1 critical task: 'normal'
+    - 2 or more critical tasks: 'hard'
     - 'unknown' if the scene name is not found in the critical list mapping.
 
     Args:
-        task_name (str): The name of the task, with individual actions separated by ' and '.
-                         May include a numeric suffix (e.g., '_1'), which is ignored.
+        instruction (str): The instruction containing individual tasks separated by ' and '.
         scene_name (str): The name of the scene (e.g., 'FloorPlan1') to look up the
-                          corresponding critical action list. The lookup is case-insensitive.
+                          corresponding critical task list. The lookup is case-insensitive.
 
     Returns:
-        str: The calculated difficulty level of the task ('simple', 'normal', 'hard', 'unknown').
+        str: The calculated difficulty level of the instruction ('simple', 'normal', 'hard', 'unknown').
     """
-    processed_task_name = task_name
-    if task_name.rpartition('_')[-1].isdigit():
-        processed_task_name = task_name.rpartition('_')[0]
-
-    actions = {action.strip() for action in processed_task_name.split(" and ")}
+    # instruction을 개별 task로 분리
+    tasks = [task.strip() for task in instruction.split(" and ")]
     
     critical_list = ALL_CRITICAL_LISTS.get(scene_name.lower())
     if critical_list is None:
         return "unknown"
 
-    critical_action_count = sum(1 for action in actions if action in critical_list)
+    # 각 task가 critical한지 확인 (numeric suffix 제거)
+    critical_task_count = 0
+    for task in tasks:
+        processed_task = task
+        if task.rpartition('_')[-1].isdigit():
+            processed_task = task.rpartition('_')[0]
+        
+        if processed_task in critical_list:
+            critical_task_count += 1
 
-    if critical_action_count == 0:
+    if critical_task_count == 0:
         return "simple"
-    elif critical_action_count == 1:
+    elif critical_task_count == 1:
         return "normal"
     else:
         return "hard" 

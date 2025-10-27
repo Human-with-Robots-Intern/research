@@ -3,7 +3,7 @@
 # ==================================================================================================
 # Stage 1: 베이스 이미지 및 기본 환경 설정
 # ==================================================================================================
-FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04 AS base
+FROM nvidia/cuda:12.5.1-cudnn-devel-ubuntu22.04 AS base
 
 # --- APT Source를 한국 미러(kakao)로 변경 ---
 RUN sed -i 's#http://archive.ubuntu.com/ubuntu/#http://mirror.kakao.com/ubuntu/#' /etc/apt/sources.list && \
@@ -25,6 +25,12 @@ RUN apt-get update && \
     locales \
     software-properties-common \
     fonts-liberation \
+    xvfb \
+    x11vnc \
+    xfce4 \
+    xfce4-goodies \
+    novnc \
+    websockify \
     && \
     # Locale 설정
     locale-gen en_US.UTF-8 && \
@@ -48,40 +54,51 @@ RUN add-apt-repository universe && \
     mkdir -p /etc/ros /usr/share/ament_index
 
 # ==================================================================================================
-# Stage 3: Python 가상 환경 및 라이브러리 설치
+# Stage 3: Python 라이브러리 설치 (TTP)
 # ==================================================================================================
-FROM base AS python_builder
+FROM base AS python_builder_ttp
 
-# --- Python 가상 환경 생성 ---
+# --- Python 및 관련 도구 설치 ---
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends python3-pip python3-venv graphviz libgraphviz-dev python3-dev && \
+    apt-get install -y --no-install-recommends python3-pip graphviz libgraphviz-dev python3-dev && \
     rm -rf /var/lib/apt/lists/*
-
-RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
 
 # --- 파이썬 라이브러리 설치 ---
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-ttp.txt .
+RUN pip install --no-cache-dir -r requirements-ttp.txt
 
 # ==================================================================================================
-# Stage 4: 최종 이미지 생성
+# Stage 4: Python 라이브러리 설치 (ROS)
 # ==================================================================================================
-FROM base AS final
+FROM base AS python_builder_ros
 
-# --- 이전 스테이지에서 빌드된 결과물 복사 ---
-COPY --from=ros_builder /opt/ros/humble /opt/ros/humble
-COPY --from=ros_builder /usr/lib/python3/dist-packages/ /usr/lib/python3/dist-packages/
-COPY --from=ros_builder /usr/share/ament_index/ /usr/share/ament_index/
-COPY --from=ros_builder /etc/ros/ /etc/ros/
+# --- Python 및 관련 도구 설치 ---
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3-pip graphviz libgraphviz-dev python3-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY --from=python_builder /opt/venv /opt/venv
+# --- 파이썬 라이브러리 설치 ---
+WORKDIR /app
+COPY requirements-ros.txt .
+RUN pip install --no-cache-dir -r requirements-ros.txt
 
-# --- Vulkan/GL 런타임 및 Unity 의존 라이브러리 설치 ---
+
+# ==================================================================================================
+# Stage 5: 공통 런타임 환경 (common_runtime)
+# ==================================================================================================
+FROM base AS common_runtime
+
+# --- 호스트 사용자와 동일한 ID를 가진 사용자 생성 ---
+ARG UID
+ARG GID
+ARG USERNAME
+RUN groupadd -g $GID -o ${USERNAME} && \
+    useradd -u $UID -g $GID -o -m -s /bin/bash ${USERNAME}
+
+# --- Vulkan/GL 런타임 및 Unity 의존 라이브러리 설치 (LunarG 최신 버전 사용) ---
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    libvulkan1 vulkan-tools \
     libglvnd0 libgl1 libglx0 libegl1 \
     libglib2.0-0 libx11-6 libxext6 libxrandr2 libxi6 libxrender1 libxfixes3 libxcursor1 \
     libnss3 libasound2 ca-certificates && \
@@ -92,40 +109,57 @@ RUN set -eux; \
     curl -fsSL https://packages.lunarg.com/lunarg-signing-key-pub.asc | gpg --dearmor -o /usr/share/keyrings/lunarg-archive-keyring.gpg; \
     echo "deb [signed-by=/usr/share/keyrings/lunarg-archive-keyring.gpg] https://packages.lunarg.com/vulkan jammy main" > /etc/apt/sources.list.d/lunarg-vulkan.list; \
     apt-get update; \
-    apt-get install -y --no-install-recommends libvulkan1 vulkan-tools; \
+    apt-get install -y --no-install-recommends libvulkan1 vulkan-tools vulkan-validationlayers; \
     rm -rf /var/lib/apt/lists/*; \
     mkdir -p /etc/vulkan/icd.d; \
-    printf '{\n    "file_format_version": "1.0.1",\n    "ICD": {\n        "library_path": "libEGL_nvidia.so.0",\n        "api_version": "1.4.303"\n    }\n}\n' > /etc/vulkan/icd.d/nvidia_egl_icd.json
+    printf '{\n    "file_format_version": "1.0.1",\n    "ICD": {\n        "library_path": "libEGL_nvidia.so.0",\n        "api_version": "1.4.303"\n    }\n}\n' > /etc/vulkan/icd.d/nvidia_egl_icd.json; \
+    printf '{\n    "file_format_version": "1.0.0",\n    "ICD": {\n        "library_path": "libvulkan_nvidia.so",\n        "api_version": "1.3.0"\n    }\n}\n' > /etc/vulkan/icd.d/nvidia_layers.json
 
 # --- 환경 변수 설정 ---
-ENV PATH="/opt/venv/bin:$PATH"
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 ENV PYTHONPATH="/app${PYTHONPATH:+:${PYTHONPATH}}"
 
-# --- 작업 디렉토리 설정 ---
+# --- 작업 디렉토리 설정 및 권한 부여 ---
 WORKDIR /app
-
-# --- nvidia_icd.json 복사 ---
-COPY nvidia_icd.json /etc/vulkan/icd.d
-
-# --- 프로젝트 소스 코드 복사 (필요시 주석 해제) ---
-# COPY . .
-
-# --- ROS 환경 자동 설정 및 .bashrc 정리 ---
-RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
-    echo "source /opt/venv/bin/activate" >> /root/.bashrc
+RUN chown -R ${USERNAME}:${USERNAME} /app
 
 # --- 컨테이너 기본 실행 명령어 ---
 CMD ["tail", "-f", "/dev/null"]
 
+# ==================================================================================================
+# Stage 6: TTP 베이스 이미지 (ttp_base)
+# ==================================================================================================
+FROM common_runtime AS ttp_base
+
+# --- Python 라이브러리 복사 ---
+COPY --from=python_builder_ttp /usr/local/lib/python3.10/dist-packages/ /usr/local/lib/python3.10/dist-packages/
+COPY --from=python_builder_ttp /usr/local/bin/ /usr/local/bin/
 
 # ==================================================================================================
-# Stage 5: 개발용 이미지 생성 (Development Image)
+# Stage 7: ROS 베이스 이미지 (ros_base)
 # ==================================================================================================
-FROM final AS development
+FROM common_runtime AS ros_base
 
-# --- 개발에 필요한 빌드 도구들 다시 설치 ---
+# --- ROS용 Python 라이브러리 복사 ---
+COPY --from=python_builder_ros /usr/local/lib/python3.10/dist-packages/ /usr/local/lib/python3.10/dist-packages/
+COPY --from=python_builder_ros /usr/local/bin/ /usr/local/bin/
+
+# --- ROS 관련 파일 복사 ---
+COPY --from=ros_builder /opt/ros/humble /opt/ros/humble
+COPY --from=ros_builder /usr/lib/python3/dist-packages/ /usr/lib/python3/dist-packages/
+COPY --from=ros_builder /usr/share/ament_index/ /usr/share/ament_index/
+COPY --from=ros_builder /etc/ros/ /etc/ros/
+
+# --- ROS 환경 자동 설정 ---
+RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc
+
+# ==================================================================================================
+# Stage 8: TTP 개발용 이미지 (ttp_development)
+# ==================================================================================================
+FROM ttp_base AS ttp_development
+
+# --- 개발에 필요한 빌드 도구들 설치 ---
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
@@ -134,8 +168,30 @@ RUN apt-get update && \
     wget \
     gnupg \
     python3-pip \
-    python3-venv \
     graphviz \
     libgraphviz-dev \
     fonts-liberation && \
     rm -rf /var/lib/apt/lists/*
+
+USER $USERNAME
+
+# ==================================================================================================
+# Stage 9: ROS 개발용 이미지 (ros_development)
+# ==================================================================================================
+FROM ros_base AS ros_development
+
+# --- 개발에 필요한 빌드 도구들 설치 ---
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    curl \
+    wget \
+    gnupg \
+    python3-pip \
+    graphviz \
+    libgraphviz-dev \
+    fonts-liberation && \
+    rm -rf /var/lib/apt/lists/*
+
+USER $USERNAME

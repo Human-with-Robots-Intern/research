@@ -1,0 +1,98 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List
+
+if TYPE_CHECKING:
+    from ai2thor.controller import Controller
+
+
+def get_all_object_states(controller: Controller) -> List[Dict[str, Any]]:
+    """AI2-THOR scene에 있는 모든 객체의 지정된 상태 속성들을 가져옵니다.
+
+    이 함수는 AI2-THOR 환경에 쿼리하여 모든 객체에 대해 필요한
+    속성(예: name, position, isCooked, isOpen)만 필터링하여 가져옵니다.
+
+    Args:
+        controller: scene에 연결된 AI2-THOR controller 인스턴스.
+
+    Returns:
+        각각 객체의 필터링된 상태를 나타내는 딕셔너리 리스트.
+    """
+    event = controller.last_event
+    # 마지막 이벤트가 없으면 'Pass' 액션을 수행하여 현재 상태를 가져옵니다.
+    if not event or "objects" not in event.metadata:
+        event = controller.step(action="Pass")
+
+    # 메타데이터와 객체가 존재하는지 확인
+    if not event.metadata or "objects" not in event.metadata:
+        # 객체를 찾을 수 없는 경우 경고를 기록하거나 오류를 발생시킬 수 있습니다.
+        return []
+
+    objects_metadata = event.metadata["objects"]
+    filtered_states = []
+    keys_to_keep = [
+        "name",
+        "position",
+        "rotation",
+        "isCooked",
+        "isSliced",
+        "isOpen",
+        "parentReceptacles",
+        "isToggled",
+        "isFilledWithLiquid"
+    ]
+    for obj in objects_metadata:
+        state = {key: obj[key] for key in keys_to_keep if key in obj}
+        filtered_states.append(state)
+
+    return filtered_states
+
+
+def save_scene_state(
+    controller: Controller, output_path: Path, scene_name: str, instruction: str, approach_name: str,state_label: str
+) -> None:
+    """scene에 있는 모든 객체의 현재 상태를 가져와 JSON 파일로 저장합니다.
+
+    상태는 지정된 출력 디렉토리 내의 '{scene_name}_state.json' 파일에 저장됩니다.
+
+    Args:
+        controller: The AI2-THOR controller instance for the scene.
+        output_path: 상태 파일이 저장될 경로.
+        scene_name: 출력 파일 이름에 사용될 scene의 이름.
+    """ 
+    output_path = output_path/instruction/scene_name/approach_name/ f"{state_label}_state.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    object_states = get_all_object_states(controller)
+
+    with output_path.open("w", encoding="utf-8") as f:
+        json.dump(object_states, f, indent=4)
+
+    print(f"'{scene_name}'의 scene 상태가 {output_path}에 저장되었습니다.")
+
+
+if __name__ == "__main__":
+    # 이 함수들을 사용하는 방법에 대한 예제입니다.
+    # ai2thor가 설치되어 있어야 합니다.
+    try:
+        from ai2thor.controller import Controller
+    except ImportError:
+        print("이 예제를 실행하려면 ai2thor를 설치해주세요: pip install ai2thor")
+    else:
+        # 사용 예시:
+        # 특정 scene에 대한 controller를 초기화합니다.
+        # FloorPlan1은 테스트에 흔히 사용되는 scene입니다.
+        scene = "FloorPlan1"
+        controller = Controller(scene=scene)
+
+        # 상태 파일을 저장할 위치를 정의합니다.
+        save_directory = Path("./scene_states")
+
+        # 상태를 가져와 저장합니다.
+        save_scene_state(controller, save_directory, scene, instruction="test")
+
+        # controller를 중지합니다.
+        controller.stop()
+
