@@ -1,5 +1,6 @@
 #!/bin/bash
-# This script sets up the required ROS and project environment and then executes the given command.
+# This script sets up only the ROS environment and then passes execution
+# to run_project.sh for further setup and command execution.
 
 # Source the main ROS setup file
 if [ -f "/opt/ros/humble/setup.bash" ]; then
@@ -10,7 +11,6 @@ else
 fi
 
 # Source the workspace setup file
-# Get the directory of the current script to find the workspace root relative to it.
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 WORKSPACE_SETUP_FILE="$SCRIPT_DIR/../src/ros/ttp_ws/install/setup.bash"
 
@@ -20,9 +20,5 @@ else
     echo "Warning: Workspace setup file not found at $WORKSPACE_SETUP_FILE. Continuing without it." >&2
 fi
 
-# Add the project root to PYTHONPATH to handle imports like `from src...` and `from ithor...`
-PROJECT_ROOT=$( realpath "$SCRIPT_DIR/.." )
-export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
-
-# Execute the command passed to this script
-exec "$@" 
+# Chain execution to the common project environment setup script
+exec "$SCRIPT_DIR/run_project.sh" "$@" 
