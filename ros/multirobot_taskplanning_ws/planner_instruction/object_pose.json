@@ -1,0 +1,115 @@
+{
+    "1": {
+        "2": {
+            "1": {
+                "pre_grap": {
+                    "1": {
+                        "position": {
+                            "x": 1.0,
+                            "y": 2.0,
+                            "z": 3.0
+                        },
+                        "orientation": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                        "is_relative": true
+                    }
+                },
+                "end_grap": {
+                    "2": {
+                        "position": {
+                            "x": 4.0,
+                            "y": 5.0,
+                            "z": 6.0
+                        },
+                        "orientation": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                        "is_relative": false
+                    }
+                }
+            }
+        }
+    },
+    "2": {
+        "3": {
+            "1": {
+                "goto_hell": {
+                    "1": {
+                        "position": {
+                            "x": 1.0,
+                            "y": 2.0,
+                            "z": 3.0
+                        },
+                        "orientation": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                        "is_relative": true
+                    }
+                },
+                "subaction1": {
+                    "1": {
+                        "position": {
+                            "x": 1.0,
+                            "y": 2.0,
+                            "z": 3.0
+                        },
+                        "orientation": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                        "is_relative": true
+                    }
+                }
+            }
+        }
+    },
+    "0": {
+        "0": {
+            "0": {
+                "test": {
+                    "0": {
+                        "position": {
+                            "x": 3.0,
+                            "y": 3.0,
+                            "z": 3.0
+                        },
+                        "orientation": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0,
+                            "w": 1.0
+                        },
+                        "is_relative": true
+                    }
+                },
+                "0": {
+                    "sub_action": "test",
+                    "position": {
+                        "x": 3.0,
+                        "y": 3.0,
+                        "z": 3.0
+                    },
+                    "orientation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "is_relative": true
+                }
+            }
+        }
+    }
+}
