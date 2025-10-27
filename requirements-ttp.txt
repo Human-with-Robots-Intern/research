@@ -57,3 +57,4 @@ astunparse
 matplotlib
 pygments
 pandas
+openpyxl

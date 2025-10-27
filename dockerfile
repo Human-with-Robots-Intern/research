@@ -25,6 +25,12 @@ RUN apt-get update && \
     locales \
     software-properties-common \
     fonts-liberation \
+    xvfb \
+    x11vnc \
+    xfce4 \
+    xfce4-goodies \
+    novnc \
+    websockify \
     && \
     # Locale 설정
     locale-gen en_US.UTF-8 && \
