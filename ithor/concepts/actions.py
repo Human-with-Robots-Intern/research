@@ -64,11 +64,11 @@ def slice(controller, objectId, force=FORCE):
 
 
 def open(controller, objectId, force=FORCE):
-    controller.step(action="OpenObject", objectId=objectId, forceAction=force)
+    controller.step(action="OpenObject", objectId=objectId, forceAction=True)
 
 
 def close(controller, objectId, force=FORCE):
-    controller.step(action="CloseObject", objectId=objectId, forceAction=force)
+    controller.step(action="CloseObject", objectId=objectId, forceAction=True)
 
 
 def teleport_to_position(controller, position):

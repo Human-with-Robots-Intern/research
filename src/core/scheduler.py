@@ -581,10 +581,7 @@ class Scheduler:
         """
         Determines if a task should be split for monitoring based on three rules.
 
-        Rule 1: A task that has already been split/handled is not split again.
-        Rule 2: A task can be split only if a critical, non-monitoring task
-                is currently in progress (i.e., an active critical interval exists).
-        Rule 3: Do not insert monitoring between tasks that must run consecutively.
+
 
         Args:
             curr_node: The current simulation node.

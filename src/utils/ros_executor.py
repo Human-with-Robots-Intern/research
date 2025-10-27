@@ -1,8 +1,7 @@
-
 """This module provides a class to handle ROS communication for executing subtasks."""
 
 import time
-from typing import Any, List, Optional, Tuple, Dict
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.models.dataclass import CompletedEntry
 from src.models.task import Subtask
@@ -21,8 +20,12 @@ class RosExecutor:
         This involves setting up the instruction translator, object position simulator,
         and initializing the ROS communication.
         """
-        from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import init_ros_communication
-        from src.ros.ttp_ws.ttp_client.ttp_client.simulate_object_pos_change import SimulateObjectPosChange
+        from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import (
+            init_ros_communication,
+        )
+        from src.ros.ttp_ws.ttp_client.ttp_client.simulate_object_pos_change import (
+            SimulateObjectPosChange,
+        )
         from src.ros.ttp_ws.ttp_client.ttp_client.translate import InstructionTranslator
 
         self.translator = InstructionTranslator()
@@ -48,9 +51,7 @@ class RosExecutor:
             - float: The total time elapsed for executing these actions.
             - List[Dict[str, Any]]: A log of each action and its execution time.
         """
-        from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import (
-            communicate,
-        )
+        from src.ros.ttp_ws.ttp_client.ttp_client.ros_communicate import communicate
 
         action_log: List[Dict[str, Any]] = []
         total_elapsed_time = 0.0
@@ -73,9 +74,7 @@ class RosExecutor:
             elapsed_time = action_end_time - action_start_time
             logger.info(f"Action '{primitive_action}' took {elapsed_time} seconds")
             total_elapsed_time += elapsed_time
-            action_log.append(
-                {"action": primitive_action, "duration": elapsed_time}
-            )
+            action_log.append({"action": primitive_action, "duration": elapsed_time})
 
             if not success:
                 logger.error(f"Action '{primitive_action}' failed. Stopping task.")
@@ -83,21 +82,27 @@ class RosExecutor:
 
             # Simulate object state changes
             if action_verb == "grasp":
-                self.object_pos_simulator._simulate_grasp(primitive_action_parts[1].lower())
+                self.object_pos_simulator._simulate_grasp(
+                    primitive_action_parts[1].lower()
+                )
                 self.held_object = primitive_action_parts[1]
                 logger.info(f"Held object: {self.held_object}")
             elif action_verb.startswith("place"):
-                self.object_pos_simulator._simulate_place(primitive_action_parts[1].lower())
+                self.object_pos_simulator._simulate_place(
+                    primitive_action_parts[1].lower()
+                )
                 if self.held_object:
                     logger.info(
                         f"Object '{self.held_object}' position: "
                         f"{self.object_pos_simulator._get_object_pos(self.held_object.lower())}"
                     )
                 self.held_object = None
-        
+
         return True, total_elapsed_time, action_log
 
-    def execute_subtask(self, subtask: Subtask) -> Tuple[bool, float, List[Dict[str, Any]]]:
+    def execute_subtask(
+        self, subtask: Subtask
+    ) -> Tuple[bool, float, List[Dict[str, Any]]]:
         """
         Executes the primitive actions of a single subtask.
 
@@ -112,18 +117,18 @@ class RosExecutor:
         """
         if self.ros_start_time is None:
             self.ros_start_time = time.time()
-            
+
         primitive_actions = subtask.execution.primitive_actions
         if not primitive_actions:
             return True, 0.0, []
-        
-        success, elapsed_time, action_logs = self.execute_primitive_actions(primitive_actions)
+
+        success, elapsed_time, action_logs = self.execute_primitive_actions(
+            primitive_actions
+        )
         self.total_ros_time += elapsed_time
         return success, elapsed_time, action_logs
 
-    def execute_schedule(
-        self, schedule: List[CompletedEntry]
-    ) -> List[CompletedEntry]:
+    def execute_schedule(self, schedule: List[CompletedEntry]) -> List[CompletedEntry]:
         """
         Executes a pre-defined schedule of subtasks.
 
@@ -133,7 +138,7 @@ class RosExecutor:
 
         Args:
             schedule: A list of CompletedEntry objects representing the schedule.
-        
+
         Returns:
             The schedule with updated execution information.
         """
@@ -141,7 +146,7 @@ class RosExecutor:
             for entry in schedule:
                 ros_start_offset = self.total_ros_time
                 success, elapsed_time, action_logs = self.execute_subtask(entry.subtask)
-                
+
                 entry.sim_start_time = ros_start_offset
                 entry.sim_end_time = ros_start_offset + elapsed_time
                 entry.execution_status = success
@@ -161,4 +166,4 @@ class RosExecutor:
         )
 
         shutdown_ros_communication()
-        logger.info("ROS communication shut down.") 
+        logger.info("ROS communication shut down.")

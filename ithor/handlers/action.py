@@ -16,7 +16,7 @@ from .navigation_handler import NavigationHandler
 log = create_module_logger(module_name=__name__, module_log=True, level="DEBUG")
 
 ACTION_TIME_SLEEP = 0.01
-MOVE_BACKWARD_DISTANCE = 1
+MOVE_BACKWARD_DISTANCE = 100
 
 
 class Action:
@@ -368,7 +368,7 @@ class Action:
         Returns:
             float: Elapsed time for the open action.
         """
-        elapsed_time = TOGGLE_ACTION_DURATION
+
         # Face the target and make a small backward offset to avoid door collision
         agent_pos = self.navi.get_agent_position()
         object_pos = self.navi.get_object_position(object_id)
@@ -382,12 +382,7 @@ class Action:
                     else:
                         self.controller.step(action="RotateLeft", degrees=step_deg)
                     self.controller.step(action="Pass")
-            # Back off slightly away from the door plane
-            try:
-                self.navi.move_in_direction(-obj_angle, MOVE_BACKWARD_DISTANCE)
-            except Exception:
-                # non-fatal, continue
-                pass
+
         result = self.controller.step(
             action="OpenObject",
             objectId=object_id,
@@ -396,77 +391,32 @@ class Action:
         )
         self.success_log(result, f"open {object_id}")
 
-        # If door failed to stay open due to collision, back off and try once more with force
-        try:
-            obj_state = next(
-                (
-                    o
-                    for o in self.controller.last_event.metadata["objects"]
-                    if o["objectId"] == object_id
-                ),
-                None,
-            )
-            is_open_now = bool(obj_state and obj_state.get("isOpen"))
-        except Exception:
-            is_open_now = result.metadata.get("lastActionSuccess", False)
-
-        if not result.metadata["lastActionSuccess"] or not is_open_now:
-            self.log.warning(
-                f"Initial 'OpenObject' on {object_id} failed. Attempting recovery with Teleport."
-            )
-            reachable_positions_event = self.controller.step(
-                action="GetReachablePositions"
-            )
-            if reachable_positions_event.metadata["lastActionSuccess"]:
-                positions = reachable_positions_event.metadata["actionReturn"]
-                if positions:
-                    best_pos = positions[0]
-                    agent_meta = self.controller.last_event.metadata["agent"]
-                    self.controller.step(
-                        action="Teleport",
-                        position=best_pos,
-                        rotation=agent_meta["rotation"],
-                        horizon=agent_meta["cameraHorizon"],
-                        standing=True,
-                    )
-                    self.log.info(
-                        f"Teleported to a reachable position {best_pos} for retrying 'OpenObject'."
-                    )
-                    # Additional small backoff after teleport to reduce collision chance
-                    try:
-                        agent_pos = self.navi.get_agent_position()
-                        object_pos = self.navi.get_object_position(object_id)
-                        if object_pos is not None:
-                            obj_angle, _ = self.navi.agent_rotate_angle(
-                                agent_pos, object_pos
-                            )
-                            self.navi.move_in_direction(
-                                -obj_angle, MOVE_BACKWARD_DISTANCE
-                            )
-                    except Exception:
-                        pass
-                    result = self.controller.step(
-                        action="OpenObject",
-                        objectId=object_id,
-                        openness=1,
-                        forceAction=True,
-                    )
-                    self.success_log(result, f"Retry open {object_id} after Teleport")
-
         if not result.metadata["lastActionSuccess"]:
             self.log.warning(
-                f"'OpenObject' on {object_id} failed again. Brute-forcing with forceAction."
+                f"Initial 'OpenObject' on {object_id} failed. Attempting move backward."
             )
-            result = self.controller.step(
-                action="OpenObject",
-                objectId=object_id,
-                openness=1,
-                forceAction=True,
-            )
-            self.success_log(result, f"Force open {object_id} via forceAction")
+            for _ in range(10):
+                self.controller.step(action="MoveBack", moveMagnitude=0.1)
+                self.controller.step(action="Pass")
+                result = self.controller.step(
+                    action="OpenObject",
+                    objectId=object_id,
+                    openness=1,
+                    forceAction=False,
+                )
+                self.controller.step(action="Pass")
+                if result.metadata["lastActionSuccess"]:
+                    self.success_log(result, f"open {object_id} after move backward")
+                    break
 
-        time.sleep(ACTION_TIME_SLEEP)
-        return elapsed_time
+        result = self.controller.step(
+            action="OpenObject",
+            objectId=object_id,
+            openness=1,
+            forceAction=True,
+        )
+        self.controller.step(action="Pass")
+        return TOGGLE_ACTION_DURATION
 
     def close(self, object_id: str):
         """
