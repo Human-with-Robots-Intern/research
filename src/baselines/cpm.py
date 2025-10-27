@@ -42,6 +42,7 @@ from src.utils.io_utils.task_io import (
 )
 from src.utils.task.task_util import TaskUtil
 from src.utils.ros_executor import RosExecutor
+from src.utils.get_state import save_scene_state
 
 
 class ExecutionPredictionInfo(NamedTuple):
@@ -571,13 +572,14 @@ def main() -> None:
             action_handler = ActionHandler(nav_graph)
 
         scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
-
+        
         # Load task data
         task_files = list_task_files(scene_name)
 
         if args.instruction:
             instruction = args.instruction
             task_data = None
+
             try:
                 choice = int(instruction)
                 if 1 <= choice <= len(task_files):
@@ -589,6 +591,12 @@ def main() -> None:
                 input_natural_language = instruction
                 pass
 
+            save_scene_state(controller=controller, 
+                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
+                scene_name=scene_name, 
+                instruction=input_natural_language, 
+                approach_name=approach_name,
+                state_label="init")
             if task_data is None:
                 # It was a natural language instruction or an invalid number choice.
                 # In both cases, we treat it as a natural language instruction.
@@ -631,7 +639,7 @@ def main() -> None:
 
         # Run simulation if enabled
         if args.simulation:
-            approach_name = f"{approach_name}_simulation"
+            
             simulation_time = 0.0
 
             for entry in final_scheduled_entries:
@@ -645,6 +653,14 @@ def main() -> None:
                 entry.execution_status = execution_status
                 entry.sim_nav_time = sim_nav_time
 
+            save_scene_state(controller=controller, 
+                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
+                            scene_name=scene_name, 
+                            instruction=input_natural_language, 
+                            approach_name=approach_name,
+                            state_label="end")
+
+            approach_name = f"{approach_name}_simulation"
             result_args = {
                 "task_name": input_natural_language,
                 "approach_name": approach_name,

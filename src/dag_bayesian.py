@@ -20,7 +20,7 @@ from utils.io_utils import (
 )
 from utils.io_utils.task_io import get_user_scene_choice, load_scene_positions
 from utils.task import TaskUtil
-
+from src.utils.get_state import save_scene_state
 log = create_module_logger(__name__, module_log=True)
 
 
@@ -134,6 +134,7 @@ def main():
             instruction = args.instruction
             input_natural_language = instruction
             task_data = None
+            
             try:
                 choice = int(instruction)
                 if 1 <= choice <= len(task_files):
@@ -143,7 +144,12 @@ def main():
             except ValueError:
                 # It's a natural language instruction, not a number
                 pass
-
+            save_scene_state(controller=controller, 
+                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
+                            scene_name=scene_name, 
+                            instruction=input_natural_language, 
+                            approach_name=approach_name,
+                            state_label="init")
             if task_data is None:
                 # It was a natural language instruction or an invalid number choice.
                 # In both cases, we treat it as a natural language instruction.
@@ -214,6 +220,7 @@ def main():
                         for name2 in current_state.constraints.in_edges._adjdict[name1].keys():
                             if current_state.constraints.in_edges._adjdict[name1][name2]['info']['IsCritical']:
                                 intervallist.append({name2: current_state.constraints.in_edges._adjdict[name1][name2]['info']['Interval']})
+                # 모니터 끄려면 이 안쪽을 주석화.
                 if next_state.subtask.subtask_type == "Monitor":
                     next_state, monitored_subtask = agent.bayesian_estimate(next_state)
                     next_state.completed_entries[-1].monitored_subtask = (
@@ -297,6 +304,13 @@ def main():
             for entry in current_state.completed_entries
             if entry.subtask.name != "Init"
         ]
+        save_scene_state(controller=controller, 
+                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
+                            scene_name=scene_name, 
+                            instruction=input_natural_language, 
+                            approach_name=approach_name,
+                            state_label="end")
+
         approach_name = f"{approach_name}_simulation"
         result_args = {
             "task_name": input_natural_language,
@@ -310,7 +324,7 @@ def main():
             # "simulationTime": total_sim_time,
         }
         result_save(**result_args)
-
+        
 
 if __name__ == "__main__":
     main()
