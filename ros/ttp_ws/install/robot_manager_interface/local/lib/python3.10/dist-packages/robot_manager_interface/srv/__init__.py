@@ -1,2 +1,1 @@
-from robot_manager_interface.srv._robot_manager import RobotManager  # noqa: F401
-from robot_manager_interface.srv._task_logging import TaskLogging  # noqa: F401
+/app/ros/ttp_ws/build/robot_manager_interface/rosidl_generator_py/robot_manager_interface/srv/__init__.py

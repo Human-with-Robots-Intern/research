@@ -1,2 +1,1 @@
-
-bool success
+/app/ros/ttp_ws/build/robot_manager_interface/rosidl_cmake/srv/RobotManager_Response.msg

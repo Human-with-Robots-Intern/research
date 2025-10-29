@@ -1,8 +1,1 @@
-srv/RobotManager.idl
-srv/RobotManager.srv
-srv/RobotManager_Request.msg
-srv/RobotManager_Response.msg
-srv/TaskLogging.idl
-srv/TaskLogging.srv
-srv/TaskLogging_Request.msg
-srv/TaskLogging_Response.msg
+/app/ros/ttp_ws/build/robot_manager_interface/ament_cmake_index/share/ament_index/resource_index/rosidl_interfaces/robot_manager_interface

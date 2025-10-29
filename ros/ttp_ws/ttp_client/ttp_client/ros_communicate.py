@@ -18,8 +18,8 @@ class RobotManagerClient(Node):
         """Initialize the RobotManagerClient node."""
         super().__init__("robot_manager_client")
         self.cli = self.create_client(RobotManager, "/robot_command")
-        while not self.cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info("Service not available, waiting again...")
+        # while not self.cli.wait_for_service(timeout_sec=1.0):
+        #     self.get_logger().info("Service not available, waiting again...")
 
     def send_request(
         self, robot_model: int, instruction: str, a: str, b: str
@@ -103,7 +103,7 @@ def communicate(action_parts: List[int]) -> bool:
 
     action_str = f"{instruction} {a} {b}".strip()
     _ros_client_node.get_logger().info(f"Sending action: '{action_str}'")
-
+    
     future = _ros_client_node.send_request(robot_model, instruction, a, b)
     rclpy.spin_until_future_complete(_ros_client_node, future)
 

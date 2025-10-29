@@ -1,1 +1,1 @@
-prepend-non-duplicate-if-exists;PATH;bin
+/app/ros/ttp_ws/build/robot_manager_interface/ament_cmake_environment_hooks/path.dsv

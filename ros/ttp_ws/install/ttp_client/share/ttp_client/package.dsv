@@ -4,3 +4,6 @@ source;share/ttp_client/hook/pythonpath.sh
 source;share/ttp_client/hook/ament_prefix_path.ps1
 source;share/ttp_client/hook/ament_prefix_path.dsv
 source;share/ttp_client/hook/ament_prefix_path.sh
+source;../../build/ttp_client/share/ttp_client/hook/pythonpath_develop.ps1
+source;../../build/ttp_client/share/ttp_client/hook/pythonpath_develop.dsv
+source;../../build/ttp_client/share/ttp_client/hook/pythonpath_develop.sh

@@ -1,4 +1,1 @@
-int64 robot_model
-int64 instruction
-int64 a
-int64 b
+/app/ros/ttp_ws/build/robot_manager_interface/rosidl_cmake/srv/RobotManager_Request.msg
