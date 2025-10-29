@@ -12,7 +12,7 @@ fi
 
 # Source the workspace setup file
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-WORKSPACE_SETUP_FILE="$SCRIPT_DIR/../src/ros/ttp_ws/install/setup.bash"
+WORKSPACE_SETUP_FILE="$SCRIPT_DIR/../ros/ttp_ws/install/setup.bash"
 
 if [ -f "$WORKSPACE_SETUP_FILE" ]; then
     source "$WORKSPACE_SETUP_FILE"

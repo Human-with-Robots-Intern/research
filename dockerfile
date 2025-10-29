@@ -48,7 +48,7 @@ RUN add-apt-repository universe && \
     curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null && \
     apt-get update && \
-    apt-get install -y ros-humble-desktop ros-dev-tools && \
+    apt-get install -y ros-humble-desktop ros-dev-tools ros-humble-rmw-cyclonedds-cpp && \
     rm -rf /var/lib/apt/lists/* && \
     # COPY 명령어의 대상 디렉토리가 존재하도록 보장
     mkdir -p /etc/ros /usr/share/ament_index
@@ -81,7 +81,8 @@ RUN apt-get update && \
 # --- 파이썬 라이브러리 설치 ---
 WORKDIR /app
 COPY requirements-ros.txt .
-RUN pip install --no-cache-dir -r requirements-ros.txt
+RUN pip install --no-cache-dir -r requirements-ros.txt && \
+    pip install --no-cache-dir colcon-common-extensions
 
 
 # ==================================================================================================
@@ -188,10 +189,16 @@ RUN apt-get update && \
     curl \
     wget \
     gnupg \
+    cmake \
     python3-pip \
+    python3-dev \
     graphviz \
     libgraphviz-dev \
-    fonts-liberation && \
+    fonts-liberation \
+    libtinyxml2-9 \
+    libconsole-bridge1.0 \
+    libpython3.10 \
+    libspdlog1 && \
     rm -rf /var/lib/apt/lists/*
 
 USER $USERNAME

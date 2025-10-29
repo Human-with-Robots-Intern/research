@@ -76,7 +76,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-s",
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
         help="시뮬레이션 실행 여부 (default: False)",
     )
@@ -590,13 +590,14 @@ def main() -> None:
                 # It's a natural language instruction, not a number
                 input_natural_language = instruction
                 pass
-
-            save_scene_state(controller=controller, 
-                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
-                scene_name=scene_name, 
-                instruction=input_natural_language, 
-                approach_name=approach_name,
-                state_label="init")
+            if args.simulation:
+                save_scene_state(controller=controller, 
+                    output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
+                        scene_name=scene_name, 
+                        instruction=input_natural_language, 
+                        approach_name=approach_name,
+                        state_label="init")
+                logger.info(f"Scene state saved for {input_natural_language}")
             if task_data is None:
                 # It was a natural language instruction or an invalid number choice.
                 # In both cases, we treat it as a natural language instruction.
