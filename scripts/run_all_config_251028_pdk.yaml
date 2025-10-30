@@ -2,6 +2,14 @@
 # Logging configuration
 log_level: "DEBUG" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 
+# Execution mode
+predefined: True # Use predefined numbered instructions (1-20) instead of loading from JSON files
+
+scene_type: # Default scene type to run. Options: 'kitchen', 'bathroom'
+  - kitchen
+  # - bathroom 
+ros: false # Enable ROS communication
+simulation: true # Enable Simulation mode
 start_idx: 1 # Start index for the instruction
 # Execution settings
 # List of approaches (scripts) to run
@@ -9,7 +17,8 @@ approaches:
   # - "src/baselines/cpm.py"
   # - "src/baselines/edf/dag_edf.py"
   - "src/dag_bayesian.py"
-  
+  # - "src/baselines/progprompt/prog_ai2thor.py"
+  # - "src/baselines/cap/cap_ai2thor.py"
 
 
 # Scripts that use LLMs and are subject to retries on failure
@@ -18,12 +27,6 @@ llm_scripts:
   # - "src/baselines/cap/cap_ai2thor.py"
 
 # Scene lists for each scene type
-simulation: true # Enable Simulation mode
-scene_type: # Default scene type to run. Options: 'kitchen', 'bathroom'
-  - kitchen
-  - bathroom 
-
-
 scene_lists:
   kitchen:
     - "FloorPlan1"  
@@ -51,30 +54,17 @@ retry_delay_seconds: 2
 max_workers: 15
 instruction_delay_seconds: 0
 
-
+# The monitor to display the agent view on (1-indexed)
+# monitor: 2
+# Platform for AI2-THOR (e.g., "CloudRendering" for headless)
+# platform: "CloudRendering"
+# Use CloudRendering platform for AI2-THOR
 cloud_rendering: true
 
-ablation_configs:
-  - NONE_URGENCY
-  - NONE_REMAINING_WORK
-  - NONE_MONITORING
-  - GREEDY
-
-init_prior_configs:
-  - OVER_ESTIMATE
-  - UNDER_ESTIMATE
-  - CORRECT_ESTIMATE  
-
-min_task_count: 0
-min_constraint_count: 0
-
-# - t3_c2
-#   - FloorPlan1
-#     - "01_boil_potato_and_cook_egg_and_heat_the_bread_using_microwave.json"
-# execute_dict: {}
-
-
-
-# ==============================================================================
-# Ablation Study Configurations
-# ==============================================================================
+# execute_dict: {
+#         "FloorPlan1": [],
+#         "FloorPlan7": [],
+#         "FloorPlan13": [],
+#         "FloorPlan18": [],
+#         "FloorPlan27": []
+#     }
