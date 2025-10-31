@@ -10,14 +10,27 @@ else
     exit 1
 fi
 
-# Source the workspace setup file
+# Source/build the workspace setup if needed
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-WORKSPACE_SETUP_FILE="$SCRIPT_DIR/../ros/ttp_ws/install/setup.bash"
+WORKSPACE_DIR="$SCRIPT_DIR/../ros/ttp_ws"
+WORKSPACE_SETUP_FILE="$WORKSPACE_DIR/install/setup.bash"
+
+if [ ! -f "$WORKSPACE_SETUP_FILE" ]; then
+    echo "Workspace not built. Running rosdep and colcon build..." >&2
+    set -e
+    cd "$WORKSPACE_DIR"
+    # Install dependencies (ignore missing to avoid hard failure on optional deps)
+    rosdep update || true
+    rosdep install --from-paths src -r -y || true
+    colcon build --symlink-install
+    set +e
+fi
 
 if [ -f "$WORKSPACE_SETUP_FILE" ]; then
+    # shellcheck disable=SC1090
     source "$WORKSPACE_SETUP_FILE"
 else
-    echo "Warning: Workspace setup file not found at $WORKSPACE_SETUP_FILE. Continuing without it." >&2
+    echo "Warning: Workspace setup file still not found at $WORKSPACE_SETUP_FILE." >&2
 fi
 
 # Chain execution to the common project environment setup script
