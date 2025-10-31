@@ -445,7 +445,7 @@ class ConstraintHandler:
         if not not_yet_candidates and feasible_candidates:
             for feasible_candidate in feasible_candidates:
                 if feasible_candidate.is_critical:
-                    print(f"feasible_candidate: {feasible_candidate}")
+                    pass
         # Find the earliest logical start time among upcoming critical tasks
         crit_candidates = [c for c in not_yet_candidates if c.is_critical]
 

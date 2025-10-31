@@ -254,6 +254,9 @@ def result_save(
             and entry.subtask.execution.primitive_actions is not None
         )
     )
+    print(f"simulation_makespan: {simulation_makespan}")
+    print(f"computation_time: {computation_time}")
+    print(f"timing_success_rate_sim: {timing_success_rate_sim}")
 
     realworld_makespan = None
     if "ros" in approach_name:

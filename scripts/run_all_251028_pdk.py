@@ -417,7 +417,7 @@ def main() -> None:
     cloud_rendering: bool = config.get("cloud_rendering", False)
     num_runs_per_instruction: int = config.get("num_runs_per_instruction", 1)
     max_retries: int = config.get("max_retries", 10)
-    max_workers: int = config.get("max_workers", 1)
+    max_workers: int = config.get("max_workers", 10)
 
     is_dry_run: bool = args.dry_run
 
