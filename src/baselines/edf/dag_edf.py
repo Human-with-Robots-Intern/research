@@ -1,5 +1,7 @@
 import argparse
 import heapq
+import logging
+import re
 import time
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -14,6 +16,7 @@ from src.scheduler.action_handler import ActionHandler
 from src.simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.utils.common.logger import create_module_logger
 from src.utils.config.constants import RESULT_PATH
+from src.utils.get_state import save_scene_state
 from src.utils.io_utils import task_io
 from src.utils.io_utils.result_saver import result_save
 from src.utils.io_utils.task_io import (
@@ -22,9 +25,10 @@ from src.utils.io_utils.task_io import (
     list_task_files,
     load_scene_positions,
     load_task_data_from_file,
+    load_task_data_from_sampled_set,
 )
 from src.utils.ros_executor import RosExecutor
-from src.utils.get_state import save_scene_state
+from utils.task.task_util import TaskUtil
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
@@ -395,8 +399,14 @@ def parse_arguments():
     parser.add_argument(
         "-s",
         "--simulation",
-        default=False,
+        default=True,
         action="store_true",
+    )
+    parser.add_argument(
+        "--case",
+        type=str,
+        default=None,
+        help="The name of the case.",
     )
     parser.add_argument(
         "--headless",
@@ -419,8 +429,14 @@ def parse_arguments():
     parser.add_argument(
         "--instruction",
         type=str,
-        default=None,
+        default=2,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
+    )
+    parser.add_argument(
+        "--ablation-name",
+        type=str,
+        default=None,
+        help="The name of the ablation configuration.",
     )
     parser.add_argument(
         "--ros",
@@ -443,8 +459,15 @@ def parse_arguments():
         "--init_prior_mean",
         type=float,
         default=None,
-        help="베이지안 추정을 위한 초기 평균값 (기본값: 60.0)",
+        help="베이지안 추정을 위한 초기 평균값 (기본값: constants.py 값)",
     )
+    parser.add_argument(
+        "--init_prior_variance",
+        type=float,
+        default=None,
+        help="베이지안 추정을 위한 초기 분산값 (기본값: constants.py 값)",
+    )
+
     return parser.parse_args()
 
 
@@ -454,16 +477,18 @@ def main():
 
     args = parse_arguments()
 
-    # Handle INIT_PRIOR_MEAN override
-    if args.init_prior_mean is not None:
-        from src.utils.config.constants import set_init_prior_mean
+    # Dynamically override constants based on command-line arguments
+    from src.utils.config import constants
 
-        set_init_prior_mean(args.init_prior_mean)
+    if args.init_prior_mean is not None:
+        constants.set_init_prior_mean(args.init_prior_mean)
+    if args.init_prior_variance is not None:
+        constants.set_init_prior_variance(args.init_prior_variance)
 
     logger = create_module_logger(
         module_name=approach_name,
         log_file_path=Path(args.log_path) if args.log_path else None,
-        level=args.log_level,
+        level=logging.ERROR,
     )
     scene_name = args.scene
     controller = None
@@ -483,15 +508,29 @@ def main():
             action_handler = ActionHandler(nav_graph, real_world_mode=False)
 
         scene_poses = load_scene_positions(f"{scene_name}_positions.json")
+        if args.case:
+            # Load task data
+            input_natural_language = re.match(r"\d+_(.*)", args.instruction).group(1)
+            task_data = load_task_data_from_sampled_set(
+                args.case, scene_name, args.instruction
+            )
 
-        # Load the chosen task data
-        task_files = list_task_files(scene_name=scene_name)
-        if args.instruction:
-            
+            save_scene_state(
+                controller=controller,
+                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                scene_name=scene_name,
+                instruction=args.instruction,
+                approach_name=approach_name,
+                state_label="init",
+            )
+
+        elif args.instruction:
+            # Load the chosen task data
+            task_files = list_task_files(scene_name=scene_name)
             instruction = args.instruction
             input_natural_language = instruction
             task_data = None
-            
+
             try:
                 choice = int(instruction)
                 if 1 <= choice <= len(task_files):
@@ -501,12 +540,14 @@ def main():
             except ValueError:
                 # It's a natural language instruction, not a number
                 pass
-            save_scene_state(controller=controller, 
-                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
-                            scene_name=scene_name, 
-                            instruction=input_natural_language, 
-                            approach_name=approach_name,
-                            state_label="init")
+            save_scene_state(
+                controller=controller,
+                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                scene_name=scene_name,
+                instruction=input_natural_language,
+                approach_name=approach_name,
+                state_label="init",
+            )
             if task_data is None:
                 # It was a natural language instruction or an invalid number choice.
                 # In both cases, we treat it as a natural language instruction.
@@ -560,7 +601,7 @@ def main():
 
         # Phase 2: Execute simulation if requested
         if args.simulation:
-            
+
             simulation_current_time = 0.0
             # Execute each subtask in the schedule
             for entry in result_schedule:
@@ -574,12 +615,14 @@ def main():
                 entry.sim_nav_time = sim_nav_time
                 simulation_current_time += subtask_time
 
-            save_scene_state(controller=controller, 
-                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
-                            scene_name=scene_name, 
-                            instruction=input_natural_language, 
-                            approach_name=approach_name,
-                            state_label="end")
+            save_scene_state(
+                controller=controller,
+                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                scene_name=scene_name,
+                instruction=input_natural_language,
+                approach_name=approach_name,
+                state_label="end",
+            )
 
             approach_name = f"{approach_name}_simulation"
             result_args = {
@@ -592,9 +635,16 @@ def main():
                 "initial_plan_data": task_data,
                 "init_prior_mean": args.init_prior_mean,
             }
-            
+
+            if args.case:
+                result_args.update(
+                    {
+                        "task_name": args.instruction.split(".json")[0],
+                        "case_name": args.case,
+                    }
+                )
+
             result_save(**result_args)
-            
 
         if args.ros:
             ros_executor = RosExecutor()

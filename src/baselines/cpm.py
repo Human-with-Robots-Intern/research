@@ -4,16 +4,18 @@ import argparse
 import copy
 import heapq
 import os
+import re
 import sys
 import time
 from collections import defaultdict
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 from pathlib import Path
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 import networkx as nx
+from ai2thor.platform import CloudRendering
 from networkx import DiGraph
 
-from ai2thor.platform import CloudRendering
+from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
 from src.models.dataclass import (
     ActionResult,
     CompletedEntry,
@@ -22,27 +24,23 @@ from src.models.dataclass import (
     TaskExecutionStatus,
 )
 from src.models.task import Duration, Execution, Subtask
-
-
-# ROS imports
-
 from src.scheduler.action_handler import ActionHandler
-from src.utils.io_utils import task_io
-
-
-from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
 from src.simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.utils.common import create_module_logger
+from src.utils.get_state import save_scene_state
+from src.utils.io_utils import task_io
 from src.utils.io_utils.result_saver import result_save
 from src.utils.io_utils.task_io import (
     get_user_task_choice,
     list_task_files,
     load_scene_positions,
     load_task_data_from_file,
+    load_task_data_from_sampled_set,
 )
-from src.utils.task.task_util import TaskUtil
 from src.utils.ros_executor import RosExecutor
-from src.utils.get_state import save_scene_state
+from src.utils.task.task_util import TaskUtil
+
+# ROS imports
 
 
 class ExecutionPredictionInfo(NamedTuple):
@@ -74,6 +72,12 @@ def parse_arguments() -> argparse.Namespace:
         help="리셋 실행 여부 (default: True)",
     )
     parser.add_argument(
+        "--ablation-name",
+        type=str,
+        default=None,
+        help="The name of the ablation configuration.",
+    )
+    parser.add_argument(
         "-s",
         "--simulation",
         default=True,
@@ -92,6 +96,12 @@ def parse_arguments() -> argparse.Namespace:
         help="Use CloudRendering platform for AI2-THOR.",
     )
     parser.add_argument(
+        "--case",
+        type=str,
+        default=None,
+        help="The name of the case.",
+    )
+    parser.add_argument(
         "-l",
         "--log-level",
         type=str,
@@ -108,7 +118,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--instruction",
         type=str,
-        default=1,
+        default=2,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
@@ -121,8 +131,15 @@ def parse_arguments() -> argparse.Namespace:
         "--init_prior_mean",
         type=float,
         default=None,
-        help="베이지안 추정을 위한 초기 평균값 (기본값: 60.0)",
+        help="베이지안 추정을 위한 초기 평균값 (기본값: constants.py 값)",
     )
+    parser.add_argument(
+        "--init_prior_variance",
+        type=float,
+        default=None,
+        help="베이지안 추정을 위한 초기 분산값 (기본값: constants.py 값)",
+    )
+
     return parser.parse_args()
 
 
@@ -251,8 +268,16 @@ def find_critical_path(subtasks: List[Subtask]) -> List[Tuple[Subtask, float, bo
     Returns:
         List of tuples containing (subtask, interval, is_critical) for each node in critical path
     """
-    start_nodes = [n for n in constraints.nodes if constraints.in_degree(n) == 0 and constraints.out_degree(n) != 0]
-    end_nodes = [n for n in constraints.nodes if constraints.out_degree(n) == 0 and constraints.in_degree(n) != 0]
+    start_nodes = [
+        n
+        for n in constraints.nodes
+        if constraints.in_degree(n) == 0 and constraints.out_degree(n) != 0
+    ]
+    end_nodes = [
+        n
+        for n in constraints.nodes
+        if constraints.out_degree(n) == 0 and constraints.in_degree(n) != 0
+    ]
     # 모든 경로 파악
     all_paths: List[List[str]] = []
     for start in start_nodes:
@@ -320,7 +345,9 @@ def nav_and_wait_during_interval(
             f"[{next_subtask.name}] 첫 번째 액션이 NAVIGATE_TO가 아닙니다."
         )
     # Calculate navigation time
-    nav_time, nav_positions = compute_nav_time(next_subtask, current_state, action_handler)
+    nav_time, nav_positions = compute_nav_time(
+        next_subtask, current_state, action_handler
+    )
 
     if 0.0 < nav_time <= interval:
         # Create NAVIGATE subtask
@@ -350,9 +377,7 @@ def nav_and_wait_during_interval(
             name=f"WAIT {wait_time} to {next_subtask.name}",
             repetition=1,
             subtask_type="WAIT",
-            execution=Execution(
-                objects={}, primitive_actions=[f"WAIT {wait_time}"]
-            ),
+            execution=Execution(objects={}, primitive_actions=[f"WAIT {wait_time}"]),
             duration=Duration(type="WAIT", interval=wait_time),
             temporal_constraints=[],
         )
@@ -433,7 +458,9 @@ def get_final_entries(
                     critical_path[i + 1][0] if i + 1 < len(critical_path) else None
                 )
                 nav_time_to_succ = (
-                    compute_nav_time(succ_subtask, predicted_next_state, action_handler)[0]
+                    compute_nav_time(
+                        succ_subtask, predicted_next_state, action_handler
+                    )[0]
                     if succ_subtask
                     else 0.0
                 )
@@ -468,7 +495,10 @@ def get_final_entries(
                         shortest_ne_subtask
                     ].nav_time_to_succ
 
-                    if shortest_exec_info.cumulative_time <= remaining_interval - shortest_nav_time:
+                    if (
+                        shortest_exec_info.cumulative_time
+                        <= remaining_interval - shortest_nav_time
+                    ):
                         shortest_entry = CompletedEntry(
                             subtask=shortest_ne_subtask,
                             schedule_start_time=current_state.current_time,
@@ -495,8 +525,12 @@ def get_final_entries(
                 break
 
             # Execute longest fitting subtask
-            best_ne_subtask = max(candidate_ne_subtasks.items(), key=lambda item: item[1])[0]
-            best_exec_info = expected_ne_subtask_info[best_ne_subtask].predicted_exec_info
+            best_ne_subtask = max(
+                candidate_ne_subtasks.items(), key=lambda item: item[1]
+            )[0]
+            best_exec_info = expected_ne_subtask_info[
+                best_ne_subtask
+            ].predicted_exec_info
             interval_time_used += best_exec_info.cumulative_time
 
             final_entry_schedule.append(
@@ -517,7 +551,9 @@ def get_final_entries(
 
     # Schedule remaining unconstrained subtasks
     for left_subtask in local_subtasks_without_edge:
-        left_exec_info = offline_subtask_execution(current_state, left_subtask, action_handler)
+        left_exec_info = offline_subtask_execution(
+            current_state, left_subtask, action_handler
+        )
         final_entry_schedule.append(
             CompletedEntry(
                 subtask=left_subtask,
@@ -537,15 +573,17 @@ def get_final_entries(
 
 def main() -> None:
     """Main execution function for the CPM scheduler."""
-    
+
     approach_name = "cpm"
     args: argparse.Namespace = parse_arguments()
 
-    # Handle INIT_PRIOR_MEAN override
-    if args.init_prior_mean is not None:
-        from src.utils.config.constants import set_init_prior_mean
+    # Dynamically override constants based on command-line arguments
+    from src.utils.config import constants
 
-        set_init_prior_mean(args.init_prior_mean)
+    if args.init_prior_mean is not None:
+        constants.set_init_prior_mean(args.init_prior_mean)
+    if args.init_prior_variance is not None:
+        constants.set_init_prior_variance(args.init_prior_variance)
 
     logger = create_module_logger(
         module_name=approach_name,
@@ -571,12 +609,27 @@ def main() -> None:
             nav_graph = load_navigation_graph(controller)
             action_handler = ActionHandler(nav_graph)
 
-        scene_poses: Dict[str, Any] = load_scene_positions(f"{scene_name}_positions.json")
-        
-        # Load task data
-        task_files = list_task_files(scene_name)
+        scene_poses: Dict[str, Any] = load_scene_positions(
+            f"{scene_name}_positions.json"
+        )
+        if args.case:
+            # Load task data
+            input_natural_language = re.match(r"\d+_(.*)", args.instruction).group(1)
+            task_data = load_task_data_from_sampled_set(
+                args.case, scene_name, args.instruction
+            )
 
-        if args.instruction:
+            save_scene_state(
+                controller=controller,
+                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                scene_name=scene_name,
+                instruction=args.instruction,
+                approach_name=approach_name,
+                state_label="init",
+            )
+
+        elif args.instruction:
+            task_files = list_task_files(scene_name)
             instruction = args.instruction
             task_data = None
 
@@ -585,29 +638,39 @@ def main() -> None:
                 if 1 <= choice <= len(task_files):
                     task_file_name = task_files[choice - 1]
                     task_data = load_task_data_from_file(task_file_name)
-                    input_natural_language = Path(task_file_name).stem  # Pass only the file stem
+                    input_natural_language = Path(
+                        task_file_name
+                    ).stem  # Pass only the file stem
             except ValueError:
                 # It's a natural language instruction, not a number
                 input_natural_language = instruction
                 pass
 
-            save_scene_state(controller=controller, 
-                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
-                scene_name=scene_name, 
-                instruction=input_natural_language, 
+            save_scene_state(
+                controller=controller,
+                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                scene_name=scene_name,
+                instruction=input_natural_language,
                 approach_name=approach_name,
-                state_label="init")
+                state_label="init",
+            )
             if task_data is None:
                 # It was a natural language instruction or an invalid number choice.
                 # In both cases, we treat it as a natural language instruction.
                 task_data = {"instruction": instruction}
                 input_natural_language = instruction
         else:
-            task_file_name, choice = get_user_task_choice(task_files, scene_name=scene_name)
+            task_file_name, choice = get_user_task_choice(
+                task_files, scene_name=scene_name
+            )
             task_data = load_task_data_from_file(task_file_name)
-            input_natural_language = Path(task_file_name).stem # Pass only the file stem
+            input_natural_language = Path(
+                task_file_name
+            ).stem  # Pass only the file stem
             if choice != 0:
-                input_natural_language = Path(task_file_name).stem # Pass only the file stem
+                input_natural_language = Path(
+                    task_file_name
+                ).stem  # Pass only the file stem
 
         # Build tasks and constraints
         subtasks, constraints, bayesian_load = TaskUtil.build_tasks_and_constraints(
@@ -635,11 +698,10 @@ def main() -> None:
             critical_path, subtasks_without_edge, init_state, action_handler
         )
         computation_time = time.time() - start_time
-       
 
         # Run simulation if enabled
         if args.simulation:
-            
+
             simulation_time = 0.0
 
             for entry in final_scheduled_entries:
@@ -653,14 +715,17 @@ def main() -> None:
                 entry.execution_status = execution_status
                 entry.sim_nav_time = sim_nav_time
 
-            save_scene_state(controller=controller, 
-                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
-                            scene_name=scene_name, 
-                            instruction=input_natural_language, 
-                            approach_name=approach_name,
-                            state_label="end")
+            save_scene_state(
+                controller=controller,
+                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                scene_name=scene_name,
+                instruction=input_natural_language,
+                approach_name=approach_name,
+                state_label="end",
+            )
 
             approach_name = f"{approach_name}_simulation"
+
             result_args = {
                 "task_name": input_natural_language,
                 "approach_name": approach_name,
@@ -671,12 +736,23 @@ def main() -> None:
                 "initial_plan_data": task_data,
                 "init_prior_mean": args.init_prior_mean,
             }
+
+            if args.case:
+                result_args.update(
+                    {
+                        "task_name": args.instruction.split(".json")[0],
+                        "case_name": args.case,
+                    }
+                )
+
             result_save(**result_args)
             print("end")
         if args.ros:
             ros_executor = RosExecutor()
-            real_executed_scheduled_entries = ros_executor.execute_schedule(final_scheduled_entries)
-            
+            real_executed_scheduled_entries = ros_executor.execute_schedule(
+                final_scheduled_entries
+            )
+
             result_args = {
                 "task_name": input_natural_language,
                 "approach_name": f"{approach_name}_ros",
