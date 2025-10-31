@@ -490,7 +490,7 @@ class Action:
         # 카메라 각도 조정
         self.navi.adjust_camera_to_object(object_id)
         self.success_log(result, f"adjust camera to {object_id} for monitoring action")
-        time.sleep(MONITORING_DURATION)
+        time.sleep(ACTION_TIME_SLEEP)
 
         # 원위치로 회전
         if degree != 0:
@@ -502,7 +502,7 @@ class Action:
                 else:
                     self.controller.step(action="RotateRight", degrees=step_deg)
 
-        time.sleep(MONITORING_DURATION)
+        time.sleep(ACTION_TIME_SLEEP)
         return MONITORING_DURATION
 
     def wait(self, wait_time: float):
