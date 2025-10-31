@@ -1,5 +1,6 @@
 
-"""This module provides a class to handle ROS communication for executing subtasks."""
+"""This module provides a class to handle ROS communication for executing subtasks.
+"""
 
 import json
 import os
@@ -15,6 +16,8 @@ logger = create_module_logger(module_name=__name__, module_log=True)
 
 Position: TypeAlias = Tuple[float, float, float]
 
+from src.utils.translate import InstructionTranslator
+
 
 class SimulateObjectPosChange:
     """Simulates changes in object positions based on actions."""
@@ -22,7 +25,7 @@ class SimulateObjectPosChange:
     def __init__(self) -> None:
         """Initializes the object position simulator."""
         try:
-            with open("ros/ttp_ws/data/object_positions.json") as f:
+            with open("assets/ros/dynamic/object_positions.json") as f:
                 self.object_positions = json.load(f)
         except FileNotFoundError:
             logger.error("object_positions.json not found. Please check the path.")
@@ -48,7 +51,9 @@ class SimulateObjectPosChange:
                 self.object_positions[self.held_object] = self.object_positions[
                     receptacle_id.lower()
                 ]
-            with open("ros/ttp_ws/data/object_positions.json", "w") as f:
+            # Ensure directory exists before writing updated positions
+            os.makedirs("assets/ros/dynamic", exist_ok=True)
+            with open("assets/ros/dynamic/object_positions.json", "w") as f:
                 json.dump(self.object_positions, f, indent=4)
             self.held_object = None
 
@@ -69,6 +74,8 @@ class RosExecutor:
         self.held_object: Optional[str] = None
         self.ros_start_time: Optional[float] = None
         self.total_ros_time: float = 0.0
+        # Initialize client-side translator
+        self.translator = InstructionTranslator()
         logger.info(f"ROS Bridge URL set to: {self.ros_bridge_url}")
         self._check_server_health()
 
@@ -116,16 +123,19 @@ class RosExecutor:
                 success = True
             else:
                 try:
+                    translated_parts = self.translator.translate(primitive_action)
                     response = requests.post(
-                        f"{self.ros_bridge_url}/execute_action",
-                        json={"primitive_action": primitive_action},
-                        timeout=300,  # 5 minutes timeout for potentially long actions
+                        f"{self.ros_bridge_url}/execute_translated_action",
+                        json={"action_parts": translated_parts},
+                        timeout=300,
                     )
                     response.raise_for_status()
                     result = response.json()
                     success = result.get("success", False)
                 except requests.RequestException as e:
-                    logger.error(f"HTTP request for action '{primitive_action}' failed: {e}")
+                    logger.error(
+                        f"HTTP request for action '{primitive_action}' failed: {e}"
+                    )
                     success = False
 
             action_end_time = time.time()

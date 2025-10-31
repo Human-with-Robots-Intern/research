@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -13,17 +13,17 @@ from .ros_communicate import (
     init_ros_communication,
     shutdown_ros_communication,
 )
-from .translate import InstructionTranslator
 
 
-class ActionRequest(BaseModel):
-    """Represents the request model for an action to be executed.
+
+class ActionPartsRequest(BaseModel):
+    """Represents a request carrying already translated action parts.
 
     Attributes:
-        primitive_action: The primitive action string to be executed.
+        action_parts: The translated action payload to send to the robot.
     """
 
-    primitive_action: str
+    action_parts: List[Any]
 
 
 @asynccontextmanager
@@ -41,27 +41,25 @@ async def lifespan(app: FastAPI) -> None:
 
 
 app = FastAPI(lifespan=lifespan)
-translator = InstructionTranslator()
 
 
-@app.post("/execute_action")
-async def execute_action(action_request: ActionRequest) -> Dict[str, Any]:
-    """Execute a primitive action via ROS.
+@app.post("/execute_translated_action")
+async def execute_translated_action(parts_request: ActionPartsRequest) -> Dict[str, Any]:
+    """Execute a pre-translated primitive action via ROS.
 
-    This endpoint receives a primitive action, translates it, sends it to the
-    ROS service, and returns the result.
+    This endpoint receives already translated action parts from the client
+    (ttp container) and forwards them to the ROS service without reading
+    or translating any mapping/position files on the ROS side.
 
     Args:
-        action_request: The request containing the primitive action.
+        parts_request: The request containing translated action parts.
 
     Returns:
         A dictionary with the success status of the action.
     """
     try:
-        translated_action = translator.translate(action_request.primitive_action)
         loop = asyncio.get_event_loop()
-        success = await loop.run_in_executor(None, communicate, translated_action)
-
+        success = await loop.run_in_executor(None, communicate, parts_request.action_parts)
         if success:
             return {"success": True}
         else:

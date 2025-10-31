@@ -11,8 +11,6 @@ services:
     container_name: ttp
     volumes:
       - .:/app
-      # 여러 컨테이너에서 접근하는 dir을 명시적으로 노출
-      - ./ros/ttp_ws/data:/app/ros/ttp_ws/data:rw 
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
     devices:
       - /dev/dri:/dev/dri
@@ -29,8 +27,8 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
       - DISPLAY=${DISPLAY:-:99}
-      # HTTP bridge endpoint (service name of ros container)
-      - ROS_BRIDGE_URL=http://ros:8000
+      # HTTP bridge endpoint 
+      - ROS_BRIDGE_URL=${ROS_BRIDGE_URL:-http://ros:8000}
     # depends_on:
     #   ros:
     #     condition: service_healthy
@@ -48,8 +46,6 @@ services:
     container_name: ros
     volumes:
       - .:/app
-      # 여러 컨테이너에서 접근하는 dir을 명시적으로 노출
-      - ./ros/ttp_ws/data:/app/ros/ttp_ws/data:rw 
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
     devices:
       - /dev/dri:/dev/dri

@@ -481,20 +481,20 @@ def worker(
             return
 
         with file_copy_lock:
-            object_mapping = (
-                Path(__file__).parent.parent / "src/ros/ttp_ws/data/object_mapping.json"
+            object_init_positions = (
+                Path(__file__).parent.parent / "assets/ros/static/object_init_positions.json"
             )
             object_positions = (
-                Path(__file__).parent.parent
-                / "src/ros/ttp_ws/data/object_positions.json"
+                Path(__file__).parent.parent / "assets/ros/dynamic/object_positions.json"
             )
-            if object_mapping.exists():
-                shutil.copy2(object_mapping, object_positions)
+            if object_init_positions.exists():
+                object_positions.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(object_init_positions, object_positions)
                 logger.info(
                     f"Initialized {object_positions} for instruction {instruction}"
                 )
             else:
-                logger.warning(f"Source file {object_mapping} does not exist")
+                logger.warning(f"Source file {object_init_positions} does not exist")
 
     logger.info(f"task_name : {instruction}")
     logger.info(
