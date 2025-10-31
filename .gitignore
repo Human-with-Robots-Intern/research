@@ -26,7 +26,13 @@ pip-log.txt
 .cache
 *.cover
 .pytest_cache/
-
+*.json
+*.db
+*.csv
+.*.
+temp.py
+average_2.py
+action_fail_analysis.py
 # Jupyter
 .ipynb_checkpoints
 
