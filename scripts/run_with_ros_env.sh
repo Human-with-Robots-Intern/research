@@ -26,6 +26,11 @@ if [ ! -f "$WORKSPACE_SETUP_FILE" ]; then
     set +e
 fi
 
+# Always run an incremental build to pick up any source changes
+(
+    cd "$WORKSPACE_DIR" && colcon build --symlink-install
+) || true
+
 if [ -f "$WORKSPACE_SETUP_FILE" ]; then
     # shellcheck disable=SC1090
     source "$WORKSPACE_SETUP_FILE"
