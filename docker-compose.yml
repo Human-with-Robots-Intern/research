@@ -46,13 +46,9 @@ services:
     container_name: ros
     volumes:
       - .:/app
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    devices:
-      - /dev/dri:/dev/dri
+    
     ports:
       - "5680:5679"  # Python debugger port for ros
-      - "5902:5900"  # VNC port for ros
-      - "6081:6080"  # Web VNC port for ros
       - "8000:8000"  # FastAPI bridge port
     stdin_open: true
     tty: true
@@ -65,11 +61,7 @@ services:
       start_period: 10s
     restart: unless-stopped
     working_dir: /app
-    gpus: all
     environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=all
-      - DISPLAY=${DISPLAY:-:99}
       - PYTHONPATH=/app:/app/src:/app/ros/ttp_ws/ttp_client
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
     networks:
