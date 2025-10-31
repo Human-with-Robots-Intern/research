@@ -20,9 +20,17 @@ import yaml
 from src.utils.common import create_module_logger
 from src.utils.config.constants import ASSETS_PATH, LOG_PATH, SCRIPTS_PATH
 
+# Create a single timestamp for the entire script run
+RUN_TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
+
 # Initialize a global logger for the main script
 global logger
-logger = create_module_logger(module_name=__name__, module_log=True, level=logging.INFO)
+logger = create_module_logger(
+    module_name=__name__,
+    module_log=True,
+    level=logging.ERROR,
+    run_timestamp=RUN_TIMESTAMP,
+)
 MAX_RETRIES = 10
 
 
@@ -92,6 +100,7 @@ class ExperimentTask:
         init_prior_params (Dict[str, Any]): The parameters for the initial prior.
         file_copy_lock (threading.Lock): A lock for thread-safe file copying.
         max_retries (int): The maximum number of retries for the task.
+        log_dir_timestamp (str): The timestamp for the log directory.
     """
 
     baseline_info: Tuple[BaselineType, Path]
@@ -107,6 +116,7 @@ class ExperimentTask:
     init_prior_params: Dict[str, Any]
     file_copy_lock: threading.Lock
     max_retries: int
+    log_dir_timestamp: str
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -270,9 +280,7 @@ def worker(task: ExperimentTask) -> None:
     instr_path_obj = Path(task.instruction_path)
 
     log_file_name = f"{b_path.stem}_{task.ablation_name}_{task.init_prior_name}_{task.case_name}_{task.scene_name}_{instr_path_obj.stem}_{task.try_idx + 1}.log"
-    log_file_path = (
-        LOG_PATH / f"{datetime.now():%Y%m%d_%H%M}-worker_logs" / log_file_name
-    )
+    log_file_path = LOG_PATH / f"{task.log_dir_timestamp}-worker_logs" / log_file_name
     log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     logger.critical(
@@ -402,6 +410,8 @@ def main() -> None:
     """
     args = parse_arguments()
     config = load_config(args.config)
+    # Use the global timestamp defined at the top of the script
+    run_timestamp = RUN_TIMESTAMP
 
     is_simulation: bool = config.get("simulation", False)
     cloud_rendering: bool = config.get("cloud_rendering", False)
@@ -535,6 +545,7 @@ def main() -> None:
                             init_prior_params=init_prior_params,
                             file_copy_lock=file_copy_lock,
                             max_retries=max_retries,
+                            log_dir_timestamp=run_timestamp,
                         )
                         tasks_to_run.append(task)
 

@@ -32,6 +32,7 @@ def create_module_logger(
     module_log=False,
     level=logging.DEBUG,
     log_file_path: Optional[Path] = None,
+    run_timestamp: Optional[str] = None,
 ):
     """
     Creates and configures a logger instance.
@@ -52,6 +53,8 @@ def create_module_logger(
         level (int): The logging level.
         log_file_path (Optional[Path]): A specific path for the log file. If provided,
             it signals a multi-process worker context.
+        run_timestamp (Optional[str]): A fixed timestamp string (e.g., "20251031_2230")
+            to use for naming log files, ensuring consistency.
 
     Returns:
         logging.Logger: The configured logger instance.
@@ -77,7 +80,12 @@ def create_module_logger(
         log_file = log_file_path
     else:
         # Default log file for general (non-worker) logging.
-        log_file = LOG_PATH / "all_log" / f"{datetime.datetime.now():%Y%m%d_%H%M}.log"
+        timestamp = (
+            run_timestamp
+            if run_timestamp
+            else datetime.datetime.now().strftime("%Y%m%d_%H%M")
+        )
+        log_file = LOG_PATH / "all_log" / f"{timestamp}.log"
 
     log_file.parent.mkdir(parents=True, exist_ok=True)
     logger.addHandler(_get_file_handler(log_file, mode="a"))
