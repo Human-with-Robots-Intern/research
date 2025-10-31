@@ -120,7 +120,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--init_prior_mean",
         type=float,
-        default=None,
+        default=100,
         help="베이지안 추정을 위한 초기 평균값 (기본값: 60.0)",
     )
     return parser.parse_args()
