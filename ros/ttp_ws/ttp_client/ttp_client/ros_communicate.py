@@ -6,7 +6,7 @@ from typing import List
 import rclpy
 from rclpy.node import Node
 from robot_manager_interface.srv import RobotManager
-from .translate import InstructionTranslator
+
 
 _ros_client_node: RobotManagerClient | None = None
 
