@@ -518,8 +518,9 @@ def main():
             save_scene_state(
                 controller=controller,
                 output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                case_name=args.case,
                 scene_name=scene_name,
-                instruction=args.instruction,
+                instruction=args.instruction.split(".json")[0],
                 approach_name=approach_name,
                 state_label="init",
             )
@@ -544,7 +545,7 @@ def main():
                 controller=controller,
                 output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
                 scene_name=scene_name,
-                instruction=input_natural_language,
+                instruction=args.instruction.split(".json")[0],
                 approach_name=approach_name,
                 state_label="init",
             )
@@ -618,8 +619,9 @@ def main():
             save_scene_state(
                 controller=controller,
                 output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                case_name=args.case,
                 scene_name=scene_name,
-                instruction=input_natural_language,
+                instruction=args.instruction.split(".json")[0],
                 approach_name=approach_name,
                 state_label="end",
             )

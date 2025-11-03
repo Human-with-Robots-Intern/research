@@ -622,8 +622,9 @@ def main() -> None:
             save_scene_state(
                 controller=controller,
                 output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                case_name=args.case,
                 scene_name=scene_name,
-                instruction=args.instruction,
+                instruction=args.instruction.split(".json")[0],
                 approach_name=approach_name,
                 state_label="init",
             )
@@ -649,6 +650,7 @@ def main() -> None:
             save_scene_state(
                 controller=controller,
                 output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                case_name=args.case,
                 scene_name=scene_name,
                 instruction=input_natural_language,
                 approach_name=approach_name,
@@ -718,8 +720,9 @@ def main() -> None:
             save_scene_state(
                 controller=controller,
                 output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                case_name=args.case,
                 scene_name=scene_name,
-                instruction=input_natural_language,
+                instruction=args.instruction.split(".json")[0],
                 approach_name=approach_name,
                 state_label="end",
             )
@@ -746,7 +749,7 @@ def main() -> None:
                 )
 
             result_save(**result_args)
-            print("end")
+
         if args.ros:
             ros_executor = RosExecutor()
             real_executed_scheduled_entries = ros_executor.execute_schedule(
