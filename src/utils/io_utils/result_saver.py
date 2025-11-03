@@ -311,14 +311,14 @@ def result_save(
     output_path.mkdir(parents=True, exist_ok=True)
     approach_path.mkdir(parents=True, exist_ok=True)
 
-    visualize(
-        approach_name,
-        output_path,
-        constraints,
-        result_schedule,
-        initial_plan_data,
-        scene_name,
-    )
+    # visualize(
+    #     approach_name,
+    #     output_path,
+    #     constraints,
+    #     result_schedule,
+    #     initial_plan_data,
+    #     scene_name,
+    # )
     if dag_bayesian_meta_data:
         result_data = {"meta_data": dag_bayesian_meta_data, **result_data}
 

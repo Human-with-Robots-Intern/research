@@ -41,7 +41,7 @@ def get_all_object_states(controller: Controller) -> List[Dict[str, Any]]:
         "isOpen",
         "parentReceptacles",
         "isToggled",
-        "isFilledWithLiquid"
+        "isFilledWithLiquid",
     ]
     for obj in objects_metadata:
         state = {key: obj[key] for key in keys_to_keep if key in obj}
@@ -51,7 +51,13 @@ def get_all_object_states(controller: Controller) -> List[Dict[str, Any]]:
 
 
 def save_scene_state(
-    controller: Controller, output_path: Path, scene_name: str, instruction: str, approach_name: str,state_label: str
+    controller: Controller,
+    output_path: Path,
+    case_name: str,
+    scene_name: str,
+    instruction: str,
+    approach_name: str,
+    state_label: str,
 ) -> None:
     """scene에 있는 모든 객체의 현재 상태를 가져와 JSON 파일로 저장합니다.
 
@@ -61,8 +67,15 @@ def save_scene_state(
         controller: The AI2-THOR controller instance for the scene.
         output_path: 상태 파일이 저장될 경로.
         scene_name: 출력 파일 이름에 사용될 scene의 이름.
-    """ 
-    output_path = output_path/instruction/scene_name/approach_name/ f"{state_label}_state.json"
+    """
+    output_path = (
+        output_path
+        / case_name
+        / instruction
+        / scene_name
+        / approach_name
+        / f"{state_label}_state.json"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     object_states = get_all_object_states(controller)
@@ -95,4 +108,3 @@ if __name__ == "__main__":
 
         # controller를 중지합니다.
         controller.stop()
-
