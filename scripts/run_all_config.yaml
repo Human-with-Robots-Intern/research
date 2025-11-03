@@ -67,8 +67,8 @@ init_prior_configs:
 # Task Filtering
 # ------------------------------------------------------------------------------
 task_folder_name: "sampled_10_instruction_set_for_final_experiment" # Folder under assets/tasks/
-min_task_count: 4
-min_constraint_count: 3
+min_task_count: 0
+min_constraint_count: 0
 
 
 
