@@ -1,362 +1,262 @@
-from itertools import combinations, product
-import json
-from pathlib import Path
-import random
+"""Generates task instructions of varying difficulty for different floorplans."""
 
-def apply_filters(instruction_list):
-    # Convert to set for faster lookup
+import json
+import random
+from datetime import datetime
+from itertools import combinations
+from typing import Any, Dict, List, Set, Tuple
+
+from src.utils.config.constants import ASSETS_PATH
+
+# --- Constraint Definitions ---
+# 각 세트는 상호 배타적인 태스크 그룹을 나타냅니다.
+# 이는 주로 단일 자원(e.g., Pot, Microwave)의 동시 사용 제약을 반영합니다.
+# instruction 리스트는 각 그룹에서 최대 하나의 태스크만 포함해야 유효합니다.
+EXCLUSIVE_TASK_GROUPS: List[Set[str]] = [
+    # 1. 'Pot' 자원 제약 그룹: Pot은 하나이므로 관련된 행위는 동시에 일어날 수 없습니다.
+    #    'boil_potato'는 물을 채우고 끓이는 과정을 포함하는 상위 개념입니다.
+    {"boil_potato", "fill_pot_with_water", "boil_water_with_pot"},
+    # 2. 'Potato' 조리법 제약 그룹: 감자를 삶는 것과 전자레인지에 데우는 것은 동시에 할 수 없습니다.
+    {"boil_potato", "heat_the_potato_using_microwave"},
+    # 3. 'Bread' 조리법 제약 그룹: 빵을 데우는 두 가지 방법은 동시에 사용할 수 없습니다.
+    {"heat_the_bread_using_microwave", "slice_bread_and_toast_it_using_toaster"},
+    # 4. 'Microwave' 자원 제약 그룹: 전자레인지는 하나이므로 동시에 두 가지 다른 음식을 데울 수 없습니다.
+    {"heat_the_bread_using_microwave", "heat_the_potato_using_microwave"},
+    # 5. '음료' 준비 제약 그룹: 물컵을 준비하는 것과 커피를 만드는 것은 다른 종류의 음료 준비입니다.
+    {"prepare_a_water_cup", "make_a_coffee"},
+    # 6. '농산물 처리' 논리 제약 그룹: 씻는 행위와 냉장고에 넣는 행위를 동시에 명령하지 않습니다.
+    {"wash_apple_and_lettuce", "put_apple_and_lettuce_in_fridge"},
+]
+
+
+def load_and_prepare_floor_plan_tasks() -> Dict[str, Any]:
+    """Load and prepare task combinations.
+    Returns:
+        A dictionary containing 'common_tasks' and scene-specific 'mixed_tasks'.
+    """
+    config_path = ASSETS_PATH / "tasks" / "floorplan_tasks.json"
+    with open(config_path) as f:
+        data: Dict[str, Any] = json.load(f)
+
+    common_tasks = data.get("common", {})
+
+    floorplan_specific_tasks = {
+        k: v for k, v in data.items() if k not in ["common", "metadata"]
+    }
+
+    common_tasks_tuple = (
+        common_tasks.get("critical", []),
+        common_tasks.get("non_critical", []),
+        common_tasks.get("not_constrained", []),
+    )
+
+    mixed_tasks: Dict[str, Tuple[List[str], List[str], List[str]]] = {}
+    for scene_name, specific_tasks in floorplan_specific_tasks.items():
+        mixed_tasks[scene_name] = (
+            common_tasks_tuple[0] + specific_tasks.get("critical", []),
+            common_tasks_tuple[1] + specific_tasks.get("non_critical", []),
+            common_tasks_tuple[2] + specific_tasks.get("not_constrained", []),
+        )
+
+    return {"common_tasks": common_tasks_tuple, "mixed_tasks": mixed_tasks}
+
+
+def apply_filters(instruction_list: List[str]) -> bool:
+    """Instruction 리스트에 대해 정의된 자원 및 논리 제약조건들을 적용합니다.
+
+    이 함수는 상호 배타적인 태스크 그룹(EXCLUSIVE_TASK_GROUPS)을 기반으로,
+    주어진 instruction 리스트가 유효한지 검사합니다.
+    하나의 instruction 리스트에 각 그룹의 태스크가 1개를 초과하여 포함될 수 없습니다.
+
+    예시:
+    - ["boil_potato", "make_a_coffee"] -> 유효 (다른 그룹)
+    - ["boil_potato", "fill_pot_with_water"] -> 유효하지 않음 ('Pot' 자원 그룹 내 2개)
+
+    Args:
+        instruction_list: 검사할 태스크 문자열의 리스트.
+
+    Returns:
+        instruction 리스트가 모든 제약조건을 만족하면 True, 그렇지 않으면 False.
+    """
     instruction_set = set(instruction_list)
-    
-    # Constraint 1: boil_potato and fill_pot_with_water cannot coexist
-    if "boil_potato" in instruction_set and "fill_pot_with_water" in instruction_set:
-        return False
-    
-    # Constraint 2: boil_potato and heat_the_potato_using_microwave cannot coexist
-    if "boil_potato" in instruction_set and "heat_the_potato_using_microwave" in instruction_set:
-        return False
-    
-    # Constraint 3: heat_the_bread_using_microwave and heat_the_potato_using_microwave cannot coexist
-    if "heat_the_bread_using_microwave" in instruction_set and "heat_the_potato_using_microwave" in instruction_set:
-        return False
-    
-    # Constraint 4: prepare_a_water_cup and make_a_coffee cannot coexist
-    if "prepare_a_water_cup" in instruction_set and "make_a_coffee" in instruction_set:
-        return False
-    
-    # Constraint 5: wash_apple_and_lettuce and put_apple_and_lettuce_in_fridge cannot coexist
-    if "wash_apple_and_lettuce" in instruction_set and "put_apple_and_lettuce_in_fridge" in instruction_set:
-        return False
-    
+
+    for group in EXCLUSIVE_TASK_GROUPS:
+        # 현재 instruction 리스트에 포함된 그룹 내 태스크들을 찾습니다.
+        found_tasks = instruction_set.intersection(group)
+        # 만약 한 그룹에서 1개보다 많은 태스크가 발견되면, 제약조건 위반입니다.
+        if len(found_tasks) > 1:
+            return False
+
+    # 모든 제약조건 그룹을 통과하면 유효한 instruction 리스트입니다.
     return True
 
-def _generate_and_sample_instructions(base_list, combo_list, combo_size, max_samples=5):
-    """Helper function to generate combinations, filter, format, and sample instructions."""
+
+def _generate_combinations(
+    base_list: List[str],
+    combo_list: List[str],
+    combo_size: int,
+) -> List[str]:
+    """Generate all possible instruction combinations based on a recipe."""
     temp_instructions = []
     for combo in combinations(combo_list, combo_size):
         instruction_list = base_list + list(combo)
         if apply_filters(instruction_list):
             instruction = " and ".join(instruction_list)
             temp_instructions.append(instruction)
-    return random.sample(temp_instructions, min(max_samples, len(temp_instructions)))
+    return temp_instructions
 
-def generate_simple_instructions(non_critical_list, not_constrained_list):
-    """Generates simple instructions (1-2 non-critical + 3-4 not-constrained, total 5)."""
-    simple_instructions = []
-    
-    # Case 1: 1 non-critical + 4 not-constrained
-    if len(not_constrained_list) >= 4:
-        for non_critical in non_critical_list:
-            simple_instructions.extend(
-                _generate_and_sample_instructions([non_critical], not_constrained_list, 4)
+
+def generate_instructions_for_case(
+    num_tasks: int,
+    num_constraints: int,
+    critical_list: List[str],
+    non_critical_list: List[str],
+    not_constrained_list: List[str],
+) -> List[str]:
+    """Generate instructions for a specific case of task and constraint counts."""
+    # Validate if generation is possible
+    if num_constraints > num_tasks:
+        return []
+    if num_constraints > len(critical_list):
+        return []
+
+    num_non_critical_tasks = num_tasks - num_constraints
+    non_critical_pool = non_critical_list + not_constrained_list
+
+    if num_non_critical_tasks < 0 or num_non_critical_tasks > len(non_critical_pool):
+        return []
+
+    generated_instructions: List[str] = []
+
+    # Iterate through all combinations of critical tasks
+    for critical_combo in combinations(critical_list, num_constraints):
+        # For each critical combo, generate combinations of non-critical tasks
+        base_list = list(critical_combo)
+        generated_instructions.extend(
+            _generate_combinations(base_list, non_critical_pool, num_non_critical_tasks)
+        )
+
+    return list(set(generated_instructions))  # Return unique instructions
+
+
+def main() -> None:
+    """Generate instructions for a 4x4 matrix of task and constraint counts."""
+    # 0. Load existing instructions if the file exists
+    output_path = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata.json"
+    existing_instructions_path = (
+        ASSETS_PATH / "tasks" / "decomposed_merged_251031_metadata.json"
+    )
+    existing_instructions_by_case = {}
+    if existing_instructions_path.exists():
+        print(
+            f"Found existing instruction file at {existing_instructions_path}. Loading to merge."
+        )
+        with open(existing_instructions_path, "r", encoding="utf-8") as f:
+            existing_instructions_by_case = json.load(f).get("instructions_by_case", {})
+
+    # 1. Load and prepare task data
+    prepared_data = load_and_prepare_floor_plan_tasks()
+    common_tasks = prepared_data["common_tasks"]
+    mixed_tasks_by_scene = prepared_data["mixed_tasks"]
+
+    # This dictionary will hold all generated instructions, structured by case
+    all_generated_instructions: Dict[str, Any] = {}
+
+    task_counts = range(2, 6)  # Number of tasks: 2, 3, 4, 5
+    constraint_counts = range(
+        0, 5
+    )  # Number of constraints (critical tasks): 0, 1, 2, 3
+
+    # Define sampling limits based on intent in comments
+    MAX_COMMON_INSTRUCTIONS = 30
+    MAX_SCENE_INSTRUCTIONS = 0
+
+    # 2. Loop through all 16 cases
+    for num_t in task_counts:
+        for num_c in constraint_counts:
+            case_key = f"tasks_{num_t}_constraints_{num_c}"
+            print(f"--- Processing instructions for: {case_key} ---")
+
+            existing_case_data = existing_instructions_by_case.get(case_key, {})
+
+            # --- Part 3: Common Instructions ---
+            # Generate all possible common instructions
+            all_common_instructions = generate_instructions_for_case(
+                num_tasks=num_t,
+                num_constraints=num_c,
+                critical_list=common_tasks[0],
+                non_critical_list=common_tasks[1],
+                not_constrained_list=common_tasks[2],
             )
-            
-    # Case 2: 2 non-critical + 3 not-constrained
-    if len(non_critical_list) >= 2 and len(not_constrained_list) >= 3:
-        for non_critical_combo in combinations(non_critical_list, 2):
-            simple_instructions.extend(
-                _generate_and_sample_instructions(list(non_critical_combo), not_constrained_list, 3)
+            # Get existing instructions and create a pool of new candidates
+            existing_common_set = set(existing_case_data.get("common", []))
+            new_common_pool = sorted(
+                list(set(all_common_instructions) - existing_common_set)
             )
 
-    return simple_instructions
+            # Sample a fixed number of purely new instructions
+            num_to_sample = min(MAX_COMMON_INSTRUCTIONS, len(new_common_pool))
+            sampled_new_common = random.sample(new_common_pool, num_to_sample)
 
-def generate_normal_instructions(critical_list, non_critical_list, not_constrained_list):
-    """Generates normal instructions (1 critical + 1 non-critical + 3 not-constrained, total 5)."""
-    normal_instructions = []
-    if len(not_constrained_list) >= 3:
-        for critical_item in critical_list:
-            for non_critical_item in non_critical_list:
-                normal_instructions.extend(
-                    _generate_and_sample_instructions([critical_item, non_critical_item], not_constrained_list, 3)
+            # The result is ONLY the newly sampled instructions
+            final_common = sorted(sampled_new_common)
+            case_result: Dict[str, Any] = {"common": final_common}
+            final_common_set = set(final_common)
+
+            # --- Part 4: Scene-Specific Instructions ---
+            for scene_name, tasks in mixed_tasks_by_scene.items():
+                # Generate all possible mixed instructions
+                mixed_instructions = generate_instructions_for_case(
+                    num_tasks=num_t,
+                    num_constraints=num_c,
+                    critical_list=tasks[0],
+                    non_critical_list=tasks[1],
+                    not_constrained_list=tasks[2],
                 )
-    return normal_instructions
+                # Filter out any that are now in the final common set
+                distinct_mixed = [
+                    inst for inst in mixed_instructions if inst not in final_common_set
+                ]
 
-def generate_complicated_instructions(critical_list, non_critical_list, not_constrained_list):
-    """Generates complicated instructions (2+ critical + 0-1 non-critical + 2 not-constrained, total 5)."""
-    complicated_instructions = []
+                # Get existing instructions and find new candidates
+                existing_scene_set = set(existing_case_data.get(scene_name, []))
+                new_scene_pool = sorted(list(set(distinct_mixed) - existing_scene_set))
 
-    # Case 1: 2 critical + 1 non-critical + 2 not-constrained
-    if len(critical_list) >= 2 and len(not_constrained_list) >= 2:
-        for critical_combo in combinations(critical_list, 2):
-            for non_critical in non_critical_list:
-                complicated_instructions.extend(
-                    _generate_and_sample_instructions(list(critical_combo) + [non_critical], not_constrained_list, 2)
-                )
+                # Sample a fixed number of purely new instructions
+                num_to_sample = min(MAX_SCENE_INSTRUCTIONS, len(new_scene_pool))
+                sampled_new_scene = random.sample(new_scene_pool, num_to_sample)
 
-    # Case 2: 3 critical + 0 non-critical + 2 not-constrained
-    if len(critical_list) >= 3 and len(not_constrained_list) >= 2:
-        for critical_combo in combinations(critical_list, 3):
-            complicated_instructions.extend(
-                _generate_and_sample_instructions(list(critical_combo), not_constrained_list, 2)
-            )
-            
-    return complicated_instructions
+                # The result is ONLY the newly sampled instructions
+                final_scene = sorted(sampled_new_scene)
+                case_result[scene_name] = final_scene
 
-def generate_instructions(critical_list, non_critical_list, not_constrained_list):
-    """Generates simple, normal, and complicated instructions based on input lists."""
-    simple = generate_simple_instructions(non_critical_list, not_constrained_list)
-    normal = generate_normal_instructions(critical_list, non_critical_list, not_constrained_list)
-    complicated = generate_complicated_instructions(critical_list, non_critical_list, not_constrained_list)
-    return simple, normal, complicated
+            all_generated_instructions[case_key] = case_result
 
-Floorplan_kitchen_critical_list = [
-    "boil_potato",
-    "cook_egg",
-    "fill_pot_with_water"
-]
-
-Floorplan_kitchen_non_critical_list = [
-    "heat_the_bread_using_microwave",
-    "make_a_coffee",
-    "heat_the_potato_using_microwave"
-]
-
-Floorplan_kitchen_not_constrained_list = [
-    "wash_apple_and_lettuce",
-    "put_apple_and_lettuce_in_fridge",
-    "wash_all_fork_and_spoon",
-    "set_the_table",
-    "prepare_a_water_cup",
-    "put_saltshaker_on_the_table"
-]
-
-# Floorplan1
-Floorplan1_critical_list = [
-    "boil_potato", 
-    "cook_egg",
-    "fill_pot_with_water", 
-    "boil_water_with_kettle", 
-    "fill_water_inside_the_bottle"
-]
-Floorplan1_non_critical_list = [
-    "heat_the_bread_using_microwave", 
-    "make_a_coffee", 
-    "heat_the_potato_using_microwave"
-]
-Floorplan1_not_constrained_list = [
-    "wash_apple_and_lettuce", 
-    "put_apple_and_lettuce_in_fridge", 
-    "prepare_a_water_cup", 
-    "wash_all_fork_and_spoon", 
-    "throw_away_paper_towel_roll", 
-    "put_the_wine_bottle_inside_a_cabinet", 
-    "put_the_creditcard_on_the_countertop", 
-    "put_the_book_in_cabinet", 
-    "set_the_table"
-]
-
-# Floorplan7
-Floorplan7_critical_list = [
-    "boil_potato", 
-    "cook_egg",
-    "fill_pot_with_water", 
-    "boil_water_with_kettle"
-]
-Floorplan7_non_critical_list = [
-    "heat_the_bread_using_microwave", 
-    "make_a_coffee", 
-    "heat_the_potato_using_microwave"
-]
-Floorplan7_not_constrained_list = [
-    "wash_apple_and_lettuce", 
-    "put_apple_and_lettuce_in_fridge", 
-    "wash_all_fork_and_spoon", 
-    "set_the_table", 
-    "put_the_wine_bottle_inside_a_cabinet", 
-    "put_a_statue_on_the_table"
-]
-
-# Floorplan13
-Floorplan13_critical_list = [
-    "boil_potato", 
-    "cook_egg",
-    "fill_pot_with_water"
-]
-Floorplan13_non_critical_list = [
-    "heat_the_bread_using_microwave", 
-    "make_a_coffee", 
-    "heat_the_potato_using_microwave"
-]
-Floorplan13_not_constrained_list = [
-    "wash_apple_and_lettuce", 
-    "put_apple_and_lettuce_in_fridge", 
-    "wash_all_fork_and_spoon", 
-    "set_the_table", 
-    "throw_away_paper_towel_roll", 
-    "put_the_pencil_on_somewhere"
-]
-
-# Floorplan18
-Floorplan18_critical_list = [
-    "boil_potato", 
-    "cook_egg",
-    "fill_pot_with_water",
-    "boil_water_with_kettle"
-]
-Floorplan18_non_critical_list = [
-    "heat_the_bread_using_microwave", 
-    "make_a_coffee", 
-    "heat_the_potato_using_microwave"
-]
-Floorplan18_not_constrained_list = [
-    "wash_apple_and_lettuce", 
-    "put_apple_and_lettuce_in_fridge", 
-    "wash_all_fork_and_spoon", 
-    "set_the_table", 
-    "throw_away_paper_towel_roll", 
-    "roll_up_down_the_blinds", 
-    "put_something_inside_the_safe"
-]
-
-# Floorplan27
-Floorplan27_critical_list = [
-    "boil_potato", 
-    "cook_egg",
-    "fill_pot_with_water"
-]
-Floorplan27_non_critical_list = [
-    "heat_the_bread_using_microwave", 
-    "make_a_coffee", 
-    "heat_the_potato_using_microwave"
-]
-Floorplan27_not_constrained_list = [
-    "wash_apple_and_lettuce", 
-    "put_apple_and_lettuce_in_fridge", 
-    "wash_all_fork_and_spoon", 
-    "set_the_table", 
-    "wash_two_ladles", 
-    "put_the_wine_bottle_inside_a_cabinet"
-]
-
-# Floorplan_bathroom
-Floorplan_bathroom_critical_list = [
-    "fill_bathtub_with_water_with_shower_head",
-    "clean_the_toilet"
-]
-
-Floorplan_bathroom_non_critical_list = [
-    "wet_the_handtowel_with_water",
-    "wet_the_towel_with_water"
-]
-
-Floorplan_bathroom_not_constrained_list = [
-    "place_toilet_paper_on_the_toilet_paper_holder",
-    "turn_on_the_candle",
-    "turn_on_the_light",
-    "throw_away_cloth",
-    "close_shower_curtain"
-]
-
-# Floorplan415
-Floorplan415_critical_list = [
-    "fill_bathtub_with_water_with_shower_head",
-    "clean_the_toilet",
-]
-Floorplan415_non_critical_list = [
-    "wet_the_handtowel_with_water",
-    "wet_the_towel_with_water"
-]
-Floorplan415_not_constrained_list = [
-    "place_toilet_paper_on_the_toilet_paper_holder",
-    "turn_on_the_candle",
-    "turn_on_the_light",
-    "throw_away_cloth",
-    "close_shower_curtain"
-]
-
-# Floorplan422
-Floorplan422_critical_list = [
-    "fill_bathtub_with_water_with_shower_head",
-    "clean_the_toilet",
-]
-Floorplan422_non_critical_list = [
-    "wet_the_handtowel_with_water",
-    "wet_the_towel_with_water"
-]
-Floorplan422_not_constrained_list = [
-    "place_toilet_paper_on_the_toilet_paper_holder",
-    "turn_on_the_candle",
-    "turn_on_the_light",
-    "throw_away_cloth",
-    "close_shower_curtain",
-    "put_soap_bar_in_a_cabinet",
-    "put_tissue_box_inside_the_drawer",
-    "throw_away_empty_toilet_paper_on_the_counter_top"
-]
-
-# Floorplan426
-Floorplan426_critical_list = [
-    "fill_bathtub_with_water_with_shower_head",
-    "clean_the_toilet",
-]
-Floorplan426_non_critical_list = [
-    "wet_the_handtowel_with_water",
-    "wet_the_towel_with_water"
-]
-Floorplan426_not_constrained_list = [
-    "place_toilet_paper_on_the_toilet_paper_holder",
-    "turn_on_the_candle",
-    "turn_on_the_light",
-    "throw_away_cloth",
-    "close_shower_curtain",
-    "put_soap_bar_in_a_cabinet",
-    "put_tissue_box_inside_the_drawer",
-    "throw_away_empty_toilet_paper_on_the_counter_top"
-]
-# Floorplan427
-Floorplan427_critical_list = [
-    "fill_bathtub_with_water_with_shower_head",
-    "clean_the_toilet",
-    "clean_the_sink",
-]   
-Floorplan427_non_critical_list = [
-    "wet_the_handtowel_with_water",
-    "wet_the_towel_with_water"
-]
-Floorplan427_not_constrained_list = [
-    "place_toilet_paper_on_the_toilet_paper_holder",
-    "turn_on_the_candle",
-    "turn_on_the_light",
-    "throw_away_cloth",
-    "close_shower_curtain",
-    "put_tissue_box_inside_a_drawer",
-    "put_a_soap_bar_on_the_sink",
-    "put_the_candle_inside_the_drawer",
-]
-
-# Generate instructions for each floorplan
-floorplans = {
-    "Floorplan_kitchen": (Floorplan_kitchen_critical_list, Floorplan_kitchen_non_critical_list, Floorplan_kitchen_not_constrained_list),
-    "Floorplan1": (Floorplan1_critical_list, Floorplan1_non_critical_list, Floorplan1_not_constrained_list),
-    "Floorplan7": (Floorplan7_critical_list, Floorplan7_non_critical_list, Floorplan7_not_constrained_list),
-    "Floorplan13": (Floorplan13_critical_list, Floorplan13_non_critical_list, Floorplan13_not_constrained_list),
-    "Floorplan18": (Floorplan18_critical_list, Floorplan18_non_critical_list, Floorplan18_not_constrained_list),
-    "Floorplan27": (Floorplan27_critical_list, Floorplan27_non_critical_list, Floorplan27_not_constrained_list),
-    "Floorplan_bathroom": (Floorplan_bathroom_critical_list, Floorplan_bathroom_non_critical_list, Floorplan_bathroom_not_constrained_list),
-    "Floorplan401": (Floorplan401_critical_list, Floorplan401_non_critical_list, Floorplan401_not_constrained_list),
-    "Floorplan415": (Floorplan415_critical_list, Floorplan415_non_critical_list, Floorplan415_not_constrained_list),
-    "Floorplan422": (Floorplan422_critical_list, Floorplan422_non_critical_list, Floorplan422_not_constrained_list),
-    "Floorplan426": (Floorplan426_critical_list, Floorplan426_non_critical_list, Floorplan426_not_constrained_list),
-    "Floorplan427": (Floorplan427_critical_list, Floorplan427_non_critical_list, Floorplan427_not_constrained_list),
-}
-
-# Generate instructions for each floorplan and store in a dictionary
-instructions_dict = {}
-for floorplan_name, (critical, non_critical, not_constrained) in floorplans.items():
-    simple, normal, complicated = generate_instructions(critical, non_critical, not_constrained)
-    
-    instructions_dict[floorplan_name] = {
-        "simple": [f"{instruction}" for instruction in simple],
-        "normal": [f"{instruction}" for instruction in normal],
-        "complicated": [f"{instruction}" for instruction in complicated]
+    # 5. Assemble the final output with metadata
+    instruction_counts_by_case = {
+        case_key: {
+            scope: len(instructions) for scope, instructions in case_data.items()
+        }
+        for case_key, case_data in all_generated_instructions.items()
     }
 
-# Create the final dictionary structure
-output_dict = {"instructions": instructions_dict}
+    final_output = {
+        "metadata": {
+            "date": datetime.now().strftime("%Y-%m-%d, %H:%M:%S"),
+            "generation_criteria": "tasks_and_constraints_count",
+            "task_counts": list(task_counts),
+            "constraint_counts": list(constraint_counts),
+            "instruction_counts_by_case": instruction_counts_by_case,
+        },
+        "instructions_by_case": all_generated_instructions,
+    }
 
-# Get the current file's directory
-current_dir = Path(__file__).parent
+    # 6. Save the final dictionary to a single JSON file
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(final_output, f, indent=4)
 
-# Save to JSON file
-output_path = current_dir / "instructions_len_5.json"
-with open(output_path, 'w') as f:
-    json.dump(output_dict, f, indent=4) 
+    print(f"\nSuccessfully generated and merged instructions to {output_path}")
+
+
+if __name__ == "__main__":
+    main()

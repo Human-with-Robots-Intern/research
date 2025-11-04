@@ -18,57 +18,48 @@ else:
     say("I can't find the mug.")
 
 # wash apple and lettuce
-apple_id = get_obj_id('apple')
-if apple_id:
-    move_to(apple_id)
-    pickup(apple_id)
-    sinkbasin_id = get_obj_id('sinkbasin')
-    move_to(sinkbasin_id)
-    faucet_id = get_obj_id('faucet')
-    toggle_on(faucet_id)
-    put(sinkbasin_id)
-    toggle_off(faucet_id)
-    pickup(apple_id)
-    countertop_id = get_obj_id('countertop')
-    move_to(countertop_id)
-    put(countertop_id)
-else:
-    say("I can't find the apple.")
-
-lettuce_id = get_obj_id('lettuce')
-if lettuce_id:
-    move_to(lettuce_id)
-    pickup(lettuce_id)
-    sinkbasin_id = get_obj_id('sinkbasin')
-    move_to(sinkbasin_id)
-    faucet_id = get_obj_id('faucet')
-    toggle_on(faucet_id)
-    put(sinkbasin_id)
-    toggle_off(faucet_id)
-    pickup(lettuce_id)
-    countertop_id = get_obj_id('countertop')
-    move_to(countertop_id)
-    put(countertop_id)
-else:
-    say("I can't find the lettuce.")
+for item in ['apple', 'lettuce']:
+    item_id = get_obj_id(item)
+    if item_id:
+        move_to(item_id)
+        pickup(item_id)
+        sinkbasin_id = get_obj_id('sinkbasin')
+        move_to(sinkbasin_id)
+        faucet_id = get_obj_id('faucet')
+        toggle_on(faucet_id)
+        if parse_question(f'isn\'t {item} in hand?'):
+            move_to(item_id)
+            pickup(item_id)
+            move_to(sinkbasin_id)
+        put(sinkbasin_id)
+        toggle_off(faucet_id)
+        pickup(item_id)
+        move_to(countertop_id)
+        if parse_question(f'isn\'t {item} in hand?'):
+            move_to(item_id)
+            pickup(item_id)
+            move_to(countertop_id)
+        put(countertop_id)
+    else:
+        say(f"I can't find the {item}.")
 
 # wash all fork and spoon
-fork_id = get_obj_id('fork')
-if fork_id:
-    move_to(fork_id)
-    pickup(fork_id)
-    sinkbasin_id = get_obj_id('sinkbasin')
-    move_to(sinkbasin_id)
-    faucet_id = get_obj_id('faucet')
-    toggle_on(faucet_id)
-    put(sinkbasin_id)
-    toggle_off(faucet_id)
-    pickup(fork_id)
-    countertop_id = get_obj_id('countertop')
-    move_to(countertop_id)
-
-# is mug filled with coffee?.
-mug = get_obj_id('mug')
-true_states = get_true_states(mug)
-ret_val = any("filled with coffee".lower() in state.lower() for state in true_states)
+for utensil in ['fork', 'spoon']:
+    utensil_id = get_obj_id(utensil)
+    if utensil_id:
+        move_to(utensil_id)
+        pickup(utensil_id)
+        sinkbasin_id = get_obj_id('sinkbasin')
+        move_to(sinkbasin_id)
+        faucet_id = get_obj_id('faucet')
+        toggle_on(faucet_id)
+        if parse_question(f'isn\'t {utensil} in hand?'):
+            move_to(utensil_id)
+            pickup(utensil_id)
+            move_to(sinkbasin_id)
+        put(sinkbasin_id)
+        toggle_off(faucet_id)
+        pickup(utensil_id)
+        move_to(countertop_id)
+        if parse_question(f'is
 

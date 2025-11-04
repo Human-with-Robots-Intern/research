@@ -6,7 +6,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from networkx import DiGraph
 
@@ -225,6 +225,8 @@ def result_save(
     log_level: str = "INFO",
     base_result_path: Path | None = None,
     init_prior_mean: float | None = None,
+    case_name: Optional[str] = None,
+    dag_bayesian_meta_data: Optional[Dict] = None,
 ):
     global log
     if init_prior_mean is None:
@@ -252,6 +254,9 @@ def result_save(
             and entry.subtask.execution.primitive_actions is not None
         )
     )
+    print(f"simulation_makespan: {simulation_makespan}")
+    print(f"computation_time: {computation_time}")
+    print(f"timing_success_rate_sim: {timing_success_rate_sim}")
 
     realworld_makespan = None
     if "ros" in approach_name:
@@ -288,7 +293,15 @@ def result_save(
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = result_path_with_prior / f"{task_name}_{num}" / scene_name
+        if case_name:
+            output_path = (
+                result_path_with_prior
+                / f"{case_name}"
+                / f"{task_name}_{num}"
+                / scene_name
+            )
+        else:
+            output_path = result_path_with_prior / f"{task_name}_{num}" / scene_name
         approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():
@@ -298,14 +311,17 @@ def result_save(
     output_path.mkdir(parents=True, exist_ok=True)
     approach_path.mkdir(parents=True, exist_ok=True)
 
-    visualize(
-        approach_name,
-        output_path,
-        constraints,
-        result_schedule,
-        initial_plan_data,
-        scene_name,
-    )
+    # visualize(
+    #     approach_name,
+    #     output_path,
+    #     constraints,
+    #     result_schedule,
+    #     initial_plan_data,
+    #     scene_name,
+    # )
+    if dag_bayesian_meta_data:
+        result_data = {"meta_data": dag_bayesian_meta_data, **result_data}
+
     with file_path.open("w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=4)
 

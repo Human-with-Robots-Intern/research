@@ -1,5 +1,7 @@
 from pathlib import Path
 
+MONITORING_ENABLED = True
+
 # ========== 경로 설정 ==========
 ROOT_PATH = Path(__file__).resolve().parents[3]
 ASSETS_PATH = ROOT_PATH / "assets"
@@ -16,7 +18,7 @@ LIVING_ROOM_PATH = SCENE_KNOWLEDGE_PATH / "living_room"
 BAYESIAN_PATH = SCENE_KNOWLEDGE_PATH / "bayesian"
 
 PROMPT_PATH = ASSETS_PATH / "prompts"
-TASK_PATH = ASSETS_PATH / "tasks"
+TASK_PATH = ASSETS_PATH / "legacy_task" / "tasks"
 RESULT_PATH = ASSETS_PATH / "results"
 
 # ========== 시뮬레이션 관련 ==========
@@ -46,9 +48,9 @@ STATIC_ACTION_SET = {
     "TOGGLE_OFF",
     "SLICE",
     "FILL",
+    "NAVIGATE_TO",
 }
 DYNAMIC_ACTION_SET = {
-    "NAVIGATE_TO",
     "WAIT",
     "MONITORING",
 }
@@ -70,7 +72,6 @@ GAMMA_HEURISTIC = 100.0  # Remaining work cost
 # Wait action control
 WAIT_TIME_UPPER_BOUND = 20.0  # 'wait' 액션의 최대 허용 시간 (초)
 
-
 # ========== 베이지안 ==========
 BAYESIAN_CRITERIA = 0.7
 
@@ -78,7 +79,8 @@ GT_INTERVAL = 100.0
 INIT_PRIOR_MEAN = 140.0
 INIT_PRIOR_VARIANCE = 100.0
 
-#지우지 마시오. 실험 돌릴동안만 쓰자구요 ㅎㅎㅎ
+
+# 지우지 마시오. 실험 돌릴동안만 쓰자구요 ㅎㅎㅎ
 def set_init_prior_mean(value: float) -> None:
     """전역 INIT_PRIOR_MEAN 값을 설정합니다.
 
@@ -89,20 +91,63 @@ def set_init_prior_mean(value: float) -> None:
     INIT_PRIOR_MEAN = value
 
 
-#지우지 마시오. 실험 돌릴동안만 쓰자구요 ㅎㅎㅎ
-def set_init_prior_mean(value: float) -> None:
-    """전역 INIT_PRIOR_MEAN 값을 설정합니다.
+def set_monitoring_enabled(value: bool) -> None:
+    """Sets the global MONITORING_ENABLED value."""
+    global MONITORING_ENABLED
+    MONITORING_ENABLED = value
+
+
+# 지우지 마시오. 실험 돌릴동안만 쓰자구요 ㅎㅎㅎ
+def set_init_prior_variance(value: float) -> None:
+    """전역 INIT_PRIOR_VARIANCE 값을 설정합니다.
 
     Args:
-        value (float): 새로 설정할 INIT_PRIOR_MEAN 값.
+        value (float): 새로 설정할 INIT_PRIOR_VARIANCE 값.
     """
-    global INIT_PRIOR_MEAN
-    INIT_PRIOR_MEAN = value
+    global INIT_PRIOR_VARIANCE
+    INIT_PRIOR_VARIANCE = value
+
+
+def set_alpha_heuristic(value: float) -> None:
+    """Sets the global ALPHA_HEURISTIC value."""
+    global ALPHA_HEURISTIC
+    ALPHA_HEURISTIC = value
+
+
+def set_beta_heuristic(value: float) -> None:
+    """Sets the global BETA_HEURISTIC value."""
+    global BETA_HEURISTIC
+    BETA_HEURISTIC = value
+
+
+def set_gamma_heuristic(value: float) -> None:
+    """Sets the global GAMMA_HEURISTIC value."""
+    global GAMMA_HEURISTIC
+    GAMMA_HEURISTIC = value
+
+
+def set_factor_alpha(value: float) -> None:
+    """Sets the global FACTOR_ALPHA value."""
+    global FACTOR_ALPHA
+    FACTOR_ALPHA = value
+
+
+def set_beam_width(value: int) -> None:
+    """Sets the global BEAM_WIDTH value."""
+    global BEAM_WIDTH
+    BEAM_WIDTH = value
+
+
+def set_simulation_depth(value: int) -> None:
+    """Sets the global SIMULATION_DEPTH value."""
+    global SIMULATION_DEPTH
+    SIMULATION_DEPTH = value
 
 
 FACTOR_ALPHA = 0.001
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
+
 # Timing tolerance can be interpreted both as a ratio and an absolute cap.
 # The ratio (30%) mirrors the previous behaviour, while the absolute value
 # allows capping the tolerance window for large intervals.
@@ -110,8 +155,8 @@ TIMING_TOLERANCE_RATIO = 0.3
 TIMING_TOLERANCE_ABS = 15.0
 MONITORING_SPLIT_TOLERANCE_ABS = 15.0
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 4
-BEAM_WIDTH = 5
+SIMULATION_DEPTH = 3
+BEAM_WIDTH = 3
 EPSILON = 1e-1
 LARGE_NUMBER = 1e4
 TOP_K = 1
@@ -191,12 +236,12 @@ CRITICAL_OBJECT_INTERVALS = {
     "POT": INIT_PRIOR_MEAN,
     "Egg": INIT_PRIOR_MEAN,
     "CounterTop": INIT_PRIOR_MEAN,
+    "CoffeeMachine": INIT_PRIOR_MEAN,
 }
 
 # Non-critical이지만 일관된 시간을 적용하고 싶은 객체
 # 'After' 제약, Urgency: False 목록 기반
 NON_CRITICAL_OBJECT_INTERVALS = {
-    "CoffeeMachine": INIT_PRIOR_MEAN,
     "Cup": INIT_PRIOR_MEAN,
     "Mug": INIT_PRIOR_MEAN,
     "Plate": INIT_PRIOR_MEAN,
@@ -219,4 +264,6 @@ CRITICAL_OBJECT_GROUND_TRUTH = {
     "POT": GT_INTERVAL,
     "Egg": GT_INTERVAL,
     "CounterTop": GT_INTERVAL,
+    "CoffeeMachine": GT_INTERVAL,
 }
+#

@@ -6,10 +6,15 @@ a new config file to re-run only the missing simulations.
 
 import json
 import re
+
+# Add project root to Python path
+import sys
 from itertools import product
 from pathlib import Path
 
 import yaml
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from src.utils.common import create_module_logger
 

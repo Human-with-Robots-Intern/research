@@ -152,11 +152,15 @@ class RosExecutor:
 
             # Simulate object state changes
             if action_verb == "grasp":
-                self.object_pos_simulator._simulate_grasp(primitive_action_parts[1].lower())
+                self.object_pos_simulator._simulate_grasp(
+                    primitive_action_parts[1].lower()
+                )
                 self.held_object = primitive_action_parts[1]
                 logger.info(f"Held object: {self.held_object}")
             elif action_verb.startswith("place"):
-                self.object_pos_simulator._simulate_place(primitive_action_parts[1].lower())
+                self.object_pos_simulator._simulate_place(
+                    primitive_action_parts[1].lower()
+                )
                 if self.held_object:
                     logger.info(
                         f"Object '{self.held_object}' position: "
@@ -164,9 +168,12 @@ class RosExecutor:
                     )
                 self.held_object = None
 
+
         return True, total_elapsed_time, action_log
 
-    def execute_subtask(self, subtask: Subtask) -> Tuple[bool, float, List[Dict[str, Any]]]:
+    def execute_subtask(
+        self, subtask: Subtask
+    ) -> Tuple[bool, float, List[Dict[str, Any]]]:
         """
         Executes the primitive actions of a single subtask.
 
@@ -182,6 +189,7 @@ class RosExecutor:
         if self.ros_start_time is None:
             self.ros_start_time = time.time()
 
+
         primitive_actions = subtask.execution.primitive_actions
         if not primitive_actions:
             return True, 0.0, []
@@ -190,9 +198,7 @@ class RosExecutor:
         self.total_ros_time += elapsed_time
         return success, elapsed_time, action_logs
 
-    def execute_schedule(
-        self, schedule: List[CompletedEntry]
-    ) -> List[CompletedEntry]:
+    def execute_schedule(self, schedule: List[CompletedEntry]) -> List[CompletedEntry]:
         """
         Executes a pre-defined schedule of subtasks.
 
@@ -203,6 +209,7 @@ class RosExecutor:
         Args:
             schedule: A list of CompletedEntry objects representing the schedule.
 
+
         Returns:
             The schedule with updated execution information.
         """
@@ -210,6 +217,7 @@ class RosExecutor:
             for entry in schedule:
                 ros_start_offset = self.total_ros_time
                 success, elapsed_time, action_logs = self.execute_subtask(entry.subtask)
+
 
                 entry.sim_start_time = ros_start_offset
                 entry.sim_end_time = ros_start_offset + elapsed_time
