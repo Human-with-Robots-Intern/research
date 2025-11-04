@@ -41,8 +41,8 @@
         "TemporalConstraints": [
           {
             "Type": "After",
-            "Subtask": "Start laundry_machine",
-            "Interval": 20,
+            "Subtask": "Start Laundry Machine",
+            "Interval": 140,
             "Urgency": true
           }
         ]
