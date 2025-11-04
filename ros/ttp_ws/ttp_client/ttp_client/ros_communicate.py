@@ -101,7 +101,7 @@ def communicate(action_parts: List[int]) -> bool:
     a = action_parts[2] 
     b = action_parts[3]
 
-    action_str = f"{robot_model}{instruction} {a} {b}".strip()
+    action_str = f"{robot_model} {instruction} {a} {b}".strip()
     _ros_client_node.get_logger().info(f"Sending action: '{action_str}'")
     
     future = _ros_client_node.send_request(robot_model, instruction, a, b)
