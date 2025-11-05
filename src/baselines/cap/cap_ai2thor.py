@@ -5,6 +5,7 @@ import sys
 import time
 from typing import Any, Callable, Dict, Optional, TextIO
 from pathlib import Path
+import re
 
 import numpy as np
 
@@ -59,6 +60,37 @@ prompt_parse_obj_name = read_txt(prompt_parse_obj_name_path).strip()
 prompt_parse_question = read_txt(prompt_parse_question_path).strip()
 prompt_fgen = read_txt(prompt_fgen_path).strip()
 
+# Guidelines for temporal logic in task planning. This text is appended to
+# LMP prompts that perform task decomposition or sequence generation.
+TEMPORAL_LOGIC_GUIDELINES: str = (
+    """
+    # Guidelines for Temporal Logic in Task Planning
+
+    - Task Sequencing:
+        - Ensure all tasks follow logical order (A before B when prerequisite).
+        - Identify and respect prerequisites between tasks.
+
+    - Autonomous Processing & Wait Times:
+        - Infer reasonable integer wait times for autonomous operations or process completion.
+        - Typical ranges:
+            - Microwave/Stove cooking: 5–15 time units
+            - Filling a Pot: ~10 time units
+            - Filling a Mug: ~3 time units
+            - Filling a Bathtub: ~20 time units
+
+    - Immediate Sequential Actions:
+        - If a single continuous operation is split (e.g., pick up then place),
+          the time gap between them is 0 (immediate succession).
+
+    - Urgency and Immediate Follow-up:
+        - Some actions must immediately follow the prior one due to time-sensitive states.
+        - Examples:
+            - Turn off stove immediately after cooking completes.
+            - Turn off faucet immediately when a container is full.
+            - Promptly remove items when machine cycles complete.
+        - If a follow-up is not time-critical (e.g., serving/eating later), it need not be immediate.
+    """
+)
 
 def timed_action(
     log_file: TextIO, action_name: str, action_func: Callable, controller: Controller
@@ -120,7 +152,7 @@ def timed_action(
 cfg_scene = {
     "lmps": {
         "scene_ui": {
-            "prompt_text": prompt_scene_ui + "\nobjects = [{objects}]",
+            "prompt_text": prompt_scene_ui + "\n" + TEMPORAL_LOGIC_GUIDELINES + "\nobjects = [{objects}]",
             "engine": "gpt-4o",
             "max_tokens": 512,
             "temperature": 0,
@@ -162,7 +194,7 @@ cfg_scene = {
             "return_val_name": "ret_val",
         },
         "fgen": {
-            "prompt_text": prompt_fgen,
+            "prompt_text": prompt_fgen + "\n" + TEMPORAL_LOGIC_GUIDELINES,
             "engine": "gpt-4o",
             "max_tokens": 512,
             "temperature": 0,
@@ -390,6 +422,25 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         help="베이지안 추정을 위한 초기 평균값 (기본값: 60.0)",
     )
+    parser.add_argument(
+        "--init_prior_variance",
+        type=float,
+        default=None,
+        help="베이지안 추정을 위한 초기 분산값 (기본값: constants.py 값)",
+    )
+    parser.add_argument(
+        "--case",
+        type=str,
+        default=None,
+        help="The name of the case.",
+    )
+    parser.add_argument(
+        "--ablation-name",
+        type=str,
+        default=None,
+        help="The name of the ablation configuration.",
+    )
+
     return parser.parse_args()
 
 
@@ -420,7 +471,14 @@ if __name__ == "__main__":
     try:
         task_files = list_task_files(scene_name)
 
-        if instruction:
+        if args.case:
+            if instruction is None:
+                print("Error: --case가 지정되면 --instruction도 필요합니다.")
+                sys.exit(1)
+            stem = Path(instruction).stem
+            m = re.match(r"\d+_(.*)", stem)
+            instruction = m.group(1) if m else stem
+        elif instruction:
             try:
                 choice = int(instruction)
                 if 1 <= choice <= len(task_files):
@@ -448,12 +506,15 @@ if __name__ == "__main__":
 
         # AI2-THOR 컨트롤러 초기화
         controller = init_ai2thor_controller(scene_name, platform=platform_obj)
-        save_scene_state(controller=controller, 
-                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
-                            scene_name=scene_name, 
-                            instruction=instruction, 
-                            approach_name=approach_name,
-                            state_label="init")
+        save_scene_state(
+            controller=controller,
+            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+            case_name=args.case,
+            scene_name=scene_name,
+            instruction=instruction,
+            approach_name=approach_name,
+            state_label="init",
+        )
         # Action 핸들러 초기화
         ithor_action_controller = Action(controller, logger=logger)
 
@@ -503,12 +564,15 @@ if __name__ == "__main__":
         }
 
         result_save_llm(**result_args)
-        save_scene_state(controller=controller, 
-                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
-                            scene_name=scene_name, 
-                            instruction=instruction, 
-                            approach_name=approach_name,
-                            state_label="end")
+        save_scene_state(
+            controller=controller,
+            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+            case_name=args.case,
+            scene_name=scene_name,
+            instruction=instruction,
+            approach_name=approach_name,
+            state_label="end",
+        )
         log_file.close()
         print("실행이 완료되었습니다.")
     finally:

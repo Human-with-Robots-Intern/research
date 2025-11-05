@@ -6,6 +6,8 @@ import random
 import sys
 import time
 from pathlib import Path
+import logging
+import re
 
 import numpy as np
 import openai
@@ -21,6 +23,38 @@ from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
 from src.utils.get_state import save_scene_state
 current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
+
+# Guidelines for temporal logic in task planning. This is injected into prompts
+# so that the LLM decomposes tasks with correct sequencing and timing.
+TEMPORAL_LOGIC_GUIDELINES: str = (
+    """
+    # Guidelines for Temporal Logic in Task Planning
+
+    - Task Sequencing:
+        - Ensure all tasks follow logical order (A before B when prerequisite).
+        - Identify and respect prerequisites between tasks.
+
+    - Autonomous Processing & Wait Times:
+        - Infer reasonable integer wait times for autonomous operations or process completion.
+        - Typical ranges:
+            - Microwave/Stove cooking: 5–15 time units
+            - Filling a Pot: ~10 time units
+            - Filling a Mug: ~3 time units
+            - Filling a Bathtub: ~20 time units
+
+    - Immediate Sequential Actions:
+        - If a single continuous operation is split (e.g., pick up then place),
+          the time gap between them is 0 (immediate succession).
+
+    - Urgency and Immediate Follow-up:
+        - Some actions must immediately follow the prior one due to time-sensitive states.
+        - Examples:
+            - Turn off stove immediately after cooking completes.
+            - Turn off faucet immediately when a container is full.
+            - Promptly remove items when machine cycles complete.
+        - If a follow-up is not time-critical (e.g., serving/eating later), it need not be immediate.
+    """
+)
 
 def parse_arguments() -> argparse.Namespace:
     """
@@ -116,9 +150,48 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         help="베이지안 추정을 위한 초기 평균값 (기본값: 60.0)",
     )
+    parser.add_argument(
+        "--init_prior_variance",
+        type=float,
+        default=None,
+        help="베이지안 추정을 위한 초기 분산값 (기본값: constants.py 값)",
+    )
+    parser.add_argument(
+        "--case",
+        type=str,
+        default=None,
+        help="The name of the case.",
+    )
+    parser.add_argument(
+        "--ablation-name",
+        type=str,
+        default=None,
+        help="The name of the ablation configuration.",
+    )
+
     return parser.parse_args()
 
-def generate_plan(controller, task: str, args: argparse.Namespace, logger):
+def generate_plan(
+    controller: Controller,
+    task: str,
+    args: argparse.Namespace,
+    logger: logging.Logger,
+) -> None:
+    """Generate, save, and simulate a plan for a given task.
+
+    The prompt includes available actions, visible objects, few-shot examples,
+    and explicit temporal logic guidelines to ensure correct sequencing, wait
+    time inference, and immediate follow-ups when needed.
+
+    Args:
+        controller (Controller): Active AI2-THOR controller instance.
+        task (str): Natural language task/instruction to accomplish.
+        args (argparse.Namespace): Parsed CLI arguments controlling generation and simulation.
+        logger (logging.Logger): Logger for module-level logging.
+
+    Returns:
+        None: This function persists artifacts (plan/logs) and triggers simulation.
+    """
     # 현재 scene에 있는 object들을 가져옴
     # 이거 env json으로 해야하나 contoller로 하면 되나?
     obj = list(
@@ -128,6 +201,8 @@ def generate_plan(controller, task: str, args: argparse.Namespace, logger):
     prompt = "from actions import walk <obj>, pickup <obj>, put <obj> <obj>, drop <obj>, open <obj>, close <obj>, toggleon <obj>, toggleoff <obj>, slice <obj>"
     # 현재 scene에 있는 objects
     prompt += f"\nobjects(name) = {obj}\n\n"
+    # Inject temporal logic guidelines to steer decomposition and sequencing
+    prompt += "\n" + TEMPORAL_LOGIC_GUIDELINES + "\n"
 
     # 미리 만들어둔 plan 함수를 prompt 에 추가함.
     example_task_path = os.path.join(current_dir, "example_task.json")
@@ -200,12 +275,15 @@ def generate_plan(controller, task: str, args: argparse.Namespace, logger):
         "init_prior_mean": args.init_prior_mean,
     }
     result_save_llm(**result_args)
-    save_scene_state(controller=controller, 
-                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
-                            scene_name=args.scene, 
-                            instruction=task, 
-                            approach_name="progprompt",
-                            state_label="end")
+    save_scene_state(
+        controller=controller,
+        output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+        case_name=args.case,
+        scene_name=args.scene,
+        instruction=task,
+        approach_name="progprompt",
+        state_label="end",
+    )
 
 
 
@@ -228,21 +306,30 @@ if __name__ == "__main__":
 
     instruction = args.instruction
     task = ""
-    if instruction:
-        try:
-            choice = int(instruction)
-            task_files = list_task_files(args.scene)
-            if 1 <= choice <= len(task_files):
-                task = Path(task_files[choice - 1]).stem
-            else:
-                print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
-                sys.exit(1)
-        except ValueError:
-            # It's a natural language instruction, not a number
-            task = instruction.strip()
+    if args.case:
+        # run_all에서 case와 함께 전달되는 instruction은 파일명일 수 있으므로 자연어로 정규화
+        if instruction is None:
+            print("Error: --case가 지정되면 --instruction도 필요합니다.")
+            sys.exit(1)
+        stem = Path(instruction).stem
+        m = re.match(r"\d+_(.*)", stem)
+        task = m.group(1) if m else stem
     else:
-        print("명령어가 인자로 제공되지 않았습니다. 사용자 입력을 기다립니다...")
-        task = input().strip()
+        if instruction:
+            try:
+                choice = int(instruction)
+                task_files = list_task_files(args.scene)
+                if 1 <= choice <= len(task_files):
+                    task = Path(task_files[choice - 1]).stem
+                else:
+                    print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
+                    sys.exit(1)
+            except ValueError:
+                # It's a natural language instruction, not a number
+                task = instruction.strip()
+        else:
+            print("명령어가 인자로 제공되지 않았습니다. 사용자 입력을 기다립니다...")
+            task = input().strip()
 
     openai.api_key = args.openai_api_key
 
@@ -251,16 +338,31 @@ if __name__ == "__main__":
     if args.cloud_rendering:
         platform_obj = CloudRendering
     controller = init_ai2thor_controller(scene_name, platform=platform_obj)
-    save_scene_state(controller=controller, 
-                            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
-                            scene_name=scene_name, 
-                            instruction=instruction, 
-                            approach_name="progprompt",
-                            state_label="init")
+    save_scene_state(
+        controller=controller,
+        output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+        case_name=args.case,
+        scene_name=scene_name,
+        instruction=(Path(instruction).stem if instruction else task),
+        approach_name="progprompt",
+        state_label="init",
+    )
     try:
         generate_plan(controller, task, args, logger)
     finally:
-        controller.stop()
+        # 종료 상태 저장
+        try:
+            save_scene_state(
+                controller=controller,
+                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                case_name=args.case,
+                scene_name=scene_name,
+                instruction=task,
+                approach_name="progprompt",
+                state_label="end",
+            )
+        finally:
+            controller.stop()
     
 
 
