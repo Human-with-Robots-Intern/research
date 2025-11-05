@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Tuple
 import yaml
 
 from src.utils.common import create_module_logger
-from src.utils.config.constants import ASSETS_PATH, LOG_PATH, SCRIPTS_PATH
+from src.utils.config.constants import ASSETS_PATH, LOG_PATH, SCRIPTS_PATH, RESULT_PATH
 
 # Create a single timestamp for the entire script run
 RUN_TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
@@ -136,6 +136,13 @@ def parse_arguments() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="If set, lists the experiments to be run without executing them.",
+    )
+    parser.add_argument(
+        "--skip-completed",
+        action="store_true",
+        help=(
+            "Skip tasks when a corresponding result JSON already exists (mirrors run_all.py behavior)."
+        ),
     )
     return parser.parse_args()
 
@@ -401,6 +408,116 @@ def load_instruction_case_mapping_from_scenes(
     return case_instruction_mapping
 
 
+def _iter_init_dirs(config: Dict[str, Any]) -> List[Path]:
+    """Return list of init_* result directories under RESULT_PATH.
+
+    If ``init_prior_mean`` is provided in the config, only that specific
+    directory will be returned; otherwise, all directories starting with
+    ``init_`` are returned.
+
+    Args:
+        config (Dict[str, Any]): The configuration dictionary.
+
+    Returns:
+        List[Path]: List of candidate initial prior result directories.
+    """
+    init_dirs: List[Path] = []
+    init_prior = config.get("init_prior_mean")
+    if isinstance(init_prior, (int, float)):
+        init_dirs = [RESULT_PATH / f"init_{int(init_prior)}"]
+    else:
+        for p in RESULT_PATH.iterdir():
+            if p.is_dir() and p.name.startswith("init_"):
+                init_dirs.append(p)
+    return init_dirs
+
+
+def _find_latest_result_json_for_task(
+    baseline_path: Path,
+    instruction_path: str,
+    scene_name: str,
+    config: Dict[str, Any],
+) -> Path | None:
+    """Locate the latest result JSON for a given baseline/instruction/scene.
+
+    This mirrors the skip logic used in run_all.py: it searches under
+    assets/results/init_*/{instruction_stem}_*/{scene}/approach/{baseline_stem}_simulation.json
+    and returns the one with the highest trailing number.
+
+    Args:
+        baseline_path (Path): Baseline script path.
+        instruction_path (str): Path to the instruction JSON file.
+        scene_name (str): Scene name.
+        config (Dict[str, Any]): Configuration dictionary.
+
+    Returns:
+        Path | None: The latest existing result JSON path if found, else None.
+    """
+    approach_name = f"{baseline_path.stem}_simulation"
+    instruction_stem = Path(instruction_path).stem
+
+    candidates: List[Tuple[int, Path]] = []
+    for init_dir in _iter_init_dirs(config):
+        for task_dir in init_dir.glob(f"{instruction_stem}_*"):
+            if not task_dir.is_dir():
+                continue
+            m = re.search(r"_(\d+)$", task_dir.name)
+            if not m:
+                continue
+            num = int(m.group(1))
+            json_path = task_dir / scene_name / "approach" / f"{approach_name}.json"
+            if json_path.exists():
+                candidates.append((num, json_path))
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    return candidates[0][1]
+
+
+def _is_completed_result(json_path: Path) -> bool:
+    """Return True if a result JSON file exists.
+
+    Args:
+        json_path (Path): Path to the JSON result file.
+
+    Returns:
+        bool: True if the file exists, else False.
+    """
+    return json_path.exists()
+
+
+def should_skip_completed_for_task(
+    baseline_path: Path,
+    instruction_path: str,
+    scene_name: str,
+    config: Dict[str, Any],
+) -> Tuple[bool, Path | None]:
+    """Check whether to skip a task due to an existing result JSON.
+
+    The decision is controlled by ``config['skip_completed']``. If enabled, it
+    searches for the latest result JSON using the same heuristic as run_all.py.
+
+    Args:
+        baseline_path (Path): Baseline script path.
+        instruction_path (str): Path to the instruction JSON file.
+        scene_name (str): Scene name.
+        config (Dict[str, Any]): Configuration dictionary.
+
+    Returns:
+        Tuple[bool, Path | None]: (should_skip, found_json_path)
+    """
+    if not config.get("skip_completed"):
+        return False, None
+    result_json = _find_latest_result_json_for_task(
+        baseline_path, instruction_path, scene_name, config
+    )
+    if result_json and _is_completed_result(result_json):
+        return True, result_json
+    return False, None
+
+
 def main() -> None:
     """
     Main function to orchestrate the experimental runs.
@@ -412,6 +529,10 @@ def main() -> None:
     config = load_config(args.config)
     # Use the global timestamp defined at the top of the script
     run_timestamp = RUN_TIMESTAMP
+
+    # Reflect CLI skip flag into config (same behavior as run_all.py)
+    if getattr(args, "skip_completed", False):
+        config["skip_completed"] = True
 
     is_simulation: bool = config.get("simulation", False)
     cloud_rendering: bool = config.get("cloud_rendering", False)
@@ -529,6 +650,16 @@ def main() -> None:
                             not in execute_dict[case_name][scene_name]
                         ):
                             continue
+
+                    # Skip if a completed result already exists (when enabled)
+                    do_skip, found_json = should_skip_completed_for_task(
+                        b_path, instruction_path, scene_name, config
+                    )
+                    if do_skip:
+                        logger.critical(
+                            f"Skip completed: {scene_name} | {b_path.stem} | '{instr_path_obj.stem}' -> {found_json}"
+                        )
+                        continue
 
                     for try_idx in range(num_runs_per_instruction):
                         task = ExperimentTask(

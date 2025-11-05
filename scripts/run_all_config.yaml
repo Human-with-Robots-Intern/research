@@ -3,7 +3,7 @@
 simulation: true # Enable Simulation mode
 cloud_rendering: true
 num_runs_per_instruction: 1 # Number of times to run each instruction
-max_retries: 10 # Maximum number of retries for failing LLM scripts
+max_retries: 5 # Maximum number of retries for failing LLM scripts
 retry_delay_seconds: 2 # Delay in seconds between retries
 max_workers: 15 # Maximum number of workers
 instruction_delay_seconds: 0 # Delay in seconds between instructions
@@ -16,13 +16,15 @@ start_idx: 1 # Start index for the instruction
 # Execution settings
 # List of approaches (scripts) to run
 approaches:
-  - "src/baselines/cpm.py"
-  - "src/baselines/edf/dag_edf.py"
-  - "src/dag_bayesian.py"
+  # - "src/baselines/cpm.py"
+  # - "src/baselines/edf/dag_edf.py"
+  # - "src/dag_bayesian.py"
+  - "src/baselines/progprompt/prog_ai2thor.py"
+  - "src/baselines/cap/cap_ai2thor.py"
 # Scripts that use LLMs and are subject to retries on failure
 llm_scripts:
-  # - "src/baselines/progprompt/prog_ai2thor.py"
-  # - "src/baselines/cap/cap_ai2thor.py"
+  - "src/baselines/progprompt/prog_ai2thor.py"
+  - "src/baselines/cap/cap_ai2thor.py"
 
 # Scene lists for each scene type
 
@@ -48,9 +50,6 @@ scene_lists:
 
 
 
-
-
-
 ablation_configs:
   - NONE_URGENCY
   - NONE_REMAINING_WORK
@@ -69,7 +68,7 @@ init_prior_configs:
 task_folder_name: "sampled_10_instruction_set_for_final_experiment" # Folder under assets/tasks/
 min_task_count: 0
 min_constraint_count: 0
-
+skip_completed: true
 
 
 
