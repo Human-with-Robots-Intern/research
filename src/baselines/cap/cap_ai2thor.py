@@ -506,12 +506,16 @@ if __name__ == "__main__":
 
         # AI2-THOR 컨트롤러 초기화
         controller = init_ai2thor_controller(scene_name, platform=platform_obj)
+        # Use a consistent directory name for state saving (keep numeric prefix when case)
+        instruction_dir_name = (
+            Path(args.instruction).stem if (args.case and args.instruction) else (Path(instruction).stem if instruction else instruction)
+        )
         save_scene_state(
             controller=controller,
             output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
             case_name=args.case,
             scene_name=scene_name,
-            instruction=instruction,
+            instruction=instruction_dir_name,
             approach_name=approach_name,
             state_label="init",
         )
@@ -551,16 +555,17 @@ if __name__ == "__main__":
         # 현재 computaion_time은 시뮬레이션 타임을 포함해서 정확하지 않음.
         # 추후에 llmgeneration 방식의 computation_time을 폐기할 수 있으므로 일단 스킵
         computation_time = time.time() - computation_time_start
-        result_path = f"{instruction}"
+        result_path = f"{instruction_dir_name}"
         result_args = {
             "approach_name": approach_name,
-            "user_input": instruction,
+            "user_input": instruction_dir_name,
             "result": str(cap_log_path),
             "json_output_path": result_path,
             "computation_time": computation_time,
             "scene_name": scene_name,
             "attempt": args.attempt,
             "init_prior_mean": args.init_prior_mean,
+            "case_name": args.case,
         }
 
         result_save_llm(**result_args)
@@ -569,7 +574,7 @@ if __name__ == "__main__":
             output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
             case_name=args.case,
             scene_name=scene_name,
-            instruction=instruction,
+            instruction=instruction_dir_name,
             approach_name=approach_name,
             state_label="end",
         )

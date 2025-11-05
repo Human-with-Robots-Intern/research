@@ -261,18 +261,25 @@ def generate_plan(
     os.makedirs(os.path.dirname(prog_log_path), exist_ok=True)
     log_file = open(prog_log_path, "w", buffering=1)
     approach_name = "prog_ai2thor_simulation"
-    result_path = f"{task}"
+    # For saving, prefer numeric-prefixed instruction stem when running with --case
+    if args.case and args.instruction:
+        folder_key = Path(args.instruction).stem
+    else:
+        folder_key = task
+
+    result_path = f"{folder_key}"
 
     simulate_execution(controller, [task], [text], log_file, args, logger)
     result_args={
         "approach_name": approach_name,
-        "user_input": task,
+        "user_input": folder_key,
         "result":prog_log_path,
         "json_output_path":result_path,
         "computation_time":computation_time,
         "scene_name": args.scene,
         "attempt": args.attempt,
         "init_prior_mean": args.init_prior_mean,
+        "case_name": args.case,
     }
     result_save_llm(**result_args)
     save_scene_state(
@@ -280,7 +287,7 @@ def generate_plan(
         output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
         case_name=args.case,
         scene_name=args.scene,
-        instruction=task,
+        instruction=folder_key,
         approach_name="progprompt",
         state_label="end",
     )
@@ -338,12 +345,16 @@ if __name__ == "__main__":
     if args.cloud_rendering:
         platform_obj = CloudRendering
     controller = init_ai2thor_controller(scene_name, platform=platform_obj)
+    # Use a consistent directory name for state saving
+    instruction_dir_name = (
+        Path(instruction).stem if (args.case and instruction) else (task if instruction else task)
+    )
     save_scene_state(
         controller=controller,
         output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
         case_name=args.case,
         scene_name=scene_name,
-        instruction=(Path(instruction).stem if instruction else task),
+        instruction=instruction_dir_name,
         approach_name="progprompt",
         state_label="init",
     )

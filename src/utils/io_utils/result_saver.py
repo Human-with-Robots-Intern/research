@@ -456,6 +456,7 @@ def result_save_llm(
     attempt: int = 1,
     base_result_path: Path | None = None,
     init_prior_mean: float | None = None,
+    case_name: Optional[str] = None,
 ):
     if init_prior_mean is None:
         init_prior_mean = constants.INIT_PRIOR_MEAN
@@ -492,7 +493,12 @@ def result_save_llm(
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = result_path_with_prior / f"{user_input}_{num}" / scene_name
+        if case_name:
+            output_path = (
+                result_path_with_prior / f"{case_name}" / f"{user_input}_{num}" / scene_name
+            )
+        else:
+            output_path = result_path_with_prior / f"{user_input}_{num}" / scene_name
         approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():
