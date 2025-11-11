@@ -438,6 +438,7 @@ def _find_latest_result_json_for_task(
     instruction_path: str,
     scene_name: str,
     config: Dict[str, Any],
+    case_name: str | None = None,
 ) -> Path | None:
     """Locate the latest result JSON for a given baseline/instruction/scene.
 
@@ -455,20 +456,39 @@ def _find_latest_result_json_for_task(
         Path | None: The latest existing result JSON path if found, else None.
     """
     approach_name = f"{baseline_path.stem}_simulation"
-    instruction_stem = Path(instruction_path).stem
+
+    # Robust instruction keys: keep numeric prefix, normalize spaces to underscores
+    raw_stem = Path(instruction_path).stem
+    underscore_stem = raw_stem.replace(" ", "_")
+    instruction_keys: List[str] = []
+    for key in (raw_stem, underscore_stem):
+        if key not in instruction_keys:
+            instruction_keys.append(key)
 
     candidates: List[Tuple[int, Path]] = []
     for init_dir in _iter_init_dirs(config):
-        for task_dir in init_dir.glob(f"{instruction_stem}_*"):
-            if not task_dir.is_dir():
-                continue
-            m = re.search(r"_(\d+)$", task_dir.name)
-            if not m:
-                continue
-            num = int(m.group(1))
-            json_path = task_dir / scene_name / "approach" / f"{approach_name}.json"
-            if json_path.exists():
-                candidates.append((num, json_path))
+        base_dir = init_dir / case_name if case_name else init_dir
+        if not base_dir.exists():
+            continue
+        for key in instruction_keys:
+            # Exact folder (no numeric suffix)
+            exact_dir = base_dir / key
+            if exact_dir.is_dir():
+                json_path = exact_dir / scene_name / "approach" / f"{approach_name}.json"
+                if json_path.exists():
+                    candidates.append((0, json_path))
+
+            # Numeric suffixed folders: key_1, key_2, ...
+            for task_dir in base_dir.glob(f"{key}_*"):
+                if not task_dir.is_dir():
+                    continue
+                m = re.search(r"_(\d+)$", task_dir.name)
+                if not m:
+                    continue
+                num = int(m.group(1))
+                json_path = task_dir / scene_name / "approach" / f"{approach_name}.json"
+                if json_path.exists():
+                    candidates.append((num, json_path))
 
     if not candidates:
         return None
@@ -494,6 +514,7 @@ def should_skip_completed_for_task(
     instruction_path: str,
     scene_name: str,
     config: Dict[str, Any],
+    case_name: str | None = None,
 ) -> Tuple[bool, Path | None]:
     """Check whether to skip a task due to an existing result JSON.
 
@@ -512,7 +533,7 @@ def should_skip_completed_for_task(
     if not config.get("skip_completed"):
         return False, None
     result_json = _find_latest_result_json_for_task(
-        baseline_path, instruction_path, scene_name, config
+        baseline_path, instruction_path, scene_name, config, case_name
     )
     if result_json and _is_completed_result(result_json):
         return True, result_json
@@ -653,8 +674,10 @@ def main() -> None:
                             continue
 
                     # Skip if a completed result already exists (when enabled)
+                    # Merge current init_prior params so _iter_init_dirs targets the correct init_* dir
+                    merged_config_for_skip = {**config, **init_prior_params}
                     do_skip, found_json = should_skip_completed_for_task(
-                        b_path, instruction_path, scene_name, config
+                        b_path, instruction_path, scene_name, merged_config_for_skip, case_name
                     )
                     if do_skip:
                         logger.critical(
