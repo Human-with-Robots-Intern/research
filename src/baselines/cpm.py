@@ -614,6 +614,7 @@ def main() -> None:
         )
         if args.case:
             # Load task data
+            logger.critical(f"args.instruction: {args.instruction}")
             input_natural_language = re.match(r"\d+_(.*)", args.instruction).group(1)
             task_data = load_task_data_from_sampled_set(
                 args.case, scene_name, args.instruction
@@ -750,6 +751,7 @@ def main() -> None:
 
         if args.ros:
             ros_executor = RosExecutor()
+            logger.critical(f"ros executor initialized")
             real_executed_scheduled_entries = ros_executor.execute_schedule(
                 final_scheduled_entries
             )

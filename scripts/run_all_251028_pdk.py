@@ -196,8 +196,9 @@ def _run_script_and_log(
     """
     wrapper_script = (
         SCRIPTS_PATH / "run_project.sh"
-        if is_simulation
-        else SCRIPTS_PATH / "run_with_ros_env.sh"
+        # 해당 스크립트는 ros container 빌드시 실행되도록 변경됨.
+        # if is_simulation
+        # else SCRIPTS_PATH / "run_with_ros_env.sh"
     )
 
     cmd = [
