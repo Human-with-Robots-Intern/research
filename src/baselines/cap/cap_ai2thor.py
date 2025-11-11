@@ -60,10 +60,17 @@ prompt_parse_obj_name = read_txt(prompt_parse_obj_name_path).strip()
 prompt_parse_question = read_txt(prompt_parse_question_path).strip()
 prompt_fgen = read_txt(prompt_fgen_path).strip()
 
-# Guidelines for temporal logic in task planning. This text is appended to
-# LMP prompts that perform task decomposition or sequence generation.
-TEMPORAL_LOGIC_GUIDELINES: str = (
+def build_temporal_logic_guidelines(wait_units: int) -> str:
+    """Temporal logic guideline text with dynamic wait time units.
+
+    Args:
+        wait_units (int): Canonical integer wait time to reference in examples.
+
+    Returns:
+        str: Multi-line guideline text to be appended to prompts.
     """
+    return (
+        """
     # Guidelines for Temporal Logic in Task Planning
 
     - Task Sequencing:
@@ -73,10 +80,9 @@ TEMPORAL_LOGIC_GUIDELINES: str = (
     - Autonomous Processing & Wait Times:
         - Infer reasonable integer wait times for autonomous operations or process completion.
         - Typical ranges:
-            - Microwave/Stove cooking: 5–15 time units
-            - Filling a Pot: ~10 time units
-            - Filling a Mug: ~3 time units
-            - Filling a Bathtub: ~20 time units
+            - Microwave/Stove cooking: ~{wait} time units
+            - Filling a Pot: ~{wait} time units
+            - Filling a Mug: ~{wait} time units
 
     - Immediate Sequential Actions:
         - If a single continuous operation is split (e.g., pick up then place),
@@ -90,7 +96,7 @@ TEMPORAL_LOGIC_GUIDELINES: str = (
             - Promptly remove items when machine cycles complete.
         - If a follow-up is not time-critical (e.g., serving/eating later), it need not be immediate.
     """
-)
+    ).format(wait=wait_units)
 
 def timed_action(
     log_file: TextIO, action_name: str, action_func: Callable, controller: Controller
@@ -147,66 +153,76 @@ def timed_action(
     return wrapper
 
 
-# LMP (Language Model Program)를 위한 설정.
-# 각 LMP의 프롬프트, LLM 엔진, 토큰 제한 등을 정의합니다.
-cfg_scene = {
-    "lmps": {
-        "scene_ui": {
-            "prompt_text": prompt_scene_ui + "\n" + TEMPORAL_LOGIC_GUIDELINES + "\nobjects = [{objects}]",
-            "engine": "gpt-4o",
-            "max_tokens": 512,
-            "temperature": 0,
-            "query_prefix": "# ",
-            "query_suffix": ".",
-            "stop": ["#", "objects = ["],
-            "maintain_session": True,
-            "debug_mode": False,
-            "include_context": True,
-            "has_return": False,
-            "return_val_name": "ret_val",
-        },
-        "parse_obj_name": {
-            "prompt_text": prompt_parse_obj_name,
-            "engine": "gpt-4o",
-            "max_tokens": 512,
-            "temperature": 0,
-            "query_prefix": "# ",
-            "query_suffix": ".",
-            "stop": ["#", "objects = ["],
-            "maintain_session": False,
-            "debug_mode": False,
-            "include_context": True,
-            "has_return": True,
-            "return_val_name": "ret_val",
-        },
-        "parse_question": {
-            "prompt_text": prompt_parse_question,
-            "engine": "gpt-4o",
-            "max_tokens": 512,
-            "temperature": 0,
-            "query_prefix": "# ",
-            "query_suffix": ".",
-            "stop": ["#", "objects = ["],
-            "maintain_session": False,
-            "debug_mode": False,
-            "include_context": True,
-            "has_return": True,
-            "return_val_name": "ret_val",
-        },
-        "fgen": {
-            "prompt_text": prompt_fgen + "\n" + TEMPORAL_LOGIC_GUIDELINES,
-            "engine": "gpt-4o",
-            "max_tokens": 512,
-            "temperature": 0,
-            "query_prefix": "# define function: ",
-            "query_suffix": ".",
-            "stop": ["# define", "# example"],
-            "maintain_session": False,
-            "debug_mode": False,
-            "include_context": True,
-        },
+def build_cfg_scene(temporal_guidelines: str) -> Dict[str, Any]:
+    """LMP 설정을 런타임에 생성해 반환합니다.
+
+    Args:
+        temporal_guidelines (str): 프롬프트에 주입할 시간 논리 가이드라인.
+
+    Returns:
+        Dict[str, Any]: LMP 설정 딕셔너리.
+    """
+    return {
+        "lmps": {
+            "scene_ui": {
+                "prompt_text": prompt_scene_ui
+                + "\n"
+                + temporal_guidelines
+                + "\nobjects = [{objects}]",
+                "engine": "gpt-4o",
+                "max_tokens": 512,
+                "temperature": 0,
+                "query_prefix": "# ",
+                "query_suffix": ".",
+                "stop": ["#", "objects = ["],
+                "maintain_session": True,
+                "debug_mode": False,
+                "include_context": True,
+                "has_return": False,
+                "return_val_name": "ret_val",
+            },
+            "parse_obj_name": {
+                "prompt_text": prompt_parse_obj_name,
+                "engine": "gpt-4o",
+                "max_tokens": 512,
+                "temperature": 0,
+                "query_prefix": "# ",
+                "query_suffix": ".",
+                "stop": ["#", "objects = ["],
+                "maintain_session": False,
+                "debug_mode": False,
+                "include_context": True,
+                "has_return": True,
+                "return_val_name": "ret_val",
+            },
+            "parse_question": {
+                "prompt_text": prompt_parse_question,
+                "engine": "gpt-4o",
+                "max_tokens": 512,
+                "temperature": 0,
+                "query_prefix": "# ",
+                "query_suffix": ".",
+                "stop": ["#", "objects = ["],
+                "maintain_session": False,
+                "debug_mode": False,
+                "include_context": True,
+                "has_return": True,
+                "return_val_name": "ret_val",
+            },
+            "fgen": {
+                "prompt_text": prompt_fgen + "\n" + temporal_guidelines,
+                "engine": "gpt-4o",
+                "max_tokens": 512,
+                "temperature": 0,
+                "query_prefix": "# define function: ",
+                "query_suffix": ".",
+                "stop": ["# define", "# example"],
+                "maintain_session": False,
+                "debug_mode": False,
+                "include_context": True,
+            },
+        }
     }
-}
 
 vars_log = open("vars_log.txt", "w", buffering=1)
 
@@ -463,6 +479,7 @@ if __name__ == "__main__":
     scene_name = args.scene
     instruction = args.instruction
     controller = None
+    log_file = None
 
     platform_obj = None
     if args.cloud_rendering:
@@ -523,8 +540,11 @@ if __name__ == "__main__":
         ithor_action_controller = Action(controller, logger=logger)
 
         # LMP 환경 설정
+        wait_units = int(args.init_prior_mean) if args.init_prior_mean is not None else 60
+        temporal_guidelines = build_temporal_logic_guidelines(wait_units)
+        cfg_scene_runtime = build_cfg_scene(temporal_guidelines)
         lmp_scene_ui = setup_LMP(
-            controller, ithor_action_controller, cfg_scene, log_file
+            controller, ithor_action_controller, cfg_scene_runtime, log_file
         )
 
         # --- 태스크 실행 ---
@@ -578,8 +598,25 @@ if __name__ == "__main__":
             approach_name=approach_name,
             state_label="end",
         )
-        log_file.close()
+        if log_file:
+            log_file.flush()
+            log_file.close()
         print("실행이 완료되었습니다.")
     finally:
         if controller:
             controller.stop()
+        # 보조 파일 핸들 및 프로세스 종료 보장
+        try:
+            if log_file and not log_file.closed:
+                log_file.flush()
+                log_file.close()
+        except Exception:
+            pass
+        try:
+            if not vars_log.closed:
+                vars_log.flush()
+                vars_log.close()
+        except Exception:
+            pass
+        # 백그라운드 스레드/리소스가 잔류하더라도 프로세스 종료
+        sys.exit(0)

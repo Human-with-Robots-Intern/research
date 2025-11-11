@@ -118,7 +118,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--instruction",
         type=str,
-        default=2,
+        default=None,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(

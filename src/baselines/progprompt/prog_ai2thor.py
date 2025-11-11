@@ -24,10 +24,21 @@ from src.utils.io_utils.task_io import list_task_files
 from src.utils.get_state import save_scene_state
 current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
 
-# Guidelines for temporal logic in task planning. This is injected into prompts
-# so that the LLM decomposes tasks with correct sequencing and timing.
-TEMPORAL_LOGIC_GUIDELINES: str = (
+def build_temporal_logic_guidelines(wait_units: int) -> str:
+    """Create temporal logic guidelines text with dynamic wait time units.
+
+    The returned text is appended to prompts so that the LLM decomposes tasks
+    with correct sequencing, wait time inference, and immediate follow-ups.
+
+
+    Args:
+        wait_units (int): The canonical integer wait time to reference in examples.
+
+    Returns:
+        str: Multi-line guideline text to inject into prompts.
     """
+    return (
+        """
     # Guidelines for Temporal Logic in Task Planning
 
     - Task Sequencing:
@@ -37,10 +48,9 @@ TEMPORAL_LOGIC_GUIDELINES: str = (
     - Autonomous Processing & Wait Times:
         - Infer reasonable integer wait times for autonomous operations or process completion.
         - Typical ranges:
-            - Microwave/Stove cooking: 5–15 time units
-            - Filling a Pot: ~10 time units
-            - Filling a Mug: ~3 time units
-            - Filling a Bathtub: ~20 time units
+            - Microwave/Stove cooking: ~{wait} time units
+            - Filling a Pot: ~{wait} time units
+            - Filling a Mug: ~{wait} time units
 
     - Immediate Sequential Actions:
         - If a single continuous operation is split (e.g., pick up then place),
@@ -54,7 +64,7 @@ TEMPORAL_LOGIC_GUIDELINES: str = (
             - Promptly remove items when machine cycles complete.
         - If a follow-up is not time-critical (e.g., serving/eating later), it need not be immediate.
     """
-)
+    ).format(wait=wait_units)
 
 def parse_arguments() -> argparse.Namespace:
     """
@@ -202,7 +212,8 @@ def generate_plan(
     # 현재 scene에 있는 objects
     prompt += f"\nobjects(name) = {obj}\n\n"
     # Inject temporal logic guidelines to steer decomposition and sequencing
-    prompt += "\n" + TEMPORAL_LOGIC_GUIDELINES + "\n"
+    wait_units = int(args.init_prior_mean) if args.init_prior_mean is not None else 60
+    prompt += "\n" + build_temporal_logic_guidelines(wait_units) + "\n"
 
     # 미리 만들어둔 plan 함수를 prompt 에 추가함.
     example_task_path = os.path.join(current_dir, "example_task.json")
@@ -260,37 +271,50 @@ def generate_plan(
     prog_log_path = os.path.join(current_dir, f"result/prog_logs_{task}.txt")
     os.makedirs(os.path.dirname(prog_log_path), exist_ok=True)
     log_file = open(prog_log_path, "w", buffering=1)
-    approach_name = "prog_ai2thor_simulation"
-    # For saving, prefer numeric-prefixed instruction stem when running with --case
-    if args.case and args.instruction:
-        folder_key = Path(args.instruction).stem
-    else:
-        folder_key = task
+    try:
+        approach_name = "prog_ai2thor_simulation"
+        # For saving, prefer numeric-prefixed instruction stem when running with --case
+        if args.case and args.instruction:
+            folder_key = Path(args.instruction).stem
+        else:
+            folder_key = task
 
-    result_path = f"{folder_key}"
+        result_path = f"{folder_key}"
 
-    simulate_execution(controller, [task], [text], log_file, args, logger)
-    result_args={
-        "approach_name": approach_name,
-        "user_input": folder_key,
-        "result":prog_log_path,
-        "json_output_path":result_path,
-        "computation_time":computation_time,
-        "scene_name": args.scene,
-        "attempt": args.attempt,
-        "init_prior_mean": args.init_prior_mean,
-        "case_name": args.case,
-    }
-    result_save_llm(**result_args)
-    save_scene_state(
-        controller=controller,
-        output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
-        case_name=args.case,
-        scene_name=args.scene,
-        instruction=folder_key,
-        approach_name="progprompt",
-        state_label="end",
-    )
+        # Execute simulation; ensure any internal buffers are flushed to log_file
+        simulate_execution(controller, [task], [text], log_file, args, logger)
+        log_file.flush()
+
+        result_args={
+            "approach_name": approach_name,
+            "user_input": folder_key,
+            "result":prog_log_path,
+            "json_output_path":result_path,
+            "computation_time":computation_time,
+            "scene_name": args.scene,
+            "attempt": args.attempt,
+            "init_prior_mean": args.init_prior_mean,
+            "case_name": args.case,
+        }
+        result_save_llm(**result_args)
+        save_scene_state(
+            controller=controller,
+            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+            case_name=args.case,
+            scene_name=args.scene,
+            instruction=folder_key,
+            approach_name="progprompt",
+            state_label="end",
+        )
+    finally:
+        try:
+            log_file.flush()
+        except Exception:
+            pass
+        try:
+            log_file.close()
+        except Exception:
+            pass
 
 
 
@@ -361,19 +385,7 @@ if __name__ == "__main__":
     try:
         generate_plan(controller, task, args, logger)
     finally:
-        # 종료 상태 저장
-        try:
-            save_scene_state(
-                controller=controller,
-                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
-                case_name=args.case,
-                scene_name=scene_name,
-                instruction=task,
-                approach_name="progprompt",
-                state_label="end",
-            )
-        finally:
-            controller.stop()
+        controller.stop()
+        # Explicitly terminate to avoid lingering non-daemon threads keeping process alive
+        sys.exit(0)
     
-
-
