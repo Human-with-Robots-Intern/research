@@ -435,76 +435,6 @@ class Action:
         Toggle the specified object on. If the object is a Faucet, it also
         attempts to fill any receptacle in the corresponding SinkBasin.
         """
-        # --- PDK: Logic to fill receptacles when a faucet is turned on ---
-        if "FAUCET" in object_id.upper():
-            all_faucets = [
-                o["objectId"]
-                for o in self.controller.last_event.metadata["objects"]
-                if "FAUCET" in o["name"].upper()
-            ]
-            self.log.info(
-                f"Faucet action triggered. Turning on all faucets: {all_faucets}"
-            )
-
-            for faucet_id in all_faucets:
-                # Turn on the faucet first
-                toggle_result = self.controller.step(
-                    action="ToggleObjectOn", objectId=faucet_id
-                )
-                self.success_log(toggle_result, f"toggle on {faucet_id}")
-
-                if not toggle_result.metadata["lastActionSuccess"]:
-                    self.log.warning(f"Failed to toggle on faucet: {faucet_id}")
-                    continue
-
-                # Find the SinkBasin associated with this faucet
-                sink_basin = None
-                faucet_obj = next(
-                    (
-                        o
-                        for o in self.controller.last_event.metadata["objects"]
-                        if o["objectId"] == faucet_id
-                    ),
-                    None,
-                )
-                if faucet_obj and faucet_obj.get("parentReceptacles"):
-                    sink_id = faucet_obj["parentReceptacles"][0]
-                    sink_basin = next(
-                        (
-                            o
-                            for o in self.controller.last_event.metadata["objects"]
-                            if o.get("parentReceptacles")
-                            and sink_id in o["parentReceptacles"]
-                            and "SINKBASIN" in o["name"].upper()
-                        ),
-                        None,
-                    )
-
-                if sink_basin:
-                    objects_in_basin = [
-                        o["objectId"]
-                        for o in self.controller.last_event.metadata["objects"]
-                        if o.get("parentReceptacles")
-                        and sink_basin["objectId"] in o["parentReceptacles"]
-                    ]
-                    if objects_in_basin:
-                        self.log.info(
-                            f"Attempting to fill objects in {sink_basin['objectId']}: {objects_in_basin}"
-                        )
-                        for obj_id in objects_in_basin:
-                            fill_result = self.controller.step(
-                                action="FillObjectWithLiquid",
-                                objectId=obj_id,
-                                fillLiquid="water",
-                                forceAction=True,
-                            )
-                            self.success_log(
-                                fill_result, f"fill '{obj_id}' under faucet"
-                            )
-
-            time.sleep(ACTION_TIME_SLEEP)
-            return TOGGLE_ACTION_DURATION
-        # --- End of Faucet Logic ---
 
         # Original toggle logic for non-faucet objects
         for obj in self.controller.last_event.metadata["objects"]:
@@ -526,27 +456,6 @@ class Action:
         Toggle the specified object off. Checks if the object is already off
         to prevent unnecessary actions and errors.
         """
-        # --- PDK: Logic to turn off all faucets ---
-        if "FAUCET" in object_id.upper():
-            all_faucets = [
-                o["objectId"]
-                for o in self.controller.last_event.metadata["objects"]
-                if "FAUCET" in o["name"].upper()
-            ]
-            self.log.info(
-                f"Faucet action triggered. Turning off all faucets: {all_faucets}"
-            )
-
-            for faucet_id in all_faucets:
-                # Turn off the faucet
-                toggle_result = self.controller.step(
-                    action="ToggleObjectOff", objectId=faucet_id
-                )
-                self.success_log(toggle_result, f"toggle off {faucet_id}")
-
-            time.sleep(ACTION_TIME_SLEEP)
-            return TOGGLE_ACTION_DURATION
-        # --- End of Faucet Logic ---
 
         for obj in self.controller.last_event.metadata["objects"]:
             if obj["objectId"] == object_id:
