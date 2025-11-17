@@ -1,11 +1,11 @@
 import argparse
 import copy
 import os
+import re
 import sys
 import time
-from typing import Any, Callable, Dict, Optional, TextIO
 from pathlib import Path
-import re
+from typing import Any, Callable, Dict, Optional, TextIO
 
 import numpy as np
 
@@ -15,11 +15,12 @@ from ai2thor.platform import CloudRendering
 
 import src.baselines.cap.util.LMPgen as gen
 from src.simulation.runner_ai2thor import init_ai2thor_controller
+from src.utils.common import create_module_logger
 from src.utils.config.constants import *
+from src.utils.get_state import save_scene_state
 from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
-from src.utils.common import create_module_logger
-from src.utils.get_state import save_scene_state
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 from ithor.handlers.action import Action
@@ -60,6 +61,7 @@ prompt_parse_obj_name = read_txt(prompt_parse_obj_name_path).strip()
 prompt_parse_question = read_txt(prompt_parse_question_path).strip()
 prompt_fgen = read_txt(prompt_fgen_path).strip()
 
+
 def build_temporal_logic_guidelines(wait_units: int) -> str:
     """Temporal logic guideline text with dynamic wait time units.
 
@@ -97,6 +99,7 @@ def build_temporal_logic_guidelines(wait_units: int) -> str:
         - If a follow-up is not time-critical (e.g., serving/eating later), it need not be immediate.
     """
     ).format(wait=wait_units)
+
 
 def timed_action(
     log_file: TextIO, action_name: str, action_func: Callable, controller: Controller
@@ -223,6 +226,7 @@ def build_cfg_scene(temporal_guidelines: str) -> Dict[str, Any]:
             },
         }
     }
+
 
 vars_log = open("vars_log.txt", "w", buffering=1)
 
@@ -470,7 +474,7 @@ if __name__ == "__main__":
         from src.utils.config.constants import set_init_prior_mean
 
         set_init_prior_mean(args.init_prior_mean)
-        
+
     logger = create_module_logger(
         module_name=approach_name,
         log_file_path=Path(args.log_path) if args.log_path else None,
@@ -501,7 +505,9 @@ if __name__ == "__main__":
                 if 1 <= choice <= len(task_files):
                     instruction = Path(task_files[choice - 1]).stem
                 else:
-                    print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
+                    print(
+                        f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}."
+                    )
                     sys.exit(1)
             except ValueError:
                 # instruction is not a number, so we treat it as a natural language command.
@@ -517,7 +523,7 @@ if __name__ == "__main__":
             log_dir = Path("src/baselines/cap/result")
             log_dir.mkdir(exist_ok=True)
             log_file_path = log_dir / f"cap_logs_{instruction}.txt"
-        
+
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
         log_file = open(log_file_path, "w", buffering=1)
 
@@ -525,7 +531,9 @@ if __name__ == "__main__":
         controller = init_ai2thor_controller(scene_name, platform=platform_obj)
         # Use a consistent directory name for state saving (keep numeric prefix when case)
         instruction_dir_name = (
-            Path(args.instruction).stem if (args.case and args.instruction) else (Path(instruction).stem if instruction else instruction)
+            Path(args.instruction).stem
+            if (args.case and args.instruction)
+            else (Path(instruction).stem if instruction else instruction)
         )
         save_scene_state(
             controller=controller,
@@ -537,10 +545,20 @@ if __name__ == "__main__":
             state_label="init",
         )
         # Action 핸들러 초기화
-        ithor_action_controller = Action(controller, logger=logger)
+        ithor_action_controller = (
+            Action(
+                controller,
+                logger=logger,
+                trajectory_log_json_path=Path(
+                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
+                ),
+            ),
+        )
 
         # LMP 환경 설정
-        wait_units = int(args.init_prior_mean) if args.init_prior_mean is not None else 60
+        wait_units = (
+            int(args.init_prior_mean) if args.init_prior_mean is not None else 60
+        )
         temporal_guidelines = build_temporal_logic_guidelines(wait_units)
         cfg_scene_runtime = build_cfg_scene(temporal_guidelines)
         lmp_scene_ui = setup_LMP(
@@ -559,8 +577,7 @@ if __name__ == "__main__":
         # 현재 장면에 있는 객체 목록 가져오기
         objs = list(
             set(
-                obj["objectType"]
-                for obj in controller.step("Pass").metadata["objects"]
+                obj["objectType"] for obj in controller.step("Pass").metadata["objects"]
             )
         )
         print(f"objs: {objs}")

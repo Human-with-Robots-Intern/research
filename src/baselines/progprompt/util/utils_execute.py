@@ -17,11 +17,6 @@ sys.path.append(
 from dotenv import load_dotenv
 
 from ithor.handlers.action import Action
-from ithor.handlers.arm_handler import ArmHandler
-from ithor.handlers.camera_handler import CameraHandler
-from ithor.handlers.interaction_handler import InteractionHandler
-from ithor.handlers.move_handler import MoveHandler
-from ithor.handlers.navigation_handler import NavigationHandler
 
 load_dotenv()
 logger = create_module_logger(__name__, module_log=True)
@@ -144,17 +139,17 @@ def fun_processing(plan):  # gen plan이 들어오면 각 단계별로 나눠서
 def find_objID(controller, obj_type: str) -> str | None:
     """
     Find object ID by matching object type (case-insensitive).
-    
+
     Args:
         controller: AI2Thor controller
         obj_type: Object type name to search for
-        
+
     Returns:
         str | None: Object ID if found, None otherwise
     """
     if not obj_type:
         return None
-        
+
     obj_type_lower = obj_type.lower()
     for obj in controller.last_event.metadata["objects"]:
         if obj["objectType"].lower() == obj_type_lower:
@@ -314,9 +309,11 @@ def get_current_state_prompt():
 current_state_prompt = get_current_state_prompt()
 
 
-def simulate_execution(controller, test_tasks, gen_plan, log_file, args, logger):
+def simulate_execution(
+    controller, test_tasks, gen_plan, log_file, args, logger, action_interface: Action
+):
     elapsed_time = 0
-    Act = Action(controller, logger=logger)
+
     ## gen plan 토대로 실행
     for task, plan in zip(test_tasks, gen_plan):
         log_file.write(f"Starting simulation for task: {task}\n")
@@ -402,13 +399,18 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args, logger)
                 log_file.write(f"Executing action: {action}\n")
                 if action[0] == "wait":
                     wait_time = action[1]
-                else:   
+                else:
                     objID = find_objID(controller, action[1])
                     if objID is None:
-                        log_file.write(f"WARNING: Could not find object '{action[1]}' in scene\n")
+                        log_file.write(
+                            f"WARNING: Could not find object '{action[1]}' in scene\n"
+                        )
                         logger.warning(f"Could not find object '{action[1]}' in scene")
                         # List available objects for debugging
-                        available_objects = [obj["objectType"] for obj in controller.last_event.metadata["objects"]]
+                        available_objects = [
+                            obj["objectType"]
+                            for obj in controller.last_event.metadata["objects"]
+                        ]
                         log_file.write(f"Available objects: {available_objects}\n")
                         continue  # Skip this action and continue with next one
 
@@ -417,37 +419,37 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args, logger)
                 match action[0]:
                     case "walk":
                         # move action
-                        elapsed_time += Act.move_to(objID)
+                        elapsed_time += action_interface.move_to(objID)
                         # move_to 뒤에 바로 오는 log 기록은 살짝 무의미해 보임
 
                     case "pickup":
                         # pickup action
-                        elapsed_time += Act.pickup(objID)
+                        elapsed_time += action_interface.pickup(objID)
                     case "put":
                         # put action
                         target = find_objID(controller, action[2])
-                        elapsed_time += Act.put(target)
+                        elapsed_time += action_interface.put(target)
                     case "drop":
                         # drop action
-                        elapsed_time += Act.drop()
+                        elapsed_time += action_interface.drop()
                     case "slice":
                         # slice action
-                        elapsed_time += Act.slice(objID)
+                        elapsed_time += action_interface.slice(objID)
                     case "open":
                         # open action
-                        elapsed_time += Act.open(objID)
+                        elapsed_time += action_interface.open(objID)
                     case "close":
                         # close action
-                        elapsed_time += Act.close(objID)
+                        elapsed_time += action_interface.close(objID)
                     case "toggle_on":
-                        elapsed_time += Act.toggleon(objID)
+                        elapsed_time += action_interface.toggleon(objID)
                     case "toggle_off":
-                        elapsed_time += Act.toggleoff(objID)
+                        elapsed_time += action_interface.toggleoff(objID)
                     case "fill":
                         liquid = find_objID(controller, action[2])
-                        elapsed_time += Act.fill(objID)
+                        elapsed_time += action_interface.fill(objID)
                     case "wait":
-                        elapsed_time += Act.wait(wait_time)
+                        elapsed_time += action_interface.wait(wait_time)
                     case "done":
                         time.sleep(0.3)
                         pass
@@ -459,6 +461,6 @@ def simulate_execution(controller, test_tasks, gen_plan, log_file, args, logger)
 
                 # Synchronize state after each action
                 controller.step(action="Pass")
-                
+
     print(f"{round(elapsed_time, 2)=}")
     log_file.write(f"Total time spent : {round(elapsed_time, 2)}")

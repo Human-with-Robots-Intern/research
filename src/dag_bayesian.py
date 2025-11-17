@@ -7,6 +7,7 @@ from typing import Any, Dict
 
 from ai2thor.platform import CloudRendering
 
+from ithor.handlers.action import Action
 from ithor.utils.math_utils import load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
@@ -220,6 +221,13 @@ def main():
                 approach_name=f"{approach_name}_{args.ablation_name}",
                 state_label="init",
             )
+            action_interface = Action(
+                controller,
+                logger=logger,
+                trajectory_log_json_path=Path(
+                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}_{args.ablation_name}/trajectory_log.json"
+                ),
+            )
 
         elif args.instruction:
             # Load the chosen task data
@@ -303,7 +311,7 @@ def main():
 
             if args.simulation:
                 sim_elapsed_time, execution_status, sim_nav_time = execute_subtask(
-                    controller, next_state.subtask, logger
+                    controller, next_state.subtask, logger, action_interface
                 )
                 # 시뮬레이션에서 흐른 시간과 실행 상태를 저장.
                 last_entry = next_state.completed_entries[-1]

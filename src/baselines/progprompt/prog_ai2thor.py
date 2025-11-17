@@ -1,28 +1,30 @@
 import argparse
 import json
+import logging
 import os
 import os.path as osp
 import random
+import re
 import sys
 import time
 from pathlib import Path
-import logging
-import re
 
 import numpy as np
 import openai
 from ai2thor.controller import Controller
 from ai2thor.platform import CloudRendering
-from src.simulation.runner_ai2thor import init_ai2thor_controller
 from util.utils_execute import *
 
-
-from src.utils.config.constants import *
+from ithor.handlers.action import Action
+from src.simulation.runner_ai2thor import init_ai2thor_controller
 from src.utils.common import create_module_logger
+from src.utils.config.constants import *
+from src.utils.get_state import save_scene_state
 from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
-from src.utils.get_state import save_scene_state
-current_dir = os.path.dirname(os.path.abspath(__file__)) # 이 파일의 현재 경로
+
+current_dir = os.path.dirname(os.path.abspath(__file__))  # 이 파일의 현재 경로
+
 
 def build_temporal_logic_guidelines(wait_units: int) -> str:
     """Create temporal logic guidelines text with dynamic wait time units.
@@ -65,6 +67,7 @@ def build_temporal_logic_guidelines(wait_units: int) -> str:
         - If a follow-up is not time-critical (e.g., serving/eating later), it need not be immediate.
     """
     ).format(wait=wait_units)
+
 
 def parse_arguments() -> argparse.Namespace:
     """
@@ -109,7 +112,7 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="로그 출력 수준 설정 (default: DEBUG)"
+        help="로그 출력 수준 설정 (default: DEBUG)",
     )
     parser.add_argument(
         "--gpt-version",
@@ -122,7 +125,7 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         default="FloorPlan1",
         # 추후에 scene 목록이 생기면 choices = [] 으로 구현한다.
-        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)"
+        help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
     parser.add_argument(
         "--prompt-num-examples", type=int, default=4, choices=range(1, 5)
@@ -133,8 +136,10 @@ def parse_arguments() -> argparse.Namespace:
         default="none",
         choices=["none", "no_comments", "no_feedback", "no_comments_feedback"],
     )
-    parser.add_argument("--openai-api-key", type=str, default=os.getenv("OPENAI_API_KEY"))
-    
+    parser.add_argument(
+        "--openai-api-key", type=str, default=os.getenv("OPENAI_API_KEY")
+    )
+
     parser.add_argument("--prompt-task-examples", type=str, default="default")
     parser.add_argument("--instruction", type=str, default=None)
     parser.add_argument(
@@ -181,11 +186,13 @@ def parse_arguments() -> argparse.Namespace:
 
     return parser.parse_args()
 
+
 def generate_plan(
     controller: Controller,
     task: str,
     args: argparse.Namespace,
     logger: logging.Logger,
+    action_interface: Action,
 ) -> None:
     """Generate, save, and simulate a plan for a given task.
 
@@ -204,6 +211,7 @@ def generate_plan(
     """
     # 현재 scene에 있는 object들을 가져옴
     # 이거 env json으로 해야하나 contoller로 하면 되나?
+
     obj = list(
         set(obj["objectType"] for obj in controller.step("Pass").metadata["objects"])
     )
@@ -228,7 +236,7 @@ def generate_plan(
             "use coffee machine to make coffee then pick up the apple",
             "Fill the bathtub with water",
             "wash tomato, potato and egg, and cook egg fry",
-            "put tomato and apple in fridge and put book in shelf"
+            "put tomato and apple in fridge and put book in shelf",
         ]
         for i in range(args.prompt_num_examples):
             prompt += (
@@ -250,7 +258,9 @@ def generate_plan(
 
     # Read task from input
     print(f"Generating plan for: {task}\n")
-    curr_prompt = f"{prompt}\ntask : {task}\n"  ## 주어진 정보 + 수행할 task 이어서 prompt 만듦
+    curr_prompt = (
+        f"{prompt}\ntask : {task}\n"  ## 주어진 정보 + 수행할 task 이어서 prompt 만듦
+    )
     _, text = LM(
         curr_prompt,
         args.gpt_version,
@@ -261,11 +271,11 @@ def generate_plan(
     # save generated plan
     line = {}
     print(f"Saving generated plan at: {task}.json\n")
-    plan_of_task_path = os.path.join(current_dir,f"result/plans_of_{task}.json")
+    plan_of_task_path = os.path.join(current_dir, f"result/plans_of_{task}.json")
     with open(plan_of_task_path, "w") as f:
         line[task] = text
         json.dump(line, f)
-            
+
     computation_time = time.time() - computation_time_start
 
     prog_log_path = os.path.join(current_dir, f"result/prog_logs_{task}.txt")
@@ -282,15 +292,17 @@ def generate_plan(
         result_path = f"{folder_key}"
 
         # Execute simulation; ensure any internal buffers are flushed to log_file
-        simulate_execution(controller, [task], [text], log_file, args, logger)
+        simulate_execution(
+            controller, [task], [text], log_file, args, logger, action_interface
+        )
         log_file.flush()
 
-        result_args={
+        result_args = {
             "approach_name": approach_name,
             "user_input": folder_key,
-            "result":prog_log_path,
-            "json_output_path":result_path,
-            "computation_time":computation_time,
+            "result": prog_log_path,
+            "json_output_path": result_path,
+            "computation_time": computation_time,
             "scene_name": args.scene,
             "attempt": args.attempt,
             "init_prior_mean": args.init_prior_mean,
@@ -317,11 +329,8 @@ def generate_plan(
             pass
 
 
-
-
-
 if __name__ == "__main__":
-    args: argparse.Namespace = parse_arguments()    
+    args: argparse.Namespace = parse_arguments()
 
     # Handle INIT_PRIOR_MEAN override
     if args.init_prior_mean is not None:
@@ -353,7 +362,9 @@ if __name__ == "__main__":
                 if 1 <= choice <= len(task_files):
                     task = Path(task_files[choice - 1]).stem
                 else:
-                    print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
+                    print(
+                        f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}."
+                    )
                     sys.exit(1)
             except ValueError:
                 # It's a natural language instruction, not a number
@@ -371,7 +382,9 @@ if __name__ == "__main__":
     controller = init_ai2thor_controller(scene_name, platform=platform_obj)
     # Use a consistent directory name for state saving
     instruction_dir_name = (
-        Path(instruction).stem if (args.case and instruction) else (task if instruction else task)
+        Path(instruction).stem
+        if (args.case and instruction)
+        else (task if instruction else task)
     )
     save_scene_state(
         controller=controller,
@@ -383,9 +396,15 @@ if __name__ == "__main__":
         state_label="init",
     )
     try:
-        generate_plan(controller, task, args, logger)
+        action_interface = Action(
+            controller,
+            logger=logger,
+            trajectory_log_json_path=Path(
+                f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/progprompt/trajectory_log.json"
+            ),
+        )
+        generate_plan(controller, task, args, logger, action_interface)
     finally:
         controller.stop()
         # Explicitly terminate to avoid lingering non-daemon threads keeping process alive
         sys.exit(0)
-    
