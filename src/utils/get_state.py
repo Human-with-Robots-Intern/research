@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List
 
@@ -33,9 +34,8 @@ def get_all_object_states(controller: Controller) -> List[Dict[str, Any]]:
     objects_metadata = event.metadata["objects"]
     filtered_states = []
     keys_to_keep = [
+        "objectId",
         "name",
-        "position",
-        "rotation",
         "isCooked",
         "isSliced",
         "isOpen",
@@ -48,6 +48,63 @@ def get_all_object_states(controller: Controller) -> List[Dict[str, Any]]:
         filtered_states.append(state)
 
     return filtered_states
+
+
+#
+def get_changed_object_states(
+    state_before: list[dict[str, Any]], state_after: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """두 객체 상태 목록을 비교하여 변경된 객체의 목록을 반환합니다.
+
+    Args:
+        state_before: 이전 상태의 객체 목록입니다.
+        state_after: 이후 상태의 객체 목록입니다.
+
+    Returns:
+        상태가 변경된 객체의 목록.
+    """
+    before_map = {obj["objectId"]: obj for obj in state_before}
+    after_map = {obj["objectId"]: obj for obj in state_after}
+
+    changed_objects_formatted = []
+    all_ids = set(before_map.keys()) | set(after_map.keys())
+
+    for obj_id in all_ids:
+        state1 = before_map.get(obj_id)
+        state2 = after_map.get(obj_id)
+
+        is_changed = False
+        if state1 is None or state2 is None:
+            # 객체가 추가되거나 삭제된 경우 변경으로 간주
+            is_changed = True
+        else:
+            # 지정된 키에 대해서만 변경 여부 확인
+            for key in [
+                "isCooked",
+                "isSliced",
+                "isOpen",
+                "parentReceptacles",
+                "isToggled",
+                "isFilledWithLiquid",
+            ]:
+                if state1.get(key) != state2.get(key):
+                    is_changed = True
+                    break
+
+        if is_changed:
+            if state2:  # Object changed or was added
+                properties = state2.copy()
+                object_name = properties.pop("name")
+                properties.pop(
+                    "objectId"
+                )  # Don't include objectId in the properties dict
+
+                formatted_change = {
+                    "object_name": object_name,
+                    "property": properties,
+                }
+                changed_objects_formatted.append(formatted_change)
+    return changed_objects_formatted
 
 
 def save_scene_state(

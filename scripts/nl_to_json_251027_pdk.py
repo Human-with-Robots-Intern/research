@@ -17,7 +17,7 @@ def load_instructions() -> Dict:
         The entire data structure from the JSON file.
     """
     instruction_file = (
-        ASSETS_PATH / "tasks" / "generating_target_for_final_instruction_set.json"
+        ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251114.json"
     )
     try:
         with open(instruction_file, "r", encoding="utf-8") as f:
@@ -64,14 +64,14 @@ def main() -> None:
         "--task-counts",
         type=int,
         nargs="*",
-        default=[2, 3, 4, 5],
+        default=[2, 3, 4],
         help="A list of task counts to process (e.g., 2 3). Processes all if not provided.",
     )
     argparser.add_argument(
         "--constraint-counts",
         type=int,
         nargs="*",
-        default=[0, 1, 2, 3],
+        default=[0, 1, 2],
         help="A list of constraint counts to process (e.g., 0 1). Processes all if not provided.",
     )
     args = argparser.parse_args()
@@ -114,7 +114,7 @@ def main() -> None:
             output_dir = (
                 ASSETS_PATH
                 / "tasks"
-                / "decomposed_rightbefore_final_251031"
+                / "decomposed_final_revision_metadata_251114"
                 / case_key
                 / scene_name
             )

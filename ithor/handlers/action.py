@@ -1,5 +1,6 @@
 import logging
 import time
+from pathlib import Path
 
 from src.utils.common import create_module_logger
 from src.utils.config.constants import (
@@ -10,6 +11,7 @@ from src.utils.config.constants import (
     SMOOTH_LEVEL,
     TOGGLE_ACTION_DURATION,
 )
+from src.utils.decorators import log_action_state
 
 from .navigation_handler import NavigationHandler
 
@@ -33,10 +35,13 @@ class Action:
         elapsed_time (float): Time taken to perform the action.
     """
 
-    def __init__(self, controller, logger: logging.Logger):
+    def __init__(
+        self, controller, logger: logging.Logger, trajectory_log_json_path: Path
+    ):
         self.controller = controller
         self.navi = NavigationHandler(controller)
         self.log = logger
+        self.trajectory_log_json_path = trajectory_log_json_path
 
     def success_log(self, result, action: str):
         """
@@ -73,6 +78,7 @@ class Action:
                     return parent_receptacle_ids[0]
         return None
 
+    @log_action_state
     def pickup(self, object_id: str):
         """
         Attempt to pick up the specified object.
@@ -124,7 +130,7 @@ class Action:
                 self.log.debug(
                     f"Parent {receptacle_id} is openable. Opening it to retry pickup."
                 )
-                self.open(receptacle_id)
+                self._open(receptacle_id)
                 time.sleep(ACTION_TIME_SLEEP)
 
                 # 열고 나서 forceAction으로 재시도
@@ -140,7 +146,7 @@ class Action:
                     self.success_log(
                         result, f"pickup {object_id} (after opening {receptacle_id})"
                     )
-                    self.close(receptacle_id)
+                    self._close(receptacle_id)
                     self.log.debug(
                         f"Pick up action after opening receptacle {receptacle_id} was successful."
                     )
@@ -166,6 +172,7 @@ class Action:
             forceAction=True,
             manualInteract=False,
         )
+        self.controller.step(action="Pass")
 
         if result.metadata["lastActionSuccess"]:
             self.success_log(result, f"pickup {object_id} (final force attempt)")
@@ -175,6 +182,7 @@ class Action:
         self.log.error(f"All pickup attempts for {object_id} have failed.")
         return False
 
+    @log_action_state
     def slice(self, object_id: str):
         """
         Slice the specified object.
@@ -186,10 +194,12 @@ class Action:
             float: Elapsed time for the slice action.
         """
         result = self.controller.step(action="SliceObject", objectId=object_id)
+        self.controller.step(action="Pass")
         self.success_log(result, f"slice {object_id}")
         time.sleep(ACTION_TIME_SLEEP)
         return TOGGLE_ACTION_DURATION
 
+    @log_action_state
     def put(self, target_id: str):
         """
         Put the held object into the target container.
@@ -271,7 +281,7 @@ class Action:
                 self.log.error(
                     f"Put failed because '{effective_target_id}' is closed. Forcing it open and retrying."
                 )
-                self.open(effective_target_id)
+                self._open(effective_target_id)
                 target_obj_state = next(
                     (
                         obj
@@ -406,10 +416,11 @@ class Action:
                 self.log.warning(
                     "Final PutObject check failed, but no object in hand to drop."
                 )
-
+        self.controller.step(action="Pass")
         time.sleep(ACTION_TIME_SLEEP)
         return elapsed_time
 
+    @log_action_state
     def drop(self):
         """
         Drop the held object.
@@ -426,10 +437,12 @@ class Action:
             )
             result = self.controller.step(action="DropHandObject", forceAction=False)
             step += 1
+        self.controller.step(action="Pass")
         self.success_log(result, "drop")
         time.sleep(ACTION_TIME_SLEEP)
         return TOGGLE_ACTION_DURATION
 
+    @log_action_state
     def toggle_on(self, object_id: str):
         """
         Toggle the specified object on. If the object is a Faucet, it also
@@ -447,10 +460,12 @@ class Action:
                 break
 
         result = self.controller.step(action="ToggleObjectOn", objectId=object_id)
+        self.controller.step(action="Pass")
         self.success_log(result, f"toggle on {object_id}")
         time.sleep(ACTION_TIME_SLEEP)
         return TOGGLE_ACTION_DURATION
 
+    @log_action_state
     def toggle_off(self, object_id: str):
         """
         Toggle the specified object off. Checks if the object is already off
@@ -467,21 +482,13 @@ class Action:
                 break
 
         result = self.controller.step(action="ToggleObjectOff", objectId=object_id)
+        self.controller.step(action="Pass")
         self.success_log(result, f"toggle off {object_id}")
         time.sleep(ACTION_TIME_SLEEP)
         return TOGGLE_ACTION_DURATION
 
-    def open(self, object_id: str):
-        """
-        Open the specified object (e.g., a container).
-        If the initial attempt fails, it tries to teleport to a reachable
-        position and retries the action. As a final resort, it forces
-        the object's state to be open.
-        Args:
-            object_id (str): The identifier of the object to open.
-        Returns:
-            float: Elapsed time for the open action.
-        """
+    def _open(self, object_id: str) -> float:
+        """Core logic to open an object, without triggering the action state logger."""
         # Face the target and make a small backward offset to avoid door collision
         agent_pos = self.navi.get_agent_position()
         object_pos = self.navi.get_object_position(object_id)
@@ -528,17 +535,22 @@ class Action:
         self.controller.step(action="Pass")
         return TOGGLE_ACTION_DURATION
 
-    def close(self, object_id: str):
+    @log_action_state
+    def open(self, object_id: str) -> float:
         """
-        Close the specified object.
-        Includes a fallback mechanism to force the state if the action fails.
-
+        Open the specified object (e.g., a container).
+        If the initial attempt fails, it tries to teleport to a reachable
+        position and retries the action. As a final resort, it forces
+        the object's state to be open.
         Args:
-            object_id (str): The identifier of the object to close.
-
+            object_id (str): The identifier of the object to open.
         Returns:
-            float: Elapsed time for the close action.
+            float: Elapsed time for the open action.
         """
+        return self._open(object_id)
+
+    def _close(self, object_id: str) -> float:
+        """Core logic to close an object, without triggering the action state logger."""
         result = self.controller.step(
             action="CloseObject",
             objectId=object_id,
@@ -556,10 +568,25 @@ class Action:
                 forceAction=True,
             )
             self.success_log(result, f"Force close {object_id} via forceAction")
-
+        self.controller.step(action="Pass")
         time.sleep(ACTION_TIME_SLEEP)
         return TOGGLE_ACTION_DURATION
 
+    @log_action_state
+    def close(self, object_id: str) -> float:
+        """
+        Close the specified object.
+        Includes a fallback mechanism to force the state if the action fails.
+
+        Args:
+            object_id (str): The identifier of the object to close.
+
+        Returns:
+            float: Elapsed time for the close action.
+        """
+        return self._close(object_id)
+
+    @log_action_state
     def monitoring(self, object_id: str):
         """
         Monitor a specified object by rotating the agent to face it,
@@ -617,10 +644,11 @@ class Action:
                     self.controller.step(action="RotateLeft", degrees=step_deg)
                 else:
                     self.controller.step(action="RotateRight", degrees=step_deg)
-
+        self.controller.step(action="Pass")
         time.sleep(ACTION_TIME_SLEEP)
         return MONITORING_DURATION
 
+    @log_action_state
     def wait(self, wait_time: float):
         """
         Wait for the specified duration.
@@ -633,6 +661,7 @@ class Action:
         self.log.debug(f"wait: {wait_time}")
         return wait_time
 
+    @log_action_state
     def fill(self, object_id: str):
         """
         Fill the specified object with water.
@@ -650,9 +679,11 @@ class Action:
             forceAction=True,
         )
         self.success_log(result, f"fill {object_id} with water")
+        self.controller.step(action="Pass")
         time.sleep(ACTION_TIME_SLEEP)
         return PLACE_ACTION_DURATION
 
+    @log_action_state
     def move_to(self, object_id: str):
         """
         Move the agent to the nearest reachable point near the specified object.
