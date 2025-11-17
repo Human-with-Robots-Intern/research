@@ -74,6 +74,7 @@ def init_ai2thor_controller(
     Returns:
         Controller: Configured AI2-THOR Controller.
     """
+    print(f"platform: {platform}")
     controller = Controller(
         agentMode=agent_mode,
         massThreshold=mass_threshold,
@@ -88,7 +89,7 @@ def init_ai2thor_controller(
         fieldOfView=field_of_view,
         platform=platform,
     )
-
+    print(f"controller: {controller}")
     return controller
 
 

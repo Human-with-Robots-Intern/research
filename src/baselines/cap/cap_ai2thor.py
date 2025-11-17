@@ -619,4 +619,4 @@ if __name__ == "__main__":
         except Exception:
             pass
         # 백그라운드 스레드/리소스가 잔류하더라도 프로세스 종료
-        sys.exit(0)
+        # sys.exit(0)
