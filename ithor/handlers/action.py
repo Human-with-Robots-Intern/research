@@ -24,7 +24,7 @@ MOVE_BACKWARD_DISTANCE = 100
 class Action:
     """
     Possible actions:
-        - pickup, slice, put, drop, toggleon, toggleoff, open, close,
+        - pickup, slice, put, drop, toggle_on, toggle_off, open, close,
           monitoring, wait, fill, move to
 
     Args:
@@ -661,27 +661,27 @@ class Action:
         self.log.debug(f"wait: {wait_time}")
         return wait_time
 
-    @log_action_state
-    def fill(self, object_id: str):
-        """
-        Fill the specified object with water.
+    # @log_action_state
+    # def fill(self, object_id: str):
+    #     """
+    #     Fill the specified object with water.
 
-        Args:
-            object_id (str): The identifier of the object to fill.
+    #     Args:
+    #         object_id (str): The identifier of the object to fill.
 
-        Returns:
-            float: Elapsed time for the fill action.
-        """
-        result = self.controller.step(
-            action="FillObjectWithLiquid",
-            objectId=object_id,
-            fillLiquid="water",
-            forceAction=True,
-        )
-        self.success_log(result, f"fill {object_id} with water")
-        self.controller.step(action="Pass")
-        time.sleep(ACTION_TIME_SLEEP)
-        return PLACE_ACTION_DURATION
+    #     Returns:
+    #         float: Elapsed time for the fill action.
+    #     """
+    #     result = self.controller.step(
+    #         action="FillObjectWithLiquid",
+    #         objectId=object_id,
+    #         fillLiquid="water",
+    #         forceAction=True,
+    #     )
+    #     self.success_log(result, f"fill {object_id} with water")
+    #     self.controller.step(action="Pass")
+    #     time.sleep(ACTION_TIME_SLEEP)
+    #     return PLACE_ACTION_DURATION
 
     @log_action_state
     def move_to(self, object_id: str):

@@ -18,12 +18,12 @@ start_idx: 1 # Start index for the instruction
 approaches:
   # - "src/baselines/cpm.py"
   # - "src/baselines/edf/dag_edf.py"
-  - "src/dag_bayesian.py"
+  # - "src/dag_bayesian.py"
   
 # Scripts that use LLMs and are subject to retries on failure
 llm_scripts:
-  # - "src/baselines/progprompt/prog_ai2thor.py"
-  - "src/baselines/cap/cap_ai2thor.py"
+  - "src/baselines/progprompt/prog_ai2thor.py"
+  # - "src/baselines/cap/cap_ai2thor.py"
 
 # Scene lists for each scene type
 
@@ -67,7 +67,7 @@ init_prior_configs:
 task_folder_name: "sampled_10_instruction_set_for_final_experiment_251114" # Folder under assets/tasks/
 min_task_count: 4
 min_constraint_count: 3
-skip_completed: true
+skip_completed: false
 
 
 

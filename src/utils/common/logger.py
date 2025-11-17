@@ -67,7 +67,7 @@ def create_module_logger(
         logger_name = module_name
 
     logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.ERROR)
+    logger.setLevel(logging.INFO)
     logger.propagate = False
 
     # Avoid adding handlers if they already exist, especially for the singleton logger.

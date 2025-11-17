@@ -565,9 +565,11 @@ def main() -> None:
 
     is_dry_run: bool = args.dry_run
 
-    sched_baselines: List[Tuple[BaselineType, Path]] = [
-        (BaselineType.SCHEDULER, Path(p)) for p in config.get("approaches", [])
-    ]
+    sched_baselines: List[Tuple[BaselineType, Path]] = (
+        [(BaselineType.SCHEDULER, Path(p)) for p in config.get("approaches", [])]
+        if config.get("approaches", [])
+        else []
+    )
 
     llm_baselines: List[Tuple[BaselineType, Path]] = (
         [(BaselineType.LLM, Path(p)) for p in config.get("llm_scripts", [])]

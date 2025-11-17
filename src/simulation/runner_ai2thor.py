@@ -151,7 +151,7 @@ def execute_subtask(
         "SLICE": lambda target_obj: action_interface.slice(target_obj),
         "MONITORING": lambda target_obj: action_interface.monitoring(target_obj),
         "WAIT": lambda duration: action_interface.wait(round(float(duration), 2)),
-        "FILL": lambda target_obj: action_interface.fill(target_obj),
+        # "FILL": lambda target_obj: action_interface.fill(target_obj),
     }
 
     elapsed_time = 0.0
