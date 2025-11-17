@@ -105,6 +105,54 @@ def count_json_files_by_filename(base_path: str) -> Dict[str, int]:
 
     return dict(filename_counts)
 
+def find_missing_simulation_files(base_path: str) -> List[str]:
+    """'dag_bayesian_simulation.json'이 있는 경로에서 'cpm_simulation.json' 또는 'dag_edf_simulation.json'이 없는 경우 해당 경로를 찾습니다.
+
+    Args:
+        base_path (str): 탐색을 시작할 기준 경로.
+
+    Returns:
+        List[str]: 필요한 파일이 누락된 폴더 경로의 리스트.
+
+    Raises:
+        OSError: 파일 시스템 접근 중 오류가 발생할 경우.
+    """
+    logger = logging.getLogger(__name__)
+    missing_files_folders: List[str] = []
+    base = Path(base_path)
+
+    try:
+        logger.info("--- 누락된 시뮬레이션 파일 검사 시작 ---")
+        # 'dag_bayesian_simulation.json' 파일을 모두 찾음
+        for bayesian_file in base.rglob("dag_bayesian_simulation.json"):
+            directory = bayesian_file.parent
+            cpm_file = directory / "cpm_simulation.json"
+            edf_file = directory / "dag_edf_simulation.json"
+
+            # cpm_simulation.json 또는 dag_edf_simulation.json 파일이 없는 경우
+            if not cpm_file.exists() or not edf_file.exists():
+                missing_files_folders.append(str(directory))
+                if not cpm_file.exists() and not edf_file.exists():
+                    logger.warning(
+                        f"경로에서 'cpm_simulation.json'와 'dag_edf_simulation.json' 파일 누락: {directory}"
+                    )
+                elif not cpm_file.exists():
+                    logger.warning(f"경로에서 'cpm_simulation.json' 파일 누락: {directory}")
+                else:  # not edf_file.exists():
+                    logger.warning(
+                        f"경로에서 'dag_edf_simulation.json' 파일 누락: {directory}"
+                    )
+
+        if not missing_files_folders:
+            logger.info("모든 경로에 필요한 시뮬레이션 파일이 존재합니다.")
+        logger.info("--- 누락된 시뮬레이션 파일 검사 완료 ---")
+
+    except Exception as e:
+        logger.error(f"누락된 시뮬레이션 파일 검사 중 오류 발생: {e}")
+        raise
+
+    return missing_files_folders
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
@@ -118,3 +166,12 @@ if __name__ == "__main__":
     for filename, count in sorted(filename_counts.items()):
         print(f"{filename}: {count}개")
     print("-----------------------------")
+
+    print("\n--- 누락된 시뮬레이션 파일이 있는 경로 ---")
+    missing_folders = find_missing_simulation_files(current_dir)
+    if missing_folders:
+        for folder in missing_folders:
+            print(folder)
+    else:
+        print("누락된 파일이 있는 경로를 찾을 수 없습니다.")
+    print("------------------------------------")

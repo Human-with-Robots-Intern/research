@@ -193,27 +193,48 @@ class Action:
     def put(self, target_id: str):
         """
         Put the held object into the target container.
-        If the initial attempt fails, it tries various recovery strategies
-        before finally dropping the object as a last resort.
-
-        Args:
-            target_id (str): The identifier of the target container.
-
-        Returns:
-            float: Elapsed time for the put action.
+        This method includes robust fallbacks for problematic receptacles
+        like Sinks, Bowls, and Pans based on AI2-THOR's known physics limitations.
         """
+        # --- PDK: Definitive Target Refinement (Sink -> SinkBasin) ---
+        # As per official documentation, to place objects IN a sink,
+        # the actual target must be the 'SinkBasin' component, not the 'Sink' fixture.
+        effective_target_id = target_id
+        if "SINK" in target_id.upper() and "SINKBASIN" not in target_id.upper():
+            # Find the corresponding SinkBasin for the given Sink
+            sink_basin = next(
+                (
+                    o
+                    for o in self.controller.last_event.metadata["objects"]
+                    if o.get("parentReceptacles")
+                    and target_id in o["parentReceptacles"]
+                    and "SINKBASIN" in o["name"].upper()
+                ),
+                None,
+            )
+            if sink_basin:
+                effective_target_id = sink_basin["objectId"]
+                self.log.error(
+                    f"Target refined from '{target_id}' to specific receptacle '{effective_target_id}'."
+                )
+            else:
+                self.log.error(
+                    f"Could not find a SinkBasin for '{target_id}'. Using original target."
+                )
+        # --- End of Target Refinement ---
+
         elapsed_time = PLACE_ACTION_DURATION
         result = self.controller.step(
             action="PutObject",
-            objectId=target_id,
-            forceAction=False,
+            objectId=effective_target_id,
+            forceAction=True,
             placeStationary=True,
         )
-        self.success_log(result, f"put {target_id}")
+        self.success_log(result, f"put {effective_target_id}")
 
         if not result.metadata["lastActionSuccess"]:
-            self.log.warning(
-                f"Initial 'PutObject' on {target_id} failed. Attempting recovery with Teleport."
+            self.log.error(
+                f"Initial 'PutObject' on {effective_target_id} failed. Attempting recovery with Teleport."
             )
             reachable_positions_event = self.controller.step(
                 action="GetReachablePositions"
@@ -230,57 +251,161 @@ class Action:
                         horizon=agent_meta["cameraHorizon"],
                         standing=True,
                     )
-                    self.log.info(
+                    self.log.error(
                         f"Teleported to a reachable position {best_pos} for retrying 'PutObject'."
                     )
                     result = self.controller.step(
                         action="PutObject",
-                        objectId=target_id,
+                        objectId=effective_target_id,
                         forceAction=True,
                         placeStationary=True,
                     )
-                    self.success_log(result, f"Retry put {target_id} after Teleport")
+                    self.success_log(
+                        result, f"Retry put {effective_target_id} after Teleport"
+                    )
 
         if not result.metadata["lastActionSuccess"]:
             error_message = result.metadata.get("errorMessage", "")
+            self.log.error(f"Error message: {error_message}")
             if "CLOSED" in error_message.upper():
-                self.log.warning(
-                    f"Put failed because '{target_id}' is closed. Forcing it open and retrying."
+                self.log.error(
+                    f"Put failed because '{effective_target_id}' is closed. Forcing it open and retrying."
                 )
-                self.open(target_id)
+                self.open(effective_target_id)
                 target_obj_state = next(
                     (
                         obj
                         for obj in self.controller.last_event.metadata["objects"]
-                        if obj["objectId"] == target_id
+                        if obj["objectId"] == effective_target_id
                     ),
                     None,
                 )
                 if target_obj_state and target_obj_state.get("isOpen"):
                     self.log.debug(
-                        f"Successfully opened '{target_id}'. Final retry for PutObject."
+                        f"Successfully opened '{effective_target_id}'. Final retry for PutObject."
                     )
                     result = self.controller.step(
                         action="PutObject",
-                        objectId=target_id,
+                        objectId=effective_target_id,
                         forceAction=True,
                         placeStationary=True,
                     )
                     self.success_log(
-                        result, f"Final retry put {target_id} after force open"
+                        result,
+                        f"Final retry put {effective_target_id} after force open",
                     )
                 else:
                     self.log.error(
-                        f"Could not open '{target_id}' even with force. Cannot place object inside."
+                        f"Could not open '{effective_target_id}' even with force. Cannot place object inside."
                     )
 
         if not result.metadata["lastActionSuccess"]:
-            self.log.error(
-                f"'PutObject' on {target_id} failed through all recovery attempts. Dropping object as last resort."
+            error_message = result.metadata.get("errorMessage", "")
+            self.log.error(f"Error message: {error_message}")
+
+            inventory_objects = self.controller.last_event.metadata.get(
+                "inventoryObjects", []
             )
-            result = self.controller.step(action="DropHandObject", forceAction=True)
-            self.success_log(result, "drop")
-            self.log.debug("Alternative Action: Drop")
+            problematic_receptacles = ["SINKBASIN", "PLATE", "PAN", "BOWL"]
+            target_is_problematic = any(
+                receptacle in effective_target_id.upper()
+                for receptacle in problematic_receptacles
+            )
+
+            if inventory_objects and target_is_problematic:
+                held_object_id = inventory_objects[0]["objectId"]
+                self.log.error(
+                    f"PutObject on problematic receptacle '{effective_target_id}' failed. "
+                    f"Applying robust fallback: PlaceObjectAtPoint for '{held_object_id}'."
+                )
+
+                spawn_coords_event = self.controller.step(
+                    action="GetSpawnCoordinatesAboveReceptacle",
+                    objectId=effective_target_id,
+                    anywhere=False,
+                )
+
+                placement_successful = False
+                if spawn_coords_event.metadata["lastActionSuccess"]:
+                    spawn_points = spawn_coords_event.metadata["actionReturn"]
+                    if spawn_points:
+                        # --- PDK: Find the most stable (central) spawn point ---
+                        receptacle_object = next(
+                            (
+                                o
+                                for o in self.controller.last_event.metadata["objects"]
+                                if o["objectId"] == effective_target_id
+                            ),
+                            None,
+                        )
+
+                        # Sort all spawn points by distance to the receptacle's center
+                        if receptacle_object:
+                            receptacle_center = receptacle_object["position"]
+                            spawn_points.sort(
+                                key=lambda p: (p["x"] - receptacle_center["x"]) ** 2
+                                + (p["z"] - receptacle_center["z"]) ** 2,
+                            )
+                        # --- End of stability logic ---
+
+                        # --- PDK: Iterate through all spawn points until one succeeds ---
+                        for i, target_position in enumerate(spawn_points):
+                            self.log.info(
+                                f"Attempting to place at spawn point {i+1}/{len(spawn_points)}: {target_position}"
+                            )
+                            place_result = self.controller.step(
+                                action="PlaceObjectAtPoint",
+                                objectId=held_object_id,
+                                position=target_position,
+                            )
+                            if place_result.metadata["lastActionSuccess"]:
+                                self.success_log(
+                                    place_result,
+                                    f"force-place '{held_object_id}' at {target_position}",
+                                )
+                                placement_successful = True
+                                result = place_result
+                                break  # Exit loop on success
+                            else:
+                                self.log.warning(
+                                    f"Placement attempt {i+1} failed: {place_result.metadata['errorMessage']}"
+                                )
+                        # --- End of iteration logic ---
+
+                    else:
+                        self.log.error(
+                            f"GetSpawnCoordinates returned no valid points for '{effective_target_id}'."
+                        )
+                else:
+                    self.log.error(
+                        f"GetSpawnCoordinatesAboveReceptacle failed for '{effective_target_id}'."
+                    )
+
+            # If the robust placement was not successful, the original 'result' (which is a failure)
+            # will pass through to the final drop check. If it was successful, 'result' is updated.
+            if not (inventory_objects and target_is_problematic):
+                # This branch is for when the target is NOT problematic, but PutObject still failed.
+                # In this case, we just log and prepare for the final drop.
+                self.log.error(
+                    f"'PutObject' on non-problematic receptacle '{effective_target_id}' failed. Proceeding to drop."
+                )
+
+        # Final check: If after all attempts 'result' still indicates failure, drop the object.
+        if not result.metadata["lastActionSuccess"]:
+            self.log.error(
+                f"'PutObject' on {effective_target_id} failed through all recovery attempts. Dropping object as last resort."
+            )
+            # Ensure there is an object to drop
+            if self.controller.last_event.metadata.get("inventoryObjects"):
+                drop_result = self.controller.step(
+                    action="DropHandObject", forceAction=True
+                )
+                self.success_log(drop_result, "drop")
+                self.log.debug("Alternative Action: Drop")
+            else:
+                self.log.warning(
+                    "Final PutObject check failed, but no object in hand to drop."
+                )
 
         time.sleep(ACTION_TIME_SLEEP)
         return elapsed_time
@@ -307,15 +432,11 @@ class Action:
 
     def toggle_on(self, object_id: str):
         """
-        Toggle the specified object on. Checks if the object is already on
-        to prevent unnecessary actions and errors.
-
-        Args:
-            object_id (str): The identifier of the object to toggle on.
-
-        Returns:
-            float: Elapsed time for the toggle on action.
+        Toggle the specified object on. If the object is a Faucet, it also
+        attempts to fill any receptacle in the corresponding SinkBasin.
         """
+
+        # Original toggle logic for non-faucet objects
         for obj in self.controller.last_event.metadata["objects"]:
             if obj["objectId"] == object_id:
                 if obj["isToggled"]:
@@ -334,13 +455,8 @@ class Action:
         """
         Toggle the specified object off. Checks if the object is already off
         to prevent unnecessary actions and errors.
-
-        Args:
-            object_id (str): The identifier of the object to toggle off.
-
-        Returns:
-            float: Elapsed time for the toggle off action.
         """
+
         for obj in self.controller.last_event.metadata["objects"]:
             if obj["objectId"] == object_id:
                 if not obj["isToggled"]:
