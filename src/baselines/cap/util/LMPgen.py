@@ -8,6 +8,9 @@ AI2-THOR와 같은 시뮬레이션 환경에서 자연어 명령을 코드로 �
 """
 import ast
 import os
+import re
+import sys
+import traceback
 from time import sleep
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -72,6 +75,7 @@ class LMP:
         self._fixed_vars = fixed_vars
         self._variable_vars = variable_vars
         self.exec_hist = ""  # 실행 기록을 저장하는 변수
+        self._max_retries = 3  # 자동 오류 수정을 위한 최대 재시도 횟수
 
     def clear_exec_hist(self) -> None:
         """실행 기록을 초기화합니다."""
@@ -127,16 +131,18 @@ class LMP:
         2. OpenAI API를 호출하여 코드를 생성합니다.
         3. 생성된 코드에서 새로운 함수가 필요한 경우 `lmp_fgen`으로 생성합니다.
         4. `exec_safe`를 사용하여 안전하게 코드를 실행합니다.
-        5. 실행 결과를 반환하거나 세션을 업데이트합니다.
+        5. 실행 중 오류가 발생하면, LLM에게 오류 수정을 요청하고 재시도합니다.
+        6. 실행 결과를 반환하거나 세션을 업데이트합니다.
 
         Args:
             query (str): 사용자의 주된 요청 또는 질문.
             context (str, optional): 쿼리에 대한 추가적인 문맥. Defaults to "".
-            **kwargs: 코드 실행 시 지역 변수로 사용될 키워드 인자.
+            kwargs: 코드 실행 시 지역 변수로 사용될 키워드 인자.
 
         Returns:
             Optional[Any]: 설정에서 반환 값이 지정된 경우, 실행 결과.
         """
+        fix_it_prompt = None
         prompt, use_query = self.build_prompt(query, context=context, **kwargs)
         sys_guide = "You are a highly intelligent and context-aware Household AI Robot Assistant."
         guide = """
@@ -153,47 +159,121 @@ You must honor what is written in the note unconditionally.
             {"role": "system", "content": sys_guide},
             {"role": "user", "content": f"{guide}{prompt}"},
         ]
-        while True:
-            try:
-                # OpenAI API 호출
-                completion = client.chat.completions.create(
-                    messages=prompt_msgs,
-                    temperature=self._cfg["temperature"],
-                    model="gpt-4o",
-                    max_tokens=self._cfg["max_tokens"],
+
+        # 자동 오류 수정을 위한 재시도 루프
+        for attempt in range(self._max_retries):
+            # OpenAI API 호출
+            if attempt == 0:  # 최초 시도
+                api_prompt_msgs = prompt_msgs
+            else:  # 오류 수정 재시도
+                # 이전 단계에서 생성된 오류 수정 프롬프트를 사용
+                api_prompt_msgs = [{"role": "user", "content": fix_it_prompt}]
+
+            while True:
+                try:
+                    completion = client.chat.completions.create(
+                        messages=api_prompt_msgs,
+                        temperature=self._cfg["temperature"],
+                        model="gpt-4o",
+                        max_tokens=self._cfg["max_tokens"],
+                    )
+                    code_str = completion.choices[0].message.content.strip()
+                    code_str = code_str.replace("python", "").replace("```", "")
+                    if not code_str:
+                        raise ValueError("LLM returned an empty code block.")
+                    break
+                except Exception as e:
+                    logger.error(f"OpenAI API 호출 중 오류 발생: {e}")
+                    logger.info("10초 후 재시도합니다.")
+                    sleep(10)
+
+            # 컨텍스트와 실행할 코드를 조합합니다.
+            if self._cfg["include_context"] and context != "":
+                to_exec = f"{context}\n{code_str}"
+                to_log = f"{context}\n{use_query}\n{code_str}"
+            else:
+                to_exec = code_str
+                to_log = f"{use_query}\n{to_exec}"
+
+            # 실행 내용을 로그 파일에 기록하고 콘솔에 출력합니다.
+            log_file.write(to_log + "\n\n")
+
+            if sys.stdout.isatty():
+                # 터미널일 경우에만 색상 적용
+                to_log_pretty = highlight(to_log, PythonLexer(), TerminalFormatter())
+            else:
+                # 파일 로그일 경우 색상 없이 출력
+                to_log_pretty = to_log
+
+            logger.info(
+                f"LMP {self._name} PROMPT (Attempt {attempt + 1}):\n\n{api_prompt_msgs}\n"
+            )
+            if attempt > 0:
+                print(
+                    f"LMP {self._name} trying to fix code (Attempt {attempt + 1}):\n\n{to_log_pretty}\n"
                 )
-                code_str = completion.choices[0].message.content.strip()
-                code_str = code_str.replace("python", "").replace("```", "")
-                break
-            except Exception as e:
-                logger.error(f"OpenAI API 호출 중 오류 발생: {e}")
-                logger.info("10초 후 재시도합니다.")
-                sleep(10)
+            else:
+                print(f"LMP {self._name} exec:\n\n{to_log_pretty}\n")
 
-        # 컨텍스트와 실행할 코드를 조합합니다.
-        if self._cfg["include_context"] and context != "":
-            to_exec = f"{context}\n{code_str}"
-            to_log = f"{context}\n{use_query}\n{code_str}"
-        else:
-            to_exec = code_str
-            to_log = f"{use_query}\n{to_exec}"
+            # 생성된 코드에서 새로운 함수가 있는지 파싱하고 생성합니다.
+            new_fs = self._lmp_fgen.create_new_fs_from_code(code_str)
+            self._variable_vars.update(new_fs)
 
-        # 실행 내용을 로그 파일에 기록하고 콘솔에 출력합니다.
-        log_file.write(to_log + "\n\n")
-        to_log_pretty = highlight(to_log, PythonLexer(), TerminalFormatter())
-        print(f"LMP {self._name} exec:\n\n{to_log_pretty}\n")
+            # 실행에 사용할 전역 및 지역 변수를 설정합니다.
+            gvars = merge_dicts([self._fixed_vars, self._variable_vars])
+            lvars = kwargs
 
-        # 생성된 코드에서 새로운 함수가 있는지 파싱하고 생성합니다.
-        new_fs = self._lmp_fgen.create_new_fs_from_code(code_str)
-        self._variable_vars.update(new_fs)
+            if not self._cfg["debug_mode"]:
+                try:
+                    # 디버그 모드가 아닐 경우, 코드를 안전하게 실행합니다.
+                    exec_safe(to_exec, gvars, lvars)
+                    # 성공 시 루프 탈출
+                    break
+                except Exception as e:  # ActionFailedError 대신 모든 예외를 잡도록 수정
+                    error_msg = traceback.format_exc()
+                    logger.error(
+                        "코드 실행 중 오류 발생 (Attempt %d):\n%s",
+                        attempt + 1,
+                        error_msg,
+                    )
 
-        # 실행에 사용할 전역 및 지역 변수를 설정합니다.
-        gvars = merge_dicts([self._fixed_vars, self._variable_vars])
-        lvars = kwargs
-        # 실행
-        if not self._cfg["debug_mode"]:
-            # 디버그 모드가 아닐 경우, 코드를 안전하게 실행합니다.
-            exec_safe(to_exec, gvars, lvars)
+                    if attempt < self._max_retries - 1:
+                        # 실패한 코드와 오류 메시지를 포함하여 LLM에게 수정을 요청하는 새로운 프롬프트를 구성합니다.
+                        error_context = traceback.format_exc().splitlines()[-1]
+
+                        # 디버깅 가이드라인 추가
+                        debugging_guideline = (
+                            "The previous code failed with the following error. "
+                            "Please analyze the error message and the failed code to fix it.\n"
+                            "--- FAILED CODE --- \n"
+                            f"{code_str}\n"
+                            "--- ERROR MESSAGE ---\n"
+                            f"{error_context}\n"
+                            "--- IMPORTANT DEBUGGING TIPS ---\n"
+                            "1. If the error is 'Hand is already full', you MUST add a `put()` or `drop()` action before the failed `pickup()` action.\n"
+                            "2. Double-check that the object IDs passed to functions are correct and available in the current context.\n"
+                            "3. Ensure the sequence of actions is logical (e.g., you must `open()` a drawer before you can `put()` something in it).\n"
+                            "--- INSTRUCTIONS ---\n"
+                            "1. ONLY return the corrected Python code block.\n"
+                            "2. Do NOT include any explanations, comments, or markdown formatting like ```python ... ```.\n"
+                            "--- CORRECTED CODE ---\n"
+                        )
+
+                        fix_it_prompt = debugging_guideline
+
+                        # 래퍼의 컨텍스트를 사용하여 수정된 코드를 생성합니다.
+                        # 참고: self.wrapper.context는 이전 상호작용 기록을 포함하고 있습니다.
+                        # 실패한 시도에 대한 컨텍스트를 명시적으로 추가하여 LLM이 실수를 반복하지 않도록 합니다.
+                        log_file.write(
+                            f"ATTEMPT {attempt + 1} FAILED. Trying to fix...\n\n"
+                        )
+                    else:
+                        logger.error(
+                            "최대 재시도 횟수(%d)에 도달했습니다. 자동 수정을 중단합니다.",
+                            self._max_retries,
+                        )
+                        # 마지막 시도도 실패하면 예외를 다시 발생시켜 프로그램을 중단시킴
+                        raise
 
         # 실행 기록을 업데이트합니다.
         self.exec_hist += f"\n{to_exec}"
@@ -206,6 +286,55 @@ You must honor what is written in the note unconditionally.
             # 반환 값이 필요한 경우, 지정된 변수를 반환합니다.
             return lvars[self._cfg["return_val_name"]]
         return None
+
+    def extract_code_block(self, response: str) -> str:
+        """LLM의 응답에서 순수한 Python 코드 블록만 추출합니다.
+
+        Args:
+            response (str): LLM이 반환한 전체 문자열 응답.
+
+        Returns:
+            str: 추출된 코드 블록 또는 추출 실패 시 원본 문자열의 일부.
+        """
+        # ```python ... ``` 블록을 찾는 정규 표현식
+        code_match = re.search(r"```python\n(.*?)\n```", response, re.DOTALL)
+        if code_match:
+            return code_match.group(1).strip()
+
+        # ``` ... ``` 블록을 찾는 정규 표현식
+        code_match = re.search(r"```\n(.*?)\n```", response, re.DOTALL)
+        if code_match:
+            return code_match.group(1).strip()
+
+        # 코드 블록 마커가 없는 경우, 응답에 코드와 설명이 섞여있을 수 있습니다.
+        # "CORRECTED CODE" 이후의 내용을 코드로 간주합니다.
+        if "--- CORRECTED CODE ---" in response:
+            return response.split("--- CORRECTED CODE ---")[-1].strip()
+
+        # 그래도 찾을 수 없으면, 잠재적인 설명 부분을 제거하려고 시도합니다.
+        # 예를 들어, "Here's the corrected code:" 와 같은 문장.
+        lines = response.split("\n")
+        code_lines = []
+        in_code = False
+        for line in lines:
+            # 코드처럼 보이는 첫 줄에서부터 추출 시작
+            if not in_code and (
+                line.strip().startswith("def")
+                or line.strip().startswith("import")
+                or line.strip().startswith("#")
+            ):
+                in_code = True
+            if in_code:
+                code_lines.append(line)
+
+        if code_lines:
+            return "\n".join(code_lines).strip()
+
+        return response.strip()  # 최후의 수단으로 원본 반환
+
+    def _get_query_str(self, query: str) -> str:
+        """LMP 쿼리 문자열을 생성합니다."""
+        return f"{self.query_prefix}{query}{self.query_suffix}"
 
 
 class LMPFGen:
@@ -313,10 +442,15 @@ class LMPFGen:
         f = lvars[f_name]
 
         # 생성된 함수와 소스 코드를 로깅
-        to_print = highlight(
-            f"{use_query}\n{f_src}", PythonLexer(), TerminalFormatter()
-        )
+        to_print_str = f"{use_query}\n{f_src}"
+        if sys.stdout.isatty():
+            # 터미널일 경우에만 색상 적용
+            to_print = highlight(to_print_str, PythonLexer(), TerminalFormatter())
+        else:
+            to_print = to_print_str
+
         log_file.write(f"{use_query}\n{f_src}\n\n")
+        logger.info(f"LMP FGEN PROMPT:\n\n{prompt_msgs}\n")
         print(f"LMP FGEN created:\n\n{to_print}\n")
 
         if return_src:

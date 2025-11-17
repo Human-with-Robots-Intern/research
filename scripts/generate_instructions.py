@@ -16,6 +16,13 @@ EXCLUSIVE_TASK_GROUPS: List[Set[str]] = [
     # 1. 'Pot' 자원 제약 그룹: Pot은 하나이므로 관련된 행위는 동시에 일어날 수 없습니다.
     #    'boil_potato'는 물을 채우고 끓이는 과정을 포함하는 상위 개념입니다.
     {"boil_potato", "fill_pot_with_water", "boil_water_with_pot"},
+    {"cook_egg", "boil_potato", "boil_water_with_pot"},
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+    },
     # 2. 'Potato' 조리법 제약 그룹: 감자를 삶는 것과 전자레인지에 데우는 것은 동시에 할 수 없습니다.
     {"boil_potato", "heat_the_potato_using_microwave"},
     # 3. 'Bread' 조리법 제약 그룹: 빵을 데우는 두 가지 방법은 동시에 사용할 수 없습니다.
@@ -162,13 +169,13 @@ def main() -> None:
     # This dictionary will hold all generated instructions, structured by case
     all_generated_instructions: Dict[str, Any] = {}
 
-    task_counts = range(2, 6)  # Number of tasks: 2, 3, 4, 5
+    task_counts = range(2, 5)  # Number of tasks: 2, 3, 4, 5
     constraint_counts = range(
-        0, 5
+        0, 3
     )  # Number of constraints (critical tasks): 0, 1, 2, 3
 
     # Define sampling limits based on intent in comments
-    MAX_COMMON_INSTRUCTIONS = 30
+    MAX_COMMON_INSTRUCTIONS = 15
     MAX_SCENE_INSTRUCTIONS = 0
 
     # 2. Loop through all 16 cases

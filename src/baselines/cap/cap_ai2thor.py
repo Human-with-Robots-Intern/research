@@ -1,11 +1,12 @@
 import argparse
 import copy
+import logging
 import os
+import re
 import sys
 import time
-from typing import Any, Callable, Dict, Optional, TextIO
 from pathlib import Path
-import re
+from typing import Any, Callable, Dict, Optional, TextIO
 
 import numpy as np
 
@@ -15,50 +16,164 @@ from ai2thor.platform import CloudRendering
 
 import src.baselines.cap.util.LMPgen as gen
 from src.simulation.runner_ai2thor import init_ai2thor_controller
-from src.utils.config.constants import *
-from src.utils.io_utils.result_saver import result_save_llm
-from src.utils.io_utils.task_io import list_task_files
 from src.utils.common import create_module_logger
+from src.utils.config.constants import set_init_prior_mean, set_init_prior_variance
 from src.utils.get_state import save_scene_state
+from src.utils.io_utils.result_saver import result_save_llm
+from src.utils.io_utils.task_io import load_task_data_from_sampled_set
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
 from ithor.handlers.action import Action
 
+
+class ActionFailedError(Exception):
+    """AI2-THOR 환경에서 물리적 액션이 실패했을 때 발생하는 예외."""
+
+    def __init__(self, action_name: str, args: tuple, message: str):
+        """ActionFailedError를 초기화합니다.
+
+        Args:
+            action_name (str): 실패한 액션의 이름.
+            args (tuple): 액션에 전달된 인자.
+            message (str): 시뮬레이터가 반환한 오류 메시지.
+        """
+        self.action_name = action_name
+        self.args = args
+        self.message = message
+        super().__init__(f"Action '{action_name}' with args {args} failed: {message}")
+
+
+def diagnose_failure(controller: Controller, action_name: str, args: tuple) -> str:
+    """주어진 액션 실패의 원인을 진단하여 상세한 오류 메시지를 반환합니다.
+
+    Args:
+        controller (Controller): 현재 AI2-THOR 컨트롤러 인스턴스.
+        action_name (str): 실패한 액션의 이름.
+        args (tuple): 실패한 액션에 전달된 인자.
+
+    Returns:
+        str: 진단된 실패 원인이 담긴 상세 메시지.
+    """
+    metadata = controller.last_event.metadata
+    last_error = metadata.get("errorMessage", "")
+
+    if action_name.lower() == "pickup":
+        object_id = args[0]
+        # 1. 손이 이미 차 있는지 확인
+        if metadata.get("inventoryObjects"):
+            held_obj_type = metadata["inventoryObjects"][0]["objectType"]
+            return f"Hand is already full, holding {held_obj_type}."
+
+        # 2. 객체 상태 확인
+        target_obj = next(
+            (o for o in metadata["objects"] if o["objectId"] == object_id), None
+        )
+        if not target_obj:
+            return f"Object '{object_id}' not found in the current scene."
+        if not target_obj["pickupable"]:
+            return f"Object '{target_obj['objectType']}' is not pickupable."
+        if not target_obj["visible"]:
+            return f"Object '{target_obj['objectType']}' is not visible."
+
+        # 3. 부모 컨테이너가 닫혀 있는지 확인
+        if target_obj.get("parentReceptacles"):
+            for parent_id in target_obj["parentReceptacles"]:
+                parent_obj = next(
+                    (o for o in metadata["objects"] if o["objectId"] == parent_id),
+                    None,
+                )
+                if (
+                    parent_obj
+                    and parent_obj.get("openable")
+                    and not parent_obj.get("isOpen")
+                ):
+                    return f"Parent receptacle '{parent_obj['objectType']}' is closed."
+
+        if not target_obj["reachable"]:
+            return "Object is too far to reach."
+
+    elif action_name.lower() == "put":
+        receptacle_id = args[0]
+        # 1. 손이 비어 있는지 확인
+        if not metadata.get("inventoryObjects"):
+            return "Hand is empty, nothing to put down."
+
+        # 2. 수납 객체 상태 확인
+        receptacle_obj = next(
+            (o for o in metadata["objects"] if o["objectId"] == receptacle_id), None
+        )
+        if not receptacle_obj:
+            return f"Receptacle '{receptacle_id}' not found."
+        if not receptacle_obj["receptacle"]:
+            return f"Target '{receptacle_obj['objectType']}' is not a receptacle."
+        if receptacle_obj.get("openable") and not receptacle_obj.get("isOpen"):
+            return f"Target receptacle '{receptacle_obj['objectType']}' is closed."
+        if not receptacle_obj["reachable"]:
+            return "Target receptacle is too far to reach."
+
+    # 진단된 원인이 없으면, 시뮬레이터의 마지막 에러 메시지를 반환
+    if last_error:
+        return last_error
+
+    return "Action failed for an unknown reason."
+
+
 last_end_time: float = 0.0  # 마지막 액션의 종료 시간을 추적
+
 ## LMP Prompts
 # LMP(Language Model Program)를 위한 프롬프트 파일 경로
-prompt_scene_ui_path = "src/baselines/cap/data/prompt_scene_ui.txt"
-prompt_parse_obj_name_path = "src/baselines/cap/data/prompt_parse_obj_name.txt"
-prompt_parse_question_path = "src/baselines/cap/data/prompt_parse_question.txt"
-prompt_fgen_path = "src/baselines/cap/data/prompt_fgen.txt"
+_this_file = Path(__file__).resolve()
+_this_dir = _this_file.parent
+prompt_scene_ui_path = _this_dir / "data/prompt_scene_ui.txt"
+prompt_parse_obj_name_path = _this_dir / "data/prompt_parse_obj_name.txt"
+prompt_parse_question_path = _this_dir / "data/prompt_parse_question.txt"
+prompt_fgen_path = _this_dir / "data/prompt_fgen.txt"
 
 
-def read_txt(file_path: str) -> Optional[str]:
+def read_txt(file_path: Path) -> Optional[str]:
     """지정된 경로의 텍스트 파일을 읽어 내용을 반환합니다.
 
     Args:
-        file_path (str): 읽어올 파일의 경로.
+        file_path (Path): 읽어올 파일의 경로.
 
     Returns:
         Optional[str]: 파일의 내용. 파일을 찾을 수 없거나 오류 발생 시 None을 반환합니다.
     """
     try:
         with open(file_path, "r", encoding="utf-8") as file:
-            content = file.read()
-            return content  # 파일 내용을 출력
+            return file.read()
     except FileNotFoundError:
         print(f"File not found: {file_path}")
         return None
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred while reading {file_path}: {e}")
         return None
 
 
 # 프롬프트 파일 읽기
-prompt_scene_ui = read_txt(prompt_scene_ui_path).strip()
-prompt_parse_obj_name = read_txt(prompt_parse_obj_name_path).strip()
-prompt_parse_question = read_txt(prompt_parse_question_path).strip()
-prompt_fgen = read_txt(prompt_fgen_path).strip()
+prompt_scene_ui_content = read_txt(prompt_scene_ui_path)
+prompt_parse_obj_name_content = read_txt(prompt_parse_obj_name_path)
+prompt_parse_question_content = read_txt(prompt_parse_question_path)
+prompt_fgen_content = read_txt(prompt_fgen_path)
+
+# 필수 프롬프트 파일 확인
+if not all(
+    [
+        prompt_scene_ui_content,
+        prompt_parse_obj_name_content,
+        prompt_parse_question_content,
+        prompt_fgen_content,
+    ]
+):
+    print("Error: One or more essential prompt files could not be read. Exiting.")
+    sys.exit(1)
+
+prompt_scene_ui = prompt_scene_ui_content.strip()
+prompt_parse_obj_name = prompt_parse_obj_name_content.strip()
+prompt_parse_question = prompt_parse_question_content.strip()
+prompt_fgen = prompt_fgen_content.strip()
+
 
 def build_temporal_logic_guidelines(wait_units: int) -> str:
     """Temporal logic guideline text with dynamic wait time units.
@@ -95,11 +210,18 @@ def build_temporal_logic_guidelines(wait_units: int) -> str:
             - Turn off faucet immediately when a container is full.
             - Promptly remove items when machine cycles complete.
         - If a follow-up is not time-critical (e.g., serving/eating later), it need not be immediate.
+
+    - Prohibited Functions:
+        - Do not use `time.sleep()`. Use the provided `wait(duration)` function for all delays.
     """
     ).format(wait=wait_units)
 
+
 def timed_action(
-    log_file: TextIO, action_name: str, action_func: Callable, controller: Controller
+    logger: logging.Logger,
+    action_name: str,
+    action_func: Callable,
+    controller: Controller,
 ) -> Callable[..., float]:
     """주어진 액션 함수를 감싸 시간 측정 및 로깅을 수행합니다.
 
@@ -108,7 +230,7 @@ def timed_action(
     액션의 시작 시간은 이전 액션이 끝난 시간으로 설정됩니다.
 
     Args:
-        log_file (TextIO): 로그를 기록할 파일 객체.
+        logger (logging.Logger): 로그를 기록할 로거 객체.
         action_name (str): 로깅에 사용될 액션의 이름.
         action_func (Callable): 실행 시간을 측정하고 로깅할 실제 액션 함수.
         controller (Controller): AI2-THOR 컨트롤러 인스턴스. 액션 성공 여부 확인에 사용됩니다.
@@ -121,29 +243,60 @@ def timed_action(
     def wrapper(*args: Any, **kwargs: Any) -> float:
         """래퍼 함수는 실제 액션을 실행하고 로깅합니다."""
         global last_end_time
-        # 액션 시작 로그: 액션 이름과 대상을 공백으로 구분된 단일 문자열로 기록하도록 수정합니다.
         action_log_str = " ".join([action_name] + [str(arg) for arg in args])
-        # 최종 JSON에서 단일 문자열로 인식되도록, 로그 파일에 문자열 리터럴 형식으로 기록합니다.
-        log_file.write(f'Executing action: "{action_log_str}"\n')
 
-        # 이전 액션의 종료 시간을 현재 액션의 시작 시간으로 사용
+        # 행동 전 인벤토리 상태 로깅
+        inventory_objs = controller.last_event.metadata.get("inventoryObjects", [])
+        held_obj_str = (
+            f"holding {inventory_objs[0]['objectType']}"
+            if inventory_objs
+            else "holding nothing"
+        )
+        logger.info(f"State before action: {held_obj_str}")
+
+        logger.info(f'Executing action: "{action_log_str}"')
+
         start_time = last_end_time
-        elapsed_time = action_func(*args, **kwargs)  # 실제 액션 함수 실행
+
+        # 실제 액션 함수를 실행하고 반환 값을 확인합니다.
+        action_result = action_func(*args, **kwargs)
+        event_after_action = controller.last_event
+
+        # 3중 확인: action.py의 반환 값, 시뮬레이터의 공식 성공 여부, 그리고 오류 메시지 존재 여부까지 확인합니다.
+        action_failed_explicitly = action_result is False
+        last_action_was_unsuccessful = not event_after_action.metadata.get(
+            "lastActionSuccess", True
+        )
+        error_message_exists = bool(event_after_action.metadata.get("errorMessage"))
+
+        if (
+            action_failed_explicitly
+            or last_action_was_unsuccessful
+            or error_message_exists
+        ):
+            logger.info(f"start_time: {round(start_time, 2)}")
+            # 실패 시 시간은 흐르지 않은 것으로 간주합니다.
+            logger.info(f"end_time: {round(start_time, 2)}")
+            logger.info(f"execution_status: {False}")
+
+            # 실패 원인을 진단하여 상세한 오류 메시지를 생성합니다.
+            error_message = diagnose_failure(controller, action_name, args)
+
+            raise ActionFailedError(action_name, args, error_message)
+
+        # 성공 시, 반환 값은 elapsed_time입니다.
+        elapsed_time = action_result
         if elapsed_time is None:
-            # action_func가 None을 반환하는 경우, 시간 변화가 없음을 의미.
+            # action_func가 None을 반환하는 경우, 시간 변화가 없음을 의미합니다.
             elapsed_time = 0.0
 
         end_time = start_time + elapsed_time
         last_end_time = end_time  # 다음 액션을 위해 마지막 종료 시간 업데이트
 
         # 액션 시간 및 실행 결과 로그
-        log_file.write(f"start_time: {round(start_time, 2)}\n")
-        log_file.write(f"end_time: {round(end_time, 2)}\n")
-
-        if controller.last_event.metadata["lastActionSuccess"]:
-            log_file.write(f"execution_status: {True}\n")
-        else:
-            log_file.write(f"execution_status: {False}\n")
+        logger.info(f"start_time: {round(start_time, 2)}")
+        logger.info(f"end_time: {round(end_time, 2)}")
+        logger.info(f"execution_status: {True}")
 
         # Synchronize state after the action has been executed and logged.
         controller.step(action="Pass")
@@ -170,7 +323,7 @@ def build_cfg_scene(temporal_guidelines: str) -> Dict[str, Any]:
                 + temporal_guidelines
                 + "\nobjects = [{objects}]",
                 "engine": "gpt-4o",
-                "max_tokens": 512,
+                "max_tokens": 2048,
                 "temperature": 0,
                 "query_prefix": "# ",
                 "query_suffix": ".",
@@ -184,7 +337,7 @@ def build_cfg_scene(temporal_guidelines: str) -> Dict[str, Any]:
             "parse_obj_name": {
                 "prompt_text": prompt_parse_obj_name,
                 "engine": "gpt-4o",
-                "max_tokens": 512,
+                "max_tokens": 2048,
                 "temperature": 0,
                 "query_prefix": "# ",
                 "query_suffix": ".",
@@ -198,7 +351,7 @@ def build_cfg_scene(temporal_guidelines: str) -> Dict[str, Any]:
             "parse_question": {
                 "prompt_text": prompt_parse_question,
                 "engine": "gpt-4o",
-                "max_tokens": 512,
+                "max_tokens": 2048,
                 "temperature": 0,
                 "query_prefix": "# ",
                 "query_suffix": ".",
@@ -212,7 +365,7 @@ def build_cfg_scene(temporal_guidelines: str) -> Dict[str, Any]:
             "fgen": {
                 "prompt_text": prompt_fgen + "\n" + temporal_guidelines,
                 "engine": "gpt-4o",
-                "max_tokens": 512,
+                "max_tokens": 2048,
                 "temperature": 0,
                 "query_prefix": "# define function: ",
                 "query_suffix": ".",
@@ -224,11 +377,31 @@ def build_cfg_scene(temporal_guidelines: str) -> Dict[str, Any]:
         }
     }
 
-vars_log = open("vars_log.txt", "w", buffering=1)
+
+# LMP가 사용할 수 있는 액션 이름 목록
+# 이 목록은 `variable_vars` 초기화와 `timed_action` 적용에 모두 사용됩니다.
+_ACTION_NAMES = [
+    "pickup",
+    "slice",
+    "put",
+    "drop",
+    "toggle_on",
+    "toggle_off",
+    "open",
+    "close",
+    "monitoring",
+    "wait",
+    # "fill",
+    "move_to",
+]
 
 
 def setup_LMP(
-    controller: Controller, Act: Action, cfg_scene: Dict[str, Any], log_file: TextIO
+    controller: Controller,
+    action_interface: Action,
+    cfg_scene: Dict[str, Any],
+    logger: logging.Logger,
+    vars_log: TextIO,
 ) -> gen.LMP:
     """LMP (Language Model Program) 환경을 설정하고 초기화합니다.
 
@@ -241,9 +414,10 @@ def setup_LMP(
 
     Args:
         controller (Controller): AI2-THOR 시뮬레이션 컨트롤러.
-        Act (Action): 시뮬레이션 환경에서 에이전트의 액션을 정의하는 핸들러.
+        action_interface (Action): 시뮬레이션 환경에서 에이전트의 액션을 정의하는 핸들러.
         cfg_scene (Dict[str, Any]): LMP 설정을 담고 있는 딕셔너리.
-        log_file (TextIO): 액션 로그를 기록할 파일 객체.
+        logger (logging.Logger): 액션 로그를 기록할 로거 객체.
+        vars_log (TextIO): 변수 로깅을 위한 파일 객체.
 
     Returns:
         gen.LMP: 사용자의 상위 레벨 언어 명령을 처리하도록 설정된 메인 LMP 객체.
@@ -265,51 +439,27 @@ def setup_LMP(
 
     # LMP가 사용할 수 있는 API(고정 변수)를 정의합니다.
     fixed_vars = {"np": np}
-    fixed_vars.update({"time": time})
+    # fixed_vars.update({"time": time}) # time.sleep() 대신 시뮬레이션의 wait()를 사용하도록 유도하기 위해 주석 처리
     fixed_vars.update({"controller": Controller})
 
-    for var_name, var_value in fixed_vars.items():
-        vars_log.write(f"{var_name}: {var_value}\n")
-
+    # for var_name, var_value in fixed_vars.items():
+    #     vars_log.write(f"{var_name}: {var_value}\n")
+    # logger.error(f"fixed_vars: {fixed_vars}")
     # LMP가 사용할 수 있는 API(가변 변수, 주로 액션 함수)를 정의합니다.
-    # pickup, slice, put, drop, toggleon, toggleoff, open, close, monitoring, wait, fill, move to
+    # pickup, slice, put, drop, toggle_on, toggle_off, open, close, monitoring, wait, fill, move to
     variable_vars = {
-        k: getattr(Act, k)
-        for k in [
-            "pickup",
-            "slice",
-            "put",
-            "drop",
-            "toggle_on",
-            "toggle_off",
-            "open",
-            "close",
-            "monitoring",
-            "wait",
-            "fill",
-            "move_to",
-        ]
+        k: getattr(action_interface, k)
+        for k in _ACTION_NAMES
+        if hasattr(action_interface, k)
     }
 
     # 정의된 액션 함수들을 timed_action으로 감싸 시간 측정 및 로깅을 추가합니다.
-    for action_name in [
-        "pickup",
-        "slice",
-        "put",
-        "drop",
-        "toggle_on",
-        "toggle_off",
-        "open",
-        "close",
-        "monitoring",
-        "wait",
-        "fill",
-        "move_to",
-    ]:
-        original_func = variable_vars[action_name]
-        variable_vars[action_name] = timed_action(
-            log_file, action_name, original_func, controller
-        )
+    for action_name in _ACTION_NAMES:
+        if action_name in variable_vars:
+            original_func = variable_vars[action_name]
+            variable_vars[action_name] = timed_action(
+                logger, action_name, original_func, controller
+            )
 
     # 환경 상태를 조회하는 함수들을 가변 변수에 추가합니다.
     variable_vars.update(
@@ -368,30 +518,26 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-d",
         "--decomposition",
-        default=True,
         action="store_true",
-        help="태스크 분해 여부 (default: True)",
+        help="태스크 분해 실행 여부. 지정하지 않으면 실행하지 않습니다.",
     )
     parser.add_argument(
         "-v",
         "--visualize",
-        default=True,
         action="store_true",
-        help="시각화 실행 여부 (default: True)",
+        help="시각화 실행 여부. 지정하지 않으면 실행하지 않습니다.",
     )
     parser.add_argument(
         "-r",
         "--reset",
-        default=True,
         action="store_true",
-        help="리셋 실행 여부 (default: True)",
+        help="리셋 실행 여부. 지정하지 않으면 실행하지 않습니다.",
     )
     parser.add_argument(
         "-s",
         "--simulation",
-        default=True,
         action="store_true",
-        help="시뮬레이션 실행 여부 (default: True)",
+        help="시뮬레이션 실행 여부. 지정하지 않으면 실행하지 않습니다.",
     )
     parser.add_argument(
         "--headless",
@@ -413,7 +559,10 @@ def parse_arguments() -> argparse.Namespace:
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
     parser.add_argument(
-        "--instruction", type=str, default=None, help="실행할 자연어 명령어"
+        "--instruction",
+        type=str,
+        default="01_boil_potato_and_set_the_table.json",
+        help="실행할 자연어 명령어",
     )
     parser.add_argument(
         "--log-path",
@@ -435,19 +584,19 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--init_prior_mean",
         type=float,
-        default=None,
+        default=100,
         help="베이지안 추정을 위한 초기 평균값 (기본값: 60.0)",
     )
     parser.add_argument(
         "--init_prior_variance",
         type=float,
-        default=None,
+        default=100,
         help="베이지안 추정을 위한 초기 분산값 (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--case",
         type=str,
-        default=None,
+        default="tasks_4_constraints_3",
         help="The name of the case.",
     )
     parser.add_argument(
@@ -460,73 +609,50 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-if __name__ == "__main__":
+def main():
+    """메인 실행 함수."""
     # --- 스크립트 설정 및 초기화 ---
     approach_name = "cap_ai2thor_simulation"
     args = parse_arguments()
 
-    # Handle INIT_PRIOR_MEAN override
-    if args.init_prior_mean is not None:
-        from src.utils.config.constants import set_init_prior_mean
+    scene_name = args.scene
+    instruction = args.instruction
 
+    if args.init_prior_mean is not None:
         set_init_prior_mean(args.init_prior_mean)
-        
+    if args.init_prior_variance is not None:
+        set_init_prior_variance(args.init_prior_variance)
+
     logger = create_module_logger(
         module_name=approach_name,
         log_file_path=Path(args.log_path) if args.log_path else None,
         level=args.log_level,
     )
-    scene_name = args.scene
-    instruction = args.instruction
-    controller = None
-    log_file = None
 
     platform_obj = None
     if args.cloud_rendering:
         platform_obj = CloudRendering
+    # AI2-THOR 컨트롤러 초기화
+    controller = init_ai2thor_controller(scene_name, platform=platform_obj)
 
     try:
-        task_files = list_task_files(scene_name)
-
         if args.case:
-            if instruction is None:
-                print("Error: --case가 지정되면 --instruction도 필요합니다.")
-                sys.exit(1)
-            stem = Path(instruction).stem
-            m = re.match(r"\d+_(.*)", stem)
-            instruction = m.group(1) if m else stem
-        elif instruction:
-            try:
-                choice = int(instruction)
-                if 1 <= choice <= len(task_files):
-                    instruction = Path(task_files[choice - 1]).stem
-                else:
-                    print(f"Error: Invalid number. Please choose a number between 1 and {len(task_files)}.")
-                    sys.exit(1)
-            except ValueError:
-                # instruction is not a number, so we treat it as a natural language command.
-                pass
-        else:
-            print("명령어가 인자로 제공되지 않았습니다. 사용자 입력을 기다립니다...")
-            instruction = input()
+            # Load task data
+            load_task_data_from_sampled_set(args.case, scene_name, args.instruction)
 
-        # 결과 로깅을 위한 파일 열기
-        if args.log_path:
-            log_file_path = Path(args.log_path)
-        else:
-            log_dir = Path("src/baselines/cap/result")
-            log_dir.mkdir(exist_ok=True)
-            log_file_path = log_dir / f"cap_logs_{instruction}.txt"
-        
-        log_file_path.parent.mkdir(parents=True, exist_ok=True)
-        log_file = open(log_file_path, "w", buffering=1)
-
-        # AI2-THOR 컨트롤러 초기화
-        controller = init_ai2thor_controller(scene_name, platform=platform_obj)
         # Use a consistent directory name for state saving (keep numeric prefix when case)
         instruction_dir_name = (
-            Path(args.instruction).stem if (args.case and args.instruction) else (Path(instruction).stem if instruction else instruction)
+            Path(args.instruction).stem
+            if (args.case and args.instruction)
+            else (Path(instruction).stem if instruction else instruction)
         )
+        # 실패 시 불완전한 trajectory 로그 파일이 남지 않도록 삭제합니다.
+        trajectory_path = Path(
+            f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
+        )
+        if trajectory_path.exists():
+            trajectory_path.unlink()
+
         save_scene_state(
             controller=controller,
             output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
@@ -537,39 +663,48 @@ if __name__ == "__main__":
             state_label="init",
         )
         # Action 핸들러 초기화
-        ithor_action_controller = Action(controller, logger=logger)
+        action_handler = Action(
+            controller,
+            logger=logger,
+            trajectory_log_json_path=Path(
+                f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
+            ),
+        )
 
         # LMP 환경 설정
-        wait_units = int(args.init_prior_mean) if args.init_prior_mean is not None else 60
+        wait_units = (
+            int(args.init_prior_mean) if args.init_prior_mean is not None else 60
+        )
         temporal_guidelines = build_temporal_logic_guidelines(wait_units)
         cfg_scene_runtime = build_cfg_scene(temporal_guidelines)
-        lmp_scene_ui = setup_LMP(
-            controller, ithor_action_controller, cfg_scene_runtime, log_file
-        )
-
-        # --- 태스크 실행 ---
-        # 사용 예시:
-        # toast the bread
-        # put tomato in the fridge
-        # put egg in the pan : 냉장고 문을 안열고 계란 집음
-        # put the book in the sinkbasin : put 상호작용이 불가능해서 던짐
-        # toast the bread and put tomato in the fridge. put egg in the pan.
-        # pick the apple and drop the apple
-
-        # 현재 장면에 있는 객체 목록 가져오기
-        objs = list(
-            set(
-                obj["objectType"]
-                for obj in controller.step("Pass").metadata["objects"]
+        with open("vars_log.txt", "w", buffering=1) as vars_log:
+            lmp_scene_ui = setup_LMP(
+                controller, action_handler, cfg_scene_runtime, logger, vars_log
             )
-        )
-        print(f"objs: {objs}")
-        cap_log_path = log_file_path
-        print(f"'{instruction}' 명령을 실행합니다...")
-        computation_time_start = time.time()
 
-        # LMP를 통해 명령어 실행
-        lmp_scene_ui(instruction, objects=f"{objs}")
+            # --- 태스크 실행 ---
+            # 사용 예시:
+            # toast the bread
+            # put tomato in the fridge
+            # put egg in the pan : 냉장고 문을 안열고 계란 집음
+            # put the book in the sinkbasin : put 상호작용이 불가능해서 던짐
+            # toast the bread and put tomato in the fridge. put egg in the pan.
+            # pick the apple and drop the apple
+
+            # 현재 장면에 있는 객체 목록 가져오기
+            objs = list(
+                set(
+                    obj["objectType"]
+                    for obj in controller.step("Pass").metadata["objects"]
+                )
+            )
+            print(f"objs: {objs}")
+
+            print(f"'{instruction}' 명령을 실행합니다...")
+            computation_time_start = time.time()
+
+            # LMP를 통해 명령어 실행
+            lmp_scene_ui(instruction, objects=f"{objs}")
 
         # --- 결과 저장 ---
         # 현재 computaion_time은 시뮬레이션 타임을 포함해서 정확하지 않음.
@@ -579,7 +714,11 @@ if __name__ == "__main__":
         result_args = {
             "approach_name": approach_name,
             "user_input": instruction_dir_name,
-            "result": str(cap_log_path),
+            "result": str(
+                Path(
+                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
+                )
+            ),
             "json_output_path": result_path,
             "computation_time": computation_time,
             "scene_name": scene_name,
@@ -598,25 +737,22 @@ if __name__ == "__main__":
             approach_name=approach_name,
             state_label="end",
         )
-        if log_file:
-            log_file.flush()
-            log_file.close()
         print("실행이 완료되었습니다.")
+    except Exception as e:
+        print("실행 중 치명적인 오류 발생: %s", e)
+        controller.stop()
+        # 실패 시 불완전한 trajectory 로그 파일이 남지 않도록 삭제합니다.
+        trajectory_path = Path(
+            f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
+        )
+        if trajectory_path.exists():
+            trajectory_path.unlink()
+        sys.exit(1)
     finally:
         if controller:
             controller.stop()
-        # 보조 파일 핸들 및 프로세스 종료 보장
-        try:
-            if log_file and not log_file.closed:
-                log_file.flush()
-                log_file.close()
-        except Exception:
-            pass
-        try:
-            if not vars_log.closed:
-                vars_log.flush()
-                vars_log.close()
-        except Exception:
-            pass
-        # 백그라운드 스레드/리소스가 잔류하더라도 프로세스 종료
-        # sys.exit(0)
+        print("Controller stopped. Exiting.")
+
+
+if __name__ == "__main__":
+    main()

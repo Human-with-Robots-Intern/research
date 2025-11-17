@@ -1,7 +1,7 @@
 # Configuration for run_all.py
 
 simulation: true # Enable Simulation mode
-cloud_rendering: true
+cloud_rendering: false
 num_runs_per_instruction: 1 # Number of times to run each instruction
 max_retries: 5 # Maximum number of retries for failing LLM scripts
 retry_delay_seconds: 2 # Delay in seconds between retries
@@ -35,9 +35,9 @@ scene_lists:
   kitchen:
     - "FloorPlan1"  
     - "FloorPlan7"
-    - "FloorPlan13"
-    - "FloorPlan18"
-    - "FloorPlan27"
+    # - "FloorPlan13"
+    # - "FloorPlan18"
+    # - "FloorPlan27"
 
   bathroom:
     # - "FloorPlan419"
@@ -50,24 +50,24 @@ scene_lists:
 
 
 ablation_configs:
-  - NONE_URGENCY
-  - NONE_REMAINING_WORK
-  - NONE_MONITORING
-  - GREEDY
+  # - NONE_URGENCY
+  # - NONE_REMAINING_WORK
+  # - NONE_MONITORING
+  # - GREEDY
   - DEFAULT
 
 init_prior_configs:
-  - OVER_ESTIMATE
-  - UNDER_ESTIMATE
+  # - OVER_ESTIMATE
+  # - UNDER_ESTIMATE
   - CORRECT_ESTIMATE  
 
 # ------------------------------------------------------------------------------
 # Task Filtering
 # ------------------------------------------------------------------------------
-task_folder_name: "sampled_10_instruction_set_for_final_experiment" # Folder under assets/tasks/
-min_task_count: 0
-min_constraint_count: 0
-skip_completed: true
+task_folder_name: "sampled_10_instruction_set_for_final_experiment_251114" # Folder under assets/tasks/
+min_task_count: 4
+min_constraint_count: 3
+skip_completed: false
 
 
 

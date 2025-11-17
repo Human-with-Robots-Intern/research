@@ -28,6 +28,29 @@ def create_module_logger(name: str) -> logging.Logger:
 
 log = create_module_logger(__name__)
 
+# --- Orders ---
+# Fixed order for approaches and inits as requested
+APPROACH_ORDER: list[str] = [
+    "dag_bayesian_DEFAULT",
+    "dag_bayesian_GREEDY",
+    "dag_bayesian_NONE_MONITORING",
+    "dag_bayesian_NONE_URGENCY",
+    "dag_bayesian_NONE_REMAINING_WORK",
+    "dag_edf",
+    "cpm",
+]
+INIT_ORDER: list[str] = ["init_60", "init_100", "init_140"]
+
+APPROACH_LABELS: dict[str, str] = {
+    "dag_bayesian_DEFAULT": "Ours (Default)",
+    "dag_bayesian_GREEDY": "Ours (Greedy)",
+    "dag_bayesian_NONE_MONITORING": "Ours (w/o Mon.)",
+    "dag_bayesian_NONE_URGENCY": "Ours (w/o Urg.)",
+    "dag_bayesian_NONE_REMAINING_WORK": "Ours (w/o Rem.)",
+    "dag_edf": "EDF",
+    "cpm": "CPM",
+}
+
 
 # --- Phase 1: Data Preprocessing (Merging States) ---
 def merge_states_for_analysis(states_dir: Path) -> Optional[Path]:
@@ -197,8 +220,8 @@ class TaskSuccessChecker:
             "boil_water_with_kettle": [
                 {
                     "object_type": "Kettle",
-                    "property": "parentReceptacles",
-                    "expected_value": "StoveBurner",
+                    "property": "isFilledWithLiquid",
+                    "expected_value": True,
                 }
             ],
             "boil_water_with_pot": [
@@ -347,6 +370,168 @@ class TaskSuccessChecker:
     
 
 # --- Unified Data Collection and Final Calculation ---
+def _task_case_sort_key(task_case: str) -> tuple[int, int, str]:
+    """
+    Returns a sort key for task_case strings like 'tasks_2_constraints_1'.
+    Primary key: number after 'tasks_'. Secondary key: number after 'constraints_'.
+    Falls back to large numbers and the original string if parsing fails.
+    """
+    match = re.search(r"tasks_(\d+)_constraints_(\d+)", task_case)
+    if match:
+        tasks_num = int(match.group(1))
+        constraints_num = int(match.group(2))
+        return tasks_num, constraints_num, task_case
+    return 10**9, 10**9, task_case
+
+
+def _reorder_task_cases(final_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Reorders task_case entries under each (init, approach) by the numeric
+    values parsed from the 'tasks_X_constraints_Y' pattern.
+    """
+    ordered: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    for init_key, approaches in final_data.items():
+        ordered[init_key] = {}
+        for approach, task_cases in approaches.items():
+            sorted_task_keys = sorted(task_cases.keys(), key=_task_case_sort_key)
+            ordered[init_key][approach] = {k: task_cases[k] for k in sorted_task_keys}
+    return ordered
+
+
+def _transform_summary_to_approach_view(init_first: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transforms summary structure from:
+      init -> approach -> task_case -> {gcr, tsr, sr, makespan}
+    to:
+      approach -> task_case -> {
+          init -> {gcr, tsr, sr, makespan}
+      }
+
+    Task case order follows numeric sort by tasks then constraints.
+    Approach and init follow the specified fixed orders.
+    """
+    approach_view: Dict[str, Any] = {}
+
+    # Collect available approaches from data, preserve requested order
+    available_approaches = {
+        approach
+        for init_key, approaches in init_first.items()
+        for approach in approaches.keys()
+    }
+    ordered_approaches = [a for a in APPROACH_ORDER if a in available_approaches]
+
+    # Build approach-first view
+    for approach in ordered_approaches:
+        # Union of all task_cases under this approach across inits
+        task_case_keys = set()
+        for init_key in INIT_ORDER:
+            approach_map = init_first.get(init_key, {}).get(approach, {})
+            task_case_keys.update(approach_map.keys())
+        sorted_task_cases = sorted(task_case_keys, key=_task_case_sort_key)
+
+        approach_view[approach] = {}
+        for task_case in sorted_task_cases:
+            # Collect per-init metrics; makespan is NOT shared, keep per init
+            per_init_metrics: Dict[str, Dict[str, float]] = {}
+            for init_key in INIT_ORDER:
+                approach_map = init_first.get(init_key, {}).get(approach, {})
+                metrics = approach_map.get(task_case)
+                if metrics is None:
+                    continue
+                per_init_metrics[init_key] = {
+                    "gcr": float(metrics.get("gcr", 0.0)),
+                    "tsr": float(metrics.get("tsr", 0.0)),
+                    "sr": float(metrics.get("sr", 0.0)),
+                    "makespan": float(metrics.get("makespan", 0.0)),
+                }
+
+            # Insert with init order preserved
+            ordered_per_init = {
+                init_key: per_init_metrics[init_key]
+                for init_key in INIT_ORDER
+                if init_key in per_init_metrics
+            }
+            approach_view[approach][task_case] = {"init": ordered_per_init}
+
+    return approach_view
+
+
+def _format_task_case_label(task_case: str) -> str:
+    """
+    Converts a task_case string like 'tasks_2_constraints_1' to 'T2 C1'.
+    Falls back to the original string if the expected pattern is not found.
+    """
+    match = re.search(r"tasks_(\d+)_constraints_(\d+)", task_case)
+    if match:
+        return f"T{match.group(1)} C{match.group(2)}"
+    return task_case
+
+
+def _fmt_num(value: Any) -> str:
+    """
+    Formats numeric values to two decimals; returns '---' if not a number.
+    """
+    return f"{float(value):.2f}" if isinstance(value, (int, float)) else "---"
+
+
+def _fmt_ms(value: Any) -> str:
+    """
+    Formats makespan in math mode with two decimals; returns '---' if not a number.
+    """
+    return f"${float(value):.2f}$" if isinstance(value, (int, float)) else "---"
+
+
+def generate_overleaf_table(final_data: Dict[str, Any], output_path: Path) -> None:
+    """
+    Generates an Overleaf-friendly LaTeX table snippet as a text file.
+    Structure per row:
+      [multirow(approach label)] & [T{X} C{Y}] &
+      [init_60 GCR] & [init_60 TSR] & [init_60 SR] & [init_60 MS] &
+      [init_100 GCR] & [init_100 TSR] & [init_100 SR] & [init_100 MS] &
+      [init_140 GCR] & [init_140 TSR] & [init_140 SR] & [init_140 MS] \\\\
+    A \\midrule line separates approaches.
+    """
+    lines: list[str] = []
+    for approach in APPROACH_ORDER:
+        if approach not in final_data:
+            continue
+        task_cases = final_data[approach]
+        sorted_task_cases = sorted(task_cases.keys(), key=_task_case_sort_key)
+        if not sorted_task_cases:
+            continue
+        label = APPROACH_LABELS.get(approach, approach)
+        row_span = len(sorted_task_cases)
+        first_row = True
+        for task_case in sorted_task_cases:
+            entry = task_cases[task_case]
+            init_metrics: Dict[str, Dict[str, float]] = entry.get("init", {})
+            parts: list[str] = []
+            if first_row:
+                parts.append(f"\\multirow[t]{{{row_span}}}{{*}}{{\\textbf{{{label}}}}}")
+                first_row = False
+            else:
+                parts.append("")  # empty cell for subsequent rows
+            parts.append(_format_task_case_label(task_case))
+            # Append per-init blocks
+            for init_key in INIT_ORDER:
+                m = init_metrics.get(init_key)
+                if m:
+                    parts.extend(
+                        [
+                            _fmt_num(m.get("gcr")),
+                            _fmt_num(m.get("tsr")),
+                            _fmt_num(m.get("sr")),
+                            _fmt_ms(m.get("makespan")),
+                        ]
+                    )
+                else:
+                    parts.extend(["---", "---", "---", "---"])
+            line = " & ".join(parts) + " \\\\"
+            lines.append(line)
+        lines.append("\\midrule")
+    output_path.write_text("\n".join(lines))
+
+
 def calculate_final_summary(all_trials_data: Dict[tuple, list]) -> Dict[str, Any]:
     """
     Calculates final summary statistics from raw per-trial data, including the
@@ -374,42 +559,60 @@ def calculate_final_summary(all_trials_data: Dict[tuple, list]) -> Dict[str, Any
         ]
         makespan = statistics.mean(makespan_values) if makespan_values else 0.0
 
-        final_summary[init_key][diff][approach] = {
-            "SR": sr,
-            "GCR": gcr,
-            "TSR": tsr,
-            "Makespan": makespan,
+        # Re-structure: init -> approach -> task_case(diff)
+        # Keep insertion order of metrics as: gcr, tsr, sr, makespan
+        final_summary[init_key][approach][diff] = {
+            "gcr": gcr,
+            "tsr": tsr,
+            "sr": sr,
+            "makespan": makespan,
         }
     return final_summary
 
 
 def print_summary_table(final_data: Dict[str, Any]) -> None:
-    """Prints the final merged data in a formatted table."""
-    log.info("--- Final Unified Analysis Results ---")
-    columns = ["SR", "GCR", "TSR", "Makespan"]
-    for init_key, diffs in sorted(final_data.items()):
+    """Prints the final merged data (approach-first view) in a formatted table."""
+    log.info("--- Final Unified Analysis Results (Approach-first) ---")
+    # For approach-first view, build dynamic columns:
+    # [task_case] + for each init in INIT_ORDER: (GCR, TSR, SR, MS)
+    for approach in APPROACH_ORDER:
+        if approach not in final_data:
+            continue
+        task_cases = final_data[approach]
         print("\n" + "=" * 80)
-        print(f" 대분류: {init_key}")
+        print(f" 접근법: {approach}")
         print("=" * 80)
-        print(
-            f"{'난이도 (tasks_n_constraints_m)':<30} {'Approach':<20} "
-            + "".join([f"{col:<12}" for col in columns])
-        )
-        print("-" * 80)
-        for diff, approaches in sorted(diffs.items()):
-            for approach, metrics in sorted(approaches.items()):
-                row_data = [
-                    (
-                        f"{metrics.get(col, 'N/A'):.2f}"
-                        if isinstance(metrics.get(col), (int, float))
-                        else "N/A"
-                    )
-                    for col in columns
+        header_cols = ["난이도 (tasks_n_constraints_m)"]
+        for init_key in INIT_ORDER:
+            header_cols.extend(
+                [
+                    f"{init_key}-GCR",
+                    f"{init_key}-TSR",
+                    f"{init_key}-SR",
+                    f"{init_key}-MS",
                 ]
-                print(
-                    f"{diff:<30} {approach:<20} "
-                    + "".join([f"{val:<12}" for val in row_data])
-                )
+            )
+        print(" ".join([f"{h:<18}" for h in header_cols]))
+        print("-" * 80)
+        for diff in sorted(task_cases.keys(), key=_task_case_sort_key):
+            entry = task_cases[diff]
+            init_metrics: Dict[str, Dict[str, float]] = entry.get("init", {})
+            row_parts = [f"{diff:<30}"]
+            for init_key in INIT_ORDER:
+                m = init_metrics.get(init_key)
+                if m:
+                    row_parts.append(f"{m.get('gcr', 0.0):<10.2f}")
+                    row_parts.append(f"{m.get('tsr', 0.0):<10.2f}")
+                    row_parts.append(f"{m.get('sr', 0.0):<10.2f}")
+                else:
+                    row_parts.extend([f"{'N/A':<10}", f"{'N/A':<10}", f"{'N/A':<10}"])
+                # makespan per init (if exists)
+                ms_val = m.get("makespan", 0.0) if m else "N/A"
+                if isinstance(ms_val, (int, float)):
+                    row_parts.append(f"{ms_val:<10.2f}")
+                else:
+                    row_parts.append(f"{'N/A':<10}")
+            print(" ".join(row_parts))
         print("-" * 80)
 
 
@@ -420,8 +623,9 @@ def main() -> None:
         description="Unified analysis of GCR and performance metrics."
     )
     parser.add_argument(
-        "root_dir",
+        "--root_dir",
         type=Path,
+        default=Path(__file__).resolve().parents[1] / "results" / "1104",
         help="Root directory containing init_* and states* folders.",
     )
     parser.add_argument(
@@ -477,6 +681,7 @@ def main() -> None:
                     if not scene_dir.is_dir():
                         continue
                     for approach_dir in scene_dir.iterdir():
+
                         state_file = approach_dir / "state.json"
                         if not state_file.exists():
                             continue
@@ -553,14 +758,23 @@ def main() -> None:
 
     # Phase 4: Final Calculation
     log.info("--- Phase 4: Calculating final summary ---")
-    final_summary = calculate_final_summary(all_trials_data)
+    init_first_summary = calculate_final_summary(all_trials_data)
+    # Reorder task cases as requested: by tasks number, then constraints number (within init-first)
+    init_first_summary = _reorder_task_cases(init_first_summary)
+    # Convert to approach-first view with required ordering and aggregation
+    final_summary = _transform_summary_to_approach_view(init_first_summary)
 
     # Phase 5: Save and Print
     summary_file = args.root_dir / "unified_analysis_summary.json"
     with summary_file.open("w") as f:
-        json.dump(final_summary, f, indent=2, sort_keys=True)
+        # Do not sort keys to preserve insertion order of metrics and nesting
+        json.dump(final_summary, f, indent=2)
     log.info(f"Final summary saved to: {summary_file}")
     print_summary_table(final_summary)
+    # Generate Overleaf-friendly table
+    overleaf_file = args.root_dir / "unified_analysis_overleaf.txt"
+    generate_overleaf_table(final_summary, overleaf_file)
+    log.info(f"Overleaf table saved to: {overleaf_file}")
 
     # Phase 6: Cleanup
     log.info("--- Phase 6: Cleaning up intermediate files ---")

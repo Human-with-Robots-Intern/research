@@ -15,6 +15,7 @@ import networkx as nx
 from ai2thor.platform import CloudRendering
 from networkx import DiGraph
 
+from ithor.handlers.action import Action
 from ithor.utils.math_utils import adjust_if_unreachable, load_navigation_graph
 from src.models.dataclass import (
     ActionResult,
@@ -620,6 +621,13 @@ def main() -> None:
                 args.case, scene_name, args.instruction
             )
 
+            action_interface = Action(
+                controller,
+                logger=logger,
+                trajectory_log_json_path=Path(
+                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}/trajectory_log.json"
+                ),
+            )
             save_scene_state(
                 controller=controller,
                 output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
@@ -708,7 +716,7 @@ def main() -> None:
             for entry in final_scheduled_entries:
                 subtask = entry.subtask
                 subtask_time, execution_status, sim_nav_time = execute_subtask(
-                    controller, subtask, logger
+                    controller, subtask, logger, action_interface
                 )
                 entry.sim_start_time = simulation_time
                 entry.sim_end_time = simulation_time + subtask_time

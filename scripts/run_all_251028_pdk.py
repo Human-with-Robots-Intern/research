@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Tuple
 import yaml
 
 from src.utils.common import create_module_logger
-from src.utils.config.constants import ASSETS_PATH, LOG_PATH, SCRIPTS_PATH, RESULT_PATH
+from src.utils.config.constants import ASSETS_PATH, LOG_PATH, RESULT_PATH, SCRIPTS_PATH
 
 # Create a single timestamp for the entire script run
 RUN_TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
@@ -474,7 +474,9 @@ def _find_latest_result_json_for_task(
             # Exact folder (no numeric suffix)
             exact_dir = base_dir / key
             if exact_dir.is_dir():
-                json_path = exact_dir / scene_name / "approach" / f"{approach_name}.json"
+                json_path = (
+                    exact_dir / scene_name / "approach" / f"{approach_name}.json"
+                )
                 if json_path.exists():
                     candidates.append((0, json_path))
 
@@ -680,7 +682,11 @@ def main() -> None:
                     # Merge current init_prior params so _iter_init_dirs targets the correct init_* dir
                     merged_config_for_skip = {**config, **init_prior_params}
                     do_skip, found_json = should_skip_completed_for_task(
-                        b_path, instruction_path, scene_name, merged_config_for_skip, case_name
+                        b_path,
+                        instruction_path,
+                        scene_name,
+                        merged_config_for_skip,
+                        case_name,
                     )
                     if do_skip:
                         logger.critical(
