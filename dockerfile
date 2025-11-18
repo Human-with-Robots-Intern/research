@@ -112,7 +112,7 @@ RUN groupadd -g ${GID} ${USERNAME} && \
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libglvnd0 libgl1 libglx0 libegl1 \
-    libglib2.0-0 libx11-6 libxext6 libxrandr2 libxi6 libxrender1 libxfixes3 libxcursor1 \
+    libglib2.0-0 libx11-6 libxext6 libxrandr2 libxi6 libxrender1 libxfixes3 libxcursor1 libvulkan-dev\
     libnss3 libasound2 ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
