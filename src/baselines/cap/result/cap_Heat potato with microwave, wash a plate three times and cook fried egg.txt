@@ -9,9 +9,9 @@ if parse_question('is microwave closed?'):
     open(microwave_id)
 put(microwave_id)
 close(microwave_id)
-toggleon(microwave_id)
+toggle_on(microwave_id)
 time.sleep(1)
-toggleoff(microwave_id)
+toggle_off(microwave_id)
 open(microwave_id)
 pickup(potato_id)
 countertop_id = get_obj_id('countertop')
@@ -26,9 +26,9 @@ sinkbasin_id = get_obj_id('sinkbasin')
 move_to(sinkbasin_id)
 faucet_id = get_obj_id('faucet')
 for _ in range(3):
-    toggleon(faucet_id)
+    toggle_on(faucet_id)
     put(sinkbasin_id)
-    toggleoff(faucet_id)
+    toggle_off(faucet_id)
     pickup(plate_id)
 move_to(countertop_id)
 put(countertop_id)
@@ -63,9 +63,9 @@ if parse_question('is stoveburner toggled?'):
     time.sleep(2)
 else:
     stoveknob_id = get_obj_id('stoveknob')
-    toggleon(stoveknob_id)
+    toggle_on(stoveknob_id)
     time.sleep(2)
-toggleoff(stoveknob_id)# is microwave closed?.
+toggle_off(stoveknob_id)# is microwave closed?.
 microwave = get_obj_id('microwave')
 true_states = get_true_states(microwave)
 ret_val = not(any("open".lower() in state.lower() for state in true_states))# is pan on the stoveburner?.

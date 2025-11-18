@@ -685,7 +685,10 @@ class LMP_wrapper:
         return self.object_names[::]
 
     def get_obj_id(self, obj_name: str) -> Optional[str]:
-        """객체 이름으로 객체 ID를 찾습니다.
+        """객체 이름으로 객체 ID를 찾습니다. (정확한 일치)
+
+        완전 관찰 가능 환경을 가정하고 모든 객체를 탐색합니다. 'Sink'를 찾을 경우
+        씬에서 'SinkBasin'을 직접 찾아 그 ID를 반환하는 특수 처리를 포함합니다.
 
         Args:
             obj_name (str): ID를 찾을 객체의 이름.
@@ -693,12 +696,27 @@ class LMP_wrapper:
         Returns:
             Optional[str]: 찾은 객체의 ID. 없으면 None을 반환합니다.
         """
+        if not obj_name:
+            return None
 
-        for obj in self.controller.last_event.metadata["objects"]:
+        obj_name_lower = obj_name.lower()
+        all_objects = self.controller.last_event.metadata["objects"]
 
-            if obj["objectType"].lower() == obj_name.lower():
+        # Special handling for 'sink' -> find a 'sinkbasin'
+        if obj_name_lower == "sink":
+            logger.info("Query is for 'Sink', redirecting to find 'SinkBasin'.")
+            for obj in all_objects:
+                if obj["objectType"] == "SinkBasin":
+                    logger.info(f"Found SinkBasin with ID '{obj['objectId']}'.")
+                    return obj["objectId"]
+            logger.warning("Could not find any SinkBasin in the scene.")
+            return None
 
+        # Normal object search (exact match)
+        for obj in all_objects:
+            if obj["objectType"].lower() == obj_name_lower:
                 return obj["objectId"]
+
         return None
 
     def get_true_states(self, obj_id: str) -> List[str]:

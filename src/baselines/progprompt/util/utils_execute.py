@@ -185,23 +185,39 @@ def fun_processing(plan: str) -> dict:
 
 
 def find_objID(controller, obj_type: str) -> str | None:
-    """
-    Find object ID by matching object type (case-insensitive).
+    """Find object ID by matching object type (exact match).
+
+    This function assumes a fully-observable environment and searches all
+    objects. It includes special handling for 'Sink' to find a 'SinkBasin'.
 
     Args:
-        controller: AI2Thor controller
-        obj_type: Object type name to search for
+        controller: AI2Thor controller.
+        obj_type: Object type name to search for (e.g., 'Sink', 'Pot').
 
     Returns:
-        str | None: Object ID if found, None otherwise
+        The object ID if a match is found, otherwise None.
     """
     if not obj_type:
         return None
 
     obj_type_lower = obj_type.lower()
-    for obj in controller.last_event.metadata["objects"]:
-        if obj["objectType"].lower() in obj_type_lower:
+    all_objects = controller.last_event.metadata["objects"]
+
+    # Special handling for 'sink' -> find a 'sinkbasin'
+    if obj_type_lower == "sink":
+        logger.info("Query is for 'Sink', redirecting to find 'SinkBasin'.")
+        for obj in all_objects:
+            if obj["objectType"] == "SinkBasin":
+                logger.info(f"Found SinkBasin with ID '{obj['objectId']}'.")
+                return obj["objectId"]
+        logger.warning("Could not find any SinkBasin in the scene.")
+        return None
+
+    # Normal object search (exact match)
+    for obj in all_objects:
+        if obj["objectType"].lower() == obj_type_lower:
             return obj["objectId"]
+
     return None
 
 
@@ -362,8 +378,8 @@ def _execute_single_action(
     elapsed_time: float,
 ) -> float:
     """Execute a single action string and handle logging and errors."""
-    # This regex handles func('arg'), func(arg), and func()
-    parsed_action = re.findall(r"(\w+)\((.*)\)", action_str)
+    # This regex handles func('arg'), func ( 'arg' ), func(arg), and func()
+    parsed_action = re.findall(r"(\w+)\s*\((.*)\)", action_str)
     if not parsed_action:
         log_file.write(f"ERROR: Could not parse action: {action_str}\n")
         raise ValueError(f"Could not parse action: {action_str}")
@@ -395,38 +411,30 @@ def _execute_single_action(
                     f"Action '{action_name}' requires an object argument, but none was provided."
                 )
 
-            # For interaction actions, ensure object is visible first
-            if action_name in [
-                "pickup",
-                "put",
-                "open",
-                "close",
-                "toggle_on",
-                "toggle_off",
-                "slice",
-            ]:
-                if not is_object_visible(controller, target_obj_name):
-                    log_file.write(
-                        f"INFO: Target '{target_obj_name}' not visible. Moving to it first.\n"
-                    )
-                    # We need the ID to move_to
-                    obj_id_for_move = find_objID(controller, target_obj_name)
-                    if not obj_id_for_move:
-                        raise RuntimeError(
-                            f"Action failed: Could not find object '{target_obj_name}' to move to."
-                        )
-                    move_res = action_interface.move_to(obj_id_for_move)
-                    if move_res is False:
-                        raise RuntimeError(
-                            f"Action failed: Could not move to '{target_obj_name}'."
-                        )
+            # --- Target Refinement (Sink -> SinkBasin) ---
+            # For 'put' actions targeting a 'Sink', we must target 'SinkBasin' instead.
+            if action_name == "put" and "sink" in target_obj_name.lower():
+                log_file.write(
+                    f"INFO: Refining target from '{target_obj_name}' to 'SinkBasin' for put action.\n"
+                )
+                target_obj_name = "SinkBasin"
+            # --- End of Target Refinement ---
 
             # Now, get the object ID for the actual action
+            log_file.write(
+                f"INFO: Searching for object ID for target '{target_obj_name}'.\n"
+            )
             target_obj_id = find_objID(controller, target_obj_name)
             if not target_obj_id:
+                log_file.write(
+                    f"ERROR: Could not find object ID for target '{target_obj_name}'.\n"
+                )
                 raise RuntimeError(
                     f"Action failed: Could not find object ID for '{target_obj_name}'."
                 )
+            log_file.write(
+                f"INFO: Found object ID '{target_obj_id}' for target '{target_obj_name}'.\n"
+            )
 
             # Map plan action names to handler methods and execute with the ID
             action_map = {
@@ -460,16 +468,6 @@ def _execute_single_action(
 
     log_file.write(f"Action '{action_str}' completed in {action_duration:.2f}s\n")
     return elapsed_time + action_duration
-
-
-def is_object_visible(controller, obj_name: str) -> bool:
-    """Check if an object is currently visible to the agent."""
-    if not obj_name:
-        return False
-    for obj in controller.last_event.metadata["objects"]:
-        if obj["visible"] and obj_name.lower() in obj["name"].lower():
-            return True
-    return False
 
 
 def simulate_execution(
