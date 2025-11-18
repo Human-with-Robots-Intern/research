@@ -20,14 +20,30 @@ class ConditionGroup:
 
 
 @dataclass(frozen=True)
+class TSRSpec:
+    """Single TSR specification with trigger and end conditions."""
+
+    name: str  # e.g., "fill", "boil", "heat"
+    trigger: ConditionGroup
+    end: ConditionGroup
+
+
+@dataclass(frozen=True)
 class TaskSpec:
-    """Specification to evaluate a task's GCR/TSR."""
+    """Specification to evaluate a task's GCR/TSR.
+    
+    A task can have multiple TSRs (e.g., boil_potato has 'fill' and 'boil' TSRs).
+    For backward compatibility, tsr_trigger/tsr_end are still supported.
+    """
 
     name: str
     gcr_end: Optional[ConditionGroup] = None
     gcr_mid_groups: Optional[Sequence[ConditionGroup]] = None
+    # Legacy single TSR support (for backward compatibility)
     tsr_trigger: Optional[ConditionGroup] = None
     tsr_end: Optional[ConditionGroup] = None
+    # New multiple TSR support
+    tsrs: Optional[Sequence[TSRSpec]] = None
 
 
 def OC(name_prefix: str, **props: Any) -> ObjectCondition:
@@ -42,8 +58,14 @@ def CG(*objs: ObjectCondition) -> ConditionGroup:
     return ConditionGroup(objects=list(objs))
 
 
+def TSR(name: str, trigger: ConditionGroup, end: ConditionGroup) -> TSRSpec:
+    """Helper to build TSRSpec."""
+
+    return TSRSpec(name=name, trigger=trigger, end=end)
+
+
 TASK_SPECS: Dict[str, TaskSpec] = {
-    # boil_potato
+    # boil_potato (두 개의 TSR: fill + boil)
     "boil_potato": TaskSpec(
         name="boil_potato",
         gcr_end=CG(OC("potato", isCooked=True)),
@@ -54,15 +76,28 @@ TASK_SPECS: Dict[str, TaskSpec] = {
                 OC("stoveknob", isToggled=True),
             )
         ],
-        tsr_trigger=CG(
-            # OC("potato", parentReceptacles=["pot"]),
-            OC("potato", isCooked=True),
-            OC("pot", isFilledWithLiquid=True, parentReceptacles=["stove"]),
-            OC("stoveknob", isToggled=True),
-        ),
-        tsr_end=CG(OC("stoveknob", isToggled=False)),
+        # Multiple TSRs: 1) fill water, 2) boil
+        tsrs=[
+            TSR(
+                name="fill",
+                trigger=CG(
+                    OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
+                    OC("faucet", isToggled=True),
+                ),
+                end=CG(OC("faucet", isToggled=False)),
+            ),
+            TSR(
+                name="boil",
+                trigger=CG(
+                    OC("potato", isCooked=True),
+                    OC("pot", isFilledWithLiquid=True, parentReceptacles=["stove"]),
+                    OC("stoveknob", isToggled=True),
+                ),
+                end=CG(OC("stoveknob", isToggled=False)),
+            ),
+        ],
     ),
-    # boil_water_with_pot
+    # boil_water_with_pot (두 개의 TSR: fill + boil)
     "boil_water_with_pot": TaskSpec(
         name="boil_water_with_pot",
         gcr_end=CG(OC("pot", isFilledWithLiquid=True)),
@@ -72,11 +107,25 @@ TASK_SPECS: Dict[str, TaskSpec] = {
                 OC("stoveknob", isToggled=True),
             )
         ],
-        tsr_trigger=CG(
-            OC("pot", isFilledWithLiquid=True, parentReceptacles=["stove"]),
-            OC("stoveknob", isToggled=True),
-        ),
-        tsr_end=CG(OC("stoveknob", isToggled=False)),
+        # Multiple TSRs: 1) fill water, 2) boil
+        tsrs=[
+            TSR(
+                name="fill",
+                trigger=CG(
+                    OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
+                    OC("faucet", isToggled=True),
+                ),
+                end=CG(OC("faucet", isToggled=False)),
+            ),
+            TSR(
+                name="boil",
+                trigger=CG(
+                    OC("pot", isFilledWithLiquid=True, parentReceptacles=["stove"]),
+                    OC("stoveknob", isToggled=True),
+                ),
+                end=CG(OC("stoveknob", isToggled=False)),
+            ),
+        ],
     ),
     # fill_pot_with_water
     "fill_pot_with_water": TaskSpec(
@@ -116,7 +165,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsr_trigger=CG(OC("potato", parentReceptacles=["microwave"]), OC("microwave", isToggled=True)),
         tsr_end=CG(OC("microwave", isToggled=False)),
     ),
-    # make_a_coffee (명세 없음)
+    # make_a_coffee (어떻게 하지지)
     "make_a_coffee": TaskSpec(
         name="make_a_coffee",
         gcr_end=None,
@@ -136,7 +185,8 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             )
         ],
         tsr_trigger=CG(
-            OC("egg_sliced", parentReceptacles=["pan"]),
+            # OC("egg_sliced", parentReceptacles=["pan"]),
+            OC("egg", isCooked=True),
             OC("pan", parentReceptacles=["stove"]),
             OC("stoveknob", isToggled=True),
         ),

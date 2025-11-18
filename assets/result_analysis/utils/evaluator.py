@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from src.utils.config.constants import TIMING_TOLERANCE_ABS, TIMING_TOLERANCE_DEFAULT
 from src.utils.common.logger import create_module_logger
 # Prefer shared project logger
-from .specs import ConditionGroup, TaskSpec, TASK_SPECS
+from .specs import ConditionGroup, TaskSpec, TSRSpec, TASK_SPECS
 from assets.result_analysis.utils.state_change_simulate import accumulate_state_changes
 # Import simulator helpers with safe fallback for script execution
 
@@ -48,15 +48,33 @@ def _list_contains_all_by_prefix(
 
 
 @dataclass(frozen=True)
+class TSRResult:
+    """Single TSR evaluation result."""
+
+    name: str  # e.g., "fill", "boil"
+    passed: bool
+    duration: Optional[float]
+    trigger_step: Optional[int]
+    end_step: Optional[int]
+
+
+@dataclass(frozen=True)
 class TaskResult:
-    """Task evaluation result (GCR/TSR)."""
+    """Task evaluation result (GCR/TSR).
+    
+    For backward compatibility, single TSR fields are preserved.
+    For tasks with multiple TSRs, use tsr_results dict.
+    """
 
     name: str
     gcr_pass: bool
+    # Legacy single TSR support (for backward compatibility)
     tsr_pass: Optional[bool]
     tsr_duration_sum: Optional[float]
     trigger_step: Optional[int]
     end_step: Optional[int]
+    # New multiple TSR support
+    tsr_results: Optional[Dict[str, TSRResult]] = None
 
 
 def _property_matches(key: str, actual_value: Any, expected_value: Any) -> bool:
@@ -177,6 +195,59 @@ def _sum_all_durations(
     return _sum_durations(events, 0, len(events) - 1, duration_key=duration_key)
 
 
+def _evaluate_single_tsr(
+    *,
+    tsr_spec: TSRSpec,
+    snapshots: Sequence[Mapping[str, Mapping[str, Any]]],
+    events: Sequence[Mapping[str, Any]],
+    duration_key: str = "duration",
+    tsr_target_duration: float = TIMING_TOLERANCE_DEFAULT,
+    tsr_tolerance: float = TIMING_TOLERANCE_ABS,
+) -> TSRResult:
+    """Evaluate a single TSR specification.
+    
+    Duration is calculated between trigger and end steps (exclusive of both endpoints).
+    """
+
+    trigger_idx = _find_first_step_index(snapshots, tsr_spec.trigger)
+    if trigger_idx is None:
+        return TSRResult(
+            name=tsr_spec.name,
+            passed=False,
+            duration=None,
+            trigger_step=None,
+            end_step=None,
+        )
+
+    end_idx = _find_first_step_index_after(snapshots, tsr_spec.end, trigger_idx)
+    if end_idx is None:
+        return TSRResult(
+            name=tsr_spec.name,
+            passed=False,
+            duration=None,
+            trigger_step=trigger_idx,
+            end_step=None,
+        )
+
+    # Duration 계산: trigger_step과 end_step 제외, 그 사이만 계산
+    # trigger_idx와 end_idx가 같거나 연속이면 duration은 0
+    if end_idx - trigger_idx <= 1:
+        tsr_duration = 0.0
+    else:
+        # trigger_idx + 1 부터 end_idx - 1 까지
+        tsr_duration = _sum_durations(events, trigger_idx + 1, end_idx - 1, duration_key=duration_key)
+    
+    tsr_ok = abs(tsr_duration - float(tsr_target_duration)) <= float(tsr_tolerance)
+
+    return TSRResult(
+        name=tsr_spec.name,
+        passed=tsr_ok,
+        duration=tsr_duration,
+        trigger_step=trigger_idx,
+        end_step=end_idx,
+    )
+
+
 def evaluate_task(
     *,
     name: str,
@@ -187,19 +258,49 @@ def evaluate_task(
     tsr_target_duration: float = TIMING_TOLERANCE_DEFAULT,
     tsr_tolerance: float = TIMING_TOLERANCE_ABS,
 ) -> TaskResult:
-    """Evaluate a single task for GCR/TSR."""
+    """Evaluate a single task for GCR/TSR.
+    
+    Supports both legacy single TSR (tsr_trigger/tsr_end) and new multiple TSRs (tsrs).
+    """
 
     snapshots = accumulate_state_changes(events)
     gcr_end_ok = _evaluate_gcr_end(end_state, task_spec.gcr_end)
     gcr_mid_ok = _evaluate_gcr_mid(snapshots, task_spec.gcr_mid_groups)
     gcr_ok = gcr_end_ok and gcr_mid_ok
 
+    # Legacy single TSR support
     trigger_idx: Optional[int] = None
     end_idx: Optional[int] = None
     tsr_ok: Optional[bool] = None
     tsr_duration: Optional[float] = None
 
-    if task_spec.tsr_trigger and task_spec.tsr_end:
+    # New multiple TSR support
+    tsr_results_dict: Optional[Dict[str, TSRResult]] = None
+
+    # Check if task has multiple TSRs
+    if task_spec.tsrs:
+        tsr_results_dict = {}
+        for tsr_spec in task_spec.tsrs:
+            tsr_result = _evaluate_single_tsr(
+                tsr_spec=tsr_spec,
+                snapshots=snapshots,
+                events=events,
+                duration_key=duration_key,
+                tsr_target_duration=tsr_target_duration,
+                tsr_tolerance=tsr_tolerance,
+            )
+            tsr_results_dict[tsr_spec.name] = tsr_result
+
+        # For backward compatibility, set legacy fields from first TSR
+        if tsr_results_dict:
+            first_tsr = next(iter(tsr_results_dict.values()))
+            tsr_ok = first_tsr.passed
+            tsr_duration = first_tsr.duration
+            trigger_idx = first_tsr.trigger_step
+            end_idx = first_tsr.end_step
+
+    # Legacy single TSR (for backward compatibility with old task specs)
+    elif task_spec.tsr_trigger and task_spec.tsr_end:
         trigger_idx = _find_first_step_index(snapshots, task_spec.tsr_trigger)
         if trigger_idx is None:
             tsr_ok = False
@@ -208,7 +309,11 @@ def evaluate_task(
             if end_idx is None:
                 tsr_ok = False
             else:
-                tsr_duration = _sum_durations(events, trigger_idx, end_idx, duration_key=duration_key)
+                # Duration 계산: trigger_step과 end_step 제외, 그 사이만 계산
+                if end_idx - trigger_idx <= 1:
+                    tsr_duration = 0.0
+                else:
+                    tsr_duration = _sum_durations(events, trigger_idx + 1, end_idx - 1, duration_key=duration_key)
                 if tsr_duration is not None:
                     tsr_ok = abs(tsr_duration - float(tsr_target_duration)) <= float(tsr_tolerance)
 
@@ -219,6 +324,7 @@ def evaluate_task(
         tsr_duration_sum=tsr_duration,
         trigger_step=trigger_idx,
         end_step=end_idx,
+        tsr_results=tsr_results_dict,
     )
 
 
