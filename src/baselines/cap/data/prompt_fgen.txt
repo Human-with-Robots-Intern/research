@@ -39,8 +39,7 @@ def interpolate_line(line, t):
 line = make_line_by_length(1)
 new_shape = scale(line, xfact=2, yfact=2)
 
-# example: put object1 on top of object0.
-put_first_on_second('object1', 'object0')
+
 
 # example: get the position of the first object.
 obj_names = get_obj_names()
