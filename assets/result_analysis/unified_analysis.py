@@ -545,9 +545,7 @@ def calculate_final_summary(all_trials_data: Dict[tuple, list]) -> Dict[str, Any
 
         total_trials = len(trials)
         strict_successes = sum(
-            1
-            for t in trials
-            if t.get("tsr", 0.0) >= 0.5 and t.get("gcr_perfect", 0) == 1
+            1 for t in trials if t.get("tsr", 0) == 1 and t.get("gcr_perfect", 0) == 1
         )
         sr = (strict_successes / total_trials) * 100 if total_trials > 0 else 0
         gcr_successes = sum(t.get("gcr_perfect", 0) for t in trials)
@@ -562,9 +560,9 @@ def calculate_final_summary(all_trials_data: Dict[tuple, list]) -> Dict[str, Any
         # Re-structure: init -> approach -> task_case(diff)
         # Keep insertion order of metrics as: gcr, tsr, sr, makespan
         final_summary[init_key][approach][diff] = {
+            "sr": sr,
             "gcr": gcr,
             "tsr": tsr,
-            "sr": sr,
             "makespan": makespan,
         }
     return final_summary
@@ -625,7 +623,7 @@ def main() -> None:
     parser.add_argument(
         "--root_dir",
         type=Path,
-        default=Path(__file__).resolve().parents[1] / "results" / "1104",
+        default=Path(__file__).resolve().parents[1] / "results" / "1112 copy",
         help="Root directory containing init_* and states* folders.",
     )
     parser.add_argument(
@@ -730,7 +728,7 @@ def main() -> None:
                         approach_name = json_file.stem.replace("_simulation", "")
                         perf_data = json.load(json_file.open("r"))
                         tsr_value = perf_data.get("timing_success_rate_sim")
-                        tsr = 1.0 if tsr_value is None else float(tsr_value or 0.0)
+                        tsr = 0.0 if tsr_value is None else float(tsr_value or 0.0)
                         makespan = float(
                             perf_data.get("simulation_makespan", 0.0) or 0.0
                         )
