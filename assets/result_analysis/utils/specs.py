@@ -132,65 +132,94 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         name="fill_pot_with_water",
         gcr_end=CG(OC("pot", isFilledWithLiquid=True)),
         gcr_mid_groups=[CG(OC("pot", isFilledWithLiquid=True))],
-        tsr_trigger=CG(
-            OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
-            OC("faucet", isToggled=True),
-        ),
-        tsr_end=CG(OC("faucet", isToggled=False)),
+        tsrs=[
+            TSR(
+                name="fill",
+                trigger=CG(
+                    OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
+                    OC("faucet", isToggled=True),
+                ),
+                end=CG(OC("faucet", isToggled=False)),
+            ),
+        ],
     ),
     # fill_bowl_with_water
     "fill_bowl_with_water": TaskSpec(
         name="fill_bowl_with_water",
         gcr_end=CG(OC("bowl", isFilledWithLiquid=True)),
         gcr_mid_groups=[CG(OC("bowl", isFilledWithLiquid=True))],
-        tsr_trigger=CG(
-            OC("bowl", isFilledWithLiquid=True, parentReceptacles=["sink"]),
-            OC("faucet", isToggled=True),
-        ),
-        tsr_end=CG(OC("faucet", isToggled=False)),
+        tsrs=[
+            TSR(
+                name="fill",
+                trigger=CG(
+                    OC("bowl", isFilledWithLiquid=True, parentReceptacles=["sink"]),
+                    OC("faucet", isToggled=True),
+                ),
+                end=CG(OC("faucet", isToggled=False)),
+            ),
+        ],
     ),
     # heat_the_bread_using_microwave
     "heat_the_bread_using_microwave": TaskSpec(
         name="heat_the_bread_using_microwave",
         gcr_end=None,
         gcr_mid_groups=[CG(OC("bread", parentReceptacles=["microwave"]), OC("microwave", isToggled=True))],
-        tsr_trigger=CG(OC("bread", parentReceptacles=["microwave"]), OC("microwave", isToggled=True)),
-        tsr_end=CG(OC("microwave", isToggled=False)),
+        tsrs=[
+            TSR(
+                name="heat",
+                trigger=CG(OC("bread", parentReceptacles=["microwave"]), OC("microwave", isToggled=True)),
+                end=CG(OC("microwave", isToggled=False)),
+            ),
+        ],
     ),
     # heat_the_potato_using_microwave
     "heat_the_potato_using_microwave": TaskSpec(
         name="heat_the_potato_using_microwave",
         gcr_end=None,
         gcr_mid_groups=[CG(OC("potato", parentReceptacles=["microwave"]), OC("microwave", isToggled=True))],
-        tsr_trigger=CG(OC("potato", parentReceptacles=["microwave"]), OC("microwave", isToggled=True)),
-        tsr_end=CG(OC("microwave", isToggled=False)),
+        tsrs=[
+            TSR(
+                name="heat",
+                trigger=CG(OC("potato", parentReceptacles=["microwave"]), OC("microwave", isToggled=True)),
+                end=CG(OC("microwave", isToggled=False)),
+            ),
+        ],
     ),
-    # make_a_coffee (어떻게 하지지)
+    # make_a_coffee (어떻게 하지)
     "make_a_coffee": TaskSpec(
         name="make_a_coffee",
-        gcr_end=None,
-        gcr_mid_groups=None,
+        gcr_end=CG(OC("mug", isFilledWithLiquid=True)),
+        gcr_mid_groups=CG(
+                    OC("mug", isFilledWithLiquid=True, parentReceptacles=["CoffeeMachine"]),
+                    OC("CoffeeMachine", isToggled=True),
+                ),
         tsr_trigger=None,
         tsr_end=None,
     ),
     # cook_egg
     "cook_egg": TaskSpec(
         name="cook_egg",
-        gcr_end=CG(OC("egg_sliced", isCooked=True)),
+        gcr_end=CG(OC("egg", isCooked=True)),
         gcr_mid_groups=[
             CG(
                 # OC("egg_sliced", parentReceptacles=["pan"]),
                 OC("pan", parentReceptacles=["stove"]),
+                OC("egg", isCooked=True),
                 OC("stoveknob", isToggled=True),
             )
         ],
-        tsr_trigger=CG(
-            # OC("egg_sliced", parentReceptacles=["pan"]),
-            OC("egg", isCooked=True),
-            OC("pan", parentReceptacles=["stove"]),
-            OC("stoveknob", isToggled=True),
-        ),
-        tsr_end=CG(OC("stoveknob", isToggled=False)),
+        tsrs=[
+            TSR(
+                name="heat",
+                trigger=CG(
+                    # OC("egg_sliced", parentReceptacles=["pan"]),
+                    OC("egg", isCooked=True),
+                    OC("pan", parentReceptacles=["stove"]),
+                    OC("stoveknob", isToggled=True),
+                ),
+                end=CG(OC("stoveknob", isToggled=False)),
+            ),
+        ],
     ),
     # put_apple_and_lettuce_in_fridge
     "put_apple_and_lettuce_in_fridge": TaskSpec(
