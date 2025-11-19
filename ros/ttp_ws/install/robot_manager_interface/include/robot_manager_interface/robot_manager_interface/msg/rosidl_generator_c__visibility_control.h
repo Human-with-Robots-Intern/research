@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robot_manager_interface/rosidl_generator_c/robot_manager_interface/msg/rosidl_generator_c__visibility_control.h

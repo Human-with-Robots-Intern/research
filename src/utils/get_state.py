@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from ai2thor.controller import Controller
@@ -108,7 +108,7 @@ def get_changed_object_states(
 
 
 def save_scene_state(
-    controller: Controller,
+    controller: Optional[Controller],
     output_path: Path,
     case_name: str,
     scene_name: str,
@@ -134,6 +134,14 @@ def save_scene_state(
         / f"{state_label}_state.json"
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # 컨트롤러가 없고 FloorPlan301이면 빈 JSON 파일을 생성하고 종료
+    if controller is None and scene_name == "FloorPlan301":
+        with output_path.open("w", encoding="utf-8") as f:
+            json.dump([], f, indent=4)
+        print(f"'{scene_name}'의 scene 상태가 {output_path}에 빈 JSON으로 저장되었습니다.")
+        return
+
 
     object_states = get_all_object_states(controller)
 

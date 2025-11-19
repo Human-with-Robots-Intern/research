@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robot_manager_interface/rosidl_generator_cpp/robot_manager_interface/srv/task_logging.hpp

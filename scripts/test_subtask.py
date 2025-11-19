@@ -1,14 +1,17 @@
 import json
 import logging
+from re import L
 import sys
 from pathlib import Path
+import time
 from typing import Optional
 
 import ai2thor.controller
+from ai2thor.platform import CloudRendering
 
-from ithor.utils.math_utils import load_navigation_graph
-from scheduler.action_handler import ActionHandler
-from src.models.task import Subtask
+# from ithor.utils.math_utils import load_navigation_graph
+# from scheduler.action_handler import ActionHandler
+# from src.models.task import Subtask
 from src.simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.utils.io_utils import task_io
 from src.utils.task.task_util import TaskUtil
@@ -74,8 +77,9 @@ def initialize_scene_from_physics_file(
 def main():
     """메인 실행 함수"""
     # --- 1. 설정 ---
-    SCENE_NAME = "FloorPlan7"
-    TARGET_SUBTASK_NAME = "Put Lettuce in Fridge"
+    SCENE_NAME = "FloorPlan27"
+    TARGET_SUBTASK_NAME = "Place Pot in Sink and Start Filling"
+    OBJECTS_TO_CHECK_STATE = ["Pot", "SinkBasin", "Faucet"]
 
     # --- 로거 설정 ---
     logging.basicConfig(level=logging.INFO)
@@ -87,7 +91,7 @@ def main():
         / "assets/result_analysis/unique_subtasks_by_scene"
         / f"{SCENE_NAME}.json"
     )
-    task_dir_path = Path.cwd() / "assets/tasks" / SCENE_NAME
+    task_dir_path = Path.cwd() / "assets/legacy_task/tasks" / SCENE_NAME
 
     # --- 3. 테스트할 서브태스크와 원본 파일 찾기 ---
     source_task_filename = None
@@ -123,7 +127,9 @@ def main():
         controller_scene_name = env_json.get("scene_name", SCENE_NAME)
 
         logger.info(f"Initializing controller for scene: {controller_scene_name}")
-        controller = init_ai2thor_controller(SCENE_NAME, platform=None)
+        # platform = CloudRendering()
+        platform = None
+        controller = init_ai2thor_controller(SCENE_NAME, platform=platform)
         initialize_scene_from_physics_file(controller, physics_file)
         logger.info("AI2Thor scene initialized to the task's starting state.")
 
@@ -159,6 +165,29 @@ def main():
         logger.exception(f"An error occurred during execution: {e}")
     finally:
         if controller:
+            controller.step(action="Pass")
+            if OBJECTS_TO_CHECK_STATE:
+                # filtered_states = []
+                keys_to_keep = [
+                    "name",
+                    "isCooked",
+                    "isSliced",
+                    "isOpen",
+                    "parentReceptacles",
+                    "isToggled",
+                    "isFilledWithLiquid",
+                ]
+                objects_metadata = controller.last_event.metadata["objects"]
+                for obj in objects_metadata:
+                    for obj_name in OBJECTS_TO_CHECK_STATE:
+                        if obj["name"].startswith(obj_name):
+                            # logger.info(f"Object {obj['name']} state: {obj}")
+                            state = {key: obj[key] for key in keys_to_keep if key in obj}
+                            logger.info(f"Filtered states: {state}")
+                
+                
+            
+
             controller.stop()
             logger.info("Controller stopped.")
 

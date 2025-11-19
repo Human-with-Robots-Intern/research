@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robot_manager_interface/rosidl_typesupport_introspection_cpp/robot_manager_interface/srv/detail/task_logging__rosidl_typesupport_introspection_cpp.hpp

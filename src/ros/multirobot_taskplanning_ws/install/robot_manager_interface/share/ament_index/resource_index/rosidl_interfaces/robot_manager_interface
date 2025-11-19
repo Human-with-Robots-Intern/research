@@ -1,8 +1,0 @@
-srv/RobotManager.idl
-srv/RobotManager.srv
-srv/RobotManager_Request.msg
-srv/RobotManager_Response.msg
-srv/TaskLogging.idl
-srv/TaskLogging.srv
-srv/TaskLogging_Request.msg
-srv/TaskLogging_Response.msg

@@ -48,7 +48,7 @@ RUN add-apt-repository universe && \
     curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null && \
     apt-get update && \
-    apt-get install -y ros-humble-desktop ros-dev-tools && \
+    apt-get install -y ros-humble-desktop ros-dev-tools ros-humble-rmw-cyclonedds-cpp && \
     rm -rf /var/lib/apt/lists/* && \
     # COPY 명령어의 대상 디렉토리가 존재하도록 보장
     mkdir -p /etc/ros /usr/share/ament_index
@@ -81,7 +81,8 @@ RUN apt-get update && \
 # --- 파이썬 라이브러리 설치 ---
 WORKDIR /app
 COPY requirements-ros.txt .
-RUN pip install --no-cache-dir -r requirements-ros.txt
+RUN pip install --no-cache-dir -r requirements-ros.txt && \
+    pip install --no-cache-dir colcon-common-extensions
 
 
 # ==================================================================================================
@@ -90,30 +91,38 @@ RUN pip install --no-cache-dir -r requirements-ros.txt
 FROM base AS common_runtime
 
 # --- 호스트 사용자와 동일한 ID를 가진 사용자 생성 ---
+
 ARG UID
 ARG GID
 ARG USERNAME
-RUN groupadd -g $GID -o ${USERNAME} && \
-    useradd -u $UID -g $GID -o -m -s /bin/bash ${USERNAME}
+
+# 하위 스테이지에서도 사용자 변수를 사용할 수 있도록 ENV로 노출
+ENV UID=${UID} \
+    GID=${GID} \
+    USERNAME=${USERNAME}
+
+# 필수 인자 검증(누락 시 빌드 실패)
+RUN test -n "${UID}" -a -n "${GID}" -a -n "${USERNAME}"
+
+# 실제 리눅스 사용자/그룹 생성 및 홈 디렉터리 준비
+RUN groupadd -g ${GID} ${USERNAME} && \
+    useradd -m -u ${UID} -g ${GID} -s /bin/bash ${USERNAME}
 
 # --- Vulkan/GL 런타임 및 Unity 의존 라이브러리 설치 (LunarG 최신 버전 사용) ---
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libglvnd0 libgl1 libglx0 libegl1 \
-    libglib2.0-0 libx11-6 libxext6 libxrandr2 libxi6 libxrender1 libxfixes3 libxcursor1 \
+    libglib2.0-0 libx11-6 libxext6 libxrandr2 libxi6 libxrender1 libxfixes3 libxcursor1 libvulkan-dev\
     libnss3 libasound2 ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# --- Vulkan 로더 최신화 및 NVIDIA EGL ICD 설정 ---
+# --- Vulkan 로더 최신화 및 NVIDIA EGL ICD 설정  ---
 RUN set -eux; \
     curl -fsSL https://packages.lunarg.com/lunarg-signing-key-pub.asc | gpg --dearmor -o /usr/share/keyrings/lunarg-archive-keyring.gpg; \
     echo "deb [signed-by=/usr/share/keyrings/lunarg-archive-keyring.gpg] https://packages.lunarg.com/vulkan jammy main" > /etc/apt/sources.list.d/lunarg-vulkan.list; \
     apt-get update; \
     apt-get install -y --no-install-recommends libvulkan1 vulkan-tools vulkan-validationlayers; \
-    rm -rf /var/lib/apt/lists/*; \
-    mkdir -p /etc/vulkan/icd.d; \
-    printf '{\n    "file_format_version": "1.0.1",\n    "ICD": {\n        "library_path": "libEGL_nvidia.so.0",\n        "api_version": "1.4.303"\n    }\n}\n' > /etc/vulkan/icd.d/nvidia_egl_icd.json; \
-    printf '{\n    "file_format_version": "1.0.0",\n    "ICD": {\n        "library_path": "libvulkan_nvidia.so",\n        "api_version": "1.3.0"\n    }\n}\n' > /etc/vulkan/icd.d/nvidia_layers.json
+    rm -rf /var/lib/apt/lists/*
 
 # --- 환경 변수 설정 ---
 ENV LANG=en_US.UTF-8
@@ -152,7 +161,7 @@ COPY --from=ros_builder /usr/share/ament_index/ /usr/share/ament_index/
 COPY --from=ros_builder /etc/ros/ /etc/ros/
 
 # --- ROS 환경 자동 설정 ---
-RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc
+RUN echo "source /opt/ros/humble/setup.bash" >> /home/${USERNAME}/.bashrc
 
 # ==================================================================================================
 # Stage 8: TTP 개발용 이미지 (ttp_development)
@@ -188,10 +197,16 @@ RUN apt-get update && \
     curl \
     wget \
     gnupg \
+    cmake \
     python3-pip \
+    python3-dev \
     graphviz \
     libgraphviz-dev \
-    fonts-liberation && \
+    fonts-liberation \
+    libtinyxml2-9 \
+    libconsole-bridge1.0 \
+    libpython3.10 \
+    libspdlog1 && \
     rm -rf /var/lib/apt/lists/*
 
 USER $USERNAME

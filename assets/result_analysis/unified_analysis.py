@@ -367,7 +367,7 @@ class TaskSuccessChecker:
             "wash_a_spatula": [],
             "wash_plate_and_cup": [],
         }
-
+    
 
 # --- Unified Data Collection and Final Calculation ---
 def _task_case_sort_key(task_case: str) -> tuple[int, int, str]:
@@ -650,6 +650,11 @@ def main() -> None:
             and not d.name.endswith("_merged")
         ]
     )
+    # state_change_log.json
+    # check mid GCR
+    # TSR init
+    # TSR done
+    
     for states_dir in states_dirs:
         merged_dir = merge_states_for_analysis(states_dir)
         if merged_dir:

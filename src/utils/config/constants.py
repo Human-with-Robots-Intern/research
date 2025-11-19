@@ -18,7 +18,7 @@ LIVING_ROOM_PATH = SCENE_KNOWLEDGE_PATH / "living_room"
 BAYESIAN_PATH = SCENE_KNOWLEDGE_PATH / "bayesian"
 
 PROMPT_PATH = ASSETS_PATH / "prompts"
-TASK_PATH = ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment"
+TASK_PATH = ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment_251114"
 RESULT_PATH = ASSETS_PATH / "results"
 
 # ========== 시뮬레이션 관련 ==========
@@ -151,8 +151,9 @@ MIN_VARIANCE = 1e-6
 # Timing tolerance can be interpreted both as a ratio and an absolute cap.
 # The ratio (30%) mirrors the previous behaviour, while the absolute value
 # allows capping the tolerance window for large intervals.
+TIMING_TOLERANCE_DEFAULT = 100.0
 TIMING_TOLERANCE_RATIO = 0.3
-TIMING_TOLERANCE_ABS = 15.0
+TIMING_TOLERANCE_ABS = 25.0
 MONITORING_SPLIT_TOLERANCE_ABS = 15.0
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 3
