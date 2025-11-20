@@ -189,10 +189,12 @@ TASK_SPECS: Dict[str, TaskSpec] = {
     "make_a_coffee": TaskSpec(
         name="make_a_coffee",
         gcr_end=CG(OC("mug", isFilledWithLiquid=True)),
-        gcr_mid_groups=CG(
+        gcr_mid_groups=[ CG(
                     OC("mug", isFilledWithLiquid=True, parentReceptacles=["CoffeeMachine"]),
                     OC("CoffeeMachine", isToggled=True),
-                ),
+                )
+
+        ],
         tsr_trigger=None,
         tsr_end=None,
     ),

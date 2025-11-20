@@ -61,30 +61,47 @@ def summary_to_latex_table(
     Returns:
         Full LaTeX table code in Overleaf format.
     """
+    import re
     
-    # Approach name mapping
-    approach_labels = {
-        "dag_bayesian_DEFAULT": "Ours (Default)",
+    # Approach name mapping - supports various approach names
+    # Default mapping for common approaches
+    approach_labels: Dict[str, str] = {
+        "dag_bayesian_DEFAULT": "Ours",
+        "dag_bayesian": "Ours",
+        "dag_bayesian_NONE_URGENCY": "Ours",
         "dag_greedy": "Ours (Greedy)",
         "dag_no_monitoring": "Ours (w/o Mon.)",
         "dag_no_urgency": "Ours (w/o Urg.)",
         "dag_no_rescheduling": "Ours (w/o Rem.)",
-        "edf": "EDF",
-        "cpm": "CPM",
+        "dag_edf": "DAG + EDF",
+        "edf": "DAG + EDF",
+        "cpm": "DAG + CPM",
     }
+    
+    def get_approach_label(approach: str) -> str:
+        """Get display label for approach, with fallback logic."""
+        # Check exact match first
+        if approach in approach_labels:
+            return approach_labels[approach]
+        
+        # Check if it starts with known prefixes
+        if approach.startswith("dag_bayesian"):
+            return "Ours"
+        if approach.startswith("dag_edf") or approach == "edf":
+            return "DAG + EDF"
+        if approach == "cpm":
+            return "DAG + CPM"
+        
+        # Default: use approach name as-is
+        return approach
     
     # Difficulty ordering and formatting
     def format_difficulty(diff: str) -> str:
-        """Convert tasks_X_constraints_Y to TX CY format."""
-        import re
-        match = re.match(r"tasks_(\d+)_constraints_(\d+)", diff)
-        if match:
-            return f"T{match.group(1)} C{match.group(2)}"
-        return diff
+        """Keep original format: tasks_X_constraints_Y."""
+        return diff.replace("_", "\\_")  # Escape underscores for LaTeX
     
     def difficulty_sort_key(diff: str) -> Tuple[int, int]:
         """Sort by (num_tasks, num_constraints)."""
-        import re
         match = re.match(r"tasks_(\d+)_constraints_(\d+)", diff)
         if match:
             return (int(match.group(1)), int(match.group(2)))
@@ -92,43 +109,61 @@ def summary_to_latex_table(
     
     lines: List[str] = []
     
-    # Table header
+    # Table header - matching example format
     lines.append("\\begin{table*}[t]")
     lines.append("\\centering")
-    lines.append("\\caption{Performance comparison in the AI2-THOR simulation environment "
-                "(Based on final\\_summary.json). Results are presented according to the "
-                "initial belief condition. Higher TSR is better (↑), and lower Makespan is "
-                "better (↓). }")
-    lines.append("\\label{tab:simulation_results_from_json}")
-    lines.append("{\\renewcommand{\\arraystretch}{0.75}")
-    lines.append("\\resizebox{0.85\\textwidth}{!}{%")
-    lines.append("\\begin{tabular}{@{}ll|cccc|cccc|cccc@{}}")
+    lines.append("\\caption{Performance comparison in the AI2-THOR simulation environment. "
+                "Results are aggregated by task complexity. Values in parentheses indicate "
+                "the performance of the ablation study \\quotes{Ours (w/o Mon.)}. Higher SR "
+                "and TSR are better ($\\uparrow$), and lower Makespan is better ($\\downarrow$).}")
+    lines.append("\\label{tab:simulation_results_merged}")
+    lines.append("{\\renewcommand{\\arraystretch}{1}")
+    lines.append("\\resizebox{\\textwidth}{!}{%")
+    lines.append("\\begin{tabular}{@{}ll|ccc|ccc|ccc|ccc|ccc@{}}")
     lines.append("\\toprule")
     
-    # Column headers
-    lines.append("\\multicolumn{2}{c|}{\\multirow{2}{*}{\\textbf{Method \\& Difficulty "
-                "(Tasks, Constraints)}}} & \\multicolumn{4}{c|}{\\textbf{Under-estimate (60s)}} & "
-                "\\multicolumn{4}{c|}{\\textbf{Correct (100s)}} & "
-                "\\multicolumn{4}{c}{\\textbf{Over-estimate (140s)}} \\\\ \\cmidrule(l){3-14}")
-    lines.append("\\multicolumn{2}{c|}{} & \\textbf{SR(\\%) ↑} & \\textbf{GCR(\\%) ↑} & "
-                "\\textbf{TSR(\\%) ↑} & \\textbf{Makespan(s) ↓} & \\textbf{SR(\\%) ↑} & "
-                "\\textbf{GCR(\\%) ↑} & \\textbf{TSR(\\%) ↑} & \\textbf{Makespan(s) ↓} & "
-                "\\textbf{SR(\\%) ↑} & \\textbf{GSR(\\%) ↑} & \\textbf{TSR(\\%) ↑} & "
-                "\\textbf{Makespan(s) ↓} \\\\ \\midrule")
+    # Column headers - SR, TSR, Makespan only (no GCR)
+    lines.append("\\multicolumn{2}{c|}{\\multirow{2}{*}{\\textbf{Method}}} & "
+                "\\multicolumn{3}{c|}{\\textbf{Under (60s)}} & "
+                "\\multicolumn{3}{c|}{\\textbf{Under-Mid (80s)}} & "
+                "\\multicolumn{3}{c|}{\\textbf{Correct (100s)}} & "
+                "\\multicolumn{3}{c|}{\\textbf{Over-Mid (120s)}} & "
+                "\\multicolumn{3}{c}{\\textbf{Over (140s)}} \\\\")
+    lines.append("\\cmidrule(l){3-5} \\cmidrule(l){6-8} \\cmidrule(l){9-11} \\cmidrule(l){12-14} \\cmidrule(l){15-17}")
+    lines.append("\\multicolumn{2}{c|}{\\textbf{Difficulty}} & "
+                "\\textbf{SR} & \\textbf{TSR} & \\textbf{MS} & "
+                "\\textbf{SR} & \\textbf{TSR} & \\textbf{MS} & "
+                "\\textbf{SR} & \\textbf{TSR} & \\textbf{MS} & "
+                "\\textbf{SR} & \\textbf{TSR} & \\textbf{MS} & "
+                "\\textbf{SR} & \\textbf{TSR} & \\textbf{MS} \\\\")
+    lines.append("\\midrule")
     
-    # Sort approaches (maintain specific order if needed)
-    approach_order = [
-        "dag_bayesian_DEFAULT",
-        "dag_greedy",
-        "dag_no_monitoring",
-        "dag_no_urgency",
-        "dag_no_rescheduling",
-        "edf",
-        "cpm",
-    ]
+    # Determine approach order: EDF, CPM, then Ours variants
+    # Collect all approaches from data
+    all_approaches = set(final_data.keys())
     
-    # Filter to only include approaches that exist in data
-    sorted_approaches = [app for app in approach_order if app in final_data]
+    # Categorize approaches
+    edf_approaches = [a for a in all_approaches if "edf" in a.lower() or a == "edf"]
+    cpm_approaches = [a for a in all_approaches if a == "cpm"]
+    ours_approaches = [a for a in all_approaches 
+                      if a.startswith("dag_bayesian") or 
+                      (a.startswith("dag_") and "edf" not in a.lower() and a != "cpm")]
+    
+    # Sort within each category
+    edf_approaches.sort()
+    cpm_approaches.sort()
+    ours_approaches.sort()
+    
+    # Build final order: EDF, CPM, then Ours
+    sorted_approaches = edf_approaches + cpm_approaches + ours_approaches
+    
+    # If there are any other approaches not in these categories, add them at the end
+    other_approaches = [a for a in all_approaches 
+                       if a not in edf_approaches and 
+                       a not in cpm_approaches and 
+                       a not in ours_approaches]
+    other_approaches.sort()
+    sorted_approaches.extend(other_approaches)
     
     for approach in sorted_approaches:
         difficulties_data = final_data[approach]
@@ -137,7 +172,7 @@ def summary_to_latex_table(
         if not sorted_difficulties:
             continue
         
-        label = approach_labels.get(approach, approach)
+        label = get_approach_label(approach)
         num_rows = len(sorted_difficulties)
         
         for idx, difficulty in enumerate(sorted_difficulties):
@@ -145,40 +180,64 @@ def summary_to_latex_table(
             
             # Get metrics for each states
             states60 = states_data.get("states60", {})
+            states80 = states_data.get("states80", {})
             states100 = states_data.get("states100", {})
+            states120 = states_data.get("states120", {})
             states140 = states_data.get("states140", {})
             
-            # Format difficulty label
+            # Format difficulty label - keep original format
             diff_label = format_difficulty(difficulty)
             
             # Build row
             if idx == 0:
                 # First row: include multirow approach label
                 row_parts = [
-                    f"\\multirow[t]{{{num_rows}}}{{*}}{{\\textbf{{{label}}}}}",
-                    f"& {diff_label}",
+                    f"\\multirow{{{num_rows}}}{{*}}{{\\textbf{{{label}}}}}",
+                    f"& \\textbf{{{diff_label}}}",
                 ]
             else:
                 # Subsequent rows: empty first column
-                row_parts = [f" & {diff_label}"]
+                row_parts = [f" & \\textbf{{{diff_label}}}"]
             
             # Add metrics for states60
-            row_parts.append(f"& {states60.get('SR', 0.0):.2f}")
-            row_parts.append(f"& {states60.get('GCR', 0.0):.2f}")
-            row_parts.append(f"& {states60.get('TSR', 0.0):.2f}")
-            row_parts.append(f"& ${states60.get('Makespan', 0.0):.2f}$")
+            sr60 = states60.get('SR', 0.0)
+            tsr60 = states60.get('TSR', 0.0)
+            makespan60 = states60.get('Makespan', 0.0)
+            row_parts.append(f"& {sr60:.1f}")
+            row_parts.append(f"& {tsr60:.1f}")
+            row_parts.append(f"& {makespan60:.1f}")
+
+            # Add metrics for states80
+            sr80 = states80.get('SR', 0.0)
+            tsr80 = states80.get('TSR', 0.0)
+            makespan80 = states80.get('Makespan', 0.0)
+            row_parts.append(f"& {sr80:.1f}")
+            row_parts.append(f"& {tsr80:.1f}")
+            row_parts.append(f"& {makespan80:.1f}")
             
             # Add metrics for states100
-            row_parts.append(f"& {states100.get('SR', 0.0):.2f}")
-            row_parts.append(f"& {states100.get('GCR', 0.0):.2f}")
-            row_parts.append(f"& {states100.get('TSR', 0.0):.2f}")
-            row_parts.append(f"& ${states100.get('Makespan', 0.0):.2f}$")
+            sr100 = states100.get('SR', 0.0)
+            tsr100 = states100.get('TSR', 0.0)
+            makespan100 = states100.get('Makespan', 0.0)
+            row_parts.append(f"& {sr100:.1f}")
+            row_parts.append(f"& {tsr100:.1f}")
+            row_parts.append(f"& {makespan100:.1f}")
+
+            # Add metrics for states120
+            sr120 = states120.get('SR', 0.0)
+            tsr120 = states120.get('TSR', 0.0)
+            makespan120 = states120.get('Makespan', 0.0)
+            row_parts.append(f"& {sr120:.1f}")
+            row_parts.append(f"& {tsr120:.1f}")
+            row_parts.append(f"& {makespan120:.1f}")
             
             # Add metrics for states140
-            row_parts.append(f"& {states140.get('SR', 0.0):.2f}")
-            row_parts.append(f"& {states140.get('GCR', 0.0):.2f}")
-            row_parts.append(f"& {states140.get('TSR', 0.0):.2f}")
-            row_parts.append(f"& ${states140.get('Makespan', 0.0):.2f}$")
+            sr140 = states140.get('SR', 0.0)
+            tsr140 = states140.get('TSR', 0.0)
+            makespan140 = states140.get('Makespan', 0.0)
+            row_parts.append(f"& {sr140:.1f}")
+            row_parts.append(f"& {tsr140:.1f}")
+            row_parts.append(f"& {makespan140:.1f}")
             
             lines.append(" ".join(row_parts) + " \\\\")
         

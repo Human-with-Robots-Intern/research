@@ -34,8 +34,8 @@ def main() -> None:
         logger.error("Results folder not found: %s", results_folder)
         return
 
-    # states60, states100, states140 폴더만 처리
-    states_folder_names = ["states60", "states100", "states140"]
+    # states60, states80, states100, states120, states140 폴더 처리
+    states_folder_names = ["states60", "states80", "states100", "states120", "states140"]
     states_folders = []
     
     for folder_name in states_folder_names:
