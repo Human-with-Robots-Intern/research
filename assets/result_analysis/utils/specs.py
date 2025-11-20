@@ -31,7 +31,7 @@ class TSRSpec:
 @dataclass(frozen=True)
 class TaskSpec:
     """Specification to evaluate a task's GCR/TSR.
-    
+
     A task can have multiple TSRs (e.g., boil_potato has 'fill' and 'boil' TSRs).
     For backward compatibility, tsr_trigger/tsr_end are still supported.
     """
@@ -163,11 +163,19 @@ TASK_SPECS: Dict[str, TaskSpec] = {
     "heat_the_bread_using_microwave": TaskSpec(
         name="heat_the_bread_using_microwave",
         gcr_end=None,
-        gcr_mid_groups=[CG(OC("bread", parentReceptacles=["microwave"]), OC("microwave", isToggled=True))],
+        gcr_mid_groups=[
+            CG(
+                OC("bread", parentReceptacles=["microwave"]),
+                OC("microwave", isToggled=True),
+            )
+        ],
         tsrs=[
             TSR(
                 name="heat",
-                trigger=CG(OC("bread", parentReceptacles=["microwave"]), OC("microwave", isToggled=True)),
+                trigger=CG(
+                    OC("bread", parentReceptacles=["microwave"]),
+                    OC("microwave", isToggled=True),
+                ),
                 end=CG(OC("microwave", isToggled=False)),
             ),
         ],
@@ -176,11 +184,19 @@ TASK_SPECS: Dict[str, TaskSpec] = {
     "heat_the_potato_using_microwave": TaskSpec(
         name="heat_the_potato_using_microwave",
         gcr_end=None,
-        gcr_mid_groups=[CG(OC("potato", parentReceptacles=["microwave"]), OC("microwave", isToggled=True))],
+        gcr_mid_groups=[
+            CG(
+                OC("potato", parentReceptacles=["microwave"]),
+                OC("microwave", isToggled=True),
+            )
+        ],
         tsrs=[
             TSR(
                 name="heat",
-                trigger=CG(OC("potato", parentReceptacles=["microwave"]), OC("microwave", isToggled=True)),
+                trigger=CG(
+                    OC("potato", parentReceptacles=["microwave"]),
+                    OC("microwave", isToggled=True),
+                ),
                 end=CG(OC("microwave", isToggled=False)),
             ),
         ],
@@ -189,10 +205,12 @@ TASK_SPECS: Dict[str, TaskSpec] = {
     "make_a_coffee": TaskSpec(
         name="make_a_coffee",
         gcr_end=CG(OC("mug", isFilledWithLiquid=True)),
-        gcr_mid_groups=CG(
-                    OC("mug", isFilledWithLiquid=True, parentReceptacles=["CoffeeMachine"]),
-                    OC("CoffeeMachine", isToggled=True),
-                ),
+        gcr_mid_groups=[
+            CG(
+                OC("mug", isFilledWithLiquid=True, parentReceptacles=["CoffeeMachine"]),
+                OC("CoffeeMachine", isToggled=True),
+            )
+        ],
         tsr_trigger=None,
         tsr_end=None,
     ),
@@ -236,7 +254,9 @@ TASK_SPECS: Dict[str, TaskSpec] = {
     "wash_a_tomato": TaskSpec(
         name="wash_a_tomato",
         gcr_end=None,
-        gcr_mid_groups=[CG(OC("tomato", parentReceptacles=["sink"]), OC("faucet", isToggled=True))],
+        gcr_mid_groups=[
+            CG(OC("tomato", parentReceptacles=["sink"]), OC("faucet", isToggled=True))
+        ],
         tsr_trigger=None,
         tsr_end=None,
     ),
@@ -244,7 +264,12 @@ TASK_SPECS: Dict[str, TaskSpec] = {
     "wash_a_butterknife": TaskSpec(
         name="wash_a_butterknife",
         gcr_end=None,
-        gcr_mid_groups=[CG(OC("butterknife", parentReceptacles=["sink"]), OC("faucet", isToggled=True))],
+        gcr_mid_groups=[
+            CG(
+                OC("butterknife", parentReceptacles=["sink"]),
+                OC("faucet", isToggled=True),
+            )
+        ],
         tsr_trigger=None,
         tsr_end=None,
     ),
@@ -252,7 +277,9 @@ TASK_SPECS: Dict[str, TaskSpec] = {
     "wash_a_spatula": TaskSpec(
         name="wash_a_spatula",
         gcr_end=None,
-        gcr_mid_groups=[CG(OC("spatula", parentReceptacles=["sink"]), OC("faucet", isToggled=True))],
+        gcr_mid_groups=[
+            CG(OC("spatula", parentReceptacles=["sink"]), OC("faucet", isToggled=True))
+        ],
         tsr_trigger=None,
         tsr_end=None,
     ),
@@ -290,5 +317,3 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsr_end=None,
     ),
 }
-
-
