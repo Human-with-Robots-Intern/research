@@ -400,7 +400,7 @@ def compute_trial_metrics(
     makespan = _sum_all_durations(events, duration_key=duration_key)
     # SR rule
     if instruction_gcr == 1:
-        if tsr is None or tsr >= 0.5:
+        if tsr is None or tsr == 1:
             sr = 1
         else:
             sr = 0
