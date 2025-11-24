@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import time
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from src.utils.config.constants import TIMING_TOLERANCE_ABS, TIMING_TOLERANCE_DEFAULT
@@ -62,18 +63,12 @@ class TSRResult:
 class TaskResult:
     """Task evaluation result (GCR/TSR).
     
-    For backward compatibility, single TSR fields are preserved.
     For tasks with multiple TSRs, use tsr_results dict.
     """
 
     name: str
     gcr_pass: bool
-    # Legacy single TSR support (for backward compatibility)
-    tsr_pass: Optional[bool]
-    tsr_duration_sum: Optional[float]
-    trigger_step: Optional[int]
-    end_step: Optional[int]
-    # New multiple TSR support
+    gcr_mid_satisfied_step: Optional[Dict[str, int]] = None
     tsr_results: Optional[Dict[str, TSRResult]] = None
 
 
@@ -128,18 +123,31 @@ def _evaluate_gcr_end(
     return _group_satisfied(end_state, gcr_end)
 
 
-def _evaluate_gcr_mid(
+def _evaluate_gcr_mid_with_steps(
     snapshots: Sequence[Mapping[str, Mapping[str, Any]]],
     groups: Optional[Sequence[ConditionGroup]],
-) -> bool:
-    """Evaluate mid (simultaneous) conditions across steps."""
+) -> Tuple[bool, Optional[Dict[str, int]]]:
+    """Evaluate mid conditions and return (passed, dict_of_satisfied_steps).
+    
+    Returns a dict mapping generated group names to their satisfied step indices.
+    """
 
     if not groups:
-        return True
-    for group in groups:
-        if not any(_group_satisfied(s, group) for s in snapshots):
-            return False
-    return True
+        return True, None
+    
+    steps_dict = {}
+    for idx, group in enumerate(groups):
+        step = _find_first_step_index(snapshots, group)
+        if step is None:
+            return False, None
+        
+        # Generate key name: e.g. "fork_faucet_1"
+        obj_names = [obj.object_name_prefix for obj in group.objects]
+        base_name = "_".join(obj_names)
+        key = f"{base_name}_{idx + 1}"
+        steps_dict[key] = step
+            
+    return True, steps_dict
 
 
 def _find_first_step_index(
@@ -252,32 +260,21 @@ def evaluate_task(
     *,
     name: str,
     events: Sequence[Mapping[str, Any]],
-    end_state: Mapping[str, Mapping[str, Any]],
     task_spec: TaskSpec,
     duration_key: str = "duration",
     tsr_target_duration: float = TIMING_TOLERANCE_DEFAULT,
     tsr_tolerance: float = TIMING_TOLERANCE_ABS,
 ) -> TaskResult:
-    """Evaluate a single task for GCR/TSR.
-    
-    Supports both legacy single TSR (tsr_trigger/tsr_end) and new multiple TSRs (tsrs).
-    """
+    """Evaluate a single task for GCR/TSR."""
 
     snapshots = accumulate_state_changes(events)
+    end_state = snapshots[-1]
     gcr_end_ok = _evaluate_gcr_end(end_state, task_spec.gcr_end)
-    gcr_mid_ok = _evaluate_gcr_mid(snapshots, task_spec.gcr_mid_groups)
+    gcr_mid_ok, gcr_mid_steps = _evaluate_gcr_mid_with_steps(snapshots, task_spec.gcr_mid_groups)
     gcr_ok = gcr_end_ok and gcr_mid_ok
 
-    # Legacy single TSR support
-    trigger_idx: Optional[int] = None
-    end_idx: Optional[int] = None
-    tsr_ok: Optional[bool] = None
-    tsr_duration: Optional[float] = None
-
-    # New multiple TSR support
     tsr_results_dict: Optional[Dict[str, TSRResult]] = None
 
-    # Check if task has multiple TSRs
     if task_spec.tsrs:
         tsr_results_dict = {}
         for tsr_spec in task_spec.tsrs:
@@ -291,39 +288,10 @@ def evaluate_task(
             )
             tsr_results_dict[tsr_spec.name] = tsr_result
 
-        # For backward compatibility, set legacy fields from first TSR
-        if tsr_results_dict:
-            first_tsr = next(iter(tsr_results_dict.values()))
-            tsr_ok = first_tsr.passed
-            tsr_duration = first_tsr.duration
-            trigger_idx = first_tsr.trigger_step
-            end_idx = first_tsr.end_step
-
-    # Legacy single TSR (for backward compatibility with old task specs)
-    elif task_spec.tsr_trigger and task_spec.tsr_end:
-        trigger_idx = _find_first_step_index(snapshots, task_spec.tsr_trigger)
-        if trigger_idx is None:
-            tsr_ok = False
-        else:
-            end_idx = _find_first_step_index_after(snapshots, task_spec.tsr_end, trigger_idx)
-            if end_idx is None:
-                tsr_ok = False
-            else:
-                # Duration 계산: trigger_step과 end_step 제외, 그 사이만 계산
-                if end_idx - trigger_idx <= 1:
-                    tsr_duration = 0.0
-                else:
-                    tsr_duration = _sum_durations(events, trigger_idx + 1, end_idx - 1, duration_key=duration_key)
-                if tsr_duration is not None:
-                    tsr_ok = abs(tsr_duration - float(tsr_target_duration)) <= float(tsr_tolerance)
-
     return TaskResult(
         name=name,
         gcr_pass=gcr_ok,
-        tsr_pass=tsr_ok,
-        tsr_duration_sum=tsr_duration,
-        trigger_step=trigger_idx,
-        end_step=end_idx,
+        gcr_mid_satisfied_step=gcr_mid_steps if gcr_ok else None,
         tsr_results=tsr_results_dict,
     )
 
@@ -331,34 +299,28 @@ def evaluate_task(
 def evaluate_tasks(
     *,
     events: Sequence[Mapping[str, Any]],
-    end_state: Mapping[str, Mapping[str, Any]],
     task_names: Sequence[str],
     duration_key: str = "duration",
 ) -> Dict[str, TaskResult]:
     """Evaluate multiple tasks by spec keys."""
 
-    results: Dict[str, TaskResult] = {}
+    result: Dict[str, TaskResult] = {}
     for task_name in task_names:
         spec = TASK_SPECS.get(task_name)
         if spec is None:
             logger.warning("Undefined task spec: %s. Marking as failed GCR/TSR.", task_name)
-            results[task_name] = TaskResult(
+            result[task_name] = TaskResult(
                 name=task_name,
                 gcr_pass=False,
-                tsr_pass=False,
-                tsr_duration_sum=None,
-                trigger_step=None,
-                end_step=None,
             )
             continue
-        results[task_name] = evaluate_task(
+        result[task_name] = evaluate_task(
             name=task_name,
             events=events,
-            end_state=end_state,
             task_spec=spec,
             duration_key=duration_key,
         )
-    return results
+    return result
 
 
 def compute_trial_metrics(
@@ -379,7 +341,7 @@ def compute_trial_metrics(
     - makespan: sum of all event durations.
     """
 
-    num_tasks = max(1, len(parsed_tasks))
+    num_tasks = len(parsed_tasks)
     gcr_successes = 0
     tsr_samples: List[float] = []
     for spec_key in parsed_tasks:
@@ -388,9 +350,11 @@ def compute_trial_metrics(
             # Unknown task spec -> treat as failed GCR/TSR
             continue
         if result.gcr_pass:
-            gcr_successes += 1
-        if result.tsr_pass is not None:
-            tsr_samples.append(1.0 if result.tsr_pass else 0.0)
+            gcr_successes += 1        
+        # Check tsr_results
+        if result.tsr_results:
+            all_passed = all(r.passed for r in result.tsr_results.values())
+            tsr_samples.append(1.0 if all_passed else 0.0)
     instruction_gcr = 1 if gcr_successes == num_tasks else 0
     tsr: Optional[float]
     if tsr_samples:

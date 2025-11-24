@@ -86,16 +86,9 @@ def main() -> None:
                         except Exception as e:
                             logger.error("Failed to load trajectory: %s (%s)", traj_path, e)
                             continue
-
-                        snapshots_per_step = accumulate_state_changes(events_data)
-                        if not snapshots_per_step:
-                            logger.warning("Empty snapshots for: %s", traj_path)
-                            continue
-                        end_state = snapshots_per_step[-1]
-
-                        results = evaluate_tasks(
+                        
+                        task_results = evaluate_tasks(
                             events=events_data,
-                            end_state=end_state,
                             task_names=valid_task_names,
                         )
                         print(f"\n[{states_name}/{difficulty_dir.name}/{task_dir.name}/{scene_dir.name}/{approach_dir.name}]")
@@ -115,17 +108,13 @@ def main() -> None:
                             "tasks": {}
                         }
                         
-                        for name, result in results.items():
+                        for task_name, task_result in task_results.items():
                             # Print summary
-                            print(
-                                f"- {name}: GCR={result.gcr_pass}, TSR={result.tsr_pass}, "
-                                f"Duration={result.tsr_duration_sum}, "
-                                f"Trigger={result.trigger_step}, End={result.end_step}"
-                            )
+                            print(f"- {task_name}: GCR={task_result.gcr_pass}")
                             
                             # Print multiple TSRs if available
-                            if result.tsr_results:
-                                for tsr_name, tsr_result in result.tsr_results.items():
+                            if task_result.tsr_results:
+                                for tsr_name, tsr_result in task_result.tsr_results.items():
                                     print(
                                         f"  └─ TSR '{tsr_name}': Pass={tsr_result.passed}, "
                                         f"Duration={tsr_result.duration}, "
@@ -134,23 +123,14 @@ def main() -> None:
                             
                             # 각 task의 평가 결과 저장
                             task_eval = {
-                                "gcr_satisfied": result.gcr_pass,
-                                "gcr_satisfied_step": result.end_step if result.gcr_pass else None,
+                                "gcr_satisfied": task_result.gcr_pass,
+                                "gcr_mid_satisfied_step": task_result.gcr_mid_satisfied_step,
                             }
                             
-                            # TSR이 있는 task만 TSR 관련 필드 추가
-                            if result.tsr_pass is not None or result.tsr_results:
-                                task_eval["tsr_trigger_step"] = result.trigger_step
-                                task_eval["tsr_end_step"] = result.end_step
-                                task_eval["tsr_passed"] = result.tsr_pass
-                                # executed_duration은 TSR이 있을 때만 의미가 있음
-                                if result.tsr_duration_sum is not None:
-                                    task_eval["executed_duration"] = result.tsr_duration_sum
-                            
                             # Multiple TSR 결과 추가
-                            if result.tsr_results:
+                            if task_result.tsr_results:
                                 task_eval["tsrs"] = {}
-                                for tsr_name, tsr_result in result.tsr_results.items():
+                                for tsr_name, tsr_result in task_result.tsr_results.items():
                                     task_eval["tsrs"][tsr_name] = {
                                         "passed": tsr_result.passed,
                                         "duration": tsr_result.duration,
@@ -158,7 +138,7 @@ def main() -> None:
                                         "end_step": tsr_result.end_step,
                                     }
                             
-                            evaluation_results["tasks"][name] = task_eval
+                            evaluation_results["tasks"][task_name] = task_eval
                         
                         # 평가 결과를 같은 디렉토리에 저장
                         eval_result_path = approach_dir / "evaluation_result.json"
@@ -168,7 +148,7 @@ def main() -> None:
                         
                         trial_metrics = compute_trial_metrics(
                             parsed_tasks=valid_task_names,
-                            task_results=results,
+                            task_results=task_results,
                             events=events_data,
                         )
                         trial_metrics.update(
