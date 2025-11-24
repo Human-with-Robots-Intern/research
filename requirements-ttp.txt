@@ -58,3 +58,4 @@ matplotlib
 pygments
 pandas
 openpyxl
+psutil>=5.9.0
