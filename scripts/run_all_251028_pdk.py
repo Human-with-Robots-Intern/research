@@ -1,6 +1,8 @@
 import argparse
 import concurrent.futures
+import gc
 import logging
+import psutil
 import re
 import shutil
 import subprocess
@@ -32,6 +34,11 @@ logger = create_module_logger(
     run_timestamp=RUN_TIMESTAMP,
 )
 MAX_RETRIES = 10
+
+# Memory management constants
+MEMORY_THRESHOLD_PERCENT = 85.0  # Pause new tasks if memory usage exceeds this
+MEMORY_CHECK_INTERVAL = 5  # Seconds between memory checks
+GC_COLLECT_AFTER_TASKS = 5  # Force garbage collection after this many tasks
 
 
 class BaselineType(Enum):
@@ -72,12 +79,20 @@ class InitPriorConfig(Enum):
         "init_prior_mean": 140.0,
         "init_prior_variance": 100.0,
     }
-    UNDER_ESTIMATE = {
-        "init_prior_mean": 60.0,
+    OVER_MEDIUM_ESTIMATE = {
+        "init_prior_mean": 120.0,
         "init_prior_variance": 100.0,
     }
     CORRECT_ESTIMATE = {
         "init_prior_mean": 100.0,
+        "init_prior_variance": 100.0,
+    }
+    UNDER_MEDIUM_ESTIMATE = {
+        "init_prior_mean": 80.0,
+        "init_prior_variance": 100.0,
+    }
+    UNDER_ESTIMATE = {
+        "init_prior_mean": 60.0,
         "init_prior_variance": 100.0,
     }
 
@@ -117,6 +132,71 @@ class ExperimentTask:
     file_copy_lock: threading.Lock
     max_retries: int
     log_dir_timestamp: str
+
+
+def get_memory_usage() -> float:
+    """Get current memory usage percentage.
+
+    Returns:
+        float: Current memory usage as a percentage.
+    """
+    return psutil.virtual_memory().percent
+
+
+def wait_for_memory_available(threshold: float = MEMORY_THRESHOLD_PERCENT) -> None:
+    """Wait until memory usage drops below threshold.
+
+    Args:
+        threshold (float): Memory usage percentage threshold.
+    """
+    while get_memory_usage() > threshold:
+        logger.warning(
+            f"Memory usage at {get_memory_usage():.1f}%. Waiting for memory to free up..."
+        )
+        time.sleep(MEMORY_CHECK_INTERVAL)
+        gc.collect()
+
+
+def cleanup_subprocess(process: subprocess.Popen) -> None:
+    """Forcefully cleanup a subprocess and its children.
+
+    Args:
+        process (subprocess.Popen): The subprocess to cleanup.
+    """
+    try:
+        parent = psutil.Process(process.pid)
+        children = parent.children(recursive=True)
+        
+        # Terminate children first
+        for child in children:
+            try:
+                child.terminate()
+            except psutil.NoSuchProcess:
+                pass
+        
+        # Wait for children to terminate
+        gone, alive = psutil.wait_procs(children, timeout=3)
+        
+        # Kill any remaining children
+        for p in alive:
+            try:
+                p.kill()
+            except psutil.NoSuchProcess:
+                pass
+        
+        # Terminate parent
+        try:
+            parent.terminate()
+            parent.wait(timeout=3)
+        except (psutil.NoSuchProcess, psutil.TimeoutExpired):
+            try:
+                parent.kill()
+            except psutil.NoSuchProcess:
+                pass
+    except psutil.NoSuchProcess:
+        pass
+    except Exception as e:
+        logger.warning(f"Error cleaning up subprocess: {e}")
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -232,7 +312,39 @@ def _run_script_and_log(
             cmd.extend([f"--{key}", str(value)])
 
     logger.info(f"Executing command: {' '.join(cmd)}")
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    
+    # Use Popen for better process control
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    
+    try:
+        stdout, stderr = process.communicate(timeout=3600)  # 1 hour timeout
+        returncode = process.returncode
+    except subprocess.TimeoutExpired:
+        logger.error(f"Process timeout after 1 hour. Killing process...")
+        cleanup_subprocess(process)
+        stdout, stderr = "", "Process killed due to timeout"
+        returncode = -1
+    except Exception as e:
+        logger.error(f"Error during process execution: {e}")
+        cleanup_subprocess(process)
+        raise
+    finally:
+        # Ensure process is cleaned up
+        cleanup_subprocess(process)
+    
+    # Create result object compatible with subprocess.run
+    class ProcessResult:
+        def __init__(self, returncode, stdout, stderr):
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+    
+    result = ProcessResult(returncode, stdout, stderr)
 
     log_header = f"\n--- {'SUCCESS' if result.returncode == 0 else 'FAILURE'} (Attempt {attempt}) ---\n"
     log_content = (
@@ -265,63 +377,55 @@ def worker(task: ExperimentTask) -> None:
     Args:
         task (ExperimentTask): The experiment task to execute.
     """
-    # For real-world experiments, reset object positions to default before each run.
-    if not task.is_simulation:
-        with task.file_copy_lock:
-            object_mapping_path = (
-                SCRIPTS_PATH.parent / "src/ros/ttp_ws/data/object_mapping.json"
-            )
-            object_positions_path = (
-                SCRIPTS_PATH.parent / "src/ros/ttp_ws/data/object_positions.json"
-            )
-            if object_mapping_path.exists():
-                shutil.copy2(object_mapping_path, object_positions_path)
-                logger.info(
-                    f"Initialized object positions for task: {Path(task.instruction_path).name}"
+    # Wait for memory to be available before starting
+    wait_for_memory_available()
+    
+    # Log memory usage at start
+    mem_start = get_memory_usage()
+    logger.info(f"Starting task with memory usage: {mem_start:.1f}%")
+    
+    try:
+        # For real-world experiments, reset object positions to default before each run.
+        if not task.is_simulation:
+            with task.file_copy_lock:
+                object_mapping_path = (
+                    SCRIPTS_PATH.parent / "src/ros/ttp_ws/data/object_mapping.json"
                 )
-            else:
-                logger.warning(
-                    f"Source file for object positions not found: {object_mapping_path}"
+                object_positions_path = (
+                    SCRIPTS_PATH.parent / "src/ros/ttp_ws/data/object_positions.json"
                 )
+                if object_mapping_path.exists():
+                    shutil.copy2(object_mapping_path, object_positions_path)
+                    logger.info(
+                        f"Initialized object positions for task: {Path(task.instruction_path).name}"
+                    )
+                else:
+                    logger.warning(
+                        f"Source file for object positions not found: {object_mapping_path}"
+                    )
 
-    b_type, b_path = task.baseline_info
-    instr_path_obj = Path(task.instruction_path)
+        b_type, b_path = task.baseline_info
+        instr_path_obj = Path(task.instruction_path)
 
-    log_file_name = f"{b_path.stem}_{task.ablation_name}_{task.init_prior_name}_{task.case_name}_{task.scene_name}_{instr_path_obj.stem}_{task.try_idx + 1}.log"
-    log_file_path = LOG_PATH / f"{task.log_dir_timestamp}-worker_logs" / log_file_name
-    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file_name = f"{b_path.stem}_{task.ablation_name}_{task.init_prior_name}_{task.case_name}_{task.scene_name}_{instr_path_obj.stem}_{task.try_idx + 1}.log"
+        log_file_path = LOG_PATH / f"{task.log_dir_timestamp}-worker_logs" / log_file_name
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    logger.critical(
-        f"WORKER START | Baseline: {b_path.name} | Ablation: {task.ablation_name} | "
-        f"Prior: {task.init_prior_name} | Case: {task.case_name} | Scene: {task.scene_name} | "
-        f"Run: {task.try_idx + 1} | Task: {instr_path_obj.name}"
-    )
-
-    if b_type == BaselineType.SCHEDULER:
-        buffer_between_instructions = 0 if task.is_simulation else 30
-        if buffer_between_instructions > 0:
-            logger.info(
-                f"Waiting for {buffer_between_instructions} seconds before starting."
-            )
-            time.sleep(buffer_between_instructions)
-
-        _run_script_and_log(
-            b_path,
-            task.ablation_name,
-            task.case_name,
-            task.scene_name,
-            instr_path_obj,
-            task.is_simulation,
-            task.cloud_rendering,
-            log_file_path,
-            task.ablation_params,
-            task.init_prior_params,
-            attempt=1,
+        logger.critical(
+            f"WORKER START | Baseline: {b_path.name} | Ablation: {task.ablation_name} | "
+            f"Prior: {task.init_prior_name} | Case: {task.case_name} | Scene: {task.scene_name} | "
+            f"Run: {task.try_idx + 1} | Task: {instr_path_obj.name}"
         )
-    elif b_type == BaselineType.LLM:
-        buffer_between_instructions = 2 if task.is_simulation else 30
-        for attempt in range(1, task.max_retries + 1):
-            result = _run_script_and_log(
+
+        if b_type == BaselineType.SCHEDULER:
+            buffer_between_instructions = 0 if task.is_simulation else 30
+            if buffer_between_instructions > 0:
+                logger.info(
+                    f"Waiting for {buffer_between_instructions} seconds before starting."
+                )
+                time.sleep(buffer_between_instructions)
+
+            _run_script_and_log(
                 b_path,
                 task.ablation_name,
                 task.case_name,
@@ -332,23 +436,48 @@ def worker(task: ExperimentTask) -> None:
                 log_file_path,
                 task.ablation_params,
                 task.init_prior_params,
-                attempt=attempt,
+                attempt=1,
             )
-            if result.returncode == 0:
-                logger.info(
-                    f"LLM baseline {b_path.name} succeeded on attempt {attempt}."
+        elif b_type == BaselineType.LLM:
+            buffer_between_instructions = 2 if task.is_simulation else 30
+            for attempt in range(1, task.max_retries + 1):
+                result = _run_script_and_log(
+                    b_path,
+                    task.ablation_name,
+                    task.case_name,
+                    task.scene_name,
+                    instr_path_obj,
+                    task.is_simulation,
+                    task.cloud_rendering,
+                    log_file_path,
+                    task.ablation_params,
+                    task.init_prior_params,
+                    attempt=attempt,
                 )
-                break
+                if result.returncode == 0:
+                    logger.info(
+                        f"LLM baseline {b_path.name} succeeded on attempt {attempt}."
+                    )
+                    break
 
-            if attempt < task.max_retries:
-                logger.warning(
-                    f"LLM baseline {b_path.name} failed on attempt {attempt}. Retrying in {buffer_between_instructions} seconds..."
+                if attempt < task.max_retries:
+                    logger.warning(
+                        f"LLM baseline {b_path.name} failed on attempt {attempt}. Retrying in {buffer_between_instructions} seconds..."
+                    )
+                    time.sleep(buffer_between_instructions)
+            else:  # No-break
+                logger.error(
+                    f"LLM baseline {b_path.name} failed after {task.max_retries} attempts."
                 )
-                time.sleep(buffer_between_instructions)
-        else:  # No-break
-            logger.error(
-                f"LLM baseline {b_path.name} failed after {task.max_retries} attempts."
-            )
+    finally:
+        # Force garbage collection after each task
+        gc.collect()
+        
+        # Log memory usage at end
+        mem_end = get_memory_usage()
+        logger.info(
+            f"Task completed. Memory usage: {mem_end:.1f}% (change: {mem_end - mem_start:+.1f}%)"
+        )
 
 
 def load_instruction_case_mapping_from_scenes(
@@ -741,12 +870,25 @@ def main() -> None:
             executor.submit(worker, task) for task in tasks_to_run
         ]
 
+        completed_count = 0
         for future in concurrent.futures.as_completed(futures):
             try:
                 future.result()
+                completed_count += 1
+                
+                # Periodically force garbage collection
+                if completed_count % GC_COLLECT_AFTER_TASKS == 0:
+                    logger.info(f"Completed {completed_count} tasks. Running garbage collection...")
+                    gc.collect()
+                    mem_usage = get_memory_usage()
+                    logger.info(f"Current memory usage: {mem_usage:.1f}%")
             except Exception as e:
                 logger.critical(f"A task generated an exception: {e}")
                 logger.critical(traceback.format_exc())
+        
+        # Final garbage collection
+        logger.info("All tasks completed. Final garbage collection...")
+        gc.collect()
 
 
 if __name__ == "__main__":
