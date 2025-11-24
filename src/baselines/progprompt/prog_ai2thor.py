@@ -1,4 +1,5 @@
 import argparse
+import gc
 import json
 import logging
 import os
@@ -415,6 +416,9 @@ if __name__ == "__main__":
             controller.stop()
         except Exception as e:
             logger.error(f"Error stopping controller: {e}")
+        
+        # Force garbage collection to free memory
+        gc.collect()
 
         if not task_successful:
             logger.info("Exiting with status 1 (failure).")

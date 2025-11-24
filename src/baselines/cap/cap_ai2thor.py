@@ -1,5 +1,6 @@
 import argparse
 import copy
+import gc
 import logging
 import os
 import re
@@ -750,7 +751,12 @@ def main():
         sys.exit(1)
     finally:
         if controller:
-            controller.stop()
+            try:
+                controller.stop()
+            except Exception as e:
+                logger.error(f"Error stopping controller: {e}")
+        # Force garbage collection to free memory
+        gc.collect()
         print("Controller stopped. Exiting.")
 
 

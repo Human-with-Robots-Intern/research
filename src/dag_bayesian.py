@@ -1,4 +1,5 @@
 import argparse
+import gc
 import logging
 import re
 import time
@@ -406,9 +407,17 @@ def main():
                     is_end = True
     finally:
         if ros_executor and args.ros:
-            ros_executor.shutdown()
+            try:
+                ros_executor.shutdown()
+            except Exception as e:
+                logger.error(f"Error shutting down ROS executor: {e}")
         if controller:
-            controller.stop()
+            try:
+                controller.stop()
+            except Exception as e:
+                logger.error(f"Error stopping controller: {e}")
+        # Force garbage collection to free memory
+        gc.collect()
 
     if args.ros:
         result_schedule = [
