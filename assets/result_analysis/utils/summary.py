@@ -70,7 +70,7 @@ def summary_to_latex_table(
         "dag_bayesian": "Ours",
         "dag_bayesian_NONE_URGENCY": "Ours",
         "dag_greedy": "Ours (Greedy)",
-        "dag_no_monitoring": "Ours (w/o Mon.)",
+        "dag_bayesian_NONE_MONITORING": "Ours (w/o Mon.)",
         "dag_no_urgency": "Ours (w/o Urg.)",
         "dag_no_rescheduling": "Ours (w/o Rem.)",
         "dag_edf": "DAG + EDF",
@@ -199,44 +199,45 @@ def summary_to_latex_table(
                 # Subsequent rows: empty first column
                 row_parts = [f" & \\textbf{{{diff_label}}}"]
             
+            # Helper to format TSR based on constraints
+            def _fmt_tsr(state_data: Dict[str, float]) -> str:
+                if "constraints_0" in difficulty:
+                    return "-"
+                return f"{state_data.get('TSR', 0.0):.1f}"
+
             # Add metrics for states60
             sr60 = states60.get('SR', 0.0)
-            tsr60 = states60.get('TSR', 0.0)
             makespan60 = states60.get('Makespan', 0.0)
             row_parts.append(f"& {sr60:.1f}")
-            row_parts.append(f"& {tsr60:.1f}")
+            row_parts.append(f"& {_fmt_tsr(states60)}")
             row_parts.append(f"& {makespan60:.1f}")
 
             # Add metrics for states80
             sr80 = states80.get('SR', 0.0)
-            tsr80 = states80.get('TSR', 0.0)
             makespan80 = states80.get('Makespan', 0.0)
             row_parts.append(f"& {sr80:.1f}")
-            row_parts.append(f"& {tsr80:.1f}")
+            row_parts.append(f"& {_fmt_tsr(states80)}")
             row_parts.append(f"& {makespan80:.1f}")
             
             # Add metrics for states100
             sr100 = states100.get('SR', 0.0)
-            tsr100 = states100.get('TSR', 0.0)
             makespan100 = states100.get('Makespan', 0.0)
             row_parts.append(f"& {sr100:.1f}")
-            row_parts.append(f"& {tsr100:.1f}")
+            row_parts.append(f"& {_fmt_tsr(states100)}")
             row_parts.append(f"& {makespan100:.1f}")
 
             # Add metrics for states120
             sr120 = states120.get('SR', 0.0)
-            tsr120 = states120.get('TSR', 0.0)
             makespan120 = states120.get('Makespan', 0.0)
             row_parts.append(f"& {sr120:.1f}")
-            row_parts.append(f"& {tsr120:.1f}")
+            row_parts.append(f"& {_fmt_tsr(states120)}")
             row_parts.append(f"& {makespan120:.1f}")
             
             # Add metrics for states140
             sr140 = states140.get('SR', 0.0)
-            tsr140 = states140.get('TSR', 0.0)
             makespan140 = states140.get('Makespan', 0.0)
             row_parts.append(f"& {sr140:.1f}")
-            row_parts.append(f"& {tsr140:.1f}")
+            row_parts.append(f"& {_fmt_tsr(states140)}")
             row_parts.append(f"& {makespan140:.1f}")
             
             lines.append(" ".join(row_parts) + " \\\\")
