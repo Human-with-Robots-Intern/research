@@ -8,6 +8,7 @@ services:
         - UID=${UID}
         - GID=${GID}
         - USERNAME=${USERNAME}
+        - PYTORCH_INDEX_URL=${PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}
     container_name: ttp
     volumes:
       - .:/app
@@ -31,9 +32,10 @@ services:
       # - DISPLAY=${DISPLAY:-:99}
       # HTTP bridge endpoint 
       - ROS_BRIDGE_URL=${ROS_BRIDGE_URL:-http://ros:8000}
-    # depends_on:
-    #   ros:
-    #     condition: service_healthy
+      # Hugging Face Cache
+      - TRANSFORMERS_CACHE=/app/.cache/huggingface
+      - HF_HOME=/app/.cache/huggingface
+
     networks:
       - uttp_net
 
