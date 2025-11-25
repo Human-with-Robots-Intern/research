@@ -1,4 +1,5 @@
 import argparse
+import gc
 import heapq
 import logging
 import re
@@ -675,7 +676,12 @@ def main():
             result_save(**result_args)
     finally:
         if controller:
-            controller.stop()
+            try:
+                controller.stop()
+            except Exception as e:
+                logger.error(f"Error stopping controller: {e}")
+        # Force garbage collection to free memory
+        gc.collect()
 
 
 if __name__ == "__main__":

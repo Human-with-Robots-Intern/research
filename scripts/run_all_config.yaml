@@ -1,6 +1,7 @@
 # Configuration for run_all.py
 simulation: true # Enable Simulation mode
 cloud_rendering: true
+cloud_rendering: true
 num_runs_per_instruction: 1 # Number of times to run each instruction
 max_retries: 1 # set to be 1
 retry_delay_seconds: 2 # Delay in seconds between retries
@@ -41,6 +42,7 @@ scene_lists:
 ablation_configs:
   # - NONE_URGENCY
   # - NONE_REMAINING_WORK
+  - NONE_MONITORING
   - NONE_MONITORING
   # - GREEDY
   - DEFAULT

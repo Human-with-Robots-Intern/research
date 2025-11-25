@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import gc
 import heapq
 import os
 import re
@@ -777,7 +778,12 @@ def main() -> None:
             result_save(**result_args)
     finally:
         if controller:
-            controller.stop()
+            try:
+                controller.stop()
+            except Exception as e:
+                logger.error(f"Error stopping controller: {e}")
+        # Force garbage collection to free memory
+        gc.collect()
 
 
 if __name__ == "__main__":

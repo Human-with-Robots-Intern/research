@@ -63,10 +63,14 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends python3-pip graphviz libgraphviz-dev python3-dev && \
     rm -rf /var/lib/apt/lists/*
 
+# --- PyTorch 인덱스 URL을 ARG로 받음 (기본값: Stable CPU) ---
+ARG PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+
 # --- 파이썬 라이브러리 설치 ---
 WORKDIR /app
 COPY requirements-ttp.txt .
-RUN pip install --no-cache-dir -r requirements-ttp.txt
+RUN pip install --no-cache-dir -r requirements-ttp.txt && \
+    pip install torch torchvision --index-url $PYTORCH_INDEX_URL
 
 # ==================================================================================================
 # Stage 4: Python 라이브러리 설치 (ROS)
