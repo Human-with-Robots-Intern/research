@@ -114,28 +114,28 @@ def summary_to_latex_table(
     lines.append("\\centering")
     lines.append("\\caption{Performance comparison in the AI2-THOR simulation environment. "
                 "Results are aggregated by task complexity. Values in parentheses indicate "
-                "the performance of the ablation study \\quotes{Ours (w/o Mon.)}. Higher SR "
+                "the performance of the ablation study \\quotes{Ours (w/o Mon.)}. Higher SR, GCR, "
                 "and TSR are better ($\\uparrow$), and lower Makespan is better ($\\downarrow$).}")
     lines.append("\\label{tab:simulation_results_merged}")
     lines.append("{\\renewcommand{\\arraystretch}{1}")
     lines.append("\\resizebox{\\textwidth}{!}{%")
-    lines.append("\\begin{tabular}{@{}ll|ccc|ccc|ccc|ccc|ccc@{}}")
+    lines.append("\\begin{tabular}{@{}ll|cccc|cccc|cccc|cccc|cccc@{}}")
     lines.append("\\toprule")
     
-    # Column headers - SR, TSR, Makespan only (no GCR)
+    # Column headers - SR, GCR, TSR, Makespan
     lines.append("\\multicolumn{2}{c|}{\\multirow{2}{*}{\\textbf{Method}}} & "
-                "\\multicolumn{3}{c|}{\\textbf{Under (60s)}} & "
-                "\\multicolumn{3}{c|}{\\textbf{Under-Mid (80s)}} & "
-                "\\multicolumn{3}{c|}{\\textbf{Correct (100s)}} & "
-                "\\multicolumn{3}{c|}{\\textbf{Over-Mid (120s)}} & "
-                "\\multicolumn{3}{c}{\\textbf{Over (140s)}} \\\\")
-    lines.append("\\cmidrule(l){3-5} \\cmidrule(l){6-8} \\cmidrule(l){9-11} \\cmidrule(l){12-14} \\cmidrule(l){15-17}")
+                "\\multicolumn{4}{c|}{\\textbf{Under (60s)}} & "
+                "\\multicolumn{4}{c|}{\\textbf{Under-Mid (80s)}} & "
+                "\\multicolumn{4}{c|}{\\textbf{Correct (100s)}} & "
+                "\\multicolumn{4}{c|}{\\textbf{Over-Mid (120s)}} & "
+                "\\multicolumn{4}{c}{\\textbf{Over (140s)}} \\\\")
+    lines.append("\\cmidrule(l){3-6} \\cmidrule(l){7-10} \\cmidrule(l){11-14} \\cmidrule(l){15-18} \\cmidrule(l){19-22}")
     lines.append("\\multicolumn{2}{c|}{\\textbf{Difficulty}} & "
-                "\\textbf{SR} & \\textbf{TSR} & \\textbf{MS} & "
-                "\\textbf{SR} & \\textbf{TSR} & \\textbf{MS} & "
-                "\\textbf{SR} & \\textbf{TSR} & \\textbf{MS} & "
-                "\\textbf{SR} & \\textbf{TSR} & \\textbf{MS} & "
-                "\\textbf{SR} & \\textbf{TSR} & \\textbf{MS} \\\\")
+                "\\textbf{SR} & \\textbf{GCR} & \\textbf{TSR} & \\textbf{MS} & "
+                "\\textbf{SR} & \\textbf{GCR} & \\textbf{TSR} & \\textbf{MS} & "
+                "\\textbf{SR} & \\textbf{GCR} & \\textbf{TSR} & \\textbf{MS} & "
+                "\\textbf{SR} & \\textbf{GCR} & \\textbf{TSR} & \\textbf{MS} & "
+                "\\textbf{SR} & \\textbf{GCR} & \\textbf{TSR} & \\textbf{MS} \\\\")
     lines.append("\\midrule")
     
     # Determine approach order: EDF, CPM, then Ours variants
@@ -207,36 +207,46 @@ def summary_to_latex_table(
 
             # Add metrics for states60
             sr60 = states60.get('SR', 0.0)
+            gcr60 = states60.get('GCR', 0.0)
             makespan60 = states60.get('Makespan', 0.0)
             row_parts.append(f"& {sr60:.1f}")
+            row_parts.append(f"& {gcr60:.1f}")
             row_parts.append(f"& {_fmt_tsr(states60)}")
             row_parts.append(f"& {makespan60:.1f}")
 
             # Add metrics for states80
             sr80 = states80.get('SR', 0.0)
+            gcr80 = states80.get('GCR', 0.0)
             makespan80 = states80.get('Makespan', 0.0)
             row_parts.append(f"& {sr80:.1f}")
+            row_parts.append(f"& {gcr80:.1f}")
             row_parts.append(f"& {_fmt_tsr(states80)}")
             row_parts.append(f"& {makespan80:.1f}")
             
             # Add metrics for states100
             sr100 = states100.get('SR', 0.0)
+            gcr100 = states100.get('GCR', 0.0)
             makespan100 = states100.get('Makespan', 0.0)
             row_parts.append(f"& {sr100:.1f}")
+            row_parts.append(f"& {gcr100:.1f}")
             row_parts.append(f"& {_fmt_tsr(states100)}")
             row_parts.append(f"& {makespan100:.1f}")
 
             # Add metrics for states120
             sr120 = states120.get('SR', 0.0)
+            gcr120 = states120.get('GCR', 0.0)
             makespan120 = states120.get('Makespan', 0.0)
             row_parts.append(f"& {sr120:.1f}")
+            row_parts.append(f"& {gcr120:.1f}")
             row_parts.append(f"& {_fmt_tsr(states120)}")
             row_parts.append(f"& {makespan120:.1f}")
             
             # Add metrics for states140
             sr140 = states140.get('SR', 0.0)
+            gcr140 = states140.get('GCR', 0.0)
             makespan140 = states140.get('Makespan', 0.0)
             row_parts.append(f"& {sr140:.1f}")
+            row_parts.append(f"& {gcr140:.1f}")
             row_parts.append(f"& {_fmt_tsr(states140)}")
             row_parts.append(f"& {makespan140:.1f}")
             
