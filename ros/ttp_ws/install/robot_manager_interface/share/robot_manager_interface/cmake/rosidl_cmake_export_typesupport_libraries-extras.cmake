@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robot_manager_interface/rosidl_cmake/rosidl_cmake_export_typesupport_libraries-extras.cmake

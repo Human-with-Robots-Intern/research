@@ -1,5 +1,6 @@
 #!/bin/bash
-# This script sets up the required ROS and project environment and then executes the given command.
+# This script sets up only the ROS environment and then passes execution
+# to run_project.sh for further setup and command execution.
 
 # Source the main ROS setup file
 if [ -f "/opt/ros/humble/setup.bash" ]; then
@@ -9,20 +10,33 @@ else
     exit 1
 fi
 
-# Source the workspace setup file
-# Get the directory of the current script to find the workspace root relative to it.
+# Source/build the workspace setup if needed
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-WORKSPACE_SETUP_FILE="$SCRIPT_DIR/../src/ros/ttp_ws/install/setup.bash"
+WORKSPACE_DIR="$SCRIPT_DIR/../ros/ttp_ws"
+WORKSPACE_SETUP_FILE="$WORKSPACE_DIR/install/setup.bash"
 
-if [ -f "$WORKSPACE_SETUP_FILE" ]; then
-    source "$WORKSPACE_SETUP_FILE"
-else
-    echo "Warning: Workspace setup file not found at $WORKSPACE_SETUP_FILE. Continuing without it." >&2
+if [ ! -f "$WORKSPACE_SETUP_FILE" ]; then
+    echo "Workspace not built. Running rosdep and colcon build..." >&2
+    set -e
+    cd "$WORKSPACE_DIR"
+    # Install dependencies (ignore missing to avoid hard failure on optional deps)
+    rosdep update || true
+    rosdep install --from-paths src -r -y || true
+    colcon build --symlink-install
+    set +e
 fi
 
-# Add the project root to PYTHONPATH to handle imports like `from src...` and `from ithor...`
-PROJECT_ROOT=$( realpath "$SCRIPT_DIR/.." )
-export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
+# Always run an incremental build to pick up any source changes
+(
+    cd "$WORKSPACE_DIR" && colcon build --symlink-install
+) || true
 
-# Execute the command passed to this script
-exec "$@" 
+if [ -f "$WORKSPACE_SETUP_FILE" ]; then
+    # shellcheck disable=SC1090
+    source "$WORKSPACE_SETUP_FILE"
+else
+    echo "Warning: Workspace setup file still not found at $WORKSPACE_SETUP_FILE." >&2
+fi
+
+# Chain execution to the common project environment setup script
+exec "$SCRIPT_DIR/run_project.sh" "$@" 

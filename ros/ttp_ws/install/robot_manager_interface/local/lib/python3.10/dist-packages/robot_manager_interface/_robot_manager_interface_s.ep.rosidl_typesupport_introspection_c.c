@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robot_manager_interface/rosidl_generator_py/robot_manager_interface/_robot_manager_interface_s.ep.rosidl_typesupport_introspection_c.c

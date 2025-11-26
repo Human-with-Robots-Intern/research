@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robot_manager_interface/rosidl_generator_py/robot_manager_interface/srv/_task_logging.py

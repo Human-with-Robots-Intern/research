@@ -91,17 +91,23 @@ class TaskGenerator:
         if scene_number > 400:
             scene_type = "bathroom"
         elif scene_number > 300:
-            scene_type = "real_world"        
+            scene_type = "real_world"
         else:
             scene_type = "kitchen"
 
         # Prompt(예제) 로드
         if scene_type == "bathroom":
-            examples_prompt = self.load_file(Path(PROMPT_PATH) / "e2e_generator_ver12_bathroom.txt", "txt")
+            examples_prompt = self.load_file(
+                Path(PROMPT_PATH) / "e2e_generator_ver12_bathroom.txt", "txt"
+            )
         elif scene_type == "kitchen":
-            examples_prompt = self.load_file(Path(PROMPT_PATH) / "e2e_generator_ver12_kitchen.txt", "txt")
+            examples_prompt = self.load_file(
+                Path(PROMPT_PATH) / "e2e_generator_ver12_kitchen.txt", "txt"
+            )
         else:
-            examples_prompt = self.load_file(Path(PROMPT_PATH) / "e2e_generator_ver12_real.txt", "txt")
+            examples_prompt = self.load_file(
+                Path(PROMPT_PATH) / "e2e_generator_ver12_real.txt", "txt"
+            )
 
         # RAG 모드 활성화 시, FewShotRetriever 활용
         if self.is_rag:
@@ -184,7 +190,7 @@ class TaskGenerator:
         output_file_name = f"{user_input}.json"
         output_file_path = Path(TASK_PATH) / output_file_name
 
-        self.save_to_file(output, output_file_path)
+        # self.save_to_file(output, output_file_path)
         if self.is_test:
             return output
         return output_file_name

@@ -4,9 +4,10 @@ from __future__ import annotations
 import json
 import logging
 import re
+import ast
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from networkx import DiGraph
 
@@ -225,6 +226,8 @@ def result_save(
     log_level: str = "INFO",
     base_result_path: Path | None = None,
     init_prior_mean: float | None = None,
+    case_name: Optional[str] = None,
+    dag_bayesian_meta_data: Optional[Dict] = None,
 ):
     global log
     if init_prior_mean is None:
@@ -252,6 +255,9 @@ def result_save(
             and entry.subtask.execution.primitive_actions is not None
         )
     )
+    print(f"simulation_makespan: {simulation_makespan}")
+    print(f"computation_time: {computation_time}")
+    print(f"timing_success_rate_sim: {timing_success_rate_sim}")
 
     realworld_makespan = None
     if "ros" in approach_name:
@@ -288,7 +294,15 @@ def result_save(
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = result_path_with_prior / f"{task_name}_{num}" / scene_name
+        if case_name:
+            output_path = (
+                result_path_with_prior
+                / f"{case_name}"
+                / f"{task_name}_{num}"
+                / scene_name
+            )
+        else:
+            output_path = result_path_with_prior / f"{task_name}_{num}" / scene_name
         approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():
@@ -298,14 +312,17 @@ def result_save(
     output_path.mkdir(parents=True, exist_ok=True)
     approach_path.mkdir(parents=True, exist_ok=True)
 
-    visualize(
-        approach_name,
-        output_path,
-        constraints,
-        result_schedule,
-        initial_plan_data,
-        scene_name,
-    )
+    # visualize(
+    #     approach_name,
+    #     output_path,
+    #     constraints,
+    #     result_schedule,
+    #     initial_plan_data,
+    #     scene_name,
+    # )
+    if dag_bayesian_meta_data:
+        result_data = {"meta_data": dag_bayesian_meta_data, **result_data}
+
     with file_path.open("w", encoding="utf-8") as f:
         json.dump(result_data, f, indent=4)
 
@@ -398,9 +415,37 @@ def parse_cap_log(lines: List[str]) -> Tuple[List[dict], float, int, int]:
                 )
                 actions.append(current_action)
 
-            action_match = re.search(r"\['(.*?)'\]", line)
-            action = action_match.group(1).split("', '") if action_match else [""]
-            current_action = {"Executing_action": action}
+            # Support both legacy list format and new quoted string format.
+            # 1) Legacy: Executing action: ['pickup', 'Apple']
+            # 2) New   : Executing action: "pickup Apple"
+            tokens: List[str] = []
+
+            # Try to parse list-like content first using ast.literal_eval for robustness
+            bracket_match = re.search(r"\[.*\]", line)
+            if bracket_match:
+                try:
+                    parsed = ast.literal_eval(bracket_match.group(0))
+                    if isinstance(parsed, list):
+                        tokens = [str(x) for x in parsed]
+                except Exception:
+                    # Fallback to regex tokenization if literal_eval fails
+                    tokens = re.findall(r"'([^']+)'", bracket_match.group(0))
+
+            if not tokens:
+                # Fallback: parse quoted string after the prefix
+                m = re.search(r'Executing action:\s*"([^"]*)"', line)
+                if not m:
+                    m = re.search(r"Executing action:\s*'([^']*)'", line)
+                action_str = m.group(1).strip() if m else line.partition(":")[2].strip()
+                # Strip surrounding quotes if any remain
+                if (action_str.startswith('"') and action_str.endswith('"')) or (
+                    action_str.startswith("'") and action_str.endswith("'")
+                ):
+                    action_str = action_str[1:-1]
+                # Split by whitespace into tokens
+                tokens = [t for t in action_str.split() if t]
+
+            current_action = {"Executing_action": tokens if tokens else [""]}
             start_time, end_time, execution_status = None, None, None
 
         elif line.startswith("start_time:"):
@@ -440,6 +485,7 @@ def result_save_llm(
     attempt: int = 1,
     base_result_path: Path | None = None,
     init_prior_mean: float | None = None,
+    case_name: Optional[str] = None,
 ):
     if init_prior_mean is None:
         init_prior_mean = constants.INIT_PRIOR_MEAN
@@ -476,7 +522,12 @@ def result_save_llm(
     # Find the next available number for the task name
     num = 1
     while True:
-        output_path = result_path_with_prior / f"{user_input}_{num}" / scene_name
+        if case_name:
+            output_path = (
+                result_path_with_prior / f"{case_name}" / f"{user_input}_{num}" / scene_name
+            )
+        else:
+            output_path = result_path_with_prior / f"{user_input}_{num}" / scene_name
         approach_path = output_path / "approach"
         file_path = approach_path / f"{approach_name}.json"
         if not file_path.exists():

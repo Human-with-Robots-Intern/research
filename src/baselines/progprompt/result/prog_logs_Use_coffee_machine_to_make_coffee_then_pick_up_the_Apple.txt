@@ -15,14 +15,14 @@ Executing action: ['put', 'mug', 'coffeemachine']
 start_time:5.0 
 end_time: 8.0
 execution_status: True
-Executing action: ['toggleon', 'coffeemachine']
+Executing action: ['toggle_on', 'coffeemachine']
 start_time:8.0 
 Invalid action
 State check:
 You see: Mug, Toaster is isToggledOff and isHeatSource, CounterTop, Drawer is isClosed, PaperTowelRoll, CoffeeMachine is isToggledOff and isHeatSource, Window, CounterTop holds Toaster, CounterTop holds CoffeeMachine, CounterTop holds Mug, CounterTop holds Lettuce, CounterTop holds PaperTowelRoll, CounterTop holds Pot, CounterTop holds Potato, CounterTop holds HousePlant, CounterTop holds SoapBottle. 
 assert('coffee' in 'Mug')
 False
-Executing action: ['toggleon', 'coffeemachine']
+Executing action: ['toggle_on', 'coffeemachine']
 start_time:8.0 
 Invalid action
 State check:

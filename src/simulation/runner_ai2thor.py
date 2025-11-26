@@ -20,11 +20,11 @@ from typing import TYPE_CHECKING
 
 from ai2thor.controller import Controller
 
-from ithor.handlers.action import Action
 from src.models.dataclass import TaskExecutionStatus
 
 # Action handler import
 if TYPE_CHECKING:
+    from ithor.handlers.action import Action
     from src.models.task import Subtask
 
 
@@ -74,6 +74,7 @@ def init_ai2thor_controller(
     Returns:
         Controller: Configured AI2-THOR Controller.
     """
+    print(f"platform: {platform}")
     controller = Controller(
         agentMode=agent_mode,
         massThreshold=mass_threshold,
@@ -88,12 +89,15 @@ def init_ai2thor_controller(
         fieldOfView=field_of_view,
         platform=platform,
     )
-
+    print(f"controller: {controller}")
     return controller
 
 
 def execute_subtask(
-    controller: Controller, subtask: Subtask, logger: logging.Logger
+    controller: Controller,
+    subtask: Subtask,
+    logger: logging.Logger,
+    action_interface: Action,
 ) -> tuple[float, TaskExecutionStatus, float]:
     """
     Executes a given subtask using the provided AI2-THOR controller.
@@ -104,7 +108,6 @@ def execute_subtask(
             - TaskExecutionStatus: Whether the subtask succeeded ('SUCCESS' or 'FAILURE').
             - float: 실제 첫 NAVIGATE_TO primitive action의 소요 시간(sim_nav_time)
     """
-    act = Action(controller, logger=logger)
 
     if subtask.name == "Init":
         return 0.0, TaskExecutionStatus.SUCCESS, 0.0
@@ -138,18 +141,18 @@ def execute_subtask(
             )
 
     action_mapping = {
-        "NAVIGATE_TO": lambda target_obj: act.move_to(target_obj),
-        "GRASP": lambda target_obj: act.pickup(target_obj),
-        "PLACE_INSIDE": lambda target_obj: act.put(target_obj),
-        "PLACE_ON_TOP": lambda target_obj: act.put(target_obj),
-        "OPEN": lambda target_obj: act.open(target_obj),
-        "CLOSE": lambda target_obj: act.close(target_obj),
-        "TOGGLE_ON": lambda target_obj: act.toggle_on(target_obj),
-        "TOGGLE_OFF": lambda target_obj: act.toggle_off(target_obj),
-        "SLICE": lambda target_obj: act.slice(target_obj),
-        "MONITORING": lambda target_obj: act.monitoring(target_obj),
-        "WAIT": lambda duration: act.wait(round(float(duration), 2)),
-        "FILL": lambda target_obj: act.fill(target_obj),
+        "NAVIGATE_TO": lambda target_obj: action_interface.move_to(target_obj),
+        "GRASP": lambda target_obj: action_interface.pickup(target_obj),
+        "PLACE_INSIDE": lambda target_obj: action_interface.put(target_obj),
+        "PLACE_ON_TOP": lambda target_obj: action_interface.put(target_obj),
+        "OPEN": lambda target_obj: action_interface.open(target_obj),
+        "CLOSE": lambda target_obj: action_interface.close(target_obj),
+        "TOGGLE_ON": lambda target_obj: action_interface.toggle_on(target_obj),
+        "TOGGLE_OFF": lambda target_obj: action_interface.toggle_off(target_obj),
+        "SLICE": lambda target_obj: action_interface.slice(target_obj),
+        "MONITORING": lambda target_obj: action_interface.monitoring(target_obj),
+        "WAIT": lambda duration: action_interface.wait(round(float(duration), 2)),
+        # "FILL": lambda target_obj: action_interface.fill(target_obj),
     }
 
     elapsed_time = 0.0

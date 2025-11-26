@@ -1,24 +1,34 @@
 import argparse
+import gc
+import logging
+import re
 import time
 from pathlib import Path
 from typing import Any, Dict
 
 from ai2thor.platform import CloudRendering
 
+from ithor.handlers.action import Action
 from ithor.utils.math_utils import load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
+from src.utils.get_state import save_scene_state
 from src.utils.ros_executor import RosExecutor
 from utils.common.logger import create_module_logger
 from utils.config import LOG_ROUND
+from utils.config.constants import MONITORING_ENABLED
 from utils.io_utils import (
     get_user_task_choice,
     list_task_files,
     load_task_data_from_file,
     result_save,
 )
-from utils.io_utils.task_io import get_user_scene_choice, load_scene_positions
+from utils.io_utils.task_io import (
+    get_user_scene_choice,
+    load_scene_positions,
+    load_task_data_from_sampled_set,
+)
 from utils.task import TaskUtil
 
 log = create_module_logger(__name__, module_log=True)
@@ -44,6 +54,12 @@ def parse_arguments():
         help="로그 출력 수준 설정 (default: INFO)",
     )
     parser.add_argument(
+        "--ablation-name",
+        type=str,
+        default=None,
+        help="The name of the ablation configuration.",
+    )
+    parser.add_argument(
         "--scene",
         type=str,
         default="FloorPlan1",
@@ -52,8 +68,14 @@ def parse_arguments():
     parser.add_argument(
         "--instruction",
         type=str,
-        default=1,
+        default=2,
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
+    )
+    parser.add_argument(
+        "--case",
+        type=str,
+        default=None,
+        help="The name of the case.",
     )
     parser.add_argument(
         "--simulation",
@@ -83,7 +105,49 @@ def parse_arguments():
         "--init_prior_mean",
         type=float,
         default=None,
-        help="베이지안 추정을 위한 초기 평균값 (기본값: 60.0)",
+        help="베이지안 추정을 위한 초기 평균값 (기본값: constants.py 값)",
+    )
+    parser.add_argument(
+        "--init_prior_variance",
+        type=float,
+        default=None,
+        help="베이지안 추정을 위한 초기 분산값 (기본값: constants.py 값)",
+    )
+    parser.add_argument(
+        "--alpha_heuristic",
+        type=float,
+        default=None,
+        help="Heuristic alpha 값 (기본값: constants.py 값)",
+    )
+    parser.add_argument(
+        "--beta_heuristic",
+        type=float,
+        default=None,
+        help="Heuristic beta 값 (기본값: constants.py 값)",
+    )
+    parser.add_argument(
+        "--gamma_heuristic",
+        type=float,
+        default=None,
+        help="Heuristic gamma 값 (기본값: constants.py 값)",
+    )
+
+    parser.add_argument(
+        "--beam_width",
+        type=int,
+        default=None,
+        help="Scheduler beam width (기본값: constants.py 값)",
+    )
+    parser.add_argument(
+        "--beam_depth",
+        type=int,
+        default=None,
+        help="Scheduler beam depth (simulation_depth) (기본값: constants.py 값)",
+    )
+    parser.add_argument(
+        "--disable_monitoring",
+        action="store_true",
+        help="Disable Bayesian monitoring.",
     )
     return parser.parse_args()
 
@@ -93,16 +157,31 @@ def main():
     args = parse_arguments()
     approach_name = "dag_bayesian"
 
-    # Handle INIT_PRIOR_MEAN override
-    if args.init_prior_mean is not None:
-        from src.utils.config.constants import set_init_prior_mean
+    # Dynamically override constants based on command-line arguments
+    from src.utils.config import constants
 
-        set_init_prior_mean(args.init_prior_mean)
+    if args.init_prior_mean is not None:
+        constants.set_init_prior_mean(args.init_prior_mean)
+    if args.init_prior_variance is not None:
+        constants.set_init_prior_variance(args.init_prior_variance)
+    if args.alpha_heuristic is not None:
+        constants.set_alpha_heuristic(args.alpha_heuristic)
+    if args.beta_heuristic is not None:
+        constants.set_beta_heuristic(args.beta_heuristic)
+    if args.gamma_heuristic is not None:
+        constants.set_gamma_heuristic(args.gamma_heuristic)
+
+    if args.beam_width is not None:
+        constants.set_beam_width(args.beam_width)
+    if args.beam_depth is not None:
+        constants.set_simulation_depth(args.beam_depth)
+    if args.disable_monitoring:
+        constants.set_monitoring_enabled(False)
 
     logger = create_module_logger(
         module_name=approach_name,
         log_file_path=Path(args.log_path) if args.log_path else None,
-        level=args.log_level,
+        level=logging.ERROR,
     )
     scene_name = args.scene
     controller = None
@@ -127,13 +206,37 @@ def main():
             nav_graph = load_navigation_graph(controller)
             action_handler = ActionHandler(nav_graph, real_world_mode=False)
 
-        # Load the chosen task data
-        task_files = list_task_files(scene_name=scene_name)
+        if args.case:
+            # Load task data
+            input_natural_language = re.match(r"\d+_(.*)", args.instruction).group(1)
+            task_data = load_task_data_from_sampled_set(
+                args.case, scene_name, args.instruction
+            )
 
-        if args.instruction:
+            save_scene_state(
+                controller=controller,
+                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                case_name=args.case,
+                scene_name=scene_name,
+                instruction=args.instruction.split(".json")[0],
+                approach_name=f"{approach_name}_{args.ablation_name}",
+                state_label="init",
+            )
+            action_interface = Action(
+                controller,
+                logger=logger,
+                trajectory_log_json_path=Path(
+                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}_{args.ablation_name}/trajectory_log.json"
+                ),
+            )
+
+        elif args.instruction:
+            # Load the chosen task data
+            task_files = list_task_files(scene_name=scene_name)
             instruction = args.instruction
             input_natural_language = instruction
             task_data = None
+
             try:
                 choice = int(instruction)
                 if 1 <= choice <= len(task_files):
@@ -143,7 +246,15 @@ def main():
             except ValueError:
                 # It's a natural language instruction, not a number
                 pass
-
+            save_scene_state(
+                controller=controller,
+                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                case_name=args.case,
+                scene_name=scene_name,
+                instruction=input_natural_language,
+                approach_name=approach_name,
+                state_label="init",
+            )
             if task_data is None:
                 # It was a natural language instruction or an invalid number choice.
                 # In both cases, we treat it as a natural language instruction.
@@ -159,6 +270,7 @@ def main():
         # subtasks, constraints = TaskUtil.build_tasks_and_constraints(
         #     task_data, scene_file_name=scene_data.file_name,
         # )
+
         subtasks, constraints, bayesian_load = TaskUtil.build_tasks_and_constraints(
             task_data,
             scene_file_name=f"{scene_name}_physics_environment.json",
@@ -200,7 +312,7 @@ def main():
 
             if args.simulation:
                 sim_elapsed_time, execution_status, sim_nav_time = execute_subtask(
-                    controller, next_state.subtask, logger
+                    controller, next_state.subtask, logger, action_interface
                 )
                 # 시뮬레이션에서 흐른 시간과 실행 상태를 저장.
                 last_entry = next_state.completed_entries[-1]
@@ -209,7 +321,26 @@ def main():
                 last_entry.execution_status = execution_status
                 last_entry.sim_nav_time = sim_nav_time
                 total_sim_time += sim_elapsed_time
-                if next_state.subtask.subtask_type == "Monitor":
+                intervallist = []
+                for name1 in current_state.constraints.in_edges._adjdict.keys():
+                    for name2 in current_state.constraints.in_edges._adjdict[
+                        name1
+                    ].keys():
+                        if current_state.constraints.in_edges._adjdict[name1][name2][
+                            "info"
+                        ]["IsCritical"]:
+                            intervallist.append(
+                                {
+                                    name2: current_state.constraints.in_edges._adjdict[
+                                        name1
+                                    ][name2]["info"]["Interval"]
+                                }
+                            )
+                # 모니터 끄려면 이 안쪽을 주석화.
+                if (
+                    not args.disable_monitoring
+                    and next_state.subtask.subtask_type == "Monitor"
+                ):
                     next_state, monitored_subtask = agent.bayesian_estimate(next_state)
                     next_state.completed_entries[-1].monitored_subtask = (
                         monitored_subtask
@@ -217,7 +348,21 @@ def main():
                 current_state = next_state
                 if not current_state.remaining_subtasks:
                     is_end = True
-
+                intervallist = []
+                for name1 in current_state.constraints.in_edges._adjdict.keys():
+                    for name2 in current_state.constraints.in_edges._adjdict[
+                        name1
+                    ].keys():
+                        if current_state.constraints.in_edges._adjdict[name1][name2][
+                            "info"
+                        ]["IsCritical"]:
+                            intervallist.append(
+                                {
+                                    name2: current_state.constraints.in_edges._adjdict[
+                                        name1
+                                    ][name2]["info"]["Interval"]
+                                }
+                            )
                 last_entry = current_state.completed_entries[-1]
                 if last_entry.subtask.name != "Init":
                     logger.info(
@@ -248,7 +393,10 @@ def main():
                 if not success:
                     break
 
-                if next_state.subtask.subtask_type == "Monitor":
+                if (
+                    not args.disable_monitoring
+                    and next_state.subtask.subtask_type == "Monitor"
+                ):
                     next_state, monitored_subtask = agent.bayesian_estimate(next_state)
                     next_state.completed_entries[-1].monitored_subtask = (
                         monitored_subtask
@@ -259,9 +407,17 @@ def main():
                     is_end = True
     finally:
         if ros_executor and args.ros:
-            ros_executor.shutdown()
+            try:
+                ros_executor.shutdown()
+            except Exception as e:
+                logger.error(f"Error shutting down ROS executor: {e}")
         if controller:
-            controller.stop()
+            try:
+                controller.stop()
+            except Exception as e:
+                logger.error(f"Error stopping controller: {e}")
+        # Force garbage collection to free memory
+        gc.collect()
 
     if args.ros:
         result_schedule = [
@@ -288,6 +444,7 @@ def main():
             for entry in current_state.completed_entries
             if entry.subtask.name != "Init"
         ]
+
         approach_name = f"{approach_name}_simulation"
         result_args = {
             "task_name": input_natural_language,
@@ -300,6 +457,36 @@ def main():
             "init_prior_mean": args.init_prior_mean,
             # "simulationTime": total_sim_time,
         }
+        if args.case:
+            approach_name = "dag_bayesian"
+            meta_data = {
+                "init_prior_name": constants.INIT_PRIOR_MEAN,
+                "init_prior_variance": constants.INIT_PRIOR_VARIANCE,
+                "alpha_heuristic": constants.ALPHA_HEURISTIC,
+                "beta_heuristic": constants.BETA_HEURISTIC,
+                "gamma_heuristic": constants.GAMMA_HEURISTIC,
+                "beam_width": constants.BEAM_WIDTH,
+                "beam_depth": constants.SIMULATION_DEPTH,
+                "disable_monitoring": constants.MONITORING_ENABLED,
+            }
+            result_args.update(
+                {
+                    "task_name": args.instruction.split(".json")[0],
+                    "approach_name": f"{approach_name}_{args.ablation_name}",
+                    "case_name": args.case,
+                    "dag_bayesian_meta_data": meta_data,
+                }
+            )
+
+        save_scene_state(
+            controller=controller,
+            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+            case_name=args.case,
+            scene_name=scene_name,
+            instruction=args.instruction.split(".json")[0],
+            approach_name=f"{approach_name}_{args.ablation_name}",
+            state_label="end",
+        )
         result_save(**result_args)
 
 

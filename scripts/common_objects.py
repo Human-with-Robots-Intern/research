@@ -229,7 +229,7 @@ def find_non_common_objects(scene_type):
 
 
 if __name__ == "__main__":
-    scene_type = "bathroom"  # You can change this to other scene types
-    knowledge_dir = f"assets/knowledge/{scene_type}/environment"
+    scene_type = "kitchen"  # You can change this to other scene types
+    knowledge_dir = f"assets/scene_knowledge/{scene_type}/environment"
     process_environment_files(knowledge_dir, scene_type)
     find_non_common_objects(scene_type)

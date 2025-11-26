@@ -11,7 +11,7 @@ Executing action: ['walk', 'faucet']
 start_time:1.5 
 end_time: 2.8
 executionStatus: success
-Executing action: ['toggleon', 'faucet']
+Executing action: ['toggle_on', 'faucet']
 start_time:2.8 
 Invalid action
 Executing action: ['walk', 'potato']
@@ -26,7 +26,7 @@ Executing action: ['walk', 'faucet']
 start_time:3.1 
 end_time: 3.5
 executionStatus: success
-Executing action: ['toggleon', 'faucet']
+Executing action: ['toggle_on', 'faucet']
 start_time:3.5 
 Invalid action
 Executing action: ['walk', 'egg']
@@ -41,7 +41,7 @@ Executing action: ['walk', 'faucet']
 start_time:5.8 
 end_time: 12.0
 executionStatus: success
-Executing action: ['toggleon', 'faucet']
+Executing action: ['toggle_on', 'faucet']
 start_time:12.0 
 Invalid action
 State check:
@@ -74,9 +74,9 @@ end_time: 18.1
 executionStatus: success
 State check:
 You see: 
-toggleon('StoveKnob')
+toggle_on('StoveKnob')
 False
-Executing action: ['toggleon', 'stoveknob']
+Executing action: ['toggle_on', 'stoveknob']
 start_time:18.1 
 Invalid action
 State check:

@@ -581,10 +581,7 @@ class Scheduler:
         """
         Determines if a task should be split for monitoring based on three rules.
 
-        Rule 1: A task that has already been split/handled is not split again.
-        Rule 2: A task can be split only if a critical, non-monitoring task
-                is currently in progress (i.e., an active critical interval exists).
-        Rule 3: Do not insert monitoring between tasks that must run consecutively.
+
 
         Args:
             curr_node: The current simulation node.
@@ -629,12 +626,12 @@ class Scheduler:
                     if start_entry.subtask.subtask_type != "MONITORING":
                         interval = info.get("Interval", 0.0)
                         due_date = start_entry.schedule_end_time + interval
-                        if due_date > curr_node.state.current_time:
-                            active_intervals.append(
-                                SchedulingDue(
-                                    due_date=due_date, due_related_sub_name=end_name
-                                )
+                        # if due_date > curr_node.state.current_time:
+                        active_intervals.append(
+                            SchedulingDue(
+                                due_date=due_date, due_related_sub_name=end_name
                             )
+                        )
 
         if not active_intervals:
             log.debug(
@@ -645,7 +642,7 @@ class Scheduler:
         # If an active interval exists, a split is necessary.
         # Assign the most urgent due date for heuristic calculation purposes.
         most_urgent_due = min(active_intervals, key=lambda d: d.due_date)
-        # candidate.scheduling_due = most_urgent_due
+        candidate.scheduling_due = most_urgent_due
         log.debug(
             f"[_should_subtask_split_with_monitoring] Active interval found targeting '{most_urgent_due.due_related_sub_name}' (due: {most_urgent_due.due_date:.2f}). Splitting {candidate.subtask.name}."
         )

@@ -42,7 +42,7 @@
               {
                   "Type": "After",
                   "Subtask": "Start Laundry Machine",
-                  "Interval": 20,
+                  "Interval": 140,
                   "Urgency": true
               }
           ]

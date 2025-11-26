@@ -1,4 +1,0 @@
-srv/InitLogging.idl
-srv/InitLogging.srv
-srv/InitLogging_Request.msg
-srv/InitLogging_Response.msg
