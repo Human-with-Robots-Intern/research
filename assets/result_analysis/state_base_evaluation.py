@@ -197,7 +197,7 @@ def main() -> None:
         final_summary = aggregate_summary(all_trials)
 
         # 최종 요약 파일 저장 (results 폴더 바로 아래)
-        summary_path = results_folder / "final_summary.json"
+        summary_path = results_folder / "unified_analysis_summary.json"
         with summary_path.open("w") as f:
             json.dump(final_summary, f, indent=2, sort_keys=True)
         print("\n=== Final Summary (JSON) ===")

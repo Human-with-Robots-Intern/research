@@ -5,11 +5,11 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
 def aggregate_summary(
     trials: Sequence[Mapping[str, Any]]
-) -> Dict[str, Dict[str, Dict[str, Dict[str, float]]]]:
-    """Aggregate trials into approach x difficulty x states summary.
+) -> Dict[str, Dict[str, Dict[str, Dict[str, Dict[str, float]]]]]:
+    """Aggregate trials into approach x difficulty x init x init_* summary.
     
     Returns:
-        Structure: {approach: {difficulty: {states: {metric: value}}}}
+        Structure: {approach: {difficulty: {init: {init_60/100/140: {metric: value}}}}}
     """
 
     by_key: Dict[Tuple[str, str, str], List[Mapping[str, Any]]] = {}
@@ -17,8 +17,23 @@ def aggregate_summary(
         key = (str(t["approach"]), str(t["difficulty"]), str(t["states"]))
         by_key.setdefault(key, []).append(t)
     
-    final: Dict[str, Dict[str, Dict[str, Dict[str, float]]]] = {}
+    final: Dict[str, Dict[str, Dict[str, Dict[str, Dict[str, float]]]]] = {}
     for (approach, difficulty, states), items in by_key.items():
+        # Map states to init_* format and filter out states80 and states120
+        states_mapping = {
+            "states60": "init_60",
+            "states80": "init_80",
+            "states100": "init_100",
+            "states120": "init_120",
+            "states140": "init_140",
+        }
+        
+        if states not in states_mapping:
+            # Skip states80 and states120
+            continue
+        
+        init_key = states_mapping[states]
+        
         total = len(items)
         if total == 0:
             continue
@@ -41,11 +56,12 @@ def aggregate_summary(
         makespan_values = [float(it.get("makespan", 0.0)) for it in items]
         makespan = (sum(makespan_values) / len(makespan_values)) if makespan_values else 0.0
         
-        final.setdefault(approach, {}).setdefault(difficulty, {})[states] = {
-            "SR": sr,
-            "GCR": gcr,
-            "TSR": tsr,
-            "Makespan": makespan,
+        # Structure: {approach: {difficulty: {init: {init_60/100/140: {metric: value}}}}}
+        final.setdefault(approach, {}).setdefault(difficulty, {}).setdefault("init", {})[init_key] = {
+            "sr": sr,
+            "gcr": gcr,
+            "tsr": tsr,
+            "makespan": makespan,
         }
     return final
 

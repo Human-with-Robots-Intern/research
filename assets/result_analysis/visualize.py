@@ -6,7 +6,7 @@ import numpy as np
 from matplotlib.patches import Ellipse
 
 # --- 데이터 준비 (공통) ---
-# 순서: [Under(60s), Correct(100s), Over(140s)]
+# 순서: [Under(60s), Under-mid(80s), Correct(100s), Over-mid(120s), Over(140s)]
 DATA = {
     "Ours (Default)": {
         "tsr": [],
@@ -36,6 +36,20 @@ DATA = {
         "marker": "s",
         "style": "--",
     },
+    "ProgPrompt": {
+        "tsr": [],
+        "makespan": [],
+        "color": "gray",
+        "marker": "o",
+        "style": ":",
+    },
+    "CAP": {
+        "tsr": [],
+        "makespan": [],
+        "color": "gray",
+        "marker": "v",
+        "style": ":",
+    },
 }
 
 APPROACH_LIST = {
@@ -43,9 +57,11 @@ APPROACH_LIST = {
     "dag_bayesian_NONE_MONITORING": "Ours (w/o Mon.)",
     "dag_edf": "DAG + EDF",
     "cpm": "DAG + CPM",
+    "progprompt": "ProgPrompt",
+    "cap_ai2thor_simulation": "CAP",
 }
 
-INIT_LIST = ["init_60", "init_100", "init_140"]
+INIT_LIST = ["init_60", "init_80", "init_100", "init_120", "init_140"]
 TASK_CASE = ["tasks_2", "tasks_3", "tasks_4"]
 METRIC_LIST = ["tsr", "makespan"]
 
@@ -64,7 +80,7 @@ def load_data(data_path: str) -> dict:
         if approach_key not in raw_data:
             continue
 
-        # 각 초기 조건(init_60, 100, 140)별로 순회
+        # 각 초기 조건(init_60, 80, 100, 120, 140)별로 순회
         for init_cond in INIT_LIST:
             tsr_values = []
             makespan_values = []
@@ -77,7 +93,13 @@ def load_data(data_path: str) -> dict:
                 ):
                     metrics = raw_data[approach_key][task_case][init_cond]
                     tsr_values.append(metrics.get("tsr", 0))
-                    makespan_values.append(metrics.get("makespan", 0))
+                    makespan_value = metrics.get("makespan", 0)
+                    
+                    # CAP의 makespan이 비정상적으로 높은 경우 클리핑 (500초로 제한)
+                    if approach_name == "CAP" and makespan_value > 500:
+                        makespan_value = 500
+                    
+                    makespan_values.append(makespan_value)
 
             # 수집된 값들의 평균 계산
             avg_tsr = np.mean(tsr_values) if tsr_values else 0.0
@@ -91,13 +113,14 @@ def load_data(data_path: str) -> dict:
     return DATA
 
 
-def plot_trajectory(data: dict) -> None:
+def plot_trajectory(data: dict, output_path: str | None = None) -> None:
     """
     TSR과 Makespan의 관계를 보여주는 궤적 그래프를 생성합니다.
     x축은 Makespan(효율성), y축은 TSR(강건성)을 나타냅니다.
 
     Args:
         data (dict): 시각화에 사용할 데이터.
+        output_path (str | None): 그래프를 저장할 파일 경로. None이면 화면에 표시.
     """
     fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -137,7 +160,7 @@ def plot_trajectory(data: dict) -> None:
     # --- 축 및 설정 ---
     ax.set_xlabel("Makespan (s) ↓ (Efficiency)", fontsize=12, fontweight="bold")
     ax.set_ylabel(
-        "Temporal Success Rate (%) ↑ (Robustness)", fontsize=12, fontweight="bold"
+        "Timing Success Rate (%) ↑ (Robustness)", fontsize=12, fontweight="bold"
     )
     ax.set_title(
         "Performance Stability across Belief Conditions", fontsize=14, fontweight="bold"
@@ -148,29 +171,41 @@ def plot_trajectory(data: dict) -> None:
     ax.legend(loc="lower left", fontsize=10)
 
     plt.tight_layout()
-    plt.show()
+    if output_path:
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
+        print(f"그래프가 저장되었습니다: {output_path}")
+    else:
+        plt.show()
 
 
-def plot_separate_metrics(data: dict) -> None:
+def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
     """
     TSR과 Makespan을 각각의 그래프로 분리하여 보여줍니다.
     x축은 초기 믿음 조건, y축은 각 메트릭의 값을 나타냅니다.
 
     Args:
         data (dict): 시각화에 사용할 데이터.
+        output_path (str | None): 그래프를 저장할 파일 경로. None이면 화면에 표시.
     """
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    conditions = ["Under-est\n(60s)", "Correct\n(100s)", "Over-est\n(140s)"]
+    conditions = ["Under-est\n(60s)", "Under-mid-est\n(80s)", "Correct\n(100s)", "Over-mid-est\n(120s)", "Over-est\n(140s)"]
     metrics_info = [
         (
             "tsr",
             "(a) TSR across Initial Belief Conditions",
-            "Temporal Success Rate (%)",
+            "Timing Success Rate (%)",
         ),
         ("makespan", "(b) Makespan across Initial Belief Conditions", "Time (s)"),
     ]
 
-    method_order = ["DAG + CPM", "DAG + EDF", "Ours (w/o Mon.)", "Ours (Default)"]
+    method_order = [
+        "DAG + CPM",
+        "DAG + EDF",
+        "ProgPrompt",
+        "CAP",
+        "Ours (w/o Mon.)",
+        "Ours (Default)",
+    ]
 
     for col, (metric_key, title, ylabel) in enumerate(metrics_info):
         ax = axes[col]
@@ -228,14 +263,18 @@ def plot_separate_metrics(data: dict) -> None:
         labels,
         loc="lower center",
         bbox_to_anchor=(0.5, -0.02),  # bbox_to_anchor 조정
-        ncol=4,
-        fontsize=11,
+        ncol=6,
+        fontsize=10,
     )
 
     plt.tight_layout()
     # tight_layout 후 하단 여백 확보
     plt.subplots_adjust(bottom=0.2)
-    plt.show()
+    if output_path:
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
+        print(f"그래프가 저장되었습니다: {output_path}")
+    else:
+        plt.show()
 
 
 if __name__ == "__main__":
@@ -250,7 +289,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_path",
         type=str,
-        default="assets/results/1112 copy/unified_analysis_summary.revised.json",
+        default="assets/results/unified_analysis_summary.revised.json",
         help="데이터 파일 경로를 지정합니다.",
     )
     parser.add_argument(
@@ -260,11 +299,17 @@ if __name__ == "__main__":
         choices=["trajectory", "separate"],
         help="생성할 그래프 종류를 선택합니다: 'trajectory' 또는 'separate'.",
     )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="그래프를 저장할 파일 경로 (예: output.png). 지정하지 않으면 화면에 표시됩니다.",
+    )
     args = parser.parse_args()
 
     load_data(args.data_path)
 
     if args.plot_type == "trajectory":
-        plot_trajectory(DATA)
+        plot_trajectory(DATA, args.output)
     elif args.plot_type == "separate":
-        plot_separate_metrics(DATA)
+        plot_separate_metrics(DATA, args.output)

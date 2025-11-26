@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # --- Configuration Constants ---
 
 # Order of initial time estimates for table columns
-INIT_ORDER: List[str] = ["init_60", "init_100", "init_140"]
+INIT_ORDER: List[str] = ["init_60", "init_80", "init_100", "init_120", "init_140"]
 
 # Display names for different methods/approaches
 METHOD_DISPLAY_NAMES: Dict[str, str] = {
@@ -33,12 +33,16 @@ METHOD_DISPLAY_NAMES: Dict[str, str] = {
     "dag_bayesian_NONE_REMAINING_WORK": "Ours (w/o Rem.)",
     "dag_edf": "EDF",
     "cpm": "CPM",
+    "progprompt": "ProgPrompt",
+    "cap_ai2thor_simulation": "CAP",
 }
 
 # Methods to be included in the main comparison table and their order
 MAIN_METHODS: List[str] = [
     "dag_edf",
     "cpm",
+    "progprompt",
+    "cap_ai2thor_simulation",
     "dag_bayesian_DEFAULT",
 ]
 
@@ -78,7 +82,6 @@ def load_argument_parser() -> argparse.Namespace:
         type=Path,
         default=Path(__file__).resolve().parents[1]
         / "results"
-        / "1112 copy"
         / "unified_analysis_summary.json",
         help="Path to the input JSON summary file.",
     )
@@ -112,6 +115,9 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
     This function processes a summary dictionary, identifies task cases like
     "tasks_<n>_constraints_<m>", and averages their metrics across all
     constraint variations for each task length 'n'.
+    
+    Note: TSR (Timing Success Rate) is only calculated for constraints >= 1,
+    excluding constraints_0 cases.
 
     Args:
         summary (Dict[str, Any]): The raw summary data structured as
@@ -125,8 +131,8 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
     sums: Dict[str, Dict[str, Dict[str, Dict[str, float]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
     )
-    counts: Dict[str, Dict[str, Dict[str, int]]] = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(int))
+    counts: Dict[str, Dict[str, Dict[str, Dict[str, int]]]] = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     )
 
     for approach, task_cases in summary.items():
@@ -136,29 +142,45 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
                 continue
 
             tasks_num = int(match.group(1))
+            constraints_num = int(match.group(2))
             tasks_key = f"tasks_{tasks_num}"
             init_dict = task_data.get("init", {})
 
             if not isinstance(init_dict, dict):
                 continue
 
+            # TSR은 constraint >= 1인 경우에만 계산
+            include_tsr = constraints_num >= 1
+
             for init_case, metrics in init_dict.items():
                 for metric_name, value in metrics.items():
+                    # TSR의 경우 constraint >= 1일 때만 합산
+                    if metric_name == "tsr" and not include_tsr:
+                        continue
+                    
                     sums[approach][tasks_key][init_case][metric_name] += value
-                counts[approach][tasks_key][init_case] += 1
+                    counts[approach][tasks_key][init_case][metric_name] += 1
 
     merged_summary: Dict[str, Any] = defaultdict(dict)
     for approach, tasks_dict in sums.items():
         for tasks_key, init_dict in tasks_dict.items():
             merged_summary[approach][tasks_key] = {}
             for init_case, metric_sums in init_dict.items():
-                count = counts[approach][tasks_key][init_case]
-                if count == 0:
-                    continue
+                avg_metrics: Dict[str, float] = {}
+                
+                for metric_name, total in metric_sums.items():
+                    count = counts[approach][tasks_key][init_case][metric_name]
+                    if count > 0:
+                        avg_metrics[metric_name] = total / count
+                
+                # TSR이 metric_sums에 없는 경우 (constraint >= 1인 데이터가 없음)
+                # 다른 메트릭들은 있지만 TSR만 없는 경우를 처리
+                if "tsr" not in avg_metrics and metric_sums:
+                    # 다른 메트릭들이 있다면 TSR을 0으로 설정
+                    avg_metrics["tsr"] = 0.0
 
-                avg_metrics = {
-                    metric: total / count for metric, total in metric_sums.items()
-                }
+                if not avg_metrics:
+                    continue
 
                 # Rename 'gcr' to 'sr' for consistency
                 if "gcr" in avg_metrics:
@@ -281,7 +303,7 @@ def generate_latex_table(data: Dict[str, Any]) -> str:
             r"\label{tab:simulation_results_merged}",
             r"{\renewcommand{\arraystretch}{1.1}",
             r"\resizebox{\textwidth}{!}{%",
-            r"\begin{tabular}{@{}ll|ccc|ccc|ccc@{}}",
+            r"\begin{tabular}{@{}ll|ccc|ccc|ccc|ccc|ccc@{}}",
             r"\toprule",
         ]
     )
@@ -289,9 +311,9 @@ def generate_latex_table(data: Dict[str, Any]) -> str:
     # Column Headers
     lines.extend(
         [
-            r"\multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Method}}} & \multicolumn{3}{c|}{\textbf{Under-estimate (60s)}} & \multicolumn{3}{c|}{\textbf{Correct (100s)}} & \multicolumn{3}{c}{\textbf{Over-estimate (140s)}} \\",
-            r"\cmidrule(l){3-5} \cmidrule(l){6-8} \cmidrule(l){9-11}",
-            r"\multicolumn{2}{c|}{\textbf{Difficulty}} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} \\",
+            r"\multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Method}}} & \multicolumn{3}{c|}{\textbf{Under-estimate (60s)}} & \multicolumn{3}{c|}{\textbf{Under-mid-estimate (80s)}} & \multicolumn{3}{c|}{\textbf{Correct (100s)}} & \multicolumn{3}{c|}{\textbf{Over-mid-estimate (120s)}} & \multicolumn{3}{c}{\textbf{Over-estimate (140s)}} \\",
+            r"\cmidrule(l){3-5} \cmidrule(l){6-8} \cmidrule(l){9-11} \cmidrule(l){12-14} \cmidrule(l){15-17}",
+            r"\multicolumn{2}{c|}{\textbf{Difficulty}} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} \\",
             r"\midrule",
         ]
     )
