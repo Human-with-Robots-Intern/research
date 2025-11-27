@@ -50,6 +50,13 @@ DATA = {
         "marker": "v",
         "style": ":",
     },
+    "EDF": {
+        "tsr": [],
+        "makespan": [],
+        "color": "gray",
+        "marker": "v",
+        "style": ":",
+    },
 }
 
 APPROACH_LIST = {
@@ -65,6 +72,9 @@ INIT_LIST = ["init_60", "init_80", "init_100", "init_120", "init_140"]
 TASK_CASE = ["tasks_2", "tasks_3", "tasks_4"]
 METRIC_LIST = ["tsr", "makespan"]
 
+# 제거할 베이스라인 목록
+EXCLUDE_BASELINES = []
+
 
 def load_data(data_path: str) -> dict:
     with open(data_path, "r") as f:
@@ -77,6 +87,10 @@ def load_data(data_path: str) -> dict:
 
     # 각 접근법에 대해 데이터 처리
     for approach_key, approach_name in APPROACH_LIST.items():
+        # 제외할 베이스라인 스킵
+        if approach_key in EXCLUDE_BASELINES:
+            continue
+
         if approach_key not in raw_data:
             continue
 
@@ -94,11 +108,11 @@ def load_data(data_path: str) -> dict:
                     metrics = raw_data[approach_key][task_case][init_cond]
                     tsr_values.append(metrics.get("tsr", 0))
                     makespan_value = metrics.get("makespan", 0)
-                    
+
                     # CAP의 makespan이 비정상적으로 높은 경우 클리핑 (500초로 제한)
                     if approach_name == "CAP" and makespan_value > 500:
                         makespan_value = 500
-                    
+
                     makespan_values.append(makespan_value)
 
             # 수집된 값들의 평균 계산
@@ -126,6 +140,10 @@ def plot_trajectory(data: dict, output_path: str | None = None) -> None:
 
     # 각 Method별 궤적 그리기
     for name, d in data.items():
+        # 데이터가 비어있으면(제외된 베이스라인) 그리지 않음
+        if not d["tsr"] or not d["makespan"]:
+            continue
+
         ax.plot(
             d["makespan"],
             d["tsr"],
@@ -188,7 +206,13 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         output_path (str | None): 그래프를 저장할 파일 경로. None이면 화면에 표시.
     """
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    conditions = ["Under-est\n(60s)", "Under-mid-est\n(80s)", "Correct\n(100s)", "Over-mid-est\n(120s)", "Over-est\n(140s)"]
+    conditions = [
+        "Under-est\n(60s)",
+        "Under-mid-est\n(80s)",
+        "Correct\n(100s)",
+        "Over-mid-est\n(120s)",
+        "Over-est\n(140s)",
+    ]
     metrics_info = [
         (
             "tsr",
@@ -199,17 +223,21 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
     ]
 
     method_order = [
+        "Ours (Default)",
+        "Ours (w/o Mon.)",
         "DAG + CPM",
         "DAG + EDF",
         "ProgPrompt",
         "CAP",
-        "Ours (w/o Mon.)",
-        "Ours (Default)",
     ]
 
     for col, (metric_key, title, ylabel) in enumerate(metrics_info):
         ax = axes[col]
         for name in method_order:
+            # 데이터가 비어있으면(제외된 베이스라인) 그리지 않음
+            if not data[name][metric_key]:
+                continue
+
             d = data[name]
             y_data = d[metric_key]
             lw = 3 if "Default" in name else 1.5

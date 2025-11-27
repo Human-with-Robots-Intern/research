@@ -21,6 +21,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 # --- Configuration Constants ---
 
+# Metrics to include in the LaTeX table
+# Options: "sr", "gcr", "tsr", "makespan"
+INCLUDED_METRICS: List[str] = ["sr", "gcr", "tsr", "makespan"]
+
 # Order of initial time estimates for table columns
 INIT_ORDER: List[str] = ["init_60", "init_80", "init_100", "init_120", "init_140"]
 
@@ -90,6 +94,13 @@ def load_argument_parser() -> argparse.Namespace:
         action="store_true",
         help="If set, save the intermediate revised summary to a '.revised.json' file.",
     )
+    parser.add_argument(
+        "--ablation_style",
+        type=str,
+        default="parentheses",
+        choices=["parentheses", "new_row"],
+        help="Choose how to display ablation study results: 'parentheses' (inline) or 'new_row' (separate row).",
+    )
     return parser.parse_args()
 
 
@@ -105,8 +116,14 @@ def reorder_metrics_dict(data: Dict[str, float]) -> "OrderedDict[str, float]":
     Returns:
         OrderedDict[str, float]: The dictionary with sorted keys.
     """
-    metric_order = ["sr", "tsr", "makespan"]
-    return OrderedDict([(k, data[k]) for k in metric_order if k in data])
+    # Define standard metric order (superset of potentially included metrics)
+    standard_order = ["sr", "gcr", "tsr", "makespan"]
+
+    # Filter based on INCLUDED_METRICS and what's available in data
+    # Using standard_order ensures consistent ordering regardless of INCLUDED_METRICS order
+    keys_to_keep = [k for k in standard_order if k in data]
+
+    return OrderedDict([(k, data[k]) for k in keys_to_keep])
 
 
 def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
@@ -115,7 +132,7 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
     This function processes a summary dictionary, identifies task cases like
     "tasks_<n>_constraints_<m>", and averages their metrics across all
     constraint variations for each task length 'n'.
-    
+
     Note: TSR (Timing Success Rate) is only calculated for constraints >= 1,
     excluding constraints_0 cases.
 
@@ -143,6 +160,10 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
 
             tasks_num = int(match.group(1))
             constraints_num = int(match.group(2))
+
+            if constraints_num == 0:
+                continue
+
             tasks_key = f"tasks_{tasks_num}"
             init_dict = task_data.get("init", {})
 
@@ -157,7 +178,7 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
                     # TSR의 경우 constraint >= 1일 때만 합산
                     if metric_name == "tsr" and not include_tsr:
                         continue
-                    
+
                     sums[approach][tasks_key][init_case][metric_name] += value
                     counts[approach][tasks_key][init_case][metric_name] += 1
 
@@ -167,12 +188,12 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
             merged_summary[approach][tasks_key] = {}
             for init_case, metric_sums in init_dict.items():
                 avg_metrics: Dict[str, float] = {}
-                
+
                 for metric_name, total in metric_sums.items():
                     count = counts[approach][tasks_key][init_case][metric_name]
                     if count > 0:
                         avg_metrics[metric_name] = total / count
-                
+
                 # TSR이 metric_sums에 없는 경우 (constraint >= 1인 데이터가 없음)
                 # 다른 메트릭들은 있지만 TSR만 없는 경우를 처리
                 if "tsr" not in avg_metrics and metric_sums:
@@ -181,10 +202,6 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
 
                 if not avg_metrics:
                     continue
-
-                # Rename 'gcr' to 'sr' for consistency
-                if "gcr" in avg_metrics:
-                    avg_metrics["sr"] = avg_metrics.pop("gcr")
 
                 # Reorder and store
                 merged_summary[approach][tasks_key][init_case] = reorder_metrics_dict(
@@ -221,6 +238,11 @@ def find_best_values(data: Dict[str, Any]) -> Dict[Tuple[str, str, str], float]:
                 for method in MAIN_METHODS
                 if data.get(method, {}).get(task, {}).get(init)
             ]
+            gcr_vals = [
+                data[method][task][init].get("gcr", -1.0)
+                for method in MAIN_METHODS
+                if data.get(method, {}).get(task, {}).get(init)
+            ]
             tsr_vals = [
                 data[method][task][init].get("tsr", -1.0)
                 for method in MAIN_METHODS
@@ -235,6 +257,8 @@ def find_best_values(data: Dict[str, Any]) -> Dict[Tuple[str, str, str], float]:
             # Determine best values
             if sr_vals:
                 best_vals[(task, init, "sr")] = max(sr_vals)
+            if gcr_vals:
+                best_vals[(task, init, "gcr")] = max(gcr_vals)
             if tsr_vals:
                 best_vals[(task, init, "tsr")] = max(tsr_vals)
             if mk_vals:
@@ -248,6 +272,7 @@ def fmt_cell(
     metric: str,
     best_val: float,
     ablation_val: Optional[float] = None,
+    show_ablation_in_parens: bool = True,
 ) -> str:
     """Format a single table cell with main value, bolding, and ablation study value.
 
@@ -257,6 +282,7 @@ def fmt_cell(
         best_val (float): The best value for this metric across methods.
         ablation_val (Optional[float], optional): The corresponding value from
             the ablation study. Defaults to None.
+        show_ablation_in_parens (bool): Whether to show ablation value in parentheses.
 
     Returns:
         str: The formatted string for the LaTeX table cell.
@@ -271,19 +297,22 @@ def fmt_cell(
     if abs(main_val - best_val) < 0.001:
         s_main = f"\\textbf{{{s_main}}}"
 
-    # Append ablation value in parentheses for TSR and Makespan
-    if ablation_val is not None and metric != "sr":
+    # Append ablation value in parentheses if requested
+    if show_ablation_in_parens and ablation_val is not None:
         s_abl = f"{ablation_val:.1f}"
         return f"{s_main} ({s_abl})"
 
     return s_main
 
 
-def generate_latex_table(data: Dict[str, Any]) -> str:
+def generate_latex_table(
+    data: Dict[str, Any], ablation_style: str = "parentheses"
+) -> str:
     """Generate the complete LaTeX code for the results table.
 
     Args:
         data (Dict[str, Any]): The revised and filtered summary data.
+        ablation_style (str): Style for ablation study display ('parentheses' or 'new_row').
 
     Returns:
         str: A string containing the full LaTeX table code.
@@ -291,7 +320,18 @@ def generate_latex_table(data: Dict[str, Any]) -> str:
     best_values = find_best_values(data)
     lines: List[str] = []
 
-    # Header and Caption
+    # Determine method list based on style
+    methods_to_plot = list(MAIN_METHODS)
+    if ablation_style == "new_row":
+        # Insert ABLATION_METHOD_KEY after dag_bayesian_DEFAULT
+        try:
+            idx = methods_to_plot.index("dag_bayesian_DEFAULT")
+            methods_to_plot.insert(idx + 1, ABLATION_METHOD_KEY)
+        except ValueError:
+            pass  # dag_bayesian_DEFAULT not in list
+
+    # ... (Header generation code remains same until loop)
+
     lines.extend(
         [
             r"\begin{table*}[t]",
@@ -299,27 +339,77 @@ def generate_latex_table(data: Dict[str, Any]) -> str:
             r"\caption{Performance comparison in the AI2-THOR simulation environment. "
             r"Results are aggregated by task complexity. "
             r"Values in parentheses indicate the performance of the ablation study \quotes{Ours (w/o Mon.)}. "
-            r"Higher SR and TSR are better ($\uparrow$), and lower Makespan is better ($\downarrow$).}",
+            r"Higher SR, GCR and TSR are better ($\uparrow$), and lower Makespan is better ($\downarrow$).}",
             r"\label{tab:simulation_results_merged}",
             r"{\renewcommand{\arraystretch}{1.1}",
             r"\resizebox{\textwidth}{!}{%",
-            r"\begin{tabular}{@{}ll|ccc|ccc|ccc|ccc|ccc@{}}",
+            # Dynamic column definition based on num_metrics
+            # ll | (num_metrics)c | ... * 5
+            f"\\begin{{tabular}}{{@{{}}ll|{'|'.join(['c' * len(INCLUDED_METRICS)] * 5)}@{{}}}}",
             r"\toprule",
         ]
     )
 
     # Column Headers
+
+    # Dynamically build the metric header part
+    metric_headers = []
+    for m in INCLUDED_METRICS:
+        if m == "sr":
+            metric_headers.append(r"\textbf{SR ($\uparrow$)}")
+        elif m == "gcr":
+            metric_headers.append(r"\textbf{GCR ($\uparrow$)}")
+        elif m == "tsr":
+            metric_headers.append(r"\textbf{TSR ($\uparrow$)}")
+        elif m == "makespan":
+            metric_headers.append(r"\textbf{Makespan ($\downarrow$)}")
+
+    metric_header_str = " & ".join(metric_headers)
+    num_metrics = len(INCLUDED_METRICS)
+
+    # Build the second row (Under-estimate, Correct, etc.)
+    header_row_2_parts = [r"\multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Method}}}"]
+    header_row_3_parts = []  # Will hold cmidrules
+
+    labels = [
+        r"\textbf{Under-estimate (60s)}",
+        r"\textbf{Under-mid-estimate (80s)}",
+        r"\textbf{Correct (100s)}",
+        r"\textbf{Over-mid-estimate (120s)}",
+        r"\textbf{Over-estimate (140s)}",
+    ]
+
+    # Calculate column spans
+    for i, label in enumerate(labels):
+        header_row_2_parts.append(rf"\multicolumn{{{num_metrics}}}{{c|}}{{{label}}}")
+
+        # cmidrule calculation
+        # First 2 columns are Method/Difficulty. Then blocks of num_metrics.
+        # Start col for block i (0-indexed i): 3 + i * num_metrics
+        # End col: 3 + i * num_metrics + num_metrics - 1
+        start_col = 3 + i * num_metrics
+        end_col = start_col + num_metrics - 1
+
+        # For the last block, we might want to handle the vertical bar differently in LaTeX,
+        # but usually cmidrule(l) is fine.
+        header_row_3_parts.append(rf"\cmidrule(l){{{start_col}-{end_col}}}")
+
+    # Build the third row (SR, GCR, TSR, Makespan repeated)
+    header_row_4_parts = [r"\multicolumn{2}{c|}{\textbf{Difficulty}}"]
+    for _ in range(len(labels)):
+        header_row_4_parts.append(metric_header_str)
+
     lines.extend(
         [
-            r"\multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Method}}} & \multicolumn{3}{c|}{\textbf{Under-estimate (60s)}} & \multicolumn{3}{c|}{\textbf{Under-mid-estimate (80s)}} & \multicolumn{3}{c|}{\textbf{Correct (100s)}} & \multicolumn{3}{c|}{\textbf{Over-mid-estimate (120s)}} & \multicolumn{3}{c}{\textbf{Over-estimate (140s)}} \\",
-            r"\cmidrule(l){3-5} \cmidrule(l){6-8} \cmidrule(l){9-11} \cmidrule(l){12-14} \cmidrule(l){15-17}",
-            r"\multicolumn{2}{c|}{\textbf{Difficulty}} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} & \textbf{SR ($\uparrow$)} & \textbf{TSR ($\uparrow$)} & \textbf{Makespan ($\downarrow$)} \\",
+            " & ".join(header_row_2_parts) + r" \\",
+            " ".join(header_row_3_parts),
+            " & ".join(header_row_4_parts) + r" \\",
             r"\midrule",
         ]
     )
 
     # Table Body
-    for method_idx, method_key in enumerate(MAIN_METHODS):
+    for method_idx, method_key in enumerate(methods_to_plot):
         method_label = METHOD_DISPLAY_NAMES.get(method_key, method_key)
 
         for task_idx, task_key in enumerate(TASK_ORDER):
@@ -340,38 +430,52 @@ def generate_latex_table(data: Dict[str, Any]) -> str:
             # Metric Columns
             for init_key in INIT_ORDER:
                 metrics = data.get(method_key, {}).get(task_key, {}).get(init_key, {})
-                sr = metrics.get("sr")
-                tsr = metrics.get("tsr")
-                mk = metrics.get("makespan")
 
-                # Get ablation data if applicable
+                # Get ablation data if applicable AND style is parentheses
                 abl_metrics = None
-                if method_key == "dag_bayesian_DEFAULT":
+                if (
+                    ablation_style == "parentheses"
+                    and method_key == "dag_bayesian_DEFAULT"
+                ):
                     abl_metrics = (
                         data.get(ABLATION_METHOD_KEY, {})
                         .get(task_key, {})
                         .get(init_key)
                     )
 
-                abl_sr = abl_metrics.get("sr") if abl_metrics else None
-                abl_tsr = abl_metrics.get("tsr") if abl_metrics else None
-                abl_mk = abl_metrics.get("makespan") if abl_metrics else None
+                for metric_key in INCLUDED_METRICS:
+                    val = metrics.get(metric_key)
+                    abl_val = abl_metrics.get(metric_key) if abl_metrics else None
 
-                # Get best values for comparison
-                best_sr = best_values.get((task_key, init_key, "sr"), float("-inf"))
-                best_tsr = best_values.get((task_key, init_key, "tsr"), float("-inf"))
-                best_mk = best_values.get(
-                    (task_key, init_key, "makespan"), float("inf")
-                )
+                    # Check best values (Ablation method also competes for best value if in new_row)
+                    # If new_row, the ablation method is just another method in the loop,
+                    # so best_val lookups work naturally if find_best_values includes it.
+                    # Note: find_best_values currently only looks at MAIN_METHODS.
+                    # If we want ablation to be bolded in new_row mode, we might need to update find_best_values.
+                    # However, usually ablation is compared against main, and main is the SOTA.
+                    # For now, we keep find_best_values using MAIN_METHODS only, so ablation row won't have bolds
+                    # unless we add it to MAIN_METHODS or update find_best_values logic.
+                    # Assuming user wants to see if Ablation is better than others?
+                    # Let's stick to highlighting MAIN_METHODS for now.
 
-                # Format cells
-                row_parts.append(fmt_cell(sr, "sr", best_sr, abl_sr))
-                row_parts.append(fmt_cell(tsr, "tsr", best_tsr, abl_tsr))
-                row_parts.append(fmt_cell(mk, "makespan", best_mk, abl_mk))
+                    best_val = best_values.get(
+                        (task_key, init_key, metric_key),
+                        float("inf") if metric_key == "makespan" else float("-inf"),
+                    )
+
+                    row_parts.append(
+                        fmt_cell(
+                            val,
+                            metric_key,
+                            best_val,
+                            abl_val,
+                            show_ablation_in_parens=(ablation_style == "parentheses"),
+                        )
+                    )
 
             lines.append(" & ".join(row_parts) + r" \\")
 
-        if method_idx < len(MAIN_METHODS) - 1:
+        if method_idx < len(methods_to_plot) - 1:
             lines.append(r"\midrule")
 
     # Footer
@@ -421,7 +525,7 @@ def main() -> None:
         print(f"Revised summary saved to: {output_path}")
 
     # 5. Generate and print the LaTeX table
-    latex_output = generate_latex_table(revised_summary)
+    latex_output = generate_latex_table(revised_summary, args.ablation_style)
     print("\n--- LaTeX Table Output ---\n")
     print(latex_output)
 
