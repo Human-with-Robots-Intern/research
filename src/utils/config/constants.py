@@ -134,6 +134,12 @@ def set_factor_alpha(value: float) -> None:
     FACTOR_ALPHA = value
 
 
+def set_bayesian_criteria(value: float) -> None:
+    """Sets the global BAYESIAN_CRITERIA value."""
+    global BAYESIAN_CRITERIA
+    BAYESIAN_CRITERIA = value
+
+
 def set_beam_width(value: int) -> None:
     """Sets the global BEAM_WIDTH value."""
     global BEAM_WIDTH
