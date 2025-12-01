@@ -84,7 +84,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
                     OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
                     OC("faucet", isToggled=True),
                 ),
-                end=CG(OC("faucet", isToggled=False)),
+                end=CG(OC("pot", isFilledWithLiquid=True, parentReceptacles=None)),
             ),
             TSR(
                 name="boil_potato",
