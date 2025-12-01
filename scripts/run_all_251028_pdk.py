@@ -538,12 +538,12 @@ def load_instruction_case_mapping_from_scenes(
     return case_instruction_mapping
 
 
-def _iter_init_dirs(config: Dict[str, Any]) -> List[Path]:
-    """Return list of init_* result directories under RESULT_PATH.
+def _iter_states_dirs(config: Dict[str, Any]) -> List[Path]:
+    """Return list of states* result directories under RESULT_PATH.
 
     If ``init_prior_mean`` is provided in the config, only that specific
     directory will be returned; otherwise, all directories starting with
-    ``init_`` are returned.
+    ``states`` are returned.
 
     Args:
         config (Dict[str, Any]): The configuration dictionary.
@@ -551,15 +551,15 @@ def _iter_init_dirs(config: Dict[str, Any]) -> List[Path]:
     Returns:
         List[Path]: List of candidate initial prior result directories.
     """
-    init_dirs: List[Path] = []
+    states_dirs: List[Path] = []
     init_prior = config.get("init_prior_mean")
     if isinstance(init_prior, (int, float)):
-        init_dirs = [RESULT_PATH / f"init_{int(init_prior)}"]
+        states_dirs = [RESULT_PATH / f"states{int(init_prior)}"]
     else:
         for p in RESULT_PATH.iterdir():
-            if p.is_dir() and p.name.startswith("init_"):
-                init_dirs.append(p)
-    return init_dirs
+            if p.is_dir() and p.name.startswith("states"):
+                states_dirs.append(p)
+    return states_dirs
 
 
 def _find_latest_result_json_for_task(
@@ -573,7 +573,7 @@ def _find_latest_result_json_for_task(
     """Locate the latest result JSON for a given baseline/instruction/scene.
 
     This mirrors the skip logic used in run_all.py: it searches under
-    assets/results/init_*/{instruction_stem}_*/{scene}/approach/{baseline_stem}_simulation.json
+    assets/results/states*/{instruction_stem}_*/{scene}/{baseline_name}/end_state.json
     and returns the one with the highest trailing number.
 
     Args:
@@ -603,8 +603,8 @@ def _find_latest_result_json_for_task(
             instruction_keys.append(key)
 
     candidates: List[Tuple[int, Path]] = []
-    for init_dir in _iter_init_dirs(config):
-        base_dir = init_dir / case_name if case_name else init_dir
+    for state_dir in _iter_states_dirs(config):
+        base_dir = state_dir / case_name if case_name else state_dir
         if not base_dir.exists():
             continue
         for key in instruction_keys:
@@ -612,7 +612,7 @@ def _find_latest_result_json_for_task(
             exact_dir = base_dir / key
             if exact_dir.is_dir():
                 json_path = (
-                    exact_dir / scene_name / "approach" / f"{approach_name}.json"
+                    exact_dir / scene_name / approach_name / "end_state.json"
                 )
                 if json_path.exists():
                     candidates.append((0, json_path))
@@ -625,7 +625,7 @@ def _find_latest_result_json_for_task(
                 if not m:
                     continue
                 num = int(m.group(1))
-                json_path = task_dir / scene_name / "approach" / f"{approach_name}.json"
+                json_path = task_dir / scene_name / approach_name / "end_state.json"
                 if json_path.exists():
                     candidates.append((num, json_path))
 
