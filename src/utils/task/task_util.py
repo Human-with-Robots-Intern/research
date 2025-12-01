@@ -342,19 +342,24 @@ class TaskUtil:
             # 각 temporal constraint 별로 순회하여 `tc` 변수 범위 문제 해결
             for tc in st.temporal_constraints:
                 # 1. 제약 조건(tc)으로 연결된 두 subtask가 '공유하는' 객체를 찾음
-                related_subtask = subtask_map.get(tc.rel_subtask_name)
-                related_obj_types = set()
-                if (
-                    related_subtask
-                    and related_subtask.execution
-                    and related_subtask.execution.objects
-                ):
-                    for obj_name in related_subtask.execution.objects.keys():
-                        related_obj_types.add(obj_name.split("|")[0])
+                # NOTE: 공유 객체 체크 로직을 임시로 비활성화함.
+                # 대신 현재 Subtask가 가진 객체를 기준으로 Interval을 업데이트함.
+                # related_subtask = subtask_map.get(tc.rel_subtask_name)
+                # related_obj_types = set()
+                # if (
+                #     related_subtask
+                #     and related_subtask.execution
+                #     and related_subtask.execution.objects
+                # ):
+                #     for obj_name in related_subtask.execution.objects.keys():
+                #         related_obj_types.add(obj_name.split("|")[0])
+                #
+                # common_obj_types = current_obj_types.intersection(related_obj_types)
+                
+                # 공유 여부를 따지지 않고 현재 Subtask의 객체를 사용
+                common_obj_types = current_obj_types
 
-                common_obj_types = current_obj_types.intersection(related_obj_types)
-
-                # 2. 조건을 만족하는 '모든' 공유 객체에 대해 Belief 생성
+                # 2. 조건을 만족하는 '모든' 객체에 대해 Belief 생성
                 if common_obj_types:
                     for obj_type in common_obj_types:
                         if (
