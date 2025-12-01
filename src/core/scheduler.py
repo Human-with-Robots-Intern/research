@@ -5,6 +5,9 @@ import itertools
 from queue import PriorityQueue
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
+import numpy as np
+from scipy.stats import norm
+
 from src.models.dataclass import (
     ActionResult,
     Candidate,
@@ -25,7 +28,9 @@ from src.utils.config import (
     TIMING_TOLERANCE_ABS,
 )
 from src.utils.config.constants import (
+    BAYESIAN_THRESHOLD_PROBABILITY,
     BEAM_WIDTH,
+    INIT_PRIOR_VARIANCE,
     MONITORING_SPLIT_TOLERANCE_ABS,
     SIMULATION_DEPTH,
     WAIT_TIME_UPPER_BOUND,
@@ -1056,9 +1061,26 @@ class Scheduler:
         )
 
         # --- Refined Splitting Logic ---
-        original_absolute_monitoring_trigger_time = (
-            critical_start_sub_actual_end_time
-            + (original_critical_interval_duration * BAYESIAN_CRITERIA)
+        # Retrieve variance from the edge info
+        edge_data = curr_state.constraints.get_edge_data(
+            critical_start_sub_name, critical_end_sub_name
+        )
+        variance_val = INIT_PRIOR_VARIANCE
+        if edge_data and "info" in edge_data:
+            variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
+
+        # Calculate trigger time based on probability threshold: t = mu + sigma * Phi^-1(eta)
+        sigma = np.sqrt(variance_val)
+        mu_absolute = (
+            critical_start_sub_actual_end_time + original_critical_interval_duration
+        )
+        z_score = norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY)
+
+        original_absolute_monitoring_trigger_time = mu_absolute + sigma * z_score
+
+        log.debug(
+            f"Bayesian Trigger: Mu={mu_absolute:.2f}, Sigma={sigma:.2f}, Eta={BAYESIAN_THRESHOLD_PROBABILITY}, Z={z_score:.2f} "
+            f"-> TriggerTime={original_absolute_monitoring_trigger_time:.2f}"
         )
 
         full_candidate_action_info_check = self.action_handler.get_actions_info(

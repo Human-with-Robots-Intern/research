@@ -75,7 +75,8 @@ GAMMA_HEURISTIC = 100.0  # Remaining work cost
 WAIT_TIME_UPPER_BOUND = 200.0  # 'wait' 액션의 최대 허용 시간 (초)
 
 # ========== 베이지안 ==========
-BAYESIAN_CRITERIA = 0.7
+# BAYESIAN_CRITERIA = 0.7  # Legacy fixed ratio
+BAYESIAN_THRESHOLD_PROBABILITY = 0.2  # New threshold probability (eta)
 
 GT_INTERVAL = 100.0
 INIT_PRIOR_MEAN = 140.0

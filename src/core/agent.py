@@ -70,6 +70,7 @@ class Agent:
                 critical_start_sub_name, monitoring_target_sub_name
             ].setdefault("info", {})
             edge_info["Interval"] = posterior_mean
+            edge_info["Variance"] = posterior_variance
         else:
             log.warning(
                 "Constraint edge %s -> %s missing while updating posterior mean.",
@@ -87,6 +88,7 @@ class Agent:
                 state.subtask.name, monitoring_target_sub_name
             ].setdefault("info", {})
             edge_info["Interval"] = updated_interval
+            edge_info["Variance"] = posterior_variance
         else:
             log.warning(
                 "Constraint edge %s -> %s missing while updating monitor residual interval.",
