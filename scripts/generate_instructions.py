@@ -84,6 +84,33 @@ EXCLUSIVE_TASK_GROUPS: List[Set[str]] = [
     {"prepare_a_water_cup", "make_a_coffee"},
     # 6. '농산물 처리' 논리 제약 그룹: 씻는 행위와 냉장고에 넣는 행위를 동시에 명령하지 않습니다.
     {"wash_apple_and_lettuce", "put_apple_and_lettuce_in_fridge"},
+    ####
+    #real world constraints
+    # pan으로 인한 constraint
+    {
+        "cook_sausage",
+        "cook_chicken",
+        "place_pan_on_stove",
+    },
+    # plate로 인한 constraint
+    {
+        "put_banana_on_plate",
+        "cook_sausage",
+        "cook_chicken",
+        "put_tomato_on_plate",
+    },
+    # blue bowl로 인한 constraint
+    {
+        "put_tomato_in_blue_bowl",
+        "move_blue_bowl_to_sink"
+    },
+    # tomato로 인한 constraint
+    {
+        "put_tomato_on_plate",
+        "put_tomato_in_blue_bowl",
+    },
+
+
 ]
 
 
@@ -92,7 +119,7 @@ def load_and_prepare_floor_plan_tasks() -> Dict[str, Any]:
     Returns:
         A dictionary containing 'common_tasks' and scene-specific 'mixed_tasks'.
     """
-    config_path = ASSETS_PATH / "tasks" / "floorplan_tasks.json"
+    config_path = ASSETS_PATH / "tasks" / "floorplan_tasks_realworld.json"
     with open(config_path) as f:
         data: Dict[str, Any] = json.load(f)
 
@@ -200,7 +227,7 @@ def generate_instructions_for_case(
 def main() -> None:
     """Generate instructions for a 4x4 matrix of task and constraint counts."""
     # 0. Load existing instructions if the file exists
-    output_path = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata.json"
+    output_path = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251202_realworld.json"
     existing_instructions_path = (
         ASSETS_PATH / "tasks" / "decomposed_merged_251031_metadata.json"
     )
