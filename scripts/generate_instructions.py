@@ -17,11 +17,62 @@ EXCLUSIVE_TASK_GROUPS: List[Set[str]] = [
     #    'boil_potato'는 물을 채우고 끓이는 과정을 포함하는 상위 개념입니다.
     {"boil_potato", "fill_pot_with_water", "boil_water_with_pot"},
     {"cook_egg", "boil_potato", "boil_water_with_pot"},
+    # faucet 으로 인한 제약 그룹 
     {
         "fill_pot_with_water",
         "fill_bowl_with_water",
         "boil_water_with_pot",
         "boil_potato",
+        "wash_apple_and_lettuce"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_a_tomato"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_a_butterknife"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_a_spatula"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_all_fork_and_spoon"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_plate_and_cup"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_plate_and_cup"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_apple_and_lettuce"
     },
     # 2. 'Potato' 조리법 제약 그룹: 감자를 삶는 것과 전자레인지에 데우는 것은 동시에 할 수 없습니다.
     {"boil_potato", "heat_the_potato_using_microwave"},
