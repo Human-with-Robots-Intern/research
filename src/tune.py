@@ -1204,17 +1204,7 @@ def _run_single_task_for_trial(
                 # 태스크 이름 파싱 (instruction filename -> task names)
                 # task_path.stem 은 "1_Make_Coffee" 같은 형태일 수 있음
                 instruction_raw = re.sub(r"^\d+_", "", task_path.stem)
-                # 여기서 parse_instruction_to_tasks를 쓰려면 all_task_names가 필요한데,
-                # 간단히 instruction_raw를 정규화해서 사용하는게 나을수도 있음.
-                # 하지만 evaluator.evaluate_tasks는 task_names 리스트를 받음.
-
-                # instruction_parser.load_task_info 를 통해 전체 task list를 가져오는 것은 오버헤드가 있을 수 있음.
-                # tune.py 전역에서 한 번 로드하는 것이 좋겠으나, 여기서는 간단히 파싱 시도.
-
-                # FIXME: parse_instruction_to_tasks requires known task names.
-                # We can assume simple task name mapping if parse fails, or preload tasks.
-                # For now, let's assume the instruction maps to tasks using the parser with a dummy list
-                # or try to infer.
+                
 
                 # Load valid task names once (global scope cache could be better)
                 tasks_json_path = ASSETS_ROOT / "tasks" / "floorplan_tasks.json"
@@ -1227,81 +1217,34 @@ def _run_single_task_for_trial(
                 valid_task_names = [t for t in spec_task_names if t in TASK_SPECS]
 
                 if not valid_task_names:
-                    log.warning(f"No valid task specs found for {instruction_raw}")
-                    # Fallback to basic success/fail from log if available?
-                    # subprocess doesn't return that directly.
-                    # We will treat as failed evaluation.
-                    gcr_score = 0.0
-                    tsr_score = 0.0
-
-                else:
-                    task_results = evaluate_tasks(
-                        events=events_data,
-                        task_names=valid_task_names,
-                    )
-
-                    # Compute aggregated scores
-                    # GCR Score: ratio of tasks satisfying GCR
-                    gcr_passes = sum(1 for r in task_results.values() if r.gcr_pass)
-                    gcr_score = gcr_passes / len(task_results) if task_results else 0.0
-
-                    # TSR Score: average pass rate of TSRs across tasks
-                    total_tsrs = 0
-                    passed_tsrs = 0
-                    for r in task_results.values():
-                        if r.tsr_results:
-                            total_tsrs += len(r.tsr_results)
-                            passed_tsrs += sum(
-                                1 for tr in r.tsr_results.values() if tr.passed
-                            )
-                    tsr_score = (
-                        passed_tsrs / total_tsrs if total_tsrs > 0 else 1.0
-                    )  # No TSRs = Perfect TSR score? Or N/A. Let's say 1.0 if GCR passed.
-
-                # Makespan calculation from events (sum of durations)
-                simulation_makespan = (
-                    sum(e.get("duration", 0.0) for e in events_data)
-                    if events_data
-                    else float("inf")
+                    raise ValueError(f"No valid task specs found for {instruction_raw}")
+                
+                
+                task_results = evaluate_tasks(
+                    events=events_data,
+                    task_names=valid_task_names,
                 )
-
-                # Status determination
-                status = (
-                    "Completed" if (gcr_score == 1.0) else "Failed (Constraints)"
-                )  # Simplified status
-                if simulation_makespan == float("inf"):
-                    status = "Failed (No Events)"
-
-                # Computation time is tricky to get from subprocess without parsing stdout/log.
-                # We can approximate with subprocess duration or parse log.
-                # For now, use 0.0 or parse if critical.
-                computation_time = 0.0
+                trial_metrics = compute_trial_metrics(
+                    parsed_tasks=parsed_tasks,
+                    task_results=task_results,
+                    events=events_data,
+                )
 
                 return {
                     "task_name": task_path.stem,
-                    "status": status,
-                    "simulation_makespan": simulation_makespan,
-                    "scheduler_makespan": float(
-                        "inf"
-                    ),  # Not available via subprocess return
-                    "success_rate": gcr_score,  # Using GCR score as success rate proxy
-                    "computation_time": computation_time,
                     "scene_name": scene_name,
-                    "tsr_score": tsr_score,
-                    "gcr_score": gcr_score,
-                    "makespan_score": simulation_makespan,  # Lower is better
+                    "success_rate": trial_metrics.get("sr", 0.0), 
+                    "tsr_score": trial_metrics.get("tsr", 0.0),
+                    "gcr_score": trial_metrics.get("instruction_gcr", 0.0),
+                    "makespan_score": trial_metrics.get("makespan", float("inf")),
                 }
 
             except Exception as eval_e:
                 log.error(f"Evaluation failed: {eval_e}")
                 return {
                     "task_name": task_path.stem,
-                    "status": "Failed (Evaluation Error)",
-                    "simulation_makespan": float("inf"),
-                    "scheduler_makespan": float("inf"),
-                    "success_rate": 0.0,
-                    "computation_time": 0.0,
                     "scene_name": scene_name,
+                    "success_rate": 0.0,
                     "tsr_score": 0.0,
                     "gcr_score": 0.0,
                     "makespan_score": float("inf"),
