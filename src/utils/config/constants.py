@@ -135,10 +135,10 @@ def set_factor_alpha(value: float) -> None:
     FACTOR_ALPHA = value
 
 
-def set_bayesian_criteria(value: float) -> None:
-    """Sets the global BAYESIAN_CRITERIA value."""
-    global BAYESIAN_CRITERIA
-    BAYESIAN_CRITERIA = value
+def set_bayesian_threshold_probability(value: float) -> None:
+    """Set global Bayesian trigger probability threshold (eta)."""
+    global BAYESIAN_THRESHOLD_PROBABILITY
+    BAYESIAN_THRESHOLD_PROBABILITY = value
 
 
 def set_beam_width(value: int) -> None:
