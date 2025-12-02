@@ -42,7 +42,7 @@ class HeuristicManager:
     Cost = alpha * Navigation_Cost
            + beta * Urgency_Cost
            + gamma * Remaining_Work_Cost
-           + Penalties (Tardiness, Slack_Consumption, Monitoring_Risk)
+
     """
 
     def __init__(
@@ -460,24 +460,23 @@ class HeuristicManager:
 
     def _calculate_candidate_urgency_cost(
         self, current_node: SimulationNode, candidate: Candidate
-    ) -> float:
+    ) -> Tuple[float, float]:
         """
         Calculates the urgency cost for a candidate based on its slack time.
 
-        The cost function is designed to heavily penalize tardiness while
-        rewarding early completion.
-        - Positive Slack (Early): Cost is inversely proportional to slack (1 / (slack + 1)),
-          so finishing earlier results in a lower cost approaching zero.
-        - Negative Slack (Tardy): Cost is the square of the tardiness. This creates
-          a small penalty for minor delays but a rapidly growing, large penalty
-          for significant delays.
+        Target: Slack should be close to 0 (Just-in-Time Scheduling).
+        - We use 'abs(slack)' as cost.
+        - Both being too early (positive slack) and too late (negative slack) are penalized.
+        - Larger deviations from 0 result in higher costs.
 
         Args:
             current_node: The current simulation node.
             candidate: The candidate subtask to evaluate.
 
         Returns:
-            The calculated urgency cost. Lower is more urgent.
+            A tuple containing:
+            - urgency_cost (float): The calculated urgency cost (abs(slack)).
+            - slack (float): The calculated slack time.
         """
         if not candidate.scheduling_due or candidate.scheduling_due.due_date == float(
             "inf"
@@ -503,23 +502,6 @@ class HeuristicManager:
             f"TotalNeedT={total_time_needed:.2f} => Slack={slack:.2f}"
         )
 
-        urgency_cost = 0.0
-        if candidate.is_critical:
-            # For critical tasks, the goal is to have slack be as close to 0 as possible.
-            # Being too early or too late is penalized.
-            if slack < 0:
-                tardiness = -slack
-                urgency_cost = tardiness * 10  # Heavily penalize being late
-            else:
-                # Penalize being too early to avoid blocking other tasks unnecessarily.
-                urgency_cost = slack
+        urgency_cost = abs(slack)
 
-        else:
-            # For non-critical tasks, being early (positive slack) is fine (cost 0).
-            # Being late (negative slack) is penalized quadratically.
-            if slack >= 0:
-                urgency_cost = 0.0
-            else:
-                tardiness = -slack
-                urgency_cost = tardiness**2
         return urgency_cost, slack

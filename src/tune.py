@@ -73,11 +73,7 @@ try:
     from src.models.task import Subtask, Task
     from utils.common.logger import create_module_logger
     from utils.config import BEAM_WIDTH, SIMULATION_DEPTH
-    from utils.config.constants import (
-        INIT_PRIOR_MEAN,
-        INIT_PRIOR_VARIANCE,
-        TASK_PATH,
-    )
+    from utils.config.constants import INIT_PRIOR_MEAN, INIT_PRIOR_VARIANCE, TASK_PATH
     from utils.io_utils.result_saver import compose_plans
     from utils.io_utils.task_io import load_scene_positions, load_task_data_from_file
     from utils.task import TaskUtil
@@ -243,7 +239,9 @@ def _sample_balanced_task_specs(
         scene = scene_order[index % len(scene_order)]
         buffer = scene_buffers[scene]
         if not buffer:
-            buffer.extend(random.sample(scene_to_specs[scene], len(scene_to_specs[scene])))
+            buffer.extend(
+                random.sample(scene_to_specs[scene], len(scene_to_specs[scene]))
+            )
         sampled_specs.append(buffer.pop())
         index += 1
 
@@ -328,6 +326,7 @@ def _build_task_specs_from_names(
             )
         )
     return specs
+
 
 # ==============================================================================
 # 전역 변수 및 설정 (Global Variables & Configuration)
@@ -1204,7 +1203,6 @@ def _run_single_task_for_trial(
                 # 태스크 이름 파싱 (instruction filename -> task names)
                 # task_path.stem 은 "1_Make_Coffee" 같은 형태일 수 있음
                 instruction_raw = re.sub(r"^\d+_", "", task_path.stem)
-                
 
                 # Load valid task names once (global scope cache could be better)
                 tasks_json_path = ASSETS_ROOT / "tasks" / "floorplan_tasks.json"
@@ -1218,8 +1216,7 @@ def _run_single_task_for_trial(
 
                 if not valid_task_names:
                     raise ValueError(f"No valid task specs found for {instruction_raw}")
-                
-                
+
                 task_results = evaluate_tasks(
                     events=events_data,
                     task_names=valid_task_names,
@@ -1233,7 +1230,7 @@ def _run_single_task_for_trial(
                 return {
                     "task_name": task_path.stem,
                     "scene_name": scene_name,
-                    "success_rate": trial_metrics.get("sr", 0.0), 
+                    "success_rate": trial_metrics.get("sr", 0.0),
                     "tsr_score": trial_metrics.get("tsr", 0.0),
                     "gcr_score": trial_metrics.get("instruction_gcr", 0.0),
                     "makespan_score": trial_metrics.get("makespan", float("inf")),
@@ -1285,31 +1282,29 @@ def _calculate_task_objective(
 ) -> Tuple[float, bool]:
     """단일 태스크 결과에 대한 목적 함수 값(B&B 스타일 점수)을 계산합니다."""
 
-    # 목표: TSR, GCR 높게, Makespan 낮게 -> Minimize Objective
-    # Objective = w1 * (1 - TSR) + w2 * (1 - GCR) + w3 * Makespan
-
     tsr_score = task_result.get("tsr_score", 0.0)
-    gcr_score = task_result.get("gcr_score", 0.0)
+    # gcr_score = task_result.get("gcr_score", 0.0)
     makespan = task_result.get("simulation_makespan", float("inf"))
 
-    if math.isinf(makespan) or math.isnan(makespan):
-        makespan = PENALTY_BASE_MAKESPAN * 2  # Penalty
+    # makespan이 inf인 경우 페널티 처리
+    if math.isinf(makespan) or makespan is None:
+        makespan = PENALTY_BASE_MAKESPAN
 
-    # Weights
-    w_tsr = 1000.0
-    w_gcr = 1000.0
-    w_makespan = 1.0
+    # Objective = (Failure Rate * Weight) + Makespan
+    # PENALTY_BASE_MAKESPAN(3000)을 가중치로 사용하면:
+    # - 성공(TSR 1.0), 200초 -> 0 + 200 = 200
+    # - 성공(TSR 1.0), 300초 -> 0 + 300 = 300 (시간 단축 선호)
+    # - 실패(TSR 0.0), 50초 -> 3000 + 50 = 3050 (빠른 실패보다 느린 성공 선호)
+    # - 부분 성공(TSR 0.5), 200초 -> 1500 + 200 = 1700
+    # 이 값이 작아져야 좋은것임. 1-tsr이니까
+    penalty_weight = PENALTY_BASE_MAKESPAN
+    objective_value = ((1.0 - tsr_score) * penalty_weight) + makespan
 
-    objective_value = (
-        (w_tsr * (1.0 - tsr_score))
-        + (w_gcr * (1.0 - gcr_score))
-        + (w_makespan * makespan)
-    )
-
-    is_valid_run = gcr_score == 1.0  # Only fully valid if constraints met
+    # is_valid_run = gcr_score == 1.0
+    is_valid_run = True  # 일단 valid하다고 전제. GCR 체크는 하지 않음.
 
     log.info(
-        f"Task {task_name}: TSR={tsr_score:.2f}, GCR={gcr_score:.2f}, Makespan={makespan:.2f} -> Obj={objective_value:.2f}"
+        f"Task {task_name}: TSR={tsr_score:.2f}, Makespan={makespan:.2f} -> Obj={objective_value:.2f}"
     )
 
     return objective_value, is_valid_run
@@ -1322,13 +1317,11 @@ def objective(
 ) -> float:
     """Optuna 목적 함수: 각 트라이얼은 멀티-씬 태스크 샘플을 사용합니다."""
     params = {
-        "alpha": trial.suggest_float("alpha", 0.1, 5.0, step=0.01, log=False),
         "beta": trial.suggest_float("beta", 0.1, 5.0, step=0.01, log=False),
         "gamma": trial.suggest_float("gamma", 0.1, 5.0, step=0.01, log=False),
-        "factor_alpha": trial.suggest_float("factor_alpha", 1e-4, 1.0, log=True),
     }
     log.info(
-        f"\n--- Starting Trial {trial.number} | Params: a={params['alpha']:.3f}, b={params['beta']:.3f}, g={params['gamma']:.3f}, fa={params['factor_alpha']:.5f} ---"
+        f"\n--- Starting Trial {trial.number} | Params: b={params['beta']:.3f}, g={params['gamma']:.3f} ---"
     )
 
     if not task_specs:
@@ -1377,33 +1370,21 @@ def objective(
                 )
                 task_result = {
                     "task_name": task_path.stem,
-                    "status": "Failed (Runner Returned None)",
-                    "simulation_makespan": float("inf"),
-                    "scheduler_makespan": float("inf"),
-                    "success_rate": 0.0,
-                    "computation_time": 0.0,
                     "scene_name": task_spec.scene_name,
+                    "success_rate": 0.0,
                     "tsr_score": 0.0,
                     "gcr_score": 0.0,
-                    "makespan_score": 0.0,
+                    "makespan_score": float("inf"),
                 }
                 task_objective = CRITICAL_FAILURE_PENALTY
                 is_valid = False
-                task_comp_time = task_result.get("computation_time", float("inf"))
 
             else:
                 task_objective, is_valid = _calculate_task_objective(
                     task_result, trial.number, task_path.stem
                 )
-                task_comp_time = task_result.get("computation_time", float("inf"))
 
             total_objective_value += task_objective
-            if math.isfinite(task_comp_time):
-                total_computation_time += task_comp_time
-            else:
-                log.warning(
-                    f"T{trial.number}, Task {task_path.stem}: Computation time is inf/nan."
-                )
 
             if is_valid:
                 num_completed_tasks += 1
@@ -1533,45 +1514,6 @@ def objective(
         log.info(f"--- Trial {trial.number} Resources Cleaned Up ---")
 
 
-def initialize_trial_resources(scene_name: str) -> Tuple[Optional[Any], Optional[Dict]]:
-    """각 트라이얼을 위한 AI2-THOR 컨트롤러와 네비게이션 그래프를 초기화합니다."""
-    controller = None
-    nav_graph = None
-    try:
-        log.debug(
-            f"[Trial Resource] Initializing AI2-THOR controller for scene '{scene_name}'..."
-        )
-        controller = init_ai2thor_controller(scene=scene_name, width=300, height=300)
-        log.debug("[Trial Resource] Controller initialized.")
-        log.debug("[Trial Resource] Loading navigation graph...")
-        nav_graph = load_navigation_graph(controller)
-        log.debug("[Trial Resource] Navigation graph loaded.")
-        return controller, nav_graph
-    except Exception as e:
-        log.error(
-            f"[Trial Resource] Error initializing trial resources: {e}", exc_info=True
-        )
-        if controller:
-            try:
-                controller.stop()
-            except Exception as stop_e:
-                log.error(
-                    f"[Trial Resource] Error stopping controller during init failure: {stop_e}"
-                )
-        return None, None
-
-
-def cleanup_trial_resources(controller: Optional[Any]):
-    """트라이얼에서 사용한 AI2-THOR 컨트롤러를 정지시킵니다."""
-    if controller:
-        try:
-            log.debug("[Trial Resource] Stopping AI2-THOR controller...")
-            controller.stop()
-            log.debug("[Trial Resource] Controller stopped.")
-        except Exception as e:
-            log.error(f"[Trial Resource] Error stopping AI2-THOR controller: {e}")
-
-
 def run_optuna_study(
     n_trials: int,
     timeout_seconds: Optional[int],
@@ -1584,9 +1526,7 @@ def run_optuna_study(
     global CSV_FILENAME
 
     start_time = time.time()
-    study_suffix = (
-        scenes_evaluated[0] if len(scenes_evaluated) == 1 else "multi_scene"
-    )
+    study_suffix = scenes_evaluated[0] if len(scenes_evaluated) == 1 else "multi_scene"
     study_name = f"scheduler_tuning_{study_suffix}_{time.strftime('%Y%m%d_%H%M')}"
 
     OUTPUT_TUNE_DIR.mkdir(parents=True, exist_ok=True)
@@ -1851,9 +1791,11 @@ if __name__ == "__main__":
     log.info(
         "Tasks for Tuning (%d): %s",
         len(task_specs_for_study),
-        task_name_candidates
-        if len(task_name_candidates) < 10
-        else f"{task_name_candidates[:10]}...",
+        (
+            task_name_candidates
+            if len(task_name_candidates) < 10
+            else f"{task_name_candidates[:10]}..."
+        ),
     )
     log.info(f"Number of Trials: {N_TRIALS_TO_RUN}")
     log.info(
