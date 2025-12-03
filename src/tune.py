@@ -1693,7 +1693,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan1",
+        default="all",  # Default changed from "FloorPlan1" to "all" to use infer scene from path
         help="Default AI-THOR scene. Use 'all' to evaluate across every discovered scene (unless --scenes is provided).",
     )
     parser.add_argument(
@@ -1717,13 +1717,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_samples_per_trial",
         type=int,
-        default=10,
+        default=5,
         help="Number of tasks to sample per trial",
     )
     parser.add_argument(
         "--n_jobs",
         type=int,
-        default=5,
+        default=1,
         help="Number of parallel jobs for Optuna trials",
     )
 
@@ -1762,7 +1762,12 @@ if __name__ == "__main__":
     if args.scenes:
         selected_scene_names = sorted(set(args.scenes))
     elif args.scene.lower() == "all":
-        selected_scene_names = available_scene_names or [SCENE_NAME]
+        # If 'all', use all scenes discovered from task files
+        selected_scene_names = available_scene_names
+        if not selected_scene_names:
+            # Fallback if discovery failed
+            selected_scene_names = ["FloorPlan1"]
+            log.warning("No scenes discovered from files. Defaulting to FloorPlan1.")
     else:
         selected_scene_names = [args.scene]
 

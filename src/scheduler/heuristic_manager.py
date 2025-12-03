@@ -10,11 +10,9 @@ from src.models.dataclass import Candidate, SimulationNode
 from src.utils.common import create_module_logger
 from src.utils.config import (  # INIT_PRIOR_MEAN, # 더 이상 직접 사용하지 않거나, interaction 추정에 활용
     LARGE_NUMBER,
+    constants,
 )
 from src.utils.config.constants import (
-    ALPHA_HEURISTIC,
-    BETA_HEURISTIC,
-    GAMMA_HEURISTIC,
     GRASP_ACTION_DURATION,
     NAV_STEP_DURATION,
     PLACE_ACTION_DURATION,
@@ -58,9 +56,9 @@ class HeuristicManager:
         """
         self.action_handler = action_handler
 
-        self.alpha = ALPHA_HEURISTIC
-        self.beta = BETA_HEURISTIC
-        self.gamma = GAMMA_HEURISTIC
+        self.alpha = constants.ALPHA_HEURISTIC
+        self.beta = constants.BETA_HEURISTIC
+        self.gamma = constants.GAMMA_HEURISTIC
         log.info(
             f"HeuristicManager initialized with weights: alpha={self.alpha}, beta={self.beta}, gamma={self.gamma}"
         )
