@@ -30,10 +30,10 @@ from src.utils.config.constants import (
     BAYESIAN_THRESHOLD_PROBABILITY,
     BEAM_WIDTH,
     INIT_PRIOR_VARIANCE,
+    MONITORING_ENABLED,
     MONITORING_SPLIT_TOLERANCE_ABS,
     SIMULATION_DEPTH,
     WAIT_TIME_UPPER_BOUND,
-    MONITORING_ENABLED
 )
 from src.utils.task import TaskUtil
 
@@ -630,11 +630,15 @@ class Scheduler:
                     start_entry = completed_entries_map[start_name]
                     if start_entry.subtask.subtask_type != "MONITORING":
                         interval = info.get("Interval", 0.0)
+                        variance = info.get("Variance", INIT_PRIOR_VARIANCE)
                         due_date = start_entry.schedule_end_time + interval
                         # if due_date > curr_node.state.current_time:
                         active_intervals.append(
-                            SchedulingDue(
-                                due_date=due_date, due_related_sub_name=end_name
+                            (
+                                variance,
+                                SchedulingDue(
+                                    due_date=due_date, due_related_sub_name=end_name
+                                ),
                             )
                         )
 
@@ -645,11 +649,13 @@ class Scheduler:
             return False, None
 
         # If an active interval exists, a split is necessary.
-        # Assign the most urgent due date for heuristic calculation purposes.
-        most_urgent_due = min(active_intervals, key=lambda d: d.due_date)
+        # Assign the most urgent due date based on VARIANCE (Uncertainty).
+        # We prioritize the interval with the HIGHEST variance to reduce uncertainty first.
+        best_variance, most_urgent_due = max(active_intervals, key=lambda item: item[0])
         candidate.scheduling_due = most_urgent_due
         log.debug(
-            f"[_should_subtask_split_with_monitoring] Active interval found targeting '{most_urgent_due.due_related_sub_name}' (due: {most_urgent_due.due_date:.2f}). Splitting {candidate.subtask.name}."
+            f"[_should_subtask_split_with_monitoring] Active interval found targeting '{most_urgent_due.due_related_sub_name}' "
+            f"(due: {most_urgent_due.due_date:.2f}, var: {best_variance:.2f}). Splitting {candidate.subtask.name}."
         )
 
         return True, most_urgent_due
