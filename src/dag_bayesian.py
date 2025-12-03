@@ -570,7 +570,7 @@ def main():
                 "factor_alpha": constants.FACTOR_ALPHA,
                 "beam_width": constants.BEAM_WIDTH,
                 "beam_depth": constants.SIMULATION_DEPTH,
-                "disable_monitoring": constants.MONITORING_ENABLED,
+                "disable_monitoring": not constants.MONITORING_ENABLED,
             }
             result_args.update(
                 {
