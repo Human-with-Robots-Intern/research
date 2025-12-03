@@ -1317,8 +1317,8 @@ def objective(
 ) -> float:
     """Optuna 목적 함수: 각 트라이얼은 멀티-씬 태스크 샘플을 사용합니다."""
     params = {
-        "beta": trial.suggest_float("beta", 0.1, 5.0, step=0.01, log=False),
-        "gamma": trial.suggest_float("gamma", 0.1, 5.0, step=0.01, log=False),
+        "beta": trial.suggest_float("beta", 1, 10.0, step=0.1, log=False),
+        "gamma": trial.suggest_float("gamma", 0.01, 0.5, log=True),
     }
     log.info(
         f"\n--- Starting Trial {trial.number} | Params: b={params['beta']:.3f}, g={params['gamma']:.3f} ---"
