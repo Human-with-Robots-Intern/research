@@ -73,7 +73,7 @@ try:
     from src.models.task import Subtask, Task
     from utils.common.logger import create_module_logger
     from utils.config import BEAM_WIDTH, SIMULATION_DEPTH
-    from utils.config.constants import INIT_PRIOR_MEAN, INIT_PRIOR_VARIANCE, TASK_PATH
+    from utils.config.constants import INIT_PRIOR_MEAN, INIT_PRIOR_VARIANCE
     from utils.io_utils.result_saver import compose_plans
     from utils.io_utils.task_io import load_scene_positions, load_task_data_from_file
     from utils.task import TaskUtil
@@ -325,8 +325,8 @@ def _build_task_specs_from_names(
 # ==============================================================================
 # 전역 변수 및 설정 (Global Variables & Configuration)
 # ==============================================================================
-SCENE_NAME = "FloorPlan1"
-TASK_FILES_DIR = TASK_PATH
+
+TASK_FILES_DIR = ASSETS_ROOT / "tasks" / "sampled_10_instruction_set_for_tuning"
 SCENE_POSITIONS_DIR = (
     ASSETS_ROOT / "scene_knowledge" / "kitchen" / "object_init_positions"
 )
@@ -1112,169 +1112,187 @@ def _run_single_task_for_trial(
         initial_scene_positions: (미사용) 호환성 유지용.
     """
 
-    # 임시 디렉토리 생성 (trajectory log 저장용)
-    breakpoint()
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_dir_path = Path(temp_dir)
-        traj_log_path = temp_dir_path / "trajectory_log.json"
+    # trajectory log 저장용 디렉토리 (디버깅을 위해 영구 보관)
+    debug_log_dir = OUTPUT_TUNE_DIR / "debug_trajectories"
+    debug_log_dir.mkdir(parents=True, exist_ok=True)
+    # 고유한 파일명 생성
+    traj_log_filename = f"traj_{trial_number}_{task_path.stem}_prior{init_prior_mean:.0f}.json"
+    traj_log_path = debug_log_dir / traj_log_filename
 
-        cmd = [
-            sys.executable,
-            "src/dag_bayesian.py",
-            "--scene",
-            scene_name,
-            "--case",
-            case_name,
-            "--instruction",
-            instruction_arg,
-            "--simulation",
-            "--trajectory_log_path",
-            str(traj_log_path),
-            "--alpha_heuristic",
-            str(params.get("alpha", 1.0)),
-            "--beta_heuristic",
-            str(params.get("beta", 1.0)),
-            "--gamma_heuristic",
-            str(params.get("gamma", 0.1)),
-            "--factor_alpha",
-            str(params.get("factor_alpha", 0.001)),
-            "--init_prior_mean",
-            str(init_prior_mean),
-            "--init_prior_variance",
-            str(INIT_PRIOR_VARIANCE),
-            "--log-level",
-            "ERROR",
-        ]
+    cmd = [
+        sys.executable,
+        "src/dag_bayesian.py",
+        "--scene",
+        scene_name,
+        "--case",
+        case_name,
+        "--instruction",
+        instruction_arg,
+        "--simulation",
+        "--trajectory_log_path",
+        str(traj_log_path),
+        "--alpha_heuristic",
+        str(params.get("alpha", 1.0)),
+        "--beta_heuristic",
+        str(params.get("beta", 1.0)),
+        "--gamma_heuristic",
+        str(params.get("gamma", 0.1)),
+        "--factor_alpha",
+        str(params.get("factor_alpha", 0.001)),
+        "--init_prior_mean",
+        str(init_prior_mean),
+        "--init_prior_variance",
+        str(INIT_PRIOR_VARIANCE),
+        "--log-level",
+        "ERROR",
+    ]
 
-        # subprocess 실행
-        env = os.environ.copy()
-        # Ensure PROJECT_ROOT and SRC_ROOT are in PYTHONPATH
-        pythonpath = env.get("PYTHONPATH", "")
-        paths_to_add = [str(PROJECT_ROOT), str(SRC_ROOT)]
-        if pythonpath:
-            paths_to_add.append(pythonpath)
-        env["PYTHONPATH"] = os.pathsep.join(paths_to_add)
+    # subprocess 실행
+    env = os.environ.copy()
+    # Ensure PROJECT_ROOT, SRC_ROOT, and current CWD are in PYTHONPATH
+    pythonpath = env.get("PYTHONPATH", "")
+    # PROJECT_ROOT를 최우선으로 추가하여 'ithor' 등을 찾을 수 있게 함
+    paths_to_add = [str(PROJECT_ROOT), str(SRC_ROOT), os.getcwd()]
+    if pythonpath:
+        paths_to_add.append(pythonpath)
+    env["PYTHONPATH"] = os.pathsep.join(paths_to_add)
+
+    try:
+        log.debug(f"Running command: {' '.join(cmd)}")
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=MAX_COMPUTATION_TIME_PER_TASK + 60,  # 여유 시간 추가
+            env=env,
+        )
+
+        if result.returncode != 0:
+            log.error(f"Subprocess failed with return code {result.returncode}")
+            log.error(f"Stderr: {result.stderr}")
+            return {
+                "task_name": task_path.stem,
+                "scene_name": scene_name,
+                "status": f"Failed (Subprocess Error: {result.returncode})",
+                "success_rate": 0.0,
+                "tsr_score": 0.0,
+                "gcr_score": 0.0,
+                "simulation_makespan": float("inf"),
+                "scheduler_makespan": float("inf"),
+                "computation_time": 0.0,
+            }
+
+        # trajectory_log.json 로드 및 평가
+        if not traj_log_path.exists():
+            log.error(f"trajectory_log.json not found at {traj_log_path}")
+            return {
+                "task_name": task_path.stem,
+                "scene_name": scene_name,
+                "status": "Failed (No Trajectory Log)",
+                "success_rate": 0.0,
+                "tsr_score": 0.0,
+                "gcr_score": 0.0,
+                "simulation_makespan": float("inf"),
+                "scheduler_makespan": float("inf"),
+                "computation_time": 0.0,
+            }
 
         try:
-            log.debug(f"Running command: {' '.join(cmd)}")
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=MAX_COMPUTATION_TIME_PER_TASK + 60,  # 여유 시간 추가
-                env=env,
+            events_data = load_events_from_file(traj_log_path)
+
+            # 태스크 이름 파싱 (instruction filename -> task names)
+            # task_path.stem 은 "1_Make_Coffee" 같은 형태일 수 있음
+            instruction_raw = re.sub(r"^\d+_", "", task_path.stem)
+
+            # Load valid task names once (global scope cache could be better)
+            tasks_json_path = ASSETS_ROOT / "tasks" / "floorplan_tasks.json"
+            all_task_names, _ = load_task_info(tasks_json_path)
+
+            parsed_tasks = parse_instruction_to_tasks(
+                instruction_raw, all_task_names
+            )
+            spec_task_names = [_to_spec_key(t) for t in parsed_tasks]
+            valid_task_names = [t for t in spec_task_names if t in TASK_SPECS]
+
+            if not valid_task_names:
+                raise ValueError(f"No valid task specs found for {instruction_raw}")
+
+            task_results = evaluate_tasks(
+                events=events_data,
+                task_names=valid_task_names,
+            )
+            trial_metrics = compute_trial_metrics(
+                parsed_tasks=parsed_tasks,
+                task_results=task_results,
+                events=events_data,
             )
 
-            if result.returncode != 0:
-                log.error(f"Subprocess failed with return code {result.returncode}")
-                log.error(f"Stderr: {result.stderr}")
-                return {
-                    "task_name": task_path.stem,
-                    "status": f"Failed (Subprocess Error: {result.returncode})",
-                    "simulation_makespan": float("inf"),
-                    "scheduler_makespan": float("inf"),
-                    "success_rate": 0.0,
-                    "computation_time": 0.0,
-                    "scene_name": scene_name,
-                    "tsr_score": 0.0,
-                    "gcr_score": 0.0,
-                    "makespan_score": 0.0,
-                }
-
-            # trajectory_log.json 로드 및 평가
-            if not traj_log_path.exists():
-                log.error(f"trajectory_log.json not found at {traj_log_path}")
-                return {
-                    "task_name": task_path.stem,
-                    "status": "Failed (No Trajectory Log)",
-                    "simulation_makespan": float("inf"),
-                    "scheduler_makespan": float("inf"),
-                    "success_rate": 0.0,
-                    "computation_time": 0.0,
-                    "scene_name": scene_name,
-                    "tsr_score": 0.0,
-                    "gcr_score": 0.0,
-                    "makespan_score": 0.0,
-                }
-
-            try:
-                events_data = load_events_from_file(traj_log_path)
-
-                # 태스크 이름 파싱 (instruction filename -> task names)
-                # task_path.stem 은 "1_Make_Coffee" 같은 형태일 수 있음
-                instruction_raw = re.sub(r"^\d+_", "", task_path.stem)
-
-                # Load valid task names once (global scope cache could be better)
-                tasks_json_path = ASSETS_ROOT / "tasks" / "floorplan_tasks.json"
-                all_task_names, _ = load_task_info(tasks_json_path)
-
-                parsed_tasks = parse_instruction_to_tasks(
-                    instruction_raw, all_task_names
-                )
-                spec_task_names = [_to_spec_key(t) for t in parsed_tasks]
-                valid_task_names = [t for t in spec_task_names if t in TASK_SPECS]
-
-                if not valid_task_names:
-                    raise ValueError(f"No valid task specs found for {instruction_raw}")
-
-                task_results = evaluate_tasks(
-                    events=events_data,
-                    task_names=valid_task_names,
-                )
-                trial_metrics = compute_trial_metrics(
-                    parsed_tasks=parsed_tasks,
-                    task_results=task_results,
-                    events=events_data,
-                )
-
-                return {
-                    "task_name": task_path.stem,
-                    "scene_name": scene_name,
-                    "success_rate": trial_metrics.get("sr", 0.0),
-                    "tsr_score": trial_metrics.get("tsr", 0.0),
-                    "gcr_score": trial_metrics.get("instruction_gcr", 0.0),
-                    "makespan_score": trial_metrics.get("makespan", float("inf")),
-                }
-
-            except Exception as eval_e:
-                log.error(f"Evaluation failed: {eval_e}")
-                return {
-                    "task_name": task_path.stem,
-                    "scene_name": scene_name,
-                    "success_rate": 0.0,
-                    "tsr_score": 0.0,
-                    "gcr_score": 0.0,
-                    "makespan_score": float("inf"),
-                }
-
-        except subprocess.TimeoutExpired:
-            log.error(f"Subprocess timed out for {task_path.stem}")
+            # None 값 처리: get() 후에도 None이면 기본값 사용
+            tsr_value = trial_metrics.get("tsr") or 1.0
+            makespan_value = trial_metrics.get("makespan")
+            if makespan_value is None or makespan_value <= 0:
+                makespan_value = float("inf")
+            
             return {
                 "task_name": task_path.stem,
-                "status": "Failed (Timeout)",
-                "simulation_makespan": float("inf"),
-                "scheduler_makespan": float("inf"),
-                "success_rate": 0.0,
-                "computation_time": 0.0,
                 "scene_name": scene_name,
-                "tsr_score": 0.0,
-                "gcr_score": 0.0,
-                "makespan_score": float("inf"),
+                "status": (
+                    "Completed" if trial_metrics.get("instruction_gcr", 0.0) > 0.5 else "Failed"
+                ),
+                "success_rate": trial_metrics.get("sr", 0.0),
+                "tsr_score": tsr_value,
+                "gcr_score": trial_metrics.get("instruction_gcr", 0.0),
+                "makespan_score": trial_metrics.get("makespan", float("inf")),
+                "simulation_makespan": trial_metrics.get("makespan", float("inf")),
+                "scheduler_makespan": float(
+                    "inf"
+                ),  # subprocess 방식에서는 사용 안 함
+                "computation_time": 0.0,  # subprocess 내부에서 계산됨
             }
-        except Exception as e:
-            log.error(f"Subprocess execution error: {e}")
+
+        except Exception as eval_e:
+            log.error(f"Evaluation failed for {task_path.stem}: {eval_e}", exc_info=True)
+            log.error(f"  Trajectory log path: {traj_log_path}")
+            log.error(f"  Instruction: {instruction_arg}")
+            # 평가 실패 시에도 부분 점수 부여 (완전 실패보다 나음)
             return {
                 "task_name": task_path.stem,
-                "status": f"Failed (Execution Error: {e})",
-                "simulation_makespan": float("inf"),
-                "scheduler_makespan": float("inf"),
-                "success_rate": 0.0,
-                "computation_time": 0.0,
                 "scene_name": scene_name,
-                "tsr_score": 0.0,
+                "status": f"Failed (Evaluation Error: {eval_e})",
+                "success_rate": 0.3,  # 부분 점수
+                "tsr_score": 0.3,  # subprocess는 성공했으므로 부분 점수
                 "gcr_score": 0.0,
-                "makespan_score": float("inf"),
+                "simulation_makespan": PENALTY_BASE_MAKESPAN * 0.8,  # 완전 실패보다는 낮은 페널티
+                "scheduler_makespan": float("inf"),
+                "computation_time": 0.0,
             }
+
+    except subprocess.TimeoutExpired:
+        log.error(f"Subprocess timed out for {task_path.stem}")
+        return {
+            "task_name": task_path.stem,
+            "scene_name": scene_name,
+            "status": "Failed (Timeout)",
+            "success_rate": 0.0,
+            "tsr_score": 0.0,
+            "gcr_score": 0.0,
+            "simulation_makespan": float("inf"),
+            "scheduler_makespan": float("inf"),
+            "computation_time": 0.0,
+        }
+    except Exception as e:
+        log.error(f"Subprocess execution error: {e}")
+        return {
+            "task_name": task_path.stem,
+            "scene_name": scene_name,
+            "status": f"Failed (Execution Error: {e})",
+            "success_rate": 0.0,
+            "tsr_score": 0.0,
+            "gcr_score": 0.0,
+            "simulation_makespan": float("inf"),
+            "scheduler_makespan": float("inf"),
+            "computation_time": 0.0,
+        }
 
 
 def _calculate_task_objective(
@@ -1282,12 +1300,12 @@ def _calculate_task_objective(
 ) -> Tuple[float, bool]:
     """단일 태스크 결과에 대한 목적 함수 값(B&B 스타일 점수)을 계산합니다."""
 
-    tsr_score = task_result.get("tsr_score", 0.0)
+    tsr_score = task_result.get("tsr_score") or 1.0
     # gcr_score = task_result.get("gcr_score", 0.0)
-    makespan = task_result.get("simulation_makespan", float("inf"))
-
-    # makespan이 inf인 경우 페널티 처리
-    if math.isinf(makespan) or makespan is None:
+    makespan = task_result.get("simulation_makespan")
+    
+    # makespan이 None, inf, 0 이하인 경우 페널티 처리
+    if makespan is None or math.isinf(makespan) or makespan <= 0:
         makespan = PENALTY_BASE_MAKESPAN
 
     # Objective = (Failure Rate * Weight) + Makespan
@@ -1368,10 +1386,13 @@ def objective(
                     "task_name": task_path.stem,
                     "scene_name": task_spec.scene_name,
                     "init_prior_mean": init_prior,
+                    "status": "Failed (Returned None)",
                     "success_rate": 0.0,
                     "tsr_score": 0.0,
                     "gcr_score": 0.0,
-                    "makespan_score": float("inf"),
+                    "simulation_makespan": float("inf"),
+                    "scheduler_makespan": float("inf"),
+                    "computation_time": 0.0,
                 }
                 task_objective = CRITICAL_FAILURE_PENALTY
                 is_valid = False
@@ -1444,16 +1465,26 @@ def objective(
             if num_conditions_run > 0
             else 0.0
         )
-        avg_makespan_score = (
-            sum(r.get("makespan_score", 0.0) for r in task_results_for_trial)
-            / num_conditions_run
-            if num_conditions_run > 0
-            else 0.0
+        avg_makespan = (
+            sum(
+                r.get("simulation_makespan", float("inf"))
+                for r in task_results_for_trial
+                if r.get("simulation_makespan") != float("inf")
+            )
+            / len([
+                r for r in task_results_for_trial
+                if r.get("simulation_makespan") != float("inf")
+            ])
+            if any(
+                r.get("simulation_makespan") != float("inf")
+                for r in task_results_for_trial
+            )
+            else float("inf")
         )
 
         trial.set_user_attr("tsr_score", avg_tsr)
         trial.set_user_attr("gcr_score", avg_gcr)
-        trial.set_user_attr("makespan_score", avg_makespan_score)
+        trial.set_user_attr("makespan_score", avg_makespan)  # CSV 호환성 위해 키 이름 유지
         trial.set_user_attr(
             "scenes_evaluated",
             sorted({cond.task_spec.scene_name for cond in test_conditions}),
@@ -1506,7 +1537,8 @@ def objective(
 
         if math.isnan(average_objective_value) or math.isinf(average_objective_value):
             log.warning(
-                f"Trial {trial.number}: Invalid objective value ({average_objective_value}). Reporting max penalty."
+                f"[DEBUG-1e9] Trial {trial.number}: Invalid objective value ({average_objective_value}). "
+                f"total_obj={total_objective_value}, num_conditions={num_conditions_run}. Reporting max penalty."
             )
             average_objective_value = CRITICAL_FAILURE_PENALTY
 
@@ -1516,7 +1548,7 @@ def objective(
         raise
     except Exception as e:
         log.critical(
-            f"Trial {trial.number}: Unhandled exception in objective function: {e}",
+            f"[DEBUG-1e9] Trial {trial.number}: Unhandled exception in objective function: {e}",
             exc_info=True,
         )
         return CRITICAL_FAILURE_PENALTY
@@ -1699,10 +1731,10 @@ if __name__ == "__main__":
         description="Heuristic Parameter Tuning using Optuna"
     )
     parser.add_argument(
-        "-n", "--n_trials", type=int, default=1000000, help="Number of Optuna trials"
+        "-n", "--n_trials", type=int, default=60, help="Number of Optuna trials"
     )
     parser.add_argument(
-        "--timeout", type=int, default=180000, help="Maximum tuning time in seconds"
+        "--timeout", type=int, default=1800000, help="Maximum tuning time in seconds"
     )
     parser.add_argument(
         "--scene",
