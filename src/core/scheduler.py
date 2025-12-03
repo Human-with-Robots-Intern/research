@@ -19,7 +19,13 @@ from src.models.dataclass import (
 from src.models.task import Duration, Execution, Subtask
 from src.utils.common import create_module_logger
 from src.utils.common.decorators import time_logger
-from src.utils.config import EPSILON, MONITORING_DURATION, RED, RESET, TIMING_TOLERANCE_ABS
+from src.utils.config import (
+    EPSILON,
+    MONITORING_DURATION,
+    RED,
+    RESET,
+    TIMING_TOLERANCE_ABS,
+)
 from src.utils.config.constants import (
     BAYESIAN_THRESHOLD_PROBABILITY,
     BEAM_WIDTH,
