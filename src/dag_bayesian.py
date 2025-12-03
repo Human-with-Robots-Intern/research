@@ -363,7 +363,9 @@ def main():
             )
 
         if action_interface is None:
-            raise RuntimeError("Failed to initialize action interface for simulation run.")
+            raise RuntimeError(
+                "Failed to initialize action interface for simulation run."
+            )
 
         # Build tasks and constraints
         # subtasks, constraints = TaskUtil.build_tasks_and_constraints(
@@ -581,7 +583,7 @@ def main():
 
         save_scene_state(
             controller=controller,
-                output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
+            output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
             case_name=args.case,
             scene_name=scene_name,
             instruction=args.instruction.split(".json")[0],

@@ -651,7 +651,10 @@ class Scheduler:
         # If an active interval exists, a split is necessary.
         # Assign the most urgent due date based on VARIANCE (Uncertainty).
         # We prioritize the interval with the HIGHEST variance to reduce uncertainty first.
-        best_variance, most_urgent_due = max(active_intervals, key=lambda item: item[0])
+        # Tie-breaker: If variances are equal, prioritize the one with the EARLIEST due date (smallest due_date).
+        best_variance, most_urgent_due = max(
+            active_intervals, key=lambda item: (item[0], -item[1].due_date)
+        )
         candidate.scheduling_due = most_urgent_due
         log.debug(
             f"[_should_subtask_split_with_monitoring] Active interval found targeting '{most_urgent_due.due_related_sub_name}' "

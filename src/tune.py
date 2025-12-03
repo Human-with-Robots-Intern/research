@@ -142,6 +142,24 @@ class TaskSpec:
         return self.relative_path.name
 
 
+@dataclass(frozen=True)
+class TestCondition:
+    """A complete test condition combining task, scene, and init_prior.
+
+    Attributes:
+        task_spec: Task specification including path and scene info.
+        init_prior_mean: Initial prior mean value for uncertainty.
+    """
+
+    task_spec: TaskSpec
+    init_prior_mean: float
+
+    @property
+    def condition_id(self) -> str:
+        """Unique identifier for this test condition."""
+        return f"{self.task_spec.scene_name}_{self.task_spec.instruction_filename}_prior{self.init_prior_mean:.2f}"
+
+
 def _extract_scene_name_from_path(path: Path) -> Optional[str]:
     """Extract the FloorPlan scene name from a relative task path.
 
@@ -198,54 +216,30 @@ def _discover_task_files(task_dir: Path) -> Tuple[List[str], Dict[str, str]]:
     return task_names, scene_lookup
 
 
-def _sample_balanced_task_specs(
-    task_specs: List["TaskSpec"], sample_size: int
-) -> List["TaskSpec"]:
-    """Sample tasks while covering all scenes as evenly as possible.
+def _generate_all_test_conditions(
+    task_specs: List[TaskSpec], init_prior_values: List[float]
+) -> List[TestCondition]:
+    """Generate all combinations of tasks and init_prior values.
 
     Args:
-        task_specs: Candidate tasks with scene annotations.
-        sample_size: Desired number of samples per trial.
+        task_specs: List of task specifications.
+        init_prior_values: List of init_prior_mean values to test.
 
     Returns:
-        A list of sampled ``TaskSpec`` instances. Scenes are cycled so every
-        scene is represented whenever possible.
+        List of all test conditions (full cartesian product).
     """
-
-    if not task_specs or sample_size <= 0:
-        return []
-
-    scene_to_specs: Dict[str, List[TaskSpec]] = {}
-    for spec in task_specs:
-        scene_to_specs.setdefault(spec.scene_name, []).append(spec)
-
-    if sample_size < len(scene_to_specs):
-        log.warning(
-            "Requested samples per trial (%d) is smaller than the number of scenes (%d). "
-            "Some scenes will be skipped in each trial; consider increasing --n_samples_per_trial.",
-            sample_size,
-            len(scene_to_specs),
-        )
-
-    scene_buffers: Dict[str, List[TaskSpec]] = {
-        scene: random.sample(specs, len(specs))
-        for scene, specs in scene_to_specs.items()
-    }
-    scene_order = list(scene_to_specs.keys())
-    sampled_specs: List[TaskSpec] = []
-    index = 0
-
-    while len(sampled_specs) < sample_size:
-        scene = scene_order[index % len(scene_order)]
-        buffer = scene_buffers[scene]
-        if not buffer:
-            buffer.extend(
-                random.sample(scene_to_specs[scene], len(scene_to_specs[scene]))
+    conditions: List[TestCondition] = []
+    for task_spec in task_specs:
+        for init_prior in init_prior_values:
+            conditions.append(
+                TestCondition(task_spec=task_spec, init_prior_mean=init_prior)
             )
-        sampled_specs.append(buffer.pop())
-        index += 1
 
-    return sampled_specs[:sample_size]
+    log.info(
+        f"Generated {len(conditions)} test conditions: "
+        f"{len(task_specs)} tasks × {len(init_prior_values)} init_priors"
+    )
+    return conditions
 
 
 def _resolve_task_argument(task_arg: str) -> Optional[str]:
@@ -337,6 +331,9 @@ SCENE_POSITIONS_DIR = (
     ASSETS_ROOT / "scene_knowledge" / "kitchen" / "object_init_positions"
 )
 OUTPUT_TUNE_DIR = ASSETS_ROOT / "tune"
+
+# Init Prior 값들 - 다양한 불확실성 수준을 나타냄
+DEFAULT_INIT_PRIOR_VALUES = [60.0, 80.0, 100.0, 120.0, 140.0]
 
 TUNING_TASK_NAMES_LIST, TASK_SCENE_LOOKUP = _discover_task_files(TASK_FILES_DIR)
 if not TUNING_TASK_NAMES_LIST:
@@ -1095,6 +1092,7 @@ def _run_single_task_for_trial(
     params: Dict[str, float],
     scene_name: str,
     case_name: str,
+    init_prior_mean: float,
     controller_instance: Any,
     nav_graph: Dict,
     initial_scene_positions: Dict,
@@ -1108,12 +1106,14 @@ def _run_single_task_for_trial(
         params: 하이퍼파라미터 묶음.
         scene_name: 실행할 AI2-THOR 씬 이름.
         case_name: 태스크가 속한 케이스 디렉터리 명.
+        init_prior_mean: 초기 prior mean 값 (불확실성 수준).
         controller_instance: (미사용) 호환성 유지용.
         nav_graph: (미사용) 호환성 유지용.
         initial_scene_positions: (미사용) 호환성 유지용.
     """
 
     # 임시 디렉토리 생성 (trajectory log 저장용)
+    breakpoint()
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir_path = Path(temp_dir)
         traj_log_path = temp_dir_path / "trajectory_log.json"
@@ -1139,7 +1139,7 @@ def _run_single_task_for_trial(
             "--factor_alpha",
             str(params.get("factor_alpha", 0.001)),
             "--init_prior_mean",
-            str(params.get("init_prior_mean", INIT_PRIOR_MEAN)),
+            str(init_prior_mean),
             "--init_prior_variance",
             str(INIT_PRIOR_VARIANCE),
             "--log-level",
@@ -1312,46 +1312,41 @@ def _calculate_task_objective(
 
 def objective(
     trial: optuna.Trial,
-    task_specs: List[TaskSpec],
-    n_samples_per_trial: int,
+    test_conditions: List[TestCondition],
 ) -> float:
-    """Optuna 목적 함수: 각 트라이얼은 멀티-씬 태스크 샘플을 사용합니다."""
+    """Optuna 목적 함수: 모든 test condition(task × init_prior 조합)을 전수 평가합니다."""
     params = {
-        "beta": trial.suggest_float("beta", 1, 10.0, step=0.1, log=False),
+        "beta": trial.suggest_float("beta", 1, 8.0, step=0.1, log=False),
         "gamma": trial.suggest_float("gamma", 0.01, 0.5, log=True),
     }
     log.info(
         f"\n--- Starting Trial {trial.number} | Params: b={params['beta']:.3f}, g={params['gamma']:.3f} ---"
     )
+    log.info(f"  Evaluating ALL {len(test_conditions)} test conditions (full coverage)")
 
-    if not task_specs:
-        log.error("No task specifications available for tuning.")
+    if not test_conditions:
+        log.error("No test conditions available for tuning.")
         return CRITICAL_FAILURE_PENALTY
 
     try:
-        # --- 태스크 샘플링 (전달받은 task_paths_to_tune 사용) ---
-        sampled_task_specs = _sample_balanced_task_specs(
-            task_specs, n_samples_per_trial
-        )
-        log.info(f"  Using {len(sampled_task_specs)} sampled tasks for this trial.")
-        # --- 샘플링 설정 끝 ---
-
         total_objective_value = 0.0
         total_computation_time = 0.0
         num_completed_tasks = 0
         num_failed_tasks = 0
         task_results_for_trial: List[Dict] = []
 
-        if not sampled_task_specs:
-            log.error(
-                "No tasks sampled for tuning. Returning critical failure penalty."
-            )
-            return CRITICAL_FAILURE_PENALTY
-
-        # --- 샘플링된 태스크 루프 ---
-        for task_index, task_spec in enumerate(sampled_task_specs):
+        # --- 모든 조건 전수 평가 ---
+        for condition_index, condition in enumerate(test_conditions):
+            task_spec = condition.task_spec
             task_path = task_spec.absolute_path
             instruction_arg = task_spec.instruction_filename
+            init_prior = condition.init_prior_mean
+
+            log.debug(
+                f"  [{condition_index+1}/{len(test_conditions)}] "
+                f"{task_spec.scene_name}/{task_path.stem} (prior={init_prior:.2f})"
+            )
+
             task_result = _run_single_task_for_trial(
                 task_path=task_path,
                 instruction_arg=instruction_arg,
@@ -1359,6 +1354,7 @@ def objective(
                 params=params,
                 scene_name=task_spec.scene_name,
                 case_name=task_spec.case_name,
+                init_prior_mean=init_prior,
                 controller_instance=None,
                 nav_graph=None,
                 initial_scene_positions={},
@@ -1366,11 +1362,12 @@ def objective(
 
             if task_result is None:
                 log.error(
-                    f"T{trial.number}, Task {task_path.stem}: Simulation function returned None. Max penalty."
+                    f"T{trial.number}, Condition {condition.condition_id}: Simulation returned None. Max penalty."
                 )
                 task_result = {
                     "task_name": task_path.stem,
                     "scene_name": task_spec.scene_name,
+                    "init_prior_mean": init_prior,
                     "success_rate": 0.0,
                     "tsr_score": 0.0,
                     "gcr_score": 0.0,
@@ -1380,8 +1377,9 @@ def objective(
                 is_valid = False
 
             else:
+                task_result["init_prior_mean"] = init_prior
                 task_objective, is_valid = _calculate_task_objective(
-                    task_result, trial.number, task_path.stem
+                    task_result, trial.number, condition.condition_id
                 )
 
             total_objective_value += task_objective
@@ -1394,25 +1392,26 @@ def objective(
             task_results_for_trial.append(task_result)
 
             # --- 조기 중단 (Pruning)을 위한 중간 보고 ---
-            current_avg_objective = total_objective_value / (task_index + 1)
-            trial.report(current_avg_objective, step=task_index)
+            current_avg_objective = total_objective_value / (condition_index + 1)
+            trial.report(current_avg_objective, step=condition_index)
             if trial.should_prune():
                 log.info(
-                    f"Trial {trial.number} pruned at step {task_index} (Task: {task_path.stem})."
+                    f"Trial {trial.number} pruned at step {condition_index} "
+                    f"(Condition: {condition.condition_id})."
                 )
                 raise optuna.TrialPruned()
             # --- 중간 보고 끝 ---
 
-        # --- 최종 평균 계산 시 샘플링된 태스크 수 사용 ---
-        num_tasks_run = len(sampled_task_specs)
+        # --- 최종 평균 계산 (전체 조건에 대해) ---
+        num_conditions_run = len(test_conditions)
         average_objective_value = (
-            total_objective_value / num_tasks_run
-            if num_tasks_run > 0
+            total_objective_value / num_conditions_run
+            if num_conditions_run > 0
             else CRITICAL_FAILURE_PENALTY
         )
         average_computation_time = (
-            total_computation_time / num_tasks_run
-            if num_tasks_run > 0
+            total_computation_time / num_conditions_run
+            if num_conditions_run > 0
             else float("inf")
         )
 
@@ -1432,21 +1431,23 @@ def objective(
         trial.set_user_attr("avg_completed_makespan", avg_completed_makespan)
         trial.set_user_attr("avg_computation_time", average_computation_time)
 
-        # Average evaluation scores
+        # Average evaluation scores across all conditions
         avg_tsr = (
-            sum(r.get("tsr_score", 0.0) for r in task_results_for_trial) / num_tasks_run
-            if num_tasks_run > 0
+            sum(r.get("tsr_score", 0.0) for r in task_results_for_trial)
+            / num_conditions_run
+            if num_conditions_run > 0
             else 0.0
         )
         avg_gcr = (
-            sum(r.get("gcr_score", 0.0) for r in task_results_for_trial) / num_tasks_run
-            if num_tasks_run > 0
+            sum(r.get("gcr_score", 0.0) for r in task_results_for_trial)
+            / num_conditions_run
+            if num_conditions_run > 0
             else 0.0
         )
         avg_makespan_score = (
             sum(r.get("makespan_score", 0.0) for r in task_results_for_trial)
-            / num_tasks_run
-            if num_tasks_run > 0
+            / num_conditions_run
+            if num_conditions_run > 0
             else 0.0
         )
 
@@ -1455,11 +1456,20 @@ def objective(
         trial.set_user_attr("makespan_score", avg_makespan_score)
         trial.set_user_attr(
             "scenes_evaluated",
-            sorted({spec.scene_name for spec in sampled_task_specs}),
+            sorted({cond.task_spec.scene_name for cond in test_conditions}),
         )
+        trial.set_user_attr(
+            "init_priors_evaluated",
+            sorted({cond.init_prior_mean for cond in test_conditions}),
+        )
+        trial.set_user_attr("total_conditions_tested", num_conditions_run)
 
         failed_task_details = [
-            {"name": r.get("task_name"), "status": r.get("status")}
+            {
+                "name": r.get("task_name"),
+                "status": r.get("status"),
+                "init_prior": r.get("init_prior_mean"),
+            }
             for r in task_results_for_trial
             if r.get("status") != "Completed"
         ]
@@ -1489,9 +1499,9 @@ def objective(
             avg_comp_time_str = "inf"
 
         log.info(
-            f"--- Trial {trial.number} Finished --- Avg Objective (Sampled): {avg_obj_str} "
-            f"(Completed OK: {num_completed_tasks}, Failed/Penalized: {num_failed_tasks} / Total Sampled: {num_tasks_run}) "
-            f"Avg Makespan (Completed): {avg_makespan_str} | Avg Comp Time: {avg_comp_time_str}s"
+            f"--- Trial {trial.number} Finished --- Avg Objective (All Conditions): {avg_obj_str} "
+            f"(Valid: {num_completed_tasks}, Failed: {num_failed_tasks} / Total: {num_conditions_run}) "
+            f"Avg Makespan: {avg_makespan_str} | Avg TSR: {avg_tsr:.3f}"
         )
 
         if math.isnan(average_objective_value) or math.isinf(average_objective_value):
@@ -1517,9 +1527,9 @@ def objective(
 def run_optuna_study(
     n_trials: int,
     timeout_seconds: Optional[int],
-    task_specs: List[TaskSpec],
+    test_conditions: List[TestCondition],
     scenes_evaluated: List[str],
-    n_samples_per_trial: int,
+    init_priors_evaluated: List[float],
     n_jobs: int,
 ):
     """Optuna 하이퍼파라미터 튜닝 스터디를 설정하고 실행합니다."""
@@ -1540,12 +1550,18 @@ def run_optuna_study(
         log.warning("Failed to ensure CSV header. CSV logging might be incomplete.")
 
     log.info(f"Creating/Loading Optuna study: '{study_name}' Storage: '{storage_name}'")
+    log.info(
+        f"Full coverage evaluation: {len(test_conditions)} conditions "
+        f"(scenes={len(scenes_evaluated)}, init_priors={len(init_priors_evaluated)})"
+    )
+
     try:
         sampler = optuna.samplers.TPESampler(
-            seed=42, n_startup_trials=15, multivariate=True
+            seed=42, n_startup_trials=10, multivariate=True
         )
+        # Pruner 설정: 전수 평가이므로 더 보수적으로 설정
         pruner = optuna.pruners.MedianPruner(
-            n_startup_trials=15, n_warmup_steps=0, interval_steps=1
+            n_startup_trials=10, n_warmup_steps=100, interval_steps=5
         )
 
         study = optuna.create_study(
@@ -1561,17 +1577,15 @@ def run_optuna_study(
         return
 
     log.info(
-        "Starting optimization with %d trials (timeout=%s, n_jobs=%d, scenes=%s)...",
+        "Starting optimization with %d trials (timeout=%s, n_jobs=%d)...",
         n_trials,
         timeout_seconds,
         n_jobs,
-        scenes_evaluated,
     )
     try:
         objective_func = functools.partial(
             objective,
-            task_specs=task_specs,
-            n_samples_per_trial=n_samples_per_trial,
+            test_conditions=test_conditions,
         )
 
         study.optimize(
@@ -1715,15 +1729,16 @@ if __name__ == "__main__":
         help="Directory to save CSV results",
     )
     parser.add_argument(
-        "--n_samples_per_trial",
-        type=int,
-        default=5,
-        help="Number of tasks to sample per trial",
+        "--init_priors",
+        nargs="+",
+        type=float,
+        default=None,
+        help="List of init_prior_mean values to evaluate default[60.0, 80.0, 100.0, 120.0, 140.0]",
     )
     parser.add_argument(
         "--n_jobs",
         type=int,
-        default=1,
+        default=12,
         help="Number of parallel jobs for Optuna trials",
     )
 
@@ -1739,8 +1754,14 @@ if __name__ == "__main__":
     N_TRIALS_TO_RUN = args.n_trials
     TIMEOUT_TUNING_SECONDS = args.timeout
     OUTPUT_TUNE_DIR = Path(args.output_dir)
-    N_SAMPLES_PER_TRIAL = args.n_samples_per_trial
     N_JOBS = args.n_jobs
+
+    # init_prior 값들 설정
+    if args.init_priors:
+        init_priors_to_use = sorted(set(args.init_priors))
+    else:
+        init_priors_to_use = DEFAULT_INIT_PRIOR_VALUES
+    log.info(f"Init prior values to evaluate: {init_priors_to_use}")
 
     if args.tasks is not None:
         resolved_task_names = []
@@ -1785,36 +1806,43 @@ if __name__ == "__main__":
         )
         sys.exit(1)
 
+    # 전수 조합 생성: task_specs × init_priors
+    test_conditions = _generate_all_test_conditions(
+        task_specs_for_study, init_priors_to_use
+    )
+
     scenes_in_use = sorted({spec.scene_name for spec in task_specs_for_study})
     scene_counts = {
         scene: sum(1 for spec in task_specs_for_study if spec.scene_name == scene)
         for scene in scenes_in_use
     }
 
-    log.info(f"--- Starting Heuristic Tuning ---")
+    log.info(f"--- Starting Heuristic Tuning (Full Coverage Mode) ---")
     log.info("Scenes selected: %s", scene_counts)
+    log.info("Init priors: %s", init_priors_to_use)
     log.info(
-        "Tasks for Tuning (%d): %s",
+        "Tasks per scene: %d tasks × %d init_priors = %d conditions per trial",
         len(task_specs_for_study),
-        (
-            task_name_candidates
-            if len(task_name_candidates) < 10
-            else f"{task_name_candidates[:10]}..."
-        ),
+        len(init_priors_to_use),
+        len(test_conditions),
     )
     log.info(f"Number of Trials: {N_TRIALS_TO_RUN}")
     log.info(
         f"Timeout (seconds): {TIMEOUT_TUNING_SECONDS if TIMEOUT_TUNING_SECONDS else 'None'}"
     )
     log.info(f"Output directory: {OUTPUT_TUNE_DIR}")
+    log.info(
+        f"Expected evaluations per trial: {len(test_conditions)} "
+        f"({len(scenes_in_use)} scenes × {len(task_specs_for_study)//len(scenes_in_use) if scenes_in_use else 0} tasks/scene × {len(init_priors_to_use)} priors)"
+    )
 
     try:
         run_optuna_study(
             n_trials=N_TRIALS_TO_RUN,
             timeout_seconds=TIMEOUT_TUNING_SECONDS,
-            task_specs=task_specs_for_study,
+            test_conditions=test_conditions,
             scenes_evaluated=scenes_in_use,
-            n_samples_per_trial=N_SAMPLES_PER_TRIAL,
+            init_priors_evaluated=init_priors_to_use,
             n_jobs=N_JOBS,
         )
     except Exception as main_e:
