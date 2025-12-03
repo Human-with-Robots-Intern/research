@@ -33,6 +33,7 @@ from src.utils.config.constants import (
     MONITORING_SPLIT_TOLERANCE_ABS,
     SIMULATION_DEPTH,
     WAIT_TIME_UPPER_BOUND,
+    MONITORING_ENABLED
 )
 from src.utils.task import TaskUtil
 
@@ -503,7 +504,7 @@ class Scheduler:
         need_monitor, due_info = self._should_subtask_split_with_monitoring(
             curr_node, candidate
         )
-        if need_monitor:
+        if need_monitor and MONITORING_ENABLED:
             log.debug(
                 f"[_expand_single_subtask] Subtask {candidate.subtask.name} requires monitoring-based splitting."
             )
@@ -554,7 +555,7 @@ class Scheduler:
             candidate.subtask, "_monitoring_executed", False
         )
 
-        if wants_monitoring:
+        if wants_monitoring and MONITORING_ENABLED:
             log.debug(
                 f"[_expand_single_wait] Subtask {candidate.subtask.name} (non-critical) will wait WITH monitoring."
             )
