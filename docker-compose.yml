@@ -28,7 +28,7 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
-      - DISPLAY=${DISPLAY:-:99}
+      - DISPLAY=${DISPLAY}
       - VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
       # HTTP bridge endpoint 
       - ROS_BRIDGE_URL=${ROS_BRIDGE_URL:-http://ros:8000}
@@ -37,6 +37,8 @@ services:
     #     condition: service_healthy
     networks:
       - uttp_net
+
+ 
 
   ros:
     build:
@@ -47,12 +49,21 @@ services:
         - GID=${GID}
         - USERNAME=${USERNAME}
     container_name: ros
+    network_mode: host
+    privileged: true
+    cap_add:
+      - SYS_NICE
+      - IPC_LOCK
+    ulimits:
+      rtprio: 99
+      memlock: -1
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/ttyUSB0:/dev/ttyUSB0
     volumes:
       - .:/app
-    
-    ports:
-      - "5680:5679"  # Python debugger port for ros
-      - "8000:8000"  # FastAPI bridge port
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw # 디스플레이 소켓 마운트
+      - /dev:/dev  # 시리얼 포트 접근을 위해 /dev 전체 마운트
     stdin_open: true
     tty: true
     command: ["./scripts/run_with_ros_env.sh", "uvicorn", "ttp_client.ros_bridge_server:app", "--host", "0.0.0.0", "--port", "8000"]
@@ -67,9 +78,11 @@ services:
     environment:
       - PYTHONPATH=/app:/app/src:/app/ros/ttp_ws/ttp_client
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-    networks:
-      - uttp_net
+      # - ROS_DOMAIN_ID=0
+      # - CYCLONEDDS_URI=<CycloneDDS><Domain><General><NetworkInterfaceAddress>eno1</NetworkInterfaceAddress></General></Domain></CycloneDDS>
+      # - DISPLAY=${DISPLAY}
 
 networks:
   uttp_net:
     driver: bridge
+

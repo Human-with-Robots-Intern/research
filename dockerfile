@@ -47,8 +47,8 @@ FROM base AS ros_builder
 RUN add-apt-repository universe && \
     curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null && \
-    apt-get update && \
-    apt-get install -y ros-humble-desktop ros-dev-tools ros-humble-rmw-cyclonedds-cpp && \
+    apt update && \
+    apt install -y ros-humble-desktop ros-dev-tools ros-humble-rmw-cyclonedds-cpp && \
     rm -rf /var/lib/apt/lists/* && \
     # COPY 명령어의 대상 디렉토리가 존재하도록 보장
     mkdir -p /etc/ros /usr/share/ament_index
@@ -160,8 +160,9 @@ COPY --from=ros_builder /usr/lib/python3/dist-packages/ /usr/lib/python3/dist-pa
 COPY --from=ros_builder /usr/share/ament_index/ /usr/share/ament_index/
 COPY --from=ros_builder /etc/ros/ /etc/ros/
 
-# --- ROS 환경 자동 설정 ---
-RUN echo "source /opt/ros/humble/setup.bash" >> /home/${USERNAME}/.bashrc
+# 동적 로더가 ROS 라이브러리를 찾을 수 있도록 설정
+RUN echo "/opt/ros/humble/lib" > /etc/ld.so.conf.d/ros2.conf && ldconfig
+# 주의: .bashrc 설정은 ros_development 스테이지에서 USER 전환 후 수행
 
 # ==================================================================================================
 # Stage 8: TTP 개발용 이미지 (ttp_development)
@@ -169,8 +170,8 @@ RUN echo "source /opt/ros/humble/setup.bash" >> /home/${USERNAME}/.bashrc
 FROM ttp_base AS ttp_development
 
 # --- 개발에 필요한 빌드 도구들 설치 ---
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt update && \
+    apt install -y --no-install-recommends \
     build-essential \
     git \
     curl \
@@ -198,6 +199,11 @@ RUN apt-get update && \
     wget \
     gnupg \
     cmake \
+    libpoco-dev \
+    libeigen3-dev \
+    iputils-ping \
+    iproute2 \
+    ethtool \
     python3-pip \
     python3-dev \
     graphviz \
@@ -206,7 +212,28 @@ RUN apt-get update && \
     libtinyxml2-9 \
     libconsole-bridge1.0 \
     libpython3.10 \
-    libspdlog1 && \
+    libspdlog1 \
+    libyaml-cpp0.7 \
+    libassimp5 \
+    python3-pyqt5 \
+    python3-pyqt5.qtsvg \
+    libqt5svg5 \
+    libxkbcommon-x11-0 && \
+    rm -rf /var/lib/apt/lists/*
+
+# --- ROS APT 저장소 등록 및 rviz2 종속 라이브러리 설치(런타임 보장) ---
+RUN set -eux; \
+    add-apt-repository -y universe; \
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg; \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" > /etc/apt/sources.list.d/ros2.list; \
+    apt update; \
+    apt install -y --no-install-recommends ros-humble-ur ros-humble-desktop ros-humble-nav2-msgs libmodbus-dev; \
     rm -rf /var/lib/apt/lists/*
 
 USER $USERNAME
+
+# --- 사용자 .bashrc에 ROS 환경 자동 설정 (USER 전환 후 실행) ---
+RUN echo "" >> /home/${USERNAME}/.bashrc && \
+    echo "# ROS 환경 자동 설정" >> /home/${USERNAME}/.bashrc && \
+    echo "source /opt/ros/humble/setup.bash" >> /home/${USERNAME}/.bashrc && \
+    echo "cd /app" >> /home/${USERNAME}/.bashrc

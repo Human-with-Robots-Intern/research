@@ -2,3 +2,5 @@
 uvicorn[standard]==0.38.0
 fastapi==0.120.1
 empy==3.3.4
+pyrealsense2
+transforms3d
