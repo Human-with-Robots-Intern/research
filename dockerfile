@@ -186,7 +186,34 @@ RUN apt-get update && \
     fonts-liberation && \
     rm -rf /var/lib/apt/lists/*
 
+# --- NVIDIA OpenGL/EGL 설정 (블로그 참고: https://alida.tistory.com/24) ---
+# nvidia/opengl 이미지에서 필요한 라이브러리 및 설정 복사
+COPY --from=nvidia/opengl:1.0-glvnd-runtime-ubuntu22.04 \
+     /usr/lib/x86_64-linux-gnu \
+     /usr/lib/x86_64-linux-gnu
+
+# NVIDIA EGL Vendor 설정 파일 생성 (api_version 1.3 포함)
+# NVIDIA Runtime이 /usr/share/glvnd를 덮어쓰므로 /opt에 생성
+# "api_version" : "1.3 을 적어줘야 현재 버전에서 작동하는데 덮어쓰면 권한문제가 심각함. 임의로 생성.
+RUN mkdir -p /opt/egl_vendor.d && \
+    echo '{\n\
+    "file_format_version" : "1.0.0",\n\
+    "ICD" : {\n\
+        "library_path" : "libEGL_nvidia.so.0",\n\
+        "api_version" : "1.3"\n\
+    }\n\
+}' > /opt/egl_vendor.d/10_nvidia.json
+
+# GLVND 설정
+RUN echo '/usr/lib/x86_64-linux-gnu' >> /etc/ld.so.conf.d/glvnd.conf && \
+    ldconfig && \
+    echo '/usr/lib/x86_64-linux-gnu/libGL.so.1' >> /etc/ld.so.preload && \
+    echo '/usr/lib/x86_64-linux-gnu/libEGL.so.1' >> /etc/ld.so.preload
+
+# 사용자 전환
 USER $USERNAME
+
+CMD ["tail", "-f", "/dev/null"]
 
 # ==================================================================================================
 # Stage 9: ROS 개발용 이미지 (ros_development)
@@ -199,6 +226,7 @@ RUN apt-get update && \
     build-essential \
     git \
     curl \
+    nano \
     wget \
     gnupg \
     cmake \
