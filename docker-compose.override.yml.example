@@ -1,0 +1,13 @@
+services:
+  ttp:
+    # GPU 설정 오버라이드 (개인 GPU 번호)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['4', '5', '6', '7']  # 원하는 GPU 번호로 변경
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=4,5,6,7  # GPU 번호와 일치
+
