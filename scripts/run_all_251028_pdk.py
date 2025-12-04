@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Tuple
 import yaml
 
 from src.utils.common import create_module_logger
-from src.utils.config.constants import ASSETS_PATH, LOG_PATH, RESULT_PATH, SCRIPTS_PATH
+from src.utils.config.constants import ASSETS_PATH, LOG_PATH, RESULT_PATH, SCRIPTS_PATH, INIT_PRIOR_VARIANCE
 
 # Create a single timestamp for the entire script run
 RUN_TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
@@ -77,23 +77,23 @@ class InitPriorConfig(Enum):
 
     OVER_ESTIMATE = {
         "init_prior_mean": 140.0,
-        "init_prior_variance": 100.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
     }
     OVER_MEDIUM_ESTIMATE = {
         "init_prior_mean": 120.0,
-        "init_prior_variance": 100.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
     }
     CORRECT_ESTIMATE = {
         "init_prior_mean": 100.0,
-        "init_prior_variance": 100.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
     }
     UNDER_MEDIUM_ESTIMATE = {
         "init_prior_mean": 80.0,
-        "init_prior_variance": 100.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
     }
     UNDER_ESTIMATE = {
         "init_prior_mean": 60.0,
-        "init_prior_variance": 100.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
     }
 
 
@@ -219,6 +219,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--skip-completed",
+        default=True,
         action="store_true",
         help=(
             "Skip tasks when a corresponding result JSON already exists (mirrors run_all.py behavior)."
@@ -593,6 +594,14 @@ def _find_latest_result_json_for_task(
     else:
         suffix = "_simulation" if config.get("simulation", False) else ""
         approach_name = f"{baseline_path.stem}{suffix}"
+    
+    # Create list of approach names to search
+    # BUG FIX: save_scene_state uses "cpm" but result_save uses "cpm_simulation"
+    # So we need to search both versions
+    approach_names_to_search = [approach_name]
+    if approach_name.endswith("_simulation"):
+        # Also search without _simulation suffix (e.g., "cpm" for "cpm_simulation")
+        approach_names_to_search.append(approach_name.replace("_simulation", ""))
 
     # Robust instruction keys: keep numeric prefix, normalize spaces to underscores
     raw_stem = Path(instruction_path).stem
@@ -611,11 +620,13 @@ def _find_latest_result_json_for_task(
             # Exact folder (no numeric suffix)
             exact_dir = base_dir / key
             if exact_dir.is_dir():
-                json_path = (
-                    exact_dir / scene_name / approach_name / "end_state.json"
-                )
-                if json_path.exists():
-                    candidates.append((0, json_path))
+                # Try all approach name variations
+                for approach_name_variant in approach_names_to_search:
+                    json_path = (
+                        exact_dir / scene_name / approach_name_variant / "end_state.json"
+                    )
+                    if json_path.exists():
+                        candidates.append((0, json_path))
 
             # Numeric suffixed folders: key_1, key_2, ...
             for task_dir in base_dir.glob(f"{key}_*"):
@@ -625,9 +636,11 @@ def _find_latest_result_json_for_task(
                 if not m:
                     continue
                 num = int(m.group(1))
-                json_path = task_dir / scene_name / approach_name / "end_state.json"
-                if json_path.exists():
-                    candidates.append((num, json_path))
+                # Try all approach name variations
+                for approach_name_variant in approach_names_to_search:
+                    json_path = task_dir / scene_name / approach_name_variant / "end_state.json"
+                    if json_path.exists():
+                        candidates.append((num, json_path))
 
     if not candidates:
         return None
