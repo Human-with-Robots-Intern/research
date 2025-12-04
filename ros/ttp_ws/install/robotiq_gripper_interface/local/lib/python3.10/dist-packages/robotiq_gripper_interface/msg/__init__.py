@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robotiq_gripper_interface/rosidl_generator_py/robotiq_gripper_interface/msg/__init__.py

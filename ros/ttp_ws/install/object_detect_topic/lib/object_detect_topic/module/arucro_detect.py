@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/object_detect_topic/module/arucro_detect.py

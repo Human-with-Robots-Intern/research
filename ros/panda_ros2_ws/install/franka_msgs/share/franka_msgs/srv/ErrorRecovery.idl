@@ -1,0 +1,17 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from franka_msgs/srv/ErrorRecovery.srv
+// generated code does not contain a copyright notice
+
+
+module franka_msgs {
+  module srv {
+    struct ErrorRecovery_Request {
+      uint8 structure_needs_at_least_one_member;
+    };
+    struct ErrorRecovery_Response {
+      boolean success;
+
+      string error;
+    };
+  };
+};

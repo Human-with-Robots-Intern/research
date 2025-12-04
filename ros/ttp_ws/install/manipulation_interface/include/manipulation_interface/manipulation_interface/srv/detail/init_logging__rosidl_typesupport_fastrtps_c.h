@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/manipulation_interface/rosidl_typesupport_fastrtps_c/manipulation_interface/srv/detail/init_logging__rosidl_typesupport_fastrtps_c.h

@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/object_detect_interface/rosidl_generator_c/object_detect_interface/srv/detail/detect_objects__type_support.h

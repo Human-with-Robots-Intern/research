@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/manipulation_interface/rosidl_cmake/srv/InitLogging_Response.msg

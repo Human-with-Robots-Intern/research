@@ -1,0 +1,6 @@
+float32 orientation # range : [-pi, pi] 
+---
+bool result
+---
+geometry_msgs/PoseStamped current_pose
+float32 distance_remaining

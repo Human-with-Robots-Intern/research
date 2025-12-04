@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robotiq_gripper_interface/rosidl_cmake/srv/SetGripperStateCommand_Request.msg

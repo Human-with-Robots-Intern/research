@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robotiq_gripper_interface/rosidl_generator_c/robotiq_gripper_interface/srv/get_gripper_state_command.h

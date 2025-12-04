@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/manipulation_interface/rosidl_generator_c/manipulation_interface/srv/detail/init_logging__functions.h

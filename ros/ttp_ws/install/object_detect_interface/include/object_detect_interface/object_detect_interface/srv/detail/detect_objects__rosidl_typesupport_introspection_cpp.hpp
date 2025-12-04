@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/object_detect_interface/rosidl_typesupport_introspection_cpp/object_detect_interface/srv/detail/detect_objects__rosidl_typesupport_introspection_cpp.hpp

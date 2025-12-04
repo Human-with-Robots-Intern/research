@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/manipulation_interface/rosidl_generator_py/manipulation_interface/__init__.py

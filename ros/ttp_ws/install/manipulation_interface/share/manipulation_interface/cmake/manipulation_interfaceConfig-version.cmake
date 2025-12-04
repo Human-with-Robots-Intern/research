@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/manipulation_interface/ament_cmake_core/manipulation_interfaceConfig-version.cmake

@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robot_control_interface/ament_cmake_environment_hooks/pythonpath.sh

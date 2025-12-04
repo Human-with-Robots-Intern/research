@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/object_detect_interface/rosidl_generator_py/object_detect_interface/msg/_object_data.py

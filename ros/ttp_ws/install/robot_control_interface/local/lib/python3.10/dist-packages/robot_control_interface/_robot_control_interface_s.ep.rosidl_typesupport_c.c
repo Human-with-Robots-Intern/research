@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robot_control_interface/rosidl_generator_py/robot_control_interface/_robot_control_interface_s.ep.rosidl_typesupport_c.c

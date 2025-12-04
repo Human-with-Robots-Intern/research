@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robot_control_interface/rosidl_generator_py/robot_control_interface/__init__.py

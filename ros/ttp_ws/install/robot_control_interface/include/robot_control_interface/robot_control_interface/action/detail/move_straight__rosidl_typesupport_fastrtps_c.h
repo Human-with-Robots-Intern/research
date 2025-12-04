@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robot_control_interface/rosidl_typesupport_fastrtps_c/robot_control_interface/action/detail/move_straight__rosidl_typesupport_fastrtps_c.h

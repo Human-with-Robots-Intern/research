@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/object_detect_interface/ament_cmake_core/object_detect_interfaceConfig-version.cmake

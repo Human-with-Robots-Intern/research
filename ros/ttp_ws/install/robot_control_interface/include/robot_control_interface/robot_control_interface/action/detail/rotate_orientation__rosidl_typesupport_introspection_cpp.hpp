@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/robot_control_interface/rosidl_typesupport_introspection_cpp/robot_control_interface/action/detail/rotate_orientation__rosidl_typesupport_introspection_cpp.hpp

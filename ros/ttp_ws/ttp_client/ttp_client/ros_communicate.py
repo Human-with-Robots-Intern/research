@@ -109,6 +109,7 @@ def communicate(action_parts: List[int]) -> bool:
 
     try:
         response = future.result()
+        _ros_client_node.get_logger().info(f"DEBUG: Service response: {response}, Success: {response.success}")
         if response.success:
             _ros_client_node.get_logger().info(f"Action '{action_str}' succeeded.")
             return True
@@ -126,24 +127,16 @@ def communicate(action_parts: List[int]) -> bool:
 
 def main(args: list[str] | None = None) -> None:
     """Main function to run a test communication."""
-    translator = InstructionTranslator()
+
     try:
         init_ros_communication(args=args)
-        test_actions = [
-            "NAVIGATE_TO banana", 
-            "GRASP banana",
-            "NAVIGATE_TO cooker",
-            "PLACE_INSIDE cooker",
-            "NAVIGATE_TO banana",
-            "GRASP banana"
+        translated_primitive_actions = [
+            [0 ,1 ,1 ,1],
+            [0 ,1 ,1 ,1],
         ]
-        for test_action in test_actions:
-            translated_primitive_action = translator.translate(
-            instruction=test_action
-        )
+        for translated_primitive_action in translated_primitive_actions:
             success = communicate(translated_primitive_action)
             print(f"Test action success: {success}")
-
     finally:
         shutdown_ros_communication()
 

@@ -1,0 +1,1 @@
+/app/ros/ttp_ws/build/object_detect_interface/rosidl_cmake/srv/DetectObjects_Response.msg
