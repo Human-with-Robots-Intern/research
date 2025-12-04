@@ -8,12 +8,11 @@ services:
         - UID=${UID}
         - GID=${GID}
         - USERNAME=${USERNAME}
+        - PYTORCH_INDEX_URL=${PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}
     container_name: ttp
     volumes:
       - .:/app
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - /usr/share/vulkan/icd.d:/usr/share/vulkan/icd.d:ro
-      - /usr/share/glvnd/egl_vendor.d:/usr/share/glvnd/egl_vendor.d:ro
     devices:
       - /dev/dri:/dev/dri
     ports:
@@ -22,19 +21,26 @@ services:
       - "6080:6080"  # Web VNC port
     stdin_open: true
     tty: true
-    command: tail -f /dev/null
     working_dir: /app
-    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
     environment:
-      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_VISIBLE_DEVICES=0
       - NVIDIA_DRIVER_CAPABILITIES=all
-      - DISPLAY=${DISPLAY}
-      - VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+      # - VK_ICD_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json 원래는 여긴데 권한문제와 덮어쓰기 문제로 아래로 변경
+      - VK_ICD_FILENAMES=/opt/egl_vendor.d/10_nvidia.json
+      # - DISPLAY=${DISPLAY:-:99}
       # HTTP bridge endpoint 
       - ROS_BRIDGE_URL=${ROS_BRIDGE_URL:-http://ros:8000}
-    # depends_on:
-    #   ros:
-    #     condition: service_healthy
+      # Hugging Face Cache
+      - TRANSFORMERS_CACHE=/app/.cache/huggingface
+      - HF_HOME=/app/.cache/huggingface
+
     networks:
       - uttp_net
 

@@ -16,6 +16,64 @@ EXCLUSIVE_TASK_GROUPS: List[Set[str]] = [
     # 1. 'Pot' 자원 제약 그룹: Pot은 하나이므로 관련된 행위는 동시에 일어날 수 없습니다.
     #    'boil_potato'는 물을 채우고 끓이는 과정을 포함하는 상위 개념입니다.
     {"boil_potato", "fill_pot_with_water", "boil_water_with_pot"},
+    {"cook_egg", "boil_potato", "boil_water_with_pot"},
+    # faucet 으로 인한 제약 그룹 
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_apple_and_lettuce"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_a_tomato"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_a_butterknife"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_a_spatula"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_all_fork_and_spoon"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_plate_and_cup"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_plate_and_cup"
+    },
+    {
+        "fill_pot_with_water",
+        "fill_bowl_with_water",
+        "boil_water_with_pot",
+        "boil_potato",
+        "wash_apple_and_lettuce"
+    },
     # 2. 'Potato' 조리법 제약 그룹: 감자를 삶는 것과 전자레인지에 데우는 것은 동시에 할 수 없습니다.
     {"boil_potato", "heat_the_potato_using_microwave"},
     # 3. 'Bread' 조리법 제약 그룹: 빵을 데우는 두 가지 방법은 동시에 사용할 수 없습니다.
@@ -26,6 +84,33 @@ EXCLUSIVE_TASK_GROUPS: List[Set[str]] = [
     {"prepare_a_water_cup", "make_a_coffee"},
     # 6. '농산물 처리' 논리 제약 그룹: 씻는 행위와 냉장고에 넣는 행위를 동시에 명령하지 않습니다.
     {"wash_apple_and_lettuce", "put_apple_and_lettuce_in_fridge"},
+    ####
+    #real world constraints
+    # pan으로 인한 constraint
+    {
+        "cook_sausage",
+        "cook_chicken",
+        "place_pan_on_stove",
+    },
+    # plate로 인한 constraint
+    {
+        "put_banana_on_plate",
+        "cook_sausage",
+        "cook_chicken",
+        "put_tomato_on_plate",
+    },
+    # blue bowl로 인한 constraint
+    {
+        "put_tomato_in_blue_bowl",
+        "move_blue_bowl_to_sink"
+    },
+    # tomato로 인한 constraint
+    {
+        "put_tomato_on_plate",
+        "put_tomato_in_blue_bowl",
+    },
+
+
 ]
 
 
@@ -34,7 +119,7 @@ def load_and_prepare_floor_plan_tasks() -> Dict[str, Any]:
     Returns:
         A dictionary containing 'common_tasks' and scene-specific 'mixed_tasks'.
     """
-    config_path = ASSETS_PATH / "tasks" / "floorplan_tasks.json"
+    config_path = ASSETS_PATH / "tasks" / "floorplan_tasks_realworld.json"
     with open(config_path) as f:
         data: Dict[str, Any] = json.load(f)
 
@@ -142,7 +227,7 @@ def generate_instructions_for_case(
 def main() -> None:
     """Generate instructions for a 4x4 matrix of task and constraint counts."""
     # 0. Load existing instructions if the file exists
-    output_path = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata.json"
+    output_path = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251202_realworld.json"
     existing_instructions_path = (
         ASSETS_PATH / "tasks" / "decomposed_merged_251031_metadata.json"
     )
@@ -162,13 +247,13 @@ def main() -> None:
     # This dictionary will hold all generated instructions, structured by case
     all_generated_instructions: Dict[str, Any] = {}
 
-    task_counts = range(2, 6)  # Number of tasks: 2, 3, 4, 5
+    task_counts = range(2, 5)  # Number of tasks: 2, 3, 4, 5
     constraint_counts = range(
-        0, 5
+        0, 3
     )  # Number of constraints (critical tasks): 0, 1, 2, 3
 
     # Define sampling limits based on intent in comments
-    MAX_COMMON_INSTRUCTIONS = 30
+    MAX_COMMON_INSTRUCTIONS = 15
     MAX_SCENE_INSTRUCTIONS = 0
 
     # 2. Loop through all 16 cases

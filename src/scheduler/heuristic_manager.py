@@ -10,11 +10,9 @@ from src.models.dataclass import Candidate, SimulationNode
 from src.utils.common import create_module_logger
 from src.utils.config import (  # INIT_PRIOR_MEAN, # 더 이상 직접 사용하지 않거나, interaction 추정에 활용
     LARGE_NUMBER,
+    constants,
 )
 from src.utils.config.constants import (
-    ALPHA_HEURISTIC,
-    BETA_HEURISTIC,
-    GAMMA_HEURISTIC,
     GRASP_ACTION_DURATION,
     NAV_STEP_DURATION,
     PLACE_ACTION_DURATION,
@@ -42,7 +40,7 @@ class HeuristicManager:
     Cost = alpha * Navigation_Cost
            + beta * Urgency_Cost
            + gamma * Remaining_Work_Cost
-           + Penalties (Tardiness, Slack_Consumption, Monitoring_Risk)
+
     """
 
     def __init__(
@@ -58,9 +56,9 @@ class HeuristicManager:
         """
         self.action_handler = action_handler
 
-        self.alpha = ALPHA_HEURISTIC
-        self.beta = BETA_HEURISTIC
-        self.gamma = GAMMA_HEURISTIC
+        self.alpha = constants.ALPHA_HEURISTIC
+        self.beta = constants.BETA_HEURISTIC
+        self.gamma = constants.GAMMA_HEURISTIC
         log.info(
             f"HeuristicManager initialized with weights: alpha={self.alpha}, beta={self.beta}, gamma={self.gamma}"
         )
@@ -220,7 +218,7 @@ class HeuristicManager:
                     discount += data.get("info", {}).get("Interval", 0.0)
 
             if discount > 0:
-                log.debug(
+                log.info(
                     f"  Applying critical start benefit from '{executed_subtask.name}'. Discount: {discount:.2f}"
                 )
                 cp_duration = max(0.0, cp_duration - discount)
@@ -325,14 +323,24 @@ class HeuristicManager:
         cp_duration = self._calculate_critical_path_interaction_duration(
             next_tasks, next_constraints, candidate.subtask
         )
+        sum_interaction_time = sum(
+            self._get_estimated_pure_interaction_time(t) for t in next_tasks
+        )
+
         mst_time = self._calculate_mst_navigation_time(
             next_pos, next_tasks, next_scene_pos
         )
 
-        log.debug(
-            f"    RemainingWorkCost for '{candidate.subtask.name}': CP={cp_duration:.2f}, MST={mst_time:.2f} -> Total={cp_duration + mst_time:.2f}"
+        # [Modified] Use max(CP, Sum) to account for single-agent sequential execution constraint
+        # CP handles dependency chains (depth), Sum handles total volume of work (breadth)
+        base_work_time = max(cp_duration, sum_interaction_time)
+        total_cost = base_work_time + mst_time
+
+        log.info(
+            f"    RemainingWorkCost for '{candidate.subtask.name}': CP={cp_duration:.2f}, "
+            f"Sum={sum_interaction_time:.2f}, MST={mst_time:.2f} -> Total={total_cost:.2f}"
         )
-        return cp_duration + mst_time, cp_duration, mst_time
+        return total_cost, cp_duration, mst_time
 
     def calc_heuristic(
         self,
@@ -384,7 +392,7 @@ class HeuristicManager:
             + self.gamma * remaining_work_cost
         )
 
-        log.debug(
+        log.info(
             f"  Heuristic for '{candidate.subtask.name}': "
             f"CandNav({self.alpha:.1f}*{nav_cost_for_candidate:.2f})={self.alpha * nav_cost_for_candidate:.2f}, "
             f"Urg({self.beta:.1f}*{urgency_cost:.2f})={self.beta * urgency_cost:.2f} (Slack={slack:.2f}), "
@@ -447,7 +455,7 @@ class HeuristicManager:
             self.beta * wait_urgency_cost + self.gamma * remaining_work_cost
         )
 
-        log.debug(
+        log.info(
             f"  Heuristic for '{wait_candidate.subtask.name}': "
             f"WaitUrgency({self.beta:.1f}*{wait_urgency_cost:.2f})={self.beta * wait_urgency_cost:.2f}, "
             f"RemWorkAfterWait({self.gamma:.1f}*Rem[{cp_dur:.2f}+{mst_time:.2f}])={self.gamma * remaining_work_cost:.2f}, "
@@ -460,24 +468,23 @@ class HeuristicManager:
 
     def _calculate_candidate_urgency_cost(
         self, current_node: SimulationNode, candidate: Candidate
-    ) -> float:
+    ) -> Tuple[float, float]:
         """
         Calculates the urgency cost for a candidate based on its slack time.
 
-        The cost function is designed to heavily penalize tardiness while
-        rewarding early completion.
-        - Positive Slack (Early): Cost is inversely proportional to slack (1 / (slack + 1)),
-          so finishing earlier results in a lower cost approaching zero.
-        - Negative Slack (Tardy): Cost is the square of the tardiness. This creates
-          a small penalty for minor delays but a rapidly growing, large penalty
-          for significant delays.
+        Target: Slack should be close to 0 (Just-in-Time Scheduling).
+        - We use 'abs(slack)' as cost.
+        - Both being too early (positive slack) and too late (negative slack) are penalized.
+        - Larger deviations from 0 result in higher costs.
 
         Args:
             current_node: The current simulation node.
             candidate: The candidate subtask to evaluate.
 
         Returns:
-            The calculated urgency cost. Lower is more urgent.
+            A tuple containing:
+            - urgency_cost (float): The calculated urgency cost (abs(slack)).
+            - slack (float): The calculated slack time.
         """
         if not candidate.scheduling_due or candidate.scheduling_due.due_date == float(
             "inf"
@@ -497,29 +504,19 @@ class HeuristicManager:
         time_available = deadline - current_time
         slack = time_available - total_time_needed
 
-        log.debug(
+        log.info(
             f"  Urgency for '{candidate.subtask.name}': Due={deadline:.2f}, CurrT={current_time:.2f}, "
             f"AvailT={time_available:.2f}, NeedNavT={time_needed_for_nav:.2f}, NeedInteractT={time_needed_for_interaction:.2f}, "
             f"TotalNeedT={total_time_needed:.2f} => Slack={slack:.2f}"
         )
 
-        urgency_cost = 0.0
-        if candidate.is_critical:
-            # For critical tasks, the goal is to have slack be as close to 0 as possible.
-            # Being too early or too late is penalized.
-            if slack < 0:
-                tardiness = -slack
-                urgency_cost = tardiness * 10  # Heavily penalize being late
-            else:
-                # Penalize being too early to avoid blocking other tasks unnecessarily.
-                urgency_cost = slack
-
+        # [Modified] Asymmetric Urgency Cost
+        # If Slack < 0 (Late): Heavy penalty to enforce critical timing.
+        # If Slack >= 0 (Early): Extremely low penalty (0.001) to prioritize urgent tasks (EDD)
+        # but NOT punish early execution heavily.
+        if slack < 0:
+            urgency_cost = abs(slack) * 10.0
         else:
-            # For non-critical tasks, being early (positive slack) is fine (cost 0).
-            # Being late (negative slack) is penalized quadratically.
-            if slack >= 0:
-                urgency_cost = 0.0
-            else:
-                tardiness = -slack
-                urgency_cost = tardiness**2
+            urgency_cost = slack * 0.001
+
         return urgency_cost, slack

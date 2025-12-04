@@ -124,6 +124,7 @@ class RosExecutor:
             else:
                 try:
                     translated_parts = self.translator.translate(primitive_action)
+                    logger.critical(f"primitive_action: {primitive_action} translated to translated_parts: {translated_parts}")
                     response = requests.post(
                         f"{self.ros_bridge_url}/execute_translated_action",
                         json={"action_parts": translated_parts},

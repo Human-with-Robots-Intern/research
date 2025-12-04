@@ -1,6 +1,8 @@
 import argparse
 import concurrent.futures
+import gc
 import logging
+import psutil
 import re
 import shutil
 import subprocess
@@ -18,7 +20,7 @@ from typing import Any, Dict, List, Tuple
 import yaml
 
 from src.utils.common import create_module_logger
-from src.utils.config.constants import ASSETS_PATH, LOG_PATH, SCRIPTS_PATH, RESULT_PATH
+from src.utils.config.constants import ASSETS_PATH, LOG_PATH, RESULT_PATH, SCRIPTS_PATH, INIT_PRIOR_VARIANCE
 
 # Create a single timestamp for the entire script run
 RUN_TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
@@ -32,6 +34,11 @@ logger = create_module_logger(
     run_timestamp=RUN_TIMESTAMP,
 )
 MAX_RETRIES = 10
+
+# Memory management constants
+MEMORY_THRESHOLD_PERCENT = 85.0  # Pause new tasks if memory usage exceeds this
+MEMORY_CHECK_INTERVAL = 5  # Seconds between memory checks
+GC_COLLECT_AFTER_TASKS = 5  # Force garbage collection after this many tasks
 
 
 class BaselineType(Enum):
@@ -70,15 +77,23 @@ class InitPriorConfig(Enum):
 
     OVER_ESTIMATE = {
         "init_prior_mean": 140.0,
-        "init_prior_variance": 100.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
     }
-    UNDER_ESTIMATE = {
-        "init_prior_mean": 60.0,
-        "init_prior_variance": 100.0,
+    OVER_MEDIUM_ESTIMATE = {
+        "init_prior_mean": 120.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
     }
     CORRECT_ESTIMATE = {
         "init_prior_mean": 100.0,
-        "init_prior_variance": 100.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
+    }
+    UNDER_MEDIUM_ESTIMATE = {
+        "init_prior_mean": 80.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
+    }
+    UNDER_ESTIMATE = {
+        "init_prior_mean": 60.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
     }
 
 
@@ -119,6 +134,71 @@ class ExperimentTask:
     log_dir_timestamp: str
 
 
+def get_memory_usage() -> float:
+    """Get current memory usage percentage.
+
+    Returns:
+        float: Current memory usage as a percentage.
+    """
+    return psutil.virtual_memory().percent
+
+
+def wait_for_memory_available(threshold: float = MEMORY_THRESHOLD_PERCENT) -> None:
+    """Wait until memory usage drops below threshold.
+
+    Args:
+        threshold (float): Memory usage percentage threshold.
+    """
+    while get_memory_usage() > threshold:
+        logger.warning(
+            f"Memory usage at {get_memory_usage():.1f}%. Waiting for memory to free up..."
+        )
+        time.sleep(MEMORY_CHECK_INTERVAL)
+        gc.collect()
+
+
+def cleanup_subprocess(process: subprocess.Popen) -> None:
+    """Forcefully cleanup a subprocess and its children.
+
+    Args:
+        process (subprocess.Popen): The subprocess to cleanup.
+    """
+    try:
+        parent = psutil.Process(process.pid)
+        children = parent.children(recursive=True)
+        
+        # Terminate children first
+        for child in children:
+            try:
+                child.terminate()
+            except psutil.NoSuchProcess:
+                pass
+        
+        # Wait for children to terminate
+        gone, alive = psutil.wait_procs(children, timeout=3)
+        
+        # Kill any remaining children
+        for p in alive:
+            try:
+                p.kill()
+            except psutil.NoSuchProcess:
+                pass
+        
+        # Terminate parent
+        try:
+            parent.terminate()
+            parent.wait(timeout=3)
+        except (psutil.NoSuchProcess, psutil.TimeoutExpired):
+            try:
+                parent.kill()
+            except psutil.NoSuchProcess:
+                pass
+    except psutil.NoSuchProcess:
+        pass
+    except Exception as e:
+        logger.warning(f"Error cleaning up subprocess: {e}")
+
+
 def parse_arguments() -> argparse.Namespace:
     """Parse command-line arguments.
 
@@ -139,6 +219,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--skip-completed",
+        default=True,
         action="store_true",
         help=(
             "Skip tasks when a corresponding result JSON already exists (mirrors run_all.py behavior)."
@@ -232,7 +313,39 @@ def _run_script_and_log(
             cmd.extend([f"--{key}", str(value)])
 
     logger.info(f"Executing command: {' '.join(cmd)}")
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    
+    # Use Popen for better process control
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    
+    try:
+        stdout, stderr = process.communicate(timeout=3600)  # 1 hour timeout
+        returncode = process.returncode
+    except subprocess.TimeoutExpired:
+        logger.error(f"Process timeout after 1 hour. Killing process...")
+        cleanup_subprocess(process)
+        stdout, stderr = "", "Process killed due to timeout"
+        returncode = -1
+    except Exception as e:
+        logger.error(f"Error during process execution: {e}")
+        cleanup_subprocess(process)
+        raise
+    finally:
+        # Ensure process is cleaned up
+        cleanup_subprocess(process)
+    
+    # Create result object compatible with subprocess.run
+    class ProcessResult:
+        def __init__(self, returncode, stdout, stderr):
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+    
+    result = ProcessResult(returncode, stdout, stderr)
 
     log_header = f"\n--- {'SUCCESS' if result.returncode == 0 else 'FAILURE'} (Attempt {attempt}) ---\n"
     log_content = (
@@ -265,63 +378,55 @@ def worker(task: ExperimentTask) -> None:
     Args:
         task (ExperimentTask): The experiment task to execute.
     """
-    # For real-world experiments, reset object positions to default before each run.
-    if not task.is_simulation:
-        with task.file_copy_lock:
-            object_mapping_path = (
-                SCRIPTS_PATH.parent / "src/ros/ttp_ws/data/object_mapping.json"
-            )
-            object_positions_path = (
-                SCRIPTS_PATH.parent / "src/ros/ttp_ws/data/object_positions.json"
-            )
-            if object_mapping_path.exists():
-                shutil.copy2(object_mapping_path, object_positions_path)
-                logger.info(
-                    f"Initialized object positions for task: {Path(task.instruction_path).name}"
+    # Wait for memory to be available before starting
+    wait_for_memory_available()
+    
+    # Log memory usage at start
+    mem_start = get_memory_usage()
+    logger.info(f"Starting task with memory usage: {mem_start:.1f}%")
+    
+    try:
+        # For real-world experiments, reset object positions to default before each run.
+        if not task.is_simulation:
+            with task.file_copy_lock:
+                object_mapping_path = (
+                    SCRIPTS_PATH.parent / "src/ros/ttp_ws/data/object_mapping.json"
                 )
-            else:
-                logger.warning(
-                    f"Source file for object positions not found: {object_mapping_path}"
+                object_positions_path = (
+                    SCRIPTS_PATH.parent / "src/ros/ttp_ws/data/object_positions.json"
                 )
+                if object_mapping_path.exists():
+                    shutil.copy2(object_mapping_path, object_positions_path)
+                    logger.info(
+                        f"Initialized object positions for task: {Path(task.instruction_path).name}"
+                    )
+                else:
+                    logger.warning(
+                        f"Source file for object positions not found: {object_mapping_path}"
+                    )
 
-    b_type, b_path = task.baseline_info
-    instr_path_obj = Path(task.instruction_path)
+        b_type, b_path = task.baseline_info
+        instr_path_obj = Path(task.instruction_path)
 
-    log_file_name = f"{b_path.stem}_{task.ablation_name}_{task.init_prior_name}_{task.case_name}_{task.scene_name}_{instr_path_obj.stem}_{task.try_idx + 1}.log"
-    log_file_path = LOG_PATH / f"{task.log_dir_timestamp}-worker_logs" / log_file_name
-    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file_name = f"{b_path.stem}_{task.ablation_name}_{task.init_prior_name}_{task.case_name}_{task.scene_name}_{instr_path_obj.stem}_{task.try_idx + 1}.log"
+        log_file_path = LOG_PATH / f"{task.log_dir_timestamp}-worker_logs" / log_file_name
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    logger.critical(
-        f"WORKER START | Baseline: {b_path.name} | Ablation: {task.ablation_name} | "
-        f"Prior: {task.init_prior_name} | Case: {task.case_name} | Scene: {task.scene_name} | "
-        f"Run: {task.try_idx + 1} | Task: {instr_path_obj.name}"
-    )
-
-    if b_type == BaselineType.SCHEDULER:
-        buffer_between_instructions = 0 if task.is_simulation else 30
-        if buffer_between_instructions > 0:
-            logger.info(
-                f"Waiting for {buffer_between_instructions} seconds before starting."
-            )
-            time.sleep(buffer_between_instructions)
-
-        _run_script_and_log(
-            b_path,
-            task.ablation_name,
-            task.case_name,
-            task.scene_name,
-            instr_path_obj,
-            task.is_simulation,
-            task.cloud_rendering,
-            log_file_path,
-            task.ablation_params,
-            task.init_prior_params,
-            attempt=1,
+        logger.critical(
+            f"WORKER START | Baseline: {b_path.name} | Ablation: {task.ablation_name} | "
+            f"Prior: {task.init_prior_name} | Case: {task.case_name} | Scene: {task.scene_name} | "
+            f"Run: {task.try_idx + 1} | Task: {instr_path_obj.name}"
         )
-    elif b_type == BaselineType.LLM:
-        buffer_between_instructions = 2 if task.is_simulation else 30
-        for attempt in range(1, task.max_retries + 1):
-            result = _run_script_and_log(
+
+        if b_type == BaselineType.SCHEDULER:
+            buffer_between_instructions = 0 if task.is_simulation else 30
+            if buffer_between_instructions > 0:
+                logger.info(
+                    f"Waiting for {buffer_between_instructions} seconds before starting."
+                )
+                time.sleep(buffer_between_instructions)
+
+            _run_script_and_log(
                 b_path,
                 task.ablation_name,
                 task.case_name,
@@ -332,23 +437,48 @@ def worker(task: ExperimentTask) -> None:
                 log_file_path,
                 task.ablation_params,
                 task.init_prior_params,
-                attempt=attempt,
+                attempt=1,
             )
-            if result.returncode == 0:
-                logger.info(
-                    f"LLM baseline {b_path.name} succeeded on attempt {attempt}."
+        elif b_type == BaselineType.LLM:
+            buffer_between_instructions = 2 if task.is_simulation else 30
+            for attempt in range(1, task.max_retries + 1):
+                result = _run_script_and_log(
+                    b_path,
+                    task.ablation_name,
+                    task.case_name,
+                    task.scene_name,
+                    instr_path_obj,
+                    task.is_simulation,
+                    task.cloud_rendering,
+                    log_file_path,
+                    task.ablation_params,
+                    task.init_prior_params,
+                    attempt=attempt,
                 )
-                break
+                if result.returncode == 0:
+                    logger.info(
+                        f"LLM baseline {b_path.name} succeeded on attempt {attempt}."
+                    )
+                    break
 
-            if attempt < task.max_retries:
-                logger.warning(
-                    f"LLM baseline {b_path.name} failed on attempt {attempt}. Retrying in {buffer_between_instructions} seconds..."
+                if attempt < task.max_retries:
+                    logger.warning(
+                        f"LLM baseline {b_path.name} failed on attempt {attempt}. Retrying in {buffer_between_instructions} seconds..."
+                    )
+                    time.sleep(buffer_between_instructions)
+            else:  # No-break
+                logger.error(
+                    f"LLM baseline {b_path.name} failed after {task.max_retries} attempts."
                 )
-                time.sleep(buffer_between_instructions)
-        else:  # No-break
-            logger.error(
-                f"LLM baseline {b_path.name} failed after {task.max_retries} attempts."
-            )
+    finally:
+        # Force garbage collection after each task
+        gc.collect()
+        
+        # Log memory usage at end
+        mem_end = get_memory_usage()
+        logger.info(
+            f"Task completed. Memory usage: {mem_end:.1f}% (change: {mem_end - mem_start:+.1f}%)"
+        )
 
 
 def load_instruction_case_mapping_from_scenes(
@@ -409,12 +539,12 @@ def load_instruction_case_mapping_from_scenes(
     return case_instruction_mapping
 
 
-def _iter_init_dirs(config: Dict[str, Any]) -> List[Path]:
-    """Return list of init_* result directories under RESULT_PATH.
+def _iter_states_dirs(config: Dict[str, Any]) -> List[Path]:
+    """Return list of states* result directories under RESULT_PATH.
 
     If ``init_prior_mean`` is provided in the config, only that specific
     directory will be returned; otherwise, all directories starting with
-    ``init_`` are returned.
+    ``states`` are returned.
 
     Args:
         config (Dict[str, Any]): The configuration dictionary.
@@ -422,15 +552,15 @@ def _iter_init_dirs(config: Dict[str, Any]) -> List[Path]:
     Returns:
         List[Path]: List of candidate initial prior result directories.
     """
-    init_dirs: List[Path] = []
+    states_dirs: List[Path] = []
     init_prior = config.get("init_prior_mean")
     if isinstance(init_prior, (int, float)):
-        init_dirs = [RESULT_PATH / f"init_{int(init_prior)}"]
+        states_dirs = [RESULT_PATH / f"states{int(init_prior)}"]
     else:
         for p in RESULT_PATH.iterdir():
-            if p.is_dir() and p.name.startswith("init_"):
-                init_dirs.append(p)
-    return init_dirs
+            if p.is_dir() and p.name.startswith("states"):
+                states_dirs.append(p)
+    return states_dirs
 
 
 def _find_latest_result_json_for_task(
@@ -439,11 +569,12 @@ def _find_latest_result_json_for_task(
     scene_name: str,
     config: Dict[str, Any],
     case_name: str | None = None,
+    ablation_name: str | None = None,
 ) -> Path | None:
     """Locate the latest result JSON for a given baseline/instruction/scene.
 
     This mirrors the skip logic used in run_all.py: it searches under
-    assets/results/init_*/{instruction_stem}_*/{scene}/approach/{baseline_stem}_simulation.json
+    assets/results/states*/{instruction_stem}_*/{scene}/{baseline_name}/end_state.json
     and returns the one with the highest trailing number.
 
     Args:
@@ -451,11 +582,26 @@ def _find_latest_result_json_for_task(
         instruction_path (str): Path to the instruction JSON file.
         scene_name (str): Scene name.
         config (Dict[str, Any]): Configuration dictionary.
+        case_name (str | None): Case name.
+        ablation_name (str | None): Ablation name.
 
     Returns:
         Path | None: The latest existing result JSON path if found, else None.
     """
-    approach_name = f"{baseline_path.stem}_simulation"
+    # dag_bayesian special handling: it appends ablation name instead of simulation suffix when case is present
+    if "dag_bayesian" in baseline_path.name and case_name and ablation_name:
+        approach_name = f"dag_bayesian_{ablation_name}"
+    else:
+        suffix = "_simulation" if config.get("simulation", False) else ""
+        approach_name = f"{baseline_path.stem}{suffix}"
+    
+    # Create list of approach names to search
+    # BUG FIX: save_scene_state uses "cpm" but result_save uses "cpm_simulation"
+    # So we need to search both versions
+    approach_names_to_search = [approach_name]
+    if approach_name.endswith("_simulation"):
+        # Also search without _simulation suffix (e.g., "cpm" for "cpm_simulation")
+        approach_names_to_search.append(approach_name.replace("_simulation", ""))
 
     # Robust instruction keys: keep numeric prefix, normalize spaces to underscores
     raw_stem = Path(instruction_path).stem
@@ -466,17 +612,21 @@ def _find_latest_result_json_for_task(
             instruction_keys.append(key)
 
     candidates: List[Tuple[int, Path]] = []
-    for init_dir in _iter_init_dirs(config):
-        base_dir = init_dir / case_name if case_name else init_dir
+    for state_dir in _iter_states_dirs(config):
+        base_dir = state_dir / case_name if case_name else state_dir
         if not base_dir.exists():
             continue
         for key in instruction_keys:
             # Exact folder (no numeric suffix)
             exact_dir = base_dir / key
             if exact_dir.is_dir():
-                json_path = exact_dir / scene_name / "approach" / f"{approach_name}.json"
-                if json_path.exists():
-                    candidates.append((0, json_path))
+                # Try all approach name variations
+                for approach_name_variant in approach_names_to_search:
+                    json_path = (
+                        exact_dir / scene_name / approach_name_variant / "end_state.json"
+                    )
+                    if json_path.exists():
+                        candidates.append((0, json_path))
 
             # Numeric suffixed folders: key_1, key_2, ...
             for task_dir in base_dir.glob(f"{key}_*"):
@@ -486,9 +636,11 @@ def _find_latest_result_json_for_task(
                 if not m:
                     continue
                 num = int(m.group(1))
-                json_path = task_dir / scene_name / "approach" / f"{approach_name}.json"
-                if json_path.exists():
-                    candidates.append((num, json_path))
+                # Try all approach name variations
+                for approach_name_variant in approach_names_to_search:
+                    json_path = task_dir / scene_name / approach_name_variant / "end_state.json"
+                    if json_path.exists():
+                        candidates.append((num, json_path))
 
     if not candidates:
         return None
@@ -515,6 +667,7 @@ def should_skip_completed_for_task(
     scene_name: str,
     config: Dict[str, Any],
     case_name: str | None = None,
+    ablation_name: str | None = None,
 ) -> Tuple[bool, Path | None]:
     """Check whether to skip a task due to an existing result JSON.
 
@@ -526,6 +679,8 @@ def should_skip_completed_for_task(
         instruction_path (str): Path to the instruction JSON file.
         scene_name (str): Scene name.
         config (Dict[str, Any]): Configuration dictionary.
+        case_name (str | None): Case name.
+        ablation_name (str | None): Ablation name.
 
     Returns:
         Tuple[bool, Path | None]: (should_skip, found_json_path)
@@ -533,7 +688,7 @@ def should_skip_completed_for_task(
     if not config.get("skip_completed"):
         return False, None
     result_json = _find_latest_result_json_for_task(
-        baseline_path, instruction_path, scene_name, config, case_name
+        baseline_path, instruction_path, scene_name, config, case_name, ablation_name
     )
     if result_json and _is_completed_result(result_json):
         return True, result_json
@@ -564,15 +719,18 @@ def main() -> None:
 
     is_dry_run: bool = args.dry_run
 
-    sched_baselines: List[Tuple[BaselineType, Path]] = [
-        (BaselineType.SCHEDULER, Path(p)) for p in config.get("approaches", [])
-    ]
+    sched_baselines: List[Tuple[BaselineType, Path]] = (
+        [(BaselineType.SCHEDULER, Path(p)) for p in config.get("approaches", [])]
+        if config.get("approaches", [])
+        else []
+    )
 
     llm_baselines: List[Tuple[BaselineType, Path]] = (
         [(BaselineType.LLM, Path(p)) for p in config.get("llm_scripts", [])]
         if config.get("llm_scripts", [])
         else []
     )
+    
     baselines = sched_baselines + llm_baselines
 
     scene_types_config = config.get("scene_type", "kitchen")
@@ -677,7 +835,12 @@ def main() -> None:
                     # Merge current init_prior params so _iter_init_dirs targets the correct init_* dir
                     merged_config_for_skip = {**config, **init_prior_params}
                     do_skip, found_json = should_skip_completed_for_task(
-                        b_path, instruction_path, scene_name, merged_config_for_skip, case_name
+                        b_path,
+                        instruction_path,
+                        scene_name,
+                        merged_config_for_skip,
+                        case_name,
+                        ablation_name,
                     )
                     if do_skip:
                         logger.critical(
@@ -732,12 +895,25 @@ def main() -> None:
             executor.submit(worker, task) for task in tasks_to_run
         ]
 
+        completed_count = 0
         for future in concurrent.futures.as_completed(futures):
             try:
                 future.result()
+                completed_count += 1
+                
+                # Periodically force garbage collection
+                if completed_count % GC_COLLECT_AFTER_TASKS == 0:
+                    logger.info(f"Completed {completed_count} tasks. Running garbage collection...")
+                    gc.collect()
+                    mem_usage = get_memory_usage()
+                    logger.info(f"Current memory usage: {mem_usage:.1f}%")
             except Exception as e:
                 logger.critical(f"A task generated an exception: {e}")
                 logger.critical(traceback.format_exc())
+        
+        # Final garbage collection
+        logger.info("All tasks completed. Final garbage collection...")
+        gc.collect()
 
 
 if __name__ == "__main__":

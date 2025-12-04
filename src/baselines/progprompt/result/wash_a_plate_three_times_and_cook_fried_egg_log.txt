@@ -6,30 +6,30 @@ success
 success
 Executing action: ['walk', 'faucet']
 success
-Executing action: ['toggleon', 'faucet']
+Executing action: ['toggle_on', 'faucet']
 success
 Executing action: ['put', 'plate', 'sinkbasin']
 success
 Alternative Action: Drop: success
-Executing action: ['toggleoff', 'faucet']
+Executing action: ['toggle_off', 'faucet']
 success
 Executing action: ['pickup', 'plate']
 success
-Executing action: ['toggleon', 'faucet']
+Executing action: ['toggle_on', 'faucet']
 success
 Executing action: ['put', 'plate', 'sinkbasin']
 success
 Alternative Action: Drop: success
-Executing action: ['toggleoff', 'faucet']
+Executing action: ['toggle_off', 'faucet']
 success
 Executing action: ['pickup', 'plate']
 success
-Executing action: ['toggleon', 'faucet']
+Executing action: ['toggle_on', 'faucet']
 success
 Executing action: ['put', 'plate', 'sinkbasin']
 success
 Alternative Action: Drop: success
-Executing action: ['toggleoff', 'faucet']
+Executing action: ['toggle_off', 'faucet']
 success
 Executing action: ['pickup', 'plate']
 success
@@ -59,9 +59,9 @@ Executing action: ['walk', 'stoveknob']
 success
 State check:
 You see: 
-toggleon('StoveKnob')
+toggle_on('StoveKnob')
 False
-Executing action: ['toggleon', 'stoveknob']
+Executing action: ['toggle_on', 'stoveknob']
 success
 State check:
 You see: 
@@ -113,7 +113,7 @@ Executing action: ['walk', 'stoveknob']
 success
 State check:
 You see: 
-toggleoff('StoveKnob')
+toggle_off('StoveKnob')
 False
-Executing action: ['toggleoff', 'stoveknob']
+Executing action: ['toggle_off', 'stoveknob']
 success

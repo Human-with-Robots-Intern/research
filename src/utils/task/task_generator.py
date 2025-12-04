@@ -106,7 +106,7 @@ class TaskGenerator:
             )
         else:
             examples_prompt = self.load_file(
-                Path(PROMPT_PATH) / "e2e_generator_ver12_real.txt", "txt"
+                Path(PROMPT_PATH) / "e2e_generator_ver13_real.txt", "txt"
             )
 
         # RAG 모드 활성화 시, FewShotRetriever 활용

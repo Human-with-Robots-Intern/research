@@ -27,9 +27,11 @@ from src.utils.config.constants import ASSETS_PATH
 # --- Configuration Constants ---
 
 # 1. Source and Destination
-SOURCE_DIR = ASSETS_PATH / "tasks" / "decomposed_final_251031"
-OUTPUT_DIR = ASSETS_PATH / "tasks" / "sampled_set_for_final_experiment"
-SOURCE_METADATA_PATH = SOURCE_DIR.parent / f"{SOURCE_DIR.name}_metadata.json"
+SOURCE_DIR = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251202"
+OUTPUT_DIR = (
+    ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment_251202"
+)
+SOURCE_METADATA_PATH = SOURCE_DIR.parent / f"{SOURCE_DIR.name}.json"
 
 
 # 2. Sampling Policy
@@ -111,6 +113,7 @@ def main() -> None:
         case_path = SOURCE_DIR / case_name
         if not case_path.is_dir():
             logging.warning(f"Directory for case '{case_name}' not found. Skipping.")
+            logging.warning(f"use nl_to_json.py to generate the folder first.")
             continue
 
         logging.info(f"--- Processing case: {case_name} ---")

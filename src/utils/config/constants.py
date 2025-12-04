@@ -18,7 +18,9 @@ LIVING_ROOM_PATH = SCENE_KNOWLEDGE_PATH / "living_room"
 BAYESIAN_PATH = SCENE_KNOWLEDGE_PATH / "bayesian"
 
 PROMPT_PATH = ASSETS_PATH / "prompts"
-TASK_PATH = ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment"
+TASK_PATH = (
+    ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment_251203"
+)
 RESULT_PATH = ASSETS_PATH / "results"
 
 # ========== 시뮬레이션 관련 ==========
@@ -70,14 +72,15 @@ BETA_HEURISTIC = 10.0  # Urgency (slack) cost
 GAMMA_HEURISTIC = 100.0  # Remaining work cost
 
 # Wait action control
-WAIT_TIME_UPPER_BOUND = 20.0  # 'wait' 액션의 최대 허용 시간 (초)
+WAIT_TIME_UPPER_BOUND = 200.0  # 'wait' 액션의 최대 허용 시간 (초)
 
 # ========== 베이지안 ==========
-BAYESIAN_CRITERIA = 0.7
+# BAYESIAN_CRITERIA = 0.7  # Legacy fixed ratio
+BAYESIAN_THRESHOLD_PROBABILITY = 0.1  # New threshold probability (eta)
 
 GT_INTERVAL = 100.0
 INIT_PRIOR_MEAN = 140.0
-INIT_PRIOR_VARIANCE = 100.0
+INIT_PRIOR_VARIANCE = 900.0
 
 
 # 지우지 마시오. 실험 돌릴동안만 쓰자구요 ㅎㅎㅎ
@@ -132,6 +135,12 @@ def set_factor_alpha(value: float) -> None:
     FACTOR_ALPHA = value
 
 
+def set_bayesian_threshold_probability(value: float) -> None:
+    """Set global Bayesian trigger probability threshold (eta)."""
+    global BAYESIAN_THRESHOLD_PROBABILITY
+    BAYESIAN_THRESHOLD_PROBABILITY = value
+
+
 def set_beam_width(value: int) -> None:
     """Sets the global BEAM_WIDTH value."""
     global BEAM_WIDTH
@@ -151,6 +160,7 @@ MIN_VARIANCE = 1e-6
 # Timing tolerance can be interpreted both as a ratio and an absolute cap.
 # The ratio (30%) mirrors the previous behaviour, while the absolute value
 # allows capping the tolerance window for large intervals.
+TIMING_TOLERANCE_DEFAULT = 100.0
 TIMING_TOLERANCE_RATIO = 0.3
 TIMING_TOLERANCE_ABS = 15.0
 MONITORING_SPLIT_TOLERANCE_ABS = 15.0

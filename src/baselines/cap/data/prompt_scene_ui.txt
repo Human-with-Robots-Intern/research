@@ -2,8 +2,8 @@
 import numpy as np
 import time
 # A list of available functions. The LLM must use the function names and formats from this list.
-# Available functions: move_to, pickup, slice, say, put, fill, drop, toggle_on, toggle_off, open, close, is_obj_visible, get_obj_names, get_obj_id
-from utils import move_to, pickup, slice, say, put, fill, drop, toggle_on, toggle_off, open, close, is_obj_visible, get_obj_names, get_obj_id
+# Available functions: move_to, pickup, slice, say, put,  drop, toggle_on, toggle_off, open, close, is_obj_visible, get_obj_names, get_obj_id
+from utils import move_to, pickup, slice, say, put,  drop, toggle_on, toggle_off, open, close, is_obj_visible, get_obj_names, get_obj_id
 from plan_utils import parse_question
 
 

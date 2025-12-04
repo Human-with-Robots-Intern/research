@@ -1,4 +1,5 @@
 import argparse
+import gc
 import heapq
 import logging
 import re
@@ -10,6 +11,7 @@ import networkx as nx
 from ai2thor.platform import CloudRendering
 from dataclass import ActionResult, CompletedEntry, SchedulerState, SimulationNode
 
+from ithor.handlers.action import Action
 from ithor.utils.math_utils import load_navigation_graph
 from src.models.task import *
 from src.scheduler.action_handler import ActionHandler
@@ -514,6 +516,13 @@ def main():
             task_data = load_task_data_from_sampled_set(
                 args.case, scene_name, args.instruction
             )
+            action_interface = Action(
+                controller,
+                logger=logger,
+                trajectory_log_json_path=Path(
+                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}/trajectory_log.json"
+                ),
+            )
 
             save_scene_state(
                 controller=controller,
@@ -607,7 +616,7 @@ def main():
             # Execute each subtask in the schedule
             for entry in result_schedule:
                 subtask_time, execution_status, sim_nav_time = execute_subtask(
-                    controller, entry.subtask, logger
+                    controller, entry.subtask, logger, action_interface
                 )
                 # Update the entry with simulation times and execution status
                 entry.sim_start_time = simulation_current_time
@@ -667,7 +676,12 @@ def main():
             result_save(**result_args)
     finally:
         if controller:
-            controller.stop()
+            try:
+                controller.stop()
+            except Exception as e:
+                logger.error(f"Error stopping controller: {e}")
+        # Force garbage collection to free memory
+        gc.collect()
 
 
 if __name__ == "__main__":

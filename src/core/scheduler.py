@@ -5,6 +5,9 @@ import itertools
 from queue import PriorityQueue
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
+import numpy as np
+from scipy.stats import norm
+
 from src.models.dataclass import (
     ActionResult,
     Candidate,
@@ -17,7 +20,6 @@ from src.models.task import Duration, Execution, Subtask
 from src.utils.common import create_module_logger
 from src.utils.common.decorators import time_logger
 from src.utils.config import (
-    BAYESIAN_CRITERIA,
     EPSILON,
     MONITORING_DURATION,
     RED,
@@ -25,7 +27,10 @@ from src.utils.config import (
     TIMING_TOLERANCE_ABS,
 )
 from src.utils.config.constants import (
+    BAYESIAN_THRESHOLD_PROBABILITY,
     BEAM_WIDTH,
+    INIT_PRIOR_VARIANCE,
+    MONITORING_ENABLED,
     MONITORING_SPLIT_TOLERANCE_ABS,
     SIMULATION_DEPTH,
     WAIT_TIME_UPPER_BOUND,
@@ -499,7 +504,7 @@ class Scheduler:
         need_monitor, due_info = self._should_subtask_split_with_monitoring(
             curr_node, candidate
         )
-        if need_monitor:
+        if need_monitor and MONITORING_ENABLED:
             log.debug(
                 f"[_expand_single_subtask] Subtask {candidate.subtask.name} requires monitoring-based splitting."
             )
@@ -550,7 +555,7 @@ class Scheduler:
             candidate.subtask, "_monitoring_executed", False
         )
 
-        if wants_monitoring:
+        if wants_monitoring and MONITORING_ENABLED:
             log.debug(
                 f"[_expand_single_wait] Subtask {candidate.subtask.name} (non-critical) will wait WITH monitoring."
             )
@@ -625,11 +630,15 @@ class Scheduler:
                     start_entry = completed_entries_map[start_name]
                     if start_entry.subtask.subtask_type != "MONITORING":
                         interval = info.get("Interval", 0.0)
+                        variance = info.get("Variance", INIT_PRIOR_VARIANCE)
                         due_date = start_entry.schedule_end_time + interval
                         # if due_date > curr_node.state.current_time:
                         active_intervals.append(
-                            SchedulingDue(
-                                due_date=due_date, due_related_sub_name=end_name
+                            (
+                                variance,
+                                SchedulingDue(
+                                    due_date=due_date, due_related_sub_name=end_name
+                                ),
                             )
                         )
 
@@ -640,11 +649,16 @@ class Scheduler:
             return False, None
 
         # If an active interval exists, a split is necessary.
-        # Assign the most urgent due date for heuristic calculation purposes.
-        most_urgent_due = min(active_intervals, key=lambda d: d.due_date)
+        # Assign the most urgent due date based on VARIANCE (Uncertainty).
+        # We prioritize the interval with the HIGHEST variance to reduce uncertainty first.
+        # Tie-breaker: If variances are equal, prioritize the one with the EARLIEST due date (smallest due_date).
+        best_variance, most_urgent_due = max(
+            active_intervals, key=lambda item: (item[0], -item[1].due_date)
+        )
         candidate.scheduling_due = most_urgent_due
         log.debug(
-            f"[_should_subtask_split_with_monitoring] Active interval found targeting '{most_urgent_due.due_related_sub_name}' (due: {most_urgent_due.due_date:.2f}). Splitting {candidate.subtask.name}."
+            f"[_should_subtask_split_with_monitoring] Active interval found targeting '{most_urgent_due.due_related_sub_name}' "
+            f"(due: {most_urgent_due.due_date:.2f}, var: {best_variance:.2f}). Splitting {candidate.subtask.name}."
         )
 
         return True, most_urgent_due
@@ -1056,9 +1070,26 @@ class Scheduler:
         )
 
         # --- Refined Splitting Logic ---
-        original_absolute_monitoring_trigger_time = (
-            critical_start_sub_actual_end_time
-            + (original_critical_interval_duration * BAYESIAN_CRITERIA)
+        # Retrieve variance from the edge info
+        edge_data = curr_state.constraints.get_edge_data(
+            critical_start_sub_name, critical_end_sub_name
+        )
+        variance_val = INIT_PRIOR_VARIANCE
+        if edge_data and "info" in edge_data:
+            variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
+
+        # Calculate trigger time based on probability threshold: t = mu + sigma * Phi^-1(eta)
+        sigma = np.sqrt(variance_val)
+        mu_absolute = (
+            critical_start_sub_actual_end_time + original_critical_interval_duration
+        )
+        z_score = norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY)
+
+        original_absolute_monitoring_trigger_time = mu_absolute + sigma * z_score
+
+        log.debug(
+            f"Bayesian Trigger: Mu={mu_absolute:.2f}, Sigma={sigma:.2f}, Eta={BAYESIAN_THRESHOLD_PROBABILITY}, Z={z_score:.2f} "
+            f"-> TriggerTime={original_absolute_monitoring_trigger_time:.2f}"
         )
 
         full_candidate_action_info_check = self.action_handler.get_actions_info(

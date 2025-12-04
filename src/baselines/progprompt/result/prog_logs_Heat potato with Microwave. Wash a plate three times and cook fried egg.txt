@@ -35,7 +35,7 @@ Executing action: ['close', 'microwave']
 start_time:7.6 
 end_time: 8.6
 executionStatus: success
-Executing action: ['toggleon', 'microwave']
+Executing action: ['toggle_on', 'microwave']
 start_time:8.6 
 Invalid action
 State check:
@@ -44,9 +44,9 @@ assert('Potato' is 'cooked')
 False
 State check:
 You see: Microwave is isToggledOff and isHeatSource and isClosed, Cabinet is isClosed
-toggleoff('Microwave')
+toggle_off('Microwave')
 True
-Executing action: ['toggleoff', 'microwave']
+Executing action: ['toggle_off', 'microwave']
 start_time:8.6 
 Invalid action
 Executing action: ['open', 'microwave']

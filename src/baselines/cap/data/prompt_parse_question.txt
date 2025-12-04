@@ -1,4 +1,4 @@
-from utils import controller, move_to, pickup, slice, say, put, drop, toggleon, toggleoff, open, close, is_obj_visible, get_obj_names, get_obj_id, get_true_states, get_ability_states, get_parentReceptacles, get_obj_in_hand
+from utils import controller, move_to, pickup, slice, say, put, drop, toggle_on, toggle_off, open, close, is_obj_visible, get_obj_names, get_obj_id, get_true_states, get_ability_states, get_parentReceptacles, get_obj_in_hand
 
 ['tomato', 'fridge', 'apple', 'sinkbasin', 'drawer', 'book', 'coffeemachine', 'mug', 'egg', 'bread']
 # is the bread sliced?

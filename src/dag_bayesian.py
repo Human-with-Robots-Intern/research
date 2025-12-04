@@ -1,12 +1,14 @@
 import argparse
+import gc
 import logging
 import re
 import time
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from ai2thor.platform import CloudRendering
 
+from ithor.handlers.action import Action
 from ithor.utils.math_utils import load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
@@ -89,7 +91,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--cloud-rendering",
-        default=False,
+        default=True,
         action="store_true",
         help="Use CloudRendering platform for AI2-THOR.",
     )
@@ -129,7 +131,12 @@ def parse_arguments():
         default=None,
         help="Heuristic gamma 값 (기본값: constants.py 값)",
     )
-
+    parser.add_argument(
+        "--factor_alpha",
+        type=float,
+        default=None,
+        help="Factor alpha 값 (기본값: constants.py 값)",
+    )
     parser.add_argument(
         "--beam_width",
         type=int,
@@ -147,7 +154,23 @@ def parse_arguments():
         action="store_true",
         help="Disable Bayesian monitoring.",
     )
+    parser.add_argument(
+        "--trajectory_log_path",
+        type=str,
+        default=None,
+        help="Path to save per-action trajectory logs for downstream evaluation.",
+    )
     return parser.parse_args()
+
+
+def _sanitize_filename(value: str) -> str:
+    """Return a filesystem-safe slug."""
+
+    if not value:
+        return "task"
+    slug = re.sub(r"[^0-9a-zA-Z_\-]+", "_", value)
+    slug = slug.strip("_")
+    return slug or "task"
 
 
 def main():
@@ -158,17 +181,33 @@ def main():
     # Dynamically override constants based on command-line arguments
     from src.utils.config import constants
 
+    init_prior_mean = (
+        args.init_prior_mean
+        if args.init_prior_mean is not None
+        else constants.INIT_PRIOR_MEAN
+    )
+    init_prior_variance = (
+        args.init_prior_variance
+        if args.init_prior_variance is not None
+        else constants.INIT_PRIOR_VARIANCE
+    )
+
     if args.init_prior_mean is not None:
         constants.set_init_prior_mean(args.init_prior_mean)
+    else:
+        constants.set_init_prior_mean(init_prior_mean)
     if args.init_prior_variance is not None:
         constants.set_init_prior_variance(args.init_prior_variance)
+    else:
+        constants.set_init_prior_variance(init_prior_variance)
     if args.alpha_heuristic is not None:
         constants.set_alpha_heuristic(args.alpha_heuristic)
     if args.beta_heuristic is not None:
         constants.set_beta_heuristic(args.beta_heuristic)
     if args.gamma_heuristic is not None:
         constants.set_gamma_heuristic(args.gamma_heuristic)
-
+    if args.factor_alpha is not None:
+        constants.set_factor_alpha(args.factor_alpha)
     if args.beam_width is not None:
         constants.set_beam_width(args.beam_width)
     if args.beam_depth is not None:
@@ -204,6 +243,15 @@ def main():
             nav_graph = load_navigation_graph(controller)
             action_handler = ActionHandler(nav_graph, real_world_mode=False)
 
+        trajectory_log_path: Optional[Path] = (
+            Path(args.trajectory_log_path).expanduser()
+            if args.trajectory_log_path
+            else None
+        )
+
+        action_interface: Optional[Action] = None
+        task_files = list_task_files(scene_name=scene_name)
+
         if args.case:
             # Load task data
             input_natural_language = re.match(r"\d+_(.*)", args.instruction).group(1)
@@ -213,17 +261,40 @@ def main():
 
             save_scene_state(
                 controller=controller,
-                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
                 case_name=args.case,
                 scene_name=scene_name,
                 instruction=args.instruction.split(".json")[0],
                 approach_name=f"{approach_name}_{args.ablation_name}",
                 state_label="init",
             )
+            if trajectory_log_path is None:
+                instr_stem = Path(args.instruction).stem
+                approach_suffix = (
+                    f"{approach_name}_{args.ablation_name}"
+                    if args.ablation_name
+                    else approach_name
+                )
+                trajectory_log_path = (
+                    Path(f"assets/results/states{int(init_prior_mean)}")
+                    / args.case
+                    / instr_stem
+                    / scene_name
+                    / approach_suffix
+                    / "trajectory_log.json"
+                )
+
+            trajectory_log_path.parent.mkdir(parents=True, exist_ok=True)
+            if trajectory_log_path.exists():
+                trajectory_log_path.unlink()
+            action_interface = Action(
+                controller,
+                logger=logger,
+                trajectory_log_json_path=trajectory_log_path,
+            )
 
         elif args.instruction:
             # Load the chosen task data
-            task_files = list_task_files(scene_name=scene_name)
             instruction = args.instruction
             input_natural_language = instruction
             task_data = None
@@ -239,7 +310,7 @@ def main():
                 pass
             save_scene_state(
                 controller=controller,
-                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
                 case_name=args.case,
                 scene_name=scene_name,
                 instruction=input_natural_language,
@@ -250,12 +321,51 @@ def main():
                 # It was a natural language instruction or an invalid number choice.
                 # In both cases, we treat it as a natural language instruction.
                 task_data = {"instruction": instruction}
+
+            if trajectory_log_path is None:
+                instruction_slug = _sanitize_filename(input_natural_language)
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                trajectory_log_path = (
+                    Path("assets/results/tune")
+                    / instruction_slug
+                    / f"{timestamp}_trajectory_log.json"
+                )
+            trajectory_log_path.parent.mkdir(parents=True, exist_ok=True)
+            if trajectory_log_path.exists():
+                trajectory_log_path.unlink()
+            action_interface = Action(
+                controller,
+                logger=logger,
+                trajectory_log_json_path=trajectory_log_path,
+            )
+
         else:
             task_file_name, choice = get_user_task_choice(task_files)
             task_data = load_task_data_from_file(task_file_name)
             input_natural_language = task_file_name
             if choice != 0:
                 input_natural_language = task_file_name
+            if trajectory_log_path is None:
+                instruction_slug = _sanitize_filename(Path(task_file_name).stem)
+                timestamp = time.strftime("%Y%m%d_%H%M%S")
+                trajectory_log_path = (
+                    Path("assets/results/tune")
+                    / instruction_slug
+                    / f"{timestamp}_trajectory_log.json"
+                )
+            trajectory_log_path.parent.mkdir(parents=True, exist_ok=True)
+            if trajectory_log_path.exists():
+                trajectory_log_path.unlink()
+            action_interface = Action(
+                controller,
+                logger=logger,
+                trajectory_log_json_path=trajectory_log_path,
+            )
+
+        if action_interface is None:
+            raise RuntimeError(
+                "Failed to initialize action interface for simulation run."
+            )
 
         # Build tasks and constraints
         # subtasks, constraints = TaskUtil.build_tasks_and_constraints(
@@ -303,7 +413,7 @@ def main():
 
             if args.simulation:
                 sim_elapsed_time, execution_status, sim_nav_time = execute_subtask(
-                    controller, next_state.subtask, logger
+                    controller, next_state.subtask, logger, action_interface
                 )
                 # 시뮬레이션에서 흐른 시간과 실행 상태를 저장.
                 last_entry = next_state.completed_entries[-1]
@@ -398,28 +508,36 @@ def main():
                     is_end = True
     finally:
         if ros_executor and args.ros:
-            ros_executor.shutdown()
+            try:
+                ros_executor.shutdown()
+            except Exception as e:
+                logger.error(f"Error shutting down ROS executor: {e}")
         if controller:
-            controller.stop()
+            try:
+                controller.stop()
+            except Exception as e:
+                logger.error(f"Error stopping controller: {e}")
+        # Force garbage collection to free memory
+        gc.collect()
 
-    if args.ros:
-        result_schedule = [
-            entry
-            for entry in current_state.completed_entries
-            if entry.subtask.name != "Init"
-        ]
-        approach_name = f"{approach_name}_ros"
-        result_args = {
-            "task_name": input_natural_language,
-            "approach_name": approach_name,
-            "result_schedule": result_schedule,
-            "computation_time": total_compute_time,
-            "scene_name": scene_name,
-            "constraints": current_state.constraints,
-            "initial_plan_data": task_data,
-            "init_prior_mean": args.init_prior_mean,
-        }
-        result_save(**result_args)
+        if args.ros:
+            result_schedule = [
+                entry
+                for entry in current_state.completed_entries
+                if entry.subtask.name != "Init"
+            ]
+            approach_name = f"{approach_name}_ros"
+            result_args = {
+                "task_name": input_natural_language,
+                "approach_name": approach_name,
+                "result_schedule": result_schedule,
+                "computation_time": total_compute_time,
+                "scene_name": scene_name,
+                "constraints": current_state.constraints,
+                "initial_plan_data": task_data,
+                "init_prior_mean": args.init_prior_mean,
+            }
+            result_save(**result_args)
 
     if args.simulation:
         result_schedule = [
@@ -437,7 +555,8 @@ def main():
             "scene_name": scene_name,
             "constraints": current_state.constraints,
             "initial_plan_data": task_data,
-            "init_prior_mean": args.init_prior_mean,
+            "init_prior_mean": init_prior_mean,
+            "init_prior_mean": init_prior_mean,
             # "simulationTime": total_sim_time,
         }
         if args.case:
@@ -448,9 +567,10 @@ def main():
                 "alpha_heuristic": constants.ALPHA_HEURISTIC,
                 "beta_heuristic": constants.BETA_HEURISTIC,
                 "gamma_heuristic": constants.GAMMA_HEURISTIC,
+                "factor_alpha": constants.FACTOR_ALPHA,
                 "beam_width": constants.BEAM_WIDTH,
                 "beam_depth": constants.SIMULATION_DEPTH,
-                "disable_monitoring": constants.MONITORING_ENABLED,
+                "disable_monitoring": not constants.MONITORING_ENABLED,
             }
             result_args.update(
                 {
@@ -463,7 +583,7 @@ def main():
 
         save_scene_state(
             controller=controller,
-            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+            output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
             case_name=args.case,
             scene_name=scene_name,
             instruction=args.instruction.split(".json")[0],

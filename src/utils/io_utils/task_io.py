@@ -28,10 +28,8 @@ def load_task_data_from_sampled_set(
     """
     Load task data from sampled set.
     """
-    task_folder_name = "sampled_10_instruction_set_for_final_experiment"
-    task_path = (
-        ASSETS_PATH / "tasks" / task_folder_name / case_name / scene_name / instruction
-    )
+    # Use TASK_PATH from constants to avoid hardcoded folder names.
+    task_path = TASK_PATH / case_name / scene_name / instruction
     if not task_path.exists():
         raise FileNotFoundError(f"Task file not found: {task_path}")
     with task_path.open("r", encoding="utf-8") as file:
@@ -44,7 +42,12 @@ def load_task_data_from_file(task_file_name: str) -> dict:
     """
     target_path = TASK_PATH / task_file_name
     if not target_path.exists():
-        raise FileNotFoundError(f"Task file not found: {target_path}")
+        try:
+            with open(task_file_name, "r", encoding="utf-8") as file:
+                print(f"Task file found: {task_file_name}")
+                return json.load(file)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Task file not found: {target_path}")
 
     with target_path.open("r", encoding="utf-8") as file:
         return json.load(file)

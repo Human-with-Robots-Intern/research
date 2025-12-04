@@ -7,13 +7,18 @@ import logging
 import math
 import os
 import random
+import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 import traceback
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-import optuna
+import optuna  # type: ignore[import]
 
 # --- 프로젝트 경로 설정 ---
 try:
@@ -44,9 +49,22 @@ except IndexError:
 
 # --- 필요한 모듈 임포트 ---
 try:
+    from assets.result_analysis.state_base_evaluation import _to_spec_key
+
+    # State-based evaluation imports
+    from assets.result_analysis.utils.evaluator import (
+        compute_trial_metrics,
+        evaluate_tasks,
+    )
+    from assets.result_analysis.utils.instruction_parser import (
+        load_task_info,
+        parse_instruction_to_tasks,
+    )
+    from assets.result_analysis.utils.specs import TASK_SPECS
+    from assets.result_analysis.utils.state_change_simulate import load_events_from_file
     from core.agent import Agent
     from core.scheduler import Scheduler
-    from ithor.handlers.navigation_handler import load_navigation_graph
+    from ithor.utils.math_utils import load_navigation_graph
     from scheduler.action_handler import ActionHandler
     from scheduler.constraint_handler import ConstraintHandler
     from scheduler.heuristic_manager import HeuristicManager
@@ -55,9 +73,11 @@ try:
     from src.models.task import Subtask, Task
     from utils.common.logger import create_module_logger
     from utils.config import BEAM_WIDTH, SIMULATION_DEPTH
+    from utils.config.constants import INIT_PRIOR_MEAN, INIT_PRIOR_VARIANCE
     from utils.io_utils.result_saver import compose_plans
     from utils.io_utils.task_io import load_scene_positions, load_task_data_from_file
     from utils.task import TaskUtil
+
 except ImportError as e:
     print(f"Fatal Error importing module: {e}\nPYTHONPATH: {sys.path}")
     if hasattr(e, "name") and e.name:
@@ -86,32 +106,241 @@ def setup_logging():
 
 log = setup_logging()
 
+SCENE_PATTERN = re.compile(r"(FloorPlan\d+)")
+
+
+@dataclass(frozen=True)
+class TaskSpec:
+    """Task metadata for a single instruction JSON file.
+
+    Attributes:
+        relative_path: Path to the task JSON relative to `TASK_FILES_DIR`.
+        scene_name: AI2-THOR scene identifier inferred from the path.
+        case_name: Case directory inferred from the task path (e.g., ``tasks_4_constraints_3``).
+    """
+
+    relative_path: Path
+    scene_name: str
+    case_name: str
+
+    @property
+    def absolute_path(self) -> Path:
+        """Return absolute path from TASK_FILES_DIR."""
+
+        return TASK_FILES_DIR / self.relative_path
+
+    @property
+    def instruction_argument(self) -> str:
+        """Return instruction argument string passed to subprocess executions."""
+
+        return self.relative_path.as_posix()
+
+    @property
+    def instruction_filename(self) -> str:
+        """Instruction filename component."""
+
+        return self.relative_path.name
+
+
+@dataclass(frozen=True)
+class TestCondition:
+    """A complete test condition combining task, scene, and init_prior.
+
+    Attributes:
+        task_spec: Task specification including path and scene info.
+        init_prior_mean: Initial prior mean value for uncertainty.
+    """
+
+    task_spec: TaskSpec
+    init_prior_mean: float
+
+    @property
+    def condition_id(self) -> str:
+        """Unique identifier for this test condition."""
+        return f"{self.task_spec.scene_name}_{self.task_spec.instruction_filename}_prior{self.init_prior_mean:.2f}"
+
+
+def _extract_scene_name_from_path(path: Path) -> Optional[str]:
+    """Extract the FloorPlan scene name from a relative task path.
+
+    Args:
+        path: Task path relative to `TASK_FILES_DIR`.
+
+    Returns:
+        The matched scene name (e.g., ``"FloorPlan1"``) or ``None`` when it
+        cannot be inferred.
+    """
+
+    match = SCENE_PATTERN.search(path.as_posix())
+    return match.group(1) if match else None
+
+
+def _extract_case_name_from_path(path: Path) -> str:
+    """Extract the case directory name from a task path."""
+
+    return path.parts[0] if path.parts else DEFAULT_CASE_NAME
+
+
+DEFAULT_CASE_NAME = "tune_case"
+
+
+def _discover_task_files(task_dir: Path) -> Tuple[List[str], Dict[str, str]]:
+    """Return discovered task names and their associated scenes.
+
+    Args:
+        task_dir: Directory containing task JSON files.
+
+    Returns:
+        A tuple of:
+            - Sorted relative task paths.
+            - Mapping of relative task paths (as strings) to scene names.
+    """
+
+    task_names: List[str] = []
+    scene_lookup: Dict[str, str] = {}
+    for path in task_dir.glob("**/*.json"):
+        if "natural_languages" in path.as_posix():
+            continue
+        relative_path = path.relative_to(task_dir)
+        relative_str = relative_path.as_posix()
+        scene_name = _extract_scene_name_from_path(relative_path)
+        if not scene_name:
+            log.warning(
+                "Unable to infer scene name from task path '%s'. Default scene will be used.",
+                relative_str,
+            )
+        else:
+            scene_lookup[relative_str] = scene_name
+        task_names.append(relative_str)
+    task_names.sort()
+    return task_names, scene_lookup
+
+
+def _generate_all_test_conditions(
+    task_specs: List[TaskSpec], init_prior_values: List[float]
+) -> List[TestCondition]:
+    """Generate all combinations of tasks and init_prior values.
+
+    Args:
+        task_specs: List of task specifications.
+        init_prior_values: List of init_prior_mean values to test.
+
+    Returns:
+        List of all test conditions (full cartesian product).
+    """
+    conditions: List[TestCondition] = []
+    for task_spec in task_specs:
+        for init_prior in init_prior_values:
+            conditions.append(
+                TestCondition(task_spec=task_spec, init_prior_mean=init_prior)
+            )
+
+    log.info(
+        f"Generated {len(conditions)} test conditions: "
+        f"{len(task_specs)} tasks × {len(init_prior_values)} init_priors"
+    )
+    return conditions
+
+
+def _resolve_task_argument(task_arg: str) -> Optional[str]:
+    """Normalize CLI task arguments to repository-relative paths.
+
+    Args:
+        task_arg: Raw argument provided to ``--tasks``.
+
+    Returns:
+        A relative task path (POSIX-style) or ``None`` if the task cannot be
+        resolved.
+    """
+
+    candidate_path = Path(task_arg)
+    if candidate_path.is_absolute():
+        try:
+            return candidate_path.relative_to(TASK_FILES_DIR).as_posix()
+        except ValueError:
+            log.error(
+                "Task path '%s' is outside of the configured TASK_FILES_DIR (%s).",
+                task_arg,
+                TASK_FILES_DIR,
+            )
+            return None
+
+    normalized_path = TASK_FILES_DIR / candidate_path
+    if normalized_path.is_file():
+        return candidate_path.as_posix()
+
+    matches = [name for name in TUNING_TASK_NAMES_LIST if Path(name).name == task_arg]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        log.error(
+            "Task name '%s' is ambiguous across multiple scenes. Please provide a relative path:\n%s",
+            task_arg,
+            "\n".join(f"  - {match}" for match in matches),
+        )
+        return None
+
+    log.error("Task file '%s' not found under %s.", task_arg, TASK_FILES_DIR)
+    return None
+
+
+def _build_task_specs_from_names(
+    task_names: List[str], allowed_scenes: Optional[List[str]]
+) -> List[TaskSpec]:
+    """Build TaskSpec entries filtered by the target scenes.
+
+    Args:
+        task_names: Relative task paths to consider.
+        allowed_scenes: Restriction list of scene names. ``None`` keeps all scenes.
+
+    Returns:
+        A list of ``TaskSpec`` entries that exist on disk and satisfy the
+        requested scene filter.
+    """
+
+    allowed_set: Optional[Set[str]] = set(allowed_scenes) if allowed_scenes else None
+    specs: List[TaskSpec] = []
+    for name in task_names:
+        scene_name = TASK_SCENE_LOOKUP.get(name)
+        if not scene_name:
+            scene_name = _extract_scene_name_from_path(Path(name)) or SCENE_NAME
+        if allowed_set and scene_name not in allowed_set:
+            continue
+        relative_path = Path(name)
+        case_name = _extract_case_name_from_path(relative_path)
+        abs_path = TASK_FILES_DIR / relative_path
+        if not abs_path.is_file():
+            log.warning("Task file not found at %s. Skipping.", abs_path)
+            continue
+        specs.append(
+            TaskSpec(
+                relative_path=relative_path,
+                scene_name=scene_name,
+                case_name=case_name,
+            )
+        )
+    return specs
+
+
 # ==============================================================================
 # 전역 변수 및 설정 (Global Variables & Configuration)
 # ==============================================================================
-SCENE_NAME = "FloorPlan1"
-TASK_FILES_DIR = ASSETS_ROOT / "tasks"
+
+TASK_FILES_DIR = ASSETS_ROOT / "tasks" / "sampled_10_instruction_set_for_tuning"
 SCENE_POSITIONS_DIR = (
     ASSETS_ROOT / "scene_knowledge" / "kitchen" / "object_init_positions"
 )
 OUTPUT_TUNE_DIR = ASSETS_ROOT / "tune"
 
-try:
-    TUNING_TASK_NAMES_LIST = sorted(
-        [
-            p.name
-            for p in TASK_FILES_DIR.glob("*.json")
-            if p.is_file() and "natural_languages" not in p.name
-        ]
+# Init Prior 값들 - 다양한 불확실성 수준을 나타냄
+DEFAULT_INIT_PRIOR_VALUES = [60.0, 80.0, 100.0, 120.0, 140.0]
+
+TUNING_TASK_NAMES_LIST, TASK_SCENE_LOOKUP = _discover_task_files(TASK_FILES_DIR)
+if not TUNING_TASK_NAMES_LIST:
+    log.warning(
+        "No JSON task files found in %s (excluding 'natural_languages'). Check the path.",
+        TASK_FILES_DIR,
     )
-    if not TUNING_TASK_NAMES_LIST:
-        log.warning(
-            f"No JSON task files found in {TASK_FILES_DIR} (excluding 'natural_languages'). Check the path."
-        )
-        TUNING_TASK_NAMES_LIST = []
-except Exception as e:
-    log.error(f"Error listing task files in {TASK_FILES_DIR}: {e}")
-    TUNING_TASK_NAMES_LIST = []
 
 CONTROLLER_INSTANCE: Optional[Any] = None
 NAV_GRAPH: Optional[Dict] = None
@@ -129,11 +358,15 @@ CSV_HEADER = [
     "param_alpha",
     "param_beta",
     "param_gamma",
+    "param_factor_alpha",
     "user_attr_num_completed",
     "user_attr_num_failed",
     "user_attr_avg_completed_makespan",
     "user_attr_avg_computation_time",
     "user_attr_failed_tasks_json",
+    "user_attr_tsr_score",
+    "user_attr_gcr_score",
+    "user_attr_makespan_score",
 ]
 
 PENALTY_BASE_MAKESPAN = 3000.0
@@ -832,11 +1065,15 @@ class CSVSaveCallback:
                     params.get("alpha", ""),
                     params.get("beta", ""),
                     params.get("gamma", ""),
+                    params.get("factor_alpha", ""),
                     user_attrs.get("num_completed", ""),
                     user_attrs.get("num_failed", ""),
                     avg_makespan,
                     avg_comp_time,
                     failed_tasks_json,
+                    user_attrs.get("tsr_score", ""),
+                    user_attrs.get("gcr_score", ""),
+                    user_attrs.get("makespan_score", ""),
                 ]
                 writer.writerow(row)
         except IOError as e:
@@ -850,259 +1087,323 @@ class CSVSaveCallback:
 
 def _run_single_task_for_trial(
     task_path: Path,
+    instruction_arg: str,
     trial_number: int,
     params: Dict[str, float],
     scene_name: str,
+    case_name: str,
+    init_prior_mean: float,
     controller_instance: Any,
     nav_graph: Dict,
     initial_scene_positions: Dict,
 ) -> Optional[Dict[str, Any]]:
-    """주어진 하이퍼파라미터와 리소스로 단일 태스크 시뮬레이션을 실행합니다."""
-    if (
-        controller_instance is None
-        or nav_graph is None
-        or initial_scene_positions is None
-    ):
-        log.error(
-            f"T{trial_number}, Task {task_path.stem}: Essential resources missing for trial execution."
-        )
-        return {
-            "task_name": task_path.stem,
-            "status": "Failed (Missing Trial Resources)",
-            "simulation_makespan": float("inf"),
-            "scheduler_makespan": float("inf"),
-            "success_rate": 0.0,
-            "computation_time": 0.0,
-            "scene_name": scene_name,
-        }
+    """주어진 하이퍼파라미터와 리소스로 단일 태스크 시뮬레이션을 subprocess로 실행합니다.
+
+    Args:
+        task_path: 절대 태스크 파일 경로.
+        instruction_arg: subprocess에 전달할 instruction 파일명 인자.
+        trial_number: 현재 Optuna 트라이얼 번호.
+        params: 하이퍼파라미터 묶음.
+        scene_name: 실행할 AI2-THOR 씬 이름.
+        case_name: 태스크가 속한 케이스 디렉터리 명.
+        init_prior_mean: 초기 prior mean 값 (불확실성 수준).
+        controller_instance: (미사용) 호환성 유지용.
+        nav_graph: (미사용) 호환성 유지용.
+        initial_scene_positions: (미사용) 호환성 유지용.
+    """
+
+    # trajectory log 저장용 디렉토리 (디버깅을 위해 영구 보관)
+    debug_log_dir = OUTPUT_TUNE_DIR / "debug_trajectories"
+    debug_log_dir.mkdir(parents=True, exist_ok=True)
+    # 고유한 파일명 생성
+    traj_log_filename = f"traj_{trial_number}_{task_path.stem}_prior{init_prior_mean:.0f}.json"
+    traj_log_path = debug_log_dir / traj_log_filename
+
+    cmd = [
+        sys.executable,
+        "src/dag_bayesian.py",
+        "--scene",
+        scene_name,
+        "--case",
+        case_name,
+        "--instruction",
+        instruction_arg,
+        "--simulation",
+        "--trajectory_log_path",
+        str(traj_log_path),
+        "--alpha_heuristic",
+        str(params.get("alpha", 1.0)),
+        "--beta_heuristic",
+        str(params.get("beta", 1.0)),
+        "--gamma_heuristic",
+        str(params.get("gamma", 0.1)),
+        "--factor_alpha",
+        str(params.get("factor_alpha", 0.001)),
+        "--init_prior_mean",
+        str(init_prior_mean),
+        "--init_prior_variance",
+        str(INIT_PRIOR_VARIANCE),
+        "--log-level",
+        "ERROR",
+    ]
+
+    # subprocess 실행
+    env = os.environ.copy()
+    # Ensure PROJECT_ROOT, SRC_ROOT, and current CWD are in PYTHONPATH
+    pythonpath = env.get("PYTHONPATH", "")
+    # PROJECT_ROOT를 최우선으로 추가하여 'ithor' 등을 찾을 수 있게 함
+    paths_to_add = [str(PROJECT_ROOT), str(SRC_ROOT), os.getcwd()]
+    if pythonpath:
+        paths_to_add.append(pythonpath)
+    env["PYTHONPATH"] = os.pathsep.join(paths_to_add)
 
     try:
-        action_handler = ActionHandler(nav_graph)
-        constraint_handler = ConstraintHandler(action_handler)
-        agent = Agent(constraint_handler=constraint_handler)
-        heuristic_manager = HeuristicManager(action_handler)
-        heuristic_manager.alpha = params.get("alpha", 1.0)
-        heuristic_manager.beta = params.get("beta", 1.0)
-        heuristic_manager.gamma = params.get("gamma", 0.1)
-        log.debug(
-            f"T{trial_number}, Task {task_path.stem}: Heuristic weights set: a={heuristic_manager.alpha:.3f}, b={heuristic_manager.beta:.3f}, g={heuristic_manager.gamma:.3f}"
+        log.debug(f"Running command: {' '.join(cmd)}")
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=MAX_COMPUTATION_TIME_PER_TASK + 60,  # 여유 시간 추가
+            env=env,
         )
 
-        scheduler = Scheduler(
-            beam_width=BEAM_WIDTH,
-            simulation_depth=SIMULATION_DEPTH,
-            action_handler=action_handler,
-            constraint_handler=constraint_handler,
-            heuristic_manager=heuristic_manager,
-        )
+        if result.returncode != 0:
+            log.error(f"Subprocess failed with return code {result.returncode}")
+            log.error(f"Stderr: {result.stderr}")
+            return {
+                "task_name": task_path.stem,
+                "scene_name": scene_name,
+                "status": f"Failed (Subprocess Error: {result.returncode})",
+                "success_rate": 0.0,
+                "tsr_score": 0.0,
+                "gcr_score": 0.0,
+                "simulation_makespan": float("inf"),
+                "scheduler_makespan": float("inf"),
+                "computation_time": 0.0,
+            }
 
-        task_result = run_schedule_and_get_result(
-            task_path=task_path,
-            scheduler_instance=scheduler,
-            agent_instance=agent,
-            controller_instance=controller_instance,
-            scene_name=scene_name,
-            initial_scene_positions=initial_scene_positions,
-        )
-        return task_result
+        # trajectory_log.json 로드 및 평가
+        if not traj_log_path.exists():
+            log.error(f"trajectory_log.json not found at {traj_log_path}")
+            return {
+                "task_name": task_path.stem,
+                "scene_name": scene_name,
+                "status": "Failed (No Trajectory Log)",
+                "success_rate": 0.0,
+                "tsr_score": 0.0,
+                "gcr_score": 0.0,
+                "simulation_makespan": float("inf"),
+                "scheduler_makespan": float("inf"),
+                "computation_time": 0.0,
+            }
 
-    except Exception as e:
-        log.critical(
-            f"Critical error processing task {task_path.stem} in trial {trial_number}: {e}",
-            exc_info=True,
-        )
+        try:
+            events_data = load_events_from_file(traj_log_path)
+
+            # 태스크 이름 파싱 (instruction filename -> task names)
+            # task_path.stem 은 "1_Make_Coffee" 같은 형태일 수 있음
+            instruction_raw = re.sub(r"^\d+_", "", task_path.stem)
+
+            # Load valid task names once (global scope cache could be better)
+            tasks_json_path = ASSETS_ROOT / "tasks" / "floorplan_tasks.json"
+            all_task_names, _ = load_task_info(tasks_json_path)
+
+            parsed_tasks = parse_instruction_to_tasks(
+                instruction_raw, all_task_names
+            )
+            spec_task_names = [_to_spec_key(t) for t in parsed_tasks]
+            valid_task_names = [t for t in spec_task_names if t in TASK_SPECS]
+
+            if not valid_task_names:
+                raise ValueError(f"No valid task specs found for {instruction_raw}")
+
+            task_results = evaluate_tasks(
+                events=events_data,
+                task_names=valid_task_names,
+            )
+            trial_metrics = compute_trial_metrics(
+                parsed_tasks=parsed_tasks,
+                task_results=task_results,
+                events=events_data,
+            )
+
+            # None 값 처리: get() 후에도 None이면 기본값 사용
+            tsr_value = trial_metrics.get("tsr") or 1.0
+            makespan_value = trial_metrics.get("makespan")
+            if makespan_value is None or makespan_value <= 0:
+                makespan_value = float("inf")
+            
+            return {
+                "task_name": task_path.stem,
+                "scene_name": scene_name,
+                "status": (
+                    "Completed" if trial_metrics.get("instruction_gcr", 0.0) > 0.5 else "Failed"
+                ),
+                "success_rate": trial_metrics.get("sr", 0.0),
+                "tsr_score": tsr_value,
+                "gcr_score": trial_metrics.get("instruction_gcr", 0.0),
+                "makespan_score": trial_metrics.get("makespan", float("inf")),
+                "simulation_makespan": trial_metrics.get("makespan", float("inf")),
+                "scheduler_makespan": float(
+                    "inf"
+                ),  # subprocess 방식에서는 사용 안 함
+                "computation_time": 0.0,  # subprocess 내부에서 계산됨
+            }
+
+        except Exception as eval_e:
+            log.error(f"Evaluation failed for {task_path.stem}: {eval_e}", exc_info=True)
+            log.error(f"  Trajectory log path: {traj_log_path}")
+            log.error(f"  Instruction: {instruction_arg}")
+            # 평가 실패 시에도 부분 점수 부여 (완전 실패보다 나음)
+            return {
+                "task_name": task_path.stem,
+                "scene_name": scene_name,
+                "status": f"Failed (Evaluation Error: {eval_e})",
+                "success_rate": 0.3,  # 부분 점수
+                "tsr_score": 0.3,  # subprocess는 성공했으므로 부분 점수
+                "gcr_score": 0.0,
+                "simulation_makespan": PENALTY_BASE_MAKESPAN * 0.8,  # 완전 실패보다는 낮은 페널티
+                "scheduler_makespan": float("inf"),
+                "computation_time": 0.0,
+            }
+
+    except subprocess.TimeoutExpired:
+        log.error(f"Subprocess timed out for {task_path.stem}")
         return {
             "task_name": task_path.stem,
-            "status": "Critical Failure in Trial Loop",
+            "scene_name": scene_name,
+            "status": "Failed (Timeout)",
+            "success_rate": 0.0,
+            "tsr_score": 0.0,
+            "gcr_score": 0.0,
             "simulation_makespan": float("inf"),
             "scheduler_makespan": float("inf"),
-            "success_rate": 0.0,
             "computation_time": 0.0,
+        }
+    except Exception as e:
+        log.error(f"Subprocess execution error: {e}")
+        return {
+            "task_name": task_path.stem,
             "scene_name": scene_name,
+            "status": f"Failed (Execution Error: {e})",
+            "success_rate": 0.0,
+            "tsr_score": 0.0,
+            "gcr_score": 0.0,
+            "simulation_makespan": float("inf"),
+            "scheduler_makespan": float("inf"),
+            "computation_time": 0.0,
         }
 
 
 def _calculate_task_objective(
     task_result: Dict, trial_number: int, task_name: str
 ) -> Tuple[float, bool]:
-    """단일 태스크 결과에 대한 목적 함수 값(페널티 포함)을 계산합니다."""
-    penalty = 0.0
-    sim_makespan = task_result.get("simulation_makespan")
-    success_rate = task_result.get("success_rate")
-    computation_time = task_result.get("computation_time")
-    status = task_result.get("status", "Unknown Status")
+    """단일 태스크 결과에 대한 목적 함수 값(B&B 스타일 점수)을 계산합니다."""
 
-    if sim_makespan is None or math.isinf(sim_makespan) or math.isnan(sim_makespan):
-        sim_makespan = float("inf")
-    if success_rate is None or math.isnan(success_rate):
-        success_rate = 0.0
-    if (
-        computation_time is None
-        or math.isinf(computation_time)
-        or math.isnan(computation_time)
-    ):
-        computation_time = float("inf")
+    tsr_score = task_result.get("tsr_score") or 1.0
+    # gcr_score = task_result.get("gcr_score", 0.0)
+    makespan = task_result.get("simulation_makespan")
+    
+    # makespan이 None, inf, 0 이하인 경우 페널티 처리
+    if makespan is None or math.isinf(makespan) or makespan <= 0:
+        makespan = PENALTY_BASE_MAKESPAN
 
-    is_valid_run = True
+    # Objective = (Failure Rate * Weight) + Makespan
+    # PENALTY_BASE_MAKESPAN(3000)을 가중치로 사용하면:
+    # - 성공(TSR 1.0), 200초 -> 0 + 200 = 200
+    # - 성공(TSR 1.0), 300초 -> 0 + 300 = 300 (시간 단축 선호)
+    # - 실패(TSR 0.0), 50초 -> 3000 + 50 = 3050 (빠른 실패보다 느린 성공 선호)
+    # - 부분 성공(TSR 0.5), 200초 -> 1500 + 200 = 1700
+    # 이 값이 작아져야 좋은것임. 1-tsr이니까
+    penalty_weight = PENALTY_BASE_MAKESPAN
+    objective_value = ((1.0 - tsr_score) * penalty_weight) + makespan
 
-    # 상태가 명시적으로 실패인 경우만 패널티 적용 (더 완화된 조건)
-    if (
-        "Failed" in status and "Planning/State Error" not in status
-    ):  # 'Planning/State Error'는 예외 처리
-        log.warning(
-            f"T{trial_number}, Task {task_name}: Invalid - Status '{status}'. Applying penalty."
-        )
-        if status == "Failed (Execution)":
-            penalty = PENALTY_BASE_MAKESPAN * PENALTY_MULTIPLIER_EXEC_FAIL
-        elif status == "Failed (Timeout)":
-            penalty = PENALTY_BASE_MAKESPAN * PENALTY_MULTIPLIER_TIMEOUT
-        else:
-            penalty = PENALTY_BASE_MAKESPAN * PENALTY_MULTIPLIER_DEFAULT
-        is_valid_run = False
-    # 성공률 검사 (낮춰진 임계값 사용)
-    elif success_rate < MIN_SUCCESS_RATE:
-        log.warning(
-            f"T{trial_number}, Task {task_name}: Invalid - Rate {success_rate:.2f} < {MIN_SUCCESS_RATE}. Applying penalty."
-        )
-        penalty = (
-            PENALTY_BASE_MAKESPAN
-            * PENALTY_MULTIPLIER_LOW_SUCCESS
-            * (MIN_SUCCESS_RATE - success_rate)
-        )
-        is_valid_run = False
-    # 계산 시간 검사 (증가된 임계값 사용)
-    elif (
-        computation_time != float("inf")
-        and computation_time > MAX_COMPUTATION_TIME_PER_TASK
-    ):
-        log.warning(
-            f"T{trial_number}, Task {task_name}: Invalid - CompTime {computation_time:.2f}s > {MAX_COMPUTATION_TIME_PER_TASK}s. Applying penalty."
-        )
-        penalty = (
-            PENALTY_BASE_MAKESPAN
-            * PENALTY_MULTIPLIER_HIGH_COMP_TIME
-            * (computation_time / MAX_COMPUTATION_TIME_PER_TASK)
-        )
-        is_valid_run = False
-    # Makespan 검사 완화
-    elif sim_makespan == float("inf") and "Completed" in status:
-        log.warning(
-            f"T{trial_number}, Task {task_name}: Ignoring infinite makespan for 'Completed' status."
-        )
-        sim_makespan = PENALTY_BASE_MAKESPAN * 0.8  # 페널티보다 작은 값 사용
+    # is_valid_run = gcr_score == 1.0
+    is_valid_run = True  # 일단 valid하다고 전제. GCR 체크는 하지 않음.
 
-    # 특히 Planning/State Error는 유효한 것으로 처리 (테스트 목적)
-    if "Planning/State Error" in status:
-        is_valid_run = True
-        sim_makespan = min(sim_makespan, PENALTY_BASE_MAKESPAN * 0.7)
-        log.info(
-            f"T{trial_number}, Task {task_name}: Planning/State Error 상태를 유효한 것으로 간주합니다."
-        )
+    log.info(
+        f"Task {task_name}: TSR={tsr_score:.2f}, Makespan={makespan:.2f} -> Obj={objective_value:.2f}"
+    )
 
-    current_task_objective = (
-        sim_makespan if is_valid_run else PENALTY_BASE_MAKESPAN
-    ) + penalty
-
-    if math.isnan(current_task_objective) or math.isinf(current_task_objective):
-        current_task_objective = CRITICAL_FAILURE_PENALTY
-    current_task_objective = max(0, current_task_objective)
-
-    return current_task_objective, is_valid_run
+    return objective_value, is_valid_run
 
 
 def objective(
     trial: optuna.Trial,
-    scene_name: str,
-    task_paths_to_tune: List[Path],
-    initial_scene_positions: Dict,
-    n_samples_per_trial: int,
+    test_conditions: List[TestCondition],
 ) -> float:
-    """Optuna 목적 함수: 각 트라이얼은 독립적인 리소스를 사용합니다."""
+    """Optuna 목적 함수: 모든 test condition(task × init_prior 조합)을 전수 평가합니다."""
     params = {
-        "alpha": trial.suggest_float("alpha", 0.1, 5.0, log=False),
-        "beta": trial.suggest_float("beta", 0.1, 5.0, log=False),
-        "gamma": trial.suggest_float("gamma", 0.01, 5.0, log=False),
+        "beta": trial.suggest_float("beta", 1, 8.0, step=0.1, log=False),
+        "gamma": trial.suggest_float("gamma", 0.01, 0.5, log=True),
     }
     log.info(
-        f"\n--- Starting Trial {trial.number} | Params: a={params['alpha']:.3f}, b={params['beta']:.3f}, g={params['gamma']:.3f} ---"
+        f"\n--- Starting Trial {trial.number} | Params: b={params['beta']:.3f}, g={params['gamma']:.3f} ---"
     )
+    log.info(f"  Evaluating ALL {len(test_conditions)} test conditions (full coverage)")
 
-    # --- 트라이얼별 리소스 초기화 ---
-    controller = None
-    nav_graph = None
+    if not test_conditions:
+        log.error("No test conditions available for tuning.")
+        return CRITICAL_FAILURE_PENALTY
+
     try:
-        controller, nav_graph = initialize_trial_resources(scene_name)
-        if controller is None or nav_graph is None:
-            log.error(
-                f"Trial {trial.number}: Failed to initialize trial resources. Returning max penalty."
-            )
-            return CRITICAL_FAILURE_PENALTY
-
-        # --- 태스크 샘플링 (전달받은 task_paths_to_tune 사용) ---
-        if len(task_paths_to_tune) < n_samples_per_trial:
-            sampled_task_paths = task_paths_to_tune
-            log.warning(
-                f"Number of tasks ({len(task_paths_to_tune)}) is less than n_samples_per_trial ({n_samples_per_trial}). Using all tasks."
-            )
-        else:
-            sampled_task_paths = random.sample(task_paths_to_tune, n_samples_per_trial)
-        log.info(f"  Using {len(sampled_task_paths)} sampled tasks for this trial.")
-        # --- 샘플링 설정 끝 ---
-
         total_objective_value = 0.0
         total_computation_time = 0.0
         num_completed_tasks = 0
         num_failed_tasks = 0
         task_results_for_trial: List[Dict] = []
 
-        if not sampled_task_paths:
-            log.error(
-                "No tasks sampled for tuning. Returning critical failure penalty."
-            )
-            return CRITICAL_FAILURE_PENALTY
+        # --- 모든 조건 전수 평가 ---
+        for condition_index, condition in enumerate(test_conditions):
+            task_spec = condition.task_spec
+            task_path = task_spec.absolute_path
+            instruction_arg = task_spec.instruction_filename
+            init_prior = condition.init_prior_mean
 
-        # --- 샘플링된 태스크 루프 ---
-        for task_index, task_path in enumerate(sampled_task_paths):
+            log.debug(
+                f"  [{condition_index+1}/{len(test_conditions)}] "
+                f"{task_spec.scene_name}/{task_path.stem} (prior={init_prior:.2f})"
+            )
+
             task_result = _run_single_task_for_trial(
                 task_path=task_path,
+                instruction_arg=instruction_arg,
                 trial_number=trial.number,
                 params=params,
-                scene_name=scene_name,
-                controller_instance=controller,
-                nav_graph=nav_graph,
-                initial_scene_positions=initial_scene_positions,
+                scene_name=task_spec.scene_name,
+                case_name=task_spec.case_name,
+                init_prior_mean=init_prior,
+                controller_instance=None,
+                nav_graph=None,
+                initial_scene_positions={},
             )
 
             if task_result is None:
                 log.error(
-                    f"T{trial.number}, Task {task_path.stem}: Simulation function returned None. Max penalty."
+                    f"T{trial.number}, Condition {condition.condition_id}: Simulation returned None. Max penalty."
                 )
                 task_result = {
                     "task_name": task_path.stem,
-                    "status": "Failed (Runner Returned None)",
+                    "scene_name": task_spec.scene_name,
+                    "init_prior_mean": init_prior,
+                    "status": "Failed (Returned None)",
+                    "success_rate": 0.0,
+                    "tsr_score": 0.0,
+                    "gcr_score": 0.0,
                     "simulation_makespan": float("inf"),
                     "scheduler_makespan": float("inf"),
-                    "success_rate": 0.0,
                     "computation_time": 0.0,
-                    "scene_name": scene_name,
                 }
-                current_task_objective = CRITICAL_FAILURE_PENALTY
+                task_objective = CRITICAL_FAILURE_PENALTY
                 is_valid = False
-                task_comp_time = task_result.get("computation_time", float("inf"))
 
             else:
+                task_result["init_prior_mean"] = init_prior
                 task_objective, is_valid = _calculate_task_objective(
-                    task_result, trial.number, task_path.stem
+                    task_result, trial.number, condition.condition_id
                 )
-                task_comp_time = task_result.get("computation_time", float("inf"))
 
             total_objective_value += task_objective
-            if math.isfinite(task_comp_time):
-                total_computation_time += task_comp_time
-            else:
-                log.warning(
-                    f"T{trial.number}, Task {task_path.stem}: Computation time is inf/nan."
-                )
 
             if is_valid:
                 num_completed_tasks += 1
@@ -1112,25 +1413,26 @@ def objective(
             task_results_for_trial.append(task_result)
 
             # --- 조기 중단 (Pruning)을 위한 중간 보고 ---
-            current_avg_objective = total_objective_value / (task_index + 1)
-            trial.report(current_avg_objective, step=task_index)
+            current_avg_objective = total_objective_value / (condition_index + 1)
+            trial.report(current_avg_objective, step=condition_index)
             if trial.should_prune():
                 log.info(
-                    f"Trial {trial.number} pruned at step {task_index} (Task: {task_path.stem})."
+                    f"Trial {trial.number} pruned at step {condition_index} "
+                    f"(Condition: {condition.condition_id})."
                 )
                 raise optuna.TrialPruned()
             # --- 중간 보고 끝 ---
 
-        # --- 최종 평균 계산 시 샘플링된 태스크 수 사용 ---
-        num_tasks_run = len(sampled_task_paths)
+        # --- 최종 평균 계산 (전체 조건에 대해) ---
+        num_conditions_run = len(test_conditions)
         average_objective_value = (
-            total_objective_value / num_tasks_run
-            if num_tasks_run > 0
+            total_objective_value / num_conditions_run
+            if num_conditions_run > 0
             else CRITICAL_FAILURE_PENALTY
         )
         average_computation_time = (
-            total_computation_time / num_tasks_run
-            if num_tasks_run > 0
+            total_computation_time / num_conditions_run
+            if num_conditions_run > 0
             else float("inf")
         )
 
@@ -1149,8 +1451,56 @@ def objective(
         )
         trial.set_user_attr("avg_completed_makespan", avg_completed_makespan)
         trial.set_user_attr("avg_computation_time", average_computation_time)
+
+        # Average evaluation scores across all conditions
+        avg_tsr = (
+            sum(r.get("tsr_score", 0.0) for r in task_results_for_trial)
+            / num_conditions_run
+            if num_conditions_run > 0
+            else 0.0
+        )
+        avg_gcr = (
+            sum(r.get("gcr_score", 0.0) for r in task_results_for_trial)
+            / num_conditions_run
+            if num_conditions_run > 0
+            else 0.0
+        )
+        avg_makespan = (
+            sum(
+                r.get("simulation_makespan", float("inf"))
+                for r in task_results_for_trial
+                if r.get("simulation_makespan") != float("inf")
+            )
+            / len([
+                r for r in task_results_for_trial
+                if r.get("simulation_makespan") != float("inf")
+            ])
+            if any(
+                r.get("simulation_makespan") != float("inf")
+                for r in task_results_for_trial
+            )
+            else float("inf")
+        )
+
+        trial.set_user_attr("tsr_score", avg_tsr)
+        trial.set_user_attr("gcr_score", avg_gcr)
+        trial.set_user_attr("makespan_score", avg_makespan)  # CSV 호환성 위해 키 이름 유지
+        trial.set_user_attr(
+            "scenes_evaluated",
+            sorted({cond.task_spec.scene_name for cond in test_conditions}),
+        )
+        trial.set_user_attr(
+            "init_priors_evaluated",
+            sorted({cond.init_prior_mean for cond in test_conditions}),
+        )
+        trial.set_user_attr("total_conditions_tested", num_conditions_run)
+
         failed_task_details = [
-            {"name": r.get("task_name"), "status": r.get("status")}
+            {
+                "name": r.get("task_name"),
+                "status": r.get("status"),
+                "init_prior": r.get("init_prior_mean"),
+            }
             for r in task_results_for_trial
             if r.get("status") != "Completed"
         ]
@@ -1180,14 +1530,15 @@ def objective(
             avg_comp_time_str = "inf"
 
         log.info(
-            f"--- Trial {trial.number} Finished --- Avg Objective (Sampled): {avg_obj_str} "
-            f"(Completed OK: {num_completed_tasks}, Failed/Penalized: {num_failed_tasks} / Total Sampled: {num_tasks_run}) "
-            f"Avg Makespan (Completed): {avg_makespan_str} | Avg Comp Time: {avg_comp_time_str}s"
+            f"--- Trial {trial.number} Finished --- Avg Objective (All Conditions): {avg_obj_str} "
+            f"(Valid: {num_completed_tasks}, Failed: {num_failed_tasks} / Total: {num_conditions_run}) "
+            f"Avg Makespan: {avg_makespan_str} | Avg TSR: {avg_tsr:.3f}"
         )
 
         if math.isnan(average_objective_value) or math.isinf(average_objective_value):
             log.warning(
-                f"Trial {trial.number}: Invalid objective value ({average_objective_value}). Reporting max penalty."
+                f"[DEBUG-1e9] Trial {trial.number}: Invalid objective value ({average_objective_value}). "
+                f"total_obj={total_objective_value}, num_conditions={num_conditions_run}. Reporting max penalty."
             )
             average_objective_value = CRITICAL_FAILURE_PENALTY
 
@@ -1197,68 +1548,28 @@ def objective(
         raise
     except Exception as e:
         log.critical(
-            f"Trial {trial.number}: Unhandled exception in objective function: {e}",
+            f"[DEBUG-1e9] Trial {trial.number}: Unhandled exception in objective function: {e}",
             exc_info=True,
         )
         return CRITICAL_FAILURE_PENALTY
     finally:
-        cleanup_trial_resources(controller)
         log.info(f"--- Trial {trial.number} Resources Cleaned Up ---")
-
-
-def initialize_trial_resources(scene_name: str) -> Tuple[Optional[Any], Optional[Dict]]:
-    """각 트라이얼을 위한 AI2-THOR 컨트롤러와 네비게이션 그래프를 초기화합니다."""
-    controller = None
-    nav_graph = None
-    try:
-        log.debug(
-            f"[Trial Resource] Initializing AI2-THOR controller for scene '{scene_name}'..."
-        )
-        controller = init_ai2thor_controller(scene=scene_name, width=300, height=300)
-        log.debug("[Trial Resource] Controller initialized.")
-        log.debug("[Trial Resource] Loading navigation graph...")
-        nav_graph = load_navigation_graph(controller)
-        log.debug("[Trial Resource] Navigation graph loaded.")
-        return controller, nav_graph
-    except Exception as e:
-        log.error(
-            f"[Trial Resource] Error initializing trial resources: {e}", exc_info=True
-        )
-        if controller:
-            try:
-                controller.stop()
-            except Exception as stop_e:
-                log.error(
-                    f"[Trial Resource] Error stopping controller during init failure: {stop_e}"
-                )
-        return None, None
-
-
-def cleanup_trial_resources(controller: Optional[Any]):
-    """트라이얼에서 사용한 AI2-THOR 컨트롤러를 정지시킵니다."""
-    if controller:
-        try:
-            log.debug("[Trial Resource] Stopping AI2-THOR controller...")
-            controller.stop()
-            log.debug("[Trial Resource] Controller stopped.")
-        except Exception as e:
-            log.error(f"[Trial Resource] Error stopping AI2-THOR controller: {e}")
 
 
 def run_optuna_study(
     n_trials: int,
     timeout_seconds: Optional[int],
-    scene_name: str,
-    task_paths_to_tune: List[Path],
-    initial_scene_positions: Dict,
-    n_samples_per_trial: int,
+    test_conditions: List[TestCondition],
+    scenes_evaluated: List[str],
+    init_priors_evaluated: List[float],
     n_jobs: int,
 ):
     """Optuna 하이퍼파라미터 튜닝 스터디를 설정하고 실행합니다."""
     global CSV_FILENAME
 
     start_time = time.time()
-    study_name = f"scheduler_tuning_{scene_name}_{time.strftime('%Y%m%d_%H%M')}"
+    study_suffix = scenes_evaluated[0] if len(scenes_evaluated) == 1 else "multi_scene"
+    study_name = f"scheduler_tuning_{study_suffix}_{time.strftime('%Y%m%d_%H%M')}"
 
     OUTPUT_TUNE_DIR.mkdir(parents=True, exist_ok=True)
     db_filename = f"{study_name}.db"
@@ -1271,12 +1582,18 @@ def run_optuna_study(
         log.warning("Failed to ensure CSV header. CSV logging might be incomplete.")
 
     log.info(f"Creating/Loading Optuna study: '{study_name}' Storage: '{storage_name}'")
+    log.info(
+        f"Full coverage evaluation: {len(test_conditions)} conditions "
+        f"(scenes={len(scenes_evaluated)}, init_priors={len(init_priors_evaluated)})"
+    )
+
     try:
         sampler = optuna.samplers.TPESampler(
-            seed=42, n_startup_trials=15, multivariate=True
+            seed=42, n_startup_trials=10, multivariate=True
         )
+        # Pruner 설정: 전수 평가이므로 더 보수적으로 설정
         pruner = optuna.pruners.MedianPruner(
-            n_startup_trials=15, n_warmup_steps=0, interval_steps=1
+            n_startup_trials=10, n_warmup_steps=100, interval_steps=5
         )
 
         study = optuna.create_study(
@@ -1292,15 +1609,15 @@ def run_optuna_study(
         return
 
     log.info(
-        f"Starting optimization with {n_trials} trials (timeout={timeout_seconds}s, n_jobs={n_jobs})..."
+        "Starting optimization with %d trials (timeout=%s, n_jobs=%d)...",
+        n_trials,
+        timeout_seconds,
+        n_jobs,
     )
     try:
         objective_func = functools.partial(
             objective,
-            scene_name=scene_name,
-            task_paths_to_tune=task_paths_to_tune,
-            initial_scene_positions=initial_scene_positions,
-            n_samples_per_trial=n_samples_per_trial,
+            test_conditions=test_conditions,
         )
 
         study.optimize(
@@ -1414,13 +1731,22 @@ if __name__ == "__main__":
         description="Heuristic Parameter Tuning using Optuna"
     )
     parser.add_argument(
-        "-n", "--n_trials", type=int, default=1000000, help="Number of Optuna trials"
+        "-n", "--n_trials", type=int, default=60, help="Number of Optuna trials"
     )
     parser.add_argument(
-        "--timeout", type=int, default=180000, help="Maximum tuning time in seconds"
+        "--timeout", type=int, default=1800000, help="Maximum tuning time in seconds"
     )
     parser.add_argument(
-        "--scene", type=str, default="FloorPlan1", help=f"AI-THOR scene name"
+        "--scene",
+        type=str,
+        default="all",  # Default changed from "FloorPlan1" to "all" to use infer scene from path
+        help="Default AI-THOR scene. Use 'all' to evaluate across every discovered scene (unless --scenes is provided).",
+    )
+    parser.add_argument(
+        "--scenes",
+        nargs="+",
+        default=None,
+        help="Specific scene names to evaluate. Overrides --scene when provided.",
     )
     parser.add_argument(
         "--tasks",
@@ -1435,27 +1761,23 @@ if __name__ == "__main__":
         help="Directory to save CSV results",
     )
     parser.add_argument(
-        "--n_samples_per_trial",
-        type=int,
-        default=10,
-        help="Number of tasks to sample per trial",
+        "--init_priors",
+        nargs="+",
+        type=float,
+        default=None,
+        help="List of init_prior_mean values to evaluate default[60.0, 80.0, 100.0, 120.0, 140.0]",
     )
     parser.add_argument(
         "--n_jobs",
         type=int,
-        default=5,
+        default=12,
         help="Number of parallel jobs for Optuna trials",
     )
 
     args = parser.parse_args()
 
     SCENE_NAME = args.scene
-    if args.tasks is not None:
-        TUNING_TASK_NAMES_LIST = args.tasks
-        log.info(
-            f"Overriding tasks with command-line arguments: {TUNING_TASK_NAMES_LIST}"
-        )
-    elif not TUNING_TASK_NAMES_LIST:
+    if not TUNING_TASK_NAMES_LIST:
         log.error(
             "No tasks specified via command line and failed to load dynamically. Exiting."
         )
@@ -1464,80 +1786,95 @@ if __name__ == "__main__":
     N_TRIALS_TO_RUN = args.n_trials
     TIMEOUT_TUNING_SECONDS = args.timeout
     OUTPUT_TUNE_DIR = Path(args.output_dir)
-    N_SAMPLES_PER_TRIAL = args.n_samples_per_trial
     N_JOBS = args.n_jobs
 
-    log.info("--- Pre-loading Shared Resources ---")
-    final_tuning_task_names = []
-    if args.tasks is not None:
-        final_tuning_task_names = args.tasks
-        log.info(f"Using tasks from command-line: {final_tuning_task_names}")
+    # init_prior 값들 설정
+    if args.init_priors:
+        init_priors_to_use = sorted(set(args.init_priors))
     else:
-        try:
-            candidate_tasks = sorted(
-                [
-                    p.name
-                    for p in TASK_FILES_DIR.glob("*.json")
-                    if p.is_file() and "natural_languages" not in p.name
-                ]
-            )
-            if not candidate_tasks:
-                log.warning(
-                    f"No JSON task files found in {TASK_FILES_DIR}. Check path."
-                )
-            final_tuning_task_names = candidate_tasks
-        except Exception as e:
-            log.error(f"Error listing task files in {TASK_FILES_DIR}: {e}")
+        init_priors_to_use = DEFAULT_INIT_PRIOR_VALUES
+    log.info(f"Init prior values to evaluate: {init_priors_to_use}")
 
-    if not final_tuning_task_names:
-        log.error("No tasks available for tuning. Exiting.")
+    if args.tasks is not None:
+        resolved_task_names = []
+        for task_arg in args.tasks:
+            normalized = _resolve_task_argument(task_arg)
+            if normalized:
+                resolved_task_names.append(normalized)
+        if not resolved_task_names:
+            log.error("No valid tasks resolved from command-line arguments. Exiting.")
+            sys.exit(1)
+        task_name_candidates = resolved_task_names
+        log.info("Using tasks from command-line: %s", task_name_candidates)
+    else:
+        task_name_candidates = TUNING_TASK_NAMES_LIST
+
+    available_scene_names = sorted(
+        {scene for scene in TASK_SCENE_LOOKUP.values() if scene}
+    )
+    if args.scenes:
+        selected_scene_names = sorted(set(args.scenes))
+    elif args.scene.lower() == "all":
+        # If 'all', use all scenes discovered from task files
+        selected_scene_names = available_scene_names
+        if not selected_scene_names:
+            # Fallback if discovery failed
+            selected_scene_names = ["FloorPlan1"]
+            log.warning("No scenes discovered from files. Defaulting to FloorPlan1.")
+    else:
+        selected_scene_names = [args.scene]
+
+    if not selected_scene_names:
+        log.error("No scene names could be determined for tuning. Exiting.")
         sys.exit(1)
 
-    task_paths_for_study: List[Path] = []
-    for name in final_tuning_task_names:
-        task_path = TASK_FILES_DIR / name
-        if task_path.is_file():
-            task_paths_for_study.append(task_path)
-        else:
-            log.warning(f"Task file '{name}' not found at: {task_path}")
-
-    if not task_paths_for_study:
+    task_specs_for_study = _build_task_specs_from_names(
+        task_name_candidates, selected_scene_names
+    )
+    if not task_specs_for_study:
         log.error(
-            f"No valid task files found for the specified names in '{TASK_FILES_DIR}'. Exiting."
+            "No valid task files found for the requested scenes (%s). Exiting.",
+            selected_scene_names,
         )
         sys.exit(1)
 
-    initial_positions_for_study: Optional[Dict] = None
-    positions_file = SCENE_POSITIONS_DIR / f"{SCENE_NAME}_positions.json"
-    if not positions_file.exists():
-        log.error(f"Scene positions file not found: {positions_file}. Exiting.")
-        sys.exit(1)
-    try:
-        initial_positions_for_study = load_scene_positions(positions_file.name)
-        log.info(f"Initial scene positions loaded from '{positions_file.name}'.")
-    except Exception as e:
-        log.error(f"Failed to load scene positions: {e}. Exiting.")
-        sys.exit(1)
+    # 전수 조합 생성: task_specs × init_priors
+    test_conditions = _generate_all_test_conditions(
+        task_specs_for_study, init_priors_to_use
+    )
 
-    log.info(f"--- Starting Heuristic Tuning ---")
-    log.info(f"Scene: {SCENE_NAME}")
+    scenes_in_use = sorted({spec.scene_name for spec in task_specs_for_study})
+    scene_counts = {
+        scene: sum(1 for spec in task_specs_for_study if spec.scene_name == scene)
+        for scene in scenes_in_use
+    }
+
+    log.info(f"--- Starting Heuristic Tuning (Full Coverage Mode) ---")
+    log.info("Scenes selected: %s", scene_counts)
+    log.info("Init priors: %s", init_priors_to_use)
     log.info(
-        f"Tasks for Tuning ({len(TUNING_TASK_NAMES_LIST)}): {TUNING_TASK_NAMES_LIST if len(TUNING_TASK_NAMES_LIST) < 10 else str(TUNING_TASK_NAMES_LIST[:10]) + '...'}"
+        "Tasks per scene: %d tasks × %d init_priors = %d conditions per trial",
+        len(task_specs_for_study),
+        len(init_priors_to_use),
+        len(test_conditions),
     )
     log.info(f"Number of Trials: {N_TRIALS_TO_RUN}")
     log.info(
         f"Timeout (seconds): {TIMEOUT_TUNING_SECONDS if TIMEOUT_TUNING_SECONDS else 'None'}"
     )
     log.info(f"Output directory: {OUTPUT_TUNE_DIR}")
+    log.info(
+        f"Expected evaluations per trial: {len(test_conditions)} "
+        f"({len(scenes_in_use)} scenes × {len(task_specs_for_study)//len(scenes_in_use) if scenes_in_use else 0} tasks/scene × {len(init_priors_to_use)} priors)"
+    )
 
     try:
         run_optuna_study(
             n_trials=N_TRIALS_TO_RUN,
             timeout_seconds=TIMEOUT_TUNING_SECONDS,
-            scene_name=SCENE_NAME,
-            task_paths_to_tune=task_paths_for_study,
-            initial_scene_positions=initial_positions_for_study,
-            n_samples_per_trial=N_SAMPLES_PER_TRIAL,
+            test_conditions=test_conditions,
+            scenes_evaluated=scenes_in_use,
+            init_priors_evaluated=init_priors_to_use,
             n_jobs=N_JOBS,
         )
     except Exception as main_e:
