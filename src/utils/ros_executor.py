@@ -1,28 +1,28 @@
-
-"""This module provides a class to handle ROS communication for executing subtasks.
-"""
+"""This module provides a class to handle ROS communication for executing subtasks."""
 
 import json
 import os
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TypeAlias
 
 import requests
+
 from src.models.dataclass import CompletedEntry
 from src.models.task import Subtask
 from src.utils.common.logger import create_module_logger
+from src.utils.decorators import log_ros_action_state
+from src.utils.translate import InstructionTranslator
 
 logger = create_module_logger(module_name=__name__, module_log=True)
 
 Position: TypeAlias = Tuple[float, float, float]
 
-from src.utils.translate import InstructionTranslator
-
 
 class SimulateObjectPosChange:
     """Simulates changes in object positions based on actions."""
 
-    def __init__(self) -> None:
+    def __init__(self, trajectory_log_path: Path) -> None:
         """Initializes the object position simulator."""
         try:
             with open("assets/ros/dynamic/object_positions.json") as f:
@@ -32,11 +32,14 @@ class SimulateObjectPosChange:
             self.object_positions = {}
         self.held_object: Optional[str] = None
         self.agent_location: List[float] = [0.0, 0.0, 0.0]
+        self.trajectory_log_path: Path = trajectory_log_path
 
+    @log_ros_action_state
     def _simulate_grasp(self, target_obj_id: Optional[str]) -> None:
         """Simulates grasping an object."""
         self.held_object = target_obj_id
 
+    @log_ros_action_state
     def _simulate_place(self, receptacle_id: Optional[str]) -> None:
         """Simulates placing an object in or on a receptacle."""
         if not self.held_object:
@@ -67,10 +70,10 @@ class SimulateObjectPosChange:
 class RosExecutor:
     """Handles execution of subtasks via a remote ROS bridge."""
 
-    def __init__(self) -> None:
+    def __init__(self, trajectory_log_path: Path) -> None:
         """Initializes the RosExecutor."""
         self.ros_bridge_url = os.getenv("ROS_BRIDGE_URL", "http://localhost:8000")
-        self.object_pos_simulator = SimulateObjectPosChange()
+        self.object_pos_simulator = SimulateObjectPosChange(trajectory_log_path)
         self.held_object: Optional[str] = None
         self.ros_start_time: Optional[float] = None
         self.total_ros_time: float = 0.0
@@ -124,7 +127,9 @@ class RosExecutor:
             else:
                 try:
                     translated_parts = self.translator.translate(primitive_action)
-                    logger.critical(f"primitive_action: {primitive_action} translated to translated_parts: {translated_parts}")
+                    logger.critical(
+                        f"primitive_action: {primitive_action} translated to translated_parts: {translated_parts}"
+                    )
                     response = requests.post(
                         f"{self.ros_bridge_url}/execute_translated_action",
                         json={"action_parts": translated_parts},
@@ -144,7 +149,11 @@ class RosExecutor:
             logger.info(f"Action '{primitive_action}' took {elapsed_time:.2f} seconds")
             total_elapsed_time += elapsed_time
             action_log.append(
-                {"action": primitive_action, "duration": elapsed_time, "success": success}
+                {
+                    "action": primitive_action,
+                    "duration": elapsed_time,
+                    "success": success,
+                }
             )
 
             if not success:
@@ -169,7 +178,6 @@ class RosExecutor:
                     )
                 self.held_object = None
 
-
         return True, total_elapsed_time, action_log
 
     def execute_subtask(
@@ -190,12 +198,13 @@ class RosExecutor:
         if self.ros_start_time is None:
             self.ros_start_time = time.time()
 
-
         primitive_actions = subtask.execution.primitive_actions
         if not primitive_actions:
             return True, 0.0, []
 
-        success, elapsed_time, action_logs = self.execute_primitive_actions(primitive_actions)
+        success, elapsed_time, action_logs = self.execute_primitive_actions(
+            primitive_actions
+        )
         self.total_ros_time += elapsed_time
         return success, elapsed_time, action_logs
 
@@ -219,7 +228,6 @@ class RosExecutor:
                 ros_start_offset = self.total_ros_time
                 success, elapsed_time, action_logs = self.execute_subtask(entry.subtask)
 
-
                 entry.sim_start_time = ros_start_offset
                 entry.sim_end_time = ros_start_offset + elapsed_time
                 entry.execution_status = success
@@ -235,4 +243,4 @@ class RosExecutor:
     def shutdown(self) -> None:
         """Placeholder for shutdown logic. Currently does nothing."""
         logger.info("ROS Executor shutdown.")
-        pass 
+        pass
