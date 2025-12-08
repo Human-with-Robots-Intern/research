@@ -135,7 +135,7 @@ class PoseCalcModule():
             # print("bool_is_in_list : {}".format(bool_is_in_list))
         else:
             pose_rtn = None
-        return pose_rtn # the position of obj what we want (cam->obj)
+        return pose_rtn
 
     def set_world_frame(self, world_frame_arg:str):
         self.world_frame = world_frame_arg
@@ -154,8 +154,8 @@ class PoseCalcModule():
         print(self.world_frame)
         print(frame_id)
         
-        try: 
-            tf_stamped_instance = self.tf_buffer.lookup_transform(# loopup transform : get position (map-> (somewhere))
+        try:
+            tf_stamped_instance = self.tf_buffer.lookup_transform(
                 to_frame_rel,
                 from_frame_rel,
                 rclpy.time.Time())
@@ -163,7 +163,7 @@ class PoseCalcModule():
             self.node.get_logger().info(
                 f"Could not transform {to_frame_rel} to {from_frame_rel}: {ex}")
 
-        return tf_stamped_instance # map-> cam
+        return tf_stamped_instance
         
         ...
 
@@ -274,7 +274,7 @@ class PoseCalcModule():
         # 절대 좌표를 얻지 못한경우 None을 그대로 반환
         tf_stamped_instance = self.get_tf(camera_frame_arg)# TranslationStamped 타입을 반환
         if tf_stamped_instance is not None:
-            pose_transform = self.do_convert_transform_to_pose(tf_stamped_instance.transform) # posiotion(map->cam)
+            pose_transform = self.do_convert_transform_to_pose(tf_stamped_instance.transform)
             if self.object_list is not None:
                 pose_object = self.get_object_pose(id_arg)# 특정 오브젝트 만의 포즈 받아오기
                 # print(pose_object)
@@ -282,7 +282,7 @@ class PoseCalcModule():
                 if pose_object is not None:
                     pose_object_abs_rtn = self.do_calc_frame_stack(pose_transform, pose_object)
 
-        return pose_object_abs_rtn # the location of obj ( map -> obj)
+        return pose_object_abs_rtn
     
     def set_pose_pivot_obejct(self, id_arg, camera_frame_arg:str = "cam"):
         # 마커의 절대좌표(world 기준 좌표)를 기억하는 코드 
@@ -368,6 +368,11 @@ class PoseCalcModule():
                     for sequence_id, data in sequence_dict.items():
                         sub_action:str = data["sub_action"]
                         pose_offset:Pose = data["pose"]
+                        
+                        if pose_offset is None:
+                            self.node.get_logger().warn(f"Skipping save for [{object_a_id}][{object_b_id}][{action_id}][{sequence_id}]: pose is None")
+                            continue
+
                         is_relative:bool = data["is_relative"]
                         existing_data[str(object_a_id)][str(object_b_id)][str(action_id)][str(sequence_id)] = {
                             "sub_action": sub_action,

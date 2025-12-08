@@ -213,16 +213,16 @@ class ManipulationTask(Process):
     def get_request_gripper(self, sub_action_type, object_id:int=None) -> GripperCommand:
         request_rtn= GripperCommand.Goal()
         if sub_action_type == "gripper_open":
-            request_rtn.command.position = 0.04
+            request_rtn.command.position = 0.0
             request_rtn.command.max_effort = 0.0
         elif sub_action_type == "gripper_close":
-            request_rtn.command.position = 0.0
+            request_rtn.command.position = 1.0
             request_rtn.command.max_effort = 0.0
         elif sub_action_type == "gripper_hold":
             if object_id is not None:
-                data = self.get_gripper_info_from_json(object_id, self.save_data_path_gripper)
-                request_rtn.command.position = data["data"]["position"]
-                request_rtn.command.max_effort = data["data"]["max_effort"]
+                # data = self.get_gripper_info_from_json(object_id, self.save_data_path_gripper)
+                request_rtn.command.position = 1.0
+                request_rtn.command.max_effort = 0.0
             else:
                 ...# 에러 
                 print("object_id is None")

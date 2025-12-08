@@ -6,6 +6,7 @@
 """
 
 # ros 기본 모듈
+import time
 import rclpy
 import rclpy.node
 from rclpy.action import ActionClient
@@ -35,7 +36,7 @@ class GripperClient(Process):
 
         # <ros 기능 요소 선언>
         # set_gripper_state service 선언
-        self.cli_set_gripper = self.node.create_client(SetGripperStateCommand, 'set_gripper_state')
+        self.cli_set_gripper = self.node.create_client(SetGripperStateCommand, 'set_gripper_state', callback_group=ReentrantCallbackGroup())
 
         # gripper_action action 선언
         self.action_client_gripper_action = ActionClient(self.node, GripperCommand, 'panda_gripper/gripper_action', callback_group=MutuallyExclusiveCallbackGroup())
@@ -151,6 +152,7 @@ class GripperClient(Process):
         elif self.process_state == self.process_state_enum.wait_ack.value:
             ...
         elif self.process_state == self.process_state_enum.working.value:
+            time.sleep(1.0)
             ...
         elif self.process_state == self.process_state_enum.complete.value:
             ...

@@ -12,6 +12,8 @@ from control_msgs.action import GripperCommand
 
 # 기본 파이썬 모듈
 import enum
+import os
+from ament_index_python.packages import get_package_share_directory
 
 # 사용자 정의 파이썬 모듈
 from robot_manager_state_transition.robot_entity.robot_manipulator import Robot_manipulator
@@ -45,7 +47,13 @@ class RobotManagerServer(Node):
         self.manipulatior_properties = self.robot.get_manipulator_property_instance()
         self.manipulator_state_enum = self.manipulatior_properties.manipulator_state_enum
         self.manipulatior_properties.set_state(self.manipulator_state_enum.ready.value)
-        self.manipulatior_properties.set_data_dir_path("data_ur")
+        
+        # ament_index를 사용하여 워크스페이스 루트의 data_ur 경로 추적
+        package_share_directory = get_package_share_directory('robot_manager_state_transition')
+        workspace_path = os.path.abspath(os.path.join(package_share_directory, "../../../.."))
+        data_dir_path = os.path.join(workspace_path, "data_ur")
+        
+        self.manipulatior_properties.set_data_dir_path(data_dir_path)
         # self.manipulatior_properties.set_data_dir_path("data_franka")
 
         self.gripper_properties = self.robot.get_gripper_property_instance()
