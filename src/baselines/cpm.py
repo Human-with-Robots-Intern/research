@@ -657,12 +657,16 @@ def main() -> None:
                 input_natural_language = instruction
                 pass
             if args.simulation:
-                save_scene_state(controller=controller, 
-                    output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"), 
-                        scene_name=scene_name, 
-                        instruction=input_natural_language, 
-                        approach_name=approach_name,
-                        state_label="init")
+                save_scene_state(
+                    controller=controller,
+                    output_path=Path(
+                        f"assets/results/states{int(args.init_prior_mean)}"
+                    ),
+                    scene_name=scene_name,
+                    instruction=input_natural_language,
+                    approach_name=approach_name,
+                    state_label="init",
+                )
                 logger.info(f"Scene state saved for {input_natural_language}")
             if task_data is None:
                 # It was a natural language instruction or an invalid number choice.
@@ -759,7 +763,11 @@ def main() -> None:
             result_save(**result_args)
 
         if args.ros:
-            ros_executor = RosExecutor()
+            ros_executor = RosExecutor(
+                trajectory_log_path=Path(
+                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}/trajectory_log.json"
+                )
+            )
             logger.critical(f"ros executor initialized")
             real_executed_scheduled_entries = ros_executor.execute_schedule(
                 final_scheduled_entries

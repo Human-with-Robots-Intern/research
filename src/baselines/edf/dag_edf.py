@@ -658,7 +658,11 @@ def main():
             result_save(**result_args)
 
         if args.ros:
-            ros_executor = RosExecutor()
+            ros_executor = RosExecutor(
+                trajectory_log_path=Path(
+                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}/trajectory_log.json"
+                )
+            )
             real_executed_result_schedule = ros_executor.execute_schedule(
                 result_schedule
             )

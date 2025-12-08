@@ -398,7 +398,9 @@ def main():
 
         total_compute_time, total_sim_time = 0, 0
 
-        ros_executor = RosExecutor() if args.ros else None
+        ros_executor = (
+            RosExecutor(trajectory_log_path=trajectory_log_path) if args.ros else None
+        )
 
         while not is_end:
 
