@@ -65,7 +65,7 @@ services:
       memlock: -1
     devices:
       - /dev/dri:/dev/dri
-      - /dev/ttyUSB0:/dev/ttyUSB0
+      # 환경별 장치는 docker-compose.override.yml에서 설정
     volumes:
       - .:/app
       - /tmp/.X11-unix:/tmp/.X11-unix:rw # 디스플레이 소켓 마운트
