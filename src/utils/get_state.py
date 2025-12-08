@@ -134,14 +134,15 @@ def save_scene_state(
         / f"{state_label}_state.json"
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # 컨트롤러가 없고 FloorPlan301이면 빈 JSON 파일을 생성하고 종료
     if controller is None and scene_name == "FloorPlan301":
         with output_path.open("w", encoding="utf-8") as f:
             json.dump([], f, indent=4)
-        print(f"'{scene_name}'의 scene 상태가 {output_path}에 빈 JSON으로 저장되었습니다.")
+        print(
+            f"'{scene_name}'의 scene 상태가 {output_path}에 빈 JSON으로 저장되었습니다."
+        )
         return
-
 
     object_states = get_all_object_states(controller)
 
@@ -149,6 +150,52 @@ def save_scene_state(
         json.dump(object_states, f, indent=4)
 
     print(f"'{scene_name}'의 scene 상태가 {output_path}에 저장되었습니다.")
+
+
+def get_changed_object_states_ros(
+    state_before: tuple[dict[str, Any], Optional[str]],
+    state_after: tuple[dict[str, Any], Optional[str]],
+) -> list[dict[str, Any]]:
+    """ROS object position and held object state change check"""
+
+    obj_pos_before, held_object_before = state_before
+    obj_pos_after, held_object_after = state_after
+
+    state_changes = []
+
+    # Identify all objects that exist or are held
+    all_objects = set(obj_pos_before.keys()) | set(obj_pos_after.keys())
+    if held_object_before:
+        all_objects.add(held_object_before)
+    if held_object_after:
+        all_objects.add(held_object_after)
+
+    for obj_name in all_objects:
+        properties = {}
+
+        # 1. Check Position
+        pos_before = obj_pos_before.get(obj_name)
+        pos_after = obj_pos_after.get(obj_name)
+
+        if pos_before != pos_after:
+            properties["position"] = pos_after
+
+        # 2. Check parentReceptacles
+        # We assume if held_object == obj_name, parent is ["agent"]
+        # Otherwise, default to empty list [] (meaning "not held by agent" or unknown)
+        is_held_before = obj_name == held_object_before
+        is_held_after = obj_name == held_object_after
+
+        parent_before = ["agent"] if is_held_before else []
+        parent_after = ["agent"] if is_held_after else []
+
+        if parent_before != parent_after:
+            properties["parentReceptacles"] = parent_after
+
+        if properties:
+            state_changes.append({"object_name": obj_name, "property": properties})
+
+    return state_changes
 
 
 if __name__ == "__main__":

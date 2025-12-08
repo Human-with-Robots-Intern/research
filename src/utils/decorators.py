@@ -1,11 +1,117 @@
 import functools
 import json
+import time
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from ai2thor.controller import Controller
 
-from src.utils.get_state import get_all_object_states, get_changed_object_states
+from src.utils.get_state import (
+    get_all_object_states,
+    get_changed_object_states,
+    get_changed_object_states_ros,
+)
+
+
+def log_ros_action_state(func: Callable) -> Callable:
+    """ROS 액션 상태 로깅, JSON 파일에 저장"""
+    """@log_ros_action_state
+    def _simulate_grasp(self, target_obj_id: Optional[str]) -> None:
+        self.held_object = target_obj_id
+
+    @log_ros_action_state
+    def _simulate_place(self, receptacle_id: Optional[str]) -> None:
+        
+        if not self.held_object:
+            logger.warning("Agent not holding anything. Cannot place. Action FAILED.")
+        elif not receptacle_id or receptacle_id.lower() not in self.object_positions:
+            raise ValueError(
+                f"Place target receptacle '{receptacle_id}' not found in scene positions."
+            )
+        else:
+            logger.debug(f"  Placing '{self.held_object}' on/in '{receptacle_id}'.")
+            if self.held_object in self.object_positions:
+                self.object_positions[self.held_object] = self.object_positions[
+                    receptacle_id.lower()
+                ]
+            # Ensure directory exists before writing updated positions
+            os.makedirs("assets/ros/dynamic", exist_ok=True)
+            with open("assets/ros/dynamic/object_positions.json", "w") as f:
+                json.dump(self.object_positions, f, indent=4)
+            self.held_object = None
+            
+            {
+    "banana": 7,
+    "plate" : 15,
+    "pan" : 31,
+    "sausage" : 32,
+    "stove": 33,
+    "orange_bowl": 34,
+    "blue_bowl": 35,
+    "countertop": 36,
+    "sink|sinkbasin": 37,
+    "laundry_machine": 38,
+    "chicken": 39,
+    "cup": 40,
+    "toggle": 41
+}
+            """
+
+    @functools.wraps(func)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        log_path: Path = self.trajectory_log_path
+        # 1. Action 함수의 로직 시작 전, 현재 상태 확인
+        state_before = (self.object_positions.copy(), self.held_object)
+        start_time = time.time()
+        # Execute the original action
+        result = func(self, *args, **kwargs)
+        end_time = time.time()
+        duration = end_time - start_time
+
+        # 2. Action 함수 로직 종료 후, 상태 확인
+        state_after = (self.object_positions.copy(), self.held_object)
+
+        # 3. 상태 변경된 것만 찾기
+        state_changes = get_changed_object_states_ros(state_before, state_after)
+
+        # Log entry 형식 준비
+        action_name = func.__name__.replace("_simulate_", "")
+        action_args_str = ", ".join(
+            [str(a) for a in args] + [f"{k}={v}" for k, v in kwargs.items()]
+        )
+        primitive_action_str = f"{action_name.upper()} {action_args_str}"
+
+        # 기존 로그 데이터 불러오기
+        log_data = []
+        if log_path.exists() and log_path.stat().st_size > 0:
+            try:
+                with open(log_path, "r", encoding="utf-8") as f:
+                    log_data = json.load(f)
+            except json.JSONDecodeError:
+                log_data = []
+
+        if not isinstance(log_data, list):
+            log_data = []
+
+        next_index = len(log_data)
+
+        log_entry = {
+            "index": next_index,
+            "primitive_action": primitive_action_str.strip(),
+            "duration": duration,
+            "state_change": state_changes,
+        }
+
+        log_data.append(log_entry)
+
+        # 로그 파일 저장
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(log_data, f, indent=4)
+
+        return result
+
+    return wrapper
 
 
 def log_action_state(func: Callable) -> Callable:
