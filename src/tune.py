@@ -333,7 +333,7 @@ SCENE_POSITIONS_DIR = (
 OUTPUT_TUNE_DIR = ASSETS_ROOT / "tune"
 
 # Init Prior 값들 - 다양한 불확실성 수준을 나타냄
-DEFAULT_INIT_PRIOR_VALUES = [60.0, 80.0, 100.0, 120.0, 140.0]
+DEFAULT_INIT_PRIOR_VALUES = [100.0]
 
 TUNING_TASK_NAMES_LIST, TASK_SCENE_LOOKUP = _discover_task_files(TASK_FILES_DIR)
 if not TUNING_TASK_NAMES_LIST:
@@ -1116,7 +1116,9 @@ def _run_single_task_for_trial(
     debug_log_dir = OUTPUT_TUNE_DIR / "debug_trajectories"
     debug_log_dir.mkdir(parents=True, exist_ok=True)
     # 고유한 파일명 생성
-    traj_log_filename = f"traj_{trial_number}_{task_path.stem}_prior{init_prior_mean:.0f}.json"
+    traj_log_filename = (
+        f"traj_{trial_number}_{task_path.stem}_prior{init_prior_mean:.0f}.json"
+    )
     traj_log_path = debug_log_dir / traj_log_filename
 
     cmd = [
@@ -1208,9 +1210,7 @@ def _run_single_task_for_trial(
             tasks_json_path = ASSETS_ROOT / "tasks" / "floorplan_tasks.json"
             all_task_names, _ = load_task_info(tasks_json_path)
 
-            parsed_tasks = parse_instruction_to_tasks(
-                instruction_raw, all_task_names
-            )
+            parsed_tasks = parse_instruction_to_tasks(instruction_raw, all_task_names)
             spec_task_names = [_to_spec_key(t) for t in parsed_tasks]
             valid_task_names = [t for t in spec_task_names if t in TASK_SPECS]
 
@@ -1232,26 +1232,28 @@ def _run_single_task_for_trial(
             makespan_value = trial_metrics.get("makespan")
             if makespan_value is None or makespan_value <= 0:
                 makespan_value = float("inf")
-            
+
             return {
                 "task_name": task_path.stem,
                 "scene_name": scene_name,
                 "status": (
-                    "Completed" if trial_metrics.get("instruction_gcr", 0.0) > 0.5 else "Failed"
+                    "Completed"
+                    if trial_metrics.get("instruction_gcr", 0.0) > 0.5
+                    else "Failed"
                 ),
                 "success_rate": trial_metrics.get("sr", 0.0),
                 "tsr_score": tsr_value,
                 "gcr_score": trial_metrics.get("instruction_gcr", 0.0),
                 "makespan_score": trial_metrics.get("makespan", float("inf")),
                 "simulation_makespan": trial_metrics.get("makespan", float("inf")),
-                "scheduler_makespan": float(
-                    "inf"
-                ),  # subprocess 방식에서는 사용 안 함
+                "scheduler_makespan": float("inf"),  # subprocess 방식에서는 사용 안 함
                 "computation_time": 0.0,  # subprocess 내부에서 계산됨
             }
 
         except Exception as eval_e:
-            log.error(f"Evaluation failed for {task_path.stem}: {eval_e}", exc_info=True)
+            log.error(
+                f"Evaluation failed for {task_path.stem}: {eval_e}", exc_info=True
+            )
             log.error(f"  Trajectory log path: {traj_log_path}")
             log.error(f"  Instruction: {instruction_arg}")
             # 평가 실패 시에도 부분 점수 부여 (완전 실패보다 나음)
@@ -1262,7 +1264,8 @@ def _run_single_task_for_trial(
                 "success_rate": 0.3,  # 부분 점수
                 "tsr_score": 0.3,  # subprocess는 성공했으므로 부분 점수
                 "gcr_score": 0.0,
-                "simulation_makespan": PENALTY_BASE_MAKESPAN * 0.8,  # 완전 실패보다는 낮은 페널티
+                "simulation_makespan": PENALTY_BASE_MAKESPAN
+                * 0.8,  # 완전 실패보다는 낮은 페널티
                 "scheduler_makespan": float("inf"),
                 "computation_time": 0.0,
             }
@@ -1303,7 +1306,7 @@ def _calculate_task_objective(
     tsr_score = task_result.get("tsr_score") or 1.0
     # gcr_score = task_result.get("gcr_score", 0.0)
     makespan = task_result.get("simulation_makespan")
-    
+
     # makespan이 None, inf, 0 이하인 경우 페널티 처리
     if makespan is None or math.isinf(makespan) or makespan <= 0:
         makespan = PENALTY_BASE_MAKESPAN
@@ -1471,10 +1474,13 @@ def objective(
                 for r in task_results_for_trial
                 if r.get("simulation_makespan") != float("inf")
             )
-            / len([
-                r for r in task_results_for_trial
-                if r.get("simulation_makespan") != float("inf")
-            ])
+            / len(
+                [
+                    r
+                    for r in task_results_for_trial
+                    if r.get("simulation_makespan") != float("inf")
+                ]
+            )
             if any(
                 r.get("simulation_makespan") != float("inf")
                 for r in task_results_for_trial
@@ -1484,7 +1490,9 @@ def objective(
 
         trial.set_user_attr("tsr_score", avg_tsr)
         trial.set_user_attr("gcr_score", avg_gcr)
-        trial.set_user_attr("makespan_score", avg_makespan)  # CSV 호환성 위해 키 이름 유지
+        trial.set_user_attr(
+            "makespan_score", avg_makespan
+        )  # CSV 호환성 위해 키 이름 유지
         trial.set_user_attr(
             "scenes_evaluated",
             sorted({cond.task_spec.scene_name for cond in test_conditions}),
@@ -1731,7 +1739,7 @@ if __name__ == "__main__":
         description="Heuristic Parameter Tuning using Optuna"
     )
     parser.add_argument(
-        "-n", "--n_trials", type=int, default=60, help="Number of Optuna trials"
+        "-n", "--n_trials", type=int, default=120, help="Number of Optuna trials"
     )
     parser.add_argument(
         "--timeout", type=int, default=1800000, help="Maximum tuning time in seconds"
