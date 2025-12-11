@@ -2,7 +2,6 @@ import argparse
 import concurrent.futures
 import gc
 import logging
-import psutil
 import re
 import shutil
 import subprocess
@@ -17,10 +16,17 @@ from itertools import product
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+import psutil
 import yaml
 
 from src.utils.common import create_module_logger
-from src.utils.config.constants import ASSETS_PATH, LOG_PATH, RESULT_PATH, SCRIPTS_PATH, INIT_PRIOR_VARIANCE
+from src.utils.config.constants import (
+    ASSETS_PATH,
+    INIT_PRIOR_VARIANCE,
+    LOG_PATH,
+    RESULT_PATH,
+    SCRIPTS_PATH,
+)
 
 # Create a single timestamp for the entire script run
 RUN_TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
@@ -166,24 +172,24 @@ def cleanup_subprocess(process: subprocess.Popen) -> None:
     try:
         parent = psutil.Process(process.pid)
         children = parent.children(recursive=True)
-        
+
         # Terminate children first
         for child in children:
             try:
                 child.terminate()
             except psutil.NoSuchProcess:
                 pass
-        
+
         # Wait for children to terminate
         gone, alive = psutil.wait_procs(children, timeout=3)
-        
+
         # Kill any remaining children
         for p in alive:
             try:
                 p.kill()
             except psutil.NoSuchProcess:
                 pass
-        
+
         # Terminate parent
         try:
             parent.terminate()
@@ -276,7 +282,8 @@ def _run_script_and_log(
         subprocess.CompletedProcess: The result of the subprocess run.
     """
     wrapper_script = (
-        SCRIPTS_PATH / "run_project.sh"
+        SCRIPTS_PATH
+        / "run_project.sh"
         # 해당 스크립트는 ros container 빌드시 실행되도록 변경됨.
         # if is_simulation
         # else SCRIPTS_PATH / "run_with_ros_env.sh"
@@ -313,7 +320,7 @@ def _run_script_and_log(
             cmd.extend([f"--{key}", str(value)])
 
     logger.info(f"Executing command: {' '.join(cmd)}")
-    
+
     # Use Popen for better process control
     process = subprocess.Popen(
         cmd,
@@ -321,7 +328,7 @@ def _run_script_and_log(
         stderr=subprocess.PIPE,
         text=True,
     )
-    
+
     try:
         stdout, stderr = process.communicate(timeout=3600)  # 1 hour timeout
         returncode = process.returncode
@@ -337,14 +344,14 @@ def _run_script_and_log(
     finally:
         # Ensure process is cleaned up
         cleanup_subprocess(process)
-    
+
     # Create result object compatible with subprocess.run
     class ProcessResult:
         def __init__(self, returncode, stdout, stderr):
             self.returncode = returncode
             self.stdout = stdout
             self.stderr = stderr
-    
+
     result = ProcessResult(returncode, stdout, stderr)
 
     log_header = f"\n--- {'SUCCESS' if result.returncode == 0 else 'FAILURE'} (Attempt {attempt}) ---\n"
@@ -380,11 +387,11 @@ def worker(task: ExperimentTask) -> None:
     """
     # Wait for memory to be available before starting
     wait_for_memory_available()
-    
+
     # Log memory usage at start
     mem_start = get_memory_usage()
     logger.info(f"Starting task with memory usage: {mem_start:.1f}%")
-    
+
     try:
         # For real-world experiments, reset object positions to default before each run.
         if not task.is_simulation:
@@ -409,7 +416,9 @@ def worker(task: ExperimentTask) -> None:
         instr_path_obj = Path(task.instruction_path)
 
         log_file_name = f"{b_path.stem}_{task.ablation_name}_{task.init_prior_name}_{task.case_name}_{task.scene_name}_{instr_path_obj.stem}_{task.try_idx + 1}.log"
-        log_file_path = LOG_PATH / f"{task.log_dir_timestamp}-worker_logs" / log_file_name
+        log_file_path = (
+            LOG_PATH / f"{task.log_dir_timestamp}-worker_logs" / log_file_name
+        )
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
         logger.critical(
@@ -473,7 +482,7 @@ def worker(task: ExperimentTask) -> None:
     finally:
         # Force garbage collection after each task
         gc.collect()
-        
+
         # Log memory usage at end
         mem_end = get_memory_usage()
         logger.info(
@@ -594,7 +603,7 @@ def _find_latest_result_json_for_task(
     else:
         suffix = "_simulation" if config.get("simulation", False) else ""
         approach_name = f"{baseline_path.stem}{suffix}"
-    
+
     # Create list of approach names to search
     # BUG FIX: save_scene_state uses "cpm" but result_save uses "cpm_simulation"
     # So we need to search both versions
@@ -623,7 +632,10 @@ def _find_latest_result_json_for_task(
                 # Try all approach name variations
                 for approach_name_variant in approach_names_to_search:
                     json_path = (
-                        exact_dir / scene_name / approach_name_variant / "end_state.json"
+                        exact_dir
+                        / scene_name
+                        / approach_name_variant
+                        / "end_state.json"
                     )
                     if json_path.exists():
                         candidates.append((0, json_path))
@@ -638,7 +650,9 @@ def _find_latest_result_json_for_task(
                 num = int(m.group(1))
                 # Try all approach name variations
                 for approach_name_variant in approach_names_to_search:
-                    json_path = task_dir / scene_name / approach_name_variant / "end_state.json"
+                    json_path = (
+                        task_dir / scene_name / approach_name_variant / "end_state.json"
+                    )
                     if json_path.exists():
                         candidates.append((num, json_path))
 
@@ -730,7 +744,7 @@ def main() -> None:
         if config.get("llm_scripts", [])
         else []
     )
-    
+
     baselines = sched_baselines + llm_baselines
 
     scene_types_config = config.get("scene_type", "kitchen")
@@ -900,17 +914,19 @@ def main() -> None:
             try:
                 future.result()
                 completed_count += 1
-                
+
                 # Periodically force garbage collection
                 if completed_count % GC_COLLECT_AFTER_TASKS == 0:
-                    logger.info(f"Completed {completed_count} tasks. Running garbage collection...")
+                    logger.info(
+                        f"Completed {completed_count} tasks. Running garbage collection..."
+                    )
                     gc.collect()
                     mem_usage = get_memory_usage()
                     logger.info(f"Current memory usage: {mem_usage:.1f}%")
             except Exception as e:
                 logger.critical(f"A task generated an exception: {e}")
                 logger.critical(traceback.format_exc())
-        
+
         # Final garbage collection
         logger.info("All tasks completed. Final garbage collection...")
         gc.collect()
