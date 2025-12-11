@@ -138,6 +138,7 @@ class ExperimentTask:
     file_copy_lock: threading.Lock
     max_retries: int
     log_dir_timestamp: str
+    gpu_id: int  # Assigned GPU ID for this task
 
 
 def get_memory_usage() -> float:
@@ -261,6 +262,7 @@ def _run_script_and_log(
     ablation_params: Dict[str, Any],
     init_prior_params: Dict[str, Any],
     attempt: int,
+    gpu_id: int,
 ) -> subprocess.CompletedProcess:
     """
     Constructs and runs a script command, capturing and logging the output.
@@ -277,6 +279,7 @@ def _run_script_and_log(
         ablation_params (Dict[str, Any]): Ablation configuration parameters.
         init_prior_params (Dict[str, Any]): Initial prior configuration parameters.
         attempt (int): The current attempt number.
+        gpu_id (int): The GPU ID to use for this task.
 
     Returns:
         subprocess.CompletedProcess: The result of the subprocess run.
@@ -319,6 +322,14 @@ def _run_script_and_log(
         else:
             cmd.extend([f"--{key}", str(value)])
 
+    logger.info(f"Executing command (GPU {gpu_id}): {' '.join(cmd)}")
+    
+    # Set specific GPU for this process if assigned
+    import os
+    env = os.environ.copy()
+    if gpu_id >= 0:
+        env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    
     logger.info(f"Executing command: {' '.join(cmd)}")
 
     # Use Popen for better process control
@@ -327,6 +338,7 @@ def _run_script_and_log(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        env=env,
     )
 
     try:
@@ -447,6 +459,7 @@ def worker(task: ExperimentTask) -> None:
                 task.ablation_params,
                 task.init_prior_params,
                 attempt=1,
+                gpu_id=task.gpu_id,
             )
         elif b_type == BaselineType.LLM:
             buffer_between_instructions = 2 if task.is_simulation else 30
@@ -463,6 +476,7 @@ def worker(task: ExperimentTask) -> None:
                     task.ablation_params,
                     task.init_prior_params,
                     attempt=attempt,
+                    gpu_id=task.gpu_id,
                 )
                 if result.returncode == 0:
                     logger.info(
@@ -637,8 +651,8 @@ def _find_latest_result_json_for_task(
                         / approach_name_variant
                         / "end_state.json"
                     )
-                    if json_path.exists():
-                        candidates.append((0, json_path))
+                if json_path.exists():
+                    candidates.append((0, json_path))
 
             # Numeric suffixed folders: key_1, key_2, ...
             for task_dir in base_dir.glob(f"{key}_*"):
@@ -730,6 +744,7 @@ def main() -> None:
     num_runs_per_instruction: int = config.get("num_runs_per_instruction", 1)
     max_retries: int = config.get("max_retries", 10)
     max_workers: int = config.get("max_workers", 10)
+    num_gpus: int = config.get("num_gpus", 0)
 
     is_dry_run: bool = args.dry_run
 
@@ -810,6 +825,9 @@ def main() -> None:
     # logger.critical(f"Found {len(execute_dict)} execute dicts to run.")
 
     tasks_to_run = []
+    gpu_counter = 0
+    # num_gpus is now loaded from config above
+
     for baseline in baselines:
         b_type, b_path = baseline
 
@@ -863,6 +881,12 @@ def main() -> None:
                         continue
 
                     for try_idx in range(num_runs_per_instruction):
+                        # Round-robin GPU assignment if GPUs are available
+                        gpu_id = -1
+                        if num_gpus > 0:
+                            gpu_id = gpu_counter % num_gpus
+                            gpu_counter += 1
+                        
                         task = ExperimentTask(
                             baseline_info=baseline,
                             case_name=case_name,
@@ -878,6 +902,7 @@ def main() -> None:
                             file_copy_lock=file_copy_lock,
                             max_retries=max_retries,
                             log_dir_timestamp=run_timestamp,
+                            gpu_id=gpu_id,
                         )
                         tasks_to_run.append(task)
 

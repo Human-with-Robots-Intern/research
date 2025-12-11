@@ -5,6 +5,7 @@ import glob
 import json
 import logging
 import math
+import multiprocessing
 import os
 import random
 import re
@@ -1096,6 +1097,7 @@ def _run_single_task_for_trial(
     controller_instance: Any,
     nav_graph: Dict,
     initial_scene_positions: Dict,
+    gpu_id: int = -1,
 ) -> Optional[Dict[str, Any]]:
     """주어진 하이퍼파라미터와 리소스로 단일 태스크 시뮬레이션을 subprocess로 실행합니다.
 
@@ -1110,6 +1112,7 @@ def _run_single_task_for_trial(
         controller_instance: (미사용) 호환성 유지용.
         nav_graph: (미사용) 호환성 유지용.
         initial_scene_positions: (미사용) 호환성 유지용.
+        gpu_id: 할당된 GPU ID (-1이면 지정하지 않음).
     """
 
     # trajectory log 저장용 디렉토리 (디버깅을 위해 영구 보관)
@@ -1151,6 +1154,9 @@ def _run_single_task_for_trial(
 
     # subprocess 실행
     env = os.environ.copy()
+    if gpu_id >= 0:
+        env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+
     # Ensure PROJECT_ROOT, SRC_ROOT, and current CWD are in PYTHONPATH
     pythonpath = env.get("PYTHONPATH", "")
     # PROJECT_ROOT를 최우선으로 추가하여 'ithor' 등을 찾을 수 있게 함
@@ -1334,19 +1340,28 @@ def _calculate_task_objective(
 def objective(
     trial: optuna.Trial,
     test_conditions: List[TestCondition],
+    gpu_queue: Optional[Any] = None,
 ) -> float:
     """Optuna 목적 함수: 모든 test condition(task × init_prior 조합)을 전수 평가합니다."""
     params = {
-        "beta": trial.suggest_float("beta", 1, 8.0, step=0.1, log=False),
-        "gamma": trial.suggest_float("gamma", 0.01, 0.5, log=True),
+        "beta": trial.suggest_float("beta", 5.0, 20.0, step=0.5, log=False),
+        "gamma": trial.suggest_float("gamma", 0.001, 0.1, log=True),
     }
+
+    # GPU 할당
+    gpu_id = -1
+    if gpu_queue is not None:
+        gpu_id = gpu_queue.get()
+
     log.info(
-        f"\n--- Starting Trial {trial.number} | Params: b={params['beta']:.3f}, g={params['gamma']:.3f} ---"
+        f"\n--- Starting Trial {trial.number} (GPU {gpu_id}) | Params: b={params['beta']:.3f}, g={params['gamma']:.3f} ---"
     )
     log.info(f"  Evaluating ALL {len(test_conditions)} test conditions (full coverage)")
 
     if not test_conditions:
         log.error("No test conditions available for tuning.")
+        if gpu_queue is not None and gpu_id != -1:
+            gpu_queue.put(gpu_id)
         return CRITICAL_FAILURE_PENALTY
 
     try:
@@ -1379,6 +1394,7 @@ def objective(
                 controller_instance=None,
                 nav_graph=None,
                 initial_scene_positions={},
+                gpu_id=gpu_id,
             )
 
             if task_result is None:
@@ -1561,7 +1577,9 @@ def objective(
         )
         return CRITICAL_FAILURE_PENALTY
     finally:
-        log.info(f"--- Trial {trial.number} Resources Cleaned Up ---")
+        if gpu_queue is not None and gpu_id != -1:
+            gpu_queue.put(gpu_id)
+        log.info(f"--- Trial {trial.number} Resources Cleaned Up (GPU {gpu_id} released) ---")
 
 
 def run_optuna_study(
@@ -1571,6 +1589,7 @@ def run_optuna_study(
     scenes_evaluated: List[str],
     init_priors_evaluated: List[float],
     n_jobs: int,
+    num_gpus: int = 1,
 ):
     """Optuna 하이퍼파라미터 튜닝 스터디를 설정하고 실행합니다."""
     global CSV_FILENAME
@@ -1617,35 +1636,51 @@ def run_optuna_study(
         return
 
     log.info(
-        "Starting optimization with %d trials (timeout=%s, n_jobs=%d)...",
+        "Starting optimization with %d trials (timeout=%s, n_jobs=%d, num_gpus=%d)...",
         n_trials,
         timeout_seconds,
         n_jobs,
+        num_gpus,
     )
-    try:
-        objective_func = functools.partial(
-            objective,
-            test_conditions=test_conditions,
-        )
 
-        study.optimize(
-            objective_func,
-            n_trials=n_trials,
-            timeout=timeout_seconds,
-            gc_after_trial=True,
-            n_jobs=n_jobs,
-            callbacks=[csv_callback],
-        )
-    except KeyboardInterrupt:
-        log.warning("Optimization interrupted by user.")
-    except Exception as e:
-        log.error(f"Optimization loop failed unexpectedly: {e}", exc_info=True)
-    finally:
-        end_time = time.time()
-        log.info(
-            f"\n--- Tuning Loop Finished (Total Time: {end_time - start_time:.2f}s) ---"
-        )
-        _analyze_and_print_results(study, study_name, OUTPUT_TUNE_DIR)
+    # Use multiprocessing Manager to create a shared Queue for GPU IDs
+    with multiprocessing.Manager() as manager:
+        gpu_queue = manager.Queue()
+        
+        # Populate the queue with GPU IDs distributed across n_jobs
+        # If n_jobs is -1 (use all cores), we can't easily know exact count, 
+        # but usually providing more IDs than needed is fine.
+        queue_size = n_jobs if n_jobs > 0 else multiprocessing.cpu_count()
+        # Ensure we have enough items in queue so workers don't starve initially
+        # We cycle through available GPUs
+        for i in range(queue_size):
+            gpu_queue.put(i % num_gpus)
+
+        try:
+            objective_func = functools.partial(
+                objective,
+                test_conditions=test_conditions,
+                gpu_queue=gpu_queue,
+            )
+
+            study.optimize(
+                objective_func,
+                n_trials=n_trials,
+                timeout=timeout_seconds,
+                gc_after_trial=True,
+                n_jobs=n_jobs,
+                callbacks=[csv_callback],
+            )
+        except KeyboardInterrupt:
+            log.warning("Optimization interrupted by user.")
+        except Exception as e:
+            log.error(f"Optimization loop failed unexpectedly: {e}", exc_info=True)
+        finally:
+            end_time = time.time()
+            log.info(
+                f"\n--- Tuning Loop Finished (Total Time: {end_time - start_time:.2f}s) ---"
+            )
+            _analyze_and_print_results(study, study_name, OUTPUT_TUNE_DIR)
 
 
 def _analyze_and_print_results(
@@ -1778,8 +1813,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_jobs",
         type=int,
-        default=12,
+        default=20,
         help="Number of parallel jobs for Optuna trials",
+    )
+    parser.add_argument(
+        "--num_gpus",
+        type=int,
+        default=2,
+        help="Number of GPUs to distribute tasks across",
     )
 
     args = parser.parse_args()
@@ -1795,6 +1836,7 @@ if __name__ == "__main__":
     TIMEOUT_TUNING_SECONDS = args.timeout
     OUTPUT_TUNE_DIR = Path(args.output_dir)
     N_JOBS = args.n_jobs
+    NUM_GPUS = args.num_gpus
 
     # init_prior 값들 설정
     if args.init_priors:
@@ -1884,6 +1926,7 @@ if __name__ == "__main__":
             scenes_evaluated=scenes_in_use,
             init_priors_evaluated=init_priors_to_use,
             n_jobs=N_JOBS,
+            num_gpus=NUM_GPUS,
         )
     except Exception as main_e:
         log.critical(
