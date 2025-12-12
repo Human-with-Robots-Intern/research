@@ -137,12 +137,12 @@ novncdisplay() {\n\
     export LIBGL_ALWAYS_SOFTWARE=1\n\
     export QT_QPA_PLATFORM=xcb\n\
     echo "Starting Xvfb on :$ID ..."\n\
-    Xvfb :$ID -screen 0 3840x2160x24 -nolisten tcp >/tmp/xvfb$ID.log 2>&1 &\n\
+    Xvfb :$ID -screen 0 3840x2160x24 -nolisten tcp >/app/logs/xvfb$ID.log 2>&1 &\n\
     sleep 1\n\
     echo "Starting x11vnc on port $VNC_PORT ..."\n\
-    x11vnc -display :$ID -forever -shared -rfbport $VNC_PORT -nopw >/tmp/vnc$ID.log 2>&1 &\n\
+    x11vnc -display :$ID -forever -shared -rfbport $VNC_PORT -nopw >/app/logs/vnc$ID.log 2>&1 &\n\
     echo "Starting websockify on port $WEB_PORT ..."\n\
-    websockify --web=/usr/share/novnc $WEB_PORT localhost:$VNC_PORT >/tmp/novnc$ID.log 2>&1 &\n\
+    websockify --web=/usr/share/novnc $WEB_PORT localhost:$VNC_PORT >/app/logs/novnc$ID.log 2>&1 &\n\
     echo "Done. Display :$ID is ready at http://localhost:$WEB_PORT/vnc.html"\n\
 }' >> /etc/bash.bashrc
 
