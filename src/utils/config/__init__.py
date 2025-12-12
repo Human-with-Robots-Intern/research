@@ -17,7 +17,7 @@ __all__ = [
     "BEAM_WIDTH",
     "EPSILON",
     "LARGE_NUMBER",
-    "BAYESIAN_CRITERIA",
+    "BAYESIAN_THRESHOLD_PROBABILITY",
     "TOP_K",
     "LOG_ROUND",
     "RED",
