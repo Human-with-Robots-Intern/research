@@ -550,7 +550,8 @@ class Scheduler:
         log.debug(
             f"[_expand_single_wait] Subtask {candidate.subtask.name}'s navigation time: {nav_time}. ({target_obj_id})"
         )
-
+        # 의도: critical이 active한데 monitoring이 안되어있으면 모니터링을 하자. factor alpha가 너무 쎄쎄서 gt에 붙더라
+        # 수정필요 : 이것도 모니터링은 한번만 하게 만듬. 수정필요 251211
         wants_monitoring = candidate.is_critical and not getattr(
             candidate.subtask, "_monitoring_executed", False
         )
@@ -559,22 +560,26 @@ class Scheduler:
             log.debug(
                 f"[_expand_single_wait] Subtask {candidate.subtask.name} (non-critical) will wait WITH monitoring."
             )
-            if curr_node.state.subtask.name.startswith("Monitoring"):
-                log.debug(
-                    f"[_expand_single_wait] Current node already monitoring. Falling back to wait WITHOUT monitoring for {candidate.subtask.name}."
-                )
-                return self._expand_wait_wo_monitoring(
-                    curr_node, candidate, not_yet_candidates, force_wait=force_wait
-                )
+            # if curr_node.state.subtask.name.startswith("Monitoring"):
+            #     log.debug(
+            #         f"[_expand_single_wait] Current node already monitoring. Falling back to wait WITHOUT monitoring for {candidate.subtask.name}."
+            #     )
+            #     return self._expand_wait_wo_monitoring(
+            #         curr_node, candidate, not_yet_candidates, force_wait=force_wait
+            #     )
             return self._expand_wait_with_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, nav_duration=nav_time
             )
 
         log.debug(
             f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITHOUT monitoring."
         )
         return self._expand_wait_wo_monitoring(
-            curr_node, candidate, not_yet_candidates, force_wait=force_wait
+            curr_node,
+            candidate,
+            not_yet_candidates,
+            force_wait=force_wait,
+            nav_duration=nav_time,
         )
 
     # ======================
@@ -595,6 +600,8 @@ class Scheduler:
         Returns:
             True if the candidate should be split for monitoring, False otherwise.
         """
+        # 의도: monitoring이 너무 많이 생겨서 그것을 방지
+        # monitoring이 생기는 횟수는 정해져있으므로 필요없어졌을 것이다. 251211
         # Rule 1: Don't re-split tasks.
         if candidate.subtask.decomposed:
             log.debug(
@@ -1187,7 +1194,8 @@ class Scheduler:
             )
 
         ideal_early_sub_duration = duration_for_early_sub_target
-
+        # 의도: 클라이언트의 만족감
+        # 없어도 됨 ㅇㅇ monitoring bound는 날리자자
         lower_bound = max(
             0.0, ideal_early_sub_duration - MONITORING_SPLIT_TOLERANCE_ABS
         )
@@ -1479,6 +1487,7 @@ class Scheduler:
         curr_node: SimulationNode,
         candidate: Candidate,
         not_yet_candidates: List[Candidate],
+        nav_duration: float = 0.0,
     ) -> SimulationNode:
         """
         Performs monitoring and, if needed, a follow-up wait until the
@@ -1493,10 +1502,13 @@ class Scheduler:
         Args:
             curr_node (SimulationNode): Current node in the search tree.
             candidate (Candidate): The candidate subtask we're waiting for.
+            nav_duration (float): Estimated navigation duration to the target object.
 
         Returns:
             SimulationNode: The child node representing the new state after waiting.
         """
+        # 의도: 현재 feasible 한 subtask가 wait 뿐이면서 monitoring을 안했으면 monitoring을 먼저 하게 하자
+        # 기존대로 하면 interval update에 불안정성이 커지니까 monitoring은 예정된 monitoring time에 하도록 하자.
         curr_state = curr_node.state
 
         if candidate.actual_interaction_start_time is None:
@@ -1504,26 +1516,29 @@ class Scheduler:
                 f"[_expand_wait_with_monitoring] Candidate {candidate.subtask.name} has no actual start. Fallback to plain wait."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
             )
 
         slack_until_target = (
-            candidate.actual_interaction_start_time - curr_state.current_time
+            candidate.actual_interaction_start_time
+            - curr_state.current_time
+            - nav_duration
         )
         if slack_until_target <= MONITORING_DURATION + EPSILON:
             log.debug(
                 f"[_expand_wait_with_monitoring] Insufficient slack ({slack_until_target:.2f}) for monitoring. Fallback to plain wait."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
             )
-
+        # 의도: 이미 not yet중 가장 빠른 subtask에 대해 모니터링을 했으면, 더 모니터링을 두번 다시 하지 말자. -> 모니터링 수를 줄이는 원인 ㅇㅇ
+        # 이제 모니터링 여러번도 허용해야함 251211
         if getattr(candidate.subtask, "_monitoring_executed", False):
             log.debug(
                 f"[_expand_wait_with_monitoring] Monitoring already executed for {candidate.subtask.name}. Proceeding with waiting only."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
             )
 
         target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
@@ -1553,12 +1568,14 @@ class Scheduler:
                 f"[_expand_wait_with_monitoring] Monitoring expansion failed for {candidate.subtask.name}. Fallback to plain wait."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
             )
 
         remaining_slack = max(
             0.0,
-            candidate.actual_interaction_start_time - inserted_node.state.current_time,
+            candidate.actual_interaction_start_time
+            - inserted_node.state.current_time
+            - nav_duration,
         )
 
         log.debug(
@@ -1573,6 +1590,7 @@ class Scheduler:
         candidate: Candidate,
         not_yet_candidates: List[Candidate],
         force_wait: bool = False,
+        nav_duration: float = 0.0,
     ) -> SimulationNode:
         """
         Inserts a single "Wait" action until the candidate's actual_interaction_start_time.
@@ -1583,6 +1601,7 @@ class Scheduler:
         Args:
             curr_node (SimulationNode): Current node in the search tree.
             candidate (Candidate): The candidate subtask we're waiting for.
+            nav_duration (float): Estimated navigation duration to the target object.
 
         Returns:
             SimulationNode: The child node representing the new state after waiting.
@@ -1600,7 +1619,9 @@ class Scheduler:
                 else curr_state.current_time
             )
         )
-        total_wait_duration = max(0.0, target_start_time - curr_state.current_time)
+        total_wait_duration = max(
+            0.0, target_start_time - curr_state.current_time - nav_duration
+        )
 
         # WAIT_TIME_UPPER_BOUND 검사 (force_wait가 아닐 때만)
         if not force_wait and total_wait_duration > WAIT_TIME_UPPER_BOUND:
