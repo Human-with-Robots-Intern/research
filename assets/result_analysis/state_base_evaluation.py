@@ -73,7 +73,7 @@ def main() -> None:
 
     for states_folder in states_folders:
         states_name = states_folder.name  # e.g., "states60", "states100", "states140"
-        logger.info("Processing %s...", states_name)
+        # logger.info("Processing %s...", states_name)
 
         for difficulty_dir in sorted(d for d in states_folder.iterdir() if d.is_dir()):
             for task_dir in sorted(t for t in difficulty_dir.iterdir() if t.is_dir()):
@@ -118,11 +118,11 @@ def main() -> None:
                             events=events_data,
                             task_names=valid_task_names,
                         )
-                        print(
-                            f"\n[{states_name}/{difficulty_dir.name}/{task_dir.name}/{scene_dir.name}/{approach_dir.name}]"
-                        )
-                        print(f"Parsed tasks: {parsed_tasks}")
-                        print(f"Spec task keys: {valid_task_names}")
+                        # print(
+                        #     f"\n[{states_name}/{difficulty_dir.name}/{task_dir.name}/{scene_dir.name}/{approach_dir.name}]"
+                        # )
+                        # print(f"Parsed tasks: {parsed_tasks}")
+                        # print(f"Spec task keys: {valid_task_names}")
 
                         # 각 task별 평가 결과를 저장할 구조
                         evaluation_results = {
@@ -139,16 +139,16 @@ def main() -> None:
                         
                         for task_name, task_result in task_results.items():
                             # Print summary
-                            print(f"- {task_name}: GCR={task_result.gcr_pass}")
+                            # print(f"- {task_name}: GCR={task_result.gcr_pass}")
                             
                             # Print multiple TSRs if available
-                            if task_result.tsr_results:
-                                for tsr_name, tsr_result in task_result.tsr_results.items():
-                                    print(
-                                        f"  └─ TSR '{tsr_name}': Pass={tsr_result.passed}, "
-                                        f"Duration={tsr_result.duration}, "
-                                        f"Trigger={tsr_result.trigger_step}, End={tsr_result.end_step}"
-                                    )
+                            # if task_result.tsr_results:
+                            #     for tsr_name, tsr_result in task_result.tsr_results.items():
+                            #         print(
+                            #             f"  └─ TSR '{tsr_name}': Pass={tsr_result.passed}, "
+                            #             f"Duration={tsr_result.duration}, "
+                            #             f"Trigger={tsr_result.trigger_step}, End={tsr_result.end_step}"
+                            #         )
 
                             # 각 task의 평가 결과 저장
                             task_eval = {
@@ -173,7 +173,7 @@ def main() -> None:
                         eval_result_path = approach_dir / "evaluation_result.json"
                         with eval_result_path.open("w") as f:
                             json.dump(evaluation_results, f, indent=2)
-                        logger.info("Saved evaluation result to: %s", eval_result_path)
+                        # logger.info("Saved evaluation result to: %s", eval_result_path)
 
                         trial_metrics = compute_trial_metrics(
                             parsed_tasks=valid_task_names,
@@ -193,7 +193,7 @@ def main() -> None:
 
     # 모든 trials를 모아서 하나의 최종 summary 생성
     if all_trials:
-        logger.info("Generating final summary from %d trials...", len(all_trials))
+        # logger.info("Generating final summary from %d trials...", len(all_trials))
         final_summary = aggregate_summary(all_trials)
 
         # 최종 요약 파일 저장 (results 폴더 바로 아래)
