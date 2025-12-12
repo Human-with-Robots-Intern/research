@@ -40,6 +40,31 @@ class SimulateObjectPosChange:
         self.held_object = target_obj_id
 
     @log_ros_action_state
+    def _simulate_navigate(self, target_obj_id: Optional[str]) -> None:
+        """Simulates grasping an object."""
+        logger.info(f"Navigating to {target_obj_id}")
+    
+    @log_ros_action_state
+    def _simulate_wait(self, wait_duration: Optional[float]) -> None:
+        """Simulates waiting for a duration."""
+        logger.info(f"Waiting for {wait_duration} seconds")
+    
+    @log_ros_action_state
+    def _simulate_monitoring(self) -> None:
+        """Simulates monitoring."""
+        logger.info("Monitoring")
+    
+    @log_ros_action_state
+    def _simulate_toggle_on(self, target_obj_id: Optional[str]) -> None:
+        """Simulates toggling on an object."""
+        logger.info(f"Toggling on {target_obj_id}")
+    
+    @log_ros_action_state
+    def _simulate_toggle_off(self, target_obj_id: Optional[str]) -> None:
+        """Simulates toggling off an object."""
+        logger.info(f"Toggling off {target_obj_id}")
+
+    @log_ros_action_state
     def _simulate_place(self, receptacle_id: Optional[str]) -> None:
         """Simulates placing an object in or on a receptacle."""
         if not self.held_object:
@@ -177,6 +202,25 @@ class RosExecutor:
                         f"{self.object_pos_simulator._get_object_pos(self.held_object.lower())}"
                     )
                 self.held_object = None
+            elif action_verb.startswith("navigate_to"):
+                self.object_pos_simulator._simulate_navigate(
+                    primitive_action_parts[1].lower()
+                )
+            elif action_verb.startswith("wait"):
+                self.object_pos_simulator._simulate_wait(
+                    primitive_action_parts[1].lower()
+                )
+            elif action_verb.startswith("monitoring"):
+                self.object_pos_simulator._simulate_monitoring()
+            elif action_verb.startswith("toggle_on"):
+                self.object_pos_simulator._simulate_toggle_on(
+                    primitive_action_parts[1].lower()
+                )
+            elif action_verb.startswith("toggle_off"):
+                self.object_pos_simulator._simulate_toggle_off(
+                    primitive_action_parts[1].lower()
+                )
+            
 
         return True, total_elapsed_time, action_log
 
