@@ -159,6 +159,87 @@ class HeuristicManager:
     # Helper Functions - CP 및 MST 계산
     # ========================================================================
 
+    def _estimate_chain_duration(
+        self,
+        start_task: Subtask,
+        remaining_tasks: List[Subtask],
+        constraints: nx.DiGraph,
+        current_scene_positions: dict[str, any],
+    ) -> float:
+        """
+        Estimates the total duration of a task chain starting from `start_task`.
+        It traces forward through critical constraints (Interval ~ 0) to find
+        consecutive tasks that MUST be executed immediately.
+
+        Returns:
+            Total duration (Interaction + Navigation) of the chain.
+        """
+        total_duration = 0.0
+        current_task = start_task
+        visited = {start_task.name}
+
+        # Initial task duration
+        total_duration += self._get_estimated_pure_interaction_time(current_task)
+
+        # Trace the chain
+        while True:
+            # Find successors linked by a critical constraint with Interval ~ 0
+            successors = []
+            if constraints.has_node(current_task.name):
+                for _, succ_name, data in constraints.out_edges(
+                    current_task.name, data=True
+                ):
+                    info = data.get("info", {})
+                    if (
+                        info.get("IsCritical")
+                        and info.get("Interval", float("inf"))
+                        < 1.0  # EPSILON or small buffer
+                        and succ_name not in visited
+                    ):
+                        # Find the actual subtask object
+                        succ_task = next(
+                            (t for t in remaining_tasks if t.name == succ_name), None
+                        )
+                        if succ_task:
+                            successors.append(succ_task)
+
+            if not successors:
+                break
+
+            # If multiple critical successors exist (fork), we take the longest path conservatively
+            # or just pick the first one. For linear chains, there's usually one.
+            # We'll pick the one that adds the most time to be safe.
+            best_succ = None
+            max_add_time = -1.0
+
+            current_target_pos = self._get_task_interaction_location(
+                current_task, current_scene_positions
+            )
+
+            for succ in successors:
+                succ_target_pos = self._get_task_interaction_location(
+                    succ, current_scene_positions
+                )
+                nav_time = self._estimate_navigation_time_between_positions(
+                    current_target_pos, succ_target_pos
+                )
+                interact_time = self._get_estimated_pure_interaction_time(succ)
+                add_time = nav_time + interact_time
+
+                if add_time > max_add_time:
+                    max_add_time = add_time
+                    best_succ = succ
+
+            if best_succ:
+                total_duration += max_add_time
+                visited.add(best_succ.name)
+                current_task = best_succ
+                # Note: We update current_task, so in next iteration we look from best_succ
+            else:
+                break
+
+        return total_duration
+
     def _calculate_critical_path_interaction_duration(
         self,
         remaining_tasks: Set[Subtask],
@@ -346,7 +427,7 @@ class HeuristicManager:
         self,
         current_node: SimulationNode,
         candidate: Candidate,
-        not_yet_candidates: List[Candidate],
+        all_candidates: List[Candidate],
     ) -> float:
         """
         Calculates the heuristic cost for a given candidate subtask.
@@ -364,21 +445,108 @@ class HeuristicManager:
 
 
         Returns:
-            The calculated heuristic cost (lower is better).
+            A tuple containing:
+            - risk_level (int): 0 (Safe), 1 (Warning), 2 (Violation).
+            - total_heuristic_cost (float): The calculated heuristic cost (lower is better).
         """
 
         # --- Check for Wait Candidate ---
         if candidate.subtask.name.startswith("Wait for"):
             return self._calculate_wait_heuristic(
-                current_node, candidate, not_yet_candidates
+                current_node, candidate, all_candidates
             )
 
         # --- 1. Immediate Costs & Penalties ---
         nav_cost_for_candidate = candidate.estimated_first_nav_duration or 0.0
 
-        urgency_cost, slack = self._calculate_candidate_urgency_cost(
+        risk_level, urgency_cost, slack = self._calculate_candidate_risk_and_urgency(
             current_node, candidate
         )
+
+        # [Global Risk Assessment] for Standard Task
+        # Check if executing this task causes ANY other future task to fail.
+        # This prevents "Over-Interleaving" (doing a safe task now that kills a critical task later).
+
+        # 1. Estimate completion time of current candidate (including Chain Lookahead)
+        # If this task starts a critical chain (interval~0), we must account for the whole chain.
+        chain_duration = self._estimate_chain_duration(
+            candidate.subtask,
+            current_node.state.remaining_subtasks,
+            current_node.state.constraints,
+            current_node.state.scene_positions,
+        )
+
+        # Note: chain_duration includes the candidate's interaction time.
+        # We add nav_cost_for_candidate separately as it's the travel to the *first* task.
+        completion_time = (
+            current_node.state.current_time + nav_cost_for_candidate + chain_duration
+        )
+
+        # For position estimation, we should ideally use the position of the LAST task in the chain.
+        # But for simplicity/conservativeness, using the candidate's target is a baseline.
+        # If the chain moves the agent far away, we might underestimate travel to the *next* critical task.
+        # Let's stick to candidate's pos for now or update _estimate_chain_duration to return end pos.
+        # (Updating _estimate_chain_duration is safer but let's see if this is enough).
+        candidate_target_pos = self._get_task_interaction_location(
+            candidate.subtask, current_node.state.scene_positions
+        )
+        if candidate_target_pos is None:
+            candidate_target_pos = tuple(
+                current_node.state.scene_positions.get("agent", (0, 0, 0))
+            )
+
+        global_max_risk = risk_level
+        worst_collateral_slack = 0.0
+
+        for other_cand in all_candidates:
+            if other_cand.subtask.name == candidate.subtask.name:
+                continue
+
+            if (
+                not other_cand.scheduling_due
+                or other_cand.scheduling_due.due_date == float("inf")
+            ):
+                continue
+
+            deadline = other_cand.scheduling_due.due_date
+
+            # Estimate travel from current candidate result to other candidate
+            other_target_pos = self._get_task_interaction_location(
+                other_cand.subtask, current_node.state.scene_positions
+            )
+
+            nav_time_to_other = self._estimate_navigation_time_between_positions(
+                candidate_target_pos, other_target_pos
+            )
+
+            interaction_time_other = self._get_estimated_pure_interaction_time(
+                other_cand.subtask
+            )
+
+            total_time_for_other = nav_time_to_other + interaction_time_other
+
+            # Future Slack = Deadline - (Current Finish + Travel + Other Interact)
+            future_slack = deadline - completion_time - total_time_for_other
+
+            VIOLATION_TOLERANCE = constants.TIMING_TOLERANCE_ABS
+            other_risk = 0
+            if future_slack < -VIOLATION_TOLERANCE:
+                other_risk = 2
+            elif future_slack < 0:
+                other_risk = 1
+
+            if other_risk > global_max_risk:
+                global_max_risk = other_risk
+                worst_collateral_slack = future_slack
+                log.debug(
+                    f"  [Global Risk] Executing {candidate.subtask.name} (Chain: {chain_duration:.2f}s) "
+                    f"causes collateral damage to {other_cand.subtask.name} "
+                    f"(Risk {other_risk}, Future Slack {future_slack:.2f})"
+                )
+
+        risk_level = global_max_risk
+        if risk_level > 0 and worst_collateral_slack < 0:
+            urgency_cost += abs(worst_collateral_slack) * 10.0
 
         # --- 2. Future Workload Cost ---
         remaining_work_cost, cp_dur, mst_time = self._calculate_remaining_work_cost(
@@ -386,15 +554,16 @@ class HeuristicManager:
         )
 
         # --- 3. Final Weighted Sum ---
+        # [Fix] Removed nav_cost_for_candidate to prevent double counting.
+        # The navigation time is already included in g(n) (planned_completion_time) in scheduler.py.
+        # h(n) should only estimate the *remaining* cost.
         total_heuristic_cost = (
-            self.alpha * nav_cost_for_candidate
-            + self.beta * urgency_cost
-            + self.gamma * remaining_work_cost
+            self.beta * urgency_cost + self.gamma * remaining_work_cost
         )
 
         log.info(
-            f"  Heuristic for '{candidate.subtask.name}': "
-            f"CandNav({self.alpha:.1f}*{nav_cost_for_candidate:.2f})={self.alpha * nav_cost_for_candidate:.2f}, "
+            f"  Heuristic for '{candidate.subtask.name}': Risk={risk_level}, "
+            f"Nav(Excluded in h)={nav_cost_for_candidate:.2f}, "
             f"Urg({self.beta:.1f}*{urgency_cost:.2f})={self.beta * urgency_cost:.2f} (Slack={slack:.2f}), "
             f"RemWork({self.gamma:.1f}*Rem[{cp_dur:.2f}+{mst_time:.2f}])={self.gamma * remaining_work_cost:.2f}"
         )
@@ -402,14 +571,14 @@ class HeuristicManager:
             f"  => Total Heuristic Cost for '{candidate.subtask.name}': {total_heuristic_cost:.3f}"
         )
 
-        return total_heuristic_cost
+        return risk_level, total_heuristic_cost
 
     def _calculate_wait_heuristic(
         self,
         current_node: SimulationNode,
         wait_candidate: Candidate,
-        not_yet_candidates: List[Candidate],
-    ) -> float:
+        all_candidates: List[Candidate],
+    ) -> Tuple[int, float]:
         """
         Calculates a specialized heuristic cost for a 'Wait' action.
 
@@ -423,26 +592,100 @@ class HeuristicManager:
             not_yet_candidates: A list of candidates that require waiting.
 
         Returns:
-            The calculated heuristic cost for waiting.
+            A tuple containing:
+            - risk_level (int): 0 (Safe), 1 (Warning), 2 (Violation).
+            - total_heuristic_cost (float): The calculated heuristic cost for waiting.
         """
         # For a wait action, the urgency should be based on the task being waited for.
         target_task_name = wait_candidate.subtask.name.replace("Wait for ", "")
         target_candidate = next(
-            (
-                cand
-                for cand in not_yet_candidates
-                if cand.subtask.name == target_task_name
-            ),
+            (cand for cand in all_candidates if cand.subtask.name == target_task_name),
             None,
         )
 
+        risk_level = 0
+        wait_urgency_cost = 0.0
+        nav_cost_for_wait = 0.0
+
         if target_candidate:
-            wait_urgency_cost, _ = self._calculate_candidate_urgency_cost(
-                current_node, target_candidate
+            # For WAIT, we predict the risk AFTER waiting.
+            # Ideally, WAIT should bring us closer to the optimal start time, so Risk should be low.
+            # But if we wait TOO long or the target is already late, Risk increases.
+            # Here we reuse the target candidate's urgency logic but consider the wait time.
+
+            # Since 'Wait' aligns time to the target's start, the effective slack becomes ~0.
+            # However, if the target is ALREADY late, waiting makes it worse.
+            risk_level, wait_urgency_cost, _ = (
+                self._calculate_candidate_risk_and_urgency(
+                    current_node, target_candidate
+                )
             )
-        else:
-            # Fallback if the target candidate is not found (should not happen in normal flow)
-            wait_urgency_cost = 0.0
+
+            # If the target is already late (Risk 1 or 2), waiting is usually bad unless necessary.
+            # But 'Wait' is only generated if we *need* to wait.
+            # So, we assume 'Wait' itself is safe unless the target is already violated.
+
+            nav_cost_for_wait = target_candidate.estimated_first_nav_duration or 0.0
+
+            # [Modified] Global Risk Assessment for WAIT
+            # Check if waiting for this task causes ANY other task to fail.
+
+            # 1. Calculate future time after wait (Wait aligns to target start)
+            wait_target_start_time = (
+                target_candidate.actual_interaction_start_time
+                if target_candidate.actual_interaction_start_time is not None
+                else (
+                    target_candidate.logical_interaction_start_time
+                    if target_candidate.logical_interaction_start_time is not None
+                    else current_node.state.current_time
+                )
+            )
+
+            # 2. Iterate through all remaining tasks (not_yet_candidates + others)
+            # to see if any of them violate their deadline at `wait_target_start_time`.
+            global_max_risk = risk_level  # Initialize with target's risk
+            worst_collateral_slack = 0.0
+
+            for other_cand in all_candidates:
+                if other_cand.subtask.name == target_task_name:
+                    continue  # Already checked
+
+                if (
+                    not other_cand.scheduling_due
+                    or other_cand.scheduling_due.due_date == float("inf")
+                ):
+                    continue
+
+                # Simulate state at future time
+                deadline = other_cand.scheduling_due.due_date
+
+                # Simple estimation: Future Time + Nav + Interaction
+                # Note: We don't know exact Nav from future position, so use current estimate or 0 as lower bound.
+                # Using current estimate is safer.
+                time_needed = (
+                    other_cand.estimated_first_nav_duration or 0.0
+                ) + self._get_estimated_pure_interaction_time(other_cand.subtask)
+
+                future_slack = deadline - wait_target_start_time - time_needed
+
+                VIOLATION_TOLERANCE = constants.TIMING_TOLERANCE_ABS
+                other_risk = 0
+                if future_slack < -VIOLATION_TOLERANCE:
+                    other_risk = 2
+                elif future_slack < 0:
+                    other_risk = 1
+
+                if other_risk > global_max_risk:
+                    global_max_risk = other_risk
+                    worst_collateral_slack = future_slack
+                    log.debug(
+                        f"  [Global Risk] Waiting for {target_task_name} causes collateral damage to {other_cand.subtask.name} (Risk {other_risk}, Slack {future_slack:.2f})"
+                    )
+
+            risk_level = global_max_risk
+            if risk_level > 0 and worst_collateral_slack < 0:
+                # Add collateral damage to urgency cost to differentiate between bad waits
+                wait_urgency_cost += abs(worst_collateral_slack) * 10.0
 
         # PENALTY: Add the cost of work remaining *after* the wait. This prevents
         # waiting from appearing deceptively "cheap".
@@ -451,12 +694,15 @@ class HeuristicManager:
         )
 
         # --- Final Weighted Sum for Waiting ---
+        # [Fix] Removed nav_cost_for_wait to prevent double counting.
+        # The remaining_work_cost (MST) already accounts for visiting all remaining tasks, including the target.
         total_heuristic_cost = (
             self.beta * wait_urgency_cost + self.gamma * remaining_work_cost
         )
 
         log.info(
-            f"  Heuristic for '{wait_candidate.subtask.name}': "
+            f"  Heuristic for '{wait_candidate.subtask.name}': Risk={risk_level}, "
+            f"WaitNav(Excluded in h)={nav_cost_for_wait:.2f}, "
             f"WaitUrgency({self.beta:.1f}*{wait_urgency_cost:.2f})={self.beta * wait_urgency_cost:.2f}, "
             f"RemWorkAfterWait({self.gamma:.1f}*Rem[{cp_dur:.2f}+{mst_time:.2f}])={self.gamma * remaining_work_cost:.2f}, "
         )
@@ -464,18 +710,18 @@ class HeuristicManager:
             f"  => Total Heuristic Cost for '{wait_candidate.subtask.name}': {total_heuristic_cost:.3f}"
         )
 
-        return total_heuristic_cost
+        return risk_level, total_heuristic_cost
 
-    def _calculate_candidate_urgency_cost(
+    def _calculate_candidate_risk_and_urgency(
         self, current_node: SimulationNode, candidate: Candidate
-    ) -> Tuple[float, float]:
+    ) -> Tuple[int, float, float]:
         """
-        Calculates the urgency cost for a candidate based on its slack time.
+        Calculates the risk level and urgency cost for a candidate based on its slack time.
 
-        Target: Slack should be close to 0 (Just-in-Time Scheduling).
-        - We use 'abs(slack)' as cost.
-        - Both being too early (positive slack) and too late (negative slack) are penalized.
-        - Larger deviations from 0 result in higher costs.
+        Risk Levels:
+        - 0 (Safe): Slack >= 0
+        - 1 (Warning): Slack < 0 but > -TOLERANCE (Late but potentially recoverable or minor)
+        - 2 (Violation): Slack <= -TOLERANCE (Critical violation likely)
 
         Args:
             current_node: The current simulation node.
@@ -483,14 +729,15 @@ class HeuristicManager:
 
         Returns:
             A tuple containing:
-            - urgency_cost (float): The calculated urgency cost (abs(slack)).
+            - risk_level (int): 0, 1, or 2.
+            - urgency_cost (float): The calculated urgency cost.
             - slack (float): The calculated slack time.
         """
         if not candidate.scheduling_due or candidate.scheduling_due.due_date == float(
             "inf"
         ):
             # For non-critical tasks that do not have a deadline from a critical task.
-            return 0.0, 0.0
+            return 0, 0.0, 0.0
 
         current_time = current_node.state.current_time
         deadline = candidate.scheduling_due.due_date
@@ -501,6 +748,53 @@ class HeuristicManager:
             candidate.subtask
         )
         total_time_needed = time_needed_for_nav + time_needed_for_interaction
+
+        # [Added] Lookahead Navigation Time
+        # If the candidate is NOT the task that strictly requires this deadline (i.e., we are
+        # squeezing a task in before a future critical task), we must account for the time
+        # to travel from this candidate's location to the future critical task's location.
+        future_critical_sub_name = candidate.scheduling_due.due_related_sub_name
+        if (
+            future_critical_sub_name
+            and future_critical_sub_name != candidate.subtask.name
+        ):
+            # Find the future critical subtask object
+            future_subtask = next(
+                (
+                    t
+                    for t in current_node.state.remaining_subtasks
+                    if t.name == future_critical_sub_name
+                ),
+                None,
+            )
+            if future_subtask:
+                # 1. Where will we be after the current candidate?
+                current_target_pos = self._get_task_interaction_location(
+                    candidate.subtask, current_node.state.scene_positions
+                )
+                if current_target_pos is None:
+                    # If candidate has no specific location, assume we stay at current agent pos
+                    current_target_pos = tuple(
+                        current_node.state.scene_positions.get("agent", (0, 0, 0))
+                    )
+
+                # 2. Where do we need to be for the future critical task?
+                future_target_pos = self._get_task_interaction_location(
+                    future_subtask, current_node.state.scene_positions
+                )
+
+                # 3. Calculate travel time
+                lookahead_nav_time = self._estimate_navigation_time_between_positions(
+                    current_target_pos, future_target_pos
+                )
+
+                if lookahead_nav_time > 0:
+                    total_time_needed += lookahead_nav_time
+                    log.debug(
+                        f"    [Lookahead] Added {lookahead_nav_time:.2f}s nav time from "
+                        f"'{candidate.subtask.name}' to future critical '{future_critical_sub_name}'."
+                    )
+
         time_available = deadline - current_time
         slack = time_available - total_time_needed
 
@@ -510,13 +804,18 @@ class HeuristicManager:
             f"TotalNeedT={total_time_needed:.2f} => Slack={slack:.2f}"
         )
 
-        # [Modified] Asymmetric Urgency Cost
-        # If Slack < 0 (Late): Heavy penalty to enforce critical timing.
-        # If Slack >= 0 (Early): Extremely low penalty (0.001) to prioritize urgent tasks (EDD)
-        # but NOT punish early execution heavily.
-        if slack < 0:
+        # Risk Level Determination
+
+        VIOLATION_TOLERANCE = constants.TIMING_TOLERANCE_ABS
+
+        if slack >= 0:
+            risk_level = 0
+            urgency_cost = 0.0
+        elif slack > -VIOLATION_TOLERANCE:
+            risk_level = 1
             urgency_cost = abs(slack) * 10.0
         else:
-            urgency_cost = slack * 0.001
+            risk_level = 2
+            urgency_cost = abs(slack) * 10.0
 
-        return urgency_cost, slack
+        return risk_level, urgency_cost, slack

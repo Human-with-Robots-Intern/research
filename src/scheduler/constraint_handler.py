@@ -18,7 +18,7 @@ from src.models.dataclass import (
 from src.models.task import Subtask
 from src.scheduler.action_handler import ActionHandler
 from src.utils.common import create_module_logger
-from src.utils.config import EPSILON
+from src.utils.config import EPSILON, TIMING_TOLERANCE_ABS
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
@@ -123,7 +123,11 @@ class ConstraintHandler:
                     and critical_ctx.source_subtask
                     and critical_ctx.source_end_time is not None
                 ):
-                    inferred_due = critical_ctx.source_end_time + critical_ctx.interval
+                    inferred_due = (
+                        critical_ctx.source_end_time
+                        + critical_ctx.interval
+                        + TIMING_TOLERANCE_ABS
+                    )
                     if inferred_due <= curr_node.state.current_time:
                         inferred_due = curr_node.state.current_time + EPSILON
                     candidate.scheduling_due = SchedulingDue(
@@ -200,7 +204,11 @@ class ConstraintHandler:
                 and critical_ctx.source_subtask
                 and critical_ctx.source_end_time is not None
             ):
-                inferred_due = critical_ctx.source_end_time + critical_ctx.interval
+                inferred_due = (
+                    critical_ctx.source_end_time
+                    + critical_ctx.interval
+                    + TIMING_TOLERANCE_ABS
+                )
                 if inferred_due <= curr_node.state.current_time:
                     inferred_due = curr_node.state.current_time + EPSILON
                 candidate.scheduling_due = SchedulingDue(
@@ -500,7 +508,11 @@ class ConstraintHandler:
                     and critical_ctx.source_subtask
                     and critical_ctx.source_end_time is not None
                 ):
-                    inferred_due = critical_ctx.source_end_time + critical_ctx.interval
+                    inferred_due = (
+                        critical_ctx.source_end_time
+                        + critical_ctx.interval
+                        + TIMING_TOLERANCE_ABS
+                    )
                     if inferred_due <= curr_node.state.current_time:
                         inferred_due = curr_node.state.current_time + EPSILON
 

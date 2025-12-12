@@ -138,6 +138,7 @@ class Scheduler:
             depth=0,
             tie_breaker=next(self._counter),
             state=init_state,
+            risk_level=0,  # [Added] Initialize risk_level
         )
         queue.put(init_node)
 
@@ -183,7 +184,10 @@ class Scheduler:
             expanded_nodes = self._expand_candidates(
                 curr_node, feasible_candidates, not_yet_candidates
             )
-            expanded_nodes.sort(key=lambda nd: nd.heuristic_cost)
+            # [Modified] Sort by (Risk Level, Makespan Cost)
+            # Primary: risk_level (Ascending - 0 is best)
+            # Secondary: heuristic_cost (Ascending - lower cost is best)
+            expanded_nodes.sort(key=lambda nd: (nd.risk_level, nd.heuristic_cost))
 
             # (3) Local Beam Pruning: Keep only the top-K expansions
             log.warning(
@@ -192,7 +196,7 @@ class Scheduler:
             for i, nd in enumerate(expanded_nodes):
                 if i < self.search_width:
                     log.warning(
-                        f"  {i+1}. Task: {nd.state.subtask.name}, Cost: {nd.heuristic_cost:.2f}, Time: {nd.state.current_time:.2f}"
+                        f"  {i+1}. Task: {nd.state.subtask.name}, Risk: {nd.risk_level}, Cost: {nd.heuristic_cost:.2f}, Time: {nd.state.current_time:.2f}"
                     )
                     queue.put(nd)
                 else:
@@ -203,10 +207,10 @@ class Scheduler:
             return None
 
         # Return the best solution (lowest cost)
-
-        best_solutions.sort(key=lambda nd: nd.heuristic_cost)
+        # [Modified] Sort by (Risk Level, Heuristic Cost)
+        best_solutions.sort(key=lambda nd: (nd.risk_level, nd.heuristic_cost))
         log.debug(
-            f"[_simulate_search] Best node found with cost={round(best_solutions[0].heuristic_cost,2)}."
+            f"[_simulate_search] Best node found with Risk={best_solutions[0].risk_level}, Cost={round(best_solutions[0].heuristic_cost,2)}."
         )
         return best_solutions[0]
 
@@ -273,11 +277,17 @@ class Scheduler:
         if on_time_critical_candidate:
             # Policy 2: Before executing, check if mandatory monitoring is needed.
             child_node = self._handle_mandatory_monitoring(
-                curr_node, on_time_critical_candidate, not_yet_candidates
+                curr_node,
+                on_time_critical_candidate,
+                not_yet_candidates,
+                feasible_candidates,
             )
             if not child_node:  # Monitoring was not needed or failed, execute directly
                 child_node = self._expand_single_subtask(
-                    curr_node, on_time_critical_candidate, not_yet_candidates
+                    curr_node,
+                    on_time_critical_candidate,
+                    not_yet_candidates,
+                    feasible_candidates,
                 )
 
             if child_node:
@@ -311,7 +321,7 @@ class Scheduler:
         )
         for candidate in other_feasibles:
             child_node = self._expand_single_subtask(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
             if child_node:
                 expansions.append(child_node)
@@ -322,7 +332,10 @@ class Scheduler:
                     f"[_expand_candidates] Considering 'WAIT' action for subtask: {wait_target_candidate.subtask.name}."
                 )
                 wait_node = self._expand_single_wait(
-                    curr_node, wait_target_candidate, not_yet_candidates
+                    curr_node,
+                    wait_target_candidate,
+                    not_yet_candidates,
+                    feasible_candidates=feasible_candidates,
                 )
                 if wait_node:
                     expansions.append(wait_node)
@@ -349,7 +362,11 @@ class Scheduler:
 
             # UPPER_BOUND를 무시하고 강제로 wait 노드 확장
             forced_wait_node = self._expand_single_wait(
-                curr_node, soonest_candidate, not_yet_candidates, force_wait=True
+                curr_node,
+                soonest_candidate,
+                not_yet_candidates,
+                force_wait=True,
+                feasible_candidates=feasible_candidates,
             )
             if forced_wait_node:
                 expansions.append(forced_wait_node)
@@ -395,6 +412,7 @@ class Scheduler:
         curr_node: SimulationNode,
         candidate: Candidate,
         not_yet_candidates: List[Candidate],
+        feasible_candidates: List[Candidate] = None,
     ) -> Optional[SimulationNode]:
         if not getattr(candidate.subtask, "_monitoring_executed", False):
             critical_ctx = getattr(candidate, "critical_context", None)
@@ -420,6 +438,7 @@ class Scheduler:
                         critical_end_sub_name=candidate.subtask.name,
                         critical_interval_duration=critical_ctx.interval,
                         monitoring_target_sub_name=candidate.subtask.name,
+                        feasible_candidates=feasible_candidates,
                     )
         return None
 
@@ -483,6 +502,7 @@ class Scheduler:
         curr_node: SimulationNode,
         candidate: Candidate,
         not_yet_candidates: List[Candidate],
+        feasible_candidates: List[Candidate] = None,
     ) -> Optional[SimulationNode]:
         """
         Expands the given candidate subtask by deciding whether to split it
@@ -510,14 +530,14 @@ class Scheduler:
             )
             candidate.scheduling_due = due_info
             return self._expand_subtask_with_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
         else:
             log.debug(
                 f"[_expand_single_subtask] Subtask {candidate.subtask.name} will be executed without monitoring."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
 
     def _expand_single_wait(
@@ -526,6 +546,7 @@ class Scheduler:
         candidate: Candidate,
         not_yet_candidates: List[Candidate],
         force_wait: bool = False,
+        feasible_candidates: List[Candidate] = None,
     ) -> Optional[SimulationNode]:
         """
         Expands the wait subtask by deciding whether to split it
@@ -539,6 +560,8 @@ class Scheduler:
             Optional[SimulationNode]: The resulting child node if successful,
             otherwise None.
         """
+        if curr_node.depth == 0:
+            pass
         log.debug(
             f"[_expand_single_wait] Checking wait-based expansion for subtask: {candidate.subtask.name}."
         )
@@ -568,7 +591,11 @@ class Scheduler:
             #         curr_node, candidate, not_yet_candidates, force_wait=force_wait
             #     )
             return self._expand_wait_with_monitoring(
-                curr_node, candidate, not_yet_candidates, nav_duration=nav_time
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_time,
+                feasible_candidates=feasible_candidates,
             )
 
         log.debug(
@@ -580,6 +607,7 @@ class Scheduler:
             not_yet_candidates,
             force_wait=force_wait,
             nav_duration=nav_time,
+            feasible_candidates=feasible_candidates,
         )
 
     # ======================
@@ -678,6 +706,7 @@ class Scheduler:
         curr_node: SimulationNode,
         candidate: Candidate,
         not_yet_candidates: List[Candidate],
+        feasible_candidates: List[Candidate] = None,
     ) -> Optional[SimulationNode]:
         """
         Expands a non-monitoring subtask. The subtask is executed fully at once.
@@ -751,8 +780,14 @@ class Scheduler:
             scene_positions=new_scene_positions,
             held_object=new_held_obj,
         )
-        step_cost = self.cost_calculator.calc_heuristic(
-            curr_node, candidate, not_yet_candidates
+
+        # Global Risk Check을 위해 feasible_candidates도 포함하여 전달
+        all_candidates = not_yet_candidates
+        if feasible_candidates:
+            all_candidates = feasible_candidates + not_yet_candidates
+
+        step_risk, step_cost = self.cost_calculator.calc_heuristic(
+            curr_node, candidate, all_candidates
         )
         # [Fix] The heuristic (step_cost) already includes the "remaining work cost" (h).
         # We adopt A* style cost: f(n) = g(n) + h(n).
@@ -760,10 +795,13 @@ class Scheduler:
         # h(n) = step_cost (Estimated remaining cost + Local penalties).
         new_cost = planned_subtask_completion_time + step_cost
 
+        # [Added] Accumulate max risk level along the path
+        new_risk = max(curr_node.risk_level, step_risk)
+
         log.info(
             f"Expanded {original_task_name} (wo_monitoring): \n"
             f"  Nav Start: {planned_nav_start_time:.2f}, Interaction Start: {planned_interaction_start_time:.2f}, Completion: {planned_subtask_completion_time:.2f}\n"
-            f"  Score: {step_cost:.2f} (Heuristic) + {planned_subtask_completion_time:.2f} (Time) -> Total: {new_cost:.2f}. Depth: {curr_depth + 1}"
+            f"  Score: {step_cost:.2f} (Heuristic) + {planned_subtask_completion_time:.2f} (Time) -> Total: {new_cost:.2f}. Risk: {new_risk}. Depth: {curr_depth + 1}"
         )
 
         return SimulationNode(
@@ -772,6 +810,7 @@ class Scheduler:
             depth=curr_depth + 1,
             tie_breaker=next(self._counter),
             state=new_state,
+            risk_level=new_risk,
         )
 
     def _fallback_insert_monitoring(
@@ -786,6 +825,7 @@ class Scheduler:
         critical_end_sub_name: Optional[str] = None,
         critical_interval_duration: Optional[float] = None,
         monitoring_target_sub_name: Optional[str] = None,
+        feasible_candidates: List[Candidate] = None,
     ) -> Optional[SimulationNode]:
         """Insert a monitoring-only subtask before retrying the original candidate."""
 
@@ -794,7 +834,7 @@ class Scheduler:
                 "[_fallback_insert_monitoring] Missing monitoring target. Falling back to direct execution."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
 
         curr_state = curr_node.state
@@ -821,7 +861,7 @@ class Scheduler:
                 "[_fallback_insert_monitoring] Monitoring execution failed. Falling back to direct execution."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
 
         log.debug(
@@ -996,6 +1036,7 @@ class Scheduler:
         curr_node: SimulationNode,
         candidate: Candidate,
         not_yet_candidates: List[Candidate],
+        feasible_candidates: List[Candidate] = None,
     ) -> Optional[SimulationNode]:
         curr_state = curr_node.state
         original_task_name = candidate.subtask.name
@@ -1015,7 +1056,7 @@ class Scheduler:
                 f"Candidate {original_task_name} has no valid scheduling_due. Fallback to non-monitoring."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
         critical_end_sub_name = scheduling_due.due_related_sub_name
 
@@ -1031,7 +1072,7 @@ class Scheduler:
                 f"No incoming critical constraints for '{critical_end_sub_name}'. Fallback for {original_task_name}."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
 
         target_critical_slot = max(critical_incoming_slots, key=lambda s: s.interval)
@@ -1051,7 +1092,7 @@ class Scheduler:
                 f"CRITICAL LOGIC ERROR: start_subtask '{critical_start_sub_name}' not found. Fallback."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
         critical_start_sub_actual_end_time = (
             critical_start_completed_entry.schedule_end_time
@@ -1072,7 +1113,7 @@ class Scheduler:
                 f"Could not determine monitoring target for '{critical_end_sub_name}'. Fallback."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
 
         log.debug(
@@ -1114,7 +1155,7 @@ class Scheduler:
                 f"Full action sim failed for candidate {original_task_name} during check. Fallback."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
         candidate_expected_completion_time_wo_split = (
             curr_state.current_time + full_candidate_action_info_check.cumulative_time
@@ -1129,7 +1170,7 @@ class Scheduler:
                 f"Candidate {original_task_name} finishes before monitoring trigger ({original_absolute_monitoring_trigger_time:.2f}). Executing without split."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
 
         # # Scenario 2: We are already past the ideal monitoring time.
@@ -1169,7 +1210,7 @@ class Scheduler:
                 f"Executing the task without splitting as a fallback."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
 
         log.info(f"{pre_actions_log.total_time_used()},{pre_actions_log=}")
@@ -1194,7 +1235,7 @@ class Scheduler:
                 f"Executing the task without splitting as a fallback."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
 
         ideal_early_sub_duration = duration_for_early_sub_target
@@ -1212,7 +1253,7 @@ class Scheduler:
                 f"bounds: [{lower_bound:.2f}, {upper_bound:.2f}]). Executing without splitting as a fallback."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
 
         log.debug(
@@ -1252,7 +1293,7 @@ class Scheduler:
                 f"Executing the original task without splitting as a fallback."
             )
             return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
 
         actual_monitoring_trigger_time = node_after_early_sub.state.current_time
@@ -1492,6 +1533,7 @@ class Scheduler:
         candidate: Candidate,
         not_yet_candidates: List[Candidate],
         nav_duration: float = 0.0,
+        feasible_candidates: List[Candidate] = None,
     ) -> SimulationNode:
         """
         Performs monitoring and, if needed, a follow-up wait until the
@@ -1520,7 +1562,11 @@ class Scheduler:
                 f"[_expand_wait_with_monitoring] Candidate {candidate.subtask.name} has no actual start. Fallback to plain wait."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
             )
 
         slack_until_target = (
@@ -1533,7 +1579,11 @@ class Scheduler:
                 f"[_expand_wait_with_monitoring] Insufficient slack ({slack_until_target:.2f}) for monitoring. Fallback to plain wait."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
             )
         # 의도: 이미 not yet중 가장 빠른 subtask에 대해 모니터링을 했으면, 더 모니터링을 두번 다시 하지 말자. -> 모니터링 수를 줄이는 원인 ㅇㅇ
         # 이제 모니터링 여러번도 허용해야함 251211
@@ -1542,7 +1592,11 @@ class Scheduler:
                 f"[_expand_wait_with_monitoring] Monitoring already executed for {candidate.subtask.name}. Proceeding with waiting only."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
             )
 
         target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
@@ -1572,7 +1626,11 @@ class Scheduler:
                 f"[_expand_wait_with_monitoring] Monitoring expansion failed for {candidate.subtask.name}. Fallback to plain wait."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
             )
 
         remaining_slack = max(
@@ -1595,6 +1653,7 @@ class Scheduler:
         not_yet_candidates: List[Candidate],
         force_wait: bool = False,
         nav_duration: float = 0.0,
+        feasible_candidates: List[Candidate] = None,
     ) -> SimulationNode:
         """
         Inserts a single "Wait" action until the candidate's actual_interaction_start_time.
@@ -1677,12 +1736,23 @@ class Scheduler:
                 due_date=target_start_time, due_related_sub_name=candidate.subtask.name
             ),
         )
-        step_cost = self.cost_calculator.calc_heuristic(
-            curr_node, wait_candidate, not_yet_candidates
+        # Global Risk Check을 위해 feasible_candidates도 포함하여 전달
+        all_candidates = not_yet_candidates
+        if feasible_candidates:
+            all_candidates = feasible_candidates + not_yet_candidates
+
+        step_risk, step_cost = self.cost_calculator.calc_heuristic(
+            curr_node,
+            wait_candidate,
+            all_candidates,
+            # Wait action creates delay. We must check if this delay hurts ANY feasible or not_yet task.
         )
         # [Fix] Same logic as above: prevent double counting of future costs.
         # f(n) = time_so_far + heuristic_score
         new_cost = end_time + step_cost
+
+        # [Added] Accumulate max risk level
+        new_risk = max(curr_node.risk_level, step_risk)
 
         log.info(
             f"[_expand_wait_wo_monitoring] WAIT subtask {candidate.subtask.name}\n"
@@ -1697,4 +1767,5 @@ class Scheduler:
             depth=depth + 1,
             tie_breaker=next(self._counter),
             state=new_state,
+            risk_level=new_risk,
         )
