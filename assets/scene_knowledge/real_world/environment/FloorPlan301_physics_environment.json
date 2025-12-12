@@ -1,24 +1,19 @@
 {
     "OPEN": [
-        "Cabinet"
     ],
     "CLOSE": [
-        "Cabinet"
     ],
     "TOGGLE_ON": [
-        "Light",
         "Stove",
         "Laundry_Machine"
     ],
     "TOGGLE_OFF": [
-        "Light",
         "Stove",
         "Laundry_Machine"
     ],
     "GRASP": [
         "Tomato",
         "Banana",
-        "Mushroom",
         "Sausage",
         "Chicken",
         "Pan",
@@ -31,9 +26,7 @@
         "Pan",
         "blue_bowl",
         "orange_bowl",
-        "CounterTop",
         "Table",
-        "Cabinet",
         "Sink",
         "Stove"
     ]

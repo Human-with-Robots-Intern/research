@@ -258,9 +258,10 @@ def result_save(
     print(f"simulation_makespan: {simulation_makespan}")
     print(f"computation_time: {computation_time}")
     print(f"timing_success_rate_sim: {timing_success_rate_sim}")
-
+    print(f"approach_name: {approach_name}")
     realworld_makespan = None
     if "ros" in approach_name:
+        simulation_makespan = 0
         realworld_makespan = round(simulation_makespan, 2)
 
     result_data = {

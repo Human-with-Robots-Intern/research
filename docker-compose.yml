@@ -1,15 +1,15 @@
 
 services:
-  ttp:
+  ttp: # 서비스 이름
     build:
-      context: .
-      target: ttp_development
-      args:
+      context: . # 도커파일이 있는 디렉토리
+      target: ttp_development # 빌드 스테이지 이름, 멀티스테이지 빌드 아니면 없을것임
+      args: # 여기서 .env 파일에 있는 환경변수 가지고 와서 도커에 넣어줌
         - UID=${UID}
         - GID=${GID}
         - USERNAME=${USERNAME}
         - PYTORCH_INDEX_URL=${PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}
-    container_name: ttp
+    container_name: ttp # 컨테이너 이름
     volumes:
       - .:/app
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
