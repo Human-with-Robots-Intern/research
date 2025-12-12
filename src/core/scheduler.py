@@ -754,12 +754,16 @@ class Scheduler:
         step_cost = self.cost_calculator.calc_heuristic(
             curr_node, candidate, not_yet_candidates
         )
-        new_cost = curr_cost + step_cost
+        # [Fix] The heuristic (step_cost) already includes the "remaining work cost" (h).
+        # We adopt A* style cost: f(n) = g(n) + h(n).
+        # g(n) = planned_subtask_completion_time (Time elapsed so far).
+        # h(n) = step_cost (Estimated remaining cost + Local penalties).
+        new_cost = planned_subtask_completion_time + step_cost
 
         log.info(
             f"Expanded {original_task_name} (wo_monitoring): \n"
             f"  Nav Start: {planned_nav_start_time:.2f}, Interaction Start: {planned_interaction_start_time:.2f}, Completion: {planned_subtask_completion_time:.2f}\n"
-            f"  Score: +{step_cost:.2f} -> Total: {new_cost:.2f}. Depth: {curr_depth + 1}"
+            f"  Score: {step_cost:.2f} (Heuristic) + {planned_subtask_completion_time:.2f} (Time) -> Total: {new_cost:.2f}. Depth: {curr_depth + 1}"
         )
 
         return SimulationNode(
@@ -1676,12 +1680,14 @@ class Scheduler:
         step_cost = self.cost_calculator.calc_heuristic(
             curr_node, wait_candidate, not_yet_candidates
         )
-        new_cost = curr_cost + step_cost
+        # [Fix] Same logic as above: prevent double counting of future costs.
+        # f(n) = time_so_far + heuristic_score
+        new_cost = end_time + step_cost
 
         log.info(
             f"[_expand_wait_wo_monitoring] WAIT subtask {candidate.subtask.name}\n"
-            f"  -> Score={round(new_cost, 2)}, "
-            f"Interval={round(start_time,2)}~{round(end_time,2)}\n"
+            f"  -> Score={round(step_cost, 2)} (Heuristic) + {round(end_time, 2)} (Time) = {round(new_cost, 2)}\n"
+            f"  Interval={round(start_time,2)}~{round(end_time,2)}\n"
             f"  -> Updated remain={[r.name for r in curr_state.remaining_subtasks]}\n"
         )
 
