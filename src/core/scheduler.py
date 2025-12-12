@@ -568,14 +568,18 @@ class Scheduler:
             #         curr_node, candidate, not_yet_candidates, force_wait=force_wait
             #     )
             return self._expand_wait_with_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, nav_duration=nav_time
             )
 
         log.debug(
             f"[_expand_single_wait] Subtask {candidate.subtask.name} Using wait WITHOUT monitoring."
         )
         return self._expand_wait_wo_monitoring(
-            curr_node, candidate, not_yet_candidates, force_wait=force_wait
+            curr_node,
+            candidate,
+            not_yet_candidates,
+            force_wait=force_wait,
+            nav_duration=nav_time,
         )
 
     # ======================
@@ -1483,6 +1487,7 @@ class Scheduler:
         curr_node: SimulationNode,
         candidate: Candidate,
         not_yet_candidates: List[Candidate],
+        nav_duration: float = 0.0,
     ) -> SimulationNode:
         """
         Performs monitoring and, if needed, a follow-up wait until the
@@ -1497,6 +1502,7 @@ class Scheduler:
         Args:
             curr_node (SimulationNode): Current node in the search tree.
             candidate (Candidate): The candidate subtask we're waiting for.
+            nav_duration (float): Estimated navigation duration to the target object.
 
         Returns:
             SimulationNode: The child node representing the new state after waiting.
@@ -1510,18 +1516,20 @@ class Scheduler:
                 f"[_expand_wait_with_monitoring] Candidate {candidate.subtask.name} has no actual start. Fallback to plain wait."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
             )
 
         slack_until_target = (
-            candidate.actual_interaction_start_time - curr_state.current_time
+            candidate.actual_interaction_start_time
+            - curr_state.current_time
+            - nav_duration
         )
         if slack_until_target <= MONITORING_DURATION + EPSILON:
             log.debug(
                 f"[_expand_wait_with_monitoring] Insufficient slack ({slack_until_target:.2f}) for monitoring. Fallback to plain wait."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
             )
         # 의도: 이미 not yet중 가장 빠른 subtask에 대해 모니터링을 했으면, 더 모니터링을 두번 다시 하지 말자. -> 모니터링 수를 줄이는 원인 ㅇㅇ
         # 이제 모니터링 여러번도 허용해야함 251211
@@ -1530,7 +1538,7 @@ class Scheduler:
                 f"[_expand_wait_with_monitoring] Monitoring already executed for {candidate.subtask.name}. Proceeding with waiting only."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
             )
 
         target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
@@ -1560,12 +1568,14 @@ class Scheduler:
                 f"[_expand_wait_with_monitoring] Monitoring expansion failed for {candidate.subtask.name}. Fallback to plain wait."
             )
             return self._expand_wait_wo_monitoring(
-                curr_node, candidate, not_yet_candidates
+                curr_node, candidate, not_yet_candidates, nav_duration=nav_duration
             )
 
         remaining_slack = max(
             0.0,
-            candidate.actual_interaction_start_time - inserted_node.state.current_time,
+            candidate.actual_interaction_start_time
+            - inserted_node.state.current_time
+            - nav_duration,
         )
 
         log.debug(
@@ -1580,6 +1590,7 @@ class Scheduler:
         candidate: Candidate,
         not_yet_candidates: List[Candidate],
         force_wait: bool = False,
+        nav_duration: float = 0.0,
     ) -> SimulationNode:
         """
         Inserts a single "Wait" action until the candidate's actual_interaction_start_time.
@@ -1590,6 +1601,7 @@ class Scheduler:
         Args:
             curr_node (SimulationNode): Current node in the search tree.
             candidate (Candidate): The candidate subtask we're waiting for.
+            nav_duration (float): Estimated navigation duration to the target object.
 
         Returns:
             SimulationNode: The child node representing the new state after waiting.
@@ -1607,7 +1619,9 @@ class Scheduler:
                 else curr_state.current_time
             )
         )
-        total_wait_duration = max(0.0, target_start_time - curr_state.current_time)
+        total_wait_duration = max(
+            0.0, target_start_time - curr_state.current_time - nav_duration
+        )
 
         # WAIT_TIME_UPPER_BOUND 검사 (force_wait가 아닐 때만)
         if not force_wait and total_wait_duration > WAIT_TIME_UPPER_BOUND:
