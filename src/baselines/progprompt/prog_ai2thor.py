@@ -7,6 +7,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 
 import openai
 from ai2thor.controller import Controller
@@ -99,9 +100,15 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-s",
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
         help="시뮬레이션 실행 여부 (default: True)",
+    )
+    parser.add_argument(
+        "--ros",
+        default=False,
+        action="store_true",
+        help="ROS 실행 여부 (default: False)",
     )
     parser.add_argument(
         "--headless",
@@ -191,11 +198,11 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def generate_plan(
-    controller: Controller,
+    controller: Optional[Controller],
     task: str,
     args: argparse.Namespace,
     logger: logging.Logger,
-    action_interface: Action,
+    action_interface: Optional[Action],
 ) -> None:
     """Generate, save, and simulate a plan for a given task.
 
@@ -212,27 +219,40 @@ def generate_plan(
     Returns:
         None: This function persists artifacts (plan/logs) and triggers simulation.
     """
-    # 현재 scene에 있는 object들을 가져옴
-    # 이거 env json으로 해야하나 contoller로 하면 되나?
-
-    obj = list(
-        set(obj["objectType"] for obj in controller.step("Pass").metadata["objects"])
-    )
-    # ithor에서 할 수 있는 action들
-    prompt = "from actions import walk <obj>, pickup <obj>, put <obj> <obj>, drop <obj>, open <obj>, close <obj>, toggle_on <obj>, toggle_off <obj>, slice <obj>, wait <duration>"
-    # 현재 scene에 있는 objects
+    # 현재 scene에 있는 object들을 가져오고, prompt와 example_task_path를 설정
+    if args.simulation:
+        # 1. 시뮬레이션 환경의 object들을 가져옴
+        obj = list(
+            set(obj["objectType"] for obj in controller.step("Pass").metadata["objects"])
+        )
+        # 2. iTHOR에서 사용 가능한 action들
+        prompt = "from actions import walk <obj>, pickup <obj>, put <obj> <obj>, drop <obj>, open <obj>, close <obj>, toggle_on <obj>, toggle_off <obj>, slice <obj>, wait <duration>"
+        # 3. 예제 태스크 경로
+        example_task_path = os.path.join(current_dir, "example_task.json")
+        
+    elif args.ros:
+        # 1. ROS 환경의 object들을 가져옴
+        with open("assets/scene_knowledge/real_world/object_init_positions/FloorPlan301_physics.json", "r") as f:
+            physics_data = json.load(f)
+            obj = list(physics_data.keys())
+        # 2. ROS에서 사용 가능한 action들
+        prompt = "from actions import TOGGLE_ON <obj>, TOGGLE_OFF <obj>, GRASP <obj>, PLACE_ON_TOP <obj>, PLACE_INSIDE <obj>, OPEN <obj>, CLOSE <obj>,  WAIT <duration>, MONITORING <obj>, NAVIGATE_TO <obj>"
+        # 3. 예제 태스크 경로
+        example_task_path = os.path.join(current_dir, "example_task_real.json")
+    
+    
+    # 현재 scene에 있는 objects를 prompt에 추가
     prompt += f"\nobjects(name) = {obj}\n\n"
-    # Inject temporal logic guidelines to steer decomposition and sequencing
+    
+    # Temporal logic guidelines 주입
     wait_units = int(args.init_prior_mean) if args.init_prior_mean is not None else 60
     prompt += "\n" + build_temporal_logic_guidelines(wait_units) + "\n"
-
-    # 미리 만들어둔 plan 함수를 prompt 에 추가함.
-    example_task_path = os.path.join(current_dir, "example_task.json")
     with open(example_task_path, "r") as f:
         tmp = json.load(f)
         prompt_egs = {}
         for k, v in tmp.items():
             prompt_egs[k] = v
+            
     if args.prompt_task_examples == "default":
         default_examples = [
             "Heat Potato using Microwave and set the table for lunch",
@@ -374,7 +394,10 @@ if __name__ == "__main__":
     platform_obj = None
     if args.cloud_rendering:
         platform_obj = CloudRendering
-    controller = init_ai2thor_controller(scene_name, platform=platform_obj)
+    if args.simulation:
+        controller = init_ai2thor_controller(scene_name, platform=platform_obj)
+    elif args.ros:        
+        controller = None
     # Use a consistent directory name for state saving
     instruction_dir_name = (
         Path(instruction).stem
@@ -397,13 +420,16 @@ if __name__ == "__main__":
     )
     task_successful = True
     try:
-        action_interface = Action(
-            controller,
-            logger=logger,
-            trajectory_log_json_path=Path(
-                f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/progprompt/trajectory_log.json"
-            ),
-        )
+        if args.simulation:
+            action_interface = Action(
+                controller,
+                logger=logger,
+                trajectory_log_json_path=Path(
+                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/progprompt/trajectory_log.json"
+                ),
+            )
+        elif args.ros:
+            action_interface = None
         generate_plan(controller, task, args, logger, action_interface)
     except ProgPromptActionFailedError as e:
         logger.error(f"Task failed due to an explicit action failure: {e}")
