@@ -409,10 +409,10 @@ def worker(task: ExperimentTask) -> None:
         if not task.is_simulation:
             with task.file_copy_lock:
                 object_mapping_path = (
-                    SCRIPTS_PATH.parent / "src/ros/ttp_ws/data/object_mapping.json"
+                    SCRIPTS_PATH.parent / "assets/ros/static/object_init_positions.json"
                 )
                 object_positions_path = (
-                    SCRIPTS_PATH.parent / "src/ros/ttp_ws/data/object_positions.json"
+                    SCRIPTS_PATH.parent / "assets/ros/dynamic/object_positions.json"
                 )
                 if object_mapping_path.exists():
                     shutil.copy2(object_mapping_path, object_positions_path)
@@ -440,7 +440,7 @@ def worker(task: ExperimentTask) -> None:
         )
 
         if b_type == BaselineType.SCHEDULER:
-            buffer_between_instructions = 0 if task.is_simulation else 30
+            buffer_between_instructions = 0 if task.is_simulation else 10
             if buffer_between_instructions > 0:
                 logger.info(
                     f"Waiting for {buffer_between_instructions} seconds before starting."
