@@ -546,11 +546,11 @@ class ConstraintHandler:
         for feasible_candidate in feasible_candidates:
             if feasible_candidate.is_critical:
                 # Preserve an existing finite deadline for the critical task.
-                current_due = getattr(feasible_candidate, "scheduling_due", None)
+                current_due = feasible_candidate.scheduling_due
                 if current_due and current_due.due_date != float("inf"):
                     continue
 
-                critical_ctx = getattr(feasible_candidate, "critical_context", None)
+                critical_ctx = feasible_candidate.critical_context
                 if (
                     critical_ctx
                     and critical_ctx.source_subtask

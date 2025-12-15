@@ -367,7 +367,7 @@ class Scheduler:
                 continue
 
             # Check urgency using critical_context
-            crit_ctx = getattr(candidate, "critical_context", None)
+            crit_ctx = candidate.critical_context
             if not crit_ctx or crit_ctx.source_end_time is None:
                 continue
 
@@ -588,7 +588,7 @@ class Scheduler:
         # [Safety Latch 251215]
         # We want to monitor the high-variance task, BUT if the candidate already has a TIGHTER deadline,
         # we cannot afford to go monitoring something else that is less urgent.
-        original_due = getattr(candidate, "scheduling_due", None)
+        original_due = candidate.scheduling_due
         final_due = high_variance_due
 
         if (
@@ -969,7 +969,7 @@ class Scheduler:
         )
 
         # Determine the critical interval that triggers this monitoring split
-        scheduling_due = getattr(candidate, "scheduling_due", None)
+        scheduling_due = candidate.scheduling_due
         if not (
             scheduling_due
             and scheduling_due.due_date != float("inf")
@@ -1502,7 +1502,7 @@ class Scheduler:
             #         )
 
         target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
-        critical_ctx = getattr(candidate, "critical_context", None)
+        critical_ctx = candidate.critical_context
         inserted_node = self._insert_monitoring_step(
             curr_node=curr_node,
             candidate=candidate,

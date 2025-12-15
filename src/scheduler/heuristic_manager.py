@@ -658,7 +658,9 @@ class HeuristicManager:
             if candidate.subtask.duration:
                 cand_interact = candidate.subtask.duration.interval
         else:
-            cand_interact = self._get_estimated_pure_interaction_time(candidate.subtask)
+            cand_interact = self._get_estimated_pure_interaction_time(
+                candidate.subtask, constraints
+            )
 
         candidate_finish_time = (
             current_node.state.current_time + cand_nav + cand_interact

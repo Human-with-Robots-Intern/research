@@ -15,47 +15,6 @@ from src.utils.get_state import (
 
 def log_ros_action_state(func: Callable) -> Callable:
     """ROS 액션 상태 로깅, JSON 파일에 저장"""
-    """@log_ros_action_state
-    def _simulate_grasp(self, target_obj_id: Optional[str]) -> None:
-        self.held_object = target_obj_id
-
-    @log_ros_action_state
-    def _simulate_place(self, receptacle_id: Optional[str]) -> None:
-        
-        if not self.held_object:
-            logger.warning("Agent not holding anything. Cannot place. Action FAILED.")
-        elif not receptacle_id or receptacle_id.lower() not in self.object_positions:
-            raise ValueError(
-                f"Place target receptacle '{receptacle_id}' not found in scene positions."
-            )
-        else:
-            logger.debug(f"  Placing '{self.held_object}' on/in '{receptacle_id}'.")
-            if self.held_object in self.object_positions:
-                self.object_positions[self.held_object] = self.object_positions[
-                    receptacle_id.lower()
-                ]
-            # Ensure directory exists before writing updated positions
-            os.makedirs("assets/ros/dynamic", exist_ok=True)
-            with open("assets/ros/dynamic/object_positions.json", "w") as f:
-                json.dump(self.object_positions, f, indent=4)
-            self.held_object = None
-            
-            {
-    "banana": 7,
-    "plate" : 15,
-    "pan" : 31,
-    "sausage" : 32,
-    "stove": 33,
-    "orange_bowl": 34,
-    "blue_bowl": 35,
-    "countertop": 36,
-    "sink|sinkbasin": 37,
-    "laundry_machine": 38,
-    "chicken": 39,
-    "cup": 40,
-    "toggle": 41
-}
-            """
 
     @functools.wraps(func)
     def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
