@@ -1,3 +1,4 @@
+import copy
 import functools
 import json
 import time
@@ -36,7 +37,7 @@ def log_ros_action_state(func: Callable) -> Callable:
                 ]
             # Ensure directory exists before writing updated positions
             os.makedirs("assets/ros/dynamic", exist_ok=True)
-            with open("assets/ros/dynamic/object_positions.json", "w") as f:
+            with open("assets/ros/dynamic/object_states.json", "w") as f:
                 json.dump(self.object_positions, f, indent=4)
             self.held_object = None
             
@@ -61,15 +62,17 @@ def log_ros_action_state(func: Callable) -> Callable:
     def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
         log_path: Path = self.trajectory_log_path
         # 1. Action 함수의 로직 시작 전, 현재 상태 확인
-        state_before = (self.object_positions.copy(), self.held_object)
-        start_time = time.time()
+        state_before = (copy.deepcopy(self.object_states), self.held_object)
         # Execute the original action
         result = func(self, *args, **kwargs)
-        end_time = time.time()
-        duration = end_time - start_time
+        
+        # 외부에서 실행시간을 받아와서 사용
+        duration = kwargs.pop("duration", None)
+
 
         # 2. Action 함수 로직 종료 후, 상태 확인
-        state_after = (self.object_positions.copy(), self.held_object)
+        state_after = (copy.deepcopy(self.object_states), self.held_object)
+
 
         # 3. 상태 변경된 것만 찾기
         state_changes = get_changed_object_states_ros(state_before, state_after)

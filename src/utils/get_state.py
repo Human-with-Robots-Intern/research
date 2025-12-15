@@ -158,42 +158,43 @@ def get_changed_object_states_ros(
 ) -> list[dict[str, Any]]:
     """ROS object position and held object state change check"""
 
-    obj_pos_before, held_object_before = state_before
-    obj_pos_after, held_object_after = state_after
+    obj_state_before, held_object_before = state_before
+    obj_state_after, held_object_after = state_after
 
     state_changes = []
 
     # Identify all objects that exist or are held
-    all_objects = set(obj_pos_before.keys()) | set(obj_pos_after.keys())
+    all_objects = set(obj_state_before.keys()) | set(obj_state_after.keys())
     if held_object_before:
         all_objects.add(held_object_before)
     if held_object_after:
         all_objects.add(held_object_after)
 
     for obj_name in all_objects:
-        properties = {}
+        # 1. Check State Change
+        state_before = obj_state_before.get(obj_name, {})
+        state_after = obj_state_after.get(obj_name, {})
 
-        # 1. Check Position
-        pos_before = obj_pos_before.get(obj_name)
-        pos_after = obj_pos_after.get(obj_name)
+        # 비교할 속성 키 목록
+        keys_to_check = ["position", "isCooked", "isToggled", "parentReceptacles"]
+        
+        is_changed = False
+        changed_properties = {}
 
-        if pos_before != pos_after:
-            properties["position"] = pos_after
+        for key in keys_to_check:
+            val_before = state_before.get(key)
+            val_after = state_after.get(key)
+            
+            # 값이 다르면 변경으로 간주 (둘 다 None인 경우는 제외)
+            if val_before != val_after:
+                is_changed = True
+                changed_properties[key] = val_after
 
-        # 2. Check parentReceptacles
-        # We assume if held_object == obj_name, parent is ["agent"]
-        # Otherwise, default to empty list [] (meaning "not held by agent" or unknown)
-        is_held_before = obj_name == held_object_before
-        is_held_after = obj_name == held_object_after
-
-        parent_before = ["agent"] if is_held_before else []
-        parent_after = ["agent"] if is_held_after else []
-
-        if parent_before != parent_after:
-            properties["parentReceptacles"] = parent_after
-
-        if properties:
-            state_changes.append({"object_name": obj_name, "property": properties})
+        if is_changed:
+            state_changes.append({
+                "object_name": obj_name,
+                "property": changed_properties
+            })
 
     return state_changes
 
