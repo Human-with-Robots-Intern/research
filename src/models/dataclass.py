@@ -50,6 +50,7 @@ class SimulationNode(NamedTuple):
     - depth: 현재 탐색 깊이
     - tie_breaker: 우선순위가 같을 때 순서 결정용
     - state: 실제 스케줄 상태 (SchedulerState)
+    - risk_level: 제약 조건 위반 위험도 (0: Safe, 1: Warning, 2: Violation)
     """
 
     heuristic_cost: float
@@ -57,6 +58,7 @@ class SimulationNode(NamedTuple):
     tie_breaker: int
     parent_node: Optional["SimulationNode"]
     state: SchedulerState
+    risk_level: int = 0
 
 
 class TimeSlot(NamedTuple):

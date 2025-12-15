@@ -317,6 +317,9 @@ class ConstraintHandler:
 
             if pred_entry is None:
                 all_predecessors_finished = False
+                log.warning(
+                    f"Predecessor '{pred_name}' for '{sub.name}' is NOT in completed_entries."
+                )
                 continue
 
             if hasattr(pred_entry, "execution_status"):
@@ -393,6 +396,17 @@ class ConstraintHandler:
                 critical_source_end_time = None
                 critical_interval = 0.0
 
+            collected_critical_info = {
+                "critical_source": critical_source,
+                "critical_source_end_time": critical_source_end_time,
+                "critical_interval": critical_interval,
+                "critical_start_time": (
+                    non_critical_earliest_start
+                    if non_critical_earliest_start > final_start_time
+                    else final_start_time
+                ),
+            }
+
             if is_final_critical:
                 log.debug(
                     "[get_logical_interaction_start_time] Critical context for %s: source=%s, end=%.2f, interval=%.2f",
@@ -413,29 +427,63 @@ class ConstraintHandler:
                 final_start_time,
                 is_final_critical,
                 "COMPLETED",
-                {
-                    "critical_source": critical_source,
-                    "critical_source_end_time": critical_source_end_time,
-                    "critical_interval": critical_interval,
-                    "critical_start_time": (
-                        non_critical_earliest_start
-                        if non_critical_earliest_start > final_start_time
-                        else final_start_time
-                    ),
-                },
+                collected_critical_info,
             )
 
-        log.debug(f"Final status for '{sub.name}': NOT_READY (no predecessor info)")
+        # If not all predecessors finished, we still want to return critical context if possible
+        # to allow urgency checking for blocked tasks.
+        final_start_time = 0.0
+        if critical_times:
+            final_start_time = max(critical_times)
+
+        # Calculate critical info similarly
+        critical_source = None
+        critical_source_end_time = None
+        critical_interval = 0.0
+
+        if critical_context:
+            latest_ctx = max(
+                critical_context,
+                key=lambda ctx: ctx[1] + ctx[2],
+            )
+            pred_name, pred_end, interval = latest_ctx
+            critical_source = pred_name
+            critical_source_end_time = pred_end
+            critical_interval = interval
+
+        collected_critical_info = {
+            "critical_source": critical_source,
+            "critical_source_end_time": critical_source_end_time,
+            "critical_interval": critical_interval,
+            "critical_start_time": final_start_time,
+        }
+
+        # [Fix] Determine criticality for NOT_READY tasks
+        # If any incoming edge is critical, the task is effectively critical (part of a critical chain)
+        # even if we can't calculate the exact start time yet.
+        is_effectively_critical = False
+        for _, _, edge_data in in_edges:
+            if edge_data.get("info", {}).get("IsCritical", False):
+                is_effectively_critical = True
+                break
+
+        if not all_predecessors_finished:
+            missing_predecessors = [
+                p_name
+                for p_name, _, _ in in_edges
+                if p_name not in completed_subtasks_map
+            ]
+            log.debug(
+                f"DEBUG: Subtask '{sub.name}' is NOT_READY because predecessors are not finished. "
+                f"Missing: {missing_predecessors}. Returning partial critical info."
+            )
+
+        log.debug("Final status for '%s': NOT_READY (no predecessor info)", sub.name)
         return (
             None,
-            False,
+            is_effectively_critical,
             "NOT_READY",
-            {
-                "critical_source": None,
-                "critical_source_end_time": None,
-                "critical_interval": 0.0,
-                "critical_start_time": None,
-            },
+            collected_critical_info,
         )
 
     def _assign_scheduling_due(
@@ -477,7 +525,7 @@ class ConstraintHandler:
             scheduling_due = float("inf")
             due_related_sub_name = None
             log.debug(
-                f"현재 not yet list에 critical subtask가 존재하지 않아, scheduling due가 inf로 처리됩니다."
+                "현재 not yet list에 critical subtask가 존재하지 않아, scheduling due가 inf로 처리됩니다."
             )
         else:
             # Sort by logical start time to find the *next* critical scheduling_due
@@ -513,6 +561,10 @@ class ConstraintHandler:
                         + critical_ctx.interval
                         + TIMING_TOLERANCE_ABS
                     )
+                    # [Logic Update 251215]
+                    # If inferred due is too tight or passed, we should set it to NOW (EPSILON)
+                    # to force immediate execution or wait logic activation.
+                    # Previously it was just EPSILON, now we explicitly ensure it.
                     if inferred_due <= curr_node.state.current_time:
                         inferred_due = curr_node.state.current_time + EPSILON
 
@@ -520,6 +572,14 @@ class ConstraintHandler:
                         due_date=inferred_due,
                         due_related_sub_name=feasible_candidate.subtask.name,
                     )
+                    continue
+
+                # [Logic Update 251215]
+                # If a candidate is CRITICAL but has no explicit deadline from predecessor context,
+                # it might be a floating critical task. We should prioritize it by inheriting
+                # the nearest upcoming critical deadline to ensure it doesn't get pushed back indefinitely.
+                if new_scheduling_due.due_date != float("inf"):
+                    feasible_candidate.scheduling_due = new_scheduling_due
                     continue
 
                 # Fall back to the globally inferred due date only if it is meaningful.
@@ -533,3 +593,31 @@ class ConstraintHandler:
                 f"Assigned scheduling_due {new_scheduling_due} to {len(feasible_candidates)} feasible candidates."
             )
         # No return needed as feasible list is modified in-place
+
+    def get_required_predecessors(
+        self,
+        target_subtask_name: str,
+        remaining_subtasks: List[Subtask],
+        constraints: DiGraph,
+    ) -> List[Subtask]:
+        """
+        Returns a list of remaining subtasks that are ancestors (dependencies)
+        of the target_subtask_name in the constraint graph.
+
+        Args:
+            target_subtask_name: The name of the target critical subtask.
+            remaining_subtasks: List of currently remaining subtasks.
+            constraints: The dependency graph.
+
+        Returns:
+            List[Subtask]: A list of predecessor subtasks that must be completed
+                           before the target subtask can start.
+        """
+        if not constraints.has_node(target_subtask_name):
+            return []
+
+        ancestors = nx.ancestors(constraints, target_subtask_name)
+        required_predecessors = [
+            sub for sub in remaining_subtasks if sub.name in ancestors
+        ]
+        return required_predecessors
