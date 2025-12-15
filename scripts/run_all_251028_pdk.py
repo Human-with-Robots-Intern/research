@@ -409,10 +409,10 @@ def worker(task: ExperimentTask) -> None:
         if not task.is_simulation:
             with task.file_copy_lock:
                 object_mapping_path = (
-                    SCRIPTS_PATH.parent / "assets/ros/static/object_init_positions.json"
+                    SCRIPTS_PATH.parent / "assets/ros/static/object_init_states.json"
                 )
                 object_positions_path = (
-                    SCRIPTS_PATH.parent / "assets/ros/dynamic/object_positions.json"
+                    SCRIPTS_PATH.parent / "assets/ros/dynamic/object_states.json"
                 )
                 if object_mapping_path.exists():
                     shutil.copy2(object_mapping_path, object_positions_path)
