@@ -77,5 +77,6 @@ assets/results/*
 assets/legacy_task/*
 assets/result_analysis/**/*.json
 assets/tasks/**/*.json
+assets/tune/**/*.json
 
 docker-compose.override.yml
