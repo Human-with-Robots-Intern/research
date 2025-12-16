@@ -43,9 +43,10 @@ class HeuristicManager:
         current_node: SimulationNode,
         candidate: Candidate,
         all_candidates: List[Candidate],
-    ) -> Tuple[int, float]:
+    ) -> Tuple[int, float, float]:
         """
         Calculates the heuristic cost for a given candidate subtask.
+        Returns: (risk_level, total_heuristic_cost, collateral_penalty)
         """
         if candidate.subtask.name.startswith("Wait for"):
             return self._calculate_wait_heuristic(
@@ -53,7 +54,7 @@ class HeuristicManager:
             )
 
         # 1. Calculate Urgency & Risk
-        risk_level, urgency_cost, slack = self._calculate_candidate_risk_and_urgency(
+        risk_level, urgency_cost = self._calculate_candidate_risk_and_urgency(
             current_node, candidate
         )
 
@@ -71,24 +72,68 @@ class HeuristicManager:
             current_node, candidate, chain_duration, chain_members, all_candidates
         )
 
+        # [Revised 251216] Promote high collateral penalty to Risk Level.
+        # If a candidate causes a massive delay to others (violation likely),
+        # it should be treated as a Risk, not just a high cost that can be washed out in lookahead.
+        if collateral_penalty >= 5000.0:
+            risk_level = max(risk_level, 2)
+            log.warning(
+                f"  [Risk Promotion] Candidate '{candidate.subtask.name}' has high collateral penalty ({collateral_penalty:.0f}). Promoting to Risk Level 2."
+            )
+
+        # [NEW 251216] Interval Creation Bonus
+        # Encourage tasks that open up a large time window (Interval) for interleaving.
+        # e.g., Start Coffee Machine -> (100s Interval) -> Retrieve Coffee
+        # The agent is free during this interval, so starting it early is beneficial.
+        interval_bonus = self._get_interval_creation_bonus(current_node, candidate)
+
         # 4. Final Weighted Sum
         total_heuristic_cost = (
-            self.beta * urgency_cost
-            + self.gamma * remaining_work_cost
-            + collateral_penalty
+            self.beta * urgency_cost + self.gamma * remaining_work_cost
         )
+
+        step_adjustment = collateral_penalty - interval_bonus
 
         log.info(
             f"  Heuristic for '{candidate.subtask.name}': Risk={risk_level}, "
             f"Urg({self.beta:.1f}*{urgency_cost:.2f})={self.beta * urgency_cost:.2f} (Slack={slack:.2f}), "
             f"RemWork({self.gamma:.1f}*Rem[{cp_dur:.2f}+{mst_time:.2f}])={self.gamma * remaining_work_cost:.2f}, "
-            f"Collateral={collateral_penalty:.2f}"
+            f"Collateral={collateral_penalty:.2f}, "
+            f"IntervalBonus={interval_bonus:.2f}"
         )
         log.info(
             f"  => Total Heuristic Cost for '{candidate.subtask.name}': {total_heuristic_cost:.3f}"
         )
 
-        return risk_level, total_heuristic_cost
+        return risk_level, total_heuristic_cost, step_adjustment
+
+    def _get_interval_creation_bonus(
+        self, current_node: SimulationNode, candidate: Candidate
+    ) -> float:
+        """
+        Calculates a bonus score if the candidate initiates a critical interval.
+        Higher bonus for longer intervals, encouraging early execution to open up interleaving windows.
+        """
+        bonus = 0.0
+        constraints = current_node.state.constraints
+        task_name = candidate.subtask.name
+
+        if not constraints.has_node(task_name):
+            return 0.0
+
+        for _, _, data in constraints.out_edges(task_name, data=True):
+            info = data.get("info", {})
+            if info.get("IsCritical") and info.get("Interval", 0.0) > constants.EPSILON:
+                interval = info.get("Interval")
+                # Bonus formula: Base weight * Interval duration
+                # We want this to be significant enough to overcome minor collateral penalties or delays.
+                # e.g., Interval 100s * 10.0 = 1000.0 Bonus.
+                bonus += interval * 10.0
+                log.debug(
+                    f"  [Interval Bonus] '{task_name}' starts interval of {interval:.2f}s. Bonus += {interval * 10.0:.2f}"
+                )
+
+        return bonus
 
     # ========================================================================
     # Core Logic: Urgency & Risk Calculation
@@ -116,16 +161,17 @@ class HeuristicManager:
 
         # 3. Apply Volume Pressure (if not already violated)
         if risk_level < 2:
-            risk_level, urgency_cost = self._apply_volume_pressure(
-                current_node, candidate, deadline, risk_level, urgency_cost
-            )
+            pass
+            # risk_level, urgency_cost = self._apply_volume_pressure(
+            #     current_node, candidate, deadline, risk_level, urgency_cost
+            # )
 
         log.info(
             f"  Urgency for '{candidate.subtask.name}': Due={deadline:.2f}, "
             f"Need={total_time_needed:.2f}, Avail={time_available:.2f} => Slack={slack:.2f}"
         )
 
-        return risk_level, urgency_cost, slack
+        return (risk_level, urgency_cost)
 
     def _has_valid_deadline(self, candidate: Candidate) -> bool:
         return candidate.scheduling_due and candidate.scheduling_due.due_date != float(
@@ -192,10 +238,14 @@ class HeuristicManager:
 
         if slack >= -constants.TIMING_TOLERANCE_ABS:
             # Safe: Linear penalty (Lower slack -> Lower cost -> Higher Priority)
+            # [Revised 251216] Reduce the weight of slack cost significantly.
+            # Previously, large slack (safe task) resulted in high cost, discouraging early execution of non-urgent tasks.
+            # We want to encourage "doing work" over "waiting" even if the work is not urgent.
+            # We keep a small positive slope to prefer tighter deadlines (EDF) among safe tasks.
             return 0, slack
         else:
             # Violation: Huge penalty.
-            return 2, 10000.0 + abs(slack) * 20.0
+            return 2, 10000.0 + abs(slack)
 
     def _apply_volume_pressure(
         self,
@@ -247,7 +297,7 @@ class HeuristicManager:
         current_node: SimulationNode,
         wait_candidate: Candidate,
         all_candidates: List[Candidate],
-    ) -> Tuple[int, float]:
+    ) -> Tuple[int, float, float]:
         """Calculates heuristic for 'Wait' action by delegating to target task logic."""
         target_task_name = wait_candidate.subtask.name.replace("Wait for ", "")
         target_candidate = next(
@@ -260,10 +310,8 @@ class HeuristicManager:
 
         # Wait inherits urgency from its target
         if target_candidate:
-            risk_level, wait_urgency_cost, _ = (
-                self._calculate_candidate_risk_and_urgency(
-                    current_node, target_candidate
-                )
+            risk_level, wait_urgency_cost = self._calculate_candidate_risk_and_urgency(
+                current_node, target_candidate
             )
 
         # Calculate Remaining Work
@@ -271,24 +319,56 @@ class HeuristicManager:
             current_node, wait_candidate
         )
 
+        # [Check Collateral Damage for Wait]
+        # Wait effectively blocks resources for (WaitTime + TargetChainTime)
+        collateral_penalty = 0.0
+
+        wait_duration = 0.0
+        if wait_candidate.subtask.duration and wait_candidate.subtask.duration.interval:
+            wait_duration = wait_candidate.subtask.duration.interval
+
+        if target_candidate:
+            target_chain_duration, target_chain_members = self._get_chain_info(
+                current_node, target_candidate.subtask
+            )
+
+            # The robot is effectively "busy" (waiting or doing chain) from NOW until (Wait + NavToTarget + Chain)
+            target_nav = target_candidate.estimated_first_nav_duration or 0.0
+            total_block_time = wait_duration + target_nav + target_chain_duration
+
+            collateral_penalty = self._check_collateral_damage(
+                current_node,
+                wait_candidate,  # Dummy candidate for context
+                total_block_time,
+                target_chain_members,
+                all_candidates,
+            )
+
+        # [NEW] Wait Duration Penalty: Penalize wasting time
+        # [Revised 251216] Increase wait penalty significantly.
+        # Waiting is non-productive. If there is ANY productive task (Safe & Feasible),
+        # the agent should prefer it over waiting.
+        # Cost of 1.0 was too low compared to task execution costs (which include future work).
+        # We increase it to 5.0 to make "Waiting 10s" cost 50 points, discouraging lazy waits.
+        wait_time_penalty = wait_duration * 5.0
+
         total_heuristic_cost = (
             self.beta * wait_urgency_cost + self.gamma * remaining_work_cost
         )
+        step_adjustment = collateral_penalty + wait_time_penalty
 
         log.info(
             f"  Heuristic for '{wait_candidate.subtask.name}': Risk={risk_level}, "
             f"WaitUrg({self.beta:.1f}*{wait_urgency_cost:.2f})={self.beta * wait_urgency_cost:.2f}, "
-            f"RemWork({self.gamma:.1f}*Rem[{cp_dur:.2f}+{mst_time:.2f}])={self.gamma * remaining_work_cost:.2f}"
+            f"RemWork({self.gamma:.1f}*Rem[{cp_dur:.2f}+{mst_time:.2f}])={self.gamma * remaining_work_cost:.2f}, "
+            f"Collateral={collateral_penalty:.2f}, "
+            f"WaitPenalty={wait_time_penalty:.2f}"
         )
         log.info(
             f"  => Total Heuristic Cost for '{wait_candidate.subtask.name}': {total_heuristic_cost:.3f}"
         )
 
-        return risk_level, total_heuristic_cost
-
-    # ========================================================================
-    # Helper Functions - Future Workload (Volume, CP, MST)
-    # ========================================================================
+        return risk_level, total_heuristic_cost, step_adjustment
 
     # ========================================================================
     # Helper Functions - Future Workload (Volume, CP, MST)
@@ -377,7 +457,6 @@ class HeuristicManager:
                 continue
 
             # Skip if 'other' is already finished (shouldn't happen in all_candidates but safe check)
-
             other_deadline = other.scheduling_due.due_date
 
             # Estimate if we can reach 'other' after chain finishes
@@ -403,7 +482,7 @@ class HeuristicManager:
 
         # 2. Future Deadline Conflict Prediction (Lookahead)
         # Check if candidate creates a future constraint that conflicts with other tasks' generated deadlines.
-        
+
         # Check if candidate triggers a future critical chain (e.g. Start Microwave -> Turn Off Microwave)
         cand_interact = self._get_estimated_pure_interaction_time(candidate.subtask)
         start_offset = current_time + nav_duration + cand_interact
@@ -423,20 +502,20 @@ class HeuristicManager:
 
                 # Estimate 'other' start time (delayed by candidate)
                 # We assume 'other' starts ASAP after candidate finishes
-                est_start_other = start_offset 
+                est_start_other = start_offset
                 other_interact = self._get_estimated_pure_interaction_time(
                     other.subtask
                 )
-                
+
                 # Predict 'other's future deadline block
                 other_block_start, _ = self._find_future_constraint_block(
-                     current_node, other.subtask, est_start_other + other_interact
+                    current_node, other.subtask, est_start_other + other_interact
                 )
 
                 if other_block_start is not None:
                     # other_block_start is the DEADLINE for the task after 'other'
                     # Does this deadline fall inside [future_block_start, future_block_end]?
-                    
+
                     # We use a tolerance buffer
                     buffer = constants.TIMING_TOLERANCE_ABS
                     if (
@@ -464,37 +543,54 @@ class HeuristicManager:
         constraints = current_node.state.constraints
         queue = [(start_subtask, time_cursor)]
         visited = {start_subtask.name}
-        
+
         # BFS/DFS limited depth
         max_depth = 3
         depth = 0
-        
+
         while queue and depth < max_depth:
             curr, curr_time = queue.pop(0)
             depth += 1
-            
+
             for _, target, data in constraints.out_edges(curr.name, data=True):
                 info = data.get("info", {})
-                
+
                 # Case 1: Critical Interval found -> This defines the block
                 if info.get("IsCritical") and info.get("Interval") is not None:
                     interval = info.get("Interval")
                     block_start = curr_time + interval
-                    
+
                     # Get duration of the target chain
-                    target_sub = next((t for t in current_node.state.remaining_subtasks if t.name == target), None)
+                    target_sub = next(
+                        (
+                            t
+                            for t in current_node.state.remaining_subtasks
+                            if t.name == target
+                        ),
+                        None,
+                    )
                     if target_sub:
                         chain_dur, _ = self._get_chain_info(current_node, target_sub)
                         return block_start, block_start + chain_dur
-                
+
                 # Case 2: Zero-interval successor -> Follow it
                 elif info.get("Interval", 0.0) <= constants.EPSILON:
-                     target_sub = next((t for t in current_node.state.remaining_subtasks if t.name == target), None)
-                     if target_sub and target_sub.name not in visited:
-                         visited.add(target_sub.name)
-                         next_time = curr_time + self._get_estimated_pure_interaction_time(target_sub)
-                         queue.append((target_sub, next_time))
-                         
+                    target_sub = next(
+                        (
+                            t
+                            for t in current_node.state.remaining_subtasks
+                            if t.name == target
+                        ),
+                        None,
+                    )
+                    if target_sub and target_sub.name not in visited:
+                        visited.add(target_sub.name)
+                        next_time = (
+                            curr_time
+                            + self._get_estimated_pure_interaction_time(target_sub)
+                        )
+                        queue.append((target_sub, next_time))
+
         return None, None
 
     def _calculate_volume_risk(
@@ -520,8 +616,12 @@ class HeuristicManager:
             and t.name != candidate.subtask.name
             and t.name != target_critical_sub_name
         ]
-        if not required_subtasks:
-            return False, 0.0
+        # [Fix 251216] Do NOT return 0.0 here.
+        # If required_subtasks is empty, it means no intermediate tasks are needed.
+        # We still need to calculate the slack based on (Deadline - FinishTime).
+        # Returning 0.0 implies "Zero Slack" which triggers high penalty (Volume Pressure).
+        # if not required_subtasks:
+        #    return False, 0.0
 
         # 2. Calculate Total Volume (Interaction + MST Nav)
         sum_interaction = sum(
