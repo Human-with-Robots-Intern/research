@@ -211,6 +211,8 @@ class RosExecutor:
                 return False, total_elapsed_time, action_log
 
             # Simulate object state changes
+            if primitive_action_parts[1].lower() == "sink":
+                primitive_action_parts[1] = "sink|sinkbasin"    
             if action_verb == "grasp":
                 self.object_state_simulator._simulate_grasp(
                     primitive_action_parts[1].lower(), duration=elapsed_time
