@@ -13,83 +13,107 @@ from src.models.task import Subtask
 from src.utils.common.logger import create_module_logger
 from src.utils.decorators import log_ros_action_state
 from src.utils.translate import InstructionTranslator
-
+EXPERIMENT_WAIT_DURATION = 10
 logger = create_module_logger(module_name=__name__, module_log=True)
 
 Position: TypeAlias = Tuple[float, float, float]
 
 
-class SimulateObjectPosChange:
+class SimulateObjectState:
     """Simulates changes in object positions based on actions."""
 
     def __init__(self, trajectory_log_path: Path) -> None:
         """Initializes the object position simulator."""
         try:
-            with open("assets/ros/dynamic/object_positions.json") as f:
-                self.object_positions = json.load(f)
+            with open("assets/ros/static/object_init_states.json") as f:
+                self.object_states = json.load(f)
         except FileNotFoundError:
-            logger.error("object_positions.json not found. Please check the path.")
-            self.object_positions = {}
+            logger.error("object_init_states.json not found. Please check the path.")
+            self.object_states = {}
         self.held_object: Optional[str] = None
         self.agent_location: List[float] = [0.0, 0.0, 0.0]
         self.trajectory_log_path: Path = trajectory_log_path
 
     @log_ros_action_state
-    def _simulate_grasp(self, target_obj_id: Optional[str]) -> None:
+    def _simulate_grasp(self, target_obj_id: Optional[str], duration: Optional[float]) -> None:
         """Simulates grasping an object."""
         self.held_object = target_obj_id
+        self.object_states[target_obj_id]['parentReceptacles'] = ["agent"]
 
     @log_ros_action_state
-    def _simulate_navigate(self, target_obj_id: Optional[str]) -> None:
+    def _simulate_navigate(self, target_obj_id: Optional[str], duration: Optional[float]) -> None:
         """Simulates grasping an object."""
         logger.info(f"Navigating to {target_obj_id}")
 
     @log_ros_action_state
-    def _simulate_wait(self, wait_duration: Optional[float]) -> None:
+    def _simulate_wait(self, wait_duration: Optional[float], duration: Optional[float]) -> None:
         """Simulates waiting for a duration."""
         logger.info(f"Waiting for {wait_duration} seconds")
 
+    
     @log_ros_action_state
-    def _simulate_monitoring(self) -> None:
+    def _simulate_monitoring(self, duration: Optional[float]) -> None:
         """Simulates monitoring."""
         logger.info("Monitoring")
 
     @log_ros_action_state
-    def _simulate_toggle_on(self, target_obj_id: Optional[str]) -> None:
+    def _simulate_toggle_on(self, target_obj_id: Optional[str], duration: Optional[float]) -> None:
         """Simulates toggling on an object."""
         logger.info(f"Toggling on {target_obj_id}")
-
+        # Check if 'isToggled' property exists before toggling
+        if 'isToggled' in self.object_states.get(target_obj_id, {}):
+            current_state: Optional[bool] = self.object_states[target_obj_id].get('isToggled')
+            if isinstance(current_state, bool):
+                self.object_states[target_obj_id]['isToggled'] = not current_state
+                logger.info(
+                    f"Toggled '{target_obj_id}' state to {self.object_states[target_obj_id]['isToggled']}"
+                )
+            else:
+                logger.warning(
+                    f"'isToggled' attribute for '{target_obj_id}' is not a boolean; cannot toggle."
+                )
+        else:
+            logger.warning(
+                f"Object '{target_obj_id}' does not have an 'isToggled' property, skipping toggle."
+            )
+    
     @log_ros_action_state
-    def _simulate_toggle_off(self, target_obj_id: Optional[str]) -> None:
+    def _simulate_toggle_off(self, target_obj_id: Optional[str], duration: Optional[float]) -> None:
         """Simulates toggling off an object."""
         logger.info(f"Toggling off {target_obj_id}")
-
+        # Check if 'isToggled' property exists before toggling
+        if 'isToggled' in self.object_states.get(target_obj_id, {}):
+            current_state: Optional[bool] = self.object_states[target_obj_id].get('isToggled')
+            if isinstance(current_state, bool):
+                self.object_states[target_obj_id]['isToggled'] = not current_state
+                logger.info(
+                    f"Toggled '{target_obj_id}' state to {self.object_states[target_obj_id]['isToggled']}"
+                )
+            else:
+                logger.warning(
+                    f"'isToggled' attribute for '{target_obj_id}' is not a boolean; cannot toggle."
+                )
+        else:
+            logger.warning(
+                f"Object '{target_obj_id}' does not have an 'isToggled' property, skipping toggle."
+            )
     @log_ros_action_state
-    def _simulate_place(self, receptacle_id: Optional[str]) -> None:
+    def _simulate_place(self, receptacle_id: Optional[str], duration: Optional[float]) -> None:
         """Simulates placing an object in or on a receptacle."""
         if not self.held_object:
             logger.warning("Agent not holding anything. Cannot place. Action FAILED.")
-        elif not receptacle_id or receptacle_id.lower() not in self.object_positions:
+        elif not receptacle_id or receptacle_id.lower() not in self.object_states.keys():
             raise ValueError(
-                f"Place target receptacle '{receptacle_id}' not found in scene positions."
+                f"Place target receptacle '{receptacle_id}' not found in object states."
             )
         else:
             logger.debug(f"  Placing '{self.held_object}' on/in '{receptacle_id}'.")
-            if self.held_object in self.object_positions:
-                self.object_positions[self.held_object] = self.object_positions[
-                    receptacle_id.lower()
-                ]
-            # Ensure directory exists before writing updated positions
-            os.makedirs("assets/ros/dynamic", exist_ok=True)
-            with open("assets/ros/dynamic/object_positions.json", "w") as f:
-                json.dump(self.object_positions, f, indent=4)
+            if self.held_object in self.object_states:
+                self.object_states[self.held_object]['parentReceptacles'] = [receptacle_id]
+                self.object_states[self.held_object]['position'] = self.object_states[receptacle_id]['position']
             self.held_object = None
 
-    def _get_object_pos(self, object_name: Optional[str]) -> Optional[Position]:
-        """Gets the position of a given object."""
-        if object_name:
-            return self.object_positions.get(object_name)
-        return None
+
 
 
 class RosExecutor:
@@ -98,7 +122,7 @@ class RosExecutor:
     def __init__(self, trajectory_log_path: Path) -> None:
         """Initializes the RosExecutor."""
         self.ros_bridge_url = os.getenv("ROS_BRIDGE_URL", "http://localhost:8000")
-        self.object_pos_simulator = SimulateObjectPosChange(trajectory_log_path)
+        self.object_state_simulator = SimulateObjectState(trajectory_log_path)
         self.held_object: Optional[str] = None
         self.ros_start_time: Optional[float] = None
         self.total_ros_time: float = 0.0
@@ -147,7 +171,8 @@ class RosExecutor:
 
             if action_verb == "wait":
                 wait_duration = float(primitive_action_parts[1])
-                time.sleep(wait_duration)
+                time.sleep(EXPERIMENT_WAIT_DURATION)
+                logger.info(f"Waiting for {wait_duration} seconds")
                 success = True
             else:
                 try:
@@ -187,39 +212,38 @@ class RosExecutor:
 
             # Simulate object state changes
             if action_verb == "grasp":
-                self.object_pos_simulator._simulate_grasp(
-                    primitive_action_parts[1].lower()
+                self.object_state_simulator._simulate_grasp(
+                    primitive_action_parts[1].lower(), duration=elapsed_time
                 )
                 self.held_object = primitive_action_parts[1]
                 logger.info(f"Held object: {self.held_object}")
             elif action_verb.startswith("place"):
-                self.object_pos_simulator._simulate_place(
-                    primitive_action_parts[1].lower()
+                self.object_state_simulator._simulate_place(
+                    primitive_action_parts[1].lower(), duration=elapsed_time
                 )
-                if self.held_object:
-                    logger.info(
-                        f"Object '{self.held_object}' position: "
-                        f"{self.object_pos_simulator._get_object_pos(self.held_object.lower())}"
-                    )
+
                 self.held_object = None
             elif action_verb.startswith("navigate_to"):
-                self.object_pos_simulator._simulate_navigate(
-                    primitive_action_parts[1].lower()
+                self.object_state_simulator._simulate_navigate(
+                    primitive_action_parts[1].lower(), duration=elapsed_time
                 )
             elif action_verb.startswith("wait"):
-                self.object_pos_simulator._simulate_wait(
-                    primitive_action_parts[1].lower()
+                self.object_state_simulator._simulate_wait(
+                    wait_duration=EXPERIMENT_WAIT_DURATION, duration=float(primitive_action_parts[1])
                 )
             elif action_verb.startswith("monitoring"):
-                self.object_pos_simulator._simulate_monitoring()
+                self.object_state_simulator._simulate_monitoring(duration=elapsed_time)
             elif action_verb.startswith("toggle_on"):
-                self.object_pos_simulator._simulate_toggle_on(
-                    primitive_action_parts[1].lower()
+                self.object_state_simulator._simulate_toggle_on(
+                    primitive_action_parts[1].lower(), duration=elapsed_time
                 )
             elif action_verb.startswith("toggle_off"):
-                self.object_pos_simulator._simulate_toggle_off(
-                    primitive_action_parts[1].lower()
+                self.object_state_simulator._simulate_toggle_off(
+                    primitive_action_parts[1].lower(), duration=elapsed_time
                 )
+            os.makedirs("assets/ros/dynamic", exist_ok=True)
+            with open("assets/ros/dynamic/object_states.json", "w") as f:
+                json.dump(self.object_state_simulator.object_states, f, indent=4)
 
         return True, total_elapsed_time, action_log
 

@@ -3,7 +3,7 @@
 This module resides in the TTP container and translates high-level
 primitive actions into the ROS-side action parts payload. By performing
 translation client-side, the ROS container no longer needs to access
-``object_positions.json`` or mapping files.
+``object_states.json`` or mapping files.
 """
 
 from __future__ import annotations
@@ -32,8 +32,8 @@ class InstructionTranslator:
             open("assets/ros/static/action_mapping.json", "r", encoding="utf-8")
         )
         # object_init_positions replaces the previous object_mapping
-        self.object_mapping: Dict[str, int] = json.load(
-            open("assets/ros/static/object_init_positions.json", "r", encoding="utf-8")
+        self.object_init_states: Dict[str, int] = json.load(
+            open("assets/ros/static/object_init_states.json", "r", encoding="utf-8")
         )
 
     def translate(self, instruction: str) -> List[Any]:
@@ -52,9 +52,9 @@ class InstructionTranslator:
             json.JSONDecodeError: If the positions file is invalid JSON.
             IndexError: If the instruction does not contain the expected parts.
         """
-        # Dynamic state lives under assets/ros/dynamic
-        object_positions: Dict[str, Any] = json.load(
-            open("assets/ros/dynamic/object_positions.json", "r", encoding="utf-8")
+
+        object_states: Dict[str, Any] = json.load(
+            open("assets/ros/dynamic/object_states.json", "r", encoding="utf-8")
         )
 
         parts = instruction.split(" ")
@@ -62,8 +62,9 @@ class InstructionTranslator:
         object_name = parts[1]
 
         action_id = self.action_mapping[action_name]
-        object_id = self.object_mapping[object_name.lower()]
-        object_position = object_positions[object_name.lower()]
+        object_id = self.object_init_states[object_name.lower()]['position']
+        # print(f"object_states: {object_states}")
+        object_position = object_states[object_name.lower()]['position']
 
         # robot_model is currently fixed to 0 in existing pipeline
         return [0, action_id, object_id, object_position]

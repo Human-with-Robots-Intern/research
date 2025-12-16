@@ -71,8 +71,9 @@ ARG PYTORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
 
 WORKDIR /app
 COPY requirements-ttp.txt .
-RUN pip install --no-cache-dir -r requirements-ttp.txt && \
-    pip install torch torchvision --index-url $PYTORCH_INDEX_URL
+RUN pip install torch torchvision --index-url $PYTORCH_INDEX_URL && \
+    pip install --no-cache-dir -r requirements-ttp.txt
+    
 
 # ==================================================================================================
 # Stage 4: Python 라이브러리 설치 (ROS)
