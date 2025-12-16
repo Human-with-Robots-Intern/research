@@ -18,9 +18,7 @@ LIVING_ROOM_PATH = SCENE_KNOWLEDGE_PATH / "living_room"
 BAYESIAN_PATH = SCENE_KNOWLEDGE_PATH / "bayesian"
 
 PROMPT_PATH = ASSETS_PATH / "prompts"
-TASK_PATH = (
-    ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment_251203"
-)
+TASK_PATH = ASSETS_PATH / "tasks" / "failed_cases_only"
 RESULT_PATH = ASSETS_PATH / "results"
 
 # ========== 시뮬레이션 관련 ==========
@@ -68,8 +66,8 @@ REACHABLE_DISTANCE_THRESHOLD = 50.0
 
 # Heuristic weights
 ALPHA_HEURISTIC = 1.0  # Navigation cost
-BETA_HEURISTIC = 10.0  # Urgency (slack) cost
-GAMMA_HEURISTIC = 100.0  # Remaining work cost
+BETA_HEURISTIC = 1.0  # Urgency (slack) cost
+GAMMA_HEURISTIC = 1  # Remaining work cost
 
 # Wait action control
 WAIT_TIME_UPPER_BOUND = 200.0  # 'wait' 액션의 최대 허용 시간 (초)
@@ -162,7 +160,7 @@ MIN_VARIANCE = 1e-6
 # allows capping the tolerance window for large intervals.
 TIMING_TOLERANCE_DEFAULT = 100.0
 TIMING_TOLERANCE_RATIO = 0.3
-TIMING_TOLERANCE_ABS = 15.0
+TIMING_TOLERANCE_ABS = 25.0
 MONITORING_SPLIT_TOLERANCE_ABS = 15.0
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 3

@@ -1,8 +1,8 @@
 {
     "banana": 7,
-    "plate" : 15,
-    "pan" : 31,
-    "sausage" : 32,
+    "plate": 15,
+    "pan": 31,
+    "sausage": 32,
     "stove": 33,
     "orange_bowl": 34,
     "blue_bowl": 35,
@@ -13,4 +13,3 @@
     "cup": 40,
     "tomato": 42
 }
-

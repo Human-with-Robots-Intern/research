@@ -1,10 +1,10 @@
 ### utils/io_utils/result_saver.py
 from __future__ import annotations
 
+import ast
 import json
 import logging
 import re
-import ast
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
@@ -97,9 +97,7 @@ def calculate_timing_success_rate(
         succ_entry = entry_map.get(v)
 
         if not pred_entry or not succ_entry:
-            log.warning(
-                f"Predecessor or successor task not found in results: {u} -> {v}"
-            )
+            
             continue
 
         total_timing_constraints += 1

@@ -1,0 +1,1727 @@
+Total Failure Cases Found: 112
+
+=== Failures by Difficulty ===
+tasks_3_constraints_2: 45
+tasks_2_constraints_2: 31
+tasks_3_constraints_1: 27
+tasks_2_constraints_1: 9
+
+=== Failures by Scene ===
+FloorPlan18: 27
+FloorPlan7: 24
+FloorPlan27: 23
+FloorPlan1: 19
+FloorPlan13: 19
+
+=== Top GCR Failures (Scene :: Object) ===
+FloorPlan18::bread: 14
+FloorPlan1::pan: 11
+FloorPlan7::pan: 11
+FloorPlan27::pan: 11
+FloorPlan18::pan: 11
+FloorPlan13::pan: 10
+FloorPlan18::plate: 3
+FloorPlan1::bowl: 2
+FloorPlan27::bowl: 2
+FloorPlan18::pot: 2
+FloorPlan27::mug: 1
+FloorPlan27::cup: 1
+
+=== Top TSR Failures (Scene :: Task) ===
+FloorPlan18::heat_bread_in_microwave: 14
+FloorPlan18::heat_egg: 11
+FloorPlan7::make_coffee: 10
+FloorPlan27::heat_egg: 9
+FloorPlan13::make_coffee: 8
+FloorPlan27::make_coffee: 7
+FloorPlan18::fill_water_in_pot: 6
+FloorPlan27::heat_bread_in_microwave: 6
+FloorPlan1::heat_bread_in_microwave: 5
+FloorPlan1::make_coffee: 5
+FloorPlan18::make_coffee: 5
+FloorPlan7::heat_bread_in_microwave: 4
+FloorPlan18::heat_potato_in_microwave: 4
+FloorPlan27::heat_potato_in_microwave: 4
+FloorPlan7::heat_potato_in_microwave: 3
+
+=== Detailed Failure Cases ===
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_1/01_boil_water_with_pot_and_put_apple_and_lettuce_in_fridge/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_1
+Instruction: boil_water_with_pot_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan18
+Reasons:
+  - Task 'boil_water_with_pot' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: pot.isFilledWithLiquid is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pot(isFilledWithLiquid=True,parentReceptacles=['stove']) AND stoveknob(isToggled=True)
+  - TSR 'fill_water_in_pot' failed: Trigger condition never met (Ended with missing: pot.isFilledWithLiquid is False (expected True), pot.parentReceptacles is ['StoveBurner|+01.56|+00.98|+03.85'] (expected ['sink']))
+  - TSR 'boil_water_in_pot' failed: Trigger condition never met (Ended with missing: pot.isFilledWithLiquid is False (expected True), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [31] WAIT 96.39
+    [32] MOVE_TO StoveKnob|+01.14|+00.93|+03.99
+    [33] TOGGLE_OFF StoveKnob|+01.14|+00.93|+03.99
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_1/02_cook_egg_and_wash_a_spatula/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_1
+Instruction: cook_egg_and_wash_a_spatula
+Scene: FloorPlan1
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [28] PICKUP Pan|+00.72|+00.90|-02.42
+    [29] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [30] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_1/02_cook_egg_and_wash_a_spatula/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_1
+Instruction: cook_egg_and_wash_a_spatula
+Scene: FloorPlan7
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [28] PICKUP Pan|+00.97|+00.96|-01.43
+    [29] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [30] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_1/02_cook_egg_and_wash_a_spatula/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_1
+Instruction: cook_egg_and_wash_a_spatula
+Scene: FloorPlan27
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+02.06|+00.97|+00.58'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [28] PICKUP Pan|+01.93|+00.07|+00.64
+    [29] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [30] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_1/02_cook_egg_and_wash_a_spatula/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_1
+Instruction: cook_egg_and_wash_a_spatula
+Scene: FloorPlan13
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [28] PICKUP Pan|-02.45|+00.93|+02.02
+    [29] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [30] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_1/02_cook_egg_and_wash_a_spatula/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_1
+Instruction: cook_egg_and_wash_a_spatula
+Scene: FloorPlan18
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['Floor|+00.00|+00.00|+00.00'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [28] PICKUP Pan|+01.31|+00.99|+04.30
+    [29] MOVE_TO CounterTop|+01.39|+01.03|+04.72
+    [30] PUT CounterTop|+01.39|+01.03|+04.72
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_1/03_heat_the_bread_using_microwave_and_wash_a_spatula/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_a_spatula
+Scene: FloorPlan18
+Reasons:
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+
+  Last Actions:
+    [27] CLOSE Microwave|+00.11|+00.98|+00.26
+    [28] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [29] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_1/04_heat_the_bread_using_microwave_and_wash_a_tomato/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_a_tomato
+Scene: FloorPlan18
+Reasons:
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+
+  Last Actions:
+    [27] CLOSE Microwave|+00.11|+00.98|+00.26
+    [28] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [29] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_1/05_heat_the_bread_using_microwave_and_wash_apple_and_lettuce/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_apple_and_lettuce
+Scene: FloorPlan18
+Reasons:
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+
+  Last Actions:
+    [39] CLOSE Microwave|+00.11|+00.98|+00.26
+    [40] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [41] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/01_boil_potato_and_heat_the_bread_using_microwave/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: boil_potato_and_heat_the_bread_using_microwave
+Scene: FloorPlan1
+Reasons:
+  - TSR 'fill_water_in_pot' failed: Duration 125.78s is Too Long (Target ~100.0s) [Actions: WAIT 63.1s (50%), PICKUP 11.6s (9%), TOGGLE_OFF 11.3s (9%), OPEN 11.3s (9%), CLOSE 11.3s (9%), PUT 8.8s (7%), MOVE_TO 6.0s (5%), MONITORING 2.3s (2%)]
+
+  Last Actions:
+    [38] WAIT 100.19
+    [39] MOVE_TO StoveKnob|-00.48|+00.88|-02.19
+    [40] TOGGLE_OFF StoveKnob|-00.48|+00.88|-02.19
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/01_boil_potato_and_heat_the_bread_using_microwave/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: boil_potato_and_heat_the_bread_using_microwave
+Scene: FloorPlan7
+Reasons:
+  - TSR 'fill_water_in_pot' failed: Duration 120.84s is Too Long (Target ~100.0s) [Actions: WAIT 59.8s (49%), PICKUP 11.6s (10%), TOGGLE_OFF 11.3s (9%), OPEN 11.3s (9%), CLOSE 11.3s (9%), PUT 8.8s (7%), MOVE_TO 4.4s (4%), MONITORING 2.3s (2%)]
+
+  Last Actions:
+    [38] WAIT 99.93
+    [39] MOVE_TO StoveKnob|+01.34|+00.91|-01.24
+    [40] TOGGLE_OFF StoveKnob|+01.34|+00.91|-01.24
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/01_boil_potato_and_heat_the_bread_using_microwave/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: boil_potato_and_heat_the_bread_using_microwave
+Scene: FloorPlan27
+Reasons:
+  - TSR 'fill_water_in_pot' failed: Duration 124.74s is Too Long (Target ~100.0s) [Actions: WAIT 62.6s (50%), PICKUP 11.6s (9%), TOGGLE_OFF 11.3s (9%), OPEN 11.3s (9%), CLOSE 11.3s (9%), PUT 8.8s (7%), MOVE_TO 5.5s (4%), MONITORING 2.3s (2%)]
+
+  Last Actions:
+    [38] WAIT 96.89
+    [39] MOVE_TO StoveKnob|+02.33|+01.09|+01.46
+    [40] TOGGLE_OFF StoveKnob|+02.33|+01.09|+01.46
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/01_boil_potato_and_heat_the_bread_using_microwave/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: boil_potato_and_heat_the_bread_using_microwave
+Scene: FloorPlan18
+Reasons:
+  - TSR 'fill_water_in_pot' failed: Trigger condition never met (Ended with missing: pot.parentReceptacles is ['StoveBurner|+01.56|+00.98|+03.85'] (expected ['sink']), faucet.isToggled is False (expected True))
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+
+  Last Actions:
+    [38] WAIT 95.8
+    [39] MOVE_TO StoveKnob|+01.14|+00.93|+03.99
+    [40] TOGGLE_OFF StoveKnob|+01.14|+00.93|+03.99
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/02_boil_water_with_pot_and_heat_the_bread_using_microwave/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: boil_water_with_pot_and_heat_the_bread_using_microwave
+Scene: FloorPlan1
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 295.96s is Too Long (Target ~100.0s) [Actions: WAIT 202.4s (68%), PICKUP 23.1s (8%), TOGGLE_ON 22.7s (8%), TOGGLE_OFF 22.7s (8%), PUT 17.6s (6%), MONITORING 4.7s (2%), MOVE_TO 2.9s (1%)]
+
+  Last Actions:
+    [35] CLOSE Microwave|-00.24|+01.69|-02.53
+    [36] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [37] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/02_boil_water_with_pot_and_heat_the_bread_using_microwave/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: boil_water_with_pot_and_heat_the_bread_using_microwave
+Scene: FloorPlan7
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 296.49s is Too Long (Target ~100.0s) [Actions: WAIT 198.8s (67%), PICKUP 23.1s (8%), TOGGLE_ON 22.7s (8%), TOGGLE_OFF 22.7s (8%), PUT 17.6s (6%), MOVE_TO 7.0s (2%), MONITORING 4.7s (2%)]
+
+  Last Actions:
+    [35] CLOSE Microwave|+01.15|+01.66|-01.61
+    [36] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [37] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/02_boil_water_with_pot_and_heat_the_bread_using_microwave/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: boil_water_with_pot_and_heat_the_bread_using_microwave
+Scene: FloorPlan27
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 297.21s is Too Long (Target ~100.0s) [Actions: WAIT 199.3s (67%), PICKUP 23.1s (8%), TOGGLE_ON 22.7s (8%), TOGGLE_OFF 22.7s (8%), PUT 17.6s (6%), MOVE_TO 7.3s (2%), MONITORING 4.7s (2%)]
+
+  Last Actions:
+    [35] CLOSE Microwave|-00.31|+00.93|+02.08
+    [36] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [37] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/02_boil_water_with_pot_and_heat_the_bread_using_microwave/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: boil_water_with_pot_and_heat_the_bread_using_microwave
+Scene: FloorPlan18
+Reasons:
+  - TSR 'fill_water_in_pot' failed: Trigger condition never met (Ended with missing: pot.parentReceptacles is ['StoveBurner|+01.56|+00.98|+03.85'] (expected ['sink']), faucet.isToggled is False (expected True))
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+
+  Last Actions:
+    [35] CLOSE Microwave|+00.11|+00.98|+00.26
+    [36] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [37] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/04_fill_bowl_with_water_and_make_a_coffee/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: fill_bowl_with_water_and_make_a_coffee
+Scene: FloorPlan1
+Reasons:
+  - Task 'fill_bowl_with_water' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: bowl.isFilledWithLiquid is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: bowl(isFilledWithLiquid=True)
+  - TSR 'fill_water_in_bowl' failed: Trigger condition never met (Consistently missing: bowl.isFilledWithLiquid is False (expected True))
+
+  Last Actions:
+    [18] PICKUP Mug|-01.76|+00.90|-00.62
+    [19] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [20] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/04_fill_bowl_with_water_and_make_a_coffee/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: fill_bowl_with_water_and_make_a_coffee
+Scene: FloorPlan7
+Reasons:
+  - TSR 'make_coffee' failed: Trigger condition never met (Ended with missing: )
+
+  Last Actions:
+    [13] WAIT 92.89
+    [14] MOVE_TO Faucet|-00.11|+00.92|-01.82
+    [15] TOGGLE_OFF Faucet|-00.11|+00.92|-01.82
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/04_fill_bowl_with_water_and_make_a_coffee/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: fill_bowl_with_water_and_make_a_coffee
+Scene: FloorPlan27
+Reasons:
+  - Task 'fill_bowl_with_water' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: bowl.isFilledWithLiquid is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: bowl(isFilledWithLiquid=True)
+  - TSR 'fill_water_in_bowl' failed: Trigger condition never met (Consistently missing: bowl.isFilledWithLiquid is False (expected True))
+
+  Last Actions:
+    [18] PICKUP Mug|+02.19|+00.93|+02.14
+    [19] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [20] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/05_fill_pot_with_water_and_heat_the_bread_using_microwave/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: fill_pot_with_water_and_heat_the_bread_using_microwave
+Scene: FloorPlan1
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 144.61s is Too Long (Target ~100.0s) [Actions: WAIT 96.4s (67%), PICKUP 11.6s (8%), TOGGLE_ON 11.3s (8%), TOGGLE_OFF 11.3s (8%), PUT 8.8s (6%), MOVE_TO 2.9s (2%), MONITORING 2.3s (2%)]
+
+  Last Actions:
+    [24] CLOSE Microwave|-00.24|+01.69|-02.53
+    [25] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [26] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/05_fill_pot_with_water_and_heat_the_bread_using_microwave/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: fill_pot_with_water_and_heat_the_bread_using_microwave
+Scene: FloorPlan18
+Reasons:
+  - TSR 'fill_water_in_pot' failed: Trigger condition never met (Ended with missing: pot.parentReceptacles is None (expected ['sink']), faucet.isToggled is False (expected True))
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+
+  Last Actions:
+    [24] CLOSE Microwave|+00.11|+00.98|+00.26
+    [25] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [26] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/06_fill_pot_with_water_and_heat_the_potato_using_microwave/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: fill_pot_with_water_and_heat_the_potato_using_microwave
+Scene: FloorPlan18
+Reasons:
+  - Task 'fill_pot_with_water' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: pot.isFilledWithLiquid is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pot(isFilledWithLiquid=True)
+  - TSR 'fill_water_in_pot' failed: Trigger condition never met (Consistently missing: pot.isFilledWithLiquid is False (expected True))
+  - TSR 'heat_potato_in_microwave' failed: Duration 148.31s is Too Long (Target ~100.0s) [Actions: WAIT 98.8s (67%), PICKUP 11.6s (8%), TOGGLE_ON 11.3s (8%), TOGGLE_OFF 11.3s (8%), PUT 8.8s (6%), MOVE_TO 4.2s (3%), MONITORING 2.3s (2%)]
+
+  Last Actions:
+    [24] CLOSE Microwave|+00.11|+00.98|+00.26
+    [25] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [26] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/07_heat_the_bread_using_microwave_and_cook_egg/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_bread_using_microwave_and_cook_egg
+Scene: FloorPlan1
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [34] PICKUP Pan|+00.72|+00.90|-02.42
+    [35] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [36] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/07_heat_the_bread_using_microwave_and_cook_egg/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_bread_using_microwave_and_cook_egg
+Scene: FloorPlan7
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [34] PICKUP Pan|+00.97|+00.96|-01.43
+    [35] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [36] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/07_heat_the_bread_using_microwave_and_cook_egg/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_bread_using_microwave_and_cook_egg
+Scene: FloorPlan27
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['Floor|+02.38|+00.00|-01.02'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [34] PICKUP Pan|+01.93|+00.07|+00.64
+    [35] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [36] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/07_heat_the_bread_using_microwave_and_cook_egg/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_bread_using_microwave_and_cook_egg
+Scene: FloorPlan13
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [34] PICKUP Pan|-02.45|+00.93|+02.02
+    [35] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [36] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/07_heat_the_bread_using_microwave_and_cook_egg/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_bread_using_microwave_and_cook_egg
+Scene: FloorPlan18
+Reasons:
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [34] PICKUP Pan|+01.31|+00.99|+04.30
+    [35] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [36] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/08_heat_the_potato_using_microwave_and_cook_egg/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg
+Scene: FloorPlan1
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [34] PICKUP Pan|+00.72|+00.90|-02.42
+    [35] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [36] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/08_heat_the_potato_using_microwave_and_cook_egg/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg
+Scene: FloorPlan7
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [34] PICKUP Pan|+00.97|+00.96|-01.43
+    [35] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [36] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/08_heat_the_potato_using_microwave_and_cook_egg/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg
+Scene: FloorPlan27
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['Floor|+02.38|+00.00|-01.02'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [34] PICKUP Pan|+01.93|+00.07|+00.64
+    [35] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [36] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/08_heat_the_potato_using_microwave_and_cook_egg/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg
+Scene: FloorPlan13
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [34] PICKUP Pan|-02.45|+00.93|+02.02
+    [35] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [36] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/08_heat_the_potato_using_microwave_and_cook_egg/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg
+Scene: FloorPlan18
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [34] PICKUP Pan|+01.31|+00.99|+04.30
+    [35] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [36] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/09_heat_the_potato_using_microwave_and_make_a_coffee/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_potato_using_microwave_and_make_a_coffee
+Scene: FloorPlan7
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 137.13s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (73%), PICKUP 11.6s (8%), TOGGLE_ON 11.3s (8%), PUT 8.8s (6%), MOVE_TO 5.5s (4%)]
+  - TSR 'make_coffee' failed: Duration 159.53s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (63%), PICKUP 11.6s (7%), TOGGLE_OFF 11.3s (7%), OPEN 11.3s (7%), CLOSE 11.3s (7%), PUT 8.8s (6%), MOVE_TO 5.2s (3%)]
+
+  Last Actions:
+    [26] PICKUP Mug|+01.67|+00.90|-01.32
+    [27] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [28] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/09_heat_the_potato_using_microwave_and_make_a_coffee/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: heat_the_potato_using_microwave_and_make_a_coffee
+Scene: FloorPlan13
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 145.97s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (69%), MOVE_TO 14.3s (10%), PICKUP 11.6s (8%), TOGGLE_ON 11.3s (8%), PUT 8.8s (6%)]
+  - TSR 'make_coffee' failed: Duration 168.63s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (59%), MOVE_TO 14.3s (8%), PICKUP 11.6s (7%), TOGGLE_OFF 11.3s (7%), OPEN 11.3s (7%), CLOSE 11.3s (7%), PUT 8.8s (5%)]
+
+  Last Actions:
+    [26] PICKUP Mug|-04.19|+00.91|+03.70
+    [27] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [28] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/10_make_a_coffee_and_cook_egg/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: make_a_coffee_and_cook_egg
+Scene: FloorPlan1
+Reasons:
+  - TSR 'make_coffee' failed: Duration 182.84s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (55%), PICKUP 23.1s (13%), MOVE_TO 19.5s (11%), PUT 17.6s (10%), TOGGLE_ON 11.3s (6%), SLICE 11.3s (6%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [27] PICKUP Pan|+00.72|+00.90|-02.42
+    [28] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [29] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/10_make_a_coffee_and_cook_egg/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: make_a_coffee_and_cook_egg
+Scene: FloorPlan7
+Reasons:
+  - TSR 'make_coffee' failed: Duration 174.52s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (57%), PICKUP 23.1s (13%), PUT 17.6s (10%), TOGGLE_ON 11.3s (6%), SLICE 11.3s (6%), MOVE_TO 11.2s (6%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [27] PICKUP Pan|+00.97|+00.96|-01.43
+    [28] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [29] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/10_make_a_coffee_and_cook_egg/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: make_a_coffee_and_cook_egg
+Scene: FloorPlan27
+Reasons:
+  - TSR 'make_coffee' failed: Duration 168.80s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (59%), PICKUP 23.1s (14%), PUT 17.6s (10%), TOGGLE_ON 11.3s (7%), SLICE 11.3s (7%), MOVE_TO 5.5s (3%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+02.06|+00.97|+00.58'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [27] PICKUP Pan|+01.93|+00.07|+00.64
+    [28] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [29] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/10_make_a_coffee_and_cook_egg/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: make_a_coffee_and_cook_egg
+Scene: FloorPlan13
+Reasons:
+  - TSR 'make_coffee' failed: Duration 178.94s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (56%), PICKUP 23.1s (13%), PUT 17.6s (10%), MOVE_TO 15.6s (9%), TOGGLE_ON 11.3s (6%), SLICE 11.3s (6%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [27] PICKUP Pan|-02.45|+00.93|+02.02
+    [28] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [29] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_2_constraints_2/10_make_a_coffee_and_cook_egg/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_2_constraints_2
+Instruction: make_a_coffee_and_cook_egg
+Scene: FloorPlan18
+Reasons:
+  - TSR 'make_coffee' failed: Duration 175.30s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (57%), PICKUP 23.1s (13%), PUT 17.6s (10%), MOVE_TO 12.0s (7%), TOGGLE_ON 11.3s (6%), SLICE 11.3s (6%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [27] PICKUP Pan|+01.31|+00.99|+04.30
+    [28] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [29] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/01_cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup
+Scene: FloorPlan1
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [55] PICKUP Cup|+00.37|+01.64|-02.58
+    [56] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [57] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/01_cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup
+Scene: FloorPlan7
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [52] PICKUP Pan|+00.97|+00.96|-01.43
+    [53] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [54] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/01_cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup
+Scene: FloorPlan27
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [52] PICKUP Pan|+01.93|+00.07|+00.64
+    [53] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [54] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/01_cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup
+Scene: FloorPlan13
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [52] PICKUP Pan|-02.45|+00.93|+02.02
+    [53] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [54] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/01_cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup
+Scene: FloorPlan18
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+  - Task 'wash_plate_and_cup' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: plate(parentReceptacles=['sink']) AND faucet(isToggled=True)
+
+  Last Actions:
+    [53] PICKUP Plate|-00.23|+00.83|+06.06
+    [54] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [55] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/02_cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce
+Scene: FloorPlan1
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [55] PICKUP Pan|+00.72|+00.90|-02.42
+    [56] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [57] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/02_cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce
+Scene: FloorPlan7
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [52] PICKUP Pan|+00.97|+00.96|-01.43
+    [53] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [54] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/02_cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce
+Scene: FloorPlan27
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [52] PICKUP Pan|+01.93|+00.07|+00.64
+    [53] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [54] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/02_cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce
+Scene: FloorPlan13
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [52] PICKUP Pan|-02.45|+00.93|+02.02
+    [53] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [54] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/02_cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce
+Scene: FloorPlan18
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['Floor|+00.00|+00.00|+00.00'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [52] PICKUP Pan|+01.31|+00.99|+04.30
+    [53] MOVE_TO CounterTop|+01.39|+01.03|+04.72
+    [54] PUT CounterTop|+01.39|+01.03|+04.72
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/03_heat_the_bread_using_microwave_and_wash_a_butterknife_and_wash_plate_and_cup/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_a_butterknife_and_wash_plate_and_cup
+Scene: FloorPlan27
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 141.68s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (33%), PUT 35.2s (25%), TOGGLE_ON 22.7s (16%), TOGGLE_OFF 22.7s (16%), MOVE_TO 13.0s (9%), WAIT 2.0s (1%)]
+
+  Last Actions:
+    [50] PICKUP Plate|+00.01|+00.76|+00.59
+    [51] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [52] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/03_heat_the_bread_using_microwave_and_wash_a_butterknife_and_wash_plate_and_cup/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_a_butterknife_and_wash_plate_and_cup
+Scene: FloorPlan18
+Reasons:
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+  - Task 'wash_plate_and_cup' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: plate(parentReceptacles=['sink']) AND faucet(isToggled=True)
+
+  Last Actions:
+    [51] PICKUP ButterKnife|+01.21|+00.99|+01.36
+    [52] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [53] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/04_heat_the_bread_using_microwave_and_wash_a_spatula_and_wash_all_fork_and_spoon/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_a_spatula_and_wash_all_fork_and_spoon
+Scene: FloorPlan7
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 162.87s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (28%), PUT 35.2s (22%), MOVE_TO 34.2s (21%), TOGGLE_ON 22.7s (14%), TOGGLE_OFF 22.7s (14%), WAIT 2.0s (1%)]
+
+  Last Actions:
+    [50] PICKUP Spatula|+00.09|+00.93|-01.64
+    [51] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [52] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/04_heat_the_bread_using_microwave_and_wash_a_spatula_and_wash_all_fork_and_spoon/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_a_spatula_and_wash_all_fork_and_spoon
+Scene: FloorPlan18
+Reasons:
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+
+  Last Actions:
+    [51] CLOSE Microwave|+00.11|+00.98|+00.26
+    [52] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [53] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/05_heat_the_bread_using_microwave_and_wash_a_tomato_and_wash_a_butterknife/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_a_tomato_and_wash_a_butterknife
+Scene: FloorPlan18
+Reasons:
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+
+  Last Actions:
+    [39] CLOSE Microwave|+00.11|+00.98|+00.26
+    [40] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [41] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/06_heat_the_bread_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce
+Scene: FloorPlan7
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 163.26s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (28%), PUT 35.2s (22%), MOVE_TO 34.6s (21%), TOGGLE_ON 22.7s (14%), TOGGLE_OFF 22.7s (14%), WAIT 2.0s (1%)]
+
+  Last Actions:
+    [62] PICKUP Lettuce|-01.65|+00.96|-01.05
+    [63] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [64] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/06_heat_the_bread_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce
+Scene: FloorPlan27
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 209.40s is Too Long (Target ~100.0s) [Actions: PICKUP 69.3s (33%), PUT 52.7s (25%), TOGGLE_ON 34.0s (16%), TOGGLE_OFF 34.0s (16%), MOVE_TO 16.4s (8%), WAIT 3.0s (1%)]
+
+  Last Actions:
+    [62] PICKUP Apple|+02.05|+00.63|-00.41
+    [63] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [64] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/06_heat_the_bread_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce
+Scene: FloorPlan13
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 139.86s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (33%), PUT 35.2s (25%), TOGGLE_ON 22.7s (16%), TOGGLE_OFF 22.7s (16%), MOVE_TO 11.2s (8%), WAIT 2.0s (1%)]
+
+  Last Actions:
+    [62] PICKUP Spoon|-03.17|+00.91|+05.37
+    [63] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [64] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/06_heat_the_bread_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_bread_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce
+Scene: FloorPlan18
+Reasons:
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+
+  Last Actions:
+    [67] CLOSE Microwave|+00.11|+00.98|+00.26
+    [68] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [69] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/07_heat_the_potato_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_potato_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce
+Scene: FloorPlan7
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 227.99s is Too Long (Target ~100.0s) [Actions: PICKUP 69.3s (30%), PUT 52.7s (23%), MOVE_TO 35.0s (15%), TOGGLE_ON 34.0s (15%), TOGGLE_OFF 34.0s (15%), WAIT 3.0s (1%)]
+
+  Last Actions:
+    [62] PICKUP Lettuce|-01.65|+00.96|-01.05
+    [63] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [64] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/07_heat_the_potato_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_potato_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce
+Scene: FloorPlan27
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 209.40s is Too Long (Target ~100.0s) [Actions: PICKUP 69.3s (33%), PUT 52.7s (25%), TOGGLE_ON 34.0s (16%), TOGGLE_OFF 34.0s (16%), MOVE_TO 16.4s (8%), WAIT 3.0s (1%)]
+
+  Last Actions:
+    [62] PICKUP Apple|+02.05|+00.63|-00.41
+    [63] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [64] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/07_heat_the_potato_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: heat_the_potato_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce
+Scene: FloorPlan13
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 139.86s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (33%), PUT 35.2s (25%), TOGGLE_ON 22.7s (16%), TOGGLE_OFF 22.7s (16%), MOVE_TO 11.2s (8%), WAIT 2.0s (1%)]
+
+  Last Actions:
+    [62] PICKUP Spoon|-03.17|+00.91|+05.37
+    [63] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [64] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/08_make_a_coffee_and_put_apple_and_lettuce_in_fridge_and_wash_plate_and_cup/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: make_a_coffee_and_put_apple_and_lettuce_in_fridge_and_wash_plate_and_cup
+Scene: FloorPlan7
+Reasons:
+  - TSR 'make_coffee' failed: Trigger condition never met (Ended with missing: )
+
+  Last Actions:
+    [41] MOVE_TO Fridge|-00.04|+00.00|+02.18
+    [42] PUT Fridge|-00.04|+00.00|+02.18
+    [43] CLOSE Fridge|-00.04|+00.00|+02.18
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/08_make_a_coffee_and_put_apple_and_lettuce_in_fridge_and_wash_plate_and_cup/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: make_a_coffee_and_put_apple_and_lettuce_in_fridge_and_wash_plate_and_cup
+Scene: FloorPlan27
+Reasons:
+  - Task 'make_a_coffee' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: mug.isFilledWithLiquid is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: mug(isFilledWithLiquid=True,parentReceptacles=['CoffeeMachine']) AND CoffeeMachine(isToggled=True)
+  - TSR 'make_coffee' failed: Trigger condition never met (Consistently missing: Object 'CoffeeMachine' not found)
+  - Task 'wash_plate_and_cup' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: cup(parentReceptacles=['sink']) AND faucet(isToggled=True)
+
+  Last Actions:
+    [46] PICKUP Mug|+02.19|+00.93|+02.14
+    [47] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [48] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/08_make_a_coffee_and_put_apple_and_lettuce_in_fridge_and_wash_plate_and_cup/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: make_a_coffee_and_put_apple_and_lettuce_in_fridge_and_wash_plate_and_cup
+Scene: FloorPlan13
+Reasons:
+  - TSR 'make_coffee' failed: Trigger condition never met (Consistently missing: Object 'CoffeeMachine' not found)
+
+  Last Actions:
+    [41] PUT CoffeeMachine|-00.28|+00.91|+06.56
+    [42] MOVE_TO CoffeeMachine|-00.28|+00.91|+06.56
+    [43] TOGGLE_ON CoffeeMachine|-00.28|+00.91|+06.56
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/09_make_a_coffee_and_wash_a_spatula_and_wash_apple_and_lettuce/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: make_a_coffee_and_wash_a_spatula_and_wash_apple_and_lettuce
+Scene: FloorPlan7
+Reasons:
+  - TSR 'make_coffee' failed: Trigger condition never met (Ended with missing: )
+
+  Last Actions:
+    [39] PICKUP Lettuce|-01.65|+00.96|-01.05
+    [40] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [41] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_1/09_make_a_coffee_and_wash_a_spatula_and_wash_apple_and_lettuce/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_1
+Instruction: make_a_coffee_and_wash_a_spatula_and_wash_apple_and_lettuce
+Scene: FloorPlan13
+Reasons:
+  - TSR 'make_coffee' failed: Trigger condition never met (Consistently missing: Object 'CoffeeMachine' not found)
+
+  Last Actions:
+    [39] PUT CoffeeMachine|-00.28|+00.91|+06.56
+    [40] MOVE_TO CoffeeMachine|-00.28|+00.91|+06.56
+    [41] TOGGLE_ON CoffeeMachine|-00.28|+00.91|+06.56
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan1
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 234.14s is Too Long (Target ~100.0s) [Actions: PICKUP 57.8s (25%), PUT 43.9s (19%), MOVE_TO 32.5s (14%), TOGGLE_ON 22.7s (10%), OPEN 22.7s (10%), CLOSE 22.7s (10%), WAIT 13.6s (6%), TOGGLE_OFF 11.3s (5%), MONITORING 7.0s (3%)]
+
+  Last Actions:
+    [54] WAIT 26.29
+    [55] MOVE_TO StoveKnob|-00.48|+00.88|-02.19
+    [56] TOGGLE_OFF StoveKnob|-00.48|+00.88|-02.19
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan7
+Reasons:
+  - TSR 'fill_water_in_pot' failed: Duration 209.93s is Too Long (Target ~100.0s) [Actions: WAIT 57.4s (27%), PICKUP 34.7s (17%), OPEN 34.0s (16%), PUT 26.4s (13%), CLOSE 22.7s (11%), MOVE_TO 18.8s (9%), TOGGLE_ON 11.3s (5%), MONITORING 4.7s (2%)]
+  - TSR 'heat_bread_in_microwave' failed: Duration 333.87s is Too Long (Target ~100.0s) [Actions: WAIT 134.1s (40%), PICKUP 46.2s (14%), PUT 35.2s (11%), MOVE_TO 32.1s (10%), OPEN 22.7s (7%), CLOSE 22.7s (7%), TOGGLE_OFF 22.7s (7%), TOGGLE_ON 11.3s (3%), MONITORING 7.0s (2%)]
+
+  Last Actions:
+    [54] CLOSE Microwave|+01.15|+01.66|-01.61
+    [55] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [56] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan27
+Reasons:
+  - TSR 'fill_water_in_pot' failed: Duration 203.30s is Too Long (Target ~100.0s) [Actions: WAIT 58.7s (29%), PICKUP 34.7s (17%), OPEN 34.0s (17%), PUT 26.4s (13%), CLOSE 22.7s (11%), TOGGLE_ON 11.3s (6%), MOVE_TO 10.9s (5%), MONITORING 4.7s (2%)]
+  - TSR 'heat_bread_in_microwave' failed: Duration 325.92s is Too Long (Target ~100.0s) [Actions: WAIT 141.0s (43%), PICKUP 46.2s (14%), PUT 35.2s (11%), OPEN 22.7s (7%), CLOSE 22.7s (7%), TOGGLE_OFF 22.7s (7%), MOVE_TO 17.3s (5%), TOGGLE_ON 11.3s (3%), MONITORING 7.0s (2%)]
+
+  Last Actions:
+    [54] CLOSE Microwave|-00.31|+00.93|+02.08
+    [55] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [56] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan13
+Reasons:
+  - TSR 'fill_water_in_pot' failed: Duration 210.45s is Too Long (Target ~100.0s) [Actions: WAIT 57.7s (27%), PICKUP 34.7s (16%), OPEN 34.0s (16%), PUT 26.4s (13%), CLOSE 22.7s (11%), MOVE_TO 19.1s (9%), TOGGLE_ON 11.3s (5%), MONITORING 4.7s (2%)]
+  - TSR 'heat_bread_in_microwave' failed: Duration 333.66s is Too Long (Target ~100.0s) [Actions: WAIT 137.0s (41%), PICKUP 46.2s (14%), PUT 35.2s (11%), MOVE_TO 29.0s (9%), OPEN 22.7s (7%), CLOSE 22.7s (7%), TOGGLE_OFF 22.7s (7%), TOGGLE_ON 11.3s (3%), MONITORING 7.0s (2%)]
+
+  Last Actions:
+    [54] CLOSE Microwave|-02.69|+01.43|+01.69
+    [55] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [56] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan18
+Reasons:
+  - TSR 'fill_water_in_pot' failed: Trigger condition never met (Ended with missing: pot.parentReceptacles is ['StoveBurner|+01.56|+00.98|+03.85'] (expected ['sink']), faucet.isToggled is False (expected True))
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+
+  Last Actions:
+    [54] CLOSE Microwave|+00.11|+00.98|+00.26
+    [55] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [56] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/02_fill_bowl_with_water_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: fill_bowl_with_water_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan1
+Reasons:
+  - Task 'fill_bowl_with_water' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: bowl.isFilledWithLiquid is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: bowl(isFilledWithLiquid=True)
+  - TSR 'fill_water_in_bowl' failed: Trigger condition never met (Ended with missing: bowl.isFilledWithLiquid is False (expected True), faucet.isToggled is False (expected True))
+  - TSR 'heat_bread_in_microwave' failed: Duration 148.45s is Too Long (Target ~100.0s) [Actions: WAIT 49.9s (34%), PICKUP 23.1s (16%), PUT 17.6s (12%), TOGGLE_ON 11.3s (8%), OPEN 11.3s (8%), CLOSE 11.3s (8%), TOGGLE_OFF 11.3s (8%), MOVE_TO 10.3s (7%), MONITORING 2.3s (2%)]
+
+  Last Actions:
+    [38] MOVE_TO Fridge|-02.10|+00.00|+01.07
+    [39] PUT Fridge|-02.10|+00.00|+01.07
+    [40] CLOSE Fridge|-02.10|+00.00|+01.07
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/02_fill_bowl_with_water_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: fill_bowl_with_water_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan27
+Reasons:
+  - Task 'fill_bowl_with_water' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: bowl.isFilledWithLiquid is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: bowl(isFilledWithLiquid=True)
+  - TSR 'fill_water_in_bowl' failed: Trigger condition never met (Ended with missing: bowl.isFilledWithLiquid is False (expected True), faucet.isToggled is False (expected True))
+  - TSR 'heat_bread_in_microwave' failed: Duration 145.33s is Too Long (Target ~100.0s) [Actions: WAIT 46.7s (32%), PICKUP 23.1s (16%), PUT 17.6s (12%), TOGGLE_ON 11.3s (8%), OPEN 11.3s (8%), CLOSE 11.3s (8%), TOGGLE_OFF 11.3s (8%), MOVE_TO 10.3s (7%), MONITORING 2.3s (2%)]
+
+  Last Actions:
+    [38] MOVE_TO Fridge|+02.10|+00.00|-00.28
+    [39] PUT Fridge|+02.10|+00.00|-00.28
+    [40] CLOSE Fridge|+02.10|+00.00|-00.28
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/02_fill_bowl_with_water_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: fill_bowl_with_water_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan18
+Reasons:
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+
+  Last Actions:
+    [38] MOVE_TO Fridge|+02.04|+00.00|+05.63
+    [39] PUT Fridge|+02.04|+00.00|+05.63
+    [40] CLOSE Fridge|+02.04|+00.00|+05.63
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/03_fill_pot_with_water_and_make_a_coffee_and_put_apple_and_lettuce_in_fridge/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: fill_pot_with_water_and_make_a_coffee_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan7
+Reasons:
+  - TSR 'make_coffee' failed: Trigger condition never met (Ended with missing: )
+
+  Last Actions:
+    [27] WAIT 97.73
+    [28] MOVE_TO Faucet|-00.11|+00.92|-01.82
+    [29] TOGGLE_OFF Faucet|-00.11|+00.92|-01.82
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/03_fill_pot_with_water_and_make_a_coffee_and_put_apple_and_lettuce_in_fridge/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: fill_pot_with_water_and_make_a_coffee_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan27
+Reasons:
+  - TSR 'make_coffee' failed: Trigger condition never met (Ended with missing: )
+
+  Last Actions:
+    [29] CLOSE Fridge|+02.10|+00.00|-00.28
+    [30] MOVE_TO Fridge|+02.10|+00.00|-00.28
+    [31] CLOSE Fridge|+02.10|+00.00|-00.28
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/03_fill_pot_with_water_and_make_a_coffee_and_put_apple_and_lettuce_in_fridge/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: fill_pot_with_water_and_make_a_coffee_and_put_apple_and_lettuce_in_fridge
+Scene: FloorPlan13
+Reasons:
+  - TSR 'make_coffee' failed: Trigger condition never met (Ended with missing: )
+
+  Last Actions:
+    [27] MOVE_TO Fridge|-00.32|00.00|+03.60
+    [28] PUT Fridge|-00.32|00.00|+03.60
+    [29] CLOSE Fridge|-00.32|00.00|+03.60
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/04_heat_the_bread_using_microwave_and_make_a_coffee_and_wash_apple_and_lettuce/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_bread_using_microwave_and_make_a_coffee_and_wash_apple_and_lettuce
+Scene: FloorPlan1
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 173.87s is Too Long (Target ~100.0s) [Actions: PICKUP 57.8s (33%), PUT 43.9s (25%), TOGGLE_ON 34.0s (20%), TOGGLE_OFF 22.7s (13%), MOVE_TO 13.5s (8%), WAIT 2.0s (1%)]
+  - TSR 'make_coffee' failed: Duration 197.05s is Too Long (Target ~100.0s) [Actions: PICKUP 57.8s (29%), PUT 43.9s (22%), TOGGLE_OFF 34.0s (17%), TOGGLE_ON 22.7s (11%), MOVE_TO 14.0s (7%), OPEN 11.3s (6%), CLOSE 11.3s (6%), WAIT 2.0s (1%)]
+
+  Last Actions:
+    [50] PICKUP Mug|-01.76|+00.90|-00.62
+    [51] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [52] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/04_heat_the_bread_using_microwave_and_make_a_coffee_and_wash_apple_and_lettuce/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_bread_using_microwave_and_make_a_coffee_and_wash_apple_and_lettuce
+Scene: FloorPlan7
+Reasons:
+  - TSR 'make_coffee' failed: Duration 191.33s is Too Long (Target ~100.0s) [Actions: PICKUP 57.8s (30%), PUT 43.9s (23%), TOGGLE_ON 34.0s (18%), TOGGLE_OFF 22.7s (12%), OPEN 11.3s (6%), CLOSE 11.3s (6%), MOVE_TO 8.3s (4%), WAIT 2.0s (1%)]
+
+  Last Actions:
+    [49] CLOSE Microwave|+01.15|+01.66|-01.61
+    [50] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [51] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/04_heat_the_bread_using_microwave_and_make_a_coffee_and_wash_apple_and_lettuce/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_bread_using_microwave_and_make_a_coffee_and_wash_apple_and_lettuce
+Scene: FloorPlan27
+Reasons:
+  - TSR 'heat_bread_in_microwave' failed: Duration 277.51s is Too Long (Target ~100.0s) [Actions: WAIT 102.0s (37%), PICKUP 57.8s (21%), PUT 43.9s (16%), TOGGLE_ON 34.0s (12%), TOGGLE_OFF 22.7s (8%), MOVE_TO 17.2s (6%)]
+  - TSR 'make_coffee' failed: Duration 160.05s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (62%), PICKUP 11.6s (7%), TOGGLE_OFF 11.3s (7%), OPEN 11.3s (7%), CLOSE 11.3s (7%), PUT 8.8s (5%), MOVE_TO 5.7s (4%)]
+
+  Last Actions:
+    [49] PICKUP Mug|+02.19|+00.93|+02.14
+    [50] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [51] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/04_heat_the_bread_using_microwave_and_make_a_coffee_and_wash_apple_and_lettuce/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_bread_using_microwave_and_make_a_coffee_and_wash_apple_and_lettuce
+Scene: FloorPlan13
+Reasons:
+  - TSR 'make_coffee' failed: Duration 137.13s is Too Long (Target ~100.0s) [Actions: PICKUP 34.7s (25%), PUT 26.4s (19%), TOGGLE_ON 22.7s (17%), MOVE_TO 18.5s (13%), OPEN 11.3s (8%), CLOSE 11.3s (8%), TOGGLE_OFF 11.3s (8%), WAIT 1.0s (1%)]
+
+  Last Actions:
+    [49] CLOSE Microwave|-02.69|+01.43|+01.69
+    [50] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [51] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/04_heat_the_bread_using_microwave_and_make_a_coffee_and_wash_apple_and_lettuce/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_bread_using_microwave_and_make_a_coffee_and_wash_apple_and_lettuce
+Scene: FloorPlan18
+Reasons:
+  - Task 'heat_the_bread_using_microwave' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: bread(parentReceptacles=['microwave']) AND microwave(isToggled=True)
+  - TSR 'heat_bread_in_microwave' failed: Trigger condition never met (Ended with missing: bread.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['microwave']), microwave.isToggled is False (expected True))
+  - TSR 'make_coffee' failed: Duration 123.35s is Too Long (Target ~100.0s) [Actions: PICKUP 34.7s (28%), PUT 26.4s (21%), TOGGLE_ON 22.7s (18%), TOGGLE_OFF 11.3s (9%), OPEN 11.3s (9%), CLOSE 11.3s (9%), MOVE_TO 4.7s (4%), WAIT 1.0s (1%)]
+
+  Last Actions:
+    [49] CLOSE Microwave|+00.11|+00.98|+00.26
+    [50] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [51] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/05_heat_the_potato_using_microwave_and_cook_egg_and_wash_a_spatula/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_a_spatula
+Scene: FloorPlan1
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [47] PICKUP Pan|+00.72|+00.90|-02.42
+    [48] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [49] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/05_heat_the_potato_using_microwave_and_cook_egg_and_wash_a_spatula/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_a_spatula
+Scene: FloorPlan7
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [46] PICKUP Pan|+00.97|+00.96|-01.43
+    [47] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [48] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/05_heat_the_potato_using_microwave_and_cook_egg_and_wash_a_spatula/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_a_spatula
+Scene: FloorPlan27
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 139.37s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (33%), PUT 35.2s (25%), TOGGLE_ON 22.7s (16%), TOGGLE_OFF 11.3s (8%), SLICE 11.3s (8%), MOVE_TO 9.4s (7%), MONITORING 2.3s (2%), WAIT 1.0s (1%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+02.06|+00.97|+00.58'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [45] PICKUP Pan|+01.93|+00.07|+00.64
+    [46] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [47] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/05_heat_the_potato_using_microwave_and_cook_egg_and_wash_a_spatula/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_a_spatula
+Scene: FloorPlan13
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [46] PICKUP Pan|-02.45|+00.93|+02.02
+    [47] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [48] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/05_heat_the_potato_using_microwave_and_cook_egg_and_wash_a_spatula/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_a_spatula
+Scene: FloorPlan18
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 146.39s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (32%), PUT 35.2s (24%), TOGGLE_ON 22.7s (15%), MOVE_TO 16.4s (11%), TOGGLE_OFF 11.3s (8%), SLICE 11.3s (8%), MONITORING 2.3s (2%), WAIT 1.0s (1%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [45] PICKUP Pan|+01.31|+00.99|+04.30
+    [46] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [47] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/06_heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon
+Scene: FloorPlan1
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [60] PICKUP Pan|+00.72|+00.90|-02.42
+    [61] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [62] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/06_heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon
+Scene: FloorPlan7
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [58] PICKUP Pan|+00.97|+00.96|-01.43
+    [59] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [60] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/06_heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon
+Scene: FloorPlan27
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 139.11s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (33%), PUT 35.2s (25%), TOGGLE_ON 22.7s (16%), TOGGLE_OFF 11.3s (8%), SLICE 11.3s (8%), MOVE_TO 9.1s (7%), MONITORING 2.3s (2%), WAIT 1.0s (1%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+02.06|+00.97|+00.58'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [57] PICKUP Pan|+01.93|+00.07|+00.64
+    [58] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [59] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/06_heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon
+Scene: FloorPlan13
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [58] PICKUP Pan|-02.45|+00.93|+02.02
+    [59] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [60] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/06_heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon
+Scene: FloorPlan18
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 305.19s is Too Long (Target ~100.0s) [Actions: PICKUP 80.8s (26%), PUT 61.5s (20%), WAIT 58.5s (19%), TOGGLE_ON 34.0s (11%), TOGGLE_OFF 34.0s (11%), MOVE_TO 22.6s (7%), SLICE 11.3s (4%), MONITORING 2.3s (1%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [58] CLOSE Microwave|+00.11|+00.98|+00.26
+    [59] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [60] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/07_heat_the_potato_using_microwave_and_cook_egg_and_wash_plate_and_cup/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_plate_and_cup
+Scene: FloorPlan1
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [60] PICKUP Pan|+00.72|+00.90|-02.42
+    [61] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [62] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/07_heat_the_potato_using_microwave_and_cook_egg_and_wash_plate_and_cup/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_plate_and_cup
+Scene: FloorPlan7
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [58] PICKUP Pan|+00.97|+00.96|-01.43
+    [59] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [60] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/07_heat_the_potato_using_microwave_and_cook_egg_and_wash_plate_and_cup/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_plate_and_cup
+Scene: FloorPlan27
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 140.93s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (33%), PUT 35.2s (25%), TOGGLE_ON 22.7s (16%), TOGGLE_OFF 11.3s (8%), SLICE 11.3s (8%), MOVE_TO 10.9s (8%), MONITORING 2.3s (2%), WAIT 1.0s (1%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['Toaster|+02.13|+00.93|+00.57'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [57] PICKUP Pan|+01.93|+00.07|+00.64
+    [58] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [59] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/07_heat_the_potato_using_microwave_and_cook_egg_and_wash_plate_and_cup/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_plate_and_cup
+Scene: FloorPlan13
+Reasons:
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [58] PICKUP Pan|-02.45|+00.93|+02.02
+    [59] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [60] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/07_heat_the_potato_using_microwave_and_cook_egg_and_wash_plate_and_cup/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_cook_egg_and_wash_plate_and_cup
+Scene: FloorPlan18
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 306.59s is Too Long (Target ~100.0s) [Actions: PICKUP 80.8s (26%), PUT 61.5s (20%), WAIT 55.0s (18%), TOGGLE_ON 34.0s (11%), TOGGLE_OFF 34.0s (11%), MOVE_TO 27.6s (9%), SLICE 11.3s (4%), MONITORING 2.3s (1%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+  - Task 'wash_plate_and_cup' GCR Failed
+  -   -> [GCR Mid Failed] Missed intermediate step: plate(parentReceptacles=['sink']) AND faucet(isToggled=True)
+
+  Last Actions:
+    [58] CLOSE Microwave|+00.11|+00.98|+00.26
+    [59] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [60] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon
+Scene: FloorPlan1
+Reasons:
+  - TSR 'make_coffee' failed: Duration 127.77s is Too Long (Target ~100.0s) [Actions: PICKUP 34.7s (27%), PUT 26.4s (21%), TOGGLE_ON 22.7s (18%), OPEN 11.3s (9%), CLOSE 11.3s (9%), TOGGLE_OFF 11.3s (9%), MOVE_TO 9.1s (7%), WAIT 1.0s (1%)]
+
+  Last Actions:
+    [51] PICKUP Spoon|+00.98|+00.77|-02.29
+    [52] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [53] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon
+Scene: FloorPlan7
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 296.49s is Too Long (Target ~100.0s) [Actions: WAIT 102.0s (34%), PICKUP 57.8s (19%), PUT 43.9s (15%), MOVE_TO 36.1s (12%), TOGGLE_ON 34.0s (11%), TOGGLE_OFF 22.7s (8%)]
+  - TSR 'make_coffee' failed: Duration 159.53s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (63%), PICKUP 11.6s (7%), TOGGLE_OFF 11.3s (7%), OPEN 11.3s (7%), CLOSE 11.3s (7%), PUT 8.8s (6%), MOVE_TO 5.2s (3%)]
+
+  Last Actions:
+    [49] PICKUP Mug|+01.67|+00.90|-01.32
+    [50] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [51] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon
+Scene: FloorPlan27
+Reasons:
+  - TSR 'make_coffee' failed: Duration 126.47s is Too Long (Target ~100.0s) [Actions: PICKUP 34.7s (27%), PUT 26.4s (21%), TOGGLE_ON 22.7s (18%), TOGGLE_OFF 11.3s (9%), OPEN 11.3s (9%), CLOSE 11.3s (9%), MOVE_TO 7.8s (6%), WAIT 1.0s (1%)]
+
+  Last Actions:
+    [49] CLOSE Microwave|-00.31|+00.93|+02.08
+    [50] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [51] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon
+Scene: FloorPlan13
+Reasons:
+  - TSR 'heat_potato_in_microwave' failed: Duration 285.83s is Too Long (Target ~100.0s) [Actions: WAIT 102.0s (36%), PICKUP 57.8s (20%), PUT 43.9s (15%), TOGGLE_ON 34.0s (12%), MOVE_TO 25.5s (9%), TOGGLE_OFF 22.7s (8%)]
+  - TSR 'make_coffee' failed: Duration 168.63s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (59%), MOVE_TO 14.3s (8%), PICKUP 11.6s (7%), TOGGLE_OFF 11.3s (7%), OPEN 11.3s (7%), CLOSE 11.3s (7%), PUT 8.8s (5%)]
+
+  Last Actions:
+    [49] PICKUP Mug|-04.19|+00.91|+03.70
+    [50] MOVE_TO CounterTop|-04.26|+00.96|+04.94
+    [51] PUT CounterTop|-04.26|+00.96|+04.94
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon
+Scene: FloorPlan18
+Reasons:
+  - TSR 'make_coffee' failed: Duration 125.43s is Too Long (Target ~100.0s) [Actions: PICKUP 34.7s (28%), PUT 26.4s (21%), TOGGLE_ON 22.7s (18%), TOGGLE_OFF 11.3s (9%), OPEN 11.3s (9%), CLOSE 11.3s (9%), MOVE_TO 6.8s (5%), WAIT 1.0s (1%)]
+
+  Last Actions:
+    [49] CLOSE Microwave|+00.11|+00.98|+00.26
+    [50] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [51] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/09_make_a_coffee_and_cook_egg_and_wash_a_spatula/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: make_a_coffee_and_cook_egg_and_wash_a_spatula
+Scene: FloorPlan1
+Reasons:
+  - TSR 'make_coffee' failed: Duration 182.06s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (25%), PUT 35.2s (19%), WAIT 28.6s (16%), MOVE_TO 26.8s (15%), TOGGLE_ON 22.7s (12%), TOGGLE_OFF 11.3s (6%), SLICE 11.3s (6%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [40] PICKUP Pan|+00.72|+00.90|-02.42
+    [41] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [42] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/09_make_a_coffee_and_cook_egg_and_wash_a_spatula/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: make_a_coffee_and_cook_egg_and_wash_a_spatula
+Scene: FloorPlan7
+Reasons:
+  - TSR 'make_coffee' failed: Duration 174.52s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (57%), PICKUP 23.1s (13%), PUT 17.6s (10%), TOGGLE_ON 11.3s (6%), SLICE 11.3s (6%), MOVE_TO 11.2s (6%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [39] PICKUP Pan|+00.97|+00.96|-01.43
+    [40] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [41] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/09_make_a_coffee_and_cook_egg_and_wash_a_spatula/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: make_a_coffee_and_cook_egg_and_wash_a_spatula
+Scene: FloorPlan27
+Reasons:
+  - TSR 'make_coffee' failed: Duration 164.90s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (28%), PUT 35.2s (21%), WAIT 31.2s (19%), TOGGLE_ON 22.7s (14%), TOGGLE_OFF 11.3s (7%), SLICE 11.3s (7%), MOVE_TO 7.0s (4%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+02.06|+00.97|+00.58'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [39] PICKUP Pan|+01.93|+00.07|+00.64
+    [40] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [41] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/09_make_a_coffee_and_cook_egg_and_wash_a_spatula/FloorPlan13/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: make_a_coffee_and_cook_egg_and_wash_a_spatula
+Scene: FloorPlan13
+Reasons:
+  - TSR 'make_coffee' failed: Duration 177.12s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (26%), PUT 35.2s (20%), MOVE_TO 26.8s (15%), WAIT 23.7s (13%), TOGGLE_ON 22.7s (13%), TOGGLE_OFF 11.3s (6%), SLICE 11.3s (6%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [39] PICKUP Pan|-02.45|+00.93|+02.02
+    [40] MOVE_TO CounterTop|-00.35|+00.96|+05.60
+    [41] PUT CounterTop|-00.35|+00.96|+05.60
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/09_make_a_coffee_and_cook_egg_and_wash_a_spatula/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: make_a_coffee_and_cook_egg_and_wash_a_spatula
+Scene: FloorPlan18
+Reasons:
+  - TSR 'make_coffee' failed: Duration 175.30s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (57%), PICKUP 23.1s (13%), PUT 17.6s (10%), MOVE_TO 12.0s (7%), TOGGLE_ON 11.3s (6%), SLICE 11.3s (6%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [39] PICKUP Pan|+01.31|+00.99|+04.30
+    [40] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [41] PUT CounterTop|+01.39|+01.03|+00.90
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/10_make_a_coffee_and_cook_egg_and_wash_a_tomato/FloorPlan1/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: make_a_coffee_and_cook_egg_and_wash_a_tomato
+Scene: FloorPlan1
+Reasons:
+  - TSR 'make_coffee' failed: Duration 182.06s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (25%), PUT 35.2s (19%), WAIT 32.0s (18%), MOVE_TO 23.4s (13%), TOGGLE_ON 22.7s (12%), TOGGLE_OFF 11.3s (6%), SLICE 11.3s (6%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [40] PICKUP Pan|+00.72|+00.90|-02.42
+    [41] MOVE_TO CounterTop|-00.08|+01.15|00.00
+    [42] PUT CounterTop|-00.08|+01.15|00.00
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/10_make_a_coffee_and_cook_egg_and_wash_a_tomato/FloorPlan7/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: make_a_coffee_and_cook_egg_and_wash_a_tomato
+Scene: FloorPlan7
+Reasons:
+  - TSR 'make_coffee' failed: Duration 174.52s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (57%), PICKUP 23.1s (13%), PUT 17.6s (10%), TOGGLE_ON 11.3s (6%), SLICE 11.3s (6%), MOVE_TO 11.2s (6%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+
+  Last Actions:
+    [39] PICKUP Pan|+00.97|+00.96|-01.43
+    [40] MOVE_TO CounterTop|-01.87|+00.95|-00.61
+    [41] PUT CounterTop|-01.87|+00.95|-00.61
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/10_make_a_coffee_and_cook_egg_and_wash_a_tomato/FloorPlan27/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: make_a_coffee_and_cook_egg_and_wash_a_tomato
+Scene: FloorPlan27
+Reasons:
+  - TSR 'make_coffee' failed: Duration 164.90s is Too Long (Target ~100.0s) [Actions: PICKUP 46.2s (28%), PUT 35.2s (21%), WAIT 30.9s (19%), TOGGLE_ON 22.7s (14%), TOGGLE_OFF 11.3s (7%), SLICE 11.3s (7%), MOVE_TO 7.3s (4%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is None (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [39] PICKUP Pan|+01.93|+00.07|+00.64
+    [40] MOVE_TO CounterTop|+02.06|+00.97|+00.58
+    [41] PUT CounterTop|+02.06|+00.97|+00.58
+
+--------------------------------------------------------------------------------
+File: assets/results/states100/tasks_3_constraints_2/10_make_a_coffee_and_cook_egg_and_wash_a_tomato/FloorPlan18/dag_bayesian_DEFAULT/evaluation_result.json
+Difficulty: tasks_3_constraints_2
+Instruction: make_a_coffee_and_cook_egg_and_wash_a_tomato
+Scene: FloorPlan18
+Reasons:
+  - TSR 'make_coffee' failed: Duration 175.30s is Too Long (Target ~100.0s) [Actions: WAIT 100.0s (57%), PICKUP 23.1s (13%), PUT 17.6s (10%), MOVE_TO 12.0s (7%), TOGGLE_ON 11.3s (6%), SLICE 11.3s (6%)]
+  - Task 'cook_egg' GCR Failed
+  -   -> [GCR End Failed] Final state unmet: egg.isCooked is False (expected True)
+  -   -> [GCR Mid Failed] Missed intermediate step: pan(parentReceptacles=['stove']) AND egg(isCooked=True) AND stoveknob(isToggled=True)
+  - TSR 'heat_egg' failed: Trigger condition never met (Ended with missing: pan.parentReceptacles is ['CounterTop|+01.39|+01.03|+00.90'] (expected ['stove']), stoveknob.isToggled is False (expected True))
+
+  Last Actions:
+    [39] PICKUP Pan|+01.31|+00.99|+04.30
+    [40] MOVE_TO CounterTop|+01.39|+01.03|+00.90
+    [41] PUT CounterTop|+01.39|+01.03|+00.90
+

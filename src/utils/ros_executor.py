@@ -43,22 +43,22 @@ class SimulateObjectPosChange:
     def _simulate_navigate(self, target_obj_id: Optional[str]) -> None:
         """Simulates grasping an object."""
         logger.info(f"Navigating to {target_obj_id}")
-    
+
     @log_ros_action_state
     def _simulate_wait(self, wait_duration: Optional[float]) -> None:
         """Simulates waiting for a duration."""
         logger.info(f"Waiting for {wait_duration} seconds")
-    
+
     @log_ros_action_state
     def _simulate_monitoring(self) -> None:
         """Simulates monitoring."""
         logger.info("Monitoring")
-    
+
     @log_ros_action_state
     def _simulate_toggle_on(self, target_obj_id: Optional[str]) -> None:
         """Simulates toggling on an object."""
         logger.info(f"Toggling on {target_obj_id}")
-    
+
     @log_ros_action_state
     def _simulate_toggle_off(self, target_obj_id: Optional[str]) -> None:
         """Simulates toggling off an object."""
@@ -220,7 +220,6 @@ class RosExecutor:
                 self.object_pos_simulator._simulate_toggle_off(
                     primitive_action_parts[1].lower()
                 )
-            
 
         return True, total_elapsed_time, action_log
 

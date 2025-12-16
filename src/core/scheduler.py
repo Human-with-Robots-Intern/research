@@ -298,13 +298,41 @@ class Scheduler:
             if child_node:
                 expansions.append(child_node)
 
-        for wait_target_candidate in not_yet_candidates:
-            log.debug(
-                f"[_expand_candidates] Considering 'WAIT' action for subtask: {wait_target_candidate.subtask.name}."
+        # [Unified Wait Expansion 251216]
+        # Instead of iterating over ALL not_yet_candidates to create redundant Wait actions,
+        # we pick ONE representative candidate to trigger the wait logic.
+        # Since _expand_single_wait (and _expand_wait_wo_monitoring) now uses
+        # global_earliest_deadline to cap the wait duration, any candidate will result
+        # in the same "Wait until next event" behavior.
+        # We pick the one with the earliest 'actual_interaction_start_time' or logical start time.
+
+        if not_yet_candidates:
+            # Sort to find the earliest target
+            sorted_wait_targets = sorted(
+                not_yet_candidates,
+                key=lambda c: (
+                    c.actual_interaction_start_time
+                    if c.actual_interaction_start_time is not None
+                    else (
+                        c.logical_interaction_start_time
+                        if c.logical_interaction_start_time is not None
+                        else float("inf")
+                    )
+                ),
             )
+
+            # Pick the best candidate (e.g., earliest start time)
+            # If multiple candidates exist, just picking the first one is sufficient
+            # because the Safe Wait Splitting logic considers GLOBAL deadlines anyway.
+            representative_wait_candidate = sorted_wait_targets[0]
+
+            log.debug(
+                f"[_expand_candidates] Unified Wait: Selected representative '{representative_wait_candidate.subtask.name}' from {len(not_yet_candidates)} options."
+            )
+
             wait_node = self._expand_single_wait(
                 curr_node,
-                wait_target_candidate,
+                representative_wait_candidate,
                 not_yet_candidates,
                 feasible_candidates=feasible_candidates,
             )
@@ -330,10 +358,6 @@ class Scheduler:
         for candidate in feasible_candidates:
             if not candidate.is_critical:
                 continue
-
-            # [Fix] Do NOT skip decomposed tasks here.
-            # Monitoring/Early/Remain tasks are marked decomposed=True but are executable leaf tasks.
-            # If they are in feasible_candidates, they are ready to run.
 
             if candidate.logical_interaction_start_time is None:
                 continue
@@ -361,6 +385,29 @@ class Scheduler:
         # [Added 251215] Check blocked urgent tasks and prioritize predecessors
         feasible_map = {c.subtask.name: c for c in feasible_candidates}
         constraints = curr_node.state.constraints
+        visited = set()
+
+        def find_feasible_ancestor(target_name: str) -> None:
+            """Recursively trace predecessors to find feasible ancestors."""
+            if target_name in visited:
+                return
+            visited.add(target_name)
+
+            if not constraints.has_node(target_name):
+                return
+
+            preds = list(constraints.predecessors(target_name))
+            for pred_name in preds:
+                if pred_name in feasible_map:
+                    pred_cand = feasible_map[pred_name]
+                    if pred_cand not in urgent_list:
+                        log.warning(
+                            f"Prioritizing feasible ancestor '{pred_name}' to unblock urgent task chain targeting '{candidate.subtask.name}'."
+                        )
+                        urgent_list.append(pred_cand)
+                else:
+                    # Recursive search for ancestors
+                    find_feasible_ancestor(pred_name)
 
         for candidate in not_yet_candidates:
             if not candidate.is_critical or candidate.subtask.decomposed:
@@ -377,21 +424,22 @@ class Scheduler:
             )
 
             if physical_start >= logical_start - TIMING_TOLERANCE_ABS:
-                # Urgent but blocked! Find feasible predecessors.
+                # Urgent but blocked! Find feasible predecessors recursively.
                 log.debug(
                     f"Found BLOCKED URGENT task: {candidate.subtask.name} "
-                    f"(Physical: {physical_start:.2f} >= Logical: {logical_start:.2f} - Tol). Checking predecessors."
+                    f"(Physical: {physical_start:.2f} >= Logical: {logical_start:.2f} - Tol). Tracing ancestors."
                 )
-                if constraints.has_node(candidate.subtask.name):
-                    preds = list(constraints.predecessors(candidate.subtask.name))
-                    for pred_name in preds:
-                        if pred_name in feasible_map:
-                            pred_cand = feasible_map[pred_name]
-                            if pred_cand not in urgent_list:
-                                log.warning(
-                                    f"Prioritizing feasible predecessor '{pred_name}' to unblock urgent task '{candidate.subtask.name}'."
-                                )
-                                urgent_list.append(pred_cand)
+
+                len_before = len(urgent_list)
+                find_feasible_ancestor(candidate.subtask.name)
+
+                if len(urgent_list) == len_before:
+                    log.debug(
+                        f"No feasible ancestors found for {candidate.subtask.name}. "
+                        f"Adding the task itself as it is time-ready/urgent."
+                    )
+                    candidate.actual_interaction_start_time = physical_start
+                    urgent_list.append(candidate)
 
         return urgent_list
 
@@ -1553,15 +1601,16 @@ class Scheduler:
         curr_node: SimulationNode,
         candidate: Candidate,
         not_yet_candidates: List[Candidate],
-        force_wait: bool = False,
         nav_duration: float = 0.0,
         feasible_candidates: List[Candidate] = None,
-    ) -> SimulationNode:
+    ) -> Optional[SimulationNode]:
         """
         Inserts a single "Wait" action until the candidate's actual_interaction_start_time.
 
         - If actual_interaction_start_time <= current_time, wait_duration becomes 0.
         - This wait is modeled as a Subtask with type="Wait".
+        - [Fix 251216] Safe Wait Splitting: The wait duration is capped by the earliest
+          deadline among other feasible candidates to prevent blocking critical tasks.
 
         Args:
             curr_node (SimulationNode): Current node in the search tree.
@@ -1584,25 +1633,45 @@ class Scheduler:
             )
         )
 
-        # [Debug Log] Verify Bayesian influence and Deadline propagation
-        due_date = (
+        # [Fix 251216] Safe Wait Splitting using Global Deadlines
+        # Find the earliest scheduling deadline among all currently feasible candidates.
+        # We must not wait beyond this time, as it would cause a violation for another task.
+        global_earliest_deadline = float("inf")
+        if feasible_candidates:
+            for fc in feasible_candidates:
+                # We care about deadlines that are finite and "urgent"
+                if fc.scheduling_due and fc.scheduling_due.due_date != float("inf"):
+                    global_earliest_deadline = min(
+                        global_earliest_deadline, fc.scheduling_due.due_date
+                    )
+
+        # Also consider the candidate's own deadline if it exists (though less likely to be the limiting factor for wait)
+        candidate_due = (
             candidate.scheduling_due.due_date
             if candidate.scheduling_due
             else float("inf")
         )
+        safe_wait_limit = min(
+            target_start_time, global_earliest_deadline, candidate_due
+        )
+
+        # Calculate Wait Duration
+        # We wait until the 'safe_wait_limit'.
+        # If target_start_time is the limit, we wait fully.
+        # If global_earliest_deadline is the limit, we wait only until then (plus maybe a small epsilon to trigger re-eval).
+        total_wait_duration = max(
+            0.0, safe_wait_limit - curr_state.current_time - nav_duration
+        )
+
         log.warning(
             f"[_expand_wait_wo_monitoring] Check for {candidate.subtask.name}:\n"
             f"  Current Time: {curr_state.current_time:.2f}\n"
             f"  Target Start (Est): {target_start_time:.2f}\n"
-            f"  Actual Interaction Start: {candidate.actual_interaction_start_time}\n"
-            f"  Logical Interaction Start: {candidate.logical_interaction_start_time}\n"
-            f"  Deadline (Due): {due_date:.2f}\n"
+            f"  Global Earliest Deadline: {global_earliest_deadline}\n"
+            f"  Candidate Deadline: {candidate_due}\n"
+            f"  Safe Wait Limit: {safe_wait_limit:.2f}\n"
             f"  Nav Duration: {nav_duration:.2f}\n"
-            f"  Is Target > Deadline? {target_start_time > due_date}"
-        )
-
-        total_wait_duration = max(
-            0.0, target_start_time - curr_state.current_time - nav_duration
+            f"  -> Calculated Wait Duration: {total_wait_duration:.2f}"
         )
 
         if total_wait_duration <= EPSILON:
@@ -1646,14 +1715,14 @@ class Scheduler:
         )
 
         # Create a synthetic candidate to represent the 'Wait' action for the heuristic calculator.
+        # [Fix 251216] Preserve the original scheduling_due to allow proper risk assessment
         wait_candidate = Candidate(
             subtask=wait_sub,
-            is_critical=candidate.is_critical,  # The wait inherits criticality from its target.
-            # The 'due date' for the wait is the start time of the task we are waiting for.
-            scheduling_due=SchedulingDue(
-                due_date=target_start_time, due_related_sub_name=candidate.subtask.name
-            ),
+            is_critical=candidate.is_critical,
+            # Inherit the deadline to let heuristic manager know about the pressure
+            scheduling_due=candidate.scheduling_due,
         )
+
         # Global Risk Check을 위해 feasible_candidates도 포함하여 전달
         all_candidates = not_yet_candidates
         if feasible_candidates:
