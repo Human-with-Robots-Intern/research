@@ -21,6 +21,7 @@ from src.utils.config.constants import set_init_prior_mean
 from src.utils.get_state import save_scene_state
 from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import list_task_files
+from src.utils.ros_executor import RosExecutor
 
 current_dir = os.path.dirname(os.path.abspath(__file__))  # 이 파일의 현재 경로
 
@@ -62,11 +63,17 @@ def build_temporal_logic_guidelines(wait_units: int) -> str:
         - Examples:
             - Turn off stove immediately after cooking completes.
             - Turn off faucet immediately when a container is full.
+            - Turn off laundry machine immediately after cycle completes.
             - Promptly remove items when machine cycles complete.
         - If a follow-up is not time-critical (e.g., serving/eating later), it need not be immediate.
 
     - Prohibited Functions:
         - Do not use `time.sleep()`. Use the provided `wait(duration)` function for all delays.
+    
+    - Object Placement Constraints:
+        - For `PLACE_ON_TOP <obj>` or `PLACE_INSIDE <obj>`, the `<obj>` MUST be a valid receptacle (e.g., Table, Sink, Stove, Shelf, Cabinet).
+        - Do NOT place items on pickupable objects (e.g., do not place on Chicken, Apple, Bowl).
+        - Ensure the target receptacle is appropriate for the item (e.g., place food on plates or in pans, not directly on random furniture if not specified).
     """
     ).format(wait=wait_units)
 
@@ -236,7 +243,7 @@ def generate_plan(
             physics_data = json.load(f)
             obj = list(physics_data.keys())
         # 2. ROS에서 사용 가능한 action들
-        prompt = "from actions import TOGGLE_ON <obj>, TOGGLE_OFF <obj>, GRASP <obj>, PLACE_ON_TOP <obj>, PLACE_INSIDE <obj>, OPEN <obj>, CLOSE <obj>,  WAIT <duration>, MONITORING <obj>, NAVIGATE_TO <obj>"
+        prompt = "from actions import TOGGLE_ON <obj>, TOGGLE_OFF <obj>, GRASP <obj>, PLACE_ON_TOP <obj>, PLACE_INSIDE <obj>, WAIT <duration>, MONITORING <obj>, NAVIGATE_TO <obj>"
         # 3. 예제 태스크 경로
         example_task_path = os.path.join(current_dir, "example_task_real.json")
     
@@ -254,14 +261,25 @@ def generate_plan(
             prompt_egs[k] = v
             
     if args.prompt_task_examples == "default":
-        default_examples = [
-            "Heat Potato using Microwave and set the table for lunch",
-            "use coffee machine to make coffee then pick up the apple",
-            "Fill the bathtub with water",
-            "wash tomato, potato and egg, and cook egg fry",
-            "put tomato and apple in fridge and put book in shelf",
-        ]
-        for i in range(args.prompt_num_examples):
+        if args.ros:
+            default_examples = [
+                "cook_chicken",
+                "put orange bowl on sink",
+                "do_laundry",
+            ]
+            # ROS 예시는 개수가 적을 수 있으므로 args.prompt_num_examples 조정이 필요할 수도 있음
+            # 현재 파일에는 3개만 있으므로 len(default_examples)와 비교하여 안전하게 순회하도록 수정 필요
+        else:
+            default_examples = [
+                "Heat Potato using Microwave and set the table for lunch",
+                "use coffee machine to make coffee then pick up the apple",
+                "Fill the bathtub with water",
+                "wash tomato, potato and egg, and cook egg fry",
+                "put tomato and apple in fridge and put book in shelf",
+            ]
+        
+        num_examples_to_use = min(args.prompt_num_examples, len(default_examples))
+        for i in range(num_examples_to_use):
             prompt += (
                 "task : "
                 + default_examples[i]
@@ -307,7 +325,7 @@ def generate_plan(
             folder_key = task
 
         result_path = f"{folder_key}"
-
+    
         # Execute simulation; ensure any internal buffers are flushed to log_file
         simulate_execution(
             controller, [task], [text], log_file, args, logger, action_interface
@@ -429,7 +447,11 @@ if __name__ == "__main__":
                 ),
             )
         elif args.ros:
-            action_interface = None
+            action_interface = RosExecutor(
+                trajectory_log_path=Path(
+                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/progprompt/trajectory_log.json"
+                )
+            )
         generate_plan(controller, task, args, logger, action_interface)
     except ProgPromptActionFailedError as e:
         logger.error(f"Task failed due to an explicit action failure: {e}")
@@ -439,7 +461,9 @@ if __name__ == "__main__":
         task_successful = False
     finally:
         try:
-            controller.stop()
+            if args.simulation:
+                controller.stop()
+            
         except Exception as e:
             logger.error(f"Error stopping controller: {e}")
         

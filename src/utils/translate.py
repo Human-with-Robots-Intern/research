@@ -60,6 +60,8 @@ class InstructionTranslator:
         parts = instruction.split(" ")
         action_name = parts[0]
         object_name = parts[1]
+        if object_name.lower() == "sink":
+            object_name = "sink|sinkbasin"
 
         action_id = self.action_mapping[action_name]
         object_id = self.object_init_states[object_name.lower()]['position']
