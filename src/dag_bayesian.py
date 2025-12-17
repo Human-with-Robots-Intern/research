@@ -68,7 +68,7 @@ def parse_arguments():
     parser.add_argument(
         "--instruction",
         type=str,
-        default="05_fill_pot_with_water_and_heat_the_bread_using_microwave.json",
+        default="04_fill_bowl_with_water_and_make_a_coffee.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
@@ -140,13 +140,13 @@ def parse_arguments():
     parser.add_argument(
         "--beam_width",
         type=int,
-        default=3,
+        default=4,
         help="Scheduler beam width (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--beam_depth",
         type=int,
-        default=3,
+        default=4,
         help="Scheduler beam depth (simulation_depth) (기본값: constants.py 값)",
     )
     parser.add_argument(

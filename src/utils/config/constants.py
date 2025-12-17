@@ -18,7 +18,9 @@ LIVING_ROOM_PATH = SCENE_KNOWLEDGE_PATH / "living_room"
 BAYESIAN_PATH = SCENE_KNOWLEDGE_PATH / "bayesian"
 
 PROMPT_PATH = ASSETS_PATH / "prompts"
-TASK_PATH = ASSETS_PATH / "tasks" / "failed_cases_only"
+TASK_PATH = (
+    ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment_251203"
+)
 RESULT_PATH = ASSETS_PATH / "results"
 
 # ========== 시뮬레이션 관련 ==========
@@ -60,7 +62,7 @@ NAV_STEP_DURATION = 0.08
 REAL_NAV_DURATION = 2.1
 TOGGLE_ACTION_DURATION = 5.45
 GRASP_ACTION_DURATION = 4.51
-PLACE_ACTION_DURATION =4.75
+PLACE_ACTION_DURATION = 4.75
 
 REACHABLE_DISTANCE_THRESHOLD = 50.0
 
@@ -160,7 +162,7 @@ MIN_VARIANCE = 1e-6
 # allows capping the tolerance window for large intervals.
 TIMING_TOLERANCE_DEFAULT = 100.0
 TIMING_TOLERANCE_RATIO = 0.3
-TIMING_TOLERANCE_ABS = 25.0
+TIMING_TOLERANCE_ABS = 15.0
 MONITORING_SPLIT_TOLERANCE_ABS = 15.0
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 3

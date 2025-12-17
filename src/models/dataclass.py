@@ -58,6 +58,7 @@ class SimulationNode(NamedTuple):
     tie_breaker: int
     parent_node: Optional["SimulationNode"]
     state: SchedulerState
+    # 제약 조건 위반 위험도 (0: Safe, 1: Warning, 2: Violation)
     risk_level: int = 0
 
 
