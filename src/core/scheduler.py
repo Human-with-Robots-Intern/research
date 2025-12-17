@@ -1568,130 +1568,6 @@ class Scheduler:
 
         # 1. 이미 Monitor 태스크를 수행한 직후라면 -> Trigger Time까지 Wait 수행
         if curr_node.state.subtask.subtask_type == "Monitor":
-            # Determine the critical interval that triggers this monitoring split
-            scheduling_due = candidate.scheduling_due
-            if not (
-                scheduling_due
-                and scheduling_due.due_date != float("inf")
-                and scheduling_due.due_related_sub_name
-            ):
-                log.debug(
-                    "Candidate has no valid scheduling_due. Fallback to non-monitoring."
-                )
-                return self._expand_subtask_wo_monitoring(
-                    curr_node, candidate, not_yet_candidates, feasible_candidates
-                )
-
-            critical_end_sub_name = scheduling_due.due_related_sub_name
-
-            # Find the start of the critical interval directly from constraints
-            incoming_constraints_to_crit_end = self.constraint_handler.get_time_slots(
-                critical_end_sub_name, curr_state.constraints, "in"
-            )
-            critical_incoming_slots = [
-                s for s in incoming_constraints_to_crit_end if s.is_critical
-            ]
-
-            if not critical_incoming_slots:
-                log.debug(
-                    f"No incoming critical constraints for '{critical_end_sub_name}'. Fallback for {candidate.subtask.name}."
-                )
-                return self._expand_subtask_wo_monitoring(
-                    curr_node, candidate, not_yet_candidates, feasible_candidates
-                )
-
-            # [수정 251217] 분산(Variance)이 가장 작은(=가장 확실한) 제약을 우선 선택.
-            # 분산이 같다면, Logical End Time이 가장 늦은(=가장 보수적인) 제약을 선택.
-            best_slot = None
-            min_variance = float("inf")
-            max_logical_end_time = -float("inf")
-
-            for slot in critical_incoming_slots:
-                pred_name = slot.related_subtask_name
-                pred_entry = next(
-                    (
-                        ce
-                        for ce in curr_state.completed_entries
-                        if ce.subtask.name == pred_name
-                    ),
-                    None,
-                )
-
-                # Edge 데이터에서 분산 조회
-                variance = INIT_PRIOR_VARIANCE
-                edge_data = curr_state.constraints.get_edge_data(
-                    pred_name, critical_end_sub_name
-                )
-                if edge_data and "info" in edge_data:
-                    variance = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
-
-                if pred_entry:
-                    logical_end = pred_entry.sim_end_time + slot.interval
-
-                    # 1. 분산이 현저히 더 작은 경우 -> 무조건 선택 (신뢰도 우선)
-                    if variance < min_variance - EPSILON:
-                        min_variance = variance
-                        max_logical_end_time = logical_end
-                        best_slot = slot
-                    # 2. 분산이 비슷한 경우 -> 더 늦게 끝나는 제약 선택 (보수적 접근)
-                    elif abs(variance - min_variance) <= EPSILON:
-                        if logical_end > max_logical_end_time + EPSILON:
-                            max_logical_end_time = logical_end
-                            best_slot = slot
-
-            target_critical_slot = best_slot
-
-            # Fallback
-            if target_critical_slot is None:
-                target_critical_slot = max(
-                    critical_incoming_slots, key=lambda s: s.interval
-                )
-
-            critical_start_sub_name = target_critical_slot.related_subtask_name
-
-            critical_start_completed_entry = next(
-                (
-                    ce
-                    for ce in curr_state.completed_entries
-                    if ce.subtask.name == critical_start_sub_name
-                ),
-                None,
-            )
-
-            trigger_time = curr_state.current_time  # Default to NOW if calc fails
-
-            if critical_start_completed_entry:
-                edge_data = curr_state.constraints.get_edge_data(
-                    critical_start_sub_name, critical_end_sub_name
-                )
-
-                # Default values
-                variance_val = INIT_PRIOR_VARIANCE
-                interval_val = 0.0
-
-                if edge_data and "info" in edge_data:
-                    variance_val = edge_data["info"].get(
-                        "Variance", INIT_PRIOR_VARIANCE
-                    )
-                    interval_val = edge_data["info"].get("Interval", 0.0)
-
-                # Get start task end time
-                start_end_time = critical_start_completed_entry.sim_end_time
-
-                # Bayesian trigger time calculation
-                sigma = np.sqrt(variance_val)
-                mu_absolute = start_end_time + interval_val
-                z_score = norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY)
-                trigger_time = mu_absolute + sigma * z_score
-
-                log.debug(
-                    f"[_expand_wait_with_monitoring] Smart Wait Check: TriggerTime={trigger_time:.2f} "
-                    f"(Current={curr_state.current_time:.2f}, Nav={nav_duration:.2f})"
-                )
-            else:
-                log.warning(
-                    f"Critical predecessor '{critical_start_sub_name}' not found in completed entries. Cannot calc trigger time."
-                )
 
             return self._expand_wait_wo_monitoring(
                 curr_node,
@@ -1699,7 +1575,6 @@ class Scheduler:
                 not_yet_candidates,
                 nav_duration=nav_duration,
                 feasible_candidates=feasible_candidates,
-                max_wait_duration=max(0.0, trigger_time - curr_state.current_time),
             )
 
         # 2. 아직 Monitor를 하지 않았다면 -> Monitor Step 삽입
