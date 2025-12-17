@@ -164,18 +164,19 @@ class Scheduler:
             )
             if not feasible_candidates and not not_yet_candidates:
                 # No expansions possible => infeasible branch
-                log.warning("[_simulate_search] No expansions => branch ends.")
+                log.debug("[_simulate_search] No expansions => branch ends.")
                 continue
 
-            log.warning(
-                f"========================================\n"
-                f"Depth = {curr_depth} (expanding to {curr_depth + 1})\n"
-                f"Current Time : {round(curr_state.current_time,2)}\n\n"
-                f"Completed_subs={[ce.subtask.name for ce in curr_state.completed_entries]}\n"
-                f"Remaining_subs={[r.name for r in curr_state.remaining_subtasks]}\n\n"
-                f"Feasible_subs={[c for c in feasible_candidates]},\n\n"
-                f"Not_yet_feasible_subs={[c for c in not_yet_candidates]}\n\n"
-                f"========================================"
+            feasible_names = [c.subtask.name for c in feasible_candidates]
+            not_yet_names = [c.subtask.name for c in not_yet_candidates]
+
+            log.debug(
+                f"\n=== [Simulation Step] Depth {curr_depth} -> {curr_depth + 1} | Time: {curr_state.current_time:.2f} ===\n"
+                f"  • Completed : {[ce.subtask.name for ce in curr_state.completed_entries]}\n"
+                f"  • Remaining : {[r.name for r in curr_state.remaining_subtasks]}\n"
+                f"  • Feasible  : {feasible_names}\n"
+                f"  • Not Yet   : {not_yet_names}\n"
+                f"============================================================"
             )
 
             # Expand current node
@@ -193,13 +194,11 @@ class Scheduler:
             )
 
             # (3) Local Beam Pruning: Keep only the top-K expansions
-            log.warning(
-                f"[_simulate_search] Depth {curr_depth}: Top candidates after expansion:"
-            )
+            log.debug(f"--- Top Candidates (Depth {curr_depth}) ---")
             for i, nd in enumerate(expanded_nodes):
                 if i < self.search_width:
-                    log.warning(
-                        f"  {i+1}. Task: {nd.state.subtask.name}, Risk: {nd.risk_level}, Cost: {nd.heuristic_cost:.2f}, Time: {nd.state.current_time:.2f}"
+                    log.debug(
+                        f"  [{i+1}] {nd.state.subtask.name:<40} | Cost: {nd.heuristic_cost:.2f} | Risk: {nd.risk_level} | EndTime: {nd.state.current_time:.2f}"
                     )
                     queue.put(nd)
                 else:
@@ -217,10 +216,21 @@ class Scheduler:
                 nd.heuristic_cost,
             )
         )
+
         log.debug(
-            f"[_simulate_search] Best node found with Risk={best_solutions[0].risk_level}, Cost={round(best_solutions[0].heuristic_cost,2)}."
+            f"\n--- Best Solutions Evaluation ({len(best_solutions)} candidates) ---"
         )
-        return best_solutions[0]
+        for i, nd in enumerate(best_solutions):
+            rank_str = "WINNER" if i == 0 else f"Rank {i+1}"
+            log.debug(
+                f"  [{rank_str:<8}] {nd.state.subtask.name:<30} | Risk: {nd.risk_level} | Cost: {nd.heuristic_cost:.2f} | Depth: {nd.depth}"
+            )
+
+        winner = best_solutions[0]
+        log.debug(
+            f"[_simulate_search] Final Decision: '{winner.state.subtask.name}' selected. (Risk={winner.risk_level}, Cost={winner.heuristic_cost:.2f})\n"
+        )
+        return winner
 
     def _extract_state(
         self, child_node: Optional[SimulationNode]
@@ -295,7 +305,7 @@ class Scheduler:
             if expansions:
                 return expansions
             else:
-                log.warning(
+                log.debug(
                     "All urgent candidates failed to expand. Falling back to standard expansion."
                 )
 
@@ -411,7 +421,7 @@ class Scheduler:
                 if pred_name in feasible_map:
                     pred_cand = feasible_map[pred_name]
                     if pred_cand not in urgent_list:
-                        log.warning(
+                        log.debug(
                             f"Prioritizing feasible ancestor '{pred_name}' to unblock urgent task chain targeting '{candidate.subtask.name}'."
                         )
                         urgent_list.append(pred_cand)
@@ -810,11 +820,6 @@ class Scheduler:
         step_risk, pure_h_cost = self.cost_calculator.calc_heuristic(
             curr_node, candidate, all_candidates
         )
-        # The heuristic (pure_h_cost) includes "remaining work cost" (h).
-        # We adopt A* style cost with penalty accumulation: f(n) = g(n) + h(n) + accumulated_adjustment.
-        # g(n) = planned_subtask_completion_time (Time elapsed so far).
-        # h(n) = pure_h_cost (Estimated remaining cost).
-        # We add curr_node.accumulated_collateral_damage to ensure past penalties/bonuses stick.
 
         new_cost = pure_h_cost
 
@@ -822,9 +827,9 @@ class Scheduler:
         new_risk = max(curr_node.risk_level, step_risk)
 
         log.info(
-            f"Expanded {original_task_name} (wo_monitoring): \n"
-            f"  Nav Start: {planned_nav_start_time:.2f}, Interaction Start: {planned_interaction_start_time:.2f}, Completion: {planned_subtask_completion_time:.2f}\n"
-            f"  Score: {pure_h_cost:.2f} (H) + {0:.2f} (G) -> Total: {new_cost:.2f}. Risk: {new_risk}. Depth: {curr_depth + 1}"
+            f"  [Action] {original_task_name}\n"
+            f"    └─ Time : {planned_nav_start_time:.2f} (Nav) -> {planned_interaction_start_time:.2f} (Start) -> {planned_subtask_completion_time:.2f} (End)\n"
+            f"    └─ Cost : {pure_h_cost:.2f} (H) + {0:.2f} (G) = {new_cost:.2f} | Risk: {new_risk} | Depth: {curr_depth + 1}"
         )
 
         return SimulationNode(
@@ -1634,59 +1639,6 @@ class Scheduler:
 
         return inserted_node
 
-        # if candidate.actual_interaction_start_time is None:
-        #     log.warning(
-        #         f"[_expand_wait_with_monitoring] Candidate {candidate.subtask.name} has no actual start. Fallback to plain wait."
-        #     )
-        #     return self._expand_wait_wo_monitoring(
-        #         curr_node,
-        #         candidate,
-        #         not_yet_candidates,
-        #         nav_duration=nav_duration,
-        #         feasible_candidates=feasible_candidates,
-        #     )
-
-        # slack_until_target = (
-        #     candidate.actual_interaction_start_time
-        #     - curr_state.current_time
-        #     - nav_duration
-        # )
-        # if slack_until_target <= MONITORING_DURATION + EPSILON:
-        #     log.debug(
-        #         f"[_expand_wait_with_monitoring] Insufficient slack ({slack_until_target:.2f}) for monitoring. Fallback to plain wait."
-        #     )
-        #     return self._expand_wait_wo_monitoring(
-        #         curr_node,
-        #         candidate,
-        #         not_yet_candidates,
-        #         nav_duration=nav_duration,
-        #         feasible_candidates=feasible_candidates,
-        #     )
-
-        # current_target_obj = candidate.subtask.execution.primitive_actions[0].split()[1]
-
-        # if prev_subtask.execution and prev_subtask.execution.primitive_actions:
-        #     prev_action = prev_subtask.execution.primitive_actions[0]
-        #     if (
-        #         prev_action.startswith("MONITOR")
-        #         and current_target_obj in prev_action
-        #     ):
-        #         log.debug(
-        #             f"[_expand_wait_with_monitoring] Just monitored {current_target_obj}. Skip immediate re-monitoring."
-        #         )
-        #         return self._expand_wait_wo_monitoring(
-        #             curr_node,
-        #             candidate,
-        #             not_yet_candidates,
-        #             nav_duration=nav_duration,
-        #             feasible_candidates=feasible_candidates,
-        #         )
-
-        # [Scenario 3] Monitoring trigger falls during or after the task?
-        # But here we are in _expand_wait_with_monitoring.
-        # If trigger time is far in the future, we should JUST WAIT until trigger time (or a bit less)
-        # instead of monitoring NOW. This allows interleaving other tasks during the wait.
-
     def _expand_wait_wo_monitoring(
         self,
         curr_node: SimulationNode,
@@ -1736,7 +1688,7 @@ class Scheduler:
             0.0, target_start_time - curr_state.current_time - nav_duration
         )
 
-        log.warning(
+        log.debug(
             f"[_expand_wait_wo_monitoring] Check for {candidate.subtask.name}:\n"
             f"  Current Time: {curr_state.current_time:.2f}\n"
             f"  Target Start (Est): {target_start_time:.2f}\n"
@@ -1812,10 +1764,9 @@ class Scheduler:
         new_risk = max(curr_node.risk_level, step_risk)
 
         log.info(
-            f"[_expand_wait_wo_monitoring] WAIT subtask {candidate.subtask.name}\n"
-            f"  -> Score={round(step_cost, 2)} (H) = {round(new_cost, 2)}\n"
-            f"  Interval={round(start_time,2)}~{round(end_time,2)}\n"
-            f"  -> Updated remain={[r.name for r in curr_state.remaining_subtasks]}\n"
+            f"  [Wait] For {candidate.subtask.name}\n"
+            f"    └─ Time : {start_time:.2f} -> {end_time:.2f} (Duration: {total_wait_duration:.2f})\n"
+            f"    └─ Cost : {step_cost:.2f} (H) = {new_cost:.2f} | Risk: {new_risk} | Depth: {depth + 1}"
         )
 
         return SimulationNode(

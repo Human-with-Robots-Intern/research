@@ -59,15 +59,13 @@ class HeuristicManager:
             current_node, candidate
         )
 
-        total_heuristic_cost = urgency_cost + remaining_work_cost
+        total_heuristic_cost = remaining_work_cost
 
-        log.info(
-            f"  Heuristic for '{candidate.subtask.name}': Risk={risk_level}, "
-            f"Urg({self.beta:.1f}*{urgency_cost:.2f})={self.beta * urgency_cost:.2f}, "
-            f"RemWork({self.gamma:.1f}*Rem[{remaining_work_cost:.2f}])={self.gamma * remaining_work_cost:.2f}, "
-        )
-        log.info(
-            f"  => Total Heuristic Cost for '{candidate.subtask.name}': {total_heuristic_cost:.3f}"
+        log.debug(
+            f"  [Heuristic] '{candidate.subtask.name}'\n"
+            f"    └─ Urgency : {self.beta:.1f} * {urgency_cost:6.2f} = {self.beta * urgency_cost:6.2f} (EXCLUDED)\n"
+            f"    └─ RemWork : {self.gamma:.1f} * {remaining_work_cost:6.2f} = {self.gamma * remaining_work_cost:6.2f}\n"
+            f"    └─ Total   : {total_heuristic_cost:6.3f} | Risk: {risk_level}"
         )
 
         return risk_level, total_heuristic_cost
@@ -85,6 +83,7 @@ class HeuristicManager:
         if not candidate.scheduling_due or candidate.scheduling_due.due_date == float(
             "inf"
         ):
+            log.debug(f"    [Urgency Detail] No Deadline -> 0.0")
             return 0, 0.0
 
         current_time = current_node.state.current_time
@@ -94,6 +93,10 @@ class HeuristicManager:
         total_time_needed = self._estimate_total_time_needed(current_node, candidate)
         time_available = deadline - current_time
         slack = time_available - total_time_needed
+
+        log.debug(
+            f"    [Urgency Detail] Slack({slack:.2f}) = Deadline({deadline:.2f}) - Now({current_time:.2f}) - Needed({total_time_needed:.2f})"
+        )
 
         # 2. Map Slack to Base Risk & Cost
         if slack >= -constants.TIMING_TOLERANCE_ABS:
@@ -251,6 +254,10 @@ class HeuristicManager:
 
         mst_time = self._calculate_mst_navigation_time(
             next_pos, current_node.state.remaining_subtasks, next_scene_pos
+        )
+
+        log.debug(
+            f"    [RemWork Detail] CP({cp_duration:.2f}) + MST({mst_time:.2f}) = {cp_duration + mst_time:.2f}"
         )
 
         return cp_duration + mst_time

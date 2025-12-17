@@ -317,9 +317,9 @@ class ConstraintHandler:
 
             if pred_entry is None:
                 all_predecessors_finished = False
-                log.warning(
-                    f"Predecessor '{pred_name}' for '{sub.name}' is NOT in completed_entries."
-                )
+                # log.debug(
+                #     f"    [Constraint] Predecessor '{pred_name}' for '{sub.name}' is not completed yet."
+                # )
                 continue
 
             if hasattr(pred_entry, "execution_status"):
@@ -359,8 +359,8 @@ class ConstraintHandler:
                 latest_critical_time = max(critical_times)
                 if abs(earliest_critical_time - latest_critical_time) > EPSILON:
                     # Must satisfy all critical intervals: pick the latest (most restrictive) time
-                    log.warning(
-                        f"CRITICAL CONSTRAINT MULTI-START for '{sub.name}': candidates={sorted(critical_times)} -> resolved={latest_critical_time:.2f}"
+                    log.debug(
+                        f"    [Constraint] Multi-start for '{sub.name}': candidates={sorted(critical_times)} -> resolved={latest_critical_time:.2f}"
                     )
                     final_start_time = latest_critical_time
                 else:
@@ -369,8 +369,8 @@ class ConstraintHandler:
                 is_final_critical = True
                 if EPSILON < non_critical_earliest_start - final_start_time:
                     # Prefer the stricter (later) non-critical requirement without failing scheduling
-                    log.warning(
-                        f"CRITICAL/NON-CRITICAL TENSION for '{sub.name}': crit_start {final_start_time:.2f} earlier than non-critical {non_critical_earliest_start:.2f}. Using non-critical."
+                    log.debug(
+                        f"    [Constraint] Tension for '{sub.name}': crit {final_start_time:.2f} < non-crit {non_critical_earliest_start:.2f}. Using non-critical."
                     )
                     final_start_time = non_critical_earliest_start
             else:
@@ -512,17 +512,17 @@ class ConstraintHandler:
             ):
                 valid_crit_candidates.append(critical_candidate)
             else:
-                log.warning(
-                    f"Critical candidate '{critical_candidate.subtask.name}' in not_yet list has invalid logical_start_time ({critical_candidate.logical_interaction_start_time}). Excluding from scheduling_due calculation."
+                log.debug(
+                    f"    [Constraint] Skipping invalid critical candidate '{critical_candidate.subtask.name}' (Start: {critical_candidate.logical_interaction_start_time})"
                 )
 
         if not valid_crit_candidates:
             # No upcoming valid critical tasks
             scheduling_due = float("inf")
             due_related_sub_name = None
-            log.debug(
-                "현재 not yet list에 critical subtask가 존재하지 않아, scheduling due가 inf로 처리됩니다."
-            )
+            # log.debug(
+            #     "현재 not yet list에 critical subtask가 존재하지 않아, scheduling due가 inf로 처리됩니다."
+            # )
         else:
             # Sort by logical start time to find the *next* critical scheduling_due
             valid_crit_candidates.sort(key=lambda x: x.logical_interaction_start_time)
@@ -530,9 +530,9 @@ class ConstraintHandler:
             # The scheduling_due is the logical start time of the next critical task
             scheduling_due = next_crit.logical_interaction_start_time
             due_related_sub_name = next_crit.subtask.name
-            log.debug(
-                f"Next critical task '{due_related_sub_name}' sets scheduling_due at LogicalEST {scheduling_due:.2f}"
-            )
+            # log.debug(
+            #     f"Next critical task '{due_related_sub_name}' sets scheduling_due at LogicalEST {scheduling_due:.2f}"
+            # )
 
         # Assign the calculated scheduling_due (IN-PLACE) while preserving critical metadata.
         new_scheduling_due = SchedulingDue(
@@ -584,10 +584,10 @@ class ConstraintHandler:
 
             feasible_candidate.scheduling_due = new_scheduling_due
 
-        if feasible_candidates:
-            log.debug(
-                f"Assigned scheduling_due {new_scheduling_due} to {len(feasible_candidates)} feasible candidates."
-            )
+        # if feasible_candidates:
+        #     log.debug(
+        #         f"Assigned scheduling_due {new_scheduling_due} to {len(feasible_candidates)} feasible candidates."
+        #     )
         # No return needed as feasible list is modified in-place
 
     def get_required_predecessors(

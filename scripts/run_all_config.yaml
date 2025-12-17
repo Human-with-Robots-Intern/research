@@ -12,9 +12,10 @@ start_idx: 1 # Start index for the instruction
 # Execution settings
 # List of approaches (scripts) to run
 approaches:
+  - "src/dag_bayesian.py"
   # - "src/baselines/cpm.py"
   - "src/baselines/edf/dag_edf.py"
-  - "src/dag_bayesian.py"
+  
 # Scripts that use LLMs and are subject to retries on failure
 llm_scripts:
   # - "src/baselines/progprompt/prog_ai2thor.py"
@@ -31,23 +32,20 @@ scene_lists:
     - "FloorPlan13"
     # - "FloorPlan18"
     - "FloorPlan27"
-  bathroom:
-    # - "FloorPlan419"
-    # - "FloorPlan422"
-    # - "FloorPlan426"
-    # - "FloorPlan427"
-  real_world:
-    # - "FloorPlan301"
+ 
 ablation_configs:
   # - NONE_URGENCY
   # - NONE_REMAINING_WORK
-  # - NONE_MONITORING
   # - GREEDY
   - DEFAULT
+  # - NONE_MONITORING
+
 init_prior_configs:
+  
+  - CORRECT_ESTIMATE
   # - OVER_ESTIMATE
   # - UNDER_ESTIMATE
-  - CORRECT_ESTIMATE
+  
   # - OVER_MEDIUM_ESTIMATE
   # - UNDER_MEDIUM_ESTIMATE
 # ------------------------------------------------------------------------------
