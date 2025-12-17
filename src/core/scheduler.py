@@ -821,7 +821,7 @@ class Scheduler:
             curr_node, candidate, all_candidates
         )
 
-        new_cost = pure_h_cost
+        new_cost = pure_h_cost + curr_node.heuristic_cost
 
         # Accumulate max risk level along the path
         new_risk = max(curr_node.risk_level, step_risk)
@@ -1758,7 +1758,7 @@ class Scheduler:
         )
         # Same logic as above: prevent double counting of future costs.
         # f(n) = time_so_far + heuristic_score + past_penalties
-        new_cost = step_cost
+        new_cost = step_cost + curr_node.heuristic_cost
 
         # Accumulate max risk level
         new_risk = max(curr_node.risk_level, step_risk)
