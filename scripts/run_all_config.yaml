@@ -30,15 +30,9 @@ scene_lists:
     - "FloorPlan1"
     - "FloorPlan7"
     - "FloorPlan13"
-    - "FloorPlan18"
+    # - "FloorPlan18"
     - "FloorPlan27"
-  bathroom:
-    # - "FloorPlan419"
-    # - "FloorPlan422"
-    # - "FloorPlan426"
-    # - "FloorPlan427"
-  real_world:
-    # - "FloorPlan301"
+ 
 ablation_configs:
   # - NONE_URGENCY
   # - NONE_REMAINING_WORK
@@ -46,18 +40,20 @@ ablation_configs:
   # - GREEDY
   # - DEFAULT
 init_prior_configs:
-  - OVER_ESTIMATE
-  - UNDER_ESTIMATE
+  
   - CORRECT_ESTIMATE
-  - OVER_MEDIUM_ESTIMATE
-  - UNDER_MEDIUM_ESTIMATE
+  # - OVER_ESTIMATE
+  # - UNDER_ESTIMATE
+  
+  # - OVER_MEDIUM_ESTIMATE
+  # - UNDER_MEDIUM_ESTIMATE
 # ------------------------------------------------------------------------------
 # Task Filtering
 # ------------------------------------------------------------------------------
 task_folder_name: "sampled_10_instruction_set_for_final_experiment_251203" # Folder under assets/tasks/
 min_task_count: 0
 min_constraint_count: 0
-skip_completed: true
+skip_completed: false
 # ==============================================================================
 # Ablation Study Configurations
 # ==============================================================================

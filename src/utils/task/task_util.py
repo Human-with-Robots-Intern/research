@@ -355,7 +355,7 @@ class TaskUtil:
                 #         related_obj_types.add(obj_name.split("|")[0])
                 #
                 # common_obj_types = current_obj_types.intersection(related_obj_types)
-                
+
                 # 공유 여부를 따지지 않고 현재 Subtask의 객체를 사용
                 common_obj_types = current_obj_types
 
@@ -410,10 +410,7 @@ class TaskUtil:
                     continue
 
                 related_obj_types = set()
-                if (
-                    related_subtask.execution
-                    and related_subtask.execution.objects
-                ):
+                if related_subtask.execution and related_subtask.execution.objects:
                     for obj_name in related_subtask.execution.objects.keys():
                         related_obj_types.add(obj_name.split("|")[0])
 
@@ -426,25 +423,29 @@ class TaskUtil:
                         variance_val = bayesian_load[obj_type]["variance"]
                         found_variance = True
                         break
-                
+
                 if not found_variance:
-                     # bayesian_load에 없어도 default tc 처리가 위에서 되었을 수 있음.
-                     # 하지만 안전하게 기본값 사용 혹은 패스.
-                     # 여기서는 IsCritical인 경우만 중요하므로 IsCritical 체크를 하면 좋겠지만
-                     # 엣지에만 넣는 것이므로 무조건 넣어도 무방.
-                     pass
+                    # bayesian_load에 없어도 default tc 처리가 위에서 되었을 수 있음.
+                    # 하지만 안전하게 기본값 사용 혹은 패스.
+                    # 여기서는 IsCritical인 경우만 중요하므로 IsCritical 체크를 하면 좋겠지만
+                    # 엣지에만 넣는 것이므로 무조건 넣어도 무방.
+                    pass
 
                 # 엣지 방향 확인 및 업데이트
                 # TemporalConstraint의 방향성을 정확히 모르므로 양방향 체크
                 if task_graph.has_edge(st.name, tc.rel_subtask_name):
                     if "info" not in task_graph.edges[st.name, tc.rel_subtask_name]:
                         task_graph.edges[st.name, tc.rel_subtask_name]["info"] = {}
-                    task_graph.edges[st.name, tc.rel_subtask_name]["info"]["Variance"] = variance_val
-                
+                    task_graph.edges[st.name, tc.rel_subtask_name]["info"][
+                        "Variance"
+                    ] = variance_val
+
                 if task_graph.has_edge(tc.rel_subtask_name, st.name):
                     if "info" not in task_graph.edges[tc.rel_subtask_name, st.name]:
                         task_graph.edges[tc.rel_subtask_name, st.name]["info"] = {}
-                    task_graph.edges[tc.rel_subtask_name, st.name]["info"]["Variance"] = variance_val
+                    task_graph.edges[tc.rel_subtask_name, st.name]["info"][
+                        "Variance"
+                    ] = variance_val
 
         return subtasks, task_graph, bayesian_load
 
