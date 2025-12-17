@@ -823,7 +823,7 @@ class Scheduler:
         new_risk = max(curr_node.risk_level, step_risk)
 
         log.info(
-            f"  [Action] {original_task_name}\n"
+            f"  [Action] {candidate.subtask.name}\n"
             f"    └─ Time : {planned_nav_start_time:.2f} (Nav) -> {planned_interaction_start_time:.2f} (Start) -> {planned_subtask_completion_time:.2f} (End)\n"
             f"    └─ Cost : {pure_h_cost:.2f} (H) + {0:.2f} (G) = {new_cost:.2f} | Risk: {new_risk} | Depth: {curr_depth + 1}"
         )
@@ -1600,10 +1600,53 @@ class Scheduler:
                     curr_node, candidate, not_yet_candidates, feasible_candidates
                 )
 
-            # 가장 긴 Interval을 가진 제약을 기준으로 삼음 (보수적 접근)
-            target_critical_slot = max(
-                critical_incoming_slots, key=lambda s: s.interval
-            )
+            # [수정 251217] 분산(Variance)이 가장 작은(=가장 확실한) 제약을 우선 선택.
+            # 분산이 같다면, Logical End Time이 가장 늦은(=가장 보수적인) 제약을 선택.
+            best_slot = None
+            min_variance = float("inf")
+            max_logical_end_time = -float("inf")
+
+            for slot in critical_incoming_slots:
+                pred_name = slot.related_subtask_name
+                pred_entry = next(
+                    (
+                        ce
+                        for ce in curr_state.completed_entries
+                        if ce.subtask.name == pred_name
+                    ),
+                    None,
+                )
+
+                # Edge 데이터에서 분산 조회
+                variance = INIT_PRIOR_VARIANCE
+                edge_data = curr_state.constraints.get_edge_data(
+                    pred_name, critical_end_sub_name
+                )
+                if edge_data and "info" in edge_data:
+                    variance = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
+
+                if pred_entry:
+                    logical_end = pred_entry.sim_end_time + slot.interval
+
+                    # 1. 분산이 현저히 더 작은 경우 -> 무조건 선택 (신뢰도 우선)
+                    if variance < min_variance - EPSILON:
+                        min_variance = variance
+                        max_logical_end_time = logical_end
+                        best_slot = slot
+                    # 2. 분산이 비슷한 경우 -> 더 늦게 끝나는 제약 선택 (보수적 접근)
+                    elif abs(variance - min_variance) <= EPSILON:
+                        if logical_end > max_logical_end_time + EPSILON:
+                            max_logical_end_time = logical_end
+                            best_slot = slot
+
+            target_critical_slot = best_slot
+
+            # Fallback
+            if target_critical_slot is None:
+                target_critical_slot = max(
+                    critical_incoming_slots, key=lambda s: s.interval
+                )
+
             critical_start_sub_name = target_critical_slot.related_subtask_name
 
             critical_start_completed_entry = next(
@@ -1779,9 +1822,7 @@ class Scheduler:
             log.debug(
                 f"[_expand_wait_wo_monitoring] Total wait duration ({total_wait_duration:.2f}) is less than or equal to EPSILON. Skip waiting."
             )
-            return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates, feasible_candidates
-            )
+            return None
 
         wait_sub = Subtask(
             task_name=None,
