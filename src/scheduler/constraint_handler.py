@@ -219,8 +219,8 @@ class ConstraintHandler:
             # 현재 시간에 "상호작용을 시작"할 수 있는 경우 feasible
             # 즉, effective_interaction_start_time이 현재 시간과 거의 같아야 함.
             if (
-                actual_interaction_start_time
-                <= current_time + first_nav_duration + EPSILON
+                actual_interaction_start_time - TIMING_TOLERANCE_ABS
+                <= current_time + first_nav_duration
             ):
                 log.debug(
                     f"Subtask '{sub.name}' is feasible now (interaction can start at {actual_interaction_start_time:.2f})."
@@ -336,6 +336,10 @@ class ConstraintHandler:
 
             # Critical / Non-critical 분리
             if is_crit:
+                log.debug(
+                    f"    [Constraint] Found CRITICAL predecessor '{pred_name}' for '{sub.name}'. "
+                    f"PredEnd: {pred_end_time:.2f}, Interval: {interval:.2f} -> LogicalStart: {curr_logical_interaction_start_time:.2f}"
+                )
                 critical_times.append(curr_logical_interaction_start_time)
                 critical_context.append((pred_name, pred_end_time, interval))
             else:
