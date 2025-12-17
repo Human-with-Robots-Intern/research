@@ -18,9 +18,7 @@ LIVING_ROOM_PATH = SCENE_KNOWLEDGE_PATH / "living_room"
 BAYESIAN_PATH = SCENE_KNOWLEDGE_PATH / "bayesian"
 
 PROMPT_PATH = ASSETS_PATH / "prompts"
-TASK_PATH = (
-    ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment_251203"
-)
+TASK_PATH = ASSETS_PATH / "tasks" / "failed_cases_only"
 RESULT_PATH = ASSETS_PATH / "results"
 
 # ========== 시뮬레이션 관련 ==========

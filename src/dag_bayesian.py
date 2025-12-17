@@ -17,7 +17,6 @@ from src.utils.get_state import save_scene_state
 from src.utils.ros_executor import RosExecutor
 from utils.common.logger import create_module_logger
 from utils.config import LOG_ROUND
-from utils.config.constants import MONITORING_ENABLED
 from utils.io_utils import (
     get_user_task_choice,
     list_task_files,
@@ -68,13 +67,13 @@ def parse_arguments():
     parser.add_argument(
         "--instruction",
         type=str,
-        default="04_fill_bowl_with_water_and_make_a_coffee.json",
+        default="02_cook_egg_and_wash_a_spatula.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
         "--case",
         type=str,
-        default="tasks_2_constraints_2",
+        default="tasks_2_constraints_1",
         help="The name of the case.",
     )
     parser.add_argument(
@@ -104,7 +103,7 @@ def parse_arguments():
     parser.add_argument(
         "--init_prior_mean",
         type=float,
-        default=100,
+        default=140,
         help="베이지안 추정을 위한 초기 평균값 (기본값: constants.py 값)",
     )
     parser.add_argument(
@@ -140,13 +139,13 @@ def parse_arguments():
     parser.add_argument(
         "--beam_width",
         type=int,
-        default=4,
+        default=3,
         help="Scheduler beam width (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--beam_depth",
         type=int,
-        default=4,
+        default=3,
         help="Scheduler beam depth (simulation_depth) (기본값: constants.py 값)",
     )
     parser.add_argument(
@@ -559,7 +558,6 @@ def main():
             "scene_name": scene_name,
             "constraints": current_state.constraints,
             "initial_plan_data": task_data,
-            "init_prior_mean": init_prior_mean,
             "init_prior_mean": init_prior_mean,
             # "simulationTime": total_sim_time,
         }

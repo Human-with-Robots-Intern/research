@@ -316,7 +316,7 @@ class Scheduler:
         # in the same "Wait until next event" behavior.
         # We pick the one with the earliest 'actual_interaction_start_time' or logical start time.
 
-        if not_yet_candidates and not feasible_candidates:
+        if not_yet_candidates:
             # Sort to find the earliest target
             sorted_wait_targets = sorted(
                 not_yet_candidates,
@@ -546,7 +546,36 @@ class Scheduler:
             curr_node, candidate
         )
 
-        if need_monitor and MONITORING_ENABLED:
+        # Rule 3: Split only if an active critical interval exists.
+        active_intervals = []
+        graph = curr_node.state.constraints
+        completed_entries_map = {
+            ce.subtask.name: ce for ce in curr_node.state.completed_entries
+        }
+
+        for start_name, end_name, data in graph.edges(data=True):
+            info = data.get("info", {})
+            if info.get("IsCritical") and info.get("Interval") > EPSILON:
+                if (
+                    start_name in completed_entries_map
+                    and end_name not in completed_entries_map
+                ):
+                    start_entry = completed_entries_map[start_name]
+                    if start_entry.subtask.subtask_type != "Monitor":
+                        interval = info.get("Interval", 0.0)
+                        variance = info.get("Variance", INIT_PRIOR_VARIANCE)
+                        due_date = start_entry.schedule_end_time + interval
+                        # if due_date > curr_node.state.current_time:
+                        active_intervals.append(
+                            (
+                                variance,
+                                SchedulingDue(
+                                    due_date=due_date, due_related_sub_name=end_name
+                                ),
+                            )
+                        )
+
+        if active_intervals and MONITORING_ENABLED:
             return self._expand_wait_with_monitoring(
                 curr_node,
                 candidate,
@@ -787,7 +816,7 @@ class Scheduler:
         # h(n) = pure_h_cost (Estimated remaining cost).
         # We add curr_node.accumulated_collateral_damage to ensure past penalties/bonuses stick.
 
-        new_cost = planned_subtask_completion_time + pure_h_cost
+        new_cost = pure_h_cost
 
         # Accumulate max risk level along the path
         new_risk = max(curr_node.risk_level, step_risk)
@@ -795,7 +824,7 @@ class Scheduler:
         log.info(
             f"Expanded {original_task_name} (wo_monitoring): \n"
             f"  Nav Start: {planned_nav_start_time:.2f}, Interaction Start: {planned_interaction_start_time:.2f}, Completion: {planned_subtask_completion_time:.2f}\n"
-            f"  Score: {pure_h_cost:.2f} (H) + {planned_subtask_completion_time:.2f} (G) -> Total: {new_cost:.2f}. Risk: {new_risk}. Depth: {curr_depth + 1}"
+            f"  Score: {pure_h_cost:.2f} (H) + {0:.2f} (G) -> Total: {new_cost:.2f}. Risk: {new_risk}. Depth: {curr_depth + 1}"
         )
 
         return SimulationNode(
@@ -1494,142 +1523,69 @@ class Scheduler:
 
         Returns:
             SimulationNode: The child node representing the new state after waiting.
+        1. 이전 작업이 monitoring인 경우, monitoring timing까지 wait 삽입 -> standard expansion으로 이동
+        2. 이전 작업이 monitoring이 아닌 경우, 먼저 monitoring 삽입 -> standard expansion으로 이동
         """
+
         # 의도: 현재 feasible 한 subtask가 wait 뿐이면서 monitoring을 안했으면 monitoring을 먼저 하게 하자
         # 기존대로 하면 interval update에 불안정성이 커지니까 monitoring은 예정된 monitoring time에 하도록 하자.
         curr_state = curr_node.state
 
-        if candidate.actual_interaction_start_time is None:
-            log.warning(
-                f"[_expand_wait_with_monitoring] Candidate {candidate.subtask.name} has no actual start. Fallback to plain wait."
-            )
-            return self._expand_wait_wo_monitoring(
-                curr_node,
-                candidate,
-                not_yet_candidates,
-                nav_duration=nav_duration,
-                feasible_candidates=feasible_candidates,
-            )
+        if curr_node.state.subtask.subtask_type == "Monitor":
 
-        slack_until_target = (
-            candidate.actual_interaction_start_time
-            - curr_state.current_time
-            - nav_duration
-        )
-        if slack_until_target <= MONITORING_DURATION + EPSILON:
-            log.debug(
-                f"[_expand_wait_with_monitoring] Insufficient slack ({slack_until_target:.2f}) for monitoring. Fallback to plain wait."
-            )
-            return self._expand_wait_wo_monitoring(
-                curr_node,
-                candidate,
-                not_yet_candidates,
-                nav_duration=nav_duration,
-                feasible_candidates=feasible_candidates,
-            )
-
-        prev_subtask = curr_node.state.subtask
-        # current_target_obj = candidate.subtask.execution.primitive_actions[0].split()[1]
-
-        if prev_subtask.subtask_type == "Monitor":
-            # [Fix] 타겟이 다르더라도 연속 모니터링은 방지. Wait 상황에서의 과도한 모니터링 루프를 끊음.
-            log.debug(
-                f"[_expand_wait_with_monitoring] Just monitored ({prev_subtask.name}). Skip immediate re-monitoring to prevent loop."
-            )
-            return self._expand_wait_wo_monitoring(
-                curr_node,
-                candidate,
-                not_yet_candidates,
-                nav_duration=nav_duration,
-                feasible_candidates=feasible_candidates,
-            )
-
-            # if prev_subtask.execution and prev_subtask.execution.primitive_actions:
-            #     prev_action = prev_subtask.execution.primitive_actions[0]
-            #     if (
-            #         prev_action.startswith("MONITOR")
-            #         and current_target_obj in prev_action
-            #     ):
-            #         log.debug(
-            #             f"[_expand_wait_with_monitoring] Just monitored {current_target_obj}. Skip immediate re-monitoring."
-            #         )
-            #         return self._expand_wait_wo_monitoring(
-            #             curr_node,
-            #             candidate,
-            #             not_yet_candidates,
-            #             nav_duration=nav_duration,
-            #             feasible_candidates=feasible_candidates,
-            #         )
-
-        # [Scenario 3] Monitoring trigger falls during or after the task?
-        # But here we are in _expand_wait_with_monitoring.
-        # If trigger time is far in the future, we should JUST WAIT until trigger time (or a bit less)
-        # instead of monitoring NOW. This allows interleaving other tasks during the wait.
-        critical_ctx = candidate.critical_context
-        # Calculate trigger time again (Bayesian)
-        # Re-using logic from _expand_subtask_with_monitoring
-        edge_data = curr_state.constraints.get_edge_data(
-            critical_ctx.source_subtask, critical_ctx.source_end_time
-        )
-        # Note: critical_ctx doesn't have graph structure, we need to look up in graph
-        # Wait... candidate.critical_context is just a dataclass.
-        # We need to find the edge in the graph.
-
-        # Re-derive critical info correctly
-        critical_start_sub_name = critical_ctx.source_subtask if critical_ctx else None
-        critical_end_sub_name = candidate.subtask.name
-
-        trigger_time = curr_state.current_time  # Default to now
-
-        if critical_start_sub_name:
+            critical_ctx = candidate.critical_context
+            # Calculate trigger time again (Bayesian)
+            # Re-using logic from _expand_subtask_with_monitoring
             edge_data = curr_state.constraints.get_edge_data(
-                critical_start_sub_name, critical_end_sub_name
+                critical_ctx.source_subtask, critical_ctx.source_end_time
             )
-            if edge_data and "info" in edge_data:
-                variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
-                interval_val = edge_data["info"].get("Interval", 0.0)
+            # Note: critical_ctx doesn't have graph structure, we need to look up in graph
+            # Wait... candidate.critical_context is just a dataclass.
+            # We need to find the edge in the graph.
 
-                # Get start task end time
-                # We can use critical_ctx.source_end_time
-                start_end_time = critical_ctx.source_end_time
+            # Re-derive critical info correctly
+            critical_start_sub_name = (
+                critical_ctx.source_subtask if critical_ctx else None
+            )
+            critical_end_sub_name = candidate.subtask.name
 
-                if start_end_time is not None:
-                    sigma = np.sqrt(variance_val)
-                    mu_absolute = start_end_time + interval_val
-                    z_score = norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY)
-                    trigger_time = mu_absolute + sigma * z_score
+            trigger_time = curr_state.current_time  # Default to now
 
-                    log.debug(
-                        f"[_expand_wait_with_monitoring] Smart Wait Check: TriggerTime={trigger_time:.2f} "
-                        f"(Current={curr_state.current_time:.2f}, Nav={nav_duration:.2f})"
+            if critical_start_sub_name:
+                edge_data = curr_state.constraints.get_edge_data(
+                    critical_start_sub_name, critical_end_sub_name
+                )
+                if edge_data and "info" in edge_data:
+                    variance_val = edge_data["info"].get(
+                        "Variance", INIT_PRIOR_VARIANCE
                     )
+                    interval_val = edge_data["info"].get("Interval", 0.0)
 
-        # Smart Wait Logic:
-        # If (Trigger Time) > (Current Time + Nav + Monitoring Duration), we don't need to monitor yet.
-        # We can wait until (Trigger Time) and then decide.
-        # To be safe, we wait until Trigger Time.
+                    # Get start task end time
+                    # We can use critical_ctx.source_end_time
+                    start_end_time = critical_ctx.source_end_time
 
-        earliest_monitoring_start = curr_state.current_time + nav_duration
+                    if start_end_time is not None:
+                        sigma = np.sqrt(variance_val)
+                        mu_absolute = start_end_time + interval_val
+                        z_score = norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY)
+                        trigger_time = mu_absolute + sigma * z_score
 
-        if trigger_time > earliest_monitoring_start + EPSILON:
-            wait_duration_available = trigger_time - earliest_monitoring_start
+                        log.debug(
+                            f"[_expand_wait_with_monitoring] Smart Wait Check: TriggerTime={trigger_time:.2f} "
+                            f"(Current={curr_state.current_time:.2f}, Nav={nav_duration:.2f})"
+                        )
 
-            # If we have significant time to wait, prefer "Pure Wait" over "Monitor Now".
-            # This creates a state where the agent is just waiting, allowing other tasks to be interleaved.
-            if wait_duration_available > 5.0:  # Minimum wait to be worth splitting
-                log.info(
-                    f"[_expand_wait_with_monitoring] Too early to monitor. "
-                    f"Switching to Pure Wait until TriggerTime ({trigger_time:.2f}). "
-                    f"Wait duration: {wait_duration_available:.2f}s"
-                )
-                return self._expand_wait_wo_monitoring(
-                    curr_node,
-                    candidate,
-                    not_yet_candidates,
-                    nav_duration=nav_duration,
-                    feasible_candidates=feasible_candidates,
-                    max_wait_duration=wait_duration_available,
-                )
+            wait_duration_available = trigger_time - curr_state.current_time
+
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
+                max_wait_duration=wait_duration_available,
+            )
 
         target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
         critical_ctx = candidate.critical_context
@@ -1678,6 +1634,59 @@ class Scheduler:
 
         return inserted_node
 
+        # if candidate.actual_interaction_start_time is None:
+        #     log.warning(
+        #         f"[_expand_wait_with_monitoring] Candidate {candidate.subtask.name} has no actual start. Fallback to plain wait."
+        #     )
+        #     return self._expand_wait_wo_monitoring(
+        #         curr_node,
+        #         candidate,
+        #         not_yet_candidates,
+        #         nav_duration=nav_duration,
+        #         feasible_candidates=feasible_candidates,
+        #     )
+
+        # slack_until_target = (
+        #     candidate.actual_interaction_start_time
+        #     - curr_state.current_time
+        #     - nav_duration
+        # )
+        # if slack_until_target <= MONITORING_DURATION + EPSILON:
+        #     log.debug(
+        #         f"[_expand_wait_with_monitoring] Insufficient slack ({slack_until_target:.2f}) for monitoring. Fallback to plain wait."
+        #     )
+        #     return self._expand_wait_wo_monitoring(
+        #         curr_node,
+        #         candidate,
+        #         not_yet_candidates,
+        #         nav_duration=nav_duration,
+        #         feasible_candidates=feasible_candidates,
+        #     )
+
+        # current_target_obj = candidate.subtask.execution.primitive_actions[0].split()[1]
+
+        # if prev_subtask.execution and prev_subtask.execution.primitive_actions:
+        #     prev_action = prev_subtask.execution.primitive_actions[0]
+        #     if (
+        #         prev_action.startswith("MONITOR")
+        #         and current_target_obj in prev_action
+        #     ):
+        #         log.debug(
+        #             f"[_expand_wait_with_monitoring] Just monitored {current_target_obj}. Skip immediate re-monitoring."
+        #         )
+        #         return self._expand_wait_wo_monitoring(
+        #             curr_node,
+        #             candidate,
+        #             not_yet_candidates,
+        #             nav_duration=nav_duration,
+        #             feasible_candidates=feasible_candidates,
+        #         )
+
+        # [Scenario 3] Monitoring trigger falls during or after the task?
+        # But here we are in _expand_wait_with_monitoring.
+        # If trigger time is far in the future, we should JUST WAIT until trigger time (or a bit less)
+        # instead of monitoring NOW. This allows interleaving other tasks during the wait.
+
     def _expand_wait_wo_monitoring(
         self,
         curr_node: SimulationNode,
@@ -1702,6 +1711,7 @@ class Scheduler:
 
         Returns:
             SimulationNode: The child node representing the new state after waiting.
+            모니터링 시점까지 대기 혹은 Earliest start time의 candidate 시작 시점까지 대기
         """
         curr_state = curr_node.state
         depth = curr_node.depth
@@ -1715,48 +1725,21 @@ class Scheduler:
                 else curr_state.current_time
             )
         )
+
         if max_wait_duration is not None:
             target_start_time = min(
                 target_start_time, curr_state.current_time + max_wait_duration
             )
 
-        # [Fix 251216] Safe Wait Splitting using Global Deadlines
-        # Find the earliest scheduling deadline among all currently feasible candidates.
-        # We must not wait beyond this time, as it would cause a violation for another task.
-        global_earliest_deadline = float("inf")
-        if feasible_candidates:
-            for fc in feasible_candidates:
-                # We care about deadlines that are finite and "urgent"
-                if fc.scheduling_due and fc.scheduling_due.due_date != float("inf"):
-                    global_earliest_deadline = min(
-                        global_earliest_deadline, fc.scheduling_due.due_date
-                    )
-
-        # Also consider the candidate's own deadline if it exists (though less likely to be the limiting factor for wait)
-        candidate_due = (
-            candidate.scheduling_due.due_date
-            if candidate.scheduling_due
-            else float("inf")
-        )
-        safe_wait_limit = min(
-            target_start_time, global_earliest_deadline, candidate_due
-        )
-
         # Calculate Wait Duration
-        # We wait until the 'safe_wait_limit'.
-        # If target_start_time is the limit, we wait fully.
-        # If global_earliest_deadline is the limit, we wait only until then (plus maybe a small epsilon to trigger re-eval).
         total_wait_duration = max(
-            0.0, safe_wait_limit - curr_state.current_time - nav_duration
+            0.0, target_start_time - curr_state.current_time - nav_duration
         )
 
         log.warning(
             f"[_expand_wait_wo_monitoring] Check for {candidate.subtask.name}:\n"
             f"  Current Time: {curr_state.current_time:.2f}\n"
             f"  Target Start (Est): {target_start_time:.2f}\n"
-            f"  Global Earliest Deadline: {global_earliest_deadline}\n"
-            f"  Candidate Deadline: {candidate_due}\n"
-            f"  Safe Wait Limit: {safe_wait_limit:.2f}\n"
             f"  Nav Duration: {nav_duration:.2f}\n"
             f"  -> Calculated Wait Duration: {total_wait_duration:.2f}"
         )
@@ -1823,14 +1806,14 @@ class Scheduler:
         )
         # Same logic as above: prevent double counting of future costs.
         # f(n) = time_so_far + heuristic_score + past_penalties
-        new_cost = end_time + step_cost
+        new_cost = step_cost
 
         # Accumulate max risk level
         new_risk = max(curr_node.risk_level, step_risk)
 
         log.info(
             f"[_expand_wait_wo_monitoring] WAIT subtask {candidate.subtask.name}\n"
-            f"  -> Score={round(step_cost, 2)} (H) + {round(end_time, 2)} (G) = {round(new_cost, 2)}\n"
+            f"  -> Score={round(step_cost, 2)} (H) = {round(new_cost, 2)}\n"
             f"  Interval={round(start_time,2)}~{round(end_time,2)}\n"
             f"  -> Updated remain={[r.name for r in curr_state.remaining_subtasks]}\n"
         )
