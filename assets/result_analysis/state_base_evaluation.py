@@ -114,6 +114,11 @@ def main() -> None:
                             )
                             continue
                         
+                        # makespan 계산: trajectory의 모든 action duration 합
+                        makespan: float = sum(
+                            event.get("duration", 0.0) for event in events_data
+                        )
+                        
                         task_results = evaluate_tasks(
                             events=events_data,
                             task_names=valid_task_names,
@@ -134,6 +139,7 @@ def main() -> None:
                                 "approach": approach_dir.name,
                                 "parsed_tasks": parsed_tasks,
                             },
+                            "makespan": makespan,
                             "tasks": {},
                         }
                         

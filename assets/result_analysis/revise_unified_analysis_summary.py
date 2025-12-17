@@ -91,6 +91,7 @@ def load_argument_parser() -> argparse.Namespace:
     )
     parser.add_argument(
         "--save_revised_summary",
+        default=True,
         action="store_true",
         help="If set, save the intermediate revised summary to a '.revised.json' file.",
     )

@@ -69,7 +69,7 @@ APPROACH_LIST = {
 }
 
 INIT_LIST = ["init_60", "init_80", "init_100", "init_120", "init_140"]
-TASK_CASE = ["tasks_2", "tasks_3", "tasks_4"]
+TASK_CASE = ["tasks_2", "tasks_3"]
 METRIC_LIST = ["tsr", "makespan"]
 
 # 제거할 베이스라인 목록
@@ -323,14 +323,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--plot_type",
         type=str,
-        default="trajectory",
+        default="separate",
         choices=["trajectory", "separate"],
         help="생성할 그래프 종류를 선택합니다: 'trajectory' 또는 'separate'.",
     )
     parser.add_argument(
         "--output",
         type=str,
-        default=None,
+        default="output.png",
         help="그래프를 저장할 파일 경로 (예: output.png). 지정하지 않으면 화면에 표시됩니다.",
     )
     args = parser.parse_args()
