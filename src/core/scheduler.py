@@ -186,11 +186,9 @@ class Scheduler:
             # Sort by (Risk Level, Makespan Cost)
             # Primary: risk_level (Ascending - 0 is best)
             # Secondary: heuristic_cost (Ascending - lower cost is best)
-            expanded_nodes.sort(
-                key=lambda nd: (
-                    nd.risk_level,
-                    nd.heuristic_cost,
-                )
+            expanded_nodes = sorted(
+                filter(lambda nd: nd.risk_level == 0, expanded_nodes),
+                key=lambda nd: nd.heuristic_cost,
             )
 
             # (3) Local Beam Pruning: Keep only the top-K expansions
@@ -210,11 +208,11 @@ class Scheduler:
 
         # Return the best solution (lowest cost)
         # Sort by (Risk Level, Heuristic Cost)
-        best_solutions.sort(
-            key=lambda nd: (
-                nd.risk_level,
-                nd.heuristic_cost,
-            )
+        # Primary: risk_level (Ascending - 0 is best)
+        # Secondary: heuristic_cost (Ascending - lower cost is best)
+        best_solutions = sorted(
+            best_solutions,
+            key=lambda nd: (nd.risk_level, nd.heuristic_cost),
         )
 
         log.debug(
@@ -1581,15 +1579,13 @@ class Scheduler:
                             f"(Current={curr_state.current_time:.2f}, Nav={nav_duration:.2f})"
                         )
 
-            wait_duration_available = trigger_time - curr_state.current_time
-
             return self._expand_wait_wo_monitoring(
                 curr_node,
                 candidate,
                 not_yet_candidates,
                 nav_duration=nav_duration,
                 feasible_candidates=feasible_candidates,
-                max_wait_duration=wait_duration_available,
+                max_wait_duration=trigger_time - curr_state.current_time,
             )
 
         target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
@@ -1625,17 +1621,6 @@ class Scheduler:
                 nav_duration=nav_duration,
                 feasible_candidates=feasible_candidates,
             )
-
-        remaining_slack = max(
-            0.0,
-            candidate.actual_interaction_start_time
-            - inserted_node.state.current_time
-            - nav_duration,
-        )
-
-        log.debug(
-            f"[_expand_wait_with_monitoring] Monitoring inserted before waiting for {candidate.subtask.name}. Remaining slack: {remaining_slack:.2f}."
-        )
 
         return inserted_node
 
