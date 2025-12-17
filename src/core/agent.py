@@ -197,28 +197,24 @@ class Agent:
             bayesian_diff = float("inf") if posterior_mean != 0 else 0.0
 
         log.info(f"bayesian_diff: {bayesian_diff}")
-        if bayesian_diff:
-            self._update_knowledge_and_constraints(
-                state=state,
-                monitoring_target_obj_name=monitoring_target_obj_name,
-                posterior_mean=posterior_mean,
-                posterior_variance=posterior_variance,
-                critical_start_sub_name=critical_start_sub_name,
-                monitoring_target_sub_name=monitoring_target_sub_name,
-                critical_start_sub_end_time=critical_start_sub_end_time,
-            )
-            monitored_subtask = {
-                "updated_subtask_name": critical_start_sub_name,
-                "original_expected_time": prior_mean,
-                "updated_expected_time": posterior_mean,
-                "ground_truth_time": gt_interval,
-            }
-        else:
-            monitored_subtask = {
-                "updated_subtask_name": critical_start_sub_name,
-                "original_expected_time": prior_mean,
-                "updated_expected_time": prior_mean,
-                "ground_truth_time": gt_interval,
-            }
+
+        # [Fix] Always update constraints to reflect the passage of time (residual interval),
+        # even if the Bayesian estimate hasn't changed significantly.
+        self._update_knowledge_and_constraints(
+            state=state,
+            monitoring_target_obj_name=monitoring_target_obj_name,
+            posterior_mean=posterior_mean,
+            posterior_variance=posterior_variance,
+            critical_start_sub_name=critical_start_sub_name,
+            monitoring_target_sub_name=monitoring_target_sub_name,
+            critical_start_sub_end_time=critical_start_sub_end_time,
+        )
+
+        monitored_subtask = {
+            "updated_subtask_name": critical_start_sub_name,
+            "original_expected_time": prior_mean,
+            "updated_expected_time": posterior_mean,
+            "ground_truth_time": gt_interval,
+        }
 
         return state, monitored_subtask
