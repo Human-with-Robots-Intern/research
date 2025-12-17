@@ -205,12 +205,12 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         data (dict): 시각화에 사용할 데이터.
         output_path (str | None): 그래프를 저장할 파일 경로. None이면 화면에 표시.
     """
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 3))
     conditions = [
         "Under-est\n(60s)",
-        "Under-mid-est\n(80s)",
+        # "Under-mid-est\n(80s)",
         "Correct\n(100s)",
-        "Over-mid-est\n(120s)",
+        # "Over-mid-est\n(120s)",
         "Over-est\n(140s)",
     ]
     metrics_info = [
@@ -227,8 +227,8 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         "Ours (w/o Mon.)",
         "DAG + CPM",
         "DAG + EDF",
-        "ProgPrompt",
-        "CAP",
+        # "ProgPrompt",
+        # "CAP",
     ]
 
     for col, (metric_key, title, ylabel) in enumerate(metrics_info):
@@ -317,13 +317,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_path",
         type=str,
-        default="assets/results/unified_analysis_summary.revised.json",
+        default="assets/results/1112 copy/unified_analysis_summary.revised.json",
         help="데이터 파일 경로를 지정합니다.",
     )
     parser.add_argument(
         "--plot_type",
         type=str,
-        default="trajectory",
+        default="separate",
         choices=["trajectory", "separate"],
         help="생성할 그래프 종류를 선택합니다: 'trajectory' 또는 'separate'.",
     )

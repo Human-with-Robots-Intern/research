@@ -1,18 +1,22 @@
 {
-    "Faucet": {
-        "expected_duration": 100.88265867162889,
-        "variance": 0.3734100233849908
+    "Egg": {
+        "expected_duration": 0.0,
+        "variance": 900
     },
     "StoveKnob": {
-        "expected_duration": 100.27600310271487,
-        "variance": 8.665948475470714
-    },
-    "StoveBurner": {
-        "expected_duration": 100.0,
-        "variance": 100.0
+        "expected_duration": 102.2031763324792,
+        "variance": 8.768539168538922
     },
     "CounterTop": {
-        "expected_duration": 100.0,
-        "variance": 100.0
+        "expected_duration": 0.0,
+        "variance": 900
+    },
+    "StoveBurner": {
+        "expected_duration": 140,
+        "variance": 900
+    },
+    "Faucet": {
+        "expected_duration": 140,
+        "variance": 900
     }
 }

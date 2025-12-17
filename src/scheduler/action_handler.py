@@ -66,7 +66,7 @@ class ActionHandler:
 
         # action_sim_info가 None이거나, 결과가 비어있는 경우 처리
         if not action_sim_info or not action_sim_info.results:
-            log.warning(
+            log.debug(
                 "Action simulation did not produce any results. Returning None."
             )
             return None
@@ -227,7 +227,7 @@ class ActionHandler:
             # )
             # 액션 실패 시 시뮬레이션 중단
             if not action_success:
-                log.warning(
+                log.debug(
                     f"Action '{action_str}' failed. Stopping simulation sequence."
                 )
                 break
@@ -244,7 +244,7 @@ class ActionHandler:
         """주어진 위치에서 타겟 위치가 상호작용 가능한 거리 내에 있는지 확인합니다."""
         dist = math.dist(agent_pos, target_pos)
         if dist > REACHABLE_DISTANCE_THRESHOLD:
-            log.warning(
+            log.debug(
                 f"  {action_name} target '{target_id}' might be unreachable "
                 f"(Distance: {dist:.2f} > {REACHABLE_DISTANCE_THRESHOLD:.2f}). Action FAILED."
             )
@@ -546,7 +546,7 @@ class ActionHandler:
 
         # target_cutoff_time이 너무 작으면 분할 의미 없음 (상대 시간이므로 0보다 커야 함)
         if target_cutoff_time < EPSILON:
-            log.warning(
+            log.debug(
                 f"Target cutoff time {target_cutoff_time:.2f} is too small. No effective split will be performed."
             )
             # 전체 액션 시뮬레이션 결과를 pre_log로 간주 (분할 실패)
@@ -623,7 +623,7 @@ class ActionHandler:
                     abs(duration_if_place_included - target_cutoff_time)
                     <= allowable_deviation
                 ):
-                    log.info(
+                    log.debug(
                         f"Found subsequent PLACE action. Including it in pre_log. "
                         f"New pre_log duration: {duration_if_place_included:.2f} (target_cutoff: {target_cutoff_time:.2f}, "
                         f"deviation: {abs(duration_if_place_included - target_cutoff_time):.2f} <= allowable: {allowable_deviation:.2f})."
@@ -631,7 +631,7 @@ class ActionHandler:
                     current_split_index = found_place_action_index_in_full_log
                     pre_ends_holding_object = False  # PLACE로 끝났으므로
                 else:
-                    log.warning(
+                    log.debug(
                         f"Found subsequent PLACE action, but including it would make pre_log duration ({duration_if_place_included:.2f}) "
                         f"exceed target_cutoff_time ({target_cutoff_time:.2f}) beyond the timing tolerance window (allowable deviation: {allowable_deviation:.2f}). "
                         f"Splitting after GRASP at index {initial_split_index}."
@@ -639,7 +639,7 @@ class ActionHandler:
                     # GRASP/PLACE 묶기 포기, 초기 분할 지점 유지.
                     pre_ends_holding_object = True  # 초기 분할 지점에서 들고 있었음
             else:  # PLACE 액션이 아예 없는 경우
-                log.warning(
+                log.debug(
                     f"Object '{object_held_at_initial_split}' was held at initial split index {initial_split_index}, "
                     f"but no subsequent PLACE action was found. EARLY_ subtask will end holding the object."
                 )

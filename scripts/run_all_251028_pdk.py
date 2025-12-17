@@ -323,13 +323,14 @@ def _run_script_and_log(
             cmd.extend([f"--{key}", str(value)])
 
     logger.info(f"Executing command (GPU {gpu_id}): {' '.join(cmd)}")
-    
+
     # Set specific GPU for this process if assigned
     import os
+
     env = os.environ.copy()
     if gpu_id >= 0:
         env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-    
+
     logger.info(f"Executing command: {' '.join(cmd)}")
 
     # Use Popen for better process control
@@ -886,7 +887,7 @@ def main() -> None:
                         if num_gpus > 0:
                             gpu_id = gpu_counter % num_gpus
                             gpu_counter += 1
-                        
+
                         task = ExperimentTask(
                             baseline_info=baseline,
                             case_name=case_name,
