@@ -837,63 +837,6 @@ class Scheduler:
             risk_level=new_risk,
         )
 
-    def _fallback_insert_monitoring(
-        self,
-        curr_node: SimulationNode,
-        candidate: Candidate,
-        monitoring_target_obj: Optional[str],
-        not_yet_candidates: List[Candidate],
-        *,
-        critical_start_sub_name: Optional[str] = None,
-        critical_start_sub_end_time: Optional[float] = None,
-        critical_end_sub_name: Optional[str] = None,
-        critical_interval_duration: Optional[float] = None,
-        monitoring_target_sub_name: Optional[str] = None,
-        feasible_candidates: List[Candidate] = None,
-    ) -> Optional[SimulationNode]:
-        """Insert a monitoring-only subtask before retrying the original candidate."""
-
-        if not monitoring_target_obj:
-            log.warning(
-                "[_fallback_insert_monitoring] Missing monitoring target. Falling back to direct execution."
-            )
-            return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates, feasible_candidates
-            )
-
-        curr_state = curr_node.state
-        target_start_time = (
-            candidate.actual_interaction_start_time or curr_state.current_time
-        )
-
-        inserted_node = self._insert_monitoring_step(
-            curr_node=curr_node,
-            candidate=candidate,
-            monitoring_target_obj=monitoring_target_obj,
-            predecessor_name=curr_state.subtask.name,
-            target_actual_start_time=target_start_time,
-            critical_start_sub_name=critical_start_sub_name,
-            critical_start_sub_end_time=critical_start_sub_end_time,
-            critical_end_sub_name=critical_end_sub_name,
-            critical_interval_duration=critical_interval_duration,
-            monitoring_target_sub_name=monitoring_target_sub_name,
-            not_yet_candidates=not_yet_candidates,
-        )
-
-        if inserted_node is None:
-            log.warning(
-                "[_fallback_insert_monitoring] Monitoring execution failed. Falling back to direct execution."
-            )
-            return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates, feasible_candidates
-            )
-
-        log.debug(
-            f"[_fallback_insert_monitoring] Inserted monitoring before retrying {candidate.subtask.name}."
-        )
-
-        return inserted_node
-
     def _insert_monitoring_step(
         self,
         curr_node: SimulationNode,

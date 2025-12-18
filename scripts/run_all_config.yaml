@@ -1,21 +1,21 @@
 # Configuration for run_all.py
 simulation: true # Enable Simulation mode
 cloud_rendering: true
+
 num_runs_per_instruction: 1 # Number of times to run each instruction
 max_retries: 1 # set to be 1
 retry_delay_seconds: 2 # Delay in seconds between retries
 max_workers: 12 # Maximum number of workers
-num_gpus: 2 # Number of GPUs available (0 for CPU only)
 instruction_delay_seconds: 0 # Delay in seconds between instructions
 # Logging configuration
-log_level: "WARNING" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+log_level: "DEBUG" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 start_idx: 1 # Start index for the instruction
 # Execution settings
 # List of approaches (scripts) to run
 approaches:
-  - "src/baselines/cpm.py"
+  # - "src/baselines/cpm.py"
   # - "src/baselines/edf/dag_edf.py"
-  # - "src/dag_bayesian.py"
+  - "src/dag_bayesian.py"
 # Scripts that use LLMs and are subject to retries on failure
 llm_scripts:
   # - "src/baselines/progprompt/prog_ai2thor.py"
@@ -30,30 +30,34 @@ scene_lists:
     - "FloorPlan1"
     - "FloorPlan7"
     - "FloorPlan13"
-    # - "FloorPlan18"
+    - "FloorPlan18"
     - "FloorPlan27"
- 
+  bathroom:
+    # - "FloorPlan419"
+    # - "FloorPlan422"
+    # - "FloorPlan426"
+    # - "FloorPlan427"
+  real_world:
+    # - "FloorPlan301"
 ablation_configs:
   # - NONE_URGENCY
   # - NONE_REMAINING_WORK
-  # - NONE_MONITORING
   # - GREEDY
-  # - DEFAULT
+  - DEFAULT
+  # - NONE_MONITORING
 init_prior_configs:
-  
-  - CORRECT_ESTIMATE
-  # - OVER_ESTIMATE
+  - OVER_ESTIMATE
   # - UNDER_ESTIMATE
-  
+  # - CORRECT_ESTIMATE
   # - OVER_MEDIUM_ESTIMATE
   # - UNDER_MEDIUM_ESTIMATE
 # ------------------------------------------------------------------------------
 # Task Filtering
 # ------------------------------------------------------------------------------
 task_folder_name: "sampled_10_instruction_set_for_final_experiment_251203" # Folder under assets/tasks/
-min_task_count: 0
-min_constraint_count: 0
-skip_completed: false
+min_task_count: 3
+min_constraint_count: 2
+skip_completed: true
 # ==============================================================================
 # Ablation Study Configurations
 # ==============================================================================
