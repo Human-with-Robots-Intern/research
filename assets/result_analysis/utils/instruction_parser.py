@@ -68,7 +68,13 @@ def parse_instruction_to_tasks(instruction: str, all_task_names: List[str]) -> L
             task_id = task.replace(" ", "_").replace(" and ", "_and_")
             if remaining.startswith(task_id):
                 parsed.append(task)
-                remaining = remaining[len(task_id) :].lstrip("_and_")
+                # Remove matched task
+                remaining = remaining[len(task_id) :]
+                # Remove separator carefully (exact match, not character set)
+                if remaining.startswith("_and_"):
+                    remaining = remaining[5:]  # len("_and_")
+                elif remaining.startswith("_"):
+                    remaining = remaining[1:]
                 found = True
                 break
         if not found:

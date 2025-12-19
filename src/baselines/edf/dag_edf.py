@@ -401,7 +401,7 @@ def parse_arguments():
     parser.add_argument(
         "-s",
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
     )
     parser.add_argument(
@@ -409,11 +409,6 @@ def parse_arguments():
         type=str,
         default=None,
         help="The name of the case.",
-    )
-    parser.add_argument(
-        "--headless",
-        action="store_true",
-        help="Run in headless mode.",
     )
     parser.add_argument(
         "--log-level",

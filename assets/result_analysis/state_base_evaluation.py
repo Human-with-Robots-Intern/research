@@ -37,7 +37,7 @@ def main() -> None:
 
     results_folder: Path = Path("assets/results")
     tasks_json_path = (
-        Path(__file__).resolve().parents[1] / "tasks" / "floorplan_tasks.json"
+        Path(__file__).resolve().parents[1] / "tasks" / "floorplan_tasks_realworld.json"
     )
     all_task_names, _critical = load_task_info(tasks_json_path)
 

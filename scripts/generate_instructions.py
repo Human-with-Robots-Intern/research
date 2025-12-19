@@ -227,7 +227,7 @@ def generate_instructions_for_case(
 def main() -> None:
     """Generate instructions for a 4x4 matrix of task and constraint counts."""
     # 0. Load existing instructions if the file exists
-    output_path = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251202_realworld.json"
+    output_path = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251203_realworld.json"
     existing_instructions_path = (
         ASSETS_PATH / "tasks" / "decomposed_merged_251031_metadata.json"
     )

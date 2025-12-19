@@ -78,7 +78,7 @@ def parse_arguments():
     )
     parser.add_argument(
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
         help="Simulation 모드 사용 여부 (default: False)",
     )
@@ -540,7 +540,7 @@ def main():
                 "initial_plan_data": task_data,
                 "init_prior_mean": args.init_prior_mean,
             }
-            result_save(**result_args)
+            # result_save(**result_args)
 
     if args.simulation:
         result_schedule = [

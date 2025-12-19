@@ -17,9 +17,9 @@ def load_instructions() -> Dict:
         The entire data structure from the JSON file.
     """
     instruction_file = (
-        ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251202.json"
+        ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251203_realworld.json"
     )
-    try:
+    try:    
         with open(instruction_file, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
@@ -90,7 +90,10 @@ def main() -> None:
         "FloorPlan18",
         "FloorPlan27",
     ]
-    SCENE_NAME_LIST = KITCHEN_SCENES
+    REALWORLD_SCENES = [
+        "FloorPlan301",
+    ]
+    SCENE_NAME_LIST = REALWORLD_SCENES
 
     # --- Main Processing Loop ---
     for case_key in cases_to_process:
@@ -114,7 +117,7 @@ def main() -> None:
             output_dir = (
                 ASSETS_PATH
                 / "tasks"
-                / "decomposed_final_revision_metadata_251114"
+                / "decomposed_final_revision_metadata_251203_realworld"
                 / case_key
                 / scene_name
             )
