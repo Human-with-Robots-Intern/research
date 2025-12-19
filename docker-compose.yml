@@ -13,8 +13,9 @@ services:
     volumes:
       - .:/app
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    devices:
-      - /dev/dri:/dev/dri
+    # 윈도우는 devices의 /dev/dri가 없어서 주석처리, override.yml에서 설정하도록 수정.
+    # devices:
+    #   - /dev/dri:/dev/dri
     ports:
       - "5679:5679"  # Python debugger port for ttp
       - "5901:5900"  # VNC port
