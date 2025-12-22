@@ -873,7 +873,7 @@ class Scheduler:
             actual_interaction_start_time=curr_node.state.current_time,
             logical_interaction_start_time=curr_node.state.current_time,
         )
-
+        # 모니터링 작업을 수행하고, 그 결과를 모니터링 노드로 반환합니다.
         monitor_node = self._expand_subtask_wo_monitoring(
             curr_node, monitor_candidate, not_yet_candidates
         )
@@ -964,46 +964,10 @@ class Scheduler:
                     critical_start_sub_name, monitor_sub.name
                 ]["info"] = edge_info_start
 
-            critical_deadline = critical_start_sub_end_time + critical_interval_duration
-            interval_mon_to_end = max(0.0, critical_deadline - monitor_finish_time)
-            edge_info_end = {"Interval": interval_mon_to_end, "IsCritical": True}
-
-            # [DEBUG LOG] Check Interval Update in _insert_monitoring_step
-            prev_interval = "N/A"
-            if constraints_with_critical.has_edge(
-                monitor_sub.name, critical_end_sub_name
-            ):
-                prev_interval = (
-                    constraints_with_critical.edges[
-                        monitor_sub.name, critical_end_sub_name
-                    ]
-                    .get("info", {})
-                    .get("Interval", "N/A")
-                )
-
-            log.debug(
-                f"[DEBUG _insert_monitoring_step] Updating Edge '{monitor_sub.name}' -> '{critical_end_sub_name}'\n"
-                f"  - CriticalDeadline: {critical_deadline:.2f} (StartEnd: {critical_start_sub_end_time:.2f} + Interval: {critical_interval_duration:.2f})\n"
-                f"  - MonitorFinish: {monitor_finish_time:.2f}\n"
-                f"  - Calc Interval: {interval_mon_to_end:.2f} (Prev: {prev_interval})"
-            )
-
-            if not constraints_with_critical.has_edge(
-                monitor_sub.name, critical_end_sub_name
-            ):
-                constraints_with_critical.add_edge(
-                    monitor_sub.name, critical_end_sub_name, info=edge_info_end
-                )
-            else:
-                constraints_with_critical.edges[
-                    monitor_sub.name, critical_end_sub_name
-                ]["info"] = edge_info_end
-
-            # Verify update
-            check_interval = constraints_with_critical.edges[
-                monitor_sub.name, critical_end_sub_name
-            ]["info"]["Interval"]
-            log.debug(f"  -> Update Verified: {check_interval:.2f}")
+            # 원래 여기서 Monitor -> Critical End(Candidate) 엣지를 업데이트했으나,
+            # 위에서 이미 'remaining_slack'을 사용하여 동일한 값으로 엣지를 생성했으므로(Block 1),
+            # 여기서는 중복 업데이트를 하지 않고 생략합니다.
+            # 이 블록에서는 'Start -> Monitor' 관계(Block 1에서 안 다루는 부분)만 처리하면 됩니다.
 
             updated_state = updated_state._replace(
                 constraints=constraints_with_critical
@@ -1172,10 +1136,22 @@ class Scheduler:
         if not split_successful or pre_ends_holding_object:
             log.warning(
                 f"Failed to split {original_task_name} with cutoff {duration_for_early_sub_target:.2f}. "
-                f"Executing the task without splitting as a fallback."
+                f"Switching to Pre-Monitoring (Check-Before-Act) strategy as a fallback."
             )
-            return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates, feasible_candidates
+            # [Fallback] 분할 실패 시, 작업을 시작하기 '전'에 미리 모니터링을 수행하는 경로를 탐색에 추가합니다.
+            # 모니터링 시간만큼 작업 착수가 지연되지만, 불확실성을 해소할 수 있는 안전한 선택지입니다.
+            return self._insert_monitoring_step(
+                curr_node=curr_node,
+                candidate=candidate,
+                monitoring_target_obj=monitoring_target_obj,
+                predecessor_name=curr_node.state.subtask.name,
+                target_actual_start_time=curr_state.current_time,  # 즉시 수행
+                not_yet_candidates=not_yet_candidates,
+                critical_start_sub_name=critical_start_sub_name,
+                critical_start_sub_end_time=critical_start_sub_actual_end_time,
+                critical_end_sub_name=critical_end_sub_name,
+                critical_interval_duration=original_critical_interval_duration,
+                monitoring_target_sub_name=critical_end_sub_name,
             )
 
         log.info(f"{pre_actions_log.total_time_used()},{pre_actions_log=}")
@@ -1511,7 +1487,6 @@ class Scheduler:
 
         # 1. 이미 Monitor 태스크를 수행한 직후라면 -> Trigger Time까지 Wait 수행
         if curr_node.state.subtask.subtask_type == "Monitor":
-
             return self._expand_wait_wo_monitoring(
                 curr_node,
                 candidate,
