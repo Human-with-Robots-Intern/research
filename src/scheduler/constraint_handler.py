@@ -123,11 +123,7 @@ class ConstraintHandler:
                     and critical_ctx.source_subtask
                     and critical_ctx.source_end_time is not None
                 ):
-                    inferred_due = (
-                        critical_ctx.source_end_time
-                        + critical_ctx.interval
-                        + TIMING_TOLERANCE_ABS
-                    )
+                    inferred_due = critical_ctx.source_end_time + critical_ctx.interval
                     if inferred_due <= curr_node.state.current_time:
                         inferred_due = curr_node.state.current_time + EPSILON
                     candidate.scheduling_due = SchedulingDue(
@@ -204,11 +200,7 @@ class ConstraintHandler:
                 and critical_ctx.source_subtask
                 and critical_ctx.source_end_time is not None
             ):
-                inferred_due = (
-                    critical_ctx.source_end_time
-                    + critical_ctx.interval
-                    + TIMING_TOLERANCE_ABS
-                )
+                inferred_due = critical_ctx.source_end_time + critical_ctx.interval
                 if inferred_due <= curr_node.state.current_time:
                     inferred_due = curr_node.state.current_time + EPSILON
                 candidate.scheduling_due = SchedulingDue(
@@ -218,10 +210,7 @@ class ConstraintHandler:
 
             # 현재 시간에 "상호작용을 시작"할 수 있는 경우 feasible
             # 즉, effective_interaction_start_time이 현재 시간과 거의 같아야 함.
-            if (
-                actual_interaction_start_time - TIMING_TOLERANCE_ABS
-                <= current_time + first_nav_duration
-            ):
+            if actual_interaction_start_time <= current_time + first_nav_duration:
                 log.debug(
                     f"Subtask '{sub.name}' is feasible now (interaction can start at {actual_interaction_start_time:.2f})."
                 )
@@ -556,11 +545,7 @@ class ConstraintHandler:
                     and critical_ctx.source_subtask
                     and critical_ctx.source_end_time is not None
                 ):
-                    inferred_due = (
-                        critical_ctx.source_end_time
-                        + critical_ctx.interval
-                        + TIMING_TOLERANCE_ABS
-                    )
+                    inferred_due = critical_ctx.source_end_time + critical_ctx.interval
                     # [Logic Update 251215]
                     # If inferred due is too tight or passed, we should set it to NOW (EPSILON)
                     # to force immediate execution or wait logic activation.
