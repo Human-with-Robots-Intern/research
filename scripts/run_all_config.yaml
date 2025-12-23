@@ -1,37 +1,24 @@
 # Configuration for run_all.py
-<<<<<<< Updated upstream
-simulation: true # Enable Simulation mode
-cloud_rendering: true
-
-num_runs_per_instruction: 1 # Number of times to run each instruction
-max_retries: 1 # set to be 1
-retry_delay_seconds: 2 # Delay in seconds between retries
-max_workers: 12 # Maximum number of workers
-=======
 simulation: false # Enable Simulation mode
 cloud_rendering: false
 num_runs_per_instruction: 1 # Number of times to run each instruction
 max_retries: 1 # set to be 1
 retry_delay_seconds: 2 # Delay in seconds between retries
 max_workers: 1 # Maximum number of workers
->>>>>>> Stashed changes
 instruction_delay_seconds: 0 # Delay in seconds between instructions
 # Logging configuration
-log_level: "DEBUG" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+log_level: "WARNING" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 start_idx: 1 # Start index for the instruction
 # Execution settings
 # List of approaches (scripts) to run
 approaches:
-<<<<<<< Updated upstream
-=======
-  - "src/dag_bayesian.py"
->>>>>>> Stashed changes
+
   # - "src/baselines/cpm.py"
   # - "src/baselines/edf/dag_edf.py"
-  - "src/dag_bayesian.py"
+  # - "src/dag_bayesian.py"
 # Scripts that use LLMs and are subject to retries on failure
 llm_scripts:
-  # - "src/baselines/progprompt/prog_ai2thor.py"
+  - "src/baselines/progprompt/prog_ai2thor.py"
   # - "src/baselines/cap/cap_ai2thor.py"
 # Scene lists for each scene type
 scene_type: # Default scene type to run. Options: 'kitchen', 'bathroom'
@@ -40,65 +27,39 @@ scene_type: # Default scene type to run. Options: 'kitchen', 'bathroom'
   - real_world
 scene_lists:
   kitchen:
-<<<<<<< Updated upstream
-    - "FloorPlan1"
-    - "FloorPlan7"
-    - "FloorPlan13"
-    - "FloorPlan18"
-    - "FloorPlan27"
-=======
     # - "FloorPlan1"
     # - "FloorPlan7"
     # - "FloorPlan13"
     # - "FloorPlan18"
     # - "FloorPlan27"
->>>>>>> Stashed changes
   bathroom:
     # - "FloorPlan419"
     # - "FloorPlan422"
     # - "FloorPlan426"
     # - "FloorPlan427"
   real_world:
-<<<<<<< Updated upstream
-    # - "FloorPlan301"
-=======
     - "FloorPlan301"
->>>>>>> Stashed changes
 ablation_configs:
   # - NONE_URGENCY
   # - NONE_REMAINING_WORK
   # - GREEDY
   - DEFAULT
-<<<<<<< Updated upstream
-  # - NONE_MONITORING
-init_prior_configs:
-  - OVER_ESTIMATE
-  # - UNDER_ESTIMATE
-=======
 
 init_prior_configs:
-  # - OVER_ESTIMATE
-  - UNDER_ESTIMATE
->>>>>>> Stashed changes
-  # - CORRECT_ESTIMATE
+  - OVER_ESTIMATE
   # - OVER_MEDIUM_ESTIMATE
+  # - CORRECT_ESTIMATE
   # - UNDER_MEDIUM_ESTIMATE
+  # - UNDER_ESTIMATE
 # --------------------------  
 
 # ------------------------------------------------------------------------------
 # Task Filtering
 # ------------------------------------------------------------------------------
-<<<<<<< Updated upstream
-task_folder_name: "sampled_10_instruction_set_for_final_experiment_251203" # Folder under assets/tasks/
-min_task_count: 3
-min_constraint_count: 2
-skip_completed: true
-=======
 task_folder_name: "sampled_10_instruction_set_for_final_experiment_251203_realworld" # Folder under assets/tasks/
 min_task_count: 0
 min_constraint_count: 0
 skip_completed: false
->>>>>>> Stashed changes
 # ==============================================================================
 # Ablation Study Configurations
 # ==============================================================================
