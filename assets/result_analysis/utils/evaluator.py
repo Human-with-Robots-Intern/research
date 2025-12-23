@@ -244,8 +244,11 @@ def _evaluate_single_tsr(
     else:
         # trigger_idx + 1 부터 end_idx - 1 까지
         tsr_duration = _sum_durations(events, trigger_idx + 1, end_idx - 1, duration_key=duration_key)
+    if tsr_spec.is_ciritcal:
+        tsr_ok = abs(float(tsr_target_duration)- tsr_duration) <= float(tsr_tolerance)
+    else:
+        tsr_ok = float(tsr_target_duration)- tsr_duration <= float(tsr_tolerance)
     
-    tsr_ok = abs(tsr_duration - float(tsr_target_duration)) <= float(tsr_tolerance)
 
     return TSRResult(
         name=tsr_spec.name,

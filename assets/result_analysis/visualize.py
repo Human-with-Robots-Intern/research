@@ -69,7 +69,7 @@ APPROACH_LIST = {
 }
 
 INIT_LIST = ["init_60", "init_80", "init_100", "init_120", "init_140"]
-TASK_CASE = ["tasks_2", "tasks_3"]
+TASK_CASE = ["tasks_2", "tasks_3", "tasks_4"]
 METRIC_LIST = ["tsr", "makespan"]
 
 # 제거할 베이스라인 목록
@@ -208,9 +208,9 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(12, 3))
     conditions = [
         "Under-est\n(60s)",
-        # "Under-mid-est\n(80s)",
+        "Under-mid-est\n(80s)",
         "Correct\n(100s)",
-        # "Over-mid-est\n(120s)",
+        "Over-mid-est\n(120s)",
         "Over-est\n(140s)",
     ]
     metrics_info = [
@@ -227,8 +227,8 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         "Ours (w/o Mon.)",
         "DAG + CPM",
         "DAG + EDF",
-        # "ProgPrompt",
-        # "CAP",
+        "ProgPrompt",
+        "CAP",
     ]
 
     for col, (metric_key, title, ylabel) in enumerate(metrics_info):
@@ -317,7 +317,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_path",
         type=str,
-        default="assets/results/1112 copy/unified_analysis_summary.revised.json",
+        default="assets/results/unified_analysis_summary.revised.json",
         help="데이터 파일 경로를 지정합니다.",
     )
     parser.add_argument(

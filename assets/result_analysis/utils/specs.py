@@ -24,6 +24,7 @@ class TSRSpec:
     """Single TSR specification with trigger and end conditions."""
 
     name: str  # e.g., "fill", "boil", "heat"
+    is_ciritcal: bool
     trigger: ConditionGroup
     end: ConditionGroup
 
@@ -58,10 +59,10 @@ def CG(*objs: ObjectCondition) -> ConditionGroup:
     return ConditionGroup(objects=list(objs))
 
 
-def TSR(name: str, trigger: ConditionGroup, end: ConditionGroup) -> TSRSpec:
+def TSR(name: str, is_ciritcal: bool, trigger: ConditionGroup, end: ConditionGroup) -> TSRSpec:
     """Helper to build TSRSpec."""
 
-    return TSRSpec(name=name, trigger=trigger, end=end)
+    return TSRSpec(name=name, is_ciritcal=is_ciritcal, trigger=trigger, end=end)
 
 
 TASK_SPECS: Dict[str, TaskSpec] = {
@@ -80,6 +81,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs=[
             TSR(
                 name="fill_water_in_pot",
+                is_ciritcal=True,
                 trigger=CG(
                     OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
                     OC("faucet", isToggled=True),
@@ -88,6 +90,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             ),
             TSR(
                 name="boil_potato",
+                is_ciritcal=True,
                 trigger=CG(
                     OC("potato", isCooked=True),
                     OC("pot", isFilledWithLiquid=True, parentReceptacles=["stove"]),
@@ -111,6 +114,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs=[
             TSR(
                 name="fill_water_in_pot",
+                is_ciritcal=True,
                 trigger=CG(
                     OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
                     OC("faucet", isToggled=True),
@@ -119,6 +123,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             ),
             TSR(
                 name="boil_water_in_pot",
+                is_ciritcal=True,
                 trigger=CG(
                     OC("pot", isFilledWithLiquid=True, parentReceptacles=["stove"]),
                     OC("stoveknob", isToggled=True),
@@ -135,6 +140,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs=[
             TSR(
                 name="fill_water_in_pot",
+                is_ciritcal=True,
                 trigger=CG(
                     OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
                     OC("faucet", isToggled=True),
@@ -151,6 +157,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs=[
             TSR(
                 name="fill_water_in_bowl",
+                is_ciritcal=True,
                 trigger=CG(
                     OC("bowl", isFilledWithLiquid=True, parentReceptacles=["sink"]),
                     OC("faucet", isToggled=True),
@@ -172,6 +179,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs=[
             TSR(
                 name="heat_bread_in_microwave",
+                is_ciritcal=False,
                 trigger=CG(OC("bread", parentReceptacles=["microwave"]), OC("microwave", isToggled=True)),
                 end=CG(OC("microwave", isToggled=False)),
             ),
@@ -190,6 +198,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs=[
             TSR(
                 name="heat_potato_in_microwave",
+                is_ciritcal=False,
                 trigger=CG(OC("potato", parentReceptacles=["microwave"]), OC("microwave", isToggled=True)),
                 end=CG(OC("microwave", isToggled=False)),
             ),
@@ -208,6 +217,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs = [
             TSR(
                 name="make_coffee",
+                is_ciritcal=False,
                 trigger=CG(OC("mug", isFilledWithLiquid=True, parentReceptacles=["CoffeeMachine"]), OC("CoffeeMachine", isToggled=True)),
                 end=CG(OC("mug", isFilledWithLiquid=True, parentReceptacles=None),),
             ),
@@ -228,6 +238,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs=[
             TSR(
                 name="heat_egg",
+                is_ciritcal=True,
                 trigger=CG(
                     # OC("egg_sliced", parentReceptacles=["pan"]),
                     OC("Egg_Cracked", isCooked=True),
@@ -309,6 +320,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs = [
             TSR(
                 name="cook_chicken",
+                is_ciritcal=True,
                 trigger=CG(OC("chicken", parentReceptacles=["pan"]), OC("pan", parentReceptacles=["stove"]), OC("stove", isToggled=True)),
                 end=CG(OC("stove", isToggled=False)),
             ),
@@ -322,6 +334,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs = [
             TSR(
                 name="do_laundry",
+                is_ciritcal=False,
                 trigger=CG(OC("laundry_machine", isToggled=True)),
                 end=CG(OC("laundry_machine", isToggled=False)),
             ),
@@ -337,6 +350,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs = [
             TSR(
                 name="cook_sausage",
+                is_ciritcal=True,
                 trigger=CG(OC("sausage", parentReceptacles=["pan"]), OC("pan", parentReceptacles=["stove"]), OC("stove", isToggled=True)),
                 end=CG(OC("stove", isToggled=False)),
             ),
