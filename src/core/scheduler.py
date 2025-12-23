@@ -384,7 +384,7 @@ class Scheduler:
 
             # Check urgency: Are we at or past the time we should start?
             # We use a tolerance to allow starting slightly early (On-time).
-            if TIMING_TOLERANCE_ABS >= abs(
+            if TIMING_TOLERANCE_ABS // 2 >= abs(
                 candidate.logical_interaction_start_time - physical_earliest_start
             ):
                 # Update actual interaction start time
