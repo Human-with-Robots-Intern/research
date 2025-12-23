@@ -123,11 +123,7 @@ class ConstraintHandler:
                     and critical_ctx.source_subtask
                     and critical_ctx.source_end_time is not None
                 ):
-                    inferred_due = (
-                        critical_ctx.source_end_time
-                        + critical_ctx.interval
-                        + TIMING_TOLERANCE_ABS
-                    )
+                    inferred_due = critical_ctx.source_end_time + critical_ctx.interval
                     if inferred_due <= curr_node.state.current_time:
                         inferred_due = curr_node.state.current_time + EPSILON
                     candidate.scheduling_due = SchedulingDue(
@@ -204,11 +200,7 @@ class ConstraintHandler:
                 and critical_ctx.source_subtask
                 and critical_ctx.source_end_time is not None
             ):
-                inferred_due = (
-                    critical_ctx.source_end_time
-                    + critical_ctx.interval
-                    + TIMING_TOLERANCE_ABS
-                )
+                inferred_due = critical_ctx.source_end_time + critical_ctx.interval
                 if inferred_due <= curr_node.state.current_time:
                     inferred_due = curr_node.state.current_time + EPSILON
                 candidate.scheduling_due = SchedulingDue(
@@ -556,11 +548,7 @@ class ConstraintHandler:
                     and critical_ctx.source_subtask
                     and critical_ctx.source_end_time is not None
                 ):
-                    inferred_due = (
-                        critical_ctx.source_end_time
-                        + critical_ctx.interval
-                        + TIMING_TOLERANCE_ABS
-                    )
+                    inferred_due = critical_ctx.source_end_time + critical_ctx.interval
                     # [Logic Update 251215]
                     # If inferred due is too tight or passed, we should set it to NOW (EPSILON)
                     # to force immediate execution or wait logic activation.
