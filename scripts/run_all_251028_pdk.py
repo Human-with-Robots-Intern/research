@@ -20,6 +20,8 @@ import psutil
 import yaml
 
 from src.utils.common import create_module_logger
+from src.utils.recording import DualCameraRecorder
+from contextlib import nullcontext
 from src.utils.config.constants import (
     ASSETS_PATH,
     INIT_PRIOR_VARIANCE,
@@ -416,7 +418,7 @@ def worker(task: ExperimentTask) -> None:
                     SCRIPTS_PATH.parent / "assets/ros/dynamic/object_states.json"
                 )
                 if object_mapping_path.exists():
-                    shutil.copy2(object_mapping_path, object_positions_path)
+                    shutil.copyfile(object_mapping_path, object_positions_path)
                     logger.info(
                         f"Initialized object positions for task: {Path(task.instruction_path).name}"
                     )
@@ -429,6 +431,12 @@ def worker(task: ExperimentTask) -> None:
         instr_path_obj = Path(task.instruction_path)
 
         log_file_name = f"{b_path.stem}_{task.ablation_name}_{task.init_prior_name}_{task.case_name}_{task.scene_name}_{instr_path_obj.stem}_{task.try_idx + 1}.log"
+        
+        # Prepare for recording
+        file_stem = Path(log_file_name).stem
+        video_output_dir = LOG_PATH / f"{task.log_dir_timestamp}-worker_logs" / "videos"
+        use_recorder = not task.is_simulation
+
         log_file_path = (
             LOG_PATH / f"{task.log_dir_timestamp}-worker_logs" / log_file_name
         )
@@ -448,24 +456,14 @@ def worker(task: ExperimentTask) -> None:
                 )
                 time.sleep(buffer_between_instructions)
 
-            _run_script_and_log(
-                b_path,
-                task.ablation_name,
-                task.case_name,
-                task.scene_name,
-                instr_path_obj,
-                task.is_simulation,
-                task.cloud_rendering,
-                log_file_path,
-                task.ablation_params,
-                task.init_prior_params,
-                attempt=1,
-                gpu_id=task.gpu_id,
+            recorder_ctx = (
+                DualCameraRecorder(video_output_dir, file_stem)
+                if use_recorder
+                else nullcontext()
             )
-        elif b_type == BaselineType.LLM:
-            buffer_between_instructions = 2 if task.is_simulation else 30
-            for attempt in range(1, task.max_retries + 1):
-                result = _run_script_and_log(
+
+            with recorder_ctx:
+                _run_script_and_log(
                     b_path,
                     task.ablation_name,
                     task.case_name,
@@ -476,9 +474,34 @@ def worker(task: ExperimentTask) -> None:
                     log_file_path,
                     task.ablation_params,
                     task.init_prior_params,
-                    attempt=attempt,
+                    attempt=1,
                     gpu_id=task.gpu_id,
                 )
+        elif b_type == BaselineType.LLM:
+            buffer_between_instructions = 2 if task.is_simulation else 30
+            for attempt in range(1, task.max_retries + 1):
+                current_stem = f"{file_stem}_try{attempt}"
+                recorder_ctx = (
+                    DualCameraRecorder(video_output_dir, current_stem)
+                    if use_recorder
+                    else nullcontext()
+                )
+
+                with recorder_ctx:
+                    result = _run_script_and_log(
+                        b_path,
+                        task.ablation_name,
+                        task.case_name,
+                        task.scene_name,
+                        instr_path_obj,
+                        task.is_simulation,
+                        task.cloud_rendering,
+                        log_file_path,
+                        task.ablation_params,
+                        task.init_prior_params,
+                        attempt=attempt,
+                        gpu_id=task.gpu_id,
+                    )
                 if result.returncode == 0:
                     logger.info(
                         f"LLM baseline {b_path.name} succeeded on attempt {attempt}."
@@ -906,6 +929,20 @@ def main() -> None:
                             gpu_id=gpu_id,
                         )
                         tasks_to_run.append(task)
+
+    # Apply start_idx filtering
+    start_idx = config.get("start_idx", 1)
+    if start_idx > 1:
+        if start_idx <= len(tasks_to_run):
+            logger.critical(
+                f"Applying start_idx={start_idx}. Skipping first {start_idx - 1} tasks."
+            )
+            tasks_to_run = tasks_to_run[start_idx - 1 :]
+        else:
+            logger.warning(
+                f"start_idx={start_idx} is larger than total tasks ({len(tasks_to_run)}). No tasks to run."
+            )
+            tasks_to_run = []
 
     if is_dry_run:
         logger.critical("=" * 80)
