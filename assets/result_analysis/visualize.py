@@ -19,44 +19,38 @@ DATA = {
         "tsr": [],
         "makespan": [],
         "color": "orange",
-        "marker": "D",
+        "marker": "p",
         "style": ":",
     },
     "DAG + EDF": {
         "tsr": [],
         "makespan": [],
-        "color": "gray",
-        "marker": "^",
+        "color": "brown",
+        "marker": "x",
         "style": "-.",
     },
     "DAG + CPM": {
         "tsr": [],
         "makespan": [],
-        "color": "gray",
+        "color": "green",
         "marker": "s",
         "style": "--",
     },
     "ProgPrompt": {
         "tsr": [],
         "makespan": [],
-        "color": "gray",
+        "color": "blue",
         "marker": "o",
         "style": ":",
     },
-    "CAP": {
+    "CaP": {
         "tsr": [],
         "makespan": [],
-        "color": "gray",
-        "marker": "v",
+        "color": "purple",
+        "marker": "D",
         "style": ":",
     },
-    "EDF": {
-        "tsr": [],
-        "makespan": [],
-        "color": "gray",
-        "marker": "v",
-        "style": ":",
-    },
+    
 }
 
 APPROACH_LIST = {
@@ -65,11 +59,11 @@ APPROACH_LIST = {
     "dag_edf": "DAG + EDF",
     "cpm": "DAG + CPM",
     "progprompt": "ProgPrompt",
-    "cap_ai2thor_simulation": "CAP",
+    "cap_ai2thor_simulation": "CaP",
 }
 
 INIT_LIST = ["init_60", "init_80", "init_100", "init_120", "init_140"]
-TASK_CASE = ["tasks_2", "tasks_3"]
+TASK_CASE = [ "tasks_2", "task_3"]
 METRIC_LIST = ["tsr", "makespan"]
 
 # 제거할 베이스라인 목록
@@ -110,7 +104,7 @@ def load_data(data_path: str) -> dict:
                     makespan_value = metrics.get("makespan", 0)
 
                     # CAP의 makespan이 비정상적으로 높은 경우 클리핑 (500초로 제한)
-                    if approach_name == "CAP" and makespan_value > 500:
+                    if approach_name == "CaP" and makespan_value > 500:
                         makespan_value = 500
 
                     makespan_values.append(makespan_value)
@@ -136,7 +130,7 @@ def plot_trajectory(data: dict, output_path: str | None = None) -> None:
         data (dict): 시각화에 사용할 데이터.
         output_path (str | None): 그래프를 저장할 파일 경로. None이면 화면에 표시.
     """
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(8, 8))
 
     # 각 Method별 궤적 그리기
     for name, d in data.items():
@@ -205,12 +199,12 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         data (dict): 시각화에 사용할 데이터.
         output_path (str | None): 그래프를 저장할 파일 경로. None이면 화면에 표시.
     """
-    fig, axes = plt.subplots(1, 2, figsize=(12, 3))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     conditions = [
         "Under-est\n(60s)",
-        # "Under-mid-est\n(80s)",
+        "Under-mid-est\n(80s)",
         "Correct\n(100s)",
-        # "Over-mid-est\n(120s)",
+        "Over-mid-est\n(120s)",
         "Over-est\n(140s)",
     ]
     metrics_info = [
@@ -227,8 +221,8 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         "Ours (w/o Mon.)",
         "DAG + CPM",
         "DAG + EDF",
-        # "ProgPrompt",
-        # "CAP",
+        "ProgPrompt",
+        "CaP",
     ]
 
     for col, (metric_key, title, ylabel) in enumerate(metrics_info):
@@ -240,7 +234,7 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
 
             d = data[name]
             y_data = d[metric_key]
-            lw = 3 if "Default" in name else 1.5
+            lw = 3.5 if "Default" in name else 1.8
             alpha = 1.0 if "Default" in name else 0.7
 
             ax.plot(
@@ -252,37 +246,15 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
                 marker=d["marker"],
                 linewidth=lw,
                 alpha=alpha,
-                markersize=8,
+                markersize=9,
             )
 
-        ax.set_title(
-            title,
-            fontsize=14,
-        )
-        ax.set_ylabel(ylabel, fontsize=12)
-        ax.set_xlabel("Initial Belief Condition", fontsize=12)
-        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.set_title(title, fontsize=14, pad=15, fontweight='bold')
+        ax.set_ylabel(ylabel, fontsize=12, labelpad=10)
+        ax.set_xlabel("Initial Belief Condition", fontsize=12, labelpad=10)
+        ax.grid(True, linestyle="--", alpha=0.4)
 
-    # (a) TSR 그래프에 화살표로 Robustness 강조
-    # axes[0].annotate(
-    #     "Stable Robustness\n(Ours)",
-    #     xy=(1, 89),
-    #     xytext=(1, 70),
-    #     arrowprops=dict(facecolor="red", shrink=0.05),
-    #     fontsize=10,
-    #     color="red",
-    #     ha="center",
-    #     fontweight="bold",
-    # )
-    # axes[0].annotate(
-    #     "Performance Drop\n(Baselines)",
-    #     xy=(2, 60),
-    #     xytext=(1.5, 75),
-    #     arrowprops=dict(facecolor="gray", shrink=0.05),
-    #     fontsize=10,
-    #     color="gray",
-    #     ha="center",
-    # )
+    
 
     # 범례 통합
     handles, labels = axes[0].get_legend_handles_labels()
@@ -290,14 +262,14 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         handles,
         labels,
         loc="lower center",
-        bbox_to_anchor=(0.5, -0.02),  # bbox_to_anchor 조정
+        bbox_to_anchor=(0.5, 0.005),  # bbox_to_anchor 조정
         ncol=6,
         fontsize=10,
     )
 
     plt.tight_layout()
     # tight_layout 후 하단 여백 확보
-    plt.subplots_adjust(bottom=0.2)
+    plt.subplots_adjust(bottom=0.25)
     if output_path:
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         print(f"그래프가 저장되었습니다: {output_path}")
@@ -317,7 +289,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_path",
         type=str,
-        default="assets/results/1112 copy/unified_analysis_summary.revised.json",
+        default="assets/results/unified_analysis_summary.revised.json",
         help="데이터 파일 경로를 지정합니다.",
     )
     parser.add_argument(
