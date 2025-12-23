@@ -38,7 +38,7 @@ METHOD_DISPLAY_NAMES: Dict[str, str] = {
     "dag_edf": "EDF",
     "cpm": "CPM",
     "progprompt": "ProgPrompt",
-    "cap_ai2thor_simulation": "CAP",
+    "cap_ai2thor_simulation": "Code as Policy (CaP)",
 }
 
 # Methods to be included in the main comparison table and their order

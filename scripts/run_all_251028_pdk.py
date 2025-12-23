@@ -675,8 +675,8 @@ def _find_latest_result_json_for_task(
                         / approach_name_variant
                         / "end_state.json"
                     )
-                if json_path.exists():
-                    candidates.append((0, json_path))
+                    if json_path.exists():
+                        candidates.append((0, json_path))
 
             # Numeric suffixed folders: key_1, key_2, ...
             for task_dir in base_dir.glob(f"{key}_*"):
