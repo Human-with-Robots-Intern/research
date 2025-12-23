@@ -873,7 +873,7 @@ class Scheduler:
             actual_interaction_start_time=curr_node.state.current_time,
             logical_interaction_start_time=curr_node.state.current_time,
         )
-
+        # 모니터링 작업을 수행하고, 그 결과를 모니터링 노드로 반환합니다.
         monitor_node = self._expand_subtask_wo_monitoring(
             curr_node, monitor_candidate, not_yet_candidates
         )
@@ -895,33 +895,33 @@ class Scheduler:
         if not new_constraints.has_node(candidate.subtask.name):
             new_constraints.add_node(candidate.subtask.name)
 
-        predecessor_edge_info = {"Interval": 0.0, "IsCritical": True}
+        pred_to_mon_edge = {"Interval": 0.0, "IsCritical": True}
         if not new_constraints.has_edge(predecessor_name, monitor_sub.name):
             new_constraints.add_edge(
                 predecessor_name,
                 monitor_sub.name,
-                info=predecessor_edge_info,
+                info=pred_to_mon_edge,
             )
         else:
             new_constraints.edges[predecessor_name, monitor_sub.name][
                 "info"
-            ] = predecessor_edge_info
+            ] = pred_to_mon_edge
 
         remaining_slack = max(
             0.0, target_actual_start_time - monitor_state.current_time
         )
-        candidate_edge_info = {"Interval": remaining_slack, "IsCritical": True}
+        mon_to_candidate_edge = {"Interval": remaining_slack, "IsCritical": True}
 
         if not new_constraints.has_edge(monitor_sub.name, candidate.subtask.name):
             new_constraints.add_edge(
                 monitor_sub.name,
                 candidate.subtask.name,
-                info=candidate_edge_info,
+                info=mon_to_candidate_edge,
             )
         else:
             new_constraints.edges[monitor_sub.name, candidate.subtask.name][
                 "info"
-            ] = candidate_edge_info
+            ] = mon_to_candidate_edge
 
         updated_state = SchedulerState(
             subtask=monitor_state.subtask,
@@ -965,10 +965,13 @@ class Scheduler:
                 ]["info"] = edge_info_start
 
             critical_deadline = critical_start_sub_end_time + critical_interval_duration
+            
+            # [Restored] '정확한 타이밍' 준수를 위해 Critical Deadline 기준으로 Interval을 재계산하여 적용합니다.
+            # Fallback 상황(target_start=current)이라도 Critical Constraint가 있다면 그 시간을 지켜야 합니다.
             interval_mon_to_end = max(0.0, critical_deadline - monitor_finish_time)
             edge_info_end = {"Interval": interval_mon_to_end, "IsCritical": True}
 
-            # [DEBUG LOG] Check Interval Update in _insert_monitoring_step
+            # [DEBUG LOG] Check Interval Update (Restored)
             prev_interval = "N/A"
             if constraints_with_critical.has_edge(
                 monitor_sub.name, critical_end_sub_name
@@ -985,7 +988,7 @@ class Scheduler:
                 f"[DEBUG _insert_monitoring_step] Updating Edge '{monitor_sub.name}' -> '{critical_end_sub_name}'\n"
                 f"  - CriticalDeadline: {critical_deadline:.2f} (StartEnd: {critical_start_sub_end_time:.2f} + Interval: {critical_interval_duration:.2f})\n"
                 f"  - MonitorFinish: {monitor_finish_time:.2f}\n"
-                f"  - Calc Interval: {interval_mon_to_end:.2f} (Prev: {prev_interval})"
+                f"  - Calc Interval/Override: {interval_mon_to_end:.2f} (Prev: {prev_interval})"
             )
 
             if not constraints_with_critical.has_edge(
@@ -998,12 +1001,6 @@ class Scheduler:
                 constraints_with_critical.edges[
                     monitor_sub.name, critical_end_sub_name
                 ]["info"] = edge_info_end
-
-            # Verify update
-            check_interval = constraints_with_critical.edges[
-                monitor_sub.name, critical_end_sub_name
-            ]["info"]["Interval"]
-            log.debug(f"  -> Update Verified: {check_interval:.2f}")
 
             updated_state = updated_state._replace(
                 constraints=constraints_with_critical
@@ -1172,10 +1169,22 @@ class Scheduler:
         if not split_successful or pre_ends_holding_object:
             log.warning(
                 f"Failed to split {original_task_name} with cutoff {duration_for_early_sub_target:.2f}. "
-                f"Executing the task without splitting as a fallback."
+                f"Switching to Pre-Monitoring (Check-Before-Act) strategy as a fallback."
             )
-            return self._expand_subtask_wo_monitoring(
-                curr_node, candidate, not_yet_candidates, feasible_candidates
+            # [Fallback] 분할 실패 시, 작업을 시작하기 '전'에 미리 모니터링을 수행하는 경로를 탐색에 추가합니다.
+            # 모니터링 시간만큼 작업 착수가 지연되지만, 불확실성을 해소할 수 있는 안전한 선택지입니다.
+            return self._insert_monitoring_step(
+                curr_node=curr_node,
+                candidate=candidate,
+                monitoring_target_obj=monitoring_target_obj,
+                predecessor_name=curr_node.state.subtask.name,
+                target_actual_start_time=curr_state.current_time,  # 즉시 수행
+                not_yet_candidates=not_yet_candidates,
+                critical_start_sub_name=critical_start_sub_name,
+                critical_start_sub_end_time=critical_start_sub_actual_end_time,
+                critical_end_sub_name=critical_end_sub_name,
+                critical_interval_duration=original_critical_interval_duration,
+                monitoring_target_sub_name=critical_end_sub_name,
             )
 
         log.info(f"{pre_actions_log.total_time_used()},{pre_actions_log=}")
@@ -1278,12 +1287,12 @@ class Scheduler:
                     ] + remain_sub_actions
 
         if remain_sub_actions:
-            remain_sub_task = copy.deepcopy(candidate.subtask)
-            remain_sub_task.name = f"REMAIN_{original_task_name}"
-            remain_sub_task.execution.primitive_actions = remain_sub_actions
-            remain_sub_task.decomposed = True
+            remain_subtask = copy.deepcopy(candidate.subtask)
+            remain_subtask.name = f"REMAIN_{original_task_name}"
+            remain_subtask.execution.primitive_actions = remain_sub_actions
+            remain_subtask.decomposed = True
             log.debug(
-                f"Prepared REMAIN subtask: {remain_sub_task.name} with {len(remain_sub_actions)} actions."
+                f"Prepared REMAIN subtask: {remain_subtask.name} with {len(remain_sub_actions)} actions."
             )
 
         # --- Phase 5: 제약 조건 그래프 및 remaining_subtasks 업데이트 ---
@@ -1306,14 +1315,14 @@ class Scheduler:
             log.debug(f"Node for EARLY subtask '{early_sub_task.name}' added to graph.")
         if not new_constraints_graph.has_node(mon_sub_task_for_main_interval.name):
             new_constraints_graph.add_node(mon_sub_task_for_main_interval.name)
-        if remain_sub_task and not new_constraints_graph.has_node(remain_sub_task.name):
-            new_constraints_graph.add_node(remain_sub_task.name)
+        if remain_subtask and not new_constraints_graph.has_node(remain_subtask.name):
+            new_constraints_graph.add_node(remain_subtask.name)
 
         for pred_name, _, data in original_task_in_edges_data:
             if pred_name not in [
                 early_sub_task.name,
                 mon_sub_task_for_main_interval.name,
-                (remain_sub_task.name if remain_sub_task else ""),
+                (remain_subtask.name if remain_subtask else ""),
                 original_task_name,
                 # critical_start_sub_name,
             ]:
@@ -1327,15 +1336,15 @@ class Scheduler:
                     )
 
         source_for_outgoing_edges = (
-            remain_sub_task.name
-            if remain_sub_task
+            remain_subtask.name
+            if remain_subtask
             else mon_sub_task_for_main_interval.name
         )
         for _, succ_name, data in original_task_out_edges_data:
             if succ_name not in [
                 early_sub_task.name,
                 mon_sub_task_for_main_interval.name,
-                (remain_sub_task.name if remain_sub_task else ""),
+                (remain_subtask.name if remain_subtask else ""),
                 original_task_name,
                 # critical_end_sub_name,
             ]:
@@ -1363,18 +1372,18 @@ class Scheduler:
                 f"Added internal constraint: '{early_sub_task.name}' -> '{mon_sub_task_for_main_interval.name}'."
             )
 
-        if remain_sub_task:
+        if remain_subtask:
             info_mon_to_remain = {"Interval": 0.0, "IsCritical": False}
             if not new_constraints_graph.has_edge(
-                mon_sub_task_for_main_interval.name, remain_sub_task.name
+                mon_sub_task_for_main_interval.name, remain_subtask.name
             ):
                 new_constraints_graph.add_edge(
                     mon_sub_task_for_main_interval.name,
-                    remain_sub_task.name,
+                    remain_subtask.name,
                     info=info_mon_to_remain,
                 )
                 log.debug(
-                    f"Added internal constraint: '{mon_sub_task_for_main_interval.name}' -> '{remain_sub_task.name}'."
+                    f"Added internal constraint: '{mon_sub_task_for_main_interval.name}' -> '{remain_subtask.name}'."
                 )
 
         interval_crit_start_to_mon = (
@@ -1412,7 +1421,7 @@ class Scheduler:
         )
         info_mon_to_crit_end = {
             "Interval": max(0.0, interval_mon_to_crit_end),
-            "IsCritical": False,
+            "IsCritical": True,
         }
 
         # [DEBUG LOG] Check Interval Update in _expand_subtask_with_monitoring
@@ -1468,13 +1477,13 @@ class Scheduler:
             r.name for r in final_remaining_subtasks_list
         }:
             final_remaining_subtasks_list.append(mon_sub_task_for_main_interval)
-        if remain_sub_task and remain_sub_task.name not in {
+        if remain_subtask and remain_subtask.name not in {
             r.name for r in final_remaining_subtasks_list
         }:
-            final_remaining_subtasks_list.append(remain_sub_task)
+            final_remaining_subtasks_list.append(remain_subtask)
 
         log.debug(
-            f"Updated remaining subtasks. Added mon: {mon_sub_task_for_main_interval.name}, remain: {remain_sub_task.name if remain_sub_task else 'None'}"
+            f"Updated remaining subtasks. Added mon: {mon_sub_task_for_main_interval.name}, remain: {remain_subtask.name if remain_subtask else 'None'}"
         )
         log.debug(
             f"  Final remaining: {[r.name for r in final_remaining_subtasks_list]}"
@@ -1511,7 +1520,6 @@ class Scheduler:
 
         # 1. 이미 Monitor 태스크를 수행한 직후라면 -> Trigger Time까지 Wait 수행
         if curr_node.state.subtask.subtask_type == "Monitor":
-
             return self._expand_wait_wo_monitoring(
                 curr_node,
                 candidate,
