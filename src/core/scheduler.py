@@ -384,9 +384,8 @@ class Scheduler:
 
             # Check urgency: Are we at or past the time we should start?
             # We use a tolerance to allow starting slightly early (On-time).
-            if (
-                physical_earliest_start
-                >= candidate.logical_interaction_start_time - TIMING_TOLERANCE_ABS
+            if TIMING_TOLERANCE_ABS >= abs(
+                candidate.logical_interaction_start_time - physical_earliest_start
             ):
                 # Update actual interaction start time
                 # We start as soon as physically possible (ASAP)
@@ -965,7 +964,7 @@ class Scheduler:
                 ]["info"] = edge_info_start
 
             critical_deadline = critical_start_sub_end_time + critical_interval_duration
-            
+
             # [Restored] '정확한 타이밍' 준수를 위해 Critical Deadline 기준으로 Interval을 재계산하여 적용합니다.
             # Fallback 상황(target_start=current)이라도 Critical Constraint가 있다면 그 시간을 지켜야 합니다.
             interval_mon_to_end = max(0.0, critical_deadline - monitor_finish_time)
