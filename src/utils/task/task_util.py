@@ -362,11 +362,12 @@ class TaskUtil:
                 # 2. 조건을 만족하는 '모든' 객체에 대해 Belief 생성
                 if common_obj_types:
                     for obj_type in common_obj_types:
-                        if (
-                            obj_type in constants.CRITICAL_OBJECT_INTERVALS
-                            or obj_type in constants.NON_CRITICAL_OBJECT_INTERVALS
-                        ):
-                            # Key를 obj_type으로 하여 Belief 업데이트
+                        if obj_type in constants.CRITICAL_OBJECT_INTERVALS:
+                            # Force urgency to True if it's a critical object
+                            tc.is_critical = True
+                            cls._update_constraint_belief(obj_type, tc, bayesian_load)
+                        elif obj_type in constants.NON_CRITICAL_OBJECT_INTERVALS:
+                            tc.is_critical = False
                             cls._update_constraint_belief(obj_type, tc, bayesian_load)
 
         # 3. (안전장치) LLM이 temporal_constraint를 생성하지 않았더라도, Belief를 가지도록 보장
