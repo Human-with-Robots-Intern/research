@@ -17,7 +17,7 @@ def load_instructions() -> Dict:
         The entire data structure from the JSON file.
     """
     instruction_file = (
-        ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251202.json"
+        ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251224.json"
     )
     try:
         with open(instruction_file, "r", encoding="utf-8") as f:
@@ -39,10 +39,22 @@ def filter_cases(
 
     filtered_keys = []
     for key in all_case_keys:
-        match = re.match(r"tasks_(\d+)_constraints_(\d+)", key)
-        if not match:
+        # Try matching new format first
+        # e.g., tasks_2_critical_1_non_critical_1_general_0
+        match_new = re.match(r"tasks_(\d+)_critical_(\d+)_", key)
+        
+        # Try matching old format
+        # e.g., tasks_2_constraints_1
+        match_old = re.match(r"tasks_(\d+)_constraints_(\d+)", key)
+
+        if match_new:
+            num_t = int(match_new.group(1))
+            num_c = int(match_new.group(2))
+        elif match_old:
+            num_t = int(match_old.group(1))
+            num_c = int(match_old.group(2))
+        else:
             continue
-        num_t, num_c = map(int, match.groups())
 
         # If filters are provided, the key must match them
         task_match = (not task_counts) or (num_t in task_counts)
@@ -114,7 +126,7 @@ def main() -> None:
             output_dir = (
                 ASSETS_PATH
                 / "tasks"
-                / "decomposed_final_revision_metadata_251114"
+                / "decomposed_final_revision_metadata_251224"
                 / case_key
                 / scene_name
             )
