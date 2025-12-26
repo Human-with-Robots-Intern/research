@@ -84,7 +84,8 @@ class HeuristicManager:
             "inf"
         ):
             log.debug(f"    [Urgency Detail] No Deadline -> 0.0")
-            return 0, 0.0
+            # Safe (Risk 1) for no deadline tasks
+            return 1, 0.0
 
         current_time = current_node.state.current_time
         deadline = candidate.scheduling_due.due_date
@@ -99,7 +100,13 @@ class HeuristicManager:
         )
 
         # 2. Map Slack to Base Risk & Cost
-        if slack >= -constants.TIMING_TOLERANCE_ABS:
+        # [Modified 251226] Hierarchical Risk Levels (Tuning-free)
+        # Risk 0: Warning (0.0 <= Slack < 10.0) -> Prioritize Urgency (Lower value sorts first)
+        # Risk 1: Safe (Slack >= 10.0) -> Optimize Efficiency
+        # Risk 2: Critical (Slack < 0.0) -> Late/Violated
+        if slack >= constants.TIMING_TOLERANCE_ABS:
+            return 1, slack
+        elif slack >= -constants.TIMING_TOLERANCE_ABS:
             return 0, slack
         else:
             return 2, 10000.0 + abs(slack)

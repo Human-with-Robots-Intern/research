@@ -187,7 +187,7 @@ class Scheduler:
             # Primary: risk_level (Ascending - 0 is best)
             # Secondary: heuristic_cost (Ascending - lower cost is best)
             expanded_nodes = sorted(
-                filter(lambda nd: nd.risk_level == 0, expanded_nodes),
+                filter(lambda nd: nd.risk_level < 2, expanded_nodes),
                 key=lambda nd: nd.heuristic_cost,
             )
 
@@ -213,16 +213,73 @@ class Scheduler:
             key=lambda nd: (nd.risk_level, nd.heuristic_cost),
         )
 
+        # ----------------------------------------------------------------------
+        # [Voting Logic] Robust Selection via Beam Voting
+        # Top-K candidates vote on the first action (Depth 1).
+        # ----------------------------------------------------------------------
+        top_k = best_solutions[: self.search_width]
+        vote_counts = {}
+        representative_node = {}  # key: step_name, value: best_node_for_that_step
+
+        for sol_node in top_k:
+            # Trace back to depth 1
+            curr = sol_node
+            while curr and curr.depth > 1:
+                curr = curr.parent_node
+
+            if curr and curr.depth == 1 and curr.state.subtask:
+                step_name = curr.state.subtask.name
+                vote_counts[step_name] = vote_counts.get(step_name, 0) + 1
+
+                # First encounter in sorted list is the best representative
+                if step_name not in representative_node:
+                    representative_node[step_name] = sol_node
+
+        winner = best_solutions[0]
+        if vote_counts:
+
+            def _sort_key(step_name):
+                # Max votes, then Min Risk, Min Cost
+                node = representative_node[step_name]
+                return (
+                    vote_counts[step_name],
+                    -node.risk_level,
+                    -node.heuristic_cost,
+                )
+
+            winning_step = max(vote_counts.keys(), key=_sort_key)
+            winner = representative_node[winning_step]
+
+            log.debug(
+                f"[_simulate_search] Voting Result (Top {len(top_k)}): {vote_counts}. Winner: '{winning_step}'"
+            )
+
         log.debug(
             f"\n--- Best Solutions Evaluation ({len(best_solutions)} candidates) ---"
         )
         for i, nd in enumerate(best_solutions):
-            rank_str = "WINNER" if i == 0 else f"Rank {i+1}"
+            # Trace full path for logging
+            path_names = []
+            temp_node = nd
+            while temp_node:
+                if temp_node.state and temp_node.state.subtask:
+                    path_names.append(temp_node.state.subtask.name)
+                temp_node = temp_node.parent_node
+
+            full_path_str = " -> ".join(reversed(path_names))
+
+            # Mark the actual winner
+            if nd is winner:
+                rank_str = "SELECTED"
+            elif i == 0:
+                rank_str = "RANK 1"
+            else:
+                rank_str = f"Rank {i + 1}"
+
             log.debug(
-                f"  [{rank_str:<8}] {nd.state.subtask.name:<30} | Risk: {nd.risk_level} | Cost: {nd.heuristic_cost:.2f} | Depth: {nd.depth}"
+                f"  [{rank_str:<8}] {full_path_str} | Risk: {nd.risk_level} | Cost: {nd.heuristic_cost:.2f} | Depth: {nd.depth}"
             )
 
-        winner = best_solutions[0]
         log.debug(
             f"[_simulate_search] Final Decision: '{winner.state.subtask.name}' selected. (Risk={winner.risk_level}, Cost={winner.heuristic_cost:.2f})\n"
         )
@@ -812,11 +869,14 @@ class Scheduler:
         if feasible_candidates:
             all_candidates = feasible_candidates + not_yet_candidates
 
-        step_risk, pure_h_cost = self.cost_calculator.calc_heuristic(
+        step_risk, step_cost = self.cost_calculator.calc_heuristic(
             curr_node, candidate, all_candidates
         )
 
-        new_cost = pure_h_cost + curr_node.heuristic_cost
+        # [Modified] Use Standard A* Cost (f = g + h)
+        # g(n) = current_time (Time elapsed so far)
+        # h(n) = step_cost (Estimated remaining work)
+        new_cost = curr_node.state.current_time + step_cost
 
         # Accumulate max risk level along the path
         new_risk = max(curr_node.risk_level, step_risk)
@@ -824,7 +884,7 @@ class Scheduler:
         log.info(
             f"  [Action] {candidate.subtask.name}\n"
             f"    └─ Time : {planned_nav_start_time:.2f} (Nav) -> {planned_interaction_start_time:.2f} (Start) -> {planned_subtask_completion_time:.2f} (End)\n"
-            f"    └─ Cost : {pure_h_cost:.2f} (H) + {0:.2f} (G) = {new_cost:.2f} | Risk: {new_risk} | Depth: {curr_depth + 1}"
+            f"    └─ Cost : {step_cost:.2f} (H) + {0:.2f} (G) = {new_cost:.2f} | Risk: {new_risk} | Depth: {curr_depth + 1}"
         )
 
         return SimulationNode(
@@ -905,7 +965,11 @@ class Scheduler:
             new_constraints.edges[predecessor_name, monitor_sub.name][
                 "info"
             ] = pred_to_mon_edge
-
+        if target_actual_start_time is None or monitor_state.current_time is None:
+            log.debug(
+                f"target_actual_start_time: {target_actual_start_time}, monitor_state.current_time: {monitor_state.current_time}"
+            )
+            pass
         remaining_slack = max(
             0.0, target_actual_start_time - monitor_state.current_time
         )
@@ -1535,6 +1599,9 @@ class Scheduler:
         critical_start_sub_end_time = None
         critical_interval_duration = None
 
+        if candidate.actual_interaction_start_time is None:
+            pass
+
         # Candidate 자체로 들어오는 Critical Edge 찾기
         incoming_slots = self.constraint_handler.get_time_slots(
             candidate.subtask.name, curr_state.constraints, "in"
@@ -1705,7 +1772,7 @@ class Scheduler:
         )
         # Same logic as above: prevent double counting of future costs.
         # f(n) = time_so_far + heuristic_score + past_penalties
-        new_cost = step_cost + curr_node.heuristic_cost
+        new_cost = curr_node.state.current_time + step_cost
 
         # Accumulate max risk level
         new_risk = max(curr_node.risk_level, step_risk)
