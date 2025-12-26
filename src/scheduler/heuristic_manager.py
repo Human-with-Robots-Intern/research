@@ -45,27 +45,32 @@ class HeuristicManager:
         all_candidates: List[Candidate],
     ) -> Tuple[int, float, float]:
         """
-        Calculates the heuristic cost for a given candidate subtask.
-        Returns: (risk_level, total_heuristic_cost)
+        Calculates the heuristic cost: g(n) + h(n)
+        g(n): Current Time
+        h(n): Remaining Work + Unstarted Debt
         """
 
-        # 1. Calculate Urgency & Risk
-        risk_level, urgency_cost = self._calculate_candidate_risk_and_urgency(
+        # 1. Risk 계산 (기존 로직 유지)
+        # Urgency Cost는 Risk Level 산출용으로만 씁니다.
+        risk_level, _ = self._calculate_candidate_risk_and_urgency(
             current_node, candidate
         )
 
-        # 2. Calculate Future Workload Cost
+        # 2. Remaining Work Cost 계산 (Unstarted Debt 포함)
         remaining_work_cost = self._calculate_remaining_work_cost(
             current_node, candidate
         )
 
-        total_heuristic_cost = remaining_work_cost
+        # 3. Total Cost = g(n) + h(n)
+        # g(n): 현재까지 흐른 시간 (current_node.state.current_time)
+        # h(n): 앞으로 남은 예상 비용 (remaining_work_cost)
+        total_heuristic_cost = current_node.state.current_time + remaining_work_cost
 
         log.debug(
             f"  [Heuristic] '{candidate.subtask.name}'\n"
-            f"    └─ Urgency : {self.beta:.1f} * {urgency_cost:6.2f} = {self.beta * urgency_cost:6.2f} (EXCLUDED)\n"
-            f"    └─ RemWork : {self.gamma:.1f} * {remaining_work_cost:6.2f} = {self.gamma * remaining_work_cost:6.2f}\n"
-            f"    └─ Total   : {total_heuristic_cost:6.3f} | Risk: {risk_level}"
+            f"    └─ Time(g) : {current_node.state.current_time:.2f}\n"
+            f"    └─ Rem(h)  : {remaining_work_cost:.2f}\n"
+            f"    └─ Total   : {total_heuristic_cost:.2f} | Risk: {risk_level}"
         )
 
         return risk_level, total_heuristic_cost
@@ -109,6 +114,8 @@ class HeuristicManager:
     ) -> float:
         """Estimates time needed for nav + interaction + lookahead return trip."""
         nav_time = candidate.estimated_first_nav_duration or 0.0
+        if candidate.subtask.name == "Wait for Turn Off Faucet after Pot is Filled":
+            pass
         chain_duration, _ = self._get_chain_info(current_node, candidate.subtask)
 
         # [Fix] If the deadline is for the candidate itself (Start Time Constraint),
@@ -186,10 +193,7 @@ class HeuristicManager:
             for _, target, data in out_edges:
                 info = data.get("info", {})
                 # Check for critical chain link (IsCritical AND Interval ~ 0)
-                if (
-                    info.get("IsCritical")
-                    and info.get("Interval", 0.0) <= constants.EPSILON
-                ):
+                if info.get("IsCritical") and info.get("Interval", 0.0):
                     next_name = target
                     break
 
@@ -229,38 +233,61 @@ class HeuristicManager:
     def _calculate_remaining_work_cost(
         self, current_node: SimulationNode, candidate: Candidate
     ) -> float:
-        """Estimates cost of ALL remaining tasks after candidate."""
-        chain_duration, chain_members = self._get_chain_info(
-            current_node, candidate.subtask
+        """
+        Estimates cost: Sum of Durations + MST + Unstarted Critical Intervals (Debt)
+        """
+
+        # 1. 이번 스텝에서 처리될 것으로 간주하는 체인 멤버 파악
+        _, chain_members = self._get_chain_info(current_node, candidate.subtask)
+
+        # 2. 남은 태스크 목록 (이번 후보 제외)
+        remaining_tasks = [
+            t
+            for t in current_node.state.remaining_subtasks
+            if t.name not in chain_members
+        ]
+        remaining_names = {t.name for t in remaining_tasks}
+
+        # 3. Sum of Durations (작업 시간 총량 - 단순 합)
+        sum_duration = sum(
+            self._get_estimated_pure_interaction_time(t) for t in remaining_tasks
         )
 
-        # Simulate execution for next state
+        # 4. MST (이동 시간 추정)
+        # 시뮬레이션 실행하여 다음 위치 파악
         exec_info = self.action_handler.get_actions_info(
             current_node, candidate.subtask.execution.primitive_actions
         )
-
-        next_pos = tuple(exec_info.scene_positions.get("agent"))
-        next_scene_pos = exec_info.scene_positions
-
-        cp_duration = self._calculate_critical_path_interaction_duration(
-            {
-                t
-                for t in current_node.state.remaining_subtasks
-                if t.name not in chain_members
-            },
-            current_node.state.constraints,
-            candidate.subtask,
-        )
+        if exec_info:
+            next_pos = tuple(exec_info.scene_positions.get("agent"))
+            next_scene_pos = exec_info.scene_positions
+        else:
+            next_pos = None
+            next_scene_pos = current_node.state.scene_positions
 
         mst_time = self._calculate_mst_navigation_time(
             next_pos, current_node.state.remaining_subtasks, next_scene_pos
         )
 
+        # 5. [핵심] Unstarted Critical Interval Debt (부채)
+        # 아직 시작 안 된 태스크가 시점(Source)인 Critical Edge들의 Interval 합
+        debt = 0.0
+        graph = current_node.state.constraints
+
+        for u, v, data in graph.edges(data=True):
+            info = data.get("info", {})
+            # Critical하면서 Interval이 있는 경우 (유효한 제약조건)
+            if info.get("IsCritical") and info.get("Interval", 0.0) > constants.EPSILON:
+                # 시작점 u가 아직 남은 작업 목록에 있다면 (= 아직 타이머가 안 켜졌다면)
+                # 이 Interval은 우리가 짊어지고 있는 '잠재적 비용'입니다.
+                if u in remaining_names:
+                    debt += info["Interval"]
+
         log.debug(
-            f"    [RemWork Detail] CP({cp_duration:.2f}) + MST({mst_time:.2f}) = {cp_duration + mst_time:.2f}"
+            f"    [RemWork Detail] WorkSum({sum_duration:.2f}) + MST({mst_time:.2f}) + Debt({debt:.2f}) = {sum_duration + mst_time + debt:.2f}"
         )
 
-        return cp_duration + mst_time
+        return sum_duration + mst_time + debt
 
     # ========================================================================
     # Helper Functions - Estimation & Graph
@@ -317,70 +344,6 @@ class HeuristicManager:
             return 0.0
         path = self.action_handler._find_shortest_path(pos1, pos2)
         return len(path) * NAV_STEP_DURATION if path else 0.0
-
-    def _calculate_critical_path_interaction_duration(
-        self,
-        remaining_tasks: Set[Subtask],
-        constraints: nx.DiGraph,
-        executed_subtask: Optional[Subtask],
-    ) -> float:
-        if not remaining_tasks:
-            return 0.0
-
-        task_names = {sub.name for sub in remaining_tasks}
-        subgraph = constraints.subgraph(task_names).copy()
-
-        # Pre-calculate durations
-        durations = {
-            t.name: self._get_estimated_pure_interaction_time(t)
-            for t in remaining_tasks
-        }
-
-        earliest_finish = {name: 0.0 for name in task_names}
-
-        for node in nx.topological_sort(subgraph):
-            max_pred_finish = 0.0
-            for pred, _, data in subgraph.in_edges(node, data=True):
-                if pred in earliest_finish:
-                    interval = data.get("info", {}).get("Interval", 0.0)
-                    max_pred_finish = max(
-                        max_pred_finish, earliest_finish[pred] + interval
-                    )
-
-            earliest_finish[node] = max_pred_finish + durations.get(node, 0.0)
-
-        cp_duration = max(earliest_finish.values()) if earliest_finish else 0.0
-
-        # Apply credit for starting a critical chain (Multi-hop supported)
-        if executed_subtask and constraints.has_node(executed_subtask.name):
-            discount = 0.0
-
-            # BFS 탐색을 위한 큐 초기화
-            queue = [executed_subtask.name]
-            visited_chain = {executed_subtask.name}
-
-            while queue:
-                curr_node = queue.pop(0)
-
-                for _, succ, data in constraints.out_edges(curr_node, data=True):
-                    # 남은 작업 목록에 있고, Critical 연결인 경우만 고려
-                    if succ in task_names and data.get("info", {}).get("IsCritical"):
-                        interval = data.get("info", {}).get("Interval", 0.0)
-
-                        if interval > constants.EPSILON:
-                            # 유의미한 Interval(대기 시간) 발견 -> 할인 적용
-                            discount += interval
-
-                        # [Modified] Interval 유무와 상관없이 Critical Chain을 계속 탐색하여
-                        # 연결된 모든 대기 시간을 할인(보상)에 포함시킵니다.
-                        if succ not in visited_chain:
-                            visited_chain.add(succ)
-                            queue.append(succ)
-
-            if discount > 0:
-                cp_duration = max(0.0, cp_duration - discount)
-
-        return cp_duration
 
     def _calculate_mst_navigation_time(
         self,

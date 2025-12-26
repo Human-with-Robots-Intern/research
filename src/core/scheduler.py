@@ -114,12 +114,8 @@ class Scheduler:
     # ======================
     def _simulate_search(self, init_state: SchedulerState) -> Optional[SimulationNode]:
         """
-        Conducts a beam search up to self.simulation_depth from the init_state.
-        - Each node expansion checks feasible and not-yet-feasible candidates.
-        - If no feasible expansions exist, that branch try wait expansion.
-        - A queue (PriorityQueue) is used to keep track of expansions by ascending cost.
-        - We collect "best solutions" (i.e., states in which all tasks are done
-          or we have reached the search depth) and return the least-cost one.
+        Conducts a Global Best-First Search (A*) up to self.simulation_depth from the init_state.
+        Instead of local pruning, we use a global priority queue to explore the most promising paths.
 
         Args:
             init_state (SchedulerState): The root state to start the simulation.
@@ -183,24 +179,17 @@ class Scheduler:
             expanded_nodes = self._expand_candidates(
                 curr_node, feasible_candidates, not_yet_candidates
             )
-            # Sort by (Risk Level, Makespan Cost)
-            # Primary: risk_level (Ascending - 0 is best)
-            # Secondary: heuristic_cost (Ascending - lower cost is best)
-            expanded_nodes = sorted(
-                filter(lambda nd: nd.risk_level == 0, expanded_nodes),
-                key=lambda nd: nd.heuristic_cost,
-            )
 
-            # (3) Local Beam Pruning: Keep only the top-K expansions
-            log.debug(f"--- Top Candidates (Depth {curr_depth}) ---")
-            for i, nd in enumerate(expanded_nodes):
-                if i < self.search_width:
-                    log.debug(
-                        f"  [{i+1}] {nd.state.subtask.name:<40} | Cost: {nd.heuristic_cost:.2f} | Risk: {nd.risk_level} | EndTime: {nd.state.current_time:.2f}"
-                    )
-                    queue.put(nd)
-                else:
-                    break
+            # (3) Global Expansion: Add all valid nodes to the PriorityQueue
+            # Apply Risk Penalty to Cost for Soft Risk Management
+
+            for nd in expanded_nodes:
+                # Hard Constraint Check: Risk >= 2 (Constraint Violation) -> Prune
+                if nd.risk_level >= 2:
+                    log.debug(f"  [Pruned] Risk Level {nd.risk_level} (Violation)")
+                    continue
+
+                queue.put(nd)
 
         if not best_solutions:
             log.error("[_simulate_search] best_solutions empty => no feasible path")
@@ -208,6 +197,7 @@ class Scheduler:
 
         # Return the best solution (lowest cost)
         # Sort by (Risk Level, Heuristic Cost)
+        # Note: In Global Search, risk is already integrated into cost, but we keep this for safety.
         best_solutions = sorted(
             best_solutions,
             key=lambda nd: (nd.risk_level, nd.heuristic_cost),
@@ -217,9 +207,18 @@ class Scheduler:
             f"\n--- Best Solutions Evaluation ({len(best_solutions)} candidates) ---"
         )
         for i, nd in enumerate(best_solutions):
+            # Build path string
+            path_nodes = []
+            curr = nd
+            while curr and curr.depth > 0:
+                path_nodes.append(curr.state.subtask.name)
+                curr = curr.parent_node
+            path_nodes.reverse()
+            path_str = " -> ".join(path_nodes)
+
             rank_str = "WINNER" if i == 0 else f"Rank {i+1}"
             log.debug(
-                f"  [{rank_str:<8}] {nd.state.subtask.name:<30} | Risk: {nd.risk_level} | Cost: {nd.heuristic_cost:.2f} | Depth: {nd.depth}"
+                f"  [{rank_str:<8}] {nd.state.subtask.name:<30} | Risk: {nd.risk_level} | Cost: {nd.heuristic_cost:.2f} | Depth: {nd.depth} | Path: {path_str}"
             )
 
         winner = best_solutions[0]
@@ -812,11 +811,13 @@ class Scheduler:
         if feasible_candidates:
             all_candidates = feasible_candidates + not_yet_candidates
 
-        step_risk, pure_h_cost = self.cost_calculator.calc_heuristic(
+        step_risk, total_heuristic_cost = self.cost_calculator.calc_heuristic(
             curr_node, candidate, all_candidates
         )
 
-        new_cost = pure_h_cost + curr_node.heuristic_cost
+        # [Modified] HeuristicManager now returns the total cost (g(n) + h(n)).
+        # We should NOT add curr_node.heuristic_cost anymore.
+        new_cost = total_heuristic_cost
 
         # Accumulate max risk level along the path
         new_risk = max(curr_node.risk_level, step_risk)
@@ -824,7 +825,7 @@ class Scheduler:
         log.info(
             f"  [Action] {candidate.subtask.name}\n"
             f"    └─ Time : {planned_nav_start_time:.2f} (Nav) -> {planned_interaction_start_time:.2f} (Start) -> {planned_subtask_completion_time:.2f} (End)\n"
-            f"    └─ Cost : {pure_h_cost:.2f} (H) + {0:.2f} (G) = {new_cost:.2f} | Risk: {new_risk} | Depth: {curr_depth + 1}"
+            f"    └─ Cost : {new_cost:.2f} (Total) | Risk: {new_risk} | Depth: {curr_depth + 1}"
         )
 
         return SimulationNode(
@@ -1654,7 +1655,7 @@ class Scheduler:
             name=f"Wait for {candidate.subtask.name}",
             duration=Duration(interval=total_wait_duration, type="Controllable"),
             repetition=1,
-            subtask_type="Interaction",
+            subtask_type="WAIT",
             execution=Execution(
                 objects=None, primitive_actions=[f"WAIT {total_wait_duration}"]
             ),
@@ -1697,15 +1698,16 @@ class Scheduler:
         if feasible_candidates:
             all_candidates = feasible_candidates + not_yet_candidates
 
-        step_risk, step_cost = self.cost_calculator.calc_heuristic(
+        step_risk, total_heuristic_cost = self.cost_calculator.calc_heuristic(
             curr_node,
             wait_candidate,
             all_candidates,
             # Wait action creates delay. We must check if this delay hurts ANY feasible or not_yet task.
         )
-        # Same logic as above: prevent double counting of future costs.
-        # f(n) = time_so_far + heuristic_score + past_penalties
-        new_cost = step_cost + curr_node.heuristic_cost
+
+        # [Modified] HeuristicManager now returns the total cost (g(n) + h(n)).
+        # We should NOT add curr_node.heuristic_cost anymore.
+        new_cost = total_heuristic_cost
 
         # Accumulate max risk level
         new_risk = max(curr_node.risk_level, step_risk)
@@ -1713,7 +1715,7 @@ class Scheduler:
         log.info(
             f"  [Wait] For {candidate.subtask.name}\n"
             f"    └─ Time : {start_time:.2f} -> {end_time:.2f} (Duration: {total_wait_duration:.2f})\n"
-            f"    └─ Cost : {step_cost:.2f} (H) = {new_cost:.2f} | Risk: {new_risk} | Depth: {depth + 1}"
+            f"    └─ Cost : {new_cost:.2f} (Total) | Risk: {new_risk} | Depth: {depth + 1}"
         )
 
         return SimulationNode(
