@@ -615,7 +615,7 @@ def simulate_execution(
                         f"{current_state_prompt}\n\n{state}\n\n{assert_statement}\n"
                     )
                     _, check_state = LM_assert(
-                        current_state, args.gpt_version, max_tokens=2, stop=["\n"]
+                        current_state, args.gpt_version, max_tokens=2, temperature=0, stop=["\n"]
                     )
 
                     log_file.write(

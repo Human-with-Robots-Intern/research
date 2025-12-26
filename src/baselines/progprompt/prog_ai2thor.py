@@ -300,6 +300,7 @@ def generate_plan(
         curr_prompt,
         args.gpt_version,
         max_tokens=2048,
+        temperature=0,
         stop=["def"],
         frequency_penalty=0.15,
     )
