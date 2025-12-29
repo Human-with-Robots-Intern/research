@@ -64,7 +64,7 @@ class HeuristicManager:
         # 3. Total Cost = g(n) + h(n)
         # g(n): 현재까지 흐른 시간 (current_node.state.current_time)
         # h(n): 앞으로 남은 예상 비용 (remaining_work_cost)
-        total_heuristic_cost = current_node.state.current_time + remaining_work_cost
+        total_heuristic_cost = remaining_work_cost
 
         log.debug(
             f"  [Heuristic] '{candidate.subtask.name}'\n"
