@@ -78,6 +78,11 @@ def main() -> None:
         for difficulty_dir in sorted(d for d in states_folder.iterdir() if d.is_dir()):
             for task_dir in sorted(t for t in difficulty_dir.iterdir() if t.is_dir()):
                 instruction_raw = re.sub(r"^\d{2}_", "", task_dir.name)
+
+                # Filter out 'constraints_0' tasks
+                if "constraints_0" in difficulty_dir.name:
+                    continue
+
                 parsed_tasks = parse_instruction_to_tasks(
                     instruction_raw, all_task_names
                 )
@@ -113,12 +118,12 @@ def main() -> None:
                                 "Failed to load trajectory: %s (%s)", traj_path, e
                             )
                             continue
-                        
+
                         # makespan 계산: trajectory의 모든 action duration 합
                         makespan: float = sum(
                             event.get("duration", 0.0) for event in events_data
                         )
-                        
+
                         task_results = evaluate_tasks(
                             events=events_data,
                             task_names=valid_task_names,
@@ -142,11 +147,11 @@ def main() -> None:
                             "makespan": makespan,
                             "tasks": {},
                         }
-                        
+
                         for task_name, task_result in task_results.items():
                             # Print summary
                             # print(f"- {task_name}: GCR={task_result.gcr_pass}")
-                            
+
                             # Print multiple TSRs if available
                             # if task_result.tsr_results:
                             #     for tsr_name, tsr_result in task_result.tsr_results.items():
@@ -161,20 +166,23 @@ def main() -> None:
                                 "gcr_satisfied": task_result.gcr_pass,
                                 "gcr_mid_satisfied_step": task_result.gcr_mid_satisfied_step,
                             }
-                            
+
                             # Multiple TSR 결과 추가
                             if task_result.tsr_results:
                                 task_eval["tsrs"] = {}
-                                for tsr_name, tsr_result in task_result.tsr_results.items():
+                                for (
+                                    tsr_name,
+                                    tsr_result,
+                                ) in task_result.tsr_results.items():
                                     task_eval["tsrs"][tsr_name] = {
                                         "passed": tsr_result.passed,
                                         "duration": tsr_result.duration,
                                         "trigger_step": tsr_result.trigger_step,
                                         "end_step": tsr_result.end_step,
                                     }
-                            
+
                             evaluation_results["tasks"][task_name] = task_eval
-                        
+
                         # 평가 결과를 같은 디렉토리에 저장
                         eval_result_path = approach_dir / "evaluation_result.json"
                         with eval_result_path.open("w") as f:

@@ -54,11 +54,21 @@ MAIN_METHODS: List[str] = [
 ABLATION_METHOD_KEY: str = "dag_bayesian_NONE_MONITORING"
 
 # Order and labels for task difficulties (based on number of subtasks)
-TASK_ORDER: List[str] = ["tasks_2", "tasks_3", "tasks_4"]
+TASK_ORDER: List[str] = [
+    "tasks_2_constraints_1",
+    "tasks_2_constraints_2",
+    "tasks_3_constraints_1",
+    "tasks_3_constraints_2",
+    "tasks_4_constraints_1",
+    "tasks_4_constraints_2",
+]
 TASK_DISPLAY_NAMES: Dict[str, str] = {
-    "tasks_2": "Simple",
-    "tasks_3": "Medium",
-    "tasks_4": "Complex",
+    "tasks_2_constraints_1": "Tasks 2 (C=1)",
+    "tasks_2_constraints_2": "Tasks 2 (C=2)",
+    "tasks_3_constraints_1": "Tasks 3 (C=1)",
+    "tasks_3_constraints_2": "Tasks 3 (C=2)",
+    "tasks_4_constraints_1": "Tasks 4 (C=1)",
+    "tasks_4_constraints_2": "Tasks 4 (C=2)",
 }
 
 # Approaches to exclude from the final analysis
@@ -128,11 +138,10 @@ def reorder_metrics_dict(data: Dict[str, float]) -> "OrderedDict[str, float]":
 
 
 def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
-    """Aggregate summary metrics by task length.
+    """Aggregate summary metrics by task and constraint type.
 
-    This function processes a summary dictionary, identifies task cases like
-    "tasks_<n>_constraints_<m>", and averages their metrics across all
-    constraint variations for each task length 'n'.
+    This function processes a summary dictionary and groups results by
+    task length and constraint count (e.g., "tasks_2_constraints_1").
 
     Note: TSR (Timing Success Rate) is only calculated for constraints >= 1,
     excluding constraints_0 cases.
@@ -143,8 +152,8 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
 
     Returns:
         Dict[str, Any]: A new summary dictionary with metrics aggregated
-            by task length, structured as
-            merged[approach]["tasks_<n>"][init_case] = averaged_metrics.
+            by task/constraint, structured as
+            merged[approach][task_constraint_key][init_case] = averaged_metrics.
     """
     sums: Dict[str, Dict[str, Dict[str, Dict[str, float]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
@@ -165,7 +174,7 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
             if constraints_num == 0:
                 continue
 
-            tasks_key = f"tasks_{tasks_num}"
+            tasks_key = f"tasks_{tasks_num}_constraints_{constraints_num}"
             init_dict = task_data.get("init", {})
 
             if not isinstance(init_dict, dict):
