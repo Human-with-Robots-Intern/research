@@ -67,10 +67,7 @@ class HeuristicManager:
         total_heuristic_cost = remaining_work_cost
 
         log.debug(
-            f"  [Heuristic] '{candidate.subtask.name}'\n"
-            f"    └─ Time(g) : {current_node.state.current_time:.2f}\n"
-            f"    └─ Rem(h)  : {remaining_work_cost:.2f}\n"
-            f"    └─ Total   : {total_heuristic_cost:.2f} | Risk: {risk_level}"
+            f"  [calc_heuristic] '{candidate.subtask.name}: Total   : {total_heuristic_cost:.2f}: Time({current_node.state.current_time:.2f}) + Rem({remaining_work_cost:.2f}) | Risk: {risk_level}'"
         )
 
         return risk_level, total_heuristic_cost
@@ -88,7 +85,9 @@ class HeuristicManager:
         if not candidate.scheduling_due or candidate.scheduling_due.due_date == float(
             "inf"
         ):
-            log.debug(f"    [Urgency Detail] No Deadline -> 0.0")
+            log.debug(
+                f"[_calculate_candidate_risk_and_urgency] No Deadline -> risk: 0.0"
+            )
             return 0, 0.0
 
         current_time = current_node.state.current_time
@@ -100,13 +99,15 @@ class HeuristicManager:
         slack = time_available - total_time_needed
 
         log.debug(
-            f"    [Urgency Detail] Slack({slack:.2f}) = Deadline({deadline:.2f}) - Now({current_time:.2f}) - Needed({total_time_needed:.2f})"
+            f"[_calculate_candidate_risk_and_urgency] Slack({slack:.2f}) = Deadline({deadline:.2f}) - Now({current_time:.2f}) - Needed({total_time_needed:.2f})"
         )
 
         # 2. Map Slack to Base Risk & Cost
         if slack >= -constants.TIMING_TOLERANCE_ABS:
+            log.debug(f"[_calculate_candidate_risk_and_urgency] Risk: 0.0")
             return 0, slack
         else:
+            log.debug(f"[_calculate_candidate_risk_and_urgency] Risk: 2.0")
             return 2, 10000.0 + abs(slack)
 
     def _estimate_total_time_needed(
@@ -283,6 +284,7 @@ class HeuristicManager:
         # Thus, we should NOT count the interval starting at 'u' as "Unstarted Debt".
         # This encourages starting long chains early.
         activated_tasks = {candidate.subtask.name}
+        debt_infos = []
         if graph.has_node(candidate.subtask.name):
             activated_tasks.update(nx.descendants(graph, candidate.subtask.name))
 
@@ -296,16 +298,14 @@ class HeuristicManager:
                     # [Improved] If 'u' is activated by this candidate, skip adding debt.
                     if u in activated_tasks:
                         continue
-
                     debt += info["Interval"]
-                    log.debug(
-                        f"      [Debt Add] {u} -> {v} (Interval: {info['Interval']})"
-                    )
+                    debt_infos.append(f"{u} -> {v} (Interval: {info['Interval']})")
 
         log.debug(
-            f"    [RemWork Detail] WorkSum({sum_duration:.2f}) + MST({mst_time:.2f}) + Debt({debt:.2f}) = {sum_duration + mst_time + debt:.2f}"
+            f"[_calculate_remaining_work_cost] {sum_duration + mst_time + debt:.2f} = WorkSum({sum_duration:.2f}) + MST({mst_time:.2f}) + Debt({debt:.2f})"
         )
-
+        for idx, debt_info in enumerate(debt_infos, 1):
+            log.debug(f"    [Debt info {idx}] {debt_info}")
         return sum_duration + mst_time + debt
 
     # ========================================================================

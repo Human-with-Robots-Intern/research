@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from site import abs_paths
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
@@ -149,7 +150,7 @@ def save_scene_state(
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(object_states, f, indent=4)
 
-    print(f"'{scene_name}'의 scene 상태가 {output_path}에 저장되었습니다.")
+    print(f"'{scene_name}'의 scene 상태가 {output_path.resolve()} 저장되었습니다.")
 
 
 def get_changed_object_states_ros(
@@ -177,24 +178,23 @@ def get_changed_object_states_ros(
 
         # 비교할 속성 키 목록
         keys_to_check = ["position", "isCooked", "isToggled", "parentReceptacles"]
-        
+
         is_changed = False
         changed_properties = {}
 
         for key in keys_to_check:
             val_before = state_before.get(key)
             val_after = state_after.get(key)
-            
+
             # 값이 다르면 변경으로 간주 (둘 다 None인 경우는 제외)
             if val_before != val_after:
                 is_changed = True
                 changed_properties[key] = val_after
 
         if is_changed:
-            state_changes.append({
-                "object_name": obj_name,
-                "property": changed_properties
-            })
+            state_changes.append(
+                {"object_name": obj_name, "property": changed_properties}
+            )
 
     return state_changes
 
