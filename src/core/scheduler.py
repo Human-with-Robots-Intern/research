@@ -24,12 +24,12 @@ from src.utils.config import (
     RED,
     RESET,
     TIMING_TOLERANCE_ABS,
+    constants,
 )
 from src.utils.config.constants import (
     BAYESIAN_THRESHOLD_PROBABILITY,
     BEAM_WIDTH,
     INIT_PRIOR_VARIANCE,
-    MONITORING_ENABLED,
     SIMULATION_DEPTH,
 )
 from src.utils.task import TaskUtil
@@ -559,7 +559,7 @@ class Scheduler:
         need_monitor, due_info = self._should_split_with_monitoring(
             curr_node, candidate
         )
-        if need_monitor and MONITORING_ENABLED:
+        if need_monitor and constants.MONITORING_ENABLED:
             log.debug(
                 f"[_expand_single_subtask] Subtask {candidate.subtask.name} requires monitoring-based splitting."
             )
@@ -606,7 +606,7 @@ class Scheduler:
             curr_node, candidate
         )
 
-        if need_monitor and MONITORING_ENABLED:
+        if need_monitor and constants.MONITORING_ENABLED:
             return self._expand_wait_with_monitoring(
                 curr_node,
                 candidate,

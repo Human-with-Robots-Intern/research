@@ -175,6 +175,7 @@ def log_action_state(func: Callable) -> Callable:
         duration = result if isinstance(result, (int, float)) else 0.0
 
         # 2. Action 함수 로직 종료 후, 상태 확인
+        controller.step(action="Pass")
         state_after = get_all_object_states(controller)
 
         # 3. 상태 변경된 것만 찾기
