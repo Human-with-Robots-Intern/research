@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import itertools
-from queue import PriorityQueue
 from typing import TYPE_CHECKING, List, Optional
 
 import numpy as np
@@ -114,22 +113,16 @@ class Scheduler:
     # ======================
     def _simulate_search(self, init_state: SchedulerState) -> Optional[SimulationNode]:
         """
-        Conducts a beam search up to self.simulation_depth from the init_state.
-        - Each node expansion checks feasible and not-yet-feasible candidates.
-        - If no feasible expansions exist, that branch try wait expansion.
-        - A queue (PriorityQueue) is used to keep track of expansions by ascending cost.
-        - We collect "best solutions" (i.e., states in which all tasks are done
-          or we have reached the search depth) and return the least-cost one.
+        Conducts a Layer-wise Beam Search up to self.simulation_depth.
+        At each depth, we keep only the top `search_width` nodes (Layer-wise Pruning).
 
         Args:
             init_state (SchedulerState): The root state to start the simulation.
 
         Returns:
-            Optional[SimulationNode]: The best goal node (lowest cost) among expansions
-            that reach depth or complete all subtasks. None if no solution is found.
+            Optional[SimulationNode]: The best goal node (lowest cost) among expansions.
         """
-        queue = PriorityQueue()
-
+        # 1. Initialize Beam
         init_node = SimulationNode(
             parent_node=None,
             heuristic_cost=0.0,
@@ -138,93 +131,147 @@ class Scheduler:
             state=init_state,
             risk_level=0,
         )
-        queue.put(init_node)
-
+        current_beam: List[SimulationNode] = [init_node]
         best_solutions: List[SimulationNode] = []
 
-        while not queue.empty():
-            curr_node = queue.get()
-            curr_state = curr_node.state
-            curr_depth = curr_node.depth
+        log.debug(
+            f"[_simulate_search] Starting Layer-wise Beam Search (Width={self.search_width}, Depth={self.simulation_depth})"
+        )
 
-            # (1) Termination condition
-            if not curr_state.remaining_subtasks or (
-                curr_depth >= self.simulation_depth
-            ):
-                best_solutions.append(curr_node)
-                continue
+        # 2. Layer-wise Loop
+        for d in range(self.simulation_depth):
+            if not current_beam:
+                log.debug(f"[_simulate_search] Beam is empty at depth {d}. Stopping.")
+                break
 
-            # (2) Get feasible and not-yet-feasible subtask candidates
-            feasible_candidates, not_yet_candidates = (
-                self.constraint_handler.get_feasible_candidates(curr_node)
-            )
-            log.debug(
-                f"[_simulate_search] Expanding {len(feasible_candidates)} feasible candidates "
-                f"and {len(not_yet_candidates)} not-yet-feasible candidates.\n"
-            )
-            if not feasible_candidates and not not_yet_candidates:
-                # No expansions possible => infeasible branch
-                log.debug("[_simulate_search] No expansions => branch ends.")
-                continue
-
-            feasible_names = [c.subtask.name for c in feasible_candidates]
-            not_yet_names = [c.subtask.name for c in not_yet_candidates]
+            next_beam_candidates: List[SimulationNode] = []
 
             log.debug(
-                f"\n=== [Simulation Step] Depth {curr_depth} -> {curr_depth + 1} | Time: {curr_state.current_time:.2f} ===\n"
-                f"  • Completed : {[ce.subtask.name for ce in curr_state.completed_entries]}\n"
-                f"  • Remaining : {[r.name for r in curr_state.remaining_subtasks]}\n"
-                f"  • Feasible  : {feasible_names}\n"
-                f"  • Not Yet   : {not_yet_names}\n"
-                f"============================================================"
+                f"\n=== [Beam Step] Depth {d} -> {d+1} | Beam Size: {len(current_beam)} ==="
             )
 
-            # Expand current node
-            expanded_nodes = self._expand_candidates(
-                curr_node, feasible_candidates, not_yet_candidates
-            )
-            # Sort by (Risk Level, Makespan Cost)
-            # Primary: risk_level (Ascending - 0 is best)
-            # Secondary: heuristic_cost (Ascending - lower cost is best)
-            expanded_nodes = sorted(
-                filter(lambda nd: nd.risk_level == 0, expanded_nodes),
-                key=lambda nd: nd.heuristic_cost,
-            )
+            # Expand all nodes in the current beam
+            for curr_node in current_beam:
+                curr_state = curr_node.state
 
-            # (3) Local Beam Pruning: Keep only the top-K expansions
-            log.debug(f"--- Top Candidates (Depth {curr_depth}) ---")
-            for i, nd in enumerate(expanded_nodes):
-                if i < self.search_width:
+                # (A) Check Termination (All tasks done?)
+                if not curr_state.remaining_subtasks:
                     log.debug(
-                        f"  [{i+1}] {nd.state.subtask.name:<40} | Cost: {nd.heuristic_cost:.2f} | Risk: {nd.risk_level} | EndTime: {nd.state.current_time:.2f}"
+                        f"  [Solution Found] Node depth {curr_node.depth} finished all tasks."
                     )
-                    queue.put(nd)
-                else:
-                    break
+                    best_solutions.append(curr_node)
+                    continue
+
+                # (B) Get Feasible Candidates
+                feasible_candidates, not_yet_candidates = (
+                    self.constraint_handler.get_feasible_candidates(curr_node)
+                )
+
+                if not feasible_candidates and not not_yet_candidates:
+                    # Dead end
+                    continue
+
+                # (C) Expand
+                log.debug(
+                    f"\n=== [Simulation Step] Depth {curr_node.depth} -> {curr_node.depth + 1} | Time: {curr_state.current_time:.2f} ===\n"
+                    f"  • Completed : {[ce.subtask.name for ce in curr_state.completed_entries]}\n"
+                    f"  • Remaining : {[r.name for r in curr_state.remaining_subtasks]}\n"
+                    f"  • Feasible  : {[c.subtask.name for c in feasible_candidates]}\n"
+                    f"  • Not Yet   : {[c.subtask.name for c in not_yet_candidates]}\n"
+                    f"============================================================"
+                )
+                expanded_nodes = self._expand_candidates(
+                    curr_node, feasible_candidates, not_yet_candidates
+                )
+
+                # (D) Collect Valid Expansions
+                # [Modified 251229] Risk 2 이상이라도, 대안이 없으면 채택하기 위해 별도로 수집합니다.
+                valid_expansions = []
+                high_risk_expansions = []
+
+                for nd in expanded_nodes:
+                    if nd.risk_level < 2:
+                        valid_expansions.append(nd)
+                    else:
+                        high_risk_expansions.append(nd)
+
+                if valid_expansions:
+                    next_beam_candidates.extend(valid_expansions)
+                elif high_risk_expansions:
+                    # 정상적인(Risk < 2) 후보가 하나도 없을 때만 Risk 높은 후보를 고려합니다.
+                    log.warning(
+                        f"[_simulate_search] Depth {d}: No valid expansions found. "
+                        f"Fallback to {len(high_risk_expansions)} High-Risk candidates."
+                    )
+                    next_beam_candidates.extend(high_risk_expansions)
+
+            # 3. Pruning (Layer-wise)
+            if not next_beam_candidates:
+                log.debug(
+                    f"[_simulate_search] No valid expansions at depth {d} (including high-risk)."
+                )
+                break
+
+            # Sort by (Risk, Cost) to pick top K
+            # Risk is primary, Cost (Heuristic) is secondary.
+            next_beam_candidates.sort(key=lambda nd: (nd.risk_level, nd.heuristic_cost))
+
+            # Keep top K
+            current_beam = next_beam_candidates[: self.search_width]
+
+            # Log the survivors
+            log.debug(
+                f"  -> Pruning: Kept top {len(current_beam)} out of {len(next_beam_candidates)} candidates."
+            )
+            for i, node in enumerate(current_beam):
+                # Trace back path
+                path_names = []
+                curr = node
+                while curr:
+                    if curr.state and curr.state.subtask:
+                        path_names.append(curr.state.subtask.name)
+                    curr = curr.parent_node
+                path_str = " -> ".join(reversed(path_names))
+
+                log.debug(
+                    f"     [{i+1}] {path_str} (Risk={node.risk_level}, Cost={node.heuristic_cost:.2f})"
+                )
+
+        # 4. Final Collection
+        # Add nodes that reached max depth but still have tasks remaining
+        if current_beam:
+            best_solutions.extend(current_beam)
 
         if not best_solutions:
             log.error("[_simulate_search] best_solutions empty => no feasible path")
             return None
 
-        # Return the best solution (lowest cost)
-        # Sort by (Risk Level, Heuristic Cost)
-        best_solutions = sorted(
-            best_solutions,
-            key=lambda nd: (nd.risk_level, nd.heuristic_cost),
-        )
+        # 5. Select Winner
+        # [Modified] Use Lookahead mainly for Risk Assessment.
+        # Decision making is based on Depth 1 Heuristic Cost among Safe Paths.
 
-        log.debug(
-            f"\n--- Best Solutions Evaluation ({len(best_solutions)} candidates) ---"
-        )
-        for i, nd in enumerate(best_solutions):
-            rank_str = "WINNER" if i == 0 else f"Rank {i+1}"
-            log.debug(
-                f"  [{rank_str:<8}] {nd.state.subtask.name:<30} | Risk: {nd.risk_level} | Cost: {nd.heuristic_cost:.2f} | Depth: {nd.depth}"
-            )
+        def get_depth1_cost(node: SimulationNode) -> float:
+            """Backtrack to find the heuristic cost at Depth 1."""
+            curr = node
+            # Trace back to Depth 1 (Depth 0 is root)
+            while curr.depth > 1:
+                if curr.parent_node:
+                    curr = curr.parent_node
+                else:
+                    break
+            return curr.heuristic_cost
+
+        # 5. Select Winner
+        # [Modified] Sort by Risk Level first (Soft Priority), then Depth 1 Cost.
+        # This ensures we prioritize safe paths (Risk=0) if available,
+        # but gracefully fall back to lowest-risk options if no safe path exists.
+        best_solutions.sort(key=lambda nd: (nd.risk_level, get_depth1_cost(nd)))
 
         winner = best_solutions[0]
+
         log.debug(
-            f"[_simulate_search] Final Decision: '{winner.state.subtask.name}' selected. (Risk={winner.risk_level}, Cost={winner.heuristic_cost:.2f})\n"
+            f"\n[_simulate_search] Final Decision: '{winner.state.subtask.name}' selected. "
+            f"(Risk={winner.risk_level}, Depth1_Cost={get_depth1_cost(winner):.2f}, Leaf_Cost={winner.heuristic_cost:.2f}, Depth={winner.depth})"
         )
         return winner
 
@@ -257,8 +304,8 @@ class Scheduler:
 
         # If only the root (depth=0) is present
         if len(path) < 2:
-            log.debug("[_extract_state] Only root node in path. Returning root state.")
-            return path[0].state if path else None
+            log.debug("[_extract_state] Only root node in path. No feasible next step.")
+            return None
 
         # Return the state at the first step beyond root (depth=1)
         log.debug("[_extract_state] Returning state at depth=1 in the best path.")
@@ -428,33 +475,53 @@ class Scheduler:
             if not candidate.is_critical or candidate.subtask.decomposed:
                 continue
 
-            # Check urgency using critical_context
-            crit_ctx = candidate.critical_context
-            if not crit_ctx or crit_ctx.source_end_time is None:
-                continue
-
-            logical_start = crit_ctx.source_end_time + crit_ctx.interval
-            physical_start = (
-                curr_node.state.current_time + candidate.estimated_first_nav_duration
+            incoming_slots = self.constraint_handler.get_time_slots(
+                candidate.subtask.name, curr_node.state.constraints, "in"
             )
+            critical_slots = [s for s in incoming_slots if s.is_critical]
 
-            if physical_start >= logical_start:
-                # Urgent but blocked! Find feasible predecessors recursively.
-                log.debug(
-                    f"Found BLOCKED URGENT task: {candidate.subtask.name} "
-                    f"(Physical: {physical_start:.2f} >= Logical: {logical_start:.2f} - Tol). Tracing ancestors."
+            if critical_slots:
+                target_slot = max(critical_slots, key=lambda s: s.interval)
+                critical_start_sub_name = target_slot.related_subtask_name
+                critical_interval_duration = target_slot.interval
+
+                # 선행 작업 완료 시간 조회
+                pred_entry = next(
+                    (
+                        ce
+                        for ce in curr_node.state.completed_entries
+                        if ce.subtask.name == critical_start_sub_name
+                    ),
+                    None,
                 )
+                if pred_entry:
+                    critical_start_sub_end_time = pred_entry.schedule_end_time
 
-                len_before = len(urgent_list)
-                find_feasible_ancestor(candidate.subtask.name)
-
-                if len(urgent_list) == len_before:
-                    log.debug(
-                        f"No feasible ancestors found for {candidate.subtask.name}. "
-                        f"Adding the task itself as it is time-ready/urgent."
+                    logical_start = (
+                        critical_start_sub_end_time + critical_interval_duration
                     )
-                    candidate.actual_interaction_start_time = physical_start
-                    urgent_list.append(candidate)
+                    physical_start = (
+                        curr_node.state.current_time
+                        + candidate.estimated_first_nav_duration
+                    )
+
+                    if TIMING_TOLERANCE_ABS // 2 >= abs(logical_start - physical_start):
+                        # Urgent but blocked! Find feasible predecessors recursively.
+                        log.debug(
+                            f"Found BLOCKED URGENT task: {candidate.subtask.name} "
+                            f"(Physical: {physical_start:.2f} >= Logical: {logical_start:.2f} - Tol). Tracing ancestors."
+                        )
+
+                        len_before = len(urgent_list)
+                        find_feasible_ancestor(candidate.subtask.name)
+
+                        if len(urgent_list) == len_before:
+                            log.debug(
+                                f"No feasible ancestors found for {candidate.subtask.name}. "
+                                f"Adding the task itself as it is time-ready/urgent."
+                            )
+                            candidate.actual_interaction_start_time = physical_start
+                            urgent_list.append(candidate)
 
         return urgent_list
 
@@ -551,36 +618,7 @@ class Scheduler:
             curr_node, candidate
         )
 
-        # Rule 3: Split only if an active critical interval exists.
-        active_intervals = []
-        graph = curr_node.state.constraints
-        completed_entries_map = {
-            ce.subtask.name: ce for ce in curr_node.state.completed_entries
-        }
-
-        for start_name, end_name, data in graph.edges(data=True):
-            info = data.get("info", {})
-            if info.get("IsCritical") and info.get("Interval") > EPSILON:
-                if (
-                    start_name in completed_entries_map
-                    and end_name not in completed_entries_map
-                ):
-                    start_entry = completed_entries_map[start_name]
-                    if start_entry.subtask.subtask_type != "Monitor":
-                        interval = info.get("Interval", 0.0)
-                        variance = info.get("Variance", INIT_PRIOR_VARIANCE)
-                        due_date = start_entry.schedule_end_time + interval
-                        # if due_date > curr_node.state.current_time:
-                        active_intervals.append(
-                            (
-                                variance,
-                                SchedulingDue(
-                                    due_date=due_date, due_related_sub_name=end_name
-                                ),
-                            )
-                        )
-
-        if active_intervals and MONITORING_ENABLED:
+        if need_monitor and MONITORING_ENABLED:
             return self._expand_wait_with_monitoring(
                 curr_node,
                 candidate,
@@ -615,6 +653,17 @@ class Scheduler:
         Returns:
             True if the candidate should be split for monitoring, False otherwise.
         """
+
+        # curr_node의 subtask가 wait였고, wait의 대상이 candidate라면, monitoring 필요 없음
+        if (
+            curr_node.state.subtask
+            and curr_node.state.subtask.subtask_type == "WAIT"
+            and curr_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
+        ):
+            log.debug(
+                f"[_should_subtask_split_with_monitoring] Just finished waiting for {candidate.subtask.name}. Skip monitoring."
+            )
+            return False, None
 
         # Rule 1: Don't re-split tasks.
         if candidate.subtask.decomposed:
@@ -812,11 +861,14 @@ class Scheduler:
         if feasible_candidates:
             all_candidates = feasible_candidates + not_yet_candidates
 
-        step_risk, pure_h_cost = self.cost_calculator.calc_heuristic(
+        step_risk, total_heuristic_cost = self.cost_calculator.calc_heuristic(
             curr_node, candidate, all_candidates
         )
 
-        new_cost = pure_h_cost + curr_node.heuristic_cost
+        # [Modified] HeuristicManager now returns the total cost (g(n) + h(n)).
+        # We should NOT add curr_node.heuristic_cost anymore.
+        # [Fix] Removed (1 / (curr_depth + 1)) weighting which underestimates h(n) for deeper nodes.
+        new_cost = planned_subtask_completion_time + total_heuristic_cost
 
         # Accumulate max risk level along the path
         new_risk = max(curr_node.risk_level, step_risk)
@@ -824,7 +876,7 @@ class Scheduler:
         log.info(
             f"  [Action] {candidate.subtask.name}\n"
             f"    └─ Time : {planned_nav_start_time:.2f} (Nav) -> {planned_interaction_start_time:.2f} (Start) -> {planned_subtask_completion_time:.2f} (End)\n"
-            f"    └─ Cost : {pure_h_cost:.2f} (H) + {0:.2f} (G) = {new_cost:.2f} | Risk: {new_risk} | Depth: {curr_depth + 1}"
+            f"    └─ Cost : {new_cost:.2f} (Total) | Risk: {new_risk} | Depth: {curr_depth + 1}"
         )
 
         return SimulationNode(
@@ -842,7 +894,7 @@ class Scheduler:
         candidate: Candidate,
         monitoring_target_obj: Optional[str],
         predecessor_name: str,
-        target_actual_start_time: float,
+        target_actual_start_time: Optional[float],
         not_yet_candidates: List[Candidate],
         *,
         critical_start_sub_name: Optional[str] = None,
@@ -854,6 +906,9 @@ class Scheduler:
         """Execute monitoring immediately and update state/constraints for a follow-up `candidate`."""
 
         if not monitoring_target_obj:
+            return None
+
+        if target_actual_start_time is None:
             return None
 
         monitor_base_name = (
@@ -1654,7 +1709,7 @@ class Scheduler:
             name=f"Wait for {candidate.subtask.name}",
             duration=Duration(interval=total_wait_duration, type="Controllable"),
             repetition=1,
-            subtask_type="Interaction",
+            subtask_type="WAIT",
             execution=Execution(
                 objects=None, primitive_actions=[f"WAIT {total_wait_duration}"]
             ),
@@ -1697,15 +1752,17 @@ class Scheduler:
         if feasible_candidates:
             all_candidates = feasible_candidates + not_yet_candidates
 
-        step_risk, step_cost = self.cost_calculator.calc_heuristic(
+        step_risk, total_heuristic_cost = self.cost_calculator.calc_heuristic(
             curr_node,
             wait_candidate,
             all_candidates,
             # Wait action creates delay. We must check if this delay hurts ANY feasible or not_yet task.
         )
-        # Same logic as above: prevent double counting of future costs.
-        # f(n) = time_so_far + heuristic_score + past_penalties
-        new_cost = step_cost + curr_node.heuristic_cost
+
+        # [Modified] HeuristicManager now returns the total cost (g(n) + h(n)).
+        # We should NOT add curr_node.heuristic_cost anymore.
+        # [Fix] Removed (1 / (depth + 1)) weighting which underestimates h(n) for deeper nodes.
+        new_cost = end_time + total_heuristic_cost
 
         # Accumulate max risk level
         new_risk = max(curr_node.risk_level, step_risk)
@@ -1713,7 +1770,7 @@ class Scheduler:
         log.info(
             f"  [Wait] For {candidate.subtask.name}\n"
             f"    └─ Time : {start_time:.2f} -> {end_time:.2f} (Duration: {total_wait_duration:.2f})\n"
-            f"    └─ Cost : {step_cost:.2f} (H) = {new_cost:.2f} | Risk: {new_risk} | Depth: {depth + 1}"
+            f"    └─ Cost : {new_cost:.2f} (Total) | Risk: {new_risk} | Depth: {depth + 1}"
         )
 
         return SimulationNode(

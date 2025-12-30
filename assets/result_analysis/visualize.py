@@ -50,7 +50,6 @@ DATA = {
         "marker": "D",
         "style": ":",
     },
-    
 }
 
 APPROACH_LIST = {
@@ -63,7 +62,12 @@ APPROACH_LIST = {
 }
 
 INIT_LIST = ["init_60", "init_80", "init_100", "init_120", "init_140"]
-TASK_CASE = [ "tasks_2", "task_3"]
+TASK_CASE = [
+    "tasks_2_constraints_1",
+    "tasks_2_constraints_2",
+    "tasks_3_constraints_1",
+    "tasks_3_constraints_2",
+]
 METRIC_LIST = ["tsr", "makespan"]
 
 # 제거할 베이스라인 목록
@@ -249,12 +253,10 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
                 markersize=9,
             )
 
-        ax.set_title(title, fontsize=14, pad=15, fontweight='bold')
+        ax.set_title(title, fontsize=14, pad=15, fontweight="bold")
         ax.set_ylabel(ylabel, fontsize=12, labelpad=10)
         ax.set_xlabel("Initial Belief Condition", fontsize=12, labelpad=10)
         ax.grid(True, linestyle="--", alpha=0.4)
-
-    
 
     # 범례 통합
     handles, labels = axes[0].get_legend_handles_labels()

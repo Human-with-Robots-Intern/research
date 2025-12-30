@@ -61,19 +61,19 @@ def parse_arguments():
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan7",
+        default="FloorPlan1",
         help="input scene name (default: FloorPlan1)",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default="01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
+        default="10_make_a_coffee_and_put_apple_and_lettuce_in_fridge.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
         "--case",
         type=str,
-        default="tasks_3_constraints_2",
+        default="tasks_2_constraints_1",
         help="The name of the case.",
     )
     parser.add_argument(
