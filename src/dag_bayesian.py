@@ -73,13 +73,13 @@ def parse_arguments():
     parser.add_argument(
         "--instruction",
         type=str,
-        default="01_boil_potato_and_heat_the_bread_using_microwave.json",
+        default="05_fill_pot_with_water_and_heat_the_bread_using_microwave.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan7",
+        default="FloorPlan1",
         help="input scene name (default: FloorPlan1)",
     )
 

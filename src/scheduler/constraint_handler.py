@@ -176,7 +176,7 @@ class ConstraintHandler:
             # 즉, effective_interaction_start_time이 현재 시간과 거의 같아야 함.
             if actual_interaction_start_time <= current_time + first_nav_duration:
                 log.debug(
-                    f"Subtask '{sub.name}' is feasible now (interaction can start at {actual_interaction_start_time:.2f})."
+                    f"Subtask '{sub.name}' is feasible now (interaction can start at {actual_interaction_start_time:.2f}, current_time: {current_time:.2f}, first_nav_duration: {first_nav_duration:.2f})."
                 )
                 feasible_candidates.append(candidate)
             else:

@@ -66,10 +66,6 @@ class HeuristicManager:
         # h(n): 앞으로 남은 예상 비용 (remaining_work_cost)
         total_heuristic_cost = remaining_work_cost
 
-        log.debug(
-            f"  [calc_heuristic] '{candidate.subtask.name}: Total   : {total_heuristic_cost:.2f}: Time({current_node.state.current_time:.2f}) + Rem({remaining_work_cost:.2f}) | Risk: {risk_level}'"
-        )
-
         return risk_level, total_heuristic_cost
 
     # ========================================================================
