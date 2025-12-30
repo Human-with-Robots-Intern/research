@@ -631,9 +631,6 @@ class Scheduler:
     ) -> tuple[bool, Optional[SchedulingDue]]:
         """
         Determines if a task should be split for monitoring based on three rules.
-
-
-
         Args:
             curr_node: The current simulation node.
             candidate: The candidate subtask to evaluate.
@@ -1530,96 +1527,8 @@ class Scheduler:
     # -----------------------------------------------------
     # (C) Wait expansions
     # -----------------------------------------------------
+
     def _expand_wait_with_monitoring(
-        self,
-        curr_node: SimulationNode,
-        candidate: Candidate,
-        not_yet_candidates: List[Candidate],
-        nav_duration: float = 0.0,
-        feasible_candidates: List[Candidate] = None,
-    ) -> SimulationNode:
-        """
-        Performs monitoring and, if needed, a follow-up wait until the
-        candidate's actual_interaction_start_time.
-        """
-        log.debug(f"[_expand_wait_with_monitoring] {candidate.subtask.name}")
-        curr_state = curr_node.state
-
-        # 1. 이미 Monitor 태스크를 수행한 직후라면 -> Trigger Time까지 Wait 수행
-        if curr_node.state.subtask.subtask_type == "Monitor":
-            log.debug(
-                "[_expand_wait_with_monitoring] Already monitored. Expanding wait without monitoring."
-            )
-            return self._expand_wait_wo_monitoring(
-                curr_node,
-                candidate,
-                not_yet_candidates,
-                nav_duration=nav_duration,
-                feasible_candidates=feasible_candidates,
-            )
-        log.debug(
-            f"[_expand_wait_with_monitoring] Not monitored. Expanding monitoring for {candidate.subtask.name}."
-        )
-        # 2. 아직 Monitor를 하지 않았다면 -> Monitor Step 삽입
-        target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
-
-        # [수정] candidate.critical_context 대신 그래프 직접 조회하여 정보 추출
-        critical_start_sub_name = None
-        critical_start_sub_end_time = None
-        critical_interval_duration = None
-
-        # Candidate 자체로 들어오는 Critical Edge 찾기
-        incoming_slots = self.constraint_handler.get_time_slots(
-            candidate.subtask.name, curr_state.constraints, "in"
-        )
-        critical_slots = [s for s in incoming_slots if s.is_critical]
-
-        if critical_slots:
-            target_slot = max(critical_slots, key=lambda s: s.interval)
-            critical_start_sub_name = target_slot.related_subtask_name
-            critical_interval_duration = target_slot.interval
-
-            # 선행 작업 완료 시간 조회
-            pred_entry = next(
-                (
-                    ce
-                    for ce in curr_state.completed_entries
-                    if ce.subtask.name == critical_start_sub_name
-                ),
-                None,
-            )
-            if pred_entry:
-                critical_start_sub_end_time = pred_entry.schedule_end_time
-
-        inserted_node = self._insert_monitoring_step(
-            curr_node=curr_node,
-            candidate=candidate,
-            monitoring_target_obj=target_obj_id,
-            predecessor_name=curr_node.state.subtask.name,
-            target_actual_start_time=candidate.actual_interaction_start_time,
-            not_yet_candidates=not_yet_candidates,
-            critical_start_sub_name=critical_start_sub_name,
-            critical_start_sub_end_time=critical_start_sub_end_time,
-            critical_end_sub_name=candidate.subtask.name,
-            critical_interval_duration=critical_interval_duration,
-            monitoring_target_sub_name=candidate.subtask.name,
-        )
-
-        if inserted_node is None:
-            log.warning(
-                f"[_expand_wait_with_monitoring] Monitoring expansion failed for {candidate.subtask.name}. Fallback to plain wait."
-            )
-            return self._expand_wait_wo_monitoring(
-                curr_node,
-                candidate,
-                not_yet_candidates,
-                nav_duration=nav_duration,
-                feasible_candidates=feasible_candidates,
-            )
-
-        return inserted_node
-
-    def _expand_wait_with_monitoring2(
         self,
         curr_node: SimulationNode,
         candidate: Candidate,
@@ -1636,8 +1545,8 @@ class Scheduler:
         log.debug(f"[_expand_wait_with_monitoring] {candidate.subtask.name}")
 
         curr_state = curr_node.state
-        
-        critical_end_sub_name = candidate.subtask.names
+
+        critical_end_sub_name = candidate.subtask.name
 
         # Find the start of the critical interval
         incoming_constraints_to_crit_end = self.constraint_handler.get_time_slots(
@@ -1648,7 +1557,7 @@ class Scheduler:
         ]
         if not critical_incoming_slots:
             log.debug(
-                f"No incoming critical constraints for '{critical_end_sub_name}'. Fallback for {candidate.subtask.names}."
+                f"No incoming critical constraints for '{critical_end_sub_name}'. Fallback for {candidate.subtask.name}."
             )
             return self._expand_subtask_wo_monitoring(
                 curr_node, candidate, not_yet_candidates, feasible_candidates
@@ -1693,79 +1602,213 @@ class Scheduler:
 
         original_absolute_monitoring_trigger_time = mu_absolute + sigma * z_score
 
-        # 1. 이미 Monitor 태스크를 수행한 직후라면 -> Trigger Time까지 Wait 수행
-        if curr_node.state.subtask.subtask_type == "Monitor":
+        total_wait_duration = (
+            original_absolute_monitoring_trigger_time
+            - curr_state.current_time
+            - nav_duration
+        )
+
+        if total_wait_duration <= EPSILON:
             log.debug(
-                "[_expand_wait_with_monitoring] Already monitored. Expanding wait without monitoring."
+                f"[_expand_wait_wo_monitoring] Total wait duration ({total_wait_duration:.2f}) is less than or equal to EPSILON. Skip waiting."
             )
-            return self._expand_wait_wo_monitoring(
-                curr_node,
-                candidate,
-                not_yet_candidates,
-                nav_duration=nav_duration,
-                feasible_candidates=feasible_candidates,
+            return None
+
+        wait_sub = Subtask(
+            task_name=None,
+            name=f"Wait for {candidate.subtask.name}",
+            duration=Duration(interval=total_wait_duration, type="Controllable"),
+            repetition=1,
+            subtask_type="WAIT",
+            execution=Execution(
+                objects=None, primitive_actions=[f"WAIT {total_wait_duration}"]
+            ),
+            temporal_constraints=None,
+        )
+
+        wait_start_time = curr_state.current_time
+        wait_end_time = curr_state.current_time + total_wait_duration
+
+        completed_entry = CompletedEntry(
+            subtask=wait_sub,
+            schedule_start_time=wait_start_time,
+            schedule_end_time=wait_end_time,
+            schedule_nav_time=0.0,
+            execution_status=True,
+        )
+        new_completed = curr_state.completed_entries + [completed_entry]
+
+        new_state = SchedulerState(
+            subtask=wait_sub,
+            completed_entries=new_completed,
+            remaining_subtasks=curr_state.remaining_subtasks,
+            constraints=curr_state.constraints,
+            current_time=wait_end_time,
+            scene_positions=curr_state.scene_positions,
+            held_object=curr_state.held_object,
+        )
+
+        # Create a synthetic candidate to represent the 'Wait' action for the heuristic calculator.
+        # [Fix 251216] Preserve the original scheduling_due to allow proper risk assessment
+        wait_candidate = Candidate(
+            subtask=wait_sub,
+            is_critical=candidate.is_critical,
+            # Inherit the deadline to let heuristic manager know about the pressure
+            scheduling_due=SchedulingDue(
+                due_date=candidate.logical_interaction_start_time,
+                due_related_sub_name=candidate.subtask.name,
+            ),
+        )
+
+        # Global Risk Check을 위해 feasible_candidates도 포함하여 전달
+        all_candidates = not_yet_candidates
+        if feasible_candidates:
+            all_candidates = feasible_candidates + not_yet_candidates
+
+        step_risk, total_heuristic_cost = self.cost_calculator.calc_heuristic(
+            curr_node,
+            wait_candidate,
+            all_candidates,
+            # Wait action creates delay. We must check if this delay hurts ANY feasible or not_yet task.
+        )
+
+        new_cost = wait_end_time + total_heuristic_cost
+
+        # Accumulate max risk level
+        new_risk = max(curr_node.risk_level, step_risk)
+
+        log.info(
+            f"[_expand_wait_wo_monitoring] {candidate.subtask.name}: end_time({wait_end_time:.2f}) = current_time({curr_state.current_time:.2f}) + wait_duration({total_wait_duration:.2f})"
+        )
+        log.info(
+            f"cost({new_cost:.2f}) = end_time({wait_end_time:.2f}) + total_heuristic_cost({total_heuristic_cost:.2f})\n"
+        )
+
+        monitoring_sub = TaskUtil.create_monitoring_subtask(
+            name=f"{critical_end_sub_name}",
+            obj=candidate.subtask.execution.primitive_actions[0].split()[1],
+        )
+        monitoring_sub.decomposed = True
+
+        # --- Phase 5: 제약 조건 그래프 및 remaining_subtasks 업데이트 ---
+        # 없던 wait subtask가 생긴 상황, 모니터링 task도 만들었음. 제약 조건으로 연결해야 함.
+        # wait는 0,True로 monitoring과 연결짓고, candidate와 monitoring은 interval, True만큼 업데이트 시켜야 함
+        new_constraints_graph = copy.deepcopy(new_state.constraints)
+
+        if not new_constraints_graph.has_node(wait_sub.name):
+            new_constraints_graph.add_node(wait_sub.name)
+            log.debug(f"Node for WAIT subtask '{wait_sub.name}' added to graph.")
+        if not new_constraints_graph.has_node(monitoring_sub.name):
+            new_constraints_graph.add_node(monitoring_sub.name)
+            log.debug(
+                f"Node for MONITORING subtask '{monitoring_sub.name}' added to graph."
             )
+
+        edge_from_wait_to_mon = {"Interval": 0.0, "IsCritical": True}
+        if not new_constraints_graph.has_edge(wait_sub.name, monitoring_sub.name):
+            new_constraints_graph.add_edge(
+                wait_sub.name,
+                monitoring_sub.name,
+                info=edge_from_wait_to_mon,
+            )
+            log.debug(
+                f"Added wait to monitoring constraint: '{wait_sub.name}' -> '{monitoring_sub.name} ({edge_from_wait_to_mon['Interval']:.2f}, {edge_from_wait_to_mon['IsCritical']}).'."
+            )
+
+        interval_crit_start_to_mon = wait_end_time - critical_start_sub_actual_end_time
+        info_crit_start_to_mon = {
+            "Interval": max(0.0, interval_crit_start_to_mon),
+            "IsCritical": True,
+        }
+
+        if not new_constraints_graph.has_edge(
+            critical_start_sub_name, monitoring_sub.name
+        ):
+            new_constraints_graph.add_edge(
+                critical_start_sub_name,
+                monitoring_sub.name,
+                info=info_crit_start_to_mon,
+            )
+        else:
+            new_constraints_graph.edges[critical_start_sub_name, monitoring_sub.name][
+                "info"
+            ].update(info_crit_start_to_mon)
         log.debug(
-            f"[_expand_wait_with_monitoring] Not monitored. Expanding monitoring for {candidate.subtask.name}."
-        )
-        # 2. 아직 Monitor를 하지 않았다면 -> Monitor Step 삽입
-        target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
-
-        # [수정] candidate.critical_context 대신 그래프 직접 조회하여 정보 추출
-        critical_start_sub_name = None
-        critical_start_sub_end_time = None
-        critical_interval_duration = None
-
-        # Candidate 자체로 들어오는 Critical Edge 찾기
-        incoming_slots = self.constraint_handler.get_time_slots(
-            candidate.subtask.name, curr_state.constraints, "in"
-        )
-        critical_slots = [s for s in incoming_slots if s.is_critical]
-
-        if critical_slots:
-            target_slot = max(critical_slots, key=lambda s: s.interval)
-            critical_start_sub_name = target_slot.related_subtask_name
-            critical_interval_duration = target_slot.interval
-
-            # 선행 작업 완료 시간 조회
-            pred_entry = next(
-                (
-                    ce
-                    for ce in curr_state.completed_entries
-                    if ce.subtask.name == critical_start_sub_name
-                ),
-                None,
-            )
-            if pred_entry:
-                critical_start_sub_end_time = pred_entry.schedule_end_time
-
-        inserted_node = self._insert_monitoring_step(
-            curr_node=curr_node,
-            candidate=candidate,
-            monitoring_target_obj=target_obj_id,
-            predecessor_name=curr_node.state.subtask.name,
-            target_actual_start_time=candidate.actual_interaction_start_time,
-            not_yet_candidates=not_yet_candidates,
-            critical_start_sub_name=critical_start_sub_name,
-            critical_start_sub_end_time=critical_start_sub_end_time,
-            critical_end_sub_name=candidate.subtask.name,
-            critical_interval_duration=critical_interval_duration,
-            monitoring_target_sub_name=candidate.subtask.name,
+            f"Added/Updated main monitoring constraint: '{critical_start_sub_name}' -> '{monitoring_sub.name}', Interval: {info_crit_start_to_mon['Interval']:.2f}."
         )
 
-        if inserted_node is None:
-            log.warning(
-                f"[_expand_wait_with_monitoring] Monitoring expansion failed for {candidate.subtask.name}. Fallback to plain wait."
-            )
-            return self._expand_wait_wo_monitoring(
-                curr_node,
-                candidate,
-                not_yet_candidates,
-                nav_duration=nav_duration,
-                feasible_candidates=feasible_candidates,
+        critical_end_sub_logical_start_time = (
+            critical_start_sub_actual_end_time + original_critical_interval_duration
+        )
+        monitoring_sub_expected_completion_time = wait_end_time + MONITORING_DURATION
+
+        interval_mon_to_crit_end = (
+            critical_end_sub_logical_start_time
+            - monitoring_sub_expected_completion_time
+        )
+        info_mon_to_crit_end = {
+            "Interval": max(0.0, interval_mon_to_crit_end),
+            "IsCritical": True,
+        }
+
+        # [DEBUG LOG] Check Interval Update in _expand_subtask_with_monitoring
+        prev_interval_sub = "N/A"
+        if new_constraints_graph.has_edge(monitoring_sub.name, critical_end_sub_name):
+            prev_interval_sub = (
+                new_constraints_graph.edges[monitoring_sub.name, critical_end_sub_name]
+                .get("info", {})
+                .get("Interval", "N/A")
             )
 
-        return inserted_node
+        log.debug(
+            f"[DEBUG _expand_subtask_with_monitoring] Updating Edge '{monitoring_sub.name}' -> '{critical_end_sub_name}'\n"
+            f"  - CritEndDeadline: {critical_end_sub_logical_start_time:.2f}\n"
+            f"  - MonitorFinish: {monitoring_sub_expected_completion_time:.2f}\n"
+            f"  - Mon -> CritEnd Interval: {interval_mon_to_crit_end:.2f} (Prev: {prev_interval_sub})"
+        )
+
+        if not new_constraints_graph.has_edge(
+            monitoring_sub.name, critical_end_sub_name
+        ):
+            new_constraints_graph.add_edge(
+                monitoring_sub.name,
+                critical_end_sub_name,
+                info=info_mon_to_crit_end,
+            )
+        else:
+            new_constraints_graph.edges[monitoring_sub.name, critical_end_sub_name][
+                "info"
+            ].update(info_mon_to_crit_end)
+
+        # Verify update
+        check_interval_sub = new_constraints_graph.edges[
+            monitoring_sub.name, critical_end_sub_name
+        ]["info"]["Interval"]
+        log.debug(f"  -> Update Verified: {check_interval_sub:.2f}")
+        log.debug(
+            f"Added/Updated main monitoring constraint: '{monitoring_sub.name}' -> '{critical_end_sub_name}', Interval: {info_mon_to_crit_end['Interval']:.2f}."
+        )
+
+        new_state = SchedulerState(
+            subtask=new_state.subtask,
+            completed_entries=new_state.completed_entries,
+            remaining_subtasks=list(new_state.remaining_subtasks) + [monitoring_sub],
+            constraints=new_constraints_graph,
+            current_time=wait_end_time,
+            scene_positions=new_state.scene_positions,
+            held_object=new_state.held_object,
+        )
+
+        # return node_after_early_sub._replace(state=updated_final_state)
+
+        return SimulationNode(
+            parent_node=curr_node,
+            heuristic_cost=new_cost,
+            depth=curr_node.depth + 1,
+            tie_breaker=next(self._counter),
+            state=new_state,
+            risk_level=new_risk,
+        )
 
     def _expand_wait_wo_monitoring(
         self,
