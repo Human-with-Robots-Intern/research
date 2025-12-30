@@ -1,25 +1,13 @@
 {
-    "Microwave": {
-        "expected_duration": 0.0,
+    "CoffeeMachine": {
+        "expected_duration": 98.51924513745895,
+        "variance": 1.209412614386081
+    },
+    "Mug": {
+        "expected_duration": 100.0,
         "variance": 900.0
     },
     "CounterTop": {
-        "expected_duration": 0.0,
-        "variance": 900.0
-    },
-    "Bread": {
-        "expected_duration": 0.0,
-        "variance": 900.0
-    },
-    "Egg": {
-        "expected_duration": 0.0,
-        "variance": 900.0
-    },
-    "StoveKnob": {
-        "expected_duration": 99.52569453374848,
-        "variance": 9.364927247192014
-    },
-    "StoveBurner": {
         "expected_duration": 100.0,
         "variance": 900.0
     },
