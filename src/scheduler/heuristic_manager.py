@@ -193,7 +193,10 @@ class HeuristicManager:
             for _, target, data in out_edges:
                 info = data.get("info", {})
                 # Check for critical chain link (IsCritical AND Interval ~ 0)
-                if info.get("IsCritical") and info.get("Interval", 0.0):
+                if (
+                    info.get("IsCritical")
+                    and info.get("Interval", 0.0) <= constants.EPSILON
+                ):
                     next_name = target
                     break
 
@@ -274,6 +277,15 @@ class HeuristicManager:
         debt = 0.0
         graph = current_node.state.constraints
 
+        # [Improved] Find all descendants reachable from the current candidate.
+        # If a task 'u' is a descendant of the candidate (or the candidate itself),
+        # launching the candidate effectively "activates" the chain leading to 'u'.
+        # Thus, we should NOT count the interval starting at 'u' as "Unstarted Debt".
+        # This encourages starting long chains early.
+        activated_tasks = {candidate.subtask.name}
+        if graph.has_node(candidate.subtask.name):
+            activated_tasks.update(nx.descendants(graph, candidate.subtask.name))
+
         for u, v, data in graph.edges(data=True):
             info = data.get("info", {})
             # Critical하면서 Interval이 있는 경우 (유효한 제약조건)
@@ -281,7 +293,14 @@ class HeuristicManager:
                 # 시작점 u가 아직 남은 작업 목록에 있다면 (= 아직 타이머가 안 켜졌다면)
                 # 이 Interval은 우리가 짊어지고 있는 '잠재적 비용'입니다.
                 if u in remaining_names:
+                    # [Improved] If 'u' is activated by this candidate, skip adding debt.
+                    if u in activated_tasks:
+                        continue
+
                     debt += info["Interval"]
+                    log.debug(
+                        f"      [Debt Add] {u} -> {v} (Interval: {info['Interval']})"
+                    )
 
         log.debug(
             f"    [RemWork Detail] WorkSum({sum_duration:.2f}) + MST({mst_time:.2f}) + Debt({debt:.2f}) = {sum_duration + mst_time + debt:.2f}"
