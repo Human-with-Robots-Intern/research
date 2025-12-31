@@ -35,6 +35,7 @@ def get_critical_start_info(
                     constraints,
                     constraint_handler,
                 )
+            
         raise ValueError(f"No critical slots found for {subtask_name}")
 
     max_critical = max(critical_slots, key=lambda x: x.interval)

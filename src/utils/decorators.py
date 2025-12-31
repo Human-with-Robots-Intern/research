@@ -65,14 +65,12 @@ def log_ros_action_state(func: Callable) -> Callable:
         state_before = (copy.deepcopy(self.object_states), self.held_object)
         # Execute the original action
         result = func(self, *args, **kwargs)
-        
+
         # 외부에서 실행시간을 받아와서 사용
         duration = kwargs.pop("duration", None)
 
-
         # 2. Action 함수 로직 종료 후, 상태 확인
         state_after = (copy.deepcopy(self.object_states), self.held_object)
-
 
         # 3. 상태 변경된 것만 찾기
         state_changes = get_changed_object_states_ros(state_before, state_after)
@@ -98,10 +96,27 @@ def log_ros_action_state(func: Callable) -> Callable:
 
         next_index = len(log_data)
 
+        # Calculate accumulated duration
+        current_time = 0.0
+        if log_data:
+            last_entry = log_data[-1]
+            if "current_time" in last_entry:
+                current_time = last_entry["current_time"]
+            else:
+                current_time = sum(
+                    (entry.get("duration") or 0.0)
+                    for entry in log_data
+                    if isinstance(entry.get("duration"), (int, float))
+                )
+
+        step_duration = duration if isinstance(duration, (int, float)) else 0.0
+        current_time += step_duration
+
         log_entry = {
             "index": next_index,
             "primitive_action": primitive_action_str.strip(),
             "duration": duration,
+            "current_time": current_time,
             "state_change": state_changes,
         }
 
@@ -160,6 +175,7 @@ def log_action_state(func: Callable) -> Callable:
         duration = result if isinstance(result, (int, float)) else 0.0
 
         # 2. Action 함수 로직 종료 후, 상태 확인
+        controller.step(action="Pass")
         state_after = get_all_object_states(controller)
 
         # 3. 상태 변경된 것만 찾기
@@ -186,10 +202,27 @@ def log_action_state(func: Callable) -> Callable:
 
         next_index = len(log_data)
 
+        # Calculate accumulated duration
+        current_time = 0.0
+        if log_data:
+            last_entry = log_data[-1]
+            if "current_time" in last_entry:
+                current_time = last_entry["current_time"]
+            else:
+                current_time = sum(
+                    (entry.get("duration") or 0.0)
+                    for entry in log_data
+                    if isinstance(entry.get("duration"), (int, float))
+                )
+
+        step_duration = duration if isinstance(duration, (int, float)) else 0.0
+        current_time += step_duration
+
         log_entry = {
             "index": next_index,
             "primitive_action": primitive_action_str.strip(),
             "duration": duration,
+            "current_time": current_time,
             "state_change": state_changes,
         }
 

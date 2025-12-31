@@ -71,6 +71,7 @@ class ConstraintHandler:
         Adjusts start times based on navigation estimates (from ActionHandler)
         and logical constraints, then checks against current time.
         """
+        log.debug(f"[get_feasible_candidates] FEASIBLE CANDIDATES & NOT_YET CANDIDATES")
         feasible_candidates: List[Candidate] = []
         not_yet_candidates: List[Candidate] = []
 
@@ -100,13 +101,11 @@ class ConstraintHandler:
                 )
                 continue
 
-            # 선행 태스크 미완료 시 not_yet 후보로 분류
+            # 1. NOT_READY status 처리
             if (
                 status == "NOT_READY"
             ):  # logical_start_time is None when status is NOT_READY
-                log.debug(
-                    f"Subtask '{sub.name}' is not yet ready (predecessors not finished). Adding to not_yet_candidates."
-                )
+
                 # not_yet 후보에 필요한 정보 추가 (예: 예상 준비 시간 등)
                 # 여기서는 Candidate 객체만 추가하고, 추후 scheduling_due 할당 등에서 활용 가능
                 # NOT_READY 상태 Subtask는 최소 시작 시간이 None임
@@ -130,6 +129,9 @@ class ConstraintHandler:
                         due_date=inferred_due,
                         due_related_sub_name=candidate.subtask.name,
                     )
+                log.debug(
+                    f"Subtask '{sub.name}' is not yet feasible caused by predecessor task is not finished."
+                )
 
                 not_yet_candidates.append(candidate)  # status 추가
                 continue
@@ -144,22 +146,12 @@ class ConstraintHandler:
 
             first_nav_duration = 0.0
             if first_nav_action:
-                log.debug(
-                    f"  Estimating prep time for '{sub.name}' using first action: '{first_nav_action}' via ActionHandler"
-                )
                 # curr_node의 현재 시간, 위치 등을 기준으로 첫 액션 실행 시간 추정
                 navigation_info: Optional[ActionResult] = (
                     self.action_handler.get_actions_info(curr_node, [first_nav_action])
                 )
                 # get_actions_info는 빈 actions 목록이 아니면 항상 ActionResult를 반환하므로 prep_info는 None이 아님.
                 first_nav_duration = navigation_info.action_duration
-                log.debug(
-                    f"    Estimated prep duration for first action: {first_nav_duration:.2f}"
-                )
-            else:
-                log.debug(
-                    f"  No primitive actions for subtask '{sub.name}'. Prep duration is 0."
-                )
 
             # 3. 최종 시작 가능 시간 계산 및 Feasibility 판단
             #    logical_start_time: 선행 작업 완료 + 제약 간격 이후의 시간 (상호작용 시작 가능 논리적 시간)
@@ -181,45 +173,17 @@ class ConstraintHandler:
                 critical_context=critical_ctx,
             )
 
-            # For (0, True) constraints, the due date is immediate.
-            is_consecutive_critical = False
-            if critical_ctx and critical_ctx.source_end_time is not None:
-                if critical_ctx.interval < EPSILON and candidate.is_critical:
-                    is_consecutive_critical = True
-
-            if is_consecutive_critical:
-                immediate_due_date = critical_ctx.source_end_time + EPSILON
-                candidate.scheduling_due = SchedulingDue(
-                    due_date=immediate_due_date,
-                    due_related_sub_name=candidate.subtask.name,
-                )
-
-            if (
-                candidate.is_critical
-                and candidate.scheduling_due.due_date == float("inf")
-                and critical_ctx.source_subtask
-                and critical_ctx.source_end_time is not None
-            ):
-                inferred_due = critical_ctx.source_end_time + critical_ctx.interval
-                if inferred_due <= curr_node.state.current_time:
-                    inferred_due = curr_node.state.current_time + EPSILON
-                candidate.scheduling_due = SchedulingDue(
-                    due_date=inferred_due,
-                    due_related_sub_name=candidate.subtask.name,
-                )
-
             # 현재 시간에 "상호작용을 시작"할 수 있는 경우 feasible
             # 즉, effective_interaction_start_time이 현재 시간과 거의 같아야 함.
             if actual_interaction_start_time <= current_time + first_nav_duration:
                 log.debug(
-                    f"Subtask '{sub.name}' is feasible now (interaction can start at {actual_interaction_start_time:.2f})."
+                    f"Subtask '{sub.name}' is feasible now (interaction can start at {actual_interaction_start_time:.2f}, current_time: {current_time:.2f}, first_nav_duration: {first_nav_duration:.2f})."
                 )
                 feasible_candidates.append(candidate)
             else:
                 # 즉시 상호작용 시작은 불가능 (논리적 시간 미도래 또는 준비 시간 필요)
                 log.debug(
-                    f"Subtask '{sub.name}' is not yet feasible for immediate interaction "
-                    f"(interaction can start at {actual_interaction_start_time:.2f}). Adding to not_yet_candidates."
+                    f"Subtask '{sub.name}' is not yet feasible for immediate interaction (interaction can start at {actual_interaction_start_time:.2f})."
                 )
                 not_yet_candidates.append(candidate)
 
@@ -240,16 +204,12 @@ class ConstraintHandler:
 
         curr_constraints = curr_node.state.constraints
         # CONSTRAINT_ERROR: 제약 그래프가 없거나 사이클을 갖는 경우
-        if not curr_constraints or not isinstance(curr_constraints, nx.DiGraph):
-            log.error(
-                f"Invalid constraint graph provided for state at time {curr_node.state.current_time:.2f}. Cannot process subtask '{sub.name}'."
-            )
-            return None, False, "CONSTRAINT_ERROR", {}
-        if not nx.is_directed_acyclic_graph(curr_constraints):
-            log.error(
-                f"CONSTRAINT ERROR: Cycle detected in the constraint graph for state at time {curr_node.state.current_time:.2f}! "
-                f"Cannot reliably calculate earliest start time for '{sub.name}'. Check constraint update logic."
-            )
+        if (
+            not curr_constraints
+            or not isinstance(curr_constraints, nx.DiGraph)
+            or not nx.is_directed_acyclic_graph(curr_constraints)
+        ):
+
             return None, False, "CONSTRAINT_ERROR", {}
 
         # COMPLETED: 태스크가 아직 제약 그래프에 없는 경우 -> 동적으로 생성된 것으로 간주
@@ -274,18 +234,6 @@ class ConstraintHandler:
         }
         # COMPLETED : Subtask에 시간 제약이 부재한 경우에는 언제든지 수행되도 되는 것
         in_edges = list(curr_constraints.in_edges(sub.name, data=True))
-        if not in_edges:
-            log.debug(f"Subtask '{sub.name}' has no predecessors. Ready at time 0.")
-            return (
-                0.0,
-                False,
-                "COMPLETED",
-                {
-                    "critical_source": None,
-                    "critical_interval": 0.0,
-                    "critical_start_time": 0.0,
-                },
-            )
 
         # 선행 작업이 있는 Task에 대하여
         critical_times = []
@@ -306,28 +254,15 @@ class ConstraintHandler:
 
             if pred_entry is None:
                 all_predecessors_finished = False
-                # log.debug(
-                #     f"    [Constraint] Predecessor '{pred_name}' for '{sub.name}' is not completed yet."
-                # )
                 continue
 
-            if hasattr(pred_entry, "execution_status"):
-                pred_status = pred_entry.execution_status
-                if pred_status is False:
-                    any_predecessor_failed = True
-                    failure_reason = (
-                        f"Predecessor '{pred_name}' sched execution status FAILED."
-                    )
-                    log.warning(f"'{sub.name}' cannot start: {failure_reason}")
-                    break
             pred_end_time = pred_entry.schedule_end_time
             curr_logical_interaction_start_time = pred_end_time + interval
 
             # Critical / Non-critical 분리
             if is_crit:
                 log.debug(
-                    f"    [Constraint] Found CRITICAL predecessor '{pred_name}' for '{sub.name}'. "
-                    f"PredEnd: {pred_end_time:.2f}, Interval: {interval:.2f} -> LogicalStart: {curr_logical_interaction_start_time:.2f}"
+                    f"current_subtask {sub.name} has critical constraint: {pred_name} -> {sub.name} = {curr_logical_interaction_start_time} ({pred_end_time=}, {interval=})"
                 )
                 critical_times.append(curr_logical_interaction_start_time)
                 critical_context.append((pred_name, pred_end_time, interval))
@@ -400,22 +335,6 @@ class ConstraintHandler:
                 ),
             }
 
-            if is_final_critical:
-                log.debug(
-                    "[get_logical_interaction_start_time] Critical context for %s: source=%s, end=%.2f, interval=%.2f",
-                    sub.name,
-                    critical_source,
-                    (
-                        critical_source_end_time
-                        if critical_source_end_time is not None
-                        else float("nan")
-                    ),
-                    critical_interval,
-                )
-
-            log.debug(
-                f"Final status for '{sub.name}': COMPLETED. Earliest logical start (post-adjust): {final_start_time:.2f} (Critical: {is_final_critical})"
-            )
             return (
                 final_start_time,
                 is_final_critical,
@@ -454,27 +373,15 @@ class ConstraintHandler:
         # [Fix] Determine criticality for NOT_READY tasks
         # If any incoming edge is critical, the task is effectively critical (part of a critical chain)
         # even if we can't calculate the exact start time yet.
-        is_effectively_critical = False
-        for _, _, edge_data in in_edges:
+        is_critical_end_subtask = False
+        for crit_start_sub_name, crit_start_sub_name, edge_data in in_edges:
             if edge_data.get("info", {}).get("IsCritical", False):
-                is_effectively_critical = True
+                is_critical_end_subtask = True
                 break
 
-        if not all_predecessors_finished:
-            missing_predecessors = [
-                p_name
-                for p_name, _, _ in in_edges
-                if p_name not in completed_subtasks_map
-            ]
-            log.debug(
-                f"DEBUG: Subtask '{sub.name}' is NOT_READY because predecessors are not finished. "
-                f"Missing: {missing_predecessors}. Returning partial critical info."
-            )
-
-        log.debug("Final status for '%s': NOT_READY (no predecessor info)", sub.name)
         return (
             None,
-            is_effectively_critical,
+            is_critical_end_subtask,
             "NOT_READY",
             collected_critical_info,
         )
@@ -492,92 +399,65 @@ class ConstraintHandler:
         """
 
         # Find the earliest logical start time among upcoming critical tasks
-        crit_candidates = [c for c in not_yet_candidates if c.is_critical]
-
-        valid_crit_candidates = []
-        for critical_candidate in crit_candidates:
-            # logical_interaction_start_time이 유효한 경우는 선행 작업이 완료된 경우 또는 in edge 시간 제약이 없는 경우
-            # 현재 시각 또는 미래 시각에 도래할 not yet critical candidate가 feasible candidate의 scheduling due를 결정
-            if (
-                critical_candidate.logical_interaction_start_time is not None
-                and critical_candidate.logical_interaction_start_time
-                >= curr_node.state.current_time
-            ):
-                valid_crit_candidates.append(critical_candidate)
-            else:
-                log.debug(
-                    f"    [Constraint] Skipping invalid critical candidate '{critical_candidate.subtask.name}' (Start: {critical_candidate.logical_interaction_start_time})"
-                )
-
-        if not valid_crit_candidates:
-            # No upcoming valid critical tasks
-            scheduling_due = float("inf")
-            due_related_sub_name = None
-            # log.debug(
-            #     "현재 not yet list에 critical subtask가 존재하지 않아, scheduling due가 inf로 처리됩니다."
-            # )
-        else:
+        valid_crit_candidates = [
+            c
+            for c in not_yet_candidates
+            if c.is_critical
+            and c.logical_interaction_start_time is not None
+            and c.logical_interaction_start_time >= curr_node.state.current_time
+            and c.logical_interaction_start_time != float("inf")
+        ]
+        if valid_crit_candidates:
             # Sort by logical start time to find the *next* critical scheduling_due
             valid_crit_candidates.sort(key=lambda x: x.logical_interaction_start_time)
             next_crit = valid_crit_candidates[0]
-            # The scheduling_due is the logical start time of the next critical task
-            scheduling_due = next_crit.logical_interaction_start_time
-            due_related_sub_name = next_crit.subtask.name
-            # log.debug(
-            #     f"Next critical task '{due_related_sub_name}' sets scheduling_due at LogicalEST {scheduling_due:.2f}"
-            # )
 
-        # Assign the calculated scheduling_due (IN-PLACE) while preserving critical metadata.
-        new_scheduling_due = SchedulingDue(
-            due_date=scheduling_due, due_related_sub_name=due_related_sub_name
-        )
+            # Assign the calculated scheduling_due (IN-PLACE) while preserving critical metadata.
+            new_scheduling_due = SchedulingDue(
+                due_date=next_crit.logical_interaction_start_time,
+                due_related_sub_name=next_crit.subtask.name,
+            )
+        else:
+            # 남은 Critical Task가 없는 경우: 무한대(inf) 또는 적절한 기본값 할당
+            new_scheduling_due = SchedulingDue(
+                due_date=float("inf"),
+                due_related_sub_name=None,
+            )
 
         for feasible_candidate in feasible_candidates:
-            if feasible_candidate.is_critical:
-                # Preserve an existing finite deadline for the critical task.
-                current_due = feasible_candidate.scheduling_due
-                if current_due and current_due.due_date != float("inf"):
-                    continue
+            # [주의! 뭔지 모르는 코드]
+            # # Case 1: Critical Task 처리
+            # if feasible_candidate.is_critical:
+            #     critical_ctx = feasible_candidate.critical_context
 
-                critical_ctx = feasible_candidate.critical_context
-                if (
-                    critical_ctx
-                    and critical_ctx.source_subtask
-                    and critical_ctx.source_end_time is not None
-                ):
-                    inferred_due = critical_ctx.source_end_time + critical_ctx.interval
-                    # [Logic Update 251215]
-                    # If inferred due is too tight or passed, we should set it to NOW (EPSILON)
-                    # to force immediate execution or wait logic activation.
-                    # Previously it was just EPSILON, now we explicitly ensure it.
-                    if inferred_due <= curr_node.state.current_time:
-                        inferred_due = curr_node.state.current_time + EPSILON
+            #     # 1-1. 선행 제약이 명확한 경우: 자신의 제약 조건에 따른 마감 기한 계산
+            #     if (
+            #         critical_ctx
+            #         and critical_ctx.source_subtask
+            #         and critical_ctx.source_end_time is not None
+            #     ):
+            #         inferred_due = critical_ctx.source_end_time + critical_ctx.interval
 
-                    feasible_candidate.scheduling_due = SchedulingDue(
-                        due_date=inferred_due,
-                        due_related_sub_name=feasible_candidate.subtask.name,
-                    )
-                    continue
+            #         # 마감 기한이 이미 지났다면 즉시 실행하도록 조정 (선택 사항)
+            #         if inferred_due <= curr_node.state.current_time:
+            #              inferred_due = curr_node.state.current_time + EPSILON
 
-                # [Logic Update 251215]
-                # If a candidate is CRITICAL but has no explicit deadline from predecessor context,
-                # it might be a floating critical task. We should prioritize it by inheriting
-                # the nearest upcoming critical deadline to ensure it doesn't get pushed back indefinitely.
-                if new_scheduling_due.due_date != float("inf"):
-                    feasible_candidate.scheduling_due = new_scheduling_due
-                    continue
+            #         feasible_candidate.scheduling_due = SchedulingDue(
+            #             due_date=inferred_due,
+            #             due_related_sub_name=feasible_candidate.subtask.name,
+            #         )
+            #     # 1-2. 선행 제약이 없는 Floating Critical Task인 경우:
+            #     else:
+            #         # 전역 데드라인(new_scheduling_due)이 유효하다면 이를 상속받아 우선순위 확보
+            #         if new_scheduling_due.due_date != float("inf"):
+            #             feasible_candidate.scheduling_due = new_scheduling_due
+            #         # 그렇지 않다면 기본값 유지 (또는 별도 처리)
 
-                # Fall back to the globally inferred due date only if it is meaningful.
-                if new_scheduling_due.due_date == float("inf"):
-                    continue
-
+            # # Case 2: Non-Critical Task 처리
+            # else:
+            #     # 다음 Critical Task 시작 전까지 끝내야 함
+            #     feasible_candidate.scheduling_due = new_scheduling_due
             feasible_candidate.scheduling_due = new_scheduling_due
-
-        # if feasible_candidates:
-        #     log.debug(
-        #         f"Assigned scheduling_due {new_scheduling_due} to {len(feasible_candidates)} feasible candidates."
-        #     )
-        # No return needed as feasible list is modified in-place
 
     def get_required_predecessors(
         self,

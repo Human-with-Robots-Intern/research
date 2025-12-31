@@ -59,23 +59,30 @@ def parse_arguments():
         help="The name of the ablation configuration.",
     )
     parser.add_argument(
+        "--init_prior_mean",
+        type=float,
+        default=100,
+        help="베이지안 추정을 위한 초기 평균값 (기본값: constants.py 값)",
+    )
+    parser.add_argument(
+        "--case",
+        type=str,
+        default="tasks_2_constraints_2",
+        help="The name of the case.",
+    )
+    parser.add_argument(
+        "--instruction",
+        type=str,
+        default="07_heat_the_bread_using_microwave_and_cook_egg.json",
+        help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
+    )
+    parser.add_argument(
         "--scene",
         type=str,
         default="FloorPlan1",
         help="input scene name (default: FloorPlan1)",
     )
-    parser.add_argument(
-        "--instruction",
-        type=str,
-        default="10_make_a_coffee_and_put_apple_and_lettuce_in_fridge.json",
-        help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
-    )
-    parser.add_argument(
-        "--case",
-        type=str,
-        default="tasks_2_constraints_1",
-        help="The name of the case.",
-    )
+
     parser.add_argument(
         "--simulation",
         default=True,
@@ -100,12 +107,7 @@ def parse_arguments():
         default=None,
         help="Path to the log file for this specific run.",
     )
-    parser.add_argument(
-        "--init_prior_mean",
-        type=float,
-        default=100,
-        help="베이지안 추정을 위한 초기 평균값 (기본값: constants.py 값)",
-    )
+
     parser.add_argument(
         "--init_prior_variance",
         type=float,
@@ -257,14 +259,18 @@ def main():
             task_data = load_task_data_from_sampled_set(
                 args.case, scene_name, args.instruction
             )
-
+            approach_name_final = (
+                f"{approach_name}_{args.ablation_name}"
+                if args.ablation_name
+                else approach_name
+            )
             save_scene_state(
                 controller=controller,
                 output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
                 case_name=args.case,
                 scene_name=scene_name,
                 instruction=args.instruction.split(".json")[0],
-                approach_name=f"{approach_name}_{args.ablation_name}",
+                approach_name=f"{approach_name_final}",
                 state_label="init",
             )
             if trajectory_log_path is None:
@@ -582,14 +588,18 @@ def main():
                     "dag_bayesian_meta_data": meta_data,
                 }
             )
-
+        approach_name_final = (
+            f"{approach_name}_{args.ablation_name}"
+            if args.ablation_name
+            else approach_name
+        )
         save_scene_state(
             controller=controller,
             output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
             case_name=args.case,
             scene_name=scene_name,
             instruction=args.instruction.split(".json")[0],
-            approach_name=f"{approach_name}_{args.ablation_name}",
+            approach_name=f"{approach_name_final}",
             state_label="end",
         )
         result_save(**result_args)
