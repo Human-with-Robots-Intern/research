@@ -412,6 +412,7 @@ class Scheduler:
         This covers both 'On-time' (within tolerance) and 'Missed' (overdue) cases.
         Also checks not_yet_candidates for urgent but blocked tasks, prioritizing their feasible predecessors.
         """
+
         urgent_list = []
         for candidate in feasible_candidates:
             if not candidate.is_critical:
@@ -467,7 +468,12 @@ class Scheduler:
                     find_feasible_ancestor(pred_name)
 
         for candidate in not_yet_candidates:
-            if not candidate.is_critical or candidate.subtask.decomposed:
+            # [TODO] candidate가 logical start time이 없으면 무시해야 함
+            if (
+                not candidate.is_critical
+                or candidate.subtask.decomposed
+                or candidate.logical_interaction_start_time is None
+            ):
                 continue
 
             incoming_slots = self.constraint_handler.get_time_slots(
@@ -563,6 +569,7 @@ class Scheduler:
             log.debug(
                 f"[_expand_single_subtask] Subtask {candidate.subtask.name} requires monitoring-based splitting."
             )
+            # 왜 덮어씌우지?
             candidate.scheduling_due = due_info
             return self._expand_subtask_with_monitoring(
                 curr_node, candidate, not_yet_candidates, feasible_candidates
@@ -682,12 +689,13 @@ class Scheduler:
                     start_name in completed_entries_map
                     and end_name not in completed_entries_map
                 ):
+
                     start_entry = completed_entries_map[start_name]
                     if start_entry.subtask.subtask_type != "Monitor":
                         interval = info.get("Interval", 0.0)
                         variance = info.get("Variance", INIT_PRIOR_VARIANCE)
                         due_date = start_entry.schedule_end_time + interval
-                        # if due_date > curr_node.state.current_time:
+
                         active_intervals.append(
                             (
                                 variance,
@@ -707,20 +715,20 @@ class Scheduler:
         # Assign the most urgent due date based on VARIANCE (Uncertainty).
         # We prioritize the interval with the HIGHEST variance to reduce uncertainty first.
         # Tie-breaker: If variances are equal, prioritize the one with the EARLIEST due date (smallest due_date).
-        best_variance, high_variance_due = max(
-            active_intervals, key=lambda item: (item[0], -item[1].due_date)
+        urgent_var, urgent_due = max(
+            active_intervals, key=lambda item: (-item[1].due_date)
         )
 
         # [Safety Latch 251215]
         # We want to monitor the high-variance task, BUT if the candidate already has a TIGHTER deadline,
         # we cannot afford to go monitoring something else that is less urgent.
-        original_due = candidate.scheduling_due
-        final_due = high_variance_due
 
+        final_due = urgent_due
+        # critical end subtask가 아닐 때.
         if (
-            original_due
-            and original_due.due_date != float("inf")
-            and original_due.due_date < high_variance_due.due_date
+            candidate.scheduling_due
+            and candidate.scheduling_due.due_date != float("inf")
+            and candidate.scheduling_due.due_date < urgent_due.due_date
         ):
             # The candidate is MORE URGENT than the monitoring target.
             # Check if there is an active interval for the urgent task itself.
@@ -728,7 +736,8 @@ class Scheduler:
                 (
                     item
                     for item in active_intervals
-                    if item[1].due_related_sub_name == original_due.due_related_sub_name
+                    if item[1].due_related_sub_name
+                    == candidate.scheduling_due.due_related_sub_name
                 ),
                 None,
             )
@@ -736,7 +745,7 @@ class Scheduler:
             if urgent_interval_pair:
                 # If the urgent task itself can be monitored, do that instead.
                 final_due = urgent_interval_pair[1]
-                best_variance = urgent_interval_pair[0]
+                urgent_var = urgent_interval_pair[0]
                 log.debug(
                     f"[_should_split_with_monitoring] Overriding high variance target with URGENT target '{final_due.due_related_sub_name}' "
                     f"(due: {final_due.due_date:.2f})."
@@ -745,15 +754,15 @@ class Scheduler:
                 # The urgent task is not monitorable (or not in active list).
                 # Skipping monitoring completely to focus on the deadline.
                 log.debug(
-                    f"[_should_split_with_monitoring] Skipping monitoring. Candidate has urgent deadline ({original_due.due_date:.2f}) "
-                    f"which is tighter than high variance target ({high_variance_due.due_date:.2f})."
+                    f"[_should_split_with_monitoring] Skipping monitoring. Candidate has urgent deadline ({candidate.scheduling_due.due_date:.2f}) "
+                    f"which is tighter than high variance target ({urgent_due.due_date:.2f})."
                 )
                 return False, None
 
         candidate.scheduling_due = final_due
         log.debug(
             f"[_should_split_with_monitoring] Active interval found targeting '{final_due.due_related_sub_name}' "
-            f"(due: {final_due.due_date:.2f}, var: {best_variance:.2f})."
+            f"(due: {final_due.due_date:.2f}, var: {urgent_var:.2f})."
         )
 
         return True, final_due
@@ -1050,6 +1059,7 @@ class Scheduler:
 
         # Determine the critical interval that triggers this monitoring split
         scheduling_due = candidate.scheduling_due
+        # 모니터링으로 쪼갤 때, critical end subtask를 가장 빠르게 deadline을 갖는 것으로 관찰하게 함. (분산 높은 것 보다...)
         if not (
             scheduling_due
             and scheduling_due.due_date != float("inf")
@@ -1542,7 +1552,9 @@ class Scheduler:
         """
         # candidate는 wait for의 대상 subtask임.
         # candidate로 만드는 wait for candidate의 scheduling_due는 candidate의 logical_interaction_start_time 기준으로 계산됨.
-        log.debug(f"[_expand_wait_with_monitoring] {candidate.subtask.name}")
+        log.debug(
+            f"[_expand_wait_with_monitoring] Waiting for {candidate.subtask.name}"
+        )
 
         curr_state = curr_node.state
 
@@ -1608,11 +1620,18 @@ class Scheduler:
             - nav_duration
         )
 
-        if total_wait_duration <= EPSILON:
-            log.debug(
-                f"[_expand_wait_wo_monitoring] Total wait duration ({total_wait_duration:.2f}) is less than or equal to EPSILON. Skip waiting."
+        # 현재 시간에서 wait하고 모니터링을하는게 deadline을 넘기면 wo monitoring으로 fallback
+        if (
+            original_absolute_monitoring_trigger_time + MONITORING_DURATION
+            > candidate.logical_interaction_start_time
+        ):
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
             )
-            return None
 
         wait_sub = Subtask(
             task_name=None,
@@ -1678,7 +1697,7 @@ class Scheduler:
         new_risk = max(curr_node.risk_level, step_risk)
 
         log.info(
-            f"[_expand_wait_wo_monitoring] {candidate.subtask.name}: end_time({wait_end_time:.2f}) = current_time({curr_state.current_time:.2f}) + wait_duration({total_wait_duration:.2f})"
+            f"[_expand_wait_with_monitoring] Waiting for{candidate.subtask.name}: end_time({wait_end_time:.2f}) = current_time({curr_state.current_time:.2f}) + wait_duration({total_wait_duration:.2f})"
         )
         log.info(
             f"cost({new_cost:.2f}) = end_time({wait_end_time:.2f}) + total_heuristic_cost({total_heuristic_cost:.2f})\n"
