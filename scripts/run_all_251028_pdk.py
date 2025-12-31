@@ -150,16 +150,35 @@ def get_memory_usage() -> float:
     return psutil.virtual_memory().percent
 
 
-def wait_for_memory_available(threshold: float = MEMORY_THRESHOLD_PERCENT) -> None:
+def wait_for_memory_available(
+    threshold: float = MEMORY_THRESHOLD_PERCENT, timeout: int = 600
+) -> None:
     """Wait until memory usage drops below threshold.
 
     Args:
         threshold (float): Memory usage percentage threshold.
+        timeout (int): Maximum time to wait in seconds.
     """
+    start_time = time.time()
+    last_log_time = start_time
+
     while get_memory_usage() > threshold:
-        logger.warning(
-            f"Memory usage at {get_memory_usage():.1f}%. Waiting for memory to free up..."
-        )
+        current_time = time.time()
+        elapsed = current_time - start_time
+
+        if elapsed > timeout:
+            logger.critical(
+                f"Memory usage ({get_memory_usage():.1f}%) still high after {timeout}s. "
+                "Forcing execution to proceed (ignoring threshold)."
+            )
+            break
+
+        if current_time - last_log_time >= 30:
+            logger.warning(
+                f"Memory usage at {get_memory_usage():.1f}%. Waiting for memory to free up... ({int(elapsed)}s elapsed)"
+            )
+            last_log_time = current_time
+
         time.sleep(MEMORY_CHECK_INTERVAL)
         gc.collect()
 
@@ -171,37 +190,40 @@ def cleanup_subprocess(process: subprocess.Popen) -> None:
         process (subprocess.Popen): The subprocess to cleanup.
     """
     try:
-        parent = psutil.Process(process.pid)
-        children = parent.children(recursive=True)
+        # Check if process is already dead
+        if process.poll() is not None:
+            return
 
-        # Terminate children first
+        parent = psutil.Process(process.pid)
+        try:
+            children = parent.children(recursive=True)
+        except psutil.NoSuchProcess:
+            children = []
+
+        # Kill children first (SIGKILL)
         for child in children:
             try:
-                child.terminate()
+                child.kill()
             except psutil.NoSuchProcess:
                 pass
 
-        # Wait for children to terminate
-        gone, alive = psutil.wait_procs(children, timeout=3)
+        # Wait briefly for children to die
+        _, alive = psutil.wait_procs(children, timeout=1)
 
-        # Kill any remaining children
+        # Kill any survivors
         for p in alive:
             try:
                 p.kill()
             except psutil.NoSuchProcess:
                 pass
 
-        # Terminate parent
+        # Kill parent
         try:
-            parent.terminate()
-            parent.wait(timeout=3)
+            parent.kill()
+            parent.wait(timeout=1)
         except (psutil.NoSuchProcess, psutil.TimeoutExpired):
-            try:
-                parent.kill()
-            except psutil.NoSuchProcess:
-                pass
-    except psutil.NoSuchProcess:
-        pass
+            pass
+
     except Exception as e:
         logger.warning(f"Error cleaning up subprocess: {e}")
 
@@ -448,20 +470,36 @@ def worker(task: ExperimentTask) -> None:
                 )
                 time.sleep(buffer_between_instructions)
 
-            _run_script_and_log(
-                b_path,
-                task.ablation_name,
-                task.case_name,
-                task.scene_name,
-                instr_path_obj,
-                task.is_simulation,
-                task.cloud_rendering,
-                log_file_path,
-                task.ablation_params,
-                task.init_prior_params,
-                attempt=1,
-                gpu_id=task.gpu_id,
-            )
+            for attempt in range(1, task.max_retries + 1):
+                result = _run_script_and_log(
+                    b_path,
+                    task.ablation_name,
+                    task.case_name,
+                    task.scene_name,
+                    instr_path_obj,
+                    task.is_simulation,
+                    task.cloud_rendering,
+                    log_file_path,
+                    task.ablation_params,
+                    task.init_prior_params,
+                    attempt=attempt,
+                    gpu_id=task.gpu_id,
+                )
+                if result.returncode == 0:
+                    logger.info(
+                        f"Scheduler baseline {b_path.name} succeeded on attempt {attempt}."
+                    )
+                    break
+
+                if attempt < task.max_retries:
+                    logger.warning(
+                        f"Scheduler baseline {b_path.name} failed on attempt {attempt}. Retrying in 10 seconds..."
+                    )
+                    time.sleep(10)
+            else:  # No-break
+                logger.error(
+                    f"Scheduler baseline {b_path.name} failed after {task.max_retries} attempts."
+                )
         elif b_type == BaselineType.LLM:
             buffer_between_instructions = 2 if task.is_simulation else 30
             for attempt in range(1, task.max_retries + 1):
@@ -907,6 +945,16 @@ def main() -> None:
                         )
                         tasks_to_run.append(task)
 
+    # Diagnostic logging for task generation
+    task_counts = defaultdict(int)
+    for t in tasks_to_run:
+        task_counts[t.ablation_name] += 1
+
+    logger.critical("Task Generation Summary:")
+    for ablation, count in task_counts.items():
+        logger.critical(f"  - Ablation '{ablation}': {count} tasks")
+    logger.critical(f"  - Total: {len(tasks_to_run)} tasks")
+
     if is_dry_run:
         logger.critical("=" * 80)
         logger.critical(f"DRY RUN MODE: Found {len(tasks_to_run)} experiments to run.")
@@ -935,23 +983,47 @@ def main() -> None:
             executor.submit(worker, task) for task in tasks_to_run
         ]
 
+        pending_futures = set(futures)
         completed_count = 0
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                future.result()
-                completed_count += 1
+        last_log_time = time.time()
 
-                # Periodically force garbage collection
-                if completed_count % GC_COLLECT_AFTER_TASKS == 0:
-                    logger.info(
-                        f"Completed {completed_count} tasks. Running garbage collection..."
-                    )
-                    gc.collect()
-                    mem_usage = get_memory_usage()
-                    logger.info(f"Current memory usage: {mem_usage:.1f}%")
-            except Exception as e:
-                logger.critical(f"A task generated an exception: {e}")
-                logger.critical(traceback.format_exc())
+        while pending_futures:
+            # Check for completed futures with a short timeout to allow periodic logging
+            done, not_done = concurrent.futures.wait(
+                pending_futures,
+                timeout=30,
+                return_when=concurrent.futures.FIRST_COMPLETED,
+            )
+
+            # Process completed tasks
+            for future in done:
+                try:
+                    future.result()
+                    completed_count += 1
+
+                    # Periodically force garbage collection
+                    if completed_count % GC_COLLECT_AFTER_TASKS == 0:
+                        logger.info(
+                            f"Completed {completed_count} tasks. Running garbage collection..."
+                        )
+                        gc.collect()
+                        mem_usage = get_memory_usage()
+                        logger.info(f"Current memory usage: {mem_usage:.1f}%")
+                except Exception as e:
+                    logger.critical(f"A task generated an exception: {e}")
+                    logger.critical(traceback.format_exc())
+
+            pending_futures = not_done
+
+            # Log status if no tasks completed recently or periodically
+            current_time = time.time()
+            if current_time - last_log_time >= 60 or not done:
+                logger.critical(
+                    f"Progress Update: {completed_count}/{len(tasks_to_run)} completed. "
+                    f"{len(pending_futures)} pending/running. "
+                    f"(Memory: {get_memory_usage():.1f}%)"
+                )
+                last_log_time = current_time
 
         # Final garbage collection
         logger.info("All tasks completed. Final garbage collection...")
