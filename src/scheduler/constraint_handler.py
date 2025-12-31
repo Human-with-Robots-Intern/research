@@ -130,8 +130,9 @@ class ConstraintHandler:
                         due_related_sub_name=candidate.subtask.name,
                     )
                 log.debug(
-                    f"Subtask '{sub.name}' is not yet feasible caused by NOT_READY status."
+                    f"Subtask '{sub.name}' is not yet feasible caused by predecessor task is not finished."
                 )
+
                 not_yet_candidates.append(candidate)  # status 추가
                 continue
 
@@ -255,20 +256,14 @@ class ConstraintHandler:
                 all_predecessors_finished = False
                 continue
 
-            # if hasattr(pred_entry, "execution_status"):
-            #     pred_status = pred_entry.execution_status
-            #     if pred_status is False:
-            #         any_predecessor_failed = True
-            #         failure_reason = (
-            #             f"Predecessor '{pred_name}' sched execution status FAILED."
-            #         )
-            #         log.warning(f"'{sub.name}' cannot start: {failure_reason}")
-            #         break
             pred_end_time = pred_entry.schedule_end_time
             curr_logical_interaction_start_time = pred_end_time + interval
 
             # Critical / Non-critical 분리
             if is_crit:
+                log.debug(
+                    f"current_subtask {sub.name} has critical constraint: {pred_name} -> {sub.name} = {curr_logical_interaction_start_time} ({pred_end_time=}, {interval=})"
+                )
                 critical_times.append(curr_logical_interaction_start_time)
                 critical_context.append((pred_name, pred_end_time, interval))
             else:
@@ -378,22 +373,15 @@ class ConstraintHandler:
         # [Fix] Determine criticality for NOT_READY tasks
         # If any incoming edge is critical, the task is effectively critical (part of a critical chain)
         # even if we can't calculate the exact start time yet.
-        is_effectively_critical = False
-        for _, _, edge_data in in_edges:
+        is_critical_end_subtask = False
+        for crit_start_sub_name, crit_start_sub_name, edge_data in in_edges:
             if edge_data.get("info", {}).get("IsCritical", False):
-                is_effectively_critical = True
+                is_critical_end_subtask = True
                 break
-
-        if not all_predecessors_finished:
-            missing_predecessors = [
-                p_name
-                for p_name, _, _ in in_edges
-                if p_name not in completed_subtasks_map
-            ]
 
         return (
             None,
-            is_effectively_critical,
+            is_critical_end_subtask,
             "NOT_READY",
             collected_critical_info,
         )
