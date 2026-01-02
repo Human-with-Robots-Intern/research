@@ -46,7 +46,7 @@ ablation_configs:
   - DEFAULT
   - NONE_MONITORING
 init_prior_configs:
-  - CORRECT_ESTIMATE
+  # - CORRECT_ESTIMATE
 
   - OVER_ESTIMATE
   - UNDER_ESTIMATE
