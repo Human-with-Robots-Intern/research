@@ -716,7 +716,7 @@ class Scheduler:
         # We prioritize the interval with the HIGHEST variance to reduce uncertainty first.
         # Tie-breaker: If variances are equal, prioritize the one with the EARLIEST due date (smallest due_date).
         urgent_var, urgent_due = max(
-            active_intervals, key=lambda item: (-item[1].due_date)
+            active_intervals, key=lambda item: (item[0], -item[1].due_date)
         )
 
         # [Safety Latch 251215]
@@ -1875,7 +1875,11 @@ class Scheduler:
 
         # Calculate Wait Duration
         total_wait_duration = max(
-            0.0, target_start_time - curr_state.current_time - nav_duration
+            0.0,
+            target_start_time
+            - curr_state.current_time
+            - nav_duration
+            - TIMING_TOLERANCE_ABS // 2,
         )
 
         log.debug(
