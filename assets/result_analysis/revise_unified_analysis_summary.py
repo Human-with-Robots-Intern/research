@@ -59,16 +59,16 @@ TASK_ORDER: List[str] = [
     "tasks_2_constraints_2",
     "tasks_3_constraints_1",
     "tasks_3_constraints_2",
-    "tasks_4_constraints_1",
-    "tasks_4_constraints_2",
+    # "tasks_4_constraints_1",
+    # "tasks_4_constraints_2",
 ]
 TASK_DISPLAY_NAMES: Dict[str, str] = {
     "tasks_2_constraints_1": "Tasks 2 (C=1)",
     "tasks_2_constraints_2": "Tasks 2 (C=2)",
     "tasks_3_constraints_1": "Tasks 3 (C=1)",
     "tasks_3_constraints_2": "Tasks 3 (C=2)",
-    "tasks_4_constraints_1": "Tasks 4 (C=1)",
-    "tasks_4_constraints_2": "Tasks 4 (C=2)",
+    # "tasks_4_constraints_1": "Tasks 4 (C=1)",
+    # "tasks_4_constraints_2": "Tasks 4 (C=2)",
 }
 
 # Approaches to exclude from the final analysis

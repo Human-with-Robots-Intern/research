@@ -67,13 +67,13 @@ def parse_arguments():
     parser.add_argument(
         "--case",
         type=str,
-        default="tasks_2_constraints_1",
+        default="tasks_2_constraints_2",
         help="The name of the case.",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default="10_make_a_coffee_and_put_apple_and_lettuce_in_fridge.json",
+        default="05_fill_pot_with_water_and_heat_the_bread_using_microwave.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(

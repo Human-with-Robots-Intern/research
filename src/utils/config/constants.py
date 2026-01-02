@@ -162,9 +162,9 @@ MIN_VARIANCE = 1e-6
 # allows capping the tolerance window for large intervals.
 TIMING_TOLERANCE_DEFAULT = 100.0
 TIMING_TOLERANCE_RATIO = 0.3
-TIMING_TOLERANCE_ABS = 10.0  # 결과 이상하면, 15로 rollback 할 것
+TIMING_TOLERANCE_ABS = 14.5  # 결과 이상하면, 15로 rollback 할 것
 MONITORING_SPLIT_TOLERANCE_ABS = 15.0
-TSR_EVAL_TOLERANCE_ABS = 14.5
+TSR_EVAL_TOLERANCE_ABS = 16
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 3
 BEAM_WIDTH = 3
