@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import time
+from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
-from src.utils.config.constants import TIMING_TOLERANCE_ABS, TIMING_TOLERANCE_DEFAULT
-from src.utils.common.logger import create_module_logger
-# Prefer shared project logger
-from .specs import ConditionGroup, TaskSpec, TSRSpec, TASK_SPECS
 from assets.result_analysis.utils.state_change_simulate import accumulate_state_changes
+from src.utils.common.logger import create_module_logger
+from src.utils.config.constants import TIMING_TOLERANCE_DEFAULT, TSR_EVAL_TOLERANCE_ABS
+
+# Prefer shared project logger
+from .specs import TASK_SPECS, ConditionGroup, TaskSpec, TSRSpec
+
 # Import simulator helpers with safe fallback for script execution
 
 
@@ -62,7 +64,7 @@ class TSRResult:
 @dataclass(frozen=True)
 class TaskResult:
     """Task evaluation result (GCR/TSR).
-    
+
     For tasks with multiple TSRs, use tsr_results dict.
     """
 
@@ -128,25 +130,25 @@ def _evaluate_gcr_mid_with_steps(
     groups: Optional[Sequence[ConditionGroup]],
 ) -> Tuple[bool, Optional[Dict[str, int]]]:
     """Evaluate mid conditions and return (passed, dict_of_satisfied_steps).
-    
+
     Returns a dict mapping generated group names to their satisfied step indices.
     """
 
     if not groups:
         return True, None
-    
+
     steps_dict = {}
     for idx, group in enumerate(groups):
         step = _find_first_step_index(snapshots, group)
         if step is None:
             return False, None
-        
+
         # Generate key name: e.g. "fork_faucet_1"
         obj_names = [obj.object_name_prefix for obj in group.objects]
         base_name = "_".join(obj_names)
         key = f"{base_name}_{idx + 1}"
         steps_dict[key] = step
-            
+
     return True, steps_dict
 
 
@@ -210,10 +212,10 @@ def _evaluate_single_tsr(
     events: Sequence[Mapping[str, Any]],
     duration_key: str = "duration",
     tsr_target_duration: float = TIMING_TOLERANCE_DEFAULT,
-    tsr_tolerance: float = TIMING_TOLERANCE_ABS,
+    tsr_tolerance: float = TSR_EVAL_TOLERANCE_ABS,
 ) -> TSRResult:
     """Evaluate a single TSR specification.
-    
+
     Duration is calculated between trigger and end steps (exclusive of both endpoints).
     """
 
@@ -243,8 +245,10 @@ def _evaluate_single_tsr(
         tsr_duration = 0.0
     else:
         # trigger_idx + 1 부터 end_idx - 1 까지
-        tsr_duration = _sum_durations(events, trigger_idx + 1, end_idx - 1, duration_key=duration_key)
-    
+        tsr_duration = _sum_durations(
+            events, trigger_idx + 1, end_idx - 1, duration_key=duration_key
+        )
+
     tsr_ok = abs(tsr_duration - float(tsr_target_duration)) <= float(tsr_tolerance)
 
     return TSRResult(
@@ -263,14 +267,16 @@ def evaluate_task(
     task_spec: TaskSpec,
     duration_key: str = "duration",
     tsr_target_duration: float = TIMING_TOLERANCE_DEFAULT,
-    tsr_tolerance: float = TIMING_TOLERANCE_ABS,
+    tsr_tolerance: float = TSR_EVAL_TOLERANCE_ABS,
 ) -> TaskResult:
     """Evaluate a single task for GCR/TSR."""
 
     snapshots = accumulate_state_changes(events)
     end_state = snapshots[-1]
     gcr_end_ok = _evaluate_gcr_end(end_state, task_spec.gcr_end)
-    gcr_mid_ok, gcr_mid_steps = _evaluate_gcr_mid_with_steps(snapshots, task_spec.gcr_mid_groups)
+    gcr_mid_ok, gcr_mid_steps = _evaluate_gcr_mid_with_steps(
+        snapshots, task_spec.gcr_mid_groups
+    )
     gcr_ok = gcr_end_ok and gcr_mid_ok
 
     tsr_results_dict: Optional[Dict[str, TSRResult]] = None
@@ -308,7 +314,9 @@ def evaluate_tasks(
     for task_name in task_names:
         spec = TASK_SPECS.get(task_name)
         if spec is None:
-            logger.warning("Undefined task spec: %s. Marking as failed GCR/TSR.", task_name)
+            logger.warning(
+                "Undefined task spec: %s. Marking as failed GCR/TSR.", task_name
+            )
             result[task_name] = TaskResult(
                 name=task_name,
                 gcr_pass=False,
@@ -350,7 +358,7 @@ def compute_trial_metrics(
             # Unknown task spec -> treat as failed GCR/TSR
             continue
         if result.gcr_pass:
-            gcr_successes += 1        
+            gcr_successes += 1
         # Check tsr_results
         if result.tsr_results:
             all_passed = all(r.passed for r in result.tsr_results.values())
@@ -370,6 +378,9 @@ def compute_trial_metrics(
             sr = 0
     else:
         sr = 0
-    return {"instruction_gcr": instruction_gcr, "tsr": tsr, "sr": sr, "makespan": makespan}
-
-
+    return {
+        "instruction_gcr": instruction_gcr,
+        "tsr": tsr,
+        "sr": sr,
+        "makespan": makespan,
+    }

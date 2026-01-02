@@ -67,13 +67,13 @@ def parse_arguments():
     parser.add_argument(
         "--case",
         type=str,
-        default="tasks_2_constraints_2",
+        default="tasks_2_constraints_1",
         help="The name of the case.",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default="07_heat_the_bread_using_microwave_and_cook_egg.json",
+        default="10_make_a_coffee_and_put_apple_and_lettuce_in_fridge.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
@@ -141,13 +141,13 @@ def parse_arguments():
     parser.add_argument(
         "--beam_width",
         type=int,
-        default=3,
+        default=5,
         help="Scheduler beam width (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--beam_depth",
         type=int,
-        default=3,
+        default=5,
         help="Scheduler beam depth (simulation_depth) (기본값: constants.py 값)",
     )
     parser.add_argument(

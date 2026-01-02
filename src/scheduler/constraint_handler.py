@@ -19,6 +19,7 @@ from src.models.task import Subtask
 from src.scheduler.action_handler import ActionHandler
 from src.utils.common import create_module_logger
 from src.utils.config import EPSILON
+from utils.config.constants import TIMING_TOLERANCE_ABS
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
@@ -175,7 +176,10 @@ class ConstraintHandler:
 
             # 현재 시간에 "상호작용을 시작"할 수 있는 경우 feasible
             # 즉, effective_interaction_start_time이 현재 시간과 거의 같아야 함.
-            if actual_interaction_start_time <= current_time + first_nav_duration:
+            if (
+                actual_interaction_start_time
+                <= current_time + first_nav_duration + TIMING_TOLERANCE_ABS
+            ):
                 log.debug(
                     f"Subtask '{sub.name}' is feasible now (interaction can start at {actual_interaction_start_time:.2f}, current_time: {current_time:.2f}, first_nav_duration: {first_nav_duration:.2f})."
                 )
