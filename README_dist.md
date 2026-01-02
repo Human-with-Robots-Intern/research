@@ -12,8 +12,8 @@ NVIDIA GPU가 없는 환경(CPU 전용)에서도 동작하도록 구성되어 �
 
 ```bash
 # 필수 패키지 설치
-sudo apt-get update
-sudo apt-get install ca-certificates curl gnupg
+sudo apt update
+sudo apt install ca-certificates curl gnupg
 
 # Docker 공식 GPG 키 추가
 sudo install -m 0755 -d /etc/apt/keyrings
@@ -40,6 +40,9 @@ sudo usermod -aG docker $USER
 
 ```ini
 # .env 파일 예시
+프로젝트 루트에 .env.example파일의 파일명에서 .exmple을 지워서 .env파일로 만들어줍니다.
+터미널에서 whoami를 입력해서 나오는이름을 USERNAME에 입력해주세요
+본인의 OPENAI API 키를 입력해주세요
 OPENAI_API_KEY=sk-your-openai-api-key-here
 ```
 > **주의:** `OPENAI_API_KEY`는 실제 사용 가능한 키를 입력해야 LLM 기반 실험이 정상 작동합니다.
@@ -56,15 +59,14 @@ xhost +local:docker
 ### 1-4. 도커 컨테이너 실행
 
 배포용 설정 파일(`docker-compose-dist.yml`)을 사용하여 컨테이너를 빌드하고 실행합니다.
-호스트의 사용자 권한(UID/GID)과 디스플레이 설정을 컨테이너에 전달합니다.
+디스플레이 설정을 컨테이너에 전달합니다.
 
 ```bash
-# 사용자 정보 및 디스플레이 환경변수를 전달하며 Docker Compose 실행
-export UID=$(id -u)
-export GID=$(id -g)
-export USERNAME=$(whoami)
 
-DISPLAY=$DISPLAY docker compose -f docker-compose-dist.yml up -d --build
+DISPLAY=$DISPLAY docker compose -f docker-compose-dist.yml up ttp -d --build
+
+# gpu가 존재하면서 cuda 12.5를 사용 가능한 경우
+DISPLAY=$DISPLAY docker compose docker-compose.yml up ttp -d --build
 ```
 > 최초 실행 시 이미지를 빌드하느라 시간이 다소 소요될 수 있습니다.
 
@@ -85,6 +87,8 @@ DISPLAY=$DISPLAY docker compose -f docker-compose-dist.yml up -d --build
 1. **컨테이너 접속**
    ```
    docker exec -it ttp_dist bash
+   # gpu 세팅으로 container를 만든 경우
+   docker exec -it ttp bash
    ```
 
 2. **실험 스크립트 실행**
@@ -95,5 +99,6 @@ DISPLAY=$DISPLAY docker compose -f docker-compose-dist.yml up -d --build
    
    - 실행 시 설정된 시뮬레이터 화면이 로컬 모니터에 팝업됩니다.
    - 로그는 터미널에 출력되며, 결과 파일은 `assets/results/` 경로 등에 저장됩니다.
+   - 최초실행시 ai2thor 빌드로인해 3분이상 걸릴 수 있습니다.
 
 
