@@ -365,10 +365,10 @@ def _run_script_and_log(
     )
 
     try:
-        stdout, stderr = process.communicate(timeout=3600)  # 1 hour timeout
+        stdout, stderr = process.communicate(timeout=300)  # 1 hour timeout
         returncode = process.returncode
     except subprocess.TimeoutExpired:
-        logger.error(f"Process timeout after 1 hour. Killing process...")
+        logger.error(f"Process timeout after 5 minutes. Killing process...")
         cleanup_subprocess(process)
         stdout, stderr = "", "Process killed due to timeout"
         returncode = -1
