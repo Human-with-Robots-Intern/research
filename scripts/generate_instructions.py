@@ -3,7 +3,7 @@
 import json
 import random
 from datetime import datetime
-from itertools import combinations, product
+from itertools import combinations
 from typing import Any, Dict, List, Set, Tuple
 
 from src.utils.config.constants import ASSETS_PATH
@@ -74,7 +74,6 @@ EXCLUSIVE_TASK_GROUPS: List[Set[str]] = [
         "boil_potato",
         "wash_apple_and_lettuce"
     },
-  
     # 2. 'Potato' 조리법 제약 그룹: 감자를 삶는 것과 전자레인지에 데우는 것은 동시에 할 수 없습니다.
     {"boil_potato", "heat_the_potato_using_microwave"},
     # 3. 'Bread' 조리법 제약 그룹: 빵을 데우는 두 가지 방법은 동시에 사용할 수 없습니다.
@@ -84,7 +83,7 @@ EXCLUSIVE_TASK_GROUPS: List[Set[str]] = [
     # 5. '음료' 준비 제약 그룹: 물컵을 준비하는 것과 커피를 만드는 것은 다른 종류의 음료 준비입니다.
     {"prepare_a_water_cup", "make_a_coffee"},
     # 6. '농산물 처리' 논리 제약 그룹: 씻는 행위와 냉장고에 넣는 행위를 동시에 명령하지 않습니다.
-    {"wash_apple_and_lettuce", "put_apple_and_lettuce_in_fridge","heat_the_apple_using_microwave"},
+    {"wash_apple_and_lettuce", "put_apple_and_lettuce_in_fridge"},
     ####
     #real world constraints
     # pan으로 인한 constraint
@@ -120,7 +119,7 @@ def load_and_prepare_floor_plan_tasks() -> Dict[str, Any]:
     Returns:
         A dictionary containing 'common_tasks' and scene-specific 'mixed_tasks'.
     """
-    config_path = ASSETS_PATH / "tasks" / "floorplan_tasks.json"
+    config_path = ASSETS_PATH / "tasks" / "floorplan_tasks_realworld.json"
     with open(config_path) as f:
         data: Dict[str, Any] = json.load(f)
 
@@ -177,51 +176,60 @@ def apply_filters(instruction_list: List[str]) -> bool:
     return True
 
 
-def generate_instructions_by_composition(
-    compositions: List[Tuple[int, int, int]],
+def _generate_combinations(
+    base_list: List[str],
+    combo_list: List[str],
+    combo_size: int,
+) -> List[str]:
+    """Generate all possible instruction combinations based on a recipe."""
+    temp_instructions = []
+    for combo in combinations(combo_list, combo_size):
+        instruction_list = base_list + list(combo)
+        if apply_filters(instruction_list):
+            instruction = " and ".join(instruction_list)
+            temp_instructions.append(instruction)
+    return temp_instructions
+
+
+def generate_instructions_for_case(
+    num_tasks: int,
+    num_constraints: int,
     critical_list: List[str],
     non_critical_list: List[str],
-    general_list: List[str],
+    not_constrained_list: List[str],
 ) -> List[str]:
-    """Generate instructions based on specific composition rules.
+    """Generate instructions for a specific case of task and constraint counts."""
+    # Validate if generation is possible
+    if num_constraints > num_tasks:
+        return []
+    if num_constraints > len(critical_list):
+        return []
 
-    Args:
-        compositions: List of (n_critical, n_non_critical, n_general) tuples.
-        critical_list: List of critical tasks.
-        non_critical_list: List of non-critical tasks.
-        general_list: List of general (not_constrained) tasks.
-    """
-    generated_instructions: Set[str] = set()
+    num_non_critical_tasks = num_tasks - num_constraints
+    non_critical_pool = non_critical_list + not_constrained_list
 
-    for n_crit, n_non, n_gen in compositions:
-        # Validate if we have enough tasks
-        if (
-            n_crit > len(critical_list)
-            or n_non > len(non_critical_list)
-            or n_gen > len(general_list)
-        ):
-            continue
+    if num_non_critical_tasks < 0 or num_non_critical_tasks > len(non_critical_pool):
+        return []
 
-        crit_combos = list(combinations(critical_list, n_crit))
-        non_crit_combos = list(combinations(non_critical_list, n_non))
-        gen_combos = list(combinations(general_list, n_gen))
+    generated_instructions: List[str] = []
 
-        for c_tasks, nc_tasks, g_tasks in product(
-            crit_combos, non_crit_combos, gen_combos
-        ):
-            instruction_list = list(c_tasks) + list(nc_tasks) + list(g_tasks)
-            if apply_filters(instruction_list):
-                generated_instructions.add(" and ".join(instruction_list))
+    # Iterate through all combinations of critical tasks
+    for critical_combo in combinations(critical_list, num_constraints):
+        # For each critical combo, generate combinations of non-critical tasks
+        base_list = list(critical_combo)
+        generated_instructions.extend(
+            _generate_combinations(base_list, non_critical_pool, num_non_critical_tasks)
+        )
 
-    return list(generated_instructions)
+    return list(set(generated_instructions))  # Return unique instructions
 
 
 def main() -> None:
     """Generate instructions for a 4x4 matrix of task and constraint counts."""
     # 0. Load existing instructions if the file exists
-    output_path = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251224.json"
+    output_path = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251202_realworld.json"
     existing_instructions_path = (
-        ASSETS_PATH / "tasks" / "decomposed_merged_251224_metadata.json"
+        ASSETS_PATH / "tasks" / "decomposed_merged_251031_metadata.json"
     )
     existing_instructions_by_case = {}
     if existing_instructions_path.exists():
@@ -239,43 +247,31 @@ def main() -> None:
     # This dictionary will hold all generated instructions, structured by case
     all_generated_instructions: Dict[str, Any] = {}
 
-    # Define composition rules: (num_tasks, num_critical) -> list of (n_crit, n_non_crit, n_gen)
-    composition_rules = {
-        (2, 0): [(0, 1, 1), (0, 0, 2)],
-        (2, 1): [(1, 1, 0), (1, 0, 1)],
-        (3, 0): [(0, 2, 1), (0, 0, 3)],
-        (3, 1): [(1, 2, 0), (1, 1, 1)],
-        (3, 2): [(2, 0, 1)],
-        (4, 1): [(1, 1, 2), (1, 2, 1)],
-        (4, 2): [(2, 1, 1)],
-    }
+    task_counts = range(2, 5)  # Number of tasks: 2, 3, 4, 5
+    constraint_counts = range(
+        0, 3
+    )  # Number of constraints (critical tasks): 0, 1, 2, 3
 
     # Define sampling limits based on intent in comments
-    MAX_COMMON_INSTRUCTIONS = 20
+    MAX_COMMON_INSTRUCTIONS = 15
     MAX_SCENE_INSTRUCTIONS = 0
 
-    # 2. Loop through defined composition rules
-    for (num_t, num_c), rules in composition_rules.items():
-        for rule in rules:
-            n_crit, n_non, n_gen = rule
-            
-            # Construct key name based on composition
-            parts = [f"tasks_{num_t}", f"critical_{n_crit}", f"non_critical_{n_non}"]
-            if n_gen > 0:
-                parts.append(f"general_{n_gen}")
-            case_key = "_".join(parts)
-            
+    # 2. Loop through all 16 cases
+    for num_t in task_counts:
+        for num_c in constraint_counts:
+            case_key = f"tasks_{num_t}_constraints_{num_c}"
             print(f"--- Processing instructions for: {case_key} ---")
 
             existing_case_data = existing_instructions_by_case.get(case_key, {})
 
             # --- Part 3: Common Instructions ---
             # Generate all possible common instructions
-            all_common_instructions = generate_instructions_by_composition(
-                compositions=[rule],
+            all_common_instructions = generate_instructions_for_case(
+                num_tasks=num_t,
+                num_constraints=num_c,
                 critical_list=common_tasks[0],
                 non_critical_list=common_tasks[1],
-                general_list=common_tasks[2],
+                not_constrained_list=common_tasks[2],
             )
             # Get existing instructions and create a pool of new candidates
             existing_common_set = set(existing_case_data.get("common", []))
@@ -295,11 +291,12 @@ def main() -> None:
             # --- Part 4: Scene-Specific Instructions ---
             for scene_name, tasks in mixed_tasks_by_scene.items():
                 # Generate all possible mixed instructions
-                mixed_instructions = generate_instructions_by_composition(
-                    compositions=[rule],
+                mixed_instructions = generate_instructions_for_case(
+                    num_tasks=num_t,
+                    num_constraints=num_c,
                     critical_list=tasks[0],
                     non_critical_list=tasks[1],
-                    general_list=tasks[2],
+                    not_constrained_list=tasks[2],
                 )
                 # Filter out any that are now in the final common set
                 distinct_mixed = [
@@ -331,8 +328,9 @@ def main() -> None:
     final_output = {
         "metadata": {
             "date": datetime.now().strftime("%Y-%m-%d, %H:%M:%S"),
-            "generation_criteria": "composition_rules",
-            "composition_rules_description": "List of (n_crit, n_non_crit, n_gen) for each case",
+            "generation_criteria": "tasks_and_constraints_count",
+            "task_counts": list(task_counts),
+            "constraint_counts": list(constraint_counts),
             "instruction_counts_by_case": instruction_counts_by_case,
         },
         "instructions_by_case": all_generated_instructions,
