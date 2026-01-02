@@ -17,7 +17,8 @@ from src.utils.config.constants import (
     TASK_PATH,
     TOP_K,
 )
-from src.utils.nlp.few_shot_retriever import FewShotRetriever
+
+# from src.utils.nlp.few_shot_retriever import FewShotRetriever
 from src.utils.task.task_cache import check_cache, get_cache_key, store_cache
 
 # 내부 모듈
@@ -109,15 +110,15 @@ class TaskGenerator:
                 Path(PROMPT_PATH) / "e2e_generator_ver13_real.txt", "txt"
             )
 
-        # RAG 모드 활성화 시, FewShotRetriever 활용
-        if self.is_rag:
-            rag_system = FewShotRetriever()
-            retrieved_few_shot_prompts = rag_system.generate_few_shot_prompts(
-                user_input, top_k=TOP_K
-            )
-            examples_prompt = examples_prompt.replace(
-                "<Example>", retrieved_few_shot_prompts
-            )
+        # # RAG 모드 활성화 시, FewShotRetriever 활용
+        # if self.is_rag:
+        #     rag_system = FewShotRetriever()
+        #     retrieved_few_shot_prompts = rag_system.generate_few_shot_prompts(
+        #         user_input, top_k=TOP_K
+        #     )
+        #     examples_prompt = examples_prompt.replace(
+        #         "<Example>", retrieved_few_shot_prompts
+        #     )
 
         # 환경 정보 로드 및 주입 (environment_file_name이 제공된 경우)
         environment_info_str = ""

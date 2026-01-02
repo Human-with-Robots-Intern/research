@@ -1,22 +1,14 @@
 {
+    "Faucet": {
+        "expected_duration": 100.44875950684208,
+        "variance": 0.12049336370577653
+    },
     "Microwave": {
-        "expected_duration": 99.9182757080261,
-        "variance": 0.1675818684484337
+        "expected_duration": 100.45768179990327,
+        "variance": 1.1159486116782957
     },
     "CounterTop": {
         "expected_duration": 0.0,
-        "variance": 900.0
-    },
-    "Egg": {
-        "expected_duration": 0.0,
-        "variance": 900.0
-    },
-    "StoveKnob": {
-        "expected_duration": 100.2020746372734,
-        "variance": 0.22334382749786214
-    },
-    "StoveBurner": {
-        "expected_duration": 120.0,
-        "variance": 900.0
+        "variance": 900
     }
 }
