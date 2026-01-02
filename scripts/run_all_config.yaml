@@ -1,17 +1,18 @@
-# Configuration for run_all.py
-simulation: true # Enable Simulation mode
-cloud_rendering: false
+#Configuration for run_all.py
+simulation: true # 시뮬레이션 실험인지 실물실험인지를 가르는 인자. 
+cloud_rendering: false # 백그라운드 실행용. 화면을 보려면 false
 
-num_runs_per_instruction: 1 # Number of times to run each instruction
+num_runs_per_instruction: 1 #반복 시행 횟수
 max_retries: 1 # set to be 1
 retry_delay_seconds: 2 # Delay in seconds between retries
-max_workers: 1 # Maximum number of workers
-instruction_delay_seconds: 0 # Delay in seconds between instructions
+max_workers: 1 # 병렬실행 수
+instruction_delay_seconds: 0 # 각 실행 별 delay
 # Logging configuration
 log_level: "DEBUG" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
-start_idx: 1 # Start index for the instruction
+start_idx: 1 # 시작하는 task의 번호
 # Execution settings
-# List of approaches (scripts) to run
+
+# 실행하고자 하는 방법론리스트, 실행하지 않으려면 주석처리
 approaches:
   - "src/baselines/cpm.py"
   - "src/baselines/edf/dag_edf.py"
@@ -40,21 +41,18 @@ scene_lists:
   real_world:
     # - "FloorPlan301"
 ablation_configs:
-  # - NONE_URGENCY
-  # - NONE_REMAINING_WORK
-  # - GREEDY
   - DEFAULT
   - NONE_MONITORING
-init_prior_configs:
-  # - CORRECT_ESTIMATE
-  # - OVER_ESTIMATE
-  # - UNDER_ESTIMATE
-  # - OVER_MEDIUM_ESTIMATE
+init_prior_configs: #초기 시간 값 종류
+  - CORRECT_ESTIMATE
+  - OVER_ESTIMATE
+  - UNDER_ESTIMATE
+  - OVER_MEDIUM_ESTIMATE
   - UNDER_MEDIUM_ESTIMATE
 # ------------------------------------------------------------------------------
 # Task Filtering
 # ------------------------------------------------------------------------------
-task_folder_name: "sampled_10_instruction_set_for_final_experiment_251231_bluebottle" # Folder under assets/tasks/
+task_folder_name: "sampled_10_instruction_set_for_final_experiment_251203" # Folder under assets/tasks/
 min_task_count: 0
 min_constraint_count: 0
 skip_completed: true
