@@ -78,6 +78,7 @@ class HeuristicManager:
         """
         Calculates risk and urgency
         """
+        # critical subtask가 not_yet에 존재하지 않는 경우에 대햐여.
         if not candidate.scheduling_due or candidate.scheduling_due.due_date == float(
             "inf"
         ):
@@ -90,7 +91,11 @@ class HeuristicManager:
         deadline = candidate.scheduling_due.due_date
 
         # 1. Calculate Slack
-        total_time_needed = self._estimate_total_time_needed(current_node, candidate)
+        total_time_needed = (
+            self._estimate_total_time_needed_for_deadline_violation_check(
+                current_node, candidate
+            )
+        )
         time_available = deadline - current_time
         slack = time_available - total_time_needed
 
@@ -99,41 +104,64 @@ class HeuristicManager:
         )
 
         # 2. Map Slack to Base Risk & Cost
-        if slack >= -constants.TIMING_TOLERANCE_ABS:
-            log.debug(f"[_calculate_candidate_risk_and_urgency] Risk: 0.0")
+        if slack >= 0:
+            log.debug(
+                f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
+            )
             return 0, slack
+        elif slack >= -constants.TIMING_TOLERANCE_ABS:
+            log.debug(
+                f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 1.0"
+            )
+            return 1, slack
         else:
-            log.debug(f"[_calculate_candidate_risk_and_urgency] Risk: 2.0")
+            log.debug(
+                f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 2.0"
+            )
             return 2, 10000.0 + abs(slack)
 
-    def _estimate_total_time_needed(
+    def _estimate_total_time_needed_for_deadline_violation_check(
         self, current_node: SimulationNode, candidate: Candidate
     ) -> float:
         """Estimates time needed for nav + interaction + lookahead return trip."""
+        # 0,true로 묶인 A -> B가 있을 때 현재 지점에서 A까지 이동하는데 걸리는 시간
         nav_time = candidate.estimated_first_nav_duration or 0.0
-        if candidate.subtask.name == "Wait for Turn Off Faucet after Pot is Filled":
-            pass
+        # A,B의 총 작업 소요 시간
         chain_duration, _ = self._get_chain_info(current_node, candidate.subtask)
 
-        # [Fix] If the deadline is for the candidate itself (Start Time Constraint),
-        # we only need to arrive (Nav) by the deadline, not finish.
-        is_target_self = (
-            candidate.scheduling_due
-            and candidate.scheduling_due.due_related_sub_name == candidate.subtask.name
-        )
+        # # [Fix] If the deadline is for the candidate itself (Start Time Constraint),
+        # # we only need to arrive (Nav) by the deadline, not finish.
+        # is_target_self = (
+        #     candidate.scheduling_due
+        #     and candidate.scheduling_due.due_related_sub_name == candidate.subtask.name
+        # )
 
-        if is_target_self:
-            total_time = nav_time
-        else:
-            total_time = nav_time + chain_duration
+        # if is_target_self:
+        #     total_time = nav_time
+        # else:
+        total_time = nav_time + chain_duration
 
-        # Lookahead: Check if we need to return to a future critical task location
-        future_crit_name = candidate.scheduling_due.due_related_sub_name
-        if future_crit_name and future_crit_name != candidate.subtask.name:
-            lookahead_time = self._calculate_lookahead_nav_time(
-                current_node, candidate, future_crit_name
-            )
-            total_time += lookahead_time
+        # # Lookahead: Check if we need to return to a future critical task location
+        # future_crit_name = candidate.scheduling_due.due_related_sub_name
+        # if future_crit_name and future_crit_name != candidate.subtask.name:
+        #     lookahead_time = self._calculate_lookahead_nav_time(
+        #         current_node, candidate, future_crit_name
+        #     )
+        #     total_time += lookahead_time
+
+        #     # [FIXED] Add duration of the future critical task chain (e.g., Turn Off + Retrieve)
+        #     # Previously, we only added navigation time, ignoring the interaction time of the future task.
+        #     future_subtask = next(
+        #         (
+        #             t
+        #             for t in current_node.state.remaining_subtasks
+        #             if t.name == future_crit_name
+        #         ),
+        #         None,
+        #     )
+        #     if future_subtask:
+        #         future_chain_dur, _ = self._get_chain_info(current_node, future_subtask)
+        #         total_time += future_chain_dur
 
         return total_time
 
@@ -174,11 +202,11 @@ class HeuristicManager:
         Calculates total duration and members of a critical chain starting from start_subtask.
         A chain is defined by consecutive tasks with Interval <= EPSILON.
         """
+        # 0,true로 묶인 A -> B가 있을 때 현재 지점에서 A 작업하는데 걸리는 시간
         total_duration = self._get_estimated_pure_interaction_time(start_subtask)
         curr_name = start_subtask.name
         chain_members = {curr_name}
 
-        # [Added] Track current position to add navigation times within the chain
         curr_pos = self._get_task_interaction_location(
             start_subtask, current_node.state.scene_positions
         )
@@ -189,14 +217,14 @@ class HeuristicManager:
             out_edges = current_node.state.constraints.out_edges(curr_name, data=True)
             for _, target, data in out_edges:
                 info = data.get("info", {})
-                # Check for critical chain link (IsCritical AND Interval ~ 0)
+                # 0, True로 엮인 연속 작업에 대하여.
                 if (
                     info.get("IsCritical")
                     and info.get("Interval", 0.0) <= constants.EPSILON
                 ):
                     next_name = target
                     break
-
+            # 연속 작업 B가 있는 경우에, chain member에 B를 추가
             if next_name and next_name not in chain_members:
                 chain_members.add(next_name)
                 # Find the subtask object to get duration
@@ -208,6 +236,7 @@ class HeuristicManager:
                     ),
                     None,
                 )
+                # 연속 작업 B의 duration을 추가
                 if next_sub:
                     # 1. Add interaction duration
                     total_duration += self._get_estimated_pure_interaction_time(
