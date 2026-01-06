@@ -2,6 +2,7 @@ import argparse
 import concurrent.futures
 import gc
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -17,6 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import psutil
+import requests
 import yaml
 
 from src.utils.common import create_module_logger
@@ -28,6 +30,7 @@ from src.utils.config.constants import (
     LOG_PATH,
     RESULT_PATH,
     SCRIPTS_PATH,
+    TASK_PATH,
 )
 
 # Create a single timestamp for the entire script run
@@ -41,6 +44,7 @@ logger = create_module_logger(
     level=logging.ERROR,
     run_timestamp=RUN_TIMESTAMP,
 )
+
 MAX_RETRIES = 10
 
 # Memory management constants
@@ -152,16 +156,35 @@ def get_memory_usage() -> float:
     return psutil.virtual_memory().percent
 
 
-def wait_for_memory_available(threshold: float = MEMORY_THRESHOLD_PERCENT) -> None:
+def wait_for_memory_available(
+    threshold: float = MEMORY_THRESHOLD_PERCENT, timeout: int = 600
+) -> None:
     """Wait until memory usage drops below threshold.
 
     Args:
         threshold (float): Memory usage percentage threshold.
+        timeout (int): Maximum time to wait in seconds.
     """
+    start_time = time.time()
+    last_log_time = start_time
+
     while get_memory_usage() > threshold:
-        logger.warning(
-            f"Memory usage at {get_memory_usage():.1f}%. Waiting for memory to free up..."
-        )
+        current_time = time.time()
+        elapsed = current_time - start_time
+
+        if elapsed > timeout:
+            logger.critical(
+                f"Memory usage ({get_memory_usage():.1f}%) still high after {timeout}s. "
+                "Forcing execution to proceed (ignoring threshold)."
+            )
+            break
+
+        if current_time - last_log_time >= 30:
+            logger.warning(
+                f"Memory usage at {get_memory_usage():.1f}%. Waiting for memory to free up... ({int(elapsed)}s elapsed)"
+            )
+            last_log_time = current_time
+
         time.sleep(MEMORY_CHECK_INTERVAL)
         gc.collect()
 
@@ -173,37 +196,40 @@ def cleanup_subprocess(process: subprocess.Popen) -> None:
         process (subprocess.Popen): The subprocess to cleanup.
     """
     try:
-        parent = psutil.Process(process.pid)
-        children = parent.children(recursive=True)
+        # Check if process is already dead
+        if process.poll() is not None:
+            return
 
-        # Terminate children first
+        parent = psutil.Process(process.pid)
+        try:
+            children = parent.children(recursive=True)
+        except psutil.NoSuchProcess:
+            children = []
+
+        # Kill children first (SIGKILL)
         for child in children:
             try:
-                child.terminate()
+                child.kill()
             except psutil.NoSuchProcess:
                 pass
 
-        # Wait for children to terminate
-        gone, alive = psutil.wait_procs(children, timeout=3)
+        # Wait briefly for children to die
+        _, alive = psutil.wait_procs(children, timeout=1)
 
-        # Kill any remaining children
+        # Kill any survivors
         for p in alive:
             try:
                 p.kill()
             except psutil.NoSuchProcess:
                 pass
 
-        # Terminate parent
+        # Kill parent
         try:
-            parent.terminate()
-            parent.wait(timeout=3)
+            parent.kill()
+            parent.wait(timeout=1)
         except (psutil.NoSuchProcess, psutil.TimeoutExpired):
-            try:
-                parent.kill()
-            except psutil.NoSuchProcess:
-                pass
-    except psutil.NoSuchProcess:
-        pass
+            pass
+
     except Exception as e:
         logger.warning(f"Error cleaning up subprocess: {e}")
 
@@ -345,10 +371,10 @@ def _run_script_and_log(
     )
 
     try:
-        stdout, stderr = process.communicate(timeout=3600)  # 1 hour timeout
+        stdout, stderr = process.communicate(timeout=300)  # 1 hour timeout
         returncode = process.returncode
     except subprocess.TimeoutExpired:
-        logger.error(f"Process timeout after 1 hour. Killing process...")
+        logger.error(f"Process timeout after 5 minutes. Killing process...")
         cleanup_subprocess(process)
         stdout, stderr = "", "Process killed due to timeout"
         returncode = -1
@@ -388,6 +414,31 @@ def _run_script_and_log(
         f"Stderr: {result.stderr}"
     )
     return result
+
+
+def return_to_initial_position(ros_bridge_url: str = "http://localhost:8000") -> None:
+    """Sends a command to the robot to return to the initial position."""
+    try:
+        # Action parts: [robot_model, action_id, object_id, position]
+        # NAVIGATE_TO is 10. Assuming initial position is Node 0.
+        # Note: Adjust the position value (0) if your initial node ID is different.
+        action_parts = [0, 10, 100, 100]
+        
+        logger.info("Sending 'Return to Initial Position' command...")
+        response = requests.post(
+            f"{ros_bridge_url}/execute_translated_action",
+            json={"action_parts": action_parts},
+            timeout=30
+        )
+        response.raise_for_status()
+        result = response.json()
+        if result.get("success"):
+            logger.info("Successfully returned to initial position.")
+        else:
+            logger.warning("Robot failed to return to initial position.")
+            
+    except Exception as e:
+        logger.error(f"Error returning to initial position: {e}")
 
 
 def worker(task: ExperimentTask) -> None:
@@ -450,9 +501,30 @@ def worker(task: ExperimentTask) -> None:
 
         if b_type == BaselineType.SCHEDULER:
             buffer_between_instructions = 0 if task.is_simulation else 10
+            
+            # Flush stale stream buffer if recording
+            if use_recorder:
+                logger.info("Flushing camera stream buffers (5s)...")
+                flush_dir = video_output_dir / "temp_flush"
+                try:
+                    # Create a temporary recorder to consume stale buffer
+                    with DualCameraRecorder(flush_dir, "buffer_flush"):
+                        time.sleep(5)
+                except Exception as e:
+                    logger.warning(f"Error during stream flush: {e}")
+                
+                # Clean up flush files
+                try:
+                    shutil.rmtree(flush_dir)
+                except Exception:
+                    pass
+                
+                # Wait for server to restart loop
+                time.sleep(2)
+
             if buffer_between_instructions > 0:
                 logger.info(
-                    f"Waiting for {buffer_between_instructions} seconds before starting."
+                    f"Waiting for {buffer_between_instructions} seconds before starting..."
                 )
                 time.sleep(buffer_between_instructions)
 
@@ -463,6 +535,9 @@ def worker(task: ExperimentTask) -> None:
             )
 
             with recorder_ctx:
+                # Wait for recording to start
+                time.sleep(2)
+                
                 _run_script_and_log(
                     b_path,
                     task.ablation_name,
@@ -478,9 +553,33 @@ def worker(task: ExperimentTask) -> None:
                     gpu_id=task.gpu_id,
                 )
         elif b_type == BaselineType.LLM:
-            buffer_between_instructions = 2 if task.is_simulation else 30
+            buffer_between_instructions = 2 if task.is_simulation else 10
             for attempt in range(1, task.max_retries + 1):
                 current_stem = f"{file_stem}_try{attempt}"
+                
+                # Flush stale stream buffer if recording (before each attempt)
+                if use_recorder:
+                    logger.info(f"Flushing camera stream buffers (5s) before attempt {attempt}...")
+                    flush_dir = video_output_dir / "temp_flush"
+                    try:
+                        with DualCameraRecorder(flush_dir, "buffer_flush"):
+                            time.sleep(5)
+                    except Exception as e:
+                        logger.warning(f"Error during stream flush: {e}")
+                    
+                    try:
+                        shutil.rmtree(flush_dir)
+                    except Exception:
+                        pass
+                    
+                    time.sleep(2)
+
+                if buffer_between_instructions > 0:
+                    logger.info(
+                        f"Waiting for {buffer_between_instructions} seconds before starting..."
+                    )
+                    time.sleep(buffer_between_instructions)
+
                 recorder_ctx = (
                     DualCameraRecorder(video_output_dir, current_stem)
                     if use_recorder
@@ -488,6 +587,9 @@ def worker(task: ExperimentTask) -> None:
                 )
 
                 with recorder_ctx:
+                    # Wait for recording to start
+                    time.sleep(2)
+                    
                     result = _run_script_and_log(
                         b_path,
                         task.ablation_name,
@@ -518,6 +620,22 @@ def worker(task: ExperimentTask) -> None:
                     f"LLM baseline {b_path.name} failed after {task.max_retries} attempts."
                 )
     finally:
+        # Return to initial position if not simulation
+        if not task.is_simulation:
+            ros_bridge_url = os.getenv("ROS_BRIDGE_URL", "http://localhost:8000")
+            return_to_initial_position(ros_bridge_url)
+
+        # Notify Windows host to play sound
+        try:
+            # Try host.docker.internal first (standard for Docker Desktop)
+            # If you are using a different setup, you might need to supply the host IP via env var
+            sound_server_host = os.getenv("SOUND_SERVER_HOST", "host.docker.internal")
+            sound_server_port = os.getenv("SOUND_SERVER_PORT", "8085")
+            requests.post(f"http://{sound_server_host}:{sound_server_port}/play_sound", timeout=2)
+        except Exception:
+            # Fallback to simple bell if network request fails
+            print('\a')
+
         # Force garbage collection after each task
         gc.collect()
 
@@ -530,7 +648,6 @@ def worker(task: ExperimentTask) -> None:
 
 def load_instruction_case_mapping_from_scenes(
     target_scenes: List[str],
-    task_folder_name: str,
     min_task_count: int = 0,
     min_constraint_count: int = 0,
 ) -> Dict[str, Dict[str, List[str]]]:
@@ -550,7 +667,7 @@ def load_instruction_case_mapping_from_scenes(
         Dict[str, Dict[str, List[str]]]: A nested dictionary mapping case names to
         a dictionary of scene names to a list of instruction file paths.
     """
-    task_folder = ASSETS_PATH / "tasks" / task_folder_name
+    task_folder = TASK_PATH
     if not task_folder.exists():
         logger.error(f"Task folder not found: {task_folder}")
         raise FileNotFoundError(f"Task folder not found: {task_folder}")
@@ -799,12 +916,10 @@ def main() -> None:
 
     min_task_count = config.get("min_task_count", 0)
     min_constraint_count = config.get("min_constraint_count", 0)
-    task_folder_name = config.get(
-        "task_folder_name", "decomposed_rightbefore_final_251031"
-    )
+
     case_instruction_mapping: Dict[str, Dict[str, List[str]]] = (
         load_instruction_case_mapping_from_scenes(
-            target_scenes, task_folder_name, min_task_count, min_constraint_count
+            target_scenes, min_task_count, min_constraint_count
         )
     )
 
@@ -972,23 +1087,47 @@ def main() -> None:
             executor.submit(worker, task) for task in tasks_to_run
         ]
 
+        pending_futures = set(futures)
         completed_count = 0
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                future.result()
-                completed_count += 1
+        last_log_time = time.time()
 
-                # Periodically force garbage collection
-                if completed_count % GC_COLLECT_AFTER_TASKS == 0:
-                    logger.info(
-                        f"Completed {completed_count} tasks. Running garbage collection..."
-                    )
-                    gc.collect()
-                    mem_usage = get_memory_usage()
-                    logger.info(f"Current memory usage: {mem_usage:.1f}%")
-            except Exception as e:
-                logger.critical(f"A task generated an exception: {e}")
-                logger.critical(traceback.format_exc())
+        while pending_futures:
+            # Check for completed futures with a short timeout to allow periodic logging
+            done, not_done = concurrent.futures.wait(
+                pending_futures,
+                timeout=30,
+                return_when=concurrent.futures.FIRST_COMPLETED,
+            )
+
+            # Process completed tasks
+            for future in done:
+                try:
+                    future.result()
+                    completed_count += 1
+
+                    # Periodically force garbage collection
+                    if completed_count % GC_COLLECT_AFTER_TASKS == 0:
+                        logger.info(
+                            f"Completed {completed_count} tasks. Running garbage collection..."
+                        )
+                        gc.collect()
+                        mem_usage = get_memory_usage()
+                        logger.info(f"Current memory usage: {mem_usage:.1f}%")
+                except Exception as e:
+                    logger.critical(f"A task generated an exception: {e}")
+                    logger.critical(traceback.format_exc())
+
+            pending_futures = not_done
+
+            # Log status if no tasks completed recently or periodically
+            current_time = time.time()
+            if current_time - last_log_time >= 60 or not done:
+                logger.critical(
+                    f"Progress Update: {completed_count}/{len(tasks_to_run)} completed. "
+                    f"{len(pending_futures)} pending/running. "
+                    f"(Memory: {get_memory_usage():.1f}%)"
+                )
+                last_log_time = current_time
 
         # Final garbage collection
         logger.info("All tasks completed. Final garbage collection...")

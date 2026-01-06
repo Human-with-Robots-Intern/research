@@ -143,7 +143,7 @@ def fun_processing(plan: str) -> dict:
         of actions. Normal actions are strings, while assert/else blocks
         are represented as dictionaries: `{'assert': str, 'else': [str]}`.
     """
-    print(plan)
+
     subgoals = {}
     sg = "0"  # Default subgoal key
     subgoals[sg] = []

@@ -407,7 +407,7 @@ def parse_arguments():
     parser.add_argument(
         "--case",
         type=str,
-        default=None,
+        default="tasks_2_constraints_2",
         help="The name of the case.",
     )
     parser.add_argument(
@@ -426,7 +426,7 @@ def parse_arguments():
     parser.add_argument(
         "--instruction",
         type=str,
-        default=2,
+        default="01_boil_potato_and_heat_the_bread_using_microwave.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
@@ -455,13 +455,13 @@ def parse_arguments():
     parser.add_argument(
         "--init_prior_mean",
         type=float,
-        default=None,
+        default=100,
         help="베이지안 추정을 위한 초기 평균값 (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--init_prior_variance",
         type=float,
-        default=None,
+        default=900,
         help="베이지안 추정을 위한 초기 분산값 (기본값: constants.py 값)",
     )
 

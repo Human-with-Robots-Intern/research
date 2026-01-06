@@ -14,11 +14,11 @@ start_idx: 1 # Start index for the instruction
 approaches:
 
   # - "src/baselines/cpm.py"
-  # - "src/baselines/edf/dag_edf.py"
+  - "src/baselines/edf/dag_edf.py"
   # - "src/dag_bayesian.py"
 # Scripts that use LLMs and are subject to retries on failure
 llm_scripts:
-  - "src/baselines/progprompt/prog_ai2thor.py"
+  # - "src/baselines/progprompt/prog_ai2thor.py"
   # - "src/baselines/cap/cap_ai2thor.py"
 # Scene lists for each scene type
 scene_type: # Default scene type to run. Options: 'kitchen', 'bathroom'
@@ -56,7 +56,6 @@ init_prior_configs:
 # ------------------------------------------------------------------------------
 # Task Filtering
 # ------------------------------------------------------------------------------
-task_folder_name: "sampled_10_instruction_set_for_final_experiment_251203_realworld" # Folder under assets/tasks/
 min_task_count: 0
 min_constraint_count: 0
 skip_completed: false

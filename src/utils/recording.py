@@ -59,10 +59,11 @@ class DualCameraRecorder:
             # -c:v libx264: Re-encode to H.264 for compatibility
             # -preset ultrafast: Use minimal CPU
             # -pix_fmt yuv420p: Ensure compatibility with players
+            # -rw_timeout 5000000: Wait up to 5 seconds for stream
             cmd = [
                 "ffmpeg",
                 "-y",
-                "-f", "mjpeg", 
+                "-rw_timeout", "5000000",
                 "-i", input_url,
                 "-c:v", "libx264",
                 "-preset", "ultrafast",
@@ -71,7 +72,7 @@ class DualCameraRecorder:
             ]
             
             # Suppress ffmpeg logs
-            cmd.extend(["-loglevel", "error"])
+            # cmd.extend(["-loglevel", "error"])
 
             try:
                 # Run in background
@@ -98,9 +99,12 @@ class DualCameraRecorder:
                 # Send SIGINT (CTRL+C) to allow ffmpeg to finalize the file
                 proc.send_signal(signal.SIGINT)
                 try:
-                    proc.wait(timeout=5)
+                    stdout, stderr = proc.communicate(timeout=5)
+                    if stderr:
+                        logger.info(f"ffmpeg output: {stderr.decode('utf-8', errors='replace')}")
                 except subprocess.TimeoutExpired:
                     logger.warning("ffmpeg did not exit gracefully, killing...")
                     proc.kill()
+                    proc.communicate()
         self.processes = []
 

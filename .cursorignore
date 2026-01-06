@@ -1,0 +1,47 @@
+# Cursor 인덱싱에서 제외할 파일/디렉토리
+# 이 파일들은 코드 검색 및 인덱싱에서 제외되어 메모리 사용량을 줄입니다.
+
+# 결과 파일들 (대용량 JSON)
+
+
+# 로그 파일들
+
+
+# 빌드 및 캐시
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.cache/
+.tox/
+.nox/
+
+# 데이터 파일들
+*.db
+*.csv
+*.npy
+*.npz
+*.pth
+
+# 임시 파일들
+temp*.py
+*.bak
+*.out
+*.swp
+
+# 대용량 미디어
+*.png
+*.jpg
+*.bmp
+
+# 아카이브
+archive/
+
+# ROS 워크스페이스 (필요시 주석 해제)
+# ros/
+# ros-reference/
+
+# 기타
+.ipynb_checkpoints/
+.DS_Store
+

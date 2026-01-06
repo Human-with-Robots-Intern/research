@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import itertools
-from queue import PriorityQueue
 from typing import TYPE_CHECKING, List, Optional
 
 import numpy as np
@@ -25,12 +24,12 @@ from src.utils.config import (
     RED,
     RESET,
     TIMING_TOLERANCE_ABS,
+    constants,
 )
 from src.utils.config.constants import (
     BAYESIAN_THRESHOLD_PROBABILITY,
     BEAM_WIDTH,
     INIT_PRIOR_VARIANCE,
-    MONITORING_ENABLED,
     SIMULATION_DEPTH,
 )
 from src.utils.task import TaskUtil
@@ -114,22 +113,16 @@ class Scheduler:
     # ======================
     def _simulate_search(self, init_state: SchedulerState) -> Optional[SimulationNode]:
         """
-        Conducts a beam search up to self.simulation_depth from the init_state.
-        - Each node expansion checks feasible and not-yet-feasible candidates.
-        - If no feasible expansions exist, that branch try wait expansion.
-        - A queue (PriorityQueue) is used to keep track of expansions by ascending cost.
-        - We collect "best solutions" (i.e., states in which all tasks are done
-          or we have reached the search depth) and return the least-cost one.
+        Conducts a Layer-wise Beam Search up to self.simulation_depth.
+        At each depth, we keep only the top `search_width` nodes (Layer-wise Pruning).
 
         Args:
             init_state (SchedulerState): The root state to start the simulation.
 
         Returns:
-            Optional[SimulationNode]: The best goal node (lowest cost) among expansions
-            that reach depth or complete all subtasks. None if no solution is found.
+            Optional[SimulationNode]: The best goal node (lowest cost) among expansions.
         """
-        queue = PriorityQueue()
-
+        # 1. Initialize Beam
         init_node = SimulationNode(
             parent_node=None,
             heuristic_cost=0.0,
@@ -138,93 +131,161 @@ class Scheduler:
             state=init_state,
             risk_level=0,
         )
-        queue.put(init_node)
-
+        current_beam: List[SimulationNode] = [init_node]
         best_solutions: List[SimulationNode] = []
 
-        while not queue.empty():
-            curr_node = queue.get()
-            curr_state = curr_node.state
-            curr_depth = curr_node.depth
+        log.debug(
+            f"[_simulate_search] Starting Layer-wise Beam Search (Width={self.search_width}, Depth={self.simulation_depth})"
+        )
 
-            # (1) Termination condition
-            if not curr_state.remaining_subtasks or (
-                curr_depth >= self.simulation_depth
-            ):
-                best_solutions.append(curr_node)
-                continue
+        # 2. Layer-wise Loop
+        for d in range(self.simulation_depth):
+            if not current_beam:
+                log.debug(f"[_simulate_search] Beam is empty at depth {d}. Stopping.")
+                break
 
-            # (2) Get feasible and not-yet-feasible subtask candidates
-            feasible_candidates, not_yet_candidates = (
-                self.constraint_handler.get_feasible_candidates(curr_node)
-            )
-            log.debug(
-                f"[_simulate_search] Expanding {len(feasible_candidates)} feasible candidates "
-                f"and {len(not_yet_candidates)} not-yet-feasible candidates.\n"
-            )
-            if not feasible_candidates and not not_yet_candidates:
-                # No expansions possible => infeasible branch
-                log.debug("[_simulate_search] No expansions => branch ends.")
-                continue
+            next_beam_candidates: List[SimulationNode] = []
 
-            feasible_names = [c.subtask.name for c in feasible_candidates]
-            not_yet_names = [c.subtask.name for c in not_yet_candidates]
+            # Expand all nodes in the current beam
+            for curr_node in current_beam:
+                curr_state = curr_node.state
 
-            log.debug(
-                f"\n=== [Simulation Step] Depth {curr_depth} -> {curr_depth + 1} | Time: {curr_state.current_time:.2f} ===\n"
-                f"  • Completed : {[ce.subtask.name for ce in curr_state.completed_entries]}\n"
-                f"  • Remaining : {[r.name for r in curr_state.remaining_subtasks]}\n"
-                f"  • Feasible  : {feasible_names}\n"
-                f"  • Not Yet   : {not_yet_names}\n"
-                f"============================================================"
-            )
-
-            # Expand current node
-            expanded_nodes = self._expand_candidates(
-                curr_node, feasible_candidates, not_yet_candidates
-            )
-            # Sort by (Risk Level, Makespan Cost)
-            # Primary: risk_level (Ascending - 0 is best)
-            # Secondary: heuristic_cost (Ascending - lower cost is best)
-            expanded_nodes = sorted(
-                filter(lambda nd: nd.risk_level == 0, expanded_nodes),
-                key=lambda nd: nd.heuristic_cost,
-            )
-
-            # (3) Local Beam Pruning: Keep only the top-K expansions
-            log.debug(f"--- Top Candidates (Depth {curr_depth}) ---")
-            for i, nd in enumerate(expanded_nodes):
-                if i < self.search_width:
+                # (A) Check Termination (All tasks done?)
+                if not curr_state.remaining_subtasks:
                     log.debug(
-                        f"  [{i+1}] {nd.state.subtask.name:<40} | Cost: {nd.heuristic_cost:.2f} | Risk: {nd.risk_level} | EndTime: {nd.state.current_time:.2f}"
+                        f"  [Solution Found] Node depth {curr_node.depth} finished all tasks."
                     )
-                    queue.put(nd)
-                else:
-                    break
+                    best_solutions.append(curr_node)
+                    continue
+                log.debug(
+                    f"\n=== [Beam Step] Depth {d} -> {d+1} | Beam Size: {len(current_beam)} | Current Time: {curr_state.current_time:.2f} ==="
+                )
+                # (B) Get Feasible Candidates
+                feasible_candidates, not_yet_candidates = (
+                    self.constraint_handler.get_feasible_candidates(curr_node)
+                )
+
+                if not feasible_candidates and not not_yet_candidates:
+                    # Dead end
+                    continue
+
+                # (C) Expand
+                log.debug(
+                    f"\n  • Completed : {[ce.subtask.name for ce in curr_state.completed_entries]}\n"
+                    f"  • Remaining : {[r.name for r in curr_state.remaining_subtasks]}\n"
+                    f"  • Feasible  : {[c.subtask.name for c in feasible_candidates]}\n"
+                    f"  • Not Yet   : {[c.subtask.name for c in not_yet_candidates]}\n"
+                    f"============================================================"
+                )
+                expanded_nodes = self._expand_candidates(
+                    curr_node, feasible_candidates, not_yet_candidates
+                )
+
+                # (D) Collect Valid Expansions
+                # [Modified 251229] Risk 2 이상이라도, 대안이 없으면 채택하기 위해 별도로 수집합니다.
+                valid_expansions = []
+                high_risk_expansions = []
+
+                for nd in expanded_nodes:
+                    if nd.risk_level < 2:
+                        valid_expansions.append(nd)
+                    else:
+                        high_risk_expansions.append(nd)
+
+                if valid_expansions:
+                    next_beam_candidates.extend(valid_expansions)
+                elif high_risk_expansions:
+                    # 정상적인(Risk < 2) 후보가 하나도 없을 때만 Risk 높은 후보를 고려합니다.
+                    log.warning(
+                        f"[_simulate_search] Depth {d}: No valid expansions found. "
+                        f"Fallback to {len(high_risk_expansions)} High-Risk candidates."
+                    )
+                    next_beam_candidates.extend(high_risk_expansions)
+
+            # 3. Pruning (Layer-wise)
+            if not next_beam_candidates:
+                log.debug(
+                    f"[_simulate_search] No valid expansions at depth {d} (including high-risk)."
+                )
+                break
+
+            # Sort by (Risk, Cost) to pick top K
+            # Risk is primary, Cost (Heuristic) is secondary.
+            next_beam_candidates.sort(key=lambda nd: (nd.risk_level, nd.heuristic_cost))
+
+            # Keep top K
+            current_beam = next_beam_candidates[: self.search_width]
+            log.debug("============================================================")
+            log.debug(f"Layer-wise Beam Search: Depth {d} -> {d+1}")
+            # Log the survivors
+            log.debug(
+                f"  -> Pruning: Kept top {len(current_beam)} out of {len(next_beam_candidates)} candidates."
+            )
+            for i, node in enumerate(current_beam):
+                # Trace back path
+                path_names = []
+                curr = node
+                while curr:
+                    if curr.state and curr.state.subtask:
+                        path_names.append(curr.state.subtask.name)
+                    curr = curr.parent_node
+                path_str = " -> ".join(reversed(path_names))
+
+                log.debug(
+                    f"     [{i+1}] {path_str} (Risk={node.risk_level}, Cost={node.heuristic_cost:.2f})"
+                )
+            log.debug("============================================================")
+
+        # 4. Final Collection
+        # Add nodes that reached max depth but still have tasks remaining
+        if current_beam:
+            best_solutions.extend(current_beam)
 
         if not best_solutions:
             log.error("[_simulate_search] best_solutions empty => no feasible path")
             return None
 
-        # Return the best solution (lowest cost)
-        # Sort by (Risk Level, Heuristic Cost)
-        best_solutions = sorted(
-            best_solutions,
-            key=lambda nd: (nd.risk_level, nd.heuristic_cost),
-        )
+        # 5. Select Winner
+        # [Modified] Use Lookahead mainly for Risk Assessment.
+        # Decision making is based on Depth 1 Heuristic Cost among Safe Paths.
 
-        log.debug(
-            f"\n--- Best Solutions Evaluation ({len(best_solutions)} candidates) ---"
+        def get_depth1_cost(node: SimulationNode) -> float:
+            """Backtrack to find the heuristic cost at Depth 1."""
+            curr = node
+            # Trace back to Depth 1 (Depth 0 is root)
+            while curr.depth > 1:
+                if curr.parent_node:
+                    curr = curr.parent_node
+                else:
+                    break
+            return curr.heuristic_cost
+
+        # 5. Select Winner
+        # [Modified] Sort by Risk Level first, then Leaf Node Cost (Make-span).
+        # We prefer the path that finishes all tasks earliest (Lowest total cost).
+        # Depth 1 Cost can be misleading if an action (like Wait) has low immediate cost
+        # but delays the overall schedule.
+        best_solutions.sort(
+            key=lambda nd: (nd.risk_level, nd.heuristic_cost + get_depth1_cost(nd))
         )
-        for i, nd in enumerate(best_solutions):
-            rank_str = "WINNER" if i == 0 else f"Rank {i+1}"
-            log.debug(
-                f"  [{rank_str:<8}] {nd.state.subtask.name:<30} | Risk: {nd.risk_level} | Cost: {nd.heuristic_cost:.2f} | Depth: {nd.depth}"
-            )
+        log.debug(
+            f"best_solutions: {best_solutions[0].state.subtask.name}, {best_solutions[0].heuristic_cost} {get_depth1_cost(best_solutions[0])}"
+        )
 
         winner = best_solutions[0]
+
+        # Trace back to find the immediate next action (Depth 1)
+        immediate_node = winner
+        while immediate_node.depth > 1:
+            if immediate_node.parent_node:
+                immediate_node = immediate_node.parent_node
+            else:
+                break
+
         log.debug(
-            f"[_simulate_search] Final Decision: '{winner.state.subtask.name}' selected. (Risk={winner.risk_level}, Cost={winner.heuristic_cost:.2f})\n"
+            f"\n[_simulate_search] Final Decision: Path selected (Leaf: '{winner.state.subtask.name}').\n"
+            f"  -> Immediate Action: '{immediate_node.state.subtask.name}'\n"
+            f"  (Risk={winner.risk_level}, Depth1_Cost={get_depth1_cost(winner):.2f}, Leaf_Cost={winner.heuristic_cost:.2f}, Depth={winner.depth})"
         )
         return winner
 
@@ -257,8 +318,8 @@ class Scheduler:
 
         # If only the root (depth=0) is present
         if len(path) < 2:
-            log.debug("[_extract_state] Only root node in path. Returning root state.")
-            return path[0].state if path else None
+            log.debug("[_extract_state] Only root node in path. No feasible next step.")
+            return None
 
         # Return the state at the first step beyond root (depth=1)
         log.debug("[_extract_state] Returning state at depth=1 in the best path.")
@@ -314,17 +375,9 @@ class Scheduler:
             if child_node:
                 expansions.append(child_node)
 
-        # [Unified Wait Expansion 251216]
-        # Instead of iterating over ALL not_yet_candidates to create redundant Wait actions,
-        # we pick ONE representative candidate to trigger the wait logic.
-        # Since _expand_single_wait (and _expand_wait_wo_monitoring) now uses
-        # global_earliest_deadline to cap the wait duration, any candidate will result
-        # in the same "Wait until next event" behavior.
-        # We pick the one with the earliest 'actual_interaction_start_time' or logical start time.
-
+        # 1. 먼저 정렬을 수행 (정렬 기준은 유지)
         if not_yet_candidates:
-            # Sort to find the earliest target
-            sorted_wait_targets = sorted(
+            sorted_candidates = sorted(
                 not_yet_candidates,
                 key=lambda c: (
                     c.actual_interaction_start_time
@@ -337,23 +390,27 @@ class Scheduler:
                 ),
             )
 
-            # Pick the best candidate (e.g., earliest start time)
-            # If multiple candidates exist, just picking the first one is sufficient
-            # because the Safe Wait Splitting logic considers GLOBAL deadlines anyway.
-            representative_wait_candidate = sorted_wait_targets[0]
+            sorted_wait_targets = [
+                c
+                for c in sorted_candidates
+                if c.actual_interaction_start_time != float("inf")
+                and c.actual_interaction_start_time is not None
+                and c.actual_interaction_start_time is not None
+            ]
 
-            log.debug(
-                f"[_expand_candidates] Unified Wait: Selected representative '{representative_wait_candidate.subtask.name}' from {len(not_yet_candidates)} options."
-            )
-
-            wait_node = self._expand_single_wait(
-                curr_node,
-                representative_wait_candidate,
-                not_yet_candidates,
-                feasible_candidates=feasible_candidates,
-            )
-            if wait_node:
-                expansions.append(wait_node)
+            if sorted_wait_targets:
+                representative_wait_candidate = sorted_wait_targets[0]
+                log.debug(
+                    f"[_expand_single_wait] representative_wait_candidate: {representative_wait_candidate}"
+                )
+                wait_node = self._expand_single_wait(
+                    curr_node,
+                    representative_wait_candidate,
+                    not_yet_candidates,
+                    feasible_candidates=feasible_candidates,
+                )
+                if wait_node:
+                    expansions.append(wait_node)
 
         return expansions
 
@@ -370,6 +427,7 @@ class Scheduler:
         This covers both 'On-time' (within tolerance) and 'Missed' (overdue) cases.
         Also checks not_yet_candidates for urgent but blocked tasks, prioritizing their feasible predecessors.
         """
+
         urgent_list = []
         for candidate in feasible_candidates:
             if not candidate.is_critical:
@@ -425,36 +483,61 @@ class Scheduler:
                     find_feasible_ancestor(pred_name)
 
         for candidate in not_yet_candidates:
-            if not candidate.is_critical or candidate.subtask.decomposed:
+            # [TODO] candidate가 logical start time이 없으면 무시해야 함
+            if (
+                not candidate.is_critical
+                or candidate.subtask.decomposed
+                or candidate.logical_interaction_start_time is None
+            ):
                 continue
 
-            # Check urgency using critical_context
-            crit_ctx = candidate.critical_context
-            if not crit_ctx or crit_ctx.source_end_time is None:
-                continue
-
-            logical_start = crit_ctx.source_end_time + crit_ctx.interval
-            physical_start = (
-                curr_node.state.current_time + candidate.estimated_first_nav_duration
+            incoming_slots = self.constraint_handler.get_time_slots(
+                candidate.subtask.name, curr_node.state.constraints, "in"
             )
+            critical_slots = [s for s in incoming_slots if s.is_critical]
 
-            if physical_start >= logical_start:
-                # Urgent but blocked! Find feasible predecessors recursively.
-                log.debug(
-                    f"Found BLOCKED URGENT task: {candidate.subtask.name} "
-                    f"(Physical: {physical_start:.2f} >= Logical: {logical_start:.2f} - Tol). Tracing ancestors."
+            if critical_slots:
+                target_slot = max(critical_slots, key=lambda s: s.interval)
+                critical_start_sub_name = target_slot.related_subtask_name
+                critical_interval_duration = target_slot.interval
+
+                # 선행 작업 완료 시간 조회
+                pred_entry = next(
+                    (
+                        ce
+                        for ce in curr_node.state.completed_entries
+                        if ce.subtask.name == critical_start_sub_name
+                    ),
+                    None,
                 )
+                if pred_entry:
+                    critical_start_sub_end_time = pred_entry.schedule_end_time
 
-                len_before = len(urgent_list)
-                find_feasible_ancestor(candidate.subtask.name)
-
-                if len(urgent_list) == len_before:
-                    log.debug(
-                        f"No feasible ancestors found for {candidate.subtask.name}. "
-                        f"Adding the task itself as it is time-ready/urgent."
+                    logical_start = (
+                        critical_start_sub_end_time + critical_interval_duration
                     )
-                    candidate.actual_interaction_start_time = physical_start
-                    urgent_list.append(candidate)
+                    physical_start = (
+                        curr_node.state.current_time
+                        + candidate.estimated_first_nav_duration
+                    )
+
+                    if TIMING_TOLERANCE_ABS // 2 >= abs(logical_start - physical_start):
+                        # Urgent but blocked! Find feasible predecessors recursively.
+                        log.debug(
+                            f"Found BLOCKED URGENT task: {candidate.subtask.name} "
+                            f"(Physical: {physical_start:.2f} >= Logical: {logical_start:.2f} - Tol). Tracing ancestors."
+                        )
+
+                        len_before = len(urgent_list)
+                        find_feasible_ancestor(candidate.subtask.name)
+
+                        if len(urgent_list) == len_before:
+                            log.debug(
+                                f"No feasible ancestors found for {candidate.subtask.name}. "
+                                f"Adding the task itself as it is time-ready/urgent."
+                            )
+                            candidate.actual_interaction_start_time = physical_start
+                            urgent_list.append(candidate)
 
         return urgent_list
 
@@ -494,13 +577,14 @@ class Scheduler:
         )
 
         # 모니터링 필요?
-        need_monitor, due_info = self._should_subtask_split_with_monitoring(
+        need_monitor, due_info = self._should_split_with_monitoring(
             curr_node, candidate
         )
-        if need_monitor and MONITORING_ENABLED:
+        if need_monitor and constants.MONITORING_ENABLED:
             log.debug(
                 f"[_expand_single_subtask] Subtask {candidate.subtask.name} requires monitoring-based splitting."
             )
+            # 왜 덮어씌우지?
             candidate.scheduling_due = due_info
             return self._expand_subtask_with_monitoring(
                 curr_node, candidate, not_yet_candidates, feasible_candidates
@@ -533,54 +617,18 @@ class Scheduler:
             otherwise None.
         """
 
-        log.debug(
-            f"[_expand_single_wait] Checking wait-based expansion for subtask: {candidate.subtask.name}."
-        )
-
         target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
         nav_time = self.action_handler.get_actions_info(
             curr_node,
             [f"NAVIGATE_TO {target_obj_id}"],
         ).action_duration
-        log.debug(
-            f"[_expand_single_wait] Subtask {candidate.subtask.name}'s navigation time: {nav_time}. ({target_obj_id})"
-        )
 
         # Check if monitoring is needed before waiting, using the same Bayesian logic as standard subtasks.
-        need_monitor, due_info = self._should_subtask_split_with_monitoring(
+        need_monitor, due_info = self._should_split_with_monitoring(
             curr_node, candidate
         )
 
-        # Rule 3: Split only if an active critical interval exists.
-        active_intervals = []
-        graph = curr_node.state.constraints
-        completed_entries_map = {
-            ce.subtask.name: ce for ce in curr_node.state.completed_entries
-        }
-
-        for start_name, end_name, data in graph.edges(data=True):
-            info = data.get("info", {})
-            if info.get("IsCritical") and info.get("Interval") > EPSILON:
-                if (
-                    start_name in completed_entries_map
-                    and end_name not in completed_entries_map
-                ):
-                    start_entry = completed_entries_map[start_name]
-                    if start_entry.subtask.subtask_type != "Monitor":
-                        interval = info.get("Interval", 0.0)
-                        variance = info.get("Variance", INIT_PRIOR_VARIANCE)
-                        due_date = start_entry.schedule_end_time + interval
-                        # if due_date > curr_node.state.current_time:
-                        active_intervals.append(
-                            (
-                                variance,
-                                SchedulingDue(
-                                    due_date=due_date, due_related_sub_name=end_name
-                                ),
-                            )
-                        )
-
-        if active_intervals and MONITORING_ENABLED:
+        if need_monitor and constants.MONITORING_ENABLED:
             return self._expand_wait_with_monitoring(
                 curr_node,
                 candidate,
@@ -600,14 +648,11 @@ class Scheduler:
     # ======================
     # Helper: 모니터링 필요한지
     # ======================
-    def _should_subtask_split_with_monitoring(
+    def _should_split_with_monitoring(
         self, curr_node: SimulationNode, candidate: Candidate
     ) -> tuple[bool, Optional[SchedulingDue]]:
         """
         Determines if a task should be split for monitoring based on three rules.
-
-
-
         Args:
             curr_node: The current simulation node.
             candidate: The candidate subtask to evaluate.
@@ -616,10 +661,21 @@ class Scheduler:
             True if the candidate should be split for monitoring, False otherwise.
         """
 
+        # curr_node의 subtask가 wait였고, wait의 대상이 candidate라면, monitoring 필요 없음
+        if (
+            curr_node.state.subtask
+            and curr_node.state.subtask.subtask_type == "WAIT"
+            and curr_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
+        ):
+            log.debug(
+                f"[_should_split_with_monitoring] Just finished waiting for {candidate.subtask.name}. Skip monitoring."
+            )
+            return False, None
+
         # Rule 1: Don't re-split tasks.
         if candidate.subtask.decomposed:
             log.debug(
-                f"[_should_subtask_split_with_monitoring] Subtask {candidate.subtask.name} is already handled/decomposed. No split."
+                f"[_should_split_with_monitoring] Subtask {candidate.subtask.name} is already handled/decomposed. No split."
             )
             return False, None
 
@@ -630,7 +686,7 @@ class Scheduler:
         for slot in in_slots:
             if slot.is_critical and slot.interval < EPSILON:
                 log.debug(
-                    f"[_should_subtask_split_with_monitoring] Subtask {candidate.subtask.name} has an immediate critical predecessor ({slot.related_subtask_name}). Monitoring is disallowed."
+                    f"[_should_split_with_monitoring] Subtask {candidate.subtask.name} has an immediate critical predecessor ({slot.related_subtask_name}). Monitoring is disallowed."
                 )
                 return False, None
 
@@ -648,12 +704,13 @@ class Scheduler:
                     start_name in completed_entries_map
                     and end_name not in completed_entries_map
                 ):
+
                     start_entry = completed_entries_map[start_name]
                     if start_entry.subtask.subtask_type != "Monitor":
                         interval = info.get("Interval", 0.0)
                         variance = info.get("Variance", INIT_PRIOR_VARIANCE)
                         due_date = start_entry.schedule_end_time + interval
-                        # if due_date > curr_node.state.current_time:
+
                         active_intervals.append(
                             (
                                 variance,
@@ -665,7 +722,7 @@ class Scheduler:
 
         if not active_intervals:
             log.debug(
-                f"[_should_subtask_split_with_monitoring] No active critical intervals found. No monitoring for {candidate.subtask.name}."
+                f"[_should_split_with_monitoring] No active critical intervals found. No monitoring for {candidate.subtask.name}."
             )
             return False, None
 
@@ -673,20 +730,20 @@ class Scheduler:
         # Assign the most urgent due date based on VARIANCE (Uncertainty).
         # We prioritize the interval with the HIGHEST variance to reduce uncertainty first.
         # Tie-breaker: If variances are equal, prioritize the one with the EARLIEST due date (smallest due_date).
-        best_variance, high_variance_due = max(
+        urgent_var, urgent_due = max(
             active_intervals, key=lambda item: (item[0], -item[1].due_date)
         )
 
         # [Safety Latch 251215]
         # We want to monitor the high-variance task, BUT if the candidate already has a TIGHTER deadline,
         # we cannot afford to go monitoring something else that is less urgent.
-        original_due = candidate.scheduling_due
-        final_due = high_variance_due
 
+        final_due = urgent_due
+        # critical end subtask가 아닐 때.
         if (
-            original_due
-            and original_due.due_date != float("inf")
-            and original_due.due_date < high_variance_due.due_date
+            candidate.scheduling_due
+            and candidate.scheduling_due.due_date != float("inf")
+            and candidate.scheduling_due.due_date < urgent_due.due_date
         ):
             # The candidate is MORE URGENT than the monitoring target.
             # Check if there is an active interval for the urgent task itself.
@@ -694,7 +751,8 @@ class Scheduler:
                 (
                     item
                     for item in active_intervals
-                    if item[1].due_related_sub_name == original_due.due_related_sub_name
+                    if item[1].due_related_sub_name
+                    == candidate.scheduling_due.due_related_sub_name
                 ),
                 None,
             )
@@ -702,24 +760,24 @@ class Scheduler:
             if urgent_interval_pair:
                 # If the urgent task itself can be monitored, do that instead.
                 final_due = urgent_interval_pair[1]
-                best_variance = urgent_interval_pair[0]
+                urgent_var = urgent_interval_pair[0]
                 log.debug(
-                    f"[_should_subtask_split_with_monitoring] Overriding high variance target with URGENT target '{final_due.due_related_sub_name}' "
+                    f"[_should_split_with_monitoring] Overriding high variance target with URGENT target '{final_due.due_related_sub_name}' "
                     f"(due: {final_due.due_date:.2f})."
                 )
             else:
                 # The urgent task is not monitorable (or not in active list).
                 # Skipping monitoring completely to focus on the deadline.
                 log.debug(
-                    f"[_should_subtask_split_with_monitoring] Skipping monitoring split. Candidate has urgent deadline ({original_due.due_date:.2f}) "
-                    f"which is tighter than high variance target ({high_variance_due.due_date:.2f})."
+                    f"[_should_split_with_monitoring] Skipping monitoring. Candidate has urgent deadline ({candidate.scheduling_due.due_date:.2f}) "
+                    f"which is tighter than high variance target ({urgent_due.due_date:.2f})."
                 )
                 return False, None
 
         candidate.scheduling_due = final_due
         log.debug(
-            f"[_should_subtask_split_with_monitoring] Active interval found targeting '{final_due.due_related_sub_name}' "
-            f"(due: {final_due.due_date:.2f}, var: {best_variance:.2f}). Splitting {candidate.subtask.name}."
+            f"[_should_split_with_monitoring] Active interval found targeting '{final_due.due_related_sub_name}' "
+            f"(due: {final_due.due_date:.2f}, var: {urgent_var:.2f})."
         )
 
         return True, final_due
@@ -738,23 +796,17 @@ class Scheduler:
         Expands a non-monitoring subtask. The subtask is executed fully at once.
         Navigation (if any, as first_nav_duration) + Interaction are performed.
         """
-
+        log.debug(f"[_expand_subtask_wo_monitoring] {candidate.subtask.name}")
         curr_state = curr_node.state
 
         curr_depth = curr_node.depth
         original_task_name = candidate.subtask.name
-        log.debug(
-            f"[_expand_subtask_wo_monitoring] Attempting to expand {original_task_name} (wo_monitoring)."
-        )
 
         planned_nav_start_time = curr_state.current_time
-        planned_interaction_start_time = candidate.actual_interaction_start_time
+
         sub_actions = candidate.subtask.execution.primitive_actions
 
         if not sub_actions:
-            log.warning(
-                f"Subtask {original_task_name} has no primitive actions. Cannot expand."
-            )
             return None
 
         try:
@@ -812,19 +864,23 @@ class Scheduler:
         if feasible_candidates:
             all_candidates = feasible_candidates + not_yet_candidates
 
-        step_risk, pure_h_cost = self.cost_calculator.calc_heuristic(
+        step_risk, total_heuristic_cost = self.cost_calculator.calc_heuristic(
             curr_node, candidate, all_candidates
         )
 
-        new_cost = pure_h_cost + curr_node.heuristic_cost
+        # [Modified] HeuristicManager now returns the total cost (g(n) + h(n)).
+        # We should NOT add curr_node.heuristic_cost anymore.
+        # [Fix] Removed (1 / (curr_depth + 1)) weighting which underestimates h(n) for deeper nodes.
+        new_cost = planned_subtask_completion_time + total_heuristic_cost
 
         # Accumulate max risk level along the path
         new_risk = max(curr_node.risk_level, step_risk)
 
         log.info(
-            f"  [Action] {candidate.subtask.name}\n"
-            f"    └─ Time : {planned_nav_start_time:.2f} (Nav) -> {planned_interaction_start_time:.2f} (Start) -> {planned_subtask_completion_time:.2f} (End)\n"
-            f"    └─ Cost : {pure_h_cost:.2f} (H) + {0:.2f} (G) = {new_cost:.2f} | Risk: {new_risk} | Depth: {curr_depth + 1}"
+            f"[_expand_subtask_wo_monitoring] {candidate.subtask.name}: current_time({planned_subtask_completion_time:.2f}) = from_time({curr_state.current_time:.2f}) + total_subtask_duration({total_subtask_duration_from_sim:.2f})"
+        )
+        log.info(
+            f"cost({new_cost:.2f}) = planned_subtask_completion_time({planned_subtask_completion_time:.2f}) + total_heuristic_cost({total_heuristic_cost:.2f})\n"
         )
 
         return SimulationNode(
@@ -842,7 +898,7 @@ class Scheduler:
         candidate: Candidate,
         monitoring_target_obj: Optional[str],
         predecessor_name: str,
-        target_actual_start_time: float,
+        target_actual_start_time: Optional[float],
         not_yet_candidates: List[Candidate],
         *,
         critical_start_sub_name: Optional[str] = None,
@@ -850,10 +906,20 @@ class Scheduler:
         critical_end_sub_name: Optional[str] = None,
         critical_interval_duration: Optional[float] = None,
         monitoring_target_sub_name: Optional[str] = None,
+        is_critical_link: bool = True,
     ) -> Optional[SimulationNode]:
         """Execute monitoring immediately and update state/constraints for a follow-up `candidate`."""
 
         if not monitoring_target_obj:
+            log.debug(
+                f"[_insert_monitoring_target_obj is None. Cannot insert monitoring step."
+            )
+            return None
+
+        if target_actual_start_time is None:
+            log.debug(
+                f"[_insert_monitoring_target_actual_start_time is None. Cannot insert monitoring step."
+            )
             return None
 
         monitor_base_name = (
@@ -909,7 +975,10 @@ class Scheduler:
         remaining_slack = max(
             0.0, target_actual_start_time - monitor_state.current_time
         )
-        mon_to_candidate_edge = {"Interval": remaining_slack, "IsCritical": True}
+        mon_to_candidate_edge = {
+            "Interval": remaining_slack,
+            "IsCritical": is_critical_link,
+        }
 
         if not new_constraints.has_edge(monitor_sub.name, candidate.subtask.name):
             new_constraints.add_edge(
@@ -970,24 +1039,11 @@ class Scheduler:
             interval_mon_to_end = max(0.0, critical_deadline - monitor_finish_time)
             edge_info_end = {"Interval": interval_mon_to_end, "IsCritical": True}
 
-            # [DEBUG LOG] Check Interval Update (Restored)
-            prev_interval = "N/A"
-            if constraints_with_critical.has_edge(
-                monitor_sub.name, critical_end_sub_name
-            ):
-                prev_interval = (
-                    constraints_with_critical.edges[
-                        monitor_sub.name, critical_end_sub_name
-                    ]
-                    .get("info", {})
-                    .get("Interval", "N/A")
-                )
-
             log.debug(
-                f"[DEBUG _insert_monitoring_step] Updating Edge '{monitor_sub.name}' -> '{critical_end_sub_name}'\n"
+                f"[_insert_monitoring_step] Updating Edge '{monitor_sub.name}' -> '{critical_end_sub_name}'\n"
                 f"  - CriticalDeadline: {critical_deadline:.2f} (StartEnd: {critical_start_sub_end_time:.2f} + Interval: {critical_interval_duration:.2f})\n"
                 f"  - MonitorFinish: {monitor_finish_time:.2f}\n"
-                f"  - Calc Interval/Override: {interval_mon_to_end:.2f} (Prev: {prev_interval})"
+                f"  - 모니터링 끝난 시간 부터, 다음 critical subtask 시작 시간까지의 시간: {interval_mon_to_end:.2f} "
             )
 
             if not constraints_with_critical.has_edge(
@@ -1020,12 +1076,9 @@ class Scheduler:
         curr_state = curr_node.state
         original_task_name = candidate.subtask.name
 
-        log.debug(
-            f"[_expand_subtask_with_monitoring - Policy 2] Attempting to split {original_task_name} for monitoring."
-        )
-
         # Determine the critical interval that triggers this monitoring split
         scheduling_due = candidate.scheduling_due
+        # 모니터링으로 쪼갤 때, critical end subtask를 가장 빠르게 deadline을 갖는 것으로 관찰하게 함. (분산 높은 것 보다...)
         if not (
             scheduling_due
             and scheduling_due.due_date != float("inf")
@@ -1096,8 +1149,7 @@ class Scheduler:
             )
 
         log.debug(
-            f"Main monitoring context for {original_task_name}: CritStart='{critical_start_sub_name}' (ends {critical_start_sub_actual_end_time:.2f}), "
-            f"CritEnd='{critical_end_sub_name}', OriginalInterval={original_critical_interval_duration:.2f}."
+            f"CritStart='{critical_start_sub_name}' -> CritEnd='{critical_end_sub_name+original_task_name}' (ends {critical_start_sub_actual_end_time:.2f}: {critical_start_completed_entry.schedule_end_time}+{original_critical_interval_duration:.2f})",
         )
 
         # --- Refined Splitting Logic ---
@@ -1131,7 +1183,7 @@ class Scheduler:
             and full_candidate_action_info_check.success
         ):
             log.warning(
-                f"Full action sim failed for candidate {original_task_name} during check. Fallback."
+                f"Full action sim failed for candidate {original_task_name} during check.."
             )
             return self._expand_subtask_wo_monitoring(
                 curr_node, candidate, not_yet_candidates, feasible_candidates
@@ -1146,7 +1198,7 @@ class Scheduler:
             <= original_absolute_monitoring_trigger_time
         ):
             log.debug(
-                f"Candidate {original_task_name} finishes before monitoring trigger ({original_absolute_monitoring_trigger_time:.2f}). Executing without split."
+                f"Candidate {original_task_name} finishes before monitoring trigger ({original_absolute_monitoring_trigger_time:.2f}). Executing without split.\n"
             )
             return self._expand_subtask_wo_monitoring(
                 curr_node, candidate, not_yet_candidates, feasible_candidates
@@ -1166,7 +1218,7 @@ class Scheduler:
         )
 
         if not split_successful or pre_ends_holding_object:
-            log.warning(
+            log.debug(
                 f"Failed to split {original_task_name} with cutoff {duration_for_early_sub_target:.2f}. "
                 f"Switching to Pre-Monitoring (Check-Before-Act) strategy as a fallback."
             )
@@ -1184,6 +1236,7 @@ class Scheduler:
                 critical_end_sub_name=critical_end_sub_name,
                 critical_interval_duration=original_critical_interval_duration,
                 monitoring_target_sub_name=critical_end_sub_name,
+                is_critical_link=False,
             )
 
         log.info(f"{pre_actions_log.total_time_used()},{pre_actions_log=}")
@@ -1260,6 +1313,7 @@ class Scheduler:
             name=f"{critical_end_sub_name}",
             obj=monitoring_target_obj,
         )
+        log.debug(f"mon_sub_task_for_main_interval: {mon_sub_task_for_main_interval}")
         mon_sub_task_for_main_interval.decomposed = True
 
         remain_sub_task: Optional[Subtask] = None
@@ -1503,6 +1557,7 @@ class Scheduler:
     # -----------------------------------------------------
     # (C) Wait expansions
     # -----------------------------------------------------
+
     def _expand_wait_with_monitoring(
         self,
         curr_node: SimulationNode,
@@ -1515,10 +1570,81 @@ class Scheduler:
         Performs monitoring and, if needed, a follow-up wait until the
         candidate's actual_interaction_start_time.
         """
+        # candidate는 wait for의 대상 subtask임.
+        # candidate로 만드는 wait for candidate의 scheduling_due는 candidate의 logical_interaction_start_time 기준으로 계산됨.
+        log.debug(
+            f"[_expand_wait_with_monitoring] Waiting for {candidate.subtask.name}"
+        )
+
         curr_state = curr_node.state
 
-        # 1. 이미 Monitor 태스크를 수행한 직후라면 -> Trigger Time까지 Wait 수행
-        if curr_node.state.subtask.subtask_type == "Monitor":
+        critical_end_sub_name = candidate.subtask.name
+
+        # Find the start of the critical interval
+        incoming_constraints_to_crit_end = self.constraint_handler.get_time_slots(
+            critical_end_sub_name, curr_state.constraints, "in"
+        )
+        critical_incoming_slots = [
+            s for s in incoming_constraints_to_crit_end if s.is_critical
+        ]
+        if not critical_incoming_slots:
+            log.debug(
+                f"No incoming critical constraints for '{critical_end_sub_name}'. Fallback for {candidate.subtask.name}."
+            )
+            return self._expand_subtask_wo_monitoring(
+                curr_node, candidate, not_yet_candidates, feasible_candidates
+            )
+
+        target_critical_slot = max(critical_incoming_slots, key=lambda s: s.interval)
+        original_critical_interval_duration = target_critical_slot.interval
+        critical_start_sub_name = target_critical_slot.related_subtask_name
+
+        critical_start_completed_entry = next(
+            (
+                ce
+                for ce in curr_state.completed_entries
+                if ce.subtask.name == critical_start_sub_name
+            ),
+            None,
+        )
+        if not critical_start_completed_entry:
+            log.error(
+                f"CRITICAL LOGIC ERROR: start_subtask '{critical_start_sub_name}' not found. Fallback."
+            )
+            return self._expand_subtask_wo_monitoring(
+                curr_node, candidate, not_yet_candidates, feasible_candidates
+            )
+        critical_start_sub_actual_end_time = (
+            critical_start_completed_entry.schedule_end_time
+        )
+        # Retrieve variance from the edge info
+        edge_data = curr_state.constraints.get_edge_data(
+            critical_start_sub_name, critical_end_sub_name
+        )
+        variance_val = INIT_PRIOR_VARIANCE
+        if edge_data and "info" in edge_data:
+            variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
+
+        # Calculate trigger time based on probability threshold: t = mu + sigma * Phi^-1(eta)
+        sigma = np.sqrt(variance_val)
+        mu_absolute = (
+            critical_start_sub_actual_end_time + original_critical_interval_duration
+        )
+        z_score = norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY)
+
+        original_absolute_monitoring_trigger_time = mu_absolute + sigma * z_score
+
+        total_wait_duration = (
+            original_absolute_monitoring_trigger_time
+            - curr_state.current_time
+            - nav_duration
+        )
+
+        # 현재 시간에서 wait하고 모니터링을하는게 deadline을 넘기면 wo monitoring으로 fallback
+        if (
+            original_absolute_monitoring_trigger_time + MONITORING_DURATION
+            > candidate.logical_interaction_start_time
+        ):
             return self._expand_wait_wo_monitoring(
                 curr_node,
                 candidate,
@@ -1527,64 +1653,201 @@ class Scheduler:
                 feasible_candidates=feasible_candidates,
             )
 
-        # 2. 아직 Monitor를 하지 않았다면 -> Monitor Step 삽입
-        target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
-
-        # [수정] candidate.critical_context 대신 그래프 직접 조회하여 정보 추출
-        critical_start_sub_name = None
-        critical_start_sub_end_time = None
-        critical_interval_duration = None
-
-        # Candidate 자체로 들어오는 Critical Edge 찾기
-        incoming_slots = self.constraint_handler.get_time_slots(
-            candidate.subtask.name, curr_state.constraints, "in"
-        )
-        critical_slots = [s for s in incoming_slots if s.is_critical]
-
-        if critical_slots:
-            target_slot = max(critical_slots, key=lambda s: s.interval)
-            critical_start_sub_name = target_slot.related_subtask_name
-            critical_interval_duration = target_slot.interval
-
-            # 선행 작업 완료 시간 조회
-            pred_entry = next(
-                (
-                    ce
-                    for ce in curr_state.completed_entries
-                    if ce.subtask.name == critical_start_sub_name
-                ),
-                None,
-            )
-            if pred_entry:
-                critical_start_sub_end_time = pred_entry.sim_end_time
-
-        inserted_node = self._insert_monitoring_step(
-            curr_node=curr_node,
-            candidate=candidate,
-            monitoring_target_obj=target_obj_id,
-            predecessor_name=curr_node.state.subtask.name,
-            target_actual_start_time=candidate.actual_interaction_start_time,
-            not_yet_candidates=not_yet_candidates,
-            critical_start_sub_name=critical_start_sub_name,
-            critical_start_sub_end_time=critical_start_sub_end_time,
-            critical_end_sub_name=candidate.subtask.name,
-            critical_interval_duration=critical_interval_duration,
-            monitoring_target_sub_name=candidate.subtask.name,
+        wait_sub = Subtask(
+            task_name=None,
+            name=f"Wait for {candidate.subtask.name}",
+            duration=Duration(interval=total_wait_duration, type="Controllable"),
+            repetition=1,
+            subtask_type="WAIT",
+            execution=Execution(
+                objects=None, primitive_actions=[f"WAIT {total_wait_duration}"]
+            ),
+            temporal_constraints=None,
         )
 
-        if inserted_node is None:
-            log.warning(
-                f"[_expand_wait_with_monitoring] Monitoring expansion failed for {candidate.subtask.name}. Fallback to plain wait."
-            )
-            return self._expand_wait_wo_monitoring(
-                curr_node,
-                candidate,
-                not_yet_candidates,
-                nav_duration=nav_duration,
-                feasible_candidates=feasible_candidates,
+        wait_start_time = curr_state.current_time
+        wait_end_time = curr_state.current_time + total_wait_duration
+
+        completed_entry = CompletedEntry(
+            subtask=wait_sub,
+            schedule_start_time=wait_start_time,
+            schedule_end_time=wait_end_time,
+            schedule_nav_time=0.0,
+            execution_status=True,
+        )
+        new_completed = curr_state.completed_entries + [completed_entry]
+
+        new_state = SchedulerState(
+            subtask=wait_sub,
+            completed_entries=new_completed,
+            remaining_subtasks=curr_state.remaining_subtasks,
+            constraints=curr_state.constraints,
+            current_time=wait_end_time,
+            scene_positions=curr_state.scene_positions,
+            held_object=curr_state.held_object,
+        )
+
+        # Create a synthetic candidate to represent the 'Wait' action for the heuristic calculator.
+        # [Fix 251216] Preserve the original scheduling_due to allow proper risk assessment
+        wait_candidate = Candidate(
+            subtask=wait_sub,
+            is_critical=candidate.is_critical,
+            # Inherit the deadline to let heuristic manager know about the pressure
+            scheduling_due=SchedulingDue(
+                due_date=candidate.logical_interaction_start_time,
+                due_related_sub_name=candidate.subtask.name,
+            ),
+        )
+
+        # Global Risk Check을 위해 feasible_candidates도 포함하여 전달
+        all_candidates = not_yet_candidates
+        if feasible_candidates:
+            all_candidates = feasible_candidates + not_yet_candidates
+
+        step_risk, total_heuristic_cost = self.cost_calculator.calc_heuristic(
+            curr_node,
+            wait_candidate,
+            all_candidates,
+            # Wait action creates delay. We must check if this delay hurts ANY feasible or not_yet task.
+        )
+
+        new_cost = wait_end_time + total_heuristic_cost
+
+        # Accumulate max risk level
+        new_risk = max(curr_node.risk_level, step_risk)
+
+        log.info(
+            f"[_expand_wait_with_monitoring] Waiting for{candidate.subtask.name}: end_time({wait_end_time:.2f}) = current_time({curr_state.current_time:.2f}) + wait_duration({total_wait_duration:.2f})"
+        )
+        log.info(
+            f"cost({new_cost:.2f}) = end_time({wait_end_time:.2f}) + total_heuristic_cost({total_heuristic_cost:.2f})\n"
+        )
+
+        monitoring_sub = TaskUtil.create_monitoring_subtask(
+            name=f"{critical_end_sub_name}",
+            obj=candidate.subtask.execution.primitive_actions[0].split()[1],
+        )
+        monitoring_sub.decomposed = True
+
+        # --- Phase 5: 제약 조건 그래프 및 remaining_subtasks 업데이트 ---
+        # 없던 wait subtask가 생긴 상황, 모니터링 task도 만들었음. 제약 조건으로 연결해야 함.
+        # wait는 0,True로 monitoring과 연결짓고, candidate와 monitoring은 interval, True만큼 업데이트 시켜야 함
+        new_constraints_graph = copy.deepcopy(new_state.constraints)
+
+        if not new_constraints_graph.has_node(wait_sub.name):
+            new_constraints_graph.add_node(wait_sub.name)
+            log.debug(f"Node for WAIT subtask '{wait_sub.name}' added to graph.")
+        if not new_constraints_graph.has_node(monitoring_sub.name):
+            new_constraints_graph.add_node(monitoring_sub.name)
+            log.debug(
+                f"Node for MONITORING subtask '{monitoring_sub.name}' added to graph."
             )
 
-        return inserted_node
+        edge_from_wait_to_mon = {"Interval": 0.0, "IsCritical": True}
+        if not new_constraints_graph.has_edge(wait_sub.name, monitoring_sub.name):
+            new_constraints_graph.add_edge(
+                wait_sub.name,
+                monitoring_sub.name,
+                info=edge_from_wait_to_mon,
+            )
+            log.debug(
+                f"Added wait to monitoring constraint: '{wait_sub.name}' -> '{monitoring_sub.name} ({edge_from_wait_to_mon['Interval']:.2f}, {edge_from_wait_to_mon['IsCritical']}).'."
+            )
+
+        interval_crit_start_to_mon = wait_end_time - critical_start_sub_actual_end_time
+        info_crit_start_to_mon = {
+            "Interval": max(0.0, interval_crit_start_to_mon),
+            "IsCritical": True,
+        }
+
+        if not new_constraints_graph.has_edge(
+            critical_start_sub_name, monitoring_sub.name
+        ):
+            new_constraints_graph.add_edge(
+                critical_start_sub_name,
+                monitoring_sub.name,
+                info=info_crit_start_to_mon,
+            )
+        else:
+            new_constraints_graph.edges[critical_start_sub_name, monitoring_sub.name][
+                "info"
+            ].update(info_crit_start_to_mon)
+        log.debug(
+            f"Added/Updated main monitoring constraint: '{critical_start_sub_name}' -> '{monitoring_sub.name}', Interval: {info_crit_start_to_mon['Interval']:.2f}."
+        )
+
+        critical_end_sub_logical_start_time = (
+            critical_start_sub_actual_end_time + original_critical_interval_duration
+        )
+        monitoring_sub_expected_completion_time = wait_end_time + MONITORING_DURATION
+
+        interval_mon_to_crit_end = (
+            critical_end_sub_logical_start_time
+            - monitoring_sub_expected_completion_time
+        )
+        info_mon_to_crit_end = {
+            "Interval": max(0.0, interval_mon_to_crit_end),
+            "IsCritical": True,
+        }
+
+        # [DEBUG LOG] Check Interval Update in _expand_subtask_with_monitoring
+        prev_interval_sub = "N/A"
+        if new_constraints_graph.has_edge(monitoring_sub.name, critical_end_sub_name):
+            prev_interval_sub = (
+                new_constraints_graph.edges[monitoring_sub.name, critical_end_sub_name]
+                .get("info", {})
+                .get("Interval", "N/A")
+            )
+
+        log.debug(
+            f"[DEBUG _expand_subtask_with_monitoring] Updating Edge '{monitoring_sub.name}' -> '{critical_end_sub_name}'\n"
+            f"  - CritEndDeadline: {critical_end_sub_logical_start_time:.2f}\n"
+            f"  - MonitorFinish: {monitoring_sub_expected_completion_time:.2f}\n"
+            f"  - Mon -> CritEnd Interval: {interval_mon_to_crit_end:.2f} (Prev: {prev_interval_sub})"
+        )
+
+        if not new_constraints_graph.has_edge(
+            monitoring_sub.name, critical_end_sub_name
+        ):
+            new_constraints_graph.add_edge(
+                monitoring_sub.name,
+                critical_end_sub_name,
+                info=info_mon_to_crit_end,
+            )
+        else:
+            new_constraints_graph.edges[monitoring_sub.name, critical_end_sub_name][
+                "info"
+            ].update(info_mon_to_crit_end)
+
+        # Verify update
+        check_interval_sub = new_constraints_graph.edges[
+            monitoring_sub.name, critical_end_sub_name
+        ]["info"]["Interval"]
+        log.debug(f"  -> Update Verified: {check_interval_sub:.2f}")
+        log.debug(
+            f"Added/Updated main monitoring constraint: '{monitoring_sub.name}' -> '{critical_end_sub_name}', Interval: {info_mon_to_crit_end['Interval']:.2f}."
+        )
+
+        new_state = SchedulerState(
+            subtask=new_state.subtask,
+            completed_entries=new_state.completed_entries,
+            remaining_subtasks=list(new_state.remaining_subtasks) + [monitoring_sub],
+            constraints=new_constraints_graph,
+            current_time=wait_end_time,
+            scene_positions=new_state.scene_positions,
+            held_object=new_state.held_object,
+        )
+
+        # return node_after_early_sub._replace(state=updated_final_state)
+
+        return SimulationNode(
+            parent_node=curr_node,
+            heuristic_cost=new_cost,
+            depth=curr_node.depth + 1,
+            tie_breaker=next(self._counter),
+            state=new_state,
+            risk_level=new_risk,
+        )
 
     def _expand_wait_wo_monitoring(
         self,
@@ -1632,7 +1895,11 @@ class Scheduler:
 
         # Calculate Wait Duration
         total_wait_duration = max(
-            0.0, target_start_time - curr_state.current_time - nav_duration
+            0.0,
+            target_start_time
+            - curr_state.current_time
+            - nav_duration
+            - TIMING_TOLERANCE_ABS // 2,
         )
 
         log.debug(
@@ -1654,7 +1921,7 @@ class Scheduler:
             name=f"Wait for {candidate.subtask.name}",
             duration=Duration(interval=total_wait_duration, type="Controllable"),
             repetition=1,
-            subtask_type="Interaction",
+            subtask_type="WAIT",
             execution=Execution(
                 objects=None, primitive_actions=[f"WAIT {total_wait_duration}"]
             ),
@@ -1697,23 +1964,26 @@ class Scheduler:
         if feasible_candidates:
             all_candidates = feasible_candidates + not_yet_candidates
 
-        step_risk, step_cost = self.cost_calculator.calc_heuristic(
+        step_risk, total_heuristic_cost = self.cost_calculator.calc_heuristic(
             curr_node,
             wait_candidate,
             all_candidates,
             # Wait action creates delay. We must check if this delay hurts ANY feasible or not_yet task.
         )
-        # Same logic as above: prevent double counting of future costs.
-        # f(n) = time_so_far + heuristic_score + past_penalties
-        new_cost = step_cost + curr_node.heuristic_cost
+
+        # [Modified] HeuristicManager now returns the total cost (g(n) + h(n)).
+        # We should NOT add curr_node.heuristic_cost anymore.
+        # [Fix] Removed (1 / (depth + 1)) weighting which underestimates h(n) for deeper nodes.
+        new_cost = end_time + total_heuristic_cost
 
         # Accumulate max risk level
         new_risk = max(curr_node.risk_level, step_risk)
 
         log.info(
-            f"  [Wait] For {candidate.subtask.name}\n"
-            f"    └─ Time : {start_time:.2f} -> {end_time:.2f} (Duration: {total_wait_duration:.2f})\n"
-            f"    └─ Cost : {step_cost:.2f} (H) = {new_cost:.2f} | Risk: {new_risk} | Depth: {depth + 1}"
+            f"[_expand_wait_wo_monitoring] {candidate.subtask.name}: end_time({end_time:.2f}) = current_time({curr_state.current_time:.2f}) + wait_duration({total_wait_duration:.2f})"
+        )
+        log.info(
+            f"cost({new_cost:.2f}) = end_time({end_time:.2f}) + total_heuristic_cost({total_heuristic_cost:.2f})\n"
         )
 
         return SimulationNode(

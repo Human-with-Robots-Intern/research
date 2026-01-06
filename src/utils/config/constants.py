@@ -19,11 +19,7 @@ BAYESIAN_PATH = SCENE_KNOWLEDGE_PATH / "bayesian"
 
 PROMPT_PATH = ASSETS_PATH / "prompts"
 TASK_PATH = (
-<<<<<<< Updated upstream
-    ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment_251203"
-=======
-    ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment_251203_realworld"
->>>>>>> Stashed changes
+    ASSETS_PATH / "tasks" / "5_instruction_set_for_final_experiment_260102_realworld_3"
 )
 RESULT_PATH = ASSETS_PATH / "results"
 
@@ -166,8 +162,9 @@ MIN_VARIANCE = 1e-6
 # allows capping the tolerance window for large intervals.
 TIMING_TOLERANCE_DEFAULT = 100.0
 TIMING_TOLERANCE_RATIO = 0.3
-TIMING_TOLERANCE_ABS = 15.0
+TIMING_TOLERANCE_ABS = 10  # 결과 이상하면, 15로 rollback 할 것
 MONITORING_SPLIT_TOLERANCE_ABS = 15.0
+TSR_EVAL_TOLERANCE_ABS = 10
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 3
 BEAM_WIDTH = 3
@@ -255,14 +252,7 @@ CRITICAL_OBJECT_INTERVALS = {
 
 # Non-critical이지만 일관된 시간을 적용하고 싶은 객체
 # 'After' 제약, Urgency: False 목록 기반
-NON_CRITICAL_OBJECT_INTERVALS = {
-    "Cup": INIT_PRIOR_MEAN,
-    "Mug": INIT_PRIOR_MEAN,
-    "Plate": INIT_PRIOR_MEAN,
-    "Bread": INIT_PRIOR_MEAN,
-    "Egg": INIT_PRIOR_MEAN,
-    "CounterTop": INIT_PRIOR_MEAN,
-}
+NON_CRITICAL_OBJECT_INTERVALS = {}
 
 CRITICAL_OBJECT_GROUND_TRUTH = {
     "StoveBurner": GT_INTERVAL,
@@ -279,5 +269,8 @@ CRITICAL_OBJECT_GROUND_TRUTH = {
     "Egg": GT_INTERVAL,
     "CounterTop": GT_INTERVAL,
     "CoffeeMachine": GT_INTERVAL,
+    "Cup": INIT_PRIOR_MEAN,
+    "Mug": INIT_PRIOR_MEAN,
+    "Plate": INIT_PRIOR_MEAN,
+    "Bread": INIT_PRIOR_MEAN,
 }
-#

@@ -14,6 +14,7 @@ dist/
 *.manifest
 *.spec
 *.kit
+*.txt
 
 # Logs
 *.log
@@ -56,6 +57,7 @@ venv/
 *.pth
 *.npy
 *.npz
+*.mp4
 
 
 
@@ -69,7 +71,7 @@ archive/
 sync_repos.sh
 llm_as_a_judge.py
 assets/knowledge/bayesian_estimate.json
-
+logs/*
 src/baselines/cap/data/*
 src/baselines/cap/result/*
 src/baselines/progprompt/result/*

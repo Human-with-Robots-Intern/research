@@ -13,9 +13,8 @@ services:
     volumes:
       - .:/app
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    # 윈도우는 devices의 /dev/dri가 없어서 주석처리, override.yml에서 설정하도록 수정.
-    # devices:
-    #   - /dev/dri:/dev/dri
+#    devices:
+#      - /dev/dri:/dev/dri
     ports:
       - "5679:5679"  # Python debugger port for ttp
       - "5901:5900"  # VNC port
@@ -23,18 +22,18 @@ services:
     stdin_open: true
     tty: true
     working_dir: /app
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ['0']
-              capabilities: [gpu]
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - driver: nvidia
+#              device_ids: ['0']
+#              capabilities: [gpu]
     environment:
-      - NVIDIA_VISIBLE_DEVICES=0
-      - NVIDIA_DRIVER_CAPABILITIES=all
+#      - NVIDIA_VISIBLE_DEVICES=0
+#      - NVIDIA_DRIVER_CAPABILITIES=all
       # - VK_ICD_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json 원래는 여긴데 권한문제와 덮어쓰기 문제로 아래로 변경
-      - VK_ICD_FILENAMES=/opt/egl_vendor.d/10_nvidia.json
+#      - VK_ICD_FILENAMES=/opt/egl_vendor.d/10_nvidia.json
       # - DISPLAY=${DISPLAY:-:99}
       # HTTP bridge endpoint 
       - ROS_BRIDGE_URL=${ROS_BRIDGE_URL:-http://ros:8000}
@@ -44,8 +43,7 @@ services:
 
     networks:
       - uttp_net
-
- 
+      
 
   ros:
     build:
@@ -64,8 +62,8 @@ services:
     ulimits:
       rtprio: 99
       memlock: -1
-    devices:
-      - /dev/dri:/dev/dri
+#    devices:
+#      - /dev/dri:/dev/dri
       # 환경별 장치는 docker-compose.override.yml에서 설정
     volumes:
       - .:/app
@@ -92,4 +90,3 @@ services:
 networks:
   uttp_net:
     driver: bridge
-

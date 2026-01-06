@@ -97,7 +97,7 @@ def calculate_timing_success_rate(
         succ_entry = entry_map.get(v)
 
         if not pred_entry or not succ_entry:
-            
+
             continue
 
         total_timing_constraints += 1
@@ -523,7 +523,10 @@ def result_save_llm(
     while True:
         if case_name:
             output_path = (
-                result_path_with_prior / f"{case_name}" / f"{user_input}_{num}" / scene_name
+                result_path_with_prior
+                / f"{case_name}"
+                / f"{user_input}_{num}"
+                / scene_name
             )
         else:
             output_path = result_path_with_prior / f"{user_input}_{num}" / scene_name

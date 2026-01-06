@@ -64,14 +64,14 @@ def main() -> None:
         "--task-counts",
         type=int,
         nargs="*",
-        default=[2, 3, 4],
+        default=[2, 3],
         help="A list of task counts to process (e.g., 2 3). Processes all if not provided.",
     )
     argparser.add_argument(
         "--constraint-counts",
         type=int,
         nargs="*",
-        default=[0, 1, 2],
+        default=[1, 2],
         help="A list of constraint counts to process (e.g., 0 1). Processes all if not provided.",
     )
     args = argparser.parse_args()
@@ -117,7 +117,7 @@ def main() -> None:
             output_dir = (
                 ASSETS_PATH
                 / "tasks"
-                / "decomposed_final_revision_metadata_251203_realworld"
+                / "decomposed_final_revision_metadata_251203_realworld_6"
                 / case_key
                 / scene_name
             )

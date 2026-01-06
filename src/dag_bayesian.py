@@ -59,10 +59,16 @@ def parse_arguments():
         help="The name of the ablation configuration.",
     )
     parser.add_argument(
-        "--scene",
+        "--init_prior_mean",
+        type=float,
+        default=100,
+        help="베이지안 추정을 위한 초기 평균값 (기본값: constants.py 값)",
+    )
+    parser.add_argument(
+        "--case",
         type=str,
-        default="FloorPlan7",
-        help="input scene name (default: FloorPlan1)",
+        default="tasks_3_constraints_2",
+        help="The name of the case.",
     )
     parser.add_argument(
         "--instruction",
@@ -71,11 +77,12 @@ def parse_arguments():
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
-        "--case",
+        "--scene",
         type=str,
-        default="tasks_3_constraints_2",
-        help="The name of the case.",
+        default="FloorPlan1",
+        help="input scene name (default: FloorPlan1)",
     )
+
     parser.add_argument(
         "--simulation",
         default=False,
@@ -100,12 +107,7 @@ def parse_arguments():
         default=None,
         help="Path to the log file for this specific run.",
     )
-    parser.add_argument(
-        "--init_prior_mean",
-        type=float,
-        default=100,
-        help="베이지안 추정을 위한 초기 평균값 (기본값: constants.py 값)",
-    )
+
     parser.add_argument(
         "--init_prior_variance",
         type=float,
@@ -139,13 +141,13 @@ def parse_arguments():
     parser.add_argument(
         "--beam_width",
         type=int,
-        default=3,
+        default=5,
         help="Scheduler beam width (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--beam_depth",
         type=int,
-        default=3,
+        default=5,
         help="Scheduler beam depth (simulation_depth) (기본값: constants.py 값)",
     )
     parser.add_argument(
@@ -257,14 +259,18 @@ def main():
             task_data = load_task_data_from_sampled_set(
                 args.case, scene_name, args.instruction
             )
-
+            approach_name_final = (
+                f"{approach_name}_{args.ablation_name}"
+                if args.ablation_name
+                else approach_name
+            )
             save_scene_state(
                 controller=controller,
                 output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
                 case_name=args.case,
                 scene_name=scene_name,
                 instruction=args.instruction.split(".json")[0],
-                approach_name=f"{approach_name}_{args.ablation_name}",
+                approach_name=f"{approach_name_final}",
                 state_label="init",
             )
             if trajectory_log_path is None:
@@ -582,14 +588,18 @@ def main():
                     "dag_bayesian_meta_data": meta_data,
                 }
             )
-
+        approach_name_final = (
+            f"{approach_name}_{args.ablation_name}"
+            if args.ablation_name
+            else approach_name
+        )
         save_scene_state(
             controller=controller,
             output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
             case_name=args.case,
             scene_name=scene_name,
             instruction=args.instruction.split(".json")[0],
-            approach_name=f"{approach_name}_{args.ablation_name}",
+            approach_name=f"{approach_name_final}",
             state_label="end",
         )
         result_save(**result_args)

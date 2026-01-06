@@ -66,9 +66,7 @@ class ActionHandler:
 
         # action_sim_info가 None이거나, 결과가 비어있는 경우 처리
         if not action_sim_info or not action_sim_info.results:
-            log.debug(
-                "Action simulation did not produce any results. Returning None."
-            )
+            log.debug("Action simulation did not produce any results. Returning None.")
             return None
 
         # 마지막 ActionResult 가져오기
