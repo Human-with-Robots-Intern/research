@@ -20,7 +20,7 @@ DATA = {
         "makespan": [],
         "color": "orange",
         "marker": "p",
-        "style": ":",
+        "style": "-",
     },
     "DAG + EDF": {
         "tsr": [],
