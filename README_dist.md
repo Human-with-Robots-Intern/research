@@ -41,7 +41,7 @@ sudo usermod -aG docker $USER
 ```ini
 # .env 파일 예시
 프로젝트 루트에 .env.example파일의 파일명에서 .exmple을 지워서 .env파일로 만들어줍니다.
-터미널에서 whoami를 입력해서 나오는이름을 USERNAME에 입력해주세요
+터미널에서 whoami를 입력해서 나오는이름을 USERNAME에 **입력해주세요**
 본인의 OPENAI API 키를 입력해주세요
 OPENAI_API_KEY=sk-your-openai-api-key-here
 ```
