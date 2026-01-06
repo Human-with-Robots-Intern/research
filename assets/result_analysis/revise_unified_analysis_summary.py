@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # Options: "sr", "gcr", "tsr", "makespan"
 INCLUDED_METRICS: List[str] = ["sr", "gcr", "tsr", "makespan"]
 
-# Order of initial time estimates for table columns
+# Order of initial time estimates (all possible values)
 INIT_ORDER: List[str] = ["init_60", "init_80", "init_100", "init_120", "init_140"]
 
 # Display names for different methods/approaches
@@ -225,11 +225,11 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def find_best_values(data: Dict[str, Any]) -> Dict[Tuple[str, str, str], float]:
-    """Identify the best metric values among main methods for highlighting.
+    """Identify the best metric values among main methods AND ablation method.
 
-    Compares only the methods listed in `MAIN_METHODS` to find the best
-    (max for SR/TSR, min for makespan) value for each metric under each
-    task and initial condition. This is used for bolding in the table.
+    Compares the methods listed in `MAIN_METHODS` plus `ABLATION_METHOD_KEY`
+    to find the best (max for SR/TSR, min for makespan) value for each metric
+    under each task and initial condition. This is used for bolding in the table.
 
     Args:
         data (Dict[str, Any]): The revised summary data.
@@ -240,27 +240,30 @@ def find_best_values(data: Dict[str, Any]) -> Dict[Tuple[str, str, str], float]:
     """
     best_vals: Dict[Tuple[str, str, str], float] = {}
 
+    # Include ablation method in comparison for best value
+    methods_to_compare = MAIN_METHODS + [ABLATION_METHOD_KEY]
+
     for task in TASK_ORDER:
         for init in INIT_ORDER:
             # Collect values for comparison
             sr_vals = [
                 data[method][task][init].get("sr", -1.0)
-                for method in MAIN_METHODS
+                for method in methods_to_compare
                 if data.get(method, {}).get(task, {}).get(init)
             ]
             gcr_vals = [
                 data[method][task][init].get("gcr", -1.0)
-                for method in MAIN_METHODS
+                for method in methods_to_compare
                 if data.get(method, {}).get(task, {}).get(init)
             ]
             tsr_vals = [
                 data[method][task][init].get("tsr", -1.0)
-                for method in MAIN_METHODS
+                for method in methods_to_compare
                 if data.get(method, {}).get(task, {}).get(init)
             ]
             mk_vals = [
                 data[method][task][init].get("makespan", float("inf"))
-                for method in MAIN_METHODS
+                for method in methods_to_compare
                 if data.get(method, {}).get(task, {}).get(init)
             ]
 
@@ -310,23 +313,36 @@ def fmt_cell(
     # Append ablation value in parentheses if requested
     if show_ablation_in_parens and ablation_val is not None:
         s_abl = f"{ablation_val:.1f}"
+
+        # Bold ablation value if it is the best
+        if abs(ablation_val - best_val) < 0.001:
+            s_abl = f"\\textbf{{{s_abl}}}"
+
         return f"{s_main} ({s_abl})"
 
     return s_main
 
 
 def generate_latex_table(
-    data: Dict[str, Any], ablation_style: str = "parentheses"
+    data: Dict[str, Any],
+    init_keys: List[str],
+    column_labels: List[str],
+    ablation_style: str = "parentheses",
 ) -> str:
     """Generate the complete LaTeX code for the results table.
 
     Args:
         data (Dict[str, Any]): The revised and filtered summary data.
+        init_keys (List[str]): List of init keys to include in this table.
+        column_labels (List[str]): List of labels for the init columns.
         ablation_style (str): Style for ablation study display ('parentheses' or 'new_row').
 
     Returns:
         str: A string containing the full LaTeX table code.
     """
+    if len(init_keys) != len(column_labels):
+        raise ValueError("Length of init_keys and column_labels must match.")
+
     best_values = find_best_values(data)
     lines: List[str] = []
 
@@ -340,8 +356,6 @@ def generate_latex_table(
         except ValueError:
             pass  # dag_bayesian_DEFAULT not in list
 
-    # ... (Header generation code remains same until loop)
-
     lines.extend(
         [
             r"\begin{table*}[t]",
@@ -354,8 +368,8 @@ def generate_latex_table(
             r"{\renewcommand{\arraystretch}{1.1}",
             r"\resizebox{\textwidth}{!}{%",
             # Dynamic column definition based on num_metrics
-            # ll | (num_metrics)c | ... * 5
-            f"\\begin{{tabular}}{{@{{}}ll|{'|'.join(['c' * len(INCLUDED_METRICS)] * 5)}@{{}}}}",
+            # ll | (num_metrics)c | ... * number of init blocks
+            f"\\begin{{tabular}}{{@{{}}ll|{'|'.join(['c' * len(INCLUDED_METRICS)] * len(init_keys))}@{{}}}}",
             r"\toprule",
         ]
     )
@@ -377,20 +391,12 @@ def generate_latex_table(
     metric_header_str = " & ".join(metric_headers)
     num_metrics = len(INCLUDED_METRICS)
 
-    # Build the second row (Under-estimate, Correct, etc.)
+    # Build the second row (Init Labels)
     header_row_2_parts = [r"\multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Method}}}"]
     header_row_3_parts = []  # Will hold cmidrules
 
-    labels = [
-        r"\textbf{Under-estimate (60s)}",
-        r"\textbf{Under-mid-estimate (80s)}",
-        r"\textbf{Correct (100s)}",
-        r"\textbf{Over-mid-estimate (120s)}",
-        r"\textbf{Over-estimate (140s)}",
-    ]
-
     # Calculate column spans
-    for i, label in enumerate(labels):
+    for i, label in enumerate(column_labels):
         header_row_2_parts.append(rf"\multicolumn{{{num_metrics}}}{{c|}}{{{label}}}")
 
         # cmidrule calculation
@@ -400,13 +406,11 @@ def generate_latex_table(
         start_col = 3 + i * num_metrics
         end_col = start_col + num_metrics - 1
 
-        # For the last block, we might want to handle the vertical bar differently in LaTeX,
-        # but usually cmidrule(l) is fine.
         header_row_3_parts.append(rf"\cmidrule(l){{{start_col}-{end_col}}}")
 
     # Build the third row (SR, GCR, TSR, Makespan repeated)
     header_row_4_parts = [r"\multicolumn{2}{c|}{\textbf{Difficulty}}"]
-    for _ in range(len(labels)):
+    for _ in range(len(column_labels)):
         header_row_4_parts.append(metric_header_str)
 
     lines.extend(
@@ -437,8 +441,8 @@ def generate_latex_table(
                 f"\\textbf{{{TASK_DISPLAY_NAMES.get(task_key, task_key)}}}"
             )
 
-            # Metric Columns
-            for init_key in INIT_ORDER:
+            # Metric Columns for each requested init key
+            for init_key in init_keys:
                 metrics = data.get(method_key, {}).get(task_key, {}).get(init_key, {})
 
                 # Get ablation data if applicable AND style is parentheses
@@ -456,17 +460,6 @@ def generate_latex_table(
                 for metric_key in INCLUDED_METRICS:
                     val = metrics.get(metric_key)
                     abl_val = abl_metrics.get(metric_key) if abl_metrics else None
-
-                    # Check best values (Ablation method also competes for best value if in new_row)
-                    # If new_row, the ablation method is just another method in the loop,
-                    # so best_val lookups work naturally if find_best_values includes it.
-                    # Note: find_best_values currently only looks at MAIN_METHODS.
-                    # If we want ablation to be bolded in new_row mode, we might need to update find_best_values.
-                    # However, usually ablation is compared against main, and main is the SOTA.
-                    # For now, we keep find_best_values using MAIN_METHODS only, so ablation row won't have bolds
-                    # unless we add it to MAIN_METHODS or update find_best_values logic.
-                    # Assuming user wants to see if Ablation is better than others?
-                    # Let's stick to highlighting MAIN_METHODS for now.
 
                     best_val = best_values.get(
                         (task_key, init_key, metric_key),
@@ -534,10 +527,37 @@ def main() -> None:
             json.dump(revised_summary, f, indent=4)
         print(f"Revised summary saved to: {output_path}")
 
-    # 5. Generate and print the LaTeX table
-    latex_output = generate_latex_table(revised_summary, args.ablation_style)
-    print("\n--- LaTeX Table Output ---\n")
-    print(latex_output)
+    # 5. Generate and print the LaTeX tables
+
+    # Table 1: Under-estimate (100, 80, 60)
+    init_keys_1 = ["init_100", "init_80", "init_60"]
+    labels_1 = [
+        r"\textbf{Correct (100s)}",
+        r"\textbf{Under-mid-estimate (80s)}",
+        r"\textbf{Under-estimate (60s)}",
+    ]
+
+    print("\n--- LaTeX Table 1 (Under-estimate) ---\n")
+    print(
+        generate_latex_table(
+            revised_summary, init_keys_1, labels_1, args.ablation_style
+        )
+    )
+
+    # Table 2: Over-estimate (100, 120, 140)
+    init_keys_2 = ["init_100", "init_120", "init_140"]
+    labels_2 = [
+        r"\textbf{Correct (100s)}",
+        r"\textbf{Over-mid-estimate (120s)}",
+        r"\textbf{Over-estimate (140s)}",
+    ]
+
+    print("\n--- LaTeX Table 2 (Over-estimate) ---\n")
+    print(
+        generate_latex_table(
+            revised_summary, init_keys_2, labels_2, args.ablation_style
+        )
+    )
 
 
 if __name__ == "__main__":
