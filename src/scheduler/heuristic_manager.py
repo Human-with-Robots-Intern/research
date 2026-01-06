@@ -129,17 +129,17 @@ class HeuristicManager:
         # A,B의 총 작업 소요 시간
         chain_duration, _ = self._get_chain_info(current_node, candidate.subtask)
 
-        # # [Fix] If the deadline is for the candidate itself (Start Time Constraint),
-        # # we only need to arrive (Nav) by the deadline, not finish.
-        # is_target_self = (
-        #     candidate.scheduling_due
-        #     and candidate.scheduling_due.due_related_sub_name == candidate.subtask.name
-        # )
+        # [Fix] If the deadline is for the candidate itself (Start Time Constraint),
+        # we only need to arrive (Nav) by the deadline, not finish.
+        is_target_self = (
+            candidate.scheduling_due
+            and candidate.scheduling_due.due_related_sub_name == candidate.subtask.name
+        )
 
-        # if is_target_self:
-        #     total_time = nav_time
-        # else:
-        total_time = nav_time + chain_duration
+        if is_target_self:
+            total_time = nav_time
+        else:
+            total_time = nav_time + chain_duration
 
         # # Lookahead: Check if we need to return to a future critical task location
         # future_crit_name = candidate.scheduling_due.due_related_sub_name
@@ -267,7 +267,12 @@ class HeuristicManager:
         """
 
         # 1. 이번 스텝에서 처리될 것으로 간주하는 체인 멤버 파악
-        _, chain_members = self._get_chain_info(current_node, candidate.subtask)
+        if candidate.subtask.subtask_type == "WAIT":
+            # [Modified] WAIT는 연결된 작업들을 활성화(부채 탕감)하지 않아야 함.
+            # 단순히 시간을 보내는 것이므로, 체인으로 묶인 후속 작업들의 부채를 탕감해주면 안 됨.
+            chain_members = {candidate.subtask.name}
+        else:
+            _, chain_members = self._get_chain_info(current_node, candidate.subtask)
 
         # 2. 남은 태스크 목록 (이번 후보 제외)
         remaining_tasks = [
@@ -310,7 +315,17 @@ class HeuristicManager:
         # This encourages starting long chains early.
         activated_tasks = {candidate.subtask.name}
         debt_infos = []
-        if graph.has_node(candidate.subtask.name):
+        # [Fix] Wait actions do NOT activate future tasks immediately.
+        # They only delay time. We should NOT forgive debt for Wait actions.
+        # Only actual task execution activates the chain.
+        # [Modified] 모든 후손(descendants)을 활성화하면 미래의 부채까지 과도하게 탕감되어
+        # 현재 실행하는 체인의 가치가 비정상적으로 높아지는 문제가 있습니다.
+        # 따라서 현재 실행되는 체인((0, True) 연결 포함)만 탕감 대상으로 삼기 위해
+        # descendants 확장 로직을 비활성화합니다.
+        # (참고: 실행되는 체인 멤버들은 이미 remaining_names에서 제외되어 자동으로 탕감됩니다.)
+        if candidate.subtask.subtask_type != "WAIT" and graph.has_node(
+            candidate.subtask.name
+        ):
             activated_tasks.update(nx.descendants(graph, candidate.subtask.name))
 
         for u, v, data in graph.edges(data=True):

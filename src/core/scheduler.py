@@ -261,16 +261,31 @@ class Scheduler:
             return curr.heuristic_cost
 
         # 5. Select Winner
-        # [Modified] Sort by Risk Level first (Soft Priority), then Depth 1 Cost.
-        # This ensures we prioritize safe paths (Risk=0) if available,
-        # but gracefully fall back to lowest-risk options if no safe path exists.
-        best_solutions.sort(key=lambda nd: (nd.risk_level, get_depth1_cost(nd)))
+        # [Modified] Sort by Risk Level first, then Leaf Node Cost (Make-span).
+        # We prefer the path that finishes all tasks earliest (Lowest total cost).
+        # Depth 1 Cost can be misleading if an action (like Wait) has low immediate cost
+        # but delays the overall schedule.
+        best_solutions.sort(
+            key=lambda nd: (nd.risk_level, nd.heuristic_cost + get_depth1_cost(nd))
+        )
+        log.debug(
+            f"best_solutions: {best_solutions[0].state.subtask.name}, {best_solutions[0].heuristic_cost} {get_depth1_cost(best_solutions[0])}"
+        )
 
         winner = best_solutions[0]
 
+        # Trace back to find the immediate next action (Depth 1)
+        immediate_node = winner
+        while immediate_node.depth > 1:
+            if immediate_node.parent_node:
+                immediate_node = immediate_node.parent_node
+            else:
+                break
+
         log.debug(
-            f"\n[_simulate_search] Final Decision: '{winner.state.subtask.name}' selected. "
-            f"(Risk={winner.risk_level}, Depth1_Cost={get_depth1_cost(winner):.2f}, Leaf_Cost={winner.heuristic_cost:.2f}, Depth={winner.depth})"
+            f"\n[_simulate_search] Final Decision: Path selected (Leaf: '{winner.state.subtask.name}').\n"
+            f"  -> Immediate Action: '{immediate_node.state.subtask.name}'\n"
+            f"  (Risk={winner.risk_level}, Depth1_Cost={get_depth1_cost(winner):.2f}, Leaf_Cost={winner.heuristic_cost:.2f}, Depth={winner.depth})"
         )
         return winner
 
@@ -891,6 +906,7 @@ class Scheduler:
         critical_end_sub_name: Optional[str] = None,
         critical_interval_duration: Optional[float] = None,
         monitoring_target_sub_name: Optional[str] = None,
+        is_critical_link: bool = True,
     ) -> Optional[SimulationNode]:
         """Execute monitoring immediately and update state/constraints for a follow-up `candidate`."""
 
@@ -959,7 +975,10 @@ class Scheduler:
         remaining_slack = max(
             0.0, target_actual_start_time - monitor_state.current_time
         )
-        mon_to_candidate_edge = {"Interval": remaining_slack, "IsCritical": True}
+        mon_to_candidate_edge = {
+            "Interval": remaining_slack,
+            "IsCritical": is_critical_link,
+        }
 
         if not new_constraints.has_edge(monitor_sub.name, candidate.subtask.name):
             new_constraints.add_edge(
@@ -1217,6 +1236,7 @@ class Scheduler:
                 critical_end_sub_name=critical_end_sub_name,
                 critical_interval_duration=original_critical_interval_duration,
                 monitoring_target_sub_name=critical_end_sub_name,
+                is_critical_link=False,
             )
 
         log.info(f"{pre_actions_log.total_time_used()},{pre_actions_log=}")
