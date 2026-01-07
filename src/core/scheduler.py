@@ -617,11 +617,11 @@ class Scheduler:
             otherwise None.
         """
 
-        target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
-        nav_time = self.action_handler.get_actions_info(
-            curr_node,
-            [f"NAVIGATE_TO {target_obj_id}"],
-        ).action_duration
+        # target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
+        # nav_time = self.action_handler.get_actions_info(
+        #     curr_node,
+        #     [f"NAVIGATE_TO {target_obj_id}"],
+        # ).action_duration
 
         # Check if monitoring is needed before waiting, using the same Bayesian logic as standard subtasks.
         need_monitor, due_info = self._should_split_with_monitoring(
@@ -633,7 +633,7 @@ class Scheduler:
                 curr_node,
                 candidate,
                 not_yet_candidates,
-                nav_duration=nav_time,
+                nav_duration=0,
                 feasible_candidates=feasible_candidates,
             )
         else:
@@ -641,7 +641,7 @@ class Scheduler:
                 curr_node,
                 candidate,
                 not_yet_candidates,
-                nav_duration=nav_time,
+                nav_duration=0,
                 feasible_candidates=feasible_candidates,
             )
 
@@ -1634,10 +1634,11 @@ class Scheduler:
 
         original_absolute_monitoring_trigger_time = mu_absolute + sigma * z_score
 
-        total_wait_duration = (
+        total_wait_duration = max(
+            0,
             original_absolute_monitoring_trigger_time
             - curr_state.current_time
-            - nav_duration
+            - nav_duration,
         )
 
         # 현재 시간에서 wait하고 모니터링을하는게 deadline을 넘기면 wo monitoring으로 fallback
