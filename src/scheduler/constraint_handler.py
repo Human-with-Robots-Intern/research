@@ -291,7 +291,7 @@ class ConstraintHandler:
                 latest_critical_time = max(critical_times)
                 if (
                     abs(earliest_critical_time - latest_critical_time)
-                    > TIMING_TOLERANCE_ABS // 3
+                    > TIMING_TOLERANCE_ABS // 2
                 ):
                     # Must satisfy all critical intervals: pick the latest (most restrictive) time
                     log.debug(
