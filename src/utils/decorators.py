@@ -168,8 +168,8 @@ def log_action_state(func: Callable) -> Callable:
         log_path: Path = self.trajectory_log_json_path
 
         # 1. Action 함수의 로직 시작 전, 현재 상태 확인
+        controller.step(action="Pass")
         state_before = get_all_object_states(controller)
-
         # Execute the original action
         result = func(self, *args, **kwargs)
         duration = result if isinstance(result, (int, float)) else 0.0
