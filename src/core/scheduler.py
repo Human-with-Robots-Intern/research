@@ -446,7 +446,7 @@ class Scheduler:
                 f"[_get_urgent_critical_candidates] candidate.logical_interaction_start_time: {candidate.logical_interaction_start_time}, physical_earliest_start: {physical_earliest_start}"
             )
             # 모니터링 소요 시간 고려 (모니터링 시간만큼 제약 규칙 시간보다 늦는 것만 스케줄링에서 배려해줄 예정)
-            if candidate.logical_interaction_start_time >= physical_earliest_start:
+            if physical_earliest_start >= candidate.logical_interaction_start_time:
                 # Update actual interaction start time
                 # We start as soon as physically possible (ASAP)
                 candidate.actual_interaction_start_time = physical_earliest_start

@@ -113,7 +113,7 @@ class HeuristicManager:
             log.debug(
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 1.0"
             )
-            return 0, slack
+            return 1, slack
         else:
             log.debug(
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 2.0"
