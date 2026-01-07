@@ -445,7 +445,8 @@ class Scheduler:
             log.debug(
                 f"[_get_urgent_critical_candidates] candidate.logical_interaction_start_time: {candidate.logical_interaction_start_time}, physical_earliest_start: {physical_earliest_start}"
             )
-            if physical_earliest_start >= candidate.logical_interaction_start_time:
+            # 모니터링 소요 시간 고려 (모니터링 시간만큼 제약 규칙 시간보다 늦는 것만 스케줄링에서 배려해줄 예정)
+            if candidate.logical_interaction_start_time >= physical_earliest_start:
                 # Update actual interaction start time
                 # We start as soon as physically possible (ASAP)
                 candidate.actual_interaction_start_time = physical_earliest_start
@@ -618,11 +619,11 @@ class Scheduler:
             otherwise None.
         """
 
-        # target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
-        # nav_time = self.action_handler.get_actions_info(
-        #     curr_node,
-        #     [f"NAVIGATE_TO {target_obj_id}"],
-        # ).action_duration
+        target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
+        nav_time = self.action_handler.get_actions_info(
+            curr_node,
+            [f"NAVIGATE_TO {target_obj_id}"],
+        ).action_duration
 
         # Check if monitoring is needed before waiting, using the same Bayesian logic as standard subtasks.
         need_monitor, due_info = self._should_split_with_monitoring(
@@ -634,7 +635,7 @@ class Scheduler:
                 curr_node,
                 candidate,
                 not_yet_candidates,
-                nav_duration=0,
+                nav_duration=nav_time,
                 feasible_candidates=feasible_candidates,
             )
         else:
@@ -642,7 +643,7 @@ class Scheduler:
                 curr_node,
                 candidate,
                 not_yet_candidates,
-                nav_duration=0,
+                nav_duration=nav_time,
                 feasible_candidates=feasible_candidates,
             )
 
@@ -1649,7 +1650,9 @@ class Scheduler:
 
         # 현재 시간에서 wait하고 모니터링을하는게 deadline을 넘기면 wo monitoring으로 fallback
         if (
-            original_absolute_monitoring_trigger_time + MONITORING_DURATION
+            original_absolute_monitoring_trigger_time
+            + MONITORING_DURATION
+            + nav_duration
             > candidate.logical_interaction_start_time
             or total_wait_duration <= 0
         ):
@@ -1903,11 +1906,7 @@ class Scheduler:
 
         # Calculate Wait Duration
         total_wait_duration = max(
-            0.0,
-            target_start_time
-            - curr_state.current_time
-            - nav_duration
-            - TIMING_TOLERANCE_ABS // 2,
+            0.0, target_start_time - curr_state.current_time - nav_duration
         )
 
         log.debug(
