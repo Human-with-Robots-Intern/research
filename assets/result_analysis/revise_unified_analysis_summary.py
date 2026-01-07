@@ -23,7 +23,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 # Metrics to include in the LaTeX table
 # Options: "sr", "gcr", "tsr", "makespan"
-INCLUDED_METRICS: List[str] = ["sr", "gcr", "tsr", "makespan"]
+INCLUDED_METRICS: List[str] = [
+    "sr",
+    # "gcr",
+    "tsr",
+    "makespan",
+]
 
 # Order of initial time estimates (all possible values)
 INIT_ORDER: List[str] = ["init_60", "init_80", "init_100", "init_120", "init_140"]
@@ -37,8 +42,8 @@ METHOD_DISPLAY_NAMES: Dict[str, str] = {
     "dag_bayesian_NONE_REMAINING_WORK": "Ours (w/o Rem.)",
     "dag_edf": "EDF",
     "cpm": "CPM",
-    "progprompt": "ProgPrompt",
-    "cap_ai2thor_simulation": "Code as Policy (CaP)",
+    "progprompt": "Prog.",
+    "cap_ai2thor_simulation": "CaP",
 }
 
 # Methods to be included in the main comparison table and their order
@@ -63,10 +68,10 @@ TASK_ORDER: List[str] = [
     # "tasks_4_constraints_2",
 ]
 TASK_DISPLAY_NAMES: Dict[str, str] = {
-    "tasks_2_constraints_1": "Tasks 2 (C=1)",
-    "tasks_2_constraints_2": "Tasks 2 (C=2)",
-    "tasks_3_constraints_1": "Tasks 3 (C=1)",
-    "tasks_3_constraints_2": "Tasks 3 (C=2)",
+    "tasks_2_constraints_1": "T2 C1",
+    "tasks_2_constraints_2": "T2 C2",
+    "tasks_3_constraints_1": "T3 C1",
+    "tasks_3_constraints_2": "T3 C2",
     # "tasks_4_constraints_1": "Tasks 4 (C=1)",
     # "tasks_4_constraints_2": "Tasks 4 (C=2)",
 }
@@ -386,7 +391,7 @@ def generate_latex_table(
         elif m == "tsr":
             metric_headers.append(r"\textbf{TSR ($\uparrow$)}")
         elif m == "makespan":
-            metric_headers.append(r"\textbf{Makespan ($\downarrow$)}")
+            metric_headers.append(r"\textbf{MS ($\downarrow$)}")
 
     metric_header_str = " & ".join(metric_headers)
     num_metrics = len(INCLUDED_METRICS)
