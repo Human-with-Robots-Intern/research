@@ -194,7 +194,28 @@ class Action:
             float: Elapsed time for the slice action.
         """
         result = self.controller.step(action="SliceObject", objectId=object_id)
+
+        # [PDK 수정] 계란을 깰 경우, 생성된 Egg_Cracked를 즉시 익은 상태(isCooked=True)로 변경
+        if result.metadata["lastActionSuccess"] and "Egg" in object_id:
+            # SliceObject 성공 후, 장면 내의 모든 객체 목록을 다시 가져옴
+            objects = self.controller.last_event.metadata["objects"]
+
+            # 이름에 'Egg_Cracked'가 포함된 객체들을 찾음 (깨진 계란)
+            cracked_eggs = [obj for obj in objects if "Egg_Cracked" in obj["name"]]
+
+            # 찾은 깨진 계란들에 대해 CookObject 액션 수행
+            for egg in cracked_eggs:
+                cook_result = self.controller.step(
+                    action="CookObject",
+                    objectId=egg["objectId"],
+                    forceAction=True,
+                )
+                self.log.info(
+                    f"Force cooked cracked egg: {egg['objectId']}, success: {cook_result.metadata['lastActionSuccess']}"
+                )
+
         self.controller.step(action="Pass")
+
         self.success_log(result, f"slice {object_id}")
         time.sleep(ACTION_TIME_SLEEP)
         return TOGGLE_ACTION_DURATION
