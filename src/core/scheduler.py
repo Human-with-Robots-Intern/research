@@ -442,9 +442,10 @@ class Scheduler:
 
             # Check urgency: Are we at or past the time we should start?
             # We use a tolerance to allow starting slightly early (On-time).
-            if TIMING_TOLERANCE_ABS // 2 >= abs(
-                candidate.logical_interaction_start_time - physical_earliest_start
-            ):
+            log.debug(
+                f"[_get_urgent_critical_candidates] candidate.logical_interaction_start_time: {candidate.logical_interaction_start_time}, physical_earliest_start: {physical_earliest_start}"
+            )
+            if physical_earliest_start >= candidate.logical_interaction_start_time:
                 # Update actual interaction start time
                 # We start as soon as physically possible (ASAP)
                 candidate.actual_interaction_start_time = physical_earliest_start
@@ -739,6 +740,12 @@ class Scheduler:
         # we cannot afford to go monitoring something else that is less urgent.
 
         final_due = urgent_due
+        if final_due.due_related_sub_name == candidate.subtask.name:
+            log.debug(
+                f"[_should_split_with_monitoring] Final due related subtask is the same as the candidate. Skip monitoring."
+            )
+            return False, None
+
         # critical end subtask가 아닐 때.
         if (
             candidate.scheduling_due
@@ -1634,17 +1641,17 @@ class Scheduler:
 
         original_absolute_monitoring_trigger_time = mu_absolute + sigma * z_score
 
-        total_wait_duration = max(
-            0,
+        total_wait_duration = (
             original_absolute_monitoring_trigger_time
             - curr_state.current_time
-            - nav_duration,
+            - nav_duration
         )
 
         # 현재 시간에서 wait하고 모니터링을하는게 deadline을 넘기면 wo monitoring으로 fallback
         if (
             original_absolute_monitoring_trigger_time + MONITORING_DURATION
             > candidate.logical_interaction_start_time
+            or total_wait_duration <= 0
         ):
             return self._expand_wait_wo_monitoring(
                 curr_node,
