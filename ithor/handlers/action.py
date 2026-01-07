@@ -659,6 +659,7 @@ class Action:
         """
         time.sleep(ACTION_TIME_SLEEP)
         self.log.debug(f"wait: {wait_time}")
+        self.controller.step(action="Pass")
         return wait_time
 
     # @log_action_state
