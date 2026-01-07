@@ -289,7 +289,10 @@ class ConstraintHandler:
                 # 하나의 Subtask u,v pair 간 복수의 Critical 제약이 존재하는 경우,
                 earliest_critical_time = min(critical_times)
                 latest_critical_time = max(critical_times)
-                if abs(earliest_critical_time - latest_critical_time) > EPSILON:
+                if (
+                    abs(earliest_critical_time - latest_critical_time)
+                    > TIMING_TOLERANCE_ABS // 3
+                ):
                     # Must satisfy all critical intervals: pick the latest (most restrictive) time
                     log.debug(
                         f"    [Constraint] Multi-start for '{sub.name}': candidates={sorted(critical_times)} -> resolved={latest_critical_time:.2f}"
