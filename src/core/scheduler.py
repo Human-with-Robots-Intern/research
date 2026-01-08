@@ -446,7 +446,9 @@ class Scheduler:
                 f"[_get_urgent_critical_candidates] candidate.logical_interaction_start_time: {candidate.logical_interaction_start_time}, physical_earliest_start: {physical_earliest_start}"
             )
             # 모니터링 소요 시간 고려 (모니터링 시간만큼 제약 규칙 시간보다 늦는 것만 스케줄링에서 배려해줄 예정)
-            if physical_earliest_start >= candidate.logical_interaction_start_time:
+            if MONITORING_DURATION >= (
+                physical_earliest_start - candidate.logical_interaction_start_time
+            ):
                 # Update actual interaction start time
                 # We start as soon as physically possible (ASAP)
                 candidate.actual_interaction_start_time = physical_earliest_start
@@ -664,15 +666,15 @@ class Scheduler:
         """
 
         # curr_node의 subtask가 wait였고, wait의 대상이 candidate라면, monitoring 필요 없음
-        if (
-            curr_node.state.subtask
-            and curr_node.state.subtask.subtask_type == "WAIT"
-            and curr_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
-        ):
-            log.debug(
-                f"[_should_split_with_monitoring] Just finished waiting for {candidate.subtask.name}. Skip monitoring."
-            )
-            return False, None
+        # if (
+        #     curr_node.state.subtask
+        #     and curr_node.state.subtask.subtask_type == "WAIT"
+        #     and curr_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
+        # ):
+        #     log.debug(
+        #         f"[_should_split_with_monitoring] Just finished waiting for {candidate.subtask.name}. Skip monitoring."
+        #     )
+        #     return False, None
 
         # Rule 1: Don't re-split tasks.
         if candidate.subtask.decomposed:
@@ -741,11 +743,11 @@ class Scheduler:
         # we cannot afford to go monitoring something else that is less urgent.
 
         final_due = urgent_due
-        if final_due.due_related_sub_name == candidate.subtask.name:
-            log.debug(
-                f"[_should_split_with_monitoring] Final due related subtask is the same as the candidate. Skip monitoring."
-            )
-            return False, None
+        # if final_due.due_related_sub_name == candidate.subtask.name:
+        #     log.debug(
+        #         f"[_should_split_with_monitoring] Final due related subtask is the same as the candidate. Skip monitoring."
+        #     )
+        #     return False, None
 
         # critical end subtask가 아닐 때.
         if (
