@@ -445,8 +445,8 @@ class Scheduler:
             log.debug(
                 f"[_get_urgent_critical_candidates] candidate.logical_interaction_start_time: {candidate.logical_interaction_start_time}, physical_earliest_start: {physical_earliest_start}"
             )
-            # 모니터링 소요 시간 고려 (모니터링 시간만큼 제약 규칙 시간보다 늦는 것만 스케줄링에서 배려해줄 예정)
-            if MONITORING_DURATION >= (
+
+            if 0 >= (
                 physical_earliest_start - candidate.logical_interaction_start_time
             ):
                 # Update actual interaction start time
@@ -525,7 +525,7 @@ class Scheduler:
                         + candidate.estimated_first_nav_duration
                     )
 
-                    if TIMING_TOLERANCE_ABS // 2 >= abs(logical_start - physical_start):
+                    if 0 >= logical_start - physical_start:
                         # Urgent but blocked! Find feasible predecessors recursively.
                         log.debug(
                             f"Found BLOCKED URGENT task: {candidate.subtask.name} "
@@ -666,15 +666,15 @@ class Scheduler:
         """
 
         # curr_node의 subtask가 wait였고, wait의 대상이 candidate라면, monitoring 필요 없음
-        # if (
-        #     curr_node.state.subtask
-        #     and curr_node.state.subtask.subtask_type == "WAIT"
-        #     and curr_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
-        # ):
-        #     log.debug(
-        #         f"[_should_split_with_monitoring] Just finished waiting for {candidate.subtask.name}. Skip monitoring."
-        #     )
-        #     return False, None
+        if (
+            curr_node.state.subtask
+            and curr_node.state.subtask.subtask_type == "WAIT"
+            and curr_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
+        ):
+            log.debug(
+                f"[_should_split_with_monitoring] Just finished waiting for {candidate.subtask.name}. Skip monitoring."
+            )
+            return False, None
 
         # Rule 1: Don't re-split tasks.
         if candidate.subtask.decomposed:
@@ -1644,10 +1644,11 @@ class Scheduler:
 
         original_absolute_monitoring_trigger_time = mu_absolute + sigma * z_score
 
-        total_wait_duration = (
+        total_wait_duration = max(
+            0,
             original_absolute_monitoring_trigger_time
             - curr_state.current_time
-            - nav_duration
+            - nav_duration,
         )
 
         # 현재 시간에서 wait하고 모니터링을하는게 deadline을 넘기면 wo monitoring으로 fallback
@@ -1656,7 +1657,6 @@ class Scheduler:
             + MONITORING_DURATION
             + nav_duration
             > candidate.logical_interaction_start_time
-            or total_wait_duration <= 0
         ):
             return self._expand_wait_wo_monitoring(
                 curr_node,
