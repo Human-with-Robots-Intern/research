@@ -447,7 +447,7 @@ class Scheduler:
             )
 
             if 0 >= (
-                physical_earliest_start - candidate.logical_interaction_start_time
+                candidate.logical_interaction_start_time - physical_earliest_start
             ):
                 # Update actual interaction start time
                 # We start as soon as physically possible (ASAP)
