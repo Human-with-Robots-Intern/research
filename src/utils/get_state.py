@@ -151,6 +151,12 @@ def save_scene_state(
         json.dump(object_states, f, indent=4)
 
     print(f"'{scene_name}'의 scene 상태가 {output_path.resolve()} 저장되었습니다.")
+    print(
+        f"trajectory_log.json 파일이 {output_path.parent / 'trajectory_log.json'} 에 저장되었습니다."
+    )
+    print(
+        f"evaluation_result.json 파일이 {output_path.parent / 'evaluation_result.json'} 에 저장되었습니다."
+    )
 
 
 def get_changed_object_states_ros(
