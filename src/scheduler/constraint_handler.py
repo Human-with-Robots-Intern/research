@@ -19,7 +19,7 @@ from src.models.task import Subtask
 from src.scheduler.action_handler import ActionHandler
 from src.utils.common import create_module_logger
 from src.utils.config import EPSILON
-from utils.config.constants import TIMING_TOLERANCE_ABS
+from src.utils.config.constants import MONITORING_DURATION, TIMING_TOLERANCE_ABS
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
@@ -161,33 +161,31 @@ class ConstraintHandler:
             # 실제 상호작용이 시작될 수 있는 가장 이른 시간
             # 가능한 상호작용 시간 보다, Logical Interaction Start Time이 더 늦는 경우 -> Logical Interaction Start Time으로 결정 -> 논리적 제약 충족 필요 -> not yet
             # Logical Interaction Start Time보다, 가능한 상호작용 시간이 같거나 늦는 경우 -> 가능한 상호작용 시간으로 결정 -> feasible candidates
-            actual_interaction_start_time = max(
-                logical_interaction_start_time, current_time + first_nav_duration
-            )
 
             candidate = Candidate(
                 subtask=sub,
                 is_critical=is_critical,
                 logical_interaction_start_time=logical_interaction_start_time,
-                actual_interaction_start_time=actual_interaction_start_time,
+                actual_interaction_start_time=max(
+                    logical_interaction_start_time, current_time + first_nav_duration
+                ),
                 estimated_first_nav_duration=first_nav_duration,
                 critical_context=critical_ctx,
             )
 
             # 현재 시간에 "상호작용을 시작"할 수 있는 경우 feasible
             # 즉, effective_interaction_start_time이 현재 시간과 거의 같아야 함.
-            if (
-                actual_interaction_start_time
-                <= current_time + first_nav_duration + TIMING_TOLERANCE_ABS
+            if logical_interaction_start_time - MONITORING_DURATION <= (
+                current_time + first_nav_duration
             ):
                 log.debug(
-                    f"Subtask '{sub.name}' is feasible now (interaction can start at {actual_interaction_start_time:.2f}, current_time: {current_time:.2f}, first_nav_duration: {first_nav_duration:.2f})."
+                    f"Subtask '{sub.name}' is feasible now (interaction can start at {candidate.actual_interaction_start_time:.2f}, current_time: {current_time:.2f}, first_nav_duration: {first_nav_duration:.2f})."
                 )
                 feasible_candidates.append(candidate)
             else:
                 # 즉시 상호작용 시작은 불가능 (논리적 시간 미도래 또는 준비 시간 필요)
                 log.debug(
-                    f"Subtask '{sub.name}' is not yet feasible for immediate interaction (interaction can start at {actual_interaction_start_time:.2f})."
+                    f"Subtask '{sub.name}' is not yet feasible for immediate interaction (interaction can start at {candidate.actual_interaction_start_time:.2f})."
                 )
                 not_yet_candidates.append(candidate)
 
@@ -289,7 +287,10 @@ class ConstraintHandler:
                 # 하나의 Subtask u,v pair 간 복수의 Critical 제약이 존재하는 경우,
                 earliest_critical_time = min(critical_times)
                 latest_critical_time = max(critical_times)
-                if abs(earliest_critical_time - latest_critical_time) > EPSILON:
+                if (
+                    abs(earliest_critical_time - latest_critical_time)
+                    > TIMING_TOLERANCE_ABS // 2
+                ):
                     # Must satisfy all critical intervals: pick the latest (most restrictive) time
                     log.debug(
                         f"    [Constraint] Multi-start for '{sub.name}': candidates={sorted(critical_times)} -> resolved={latest_critical_time:.2f}"

@@ -442,7 +442,11 @@ class Scheduler:
 
             # Check urgency: Are we at or past the time we should start?
             # We use a tolerance to allow starting slightly early (On-time).
-            if TIMING_TOLERANCE_ABS // 2 >= abs(
+            log.debug(
+                f"[_get_urgent_critical_candidates] candidate.logical_interaction_start_time: {candidate.logical_interaction_start_time}, physical_earliest_start: {physical_earliest_start}"
+            )
+
+            if 0 >= (
                 candidate.logical_interaction_start_time - physical_earliest_start
             ):
                 # Update actual interaction start time
@@ -521,7 +525,7 @@ class Scheduler:
                         + candidate.estimated_first_nav_duration
                     )
 
-                    if TIMING_TOLERANCE_ABS // 2 >= abs(logical_start - physical_start):
+                    if 0 >= logical_start - physical_start:
                         # Urgent but blocked! Find feasible predecessors recursively.
                         log.debug(
                             f"Found BLOCKED URGENT task: {candidate.subtask.name} "
@@ -617,11 +621,11 @@ class Scheduler:
             otherwise None.
         """
 
-        # target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
-        # nav_time = self.action_handler.get_actions_info(
-        #     curr_node,
-        #     [f"NAVIGATE_TO {target_obj_id}"],
-        # ).action_duration
+        target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
+        nav_time = self.action_handler.get_actions_info(
+            curr_node,
+            [f"NAVIGATE_TO {target_obj_id}"],
+        ).action_duration
 
         # Check if monitoring is needed before waiting, using the same Bayesian logic as standard subtasks.
         need_monitor, due_info = self._should_split_with_monitoring(
@@ -633,7 +637,7 @@ class Scheduler:
                 curr_node,
                 candidate,
                 not_yet_candidates,
-                nav_duration=0,
+                nav_duration=nav_time,
                 feasible_candidates=feasible_candidates,
             )
         else:
@@ -641,7 +645,7 @@ class Scheduler:
                 curr_node,
                 candidate,
                 not_yet_candidates,
-                nav_duration=0,
+                nav_duration=nav_time,
                 feasible_candidates=feasible_candidates,
             )
 
@@ -739,6 +743,12 @@ class Scheduler:
         # we cannot afford to go monitoring something else that is less urgent.
 
         final_due = urgent_due
+        # if final_due.due_related_sub_name == candidate.subtask.name:
+        #     log.debug(
+        #         f"[_should_split_with_monitoring] Final due related subtask is the same as the candidate. Skip monitoring."
+        #     )
+        #     return False, None
+
         # critical end subtask가 아닐 때.
         if (
             candidate.scheduling_due
@@ -1643,7 +1653,9 @@ class Scheduler:
 
         # 현재 시간에서 wait하고 모니터링을하는게 deadline을 넘기면 wo monitoring으로 fallback
         if (
-            original_absolute_monitoring_trigger_time + MONITORING_DURATION
+            original_absolute_monitoring_trigger_time
+            + MONITORING_DURATION
+            + nav_duration
             > candidate.logical_interaction_start_time
         ):
             return self._expand_wait_wo_monitoring(
@@ -1896,11 +1908,7 @@ class Scheduler:
 
         # Calculate Wait Duration
         total_wait_duration = max(
-            0.0,
-            target_start_time
-            - curr_state.current_time
-            - nav_duration
-            - TIMING_TOLERANCE_ABS // 2,
+            0.0, target_start_time - curr_state.current_time - nav_duration
         )
 
         log.debug(
