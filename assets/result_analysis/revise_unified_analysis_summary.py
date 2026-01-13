@@ -25,13 +25,19 @@ from typing import Any, Dict, List, Optional, Tuple
 # Options: "sr", "gcr", "tsr", "makespan"
 INCLUDED_METRICS: List[str] = [
     "sr",
-    # "gcr",
+    "gcr",
     "tsr",
     "makespan",
 ]
 
 # Order of initial time estimates (all possible values)
-INIT_ORDER: List[str] = ["init_60", "init_80", "init_100", "init_120", "init_140"]
+INIT_ORDER: List[str] = [
+    "init_60",
+    "init_80",
+    "init_100",
+    "init_120",
+    "init_140",
+]
 
 # Display names for different methods/approaches
 METHOD_DISPLAY_NAMES: Dict[str, str] = {
@@ -133,7 +139,7 @@ def reorder_metrics_dict(data: Dict[str, float]) -> "OrderedDict[str, float]":
         OrderedDict[str, float]: The dictionary with sorted keys.
     """
     # Define standard metric order (superset of potentially included metrics)
-    standard_order = ["sr", "gcr", "tsr", "makespan"]
+    standard_order = ["sr", "gcr", "tsr", "makespan", "makespan_sr_1"]
 
     # Filter based on INCLUDED_METRICS and what's available in data
     # Using standard_order ensures consistent ordering regardless of INCLUDED_METRICS order
@@ -267,7 +273,7 @@ def find_best_values(data: Dict[str, Any]) -> Dict[Tuple[str, str, str], float]:
                 if data.get(method, {}).get(task, {}).get(init)
             ]
             mk_vals = [
-                data[method][task][init].get("makespan", float("inf"))
+                data[method][task][init].get("makespan_sr_1", float("inf"))
                 for method in methods_to_compare
                 if data.get(method, {}).get(task, {}).get(init)
             ]
@@ -280,7 +286,7 @@ def find_best_values(data: Dict[str, Any]) -> Dict[Tuple[str, str, str], float]:
             if tsr_vals:
                 best_vals[(task, init, "tsr")] = max(tsr_vals)
             if mk_vals:
-                best_vals[(task, init, "makespan")] = min(mk_vals)
+                best_vals[(task, init, "makespan_sr_1")] = min(mk_vals)
 
     return best_vals
 
@@ -363,7 +369,7 @@ def generate_latex_table(
 
     lines.extend(
         [
-            r"\begin{table*}[t]",
+            r"\begin{table}[t]",
             r"\centering",
             r"\caption{Performance comparison in the AI2-THOR simulation environment. "
             r"Results are aggregated by task complexity. "
@@ -371,7 +377,7 @@ def generate_latex_table(
             r"Higher SR, GCR and TSR are better ($\uparrow$), and lower Makespan is better ($\downarrow$).}",
             r"\label{tab:simulation_results_merged}",
             r"{\renewcommand{\arraystretch}{1.1}",
-            r"\resizebox{\textwidth}{!}{%",
+            r"\resizebox{\columnwidth}{!}{%",
             # Dynamic column definition based on num_metrics
             # ll | (num_metrics)c | ... * number of init blocks
             f"\\begin{{tabular}}{{@{{}}ll|{'|'.join(['c' * len(INCLUDED_METRICS)] * len(init_keys))}@{{}}}}",
@@ -463,11 +469,22 @@ def generate_latex_table(
                     )
 
                 for metric_key in INCLUDED_METRICS:
-                    val = metrics.get(metric_key)
-                    abl_val = abl_metrics.get(metric_key) if abl_metrics else None
+                    # Table display logic: Use makespan_sr_1 for makespan column
+                    val_key = (
+                        "makespan_sr_1" if metric_key == "makespan" else metric_key
+                    )
+                    val = metrics.get(val_key)
+
+                    abl_val = None
+                    if abl_metrics:
+                        abl_val = abl_metrics.get(val_key)
+
+                    # For best value comparison, we also need to look up the correct key
+                    # create a temporary key for lookup
+                    lookup_metric_key = val_key
 
                     best_val = best_values.get(
-                        (task_key, init_key, metric_key),
+                        (task_key, init_key, lookup_metric_key),
                         float("inf") if metric_key == "makespan" else float("-inf"),
                     )
 
@@ -493,7 +510,7 @@ def generate_latex_table(
             r"\end{tabular}%",
             r"}",
             r"}",
-            r"\end{table*}",
+            r"\end{table}",
         ]
     )
 
@@ -535,12 +552,8 @@ def main() -> None:
     # 5. Generate and print the LaTeX tables
 
     # Table 1: Under-estimate (100, 80, 60)
-    init_keys_1 = ["init_100", "init_80", "init_60"]
-    labels_1 = [
-        r"\textbf{Correct (100s)}",
-        r"\textbf{Under-mid-estimate (80s)}",
-        r"\textbf{Under-estimate (60s)}",
-    ]
+    init_keys_1 = ["init_100"]
+    labels_1 = [r"\textbf{Correct (100s)}"]
 
     print("\n--- LaTeX Table 1 (Under-estimate) ---\n")
     print(
@@ -550,19 +563,15 @@ def main() -> None:
     )
 
     # Table 2: Over-estimate (100, 120, 140)
-    init_keys_2 = ["init_100", "init_120", "init_140"]
-    labels_2 = [
-        r"\textbf{Correct (100s)}",
-        r"\textbf{Over-mid-estimate (120s)}",
-        r"\textbf{Over-estimate (140s)}",
-    ]
+    # init_keys_2 = ["init_100"]
+    # labels_2 = [r"\textbf{Correct (100s)}"]
 
-    print("\n--- LaTeX Table 2 (Over-estimate) ---\n")
-    print(
-        generate_latex_table(
-            revised_summary, init_keys_2, labels_2, args.ablation_style
-        )
-    )
+    # print("\n--- LaTeX Table 2 (Over-estimate) ---\n")
+    # print(
+    #     generate_latex_table(
+    #         revised_summary, init_keys_2, labels_2, args.ablation_style
+    #     )
+    # )
 
 
 if __name__ == "__main__":
