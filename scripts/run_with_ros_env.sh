@@ -39,4 +39,4 @@ else
 fi
 
 # Chain execution to the common project environment setup script
-exec "$SCRIPT_DIR/run_project.sh" "$@" 
+exec "$SCRIPT_DIR/run_project.sh" "$@"
