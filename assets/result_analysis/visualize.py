@@ -279,6 +279,41 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         plt.show()
 
 
+def save_aggregated_json(
+    data: dict, output_path: str = "aggregated_result.json"
+) -> None:
+    """
+    통합된 결과(TSR, Makespan)를 JSON 파일로 저장합니다.
+    """
+    # 저장할 데이터 구조 변환
+    export_data = {}
+    for method, metrics in data.items():
+        if not metrics["tsr"] and not metrics["makespan"]:
+            continue
+
+        method_results = []
+        for i, condition in enumerate(INIT_LIST):
+            # 인덱스 에러 방지
+            tsr_val = metrics["tsr"][i] if i < len(metrics["tsr"]) else 0.0
+            makespan_val = (
+                metrics["makespan"][i] if i < len(metrics["makespan"]) else 0.0
+            )
+
+            method_results.append(
+                {
+                    "init_condition": condition,
+                    "tsr": float(tsr_val),
+                    "makespan": float(makespan_val),
+                }
+            )
+
+        export_data[method] = method_results
+
+    with open(output_path, "w") as f:
+        json.dump(export_data, f, indent=4)
+    print(f"통합 결과가 저장되었습니다: {output_path}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="""
@@ -307,9 +342,24 @@ if __name__ == "__main__":
         default="output.png",
         help="그래프를 저장할 파일 경로 (예: output.png). 지정하지 않으면 화면에 표시됩니다.",
     )
+    parser.add_argument(
+        "--save_json",
+        action="store_true",
+        default=True,
+        help="통합된 결과를 JSON 파일로 저장합니다 (기본값: True).",
+    )
+    parser.add_argument(
+        "--json_output",
+        type=str,
+        default="assets/results/aggregated_result.json",
+        help="저장할 JSON 파일 경로.",
+    )
     args = parser.parse_args()
 
     load_data(args.data_path)
+
+    if args.save_json:
+        save_aggregated_json(DATA, args.json_output)
 
     if args.plot_type == "trajectory":
         plot_trajectory(DATA, args.output)
