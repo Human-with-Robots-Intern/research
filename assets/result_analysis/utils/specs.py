@@ -84,7 +84,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
                     OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
                     OC("faucet", isToggled=True),
                 ),
-                end=CG( OC("faucet", isToggled=False)),
+                end=CG(OC("faucet", isToggled=False)),
             ),
             TSR(
                 name="boil_potato",
@@ -172,7 +172,10 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs=[
             TSR(
                 name="heat_bread_in_microwave",
-                trigger=CG(OC("bread", parentReceptacles=["microwave"]), OC("microwave", isToggled=True)),
+                trigger=CG(
+                    OC("bread", parentReceptacles=["microwave"]),
+                    OC("microwave", isToggled=True),
+                ),
                 end=CG(OC("microwave", isToggled=False)),
             ),
         ],
@@ -190,12 +193,15 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         tsrs=[
             TSR(
                 name="heat_potato_in_microwave",
-                trigger=CG(OC("potato", parentReceptacles=["microwave"]), OC("microwave", isToggled=True)),
+                trigger=CG(
+                    OC("potato", parentReceptacles=["microwave"]),
+                    OC("microwave", isToggled=True),
+                ),
                 end=CG(OC("microwave", isToggled=False)),
             ),
         ],
     ),
-    # make_a_coffee 
+    # make_a_coffee
     "make_a_coffee": TaskSpec(
         name="make_a_coffee",
         gcr_end=CG(OC("mug", isFilledWithLiquid=True)),
@@ -205,23 +211,32 @@ TASK_SPECS: Dict[str, TaskSpec] = {
                 OC("CoffeeMachine", isToggled=True),
             )
         ],
-        tsrs = [
+        tsrs=[
             TSR(
                 name="make_coffee",
-                trigger=CG(OC("mug", isFilledWithLiquid=True, parentReceptacles=["CoffeeMachine"]), OC("CoffeeMachine", isToggled=True)),
-                end=CG(OC("mug", isFilledWithLiquid=True, parentReceptacles=None),),
+                trigger=CG(
+                    OC(
+                        "mug",
+                        isFilledWithLiquid=True,
+                        parentReceptacles=["CoffeeMachine"],
+                    ),
+                    OC("CoffeeMachine", isToggled=True),
+                ),
+                end=CG(
+                    OC("mug", isFilledWithLiquid=True, parentReceptacles=None),
+                ),
             ),
         ],
     ),
     # cook_egg
     "cook_egg": TaskSpec(
         name="cook_egg",
-        gcr_end=CG(OC("egg", isCooked=True)),
+        gcr_end=CG(OC("Egg_Cracked", isCooked=True)),
         gcr_mid_groups=[
             CG(
                 # OC("egg_sliced", parentReceptacles=["pan"]),
                 OC("pan", parentReceptacles=["stove"]),
-                OC("egg", isCooked=True),
+                OC("Egg_Cracked", isCooked=True),
                 OC("stoveknob", isToggled=True),
             )
         ],
@@ -246,28 +261,37 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             OC("lettuce", parentReceptacles=["fridge"]),
         ),
         gcr_mid_groups=None,
-        tsrs = None,
+        tsrs=None,
     ),
     # wash_a_tomato
     "wash_a_tomato": TaskSpec(
         name="wash_a_tomato",
         gcr_end=None,
-        gcr_mid_groups=[CG(OC("tomato", parentReceptacles=["sink"]), OC("faucet", isToggled=True))],
-        tsrs = None,
+        gcr_mid_groups=[
+            CG(OC("tomato", parentReceptacles=["sink"]), OC("faucet", isToggled=True))
+        ],
+        tsrs=None,
     ),
     # wash_a_butterknife
     "wash_a_butterknife": TaskSpec(
         name="wash_a_butterknife",
         gcr_end=None,
-        gcr_mid_groups=[CG(OC("butterknife", parentReceptacles=["sink"]), OC("faucet", isToggled=True))],
-        tsrs = None,
+        gcr_mid_groups=[
+            CG(
+                OC("butterknife", parentReceptacles=["sink"]),
+                OC("faucet", isToggled=True),
+            )
+        ],
+        tsrs=None,
     ),
     # wash_a_spatula
     "wash_a_spatula": TaskSpec(
         name="wash_a_spatula",
         gcr_end=None,
-        gcr_mid_groups=[CG(OC("spatula", parentReceptacles=["sink"]), OC("faucet", isToggled=True))],
-        tsrs = None,
+        gcr_mid_groups=[
+            CG(OC("spatula", parentReceptacles=["sink"]), OC("faucet", isToggled=True))
+        ],
+        tsrs=None,
     ),
     # wash_all_fork_and_spoon (각각 독립 그룹 2개)
     "wash_all_fork_and_spoon": TaskSpec(
@@ -277,7 +301,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             CG(OC("fork", parentReceptacles=["sink"]), OC("faucet", isToggled=True)),
             CG(OC("spoon", parentReceptacles=["sink"]), OC("faucet", isToggled=True)),
         ],
-        tsrs = None,
+        tsrs=None,
     ),
     # wash_plate_and_cup (각각 독립 그룹 2개)
     "wash_plate_and_cup": TaskSpec(
@@ -287,7 +311,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             CG(OC("plate", parentReceptacles=["sink"]), OC("faucet", isToggled=True)),
             CG(OC("cup", parentReceptacles=["sink"]), OC("faucet", isToggled=True)),
         ],
-        tsrs = None,
+        tsrs=None,
     ),
     # wash_apple_and_lettuce (각각 독립 그룹 2개)
     "wash_apple_and_lettuce": TaskSpec(
@@ -297,19 +321,27 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             CG(OC("apple", parentReceptacles=["sink"]), OC("faucet", isToggled=True)),
             CG(OC("lettuce", parentReceptacles=["sink"]), OC("faucet", isToggled=True)),
         ],
-        tsrs = None,
+        tsrs=None,
     ),
     # cook_chicken
     "cook_chicken": TaskSpec(
         name="cook_chicken",
         gcr_end=None,
         gcr_mid_groups=[
-            CG(OC("chicken", parentReceptacles=["pan"]), OC("pan", parentReceptacles=["stove"]), OC("stove", isToggled=True)),
+            CG(
+                OC("chicken", parentReceptacles=["pan"]),
+                OC("pan", parentReceptacles=["stove"]),
+                OC("stove", isToggled=True),
+            ),
         ],
-        tsrs = [
+        tsrs=[
             TSR(
                 name="cook_chicken",
-                trigger=CG(OC("chicken", parentReceptacles=["pan"]), OC("pan", parentReceptacles=["stove"]), OC("stove", isToggled=True)),
+                trigger=CG(
+                    OC("chicken", parentReceptacles=["pan"]),
+                    OC("pan", parentReceptacles=["stove"]),
+                    OC("stove", isToggled=True),
+                ),
                 end=CG(OC("stove", isToggled=False)),
             ),
         ],
@@ -319,7 +351,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         name="do_the_laundry",
         gcr_end=CG(OC("laundry_machine", isToggled=False)),
         gcr_mid_groups=[CG(OC("laundry_machine", isToggled=True))],
-        tsrs = [
+        tsrs=[
             TSR(
                 name="do_laundry",
                 trigger=CG(OC("laundry_machine", isToggled=True)),
@@ -327,17 +359,25 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             ),
         ],
     ),
-    #cook_sausage
+    # cook_sausage
     "cook_sausage": TaskSpec(
         name="cook_sausage",
         gcr_end=None,
         gcr_mid_groups=[
-            CG(OC("sausage", parentReceptacles=["pan"]), OC("pan", parentReceptacles=["stove"]), OC("stove", isToggled=True)),
+            CG(
+                OC("sausage", parentReceptacles=["pan"]),
+                OC("pan", parentReceptacles=["stove"]),
+                OC("stove", isToggled=True),
+            ),
         ],
-        tsrs = [
+        tsrs=[
             TSR(
                 name="cook_sausage",
-                trigger=CG(OC("sausage", parentReceptacles=["pan"]), OC("pan", parentReceptacles=["stove"]), OC("stove", isToggled=True)),
+                trigger=CG(
+                    OC("sausage", parentReceptacles=["pan"]),
+                    OC("pan", parentReceptacles=["stove"]),
+                    OC("stove", isToggled=True),
+                ),
                 end=CG(OC("stove", isToggled=False)),
             ),
         ],
@@ -346,36 +386,36 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         name="move_cup_to_sink",
         gcr_end=CG(OC("cup", parentReceptacles=["sink"])),
         gcr_mid_groups=None,
-        tsrs = None,
+        tsrs=None,
     ),
     "place_pan_on_stove": TaskSpec(
         name="place_pan_on_stove",
         gcr_end=CG(OC("pan", parentReceptacles=["stove"])),
         gcr_mid_groups=None,
-        tsrs = None,
+        tsrs=None,
     ),
     "put_banana_on_plate": TaskSpec(
         name="put_banana_on_plate",
         gcr_end=CG(OC("banana", parentReceptacles=["plate"])),
         gcr_mid_groups=None,
-        tsrs = None,
+        tsrs=None,
     ),
     "put_orange_bowl_on_sink": TaskSpec(
         name="put_orange_bowl_on_sink",
         gcr_end=CG(OC("orange_bowl", parentReceptacles=["sink"])),
         gcr_mid_groups=None,
-        tsrs = None,
+        tsrs=None,
     ),
     "move_blue_bowl_to_sink": TaskSpec(
         name="move_blue_bowl_to_sink",
         gcr_end=CG(OC("blue_bowl", parentReceptacles=["sink"])),
         gcr_mid_groups=None,
-        tsrs = None,
+        tsrs=None,
     ),
     "put_tomato_on_plate": TaskSpec(
         name="put_tomato_on_plate",
         gcr_end=CG(OC("tomato", parentReceptacles=["plate"])),
         gcr_mid_groups=None,
-        tsrs = None,
+        tsrs=None,
     ),
 }
