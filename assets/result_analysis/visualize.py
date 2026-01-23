@@ -61,7 +61,17 @@ APPROACH_LIST = {
     "cap_ai2thor_simulation": "CaP",
 }
 
-INIT_LIST = ["init_60", "init_80", "init_100", "init_120", "init_140"]
+INIT_LIST = [
+    "init_60",
+    "init_70",
+    "init_80",
+    "init_90",
+    "init_100",
+    "init_110",
+    "init_120",
+    "init_130",
+    "init_140",
+]
 TASK_CASE = [
     "tasks_2_constraints_1",
     "tasks_2_constraints_2",
@@ -205,11 +215,15 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
     """
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     conditions = [
-        "Under-est\n(60s)",
-        "Under-mid-est\n(80s)",
-        "Correct\n(100s)",
-        "Over-mid-est\n(120s)",
-        "Over-est\n(140s)",
+        "60s",
+        "70s",
+        "80s",
+        "90s",
+        "100s",
+        "110s",
+        "120s",
+        "130s",
+        "140s",
     ]
     metrics_info = [
         (
@@ -326,7 +340,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_path",
         type=str,
-        default="assets/results/unified_analysis_summary.revised.json",
+        default="assets/results//unified_analysis_summary.revised.json",
         help="데이터 파일 경로를 지정합니다.",
     )
     parser.add_argument(
