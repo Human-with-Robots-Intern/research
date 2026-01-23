@@ -78,6 +78,8 @@ def create_module_logger(
 
     if log_file_path:
         log_file = log_file_path
+    elif os.environ.get("PDK_LOG_FILE"):
+        log_file = Path(os.environ["PDK_LOG_FILE"])
     else:
         # Default log file for general (non-worker) logging.
         timestamp = (
