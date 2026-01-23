@@ -439,6 +439,9 @@ class Scheduler:
             physical_earliest_start = (
                 curr_node.state.current_time + candidate.estimated_first_nav_duration
             )
+            log.debug(
+                f"[_get_urgent_critical_candidates] diff: {candidate.logical_interaction_start_time - physical_earliest_start}"
+            )
 
             # Check urgency: Are we at or past the time we should start?
             # We use a tolerance to allow starting slightly early (On-time).
@@ -447,8 +450,22 @@ class Scheduler:
             )
 
             if 0 >= (
-                candidate.logical_interaction_start_time - physical_earliest_start
+                candidate.logical_interaction_start_time
+                - physical_earliest_start
+                - TIMING_TOLERANCE_ABS // 2
             ):
+                # Timing Tolerance 때문에 앞당겨 작업을 한건지, 늦어서 한건지 구분하여 알려주는 로그
+                if (
+                    candidate.logical_interaction_start_time - physical_earliest_start
+                    > TIMING_TOLERANCE_ABS // 2
+                ):
+                    log.debug(
+                        f"[_get_urgent_critical_candidates] 앞당겨 작업을 함: {candidate.logical_interaction_start_time - physical_earliest_start}"
+                    )
+                else:
+                    log.debug(
+                        f"[_get_urgent_critical_candidates] 늦어서 작업을 함: {candidate.logical_interaction_start_time - physical_earliest_start}"
+                    )
                 # Update actual interaction start time
                 # We start as soon as physically possible (ASAP)
                 candidate.actual_interaction_start_time = physical_earliest_start
@@ -525,7 +542,7 @@ class Scheduler:
                         + candidate.estimated_first_nav_duration
                     )
 
-                    if 0 >= logical_start - physical_start:
+                    if 0 >= logical_start - physical_start - TIMING_TOLERANCE_ABS // 2:
                         # Urgent but blocked! Find feasible predecessors recursively.
                         log.debug(
                             f"Found BLOCKED URGENT task: {candidate.subtask.name} "
