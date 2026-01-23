@@ -271,7 +271,7 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         ax.grid(True, linestyle="--", alpha=0.4)
 
         # Correct (index 2) 조건 강조 (빨간색 세로줄, 약간 투명하게)
-        ax.axvline(x=2, color="red", alpha=0.3, linewidth=1.5)
+        ax.axvline(x=4, color="red", alpha=0.3, linewidth=1.5)
 
     # 범례 통합
     handles, labels = ax.get_legend_handles_labels()
@@ -342,7 +342,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_path",
         type=str,
-        default="assets/results//unified_analysis_summary.revised.json",
+        default="assets/results/unified_analysis_summary.revised.json",
         help="데이터 파일 경로를 지정합니다.",
     )
     parser.add_argument(
