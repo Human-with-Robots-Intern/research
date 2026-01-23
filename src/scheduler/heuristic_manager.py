@@ -83,18 +83,42 @@ class HeuristicManager:
             "inf"
         ):
             log.debug(
-                f"[_calculate_candidate_risk_and_urgency] No Deadline -> risk: 0.0"
+                "[_calculate_candidate_risk_and_urgency] No Deadline -> risk: 0.0"
             )
             return 0, 0.0
 
         current_time = current_node.state.current_time
         deadline = candidate.scheduling_due.due_date
 
-        # 1. Calculate Slack
+        # 1. Future Reservation Check
+        # 내가 시작하는 타이머 작업이 미래에 예약된 윈도우와 충돌하는지 검사
+        future_conflict_delay, victim_task_name = self._check_future_conflict(
+            current_node, candidate
+        )
+        if future_conflict_delay > 0:
+            # [Added] Critical Check: If the delay exceeds tolerance, it's a planned violation.
+            # We strictly enforce that we cannot plan a schedule that knowingly violates the tolerance.
+            # Also applied a safety margin (3.0s) to be conservative.
+            if future_conflict_delay > max(0.0, constants.TIMING_TOLERANCE_ABS):
+                log.warning(
+                    f"[_calculate_candidate_risk_and_urgency] Future Conflict Delay ({future_conflict_delay:.2f}) "
+                    f"exceeds safety tolerance ({constants.TIMING_TOLERANCE_ABS}). "
+                    f"Victim: {victim_task_name}. Risk: 2.0"
+                )
+                return 2, 10000.0 + future_conflict_delay
+
+            log.debug(
+                f"[_calculate_candidate_risk_and_urgency] Future Reservation Conflict for '{candidate.subtask.name}' "
+                f"-> Delay: {future_conflict_delay:.2f}s (Will be added to needed time)"
+            )
+            return 2, 10000.0 + future_conflict_delay
+
+        # 2. Calculate Slack
         total_time_needed = (
             self._estimate_total_time_needed_for_deadline_violation_check(
                 current_node, candidate
             )
+            + future_conflict_delay
         )
         time_available = deadline - current_time
         slack = time_available - total_time_needed
@@ -103,7 +127,7 @@ class HeuristicManager:
             f"[_calculate_candidate_risk_and_urgency] Slack({slack:.2f}) = Deadline({deadline:.2f}) - Now({current_time:.2f}) - Needed({total_time_needed:.2f})"
         )
 
-        # 2. Map Slack to Base Risk & Cost
+        # 3. Map Slack to Base Risk & Cost
         if slack >= 0:
             log.debug(
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
@@ -115,10 +139,43 @@ class HeuristicManager:
             )
             return 0, slack
         else:
+            # [Rescue Logic] 연속 작업인 경우, Deadline 위배가 발생해도 Risk를 낮춰줌
+            if self._is_consecutive_task(current_node, candidate):
+                log.warning(
+                    f"[_calculate_candidate_risk_and_urgency] RESCUE: Consecutive task '{candidate.subtask.name}' "
+                    f"violates deadline (slack={slack:.2f}) but is rescued to Risk 0."
+                )
+                return 0, 10000.0 + abs(slack)
+
             log.debug(
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 2.0"
             )
             return 2, 10000.0 + abs(slack)
+
+    def _is_consecutive_task(
+        self, current_node: SimulationNode, candidate: Candidate
+    ) -> bool:
+        """
+        Checks if the candidate is a consecutive task (Critical & Interval ~ 0)
+        following the last executed task.
+        """
+        if not current_node.state.subtask:
+            return False
+
+        last_name = current_node.state.subtask.name
+        curr_name = candidate.subtask.name
+        graph = current_node.state.constraints
+
+        if graph.has_edge(last_name, curr_name):
+            data = graph.get_edge_data(last_name, curr_name)
+            info = data.get("info", {})
+            if (
+                info.get("IsCritical")
+                and info.get("Interval", 0.0) <= constants.EPSILON
+            ):
+                return True
+
+        return False
 
     def _estimate_total_time_needed_for_deadline_violation_check(
         self, current_node: SimulationNode, candidate: Candidate
@@ -127,7 +184,13 @@ class HeuristicManager:
         # 0,true로 묶인 A -> B가 있을 때 현재 지점에서 A까지 이동하는데 걸리는 시간
         nav_time = candidate.estimated_first_nav_duration or 0.0
         # A,B의 총 작업 소요 시간
-        chain_duration, _ = self._get_chain_info(current_node, candidate.subtask)
+        chain_duration, _, _ = self._get_chain_info(current_node, candidate.subtask)
+#         해결책: "가장 급한 불(Most Urgent Task)"을 기준으로 추정
+# 비록 다음 태스크가 확정되지 않았더라도, "우리가 반드시 지켜야 할 데드라인을 가진 태스크"는 이미 알고 있습니다.
+# Urgency Check: 현재 remaining_subtasks 중에서 scheduling_due(데드라인)가 있는 태스크들을 찾습니다.
+# Worst-Case Estimation: 만약 내가 지금 Wash Fork(비크리티컬)를 수행한다면, 그 직후에 "가장 급한 태스크(Place Bread)"를 수행하러 가야 한다고 가정해야 안전합니다.
+# Cost Calculation:
+# 비용 = (Wash Fork 수행 시간) + (Wash Fork 종료 위치 -> Place Bread 시작 위치 이동 시간)
 
         # [Fix] If the deadline is for the candidate itself (Start Time Constraint),
         # we only need to arrive (Nav) by the deadline, not finish.
@@ -197,7 +260,7 @@ class HeuristicManager:
 
     def _get_chain_info(
         self, current_node: SimulationNode, start_subtask: Subtask
-    ) -> Tuple[float, Set[str]]:
+    ) -> Tuple[float, Set[str], str]:
         """
         Calculates total duration and members of a critical chain starting from start_subtask.
         A chain is defined by consecutive tasks with Interval <= EPSILON.
@@ -206,6 +269,7 @@ class HeuristicManager:
         total_duration = self._get_estimated_pure_interaction_time(start_subtask)
         curr_name = start_subtask.name
         chain_members = {curr_name}
+        last_task_name = curr_name
 
         curr_pos = self._get_task_interaction_location(
             start_subtask, current_node.state.scene_positions
@@ -253,11 +317,12 @@ class HeuristicManager:
                     total_duration += nav_time
 
                     curr_name = next_name
+                    last_task_name = curr_name
                     curr_pos = next_pos  # Update position for next hop
                     continue
             break
 
-        return total_duration, chain_members
+        return total_duration, chain_members, last_task_name
 
     def _calculate_remaining_work_cost(
         self, current_node: SimulationNode, candidate: Candidate
@@ -272,7 +337,7 @@ class HeuristicManager:
             # 단순히 시간을 보내는 것이므로, 체인으로 묶인 후속 작업들의 부채를 탕감해주면 안 됨.
             chain_members = {candidate.subtask.name}
         else:
-            _, chain_members = self._get_chain_info(current_node, candidate.subtask)
+            _, chain_members, _ = self._get_chain_info(current_node, candidate.subtask)
 
         # 2. 남은 태스크 목록 (이번 후보 제외)
         remaining_tasks = [
@@ -439,3 +504,302 @@ class HeuristicManager:
 
         mst = minimum_spanning_tree(csr_matrix(dist_matrix))
         return mst.sum()
+
+    def _get_reserved_windows(
+        self, current_node: SimulationNode
+    ) -> List[Tuple[float, float, str, str]]:
+        """
+        Calculates reserved time windows by future tasks that are already committed
+        (i.e., tasks waiting for a timer to finish and their subsequent chains).
+        Returns a list of (start_time, end_time, owner_task_name, last_task_name) tuples.
+        """
+        reserved_windows = []
+        constraints = current_node.state.constraints
+        completed_map = {
+            ce.subtask.name: ce for ce in current_node.state.completed_entries
+        }
+        remaining_subtasks_map = {
+            t.name: t for t in current_node.state.remaining_subtasks
+        }
+
+        # Check all critical edges where U is completed and V is remaining
+        for u, v, data in constraints.edges(data=True):
+            if u in completed_map and v in remaining_subtasks_map:
+                info = data.get("info", {})
+                if (
+                    info.get("IsCritical")
+                    and info.get("Interval", 0.0) > constants.EPSILON
+                ):
+                    # Found a pending timer task (V)
+                    # Calculate Expected Start Time of V
+                    u_end_time = completed_map[u].schedule_end_time
+                    interval = info["Interval"]
+                    expected_start_time = u_end_time + interval
+
+                    # Calculate Chain Duration starting from V
+                    v_subtask = remaining_subtasks_map[v]
+                    chain_duration, _, last_task_name = self._get_chain_info(
+                        current_node, v_subtask
+                    )
+
+                    reserved_windows.append(
+                        (
+                            expected_start_time,
+                            expected_start_time + chain_duration,
+                            v,  # Owner task name (reservation holder)
+                            last_task_name,  # Last task in the reserved chain
+                        )
+                    )
+
+        return reserved_windows
+
+    def _check_future_conflict(
+        self, current_node: SimulationNode, candidate: Candidate
+    ) -> Tuple[float, Optional[str]]:
+        """
+        Checks if the candidate (or any task in its inseparable chain) starts a timer
+        that will complete in a time window already reserved by other tasks.
+        Returns:
+            - max_conflict (float): The maximum delay required to resolve the conflict.
+            - victim_task_name (Optional[str]): The name of the future task that is impacted (delayed).
+        """
+        # 1. Identify all future timer tasks launched by the candidate's chain
+        candidate_name = candidate.subtask.name
+        graph = current_node.state.constraints
+
+        future_tasks_info = (
+            []
+        )  # List of (target_name, relative_ready_time_from_chain_start)
+
+        # We need to track the cumulative time from the start of the candidate execution
+        # to the completion of each task in the chain.
+        curr_name = candidate_name
+
+        # Duration of the candidate task itself
+        current_relative_time = self._get_estimated_pure_interaction_time(
+            candidate.subtask
+        )
+
+        # Check candidate's outgoing timer edges
+        for _, target, data in graph.out_edges(curr_name, data=True):
+            info = data.get("info", {})
+            if info.get("IsCritical") and info.get("Interval", 0.0) > constants.EPSILON:
+                # Found a timer edge. The timer starts when curr_task ENDS.
+                future_tasks_info.append(
+                    (target, current_relative_time + info["Interval"])
+                )
+
+        # Traverse the rest of the chain
+        while True:
+            next_name = None
+            for _, target, data in graph.out_edges(curr_name, data=True):
+                info = data.get("info", {})
+                if (
+                    info.get("IsCritical")
+                    and info.get("Interval", 0.0) <= constants.EPSILON
+                ):
+                    next_name = target
+                    break
+
+            if next_name:
+                # Found next link in chain. Find the subtask object.
+                next_sub = next(
+                    (
+                        t
+                        for t in current_node.state.remaining_subtasks
+                        if t.name == next_name
+                    ),
+                    None,
+                )
+                if not next_sub:
+                    break
+
+                # Calculate Nav + Interaction to get to the end of next_sub
+                # Current Pos is location of curr_name task
+                if curr_name == candidate.subtask.name:
+                    curr_sub = candidate.subtask
+                else:
+                    curr_sub = next(
+                        (
+                            t
+                            for t in current_node.state.remaining_subtasks
+                            if t.name == curr_name
+                        ),
+                        None,
+                    )
+
+                if curr_sub:
+                    curr_pos = self._get_task_interaction_location(
+                        curr_sub, current_node.state.scene_positions
+                    )
+                else:
+                    curr_pos = None  # Should not happen
+
+                next_pos = self._get_task_interaction_location(
+                    next_sub, current_node.state.scene_positions
+                )
+
+                nav_time = self._estimate_navigation_time_between_positions(
+                    curr_pos, next_pos
+                )
+                interaction_time = self._get_estimated_pure_interaction_time(next_sub)
+
+                current_relative_time += nav_time + interaction_time
+
+                # Check next task's outgoing timer edges
+                for _, target, data in graph.out_edges(next_name, data=True):
+                    info = data.get("info", {})
+                    if (
+                        info.get("IsCritical")
+                        and info.get("Interval", 0.0) > constants.EPSILON
+                    ):
+                        future_tasks_info.append(
+                            (target, current_relative_time + info["Interval"])
+                        )
+
+                curr_name = next_name
+            else:
+                break
+
+        if not future_tasks_info:
+            return 0.0, None
+
+        # 2. Get and Merge Reserved Windows
+        reserved_windows = self._get_reserved_windows(current_node)
+        if not reserved_windows:
+            return 0.0, None
+
+        # Sort windows by start time
+        reserved_windows.sort(key=lambda x: x[0])
+
+        # Merge overlapping/adjacent windows
+        merged_windows = []
+        if reserved_windows:
+            # Structure: (start, end, owners_set, last_task_name)
+            curr_start, curr_end, curr_owner, curr_last_task = reserved_windows[0]
+            curr_owners = {curr_owner}
+
+            for i in range(1, len(reserved_windows)):
+                r_start, r_end, r_owner, r_last_task = reserved_windows[i]
+                # If current window overlaps or is adjacent to the merged window
+                if r_start <= curr_end + constants.EPSILON:
+                    if r_end > curr_end:
+                        curr_end = r_end
+                        curr_last_task = r_last_task
+                    curr_owners.add(r_owner)
+                else:
+                    merged_windows.append(
+                        (curr_start, curr_end, curr_owners, curr_last_task)
+                    )
+                    curr_start, curr_end = r_start, r_end
+                    curr_owners = {r_owner}
+                    curr_last_task = r_last_task
+            merged_windows.append((curr_start, curr_end, curr_owners, curr_last_task))
+
+        # 3. Check each future task against merged reserved windows
+        max_conflict = 0.0
+        victim_task_name = None
+
+        # Chain Start Time (estimated)
+        cand_nav = candidate.estimated_first_nav_duration or 0.0
+        current_time = current_node.state.current_time
+        chain_start_time = current_time + cand_nav
+
+        for target_name, relative_ready_time in future_tasks_info:
+            target_subtask = next(
+                (
+                    t
+                    for t in current_node.state.remaining_subtasks
+                    if t.name == target_name
+                ),
+                None,
+            )
+            if not target_subtask:
+                continue
+
+            # Expected Ready Time for Future Task
+            ready_time = chain_start_time + relative_ready_time
+
+            # Target Duration (Chain)
+            target_dur, _, _ = self._get_chain_info(current_node, target_subtask)
+
+            # Check overlap with merged reserved windows
+            for (
+                r_start,
+                r_end,
+                r_owners,
+                r_last_task,
+            ) in merged_windows:  # Iterate over merged windows
+                # Ignore Self-Conflict: If the reservation belongs ONLY to the target task, skip it.
+                if len(r_owners) == 1 and target_name in r_owners:
+                    continue
+
+                if target_name in r_owners:
+                    # This block includes the reservation for the target task itself.
+                    # We should trust that the reservation was made correctly and allow using it.
+                    continue
+
+                # Task Interval: [ready_time, ready_time + target_dur]
+                # Merged Reserved Interval: [r_start, r_end]
+
+                start_max = max(ready_time, r_start)
+                end_min = min(ready_time + target_dur, r_end)
+
+                if start_max < end_min:
+                    # Overlap detected
+                    # We strictly calculate delay required to wait out the block.
+                    wait_delay = r_end - ready_time
+
+                    if wait_delay <= constants.EPSILON:
+                        continue
+
+                    # [Added] Calculate Travel Time from Reserved Block End to Target Task
+                    # If we wait for the reserved block, the agent is effectively at the location of r_last_task.
+                    # We must travel to target_subtask.
+
+                    # Find r_last_task object (it might be completed or remaining)
+                    r_last_subtask = next(
+                        (
+                            t
+                            for t in current_node.state.remaining_subtasks
+                            if t.name == r_last_task
+                        ),
+                        None,
+                    )
+                    # If not in remaining, check completed
+                    if not r_last_subtask:
+                        ce = next(
+                            (
+                                c
+                                for c in current_node.state.completed_entries
+                                if c.subtask.name == r_last_task
+                            ),
+                            None,
+                        )
+                        if ce:
+                            r_last_subtask = ce.subtask
+
+                    travel_time = 0.0
+                    if r_last_subtask:
+                        r_last_pos = self._get_task_interaction_location(
+                            r_last_subtask, current_node.state.scene_positions
+                        )
+                        target_pos = self._get_task_interaction_location(
+                            target_subtask, current_node.state.scene_positions
+                        )
+                        travel_time = self._estimate_navigation_time_between_positions(
+                            r_last_pos, target_pos
+                        )
+
+                    total_delay = wait_delay + travel_time
+
+                    log.debug(
+                        f"  [Future Conflict] Chain caused '{target_name}' (Start {ready_time:.2f}) "
+                        f"overlaps with Merged Reserved Window [{r_start:.2f}, {r_end:.2f}] (Owners: {r_owners}). "
+                        f"Wait: {wait_delay:.2f} + Travel({r_last_task}->{target_name}): {travel_time:.2f} = Total Delay: {total_delay:.2f}"
+                    )
+                    if total_delay > max_conflict:
+                        max_conflict = total_delay
+                        victim_task_name = target_name
+
+        return max_conflict, victim_task_name
