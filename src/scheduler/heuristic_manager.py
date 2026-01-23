@@ -135,7 +135,7 @@ class HeuristicManager:
             return 0, slack
         elif slack >= -constants.TIMING_TOLERANCE_ABS:
             log.debug(
-                f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 1.0"
+                f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
             )
             return 0, slack
         else:
