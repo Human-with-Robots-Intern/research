@@ -35,7 +35,7 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=all
       # - VK_ICD_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json 원래는 여긴데 권한문제와 덮어쓰기 문제로 아래로 변경
       - VK_ICD_FILENAMES=/opt/egl_vendor.d/10_nvidia.json
-      # - DISPLAY=${DISPLAY:-:99}
+      - DISPLAY=${DISPLAY:-:99}
       # HTTP bridge endpoint 
       - ROS_BRIDGE_URL=${ROS_BRIDGE_URL:-http://ros:8000}
       # Hugging Face Cache
@@ -87,7 +87,7 @@ services:
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
       # - ROS_DOMAIN_ID=0
       # - CYCLONEDDS_URI=<CycloneDDS><Domain><General><NetworkInterfaceAddress>eno1</NetworkInterfaceAddress></General></Domain></CycloneDDS>
-      # - DISPLAY=${DISPLAY}
+      - DISPLAY=${DISPLAY}
 
 networks:
   uttp_net:

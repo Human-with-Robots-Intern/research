@@ -382,7 +382,7 @@ def _run_script_and_log(
     )
 
     try:
-        stdout, stderr = process.communicate(timeout=300)  # 1 hour timeout
+        stdout, stderr = process.communicate(timeout=1200)  # 20 minutes timeout
         returncode = process.returncode
     except subprocess.TimeoutExpired:
         logger.error(f"Process timeout after 5 minutes. Killing process...")
