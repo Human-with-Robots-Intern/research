@@ -22,9 +22,13 @@ def aggregate_summary(
         # Map states to init_* format and filter out states80 and states120
         states_mapping = {
             "states60": "init_60",
+            "states70": "init_70",
             "states80": "init_80",
+            "states90": "init_90",
             "states100": "init_100",
+            "states110": "init_110",
             "states120": "init_120",
+            "states130": "init_130",
             "states140": "init_140",
         }
 

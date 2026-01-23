@@ -1876,8 +1876,7 @@ class Scheduler:
 
         - If actual_interaction_start_time <= current_time, wait_duration becomes 0.
         - This wait is modeled as a Subtask with type="Wait".
-        - [Fix 251216] Safe Wait Splitting: The wait duration is capped by the earliest
-          deadline among other feasible candidates to prevent blocking critical tasks.
+
 
         Args:
             curr_node (SimulationNode): Current node in the search tree.

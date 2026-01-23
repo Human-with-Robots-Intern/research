@@ -407,7 +407,7 @@ def parse_arguments():
     parser.add_argument(
         "--case",
         type=str,
-        default="tasks_2_constraints_2",
+        default="tasks_3_constraints_2",
         help="The name of the case.",
     )
     parser.add_argument(
@@ -425,13 +425,13 @@ def parse_arguments():
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan1",
+        default="FloorPlan7",
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default="01_boil_potato_and_heat_the_bread_using_microwave.json",
+        default="08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
