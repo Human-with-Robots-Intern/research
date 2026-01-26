@@ -19,8 +19,8 @@ approaches:
   - "src/dag_bayesian.py"
 # Scripts that use LLMs and are subject to retries on failure
 llm_scripts:
-#   - "src/baselines/progprompt/prog_ai2thor.py"
-#   - "src/baselines/cap/cap_ai2thor.py"
+  # - "src/baselines/progprompt/prog_ai2thor.py"
+  # - "src/baselines/cap/cap_ai2thor.py"
 # # Scene lists for each scene type
 scene_type: # Default scene type to run. Options: 'kitchen', 'bathroom'
   - kitchen
@@ -49,6 +49,10 @@ init_prior_configs: #초기 시간 값 종류
   - UNDER_ESTIMATE
   - OVER_MEDIUM_ESTIMATE
   - UNDER_ESTIMATE
+  - OVER_ESTIMATE_130
+  - OVER_ESTIMATE_110
+  - UNDER_ESTIMATE_90
+  - UNDER_ESTIMATE_70
   
 
 # ------------------------------------------------------------------------------
@@ -58,6 +62,3 @@ task_folder_name: "sampled_10_instruction_set_for_final_experiment_251231_bluebo
 min_task_count: 0
 min_constraint_count: 0
 skip_completed: true
-# ==============================================================================
-# Ablation Study Configurations
-# ==============================================================================

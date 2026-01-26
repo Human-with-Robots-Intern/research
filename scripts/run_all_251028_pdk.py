@@ -102,6 +102,23 @@ class InitPriorConfig(Enum):
         "init_prior_variance": INIT_PRIOR_VARIANCE,
     }
 
+    OVER_ESTIMATE_130 = {
+        "init_prior_mean": 130.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
+    }
+    OVER_ESTIMATE_110 = {
+        "init_prior_mean": 110.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
+    }
+    UNDER_ESTIMATE_90 = {
+        "init_prior_mean": 90.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
+    }
+    UNDER_ESTIMATE_70 = {
+        "init_prior_mean": 70.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
+    }
+
 
 @dataclass
 class ExperimentTask:

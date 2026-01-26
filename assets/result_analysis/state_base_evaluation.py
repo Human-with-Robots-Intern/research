@@ -35,7 +35,7 @@ def _to_spec_key(task_name: str) -> str:
 def main() -> None:
     """Traverse all states folders (states60/100/140), evaluate tasks, and emit single summary in JSON/LaTeX."""
 
-    results_folder: Path = Path("assets/results")
+    results_folder: Path = Path("assets/results/")
     tasks_json_path = (
         Path(__file__).resolve().parents[1] / "tasks" / "floorplan_tasks.json"
     )
@@ -48,9 +48,13 @@ def main() -> None:
     # states60, 80, 100, 120, 140 폴더만 처리
     states_folder_names = [
         "states60",
+        "states70",
         "states80",
+        "states90",
         "states100",
+        "states110",
         "states120",
+        "states130",
         "states140",
     ]
     states_folders = []

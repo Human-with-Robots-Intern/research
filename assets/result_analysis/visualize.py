@@ -61,7 +61,17 @@ APPROACH_LIST = {
     "cap_ai2thor_simulation": "CaP",
 }
 
-INIT_LIST = ["init_60", "init_80", "init_100", "init_120", "init_140"]
+INIT_LIST = [
+    "init_60",
+    "init_70",
+    "init_80",
+    "init_90",
+    "init_100",
+    "init_110",
+    "init_120",
+    "init_130",
+    "init_140",
+]
 TASK_CASE = [
     "tasks_2_constraints_1",
     "tasks_2_constraints_2",
@@ -175,9 +185,7 @@ def plot_trajectory(data: dict, output_path: str | None = None) -> None:
 
     # --- 축 및 설정 ---
     ax.set_xlabel("Makespan (s) ↓ (Efficiency)", fontsize=12, fontweight="bold")
-    ax.set_ylabel(
-        "Success Rate (%) ↑ (Robustness)", fontsize=12, fontweight="bold"
-    )
+    ax.set_ylabel("Success Rate (%) ↑ (Robustness)", fontsize=12, fontweight="bold")
     ax.set_title(
         "Performance Stability across Belief Conditions", fontsize=14, fontweight="bold"
     )
@@ -206,9 +214,13 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
     conditions = [
         "60s",
+        "70s",
         "80s",
-        "100s \n (Correct)",
+        "90s",
+        "100s\n(Correct)",
+        "110s",
         "120s",
+        "130s",
         "140s",
     ]
     metrics_info = [
@@ -253,11 +265,13 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
 
         ax.set_title(title, fontsize=14, pad=15, fontweight="bold")
         ax.set_ylabel(ylabel, fontsize=12, labelpad=10)
-        ax.set_xlabel(r"Initial Belief Condition ($\Delta_0$)", fontsize=12, labelpad=10)
+        ax.set_xlabel(
+            r"Initial Belief Condition ($\Delta_0$)", fontsize=12, labelpad=10
+        )
         ax.grid(True, linestyle="--", alpha=0.4)
-        
+
         # Correct (index 2) 조건 강조 (빨간색 세로줄, 약간 투명하게)
-        ax.axvline(x=2, color="red", alpha=0.3, linewidth=1.5)
+        ax.axvline(x=4, color="red", alpha=0.3, linewidth=1.5)
 
     # 범례 통합
     handles, labels = ax.get_legend_handles_labels()
@@ -265,10 +279,10 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         handles,
         labels,
         loc="center right",
-        bbox_to_anchor=(0.99, 0.65),   # bbox_to_anchor 조정
+        bbox_to_anchor=(0.99, 0.65),  # bbox_to_anchor 조정
         ncol=1,
         fontsize=10,
-        framealpha=0.9, 
+        framealpha=0.9,
     )
 
     plt.tight_layout()
@@ -328,7 +342,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_path",
         type=str,
-        default="assets/results/unified_analysis_summary_average.revised.json",
+        default="assets/results/unified_analysis_summary.revised.json",
         help="데이터 파일 경로를 지정합니다.",
     )
     parser.add_argument(
