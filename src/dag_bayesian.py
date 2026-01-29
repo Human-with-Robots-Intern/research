@@ -73,13 +73,13 @@ def parse_arguments():
     parser.add_argument(
         "--instruction",
         type=str,
-        default="08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon.json",
+        default="01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan7",
+        default="FloorPlan1",
         help="input scene name (default: FloorPlan1)",
     )
 
@@ -141,13 +141,13 @@ def parse_arguments():
     parser.add_argument(
         "--beam_width",
         type=int,
-        default=5,
+        default=10,
         help="Scheduler beam width (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--beam_depth",
         type=int,
-        default=5,
+        default=10,
         help="Scheduler beam depth (simulation_depth) (기본값: constants.py 값)",
     )
     parser.add_argument(
@@ -432,20 +432,6 @@ def main():
                 last_entry.sim_nav_time = sim_nav_time
                 total_sim_time += sim_elapsed_time
                 intervallist = []
-                for name1 in current_state.constraints.in_edges._adjdict.keys():
-                    for name2 in current_state.constraints.in_edges._adjdict[
-                        name1
-                    ].keys():
-                        if current_state.constraints.in_edges._adjdict[name1][name2][
-                            "info"
-                        ]["IsCritical"]:
-                            intervallist.append(
-                                {
-                                    name2: current_state.constraints.in_edges._adjdict[
-                                        name1
-                                    ][name2]["info"]["Interval"]
-                                }
-                            )
                 # 모니터 끄려면 이 안쪽을 주석화.
                 if (
                     not args.disable_monitoring
