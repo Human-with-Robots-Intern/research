@@ -125,6 +125,11 @@ def load_argument_parser() -> argparse.Namespace:
         help="Choose how to display ablation study results: 'parentheses' (inline), 'new_row' (separate row), or 'none' (exclude).",
     )
     parser.add_argument(
+        "--group_by_task_length",
+        action="store_true",
+        help="Group results by task length (e.g., merge C1 and C2 into T2).",
+    )
+    parser.add_argument(
         "--output_json",
         type=Path,
         default=Path(__file__).resolve().parents[1]
@@ -306,7 +311,9 @@ def is_experiment_folder(path: Path) -> bool:
     return False
 
 
-def collect_and_aggregate(root_dir: Path) -> Dict[str, Any]:
+def collect_and_aggregate(
+    root_dir: Path, group_by_task_length: bool = False
+) -> Dict[str, Any]:
     """Discover experiment folders and aggregate their results.
 
     Handles two cases:
@@ -315,6 +322,7 @@ def collect_and_aggregate(root_dir: Path) -> Dict[str, Any]:
 
     Args:
         root_dir (Path): Root directory to search.
+        group_by_task_length (bool): Whether to group results by task length.
 
     Returns:
         Dict[str, Any]: Aggregated data with (mean, std) for each metric.
@@ -358,6 +366,11 @@ def collect_and_aggregate(root_dir: Path) -> Dict[str, Any]:
                     continue
 
                 for task_key, inits in tasks.items():
+                    if group_by_task_length:
+                        match = re.match(r"(tasks_\d+)_constraints_\d+", task_key)
+                        if match:
+                            task_key = match.group(1)
+
                     for init_case, metrics in inits.items():
                         for metric, value in metrics.items():
                             collector[approach][task_key][init_case][metric].append(
@@ -811,7 +824,14 @@ def main() -> None:
     args = load_argument_parser()
 
     # 1. Collect and Aggregate Data from all experiment folders found in root_dir
-    final_data = collect_and_aggregate(args.root_dir)
+    final_data = collect_and_aggregate(
+        args.root_dir, group_by_task_length=args.group_by_task_length
+    )
+
+    if args.group_by_task_length:
+        global TASK_ORDER
+        TASK_ORDER = ["tasks_2", "tasks_3"]
+        TASK_DISPLAY_NAMES.update({"tasks_2": "T2", "tasks_3": "T3"})
 
     # 2. Save the merged summary for visualization
     if args.output_json:
@@ -849,7 +869,6 @@ def main() -> None:
         if m in final_data:
             methods_to_display.append(m)
 
-    print("\n--- LaTeX Table 1 (Under-estimate) ---\n")
     print(
         generate_latex_table(
             final_data, init_keys_1, labels_1, methods_to_display, args.ablation_style
