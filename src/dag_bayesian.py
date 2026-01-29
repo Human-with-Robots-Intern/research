@@ -73,13 +73,13 @@ def parse_arguments():
     parser.add_argument(
         "--instruction",
         type=str,
-        default="08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon.json",
+        default="01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan7",
+        default="FloorPlan1",
         help="input scene name (default: FloorPlan1)",
     )
 
@@ -141,13 +141,13 @@ def parse_arguments():
     parser.add_argument(
         "--beam_width",
         type=int,
-        default=5,
+        default=10,
         help="Scheduler beam width (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--beam_depth",
         type=int,
-        default=5,
+        default=10,
         help="Scheduler beam depth (simulation_depth) (기본값: constants.py 값)",
     )
     parser.add_argument(
