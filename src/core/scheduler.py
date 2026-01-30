@@ -369,11 +369,44 @@ class Scheduler:
         # --- Policy 2: Standard Expansion (other feasible + all waits) ---
         log.debug("Policy 2: No urgent criticals. Performing standard expansion.")
         for candidate in feasible_candidates:
+            # 1. Expand Action (Immediate Execution)
             child_node = self._expand_single_subtask(
                 curr_node, candidate, not_yet_candidates, feasible_candidates
             )
             if child_node:
                 expansions.append(child_node)
+
+            # 2. [Added 250130] Conflict-Avoidance Wait
+            # Check if immediate execution causes future conflicts.
+            # If so, generate an alternative 'Wait' node that delays execution just enough to avoid the conflict.
+            conflict_delay, _ = self.cost_calculator._check_future_conflict(
+                curr_node, candidate
+            )
+
+            if conflict_delay > constants.EPSILON:
+                # Calculate Nav Duration for Wait
+                target_obj_id = candidate.subtask.execution.primitive_actions[0].split(
+                    " "
+                )[1]
+                nav_time = self.action_handler.get_actions_info(
+                    curr_node, [f"NAVIGATE_TO {target_obj_id}"]
+                ).action_duration
+
+                wait_node = self._expand_wait_wo_monitoring(
+                    curr_node,
+                    candidate,
+                    not_yet_candidates,
+                    nav_duration=nav_time,
+                    feasible_candidates=feasible_candidates,
+                    additional_delay=conflict_delay,
+                )
+
+                if wait_node:
+                    log.debug(
+                        f"[Conflict-Avoidance] Generated Wait Node for {candidate.subtask.name} "
+                        f"(Delay: {conflict_delay:.2f}s) to avoid future conflict."
+                    )
+                    expansions.append(wait_node)
 
         # 1. 먼저 정렬을 수행 (정렬 기준은 유지)
         if not_yet_candidates:
@@ -542,7 +575,7 @@ class Scheduler:
                         + candidate.estimated_first_nav_duration
                     )
 
-                    if 0 >= logical_start - physical_start - TIMING_TOLERANCE_ABS // 2:
+                    if 0 >= logical_start - physical_start - (TIMING_TOLERANCE_ABS / 2):
                         # Urgent but blocked! Find feasible predecessors recursively.
                         log.debug(
                             f"Found BLOCKED URGENT task: {candidate.subtask.name} "
@@ -1887,6 +1920,7 @@ class Scheduler:
         nav_duration: float = 0.0,
         feasible_candidates: List[Candidate] = None,
         max_wait_duration: Optional[float] = None,
+        additional_delay: float = 0.0,
     ) -> Optional[SimulationNode]:
         """
         Inserts a single "Wait" action until the candidate's actual_interaction_start_time.
@@ -1899,6 +1933,7 @@ class Scheduler:
             curr_node (SimulationNode): Current node in the search tree.
             candidate (Candidate): The candidate subtask we're waiting for.
             nav_duration (float): Estimated navigation duration to the target object.
+            additional_delay (float): Extra wait time to avoid conflicts (used for Conflict-Avoidance Wait).
 
         Returns:
             SimulationNode: The child node representing the new state after waiting.
@@ -1916,6 +1951,11 @@ class Scheduler:
                 else curr_state.current_time
             )
         )
+
+        # [Added 250130] Support Conflict-Avoidance Wait
+        # If additional_delay is provided, push the target start time further.
+        if additional_delay > 0:
+            target_start_time += additional_delay
 
         if max_wait_duration is not None:
             target_start_time = min(
