@@ -122,7 +122,7 @@ class HeuristicManager:
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
             )
             return 0, slack
-        elif slack >= -constants.TIMING_TOLERANCE_ABS:
+        elif slack >= -(constants.TIMING_TOLERANCE_ABS / 2):
             log.debug(
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
             )
@@ -133,31 +133,6 @@ class HeuristicManager:
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 2.0"
             )
             return 2, 10000.0 + abs(slack)
-
-    def _is_consecutive_task(
-        self, current_node: SimulationNode, candidate: Candidate
-    ) -> bool:
-        """
-        Checks if the candidate is a consecutive task (Critical & Interval ~ 0)
-        following the last executed task.
-        """
-        if not current_node.state.subtask:
-            return False
-
-        last_name = current_node.state.subtask.name
-        curr_name = candidate.subtask.name
-        graph = current_node.state.constraints
-
-        if graph.has_edge(last_name, curr_name):
-            data = graph.get_edge_data(last_name, curr_name)
-            info = data.get("info", {})
-            if (
-                info.get("IsCritical")
-                and info.get("Interval", 0.0) <= constants.EPSILON
-            ):
-                return True
-
-        return False
 
     def _estimate_total_time_needed_for_deadline_violation_check(
         self, current_node: SimulationNode, candidate: Candidate
@@ -320,43 +295,43 @@ class HeuristicManager:
             next_pos, current_node.state.remaining_subtasks, next_scene_pos
         )
 
-        # # 5. [핵심] Unstarted Critical Interval Debt (부채)
-        # # 아직 시작 안 된 태스크가 시점(Source)인 Critical Edge들의 Interval 합
-        # debt = 0.0
-        # graph = current_node.state.constraints
+        # 5. [핵심] Unstarted Critical Interval Debt (부채)
+        # 아직 시작 안 된 태스크가 시점(Source)인 Critical Edge들의 Interval 합
+        debt = 0.0
+        graph = current_node.state.constraints
 
-        # activated_tasks = {candidate.subtask.name}
-        # debt_infos = []
+        activated_tasks = {candidate.subtask.name}
+        debt_infos = []
 
-        # # [Modified] 모든 후손(descendants)을 활성화하면 미래의 부채까지 과도하게 탕감되어
-        # # 현재 실행하는 체인의 가치가 비정상적으로 높아지는 문제가 있습니다.
-        # # 따라서 현재 실행되는 체인((0, True) 연결 포함)만 탕감 대상으로 삼기 위해
-        # # descendants 확장 로직을 비활성화합니다.
-        # # (참고: 실행되는 체인 멤버들은 이미 remaining_names에서 제외되어 자동으로 탕감됩니다.)
-        # if candidate.subtask.subtask_type != "WAIT" and graph.has_node(
-        #     candidate.subtask.name
-        # ):
-        #     activated_tasks.update(nx.descendants(graph, candidate.subtask.name))
+        # [Modified] 모든 후손(descendants)을 활성화하면 미래의 부채까지 과도하게 탕감되어
+        # 현재 실행하는 체인의 가치가 비정상적으로 높아지는 문제가 있습니다.
+        # 따라서 현재 실행되는 체인((0, True) 연결 포함)만 탕감 대상으로 삼기 위해
+        # descendants 확장 로직을 비활성화합니다.
+        # (참고: 실행되는 체인 멤버들은 이미 remaining_names에서 제외되어 자동으로 탕감됩니다.)
+        if candidate.subtask.subtask_type != "WAIT" and graph.has_node(
+            candidate.subtask.name
+        ):
+            activated_tasks.update(nx.descendants(graph, candidate.subtask.name))
 
-        # for u, v, data in graph.edges(data=True):
-        #     info = data.get("info", {})
-        #     # Critical하면서 Interval이 있는 경우 (유효한 제약조건)
-        #     if info.get("IsCritical") and info.get("Interval", 0.0) > constants.EPSILON:
-        #         # 시작점 u가 아직 남은 작업 목록에 있다면 (= 아직 타이머가 안 켜졌다면)
-        #         # 이 Interval은 우리가 짊어지고 있는 '잠재적 비용'입니다.
-        #         if u in remaining_names:
-        #             # [Improved] If 'u' is activated by this candidate, skip adding debt.
-        #             if u in activated_tasks:
-        #                 continue
-        #             debt += info["Interval"]
-        #             debt_infos.append(f"{u} -> {v} (Interval: {info['Interval']})")
+        for u, v, data in graph.edges(data=True):
+            info = data.get("info", {})
+            # Critical하면서 Interval이 있는 경우 (유효한 제약조건)
+            if info.get("IsCritical") and info.get("Interval", 0.0) > constants.EPSILON:
+                # 시작점 u가 아직 남은 작업 목록에 있다면 (= 아직 타이머가 안 켜졌다면)
+                # 이 Interval은 우리가 짊어지고 있는 '잠재적 비용'입니다.
+                if u in remaining_names:
+                    # [Improved] If 'u' is activated by this candidate, skip adding debt.
+                    if u in activated_tasks:
+                        continue
+                    debt += info["Interval"]
+                    debt_infos.append(f"{u} -> {v} (Interval: {info['Interval']})")
 
-        # log.debug(
-        #     f"[_calculate_remaining_work_cost] {sum_duration + mst_time + debt:.2f} = WorkSum({sum_duration:.2f}) + MST({mst_time:.2f}) + Debt({debt:.2f})"
-        # )
-        # for idx, debt_info in enumerate(debt_infos, 1):
-        #     log.debug(f"    [Debt info {idx}] {debt_info}")
-        return sum_duration + mst_time
+        log.debug(
+            f"[_calculate_remaining_work_cost] {sum_duration + mst_time + debt:.2f} = WorkSum({sum_duration:.2f}) + MST({mst_time:.2f}) + Debt({debt:.2f})"
+        )
+        for idx, debt_info in enumerate(debt_infos, 1):
+            log.debug(f"    [Debt info {idx}] {debt_info}")
+        return sum_duration + mst_time + debt
 
     # ========================================================================
     # Helper Functions - Estimation & Graph
