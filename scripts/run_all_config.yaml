@@ -45,20 +45,20 @@ ablation_configs:
   - NONE_MONITORING
 init_prior_configs: #초기 시간 값 종류
   - CORRECT_ESTIMATE
-  - OVER_ESTIMATE
-  - UNDER_ESTIMATE
-  - OVER_MEDIUM_ESTIMATE
-  - UNDER_ESTIMATE
-  - OVER_ESTIMATE_130
-  - OVER_ESTIMATE_110
-  - UNDER_ESTIMATE_90
-  - UNDER_ESTIMATE_70
+  # - OVER_ESTIMATE
+  # - UNDER_ESTIMATE
+  # - OVER_MEDIUM_ESTIMATE
+  # - UNDER_ESTIMATE
+  # - OVER_ESTIMATE_130
+  # - OVER_ESTIMATE_110
+  # - UNDER_ESTIMATE_90
+  # - UNDER_ESTIMATE_70
   
 
 # ------------------------------------------------------------------------------
 # Task Filtering
 # ------------------------------------------------------------------------------
-task_folder_name: "sampled_10_instruction_set_for_final_experiment_251231_bluebottle" # Folder under assets/tasks/
+task_folder_name: ["sampled_10_instruction_set_for_final_experiment_251231_laptop6", "sampled_10_instruction_set_for_final_experiment_251231_laptop4", "sampled_10_instruction_set_for_final_experiment_251203"] # Folder under assets/tasks/
 min_task_count: 0
 min_constraint_count: 0
 skip_completed: true

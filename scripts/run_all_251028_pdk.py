@@ -156,6 +156,7 @@ class ExperimentTask:
     max_retries: int
     log_dir_timestamp: str
     gpu_id: int  # Assigned GPU ID for this task
+    task_folder_name: str = "default_task_folder"  # The task folder name
 
 
 def get_memory_usage() -> float:
@@ -302,6 +303,7 @@ def _run_script_and_log(
     init_prior_params: Dict[str, Any],
     attempt: int,
     gpu_id: int,
+    task_folder_name: str,
 ) -> subprocess.CompletedProcess:
     """
     Constructs and runs a script command, capturing and logging the output.
@@ -319,6 +321,7 @@ def _run_script_and_log(
         init_prior_params (Dict[str, Any]): Initial prior configuration parameters.
         attempt (int): The current attempt number.
         gpu_id (int): The GPU ID to use for this task.
+        task_folder_name (str): The task folder name.
 
     Returns:
         subprocess.CompletedProcess: The result of the subprocess run.
@@ -345,6 +348,8 @@ def _run_script_and_log(
         instruction_path.name,
         "--log-path",
         str(log_path),
+        "--task-folder-name",
+        task_folder_name,
     ]
 
     if not is_simulation:
@@ -501,6 +506,7 @@ def worker(task: ExperimentTask) -> None:
                     task.init_prior_params,
                     attempt=attempt,
                     gpu_id=task.gpu_id,
+                    task_folder_name=task.task_folder_name,
                 )
                 if result.returncode == 0:
                     logger.info(
@@ -533,6 +539,7 @@ def worker(task: ExperimentTask) -> None:
                     task.init_prior_params,
                     attempt=attempt,
                     gpu_id=task.gpu_id,
+                    task_folder_name=task.task_folder_name,
                 )
                 if result.returncode == 0:
                     logger.info(
@@ -562,63 +569,72 @@ def worker(task: ExperimentTask) -> None:
 
 def load_instruction_case_mapping_from_scenes(
     target_scenes: List[str],
-    task_folder_name: str,
+    task_folder_names: str | List[str],
     min_task_count: int = 0,
     min_constraint_count: int = 0,
-) -> Dict[str, Dict[str, List[str]]]:
+) -> Dict[str, Dict[str, List[Tuple[str, str]]]]:
     """
     Loads instruction files and maps them to cases and scenes.
 
-    It scans a specified task folder, filtering by task and constraint counts,
+    It scans specified task folders, filtering by task and constraint counts,
     and organizes the found instruction files by case and scene.
 
     Args:
         target_scenes (List[str]): A list of scene names to include.
-        task_folder_name (str): The name of the folder within 'assets/tasks/' to search.
+        task_folder_names (str | List[str]): The name(s) of the folder(s) within 'assets/tasks/' to search.
         min_task_count (int): The minimum number of tasks for a case to be included.
         min_constraint_count (int): The minimum number of constraints for a case to be included.
 
     Returns:
-        Dict[str, Dict[str, List[str]]]: A nested dictionary mapping case names to
-        a dictionary of scene names to a list of instruction file paths.
+        Dict[str, Dict[str, List[Tuple[str, str]]]]: A nested dictionary mapping case names to
+        a dictionary of scene names to a list of tuples (instruction file path, source task folder name).
     """
-    task_folder = ASSETS_PATH / "tasks" / task_folder_name
-    if not task_folder.exists():
-        logger.error(f"Task folder not found: {task_folder}")
-        raise FileNotFoundError(f"Task folder not found: {task_folder}")
+    if isinstance(task_folder_names, str):
+        task_folder_names = [task_folder_names]
 
-    case_instruction_mapping: Dict[str, Dict[str, List[str]]] = defaultdict(
+    case_instruction_mapping: Dict[str, Dict[str, List[Tuple[str, str]]]] = defaultdict(
         lambda: defaultdict(list)
     )
 
-    for test_case in sorted(task_folder.iterdir(), key=lambda x: x.name):
-        if not test_case.is_dir():
+    for task_folder_name in task_folder_names:
+        task_folder = ASSETS_PATH / "tasks" / task_folder_name
+        if not task_folder.exists():
+            logger.error(f"Task folder not found: {task_folder}")
+            # Instead of raising, we just continue to next folder or raise if none found?
+            # Original code raised. Let's log and continue, but if all fail maybe raise.
             continue
 
-        match = re.match(r"tasks_(\d+)_constraints_(\d+)", test_case.name)
-        if not match:
-            continue
+        for test_case in sorted(task_folder.iterdir(), key=lambda x: x.name):
+            if not test_case.is_dir():
+                continue
 
-        num_tasks, num_constraints = map(int, match.groups())
+            match = re.match(r"tasks_(\d+)_constraints_(\d+)", test_case.name)
+            if not match:
+                continue
 
-        if num_tasks < min_task_count or num_constraints < min_constraint_count:
-            continue
+            num_tasks, num_constraints = map(int, match.groups())
 
-        for scene_name in target_scenes:
-            scene_folder = test_case / scene_name
-            if scene_folder.exists() and scene_folder.is_dir():
-                instruction_files = sorted(
-                    [f for f in scene_folder.glob("*.json")],
-                    key=lambda x: x.name,
-                )
-                case_instruction_mapping[test_case.name][scene_name].extend(
-                    map(str, instruction_files)
-                )
+            if num_tasks < min_task_count or num_constraints < min_constraint_count:
+                continue
+
+            for scene_name in target_scenes:
+                scene_folder = test_case / scene_name
+                if scene_folder.exists() and scene_folder.is_dir():
+                    instruction_files = sorted(
+                        [f for f in scene_folder.glob("*.json")],
+                        key=lambda x: x.name,
+                    )
+                    case_instruction_mapping[test_case.name][scene_name].extend(
+                        [(str(f), task_folder_name) for f in instruction_files]
+                    )
+
+    if not case_instruction_mapping:
+         logger.warning("No cases found in any of the provided task folders.")
 
     return case_instruction_mapping
 
 
-def _iter_states_dirs(config: Dict[str, Any]) -> List[Path]:
+def _iter_states_dirs(config: Dict[str, Any], task_folder_name: str | None = None) -> List[Path]:
     """Return list of states* result directories under RESULT_PATH.
 
     If ``init_prior_mean`` is provided in the config, only that specific
@@ -627,18 +643,24 @@ def _iter_states_dirs(config: Dict[str, Any]) -> List[Path]:
 
     Args:
         config (Dict[str, Any]): The configuration dictionary.
+        task_folder_name (str | None): Optional task folder name to scope results.
 
     Returns:
         List[Path]: List of candidate initial prior result directories.
     """
     states_dirs: List[Path] = []
+    base_path = RESULT_PATH
+    if task_folder_name:
+        base_path = base_path / task_folder_name
+        
     init_prior = config.get("init_prior_mean")
     if isinstance(init_prior, (int, float)):
-        states_dirs = [RESULT_PATH / f"states{int(init_prior)}"]
+        states_dirs = [base_path / f"states{int(init_prior)}"]
     else:
-        for p in RESULT_PATH.iterdir():
-            if p.is_dir() and p.name.startswith("states"):
-                states_dirs.append(p)
+        if base_path.exists():
+            for p in base_path.iterdir():
+                if p.is_dir() and p.name.startswith("states"):
+                    states_dirs.append(p)
     return states_dirs
 
 
@@ -649,11 +671,12 @@ def _find_latest_result_json_for_task(
     config: Dict[str, Any],
     case_name: str | None = None,
     ablation_name: str | None = None,
+    task_folder_name: str | None = None,
 ) -> Path | None:
     """Locate the latest result JSON for a given baseline/instruction/scene.
 
     This mirrors the skip logic used in run_all.py: it searches under
-    assets/results/states*/{instruction_stem}_*/{scene}/{baseline_name}/end_state.json
+    assets/results/[task_folder_name]/states*/{instruction_stem}_*/{scene}/{baseline_name}/end_state.json
     and returns the one with the highest trailing number.
 
     Args:
@@ -663,6 +686,7 @@ def _find_latest_result_json_for_task(
         config (Dict[str, Any]): Configuration dictionary.
         case_name (str | None): Case name.
         ablation_name (str | None): Ablation name.
+        task_folder_name (str | None): Task folder name.
 
     Returns:
         Path | None: The latest existing result JSON path if found, else None.
@@ -691,7 +715,7 @@ def _find_latest_result_json_for_task(
             instruction_keys.append(key)
 
     candidates: List[Tuple[int, Path]] = []
-    for state_dir in _iter_states_dirs(config):
+    for state_dir in _iter_states_dirs(config, task_folder_name):
         base_dir = state_dir / case_name if case_name else state_dir
         if not base_dir.exists():
             continue
@@ -752,6 +776,7 @@ def should_skip_completed_for_task(
     config: Dict[str, Any],
     case_name: str | None = None,
     ablation_name: str | None = None,
+    task_folder_name: str | None = None,
 ) -> Tuple[bool, Path | None]:
     """Check whether to skip a task due to an existing result JSON.
 
@@ -765,6 +790,7 @@ def should_skip_completed_for_task(
         config (Dict[str, Any]): Configuration dictionary.
         case_name (str | None): Case name.
         ablation_name (str | None): Ablation name.
+        task_folder_name (str | None): Task folder name.
 
     Returns:
         Tuple[bool, Path | None]: (should_skip, found_json_path)
@@ -772,7 +798,7 @@ def should_skip_completed_for_task(
     if not config.get("skip_completed"):
         return False, None
     result_json = _find_latest_result_json_for_task(
-        baseline_path, instruction_path, scene_name, config, case_name, ablation_name
+        baseline_path, instruction_path, scene_name, config, case_name, ablation_name, task_folder_name
     )
     if result_json and _is_completed_result(result_json):
         return True, result_json
@@ -834,7 +860,7 @@ def main() -> None:
     task_folder_name = config.get(
         "task_folder_name", "decomposed_rightbefore_final_251031"
     )
-    case_instruction_mapping: Dict[str, Dict[str, List[str]]] = (
+    case_instruction_mapping: Dict[str, Dict[str, List[Tuple[str, str]]]] = (
         load_instruction_case_mapping_from_scenes(
             target_scenes, task_folder_name, min_task_count, min_constraint_count
         )
@@ -905,7 +931,7 @@ def main() -> None:
             (case_name, scene_map),
         ) in experiment_configs:
             for scene_name, instructions in scene_map.items():
-                for instruction_path in instructions:
+                for instruction_path, task_src_folder_name in instructions:
                     instr_path_obj = Path(instruction_path)
                     # Apply execute_dict filter if it's defined
                     if execute_dict:
@@ -929,6 +955,7 @@ def main() -> None:
                         merged_config_for_skip,
                         case_name,
                         ablation_name,
+                        task_src_folder_name,
                     )
                     if do_skip:
                         logger.critical(
@@ -959,6 +986,7 @@ def main() -> None:
                             max_retries=max_retries,
                             log_dir_timestamp=run_timestamp,
                             gpu_id=gpu_id,
+                            task_folder_name=task_src_folder_name,
                         )
                         tasks_to_run.append(task)
 
