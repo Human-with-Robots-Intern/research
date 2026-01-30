@@ -45,9 +45,11 @@ class HeuristicManager:
         all_candidates: List[Candidate],
     ) -> Tuple[int, float, float]:
         """
-        Calculates the heuristic cost: g(n) + h(n)
-        g(n): Current Time
-        h(n): Remaining Work + Unstarted Debt
+        Calculates the heuristic cost and risk.
+        Returns:
+            - risk_level: The risk level of the candidate (0: Safe, 2: Deadline Violated/Conflict).
+            - h(n): The estimated remaining cost (Remaining Work + Unstarted Debt).
+              Note: This does NOT include g(n) (Current Time). The scheduler adds g(n) separately.
         """
 
         # 1. Risk 계산 (기존 로직 유지)

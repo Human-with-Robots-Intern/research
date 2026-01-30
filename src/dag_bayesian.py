@@ -73,7 +73,7 @@ def parse_arguments():
     parser.add_argument(
         "--instruction",
         type=str,
-        default="01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
+        default="02_fill_bowl_with_water_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
@@ -141,13 +141,13 @@ def parse_arguments():
     parser.add_argument(
         "--beam_width",
         type=int,
-        default=12,
+        default=10,
         help="Scheduler beam width (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--beam_depth",
         type=int,
-        default=12,
+        default=10,
         help="Scheduler beam depth (simulation_depth) (기본값: constants.py 값)",
     )
     parser.add_argument(
@@ -187,7 +187,7 @@ def main():
 
     # Dynamically override constants based on command-line arguments
     from src.utils.config import constants
-    
+
     # Define base result path based on task folder name
     base_result_path = constants.RESULT_PATH
     if args.task_folder_name:
@@ -293,7 +293,8 @@ def main():
                     else approach_name
                 )
                 trajectory_log_path = (
-                    base_result_path / f"states{int(init_prior_mean)}"
+                    base_result_path
+                    / f"states{int(init_prior_mean)}"
                     / args.case
                     / instr_stem
                     / scene_name
