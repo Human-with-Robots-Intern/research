@@ -629,12 +629,14 @@ def load_instruction_case_mapping_from_scenes(
                     )
 
     if not case_instruction_mapping:
-         logger.warning("No cases found in any of the provided task folders.")
+        logger.warning("No cases found in any of the provided task folders.")
 
     return case_instruction_mapping
 
 
-def _iter_states_dirs(config: Dict[str, Any], task_folder_name: str | None = None) -> List[Path]:
+def _iter_states_dirs(
+    config: Dict[str, Any], task_folder_name: str | None = None
+) -> List[Path]:
     """Return list of states* result directories under RESULT_PATH.
 
     If ``init_prior_mean`` is provided in the config, only that specific
@@ -652,7 +654,7 @@ def _iter_states_dirs(config: Dict[str, Any], task_folder_name: str | None = Non
     base_path = RESULT_PATH
     if task_folder_name:
         base_path = base_path / task_folder_name
-        
+
     init_prior = config.get("init_prior_mean")
     if isinstance(init_prior, (int, float)):
         states_dirs = [base_path / f"states{int(init_prior)}"]
@@ -798,7 +800,13 @@ def should_skip_completed_for_task(
     if not config.get("skip_completed"):
         return False, None
     result_json = _find_latest_result_json_for_task(
-        baseline_path, instruction_path, scene_name, config, case_name, ablation_name, task_folder_name
+        baseline_path,
+        instruction_path,
+        scene_name,
+        config,
+        case_name,
+        ablation_name,
+        task_folder_name,
     )
     if result_json and _is_completed_result(result_json):
         return True, result_json
