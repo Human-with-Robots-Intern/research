@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from pathlib import Path
@@ -237,4 +238,8 @@ def state_base_eval(target_directory: Path | None = None) -> None:
 
 
 if __name__ == "__main__":
-    state_base_eval()
+    args = argparse.ArgumentParser()
+    args.add_argument("--target_directory", type=Path, default=Path("assets/results/"))
+
+    args = args.parse_args()
+    state_base_eval(args.target_directory)
