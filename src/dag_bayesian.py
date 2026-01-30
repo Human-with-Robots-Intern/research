@@ -141,13 +141,13 @@ def parse_arguments():
     parser.add_argument(
         "--beam_width",
         type=int,
-        default=10,
+        default=12,
         help="Scheduler beam width (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--beam_depth",
         type=int,
-        default=10,
+        default=12,
         help="Scheduler beam depth (simulation_depth) (기본값: constants.py 값)",
     )
     parser.add_argument(
@@ -160,6 +160,12 @@ def parse_arguments():
         type=str,
         default=None,
         help="Path to save per-action trajectory logs for downstream evaluation.",
+    )
+    parser.add_argument(
+        "--task-folder-name",
+        type=str,
+        default=None,
+        help="Task folder name for organizing results",
     )
     return parser.parse_args()
 
@@ -181,6 +187,12 @@ def main():
 
     # Dynamically override constants based on command-line arguments
     from src.utils.config import constants
+    
+    # Define base result path based on task folder name
+    base_result_path = constants.RESULT_PATH
+    if args.task_folder_name:
+        base_result_path = base_result_path / args.task_folder_name
+        base_result_path.mkdir(parents=True, exist_ok=True)
 
     init_prior_mean = (
         args.init_prior_mean
@@ -266,7 +278,7 @@ def main():
             )
             save_scene_state(
                 controller=controller,
-                output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
+                output_path=base_result_path / f"states{int(init_prior_mean)}",
                 case_name=args.case,
                 scene_name=scene_name,
                 instruction=args.instruction.split(".json")[0],
@@ -281,7 +293,7 @@ def main():
                     else approach_name
                 )
                 trajectory_log_path = (
-                    Path(f"assets/results/states{int(init_prior_mean)}")
+                    base_result_path / f"states{int(init_prior_mean)}"
                     / args.case
                     / instr_stem
                     / scene_name
@@ -315,7 +327,7 @@ def main():
                 pass
             save_scene_state(
                 controller=controller,
-                output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
+                output_path=base_result_path / f"states{int(init_prior_mean)}",
                 case_name=args.case,
                 scene_name=scene_name,
                 instruction=input_natural_language,
@@ -532,7 +544,10 @@ def main():
                 "initial_plan_data": task_data,
                 "init_prior_mean": args.init_prior_mean,
             }
-            result_save(**result_args)
+            result_save(
+                **result_args,
+                base_result_path=base_result_path,
+            )
 
     if args.simulation:
         result_schedule = [
@@ -581,14 +596,17 @@ def main():
         )
         save_scene_state(
             controller=controller,
-            output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
+            output_path=base_result_path / f"states{int(init_prior_mean)}",
             case_name=args.case,
             scene_name=scene_name,
             instruction=args.instruction.split(".json")[0],
             approach_name=f"{approach_name_final}",
             state_label="end",
         )
-        result_save(**result_args)
+        result_save(
+            **result_args,
+            base_result_path=base_result_path,
+        )
 
 
 if __name__ == "__main__":
