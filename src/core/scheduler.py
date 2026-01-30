@@ -928,9 +928,8 @@ class Scheduler:
             curr_node, candidate, all_candidates
         )
 
-        # [Modified] HeuristicManager now returns the total cost (g(n) + h(n)).
-        # We should NOT add curr_node.heuristic_cost anymore.
-        # [Fix] Removed (1 / (curr_depth + 1)) weighting which underestimates h(n) for deeper nodes.
+        # [Modified] HeuristicManager returns h(n) (Remaining Work + Debt).
+        # We add planned_subtask_completion_time (g(n)) here to get the total cost f(n) = g(n) + h(n).
         new_cost = planned_subtask_completion_time + total_heuristic_cost
 
         # Accumulate max risk level along the path
@@ -1282,6 +1281,23 @@ class Scheduler:
                 f"Failed to split {original_task_name} with cutoff {duration_for_early_sub_target:.2f}. "
                 f"Switching to Pre-Monitoring (Check-Before-Act) strategy as a fallback."
             )
+            # [Safety Check 250130] Prevent redundant monitoring
+            # If the immediately preceding task was ALREADY a monitoring action for the SAME object,
+            # we should NOT insert another monitoring step. This prevents infinite monitoring loops.
+            if (
+                curr_node.state.subtask
+                and curr_node.state.subtask.subtask_type == "Monitor"
+                and monitoring_target_obj
+                and monitoring_target_obj in curr_node.state.subtask.name
+            ):
+                log.warning(
+                    f"[_expand_subtask_with_monitoring] Redundant monitoring detected! "
+                    f"Predecessor '{curr_node.state.subtask.name}' already monitored '{monitoring_target_obj}'. "
+                    f"Skipping monitoring insertion and proceeding with original task."
+                )
+                return self._expand_subtask_wo_monitoring(
+                    curr_node, candidate, not_yet_candidates, feasible_candidates
+                )
             # [Fallback] 분할 실패 시, 작업을 시작하기 '전'에 미리 모니터링을 수행하는 경로를 탐색에 추가합니다.
             # 모니터링 시간만큼 작업 착수가 지연되지만, 불확실성을 해소할 수 있는 안전한 선택지입니다.
             return self._insert_monitoring_step(
@@ -2035,10 +2051,8 @@ class Scheduler:
             all_candidates,
             # Wait action creates delay. We must check if this delay hurts ANY feasible or not_yet task.
         )
-
-        # [Modified] HeuristicManager now returns the total cost (g(n) + h(n)).
-        # We should NOT add curr_node.heuristic_cost anymore.
-        # [Fix] Removed (1 / (depth + 1)) weighting which underestimates h(n) for deeper nodes.
+        # [Modified] HeuristicManager returns h(n) (Remaining Work + Debt).
+        # We add end_time (g(n)) here to get the total cost f(n) = g(n) + h(n).
         new_cost = end_time + total_heuristic_cost
 
         # Accumulate max risk level
