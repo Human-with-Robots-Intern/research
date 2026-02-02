@@ -97,10 +97,10 @@ class HeuristicManager:
         future_conflict_delay, victim_task_name = self._check_future_conflict(
             current_node, candidate
         )
-        if future_conflict_delay > max(0.0, constants.TIMING_TOLERANCE_ABS // 2):
+        if future_conflict_delay > constants.EPSILON:
             log.warning(
                 f"[_calculate_candidate_risk_and_urgency] Future Conflict Delay ({future_conflict_delay:.2f}) "
-                f"exceeds safety tolerance ({constants.TIMING_TOLERANCE_ABS}). "
+                f"exceeds EPSILON. "
                 f"Victim: {victim_task_name}. Risk: 2.0"
             )
             return 2, 10000.0 + future_conflict_delay
