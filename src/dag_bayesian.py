@@ -191,6 +191,11 @@ def main():
     # Define base result path based on task folder name
     base_result_path = constants.RESULT_PATH
     if args.task_folder_name:
+        # [Added] Override TASK_PATH dynamically based on the argument
+        # This ensures we load tasks from the specified folder, not the default constant.
+        dynamic_task_path = constants.ASSETS_PATH / "tasks" / args.task_folder_name
+        constants.set_task_path(dynamic_task_path)
+        
         base_result_path = base_result_path / args.task_folder_name
         base_result_path.mkdir(parents=True, exist_ok=True)
 
