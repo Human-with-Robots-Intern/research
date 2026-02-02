@@ -358,7 +358,7 @@ class Scheduler:
                 # Even for urgent tasks, if execution leads to a future deadline violation,
                 # we should consider waiting (which might violate the current urgent interval,
                 # but allows the scheduler to weigh the costs).
-                conflict_delay, _ = self.cost_calculator._check_future_conflict(
+                conflict_delay, _ = self.cost_calculator.check_future_conflict(
                     curr_node, candidate
                 )
 
@@ -407,7 +407,7 @@ class Scheduler:
             # 2. [Added 250130] Conflict-Avoidance Wait
             # Check if immediate execution causes future conflicts.
             # If so, generate an alternative 'Wait' node that delays execution just enough to avoid the conflict.
-            conflict_delay, _ = self.cost_calculator._check_future_conflict(
+            conflict_delay, _ = self.cost_calculator.check_future_conflict(
                 curr_node, candidate
             )
 

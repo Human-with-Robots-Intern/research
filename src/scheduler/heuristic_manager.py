@@ -43,9 +43,18 @@ class HeuristicManager:
         current_node: SimulationNode,
         candidate: Candidate,
         all_candidates: List[Candidate],
-    ) -> Tuple[int, float, float]:
+    ) -> Tuple[int, float]:
         """
         Calculates the heuristic cost and risk.
+
+        [Heuristic Function h(n) Implementation]
+        This implements the paper's heuristic cost function h(n) with practical extensions.
+        - Risk Level: Maps to the paper's concept of 'temporal violation risk' (Slack Time Analysis).
+          It explicitly assigns high penalties (Risk=2) for negative slack or future conflicts.
+        - Heuristic Cost: Corresponds to Eq (1) in the paper:
+          h(n) = Sum(Duration_rem) + MST(Trem) + Sum(Unstarted_Critical_Intervals)
+          (See _calculate_remaining_work_cost for details).
+
         Returns:
             - risk_level: The risk level of the candidate (0: Safe, 2: Deadline Violated/Conflict).
             - h(n): The estimated remaining cost (Remaining Work + Unstarted Debt).
@@ -94,7 +103,7 @@ class HeuristicManager:
 
         # 1. Future Reservation Check
         # 내가 시작하는 타이머 작업이 미래에 예약된 윈도우와 충돌하는지 검사
-        future_conflict_delay, victim_task_name = self._check_future_conflict(
+        future_conflict_delay, victim_task_name = self.check_future_conflict(
             current_node, candidate
         )
         if future_conflict_delay > constants.EPSILON:
@@ -475,12 +484,23 @@ class HeuristicManager:
 
         return reserved_windows
 
-    def _check_future_conflict(
+    def check_future_conflict(
         self, current_node: SimulationNode, candidate: Candidate
     ) -> Tuple[float, Optional[str]]:
         """
         Checks if the candidate (or any task in its inseparable chain) starts a timer
         that will complete in a time window already reserved by other tasks.
+
+        [Proactive Scheduling Implementation]
+        This method implements the core 'Proactive' logic described in the research paper.
+        Instead of reacting to conflicts when they occur, the scheduler looks ahead
+        to identify if executing the current 'candidate' task will trigger a chain of events
+        (e.g., starting a timer) that eventually collides with an existing reservation
+        (e.g., another task's critical completion window).
+
+        If a conflict is detected, it calculates the 'Conflict-Avoidance Wait' delay
+        needed to shift the schedule safely, effectively 'waiting to prevent a future failure'.
+
         Returns:
             - max_conflict (float): The maximum delay required to resolve the conflict.
             - victim_task_name (Optional[str]): The name of the future task that is impacted (delayed).
