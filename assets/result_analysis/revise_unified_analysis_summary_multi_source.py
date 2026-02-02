@@ -17,7 +17,7 @@ import json
 import re
 from collections import OrderedDict, defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -26,11 +26,11 @@ from assets.result_analysis.state_base_evaluation import state_base_eval
 # --- Configuration Constants ---
 
 # Metrics to include in the LaTeX table
-# Options: "sr", "gcr", "tsr", "makespan"
+# Options: "sr", "gcr", "tcsr", "makespan"
 INCLUDED_METRICS: List[str] = [
     "sr",
     "gcr",
-    "tsr",
+    "tcsr",
     "makespan",
 ]
 
@@ -153,7 +153,7 @@ def reorder_metrics_dict(data: Dict[str, float]) -> "OrderedDict[str, float]":
         OrderedDict[str, float]: The dictionary with sorted keys.
     """
     # Define standard metric order (superset of potentially included metrics)
-    standard_order = ["sr", "gcr", "tsr", "makespan", "makespan_sr_1"]
+    standard_order = ["sr", "gcr", "tcsr", "makespan", "makespan_sr_1"]
 
     # Filter based on INCLUDED_METRICS and what's available in data
     # Using standard_order ensures consistent ordering regardless of INCLUDED_METRICS order
@@ -168,7 +168,7 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
     This function processes a summary dictionary and groups results by
     task length and constraint count (e.g., "tasks_2_constraints_1").
 
-    Note: TSR (Timing Success Rate) is only calculated for constraints >= 1,
+    Note: TCSR (Time Constraint Success Rate) is only calculated for constraints >= 1,
     excluding constraints_0 cases.
 
     Args:
@@ -205,13 +205,17 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
             if not isinstance(init_dict, dict):
                 continue
 
-            # TSR은 constraint >= 1인 경우에만 계산
-            include_tsr = constraints_num >= 1
+            # TCSR은 constraint >= 1인 경우에만 계산
+            include_tcsr = constraints_num >= 1
 
             for init_case, metrics in init_dict.items():
                 for metric_name, value in metrics.items():
-                    # TSR의 경우 constraint >= 1일 때만 합산
-                    if metric_name == "tsr" and not include_tsr:
+                    # Map 'tsr' to 'tcsr'
+                    if metric_name == "tsr":
+                        metric_name = "tcsr"
+
+                    # TCSR의 경우 constraint >= 1일 때만 합산
+                    if metric_name == "tcsr" and not include_tcsr:
                         continue
 
                     sums[approach][tasks_key][init_case][metric_name] += value
@@ -229,11 +233,11 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
                     if count > 0:
                         avg_metrics[metric_name] = total / count
 
-                # TSR이 metric_sums에 없는 경우 (constraint >= 1인 데이터가 없음)
-                # 다른 메트릭들은 있지만 TSR만 없는 경우를 처리
-                if "tsr" not in avg_metrics and metric_sums:
-                    # 다른 메트릭들이 있다면 TSR을 0으로 설정
-                    avg_metrics["tsr"] = 0.0
+                # TCSR이 metric_sums에 없는 경우 (constraint >= 1인 데이터가 없음)
+                # 다른 메트릭들은 있지만 TCSR만 없는 경우를 처리
+                if "tcsr" not in avg_metrics and metric_sums:
+                    # 다른 메트릭들이 있다면 TCSR을 0으로 설정
+                    avg_metrics["tcsr"] = 0.0
 
                 if not avg_metrics:
                     continue
@@ -401,6 +405,7 @@ def collect_and_aggregate(
 
 def find_best_values(data: Dict[str, Any], methods_to_compare: List[str]) -> Tuple[
     Dict[Tuple[str, str, str], float],
+    Dict[Tuple[str, str, str], Optional[float]],
     Dict[Tuple[str, str, str], float],
     Dict[Tuple[str, str, str], float],
 ]:
@@ -408,26 +413,28 @@ def find_best_values(data: Dict[str, Any], methods_to_compare: List[str]) -> Tup
 
     Calculates:
     1. Global best (among all methods).
-    2. Best baseline (among non-dag_bayesian methods).
-    3. Best ours (among dag_bayesian methods).
+    2. Global second best.
+    3. Best baseline (among non-dag_bayesian methods).
+    4. Best ours (among dag_bayesian methods).
 
     Args:
         data (Dict[str, Any]): The revised summary data.
         methods_to_compare (List[str]): List of method keys to include.
 
     Returns:
-        Tuple[Dict, Dict, Dict]: (global_best_vals, baseline_best_vals, ours_best_vals)
+        Tuple[Dict, Dict, Dict, Dict]: (global_best, global_second_best, baseline_best, ours_best)
     """
     global_best: Dict[Tuple[str, str, str], float] = {}
+    global_second_best: Dict[Tuple[str, str, str], Optional[float]] = {}
     baseline_best: Dict[Tuple[str, str, str], float] = {}
     ours_best: Dict[Tuple[str, str, str], float] = {}
 
     for task in TASK_ORDER:
         for init in INIT_ORDER:
             # Separate lists for comparison
-            global_sr, global_gcr, global_tsr, global_mk = [], [], [], []
-            base_sr, base_gcr, base_tsr, base_mk = [], [], [], []
-            ours_sr, ours_gcr, ours_tsr, ours_mk = [], [], [], []
+            global_sr, global_gcr, global_tcsr, global_mk = [], [], [], []
+            base_sr, base_gcr, base_tcsr, base_mk = [], [], [], []
+            ours_sr, ours_gcr, ours_tcsr, ours_mk = [], [], [], []
 
             for method in methods_to_compare:
                 if not data.get(method, {}).get(task, {}).get(init):
@@ -443,45 +450,63 @@ def find_best_values(data: Dict[str, Any], methods_to_compare: List[str]) -> Tup
 
                 sr = get_val(metrics, "sr", -1.0)
                 gcr = get_val(metrics, "gcr", -1.0)
-                tsr = get_val(metrics, "tsr", -1.0)
+                tcsr = get_val(metrics, "tcsr", -1.0)
                 mk = get_val(metrics, "makespan_sr_1", float("inf"))
 
                 # Add to global lists
                 global_sr.append(sr)
                 global_gcr.append(gcr)
-                global_tsr.append(tsr)
+                global_tcsr.append(tcsr)
                 global_mk.append(mk)
 
                 # Add to specific lists
                 if "dag_bayesian" in method:
                     ours_sr.append(sr)
                     ours_gcr.append(gcr)
-                    ours_tsr.append(tsr)
+                    ours_tcsr.append(tcsr)
                     ours_mk.append(mk)
                 else:
                     base_sr.append(sr)
                     base_gcr.append(gcr)
-                    base_tsr.append(tsr)
+                    base_tcsr.append(tcsr)
                     base_mk.append(mk)
+
+            # Helper to find best and second best
+            def get_top_two(values: List[float], higher_is_better: bool) -> Tuple[float, Optional[float]]:
+                unique_vals = sorted(list(set(values)), reverse=higher_is_better)
+                if not unique_vals:
+                    return (float("-inf") if higher_is_better else float("inf")), None
+                
+                best = unique_vals[0]
+                second = unique_vals[1] if len(unique_vals) > 1 else None
+                return best, second
 
             # Determine Best Values
             # Global
             if global_sr:
-                global_best[(task, init, "sr")] = max(global_sr)
+                b, sb = get_top_two(global_sr, True)
+                global_best[(task, init, "sr")] = b
+                global_second_best[(task, init, "sr")] = sb
             if global_gcr:
-                global_best[(task, init, "gcr")] = max(global_gcr)
-            if global_tsr:
-                global_best[(task, init, "tsr")] = max(global_tsr)
+                b, sb = get_top_two(global_gcr, True)
+                global_best[(task, init, "gcr")] = b
+                global_second_best[(task, init, "gcr")] = sb
+            if global_tcsr:
+                b, sb = get_top_two(global_tcsr, True)
+                global_best[(task, init, "tcsr")] = b
+                global_second_best[(task, init, "tcsr")] = sb
             if global_mk:
-                global_best[(task, init, "makespan_sr_1")] = min(global_mk)
+                b, sb = get_top_two(global_mk, False)
+                global_best[(task, init, "makespan_sr_1")] = b
+                global_second_best[(task, init, "makespan_sr_1")] = sb
 
             # Baseline
             if base_sr:
                 baseline_best[(task, init, "sr")] = max(base_sr)
             if base_gcr:
                 baseline_best[(task, init, "gcr")] = max(base_gcr)
-            if base_tsr:
-                baseline_best[(task, init, "tsr")] = max(base_tsr)
+            if base_tcsr:
+                baseline_best[(task, init, "tcsr")] = max(base_tcsr)
             if base_mk:
                 baseline_best[(task, init, "makespan_sr_1")] = min(base_mk)
 
@@ -490,30 +515,32 @@ def find_best_values(data: Dict[str, Any], methods_to_compare: List[str]) -> Tup
                 ours_best[(task, init, "sr")] = max(ours_sr)
             if ours_gcr:
                 ours_best[(task, init, "gcr")] = max(ours_gcr)
-            if ours_tsr:
-                ours_best[(task, init, "tsr")] = max(ours_tsr)
+            if ours_tcsr:
+                ours_best[(task, init, "tcsr")] = max(ours_tcsr)
             if ours_mk:
                 ours_best[(task, init, "makespan_sr_1")] = min(ours_mk)
 
-    return global_best, baseline_best, ours_best
+    return global_best, global_second_best, baseline_best, ours_best
 
 
 def fmt_cell(
     main_val: Union[float, Tuple[float, float], None],
     metric: str,
     global_best: float,
+    global_second_best: Optional[float],
     baseline_best: float,
     ours_best: float,
     is_ours: bool,
     ablation_val: Union[float, Tuple[float, float], None] = None,
     show_ablation_in_parens: bool = True,
 ) -> str:
-    """Format a single table cell with main value, bolding, and ablation study value.
+    """Format a single table cell with main value, bolding/underlining, and ablation study value.
 
     Args:
         main_val: The primary metric value (float or (mean, std)).
         metric (str): The name of the metric (e.g., 'sr', 'makespan').
         global_best (float): The global best value.
+        global_second_best (Optional[float]): The global second best value.
         baseline_best (float): The best value among baselines.
         ours_best (float): The best value among our methods.
         is_ours (bool): Whether this cell belongs to our method.
@@ -535,11 +562,15 @@ def fmt_cell(
         val_mean = main_val
         s_main = f"{val_mean:.1f}"
 
-    # Bolding Logic
-    # 1. If it's Our Method: Bold if >= Baseline Best (or <= for makespan) AND == Ours Best
-    # 2. If it's Baseline: Bold if == Global Best
+    # Bolding/Underlining Logic
+    # 1. Bold:
+    #    - Ours: if better/equal than baseline AND is the best among Ours
+    #    - Baseline: if it is the Global Best
+    # 2. Underline:
+    #    - if it is the Global Second Best
 
     should_bold = False
+    should_underline = False
 
     # Comparison logic (handle makespan minimization)
     is_makespan = "makespan" in metric
@@ -561,16 +592,24 @@ def fmt_cell(
             should_bold = True
     else:
         # Baseline: Bold if it is the Global Best
-        if abs(val_mean - global_best) < 0.001:
+        if is_equal(val_mean, global_best):
             should_bold = True
 
+    # Check for second best (Global)
+    if global_second_best is not None and is_equal(val_mean, global_second_best):
+        should_underline = True
+
+    # Apply Formatting
     if should_bold:
         if isinstance(main_val, tuple):
             # For math mode, use \boldmath to ensure symbols like \pm are also bolded.
-            # \mathbf only bolds numbers/letters in math mode.
             s_main = f"{{\\boldmath ${val_mean:.1f} \\pm {val_std:.1f}$}}"
         else:
             s_main = f"\\textbf{{{s_main}}}"
+    elif should_underline:
+        # Underline (apply outside of math mode if possible, or inside)
+        # For standard LaTeX, \underline works.
+        s_main = f"\\underline{{{s_main}}}"
 
     # Append ablation value in parentheses if requested
     if show_ablation_in_parens and ablation_val is not None:
@@ -582,12 +621,21 @@ def fmt_cell(
             # Highlight if better than baseline
             if is_better_or_equal(abl_mean, baseline_best):
                 s_abl = f"{{\\boldmath ${abl_mean:.1f} \\pm {abl_std:.1f}$}}"
+            elif global_second_best is not None and is_equal(
+                abl_mean, global_second_best
+            ):
+                s_abl = f"\\underline{{{s_abl}}}"
+
         else:
             abl_mean = ablation_val
             s_abl = f"{abl_mean:.1f}"
 
             if is_better_or_equal(abl_mean, baseline_best):
                 s_abl = f"\\textbf{{{s_abl}}}"
+            elif global_second_best is not None and is_equal(
+                abl_mean, global_second_best
+            ):
+                s_abl = f"\\underline{{{s_abl}}}"
 
         return f"{s_main} ({s_abl})"
 
@@ -639,7 +687,7 @@ def generate_latex_table(
         # Do not include ablation methods in comparison if style is none
         pass
 
-    best_global, best_baseline, best_ours = find_best_values(
+    best_global, best_global_second, best_baseline, best_ours = find_best_values(
         data, list(comparison_methods)
     )
     lines: List[str] = []
@@ -653,7 +701,7 @@ def generate_latex_table(
             r"Values in parentheses indicate the performance of the ablation study \quotes{Ours (w/o Mon.)}."
         )
     caption_parts.append(
-        r"Higher SR, GCR and TSR are better ($\uparrow$), and lower Makespan is better ($\downarrow$)."
+        r"Higher SR, GCR and TCSR are better ($\uparrow$), and lower Makespan is better ($\downarrow$)."
     )
     caption_str = " ".join(caption_parts)
 
@@ -681,8 +729,8 @@ def generate_latex_table(
             metric_headers.append(r"\textbf{SR ($\uparrow$)}")
         elif m == "gcr":
             metric_headers.append(r"\textbf{GCR ($\uparrow$)}")
-        elif m == "tsr":
-            metric_headers.append(r"\textbf{TSR ($\uparrow$)}")
+        elif m == "tcsr":
+            metric_headers.append(r"\textbf{TCSR ($\uparrow$)}")
         elif m == "makespan":
             metric_headers.append(r"\textbf{MS ($\downarrow$)}")
 
@@ -773,6 +821,10 @@ def generate_latex_table(
                         (task_key, init_key, lookup_metric_key),
                         float("inf") if metric_key == "makespan" else float("-inf"),
                     )
+                    b_global_second = best_global_second.get(
+                        (task_key, init_key, lookup_metric_key),
+                        None,
+                    )
                     b_baseline = best_baseline.get(
                         (task_key, init_key, lookup_metric_key),
                         float("inf") if metric_key == "makespan" else float("-inf"),
@@ -789,6 +841,7 @@ def generate_latex_table(
                             val,
                             metric_key,
                             b_global,
+                            b_global_second,
                             b_baseline,
                             b_ours,
                             is_ours_method,
