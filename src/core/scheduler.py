@@ -353,6 +353,40 @@ class Scheduler:
                 f"Policy 1 (Urgent): Expanding {len(urgent_candidates)} urgent candidate(s)."
             )
             for candidate in urgent_candidates:
+                # [Added 250202] Conflict-Avoidance Wait for Urgent Tasks
+                # Check if immediate execution causes future conflicts.
+                # Even for urgent tasks, if execution leads to a future deadline violation,
+                # we should consider waiting (which might violate the current urgent interval,
+                # but allows the scheduler to weigh the costs).
+                conflict_delay, _ = self.cost_calculator._check_future_conflict(
+                    curr_node, candidate
+                )
+
+                if conflict_delay > constants.EPSILON:
+                    # Calculate Nav Duration for Wait
+                    target_obj_id = candidate.subtask.execution.primitive_actions[
+                        0
+                    ].split(" ")[1]
+                    nav_time = self.action_handler.get_actions_info(
+                        curr_node, [f"NAVIGATE_TO {target_obj_id}"]
+                    ).action_duration
+
+                    wait_node = self._expand_wait_wo_monitoring(
+                        curr_node,
+                        candidate,
+                        not_yet_candidates,
+                        nav_duration=nav_time,
+                        feasible_candidates=feasible_candidates,
+                        additional_delay=conflict_delay,
+                    )
+
+                    if wait_node:
+                        log.debug(
+                            f"[Conflict-Avoidance] Generated Wait Node for URGENT {candidate.subtask.name} "
+                            f"(Delay: {conflict_delay:.2f}s) to avoid future conflict."
+                        )
+                        expansions.append(wait_node)
+
                 child_node = self._expand_single_subtask(
                     curr_node, candidate, not_yet_candidates, feasible_candidates
                 )
@@ -369,12 +403,6 @@ class Scheduler:
         # --- Policy 2: Standard Expansion (other feasible + all waits) ---
         log.debug("Policy 2: No urgent criticals. Performing standard expansion.")
         for candidate in feasible_candidates:
-            # 1. Expand Action (Immediate Execution)
-            child_node = self._expand_single_subtask(
-                curr_node, candidate, not_yet_candidates, feasible_candidates
-            )
-            if child_node:
-                expansions.append(child_node)
 
             # 2. [Added 250130] Conflict-Avoidance Wait
             # Check if immediate execution causes future conflicts.
@@ -407,6 +435,13 @@ class Scheduler:
                         f"(Delay: {conflict_delay:.2f}s) to avoid future conflict."
                     )
                     expansions.append(wait_node)
+
+            # 1. Expand Action (Immediate Execution)
+            child_node = self._expand_single_subtask(
+                curr_node, candidate, not_yet_candidates, feasible_candidates
+            )
+            if child_node:
+                expansions.append(child_node)
 
         # 1. 먼저 정렬을 수행 (정렬 기준은 유지)
         if not_yet_candidates:
