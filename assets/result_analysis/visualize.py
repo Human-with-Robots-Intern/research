@@ -61,17 +61,7 @@ APPROACH_LIST = {
     "cap_ai2thor_simulation": "CaP",
 }
 
-INIT_LIST = [
-    "init_60",
-    "init_70",
-    "init_80",
-    "init_90",
-    "init_100",
-    "init_110",
-    "init_120",
-    "init_130",
-    "init_140",
-]
+INIT_LIST = ["init_60", "init_100",  "init_140"]
 TASK_CASE = [
     "tasks_2_constraints_1",
     "tasks_2_constraints_2",
@@ -214,13 +204,9 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
     conditions = [
         "60s",
-        "70s",
-        "80s",
-        "90s",
-        "100s\n(Correct)",
-        "110s",
-        "120s",
-        "130s",
+        # "Under-mid-est\n(80s)",
+        "100s \n (Correct)",
+        # "Over-mid-est\n(120s)",
         "140s",
     ]
     metrics_info = [
@@ -265,9 +251,7 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
 
         ax.set_title(title, fontsize=14, pad=15, fontweight="bold")
         ax.set_ylabel(ylabel, fontsize=12, labelpad=10)
-        ax.set_xlabel(
-            r"Initial Belief Condition ($\Delta_0$)", fontsize=12, labelpad=10
-        )
+        ax.set_xlabel(r"Initial Belief Condition($\Delta_0$)", fontsize=12, labelpad=10)
         ax.grid(True, linestyle="--", alpha=0.4)
 
         # Correct (index 2) 조건 강조 (빨간색 세로줄, 약간 투명하게)
@@ -342,7 +326,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data_path",
         type=str,
-        default="assets/results/unified_analysis_summary.revised.json",
+        default="assets/results/unified_analysis_summary_average.revised.json",
         help="데이터 파일 경로를 지정합니다.",
     )
     parser.add_argument(

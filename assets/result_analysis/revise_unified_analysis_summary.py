@@ -31,17 +31,7 @@ INCLUDED_METRICS: List[str] = [
 ]
 
 # Order of initial time estimates (all possible values)
-INIT_ORDER: List[str] = [
-    "init_60",
-    "init_70",
-    "init_90",
-    "init_80",
-    "init_100",
-    "init_110",
-    "init_120",
-    "init_130",
-    "init_140",
-]
+INIT_ORDER: List[str] = ["init_60", "init_100", "init_140"]
 
 # Display names for different methods/approaches
 METHOD_DISPLAY_NAMES: Dict[str, str] = {

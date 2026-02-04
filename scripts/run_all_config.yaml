@@ -41,19 +41,17 @@ scene_lists:
   real_world:
     # - "FloorPlan301"
 ablation_configs:
-  - DEFAULT
+  # - NONE_URGENCY
+  # - NONE_REMAINING_WORK
+  # - GREEDY
+  # - DEFAULT
   - NONE_MONITORING
-init_prior_configs: #초기 시간 값 종류
-  - CORRECT_ESTIMATE
+
+init_prior_configs:
   - OVER_ESTIMATE
-  - UNDER_ESTIMATE
-  - OVER_MEDIUM_ESTIMATE
-  - UNDER_ESTIMATE
-  - OVER_ESTIMATE_130
-  - OVER_ESTIMATE_110
-  - UNDER_ESTIMATE_90
-  - UNDER_ESTIMATE_70
-  
+  # - CORRECT_ESTIMATE
+  # - UNDER_ESTIMATE
+# --------------------------  
 
 # ------------------------------------------------------------------------------
 # Task Filtering
