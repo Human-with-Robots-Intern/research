@@ -340,44 +340,85 @@ def compute_trial_metrics(
 ) -> Mapping[str, Any]:
     """Compute trial-level summary metrics for one instruction run (approach).
 
+    Args:
+        parsed_tasks: 1개 instruction 내 구성된 평가대상 task들의 리스트
+        task_results: 각 task의 평가 결과
+        events: 1개 instruction 내 모든 event들의 리스트
+        duration_key: event의 duration key
+
     Rules:
-    - instruction_gcr: 1 if all parsed tasks pass GCR, else 0.
-    - tsr: average over tasks with defined TSR only (exclude None).
-      If all are None, tsr is None.
-    - sr (strict success): 1 if instruction_gcr==1 and
-      (tsr is None or tsr >= 0.5); else 0.
-    - makespan: sum of all event durations.
+        - instruction_gcr: Fraction of tasks that passed GCR (0.0 to 1.0).
+                           (Note: This is a task-level approximation of GCR)
+        - tsr: Fraction of ALL defined constraints satisfied across all tasks (0.0 to 1.0).
+               Returns None if there are no constraints at all.
+        - sr (strict success): 1 if (instruction_gcr == 1.0) AND (tsr is None or tsr == 1.0); else 0.
+        - makespan: sum of all event durations.
     """
 
     num_tasks = len(parsed_tasks)
     gcr_successes = 0
-    tsr_samples: List[float] = []
+
+    # TCSR 계산을 위한 변수
+    total_constraints_count = 0
+    passed_constraints_count = 0
+
+    # SR 판단을 위한 Strict Flag (모든 제약 만족 여부)
+    all_constraints_passed_strict = True
+
     for spec_key in parsed_tasks:
         result = task_results.get(spec_key)
         if result is None:
-            # Unknown task spec -> treat as failed GCR/TSR
+            # Unknown task spec -> 실패로 간주 (카운트 안 함)
+            # 엄격한 제약 만족 여부도 실패로 처리
+            all_constraints_passed_strict = False
             continue
+
+        # 1. GCR Count (Task 단위)
         if result.gcr_pass:
             gcr_successes += 1
-        # Check tsr_results
+
+        # 2. TCSR Count (Constraint 단위)
         if result.tsr_results:
-            all_passed = all(r.passed for r in result.tsr_results.values())
-            tsr_samples.append(1.0 if all_passed else 0.0)
-    instruction_gcr = 1 if gcr_successes == num_tasks else 0
-    tsr: Optional[float]
-    if tsr_samples:
-        tsr = sum(tsr_samples) / float(len(tsr_samples))
+            current_task_constraints = len(result.tsr_results)
+            current_task_passed = sum(
+                1 for r in result.tsr_results.values() if r.passed
+            )
+
+            total_constraints_count += current_task_constraints
+            passed_constraints_count += current_task_passed
+
+            if current_task_passed < current_task_constraints:
+                all_constraints_passed_strict = False
+
+    # --- Metric Calculation ---
+
+    # 1. GCR (비율로 변경)
+    if num_tasks > 0:
+        instruction_gcr = float(gcr_successes) / float(num_tasks)
     else:
+        instruction_gcr = 0.0
+
+    # 2. TCSR (Constraint-level Fraction)
+    tsr: Optional[float]
+    if total_constraints_count > 0:
+        tsr = float(passed_constraints_count) / float(total_constraints_count)
+    else:
+        # 제약 조건이 하나도 없는 경우
         tsr = None
-    makespan = _sum_all_durations(events, duration_key=duration_key)
-    # SR rule
-    if instruction_gcr == 1:
-        if tsr is None or tsr == 1:
+
+    # 3. SR (Strict Success: GCR=1.0 AND All Constraints Passed)
+    # GCR이 100%이고 (모든 태스크 성공),
+    # 시간 제약이 없거나(None), 있다면 모두 통과(Strict True)해야 함
+    if gcr_successes == num_tasks:
+        if tsr is None or all_constraints_passed_strict:
             sr = 1
         else:
             sr = 0
     else:
         sr = 0
+
+    makespan = _sum_all_durations(events, duration_key=duration_key)
+
     return {
         "instruction_gcr": instruction_gcr,
         "tsr": tsr,
