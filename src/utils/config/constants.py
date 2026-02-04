@@ -19,9 +19,7 @@ BAYESIAN_PATH = SCENE_KNOWLEDGE_PATH / "bayesian"
 
 PROMPT_PATH = ASSETS_PATH / "prompts"
 TASK_PATH = (
-    ASSETS_PATH
-    / "tasks"
-    / "sampled_10_instruction_set_for_final_experiment_251231_laptop6"
+    ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment_251203"
 )
 RESULT_PATH = ASSETS_PATH / "results"
 
@@ -153,6 +151,12 @@ def set_simulation_depth(value: int) -> None:
     """Sets the global SIMULATION_DEPTH value."""
     global SIMULATION_DEPTH
     SIMULATION_DEPTH = value
+
+
+def set_task_path(value: Path) -> None:
+    """Sets the global TASK_PATH value dynamically."""
+    global TASK_PATH
+    TASK_PATH = value
 
 
 FACTOR_ALPHA = 0.001

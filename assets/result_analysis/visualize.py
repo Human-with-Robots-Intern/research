@@ -1,5 +1,6 @@
 import argparse
 import json
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -73,10 +74,10 @@ INIT_LIST = [
     "init_140",
 ]
 TASK_CASE = [
-    "tasks_2_constraints_1",
-    "tasks_2_constraints_2",
-    "tasks_3_constraints_1",
-    "tasks_3_constraints_2",
+    # "tasks_2_constraints_1",
+    "tasks_2",
+    "tasks_3",
+    # "tasks_3_constraints_2",
 ]
 METRIC_LIST = ["sr", "makespan"]
 
@@ -340,44 +341,25 @@ if __name__ == "__main__":
         """
     )
     parser.add_argument(
-        "--data_path",
-        type=str,
-        default="assets/results/unified_analysis_summary.revised.json",
+        "--root_path",
+        type=Path,
+        default="assets/results",
         help="데이터 파일 경로를 지정합니다.",
     )
-    parser.add_argument(
-        "--plot_type",
-        type=str,
-        default="separate",
-        choices=["trajectory", "separate"],
-        help="생성할 그래프 종류를 선택합니다: 'trajectory' 또는 'separate'.",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="output.png",
-        help="그래프를 저장할 파일 경로 (예: output.png). 지정하지 않으면 화면에 표시됩니다.",
-    )
+
     parser.add_argument(
         "--save_json",
         action="store_true",
         default=True,
         help="통합된 결과를 JSON 파일로 저장합니다 (기본값: True).",
     )
-    parser.add_argument(
-        "--json_output",
-        type=str,
-        default="assets/results/aggregated_result.json",
-        help="저장할 JSON 파일 경로.",
-    )
+
     args = parser.parse_args()
 
-    load_data(args.data_path)
+    load_data(args.root_path / "unified_analysis_summary.revised.json")
 
     if args.save_json:
-        save_aggregated_json(DATA, args.json_output)
+        save_aggregated_json(DATA, args.root_path / "aggregated_result.json")
 
-    if args.plot_type == "trajectory":
-        plot_trajectory(DATA, args.output)
-    elif args.plot_type == "separate":
-        plot_separate_metrics(DATA, args.output)
+    # plot_trajectory(DATA, args.data_path / "trajectory.png")
+    plot_separate_metrics(DATA, args.root_path / "separate.png")

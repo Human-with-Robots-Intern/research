@@ -73,7 +73,7 @@ def parse_arguments():
     parser.add_argument(
         "--instruction",
         type=str,
-        default="01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
+        default="02_fill_bowl_with_water_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
@@ -161,6 +161,12 @@ def parse_arguments():
         default=None,
         help="Path to save per-action trajectory logs for downstream evaluation.",
     )
+    parser.add_argument(
+        "--task-folder-name",
+        type=str,
+        default=None,
+        help="Task folder name for organizing results",
+    )
     return parser.parse_args()
 
 
@@ -181,6 +187,17 @@ def main():
 
     # Dynamically override constants based on command-line arguments
     from src.utils.config import constants
+
+    # Define base result path based on task folder name
+    base_result_path = constants.RESULT_PATH
+    if args.task_folder_name:
+        # [Added] Override TASK_PATH dynamically based on the argument
+        # This ensures we load tasks from the specified folder, not the default constant.
+        dynamic_task_path = constants.ASSETS_PATH / "tasks" / args.task_folder_name
+        constants.set_task_path(dynamic_task_path)
+        
+        base_result_path = base_result_path / args.task_folder_name
+        base_result_path.mkdir(parents=True, exist_ok=True)
 
     init_prior_mean = (
         args.init_prior_mean
@@ -266,7 +283,7 @@ def main():
             )
             save_scene_state(
                 controller=controller,
-                output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
+                output_path=base_result_path / f"states{int(init_prior_mean)}",
                 case_name=args.case,
                 scene_name=scene_name,
                 instruction=args.instruction.split(".json")[0],
@@ -281,7 +298,8 @@ def main():
                     else approach_name
                 )
                 trajectory_log_path = (
-                    Path(f"assets/results/states{int(init_prior_mean)}")
+                    base_result_path
+                    / f"states{int(init_prior_mean)}"
                     / args.case
                     / instr_stem
                     / scene_name
@@ -315,7 +333,7 @@ def main():
                 pass
             save_scene_state(
                 controller=controller,
-                output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
+                output_path=base_result_path / f"states{int(init_prior_mean)}",
                 case_name=args.case,
                 scene_name=scene_name,
                 instruction=input_natural_language,
@@ -432,20 +450,6 @@ def main():
                 last_entry.sim_nav_time = sim_nav_time
                 total_sim_time += sim_elapsed_time
                 intervallist = []
-                for name1 in current_state.constraints.in_edges._adjdict.keys():
-                    for name2 in current_state.constraints.in_edges._adjdict[
-                        name1
-                    ].keys():
-                        if current_state.constraints.in_edges._adjdict[name1][name2][
-                            "info"
-                        ]["IsCritical"]:
-                            intervallist.append(
-                                {
-                                    name2: current_state.constraints.in_edges._adjdict[
-                                        name1
-                                    ][name2]["info"]["Interval"]
-                                }
-                            )
                 # 모니터 끄려면 이 안쪽을 주석화.
                 if (
                     not args.disable_monitoring
@@ -546,7 +550,10 @@ def main():
                 "initial_plan_data": task_data,
                 "init_prior_mean": args.init_prior_mean,
             }
-            result_save(**result_args)
+            result_save(
+                **result_args,
+                base_result_path=base_result_path,
+            )
 
     if args.simulation:
         result_schedule = [
@@ -595,14 +602,17 @@ def main():
         )
         save_scene_state(
             controller=controller,
-            output_path=Path(f"assets/results/states{int(init_prior_mean)}"),
+            output_path=base_result_path / f"states{int(init_prior_mean)}",
             case_name=args.case,
             scene_name=scene_name,
             instruction=args.instruction.split(".json")[0],
             approach_name=f"{approach_name_final}",
             state_label="end",
         )
-        result_save(**result_args)
+        result_save(
+            **result_args,
+            base_result_path=base_result_path,
+        )
 
 
 if __name__ == "__main__":

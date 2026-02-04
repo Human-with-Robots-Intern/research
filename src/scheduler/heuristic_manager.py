@@ -43,11 +43,22 @@ class HeuristicManager:
         current_node: SimulationNode,
         candidate: Candidate,
         all_candidates: List[Candidate],
-    ) -> Tuple[int, float, float]:
+    ) -> Tuple[int, float]:
         """
-        Calculates the heuristic cost: g(n) + h(n)
-        g(n): Current Time
-        h(n): Remaining Work + Unstarted Debt
+        Calculates the heuristic cost and risk.
+
+        [Heuristic Function h(n) Implementation]
+        This implements the paper's heuristic cost function h(n) with practical extensions.
+        - Risk Level: Maps to the paper's concept of 'temporal violation risk' (Slack Time Analysis).
+          It explicitly assigns high penalties (Risk=2) for negative slack or future conflicts.
+        - Heuristic Cost: Corresponds to Eq (1) in the paper:
+          h(n) = Sum(Duration_rem) + MST(Trem) + Sum(Unstarted_Critical_Intervals)
+          (See _calculate_remaining_work_cost for details).
+
+        Returns:
+            - risk_level: The risk level of the candidate (0: Safe, 2: Deadline Violated/Conflict).
+            - h(n): The estimated remaining cost (Remaining Work + Unstarted Debt).
+              Note: This does NOT include g(n) (Current Time). The scheduler adds g(n) separately.
         """
 
         # 1. Risk 계산 (기존 로직 유지)
@@ -92,24 +103,14 @@ class HeuristicManager:
 
         # 1. Future Reservation Check
         # 내가 시작하는 타이머 작업이 미래에 예약된 윈도우와 충돌하는지 검사
-        future_conflict_delay, victim_task_name = self._check_future_conflict(
+        future_conflict_delay, victim_task_name = self.check_future_conflict(
             current_node, candidate
         )
-        if future_conflict_delay > 0:
-            # [Added] Critical Check: If the delay exceeds tolerance, it's a planned violation.
-            # We strictly enforce that we cannot plan a schedule that knowingly violates the tolerance.
-            # Also applied a safety margin (3.0s) to be conservative.
-            if future_conflict_delay > max(0.0, constants.TIMING_TOLERANCE_ABS):
-                log.warning(
-                    f"[_calculate_candidate_risk_and_urgency] Future Conflict Delay ({future_conflict_delay:.2f}) "
-                    f"exceeds safety tolerance ({constants.TIMING_TOLERANCE_ABS}). "
-                    f"Victim: {victim_task_name}. Risk: 2.0"
-                )
-                return 2, 10000.0 + future_conflict_delay
-
-            log.debug(
-                f"[_calculate_candidate_risk_and_urgency] Future Reservation Conflict for '{candidate.subtask.name}' "
-                f"-> Delay: {future_conflict_delay:.2f}s (Will be added to needed time)"
+        if future_conflict_delay > constants.EPSILON:
+            log.warning(
+                f"[_calculate_candidate_risk_and_urgency] Future Conflict Delay ({future_conflict_delay:.2f}) "
+                f"exceeds EPSILON. "
+                f"Victim: {victim_task_name}. Risk: 2.0"
             )
             return 2, 10000.0 + future_conflict_delay
 
@@ -118,7 +119,6 @@ class HeuristicManager:
             self._estimate_total_time_needed_for_deadline_violation_check(
                 current_node, candidate
             )
-            + future_conflict_delay
         )
         time_available = deadline - current_time
         slack = time_available - total_time_needed
@@ -133,49 +133,17 @@ class HeuristicManager:
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
             )
             return 0, slack
-        elif slack >= -constants.TIMING_TOLERANCE_ABS:
+        elif slack >= -(constants.TIMING_TOLERANCE_ABS / 2):
             log.debug(
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
             )
             return 0, slack
         else:
-            # [Rescue Logic] 연속 작업인 경우, Deadline 위배가 발생해도 Risk를 낮춰줌
-            if self._is_consecutive_task(current_node, candidate):
-                log.warning(
-                    f"[_calculate_candidate_risk_and_urgency] RESCUE: Consecutive task '{candidate.subtask.name}' "
-                    f"violates deadline (slack={slack:.2f}) but is rescued to Risk 0."
-                )
-                return 0, 10000.0 + abs(slack)
 
             log.debug(
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 2.0"
             )
             return 2, 10000.0 + abs(slack)
-
-    def _is_consecutive_task(
-        self, current_node: SimulationNode, candidate: Candidate
-    ) -> bool:
-        """
-        Checks if the candidate is a consecutive task (Critical & Interval ~ 0)
-        following the last executed task.
-        """
-        if not current_node.state.subtask:
-            return False
-
-        last_name = current_node.state.subtask.name
-        curr_name = candidate.subtask.name
-        graph = current_node.state.constraints
-
-        if graph.has_edge(last_name, curr_name):
-            data = graph.get_edge_data(last_name, curr_name)
-            info = data.get("info", {})
-            if (
-                info.get("IsCritical")
-                and info.get("Interval", 0.0) <= constants.EPSILON
-            ):
-                return True
-
-        return False
 
     def _estimate_total_time_needed_for_deadline_violation_check(
         self, current_node: SimulationNode, candidate: Candidate
@@ -185,15 +153,7 @@ class HeuristicManager:
         nav_time = candidate.estimated_first_nav_duration or 0.0
         # A,B의 총 작업 소요 시간
         chain_duration, _, _ = self._get_chain_info(current_node, candidate.subtask)
-#         해결책: "가장 급한 불(Most Urgent Task)"을 기준으로 추정
-# 비록 다음 태스크가 확정되지 않았더라도, "우리가 반드시 지켜야 할 데드라인을 가진 태스크"는 이미 알고 있습니다.
-# Urgency Check: 현재 remaining_subtasks 중에서 scheduling_due(데드라인)가 있는 태스크들을 찾습니다.
-# Worst-Case Estimation: 만약 내가 지금 Wash Fork(비크리티컬)를 수행한다면, 그 직후에 "가장 급한 태스크(Place Bread)"를 수행하러 가야 한다고 가정해야 안전합니다.
-# Cost Calculation:
-# 비용 = (Wash Fork 수행 시간) + (Wash Fork 종료 위치 -> Place Bread 시작 위치 이동 시간)
 
-        # [Fix] If the deadline is for the candidate itself (Start Time Constraint),
-        # we only need to arrive (Nav) by the deadline, not finish.
         is_target_self = (
             candidate.scheduling_due
             and candidate.scheduling_due.due_related_sub_name == candidate.subtask.name
@@ -203,28 +163,6 @@ class HeuristicManager:
             total_time = nav_time
         else:
             total_time = nav_time + chain_duration
-
-        # # Lookahead: Check if we need to return to a future critical task location
-        # future_crit_name = candidate.scheduling_due.due_related_sub_name
-        # if future_crit_name and future_crit_name != candidate.subtask.name:
-        #     lookahead_time = self._calculate_lookahead_nav_time(
-        #         current_node, candidate, future_crit_name
-        #     )
-        #     total_time += lookahead_time
-
-        #     # [FIXED] Add duration of the future critical task chain (e.g., Turn Off + Retrieve)
-        #     # Previously, we only added navigation time, ignoring the interaction time of the future task.
-        #     future_subtask = next(
-        #         (
-        #             t
-        #             for t in current_node.state.remaining_subtasks
-        #             if t.name == future_crit_name
-        #         ),
-        #         None,
-        #     )
-        #     if future_subtask:
-        #         future_chain_dur, _ = self._get_chain_info(current_node, future_subtask)
-        #         total_time += future_chain_dur
 
         return total_time
 
@@ -373,16 +311,9 @@ class HeuristicManager:
         debt = 0.0
         graph = current_node.state.constraints
 
-        # [Improved] Find all descendants reachable from the current candidate.
-        # If a task 'u' is a descendant of the candidate (or the candidate itself),
-        # launching the candidate effectively "activates" the chain leading to 'u'.
-        # Thus, we should NOT count the interval starting at 'u' as "Unstarted Debt".
-        # This encourages starting long chains early.
         activated_tasks = {candidate.subtask.name}
         debt_infos = []
-        # [Fix] Wait actions do NOT activate future tasks immediately.
-        # They only delay time. We should NOT forgive debt for Wait actions.
-        # Only actual task execution activates the chain.
+
         # [Modified] 모든 후손(descendants)을 활성화하면 미래의 부채까지 과도하게 탕감되어
         # 현재 실행하는 체인의 가치가 비정상적으로 높아지는 문제가 있습니다.
         # 따라서 현재 실행되는 체인((0, True) 연결 포함)만 탕감 대상으로 삼기 위해
@@ -553,17 +484,29 @@ class HeuristicManager:
 
         return reserved_windows
 
-    def _check_future_conflict(
+    def check_future_conflict(
         self, current_node: SimulationNode, candidate: Candidate
     ) -> Tuple[float, Optional[str]]:
         """
         Checks if the candidate (or any task in its inseparable chain) starts a timer
         that will complete in a time window already reserved by other tasks.
+
+        [Proactive Scheduling Implementation]
+        This method implements the core 'Proactive' logic described in the research paper.
+        Instead of reacting to conflicts when they occur, the scheduler looks ahead
+        to identify if executing the current 'candidate' task will trigger a chain of events
+        (e.g., starting a timer) that eventually collides with an existing reservation
+        (e.g., another task's critical completion window).
+
+        If a conflict is detected, it calculates the 'Conflict-Avoidance Wait' delay
+        needed to shift the schedule safely, effectively 'waiting to prevent a future failure'.
+
         Returns:
             - max_conflict (float): The maximum delay required to resolve the conflict.
             - victim_task_name (Optional[str]): The name of the future task that is impacted (delayed).
         """
         # 1. Identify all future timer tasks launched by the candidate's chain
+        # 현재 작업할 subtask
         candidate_name = candidate.subtask.name
         graph = current_node.state.constraints
 
@@ -576,22 +519,21 @@ class HeuristicManager:
         curr_name = candidate_name
 
         # Duration of the candidate task itself
-        current_relative_time = self._get_estimated_pure_interaction_time(
-            candidate.subtask
-        )
+        cumulative_time = self._get_estimated_pure_interaction_time(candidate.subtask)
 
         # Check candidate's outgoing timer edges
         for _, target, data in graph.out_edges(curr_name, data=True):
             info = data.get("info", {})
             if info.get("IsCritical") and info.get("Interval", 0.0) > constants.EPSILON:
                 # Found a timer edge. The timer starts when curr_task ENDS.
-                future_tasks_info.append(
-                    (target, current_relative_time + info["Interval"])
-                )
+                # 현재 작업 마치고, interval뒤에 작업 시작하니까 상대적인 ready time은 candidate_duration + info["Interval"]
+                future_tasks_info.append((target, cumulative_time + info["Interval"]))
 
         # Traverse the rest of the chain
         while True:
             next_name = None
+
+            # (0,True)로 묶인 A->B에서 B를 next_name으로 설정
             for _, target, data in graph.out_edges(curr_name, data=True):
                 info = data.get("info", {})
                 if (
@@ -601,6 +543,7 @@ class HeuristicManager:
                     next_name = target
                     break
 
+            # 남아있는 job 중에서 (0,True) 제약의 predecessor가 포함되는지 확인하고 next_sub으로 할당
             if next_name:
                 # Found next link in chain. Find the subtask object.
                 next_sub = next(
@@ -644,7 +587,7 @@ class HeuristicManager:
                 )
                 interaction_time = self._get_estimated_pure_interaction_time(next_sub)
 
-                current_relative_time += nav_time + interaction_time
+                cumulative_time += nav_time + interaction_time
 
                 # Check next task's outgoing timer edges
                 for _, target, data in graph.out_edges(next_name, data=True):
@@ -654,7 +597,7 @@ class HeuristicManager:
                         and info.get("Interval", 0.0) > constants.EPSILON
                     ):
                         future_tasks_info.append(
-                            (target, current_relative_time + info["Interval"])
+                            (target, cumulative_time + info["Interval"])
                         )
 
                 curr_name = next_name
@@ -665,11 +608,13 @@ class HeuristicManager:
             return 0.0, None
 
         # 2. Get and Merge Reserved Windows
+        # turn off 등 critical successor의 예정된 작업 block을 찾아옴.
         reserved_windows = self._get_reserved_windows(current_node)
         if not reserved_windows:
             return 0.0, None
 
         # Sort windows by start time
+        # 가장 이른 timing 부터 load
         reserved_windows.sort(key=lambda x: x[0])
 
         # Merge overlapping/adjacent windows
@@ -796,7 +741,7 @@ class HeuristicManager:
                     log.debug(
                         f"  [Future Conflict] Chain caused '{target_name}' (Start {ready_time:.2f}) "
                         f"overlaps with Merged Reserved Window [{r_start:.2f}, {r_end:.2f}] (Owners: {r_owners}). "
-                        f"Wait: {wait_delay:.2f} + Travel({r_last_task}->{target_name}): {travel_time:.2f} = Total Delay: {total_delay:.2f}"
+                        f"Wait: {wait_delay:.2f} = Total Delay: {total_delay:.2f}"
                     )
                     if total_delay > max_conflict:
                         max_conflict = total_delay
