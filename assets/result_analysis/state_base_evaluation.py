@@ -15,10 +15,7 @@ from assets.result_analysis.utils.instruction_parser import (
 )
 from assets.result_analysis.utils.specs import TASK_SPECS
 from assets.result_analysis.utils.state_change_simulate import load_events_from_file
-from assets.result_analysis.utils.summary import (
-    aggregate_summary,
-    summary_to_latex_table,
-)
+from assets.result_analysis.utils.summary import aggregate_summary
 from src.utils.common.logger import create_module_logger
 
 logger = create_module_logger(__name__)
@@ -64,12 +61,12 @@ def state_base_eval(target_directory: Path | None = None) -> None:
     ]
     states_folders = []
 
-    for folder_name in states_folder_names:
-        folder_path = results_folder / folder_name
-        if folder_path.exists() and folder_path.is_dir():
-            states_folders.append(folder_path)
-        else:
-            logger.warning("States folder not found: %s", folder_path)
+    for sub_dir in results_folder.iterdir():
+        if sub_dir.is_dir():
+            for folder_name in states_folder_names:
+                folder_path = sub_dir / folder_name
+                if folder_path.exists() and folder_path.is_dir():
+                    states_folders.append(folder_path)
 
     if not states_folders:
         logger.error("No valid states folders found in: %s", results_folder)
@@ -87,10 +84,6 @@ def state_base_eval(target_directory: Path | None = None) -> None:
         for difficulty_dir in sorted(d for d in states_folder.iterdir() if d.is_dir()):
             for task_dir in sorted(t for t in difficulty_dir.iterdir() if t.is_dir()):
                 instruction_raw = re.sub(r"^\d{2}_", "", task_dir.name)
-
-                # Filter out 'constraints_0' tasks
-                if "constraints_0" in difficulty_dir.name:
-                    continue
 
                 parsed_tasks = parse_instruction_to_tasks(
                     instruction_raw, all_task_names
@@ -137,11 +130,6 @@ def state_base_eval(target_directory: Path | None = None) -> None:
                             events=events_data,
                             task_names=valid_task_names,
                         )
-                        # print(
-                        #     f"\n[{states_name}/{difficulty_dir.name}/{task_dir.name}/{scene_dir.name}/{approach_dir.name}]"
-                        # )
-                        # print(f"Parsed tasks: {parsed_tasks}")
-                        # print(f"Spec task keys: {valid_task_names}")
 
                         # 각 task별 평가 결과를 저장할 구조
                         evaluation_results = {
@@ -158,17 +146,6 @@ def state_base_eval(target_directory: Path | None = None) -> None:
                         }
 
                         for task_name, task_result in task_results.items():
-                            # Print summary
-                            # print(f"- {task_name}: GCR={task_result.gcr_pass}")
-
-                            # Print multiple TSRs if available
-                            # if task_result.tsr_results:
-                            #     for tsr_name, tsr_result in task_result.tsr_results.items():
-                            #         print(
-                            #             f"  └─ TSR '{tsr_name}': Pass={tsr_result.passed}, "
-                            #             f"Duration={tsr_result.duration}, "
-                            #             f"Trigger={tsr_result.trigger_step}, End={tsr_result.end_step}"
-                            #         )
 
                             # 각 task의 평가 결과 저장
                             task_eval = {
@@ -225,12 +202,6 @@ def state_base_eval(target_directory: Path | None = None) -> None:
             json.dump(final_summary, f, indent=2, sort_keys=True)
         print("\n=== Final Summary (JSON) ===")
         print(f"Saved to: {summary_path}")
-
-        latex_str = summary_to_latex_table(final_summary)
-        latex_path = results_folder / "final_summary.tex"
-        with latex_path.open("w") as f:
-            f.write(latex_str)
-        print(f"LaTeX table saved to: {latex_path}")
 
         logger.info("Summary generation complete!")
     else:
