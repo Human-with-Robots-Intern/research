@@ -130,6 +130,13 @@ def load_argument_parser() -> argparse.Namespace:
         help="Group results by task length (e.g., merge C1 and C2 into T2).",
     )
     parser.add_argument(
+        "--std_mode",
+        type=str,
+        default="combined",
+        choices=["combined", "seeds", "both"],
+        help="Choose standard deviation display mode: 'combined' (total variance), 'seeds' (variance of means), or 'both'.",
+    )
+    parser.add_argument(
         "--output_json",
         type=Path,
         default=Path(__file__).resolve().parents[1]
@@ -143,14 +150,16 @@ def load_argument_parser() -> argparse.Namespace:
 # --- Data Processing Functions ---
 
 
-def reorder_metrics_dict(data: Dict[str, float]) -> "OrderedDict[str, float]":
+def reorder_metrics_dict(
+    data: Dict[str, Union[float, Tuple[float, float]]],
+) -> "OrderedDict[str, Union[float, Tuple[float, float]]]":
     """Reorder metric keys in a dictionary for consistent output.
 
     Args:
-        data (Dict[str, float]): A dictionary of metrics.
+        data (Dict[str, Union[float, Tuple[float, float]]]): A dictionary of metrics.
 
     Returns:
-        OrderedDict[str, float]: The dictionary with sorted keys.
+        OrderedDict[str, Union[float, Tuple[float, float]]]: The dictionary with sorted keys.
     """
     # Define standard metric order (superset of potentially included metrics)
     standard_order = ["sr", "gcr", "tcsr", "makespan", "makespan_sr_1"]
@@ -165,8 +174,9 @@ def reorder_metrics_dict(data: Dict[str, float]) -> "OrderedDict[str, float]":
 def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
     """Aggregate summary metrics by task and constraint type.
 
-    This function processes a summary dictionary and groups results by
-    task length and constraint count (e.g., "tasks_2_constraints_1").
+    This function processes a summary dictionary.
+    If not grouping by task length, it preserves mean and std from the input.
+    If grouping by task length, it currently recalculates mean but may lose original STD info.
 
     Note: TCSR (Time Constraint Success Rate) is only calculated for constraints >= 1,
     excluding constraints_0 cases.
@@ -176,15 +186,19 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
             summary[approach][task_case]["init"][init_case] = metrics.
 
     Returns:
-        Dict[str, Any]: A new summary dictionary with metrics aggregated
-            by task/constraint, structured as
-            merged[approach][task_constraint_key][init_case] = averaged_metrics.
+        Dict[str, Any]: A new summary dictionary.
     """
     sums: Dict[str, Dict[str, Dict[str, Dict[str, float]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
     )
     counts: Dict[str, Dict[str, Dict[str, Dict[str, int]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    )
+
+    # To preserve (mean, std) directly when not grouping
+    # structure: raw_data[approach][tasks_key][init_case][metric_name] = (mean, std)
+    raw_data: Dict[str, Dict[str, Dict[str, Dict[str, Tuple[float, float]]]]] = (
+        defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
     )
 
     for approach, task_cases in summary.items():
@@ -209,42 +223,60 @@ def merge_by_task_length(summary: Dict[str, Any]) -> Dict[str, Any]:
             include_tcsr = constraints_num >= 1
 
             for init_case, metrics in init_dict.items():
-                for metric_name, value in metrics.items():
-                    # Map 'tsr' to 'tcsr'
-                    if metric_name == "tsr":
-                        metric_name = "tcsr"
+                # First pass: identify available metrics and their stds
+                # We need to pair them up.
 
-                    # TCSR의 경우 constraint >= 1일 때만 합산
-                    if metric_name == "tcsr" and not include_tcsr:
+                for metric_name, val in metrics.items():
+                    if metric_name.endswith("_std"):
                         continue
 
-                    sums[approach][tasks_key][init_case][metric_name] += value
-                    counts[approach][tasks_key][init_case][metric_name] += 1
+                    # Map 'tsr' to 'tcsr' if needed
+                    target_metric_name = "tcsr" if metric_name == "tsr" else metric_name
+
+                    # Skip if excluded
+                    if target_metric_name == "tcsr" and not include_tcsr:
+                        continue
+
+                    std_val = metrics.get(f"{metric_name}_std", 0.0)
+
+                    if val is None:
+                        # Should not happen if keys derived from metrics
+                        continue
+
+                    # makespan_sr_1 check
+                    if target_metric_name == "makespan_sr_1" and val == 0.0:
+                        pass
+
+                    # Store for aggregation (Group by Task Length Case)
+                    sums[approach][tasks_key][init_case][target_metric_name] += val
+                    counts[approach][tasks_key][init_case][target_metric_name] += 1
+
+                    # Store directly (No Grouping Case) - Overwrite if duplicate keys exist (shouldn't for this case)
+                    # Note: tasks_key here is fully specific (e.g. tasks_2_constraints_1)
+                    raw_data[approach][tasks_key][init_case][target_metric_name] = (
+                        float(val),
+                        float(std_val),
+                    )
 
     merged_summary: Dict[str, Any] = defaultdict(dict)
-    for approach, tasks_dict in sums.items():
+
+    # If we are strictly just formatting and not grouping, we should return raw_data
+    # However, this function is called "merge_by_task_length", implying it might be used for grouping.
+    # The caller decides whether to group key names.
+    # Here we just normalized keys.
+
+    # We will return the raw_data structure which contains (mean, std) tuples.
+    # If downstream functions aggregate these (e.g. merging constraints_1 and constraints_2),
+    # they will need to handle tuples.
+
+    for approach, tasks_dict in raw_data.items():
+        merged_summary[approach] = {}
         for tasks_key, init_dict in tasks_dict.items():
             merged_summary[approach][tasks_key] = {}
-            for init_case, metric_sums in init_dict.items():
-                avg_metrics: Dict[str, float] = {}
-
-                for metric_name, total in metric_sums.items():
-                    count = counts[approach][tasks_key][init_case][metric_name]
-                    if count > 0:
-                        avg_metrics[metric_name] = total / count
-
-                # TCSR이 metric_sums에 없는 경우 (constraint >= 1인 데이터가 없음)
-                # 다른 메트릭들은 있지만 TCSR만 없는 경우를 처리
-                if "tcsr" not in avg_metrics and metric_sums:
-                    # 다른 메트릭들이 있다면 TCSR을 0으로 설정
-                    avg_metrics["tcsr"] = 0.0
-
-                if not avg_metrics:
-                    continue
-
+            for init_case, metric_tuples in init_dict.items():
                 # Reorder and store
                 merged_summary[approach][tasks_key][init_case] = reorder_metrics_dict(
-                    avg_metrics
+                    metric_tuples
                 )
 
     return dict(merged_summary)
@@ -264,9 +296,10 @@ def process_experiment_folder(folder: Path) -> List[Dict[str, Any]]:
         List[Dict[str, Any]]: A list of processed and normalized summary data dictionaries.
     """
     # Check if any unified summary exists (excluding revised ones)
+    # Use rglob to find all summary files recursively in subdirectories
     unified_files = [
         f
-        for f in folder.glob("unified_analysis_summary*.json")
+        for f in folder.rglob("unified_analysis_summary*.json")
         if "revised" not in f.name
     ]
 
@@ -278,7 +311,7 @@ def process_experiment_folder(folder: Path) -> List[Dict[str, Any]]:
             # Re-check for generated file
             unified_files = [
                 f
-                for f in folder.glob("unified_analysis_summary*.json")
+                for f in folder.rglob("unified_analysis_summary*.json")
                 if "revised" not in f.name
             ]
         else:
@@ -287,11 +320,20 @@ def process_experiment_folder(folder: Path) -> List[Dict[str, Any]]:
 
     # 2. Load and Normalize all found summaries
     results = []
+    print(
+        f"Found {len(unified_files)} summary files: {[f.name for f in unified_files]}"
+    )
     for unified_path in unified_files:
         try:
             with open(unified_path, "r") as f:
                 data = json.load(f)
+            # Debug: Check keys in loaded data
+            # print(f"Loaded {unified_path.name}, keys: {list(data.keys())}")
+
             normalized = merge_by_task_length(data)
+            # Debug: Check keys after normalization
+            # print(f"Normalized {unified_path.name}, keys: {list(normalized.keys())}")
+
             results.append(normalized)
         except Exception as e:
             print(f"Error processing {unified_path}: {e}")
@@ -390,12 +432,54 @@ def collect_and_aggregate(
             for init_case, metrics in inits.items():
                 aggregated[approach][task_key][init_case] = {}
                 for metric, values in metrics.items():
-                    mean_val = np.mean(values)
-                    std_val = np.std(values)
-                    aggregated[approach][task_key][init_case][metric] = (
-                        mean_val,
-                        std_val,
-                    )
+                    if not values:
+                        continue
+
+                    first_val = values[0]
+                    if isinstance(first_val, tuple):
+                        # Case: Pre-calculated (mean, std) available
+                        if len(values) == 1:
+                            # Single source: Use the provided (mean, std) directly
+                            # Normalize to (mean, combined_std, seeds_std=0)
+                            aggregated[approach][task_key][init_case][metric] = (
+                                first_val[0],
+                                first_val[1],
+                                0.0,
+                            )
+                        else:
+                            # Multiple sources: Aggregate means and calculate std using Law of Total Variance
+                            # Total Variance = Mean(Variances) + Variance(Means)
+                            means = [v[0] for v in values]
+                            stds = [v[1] for v in values]
+
+                            mean_val = np.mean(means)
+
+                            # Variance of means (between-group variance)
+                            # Use ddof=1 for sample variance if we consider these sources as samples
+                            var_means = np.var(means, ddof=1)
+                            std_seeds = np.sqrt(var_means)
+
+                            # Mean of variances (within-group variance)
+                            mean_vars = np.mean([s**2 for s in stds])
+
+                            # Total Std = sqrt(Mean(Vars) + Var(Means))
+                            total_std = np.sqrt(mean_vars + var_means)
+
+                            aggregated[approach][task_key][init_case][metric] = (
+                                float(mean_val),
+                                float(total_std),
+                                float(std_seeds),
+                            )
+                    else:
+                        # Case: Raw values (scalars)
+                        mean_val = np.mean(values)
+                        std_val = np.std(values, ddof=1) if len(values) > 1 else 0.0
+                        # For raw scalars, combined and seeds std are effectively the same concept
+                        aggregated[approach][task_key][init_case][metric] = (
+                            mean_val,
+                            std_val,
+                            std_val,
+                        )
 
     return dict(aggregated)
 
@@ -526,20 +610,23 @@ def find_best_values(data: Dict[str, Any], methods_to_compare: List[str]) -> Tup
 
 
 def fmt_cell(
-    main_val: Union[float, Tuple[float, float], None],
+    main_val: Union[float, Tuple[float, float], Tuple[float, float, float], None],
     metric: str,
     global_best: float,
     global_second_best: Optional[float],
     baseline_best: float,
     ours_best: float,
     is_ours: bool,
-    ablation_val: Union[float, Tuple[float, float], None] = None,
+    ablation_val: Union[
+        float, Tuple[float, float], Tuple[float, float, float], None
+    ] = None,
     show_ablation_in_parens: bool = True,
+    std_mode: str = "combined",
 ) -> str:
     """Format a single table cell with main value, bolding/underlining, and ablation study value.
 
     Args:
-        main_val: The primary metric value (float or (mean, std)).
+        main_val: The primary metric value (float or (mean, std) or (mean, combined, seeds)).
         metric (str): The name of the metric (e.g., 'sr', 'makespan').
         global_best (float): The global best value.
         global_second_best (Optional[float]): The global second best value.
@@ -548,6 +635,7 @@ def fmt_cell(
         is_ours (bool): Whether this cell belongs to our method.
         ablation_val: The corresponding value from ablation study.
         show_ablation_in_parens (bool): Whether to show ablation value in parentheses.
+        std_mode (str): Display mode for std ('combined', 'seeds', 'both').
 
     Returns:
         str: The formatted string for the LaTeX table cell.
@@ -557,11 +645,21 @@ def fmt_cell(
 
     # Extract mean/std for main value
     if isinstance(main_val, tuple):
-        val_mean, val_std = main_val
-        # Wrap in math mode for \pm
-        s_main = f"${val_mean:.1f} \\pm {val_std:.1f}$"
+        val_mean = main_val[0]
+        val_std_combined = main_val[1]
+        val_std_seeds = main_val[2] if len(main_val) > 2 else 0.0
+
+        if std_mode == "seeds":
+            s_main = f"${val_mean:.1f} \\pm {val_std_seeds:.1f}$"
+        elif std_mode == "both":
+            s_main = (
+                f"${val_mean:.1f} \\pm {val_std_combined:.1f} ({val_std_seeds:.1f})$"
+            )
+        else:  # combined
+            s_main = f"${val_mean:.1f} \\pm {val_std_combined:.1f}$"
     else:
         val_mean = main_val
+        val_std_combined = 0.0  # Dummy for consistency
         s_main = f"{val_mean:.1f}"
 
     # Bolding/Underlining Logic
@@ -605,7 +703,16 @@ def fmt_cell(
     if should_bold:
         if isinstance(main_val, tuple):
             # For math mode, use \boldmath to ensure symbols like \pm are also bolded.
-            s_main = f"{{\\boldmath ${val_mean:.1f} \\pm {val_std:.1f}$}}"
+            # We need to reconstruct the string with \boldmath
+            if std_mode == "seeds":
+                inner = f"{val_mean:.1f} \\pm {val_std_seeds:.1f}"
+            elif std_mode == "both":
+                inner = (
+                    f"{val_mean:.1f} \\pm {val_std_combined:.1f} ({val_std_seeds:.1f})"
+                )
+            else:
+                inner = f"{val_mean:.1f} \\pm {val_std_combined:.1f}"
+            s_main = f"{{\\boldmath ${inner}$}}"
         else:
             s_main = f"\\textbf{{{s_main}}}"
     elif should_underline:
@@ -616,13 +723,27 @@ def fmt_cell(
     # Append ablation value in parentheses if requested
     if show_ablation_in_parens and ablation_val is not None:
         if isinstance(ablation_val, tuple):
-            abl_mean, abl_std = ablation_val
-            s_abl = f"${abl_mean:.1f} \\pm {abl_std:.1f}$"
+            abl_mean = ablation_val[0]
+            abl_std_combined = ablation_val[1]
+            abl_std_seeds = ablation_val[2] if len(ablation_val) > 2 else 0.0
+
+            if std_mode == "seeds":
+                s_abl = f"${abl_mean:.1f} \\pm {abl_std_seeds:.1f}$"
+            elif std_mode == "both":
+                s_abl = f"${abl_mean:.1f} \\pm {abl_std_combined:.1f} ({abl_std_seeds:.1f})$"
+            else:
+                s_abl = f"${abl_mean:.1f} \\pm {abl_std_combined:.1f}$"
 
             # Ablation Bold Logic:
             # Highlight if better than baseline
             if is_better_or_equal(abl_mean, baseline_best):
-                s_abl = f"{{\\boldmath ${abl_mean:.1f} \\pm {abl_std:.1f}$}}"
+                if std_mode == "seeds":
+                    inner = f"{abl_mean:.1f} \\pm {abl_std_seeds:.1f}"
+                elif std_mode == "both":
+                    inner = f"{abl_mean:.1f} \\pm {abl_std_combined:.1f} ({abl_std_seeds:.1f})"
+                else:
+                    inner = f"{abl_mean:.1f} \\pm {abl_std_combined:.1f}"
+                s_abl = f"{{\\boldmath ${inner}$}}"
             elif global_second_best is not None and is_equal(
                 abl_mean, global_second_best
             ):
@@ -650,6 +771,7 @@ def generate_latex_table(
     column_labels: List[str],
     display_methods: List[str],
     ablation_style: str = "parentheses",
+    std_mode: str = "combined",
 ) -> str:
     """Generate the complete LaTeX code for the results table.
 
@@ -659,6 +781,7 @@ def generate_latex_table(
         column_labels (List[str]): List of labels for the init columns.
         display_methods (List[str]): Ordered list of method keys to display as rows.
         ablation_style (str): Style for ablation study display ('parentheses' or 'new_row').
+        std_mode (str): Display mode for std ('combined', 'seeds', 'both').
 
     Returns:
         str: A string containing the full LaTeX table code.
@@ -849,6 +972,7 @@ def generate_latex_table(
                             is_ours_method,
                             abl_val,
                             show_ablation_in_parens=(ablation_style == "parentheses"),
+                            std_mode=std_mode,
                         )
                     )
 
@@ -921,13 +1045,21 @@ def main() -> None:
 
     # Use standard MAIN_METHODS order, but filter to what we actually have data for
     methods_to_display = []
+    print(f"Available methods in final_data: {list(final_data.keys())}")
     for m in MAIN_METHODS:
         if m in final_data:
             methods_to_display.append(m)
 
+    print(f"Methods selected for display: {methods_to_display}")
+
     print(
         generate_latex_table(
-            final_data, init_keys_1, labels_1, methods_to_display, args.ablation_style
+            final_data,
+            init_keys_1,
+            labels_1,
+            methods_to_display,
+            args.ablation_style,
+            args.std_mode,
         )
     )
 
