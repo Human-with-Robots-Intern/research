@@ -61,12 +61,20 @@ def state_base_eval(target_directory: Path | None = None) -> None:
     ]
     states_folders = []
 
-    for sub_dir in results_folder.iterdir():
-        if sub_dir.is_dir():
-            for folder_name in states_folder_names:
-                folder_path = sub_dir / folder_name
-                if folder_path.exists() and folder_path.is_dir():
-                    states_folders.append(folder_path)
+    # 1. Check direct children (if root_dir points to a specific experiment folder)
+    for folder_name in states_folder_names:
+        folder_path = results_folder / folder_name
+        if folder_path.exists() and folder_path.is_dir():
+            states_folders.append(folder_path)
+
+    # 2. If no states folders found directly, check subdirectories (if root_dir points to assets/results/)
+    if not states_folders:
+        for sub_dir in results_folder.iterdir():
+            if sub_dir.is_dir():
+                for folder_name in states_folder_names:
+                    folder_path = sub_dir / folder_name
+                    if folder_path.exists() and folder_path.is_dir():
+                        states_folders.append(folder_path)
 
     if not states_folders:
         logger.error("No valid states folders found in: %s", results_folder)
@@ -210,7 +218,7 @@ def state_base_eval(target_directory: Path | None = None) -> None:
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
-    args.add_argument("--target_directory", type=Path, default=Path("assets/results/"))
+    args.add_argument("--root_dir", type=Path, default=Path("assets/results/"))
 
     args = args.parse_args()
-    state_base_eval(args.target_directory)
+    state_base_eval(args.root_dir)
