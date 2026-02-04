@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Mapping, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Sequence, Tuple, Optional
 
 
 def aggregate_summary(
     trials: Sequence[Mapping[str, Any]],
-) -> Dict[str, Dict[str, Dict[str, Dict[str, Dict[str, float]]]]]:
+) -> Dict[str, Dict[str, Dict[str, Dict[str, Dict[str, Optional[float]]]]]]:
     """Aggregate trials into approach x difficulty x init x init_* summary.
 
     Returns:
@@ -17,7 +17,7 @@ def aggregate_summary(
         key = (str(t["approach"]), str(t["difficulty"]), str(t["states"]))
         by_key.setdefault(key, []).append(t)
 
-    final: Dict[str, Dict[str, Dict[str, Dict[str, Dict[str, float]]]]] = {}
+    final: Dict[str, Dict[str, Dict[str, Dict[str, Dict[str, Optional[float]]]]]] = {}
     for (approach, difficulty, states), items in by_key.items():
         # Map states to init_* format and filter out states80 and states120
         states_mapping = {
