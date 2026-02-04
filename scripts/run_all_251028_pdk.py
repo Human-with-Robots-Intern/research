@@ -108,6 +108,23 @@ class InitPriorConfig(Enum):
         "init_prior_variance": INIT_PRIOR_VARIANCE,
     }
 
+    OVER_ESTIMATE_130 = {
+        "init_prior_mean": 130.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
+    }
+    OVER_ESTIMATE_110 = {
+        "init_prior_mean": 110.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
+    }
+    UNDER_ESTIMATE_90 = {
+        "init_prior_mean": 90.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
+    }
+    UNDER_ESTIMATE_70 = {
+        "init_prior_mean": 70.0,
+        "init_prior_variance": INIT_PRIOR_VARIANCE,
+    }
+
 
 @dataclass
 class ExperimentTask:
@@ -371,7 +388,7 @@ def _run_script_and_log(
     )
 
     try:
-        stdout, stderr = process.communicate(timeout=300)  # 1 hour timeout
+        stdout, stderr = process.communicate(timeout=1200)  # 20 minutes timeout
         returncode = process.returncode
     except subprocess.TimeoutExpired:
         logger.error(f"Process timeout after 5 minutes. Killing process...")

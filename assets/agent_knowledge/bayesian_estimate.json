@@ -1,14 +1,6 @@
 {
-    "Faucet": {
-        "expected_duration": 100.44875950684208,
-        "variance": 0.12049336370577653
-    },
-    "Microwave": {
-        "expected_duration": 100.45768179990327,
-        "variance": 1.1159486116782957
-    },
-    "CounterTop": {
-        "expected_duration": 0.0,
-        "variance": 900
+    "Stove": {
+        "expected_duration": 100.19048363456778,
+        "variance": 0.10006440120670858
     }
 }

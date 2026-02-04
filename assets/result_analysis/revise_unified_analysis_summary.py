@@ -33,9 +33,13 @@ INCLUDED_METRICS: List[str] = [
 # Order of initial time estimates (all possible values)
 INIT_ORDER: List[str] = [
     "init_60",
+    "init_70",
+    "init_90",
     "init_80",
     "init_100",
+    "init_110",
     "init_120",
+    "init_130",
     "init_140",
 ]
 
@@ -107,7 +111,6 @@ def load_argument_parser() -> argparse.Namespace:
         type=Path,
         default=Path(__file__).resolve().parents[1]
         / "results"
-        / "baseline_trial_1"
         / "unified_analysis_summary.json",
         help="Path to the input JSON summary file.",
     )

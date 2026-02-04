@@ -85,7 +85,7 @@ services:
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
       # - ROS_DOMAIN_ID=0
       # - CYCLONEDDS_URI=<CycloneDDS><Domain><General><NetworkInterfaceAddress>eno1</NetworkInterfaceAddress></General></Domain></CycloneDDS>
-      # - DISPLAY=${DISPLAY}
+      - DISPLAY=${DISPLAY}
 
 networks:
   uttp_net:

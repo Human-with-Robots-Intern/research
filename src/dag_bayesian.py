@@ -61,25 +61,25 @@ def parse_arguments():
     parser.add_argument(
         "--init_prior_mean",
         type=float,
-        default=120,
+        default=100,
         help="베이지안 추정을 위한 초기 평균값 (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--case",
         type=str,
-        default="tasks_2_constraints_2",
+        default="tasks_3_constraints_2",
         help="The name of the case.",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default="06_fill_pot_with_water_and_heat_the_potato_using_microwave.json",
+        default="08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan1",
+        default="FloorPlan7",
         help="input scene name (default: FloorPlan1)",
     )
 
