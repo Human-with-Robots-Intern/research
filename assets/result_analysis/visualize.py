@@ -11,12 +11,15 @@ from matplotlib.patches import Ellipse
 DATA = {
     "Ours": {
         "sr": [],
+    "Ours": {
+        "sr": [],
         "makespan": [],
         "color": "red",
         "marker": "*",
         "style": "-",
     },
     "Ours (w/o Mon.)": {  # Ablation
+        "sr": [],
         "sr": [],
         "makespan": [],
         "color": "orange",
@@ -25,12 +28,14 @@ DATA = {
     },
     "DAG + EDF": {
         "sr": [],
+        "sr": [],
         "makespan": [],
         "color": "brown",
         "marker": "x",
         "style": "-.",
     },
     "DAG + CPM": {
+        "sr": [],
         "sr": [],
         "makespan": [],
         "color": "green",
@@ -39,12 +44,14 @@ DATA = {
     },
     "ProgPrompt": {
         "sr": [],
+        "sr": [],
         "makespan": [],
         "color": "blue",
         "marker": "o",
         "style": ":",
     },
     "CaP": {
+        "sr": [],
         "sr": [],
         "makespan": [],
         "color": "purple",
@@ -55,6 +62,7 @@ DATA = {
 
 APPROACH_LIST = {
     "dag_bayesian_DEFAULT": "Ours",
+    "dag_bayesian_DEFAULT": "Ours",
     "dag_bayesian_NONE_MONITORING": "Ours (w/o Mon.)",
     "dag_edf": "DAG + EDF",
     "cpm": "DAG + CPM",
@@ -63,12 +71,14 @@ APPROACH_LIST = {
 }
 
 INIT_LIST = ["init_60", "init_100",  "init_140"]
+INIT_LIST = ["init_60", "init_100",  "init_140"]
 TASK_CASE = [
     # "tasks_2_constraints_1",
     "tasks_2",
     "tasks_3",
     # "tasks_3_constraints_2",
 ]
+METRIC_LIST = ["sr", "makespan"]
 METRIC_LIST = ["sr", "makespan"]
 
 # 제거할 베이스라인 목록
@@ -81,6 +91,7 @@ def load_data(data_path: str) -> dict:
 
     # DATA 딕셔너리 초기화
     for key in DATA:
+        DATA[key]["sr"] = []
         DATA[key]["sr"] = []
         DATA[key]["makespan"] = []
 
@@ -96,6 +107,7 @@ def load_data(data_path: str) -> dict:
         # 각 초기 조건(init_60, 80, 100, 120, 140)별로 순회
         for init_cond in INIT_LIST:
             sr_values = []
+            sr_values = []
             makespan_values = []
 
             # 모든 태스크 케이스(tasks_2, 3, 4)의 값을 수집
@@ -105,6 +117,7 @@ def load_data(data_path: str) -> dict:
                     and init_cond in raw_data[approach_key][task_case]
                 ):
                     metrics = raw_data[approach_key][task_case][init_cond]
+                    sr_values.append(metrics.get("sr", 0))
                     sr_values.append(metrics.get("sr", 0))
                     makespan_value = metrics.get("makespan", 0)
 
@@ -116,9 +129,11 @@ def load_data(data_path: str) -> dict:
 
             # 수집된 값들의 평균 계산
             avg_sr = np.mean(sr_values) if sr_values else 0.0
+            avg_sr = np.mean(sr_values) if sr_values else 0.0
             avg_makespan = np.mean(makespan_values) if makespan_values else 0.0
 
             # 결과 저장
+            DATA[approach_name]["sr"].append(avg_sr)
             DATA[approach_name]["sr"].append(avg_sr)
             DATA[approach_name]["makespan"].append(avg_makespan)
 
@@ -128,6 +143,8 @@ def load_data(data_path: str) -> dict:
 
 def plot_trajectory(data: dict, output_path: str | None = None) -> None:
     """
+    sr과 Makespan의 관계를 보여주는 궤적 그래프를 생성합니다.
+    x축은 Makespan(효율성), y축은 sr(강건성)을 나타냅니다.
     sr과 Makespan의 관계를 보여주는 궤적 그래프를 생성합니다.
     x축은 Makespan(효율성), y축은 sr(강건성)을 나타냅니다.
 
@@ -141,10 +158,12 @@ def plot_trajectory(data: dict, output_path: str | None = None) -> None:
     for name, d in data.items():
         # 데이터가 비어있으면(제외된 베이스라인) 그리지 않음
         if not d["sr"] or not d["makespan"]:
+        if not d["sr"] or not d["makespan"]:
             continue
 
         ax.plot(
             d["makespan"],
+            d["sr"],
             d["sr"],
             label=name,
             color=d["color"],
@@ -158,6 +177,8 @@ def plot_trajectory(data: dict, output_path: str | None = None) -> None:
     # --- 영역 하이라이트 (핵심) ---
     # 1. Ours: Tight Cluster (Robustness)
     ours_center = (
+        np.mean(data["Ours"]["makespan"]),
+        np.mean(data["Ours"]["sr"]),
         np.mean(data["Ours"]["makespan"]),
         np.mean(data["Ours"]["sr"]),
     )
@@ -196,6 +217,7 @@ def plot_trajectory(data: dict, output_path: str | None = None) -> None:
 def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
     """
     sr과 Makespan을 각각의 그래프로 분리하여 보여줍니다.
+    sr과 Makespan을 각각의 그래프로 분리하여 보여줍니다.
     x축은 초기 믿음 조건, y축은 각 메트릭의 값을 나타냅니다.
 
     Args:
@@ -203,7 +225,13 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         output_path (str | None): 그래프를 저장할 파일 경로. None이면 화면에 표시.
     """
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
     conditions = [
+        "60s",
+        # "Under-mid-est\n(80s)",
+        "100s \n (Correct)",
+        # "Over-mid-est\n(120s)",
+        "140s",
         "60s",
         # "Under-mid-est\n(80s)",
         "100s \n (Correct)",
@@ -215,10 +243,14 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
             "sr",
             "Success Rate across Initial Belief Conditions",
             "Success Rate (%)",
+            "sr",
+            "Success Rate across Initial Belief Conditions",
+            "Success Rate (%)",
         ),
     ]
 
     method_order = [
+        "Ours",
         "Ours",
         "Ours (w/o Mon.)",
         "DAG + CPM",
@@ -253,6 +285,7 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         ax.set_title(title, fontsize=14, pad=15, fontweight="bold")
         ax.set_ylabel(ylabel, fontsize=12, labelpad=10)
         ax.set_xlabel(r"Initial Belief Condition($\Delta_0$)", fontsize=12, labelpad=10)
+        ax.set_xlabel(r"Initial Belief Condition($\Delta_0$)", fontsize=12, labelpad=10)
         ax.grid(True, linestyle="--", alpha=0.4)
 
         # Correct (index 2) 조건 강조 (빨간색 세로줄, 약간 투명하게)
@@ -285,16 +318,19 @@ def save_aggregated_json(
 ) -> None:
     """
     통합된 결과(sr, Makespan)를 JSON 파일로 저장합니다.
+    통합된 결과(sr, Makespan)를 JSON 파일로 저장합니다.
     """
     # 저장할 데이터 구조 변환
     export_data = {}
     for method, metrics in data.items():
+        if not metrics["sr"] and not metrics["makespan"]:
         if not metrics["sr"] and not metrics["makespan"]:
             continue
 
         method_results = []
         for i, condition in enumerate(INIT_LIST):
             # 인덱스 에러 방지
+            sr_val = metrics["sr"][i] if i < len(metrics["sr"]) else 0.0
             sr_val = metrics["sr"][i] if i < len(metrics["sr"]) else 0.0
             makespan_val = (
                 metrics["makespan"][i] if i < len(metrics["makespan"]) else 0.0
@@ -303,6 +339,7 @@ def save_aggregated_json(
             method_results.append(
                 {
                     "init_condition": condition,
+                    "sr": float(sr_val),
                     "sr": float(sr_val),
                     "makespan": float(makespan_val),
                 }
@@ -319,7 +356,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="""
         sr(Success Rate)과 Makespan 성능 지표를 시각화합니다.
+        sr(Success Rate)과 Makespan 성능 지표를 시각화합니다.
         두 가지 플롯 타입을 선택할 수 있습니다:
+        1. trajectory: sr과 Makespan의 관계를 2D 궤적으로 표시 (기본값)
+        2. separate: sr과 Makespan을 각각 별도의 라인 그래프로 표시
         1. trajectory: sr과 Makespan의 관계를 2D 궤적으로 표시 (기본값)
         2. separate: sr과 Makespan을 각각 별도의 라인 그래프로 표시
         """
