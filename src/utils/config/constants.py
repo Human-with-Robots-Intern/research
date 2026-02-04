@@ -153,6 +153,12 @@ def set_simulation_depth(value: int) -> None:
     SIMULATION_DEPTH = value
 
 
+def set_task_path(value: Path) -> None:
+    """Sets the global TASK_PATH value dynamically."""
+    global TASK_PATH
+    TASK_PATH = value
+
+
 FACTOR_ALPHA = 0.001
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6

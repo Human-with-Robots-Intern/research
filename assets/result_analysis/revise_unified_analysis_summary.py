@@ -559,7 +559,6 @@ def main() -> None:
     init_keys_1 = ["init_100"]
     labels_1 = [r"\textbf{Correct (100s)}"]
 
-    print("\n--- LaTeX Table 1 (Under-estimate) ---\n")
     print(
         generate_latex_table(
             revised_summary, init_keys_1, labels_1, args.ablation_style

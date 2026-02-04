@@ -72,7 +72,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         gcr_mid_groups=[
             CG(
                 # OC("potato", parentReceptacles=["pot"]),
-                OC("pot", isFilledWithLiquid=True, parentReceptacles=["stove"]),
+                OC("pot_", isFilledWithLiquid=True, parentReceptacles=["stove"]),
                 OC("stoveknob", isToggled=True),
             )
         ],
@@ -81,7 +81,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             TSR(
                 name="fill_water_in_pot",
                 trigger=CG(
-                    OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
+                    OC("pot_", isFilledWithLiquid=True, parentReceptacles=["sink"]),
                     OC("faucet", isToggled=True),
                 ),
                 end=CG(OC("faucet", isToggled=False)),
@@ -90,7 +90,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
                 name="boil_potato",
                 trigger=CG(
                     OC("potato", isCooked=True),
-                    OC("pot", isFilledWithLiquid=True, parentReceptacles=["stove"]),
+                    OC("pot_", isFilledWithLiquid=True, parentReceptacles=["stove"]),
                     OC("stoveknob", isToggled=True),
                 ),
                 end=CG(OC("stoveknob", isToggled=False)),
@@ -100,10 +100,10 @@ TASK_SPECS: Dict[str, TaskSpec] = {
     # boil_water_with_pot (두 개의 TSR: fill + boil)
     "boil_water_with_pot": TaskSpec(
         name="boil_water_with_pot",
-        gcr_end=CG(OC("pot", isFilledWithLiquid=True)),
+        gcr_end=CG(OC("pot_", isFilledWithLiquid=True)),
         gcr_mid_groups=[
             CG(
-                OC("pot", isFilledWithLiquid=True, parentReceptacles=["stove"]),
+                OC("pot_", isFilledWithLiquid=True, parentReceptacles=["stove"]),
                 OC("stoveknob", isToggled=True),
             )
         ],
@@ -112,7 +112,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             TSR(
                 name="fill_water_in_pot",
                 trigger=CG(
-                    OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
+                    OC("pot_", isFilledWithLiquid=True, parentReceptacles=["sink"]),
                     OC("faucet", isToggled=True),
                 ),
                 end=CG(OC("faucet", isToggled=False)),
@@ -120,7 +120,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             TSR(
                 name="boil_water_in_pot",
                 trigger=CG(
-                    OC("pot", isFilledWithLiquid=True, parentReceptacles=["stove"]),
+                    OC("pot_", isFilledWithLiquid=True, parentReceptacles=["stove"]),
                     OC("stoveknob", isToggled=True),
                 ),
                 end=CG(OC("stoveknob", isToggled=False)),
@@ -130,13 +130,13 @@ TASK_SPECS: Dict[str, TaskSpec] = {
     # fill_pot_with_water
     "fill_pot_with_water": TaskSpec(
         name="fill_pot_with_water",
-        gcr_end=CG(OC("pot", isFilledWithLiquid=True)),
-        gcr_mid_groups=[CG(OC("pot", isFilledWithLiquid=True))],
+        gcr_end=CG(OC("pot_", isFilledWithLiquid=True)),
+        gcr_mid_groups=[CG(OC("pot_", isFilledWithLiquid=True))],
         tsrs=[
             TSR(
                 name="fill_water_in_pot",
                 trigger=CG(
-                    OC("pot", isFilledWithLiquid=True, parentReceptacles=["sink"]),
+                    OC("pot_", isFilledWithLiquid=True, parentReceptacles=["sink"]),
                     OC("faucet", isToggled=True),
                 ),
                 end=CG(OC("faucet", isToggled=False)),
