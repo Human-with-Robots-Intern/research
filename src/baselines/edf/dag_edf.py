@@ -469,6 +469,12 @@ def parse_arguments():
         default=900,
         help="베이지안 추정을 위한 초기 분산값 (기본값: constants.py 값)",
     )
+    parser.add_argument(
+        "--task-folder-name",
+        type=str,
+        default=None,
+        help="Task folder name for organizing results",
+    )
 
     return parser.parse_args()
 
@@ -481,6 +487,15 @@ def main():
 
     # Dynamically override constants based on command-line arguments
     from src.utils.config import constants
+
+    if args.task_folder_name:
+        # [Added] Override TASK_PATH dynamically based on the argument
+        # This ensures we load tasks from the specified folder, not the default constant.
+        dynamic_task_path = constants.ASSETS_PATH / "tasks" / args.task_folder_name
+        constants.set_task_path(dynamic_task_path)
+
+        base_result_path = constants.RESULT_PATH / args.task_folder_name
+        base_result_path.mkdir(parents=True, exist_ok=True)
 
     if args.init_prior_mean is not None:
         constants.set_init_prior_mean(args.init_prior_mean)
@@ -520,13 +535,14 @@ def main():
                 controller,
                 logger=logger,
                 trajectory_log_json_path=Path(
-                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}/trajectory_log.json"
+                    base_result_path
+                    / f"states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}/trajectory_log.json"
                 ),
             )
 
             save_scene_state(
                 controller=controller,
-                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                output_path=base_result_path / f"states{int(args.init_prior_mean)}",
                 case_name=args.case,
                 scene_name=scene_name,
                 instruction=args.instruction.split(".json")[0],
@@ -552,7 +568,7 @@ def main():
                 pass
             save_scene_state(
                 controller=controller,
-                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                output_path=base_result_path / f"states{int(args.init_prior_mean)}",
                 scene_name=scene_name,
                 instruction=args.instruction.split(".json")[0],
                 approach_name=approach_name,
@@ -627,7 +643,7 @@ def main():
 
             save_scene_state(
                 controller=controller,
-                output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+                output_path=base_result_path / f"states{int(args.init_prior_mean)}",
                 case_name=args.case,
                 scene_name=scene_name,
                 instruction=args.instruction.split(".json")[0],
@@ -655,12 +671,13 @@ def main():
                     }
                 )
 
-            result_save(**result_args)
+            result_save(**result_args, base_result_path=base_result_path)
 
         if args.ros:
             ros_executor = RosExecutor(
                 trajectory_log_path=Path(
-                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}/trajectory_log.json"
+                    base_result_path
+                    / f"states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}/trajectory_log.json"
                 )
             )
             real_executed_result_schedule = ros_executor.execute_schedule(
@@ -677,7 +694,7 @@ def main():
                 "initial_plan_data": task_data,
                 "init_prior_mean": args.init_prior_mean,
             }
-            result_save(**result_args)
+            result_save(**result_args, base_result_path=base_result_path)
     finally:
         if controller:
             try:
