@@ -8,143 +8,9 @@ from pathlib import Path
 # 실행할 실패 케이스 목록 정의
 failure_cases = [
     {
-        "case": "tasks_3_constraints_1",
-        "instruction": "01_cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup.json",
-        "scene": "FloorPlan1",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "01_cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup.json",
-        "scene": "FloorPlan18",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "02_cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan1",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "02_cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan18",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "02_cook_egg_and_wash_a_tomato_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan27",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "03_heat_the_bread_using_microwave_and_wash_a_butterknife_and_wash_plate_and_cup.json",
-        "scene": "FloorPlan1",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "04_heat_the_bread_using_microwave_and_wash_a_spatula_and_wash_all_fork_and_spoon.json",
-        "scene": "FloorPlan1",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "04_heat_the_bread_using_microwave_and_wash_a_spatula_and_wash_all_fork_and_spoon.json",
-        "scene": "FloorPlan27",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "04_heat_the_bread_using_microwave_and_wash_a_spatula_and_wash_all_fork_and_spoon.json",
-        "scene": "FloorPlan7",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "06_heat_the_bread_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan13",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "06_heat_the_bread_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan27",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "06_heat_the_bread_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan7",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "07_heat_the_potato_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan1",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "07_heat_the_potato_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan13",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "07_heat_the_potato_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan27",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "07_heat_the_potato_using_microwave_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan7",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "08_make_a_coffee_and_put_apple_and_lettuce_in_fridge_and_wash_plate_and_cup.json",
-        "scene": "FloorPlan27",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "09_make_a_coffee_and_wash_a_spatula_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan1",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "09_make_a_coffee_and_wash_a_spatula_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan27",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "10_make_a_coffee_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan1",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "10_make_a_coffee_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan27",
-    },
-    {
-        "case": "tasks_3_constraints_1",
-        "instruction": "10_make_a_coffee_and_wash_all_fork_and_spoon_and_wash_apple_and_lettuce.json",
-        "scene": "FloorPlan7",
-    },
-    {
-        "case": "tasks_3_constraints_2",
-        "instruction": "01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
-        "scene": "FloorPlan1",
-    },
-    {
-        "case": "tasks_3_constraints_2",
-        "instruction": "01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
-        "scene": "FloorPlan13",
-    },
-    {
-        "case": "tasks_3_constraints_2",
-        "instruction": "01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
-        "scene": "FloorPlan27",
-    },
-    {
-        "case": "tasks_3_constraints_2",
-        "instruction": "01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
-        "scene": "FloorPlan7",
-    },
-    {
-        "case": "tasks_3_constraints_2",
-        "instruction": "06_heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon.json",
-        "scene": "FloorPlan7",
-    },
-    {
-        "case": "tasks_3_constraints_2",
-        "instruction": "07_heat_the_potato_using_microwave_and_cook_egg_and_wash_plate_and_cup.json",
+        "task_folder": "sampled_10_instruction_set_for_final_experiment_251203",
+        "case": "tasks_2_constraints_2",
+        "instruction": "03_boil_water_with_pot_and_make_a_coffee.json",
         "scene": "FloorPlan1",
     },
 ]
@@ -154,12 +20,17 @@ def run_experiment(case_info):
     # 로그 디렉토리 생성
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--retry_mode", action="store_true")
-    argparser.add_argument("--init_prior_mean", type=int, default=130)
+    argparser.add_argument("--init_prior_mean", type=int, default=100)
     args = argparser.parse_args()
 
     print(f"init_prior_mean: {args.init_prior_mean}")
+
+    # [Modified] task_folder_name을 경로에 포함
+    task_folder = case_info.get("task_folder", "default_task_folder")
+
     log_dir = (
         Path("logs/reproduce")
+        / task_folder
         / f"states{args.init_prior_mean}"
         / case_info["case"]
         / case_info["instruction"].replace(".json", "")
@@ -170,8 +41,8 @@ def run_experiment(case_info):
     log_file_path = log_dir / f"run_{args.init_prior_mean}.log"
 
     # 결과 파일 존재 여부 확인 (end_state.json)
-    # assets/results/states130/tasks_3_constraints_1/01_cook_egg_and_wash_a_butterknife_and_wash_plate_and_cup/FloorPlan1/dag_bayesian_DEFAULT/end_state.json
-    result_base_path = Path("assets/results/")
+    # assets/results/[task_folder]/states100/...
+    result_base_path = Path("assets/results/") / task_folder
     result_dir = (
         result_base_path
         / f"states{args.init_prior_mean}"
@@ -208,6 +79,9 @@ def run_experiment(case_info):
         "DEBUG",  # 상세 로그 확인용
         "--log-path",
         str(log_file_path.absolute()),
+        # [Added] task_folder_name 인자 추가
+        "--task-folder-name",
+        task_folder,
     ]
 
     print("\n==================================================")

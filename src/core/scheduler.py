@@ -353,6 +353,40 @@ class Scheduler:
                 f"Policy 1 (Urgent): Expanding {len(urgent_candidates)} urgent candidate(s)."
             )
             for candidate in urgent_candidates:
+                # [Added 250202] Conflict-Avoidance Wait for Urgent Tasks
+                # Check if immediate execution causes future conflicts.
+                # Even for urgent tasks, if execution leads to a future deadline violation,
+                # we should consider waiting (which might violate the current urgent interval,
+                # but allows the scheduler to weigh the costs).
+                conflict_delay, _ = self.cost_calculator.check_future_conflict(
+                    curr_node, candidate
+                )
+
+                if conflict_delay > constants.EPSILON:
+                    # Calculate Nav Duration for Wait
+                    target_obj_id = candidate.subtask.execution.primitive_actions[
+                        0
+                    ].split(" ")[1]
+                    nav_time = self.action_handler.get_actions_info(
+                        curr_node, [f"NAVIGATE_TO {target_obj_id}"]
+                    ).action_duration
+
+                    wait_node = self._expand_wait_wo_monitoring(
+                        curr_node,
+                        candidate,
+                        not_yet_candidates,
+                        nav_duration=nav_time,
+                        feasible_candidates=feasible_candidates,
+                        additional_delay=conflict_delay,
+                    )
+
+                    if wait_node:
+                        log.debug(
+                            f"[Conflict-Avoidance] Generated Wait Node for URGENT {candidate.subtask.name} "
+                            f"(Delay: {conflict_delay:.2f}s) to avoid future conflict."
+                        )
+                        expansions.append(wait_node)
+
                 child_node = self._expand_single_subtask(
                     curr_node, candidate, not_yet_candidates, feasible_candidates
                 )
@@ -369,6 +403,40 @@ class Scheduler:
         # --- Policy 2: Standard Expansion (other feasible + all waits) ---
         log.debug("Policy 2: No urgent criticals. Performing standard expansion.")
         for candidate in feasible_candidates:
+
+            # 2. [Added 250130] Conflict-Avoidance Wait
+            # Check if immediate execution causes future conflicts.
+            # If so, generate an alternative 'Wait' node that delays execution just enough to avoid the conflict.
+            conflict_delay, _ = self.cost_calculator.check_future_conflict(
+                curr_node, candidate
+            )
+
+            if conflict_delay > constants.EPSILON:
+                # Calculate Nav Duration for Wait
+                target_obj_id = candidate.subtask.execution.primitive_actions[0].split(
+                    " "
+                )[1]
+                nav_time = self.action_handler.get_actions_info(
+                    curr_node, [f"NAVIGATE_TO {target_obj_id}"]
+                ).action_duration
+
+                wait_node = self._expand_wait_wo_monitoring(
+                    curr_node,
+                    candidate,
+                    not_yet_candidates,
+                    nav_duration=nav_time,
+                    feasible_candidates=feasible_candidates,
+                    additional_delay=conflict_delay,
+                )
+
+                if wait_node:
+                    log.debug(
+                        f"[Conflict-Avoidance] Generated Wait Node for {candidate.subtask.name} "
+                        f"(Delay: {conflict_delay:.2f}s) to avoid future conflict."
+                    )
+                    expansions.append(wait_node)
+
+            # 1. Expand Action (Immediate Execution)
             child_node = self._expand_single_subtask(
                 curr_node, candidate, not_yet_candidates, feasible_candidates
             )
@@ -542,7 +610,7 @@ class Scheduler:
                         + candidate.estimated_first_nav_duration
                     )
 
-                    if 0 >= logical_start - physical_start - TIMING_TOLERANCE_ABS // 2:
+                    if 0 >= logical_start - physical_start - (TIMING_TOLERANCE_ABS / 2):
                         # Urgent but blocked! Find feasible predecessors recursively.
                         log.debug(
                             f"Found BLOCKED URGENT task: {candidate.subtask.name} "
@@ -895,9 +963,8 @@ class Scheduler:
             curr_node, candidate, all_candidates
         )
 
-        # [Modified] HeuristicManager now returns the total cost (g(n) + h(n)).
-        # We should NOT add curr_node.heuristic_cost anymore.
-        # [Fix] Removed (1 / (curr_depth + 1)) weighting which underestimates h(n) for deeper nodes.
+        # [Modified] HeuristicManager returns h(n) (Remaining Work + Debt).
+        # We add planned_subtask_completion_time (g(n)) here to get the total cost f(n) = g(n) + h(n).
         new_cost = planned_subtask_completion_time + total_heuristic_cost
 
         # Accumulate max risk level along the path
@@ -1249,6 +1316,23 @@ class Scheduler:
                 f"Failed to split {original_task_name} with cutoff {duration_for_early_sub_target:.2f}. "
                 f"Switching to Pre-Monitoring (Check-Before-Act) strategy as a fallback."
             )
+            # [Safety Check 250130] Prevent redundant monitoring
+            # If the immediately preceding task was ALREADY a monitoring action for the SAME object,
+            # we should NOT insert another monitoring step. This prevents infinite monitoring loops.
+            if (
+                curr_node.state.subtask
+                and curr_node.state.subtask.subtask_type == "Monitor"
+                and monitoring_target_obj
+                and monitoring_target_obj in curr_node.state.subtask.name
+            ):
+                log.warning(
+                    f"[_expand_subtask_with_monitoring] Redundant monitoring detected! "
+                    f"Predecessor '{curr_node.state.subtask.name}' already monitored '{monitoring_target_obj}'. "
+                    f"Skipping monitoring insertion and proceeding with original task."
+                )
+                return self._expand_subtask_wo_monitoring(
+                    curr_node, candidate, not_yet_candidates, feasible_candidates
+                )
             # [Fallback] 분할 실패 시, 작업을 시작하기 '전'에 미리 모니터링을 수행하는 경로를 탐색에 추가합니다.
             # 모니터링 시간만큼 작업 착수가 지연되지만, 불확실성을 해소할 수 있는 안전한 선택지입니다.
             return self._insert_monitoring_step(
@@ -1887,6 +1971,7 @@ class Scheduler:
         nav_duration: float = 0.0,
         feasible_candidates: List[Candidate] = None,
         max_wait_duration: Optional[float] = None,
+        additional_delay: float = 0.0,
     ) -> Optional[SimulationNode]:
         """
         Inserts a single "Wait" action until the candidate's actual_interaction_start_time.
@@ -1899,6 +1984,7 @@ class Scheduler:
             curr_node (SimulationNode): Current node in the search tree.
             candidate (Candidate): The candidate subtask we're waiting for.
             nav_duration (float): Estimated navigation duration to the target object.
+            additional_delay (float): Extra wait time to avoid conflicts (used for Conflict-Avoidance Wait).
 
         Returns:
             SimulationNode: The child node representing the new state after waiting.
@@ -1916,6 +2002,11 @@ class Scheduler:
                 else curr_state.current_time
             )
         )
+
+        # [Added 250130] Support Conflict-Avoidance Wait
+        # If additional_delay is provided, push the target start time further.
+        if additional_delay > 0:
+            target_start_time += additional_delay
 
         if max_wait_duration is not None:
             target_start_time = min(
@@ -1995,10 +2086,8 @@ class Scheduler:
             all_candidates,
             # Wait action creates delay. We must check if this delay hurts ANY feasible or not_yet task.
         )
-
-        # [Modified] HeuristicManager now returns the total cost (g(n) + h(n)).
-        # We should NOT add curr_node.heuristic_cost anymore.
-        # [Fix] Removed (1 / (depth + 1)) weighting which underestimates h(n) for deeper nodes.
+        # [Modified] HeuristicManager returns h(n) (Remaining Work + Debt).
+        # We add end_time (g(n)) here to get the total cost f(n) = g(n) + h(n).
         new_cost = end_time + total_heuristic_cost
 
         # Accumulate max risk level

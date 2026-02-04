@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from pathlib import Path
@@ -13,10 +14,7 @@ from assets.result_analysis.utils.instruction_parser import (
     parse_instruction_to_tasks,
 )
 from assets.result_analysis.utils.specs import TASK_SPECS
-from assets.result_analysis.utils.state_change_simulate import (
-    accumulate_state_changes,
-    load_events_from_file,
-)
+from assets.result_analysis.utils.state_change_simulate import load_events_from_file
 from assets.result_analysis.utils.summary import (
     aggregate_summary,
     summary_to_latex_table,
@@ -32,10 +30,17 @@ def _to_spec_key(task_name: str) -> str:
     return task_name.lower().replace(" and ", "_and_").replace(" ", "_")
 
 
-def main() -> None:
-    """Traverse all states folders (states60/100/140), evaluate tasks, and emit single summary in JSON/LaTeX."""
+def state_base_eval(target_directory: Path | None = None) -> None:
+    """Traverse all states folders (states60/100/140), evaluate tasks, and emit single summary in JSON/LaTeX.
 
-    results_folder: Path = Path("assets/results/baseline_trial_3")
+    Args:
+        target_directory (Path | None): Optional root directory to search for 'states*' folders.
+                                        Defaults to 'assets/results/'.
+    """
+
+    results_folder: Path = (
+        target_directory if target_directory else Path("assets/results/")
+    )
     tasks_json_path = (
         Path(__file__).resolve().parents[1] / "tasks" / "floorplan_tasks.json"
     )
@@ -229,4 +234,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    args = argparse.ArgumentParser()
+    args.add_argument("--target_directory", type=Path, default=Path("assets/results/"))
+
+    args = args.parse_args()
+    state_base_eval(args.target_directory)
