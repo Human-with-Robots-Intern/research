@@ -472,11 +472,13 @@ def find_best_values(data: Dict[str, Any], methods_to_compare: List[str]) -> Tup
                     base_mk.append(mk)
 
             # Helper to find best and second best
-            def get_top_two(values: List[float], higher_is_better: bool) -> Tuple[float, Optional[float]]:
+            def get_top_two(
+                values: List[float], higher_is_better: bool
+            ) -> Tuple[float, Optional[float]]:
                 unique_vals = sorted(list(set(values)), reverse=higher_is_better)
                 if not unique_vals:
                     return (float("-inf") if higher_is_better else float("inf")), None
-                
+
                 best = unique_vals[0]
                 second = unique_vals[1] if len(unique_vals) > 1 else None
                 return best, second
@@ -875,6 +877,7 @@ def generate_latex_table(
 def main() -> None:
     """Run the main script execution pipeline."""
     args = load_argument_parser()
+    output_json_path = args.root_dir / "unified_analysis_summary.revised.json"
 
     # 1. Collect and Aggregate Data from all experiment folders found in root_dir
     final_data = collect_and_aggregate(
@@ -887,7 +890,7 @@ def main() -> None:
         TASK_DISPLAY_NAMES.update({"tasks_2": "T2", "tasks_3": "T3"})
 
     # 2. Save the merged summary for visualization
-    if args.output_json:
+    if output_json_path:
         # Pre-process for JSON output (extract means from tuples)
         json_output_data = {}
         for method, task_data in final_data.items():
@@ -905,9 +908,9 @@ def main() -> None:
                             json_output_data[method][task][init][m_name] = m_val
 
         try:
-            with open(args.output_json, "w") as f:
+            with open(output_json_path, "w") as f:
                 json.dump(json_output_data, f, indent=4)
-            print(f"Saved merged summary to {args.output_json}")
+            print(f"Saved merged summary to {output_json_path}")
         except Exception as e:
             print(f"Error saving JSON output: {e}")
 
