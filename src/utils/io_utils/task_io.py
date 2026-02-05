@@ -3,12 +3,8 @@ import json
 from pathlib import Path
 from typing import NamedTuple, Optional, Tuple
 
-from src.utils.config.constants import (
-    ASSETS_PATH,
-    ROOM_TYPE,
-    SCENE_KNOWLEDGE_PATH,
-    TASK_PATH,
-)
+from src.utils.config import constants
+from src.utils.config.constants import ASSETS_PATH, ROOM_TYPE, SCENE_KNOWLEDGE_PATH
 from src.utils.task.task_generator import TaskGenerator
 
 
@@ -29,7 +25,7 @@ def load_task_data_from_sampled_set(
     Load task data from sampled set.
     """
     # Use TASK_PATH from constants to avoid hardcoded folder names.
-    task_path = TASK_PATH / case_name / scene_name / instruction
+    task_path = constants.TASK_PATH / case_name / scene_name / instruction
     if not task_path.exists():
         raise FileNotFoundError(f"Task file not found: {task_path}")
     with task_path.open("r", encoding="utf-8") as file:
@@ -40,7 +36,7 @@ def load_task_data_from_file(task_file_name: str) -> dict:
     """
     특정 task 파일에서 JSON 데이터를 불러옴.
     """
-    target_path = TASK_PATH / task_file_name
+    target_path = constants.TASK_PATH / task_file_name
     if not target_path.exists():
         try:
             with open(task_file_name, "r", encoding="utf-8") as file:
@@ -72,9 +68,11 @@ def list_task_files(scene_name=None) -> list[Path]:
     TASK_PATH 디렉토리 내 JSON 파일 목록을 이름 기준으로 정렬하여 반환.
     """
     if scene_name is None:
-        return sorted(TASK_PATH.glob("*.json"), key=lambda p: p.name)
+        return sorted(constants.TASK_PATH.glob("*.json"), key=lambda p: p.name)
     else:
-        return sorted((TASK_PATH / scene_name).glob("*.json"), key=lambda p: p.name)
+        return sorted(
+            (constants.TASK_PATH / scene_name).glob("*.json"), key=lambda p: p.name
+        )
 
 
 def load_scene_data(room_type: str, file_name: str) -> SceneData:
@@ -247,12 +245,7 @@ def get_natural_language_from_task_file(task_file_name: str) -> str:
     """
     주어진 task 파일 이름에 해당하는 자연어 설명을 반환
     """
-    nl_path = TASK_PATH / "task_natural_languages.json"
-    with nl_path.open("r", encoding="utf-8") as f:
-        task_nl_dict = json.load(f)
-
-    task_nl_dict = {k.strip(":"): v for k, v in task_nl_dict.items()}
-    return task_nl_dict.get(task_file_name, None)
+    nl_path = constants.TASK_PATH / "task_natural_languages.json"
     with nl_path.open("r", encoding="utf-8") as f:
         task_nl_dict = json.load(f)
 
