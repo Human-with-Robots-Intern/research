@@ -23,21 +23,21 @@ DATA = {
         "marker": "p",
         "style": "-",
     },
-    "DAG + EDF": {
+    "tDAG + EDF": {
         "sr": [],
         "makespan": [],
         "color": "brown",
         "marker": "x",
         "style": "-.",
     },
-    "DAG + CPM": {
+    "tDAG + CPM": {
         "sr": [],
         "makespan": [],
         "color": "green",
         "marker": "s",
         "style": "--",
     },
-    "ProgPrompt": {
+    "Prog.": {
         "sr": [],
         "makespan": [],
         "color": "blue",
@@ -56,28 +56,31 @@ DATA = {
 APPROACH_LIST = {
     "dag_bayesian_DEFAULT": "Ours",
     "dag_bayesian_NONE_MONITORING": "Ours (w/o Mon.)",
-    "dag_edf": "DAG + EDF",
-    "cpm": "DAG + CPM",
-    "progprompt": "ProgPrompt",
+    "dag_edf": "tDAG + EDF",
+    "cpm": "tDAG + CPM",
+    "progprompt": "Prog.",
     "cap_ai2thor_simulation": "CaP",
 }
 
-INIT_LIST = [
-    "init_60",
-    "init_70",
-    "init_80",
-    "init_90",
-    "init_100",
-    "init_110",
-    "init_120",
-    "init_130",
-    "init_140",
+INIT_LIST_SIM = [f"init_{i}" for i in range(60, 150, 20)]
+INIT_LIST_REAL = ["init_60", "init_100", "init_140"]
+
+# Default to SIM, will be updated in main based on args
+INIT_LIST = INIT_LIST_SIM
+
+CONDITIONS_SIM = [
+    "60s",
+    "80s",
+    "100s\n(Correct)",
+    "120s",
+    "140s",
 ]
+CONDITIONS_REAL = ["60s", "100s\n(Correct)", "140s"]
 TASK_CASE = [
-    # "tasks_2_constraints_1",
-    "tasks_2",
-    "tasks_3",
-    # "tasks_3_constraints_2",
+    "tasks_2_constraints_1",
+    "tasks_2_constraints_2",
+    "tasks_3_constraints_1",
+    "tasks_3_constraints_2",
 ]
 METRIC_LIST = ["sr", "makespan"]
 
@@ -182,18 +185,20 @@ def plot_trajectory(data: dict, output_path: str | None = None) -> None:
         color="red",
         ha="center",
         fontweight="bold",
+        fontsize=14,
     )
 
     # --- 축 및 설정 ---
-    ax.set_xlabel("Makespan (s) ↓ (Efficiency)", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Success Rate (%) ↑ (Robustness)", fontsize=12, fontweight="bold")
+    ax.set_xlabel("Makespan (s) ↓ (Efficiency)", fontsize=16, fontweight="bold")
+    ax.set_ylabel("Success Rate (%) ↑ (Robustness)", fontsize=16, fontweight="bold")
     ax.set_title(
-        "Performance Stability across Belief Conditions", fontsize=14, fontweight="bold"
+        "Performance Stability across Belief Conditions", fontsize=18, fontweight="bold"
     )
+    ax.tick_params(axis="both", which="major", labelsize=14)
 
     # 그리드 및 범례
     ax.grid(True, linestyle="--", alpha=0.5)
-    ax.legend(loc="lower left", fontsize=10)
+    ax.legend(loc="lower left", fontsize=14)
 
     plt.tight_layout()
     if output_path:
@@ -203,27 +208,20 @@ def plot_trajectory(data: dict, output_path: str | None = None) -> None:
         plt.show()
 
 
-def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
+def plot_separate_metrics(
+    data: dict, conditions: list, output_path: str | None = None
+) -> None:
     """
     sr과 Makespan을 각각의 그래프로 분리하여 보여줍니다.
     x축은 초기 믿음 조건, y축은 각 메트릭의 값을 나타냅니다.
 
     Args:
         data (dict): 시각화에 사용할 데이터.
+        conditions (list): x축 레이블 리스트.
         output_path (str | None): 그래프를 저장할 파일 경로. None이면 화면에 표시.
     """
     fig, ax = plt.subplots(1, 1, figsize=(8, 6))
-    conditions = [
-        "60s",
-        "70s",
-        "80s",
-        "90s",
-        "100s\n(Correct)",
-        "110s",
-        "120s",
-        "130s",
-        "140s",
-    ]
+
     metrics_info = [
         (
             "sr",
@@ -235,9 +233,9 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
     method_order = [
         "Ours",
         "Ours (w/o Mon.)",
-        "DAG + CPM",
-        "DAG + EDF",
-        "ProgPrompt",
+        "tDAG + CPM",
+        "tDAG + EDF",
+        "Prog.",
         "CaP",
     ]
 
@@ -264,15 +262,21 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
                 markersize=9,
             )
 
-        ax.set_title(title, fontsize=14, pad=15, fontweight="bold")
-        ax.set_ylabel(ylabel, fontsize=12, labelpad=10)
+        ax.set_title(title, fontsize=18, pad=15, fontweight="bold")
+        ax.set_ylabel(ylabel, fontsize=16, labelpad=10)
         ax.set_xlabel(
-            r"Initial Belief Condition ($\Delta_0$)", fontsize=12, labelpad=10
+            r"Initial Belief Condition ($\Delta_0$)", fontsize=16, labelpad=10
         )
+        ax.tick_params(axis="both", which="major", labelsize=14)
         ax.grid(True, linestyle="--", alpha=0.4)
 
-        # Correct (index 2) 조건 강조 (빨간색 세로줄, 약간 투명하게)
-        ax.axvline(x=4, color="red", alpha=0.3, linewidth=1.5)
+        # Correct 조건 강조 (빨간색 세로줄, 약간 투명하게)
+        # conditions 리스트에서 "100s\n(Correct)"의 인덱스를 찾아서 표시
+        try:
+            correct_idx = conditions.index("100s\n(Correct)")
+            ax.axvline(x=correct_idx, color="red", alpha=0.3, linewidth=1.5)
+        except ValueError:
+            pass  # 100s가 없으면 표시하지 않음
 
     # 범례 통합
     handles, labels = ax.get_legend_handles_labels()
@@ -282,13 +286,13 @@ def plot_separate_metrics(data: dict, output_path: str | None = None) -> None:
         loc="center right",
         bbox_to_anchor=(0.99, 0.65),  # bbox_to_anchor 조정
         ncol=1,
-        fontsize=10,
+        fontsize=14,
         framealpha=0.9,
     )
 
     plt.tight_layout()
     # tight_layout 후 하단 여백 확보
-    plt.subplots_adjust(bottom=0.20)
+    plt.subplots_adjust(bottom=0.25)
     if output_path:
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         print(f"그래프가 저장되었습니다: {output_path}")
@@ -341,10 +345,10 @@ if __name__ == "__main__":
         """
     )
     parser.add_argument(
-        "--root_path",
+        "--root_dir",
         type=Path,
-        default="assets/results",
-        help="데이터 파일 경로를 지정합니다.",
+        default=None,
+        help="데이터 파일 경로를 지정합니다. 지정하지 않으면 experiment_type에 따른 기본 경로를 사용합니다.",
     )
 
     parser.add_argument(
@@ -354,12 +358,45 @@ if __name__ == "__main__":
         help="통합된 결과를 JSON 파일로 저장합니다 (기본값: True).",
     )
 
+    parser.add_argument(
+        "--experiment_type",
+        type=str,
+        choices=["sim", "real"],
+        default="sim",
+        help="실험 타입을 지정합니다 (sim: 시뮬레이션, real: 리얼 월드). 기본값: sim",
+    )
+
     args = parser.parse_args()
 
-    load_data(args.root_path / "unified_analysis_summary.revised.json")
+    # Set global INIT_LIST and prepare conditions based on experiment type
+    if args.experiment_type == "sim":
+        INIT_LIST[:] = INIT_LIST_SIM
+        conditions = CONDITIONS_SIM
+        default_path = Path(
+            "assets/results/260206_conflict_aware_wait_clean/unified_analysis_summary.revised.json"
+        )
+    else:
+        INIT_LIST[:] = INIT_LIST_REAL
+        conditions = CONDITIONS_REAL
+        default_path = Path(
+            "assets/results/260208_final_real_exp_result/unified_analysis_summary.revised.json"
+        )
+
+    # Determine data path
+    if args.root_dir:
+        data_path = args.root_dir / "unified_analysis_summary.revised.json"
+    else:
+        data_path = default_path
+
+    print(f"Loading data from: {data_path}")
+    load_data(data_path)
 
     if args.save_json:
-        save_aggregated_json(DATA, args.root_path / "aggregated_result.json")
+        # Save to the same directory as the input file
+        output_json_path = data_path.parent / "aggregated_result.json"
+        save_aggregated_json(DATA, output_json_path)
 
     # plot_trajectory(DATA, args.data_path / "trajectory.png")
-    plot_separate_metrics(DATA, args.root_path / "separate.png")
+    # Save plot to the same directory as the input file
+    output_plot_path = data_path.parent / "separate.png"
+    plot_separate_metrics(DATA, conditions, output_plot_path)
