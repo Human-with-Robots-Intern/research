@@ -6,7 +6,7 @@ from pathlib import Path
 
 # 설정
 TASKS_ROOT = "/home/dongkyu/pdk_ws/research/assets/tasks"
-RESULTS_ROOT = "/home/dongkyu/pdk_ws/research/assets/results/260202_conflict_aware_wait"
+RESULTS_ROOT = "/home/dongkyu/pdk_ws/research/assets/results/260208_final_sim_exp_result"
 
 # Task Set 후보
 TASK_SETS = {
@@ -18,13 +18,32 @@ TASK_SETS = {
 }
 
 # 결과 폴더 매핑
-RESULT_DIRS = {
-    "5070": "5070",
-    "pdk": "pdk",
-    "laptop6": "laptop6",
-    "bluebottle": "bluebottle",
-    "laptop4": "laptop4",
-}
+# RESULT_DIRS = {
+#     "5070": "5070",
+#     "pdk": "pdk",
+#     "laptop6": "laptop6",
+#     "bluebottle": "bluebottle",
+#     "laptop4": "laptop4",
+# }
+
+
+def get_all_result_dirs():
+    """RESULTS_ROOT 아래의 모든 디렉토리를 자동으로 찾습니다."""
+    base_path = Path(RESULTS_ROOT)
+    dirs = {}
+    if base_path.exists():
+        for p in base_path.iterdir():
+            if (
+                p.is_dir()
+                and not p.name.startswith("__")
+                and not p.name.startswith(".")
+            ):
+                # 폴더 이름을 그대로 키와 값으로 사용
+                dirs[p.name] = p.name
+    return dirs
+
+
+RESULT_DIRS = get_all_result_dirs()
 
 
 def get_tasks_from_dir(task_set_dir):
@@ -90,34 +109,55 @@ def scan_results(result_dir_name):
         for method_dir in state_dir.glob("**/*"):
             if not method_dir.is_dir():
                 continue
-            if method_dir.name in [
+
+            # dag_bayesian 계열이 포함되도록 필터링 조건 확장
+            # 기존: ["cap_ai2thor_simulation", "cpm", "dag_edf", "progprompt"]
+            # 변경: 주요 키워드가 포함되어 있는지 확인 (더 유연하게)
+
+            target_keywords = [
                 "cap_ai2thor_simulation",
                 "cpm",
                 "dag_edf",
                 "progprompt",
-            ]:
-                # 경로 역추적
-                # method_dir: .../states120/tasks_2_constraints_1/06_task.../FloorPlan1/cpm
-                try:
-                    parts = method_dir.relative_to(state_dir).parts
-                    # parts: ('tasks_2_constraints_1', '06_task...', 'FloorPlan1', 'cpm')
-                    if len(parts) >= 4:
-                        method = parts[-1]
-                        floorplan = parts[-2]
-                        task_name = parts[-3]
-                        category = parts[-4]
+                "dag_bayesian_DEFAULT",
+                "dag_bayesian_NONE_MONITORING",
+            ]
 
-                        executed.append(
-                            {
-                                "prior": prior,
-                                "method": method,
-                                "category": category,
-                                "floorplan": floorplan,
-                                "task_name": task_name,
-                            }
-                        )
-                except Exception as e:
-                    pass
+            is_target_method = False
+            for keyword in target_keywords:
+                if keyword in method_dir.name:
+                    is_target_method = True
+                    break
+
+            if not is_target_method:
+                continue
+
+            try:
+                # trajectory_log.json 파일 확인
+                traj_log = method_dir / "trajectory_log.json"
+                if not traj_log.exists():
+                    continue
+
+                parts = method_dir.relative_to(state_dir).parts
+                # parts: ('tasks_2_constraints_1', '06_task...', 'FloorPlan1', 'dag_bayesian_DEFAULT')
+
+                if len(parts) >= 4:
+                    method = parts[-1]
+                    floorplan = parts[-2]
+                    task_name = parts[-3]
+                    category = parts[-4]
+
+                    executed.append(
+                        {
+                            "prior": prior,
+                            "method": method,
+                            "category": category,
+                            "floorplan": floorplan,
+                            "task_name": task_name,
+                        }
+                    )
+            except Exception as e:
+                pass
 
     return executed
 
@@ -140,73 +180,198 @@ def main():
         print(f"  - Found {len(results)} execution records.")
 
     # 3. 'pdk'의 원본 Task Set 식별
-    pdk_results = results_data["pdk"]
-    pdk_task_names = set(r["task_name"] for r in pdk_results)
+    best_pdk_source = "pdk"  # Default value
+    if "pdk" in results_data:
+        pdk_results = results_data["pdk"]
+        pdk_task_names = set(r["task_name"] for r in pdk_results)
 
-    candidates = ["pdk", "laptop6"]
-    match_counts = {k: 0 for k in candidates}
+        candidates = ["pdk", "laptop6"]
+        match_counts = {k: 0 for k in candidates}
 
-    for candidate in candidates:
-        candidate_tasks = set(t["task_name"] for t in task_sets_data[candidate])
-        # 교집합 크기 확인
-        match_counts[candidate] = len(pdk_task_names.intersection(candidate_tasks))
+        for candidate in candidates:
+            candidate_tasks = set(t["task_name"] for t in task_sets_data[candidate])
+            # 교집합 크기 확인
+            match_counts[candidate] = len(pdk_task_names.intersection(candidate_tasks))
 
-    print(f"\nTask Set Match for 'pdk': {match_counts}")
-    best_pdk_source = max(match_counts, key=match_counts.get)
-    print(f"Determined source for 'pdk': {best_pdk_source}")
+        print(f"\nTask Set Match for 'pdk': {match_counts}")
+        best_pdk_source = max(match_counts, key=match_counts.get)
+        print(f"Determined source for 'pdk': {best_pdk_source}")
+    else:
+        print("\n'pdk' folder not found in results. Skipping source determination for 'pdk'.")
 
-    # 4. 분석 대상 설정
-    # 모든 결과 폴더에 대해 매핑 설정
-    # 타겟: 5070 -> 5070
-    # 타겟: pdk -> best_pdk_source
-    # 나머지: 이름 그대로 매핑 (예: laptop6 -> laptop6)
-    
-    target_mappings = []
-    for alias in RESULT_DIRS.keys():
-        if alias == "pdk":
-            target_mappings.append(("pdk", best_pdk_source))
-        else:
-            target_mappings.append((alias, alias))
+    # Alias 정규화 매핑 (사용자 정의 규칙)
+    # Key: 결과 폴더 이름, Value: 통합될 대표 이름 (Task Set Alias와 일치시키는 것이 좋음)
+    alias_map = {
+        # "5070": "5070",
+        "sampled_10_instruction_set_for_final_experiment_251231_5070": "5070",
+        # "pdk": "pdk",
+        "sampled_10_instruction_set_for_final_experiment_251203": "pdk",
+        # "laptop6": "laptop6",
+        "sampled_10_instruction_set_for_final_experiment_251231_laptop6": "laptop6",
+        # "bluebottle": "bluebottle",
+        "sampled_10_instruction_set_for_final_experiment_251231_bluebottle": "bluebottle",
+        # "laptop4": "laptop4",
+        "sampled_10_instruction_set_for_final_experiment_251231_laptop4": "laptop4",
+    }
 
-    # 5. Missing Check (매트릭스 형태로 현황 파악)
-    
-    # 전체 실험에서 발견된 Method, Prior 수집
-    all_methods = ["cap_ai2thor_simulation", "progprompt"]
-    all_priors = ["60", "70", "80", "90", "100", "110", "120", "130", "140"] # 명시적 지정
+    # 5. Matrix Printing Function
+    DATASET_ORDER = [
+        "pdk",
+        "sampled_10_instruction_set_for_final_experiment_251203",
+        "laptop6",
+        "sampled_10_instruction_set_for_final_experiment_251231_laptop6",
+        "bluebottle",
+        "sampled_10_instruction_set_for_final_experiment_251231_bluebottle",
+        "laptop4",
+        "sampled_10_instruction_set_for_final_experiment_251231_laptop4",
+        "5070",
+        "sampled_10_instruction_set_for_final_experiment_251231_5070",
+    ]
 
-    print("\n--- EXECUTION MATRIX (Prior x Method) ---")
-    print(f"Checking only methods: {all_methods}")
-    
-    for res_alias, task_set_alias in target_mappings:
-        print(f"\nDataset: {res_alias} (Source: {task_set_alias})")
-        print(
-            f"{'Prior':<10} | {'cap_ai2thor':<15} | {'progprompt':<15}"
+    def print_matrix(title, data_dict, mappings):
+        # 전체 실험에서 발견된 Method, Prior 수집
+        all_methods = set()
+        all_priors = set()
+
+        for records in data_dict.values():
+            for r in records:
+                all_methods.add(r["method"])
+                all_priors.add(r["prior"])
+
+        # 정렬
+        all_methods = sorted(list(all_methods))
+        all_priors = sorted(
+            list(all_priors), key=lambda x: int(x) if x.isdigit() else 999
         )
-        print("-" * 50)
 
-        executed_records = results_data[res_alias]
+        print(f"\n--- {title} ---")
+        # print(f"Detected Methods: {all_methods}")
+        # print(f"Detected Priors: {all_priors}")
 
-        # Count per (prior, method)
-        # Total tasks per dataset
-        total_tasks = len(task_sets_data[task_set_alias])
+        # 정렬: DATASET_ORDER에 있는 경우 우선, 그 외는 알파벳 순
+        def get_order_key(item):
+            alias = item[0]
+            if alias in DATASET_ORDER:
+                return DATASET_ORDER.index(alias)
+            return len(DATASET_ORDER) + (1 if alias else 0)
 
-        counts = defaultdict(int)
-        for r in executed_records:
-            counts[(r["prior"], r["method"])] += 1
+        sorted_mappings = sorted(mappings, key=get_order_key)
 
-        # 모든 발견된 Prior에 대해 출력
-        for prior in sorted(list(all_priors), key=lambda x: int(x)):
-            row = [f"{prior:<10}"]
+        for res_alias, task_set_alias in sorted_mappings:
+            print(f"\nDataset: {res_alias} (Source: {task_set_alias})")
+
+            # 헤더 출력
+            header = f"{'Prior':<10}"
             for method in all_methods:
-                count = counts[(prior, method)]
-                status = f"{count}/{total_tasks}"
-                if count == 0:
-                    status = "MISSING"
-                elif count < total_tasks:
-                    status = f"PARTIAL({count})"
-                
-                row.append(f"{status:<15}")
-            print(" | ".join(row))
+                header += f" | {method[:25]:<25}"
+            print(header)
+            print("-" * len(header))
+
+            executed_records = data_dict[res_alias]
+
+            # Total tasks per dataset
+            if task_set_alias and task_set_alias in task_sets_data:
+                total_tasks = len(task_sets_data[task_set_alias])
+            else:
+                total_tasks = 0  # Unknown
+
+            counts = defaultdict(int)
+            for r in executed_records:
+                counts[(r["prior"], r["method"])] += 1
+
+            for prior in all_priors:
+                row = [f"{prior:<10}"]
+                for method in all_methods:
+                    count = counts[(prior, method)]
+                    if total_tasks > 0:
+                        status = f"{count}/{total_tasks}"
+                        if count == 0:
+                            status = "MISSING"
+                        elif count < total_tasks:
+                            status = f"PARTIAL({count})"
+                    else:
+                        status = f"{count}/?"
+
+                    row.append(f"{status:<25}")
+                print(" | ".join(row))
+
+    # --- 4. Raw Folder Matrix ---
+
+    # Raw Mapping 생성
+    raw_mappings = []
+    for dirname in results_data.keys():
+        # Task Set 추정
+        target_ts = None
+
+        # 1. Alias Map을 역으로 이용하거나, 직접 매칭
+        # "5070" -> "sampled...5070" (TASK_SETS["5070"])
+
+        if dirname == "pdk":
+            target_ts = best_pdk_source
+        elif (
+            dirname in TASK_SETS
+        ):  # dirname이 "5070"이고 TASK_SETS에 "5070" 키가 있다면
+            target_ts = dirname
+        else:
+            # alias_map의 키에 있는지 확인
+            for k, v in alias_map.items():
+                if k == dirname:
+                    # v는 "5070" (short alias). TASK_SETS[v]가 존재하면 그것.
+                    if v in TASK_SETS:
+                        target_ts = v
+                    break
+
+        # 아직 못 찾았다면 Substring 매칭 시도
+        if not target_ts:
+            for ts_alias in TASK_SETS.keys():
+                if dirname in ts_alias or ts_alias in dirname:
+                    target_ts = ts_alias
+                    break
+
+        if not target_ts:
+            # Task Set 폴더명 자체와 매칭 시도
+            for ts_alias, ts_dir in TASK_SETS.items():
+                if dirname == ts_dir:
+                    target_ts = ts_alias
+                    break
+
+        raw_mappings.append((dirname, target_ts))
+
+    print_matrix("EXECUTION MATRIX (Per Folder)", results_data, raw_mappings)
+
+    # --- 5. Merged Matrix ---
+
+    # 결과 데이터 통합 (Merging)
+    merged_results = defaultdict(list)
+    for dirname, records in results_data.items():
+        # 매핑 규칙에 없으면 그대로 사용
+        target_alias = alias_map.get(dirname, dirname)
+        merged_results[target_alias].extend(records)
+        if target_alias != dirname:
+            print(f"Merging results from '{dirname}' into '{target_alias}'")
+
+    # 통합된 결과를 바탕으로 타겟 매핑 재설정
+    merged_mappings = []
+
+    for res_alias in merged_results.keys():
+        if res_alias == "pdk":
+            merged_mappings.append(("pdk", best_pdk_source))
+        elif res_alias in task_sets_data:
+            merged_mappings.append((res_alias, res_alias))
+        else:
+            found = False
+            for task_set_alias in task_sets_data.keys():
+                if res_alias in task_set_alias or task_set_alias in res_alias:
+                    merged_mappings.append((res_alias, task_set_alias))
+                    found = True
+                    break
+            if not found:
+                print(
+                    f"Warning: No matching Task Set found for result group '{res_alias}'."
+                )
+                merged_mappings.append((res_alias, None))
+
+    print_matrix("EXECUTION MATRIX (Merged)", merged_results, merged_mappings)
 
 
 if __name__ == "__main__":
