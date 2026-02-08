@@ -67,19 +67,19 @@ def parse_arguments():
     parser.add_argument(
         "--case",
         type=str,
-        default="tasks_3_constraints_2",
+        default="tasks_2_constraints_1",
         help="The name of the case.",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default="02_fill_bowl_with_water_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json",
+        default="08_heat_the_potato_using_microwave_and_wash_all_fork_and_spoon.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan1",
+        default="FloorPlan13",
         help="input scene name (default: FloorPlan1)",
     )
 
@@ -164,7 +164,7 @@ def parse_arguments():
     parser.add_argument(
         "--task-folder-name",
         type=str,
-        default=None,
+        default="sampled_10_instruction_set_for_final_experiment_251231_5070",
         help="Task folder name for organizing results",
     )
     return parser.parse_args()
@@ -195,8 +195,8 @@ def main():
         # This ensures we load tasks from the specified folder, not the default constant.
         dynamic_task_path = constants.ASSETS_PATH / "tasks" / args.task_folder_name
         constants.set_task_path(dynamic_task_path)
-        
-        base_result_path = base_result_path / args.task_folder_name
+
+        base_result_path = constants.RESULT_PATH / args.task_folder_name
         base_result_path.mkdir(parents=True, exist_ok=True)
 
     init_prior_mean = (

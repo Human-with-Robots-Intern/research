@@ -18,6 +18,7 @@ from ai2thor.platform import CloudRendering
 import src.baselines.cap.util.LMPgen as gen
 from src.simulation.runner_ai2thor import init_ai2thor_controller
 from src.utils.common import create_module_logger
+from src.utils.config import constants
 from src.utils.config.constants import set_init_prior_mean, set_init_prior_variance
 from src.utils.get_state import save_scene_state
 from src.utils.io_utils.result_saver import result_save_llm
@@ -607,6 +608,13 @@ def parse_arguments() -> argparse.Namespace:
         help="The name of the ablation configuration.",
     )
 
+    parser.add_argument(
+        "--task-folder-name",
+        type=str,
+        default=None,
+        help="Task folder name for organizing results",
+    )
+
     return parser.parse_args()
 
 
@@ -623,6 +631,13 @@ def main():
         set_init_prior_mean(args.init_prior_mean)
     if args.init_prior_variance is not None:
         set_init_prior_variance(args.init_prior_variance)
+
+    if args.task_folder_name:
+        dynamic_task_path = constants.ASSETS_PATH / "tasks" / args.task_folder_name
+        constants.set_task_path(dynamic_task_path)
+        base_result_path = constants.RESULT_PATH / args.task_folder_name
+    else:
+        base_result_path = constants.RESULT_PATH
 
     logger = create_module_logger(
         module_name=approach_name,
@@ -648,15 +663,16 @@ def main():
             else (Path(instruction).stem if instruction else instruction)
         )
         # 실패 시 불완전한 trajectory 로그 파일이 남지 않도록 삭제합니다.
-        trajectory_path = Path(
-            f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
+        trajectory_path = (
+            base_result_path
+            / f"states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
         )
         if trajectory_path.exists():
             trajectory_path.unlink()
 
         save_scene_state(
             controller=controller,
-            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+            output_path=base_result_path / f"states{int(args.init_prior_mean)}",
             case_name=args.case,
             scene_name=scene_name,
             instruction=instruction_dir_name,
@@ -667,8 +683,9 @@ def main():
         action_handler = Action(
             controller,
             logger=logger,
-            trajectory_log_json_path=Path(
-                f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
+            trajectory_log_json_path=(
+                base_result_path
+                / f"states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
             ),
         )
 
@@ -716,9 +733,8 @@ def main():
             "approach_name": approach_name,
             "user_input": instruction_dir_name,
             "result": str(
-                Path(
-                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
-                )
+                base_result_path
+                / f"states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
             ),
             "json_output_path": result_path,
             "computation_time": computation_time,
@@ -731,7 +747,7 @@ def main():
         result_save_llm(**result_args)
         save_scene_state(
             controller=controller,
-            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+            output_path=base_result_path / f"states{int(args.init_prior_mean)}",
             case_name=args.case,
             scene_name=scene_name,
             instruction=instruction_dir_name,
@@ -743,8 +759,9 @@ def main():
         print("실행 중 치명적인 오류 발생: %s", e)
         controller.stop()
         # 실패 시 불완전한 trajectory 로그 파일이 남지 않도록 삭제합니다.
-        trajectory_path = Path(
-            f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
+        trajectory_path = (
+            base_result_path
+            / f"states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
         )
         if trajectory_path.exists():
             trajectory_path.unlink()

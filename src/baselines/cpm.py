@@ -588,6 +588,7 @@ def main() -> None:
     # Dynamically override constants based on command-line arguments
     from src.utils.config import constants
 
+    base_result_path = constants.RESULT_PATH
     if args.task_folder_name:
         # [Added] Override TASK_PATH dynamically based on the argument
         # This ensures we load tasks from the specified folder, not the default constant.

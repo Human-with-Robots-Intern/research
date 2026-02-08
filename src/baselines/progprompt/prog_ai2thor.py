@@ -17,6 +17,7 @@ from util.utils_execute import LM, ProgPromptActionFailedError, simulate_executi
 from ithor.handlers.action import Action
 from src.simulation.runner_ai2thor import init_ai2thor_controller
 from src.utils.common import create_module_logger
+from src.utils.config import constants
 from src.utils.config.constants import set_init_prior_mean
 from src.utils.get_state import save_scene_state
 from src.utils.io_utils.result_saver import result_save_llm
@@ -201,6 +202,13 @@ def parse_arguments() -> argparse.Namespace:
         help="The name of the ablation configuration.",
     )
 
+    parser.add_argument(
+        "--task-folder-name",
+        type=str,
+        default=None,
+        help="Task folder name for organizing results",
+    )
+
     return parser.parse_args()
 
 
@@ -230,27 +238,31 @@ def generate_plan(
     if args.simulation:
         # 1. 시뮬레이션 환경의 object들을 가져옴
         obj = list(
-            set(obj["objectType"] for obj in controller.step("Pass").metadata["objects"])
+            set(
+                obj["objectType"] for obj in controller.step("Pass").metadata["objects"]
+            )
         )
         # 2. iTHOR에서 사용 가능한 action들
         prompt = "from actions import walk <obj>, pickup <obj>, put <obj> <obj>, drop <obj>, open <obj>, close <obj>, toggle_on <obj>, toggle_off <obj>, slice <obj>, wait <duration>"
         # 3. 예제 태스크 경로
         example_task_path = os.path.join(current_dir, "example_task.json")
-        
+
     elif args.ros:
         # 1. ROS 환경의 object들을 가져옴
-        with open("assets/scene_knowledge/real_world/object_init_positions/FloorPlan301_physics.json", "r") as f:
+        with open(
+            "assets/scene_knowledge/real_world/object_init_positions/FloorPlan301_physics.json",
+            "r",
+        ) as f:
             physics_data = json.load(f)
             obj = list(physics_data.keys())
         # 2. ROS에서 사용 가능한 action들
         prompt = "from actions import TOGGLE_ON <obj>, TOGGLE_OFF <obj>, GRASP <obj>, PLACE_ON_TOP <obj>, PLACE_INSIDE <obj>, WAIT <duration>, MONITORING <obj>, NAVIGATE_TO <obj>"
         # 3. 예제 태스크 경로
         example_task_path = os.path.join(current_dir, "example_task_real.json")
-    
-    
+
     # 현재 scene에 있는 objects를 prompt에 추가
     prompt += f"\nobjects(name) = {obj}\n\n"
-    
+
     # Temporal logic guidelines 주입
     wait_units = int(args.init_prior_mean) if args.init_prior_mean is not None else 60
     prompt += "\n" + build_temporal_logic_guidelines(wait_units) + "\n"
@@ -259,7 +271,7 @@ def generate_plan(
         prompt_egs = {}
         for k, v in tmp.items():
             prompt_egs[k] = v
-            
+
     if args.prompt_task_examples == "default":
         if args.ros:
             default_examples = [
@@ -277,7 +289,7 @@ def generate_plan(
                 "wash tomato, potato and egg, and cook egg fry",
                 "put tomato and apple in fridge and put book in shelf",
             ]
-        
+
         num_examples_to_use = min(args.prompt_num_examples, len(default_examples))
         for i in range(num_examples_to_use):
             prompt += (
@@ -325,7 +337,7 @@ def generate_plan(
             folder_key = task
 
         result_path = f"{folder_key}"
-    
+
         # Execute simulation; ensure any internal buffers are flushed to log_file
         simulate_execution(
             controller, [task], [text], log_file, args, logger, action_interface
@@ -346,7 +358,7 @@ def generate_plan(
         result_save_llm(**result_args)
         save_scene_state(
             controller=controller,
-            output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+            output_path=base_result_path / f"states{int(args.init_prior_mean)}",
             case_name=args.case,
             scene_name=args.scene,
             instruction=folder_key,
@@ -370,6 +382,13 @@ if __name__ == "__main__":
     # Handle INIT_PRIOR_MEAN override
     if args.init_prior_mean is not None:
         set_init_prior_mean(args.init_prior_mean)
+
+    if args.task_folder_name:
+        dynamic_task_path = constants.ASSETS_PATH / "tasks" / args.task_folder_name
+        constants.set_task_path(dynamic_task_path)
+        base_result_path = constants.RESULT_PATH / args.task_folder_name
+    else:
+        base_result_path = constants.RESULT_PATH
 
     logger = create_module_logger(
         module_name="prog_ai2thor",
@@ -414,7 +433,7 @@ if __name__ == "__main__":
         platform_obj = CloudRendering
     if args.simulation:
         controller = init_ai2thor_controller(scene_name, platform=platform_obj)
-    elif args.ros:        
+    elif args.ros:
         controller = None
     # Use a consistent directory name for state saving
     instruction_dir_name = (
@@ -422,14 +441,15 @@ if __name__ == "__main__":
         if (args.case and instruction)
         else (task if instruction else task)
     )
-    trajectory_path = Path(
-        f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/progprompt/trajectory_log.json"
+    trajectory_path = (
+        base_result_path
+        / f"states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/progprompt/trajectory_log.json"
     )
     if trajectory_path.exists():
         trajectory_path.unlink()
     save_scene_state(
         controller=controller,
-        output_path=Path(f"assets/results/states{int(args.init_prior_mean)}"),
+        output_path=base_result_path / f"states{int(args.init_prior_mean)}",
         case_name=args.case,
         scene_name=scene_name,
         instruction=instruction_dir_name,
@@ -442,14 +462,16 @@ if __name__ == "__main__":
             action_interface = Action(
                 controller,
                 logger=logger,
-                trajectory_log_json_path=Path(
-                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/progprompt/trajectory_log.json"
+                trajectory_log_json_path=(
+                    base_result_path
+                    / f"states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/progprompt/trajectory_log.json"
                 ),
             )
         elif args.ros:
             action_interface = RosExecutor(
-                trajectory_log_path=Path(
-                    f"assets/results/states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/progprompt/trajectory_log.json"
+                trajectory_log_path=(
+                    base_result_path
+                    / f"states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/progprompt/trajectory_log.json"
                 )
             )
         generate_plan(controller, task, args, logger, action_interface)
@@ -463,10 +485,10 @@ if __name__ == "__main__":
         try:
             if args.simulation:
                 controller.stop()
-            
+
         except Exception as e:
             logger.error(f"Error stopping controller: {e}")
-        
+
         # Force garbage collection to free memory
         gc.collect()
 
