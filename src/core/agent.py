@@ -172,10 +172,10 @@ class Agent:
 
         # * epsilon_k_sq (Likelihood의 분산)
         # # epsilon_k_sq (근사 버전)
-        # epsilon_k_sq = FACTOR_ALPHA * (prior_interval - critical_elapsed_interval) ** 2
+        epsilon_k_sq = FACTOR_ALPHA * (prior_mean - critical_elapsed_interval) ** 2
 
         # epsilon_k_sq (정확 버전)
-        epsilon_k_sq = FACTOR_ALPHA * (gt_interval - critical_elapsed_interval) ** 2
+        # epsilon_k_sq = FACTOR_ALPHA * (gt_interval - critical_elapsed_interval) ** 2
 
         # 관측값 (노이즈 존재)
         observation = np.random.normal(loc=gt_interval, scale=np.sqrt(epsilon_k_sq))
