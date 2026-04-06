@@ -1,35 +1,51 @@
 from __future__ import annotations
 
-import json
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
-import networkx as nx
-import numpy as np
-
+from src.core.monitoring import (
+    BeliefStore,
+    BeliefUpdateContext,
+    BeliefUpdater,
+    create_belief_updater,
+)
 from src.models.dataclass import SchedulerState
 from src.utils.common import create_module_logger, extract_monitoring_target_name
-from src.utils.config import constants
 from src.utils.config.constants import (
-    AGENT_KNOWLEDGE_PATH,
     CRITICAL_OBJECT_GROUND_TRUTH,
-    CRITICAL_OBJECT_INTERVALS,
-    FACTOR_ALPHA,
-    INIT_PRIOR_VARIANCE,
     MIN_VARIANCE,
 )
 
 if TYPE_CHECKING:
-    from scheduler import ConstraintHandler
+    from src.scheduler import ConstraintHandler
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
 
 class Agent:
-    def __init__(self, constraint_handler: ConstraintHandler, bayesian_load: dict):
-        """Initializes the Agent with empty knowledge bases."""
-        # TODO 1-1: 파일 로딩 로직을 제거하고 빈 딕셔너리로 초기화합니다.
-        self.estimate_knowledge: Dict[str, Dict[str, float]] = bayesian_load
+    """Update monitoring beliefs and propagate the result to constraints."""
 
+    def __init__(
+        self,
+        constraint_handler: ConstraintHandler,
+        bayesian_load: dict[str, dict[str, Any]],
+        belief_updater: Optional[BeliefUpdater] = None,
+        belief_store: Optional[BeliefStore] = None,
+    ) -> None:
+        """Initialize the runtime monitoring agent.
+
+        Args:
+            constraint_handler: Helper used to recover critical interval context.
+            bayesian_load: Initial belief mapping created during task parsing.
+            belief_updater: Optional backend-specific updater implementation.
+            belief_store: Optional shared belief store instance.
+        """
+
+        self.belief_store = belief_store or BeliefStore(bayesian_load)
+        self.belief_updater = belief_updater or create_belief_updater(
+            "bayesian",
+            self.belief_store,
+        )
+        self.estimate_knowledge: Dict[str, Dict[str, Any]] = self.belief_store.as_dict()
         self.constraint_handler = constraint_handler
 
     def _update_knowledge_and_constraints(
@@ -42,23 +58,20 @@ class Agent:
         monitoring_target_sub_name: str,
         critical_start_sub_end_time: float,
     ) -> None:
-        """
-        메모리 상의 knowledge와 constraints 그래프를 업데이트합니다.
-        """
-        # Key가 없는 경우를 대비하여 먼저 확인하고, 없으면 생성
-        if monitoring_target_obj_name not in self.estimate_knowledge:
-            self.estimate_knowledge[monitoring_target_obj_name] = {}
+        """Persist posterior summaries and rewrite the active constraint edges.
 
-        # 1) 메모리 내 knowledge 업데이트
-        self.estimate_knowledge[monitoring_target_obj_name][
-            "expected_duration"
-        ] = posterior_mean
-        self.estimate_knowledge[monitoring_target_obj_name][
-            "variance"
-        ] = posterior_variance
+        Args:
+            state: Scheduler state after a monitor action.
+            monitoring_target_obj_name: Object type whose belief changed.
+            posterior_mean: Updated expected interval duration.
+            posterior_variance: Updated posterior variance.
+            critical_start_sub_name: Critical start subtask name.
+            monitoring_target_sub_name: Critical end subtask name.
+            critical_start_sub_end_time: End time of the critical start subtask.
+        """
 
-        with open(AGENT_KNOWLEDGE_PATH / "bayesian_estimate.json", "w") as f:
-            json.dump(self.estimate_knowledge, f, indent=4)
+        self.estimate_knowledge = self.belief_store.as_dict()
+        self.belief_store.persist()
 
         # 2) constraints 그래프 업데이트 (이 로직은 유지)
         #    - (critical_start_sub_name, monitoring_target_sub_name)에 posterior_mean 반영
@@ -97,50 +110,66 @@ class Agent:
             )
 
     def _get_prior_estimate(self, obj_name: str) -> Tuple[float, float]:
+        """Return the prior summary for a monitored object.
+
+        Args:
+            obj_name: Object type key in the belief store.
+
+        Returns:
+            Prior mean and variance.
         """
-        Retrieves the prior mean and variance for a subtask (lowercase name).
-        Initializes with defaults if not found or invalid. Ensures variance > MIN_VARIANCE.
+
+        summary = self.belief_store.get_summary(obj_name)
+        return max(0.0, summary.expected_duration), max(summary.variance, MIN_VARIANCE)
+
+    def _extract_monitoring_object_name(self, state: SchedulerState) -> Optional[str]:
+        """Extract the object type associated with a monitoring subtask.
+
+        Args:
+            state: Scheduler state containing the monitoring subtask.
+
+        Returns:
+            Object type string when available, otherwise ``None``.
         """
-        prior_mean = constants.INIT_PRIOR_MEAN
-        prior_variance = constants.INIT_PRIOR_VARIANCE
 
-        if obj_name in CRITICAL_OBJECT_INTERVALS:
-            known_data = self.estimate_knowledge.get(obj_name)
-            mean_val = known_data.get("expected_duration", constants.INIT_PRIOR_MEAN)
-            var_val = known_data.get("variance", constants.INIT_PRIOR_VARIANCE)
+        execution = getattr(state.subtask, "execution", None)
+        if execution is None:
+            return None
 
-            # Ensure values are reasonable (non-negative)
-            prior_mean = max(0, mean_val)
-            prior_variance = max(MIN_VARIANCE, var_val)
+        objects = getattr(execution, "objects", None)
+        raw_object: Optional[str] = None
+        if isinstance(objects, list) and objects:
+            raw_object = objects[0]
+        elif isinstance(objects, dict) and objects:
+            raw_object = next(iter(objects.keys()))
 
-        else:
-            prior_mean = constants.INIT_PRIOR_MEAN
-            prior_variance = constants.INIT_PRIOR_VARIANCE
-            log.debug(f"No prior knowledge found for '{obj_name}'. Using defaults.")
+        if not raw_object:
+            return None
+        return raw_object.split("|")[0]
 
-        return prior_mean, max(prior_variance, MIN_VARIANCE)
-
-    def bayesian_estimate(
+    def update_monitoring_belief(
         self, state: SchedulerState
     ) -> Tuple[SchedulerState, Optional[Dict[str, Any]]]:
+        """Update posterior belief after executing a monitoring subtask.
+
+        Args:
+            state: Scheduler state after the monitoring subtask completed.
+
+        Returns:
+            The unchanged state and a diagnostics payload for logging/results.
         """
-        전체 파이프라인:
-        1) 모니터링 subtask 이름 파싱
-        2) knowledge 로드
-        3) 문장 유사도 모델로 실제 known_sub_name 결정
-        4) critical_start_sub_name, end_time 찾아옴
-        5) ground_truth / prior_mean / prior_variance 가져오기
-        6) 베이지안 업데이트 계산
-        7) knowledge 및 constraints 업데이트
-        """
+
         from utils.task.constraints_util import get_critical_start_info
 
         monitoring_target_sub_name = extract_monitoring_target_name(state.subtask.name)
-        monitoring_target_obj_name = (
-            state.subtask.execution.objects[0].split("|")[0]
-            if state.subtask.execution.objects[0]
-            else None
-        )
+        monitoring_target_obj_name = self._extract_monitoring_object_name(state)
+
+        if monitoring_target_obj_name is None:
+            log.warning("Monitoring target object not found. Skipping belief update.")
+            return state, {
+                "updated_subtask_name": "N/A",
+                "error": "Monitoring target object not found.",
+            }
 
         # 3-3. G.T.와 prior를 직접 조회합니다.
         gt_interval = CRITICAL_OBJECT_GROUND_TRUTH.get(monitoring_target_obj_name)
@@ -170,41 +199,30 @@ class Agent:
         # critical 제약이 시작 된 이후 경과된 separation interval
         critical_elapsed_interval = state.current_time - critical_start_sub_end_time
 
-        # * epsilon_k_sq (Likelihood의 분산)
-        # # epsilon_k_sq (근사 버전)
-        epsilon_k_sq = FACTOR_ALPHA * (prior_mean - critical_elapsed_interval) ** 2
-
-        # epsilon_k_sq (정확 버전)
-        # epsilon_k_sq = FACTOR_ALPHA * (gt_interval - critical_elapsed_interval) ** 2
-
-        # 관측값 (노이즈 존재)
-        observation = np.random.normal(loc=gt_interval, scale=np.sqrt(epsilon_k_sq))
-
-        # posterior_mean, posterior_variance 계산
-        posterior_mean = (prior_variance * observation + epsilon_k_sq * prior_mean) / (
-            epsilon_k_sq + prior_variance
-        )
-
-        posterior_variance = (epsilon_k_sq * prior_variance) / (
-            epsilon_k_sq + prior_variance
+        update_result = self.belief_updater.update(
+            BeliefUpdateContext(
+                object_name=monitoring_target_obj_name,
+                gt_interval=gt_interval,
+                prior_mean=prior_mean,
+                prior_variance=prior_variance,
+                elapsed_interval=critical_elapsed_interval,
+            )
         )
 
         # ZeroDivisionError 방지
         if prior_mean > 0:
-            bayesian_diff = abs(posterior_mean - prior_mean) / prior_mean
+            belief_diff = abs(update_result.posterior_mean - prior_mean) / prior_mean
         else:
             # prior_mean이 0일 경우, posterior_mean이 0이 아니면 무한대의 차이로 간주하여 항상 업데이트
-            bayesian_diff = float("inf") if posterior_mean != 0 else 0.0
+            belief_diff = float("inf") if update_result.posterior_mean != 0 else 0.0
 
-        log.info(f"bayesian_diff: {bayesian_diff}")
+        log.info("%s_diff: %s", self.belief_updater.method, belief_diff)
 
-        # [Fix] Always update constraints to reflect the passage of time (residual interval),
-        # even if the Bayesian estimate hasn't changed significantly.
         self._update_knowledge_and_constraints(
             state=state,
             monitoring_target_obj_name=monitoring_target_obj_name,
-            posterior_mean=posterior_mean,
-            posterior_variance=posterior_variance,
+            posterior_mean=update_result.posterior_mean,
+            posterior_variance=update_result.posterior_variance,
             critical_start_sub_name=critical_start_sub_name,
             monitoring_target_sub_name=monitoring_target_sub_name,
             critical_start_sub_end_time=critical_start_sub_end_time,
@@ -213,8 +231,24 @@ class Agent:
         monitored_subtask = {
             "updated_subtask_name": critical_start_sub_name,
             "original_expected_time": prior_mean,
-            "updated_expected_time": posterior_mean,
+            "updated_expected_time": update_result.posterior_mean,
             "ground_truth_time": gt_interval,
+            "update_method": update_result.method,
+            **update_result.diagnostics,
         }
 
         return state, monitored_subtask
+
+    def bayesian_estimate(
+        self, state: SchedulerState
+    ) -> Tuple[SchedulerState, Optional[Dict[str, Any]]]:
+        """Backward-compatible wrapper for the legacy method name.
+
+        Args:
+            state: Scheduler state after a monitoring subtask completed.
+
+        Returns:
+            Result from the backend-agnostic monitoring update path.
+        """
+
+        return self.update_monitoring_belief(state)

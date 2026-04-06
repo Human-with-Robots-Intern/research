@@ -4,9 +4,12 @@ import copy
 import itertools
 from typing import TYPE_CHECKING, List, Optional
 
-import numpy as np
-from scipy.stats import norm
-
+from src.core.monitoring import (
+    BeliefStore,
+    MonitoringPolicy,
+    MonitoringTriggerContext,
+    create_monitoring_policy,
+)
 from src.models.dataclass import (
     ActionResult,
     Candidate,
@@ -27,7 +30,6 @@ from src.utils.config import (
     constants,
 )
 from src.utils.config.constants import (
-    BAYESIAN_THRESHOLD_PROBABILITY,
     BEAM_WIDTH,
     INIT_PRIOR_VARIANCE,
     SIMULATION_DEPTH,
@@ -62,9 +64,20 @@ class Scheduler:
         action_handler: ActionHandler,
         constraint_handler: ConstraintHandler,
         heuristic_manager: HeuristicManager,
+        monitoring_policy: Optional[MonitoringPolicy] = None,
         beam_width: int = BEAM_WIDTH,
         simulation_depth: int = SIMULATION_DEPTH,
-    ):
+    ) -> None:
+        """Initialize the scheduler and its expansion policies.
+
+        Args:
+            action_handler: Simulates primitive action durations.
+            constraint_handler: Evaluates temporal feasibility.
+            heuristic_manager: Scores expanded nodes.
+            monitoring_policy: Optional backend-specific monitoring trigger policy.
+            beam_width: Layer-wise beam width.
+            simulation_depth: Lookahead depth for beam search.
+        """
 
         self.search_width = beam_width
         self.simulation_depth = simulation_depth
@@ -74,6 +87,10 @@ class Scheduler:
         self.constraint_handler = constraint_handler
         self.action_handler = action_handler
         self.cost_calculator = heuristic_manager
+        self.monitoring_policy = monitoring_policy or create_monitoring_policy(
+            "bayesian",
+            BeliefStore(),
+        )
         self._counter = itertools.count()
 
     # ======================
@@ -638,6 +655,60 @@ class Scheduler:
             # Typically, the target of the first action is what we monitor.
             return candidate.subtask.execution.primitive_actions[0].split()[1]
         return None
+
+    @staticmethod
+    def _normalize_monitoring_object_name(raw_object_name: Optional[str]) -> Optional[str]:
+        """Normalize an object identifier to its object type.
+
+        Args:
+            raw_object_name: Raw object identifier or type string.
+
+        Returns:
+            Object type without instance suffix.
+        """
+
+        if not raw_object_name:
+            return None
+        return raw_object_name.split("|")[0]
+
+    def _compute_monitoring_trigger_time(
+        self,
+        *,
+        raw_object_name: Optional[str],
+        critical_start_sub_end_time: float,
+        mean_duration: float,
+        variance: float,
+    ) -> float:
+        """Delegate monitoring timing to the configured backend policy.
+
+        Args:
+            raw_object_name: Raw object identifier associated with the interval.
+            critical_start_sub_end_time: End time of the critical start subtask.
+            mean_duration: Current expected interval duration.
+            variance: Current interval variance.
+
+        Returns:
+            Absolute trigger time for inserting monitoring.
+        """
+
+        object_name = self._normalize_monitoring_object_name(raw_object_name)
+        trigger_time = self.monitoring_policy.compute_trigger_time(
+            MonitoringTriggerContext(
+                object_name=object_name,
+                critical_start_end_time=critical_start_sub_end_time,
+                mean_duration=mean_duration,
+                variance=variance,
+            )
+        )
+        log.debug(
+            "Monitoring trigger (%s): object=%s, mean=%.2f, variance=%.2f -> %.2f",
+            self.monitoring_policy.method,
+            object_name,
+            mean_duration,
+            variance,
+            trigger_time,
+        )
+        return trigger_time
 
     # ==========================================================================
     #           SUBTASK EXPANSION: Single Subtask or Wait
@@ -1255,18 +1326,11 @@ class Scheduler:
         if edge_data and "info" in edge_data:
             variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
 
-        # Calculate trigger time based on probability threshold: t = mu + sigma * Phi^-1(eta)
-        sigma = np.sqrt(variance_val)
-        mu_absolute = (
-            critical_start_sub_actual_end_time + original_critical_interval_duration
-        )
-        z_score = norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY)
-
-        original_absolute_monitoring_trigger_time = mu_absolute + sigma * z_score
-
-        log.debug(
-            f"Bayesian Trigger: Mu={mu_absolute:.2f}, Sigma={sigma:.2f}, Eta={BAYESIAN_THRESHOLD_PROBABILITY}, Z={z_score:.2f} "
-            f"-> TriggerTime={original_absolute_monitoring_trigger_time:.2f}"
+        original_absolute_monitoring_trigger_time = self._compute_monitoring_trigger_time(
+            raw_object_name=monitoring_target_obj,
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            mean_duration=original_critical_interval_duration,
+            variance=variance_val,
         )
 
         full_candidate_action_info_check = self.action_handler.get_actions_info(
@@ -1736,14 +1800,12 @@ class Scheduler:
         if edge_data and "info" in edge_data:
             variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
 
-        # Calculate trigger time based on probability threshold: t = mu + sigma * Phi^-1(eta)
-        sigma = np.sqrt(variance_val)
-        mu_absolute = (
-            critical_start_sub_actual_end_time + original_critical_interval_duration
+        original_absolute_monitoring_trigger_time = self._compute_monitoring_trigger_time(
+            raw_object_name=candidate.subtask.execution.primitive_actions[0].split()[1],
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            mean_duration=original_critical_interval_duration,
+            variance=variance_val,
         )
-        z_score = norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY)
-
-        original_absolute_monitoring_trigger_time = mu_absolute + sigma * z_score
 
         total_wait_duration = max(
             0,

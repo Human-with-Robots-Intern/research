@@ -1,0 +1,557 @@
+"""Tests for monitoring backend policies and updaters."""
+
+from __future__ import annotations
+
+import math
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import networkx as nx
+import numpy as np
+from scipy.stats import norm
+
+from src.core.agent import Agent
+from src.core.monitoring import (
+    BayesianBeliefUpdater,
+    BayesianMonitoringPolicy,
+    BeliefStore,
+    BeliefUpdateContext,
+    MonitoringTriggerContext,
+    ParticleFilterBeliefUpdater,
+    ParticleFilterMonitoringPolicy,
+    create_monitoring_backend,
+)
+from src.core.scheduler import Scheduler
+from src.models.dataclass import (
+    Candidate,
+    CompletedEntry,
+    SchedulerState,
+    SimulationNode,
+)
+from src.models.task import Duration, Execution, Subtask
+from src.scheduler.constraint_handler import ConstraintHandler
+from src.utils.config.constants import BAYESIAN_THRESHOLD_PROBABILITY
+
+if TYPE_CHECKING:
+    from _pytest.monkeypatch import MonkeyPatch
+
+
+class _DummyActionHandler:
+    """Provide the minimal scheduler dependency surface for focused tests."""
+
+    def get_actions_info(self, current_node: SimulationNode, actions: list[str]) -> Any:
+        """Fail fast when an unexpected action simulation is attempted."""
+
+        raise AssertionError(
+            "_DummyActionHandler.get_actions_info should not be called in this test."
+        )
+
+
+class _DummyHeuristicManager:
+    """Provide the minimal heuristic dependency surface for focused tests."""
+
+    def calc_heuristic(
+        self,
+        current_node: SimulationNode,
+        candidate: Candidate,
+        all_candidates: list[Candidate],
+    ) -> tuple[int, float]:
+        """Return a neutral heuristic for dependency injection only."""
+
+        return 0, 0.0
+
+
+def _make_subtask(
+    name: str,
+    *,
+    primitive_actions: list[str],
+    subtask_type: str = "Action",
+    objects: Any = None,
+    decomposed: bool = False,
+) -> Subtask:
+    """Build a compact subtask fixture for monitoring tests.
+
+    Args:
+        name: Subtask name.
+        primitive_actions: Primitive action sequence.
+        subtask_type: Logical subtask type.
+        objects: Execution objects payload.
+        decomposed: Whether the subtask is already decomposed.
+
+    Returns:
+        Subtask: Configured subtask fixture.
+    """
+
+    return Subtask(
+        task_name="TestTask",
+        name=name,
+        repetition=1,
+        subtask_type=subtask_type,
+        execution=Execution(objects=objects or {}, primitive_actions=primitive_actions),
+        duration=Duration(type="Controllable", interval=1, total_time=1.0),
+        temporal_constraints=[],
+        decomposed=decomposed,
+    )
+
+
+def _build_monitoring_update_state() -> tuple[SchedulerState, Subtask, Subtask, Subtask]:
+    """Build a reusable monitoring-update state fixture.
+
+    Returns:
+        tuple[SchedulerState, Subtask, Subtask, Subtask]: State, critical start,
+        monitoring subtask, and critical end subtask.
+    """
+
+    start_subtask = _make_subtask(
+        "Start Microwave for Heating Potato",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+    )
+    monitor_subtask = _make_subtask(
+        "Monitoring for Turn Off Microwave after Heating Potato_fixed",
+        primitive_actions=["MONITORING Microwave|01"],
+        subtask_type="Monitor",
+        objects=["Microwave|01"],
+        decomposed=True,
+    )
+    end_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Potato",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        start_subtask.name,
+        end_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True, "Variance": 900.0},
+    )
+    constraints.add_edge(
+        start_subtask.name,
+        monitor_subtask.name,
+        info={"Interval": 60.0, "IsCritical": True, "Variance": 900.0},
+    )
+    constraints.add_edge(
+        monitor_subtask.name,
+        end_subtask.name,
+        info={"Interval": 40.0, "IsCritical": True, "Variance": 900.0},
+    )
+
+    state = SchedulerState(
+        subtask=monitor_subtask,
+        completed_entries=[
+            CompletedEntry(
+                subtask=start_subtask,
+                schedule_start_time=0.0,
+                schedule_end_time=28.01,
+                sim_start_time=0.0,
+                sim_end_time=28.01,
+            ),
+            CompletedEntry(
+                subtask=monitor_subtask,
+                schedule_start_time=85.80,
+                schedule_end_time=91.70,
+                sim_start_time=85.80,
+                sim_end_time=91.70,
+            ),
+        ],
+        remaining_subtasks=[end_subtask],
+        constraints=constraints,
+        current_time=91.70,
+        scene_positions={},
+        held_object=None,
+    )
+    return state, start_subtask, monitor_subtask, end_subtask
+
+
+def test_bayesian_monitoring_policy_matches_gaussian_quantile() -> None:
+    """Bayesian trigger policy should match the closed-form Gaussian quantile."""
+
+    belief_store = BeliefStore({"Mug": {"expected_duration": 20.0, "variance": 9.0}})
+    policy = BayesianMonitoringPolicy(
+        belief_store,
+        threshold_probability=0.1,
+    )
+
+    trigger_time = policy.compute_trigger_time(
+        MonitoringTriggerContext(
+            object_name="Mug",
+            critical_start_end_time=100.0,
+            mean_duration=20.0,
+            variance=9.0,
+        )
+    )
+
+    expected_trigger_time = 100.0 + 20.0 + (math.sqrt(9.0) * norm.ppf(0.1))
+    assert trigger_time == expected_trigger_time
+
+
+def test_particle_filter_monitoring_policy_uses_weighted_quantile() -> None:
+    """Particle-filter trigger policy should use the empirical particle quantile."""
+
+    belief_store = BeliefStore(
+        {
+            "Mug": {
+                "expected_duration": 20.0,
+                "variance": 25.0,
+                "method": "particle_filter",
+                "particles": [10.0, 20.0, 30.0],
+                "weights": [0.2, 0.3, 0.5],
+            }
+        }
+    )
+    policy = ParticleFilterMonitoringPolicy(
+        belief_store,
+        threshold_probability=0.5,
+    )
+
+    trigger_time = policy.compute_trigger_time(
+        MonitoringTriggerContext(
+            object_name="Mug",
+            critical_start_end_time=100.0,
+            mean_duration=20.0,
+            variance=25.0,
+        )
+    )
+
+    assert trigger_time == 120.0
+
+
+def test_bayesian_belief_updater_persists_summary() -> None:
+    """Bayesian updater should write a posterior summary back to the store."""
+
+    belief_store = BeliefStore(
+        {"Mug": {"expected_duration": 20.0, "variance": 16.0}},
+        rng=np.random.default_rng(0),
+    )
+    updater = BayesianBeliefUpdater(
+        belief_store,
+        rng=np.random.default_rng(0),
+    )
+
+    result = updater.update(
+        BeliefUpdateContext(
+            object_name="Mug",
+            gt_interval=15.0,
+            prior_mean=20.0,
+            prior_variance=16.0,
+            elapsed_interval=12.0,
+        )
+    )
+
+    summary = belief_store.get_summary("Mug")
+    assert result.method == "bayesian"
+    assert summary.method == "bayesian"
+    assert summary.expected_duration == result.posterior_mean
+    assert summary.variance == result.posterior_variance
+    assert "observation" in result.diagnostics
+
+
+def test_scheduler_compute_monitoring_trigger_time_uses_bayesian_policy() -> None:
+    """Scheduler should delegate trigger timing to the Bayesian policy."""
+
+    belief_store = BeliefStore(
+        {"Microwave": {"expected_duration": 100.0, "variance": 900.0}}
+    )
+    scheduler = Scheduler(
+        action_handler=_DummyActionHandler(),
+        constraint_handler=ConstraintHandler(_DummyActionHandler()),
+        heuristic_manager=_DummyHeuristicManager(),
+        monitoring_policy=BayesianMonitoringPolicy(belief_store),
+    )
+
+    trigger_time = scheduler._compute_monitoring_trigger_time(
+        raw_object_name="Microwave|01",
+        critical_start_sub_end_time=28.01,
+        mean_duration=100.0,
+        variance=900.0,
+    )
+
+    expected_trigger_time = (
+        28.01 + 100.0 + (math.sqrt(900.0) * norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY))
+    )
+    assert trigger_time == expected_trigger_time
+
+
+def test_scheduler_detects_active_bayesian_monitoring_interval() -> None:
+    """Scheduler should request monitoring when an active critical interval exists."""
+
+    start_subtask = _make_subtask(
+        "Start Microwave for Heating Potato",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+    )
+    current_subtask = _make_subtask(
+        "Prepare Coffee Machine with Mug",
+        primitive_actions=["NAVIGATE_TO Mug|01", "GRASP Mug|01"],
+    )
+    end_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Potato",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    graph = nx.DiGraph()
+    graph.add_edge(
+        start_subtask.name,
+        end_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True, "Variance": 900.0},
+    )
+
+    state = SchedulerState(
+        subtask=current_subtask,
+        completed_entries=[
+            CompletedEntry(
+                subtask=start_subtask,
+                schedule_start_time=0.0,
+                schedule_end_time=28.01,
+            )
+        ],
+        remaining_subtasks=[current_subtask, end_subtask],
+        constraints=graph,
+        current_time=63.39,
+        scene_positions={},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    scheduler = Scheduler(
+        action_handler=_DummyActionHandler(),
+        constraint_handler=ConstraintHandler(_DummyActionHandler()),
+        heuristic_manager=_DummyHeuristicManager(),
+        monitoring_policy=BayesianMonitoringPolicy(BeliefStore()),
+    )
+    candidate = Candidate(
+        subtask=_make_subtask(
+            "Wash Fork",
+            primitive_actions=["NAVIGATE_TO Fork|01", "GRASP Fork|01"],
+        ),
+        is_critical=False,
+    )
+
+    need_monitor, due_info = scheduler._should_split_with_monitoring(
+        curr_node, candidate
+    )
+
+    assert need_monitor is True
+    assert due_info is not None
+    assert due_info.due_related_sub_name == end_subtask.name
+    assert due_info.due_date == 128.01
+
+
+def test_scheduler_compute_monitoring_trigger_time_uses_particle_filter_policy() -> None:
+    """Scheduler should delegate trigger timing to the particle-filter policy."""
+
+    belief_store = BeliefStore(
+        {
+            "Microwave": {
+                "expected_duration": 100.0,
+                "variance": 900.0,
+                "method": "particle_filter",
+                "particles": [80.0, 100.0, 120.0],
+                "weights": [0.2, 0.3, 0.5],
+            }
+        }
+    )
+    scheduler = Scheduler(
+        action_handler=_DummyActionHandler(),
+        constraint_handler=ConstraintHandler(_DummyActionHandler()),
+        heuristic_manager=_DummyHeuristicManager(),
+        monitoring_policy=ParticleFilterMonitoringPolicy(
+            belief_store,
+            threshold_probability=0.5,
+        ),
+    )
+
+    trigger_time = scheduler._compute_monitoring_trigger_time(
+        raw_object_name="Microwave|01",
+        critical_start_sub_end_time=28.01,
+        mean_duration=100.0,
+        variance=900.0,
+    )
+
+    assert trigger_time == 128.01
+
+
+def test_particle_filter_belief_updater_returns_particle_state() -> None:
+    """Particle-filter updater should keep particle state and expose ESS."""
+
+    belief_store = BeliefStore(
+        {"Mug": {"expected_duration": 20.0, "variance": 16.0}},
+        rng=np.random.default_rng(0),
+    )
+    belief_store.ensure_method("Mug", "particle_filter")
+    updater = ParticleFilterBeliefUpdater(
+        belief_store,
+        rng=np.random.default_rng(0),
+    )
+
+    result = updater.update(
+        BeliefUpdateContext(
+            object_name="Mug",
+            gt_interval=15.0,
+            prior_mean=20.0,
+            prior_variance=16.0,
+            elapsed_interval=12.0,
+        )
+    )
+
+    stored_state = belief_store.get_state("Mug")
+    assert result.method == "particle_filter"
+    assert stored_state["method"] == "particle_filter"
+    assert len(stored_state["particles"]) == len(stored_state["weights"])
+    assert stored_state["ess"] > 0.0
+    assert "ess_before_resample" in result.diagnostics
+
+
+def test_agent_update_monitoring_belief_updates_constraints_and_metadata(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Agent should update Bayesian posterior summaries and graph intervals."""
+
+    state, start_subtask, monitor_subtask, end_subtask = _build_monitoring_update_state()
+
+    belief_store = BeliefStore(
+        {"Microwave": {"expected_duration": 100.0, "variance": 900.0}},
+        rng=np.random.default_rng(0),
+    )
+    updater = BayesianBeliefUpdater(
+        belief_store,
+        rng=np.random.default_rng(0),
+    )
+    agent = Agent(
+        ConstraintHandler(_DummyActionHandler()),
+        {"Microwave": {"expected_duration": 100.0, "variance": 900.0}},
+        belief_updater=updater,
+        belief_store=belief_store,
+    )
+
+    monkeypatch.syspath_prepend(
+        str(Path("/Users/bagdong-gyu/WorkSpace/VSCodeProject/research/src"))
+    )
+    monkeypatch.setitem(
+        __import__(
+            "src.core.agent", fromlist=["CRITICAL_OBJECT_GROUND_TRUTH"]
+        ).CRITICAL_OBJECT_GROUND_TRUTH,
+        "Microwave",
+        100.0,
+    )
+    monkeypatch.setattr(agent.belief_store, "persist", lambda output_path=None: None)
+
+    updated_state, monitored_subtask = agent.update_monitoring_belief(state)
+
+    assert updated_state is state
+    assert monitored_subtask is not None
+    assert monitored_subtask["update_method"] == "bayesian"
+    assert monitored_subtask["updated_subtask_name"] == start_subtask.name
+    assert monitored_subtask["updated_expected_time"] > 0.0
+    assert "observation" in monitored_subtask
+    assert (
+        state.constraints.edges[start_subtask.name, end_subtask.name]["info"][
+            "Interval"
+        ]
+        == monitored_subtask["updated_expected_time"]
+    )
+    assert (
+        state.constraints.edges[start_subtask.name, end_subtask.name]["info"][
+            "Variance"
+        ]
+        == belief_store.get_summary("Microwave").variance
+    )
+    expected_remaining_interval = (
+        28.01 + monitored_subtask["updated_expected_time"] - state.current_time
+    )
+    assert (
+        state.constraints.edges[monitor_subtask.name, end_subtask.name]["info"][
+            "Interval"
+        ]
+        == expected_remaining_interval
+    )
+
+
+def test_agent_update_monitoring_belief_with_particle_filter_updates_constraints(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Agent should apply particle-filter posterior summaries to constraints."""
+
+    state, start_subtask, monitor_subtask, end_subtask = _build_monitoring_update_state()
+
+    belief_store = BeliefStore(
+        {
+            "Microwave": {
+                "expected_duration": 100.0,
+                "variance": 900.0,
+                "method": "particle_filter",
+                "particles": [80.0, 100.0, 120.0, 140.0],
+                "weights": [0.25, 0.25, 0.25, 0.25],
+            }
+        },
+        rng=np.random.default_rng(0),
+    )
+    updater = ParticleFilterBeliefUpdater(
+        belief_store,
+        rng=np.random.default_rng(0),
+    )
+    agent = Agent(
+        ConstraintHandler(_DummyActionHandler()),
+        {"Microwave": {"expected_duration": 100.0, "variance": 900.0}},
+        belief_updater=updater,
+        belief_store=belief_store,
+    )
+
+    monkeypatch.syspath_prepend(
+        str(Path("/Users/bagdong-gyu/WorkSpace/VSCodeProject/research/src"))
+    )
+    monkeypatch.setitem(
+        __import__(
+            "src.core.agent", fromlist=["CRITICAL_OBJECT_GROUND_TRUTH"]
+        ).CRITICAL_OBJECT_GROUND_TRUTH,
+        "Microwave",
+        100.0,
+    )
+    monkeypatch.setattr(agent.belief_store, "persist", lambda output_path=None: None)
+
+    updated_state, monitored_subtask = agent.update_monitoring_belief(state)
+
+    assert updated_state is state
+    assert monitored_subtask is not None
+    assert monitored_subtask["update_method"] == "particle_filter"
+    assert monitored_subtask["updated_subtask_name"] == start_subtask.name
+    assert monitored_subtask["updated_expected_time"] > 0.0
+    assert "ess_before_resample" in monitored_subtask
+    assert "resample_count" in monitored_subtask
+    assert (
+        state.constraints.edges[start_subtask.name, end_subtask.name]["info"][
+            "Interval"
+        ]
+        == monitored_subtask["updated_expected_time"]
+    )
+    assert (
+        state.constraints.edges[start_subtask.name, end_subtask.name]["info"][
+            "Variance"
+        ]
+        == belief_store.get_summary("Microwave").variance
+    )
+    expected_remaining_interval = (
+        28.01 + monitored_subtask["updated_expected_time"] - state.current_time
+    )
+    assert (
+        state.constraints.edges[monitor_subtask.name, end_subtask.name]["info"][
+            "Interval"
+        ]
+        == expected_remaining_interval
+    )
+
+
+def test_create_monitoring_backend_wires_shared_components() -> None:
+    """Factory should return a shared store with matching policy and updater."""
+
+    belief_store, monitoring_policy, belief_updater = create_monitoring_backend(
+        "particle_filter",
+        {"Mug": {"expected_duration": 20.0, "variance": 16.0}},
+    )
+
+    assert monitoring_policy.method == "particle_filter"
+    assert belief_updater.method == "particle_filter"
+    assert belief_store.get_summary("Mug").method == "particle_filter"

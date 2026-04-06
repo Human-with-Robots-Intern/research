@@ -12,6 +12,7 @@ from ithor.handlers.action import Action
 from ithor.utils.math_utils import load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
+from src.core.monitoring import create_monitoring_backend
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from src.utils.get_state import save_scene_state
 from src.utils.ros_executor import RosExecutor
@@ -33,25 +34,10 @@ from utils.task import TaskUtil
 log = create_module_logger(__name__, module_log=True)
 
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Task Scheduler")
 
-    parser.add_argument(
-        "-r",
-        "--reset",
-        default=True,
-        help="Reset the knowledge base to Gaussian",
-        action="store_true",
-    )
-
-    parser.add_argument(
-        "--log-level",
-        type=str,
-        default="INFO",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="로그 출력 수준 설정 (default: INFO)",
-    )
     parser.add_argument(
         "--ablation-name",
         type=str,
@@ -115,24 +101,6 @@ def parse_arguments():
         help="베이지안 추정을 위한 초기 분산값 (기본값: constants.py 값)",
     )
     parser.add_argument(
-        "--alpha_heuristic",
-        type=float,
-        default=None,
-        help="Heuristic alpha 값 (기본값: constants.py 값)",
-    )
-    parser.add_argument(
-        "--beta_heuristic",
-        type=float,
-        default=None,
-        help="Heuristic beta 값 (기본값: constants.py 값)",
-    )
-    parser.add_argument(
-        "--gamma_heuristic",
-        type=float,
-        default=None,
-        help="Heuristic gamma 값 (기본값: constants.py 값)",
-    )
-    parser.add_argument(
         "--factor_alpha",
         type=float,
         default=None,
@@ -154,6 +122,13 @@ def parse_arguments():
         "--disable_monitoring",
         action="store_true",
         help="Disable Bayesian monitoring.",
+    )
+    parser.add_argument(
+        "--belief-update-method",
+        type=str,
+        default="bayesian",
+        choices=["bayesian", "particle_filter"],
+        help="Monitoring timing/update backend to use.",
     )
     parser.add_argument(
         "--trajectory_log_path",
@@ -180,10 +155,11 @@ def _sanitize_filename(value: str) -> str:
     return slug or "task"
 
 
-def main():
+def main() -> None:
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
-    approach_name = "dag_bayesian"
+    base_approach_name = f"dag_{args.belief_update_method}"
+    approach_name = base_approach_name
 
     # Dynamically override constants based on command-line arguments
     from src.utils.config import constants
@@ -218,12 +194,6 @@ def main():
         constants.set_init_prior_variance(args.init_prior_variance)
     else:
         constants.set_init_prior_variance(init_prior_variance)
-    if args.alpha_heuristic is not None:
-        constants.set_alpha_heuristic(args.alpha_heuristic)
-    if args.beta_heuristic is not None:
-        constants.set_beta_heuristic(args.beta_heuristic)
-    if args.gamma_heuristic is not None:
-        constants.set_gamma_heuristic(args.gamma_heuristic)
     if args.factor_alpha is not None:
         constants.set_factor_alpha(args.factor_alpha)
     if args.beam_width is not None:
@@ -402,12 +372,22 @@ def main():
 
         # Initialize the agent and scheduler
         constraint_handler = ConstraintHandler(action_handler)
-        agent = Agent(constraint_handler, bayesian_load)
+        belief_store, monitoring_policy, belief_updater = create_monitoring_backend(
+            args.belief_update_method,
+            bayesian_load,
+        )
+        agent = Agent(
+            constraint_handler,
+            bayesian_load,
+            belief_updater=belief_updater,
+            belief_store=belief_store,
+        )
         cost_calculator = HeuristicManager(action_handler)
         scheduler = Scheduler(
             action_handler=action_handler,
             constraint_handler=constraint_handler,
             heuristic_manager=cost_calculator,
+            monitoring_policy=monitoring_policy,
             beam_width=constants.BEAM_WIDTH,
             simulation_depth=constants.SIMULATION_DEPTH,
         )
@@ -455,7 +435,9 @@ def main():
                     not args.disable_monitoring
                     and next_state.subtask.subtask_type == "Monitor"
                 ):
-                    next_state, monitored_subtask = agent.bayesian_estimate(next_state)
+                    next_state, monitored_subtask = agent.update_monitoring_belief(
+                        next_state
+                    )
                     next_state.completed_entries[-1].monitored_subtask = (
                         monitored_subtask
                     )
@@ -511,7 +493,9 @@ def main():
                     not args.disable_monitoring
                     and next_state.subtask.subtask_type == "Monitor"
                 ):
-                    next_state, monitored_subtask = agent.bayesian_estimate(next_state)
+                    next_state, monitored_subtask = agent.update_monitoring_belief(
+                        next_state
+                    )
                     next_state.completed_entries[-1].monitored_subtask = (
                         monitored_subtask
                     )
@@ -562,7 +546,7 @@ def main():
             if entry.subtask.name != "Init"
         ]
 
-        approach_name = f"{approach_name}_simulation"
+        approach_name = f"{base_approach_name}_simulation"
         result_args = {
             "task_name": input_natural_language,
             "approach_name": approach_name,
@@ -575,17 +559,15 @@ def main():
             # "simulationTime": total_sim_time,
         }
         if args.case:
-            approach_name = "dag_bayesian"
+            approach_name = base_approach_name
             meta_data = {
                 "init_prior_name": constants.INIT_PRIOR_MEAN,
                 "init_prior_variance": constants.INIT_PRIOR_VARIANCE,
-                "alpha_heuristic": constants.ALPHA_HEURISTIC,
-                "beta_heuristic": constants.BETA_HEURISTIC,
-                "gamma_heuristic": constants.GAMMA_HEURISTIC,
                 "factor_alpha": constants.FACTOR_ALPHA,
                 "beam_width": constants.BEAM_WIDTH,
                 "beam_depth": constants.SIMULATION_DEPTH,
                 "disable_monitoring": not constants.MONITORING_ENABLED,
+                "belief_update_method": args.belief_update_method,
             }
             result_args.update(
                 {
