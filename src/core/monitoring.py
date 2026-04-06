@@ -947,12 +947,16 @@ class ParticleFilterBeliefUpdater:
         )
         posterior_variance = max(MIN_VARIANCE, posterior_variance)
         ess_after_resample = float(BeliefStore._compute_ess(updated_weights))
+        posterior_diagnostics = _summarize_particle_posterior(
+            particles=particles,
+            weights=updated_weights,
+        )
 
         log.debug(
             "[ParticleFilterBeliefUpdater] object=%s observation=%.2f "
             "prior_mean=%.2f prior_variance=%.2f posterior_mean=%.2f "
             "posterior_variance=%.2f ess_before=%.2f ess_after=%.2f "
-            "resampled=%s resample_count=%d",
+            "q10=%.2f q50=%.2f q90=%.2f skew=%.3f resampled=%s resample_count=%d",
             context.object_name,
             observation,
             context.prior_mean,
@@ -961,6 +965,10 @@ class ParticleFilterBeliefUpdater:
             posterior_variance,
             ess_before_resample,
             ess_after_resample,
+            posterior_diagnostics["particle_quantile_p10"],
+            posterior_diagnostics["particle_quantile_p50"],
+            posterior_diagnostics["particle_quantile_p90"],
+            posterior_diagnostics["particle_weighted_skewness"],
             resampled,
             resample_count,
         )
@@ -986,8 +994,11 @@ class ParticleFilterBeliefUpdater:
                 **observation_result.metadata,
                 "ess_before_resample": ess_before_resample,
                 "ess_after_resample": ess_after_resample,
+                "ess_ratio_before_resample": ess_before_resample / float(len(particles)),
+                "ess_ratio_after_resample": ess_after_resample / float(len(particles)),
                 "resampled": resampled,
                 "resample_count": resample_count,
+                **posterior_diagnostics,
             },
         )
 
@@ -1290,6 +1301,63 @@ def _weighted_quantile(
     index = int(np.searchsorted(cumulative_weights, clipped_quantile, side="left"))
     index = min(index, len(sorted_values) - 1)
     return float(sorted_values[index])
+
+
+def _summarize_particle_posterior(
+    *,
+    particles: np.ndarray,
+    weights: np.ndarray,
+) -> dict[str, float]:
+    """Compute lightweight diagnostics for a weighted particle posterior.
+
+    Args:
+        particles: Particle values representing posterior support.
+        weights: Normalized particle weights.
+
+    Returns:
+        Dictionary of scalar diagnostics suitable for logs and JSON results.
+    """
+
+    if particles.size == 0:
+        return {
+            "particle_quantile_p10": 0.0,
+            "particle_quantile_p50": 0.0,
+            "particle_quantile_p90": 0.0,
+            "particle_tail_spread": 0.0,
+            "particle_left_tail_width": 0.0,
+            "particle_right_tail_width": 0.0,
+            "particle_tail_balance": 0.0,
+            "particle_weighted_skewness": 0.0,
+        }
+
+    normalized_weights = BeliefStore._normalize_weights(weights)
+    quantile_p10 = _weighted_quantile(particles, normalized_weights, 0.1)
+    quantile_p50 = _weighted_quantile(particles, normalized_weights, 0.5)
+    quantile_p90 = _weighted_quantile(particles, normalized_weights, 0.9)
+    weighted_mean = float(np.sum(normalized_weights * particles))
+    centered_particles = particles - weighted_mean
+    weighted_variance = float(np.sum(normalized_weights * np.square(centered_particles)))
+    weighted_std = math.sqrt(max(MIN_VARIANCE, weighted_variance))
+    weighted_third_moment = float(
+        np.sum(normalized_weights * np.power(centered_particles, 3))
+    )
+    weighted_skewness = weighted_third_moment / max(
+        MIN_VARIANCE,
+        weighted_std**3,
+    )
+    left_tail_width = max(0.0, quantile_p50 - quantile_p10)
+    right_tail_width = max(0.0, quantile_p90 - quantile_p50)
+
+    return {
+        "particle_quantile_p10": quantile_p10,
+        "particle_quantile_p50": quantile_p50,
+        "particle_quantile_p90": quantile_p90,
+        "particle_tail_spread": max(0.0, quantile_p90 - quantile_p10),
+        "particle_left_tail_width": left_tail_width,
+        "particle_right_tail_width": right_tail_width,
+        "particle_tail_balance": right_tail_width - left_tail_width,
+        "particle_weighted_skewness": weighted_skewness,
+    }
 
 
 def _systematic_resample(

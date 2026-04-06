@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import math
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import networkx as nx
@@ -26,13 +25,13 @@ from src.core.monitoring import (
     OpenAIVLMProgressObservationModel,
     ParticleFilterBeliefUpdater,
     ParticleFilterMonitoringPolicy,
-    create_observation_model,
     create_monitoring_backend,
+    create_observation_model,
 )
 from src.core.scheduler import Scheduler
 from src.models.dataclass import (
-    Candidate,
     ActionSimulationLog,
+    Candidate,
     CompletedEntry,
     SchedulerState,
     SimulationNode,
@@ -1145,6 +1144,12 @@ def test_particle_filter_belief_updater_returns_particle_state() -> None:
     assert len(stored_state["particles"]) == len(stored_state["weights"])
     assert stored_state["ess"] > 0.0
     assert "ess_before_resample" in result.diagnostics
+    assert "ess_ratio_after_resample" in result.diagnostics
+    assert "particle_quantile_p10" in result.diagnostics
+    assert "particle_quantile_p50" in result.diagnostics
+    assert "particle_quantile_p90" in result.diagnostics
+    assert "particle_tail_spread" in result.diagnostics
+    assert "particle_weighted_skewness" in result.diagnostics
 
 
 def test_belief_updaters_accept_shared_observation_model() -> None:
@@ -1345,6 +1350,11 @@ def test_agent_update_monitoring_belief_with_particle_filter_updates_constraints
     assert monitored_subtask["ground_truth_distribution"] == "constant"
     assert "ess_before_resample" in monitored_subtask
     assert "resample_count" in monitored_subtask
+    assert "particle_quantile_p10" in monitored_subtask
+    assert "particle_quantile_p50" in monitored_subtask
+    assert "particle_quantile_p90" in monitored_subtask
+    assert "particle_tail_spread" in monitored_subtask
+    assert "particle_weighted_skewness" in monitored_subtask
     assert (
         state.constraints.edges[start_subtask.name, end_subtask.name]["info"][
             "Interval"
