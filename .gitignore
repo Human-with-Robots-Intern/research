@@ -69,7 +69,7 @@ archive/
 ./temp_env.yml
 sync_repos.sh
 llm_as_a_judge.py
-assets/knowledge/bayesian_estimate.json
+assets/agent_knowledge/bayesian_estimate.json
 logs/*
 src/baselines/cap/data/*
 src/baselines/cap/result/*

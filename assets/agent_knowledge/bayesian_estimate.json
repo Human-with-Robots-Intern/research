@@ -1,7 +1,7 @@
 {
     "Microwave": {
-        "expected_duration": 100.02676095422603,
-        "variance": 0.0006851083554210447,
+        "expected_duration": 100.55597637594605,
+        "variance": 0.0018569074015995968,
         "method": "bayesian"
     },
     "CounterTop": {
@@ -10,7 +10,7 @@
         "method": "bayesian"
     },
     "CoffeeMachine": {
-        "expected_duration": 100.0001547350896,
+        "expected_duration": 95.77461386408318,
         "variance": 4.2661647281206495e-05,
         "method": "bayesian"
     },

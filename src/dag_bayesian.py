@@ -43,6 +43,13 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Task Scheduler")
 
     parser.add_argument(
+        "-r",
+        "--reset",
+        default=True,
+        action="store_true",
+        help="(Deprecated, no-op) Kept for backward compatibility with run_all.py.",
+    )
+    parser.add_argument(
         "--ablation-name",
         type=str,
         default=None,

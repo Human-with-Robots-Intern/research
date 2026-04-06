@@ -12,6 +12,8 @@ import numpy as np
 from scipy.stats import norm
 
 from src.utils.common import create_module_logger
+
+log = create_module_logger(module_name=__name__, module_log=True)
 from src.utils.config.constants import (
     AGENT_KNOWLEDGE_PATH,
     BAYESIAN_THRESHOLD_PROBABILITY,
@@ -158,9 +160,6 @@ class GroundTruthStore:
             rng=self._rng,
         )[0]
         return max(MIN_VARIANCE, float(sampled))
-
-log = create_module_logger(module_name=__name__, module_log=True)
-
 
 @dataclass(frozen=True)
 class BeliefSummary:
@@ -937,6 +936,12 @@ class ParticleFilterBeliefUpdater:
                 weights=updated_weights,
                 rng=self._rng,
             )
+            jitter_std = math.sqrt(max(MIN_VARIANCE, posterior_variance)) * 0.05
+            particles = np.clip(
+                particles + self._rng.normal(0.0, jitter_std, size=len(particles)),
+                a_min=MIN_VARIANCE,
+                a_max=None,
+            )
             updated_weights = np.ones_like(updated_weights) / float(len(updated_weights))
             resample_count += 1
             resampled = True
@@ -981,6 +986,9 @@ class ParticleFilterBeliefUpdater:
             "weights": updated_weights.tolist(),
             "ess": ess_after_resample,
             "resample_count": resample_count,
+            "particle_distribution": state.get(
+                "particle_distribution", "gaussian"
+            ),
         }
         self._belief_store.set_state(context.object_name, belief_state)
         return BeliefUpdateResult(
