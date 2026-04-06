@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import base64
+import io
 import json
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Literal, Mapping, Optional, Protocol
+from typing import Any, Callable, Iterable, Literal, Mapping, Optional, Protocol
 
 import numpy as np
 from scipy.stats import norm
@@ -20,6 +22,7 @@ from src.utils.config.constants import (
 )
 
 BeliefMethod = Literal["bayesian", "particle_filter"]
+ObservationMode = Literal["synthetic_gaussian", "openai_vlm"]
 GroundTruthDistribution = Literal[
     "constant",
     "gaussian",
@@ -229,6 +232,21 @@ class BeliefUpdateResult:
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class ObservationResult:
+    """Represent a duration observation and its uncertainty.
+
+    Args:
+        observation: Observed total-duration estimate used by the updater.
+        variance: Observation variance supplied to the update rule.
+        metadata: Extra diagnostics describing how the observation was produced.
+    """
+
+    observation: float
+    variance: float
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
 class MonitoringPolicy(Protocol):
     """Protocol for computing backend-specific monitoring trigger times."""
 
@@ -245,6 +263,196 @@ class BeliefUpdater(Protocol):
 
     def update(self, context: BeliefUpdateContext) -> BeliefUpdateResult:
         """Update belief state after a monitoring action."""
+
+
+class ObservationModel(Protocol):
+    """Protocol for environment-specific observation generation."""
+
+    def observe(self, context: BeliefUpdateContext) -> ObservationResult:
+        """Return an observation and variance for the current monitoring step."""
+
+
+class GaussianSyntheticObservationModel:
+    """Generate synthetic Gaussian observations for simulation-time monitoring.
+
+    This default model preserves the previous simulator behavior while exposing
+    a reusable interface that both Bayesian and particle-filter backends can
+    share. Future real-world VLM-based progress estimators can implement the
+    same protocol without changing the updater logic.
+
+    Args:
+        alpha: Scale factor for the observation variance proxy.
+        min_variance: Lower bound for numeric stability.
+        rng: Optional random generator for deterministic tests.
+    """
+
+    def __init__(
+        self,
+        *,
+        alpha: float = FACTOR_ALPHA,
+        min_variance: float = MIN_VARIANCE,
+        rng: Optional[np.random.Generator] = None,
+    ) -> None:
+        self._alpha = alpha
+        self._min_variance = min_variance
+        self._rng = rng or np.random.default_rng()
+
+    def observe(self, context: BeliefUpdateContext) -> ObservationResult:
+        """Sample a synthetic total-duration observation.
+
+        Args:
+            context: Posterior update inputs.
+
+        Returns:
+            Synthetic observation payload used by either inference backend.
+        """
+
+        variance = max(
+            self._min_variance,
+            self._alpha * (context.prior_mean - context.elapsed_interval) ** 2,
+        )
+        observation = float(
+            self._rng.normal(loc=context.gt_interval, scale=math.sqrt(variance))
+        )
+        return ObservationResult(
+            observation=observation,
+            variance=variance,
+            metadata={
+                "observation_model": "synthetic_gaussian",
+                "observation_mean": float(context.gt_interval),
+                "elapsed_interval": float(context.elapsed_interval),
+            },
+        )
+
+
+class OpenAIVLMProgressObservationModel:
+    """Convert VLM progress estimates into duration observations.
+
+    Args:
+        image_provider: Callback returning the latest image payload. Supported
+            return types are `Path`, `str`, `bytes`, and `numpy.ndarray`.
+        model_name: OpenAI multimodal model used for progress estimation.
+        sigma_floor_sq: Additive observation variance floor for VLM outputs.
+        alpha: Heteroscedastic variance scale driven by progress uncertainty.
+        progress_floor: Lower bound applied to progress estimates.
+        progress_ceiling: Upper bound applied to progress estimates.
+        min_variance: Numeric lower bound for returned variances.
+        api_key: Optional OpenAI API key override.
+        client: Optional prebuilt OpenAI client for tests or custom setup.
+    """
+
+    def __init__(
+        self,
+        *,
+        image_provider: Callable[[], Any],
+        model_name: str = "gpt-4.1-mini",
+        sigma_floor_sq: float = 100.0,
+        alpha: float = 0.08,
+        progress_floor: float = 0.05,
+        progress_ceiling: float = 0.99,
+        min_variance: float = MIN_VARIANCE,
+        api_key: Optional[str] = None,
+        client: Optional[Any] = None,
+    ) -> None:
+        self._image_provider = image_provider
+        self._model_name = model_name
+        self._sigma_floor_sq = sigma_floor_sq
+        self._alpha = alpha
+        self._progress_floor = progress_floor
+        self._progress_ceiling = progress_ceiling
+        self._min_variance = min_variance
+        if client is not None:
+            self._client = client
+        else:
+            from openai import OpenAI
+
+            self._client = OpenAI(api_key=api_key)
+
+    def observe(self, context: BeliefUpdateContext) -> ObservationResult:
+        """Query a VLM for progress and convert it into a duration observation.
+
+        Args:
+            context: Posterior update inputs.
+
+        Returns:
+            Duration observation derived from the VLM progress estimate.
+
+        Raises:
+            ValueError: If no image is available or the response is malformed.
+        """
+
+        image_payload = self._image_provider()
+        if image_payload is None:
+            raise ValueError(
+                "OpenAI VLM observation requested but no image payload is available."
+            )
+
+        image_url = _encode_image_as_data_url(image_payload)
+        prompt = (
+            "Estimate the completion progress of the monitored physical process as JSON. "
+            "Return keys progress, confidence, and rationale. "
+            f"The monitored object type is '{context.object_name}'. "
+            f"The elapsed time since the critical interval started is {context.elapsed_interval:.2f} seconds. "
+            "The progress must be in [0, 1], where 0 means just started and 1 means complete. "
+            "The confidence must be in [0, 1]."
+        )
+        response = self._client.responses.create(
+            model=self._model_name,
+            input=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": prompt},
+                        {"type": "input_image", "image_url": image_url},
+                    ],
+                }
+            ],
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "monitoring_progress_estimate",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "progress": {"type": "number"},
+                            "confidence": {"type": "number"},
+                            "rationale": {"type": "string"},
+                        },
+                        "required": ["progress", "confidence", "rationale"],
+                        "additionalProperties": False,
+                    },
+                }
+            },
+        )
+        raw_payload = getattr(response, "output_text", "")
+        if not raw_payload:
+            raise ValueError("OpenAI VLM response did not contain structured output text.")
+
+        parsed_payload = json.loads(raw_payload)
+        raw_progress = float(parsed_payload["progress"])
+        raw_confidence = float(parsed_payload["confidence"])
+        progress = float(
+            np.clip(raw_progress, self._progress_floor, self._progress_ceiling)
+        )
+        confidence = float(np.clip(raw_confidence, 0.1, 1.0))
+        observation = float(context.elapsed_interval / progress)
+        variance = max(
+            self._min_variance,
+            self._sigma_floor_sq
+            + self._alpha * (1.0 - progress) ** 2 * (observation**2) / confidence,
+        )
+        return ObservationResult(
+            observation=observation,
+            variance=variance,
+            metadata={
+                "observation_model": "openai_vlm",
+                "raw_progress": raw_progress,
+                "progress": progress,
+                "confidence": confidence,
+                "rationale": parsed_payload["rationale"],
+            },
+        )
 
 
 class BeliefStore:
@@ -610,6 +818,7 @@ class BayesianBeliefUpdater:
         self,
         belief_store: BeliefStore,
         *,
+        observation_model: Optional[ObservationModel] = None,
         rng: Optional[np.random.Generator] = None,
     ) -> None:
         """Initialize the Bayesian updater.
@@ -622,6 +831,9 @@ class BayesianBeliefUpdater:
         self.method: BeliefMethod = "bayesian"
         self._belief_store = belief_store
         self._rng = rng or np.random.default_rng()
+        self._observation_model = observation_model or GaussianSyntheticObservationModel(
+            rng=self._rng
+        )
 
     def update(self, context: BeliefUpdateContext) -> BeliefUpdateResult:
         """Update Gaussian summary statistics from a synthetic observation.
@@ -633,12 +845,9 @@ class BayesianBeliefUpdater:
             Updated posterior result.
         """
 
-        observation, likelihood_variance = _sample_observation(
-            gt_interval=context.gt_interval,
-            prior_mean=context.prior_mean,
-            elapsed_interval=context.elapsed_interval,
-            rng=self._rng,
-        )
+        observation_result = self._observation_model.observe(context)
+        observation = observation_result.observation
+        likelihood_variance = observation_result.variance
         posterior_mean = (
             (context.prior_variance * observation)
             + (likelihood_variance * context.prior_mean)
@@ -663,6 +872,7 @@ class BayesianBeliefUpdater:
             diagnostics={
                 "observation": observation,
                 "likelihood_variance": likelihood_variance,
+                **observation_result.metadata,
             },
         )
 
@@ -675,6 +885,7 @@ class ParticleFilterBeliefUpdater:
         belief_store: BeliefStore,
         *,
         resample_threshold: float = 0.5,
+        observation_model: Optional[ObservationModel] = None,
         rng: Optional[np.random.Generator] = None,
     ) -> None:
         """Initialize the particle-filter updater.
@@ -689,6 +900,9 @@ class ParticleFilterBeliefUpdater:
         self._belief_store = belief_store
         self._resample_threshold = resample_threshold
         self._rng = rng or np.random.default_rng()
+        self._observation_model = observation_model or GaussianSyntheticObservationModel(
+            rng=self._rng
+        )
 
     def update(self, context: BeliefUpdateContext) -> BeliefUpdateResult:
         """Update particles using the current synthetic likelihood model.
@@ -703,12 +917,9 @@ class ParticleFilterBeliefUpdater:
         state = self._belief_store.ensure_method(context.object_name, self.method)
         particles = np.asarray(state["particles"], dtype=float)
         weights = np.asarray(state["weights"], dtype=float)
-        observation, likelihood_variance = _sample_observation(
-            gt_interval=context.gt_interval,
-            prior_mean=context.prior_mean,
-            elapsed_interval=context.elapsed_interval,
-            rng=self._rng,
-        )
+        observation_result = self._observation_model.observe(context)
+        observation = observation_result.observation
+        likelihood_variance = observation_result.variance
 
         likelihood = norm.pdf(
             observation,
@@ -772,6 +983,7 @@ class ParticleFilterBeliefUpdater:
             diagnostics={
                 "observation": observation,
                 "likelihood_variance": likelihood_variance,
+                **observation_result.metadata,
                 "ess_before_resample": ess_before_resample,
                 "ess_after_resample": ess_after_resample,
                 "resampled": resampled,
@@ -807,12 +1019,14 @@ def create_monitoring_policy(
 def create_belief_updater(
     method: BeliefMethod,
     belief_store: BeliefStore,
+    observation_model: Optional[ObservationModel] = None,
 ) -> BeliefUpdater:
     """Create the runtime posterior updater.
 
     Args:
         method: Requested backend.
         belief_store: Shared belief store.
+        observation_model: Optional shared observation model.
 
     Returns:
         Configured belief updater.
@@ -822,9 +1036,15 @@ def create_belief_updater(
     """
 
     if method == "bayesian":
-        return BayesianBeliefUpdater(belief_store)
+        return BayesianBeliefUpdater(
+            belief_store,
+            observation_model=observation_model,
+        )
     if method == "particle_filter":
-        return ParticleFilterBeliefUpdater(belief_store)
+        return ParticleFilterBeliefUpdater(
+            belief_store,
+            observation_model=observation_model,
+        )
     raise ValueError(f"Unsupported belief update method: {method}")
 
 
@@ -833,6 +1053,7 @@ def create_monitoring_backend(
     initial_beliefs: Optional[Mapping[str, Mapping[str, Any]]] = None,
     *,
     particle_distribution: GroundTruthDistribution = "gaussian",
+    observation_model: Optional[ObservationModel] = None,
 ) -> tuple[BeliefStore, MonitoringPolicy, BeliefUpdater]:
     """Build a complete monitoring backend bundle.
 
@@ -840,6 +1061,7 @@ def create_monitoring_backend(
         method: Requested backend.
         initial_beliefs: Existing belief mapping from task initialization.
         particle_distribution: Distribution family used for PF particle initialization.
+        observation_model: Optional shared observation model used by the updater.
 
     Returns:
         Tuple of shared belief store, scheduler policy, and runtime updater.
@@ -852,8 +1074,49 @@ def create_monitoring_backend(
     )
     belief_store.ensure_method_for_all(method)
     monitoring_policy = create_monitoring_policy(method, belief_store)
-    belief_updater = create_belief_updater(method, belief_store)
+    belief_updater = create_belief_updater(
+        method,
+        belief_store,
+        observation_model=observation_model,
+    )
     return belief_store, monitoring_policy, belief_updater
+
+
+def create_observation_model(
+    mode: ObservationMode,
+    *,
+    image_provider: Optional[Callable[[], Any]] = None,
+    openai_model_name: str = "gpt-4.1-mini",
+    openai_api_key: Optional[str] = None,
+) -> ObservationModel:
+    """Create an observation model for simulation or real-world monitoring.
+
+    Args:
+        mode: Observation backend identifier.
+        image_provider: Optional callback supplying the latest frame/image.
+        openai_model_name: OpenAI multimodal model used for VLM observations.
+        openai_api_key: Optional API key override for the OpenAI client.
+
+    Returns:
+        Configured observation model.
+
+    Raises:
+        ValueError: If the observation mode is unsupported or incomplete.
+    """
+
+    if mode == "synthetic_gaussian":
+        return GaussianSyntheticObservationModel()
+    if mode == "openai_vlm":
+        if image_provider is None:
+            raise ValueError(
+                "OpenAI VLM observation requires an image provider callback."
+            )
+        return OpenAIVLMProgressObservationModel(
+            image_provider=image_provider,
+            model_name=openai_model_name,
+            api_key=openai_api_key,
+        )
+    raise ValueError(f"Unsupported observation mode: {mode}")
 
 
 def create_ground_truth_store(
@@ -880,6 +1143,66 @@ def create_ground_truth_store(
             random_seed=random_seed,
         ),
     )
+
+
+def _encode_image_as_data_url(image_payload: Any) -> str:
+    """Encode an image-like payload into a base64 data URL.
+
+    Args:
+        image_payload: Path, string path, raw bytes, or numpy image array.
+
+    Returns:
+        Data URL suitable for OpenAI image input.
+
+    Raises:
+        ValueError: If the payload type is unsupported.
+    """
+
+    if isinstance(image_payload, (str, Path)):
+        image_path = Path(image_payload)
+        mime_type = _infer_image_mime_type(image_path)
+        image_bytes = image_path.read_bytes()
+    elif isinstance(image_payload, bytes):
+        mime_type = "image/png"
+        image_bytes = image_payload
+    elif isinstance(image_payload, np.ndarray):
+        from matplotlib import pyplot as plt
+
+        image_buffer = io.BytesIO()
+        image_array = np.asarray(image_payload)
+        if image_array.dtype != np.uint8:
+            image_array = np.clip(image_array, 0, 255).astype(np.uint8)
+        plt.imsave(image_buffer, image_array, format="png")
+        image_bytes = image_buffer.getvalue()
+        mime_type = "image/png"
+    else:
+        raise ValueError(
+            "Unsupported image payload type for OpenAI VLM observation: "
+            f"{type(image_payload)!r}"
+        )
+
+    encoded_bytes = base64.b64encode(image_bytes).decode("utf-8")
+    return f"data:{mime_type};base64,{encoded_bytes}"
+
+
+def _infer_image_mime_type(image_path: Path) -> str:
+    """Infer an image MIME type from its suffix.
+
+    Args:
+        image_path: Path to the image file.
+
+    Returns:
+        MIME type string used in a data URL.
+    """
+
+    suffix = image_path.suffix.lower()
+    if suffix in {".jpg", ".jpeg"}:
+        return "image/jpeg"
+    if suffix == ".webp":
+        return "image/webp"
+    if suffix == ".gif":
+        return "image/gif"
+    return "image/png"
 
 
 def _sample_positive_duration(
@@ -938,35 +1261,6 @@ def _sample_positive_duration(
         )
 
     return np.clip(np.asarray(samples, dtype=float), a_min=MIN_VARIANCE, a_max=None)
-
-
-def _sample_observation(
-    *,
-    gt_interval: float,
-    prior_mean: float,
-    elapsed_interval: float,
-    rng: np.random.Generator,
-) -> tuple[float, float]:
-    """Sample a synthetic observation shared by all backends.
-
-    Args:
-        gt_interval: Ground-truth interval.
-        prior_mean: Current prior mean.
-        elapsed_interval: Time elapsed since the critical interval started.
-        rng: Random generator used for sampling.
-
-    Returns:
-        Sampled observation and likelihood variance.
-    """
-
-    likelihood_variance = max(
-        MIN_VARIANCE,
-        FACTOR_ALPHA * (prior_mean - elapsed_interval) ** 2,
-    )
-    observation = float(
-        rng.normal(loc=gt_interval, scale=math.sqrt(likelihood_variance))
-    )
-    return observation, likelihood_variance
 
 
 def _weighted_quantile(

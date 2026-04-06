@@ -12,7 +12,11 @@ from ithor.handlers.action import Action
 from ithor.utils.math_utils import load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
-from src.core.monitoring import create_ground_truth_store, create_monitoring_backend
+from src.core.monitoring import (
+    create_ground_truth_store,
+    create_monitoring_backend,
+    create_observation_model,
+)
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from src.utils.get_state import save_scene_state
 from src.utils.ros_executor import RosExecutor
@@ -155,6 +159,31 @@ def parse_arguments() -> argparse.Namespace:
         default=42,
         help="Random seed used for runtime ground-truth sampling.",
     )
+    parser.add_argument(
+        "--observation-mode",
+        type=str,
+        default="auto",
+        choices=["auto", "synthetic_gaussian", "openai_vlm"],
+        help="Observation backend used for monitoring updates.",
+    )
+    parser.add_argument(
+        "--observation-image-path",
+        type=str,
+        default=None,
+        help="Optional image path used by real-world observation backends.",
+    )
+    parser.add_argument(
+        "--observation-openai-model",
+        type=str,
+        default="gpt-4.1-mini",
+        help="OpenAI multimodal model used for VLM observations.",
+    )
+    parser.add_argument(
+        "--observation-openai-api-key",
+        type=str,
+        default=None,
+        help="Optional OpenAI API key override for VLM observations.",
+    )
     return parser.parse_args()
 
 
@@ -166,6 +195,41 @@ def _sanitize_filename(value: str) -> str:
     slug = re.sub(r"[^0-9a-zA-Z_\-]+", "_", value)
     slug = slug.strip("_")
     return slug or "task"
+
+
+def _resolve_observation_mode(args: argparse.Namespace) -> str:
+    """Resolve the runtime observation backend from CLI arguments."""
+
+    if args.observation_mode != "auto":
+        return args.observation_mode
+    if args.ros:
+        return "openai_vlm"
+    return "synthetic_gaussian"
+
+
+def _build_observation_image_provider(
+    *,
+    controller: Any,
+    observation_image_path: Optional[str],
+) -> Optional[Any]:
+    """Create a callback that returns the latest image payload."""
+
+    if observation_image_path:
+        image_path = Path(observation_image_path)
+
+        def _load_image_from_path() -> Path:
+            return image_path
+
+        return _load_image_from_path
+
+    if controller is not None and getattr(controller, "last_event", None) is not None:
+
+        def _load_controller_frame() -> Any:
+            return getattr(controller.last_event, "frame", None)
+
+        return _load_controller_frame
+
+    return None
 
 
 def main() -> None:
@@ -385,10 +449,22 @@ def main() -> None:
 
         # Initialize the agent and scheduler
         constraint_handler = ConstraintHandler(action_handler)
+        observation_mode = _resolve_observation_mode(args)
+        observation_image_provider = _build_observation_image_provider(
+            controller=controller,
+            observation_image_path=args.observation_image_path,
+        )
+        observation_model = create_observation_model(
+            observation_mode,
+            image_provider=observation_image_provider,
+            openai_model_name=args.observation_openai_model,
+            openai_api_key=args.observation_openai_api_key,
+        )
         belief_store, monitoring_policy, belief_updater = create_monitoring_backend(
             args.belief_update_method,
             bayesian_load,
             particle_distribution="gaussian",
+            observation_model=observation_model,
         )
         ground_truth_store = create_ground_truth_store(
             constants.CRITICAL_OBJECT_GROUND_TRUTH,
@@ -594,6 +670,12 @@ def main() -> None:
                 "gt_distribution": args.gt_distribution,
                 "gt_seed": args.gt_seed,
                 "pf_prior_distribution": "gaussian",
+                "observation_mode": observation_mode,
+                "observation_openai_model": (
+                    args.observation_openai_model
+                    if observation_mode == "openai_vlm"
+                    else None
+                ),
                 "sampled_ground_truths": ground_truth_store.as_dict(),
             }
             result_args.update(

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import numpy as np
+import pytest
 from scipy.stats import norm
 
 from src.core.agent import Agent
@@ -16,11 +18,15 @@ from src.core.monitoring import (
     BayesianMonitoringPolicy,
     BeliefStore,
     BeliefUpdateContext,
+    GaussianSyntheticObservationModel,
     GroundTruthConfig,
     GroundTruthStore,
     MonitoringTriggerContext,
+    ObservationResult,
+    OpenAIVLMProgressObservationModel,
     ParticleFilterBeliefUpdater,
     ParticleFilterMonitoringPolicy,
+    create_observation_model,
     create_monitoring_backend,
 )
 from src.core.scheduler import Scheduler
@@ -69,6 +75,45 @@ class _DummyHeuristicManager:
         """Return a neutral heuristic for dependency injection only."""
 
         return 0, 0.0
+
+
+class _FixedObservationModel:
+    """Return a deterministic observation payload for updater tests."""
+
+    def __init__(self, observation: float, variance: float) -> None:
+        self._observation = observation
+        self._variance = variance
+
+    def observe(self, context: BeliefUpdateContext) -> ObservationResult:
+        """Return a fixed observation irrespective of the input context."""
+
+        _ = context
+        return ObservationResult(
+            observation=self._observation,
+            variance=self._variance,
+            metadata={"source": "fixed"},
+        )
+
+
+class _FakeResponsesApi:
+    """Minimal fake OpenAI responses client for observation-model tests."""
+
+    def __init__(self, output_text: str) -> None:
+        self._output_text = output_text
+        self.last_kwargs: dict[str, Any] | None = None
+
+    def create(self, **kwargs: Any) -> Any:
+        """Capture request payloads and return a fake structured response."""
+
+        self.last_kwargs = kwargs
+        return type("FakeResponse", (), {"output_text": self._output_text})()
+
+
+class _FakeOpenAIClient:
+    """Expose the `.responses.create(...)` shape used in monitoring code."""
+
+    def __init__(self, output_text: str) -> None:
+        self.responses = _FakeResponsesApi(output_text)
 
 
 def _make_subtask(
@@ -253,6 +298,81 @@ def test_bayesian_belief_updater_persists_summary() -> None:
     assert summary.expected_duration == result.posterior_mean
     assert summary.variance == result.posterior_variance
     assert "observation" in result.diagnostics
+
+
+def test_gaussian_synthetic_observation_model_returns_variance_metadata() -> None:
+    """Synthetic observation model should emit an observation and diagnostics."""
+
+    observation_model = GaussianSyntheticObservationModel(
+        rng=np.random.default_rng(0)
+    )
+
+    result = observation_model.observe(
+        BeliefUpdateContext(
+            object_name="Mug",
+            gt_interval=15.0,
+            prior_mean=20.0,
+            prior_variance=16.0,
+            elapsed_interval=12.0,
+        )
+    )
+
+    assert result.variance > 0.0
+    assert "observation_mean" in result.metadata
+    assert "elapsed_interval" in result.metadata
+
+
+def test_create_observation_model_builds_synthetic_backend() -> None:
+    """Observation factory should build the synthetic backend by name."""
+
+    observation_model = create_observation_model("synthetic_gaussian")
+
+    assert isinstance(observation_model, GaussianSyntheticObservationModel)
+
+
+def test_openai_vlm_observation_model_converts_progress_to_duration() -> None:
+    """OpenAI VLM observation model should turn progress into a duration estimate."""
+
+    fake_client = _FakeOpenAIClient(
+        json.dumps(
+            {
+                "progress": 0.5,
+                "confidence": 0.8,
+                "rationale": "The object appears about halfway done.",
+            }
+        )
+    )
+    observation_model = OpenAIVLMProgressObservationModel(
+        image_provider=lambda: b"fake-image-bytes",
+        client=fake_client,
+        sigma_floor_sq=100.0,
+        alpha=0.08,
+    )
+
+    result = observation_model.observe(
+        BeliefUpdateContext(
+            object_name="Microwave",
+            gt_interval=100.0,
+            prior_mean=100.0,
+            prior_variance=900.0,
+            elapsed_interval=40.0,
+        )
+    )
+
+    assert result.observation == 80.0
+    assert result.variance > 100.0
+    assert result.metadata["observation_model"] == "openai_vlm"
+    assert result.metadata["progress"] == 0.5
+    assert result.metadata["confidence"] == 0.8
+    assert fake_client.responses.last_kwargs is not None
+    assert fake_client.responses.last_kwargs["model"] == "gpt-4.1-mini"
+
+
+def test_create_observation_model_requires_image_provider_for_openai_vlm() -> None:
+    """OpenAI VLM observation backend should require an image source."""
+
+    with pytest.raises(ValueError):
+        create_observation_model("openai_vlm")
 
 
 def test_ground_truth_store_samples_once_per_object() -> None:
@@ -1025,6 +1145,61 @@ def test_particle_filter_belief_updater_returns_particle_state() -> None:
     assert len(stored_state["particles"]) == len(stored_state["weights"])
     assert stored_state["ess"] > 0.0
     assert "ess_before_resample" in result.diagnostics
+
+
+def test_belief_updaters_accept_shared_observation_model() -> None:
+    """Bayesian and PF updaters should consume the same observation payload API."""
+
+    fixed_observation_model = _FixedObservationModel(observation=18.0, variance=4.0)
+    bayesian_store = BeliefStore(
+        {"Mug": {"expected_duration": 20.0, "variance": 16.0}},
+    )
+    bayesian_updater = BayesianBeliefUpdater(
+        bayesian_store,
+        observation_model=fixed_observation_model,
+    )
+    bayesian_result = bayesian_updater.update(
+        BeliefUpdateContext(
+            object_name="Mug",
+            gt_interval=15.0,
+            prior_mean=20.0,
+            prior_variance=16.0,
+            elapsed_interval=12.0,
+        )
+    )
+
+    particle_store = BeliefStore(
+        {
+            "Mug": {
+                "expected_duration": 20.0,
+                "variance": 16.0,
+                "method": "particle_filter",
+                "particles": [12.0, 18.0, 24.0],
+                "weights": [1 / 3, 1 / 3, 1 / 3],
+            }
+        },
+    )
+    particle_updater = ParticleFilterBeliefUpdater(
+        particle_store,
+        observation_model=fixed_observation_model,
+        rng=np.random.default_rng(0),
+    )
+    particle_result = particle_updater.update(
+        BeliefUpdateContext(
+            object_name="Mug",
+            gt_interval=15.0,
+            prior_mean=20.0,
+            prior_variance=16.0,
+            elapsed_interval=12.0,
+        )
+    )
+
+    assert bayesian_result.diagnostics["observation"] == 18.0
+    assert bayesian_result.diagnostics["likelihood_variance"] == 4.0
+    assert bayesian_result.diagnostics["source"] == "fixed"
+    assert particle_result.diagnostics["observation"] == 18.0
+    assert particle_result.diagnostics["likelihood_variance"] == 4.0
+    assert particle_result.diagnostics["source"] == "fixed"
 
 
 def test_belief_store_constant_particle_initialization_is_degenerate() -> None:
