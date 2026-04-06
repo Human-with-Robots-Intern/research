@@ -425,7 +425,7 @@ def parse_arguments():
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan7",
+        default="FloorPlan13",
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
     parser.add_argument(

@@ -678,7 +678,7 @@ class Action:
         Returns:
             float: Elapsed time for the wait action.
         """
-        time.sleep(ACTION_TIME_SLEEP)
+        time.sleep(wait_time // 10)
         self.log.debug(f"wait: {wait_time}")
         # self.controller.step(action="Pass")
         return wait_time

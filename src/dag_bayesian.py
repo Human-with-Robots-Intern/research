@@ -67,13 +67,13 @@ def parse_arguments():
     parser.add_argument(
         "--case",
         type=str,
-        default="tasks_2_constraints_1",
+        default="tasks_3_constraints_2",
         help="The name of the case.",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default="08_heat_the_potato_using_microwave_and_wash_all_fork_and_spoon.json",
+        default="08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
@@ -164,7 +164,7 @@ def parse_arguments():
     parser.add_argument(
         "--task-folder-name",
         type=str,
-        default="sampled_10_instruction_set_for_final_experiment_251231_5070",
+        default="sampled_10_instruction_set_for_final_experiment_251203",
         help="Task folder name for organizing results",
     )
     return parser.parse_args()
