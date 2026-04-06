@@ -1,14 +1,22 @@
 {
-    "Faucet": {
-        "expected_duration": 100.44875950684208,
-        "variance": 0.12049336370577653
-    },
     "Microwave": {
-        "expected_duration": 100.45768179990327,
-        "variance": 1.1159486116782957
+        "expected_duration": 100.55597637594605,
+        "variance": 0.0018569074015995968,
+        "method": "bayesian"
     },
     "CounterTop": {
-        "expected_duration": 0.0,
-        "variance": 900
+        "expected_duration": 100.0,
+        "variance": 900.0,
+        "method": "bayesian"
+    },
+    "CoffeeMachine": {
+        "expected_duration": 95.77461386408318,
+        "variance": 4.2661647281206495e-05,
+        "method": "bayesian"
+    },
+    "Faucet": {
+        "expected_duration": 100.0,
+        "variance": 900.0,
+        "method": "bayesian"
     }
 }

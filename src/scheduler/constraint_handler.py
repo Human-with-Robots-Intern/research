@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TypeAlias
 
 import networkx as nx
 from networkx import DiGraph
@@ -13,6 +13,7 @@ from src.models.dataclass import (
     CriticalContext,
     SchedulingDue,
     SimulationNode,
+    TaskExecutionStatus,
     TimeSlot,
 )
 from src.models.task import Subtask
@@ -23,6 +24,8 @@ from src.utils.config.constants import MONITORING_DURATION, TIMING_TOLERANCE_ABS
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
+TimeSlotCacheKey: TypeAlias = Tuple[int, str, str]
+
 
 class ConstraintHandler:
 
@@ -31,7 +34,56 @@ class ConstraintHandler:
         ConstraintHandler 초기화. ActionHandler 인스턴스를 주입받습니다.
         """
         self.action_handler = action_handler
+        self._search_time_slot_cache: Optional[
+            Dict[TimeSlotCacheKey, Tuple[TimeSlot, ...]]
+        ] = None
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
         log.debug("ConstraintHandler initialized with ActionHandler.")
+
+    def begin_search_session(
+        self, cache: Dict[TimeSlotCacheKey, Tuple[TimeSlot, ...]]
+    ) -> None:
+        """Attach a search-scoped cache for repeated time-slot lookups.
+
+        Args:
+            cache: Cache owned by the scheduler for the current search call.
+        """
+
+        self._search_time_slot_cache = cache
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
+
+    def end_search_session(self) -> tuple[int, int]:
+        """Detach the search-scoped cache and return cache statistics.
+
+        Returns:
+            A tuple of `(cache_hits, cache_misses)` collected in the current search.
+        """
+
+        stats = (self._search_cache_hits, self._search_cache_misses)
+        self._search_time_slot_cache = None
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
+        return stats
+
+    @staticmethod
+    def _has_failed_execution(pred_entry: CompletedEntry) -> bool:
+        """Return whether a predecessor entry represents an explicit failure.
+
+        Args:
+            pred_entry: Completed predecessor entry to inspect.
+
+        Returns:
+            ``True`` when the predecessor explicitly failed, otherwise ``False``.
+        """
+
+        execution_status = pred_entry.execution_status
+        if isinstance(execution_status, bool):
+            return execution_status is False
+        if execution_status == TaskExecutionStatus.FAILURE:
+            return True
+        return getattr(execution_status, "name", None) == "FAILURE"
 
     def get_time_slots(
         self, subtask_name: str, constraints: DiGraph, direction: str
@@ -45,12 +97,23 @@ class ConstraintHandler:
         Returns:
             List[TimeSlot]: TimeSlot 객체를 반환
         """
+        cache_key: Optional[TimeSlotCacheKey] = None
+        if self._search_time_slot_cache is not None:
+            cache_key = (id(constraints), subtask_name, direction)
+            cached_slots = self._search_time_slot_cache.get(cache_key)
+            if cached_slots is not None:
+                self._search_cache_hits += 1
+                return list(cached_slots)
+
         edges = (
             list(constraints.out_edges(subtask_name, data=True))
             if direction == "out"
             else list(constraints.in_edges(subtask_name, data=True))
         )
         if not edges:
+            if cache_key is not None and self._search_time_slot_cache is not None:
+                self._search_time_slot_cache[cache_key] = ()
+                self._search_cache_misses += 1
             return []
 
         time_slots = []
@@ -61,6 +124,9 @@ class ConstraintHandler:
             linked_subtask = v if direction == "out" else u
 
             time_slots.append(TimeSlot(float(interval), is_crit, linked_subtask))
+        if cache_key is not None and self._search_time_slot_cache is not None:
+            self._search_time_slot_cache[cache_key] = tuple(time_slots)
+            self._search_cache_misses += 1
         return time_slots
 
     def get_feasible_candidates(
@@ -72,7 +138,7 @@ class ConstraintHandler:
         Adjusts start times based on navigation estimates (from ActionHandler)
         and logical constraints, then checks against current time.
         """
-        log.debug(f"[get_feasible_candidates] FEASIBLE CANDIDATES & NOT_YET CANDIDATES")
+        log.debug("[get_feasible_candidates] FEASIBLE CANDIDATES & NOT_YET CANDIDATES")
         feasible_candidates: List[Candidate] = []
         not_yet_candidates: List[Candidate] = []
 
@@ -151,8 +217,13 @@ class ConstraintHandler:
                 navigation_info: Optional[ActionResult] = (
                     self.action_handler.get_actions_info(curr_node, [first_nav_action])
                 )
-                # get_actions_info는 빈 actions 목록이 아니면 항상 ActionResult를 반환하므로 prep_info는 None이 아님.
-                first_nav_duration = navigation_info.action_duration
+                if navigation_info is None or not navigation_info.success:
+                    log.warning(
+                        "Navigation simulation failed for '%s'; falling back to zero prep time.",
+                        sub.name,
+                    )
+                else:
+                    first_nav_duration = navigation_info.action_duration
 
             # 3. 최종 시작 가능 시간 계산 및 Feasibility 판단
             #    logical_start_time: 선행 작업 완료 + 제약 간격 이후의 시간 (상호작용 시작 가능 논리적 시간)
@@ -257,6 +328,10 @@ class ConstraintHandler:
             if pred_entry is None:
                 all_predecessors_finished = False
                 continue
+            if self._has_failed_execution(pred_entry):
+                any_predecessor_failed = True
+                failure_reason = pred_name
+                break
 
             pred_end_time = pred_entry.schedule_end_time
             curr_logical_interaction_start_time = pred_end_time + interval

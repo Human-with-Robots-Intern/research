@@ -17,11 +17,8 @@ from src.models.task import Duration, Execution, Subtask, Task, TemporalConstrai
 from src.utils.common import create_module_logger
 from src.utils.config import constants
 from src.utils.config.constants import (  # 분산 값도 상수로 사용하기 위해 추가
-    CRITICAL_OBJECT_INTERVALS,
     GRASP_ACTION_DURATION,
-    INIT_PRIOR_VARIANCE,
     MONITORING_DURATION,
-    NON_CRITICAL_OBJECT_INTERVALS,
     PLACE_ACTION_DURATION,
     PRIMITIVE_ACTION_SET,
     SCENE_KNOWLEDGE_PATH,
@@ -461,18 +458,28 @@ class TaskUtil:
         obj_type을 Key로 사용하여 bayesian_load에 Belief를 생성/업데이트한다.
         agent.py와 호환되도록 {"expected_duration": ..., "variance": ...} 구조를 사용한다.
         """
-        belief_value = (
+        edge_interval_value = (
             constants.INIT_PRIOR_MEAN if temporal_constraint.interval != 0.0 else 0.0
+        )
+        object_prior_value = (
+            constants.INIT_PRIOR_MEAN
+            if temporal_constraint.is_critical
+            else edge_interval_value
         )
 
         if obj_type not in bayesian_load:
             bayesian_load[obj_type] = {
-                "expected_duration": belief_value,
+                "expected_duration": object_prior_value,
                 "variance": constants.INIT_PRIOR_VARIANCE,
             }
+        elif (
+            temporal_constraint.is_critical
+            and bayesian_load[obj_type]["expected_duration"] <= 0.0
+        ):
+            bayesian_load[obj_type]["expected_duration"] = constants.INIT_PRIOR_MEAN
 
-        # tc.interval 값도 시스템의 초기 믿음 값으로 통일시켜 일관성 유지
-        temporal_constraint.interval = belief_value
+        # Edge interval은 tDAG의 시간 의미를 유지해야 하므로 0,True는 그대로 둡니다.
+        temporal_constraint.interval = edge_interval_value
 
     @staticmethod
     def get_init_state(

@@ -108,7 +108,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-s",
         "--simulation",
-        default=False,
+        default=True,
         action="store_true",
         help="시뮬레이션 실행 여부 (default: True)",
     )
@@ -139,7 +139,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--scene",
         type=str,
-        default="FloorPlan1",
+        default="FloorPlan13",
         # 추후에 scene 목록이 생기면 choices = [] 으로 구현한다.
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
@@ -158,7 +158,9 @@ def parse_arguments() -> argparse.Namespace:
 
     parser.add_argument("--prompt-task-examples", type=str, default="default")
     parser.add_argument(
-        "--instruction", type=str, default="01_boil_potato_and_set_the_table.json"
+        "--instruction",
+        type=str,
+        default="08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon.json",
     )
     parser.add_argument(
         "--log-path",
@@ -186,13 +188,13 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--init_prior_variance",
         type=float,
-        default=100,
+        default=900,
         help="베이지안 추정을 위한 초기 분산값 (기본값: constants.py 값)",
     )
     parser.add_argument(
         "--case",
         type=str,
-        default="tasks_4_constraints_3",
+        default="tasks_3_constraints_2",
         help="The name of the case.",
     )
     parser.add_argument(

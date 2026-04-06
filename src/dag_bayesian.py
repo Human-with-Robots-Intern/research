@@ -12,6 +12,11 @@ from ithor.handlers.action import Action
 from ithor.utils.math_utils import load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
+from src.core.monitoring import (
+    create_ground_truth_store,
+    create_monitoring_backend,
+    create_observation_model,
+)
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from src.utils.get_state import save_scene_state
 from src.utils.ros_executor import RosExecutor
@@ -33,7 +38,7 @@ from utils.task import TaskUtil
 log = create_module_logger(__name__, module_log=True)
 
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Task Scheduler")
 
@@ -41,16 +46,8 @@ def parse_arguments():
         "-r",
         "--reset",
         default=True,
-        help="Reset the knowledge base to Gaussian",
         action="store_true",
-    )
-
-    parser.add_argument(
-        "--log-level",
-        type=str,
-        default="INFO",
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="로그 출력 수준 설정 (default: INFO)",
+        help="(Deprecated, no-op) Kept for backward compatibility with run_all.py.",
     )
     parser.add_argument(
         "--ablation-name",
@@ -67,13 +64,13 @@ def parse_arguments():
     parser.add_argument(
         "--case",
         type=str,
-        default="tasks_2_constraints_1",
+        default="tasks_3_constraints_2",
         help="The name of the case.",
     )
     parser.add_argument(
         "--instruction",
         type=str,
-        default="08_heat_the_potato_using_microwave_and_wash_all_fork_and_spoon.json",
+        default="08_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_all_fork_and_spoon.json",
         help="실행할 태스크 instruction 문자열 또는 번호 (default: None)",
     )
     parser.add_argument(
@@ -115,24 +112,6 @@ def parse_arguments():
         help="베이지안 추정을 위한 초기 분산값 (기본값: constants.py 값)",
     )
     parser.add_argument(
-        "--alpha_heuristic",
-        type=float,
-        default=None,
-        help="Heuristic alpha 값 (기본값: constants.py 값)",
-    )
-    parser.add_argument(
-        "--beta_heuristic",
-        type=float,
-        default=None,
-        help="Heuristic beta 값 (기본값: constants.py 값)",
-    )
-    parser.add_argument(
-        "--gamma_heuristic",
-        type=float,
-        default=None,
-        help="Heuristic gamma 값 (기본값: constants.py 값)",
-    )
-    parser.add_argument(
         "--factor_alpha",
         type=float,
         default=None,
@@ -156,6 +135,13 @@ def parse_arguments():
         help="Disable Bayesian monitoring.",
     )
     parser.add_argument(
+        "--belief-update-method",
+        type=str,
+        default="bayesian",
+        choices=["bayesian", "particle_filter"],
+        help="Monitoring timing/update backend to use.",
+    )
+    parser.add_argument(
         "--trajectory_log_path",
         type=str,
         default=None,
@@ -164,8 +150,46 @@ def parse_arguments():
     parser.add_argument(
         "--task-folder-name",
         type=str,
-        default="sampled_10_instruction_set_for_final_experiment_251231_5070",
+        default="sampled_10_instruction_set_for_final_experiment_251203",
         help="Task folder name for organizing results",
+    )
+    parser.add_argument(
+        "--gt-distribution",
+        type=str,
+        default="constant",
+        choices=["constant", "gaussian", "lognormal", "gamma", "mixture"],
+        help="Ground-truth duration distribution used during monitoring updates.",
+    )
+    parser.add_argument(
+        "--gt-seed",
+        type=int,
+        default=42,
+        help="Random seed used for runtime ground-truth sampling.",
+    )
+    parser.add_argument(
+        "--observation-mode",
+        type=str,
+        default="auto",
+        choices=["auto", "synthetic_gaussian", "openai_vlm"],
+        help="Observation backend used for monitoring updates.",
+    )
+    parser.add_argument(
+        "--observation-image-path",
+        type=str,
+        default=None,
+        help="Optional image path used by real-world observation backends.",
+    )
+    parser.add_argument(
+        "--observation-openai-model",
+        type=str,
+        default="gpt-4.1-mini",
+        help="OpenAI multimodal model used for VLM observations.",
+    )
+    parser.add_argument(
+        "--observation-openai-api-key",
+        type=str,
+        default=None,
+        help="Optional OpenAI API key override for VLM observations.",
     )
     return parser.parse_args()
 
@@ -180,10 +204,46 @@ def _sanitize_filename(value: str) -> str:
     return slug or "task"
 
 
-def main():
+def _resolve_observation_mode(args: argparse.Namespace) -> str:
+    """Resolve the runtime observation backend from CLI arguments."""
+
+    if args.observation_mode != "auto":
+        return args.observation_mode
+    if args.ros:
+        return "openai_vlm"
+    return "synthetic_gaussian"
+
+
+def _build_observation_image_provider(
+    *,
+    controller: Any,
+    observation_image_path: Optional[str],
+) -> Optional[Any]:
+    """Create a callback that returns the latest image payload."""
+
+    if observation_image_path:
+        image_path = Path(observation_image_path)
+
+        def _load_image_from_path() -> Path:
+            return image_path
+
+        return _load_image_from_path
+
+    if controller is not None and getattr(controller, "last_event", None) is not None:
+
+        def _load_controller_frame() -> Any:
+            return getattr(controller.last_event, "frame", None)
+
+        return _load_controller_frame
+
+    return None
+
+
+def main() -> None:
     """Main entry point for the Task Scheduler."""
     args = parse_arguments()
-    approach_name = "dag_bayesian"
+    base_approach_name = f"dag_{args.belief_update_method}"
+    approach_name = base_approach_name
 
     # Dynamically override constants based on command-line arguments
     from src.utils.config import constants
@@ -218,12 +278,6 @@ def main():
         constants.set_init_prior_variance(args.init_prior_variance)
     else:
         constants.set_init_prior_variance(init_prior_variance)
-    if args.alpha_heuristic is not None:
-        constants.set_alpha_heuristic(args.alpha_heuristic)
-    if args.beta_heuristic is not None:
-        constants.set_beta_heuristic(args.beta_heuristic)
-    if args.gamma_heuristic is not None:
-        constants.set_gamma_heuristic(args.gamma_heuristic)
     if args.factor_alpha is not None:
         constants.set_factor_alpha(args.factor_alpha)
     if args.beam_width is not None:
@@ -402,12 +456,42 @@ def main():
 
         # Initialize the agent and scheduler
         constraint_handler = ConstraintHandler(action_handler)
-        agent = Agent(constraint_handler, bayesian_load)
+        observation_mode = _resolve_observation_mode(args)
+        observation_image_provider = _build_observation_image_provider(
+            controller=controller,
+            observation_image_path=args.observation_image_path,
+        )
+        observation_model = create_observation_model(
+            observation_mode,
+            image_provider=observation_image_provider,
+            openai_model_name=args.observation_openai_model,
+            openai_api_key=args.observation_openai_api_key,
+        )
+        belief_store, monitoring_policy, belief_updater = create_monitoring_backend(
+            args.belief_update_method,
+            bayesian_load,
+            particle_distribution="gaussian",
+            observation_model=observation_model,
+        )
+        ground_truth_store = create_ground_truth_store(
+            constants.CRITICAL_OBJECT_GROUND_TRUTH,
+            distribution=args.gt_distribution,
+            random_seed=args.gt_seed,
+        )
+        ground_truth_store.ensure_intervals(bayesian_load)
+        agent = Agent(
+            constraint_handler,
+            bayesian_load,
+            belief_updater=belief_updater,
+            belief_store=belief_store,
+            ground_truth_store=ground_truth_store,
+        )
         cost_calculator = HeuristicManager(action_handler)
         scheduler = Scheduler(
             action_handler=action_handler,
             constraint_handler=constraint_handler,
             heuristic_manager=cost_calculator,
+            monitoring_policy=monitoring_policy,
             beam_width=constants.BEAM_WIDTH,
             simulation_depth=constants.SIMULATION_DEPTH,
         )
@@ -455,7 +539,9 @@ def main():
                     not args.disable_monitoring
                     and next_state.subtask.subtask_type == "Monitor"
                 ):
-                    next_state, monitored_subtask = agent.bayesian_estimate(next_state)
+                    next_state, monitored_subtask = agent.update_monitoring_belief(
+                        next_state
+                    )
                     next_state.completed_entries[-1].monitored_subtask = (
                         monitored_subtask
                     )
@@ -511,7 +597,9 @@ def main():
                     not args.disable_monitoring
                     and next_state.subtask.subtask_type == "Monitor"
                 ):
-                    next_state, monitored_subtask = agent.bayesian_estimate(next_state)
+                    next_state, monitored_subtask = agent.update_monitoring_belief(
+                        next_state
+                    )
                     next_state.completed_entries[-1].monitored_subtask = (
                         monitored_subtask
                     )
@@ -549,6 +637,7 @@ def main():
                 "constraints": current_state.constraints,
                 "initial_plan_data": task_data,
                 "init_prior_mean": args.init_prior_mean,
+                "ground_truth_overrides": ground_truth_store.as_dict(),
             }
             result_save(
                 **result_args,
@@ -562,7 +651,7 @@ def main():
             if entry.subtask.name != "Init"
         ]
 
-        approach_name = f"{approach_name}_simulation"
+        approach_name = f"{base_approach_name}_simulation"
         result_args = {
             "task_name": input_natural_language,
             "approach_name": approach_name,
@@ -572,20 +661,29 @@ def main():
             "constraints": current_state.constraints,
             "initial_plan_data": task_data,
             "init_prior_mean": init_prior_mean,
+            "ground_truth_overrides": ground_truth_store.as_dict(),
             # "simulationTime": total_sim_time,
         }
         if args.case:
-            approach_name = "dag_bayesian"
+            approach_name = base_approach_name
             meta_data = {
                 "init_prior_name": constants.INIT_PRIOR_MEAN,
                 "init_prior_variance": constants.INIT_PRIOR_VARIANCE,
-                "alpha_heuristic": constants.ALPHA_HEURISTIC,
-                "beta_heuristic": constants.BETA_HEURISTIC,
-                "gamma_heuristic": constants.GAMMA_HEURISTIC,
                 "factor_alpha": constants.FACTOR_ALPHA,
                 "beam_width": constants.BEAM_WIDTH,
                 "beam_depth": constants.SIMULATION_DEPTH,
                 "disable_monitoring": not constants.MONITORING_ENABLED,
+                "belief_update_method": args.belief_update_method,
+                "gt_distribution": args.gt_distribution,
+                "gt_seed": args.gt_seed,
+                "pf_prior_distribution": "gaussian",
+                "observation_mode": observation_mode,
+                "observation_openai_model": (
+                    args.observation_openai_model
+                    if observation_mode == "openai_vlm"
+                    else None
+                ),
+                "sampled_ground_truths": ground_truth_store.as_dict(),
             }
             result_args.update(
                 {

@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import copy
 import itertools
-from typing import TYPE_CHECKING, List, Optional
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, TypeAlias
 
-import numpy as np
-from scipy.stats import norm
-
+from src.core.monitoring import (
+    BeliefStore,
+    MonitoringPolicy,
+    MonitoringTriggerContext,
+    create_monitoring_policy,
+)
 from src.models.dataclass import (
     ActionResult,
     Candidate,
@@ -27,7 +31,6 @@ from src.utils.config import (
     constants,
 )
 from src.utils.config.constants import (
-    BAYESIAN_THRESHOLD_PROBABILITY,
     BEAM_WIDTH,
     INIT_PRIOR_VARIANCE,
     SIMULATION_DEPTH,
@@ -38,6 +41,33 @@ if TYPE_CHECKING:
     from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 
 log = create_module_logger(module_name=__name__, module_log=True)
+
+ActiveIntervalCacheKey: TypeAlias = Tuple[int, Tuple[Tuple[str, float], ...]]
+MonitoringTriggerCacheKey: TypeAlias = Tuple[str, Optional[str], float, float, float]
+ActionInfoCache: TypeAlias = Dict[object, Optional[ActionResult]]
+TimeSlotCache: TypeAlias = Dict[object, Tuple[object, ...]]
+
+
+@dataclass
+class SchedulerSearchCache:
+    """Caches repeated calculations during a single scheduler search call."""
+
+    action_results: ActionInfoCache = field(default_factory=dict)
+    time_slots: TimeSlotCache = field(default_factory=dict)
+    active_intervals: Dict[
+        ActiveIntervalCacheKey, List[Tuple[float, SchedulingDue]]
+    ] = field(default_factory=dict)
+    monitoring_triggers: Dict[MonitoringTriggerCacheKey, float] = field(
+        default_factory=dict
+    )
+    action_cache_hits: int = 0
+    action_cache_misses: int = 0
+    time_slot_cache_hits: int = 0
+    time_slot_cache_misses: int = 0
+    active_interval_cache_hits: int = 0
+    active_interval_cache_misses: int = 0
+    trigger_cache_hits: int = 0
+    trigger_cache_misses: int = 0
 
 
 class Scheduler:
@@ -62,9 +92,20 @@ class Scheduler:
         action_handler: ActionHandler,
         constraint_handler: ConstraintHandler,
         heuristic_manager: HeuristicManager,
+        monitoring_policy: Optional[MonitoringPolicy] = None,
         beam_width: int = BEAM_WIDTH,
         simulation_depth: int = SIMULATION_DEPTH,
-    ):
+    ) -> None:
+        """Initialize the scheduler and its expansion policies.
+
+        Args:
+            action_handler: Simulates primitive action durations.
+            constraint_handler: Evaluates temporal feasibility.
+            heuristic_manager: Scores expanded nodes.
+            monitoring_policy: Optional backend-specific monitoring trigger policy.
+            beam_width: Layer-wise beam width.
+            simulation_depth: Lookahead depth for beam search.
+        """
 
         self.search_width = beam_width
         self.simulation_depth = simulation_depth
@@ -74,7 +115,114 @@ class Scheduler:
         self.constraint_handler = constraint_handler
         self.action_handler = action_handler
         self.cost_calculator = heuristic_manager
+        self.monitoring_policy = monitoring_policy or create_monitoring_policy(
+            "bayesian",
+            BeliefStore(),
+        )
         self._counter = itertools.count()
+        self._search_cache: Optional[SchedulerSearchCache] = None
+
+    def _begin_search_session(self) -> None:
+        """Create and attach search-scoped caches for the current beam search."""
+
+        self._search_cache = SchedulerSearchCache()
+        if hasattr(self.action_handler, "begin_search_session"):
+            self.action_handler.begin_search_session(self._search_cache.action_results)
+        if hasattr(self.constraint_handler, "begin_search_session"):
+            self.constraint_handler.begin_search_session(self._search_cache.time_slots)
+
+    def _end_search_session(self) -> None:
+        """Detach search-scoped caches and emit debug statistics."""
+
+        if self._search_cache is None:
+            return
+
+        action_hits, action_misses = (0, 0)
+        time_slot_hits, time_slot_misses = (0, 0)
+        if hasattr(self.action_handler, "end_search_session"):
+            action_hits, action_misses = self.action_handler.end_search_session()
+        if hasattr(self.constraint_handler, "end_search_session"):
+            time_slot_hits, time_slot_misses = self.constraint_handler.end_search_session()
+        self._search_cache.action_cache_hits = action_hits
+        self._search_cache.action_cache_misses = action_misses
+        self._search_cache.time_slot_cache_hits = time_slot_hits
+        self._search_cache.time_slot_cache_misses = time_slot_misses
+        log.debug(
+            "[Scheduler Cache] action hits=%d misses=%d, time_slot hits=%d misses=%d, "
+            "active_interval hits=%d misses=%d, trigger hits=%d misses=%d",
+            self._search_cache.action_cache_hits,
+            self._search_cache.action_cache_misses,
+            self._search_cache.time_slot_cache_hits,
+            self._search_cache.time_slot_cache_misses,
+            self._search_cache.active_interval_cache_hits,
+            self._search_cache.active_interval_cache_misses,
+            self._search_cache.trigger_cache_hits,
+            self._search_cache.trigger_cache_misses,
+        )
+        self._search_cache = None
+
+    @staticmethod
+    def _build_completed_entries_signature(
+        completed_entries: List[CompletedEntry],
+    ) -> Tuple[Tuple[str, float], ...]:
+        """Create a hashable signature for completed entries relevant to monitoring."""
+
+        return tuple(
+            (entry.subtask.name, entry.schedule_end_time) for entry in completed_entries
+        )
+
+    def _get_active_monitoring_intervals(
+        self, curr_node: SimulationNode
+    ) -> List[Tuple[float, SchedulingDue]]:
+        """Return active critical intervals for the current node with memoization.
+
+        Args:
+            curr_node: Node whose completed tasks and constraints define active intervals.
+
+        Returns:
+            Active intervals as `(variance, due)` tuples.
+        """
+
+        graph = curr_node.state.constraints
+        cache_key = (
+            id(graph),
+            self._build_completed_entries_signature(curr_node.state.completed_entries),
+        )
+        if self._search_cache is not None:
+            cached_intervals = self._search_cache.active_intervals.get(cache_key)
+            if cached_intervals is not None:
+                self._search_cache.active_interval_cache_hits += 1
+                return cached_intervals
+
+        completed_entries_map = {
+            ce.subtask.name: ce for ce in curr_node.state.completed_entries
+        }
+        active_intervals: List[Tuple[float, SchedulingDue]] = []
+        for start_name, end_name, data in graph.edges(data=True):
+            info = data.get("info", {})
+            if info.get("IsCritical") and info.get("Interval") > EPSILON:
+                if (
+                    start_name in completed_entries_map
+                    and end_name not in completed_entries_map
+                ):
+                    start_entry = completed_entries_map[start_name]
+                    if start_entry.subtask.subtask_type != "Monitor":
+                        interval = info.get("Interval", 0.0)
+                        variance = info.get("Variance", INIT_PRIOR_VARIANCE)
+                        due_date = start_entry.schedule_end_time + interval
+                        active_intervals.append(
+                            (
+                                variance,
+                                SchedulingDue(
+                                    due_date=due_date, due_related_sub_name=end_name
+                                ),
+                            )
+                        )
+
+        if self._search_cache is not None:
+            self._search_cache.active_interval_cache_misses += 1
+            self._search_cache.active_intervals[cache_key] = active_intervals
+        return active_intervals
 
     # ======================
     # Public method
@@ -122,172 +270,181 @@ class Scheduler:
         Returns:
             Optional[SimulationNode]: The best goal node (lowest cost) among expansions.
         """
-        # 1. Initialize Beam
-        init_node = SimulationNode(
-            parent_node=None,
-            heuristic_cost=0.0,
-            depth=0,
-            tie_breaker=next(self._counter),
-            state=init_state,
-            risk_level=0,
-        )
-        current_beam: List[SimulationNode] = [init_node]
-        best_solutions: List[SimulationNode] = []
-
-        log.debug(
-            f"[_simulate_search] Starting Layer-wise Beam Search (Width={self.search_width}, Depth={self.simulation_depth})"
-        )
-
-        # 2. Layer-wise Loop
-        for d in range(self.simulation_depth):
-            if not current_beam:
-                log.debug(f"[_simulate_search] Beam is empty at depth {d}. Stopping.")
-                break
-
-            next_beam_candidates: List[SimulationNode] = []
-
-            # Expand all nodes in the current beam
-            for curr_node in current_beam:
-                curr_state = curr_node.state
-
-                # (A) Check Termination (All tasks done?)
-                if not curr_state.remaining_subtasks:
-                    log.debug(
-                        f"  [Solution Found] Node depth {curr_node.depth} finished all tasks."
-                    )
-                    best_solutions.append(curr_node)
-                    continue
-                log.debug(
-                    f"\n=== [Beam Step] Depth {d} -> {d+1} | Beam Size: {len(current_beam)} | Current Time: {curr_state.current_time:.2f} ==="
-                )
-                # (B) Get Feasible Candidates
-                feasible_candidates, not_yet_candidates = (
-                    self.constraint_handler.get_feasible_candidates(curr_node)
-                )
-
-                if not feasible_candidates and not not_yet_candidates:
-                    # Dead end
-                    continue
-
-                # (C) Expand
-                log.debug(
-                    f"\n  • Completed : {[ce.subtask.name for ce in curr_state.completed_entries]}\n"
-                    f"  • Remaining : {[r.name for r in curr_state.remaining_subtasks]}\n"
-                    f"  • Feasible  : {[c.subtask.name for c in feasible_candidates]}\n"
-                    f"  • Not Yet   : {[c.subtask.name for c in not_yet_candidates]}\n"
-                    f"============================================================"
-                )
-                expanded_nodes = self._expand_candidates(
-                    curr_node, feasible_candidates, not_yet_candidates
-                )
-
-                # (D) Collect Valid Expansions
-                # [Modified 251229] Risk 2 이상이라도, 대안이 없으면 채택하기 위해 별도로 수집합니다.
-                valid_expansions = []
-                high_risk_expansions = []
-
-                for nd in expanded_nodes:
-                    if nd.risk_level < 2:
-                        valid_expansions.append(nd)
-                    else:
-                        high_risk_expansions.append(nd)
-
-                if valid_expansions:
-                    next_beam_candidates.extend(valid_expansions)
-                elif high_risk_expansions:
-                    # 정상적인(Risk < 2) 후보가 하나도 없을 때만 Risk 높은 후보를 고려합니다.
-                    log.warning(
-                        f"[_simulate_search] Depth {d}: No valid expansions found. "
-                        f"Fallback to {len(high_risk_expansions)} High-Risk candidates."
-                    )
-                    next_beam_candidates.extend(high_risk_expansions)
-
-            # 3. Pruning (Layer-wise)
-            if not next_beam_candidates:
-                log.debug(
-                    f"[_simulate_search] No valid expansions at depth {d} (including high-risk)."
-                )
-                break
-
-            # Sort by (Risk, Cost) to pick top K
-            # Risk is primary, Cost (Heuristic) is secondary.
-            next_beam_candidates.sort(key=lambda nd: (nd.risk_level, nd.heuristic_cost))
-
-            # Keep top K
-            current_beam = next_beam_candidates[: self.search_width]
-            log.debug("============================================================")
-            log.debug(f"Layer-wise Beam Search: Depth {d} -> {d+1}")
-            # Log the survivors
-            log.debug(
-                f"  -> Pruning: Kept top {len(current_beam)} out of {len(next_beam_candidates)} candidates."
+        self._begin_search_session()
+        try:
+            # 1. Initialize Beam
+            init_node = SimulationNode(
+                parent_node=None,
+                heuristic_cost=0.0,
+                depth=0,
+                tie_breaker=next(self._counter),
+                state=init_state,
+                risk_level=0,
             )
-            for i, node in enumerate(current_beam):
-                # Trace back path
-                path_names = []
-                curr = node
-                while curr:
-                    if curr.state and curr.state.subtask:
-                        path_names.append(curr.state.subtask.name)
-                    curr = curr.parent_node
-                path_str = " -> ".join(reversed(path_names))
+            current_beam: List[SimulationNode] = [init_node]
+            best_solutions: List[SimulationNode] = []
 
-                log.debug(
-                    f"     [{i+1}] {path_str} (Risk={node.risk_level}, Cost={node.heuristic_cost:.2f})"
+            log.debug(
+                f"[_simulate_search] Starting Layer-wise Beam Search (Width={self.search_width}, Depth={self.simulation_depth})"
+            )
+
+            # 2. Layer-wise Loop
+            for d in range(self.simulation_depth):
+                if not current_beam:
+                    log.debug(f"[_simulate_search] Beam is empty at depth {d}. Stopping.")
+                    break
+
+                next_beam_candidates: List[SimulationNode] = []
+
+                # Expand all nodes in the current beam
+                for curr_node in current_beam:
+                    curr_state = curr_node.state
+
+                    # (A) Check Termination (All tasks done?)
+                    if not curr_state.remaining_subtasks:
+                        log.debug(
+                            f"  [Solution Found] Node depth {curr_node.depth} finished all tasks."
+                        )
+                        best_solutions.append(curr_node)
+                        continue
+                    log.debug(
+                        f"\n=== [Beam Step] Depth {d} -> {d+1} | Beam Size: {len(current_beam)} | Current Time: {curr_state.current_time:.2f} ==="
+                    )
+                    # (B) Get Feasible Candidates
+                    feasible_candidates, not_yet_candidates = (
+                        self.constraint_handler.get_feasible_candidates(curr_node)
+                    )
+
+                    if not feasible_candidates and not not_yet_candidates:
+                        # Dead end
+                        continue
+
+                    # (C) Expand
+                    log.debug(
+                        f"\n  • Completed : {[ce.subtask.name for ce in curr_state.completed_entries]}\n"
+                        f"  • Remaining : {[r.name for r in curr_state.remaining_subtasks]}\n"
+                        f"  • Feasible  : {[c.subtask.name for c in feasible_candidates]}\n"
+                        f"  • Not Yet   : {[c.subtask.name for c in not_yet_candidates]}\n"
+                        f"============================================================"
+                    )
+                    expanded_nodes = self._expand_candidates(
+                        curr_node, feasible_candidates, not_yet_candidates
+                    )
+
+                    # (D) Collect Valid Expansions
+                    # [Modified 251229] Risk 2 이상이라도, 대안이 없으면 채택하기 위해 별도로 수집합니다.
+                    valid_expansions = []
+                    high_risk_expansions = []
+
+                    for nd in expanded_nodes:
+                        if nd.risk_level < 2:
+                            valid_expansions.append(nd)
+                        else:
+                            high_risk_expansions.append(nd)
+
+                    if valid_expansions:
+                        next_beam_candidates.extend(valid_expansions)
+                    elif high_risk_expansions:
+                        # 정상적인(Risk < 2) 후보가 하나도 없을 때만 Risk 높은 후보를 고려합니다.
+                        log.warning(
+                            f"[_simulate_search] Depth {d}: No valid expansions found. "
+                            f"Fallback to {len(high_risk_expansions)} High-Risk candidates."
+                        )
+                        next_beam_candidates.extend(high_risk_expansions)
+
+                # 3. Pruning (Layer-wise)
+                if not next_beam_candidates:
+                    log.debug(
+                        f"[_simulate_search] No valid expansions at depth {d} (including high-risk)."
+                    )
+                    break
+
+                # Sort by (Risk, Cost) to pick top K
+                # Risk is primary, Cost (Heuristic) is secondary.
+                next_beam_candidates.sort(
+                    key=lambda nd: (nd.risk_level, nd.heuristic_cost)
                 )
-            log.debug("============================================================")
 
-        # 4. Final Collection
-        # Add nodes that reached max depth but still have tasks remaining
-        if current_beam:
-            best_solutions.extend(current_beam)
+                # Keep top K
+                current_beam = next_beam_candidates[: self.search_width]
+                log.debug("============================================================")
+                log.debug(f"Layer-wise Beam Search: Depth {d} -> {d+1}")
+                # Log the survivors
+                log.debug(
+                    f"  -> Pruning: Kept top {len(current_beam)} out of {len(next_beam_candidates)} candidates."
+                )
+                for i, node in enumerate(current_beam):
+                    # Trace back path
+                    path_names = []
+                    curr = node
+                    while curr:
+                        if curr.state and curr.state.subtask:
+                            path_names.append(curr.state.subtask.name)
+                        curr = curr.parent_node
+                    path_str = " -> ".join(reversed(path_names))
 
-        if not best_solutions:
-            log.error("[_simulate_search] best_solutions empty => no feasible path")
-            return None
+                    log.debug(
+                        f"     [{i+1}] {path_str} (Risk={node.risk_level}, Cost={node.heuristic_cost:.2f})"
+                    )
+                log.debug("============================================================")
 
-        # 5. Select Winner
-        # [Modified] Use Lookahead mainly for Risk Assessment.
-        # Decision making is based on Depth 1 Heuristic Cost among Safe Paths.
+            # 4. Final Collection
+            # Add nodes that reached max depth but still have tasks remaining
+            if current_beam:
+                best_solutions.extend(current_beam)
 
-        def get_depth1_cost(node: SimulationNode) -> float:
-            """Backtrack to find the heuristic cost at Depth 1."""
-            curr = node
-            # Trace back to Depth 1 (Depth 0 is root)
-            while curr.depth > 1:
-                if curr.parent_node:
-                    curr = curr.parent_node
+            if not best_solutions:
+                log.error("[_simulate_search] best_solutions empty => no feasible path")
+                return None
+
+            def get_depth1_cost(node: SimulationNode) -> float:
+                """Backtrack to find the heuristic cost at Depth 1."""
+
+                curr = node
+                while curr.depth > 1:
+                    if curr.parent_node:
+                        curr = curr.parent_node
+                    else:
+                        break
+                return curr.heuristic_cost
+
+            depth1_cost_by_node = {
+                id(node): get_depth1_cost(node) for node in best_solutions
+            }
+
+            # 5. Select Winner
+            # [Modified] Sort by Risk Level first, then Leaf Node Cost (Make-span).
+            # We prefer the path that finishes all tasks earliest (Lowest total cost).
+            # Depth 1 Cost can be misleading if an action (like Wait) has low immediate cost
+            # but delays the overall schedule.
+            best_solutions.sort(
+                key=lambda nd: (
+                    nd.risk_level,
+                    nd.heuristic_cost + depth1_cost_by_node[id(nd)],
+                )
+            )
+            log.debug(
+                f"best_solutions: {best_solutions[0].state.subtask.name}, {best_solutions[0].heuristic_cost} {depth1_cost_by_node[id(best_solutions[0])]}"
+            )
+
+            winner = best_solutions[0]
+
+            # Trace back to find the immediate next action (Depth 1)
+            immediate_node = winner
+            while immediate_node.depth > 1:
+                if immediate_node.parent_node:
+                    immediate_node = immediate_node.parent_node
                 else:
                     break
-            return curr.heuristic_cost
 
-        # 5. Select Winner
-        # [Modified] Sort by Risk Level first, then Leaf Node Cost (Make-span).
-        # We prefer the path that finishes all tasks earliest (Lowest total cost).
-        # Depth 1 Cost can be misleading if an action (like Wait) has low immediate cost
-        # but delays the overall schedule.
-        best_solutions.sort(
-            key=lambda nd: (nd.risk_level, nd.heuristic_cost + get_depth1_cost(nd))
-        )
-        log.debug(
-            f"best_solutions: {best_solutions[0].state.subtask.name}, {best_solutions[0].heuristic_cost} {get_depth1_cost(best_solutions[0])}"
-        )
-
-        winner = best_solutions[0]
-
-        # Trace back to find the immediate next action (Depth 1)
-        immediate_node = winner
-        while immediate_node.depth > 1:
-            if immediate_node.parent_node:
-                immediate_node = immediate_node.parent_node
-            else:
-                break
-
-        log.debug(
-            f"\n[_simulate_search] Final Decision: Path selected (Leaf: '{winner.state.subtask.name}').\n"
-            f"  -> Immediate Action: '{immediate_node.state.subtask.name}'\n"
-            f"  (Risk={winner.risk_level}, Depth1_Cost={get_depth1_cost(winner):.2f}, Leaf_Cost={winner.heuristic_cost:.2f}, Depth={winner.depth})"
-        )
-        return winner
+            log.debug(
+                f"\n[_simulate_search] Final Decision: Path selected (Leaf: '{winner.state.subtask.name}').\n"
+                f"  -> Immediate Action: '{immediate_node.state.subtask.name}'\n"
+                f"  (Risk={winner.risk_level}, Depth1_Cost={depth1_cost_by_node[id(winner)]:.2f}, Leaf_Cost={winner.heuristic_cost:.2f}, Depth={winner.depth})"
+            )
+            return winner
+        finally:
+            self._end_search_session()
 
     def _extract_state(
         self, child_node: Optional[SimulationNode]
@@ -367,9 +524,13 @@ class Scheduler:
                     target_obj_id = candidate.subtask.execution.primitive_actions[
                         0
                     ].split(" ")[1]
-                    nav_time = self.action_handler.get_actions_info(
-                        curr_node, [f"NAVIGATE_TO {target_obj_id}"]
-                    ).action_duration
+                    nav_time = self._estimate_navigation_duration(
+                        curr_node,
+                        target_obj_id,
+                        candidate_name=candidate.subtask.name,
+                    )
+                    if nav_time is None:
+                        nav_time = 0.0
 
                     wait_node = self._expand_wait_wo_monitoring(
                         curr_node,
@@ -416,9 +577,13 @@ class Scheduler:
                 target_obj_id = candidate.subtask.execution.primitive_actions[0].split(
                     " "
                 )[1]
-                nav_time = self.action_handler.get_actions_info(
-                    curr_node, [f"NAVIGATE_TO {target_obj_id}"]
-                ).action_duration
+                nav_time = self._estimate_navigation_duration(
+                    curr_node,
+                    target_obj_id,
+                    candidate_name=candidate.subtask.name,
+                )
+                if nav_time is None:
+                    nav_time = 0.0
 
                 wait_node = self._expand_wait_wo_monitoring(
                     curr_node,
@@ -639,6 +804,108 @@ class Scheduler:
             return candidate.subtask.execution.primitive_actions[0].split()[1]
         return None
 
+    @staticmethod
+    def _normalize_monitoring_object_name(raw_object_name: Optional[str]) -> Optional[str]:
+        """Normalize an object identifier to its object type.
+
+        Args:
+            raw_object_name: Raw object identifier or type string.
+
+        Returns:
+            Object type without instance suffix.
+        """
+
+        if not raw_object_name:
+            return None
+        return raw_object_name.split("|")[0]
+
+    def _estimate_navigation_duration(
+        self,
+        curr_node: SimulationNode,
+        target_obj_id: str,
+        *,
+        candidate_name: str,
+    ) -> Optional[float]:
+        """Estimate navigation time for a single target object.
+
+        Args:
+            curr_node: Current simulation node used as the starting state.
+            target_obj_id: Target object identifier for navigation.
+            candidate_name: Human-readable subtask name for diagnostics.
+
+        Returns:
+            Navigation duration when simulation succeeds, otherwise ``None``.
+        """
+
+        navigation_info = self.action_handler.get_actions_info(
+            curr_node, [f"NAVIGATE_TO {target_obj_id}"]
+        )
+        if navigation_info is None or not navigation_info.success:
+            log.warning(
+                "Navigation simulation failed while expanding '%s' toward '%s'.",
+                candidate_name,
+                target_obj_id,
+            )
+            return None
+        return navigation_info.action_duration
+
+    def _compute_monitoring_trigger_time(
+        self,
+        *,
+        raw_object_name: Optional[str],
+        critical_start_sub_end_time: float,
+        mean_duration: float,
+        variance: float,
+    ) -> float:
+        """Delegate monitoring timing to the configured backend policy.
+
+        Args:
+            raw_object_name: Raw object identifier associated with the interval.
+            critical_start_sub_end_time: End time of the critical start subtask.
+            mean_duration: Current expected interval duration.
+            variance: Current interval variance.
+
+        Returns:
+            Absolute trigger time for inserting monitoring.
+        """
+
+        object_name = self._normalize_monitoring_object_name(raw_object_name)
+        trigger_cache_key = (
+            self.monitoring_policy.method,
+            object_name,
+            critical_start_sub_end_time,
+            mean_duration,
+            variance,
+        )
+        if self._search_cache is not None:
+            cached_trigger = self._search_cache.monitoring_triggers.get(
+                trigger_cache_key
+            )
+            if cached_trigger is not None:
+                self._search_cache.trigger_cache_hits += 1
+                return cached_trigger
+
+        trigger_time = self.monitoring_policy.compute_trigger_time(
+            MonitoringTriggerContext(
+                object_name=object_name,
+                critical_start_end_time=critical_start_sub_end_time,
+                mean_duration=mean_duration,
+                variance=variance,
+            )
+        )
+        log.debug(
+            "Monitoring trigger (%s): object=%s, mean=%.2f, variance=%.2f -> %.2f",
+            self.monitoring_policy.method,
+            object_name,
+            mean_duration,
+            variance,
+            trigger_time,
+        )
+        if self._search_cache is not None:
+            self._search_cache.trigger_cache_misses += 1
+            self._search_cache.monitoring_triggers[trigger_cache_key] = trigger_time
+        return trigger_time
+
     # ==========================================================================
     #           SUBTASK EXPANSION: Single Subtask or Wait
     # ==========================================================================
@@ -707,10 +974,17 @@ class Scheduler:
         """
 
         target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
-        nav_time = self.action_handler.get_actions_info(
+        nav_time = self._estimate_navigation_duration(
             curr_node,
-            [f"NAVIGATE_TO {target_obj_id}"],
-        ).action_duration
+            target_obj_id,
+            candidate_name=candidate.subtask.name,
+        )
+        if nav_time is None:
+            log.warning(
+                "Skipping wait expansion for '%s' because navigation time is unavailable.",
+                candidate.subtask.name,
+            )
+            return None
 
         # Check if monitoring is needed before waiting, using the same Bayesian logic as standard subtasks.
         need_monitor, due_info = self._should_split_with_monitoring(
@@ -780,34 +1054,7 @@ class Scheduler:
                 return False, None
 
         # Rule 3: Split only if an active critical interval exists.
-        active_intervals = []
-        graph = curr_node.state.constraints
-        completed_entries_map = {
-            ce.subtask.name: ce for ce in curr_node.state.completed_entries
-        }
-
-        for start_name, end_name, data in graph.edges(data=True):
-            info = data.get("info", {})
-            if info.get("IsCritical") and info.get("Interval") > EPSILON:
-                if (
-                    start_name in completed_entries_map
-                    and end_name not in completed_entries_map
-                ):
-
-                    start_entry = completed_entries_map[start_name]
-                    if start_entry.subtask.subtask_type != "Monitor":
-                        interval = info.get("Interval", 0.0)
-                        variance = info.get("Variance", INIT_PRIOR_VARIANCE)
-                        due_date = start_entry.schedule_end_time + interval
-
-                        active_intervals.append(
-                            (
-                                variance,
-                                SchedulingDue(
-                                    due_date=due_date, due_related_sub_name=end_name
-                                ),
-                            )
-                        )
+        active_intervals = self._get_active_monitoring_intervals(curr_node)
 
         if not active_intervals:
             log.debug(
@@ -1006,13 +1253,13 @@ class Scheduler:
 
         if not monitoring_target_obj:
             log.debug(
-                f"[_insert_monitoring_target_obj is None. Cannot insert monitoring step."
+                "[_insert_monitoring] target_obj is None. Cannot insert monitoring step."
             )
             return None
 
         if target_actual_start_time is None:
             log.debug(
-                f"[_insert_monitoring_target_actual_start_time is None. Cannot insert monitoring step."
+                "[_insert_monitoring] target_actual_start_time is None. Cannot insert monitoring step."
             )
             return None
 
@@ -1255,18 +1502,11 @@ class Scheduler:
         if edge_data and "info" in edge_data:
             variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
 
-        # Calculate trigger time based on probability threshold: t = mu + sigma * Phi^-1(eta)
-        sigma = np.sqrt(variance_val)
-        mu_absolute = (
-            critical_start_sub_actual_end_time + original_critical_interval_duration
-        )
-        z_score = norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY)
-
-        original_absolute_monitoring_trigger_time = mu_absolute + sigma * z_score
-
-        log.debug(
-            f"Bayesian Trigger: Mu={mu_absolute:.2f}, Sigma={sigma:.2f}, Eta={BAYESIAN_THRESHOLD_PROBABILITY}, Z={z_score:.2f} "
-            f"-> TriggerTime={original_absolute_monitoring_trigger_time:.2f}"
+        original_absolute_monitoring_trigger_time = self._compute_monitoring_trigger_time(
+            raw_object_name=monitoring_target_obj,
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            mean_duration=original_critical_interval_duration,
+            variance=variance_val,
         )
 
         full_candidate_action_info_check = self.action_handler.get_actions_info(
@@ -1427,7 +1667,6 @@ class Scheduler:
         log.debug(f"mon_sub_task_for_main_interval: {mon_sub_task_for_main_interval}")
         mon_sub_task_for_main_interval.decomposed = True
 
-        remain_sub_task: Optional[Subtask] = None
         remain_sub_actions = (
             post_actions_log.get_actions()
             if post_actions_log and post_actions_log.results
@@ -1736,14 +1975,12 @@ class Scheduler:
         if edge_data and "info" in edge_data:
             variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
 
-        # Calculate trigger time based on probability threshold: t = mu + sigma * Phi^-1(eta)
-        sigma = np.sqrt(variance_val)
-        mu_absolute = (
-            critical_start_sub_actual_end_time + original_critical_interval_duration
+        original_absolute_monitoring_trigger_time = self._compute_monitoring_trigger_time(
+            raw_object_name=candidate.subtask.execution.primitive_actions[0].split()[1],
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            mean_duration=original_critical_interval_duration,
+            variance=variance_val,
         )
-        z_score = norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY)
-
-        original_absolute_monitoring_trigger_time = mu_absolute + sigma * z_score
 
         total_wait_duration = max(
             0,

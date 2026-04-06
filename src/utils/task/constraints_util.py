@@ -54,5 +54,4 @@ def get_critical_start_info(
         raise ValueError(
             f"Critical start sub '{critical_start_sub_name}' end time not found in completed list."
         )
-
     return critical_start_sub_name, critical_start_sub_end_time

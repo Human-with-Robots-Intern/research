@@ -22,6 +22,9 @@ if TYPE_CHECKING:
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
+NON_INTERACTION_SUBTASK_TYPES = {"NAVIGATE", "WAIT"}
+NON_INTERACTION_ACTION_TYPES = {"NAVIGATE_TO", "WAIT", "MONITORING"}
+
 
 class HeuristicManager:
     """
@@ -303,7 +306,7 @@ class HeuristicManager:
             next_scene_pos = current_node.state.scene_positions
 
         mst_time = self._calculate_mst_navigation_time(
-            next_pos, current_node.state.remaining_subtasks, next_scene_pos
+            next_pos, remaining_tasks, next_scene_pos
         )
 
         # 5. [핵심] Unstarted Critical Interval Debt (부채)
@@ -349,7 +352,18 @@ class HeuristicManager:
     # ========================================================================
 
     def _get_estimated_pure_interaction_time(self, subtask: Subtask) -> float:
-        if subtask.subtask_type in ["NAVIGATE", "WAIT", "MONITORING"]:
+        """Estimate non-navigation execution time for a subtask.
+
+        Args:
+            subtask: Subtask whose execution footprint should be approximated.
+
+        Returns:
+            Estimated execution time excluding navigation. Monitoring subtasks keep
+            their configured duration because the canonical subtask type is
+            ``"Monitor"`` rather than the action token ``"MONITORING"``.
+        """
+
+        if subtask.subtask_type in NON_INTERACTION_SUBTASK_TYPES:
             return 0.0
         if subtask.duration and subtask.duration.interval is not None:
             return max(0.0, subtask.duration.interval)
@@ -358,7 +372,7 @@ class HeuristicManager:
         if subtask.execution and subtask.execution.primitive_actions:
             for action_str in subtask.execution.primitive_actions:
                 action_type = action_str.split(" ", 1)[0].upper()
-                if action_type not in ["NAVIGATE_TO", "WAIT", "MONITORING"]:
+                if action_type not in NON_INTERACTION_ACTION_TYPES:
                     duration_map = {
                         "GRASP": GRASP_ACTION_DURATION,
                         "PLACE_INSIDE": PLACE_ACTION_DURATION,
@@ -398,7 +412,7 @@ class HeuristicManager:
         if pos1 is None or pos2 is None or pos1 == pos2:
             return 0.0
         path = self.action_handler._find_shortest_path(pos1, pos2)
-        return len(path) * NAV_STEP_DURATION if path else 0.0
+        return max(len(path) - 1, 0) * NAV_STEP_DURATION if path else 0.0
 
     def _calculate_mst_navigation_time(
         self,
