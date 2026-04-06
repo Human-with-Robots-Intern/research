@@ -12,7 +12,7 @@ from ithor.handlers.action import Action
 from ithor.utils.math_utils import load_navigation_graph
 from simulation.runner_ai2thor import execute_subtask, init_ai2thor_controller
 from src.core import Agent, Scheduler
-from src.core.monitoring import create_monitoring_backend
+from src.core.monitoring import create_ground_truth_store, create_monitoring_backend
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from src.utils.get_state import save_scene_state
 from src.utils.ros_executor import RosExecutor
@@ -141,6 +141,19 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         default="sampled_10_instruction_set_for_final_experiment_251203",
         help="Task folder name for organizing results",
+    )
+    parser.add_argument(
+        "--gt-distribution",
+        type=str,
+        default="constant",
+        choices=["constant", "gaussian", "lognormal", "gamma", "mixture"],
+        help="Ground-truth duration distribution used during monitoring updates.",
+    )
+    parser.add_argument(
+        "--gt-seed",
+        type=int,
+        default=42,
+        help="Random seed used for runtime ground-truth sampling.",
     )
     return parser.parse_args()
 
@@ -375,12 +388,19 @@ def main() -> None:
         belief_store, monitoring_policy, belief_updater = create_monitoring_backend(
             args.belief_update_method,
             bayesian_load,
+            particle_distribution=args.gt_distribution,
+        )
+        ground_truth_store = create_ground_truth_store(
+            constants.CRITICAL_OBJECT_GROUND_TRUTH,
+            distribution=args.gt_distribution,
+            random_seed=args.gt_seed,
         )
         agent = Agent(
             constraint_handler,
             bayesian_load,
             belief_updater=belief_updater,
             belief_store=belief_store,
+            ground_truth_store=ground_truth_store,
         )
         cost_calculator = HeuristicManager(action_handler)
         scheduler = Scheduler(
@@ -533,6 +553,7 @@ def main() -> None:
                 "constraints": current_state.constraints,
                 "initial_plan_data": task_data,
                 "init_prior_mean": args.init_prior_mean,
+                "ground_truth_overrides": ground_truth_store.as_dict(),
             }
             result_save(
                 **result_args,
@@ -556,6 +577,7 @@ def main() -> None:
             "constraints": current_state.constraints,
             "initial_plan_data": task_data,
             "init_prior_mean": init_prior_mean,
+            "ground_truth_overrides": ground_truth_store.as_dict(),
             # "simulationTime": total_sim_time,
         }
         if args.case:
@@ -568,6 +590,9 @@ def main() -> None:
                 "beam_depth": constants.SIMULATION_DEPTH,
                 "disable_monitoring": not constants.MONITORING_ENABLED,
                 "belief_update_method": args.belief_update_method,
+                "gt_distribution": args.gt_distribution,
+                "gt_seed": args.gt_seed,
+                "sampled_ground_truths": ground_truth_store.as_dict(),
             }
             result_args.update(
                 {

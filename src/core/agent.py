@@ -6,6 +6,7 @@ from src.core.monitoring import (
     BeliefStore,
     BeliefUpdateContext,
     BeliefUpdater,
+    GroundTruthStore,
     create_belief_updater,
 )
 from src.models.dataclass import SchedulerState
@@ -30,6 +31,7 @@ class Agent:
         bayesian_load: dict[str, dict[str, Any]],
         belief_updater: Optional[BeliefUpdater] = None,
         belief_store: Optional[BeliefStore] = None,
+        ground_truth_store: Optional[GroundTruthStore] = None,
     ) -> None:
         """Initialize the runtime monitoring agent.
 
@@ -38,12 +40,16 @@ class Agent:
             bayesian_load: Initial belief mapping created during task parsing.
             belief_updater: Optional backend-specific updater implementation.
             belief_store: Optional shared belief store instance.
+            ground_truth_store: Optional runtime ground-truth sampler.
         """
 
         self.belief_store = belief_store or BeliefStore(bayesian_load)
         self.belief_updater = belief_updater or create_belief_updater(
             "bayesian",
             self.belief_store,
+        )
+        self.ground_truth_store = ground_truth_store or GroundTruthStore(
+            CRITICAL_OBJECT_GROUND_TRUTH
         )
         self.estimate_knowledge: Dict[str, Dict[str, Any]] = self.belief_store.as_dict()
         self.constraint_handler = constraint_handler
@@ -172,7 +178,7 @@ class Agent:
             }
 
         # 3-3. G.T.와 prior를 직접 조회합니다.
-        gt_interval = CRITICAL_OBJECT_GROUND_TRUTH.get(monitoring_target_obj_name)
+        gt_interval = self.ground_truth_store.get_interval(monitoring_target_obj_name)
 
         # TODO 4: (중요) G.T. 값이 없을 경우의 처리 - 계산 전에 미리 확인하여 TypeError 방지
         if gt_interval is None:
@@ -233,6 +239,7 @@ class Agent:
             "original_expected_time": prior_mean,
             "updated_expected_time": update_result.posterior_mean,
             "ground_truth_time": gt_interval,
+            "ground_truth_distribution": self.ground_truth_store.distribution,
             "update_method": update_result.method,
             **update_result.diagnostics,
         }

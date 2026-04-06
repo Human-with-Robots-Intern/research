@@ -7,7 +7,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple
 
 from networkx import DiGraph
 
@@ -62,7 +62,9 @@ def compose_plans(
 
 
 def calculate_timing_success_rate(
-    constraints: DiGraph, result_schedule: List[CompletedEntry]
+    constraints: DiGraph,
+    result_schedule: List[CompletedEntry],
+    ground_truth_overrides: Optional[Mapping[str, float]] = None,
 ) -> Tuple[float | None, float | None, Dict[str, Any]]:
     """
     Calculates the success rate of timing constraints based on simulation and schedule results.
@@ -70,6 +72,8 @@ def calculate_timing_success_rate(
     Args:
         constraints: A DiGraph representing the constraints between subtasks.
         result_schedule: A list of CompletedEntry objects containing execution results.
+        ground_truth_overrides: Optional mapping from object type to sampled
+            runtime interval used to evaluate critical timing constraints.
 
     Returns:
         A tuple containing:
@@ -107,7 +111,12 @@ def calculate_timing_success_rate(
         is_critical = edge_info.get("IsCritical", False)
 
         if interval != 0 and is_critical:
-            interval = constants.GT_INTERVAL
+            interval = _resolve_ground_truth_interval(
+                pred_entry=pred_entry,
+                succ_entry=succ_entry,
+                default_interval=constants.GT_INTERVAL,
+                ground_truth_overrides=ground_truth_overrides,
+            )
         elif interval != 0 and not is_critical:
             interval = constants.INIT_PRIOR_MEAN
 
@@ -209,8 +218,71 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
                 {"action": log["action"], "duration": round(log["duration"], 2)}
                 for log in entry.primitive_action_log
             ]
+        monitored_subtask = getattr(entry, "monitored_subtask", None)
+        if monitored_subtask is not None:
+            serialized_entry["monitored_subtask"] = monitored_subtask
         serialized_entries.append(serialized_entry)
     return serialized_entries
+
+
+def _extract_object_types(objects: Any) -> set[str]:
+    """Extract object types from an execution objects payload.
+
+    Args:
+        objects: Execution objects payload from a subtask.
+
+    Returns:
+        Set of object type names.
+    """
+
+    if isinstance(objects, dict):
+        raw_objects = list(objects.keys())
+    elif isinstance(objects, list):
+        raw_objects = objects
+    else:
+        raw_objects = []
+
+    return {
+        str(raw_object).split("|")[0]
+        for raw_object in raw_objects
+        if raw_object is not None
+    }
+
+
+def _resolve_ground_truth_interval(
+    *,
+    pred_entry: CompletedEntry,
+    succ_entry: CompletedEntry,
+    default_interval: float,
+    ground_truth_overrides: Optional[Mapping[str, float]],
+) -> float:
+    """Resolve the runtime interval used for critical-edge evaluation.
+
+    Args:
+        pred_entry: Completed predecessor entry.
+        succ_entry: Completed successor entry.
+        default_interval: Fallback interval when no sampled GT is available.
+        ground_truth_overrides: Optional sampled GT mapping keyed by object type.
+
+    Returns:
+        Interval used for evaluation.
+    """
+
+    if not ground_truth_overrides:
+        return float(default_interval)
+
+    pred_objects = _extract_object_types(pred_entry.subtask.execution.objects)
+    succ_objects = _extract_object_types(succ_entry.subtask.execution.objects)
+    candidate_object_types = list(pred_objects.intersection(succ_objects))
+    if not candidate_object_types:
+        candidate_object_types = list(succ_objects or pred_objects)
+
+    for object_type in candidate_object_types:
+        sampled_interval = ground_truth_overrides.get(object_type)
+        if sampled_interval is not None:
+            return float(sampled_interval)
+
+    return float(default_interval)
 
 
 def result_save(
@@ -226,6 +298,7 @@ def result_save(
     init_prior_mean: float | None = None,
     case_name: Optional[str] = None,
     dag_bayesian_meta_data: Optional[Dict] = None,
+    ground_truth_overrides: Optional[Mapping[str, float]] = None,
 ):
     global log
     if init_prior_mean is None:
@@ -236,7 +309,11 @@ def result_save(
     )
 
     timing_success_rate_sim, timing_success_rate_sched, detail_log = (
-        calculate_timing_success_rate(constraints, result_schedule)
+        calculate_timing_success_rate(
+            constraints,
+            result_schedule,
+            ground_truth_overrides=ground_truth_overrides,
+        )
     )
 
     # Serialize the result schedule

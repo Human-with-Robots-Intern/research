@@ -16,6 +16,8 @@ from src.core.monitoring import (
     BayesianMonitoringPolicy,
     BeliefStore,
     BeliefUpdateContext,
+    GroundTruthConfig,
+    GroundTruthStore,
     MonitoringTriggerContext,
     ParticleFilterBeliefUpdater,
     ParticleFilterMonitoringPolicy,
@@ -33,6 +35,10 @@ from src.models.task import Duration, Execution, Subtask
 from src.scheduler.action_handler import ActionHandler
 from src.scheduler.constraint_handler import ConstraintHandler
 from src.utils.config.constants import BAYESIAN_THRESHOLD_PROBABILITY
+from src.utils.io_utils.result_saver import (
+    calculate_timing_success_rate,
+    serialize_completed_entries,
+)
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
@@ -245,6 +251,23 @@ def test_bayesian_belief_updater_persists_summary() -> None:
     assert summary.expected_duration == result.posterior_mean
     assert summary.variance == result.posterior_variance
     assert "observation" in result.diagnostics
+
+
+def test_ground_truth_store_samples_once_per_object() -> None:
+    """GroundTruthStore should reuse a sampled value within the same run."""
+
+    ground_truth_store = GroundTruthStore(
+        {"Microwave": 100.0},
+        config=GroundTruthConfig(distribution="lognormal", random_seed=7),
+    )
+
+    first_sample = ground_truth_store.get_interval("Microwave")
+    second_sample = ground_truth_store.get_interval("Microwave")
+
+    assert first_sample is not None
+    assert second_sample is not None
+    assert first_sample == second_sample
+    assert ground_truth_store.as_dict()["Microwave"] == first_sample
 
 
 def test_scheduler_compute_monitoring_trigger_time_uses_bayesian_policy() -> None:
@@ -563,6 +586,41 @@ def test_particle_filter_belief_updater_returns_particle_state() -> None:
     assert "ess_before_resample" in result.diagnostics
 
 
+def test_belief_store_constant_particle_initialization_is_degenerate() -> None:
+    """Constant PF initialization should produce identical particles."""
+
+    belief_store = BeliefStore(
+        {"Mug": {"expected_duration": 20.0, "variance": 16.0}},
+        particle_count=8,
+        particle_distribution="constant",
+        rng=np.random.default_rng(0),
+    )
+
+    particle_state = belief_store.ensure_method("Mug", "particle_filter")
+
+    assert particle_state["particle_distribution"] == "constant"
+    assert len(set(particle_state["particles"])) == 1
+    assert particle_state["particles"][0] == 20.0
+
+
+def test_create_monitoring_backend_initializes_particles_with_selected_distribution() -> None:
+    """PF backend should persist the selected particle initialization family."""
+
+    belief_store, monitoring_policy, belief_updater = create_monitoring_backend(
+        "particle_filter",
+        {"Mug": {"expected_duration": 20.0, "variance": 16.0}},
+        particle_distribution="lognormal",
+    )
+
+    particle_state = belief_store.get_state("Mug")
+
+    assert monitoring_policy.method == "particle_filter"
+    assert belief_updater.method == "particle_filter"
+    assert particle_state["particle_distribution"] == "lognormal"
+    assert min(particle_state["particles"]) > 0.0
+    assert len(set(particle_state["particles"])) > 1
+
+
 def test_agent_update_monitoring_belief_updates_constraints_and_metadata(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -583,18 +641,12 @@ def test_agent_update_monitoring_belief_updates_constraints_and_metadata(
         {"Microwave": {"expected_duration": 100.0, "variance": 900.0}},
         belief_updater=updater,
         belief_store=belief_store,
+        ground_truth_store=GroundTruthStore(
+            {"Microwave": 100.0},
+            config=GroundTruthConfig(distribution="constant", random_seed=0),
+        ),
     )
 
-    monkeypatch.syspath_prepend(
-        str(Path("/Users/bagdong-gyu/WorkSpace/VSCodeProject/research/src"))
-    )
-    monkeypatch.setitem(
-        __import__(
-            "src.core.agent", fromlist=["CRITICAL_OBJECT_GROUND_TRUTH"]
-        ).CRITICAL_OBJECT_GROUND_TRUTH,
-        "Microwave",
-        100.0,
-    )
     monkeypatch.setattr(agent.belief_store, "persist", lambda output_path=None: None)
 
     updated_state, monitored_subtask = agent.update_monitoring_belief(state)
@@ -604,6 +656,8 @@ def test_agent_update_monitoring_belief_updates_constraints_and_metadata(
     assert monitored_subtask["update_method"] == "bayesian"
     assert monitored_subtask["updated_subtask_name"] == start_subtask.name
     assert monitored_subtask["updated_expected_time"] > 0.0
+    assert monitored_subtask["ground_truth_time"] == 100.0
+    assert monitored_subtask["ground_truth_distribution"] == "constant"
     assert "observation" in monitored_subtask
     assert (
         state.constraints.edges[start_subtask.name, end_subtask.name]["info"][
@@ -656,18 +710,12 @@ def test_agent_update_monitoring_belief_with_particle_filter_updates_constraints
         {"Microwave": {"expected_duration": 100.0, "variance": 900.0}},
         belief_updater=updater,
         belief_store=belief_store,
+        ground_truth_store=GroundTruthStore(
+            {"Microwave": 100.0},
+            config=GroundTruthConfig(distribution="constant", random_seed=0),
+        ),
     )
 
-    monkeypatch.syspath_prepend(
-        str(Path("/Users/bagdong-gyu/WorkSpace/VSCodeProject/research/src"))
-    )
-    monkeypatch.setitem(
-        __import__(
-            "src.core.agent", fromlist=["CRITICAL_OBJECT_GROUND_TRUTH"]
-        ).CRITICAL_OBJECT_GROUND_TRUTH,
-        "Microwave",
-        100.0,
-    )
     monkeypatch.setattr(agent.belief_store, "persist", lambda output_path=None: None)
 
     updated_state, monitored_subtask = agent.update_monitoring_belief(state)
@@ -677,6 +725,8 @@ def test_agent_update_monitoring_belief_with_particle_filter_updates_constraints
     assert monitored_subtask["update_method"] == "particle_filter"
     assert monitored_subtask["updated_subtask_name"] == start_subtask.name
     assert monitored_subtask["updated_expected_time"] > 0.0
+    assert monitored_subtask["ground_truth_time"] == 100.0
+    assert monitored_subtask["ground_truth_distribution"] == "constant"
     assert "ess_before_resample" in monitored_subtask
     assert "resample_count" in monitored_subtask
     assert (
@@ -713,3 +763,93 @@ def test_create_monitoring_backend_wires_shared_components() -> None:
     assert monitoring_policy.method == "particle_filter"
     assert belief_updater.method == "particle_filter"
     assert belief_store.get_summary("Mug").method == "particle_filter"
+
+
+def test_serialize_completed_entries_preserves_monitored_subtask_payload() -> None:
+    """Result serialization should keep monitoring diagnostics in each entry."""
+
+    monitored_entry = CompletedEntry(
+        subtask=_make_subtask(
+            "Monitoring for Mug",
+            primitive_actions=["MONITORING Mug|01"],
+            subtask_type="Monitor",
+            objects=["Mug|01"],
+        ),
+        schedule_start_time=10.0,
+        schedule_end_time=12.0,
+        sim_start_time=10.0,
+        sim_end_time=12.0,
+    )
+    monitored_entry.execution_status = True
+    monitored_entry.monitored_subtask = {
+        "updated_subtask_name": "Prepare Mug",
+        "ground_truth_time": 111.0,
+        "ground_truth_distribution": "gamma",
+    }
+
+    serialized_entries = serialize_completed_entries([monitored_entry])
+
+    assert serialized_entries[0]["monitored_subtask"]["updated_subtask_name"] == "Prepare Mug"
+    assert serialized_entries[0]["monitored_subtask"]["ground_truth_time"] == 111.0
+    assert (
+        serialized_entries[0]["monitored_subtask"]["ground_truth_distribution"]
+        == "gamma"
+    )
+
+
+def test_calculate_timing_success_rate_uses_sampled_ground_truth_override() -> None:
+    """Critical-edge evaluation should use sampled GT overrides when provided."""
+
+    start_subtask = _make_subtask(
+        "Start Microwave for Heating Potato",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+        objects={"Microwave|01": 1},
+    )
+    end_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Potato",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+        objects={"Microwave|01": 1},
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        start_subtask.name,
+        end_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True, "Variance": 900.0},
+    )
+    result_schedule = [
+        CompletedEntry(
+            subtask=start_subtask,
+            schedule_start_time=0.0,
+            schedule_end_time=10.0,
+            sim_start_time=0.0,
+            sim_end_time=10.0,
+        ),
+        CompletedEntry(
+            subtask=end_subtask,
+            schedule_start_time=126.0,
+            schedule_end_time=131.0,
+            sim_start_time=126.0,
+            sim_end_time=131.0,
+        ),
+    ]
+
+    default_sim_rate, default_sched_rate, _ = calculate_timing_success_rate(
+        constraints,
+        result_schedule,
+    )
+    override_sim_rate, override_sched_rate, detail_log = calculate_timing_success_rate(
+        constraints,
+        result_schedule,
+        ground_truth_overrides={"Microwave": 120.0},
+    )
+
+    assert default_sim_rate == 0.0
+    assert default_sched_rate == 0.0
+    assert override_sim_rate == 1.0
+    assert override_sched_rate == 1.0
+    assert (
+        detail_log[f"{start_subtask.name} -> {end_subtask.name}"][
+            "Original Timing Constraint"
+        ]
+        == "(120.0, True)"
+    )

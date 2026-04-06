@@ -20,6 +20,108 @@ from src.utils.config.constants import (
 )
 
 BeliefMethod = Literal["bayesian", "particle_filter"]
+GroundTruthDistribution = Literal[
+    "constant",
+    "gaussian",
+    "lognormal",
+    "gamma",
+    "mixture",
+]
+
+
+@dataclass(frozen=True)
+class GroundTruthConfig:
+    """Describe how runtime ground-truth durations are sampled.
+
+    Args:
+        distribution: Distribution family used to sample the latent duration.
+        random_seed: Seed for reproducible sampling across runs.
+    """
+
+    distribution: GroundTruthDistribution = "constant"
+    random_seed: int = 42
+
+
+class GroundTruthStore:
+    """Sample and cache runtime ground-truth durations per monitored object.
+
+    The store samples each object's latent duration at most once per run and
+    reuses the sampled value for all subsequent monitoring updates.
+
+    Args:
+        base_truths: Base interval table keyed by object type.
+        config: Sampling configuration.
+        rng: Optional random generator for tests.
+    """
+
+    def __init__(
+        self,
+        base_truths: Optional[Mapping[str, float]] = None,
+        *,
+        config: Optional[GroundTruthConfig] = None,
+        rng: Optional[np.random.Generator] = None,
+    ) -> None:
+        self._base_truths = {
+            object_name: float(interval)
+            for object_name, interval in (base_truths or {}).items()
+        }
+        self._config = config or GroundTruthConfig()
+        self._rng = rng or np.random.default_rng(self._config.random_seed)
+        self._samples: dict[str, float] = {}
+
+    @property
+    def distribution(self) -> GroundTruthDistribution:
+        """Return the configured ground-truth distribution family."""
+
+        return self._config.distribution
+
+    @property
+    def random_seed(self) -> int:
+        """Return the configured random seed."""
+
+        return self._config.random_seed
+
+    def get_interval(self, object_name: str) -> Optional[float]:
+        """Return the sampled runtime duration for an object.
+
+        Args:
+            object_name: Monitored object type.
+
+        Returns:
+            Sampled duration when the object is known, otherwise ``None``.
+        """
+
+        if object_name not in self._base_truths:
+            return None
+        if object_name not in self._samples:
+            self._samples[object_name] = self._sample_interval(
+                self._base_truths[object_name]
+            )
+        return self._samples[object_name]
+
+    def as_dict(self) -> dict[str, float]:
+        """Return sampled ground-truth durations as a serializable mapping."""
+
+        return dict(self._samples)
+
+    def _sample_interval(self, base_interval: float) -> float:
+        """Sample a positive latent duration from the configured family.
+
+        Args:
+            base_interval: Baseline interval for the object type.
+
+        Returns:
+            Positive sampled duration.
+        """
+
+        sampled = _sample_positive_duration(
+            distribution=self._config.distribution,
+            mean=max(MIN_VARIANCE, float(base_interval)),
+            variance=max(MIN_VARIANCE, float(base_interval) * 0.1),
+            sample_count=1,
+            rng=self._rng,
+        )[0]
+        return max(MIN_VARIANCE, float(sampled))
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
@@ -120,6 +222,7 @@ class BeliefStore:
         initial_beliefs: Optional[Mapping[str, Mapping[str, Any]]] = None,
         *,
         particle_count: int = 128,
+        particle_distribution: GroundTruthDistribution = "gaussian",
         rng: Optional[np.random.Generator] = None,
     ) -> None:
         """Initialize the store from a legacy belief dictionary.
@@ -127,10 +230,12 @@ class BeliefStore:
         Args:
             initial_beliefs: Existing belief mapping keyed by object type.
             particle_count: Default particle count for particle-filter mode.
+            particle_distribution: Distribution family used to initialize PF particles.
             rng: Optional random generator for deterministic tests.
         """
 
         self._particle_count = particle_count
+        self._particle_distribution = particle_distribution
         self._rng = rng or np.random.default_rng()
         self._beliefs: dict[str, dict[str, Any]] = {}
 
@@ -279,6 +384,10 @@ class BeliefStore:
                         "weights": weights.tolist(),
                         "ess": float(raw_state.get("ess", self._compute_ess(weights))),
                         "resample_count": int(raw_state.get("resample_count", 0)),
+                        "particle_distribution": raw_state.get(
+                            "particle_distribution",
+                            self._particle_distribution,
+                        ),
                     }
                 )
 
@@ -302,15 +411,20 @@ class BeliefStore:
             Particle-filter state that matches the summary.
         """
 
-        std = math.sqrt(max(MIN_VARIANCE, variance))
-        particles = self._rng.normal(loc=mean, scale=std, size=self._particle_count)
-        particles = np.clip(particles, a_min=0.0, a_max=None)
+        particles = _sample_positive_duration(
+            distribution=self._particle_distribution,
+            mean=max(MIN_VARIANCE, mean),
+            variance=max(MIN_VARIANCE, variance),
+            sample_count=self._particle_count,
+            rng=self._rng,
+        )
         weights = np.ones(self._particle_count, dtype=float) / float(self._particle_count)
         return {
             "particles": particles.tolist(),
             "weights": weights.tolist(),
             "ess": float(self._compute_ess(weights)),
             "resample_count": resample_count,
+            "particle_distribution": self._particle_distribution,
         }
 
     @staticmethod
@@ -684,23 +798,113 @@ def create_belief_updater(
 def create_monitoring_backend(
     method: BeliefMethod,
     initial_beliefs: Optional[Mapping[str, Mapping[str, Any]]] = None,
+    *,
+    particle_distribution: GroundTruthDistribution = "gaussian",
 ) -> tuple[BeliefStore, MonitoringPolicy, BeliefUpdater]:
     """Build a complete monitoring backend bundle.
 
     Args:
         method: Requested backend.
         initial_beliefs: Existing belief mapping from task initialization.
+        particle_distribution: Distribution family used for PF particle initialization.
 
     Returns:
         Tuple of shared belief store, scheduler policy, and runtime updater.
     """
 
     log.info("Creating monitoring backend: %s", method)
-    belief_store = BeliefStore(initial_beliefs)
+    belief_store = BeliefStore(
+        initial_beliefs,
+        particle_distribution=particle_distribution,
+    )
     belief_store.ensure_method_for_all(method)
     monitoring_policy = create_monitoring_policy(method, belief_store)
     belief_updater = create_belief_updater(method, belief_store)
     return belief_store, monitoring_policy, belief_updater
+
+
+def create_ground_truth_store(
+    base_truths: Optional[Mapping[str, float]] = None,
+    *,
+    distribution: GroundTruthDistribution = "constant",
+    random_seed: int = 42,
+) -> GroundTruthStore:
+    """Create a reusable ground-truth sampler for a run.
+
+    Args:
+        base_truths: Baseline object-to-interval mapping.
+        distribution: Distribution family used to sample latent durations.
+        random_seed: Seed for deterministic sampling.
+
+    Returns:
+        Configured ground-truth store.
+    """
+
+    return GroundTruthStore(
+        base_truths,
+        config=GroundTruthConfig(
+            distribution=distribution,
+            random_seed=random_seed,
+        ),
+    )
+
+
+def _sample_positive_duration(
+    *,
+    distribution: GroundTruthDistribution,
+    mean: float,
+    variance: float,
+    sample_count: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Sample positive duration values from a selected distribution family.
+
+    Args:
+        distribution: Target distribution family.
+        mean: Target first moment.
+        variance: Target second central moment proxy.
+        sample_count: Number of samples to generate.
+        rng: Random generator used for sampling.
+
+    Returns:
+        Positive duration samples.
+    """
+
+    clipped_mean = max(MIN_VARIANCE, float(mean))
+    clipped_variance = max(MIN_VARIANCE, float(variance))
+    sample_size = max(1, int(sample_count))
+
+    if distribution == "constant":
+        samples = np.full(sample_size, clipped_mean, dtype=float)
+    elif distribution == "gaussian":
+        samples = rng.normal(
+            loc=clipped_mean,
+            scale=math.sqrt(clipped_variance),
+            size=sample_size,
+        )
+    elif distribution == "lognormal":
+        sigma_sq = math.log(1.0 + (clipped_variance / max(MIN_VARIANCE, clipped_mean**2)))
+        sigma = math.sqrt(max(MIN_VARIANCE, sigma_sq))
+        mu = math.log(clipped_mean) - (0.5 * sigma_sq)
+        samples = rng.lognormal(mean=mu, sigma=sigma, size=sample_size)
+    elif distribution == "gamma":
+        shape = max(MIN_VARIANCE, (clipped_mean**2) / clipped_variance)
+        scale = max(MIN_VARIANCE, clipped_variance / clipped_mean)
+        samples = rng.gamma(shape=shape, scale=scale, size=sample_size)
+    else:
+        std = math.sqrt(clipped_variance)
+        component_offsets = np.array([-0.75 * std, 0.75 * std], dtype=float)
+        component_scales = np.array(
+            [max(1.0, 0.45 * std), max(1.0, 0.55 * std)],
+            dtype=float,
+        )
+        component_choices = rng.choice([0, 1], size=sample_size, p=[0.5, 0.5])
+        samples = rng.normal(
+            loc=clipped_mean + component_offsets[component_choices],
+            scale=component_scales[component_choices],
+        )
+
+    return np.clip(np.asarray(samples, dtype=float), a_min=MIN_VARIANCE, a_max=None)
 
 
 def _sample_observation(
