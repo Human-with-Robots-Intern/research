@@ -388,13 +388,14 @@ def main() -> None:
         belief_store, monitoring_policy, belief_updater = create_monitoring_backend(
             args.belief_update_method,
             bayesian_load,
-            particle_distribution=args.gt_distribution,
+            particle_distribution="gaussian",
         )
         ground_truth_store = create_ground_truth_store(
             constants.CRITICAL_OBJECT_GROUND_TRUTH,
             distribution=args.gt_distribution,
             random_seed=args.gt_seed,
         )
+        ground_truth_store.ensure_intervals(bayesian_load)
         agent = Agent(
             constraint_handler,
             bayesian_load,
@@ -592,6 +593,7 @@ def main() -> None:
                 "belief_update_method": args.belief_update_method,
                 "gt_distribution": args.gt_distribution,
                 "gt_seed": args.gt_seed,
+                "pf_prior_distribution": "gaussian",
                 "sampled_ground_truths": ground_truth_store.as_dict(),
             }
             result_args.update(

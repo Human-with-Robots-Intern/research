@@ -270,6 +270,28 @@ def test_ground_truth_store_samples_once_per_object() -> None:
     assert ground_truth_store.as_dict()["Microwave"] == first_sample
 
 
+def test_ground_truth_store_can_presample_requested_objects() -> None:
+    """GroundTruthStore should materialize latent GTs for a whole run upfront."""
+
+    ground_truth_store = GroundTruthStore(
+        {
+            "Microwave": 100.0,
+            "CoffeeMachine": 100.0,
+            "CounterTop": 100.0,
+        },
+        config=GroundTruthConfig(distribution="lognormal", random_seed=11),
+    )
+
+    sampled_intervals = ground_truth_store.ensure_intervals(
+        {"Microwave": {}, "CoffeeMachine": {}}
+    )
+
+    assert set(sampled_intervals.keys()) == {"Microwave", "CoffeeMachine"}
+    assert "CounterTop" not in sampled_intervals
+    assert ground_truth_store.as_dict() == sampled_intervals
+    assert sampled_intervals["Microwave"] != sampled_intervals["CoffeeMachine"]
+
+
 def test_scheduler_compute_monitoring_trigger_time_uses_bayesian_policy() -> None:
     """Scheduler should delegate trigger timing to the Bayesian policy."""
 
@@ -357,6 +379,137 @@ def test_action_handler_reuses_search_scoped_action_cache(
     assert simulate_call_count["count"] == 1
     assert cache_hits == 1
     assert cache_misses == 1
+
+
+def test_action_handler_cache_reuses_same_state_across_time_changes(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """ActionHandler cache should ignore absolute time when physical state is unchanged."""
+
+    action_handler = ActionHandler(nav_graph={})
+    current_subtask = _make_subtask(
+        "Inspect Mug",
+        primitive_actions=["NAVIGATE_TO Mug|01"],
+    )
+    base_scene_positions = {"agent": (0.0, 0.0, 0.0), "Mug|01": (1.0, 0.0, 0.0)}
+    first_state = SchedulerState(
+        subtask=current_subtask,
+        completed_entries=[],
+        remaining_subtasks=[current_subtask],
+        constraints=nx.DiGraph(),
+        current_time=5.0,
+        scene_positions=base_scene_positions,
+        held_object=None,
+    )
+    second_state = SchedulerState(
+        subtask=current_subtask,
+        completed_entries=[],
+        remaining_subtasks=[current_subtask],
+        constraints=nx.DiGraph(),
+        current_time=25.0,
+        scene_positions=base_scene_positions,
+        held_object=None,
+    )
+    first_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=first_state,
+        risk_level=0,
+    )
+    second_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=1,
+        parent_node=None,
+        state=second_state,
+        risk_level=0,
+    )
+    simulate_call_count = {"count": 0}
+
+    def _fake_simulate_actions(
+        initial_node: SimulationNode, primitive_actions: list[str]
+    ) -> ActionSimulationLog:
+        """Return a deterministic action log and track invocation count."""
+
+        _ = initial_node
+        simulate_call_count["count"] += 1
+        action_log = ActionSimulationLog()
+        action_log.add_result(
+            action_full_name=primitive_actions[0],
+            action_type="NAVIGATE_TO",
+            cumulative_time=1.5,
+            action_duration=1.5,
+            scene_positions={"agent": (1.0, 0.0, 0.0), "Mug|01": (1.0, 0.0, 0.0)},
+            held_object=None,
+            success=True,
+        )
+        return action_log
+
+    monkeypatch.setattr(action_handler, "_simulate_actions", _fake_simulate_actions)
+
+    action_handler.begin_search_session({})
+    first_result = action_handler.get_actions_info(first_node, ["NAVIGATE_TO Mug|01"])
+    second_result = action_handler.get_actions_info(second_node, ["NAVIGATE_TO Mug|01"])
+    cache_hits, cache_misses = action_handler.end_search_session()
+
+    assert first_result is not None
+    assert second_result is not None
+    assert first_result is second_result
+    assert simulate_call_count["count"] == 1
+    assert cache_hits == 1
+    assert cache_misses == 1
+
+
+def test_constraint_handler_handles_missing_navigation_estimate(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """ConstraintHandler should not crash when navigation simulation returns None."""
+
+    action_handler = ActionHandler(nav_graph={})
+    constraint_handler = ConstraintHandler(action_handler)
+    subtask = _make_subtask(
+        "Inspect Mug",
+        primitive_actions=["NAVIGATE_TO Mug|01", "GRASP Mug|01"],
+    )
+    state = SchedulerState(
+        subtask=subtask,
+        completed_entries=[],
+        remaining_subtasks=[subtask],
+        constraints=nx.DiGraph(),
+        current_time=0.0,
+        scene_positions={"agent": (0.0, 0.0, 0.0), "Mug|01": (1.0, 0.0, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(action_handler, "get_actions_info", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        constraint_handler,
+        "get_logical_interaction_start_time",
+        lambda *_args, **_kwargs: (0.0, False, "READY", {}),
+    )
+    monkeypatch.setattr(
+        constraint_handler,
+        "_assign_scheduling_due",
+        lambda *_args, **_kwargs: None,
+    )
+
+    feasible_candidates, not_yet_candidates = constraint_handler.get_feasible_candidates(
+        curr_node
+    )
+
+    assert not not_yet_candidates
+    assert len(feasible_candidates) == 1
+    assert feasible_candidates[0].estimated_first_nav_duration == 0.0
 
 
 def test_scheduler_detects_active_bayesian_monitoring_interval() -> None:

@@ -25,7 +25,6 @@ log = create_module_logger(__name__, module_log=True, level=logging.DEBUG)
 Position: TypeAlias = Tuple[float, float, float]
 NavGraph: TypeAlias = Dict[Position, List[Position]]  # 네비게이션 그래프 타입 정의
 ActionCacheKey: TypeAlias = Tuple[
-    float,
     Optional[str],
     Optional[str],
     Tuple[Tuple[str, object], ...],
@@ -101,7 +100,6 @@ class ActionHandler:
             )
         )
         return (
-            state.current_time,
             state.held_object,
             state.agent_location,
             normalized_scene_positions,

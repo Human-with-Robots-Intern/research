@@ -198,8 +198,13 @@ class ConstraintHandler:
                 navigation_info: Optional[ActionResult] = (
                     self.action_handler.get_actions_info(curr_node, [first_nav_action])
                 )
-                # get_actions_info는 빈 actions 목록이 아니면 항상 ActionResult를 반환하므로 prep_info는 None이 아님.
-                first_nav_duration = navigation_info.action_duration
+                if navigation_info is None or not navigation_info.success:
+                    log.warning(
+                        "Navigation simulation failed for '%s'; falling back to zero prep time.",
+                        sub.name,
+                    )
+                else:
+                    first_nav_duration = navigation_info.action_duration
 
             # 3. 최종 시작 가능 시간 계산 및 Feasibility 판단
             #    logical_start_time: 선행 작업 완료 + 제약 간격 이후의 시간 (상호작용 시작 가능 논리적 시간)

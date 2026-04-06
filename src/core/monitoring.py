@@ -4,7 +4,7 @@ import json
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Mapping, Optional, Protocol
+from typing import Any, Iterable, Literal, Mapping, Optional, Protocol
 
 import numpy as np
 from scipy.stats import norm
@@ -98,6 +98,39 @@ class GroundTruthStore:
                 self._base_truths[object_name]
             )
         return self._samples[object_name]
+
+    def ensure_intervals(
+        self,
+        object_names: Optional[Mapping[str, Any] | Iterable[str]] = None,
+    ) -> dict[str, float]:
+        """Pre-sample latent durations for a collection of objects.
+
+        Args:
+            object_names: Optional iterable or mapping of object names to materialize.
+                When omitted, all known base-truth objects are sampled.
+
+        Returns:
+            Serializable mapping of sampled durations for the requested objects.
+        """
+
+        if object_names is None:
+            target_names = list(self._base_truths.keys())
+        elif isinstance(object_names, Mapping):
+            target_names = list(object_names.keys())
+        else:
+            target_names = list(object_names)
+
+        for object_name in target_names:
+            if object_name in self._base_truths and object_name not in self._samples:
+                self._samples[object_name] = self._sample_interval(
+                    self._base_truths[object_name]
+                )
+
+        return {
+            object_name: self._samples[object_name]
+            for object_name in target_names
+            if object_name in self._samples
+        }
 
     def as_dict(self) -> dict[str, float]:
         """Return sampled ground-truth durations as a serializable mapping."""

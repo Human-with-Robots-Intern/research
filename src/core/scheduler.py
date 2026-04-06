@@ -524,9 +524,13 @@ class Scheduler:
                     target_obj_id = candidate.subtask.execution.primitive_actions[
                         0
                     ].split(" ")[1]
-                    nav_time = self.action_handler.get_actions_info(
-                        curr_node, [f"NAVIGATE_TO {target_obj_id}"]
-                    ).action_duration
+                    nav_time = self._estimate_navigation_duration(
+                        curr_node,
+                        target_obj_id,
+                        candidate_name=candidate.subtask.name,
+                    )
+                    if nav_time is None:
+                        nav_time = 0.0
 
                     wait_node = self._expand_wait_wo_monitoring(
                         curr_node,
@@ -573,9 +577,13 @@ class Scheduler:
                 target_obj_id = candidate.subtask.execution.primitive_actions[0].split(
                     " "
                 )[1]
-                nav_time = self.action_handler.get_actions_info(
-                    curr_node, [f"NAVIGATE_TO {target_obj_id}"]
-                ).action_duration
+                nav_time = self._estimate_navigation_duration(
+                    curr_node,
+                    target_obj_id,
+                    candidate_name=candidate.subtask.name,
+                )
+                if nav_time is None:
+                    nav_time = 0.0
 
                 wait_node = self._expand_wait_wo_monitoring(
                     curr_node,
@@ -811,6 +819,36 @@ class Scheduler:
             return None
         return raw_object_name.split("|")[0]
 
+    def _estimate_navigation_duration(
+        self,
+        curr_node: SimulationNode,
+        target_obj_id: str,
+        *,
+        candidate_name: str,
+    ) -> Optional[float]:
+        """Estimate navigation time for a single target object.
+
+        Args:
+            curr_node: Current simulation node used as the starting state.
+            target_obj_id: Target object identifier for navigation.
+            candidate_name: Human-readable subtask name for diagnostics.
+
+        Returns:
+            Navigation duration when simulation succeeds, otherwise ``None``.
+        """
+
+        navigation_info = self.action_handler.get_actions_info(
+            curr_node, [f"NAVIGATE_TO {target_obj_id}"]
+        )
+        if navigation_info is None or not navigation_info.success:
+            log.warning(
+                "Navigation simulation failed while expanding '%s' toward '%s'.",
+                candidate_name,
+                target_obj_id,
+            )
+            return None
+        return navigation_info.action_duration
+
     def _compute_monitoring_trigger_time(
         self,
         *,
@@ -936,10 +974,17 @@ class Scheduler:
         """
 
         target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
-        nav_time = self.action_handler.get_actions_info(
+        nav_time = self._estimate_navigation_duration(
             curr_node,
-            [f"NAVIGATE_TO {target_obj_id}"],
-        ).action_duration
+            target_obj_id,
+            candidate_name=candidate.subtask.name,
+        )
+        if nav_time is None:
+            log.warning(
+                "Skipping wait expansion for '%s' because navigation time is unavailable.",
+                candidate.subtask.name,
+            )
+            return None
 
         # Check if monitoring is needed before waiting, using the same Bayesian logic as standard subtasks.
         need_monitor, due_info = self._should_split_with_monitoring(
