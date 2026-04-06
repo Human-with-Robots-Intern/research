@@ -103,7 +103,7 @@ class TaskGenerator:
             )
         elif scene_type == "kitchen":
             examples_prompt = self.load_file(
-                Path(PROMPT_PATH) / "e2e_generator_ver12_kitchen.txt", "txt"
+                Path(PROMPT_PATH) / "e2e_generator_ver13_kitchen.txt", "txt"
             )
         else:
             examples_prompt = self.load_file(
