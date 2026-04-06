@@ -30,11 +30,13 @@ from src.models.dataclass import (
     CompletedEntry,
     SchedulerState,
     SimulationNode,
+    TaskExecutionStatus,
 )
 from src.models.task import Duration, Execution, Subtask
 from src.scheduler.action_handler import ActionHandler
 from src.scheduler.constraint_handler import ConstraintHandler
-from src.utils.config.constants import BAYESIAN_THRESHOLD_PROBABILITY
+from src.scheduler.heuristic_manager import HeuristicManager
+from src.utils.config.constants import BAYESIAN_THRESHOLD_PROBABILITY, NAV_STEP_DURATION
 from src.utils.io_utils.result_saver import (
     calculate_timing_success_rate,
     serialize_completed_entries,
@@ -462,6 +464,153 @@ def test_action_handler_cache_reuses_same_state_across_time_changes(
     assert cache_misses == 1
 
 
+def test_action_handler_missing_navigation_target_fails_cleanly() -> None:
+    """ActionHandler should fail navigation when the target object is unknown."""
+
+    action_handler = ActionHandler(nav_graph={(0.0, 0.0, 0.0): []})
+    current_subtask = _make_subtask(
+        "Inspect Missing Mug",
+        primitive_actions=["NAVIGATE_TO Mug|404"],
+    )
+    state = SchedulerState(
+        subtask=current_subtask,
+        completed_entries=[],
+        remaining_subtasks=[current_subtask],
+        constraints=nx.DiGraph(),
+        current_time=0.0,
+        scene_positions={"agent": (0.0, 0.0, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+
+    result = action_handler.get_actions_info(curr_node, ["NAVIGATE_TO Mug|404"])
+
+    assert result is not None
+    assert result.success is False
+    assert result.action_duration == 0.0
+    assert result.scene_positions["agent"] == (0.0, 0.0, 0.0)
+
+
+def test_action_handler_partial_navigation_advances_by_one_step() -> None:
+    """Partial navigation should move to the first traversed waypoint."""
+
+    start_pos = (0.0, 0.0, 0.0)
+    mid_pos = (1.0, 0.0, 0.0)
+    end_pos = (2.0, 0.0, 0.0)
+    nav_graph = {
+        start_pos: [mid_pos],
+        mid_pos: [end_pos],
+        end_pos: [],
+    }
+    action_handler = ActionHandler(nav_graph=nav_graph)
+    current_subtask = _make_subtask(
+        "Partially Move To Mug",
+        primitive_actions=[f"NAVIGATE_TO Mug|01 {NAV_STEP_DURATION}"],
+    )
+    state = SchedulerState(
+        subtask=current_subtask,
+        completed_entries=[],
+        remaining_subtasks=[current_subtask],
+        constraints=nx.DiGraph(),
+        current_time=0.0,
+        scene_positions={"agent": start_pos, "Mug|01": end_pos},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+
+    result = action_handler.get_actions_info(
+        curr_node,
+        [f"NAVIGATE_TO Mug|01 {NAV_STEP_DURATION}"],
+    )
+
+    assert result is not None
+    assert result.success is True
+    assert result.scene_positions["agent"] == mid_pos
+
+
+def test_action_handler_shortest_path_prefers_fewer_steps() -> None:
+    """Shortest-path search should minimize step count instead of turn count."""
+
+    start_pos = (0.0, 0.0, 0.0)
+    shortcut_pos = (100.0, 0.0, 0.0)
+    end_pos = (100.0, 0.0, 1.0)
+    nav_graph: dict[tuple[float, float, float], list[tuple[float, float, float]]] = {
+        start_pos: [(1.0, 0.0, 0.0), shortcut_pos],
+        shortcut_pos: [end_pos],
+        end_pos: [],
+    }
+    for x_coord in range(1, 100):
+        current_pos = (float(x_coord), 0.0, 0.0)
+        next_pos = (float(x_coord + 1), 0.0, 0.0)
+        nav_graph.setdefault(current_pos, []).append(next_pos)
+    action_handler = ActionHandler(nav_graph=nav_graph)
+
+    shortest_path = action_handler._find_shortest_path(start_pos, end_pos)
+
+    assert shortest_path == [start_pos, shortcut_pos, end_pos]
+
+
+def test_heuristic_navigation_time_matches_action_handler_step_model() -> None:
+    """Heuristic navigation estimate should count traversed steps only."""
+
+    start_pos = (0.0, 0.0, 0.0)
+    mid_pos = (1.0, 0.0, 0.0)
+    end_pos = (2.0, 0.0, 0.0)
+    nav_graph = {
+        start_pos: [mid_pos],
+        mid_pos: [end_pos],
+        end_pos: [],
+    }
+    heuristic_manager = HeuristicManager(ActionHandler(nav_graph=nav_graph))
+
+    estimated_nav_time = heuristic_manager._estimate_navigation_time_between_positions(
+        start_pos,
+        end_pos,
+    )
+
+    assert estimated_nav_time == 2 * NAV_STEP_DURATION
+
+
+def test_heuristic_uses_monitor_subtask_duration_consistently() -> None:
+    """Heuristic should treat Monitor subtasks via their configured duration."""
+
+    heuristic_manager = HeuristicManager(ActionHandler(nav_graph={}))
+    monitor_subtask = _make_subtask(
+        "Monitoring Microwave",
+        primitive_actions=["MONITORING Microwave|01"],
+        subtask_type="Monitor",
+    )
+    wait_subtask = _make_subtask(
+        "Wait Briefly",
+        primitive_actions=["WAIT 3.0"],
+        subtask_type="WAIT",
+    )
+    monitor_subtask.duration.interval = 5.0
+    wait_subtask.duration.interval = 3.0
+
+    monitor_duration = heuristic_manager._get_estimated_pure_interaction_time(
+        monitor_subtask
+    )
+    wait_duration = heuristic_manager._get_estimated_pure_interaction_time(wait_subtask)
+
+    assert monitor_duration == 5.0
+    assert wait_duration == 0.0
+
+
 def test_constraint_handler_handles_missing_navigation_estimate(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -510,6 +659,145 @@ def test_constraint_handler_handles_missing_navigation_estimate(
     assert not not_yet_candidates
     assert len(feasible_candidates) == 1
     assert feasible_candidates[0].estimated_first_nav_duration == 0.0
+
+
+def test_heuristic_remaining_work_mst_uses_residual_tasks_only(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Remaining-work MST should exclude the candidate chain already being executed."""
+
+    action_handler = ActionHandler(nav_graph={})
+    heuristic_manager = HeuristicManager(action_handler)
+    candidate_subtask = _make_subtask(
+        "Start Microwave",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+    )
+    zero_interval_successor = _make_subtask(
+        "Stop Microwave",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    unrelated_subtask = _make_subtask(
+        "Prepare Coffee",
+        primitive_actions=["TOGGLE_ON CoffeeMachine|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        candidate_subtask.name,
+        zero_interval_successor.name,
+        info={"Interval": 0.0, "IsCritical": True},
+    )
+    state = SchedulerState(
+        subtask=candidate_subtask,
+        completed_entries=[],
+        remaining_subtasks=[
+            candidate_subtask,
+            zero_interval_successor,
+            unrelated_subtask,
+        ],
+        constraints=constraints,
+        current_time=0.0,
+        scene_positions={
+            "agent": (0.0, 0.0, 0.0),
+            "Microwave|01": (1.0, 0.0, 0.0),
+            "CoffeeMachine|01": (2.0, 0.0, 0.0),
+        },
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=True,
+    )
+    captured_tasks: dict[str, list[str]] = {}
+
+    monkeypatch.setattr(
+        action_handler,
+        "get_actions_info",
+        lambda *_args, **_kwargs: None,
+    )
+
+    def _fake_mst(
+        current_agent_pos: Any,
+        remaining_tasks: Any,
+        scene_positions: Any,
+    ) -> float:
+        """Capture the task set passed to MST and return a neutral cost."""
+
+        _ = current_agent_pos, scene_positions
+        captured_tasks["names"] = [task.name for task in remaining_tasks]
+        return 0.0
+
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_calculate_mst_navigation_time",
+        _fake_mst,
+    )
+
+    heuristic_manager._calculate_remaining_work_cost(curr_node, candidate)
+
+    assert captured_tasks["names"] == [unrelated_subtask.name]
+
+
+def test_constraint_handler_marks_failed_predecessor_as_unavailable() -> None:
+    """ConstraintHandler should stop successors after an explicit predecessor failure."""
+
+    failed_subtask = _make_subtask(
+        "Start Microwave",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+    )
+    dependent_subtask = _make_subtask(
+        "Stop Microwave",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        failed_subtask.name,
+        dependent_subtask.name,
+        info={"Interval": 10.0, "IsCritical": True},
+    )
+    state = SchedulerState(
+        subtask=dependent_subtask,
+        completed_entries=[
+            CompletedEntry(
+                subtask=failed_subtask,
+                schedule_start_time=0.0,
+                schedule_end_time=5.0,
+                execution_status=TaskExecutionStatus.FAILURE,
+            )
+        ],
+        remaining_subtasks=[dependent_subtask],
+        constraints=constraints,
+        current_time=5.0,
+        scene_positions={},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    constraint_handler = ConstraintHandler(_DummyActionHandler())
+
+    logical_start_time, is_critical, status, critical_info = (
+        constraint_handler.get_logical_interaction_start_time(
+            curr_node, dependent_subtask
+        )
+    )
+
+    assert logical_start_time is None
+    assert is_critical is False
+    assert status == "FAILED_PREDECESSOR"
+    assert critical_info == {}
 
 
 def test_scheduler_detects_active_bayesian_monitoring_interval() -> None:

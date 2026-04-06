@@ -1,7 +1,7 @@
 import copy
-import heapq
 import logging
 import math
+from collections import deque
 from typing import Dict, List, Optional, Tuple, TypeAlias
 
 from ithor.utils.math_utils import adjust_if_unreachable
@@ -362,10 +362,11 @@ class ActionHandler:
 
         # 1. 목표 유효성 검사 및 위치 가져오기
         if not target_obj_id or target_obj_id not in scene_positions:
-            # raise ValueError(
-            #     f"Navigation target '{target_obj_id}' not found in scene positions."
-            # )
-            return 0.0, True, agent_pos
+            log.warning(
+                "Navigation target '%s' not found in scene positions. Action FAILED.",
+                target_obj_id,
+            )
+            return 0.0, False, agent_pos
         target_pos = tuple(scene_positions[target_obj_id])
         # 2. 경로 탐색 시도 (partial time 여부와 관계없이 일단 시도)
         navigate_path: Optional[List[Position]] = None
@@ -373,7 +374,15 @@ class ActionHandler:
         # log.debug(
         #     f"  Finding path from {agent_pos} to {target_pos} for '{target_obj_id}'"
         # )
-        navigate_path = self._find_shortest_path(agent_pos, target_pos)
+        try:
+            navigate_path = self._find_shortest_path(agent_pos, target_pos)
+        except ValueError:
+            log.warning(
+                "No navigation path found from %s to '%s'. Action FAILED.",
+                agent_pos,
+                target_obj_id,
+            )
+            return 0.0, False, agent_pos
         # 3. 부분 시간 이동 처리
         if partial_time_str:
             # log.debug(f"  Processing NAVIGATE_TO with partial time: {partial_time_str}")
@@ -382,11 +391,12 @@ class ActionHandler:
 
             # 이동할 스텝 수 계산 (올림/내림 정책 확인 필요, 여기선 내림 사용)
             steps_can_take = int(math.floor(partial_duration / NAV_STEP_DURATION))
+            path_after_start = navigate_path[1:] if navigate_path else []
             # 경로 길이 내에서만 이동 가능
-            actual_steps = min(steps_can_take, len(navigate_path))
+            actual_steps = min(steps_can_take, len(path_after_start))
 
-            if navigate_path and actual_steps > 0:
-                new_agent_pos = navigate_path[actual_steps - 1]
+            if path_after_start and actual_steps > 0:
+                new_agent_pos = path_after_start[actual_steps - 1]
             else:
                 new_agent_pos = agent_pos
             success = True  # 부분 시간 이동은 일단 성공으로 간주
@@ -553,36 +563,37 @@ class ActionHandler:
     def _find_shortest_path(
         self, start_pos: Tuple[float, float, float], end_pos: Tuple[float, float, float]
     ) -> list[Tuple[float, float, float]]:
+        """Return the minimum-step path between two navigation nodes.
+
+        Args:
+            start_pos: Starting position in the navigation graph.
+            end_pos: Goal position in the navigation graph.
+
+        Returns:
+            Sequence of positions including the start and end nodes.
+
+        Raises:
+            ValueError: If no path exists between the two positions.
+        """
+
         start_pos = adjust_if_unreachable(self.nav_graph, start_pos)
         end_pos = adjust_if_unreachable(self.nav_graph, end_pos)
         if start_pos == end_pos:
             return []
 
-        def direction(a, b):
-            return (b[0] - a[0], b[2] - a[2])
+        queue = deque([[start_pos]])
+        visited = {start_pos}
 
-        pq = []
-        heapq.heappush(pq, (0, start_pos, None, [start_pos]))
-        visited = {}
-
-        while pq:
-            turn_cnt, cur_pos, cur_dir, path = heapq.heappop(pq)
+        while queue:
+            path = queue.popleft()
+            cur_pos = path[-1]
             if cur_pos == end_pos:
                 return path
-            if cur_pos in visited and visited[cur_pos] <= turn_cnt:
-                continue
-            visited[cur_pos] = turn_cnt
             for nxt in self.nav_graph.get(cur_pos, []):
-                if nxt in path:
+                if nxt in visited:
                     continue
-                new_dir = direction(cur_pos, nxt)
-                nxt_turn = (
-                    turn_cnt
-                    if (cur_dir is None or new_dir == cur_dir)
-                    else (turn_cnt + 1)
-                )
-                new_path = path + [nxt]
-                heapq.heappush(pq, (nxt_turn, nxt, new_dir, new_path))
+                visited.add(nxt)
+                queue.append(path + [nxt])
 
         raise ValueError(f"No path found from {start_pos} to {end_pos}.")
 

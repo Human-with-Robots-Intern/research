@@ -13,6 +13,7 @@ from src.models.dataclass import (
     CriticalContext,
     SchedulingDue,
     SimulationNode,
+    TaskExecutionStatus,
     TimeSlot,
 )
 from src.models.task import Subtask
@@ -65,6 +66,24 @@ class ConstraintHandler:
         self._search_cache_hits = 0
         self._search_cache_misses = 0
         return stats
+
+    @staticmethod
+    def _has_failed_execution(pred_entry: CompletedEntry) -> bool:
+        """Return whether a predecessor entry represents an explicit failure.
+
+        Args:
+            pred_entry: Completed predecessor entry to inspect.
+
+        Returns:
+            ``True`` when the predecessor explicitly failed, otherwise ``False``.
+        """
+
+        execution_status = pred_entry.execution_status
+        if isinstance(execution_status, bool):
+            return execution_status is False
+        if execution_status == TaskExecutionStatus.FAILURE:
+            return True
+        return getattr(execution_status, "name", None) == "FAILURE"
 
     def get_time_slots(
         self, subtask_name: str, constraints: DiGraph, direction: str
@@ -119,7 +138,7 @@ class ConstraintHandler:
         Adjusts start times based on navigation estimates (from ActionHandler)
         and logical constraints, then checks against current time.
         """
-        log.debug(f"[get_feasible_candidates] FEASIBLE CANDIDATES & NOT_YET CANDIDATES")
+        log.debug("[get_feasible_candidates] FEASIBLE CANDIDATES & NOT_YET CANDIDATES")
         feasible_candidates: List[Candidate] = []
         not_yet_candidates: List[Candidate] = []
 
@@ -309,6 +328,10 @@ class ConstraintHandler:
             if pred_entry is None:
                 all_predecessors_finished = False
                 continue
+            if self._has_failed_execution(pred_entry):
+                any_predecessor_failed = True
+                failure_reason = pred_name
+                break
 
             pred_end_time = pred_entry.schedule_end_time
             curr_logical_interaction_start_time = pred_end_time + interval
