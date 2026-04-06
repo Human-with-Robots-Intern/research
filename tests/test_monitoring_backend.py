@@ -24,11 +24,13 @@ from src.core.monitoring import (
 from src.core.scheduler import Scheduler
 from src.models.dataclass import (
     Candidate,
+    ActionSimulationLog,
     CompletedEntry,
     SchedulerState,
     SimulationNode,
 )
 from src.models.task import Duration, Execution, Subtask
+from src.scheduler.action_handler import ActionHandler
 from src.scheduler.constraint_handler import ConstraintHandler
 from src.utils.config.constants import BAYESIAN_THRESHOLD_PROBABILITY
 
@@ -271,6 +273,69 @@ def test_scheduler_compute_monitoring_trigger_time_uses_bayesian_policy() -> Non
     assert trigger_time == expected_trigger_time
 
 
+def test_action_handler_reuses_search_scoped_action_cache(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """ActionHandler should avoid re-simulating identical action requests."""
+
+    action_handler = ActionHandler(nav_graph={})
+    current_subtask = _make_subtask(
+        "Inspect Mug",
+        primitive_actions=["NAVIGATE_TO Mug|01"],
+    )
+    state = SchedulerState(
+        subtask=current_subtask,
+        completed_entries=[],
+        remaining_subtasks=[current_subtask],
+        constraints=nx.DiGraph(),
+        current_time=5.0,
+        scene_positions={"agent": (0.0, 0.0, 0.0), "Mug|01": (1.0, 0.0, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    simulate_call_count = {"count": 0}
+
+    def _fake_simulate_actions(
+        initial_node: SimulationNode, primitive_actions: list[str]
+    ) -> ActionSimulationLog:
+        """Return a deterministic action log and track invocation count."""
+
+        _ = initial_node
+        simulate_call_count["count"] += 1
+        action_log = ActionSimulationLog()
+        action_log.add_result(
+            action_full_name=primitive_actions[0],
+            action_type="NAVIGATE_TO",
+            cumulative_time=1.5,
+            action_duration=1.5,
+            scene_positions={"agent": (1.0, 0.0, 0.0), "Mug|01": (1.0, 0.0, 0.0)},
+            held_object=None,
+            success=True,
+        )
+        return action_log
+
+    monkeypatch.setattr(action_handler, "_simulate_actions", _fake_simulate_actions)
+
+    action_handler.begin_search_session({})
+    first_result = action_handler.get_actions_info(curr_node, ["NAVIGATE_TO Mug|01"])
+    second_result = action_handler.get_actions_info(curr_node, ["NAVIGATE_TO Mug|01"])
+    cache_hits, cache_misses = action_handler.end_search_session()
+
+    assert first_result is not None
+    assert second_result is not None
+    assert first_result is second_result
+    assert simulate_call_count["count"] == 1
+    assert cache_hits == 1
+    assert cache_misses == 1
+
+
 def test_scheduler_detects_active_bayesian_monitoring_interval() -> None:
     """Scheduler should request monitoring when an active critical interval exists."""
 
@@ -338,6 +403,99 @@ def test_scheduler_detects_active_bayesian_monitoring_interval() -> None:
     assert due_info is not None
     assert due_info.due_related_sub_name == end_subtask.name
     assert due_info.due_date == 128.01
+
+
+def test_scheduler_reuses_monitoring_caches_within_search_session() -> None:
+    """Scheduler should memoize active intervals and trigger times per search."""
+
+    start_subtask = _make_subtask(
+        "Start Microwave for Heating Potato",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+    )
+    current_subtask = _make_subtask(
+        "Prepare Coffee Machine with Mug",
+        primitive_actions=["NAVIGATE_TO Mug|01", "GRASP Mug|01"],
+    )
+    end_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Potato",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    graph = nx.DiGraph()
+    graph.add_edge(
+        start_subtask.name,
+        end_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True, "Variance": 900.0},
+    )
+
+    state = SchedulerState(
+        subtask=current_subtask,
+        completed_entries=[
+            CompletedEntry(
+                subtask=start_subtask,
+                schedule_start_time=0.0,
+                schedule_end_time=28.01,
+            )
+        ],
+        remaining_subtasks=[current_subtask, end_subtask],
+        constraints=graph,
+        current_time=63.39,
+        scene_positions={},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    scheduler = Scheduler(
+        action_handler=_DummyActionHandler(),
+        constraint_handler=ConstraintHandler(_DummyActionHandler()),
+        heuristic_manager=_DummyHeuristicManager(),
+        monitoring_policy=BayesianMonitoringPolicy(BeliefStore()),
+    )
+    candidate = Candidate(
+        subtask=_make_subtask(
+            "Wash Fork",
+            primitive_actions=["NAVIGATE_TO Fork|01", "GRASP Fork|01"],
+        ),
+        is_critical=False,
+    )
+
+    scheduler._begin_search_session()
+    try:
+        first_need_monitor, first_due = scheduler._should_split_with_monitoring(
+            curr_node, candidate
+        )
+        second_need_monitor, second_due = scheduler._should_split_with_monitoring(
+            curr_node, candidate
+        )
+        first_trigger = scheduler._compute_monitoring_trigger_time(
+            raw_object_name="Microwave|01",
+            critical_start_sub_end_time=28.01,
+            mean_duration=100.0,
+            variance=900.0,
+        )
+        second_trigger = scheduler._compute_monitoring_trigger_time(
+            raw_object_name="Microwave|01",
+            critical_start_sub_end_time=28.01,
+            mean_duration=100.0,
+            variance=900.0,
+        )
+
+        assert first_need_monitor is True
+        assert second_need_monitor is True
+        assert first_due == second_due
+        assert first_trigger == second_trigger
+        assert scheduler._search_cache is not None
+        assert scheduler._search_cache.active_interval_cache_misses == 1
+        assert scheduler._search_cache.active_interval_cache_hits == 1
+        assert scheduler._search_cache.trigger_cache_misses == 1
+        assert scheduler._search_cache.trigger_cache_hits == 1
+    finally:
+        scheduler._end_search_session()
 
 
 def test_scheduler_compute_monitoring_trigger_time_uses_particle_filter_policy() -> None:

@@ -17,7 +17,6 @@ from src.utils.config.constants import (
     REAL_NAV_DURATION,
     STATIC_ACTION_SET,
     TIMING_TOLERANCE_ABS,
-    TIMING_TOLERANCE_RATIO,
     TOGGLE_ACTION_DURATION,
 )
 
@@ -25,6 +24,14 @@ log = create_module_logger(__name__, module_log=True, level=logging.DEBUG)
 
 Position: TypeAlias = Tuple[float, float, float]
 NavGraph: TypeAlias = Dict[Position, List[Position]]  # 네비게이션 그래프 타입 정의
+ActionCacheKey: TypeAlias = Tuple[
+    float,
+    Optional[str],
+    Optional[str],
+    Tuple[Tuple[str, object], ...],
+    Tuple[str, ...],
+    bool,
+]
 
 
 class ActionHandler:
@@ -38,6 +45,69 @@ class ActionHandler:
         """
         self.nav_graph = nav_graph
         self.real_world_mode = real_world_mode
+        self._search_action_cache: Optional[
+            Dict[ActionCacheKey, Optional[ActionResult]]
+        ] = None
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
+
+    def begin_search_session(
+        self, cache: Dict[ActionCacheKey, Optional[ActionResult]]
+    ) -> None:
+        """Attach a search-scoped cache for action simulation reuse.
+
+        Args:
+            cache: Mutable cache owned by the scheduler for the current search call.
+        """
+
+        self._search_action_cache = cache
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
+
+    def end_search_session(self) -> tuple[int, int]:
+        """Detach the search-scoped action cache and return cache statistics.
+
+        Returns:
+            A tuple of `(cache_hits, cache_misses)` collected in the current search.
+        """
+
+        stats = (self._search_cache_hits, self._search_cache_misses)
+        self._search_action_cache = None
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
+        return stats
+
+    def _build_action_cache_key(
+        self, current_node: SimulationNode, actions: List[str]
+    ) -> ActionCacheKey:
+        """Build a deterministic cache key for an action simulation request.
+
+        Args:
+            current_node: Starting node for the simulated action sequence.
+            actions: Primitive actions to simulate.
+
+        Returns:
+            Hashable key that captures the state elements affecting simulation.
+        """
+
+        state = current_node.state
+        normalized_scene_positions = tuple(
+            sorted(
+                (
+                    name,
+                    tuple(value) if isinstance(value, (list, tuple)) else value,
+                )
+                for name, value in state.scene_positions.items()
+            )
+        )
+        return (
+            state.current_time,
+            state.held_object,
+            state.agent_location,
+            normalized_scene_positions,
+            tuple(actions),
+            self.real_world_mode,
+        )
 
     def get_actions_info(
         self, current_node: SimulationNode, actions: list[str]
@@ -60,13 +130,23 @@ class ActionHandler:
             )
             return None
 
+        cache_key: Optional[ActionCacheKey] = None
+        if self._search_action_cache is not None:
+            cache_key = self._build_action_cache_key(current_node, actions)
+            if cache_key in self._search_action_cache:
+                self._search_cache_hits += 1
+                return self._search_action_cache[cache_key]
+
         action_sim_info: Optional[ActionSimulationLog] = self._simulate_actions(
             current_node, actions
         )
+        self._search_cache_misses += 1
 
         # action_sim_info가 None이거나, 결과가 비어있는 경우 처리
         if not action_sim_info or not action_sim_info.results:
             log.debug("Action simulation did not produce any results. Returning None.")
+            if cache_key is not None and self._search_action_cache is not None:
+                self._search_action_cache[cache_key] = None
             return None
 
         # 마지막 ActionResult 가져오기
@@ -87,6 +167,8 @@ class ActionHandler:
                 "Consider modifying the ActionResult dataclass or using the ActionSimulationLog object."
             )
 
+        if cache_key is not None and self._search_action_cache is not None:
+            self._search_action_cache[cache_key] = last_action_result
         return last_action_result
 
     # --------------------------------------------------------------------------

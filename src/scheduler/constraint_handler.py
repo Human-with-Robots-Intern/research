@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TypeAlias
 
 import networkx as nx
 from networkx import DiGraph
@@ -23,6 +23,8 @@ from src.utils.config.constants import MONITORING_DURATION, TIMING_TOLERANCE_ABS
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
+TimeSlotCacheKey: TypeAlias = Tuple[int, str, str]
+
 
 class ConstraintHandler:
 
@@ -31,7 +33,38 @@ class ConstraintHandler:
         ConstraintHandler 초기화. ActionHandler 인스턴스를 주입받습니다.
         """
         self.action_handler = action_handler
+        self._search_time_slot_cache: Optional[
+            Dict[TimeSlotCacheKey, Tuple[TimeSlot, ...]]
+        ] = None
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
         log.debug("ConstraintHandler initialized with ActionHandler.")
+
+    def begin_search_session(
+        self, cache: Dict[TimeSlotCacheKey, Tuple[TimeSlot, ...]]
+    ) -> None:
+        """Attach a search-scoped cache for repeated time-slot lookups.
+
+        Args:
+            cache: Cache owned by the scheduler for the current search call.
+        """
+
+        self._search_time_slot_cache = cache
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
+
+    def end_search_session(self) -> tuple[int, int]:
+        """Detach the search-scoped cache and return cache statistics.
+
+        Returns:
+            A tuple of `(cache_hits, cache_misses)` collected in the current search.
+        """
+
+        stats = (self._search_cache_hits, self._search_cache_misses)
+        self._search_time_slot_cache = None
+        self._search_cache_hits = 0
+        self._search_cache_misses = 0
+        return stats
 
     def get_time_slots(
         self, subtask_name: str, constraints: DiGraph, direction: str
@@ -45,12 +78,23 @@ class ConstraintHandler:
         Returns:
             List[TimeSlot]: TimeSlot 객체를 반환
         """
+        cache_key: Optional[TimeSlotCacheKey] = None
+        if self._search_time_slot_cache is not None:
+            cache_key = (id(constraints), subtask_name, direction)
+            cached_slots = self._search_time_slot_cache.get(cache_key)
+            if cached_slots is not None:
+                self._search_cache_hits += 1
+                return list(cached_slots)
+
         edges = (
             list(constraints.out_edges(subtask_name, data=True))
             if direction == "out"
             else list(constraints.in_edges(subtask_name, data=True))
         )
         if not edges:
+            if cache_key is not None and self._search_time_slot_cache is not None:
+                self._search_time_slot_cache[cache_key] = ()
+                self._search_cache_misses += 1
             return []
 
         time_slots = []
@@ -61,6 +105,9 @@ class ConstraintHandler:
             linked_subtask = v if direction == "out" else u
 
             time_slots.append(TimeSlot(float(interval), is_crit, linked_subtask))
+        if cache_key is not None and self._search_time_slot_cache is not None:
+            self._search_time_slot_cache[cache_key] = tuple(time_slots)
+            self._search_cache_misses += 1
         return time_slots
 
     def get_feasible_candidates(

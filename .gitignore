@@ -80,3 +80,5 @@ assets/result_analysis/**/*.json
 assets/tasks/**/*.json
 assets/tune/debug_trajectories/**/*.json
 docker-compose.override.yml
+
+.bench_cache/
