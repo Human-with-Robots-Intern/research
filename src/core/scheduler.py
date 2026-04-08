@@ -465,13 +465,7 @@ class Scheduler:
             log.error("[_extract_state] child_node is None")
             return None
 
-        # Build path from child back to root
-        path = []
-        cur = child_node
-        while cur:
-            path.append(cur)
-            cur = cur.parent_node
-        path.reverse()
+        path = self._trace_solution_path(child_node)
 
         # If only the root (depth=0) is present
         if len(path) < 2:
@@ -481,6 +475,17 @@ class Scheduler:
         # Return the state at the first step beyond root (depth=1)
         log.debug("[_extract_state] Returning state at depth=1 in the best path.")
         return path[1].state
+
+    def _trace_solution_path(self, child_node: SimulationNode) -> List[SimulationNode]:
+        """Trace a winner leaf back to the root and return the forward path."""
+
+        path: List[SimulationNode] = []
+        current_node: Optional[SimulationNode] = child_node
+        while current_node:
+            path.append(current_node)
+            current_node = current_node.parent_node
+        path.reverse()
+        return path
 
     def _expand_candidates(
         self,
