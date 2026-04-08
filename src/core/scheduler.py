@@ -30,11 +30,7 @@ from src.utils.config import (
     TIMING_TOLERANCE_ABS,
     constants,
 )
-from src.utils.config.constants import (
-    BEAM_WIDTH,
-    INIT_PRIOR_VARIANCE,
-    SIMULATION_DEPTH,
-)
+from src.utils.config.constants import BEAM_WIDTH, INIT_PRIOR_VARIANCE, SIMULATION_DEPTH
 from src.utils.task import TaskUtil
 
 if TYPE_CHECKING:
@@ -142,7 +138,9 @@ class Scheduler:
         if hasattr(self.action_handler, "end_search_session"):
             action_hits, action_misses = self.action_handler.end_search_session()
         if hasattr(self.constraint_handler, "end_search_session"):
-            time_slot_hits, time_slot_misses = self.constraint_handler.end_search_session()
+            time_slot_hits, time_slot_misses = (
+                self.constraint_handler.end_search_session()
+            )
         self._search_cache.action_cache_hits = action_hits
         self._search_cache.action_cache_misses = action_misses
         self._search_cache.time_slot_cache_hits = time_slot_hits
@@ -291,7 +289,9 @@ class Scheduler:
             # 2. Layer-wise Loop
             for d in range(self.simulation_depth):
                 if not current_beam:
-                    log.debug(f"[_simulate_search] Beam is empty at depth {d}. Stopping.")
+                    log.debug(
+                        f"[_simulate_search] Beam is empty at depth {d}. Stopping."
+                    )
                     break
 
                 next_beam_candidates: List[SimulationNode] = []
@@ -367,7 +367,9 @@ class Scheduler:
 
                 # Keep top K
                 current_beam = next_beam_candidates[: self.search_width]
-                log.debug("============================================================")
+                log.debug(
+                    "============================================================"
+                )
                 log.debug(f"Layer-wise Beam Search: Depth {d} -> {d+1}")
                 # Log the survivors
                 log.debug(
@@ -386,7 +388,9 @@ class Scheduler:
                     log.debug(
                         f"     [{i+1}] {path_str} (Risk={node.risk_level}, Cost={node.heuristic_cost:.2f})"
                     )
-                log.debug("============================================================")
+                log.debug(
+                    "============================================================"
+                )
 
             # 4. Final Collection
             # Add nodes that reached max depth but still have tasks remaining
@@ -868,9 +872,11 @@ class Scheduler:
         sorted_candidates = sorted(
             not_yet_candidates,
             key=lambda candidate: (
-                self._get_candidate_target_start_time(candidate)
-                if self._get_candidate_target_start_time(candidate) is not None
-                else float("inf"),
+                (
+                    self._get_candidate_target_start_time(candidate)
+                    if self._get_candidate_target_start_time(candidate) is not None
+                    else float("inf")
+                ),
                 candidate.subtask.name,
             ),
         )
@@ -947,7 +953,9 @@ class Scheduler:
         if not first_action.startswith("NAVIGATE_TO"):
             return None
 
-        navigation_info = self.action_handler.get_actions_info(curr_node, [first_action])
+        navigation_info = self.action_handler.get_actions_info(
+            curr_node, [first_action]
+        )
         if navigation_info is None or not navigation_info.success:
             log.warning(
                 "Action simulation failed for explicit pre-navigation of '%s'.",
@@ -1052,10 +1060,14 @@ class Scheduler:
         target_start_time = self._get_candidate_target_start_time(candidate)
         if target_start_time is None or target_start_time == float("inf"):
             return False
-        nav_duration = self._estimate_candidate_navigation_duration(curr_node, candidate)
+        nav_duration = self._estimate_candidate_navigation_duration(
+            curr_node, candidate
+        )
         if nav_duration <= EPSILON:
             return False
-        if (curr_node.state.current_time + nav_duration) >= (target_start_time - EPSILON):
+        if (curr_node.state.current_time + nav_duration) >= (
+            target_start_time - EPSILON
+        ):
             return False
         if constants.MONITORING_ENABLED:
             need_monitor, _ = self._should_split_with_monitoring(curr_node, candidate)
@@ -1083,7 +1095,9 @@ class Scheduler:
         )
 
     @staticmethod
-    def _normalize_monitoring_object_name(raw_object_name: Optional[str]) -> Optional[str]:
+    def _normalize_monitoring_object_name(
+        raw_object_name: Optional[str],
+    ) -> Optional[str]:
         """Normalize an object identifier to its object type.
 
         Args:
@@ -1769,11 +1783,13 @@ class Scheduler:
         if edge_data and "info" in edge_data:
             variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
 
-        original_absolute_monitoring_trigger_time = self._compute_monitoring_trigger_time(
-            raw_object_name=monitoring_target_obj,
-            critical_start_sub_end_time=critical_start_sub_actual_end_time,
-            mean_duration=original_critical_interval_duration,
-            variance=variance_val,
+        original_absolute_monitoring_trigger_time = (
+            self._compute_monitoring_trigger_time(
+                raw_object_name=monitoring_target_obj,
+                critical_start_sub_end_time=critical_start_sub_actual_end_time,
+                mean_duration=original_critical_interval_duration,
+                variance=variance_val,
+            )
         )
 
         full_candidate_action_info_check = self.action_handler.get_actions_info(
@@ -2242,11 +2258,15 @@ class Scheduler:
         if edge_data and "info" in edge_data:
             variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
 
-        original_absolute_monitoring_trigger_time = self._compute_monitoring_trigger_time(
-            raw_object_name=candidate.subtask.execution.primitive_actions[0].split()[1],
-            critical_start_sub_end_time=critical_start_sub_actual_end_time,
-            mean_duration=original_critical_interval_duration,
-            variance=variance_val,
+        original_absolute_monitoring_trigger_time = (
+            self._compute_monitoring_trigger_time(
+                raw_object_name=candidate.subtask.execution.primitive_actions[
+                    0
+                ].split()[1],
+                critical_start_sub_end_time=critical_start_sub_actual_end_time,
+                mean_duration=original_critical_interval_duration,
+                variance=variance_val,
+            )
         )
 
         total_wait_duration = max(
