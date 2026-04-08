@@ -1,6 +1,7 @@
 import argparse
 import copy
 import gc
+import json
 import logging
 import os
 import re
@@ -23,6 +24,7 @@ from src.utils.config.constants import set_init_prior_mean, set_init_prior_varia
 from src.utils.get_state import save_scene_state
 from src.utils.io_utils.result_saver import result_save_llm
 from src.utils.io_utils.task_io import load_task_data_from_sampled_set
+from src.utils.ros_executor import RosExecutor
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")))
 
@@ -57,6 +59,9 @@ def diagnose_failure(controller: Controller, action_name: str, args: tuple) -> s
     Returns:
         str: 진단된 실패 원인이 담긴 상세 메시지.
     """
+    if controller is None:  # ROS mode
+        return f"ROS action '{action_name}' with args {args} failed."
+
     metadata = controller.last_event.metadata
     last_error = metadata.get("errorMessage", "")
 
@@ -308,6 +313,98 @@ def timed_action(
     return wrapper
 
 
+# CAP action name → ROS primitive action verb mapping
+_CAP_TO_ROS_VERB = {
+    "move_to": "navigate_to",
+    "pickup": "grasp",
+    "put": "place_on_top",
+    "toggle_on": "toggle_on",
+    "toggle_off": "toggle_off",
+    "open": "open",
+    "close": "close",
+    "wait": "wait",
+    "slice": "slice",
+    "monitoring": "monitoring",
+}
+
+
+def parse_cap_to_ros(action_name: str, args: tuple) -> str:
+    """CAP의 LLM-생성 액션 호출을 ROS primitive action 문자열로 변환합니다.
+
+    Args:
+        action_name (str): CAP 액션 이름 (e.g., "pickup", "move_to").
+        args (tuple): 액션에 전달된 인자.
+
+    Returns:
+        str: ROS primitive action 문자열 (e.g., "grasp egg").
+    """
+    if action_name == "drop":
+        # drop()은 ROS에서 직접 지원하지 않음; place 대체 사용
+        return "place_on_top countertop"
+
+    ros_verb = _CAP_TO_ROS_VERB.get(action_name)
+    if ros_verb is None:
+        raise ValueError(f"Unknown CAP action '{action_name}' — no ROS mapping defined.")
+
+    if action_name == "wait":
+        # wait(duration) — 인자는 숫자
+        duration = args[0] if args else 0
+        return f"wait {duration}"
+
+    if args:
+        target = str(args[0]).lower()
+        return f"{ros_verb} {target}"
+
+    return ros_verb
+
+
+def timed_action_ros(
+    logger: logging.Logger,
+    action_name: str,
+    ros_executor: "RosExecutor",
+) -> Callable[..., float]:
+    """ROS 모드에서 액션 함수를 RosExecutor를 통해 실행하고 시간을 측정하는 래퍼입니다.
+
+    Args:
+        logger (logging.Logger): 로그를 기록할 로거 객체.
+        action_name (str): 로깅에 사용될 액션의 이름.
+        ros_executor (RosExecutor): ROS 실행기 인스턴스.
+
+    Returns:
+        Callable[..., float]: 시간을 측정하고 결과를 로깅하는 래퍼 함수.
+    """
+
+    def wrapper(*args: Any, **kwargs: Any) -> float:
+        global last_end_time
+        # Convert CAP action to ROS primitive
+        ros_action = parse_cap_to_ros(action_name, args)
+        action_log_str = f"{action_name} {' '.join(str(a) for a in args)}"
+        logger.info(f'Executing ROS action: "{action_log_str}" -> "{ros_action}"')
+
+        start_time = last_end_time
+
+        success, elapsed_time, action_logs = ros_executor.execute_primitive_actions(
+            [ros_action]
+        )
+
+        if not success:
+            error_msg = f"ROS action '{ros_action}' failed."
+            if action_logs:
+                error_msg = action_logs[-1].get("error", error_msg)
+            raise ActionFailedError(action_name, args, error_msg)
+
+        end_time = start_time + elapsed_time
+        last_end_time = end_time
+
+        logger.info(f"start_time: {round(start_time, 2)}")
+        logger.info(f"end_time: {round(end_time, 2)}")
+        logger.info(f"execution_status: {True}")
+
+        return elapsed_time
+
+    return wrapper
+
+
 def build_cfg_scene(temporal_guidelines: str) -> Dict[str, Any]:
     """LMP 설정을 런타임에 생성해 반환합니다.
 
@@ -404,6 +501,7 @@ def setup_LMP(
     cfg_scene: Dict[str, Any],
     logger: logging.Logger,
     vars_log: TextIO,
+    ros_executor: Optional["RosExecutor"] = None,
 ) -> gen.LMP:
     """LMP (Language Model Program) 환경을 설정하고 초기화합니다.
 
@@ -420,6 +518,7 @@ def setup_LMP(
         cfg_scene (Dict[str, Any]): LMP 설정을 담고 있는 딕셔너리.
         logger (logging.Logger): 액션 로그를 기록할 로거 객체.
         vars_log (TextIO): 변수 로깅을 위한 파일 객체.
+        ros_executor (Optional[RosExecutor]): ROS 실행기 인스턴스. None이면 시뮬레이션 모드.
 
     Returns:
         gen.LMP: 사용자의 상위 레벨 언어 명령을 처리하도록 설정된 메인 LMP 객체.
@@ -427,16 +526,9 @@ def setup_LMP(
     # LMP env wrapper
     # 설정 파일을 깊은 복사하여 원본을 유지합니다.
     cfg_scene = copy.deepcopy(cfg_scene)
-    # LMP 환경에 대한 정보를 저장할 딕셔너리를 생성합니다.
-    # 현재 구현에서는 이 딕셔너리가 사용되지 않으므로 주석 처리합니다.
-    # cfg_scene["env"] = dict()
-    # 이 값은 LMP_wrapper에서 직접 다시 계산되므로, 현재 구현에서는 중복입니다.
-    # 추후 리팩토링을 통해 LMP_wrapper가 이 값을 사용하도록 변경할 수 있습니다.
-    # cfg_scene["env"]["init_objs"] = list(
-    #     set(obj["objectType"] for obj in controller.step("Pass").metadata["objects"])
-    # )
 
     # LMP 환경을 감싸는 래퍼를 생성합니다.
+    # ROS 모드에서는 controller가 None이며, LMP_wrapper가 내부적으로 처리합니다.
     LMP_env = gen.LMP_wrapper(controller, cfg_scene)
 
     # LMP가 사용할 수 있는 API(고정 변수)를 정의합니다.
@@ -444,24 +536,30 @@ def setup_LMP(
     # fixed_vars.update({"time": time}) # time.sleep() 대신 시뮬레이션의 wait()를 사용하도록 유도하기 위해 주석 처리
     fixed_vars.update({"controller": Controller})
 
-    # for var_name, var_value in fixed_vars.items():
-    #     vars_log.write(f"{var_name}: {var_value}\n")
-    # logger.error(f"fixed_vars: {fixed_vars}")
     # LMP가 사용할 수 있는 API(가변 변수, 주로 액션 함수)를 정의합니다.
-    # pickup, slice, put, drop, toggle_on, toggle_off, open, close, monitoring, wait, fill, move to
-    variable_vars = {
-        k: getattr(action_interface, k)
-        for k in _ACTION_NAMES
-        if hasattr(action_interface, k)
-    }
-
-    # 정의된 액션 함수들을 timed_action으로 감싸 시간 측정 및 로깅을 추가합니다.
-    for action_name in _ACTION_NAMES:
-        if action_name in variable_vars:
-            original_func = variable_vars[action_name]
-            variable_vars[action_name] = timed_action(
-                logger, action_name, original_func, controller
+    if ros_executor is not None:
+        # ROS 모드: 모든 액션을 timed_action_ros로 감쌈
+        variable_vars = {}
+        for action_name in _ACTION_NAMES:
+            variable_vars[action_name] = timed_action_ros(
+                logger, action_name, ros_executor
             )
+    else:
+        # 시뮬레이션 모드: action_interface에서 액션 함수를 가져와 timed_action으로 감쌈
+        # pickup, slice, put, drop, toggle_on, toggle_off, open, close, monitoring, wait, fill, move to
+        variable_vars = {
+            k: getattr(action_interface, k)
+            for k in _ACTION_NAMES
+            if hasattr(action_interface, k)
+        }
+
+        # 정의된 액션 함수들을 timed_action으로 감싸 시간 측정 및 로깅을 추가합니다.
+        for action_name in _ACTION_NAMES:
+            if action_name in variable_vars:
+                original_func = variable_vars[action_name]
+                variable_vars[action_name] = timed_action(
+                    logger, action_name, original_func, controller
+                )
 
     # 환경 상태를 조회하는 함수들을 가변 변수에 추가합니다.
     variable_vars.update(
@@ -615,6 +713,13 @@ def parse_arguments() -> argparse.Namespace:
         help="Task folder name for organizing results",
     )
 
+    parser.add_argument(
+        "--ros",
+        default=False,
+        action="store_true",
+        help="ROS 실행 여부 (default: False)",
+    )
+
     return parser.parse_args()
 
 
@@ -639,17 +744,19 @@ def main():
     else:
         base_result_path = constants.RESULT_PATH
 
+    # ROS 모드에서는 approach_name에 _ros 접미사 추가
+    if args.ros:
+        approach_name = f"{approach_name}_ros"
+
     logger = create_module_logger(
         module_name=approach_name,
         log_file_path=Path(args.log_path) if args.log_path else None,
         level=args.log_level,
     )
 
-    platform_obj = None
-    if args.cloud_rendering:
-        platform_obj = CloudRendering
-    # AI2-THOR 컨트롤러 초기화
-    controller = init_ai2thor_controller(scene_name, platform=platform_obj)
+    controller = None
+    ros_executor = None
+    action_handler = None
 
     try:
         if args.case:
@@ -670,24 +777,34 @@ def main():
         if trajectory_path.exists():
             trajectory_path.unlink()
 
-        save_scene_state(
-            controller=controller,
-            output_path=base_result_path / f"states{int(args.init_prior_mean)}",
-            case_name=args.case,
-            scene_name=scene_name,
-            instruction=instruction_dir_name,
-            approach_name=approach_name,
-            state_label="init",
-        )
-        # Action 핸들러 초기화
-        action_handler = Action(
-            controller,
-            logger=logger,
-            trajectory_log_json_path=(
-                base_result_path
-                / f"states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
-            ),
-        )
+        if args.ros:
+            # ROS 모드: AI2-THOR 컨트롤러 대신 RosExecutor 사용
+            controller = None
+            ros_executor = RosExecutor(trajectory_log_path=trajectory_path)
+            action_handler = None
+        else:
+            # 시뮬레이션 모드: AI2-THOR 컨트롤러 초기화
+            platform_obj = None
+            if args.cloud_rendering:
+                platform_obj = CloudRendering
+            controller = init_ai2thor_controller(scene_name, platform=platform_obj)
+            ros_executor = None
+
+            save_scene_state(
+                controller=controller,
+                output_path=base_result_path / f"states{int(args.init_prior_mean)}",
+                case_name=args.case,
+                scene_name=scene_name,
+                instruction=instruction_dir_name,
+                approach_name=approach_name,
+                state_label="init",
+            )
+            # Action 핸들러 초기화
+            action_handler = Action(
+                controller,
+                logger=logger,
+                trajectory_log_json_path=trajectory_path,
+            )
 
         # LMP 환경 설정
         wait_units = (
@@ -697,25 +814,26 @@ def main():
         cfg_scene_runtime = build_cfg_scene(temporal_guidelines)
         with open("vars_log.txt", "w", buffering=1) as vars_log:
             lmp_scene_ui = setup_LMP(
-                controller, action_handler, cfg_scene_runtime, logger, vars_log
+                controller,
+                action_handler,
+                cfg_scene_runtime,
+                logger,
+                vars_log,
+                ros_executor=ros_executor,
             )
 
             # --- 태스크 실행 ---
-            # 사용 예시:
-            # toast the bread
-            # put tomato in the fridge
-            # put egg in the pan : 냉장고 문을 안열고 계란 집음
-            # put the book in the sinkbasin : put 상호작용이 불가능해서 던짐
-            # toast the bread and put tomato in the fridge. put egg in the pan.
-            # pick the apple and drop the apple
-
             # 현재 장면에 있는 객체 목록 가져오기
-            objs = list(
-                set(
-                    obj["objectType"]
-                    for obj in controller.step("Pass").metadata["objects"]
+            if args.ros:
+                with open("assets/ros/static/object_init_states.json") as f:
+                    objs = list(json.load(f).keys())
+            else:
+                objs = list(
+                    set(
+                        obj["objectType"]
+                        for obj in controller.step("Pass").metadata["objects"]
+                    )
                 )
-            )
             print(f"objs: {objs}")
 
             print(f"'{instruction}' 명령을 실행합니다...")
@@ -745,19 +863,22 @@ def main():
         }
 
         result_save_llm(**result_args)
-        save_scene_state(
-            controller=controller,
-            output_path=base_result_path / f"states{int(args.init_prior_mean)}",
-            case_name=args.case,
-            scene_name=scene_name,
-            instruction=instruction_dir_name,
-            approach_name=approach_name,
-            state_label="end",
-        )
+
+        if not args.ros:
+            save_scene_state(
+                controller=controller,
+                output_path=base_result_path / f"states{int(args.init_prior_mean)}",
+                case_name=args.case,
+                scene_name=scene_name,
+                instruction=instruction_dir_name,
+                approach_name=approach_name,
+                state_label="end",
+            )
         print("실행이 완료되었습니다.")
     except Exception as e:
         print("실행 중 치명적인 오류 발생: %s", e)
-        controller.stop()
+        if controller:
+            controller.stop()
         # 실패 시 불완전한 trajectory 로그 파일이 남지 않도록 삭제합니다.
         trajectory_path = (
             base_result_path
@@ -767,6 +888,11 @@ def main():
             trajectory_path.unlink()
         sys.exit(1)
     finally:
+        if ros_executor:
+            try:
+                ros_executor.shutdown()
+            except Exception as e:
+                logger.error(f"Error shutting down ROS executor: {e}")
         if controller:
             try:
                 controller.stop()
