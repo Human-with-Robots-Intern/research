@@ -1,11 +1,14 @@
+import json
 import os
 import re
 import sys
 import time
+from typing import Any
 
 from openai import OpenAI
 
 from src.utils.common import create_module_logger
+from src.utils.ros_executor import RosExecutor
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
@@ -228,6 +231,16 @@ def last_action_success(controller):  ## 마지막 행동이 성공했는지 확
         return False
 
 
+def see_have_ros():
+    """Read object states from ROS dynamic state file for real-world execution."""
+    with open("assets/ros/dynamic/object_states.json", "r") as f:
+        data = json.load(f)
+    objs = ""
+    for obj in data.keys():
+        objs += f"{obj} is {data[obj]}\n"
+    return objs
+
+
 def see_have(controller):  ## assert 및 해야할 행동
 
     controller.step(action="Pass")
@@ -370,14 +383,73 @@ def get_current_state_prompt():
 current_state_prompt = get_current_state_prompt()
 
 
+def parse_prog_to_ros(action_str: str) -> str:
+    """Convert progprompt action syntax to ROS executor syntax.
+
+    Args:
+        action_str: e.g., "walk(kitchen)", "put(apple, table)"
+
+    Returns:
+        str: e.g., "navigate_to kitchen", "place_on_top table"
+    """
+    parsed_action = re.findall(r"(\w+)\s*\((.*)\)", action_str)
+    if not parsed_action:
+        return action_str
+
+    action_name, action_arg_str = parsed_action[0]
+    action_args = [arg.strip().strip("'\"") for arg in action_arg_str.split(",")]
+    action_args = [arg for arg in action_args if arg]
+
+    action_map = {
+        "walk": "navigate_to",
+        "pickup": "grasp",
+        "open": "open",
+        "close": "close",
+        "toggle_on": "toggle_on",
+        "toggle_off": "toggle_off",
+        "wait": "wait",
+        "slice": "slice",
+    }
+
+    if action_name == "put":
+        target = action_args[1] if len(action_args) >= 2 else action_args[0] if action_args else ""
+        return f"place_on_top {target}"
+
+    if action_name in action_map:
+        ros_cmd = action_map[action_name]
+        arg = action_args[0] if action_args else ("0" if action_name == "wait" else "")
+        return f"{ros_cmd} {arg}"
+
+    return f"{action_name} {' '.join(action_args)}"
+
+
 def _execute_single_action(
     action_str: str,
-    action_interface: Action,
+    action_interface: Any,
     controller,
     log_file,
     elapsed_time: float,
+    is_ros: bool = False,
 ) -> float:
     """Execute a single action string and handle logging and errors."""
+    if is_ros:
+        try:
+            log_file.write(f"Executing: {action_str}\n")
+            ros_action = parse_prog_to_ros(action_str)
+            log_file.write(
+                f"INFO: Converted '{action_str}' to ROS action '{ros_action}'\n"
+            )
+            success, duration, logs = action_interface.execute_primitive_actions(
+                [ros_action]
+            )
+            if not success:
+                raise RuntimeError(f"ROS Action '{ros_action}' failed.")
+            log_file.write(f"Action '{action_str}' completed in {duration:.2f}s\n")
+            return elapsed_time + duration
+        except Exception as e:
+            log_file.write(f"ERROR executing ROS action '{action_str}': {e}\n")
+            raise
+
     # This regex handles func('arg'), func ( 'arg' ), func(arg), and func()
     parsed_action = re.findall(r"(\w+)\s*\((.*)\)", action_str)
     if not parsed_action:
@@ -471,9 +543,10 @@ def _execute_single_action(
 
 
 def simulate_execution(
-    controller, test_tasks, gen_plan, log_file, args, logger, action_interface: Action
+    controller, test_tasks, gen_plan, log_file, args, logger, action_interface: Any
 ):
     elapsed_time = 0
+    is_ros = getattr(args, "ros", False)
 
     for task, plan in zip(test_tasks, gen_plan):
         log_file.write(f"Starting simulation for task: {task}\n")
@@ -505,7 +578,7 @@ def simulate_execution(
                     assert_statement = action_item["assert"]
 
                     # Execute the assert
-                    objs = see_have(controller)
+                    objs = see_have_ros() if controller is None else see_have(controller)
                     state = "You see: " + objs
                     current_state = (
                         f"{current_state_prompt}\n\n{state}\n\n{assert_statement}\n"
@@ -527,6 +600,7 @@ def simulate_execution(
                                 controller,
                                 log_file,
                                 elapsed_time,
+                                is_ros=is_ros,
                             )
                             step += 1
                     else:
@@ -540,6 +614,7 @@ def simulate_execution(
                         controller,
                         log_file,
                         elapsed_time,
+                        is_ros=is_ros,
                     )
                     step += 1
 
