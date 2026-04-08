@@ -1,0 +1,52 @@
+# Shared options applied to both sections unless overridden locally.
+max_workers: 4
+skip_completed: true
+
+# Options: offline, ai2thor, both
+mode: both
+
+ai2thor:
+  simulation: true
+  cloud_rendering: true
+  num_runs_per_instruction: 1
+  max_retries: 1
+  num_gpus: 0
+  approaches:
+    - "src/dag_bayesian.py"
+  llm_scripts: []
+  scene_type:
+    - kitchen
+  scene_lists:
+    kitchen:
+      - "FloorPlan13"
+  ablation_configs:
+    - DEFAULT
+  init_prior_configs:
+    - OVER_ESTIMATE_110
+  task_folder_name:
+    - "sampled_10_instruction_set_for_final_experiment_251203"
+  min_task_count: 0
+  min_constraint_count: 0
+
+offline:
+  command: run
+  planner_types:
+    - bayesian
+    - edf
+    - cpm
+  task_folder_name:
+    - "sampled_10_instruction_set_for_final_experiment_251203"
+  cases:
+    - "tasks_3_constraints_2"
+  scenes:
+    - "FloorPlan13"
+  max_tasks: 3
+  beam_width_values:
+    - 1
+    - 5
+  beam_depth_values:
+    - 1
+    - 5
+  nav_graph_source: "synthetic_grid"
+  output_dir: "assets/results/offline_batch"
+  disable_monitoring: false
