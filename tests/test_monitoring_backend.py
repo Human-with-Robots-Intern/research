@@ -31,9 +31,11 @@ from src.core.monitoring import (
 from src.core.scheduler import Scheduler
 from src.models.dataclass import (
     ActionSimulationLog,
+    ActionResult,
     Candidate,
     CompletedEntry,
     SchedulerState,
+    SchedulingDue,
     SimulationNode,
     TaskExecutionStatus,
 )
@@ -437,6 +439,287 @@ def test_scheduler_compute_monitoring_trigger_time_uses_bayesian_policy() -> Non
         28.01 + 100.0 + (math.sqrt(900.0) * norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY))
     )
     assert trigger_time == expected_trigger_time
+
+
+def test_scheduler_executes_feasible_candidate_atomically_without_prenavigation(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Feasible candidates should keep atomic nav+interaction execution."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    subtask = _make_subtask(
+        "Heat Mug",
+        primitive_actions=["NAVIGATE_TO Mug|1", "TOGGLE_ON Mug|1"],
+    )
+    state = SchedulerState(
+        subtask=_make_subtask("Init", primitive_actions=["WAIT 0"], subtask_type="Init"),
+        completed_entries=[],
+        remaining_subtasks=[subtask],
+        constraints=nx.DiGraph(),
+        current_time=10.0,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=subtask,
+        is_critical=False,
+        actual_interaction_start_time=15.0,
+        logical_interaction_start_time=15.0,
+        estimated_first_nav_duration=2.0,
+    )
+
+    monkeypatch.setattr(
+        action_handler,
+        "get_actions_info",
+        lambda _node, actions: ActionResult(
+            action_full_name=" -> ".join(actions),
+            action_type="TOGGLE_ON",
+            cumulative_time=5.0,
+            action_duration=3.0,
+            scene_positions={"agent": (1.0, 0.9, 0.0)},
+            held_object=None,
+            success=True,
+            first_nav_duration=2.0,
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler.cost_calculator,
+        "calc_heuristic",
+        lambda *_args, **_kwargs: (0, 0.0),
+    )
+
+    result_node = scheduler._expand_subtask_wo_monitoring(node, candidate, [], [])
+
+    assert result_node is not None
+    assert result_node.state.subtask.name == "Heat Mug"
+    assert result_node.state.current_time == 15.0
+    assert result_node.state.remaining_subtasks == []
+
+
+def test_scheduler_keeps_monitoring_path_before_prenavigation(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Monitoring-required candidates should keep the existing monitoring split path."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    subtask = _make_subtask(
+        "Heat Mug",
+        primitive_actions=["NAVIGATE_TO Mug|1", "TOGGLE_ON Mug|1"],
+    )
+    node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=subtask,
+            completed_entries=[],
+            remaining_subtasks=[subtask],
+            constraints=nx.DiGraph(),
+            current_time=0.0,
+            scene_positions={"agent": (0.0, 0.9, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=subtask,
+        is_critical=True,
+        actual_interaction_start_time=10.0,
+        logical_interaction_start_time=10.0,
+        estimated_first_nav_duration=2.0,
+    )
+    sentinel = SimulationNode(
+        heuristic_cost=1.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=node,
+        state=node.state,
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_should_split_with_monitoring",
+        lambda *_args, **_kwargs: (
+            True,
+            SchedulingDue(due_date=10.0, due_related_sub_name=subtask.name),
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_subtask_with_monitoring",
+        lambda *_args, **_kwargs: sentinel,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_subtask_wo_monitoring",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("Non-monitoring expansion should not run.")
+        ),
+    )
+
+    result = scheduler._expand_single_subtask(node, candidate, [], [])
+
+    assert result is sentinel
+
+
+def test_scheduler_expands_blocked_candidate_prenavigation_frontier(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Blocked frontier candidates should emit both WAIT and PRENAV branches."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    subtask = _make_subtask(
+        "Heat Mug",
+        primitive_actions=["NAVIGATE_TO Mug|1", "TOGGLE_ON Mug|1"],
+    )
+    node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=_make_subtask("Init", primitive_actions=["WAIT 0"], subtask_type="Init"),
+            completed_entries=[],
+            remaining_subtasks=[subtask],
+            constraints=nx.DiGraph(),
+            current_time=10.0,
+            scene_positions={"agent": (0.0, 0.9, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    blocked_candidate = Candidate(
+        subtask=subtask,
+        is_critical=False,
+        actual_interaction_start_time=20.0,
+        logical_interaction_start_time=20.0,
+        estimated_first_nav_duration=2.0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_should_split_with_monitoring",
+        lambda *_args, **_kwargs: (False, None),
+    )
+    monkeypatch.setattr(
+        action_handler,
+        "get_actions_info",
+        lambda _node, actions: ActionResult(
+            action_full_name=actions[0],
+            action_type="NAVIGATE_TO",
+            cumulative_time=2.0,
+            action_duration=2.0,
+            scene_positions={"agent": (1.0, 0.9, 0.0)},
+            held_object=None,
+            success=True,
+            first_nav_duration=2.0,
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler.cost_calculator,
+        "calc_heuristic",
+        lambda *_args, **_kwargs: (0, 0.0),
+    )
+
+    expansions = scheduler._expand_candidates(node, [], [blocked_candidate])
+
+    assert len(expansions) == 2
+    assert {child.state.subtask.subtask_type for child in expansions} == {
+        "WAIT",
+        "NAVIGATE",
+    }
+
+
+def test_scheduler_skips_blocked_prenavigation_for_monitoring_candidates(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Blocked pre-navigation should stay conservative when monitoring is needed."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    candidate = Candidate(
+        subtask=_make_subtask(
+            "Heat Mug",
+            primitive_actions=["NAVIGATE_TO Mug|1", "TOGGLE_ON Mug|1"],
+        ),
+        is_critical=True,
+        actual_interaction_start_time=20.0,
+        logical_interaction_start_time=20.0,
+        estimated_first_nav_duration=2.0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_should_split_with_monitoring",
+        lambda *_args, **_kwargs: (True, SchedulingDue(20.0, candidate.subtask.name)),
+    )
+    monkeypatch.setattr(
+        action_handler,
+        "get_actions_info",
+        lambda _node, actions: ActionResult(
+            action_full_name=actions[0],
+            action_type="NAVIGATE_TO",
+            cumulative_time=2.0,
+            action_duration=2.0,
+            scene_positions={"agent": (1.0, 0.9, 0.0)},
+            held_object=None,
+            success=True,
+            first_nav_duration=2.0,
+        ),
+    )
+
+    blocked_prenav = scheduler._expand_blocked_prenavigation(
+        SimulationNode(
+            heuristic_cost=0.0,
+            depth=0,
+            tie_breaker=0,
+            parent_node=None,
+            state=SchedulerState(
+                subtask=candidate.subtask,
+                completed_entries=[],
+                remaining_subtasks=[candidate.subtask],
+                constraints=nx.DiGraph(),
+                current_time=10.0,
+                scene_positions={"agent": (0.0, 0.9, 0.0)},
+                held_object=None,
+            ),
+            risk_level=0,
+        ),
+        candidate,
+        [candidate],
+        [],
+    )
+
+    assert blocked_prenav is None
 
 
 def test_action_handler_reuses_search_scoped_action_cache(

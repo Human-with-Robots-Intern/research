@@ -7,12 +7,14 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import networkx as nx
 from src.core.monitoring import BeliefUpdateContext, create_observation_model
 from src.experiments.exact_oracle import DeterministicExactOracle
 from src.experiments.offline_compare import compare_result_files
 from src.experiments.offline_harness import (
     ExperimentConfig,
     ExperimentTask,
+    _edf_compute_deadline,
     apply_cli_overrides,
     build_experiment_tasks,
     load_experiment_config,
@@ -28,6 +30,59 @@ from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
+
+
+def test_edf_deadline_uses_interaction_start_semantics() -> None:
+    """EDF release targets should align with successor interaction start time."""
+
+    predecessor = Subtask(
+        task_name="task",
+        name="Cook Egg in Pan",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(objects={}, primitive_actions=["TOGGLE_ON Stove|1"]),
+        duration=Duration(type="Interaction", interval=5.0),
+    )
+    successor = Subtask(
+        task_name="task",
+        name="Turn Off Stove After Cooking Egg",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(
+            objects={},
+            primitive_actions=["NAVIGATE_TO StoveKnob|1", "TOGGLE_OFF StoveKnob|1"],
+        ),
+        duration=Duration(type="Interaction", interval=5.0),
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        predecessor.name,
+        successor.name,
+        info={"Interval": 100.0, "IsCritical": True},
+    )
+    state = SchedulerState(
+        subtask=predecessor,
+        completed_entries=[
+            CompletedEntry(
+                subtask=predecessor,
+                schedule_start_time=20.0,
+                schedule_end_time=34.46,
+            )
+        ],
+        remaining_subtasks=[successor],
+        constraints=constraints,
+        current_time=70.4,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+
+    adapter_deadline = _edf_compute_deadline(
+        successor,
+        state,
+        nav_time=3.04,
+        execution_time=8.0,
+    )
+    assert adapter_deadline == 134.46
 
 
 def test_load_experiment_config_and_cli_override(tmp_path: Path) -> None:
@@ -570,6 +625,441 @@ def test_exact_oracle_prunes_high_risk_nodes() -> None:
 
     assert oracle._search_nodes == 0
     assert oracle._pruned_nodes == 1
+
+
+def test_exact_oracle_records_explicit_prenavigation_sequence(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Oracle should record the actual child node name emitted by the scheduler."""
+
+    action_handler = ActionHandler(nav_graph={})
+    constraint_handler = ConstraintHandler(action_handler)
+    heuristic_manager = HeuristicManager(action_handler)
+    oracle = DeterministicExactOracle(
+        action_handler=action_handler,
+        constraint_handler=constraint_handler,
+        heuristic_manager=heuristic_manager,
+        time_limit_seconds=5.0,
+    )
+    subtask = Subtask(
+        task_name="task",
+        name="Heat Mug",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(
+            objects={"Mug|1": 1},
+            primitive_actions=["NAVIGATE_TO Mug|1", "TOGGLE_ON Mug|1"],
+        ),
+        duration=Duration(type="Interaction", interval=5),
+    )
+    initial_state = SchedulerState(
+        subtask=subtask,
+        completed_entries=[],
+        remaining_subtasks=[subtask],
+        constraints=None,
+        current_time=0.0,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    root_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=initial_state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=subtask,
+        is_critical=False,
+        actual_interaction_start_time=0.0,
+        logical_interaction_start_time=0.0,
+        estimated_first_nav_duration=2.0,
+    )
+    nav_state = SchedulerState(
+        subtask=Subtask(
+            task_name="task",
+            name="NAVIGATE_TO_Mug|1",
+            repetition=1,
+            subtask_type="NAVIGATE",
+            execution=Execution(objects={}, primitive_actions=["NAVIGATE_TO Mug|1"]),
+            duration=Duration(type="NAVIGATE", interval=2.0),
+        ),
+        completed_entries=[],
+        remaining_subtasks=[],
+        constraints=None,
+        current_time=2.0,
+        scene_positions={"agent": (1.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    nav_node = SimulationNode(
+        heuristic_cost=2.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=root_node,
+        state=nav_state,
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        constraint_handler,
+        "get_feasible_candidates",
+        lambda node: ([candidate], []) if node.state.remaining_subtasks else ([], []),
+    )
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_expand_subtask_wo_monitoring",
+        lambda *_args, **_kwargs: nav_node,
+    )
+
+    oracle._best_makespan = None
+    oracle._best_sequence = []
+    oracle._search_nodes = 0
+    oracle._pruned_nodes = 0
+    oracle._idle_advances = 0
+    oracle._timeout_hit = False
+    oracle._started_at = time.perf_counter()
+
+    oracle._search(root_node, ())
+
+    assert oracle._best_sequence == ["NAVIGATE_TO_Mug|1"]
+
+
+def test_exact_oracle_records_explicit_wait_sequence(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Oracle should record WAIT nodes instead of implicit time jumps."""
+
+    action_handler = ActionHandler(nav_graph={})
+    constraint_handler = ConstraintHandler(action_handler)
+    heuristic_manager = HeuristicManager(action_handler)
+    oracle = DeterministicExactOracle(
+        action_handler=action_handler,
+        constraint_handler=constraint_handler,
+        heuristic_manager=heuristic_manager,
+        time_limit_seconds=5.0,
+    )
+    blocked_subtask = Subtask(
+        task_name="task",
+        name="Heat Mug",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(objects={}, primitive_actions=["TOGGLE_ON Mug|1"]),
+        duration=Duration(type="Interaction", interval=3.0),
+    )
+    root_state = SchedulerState(
+        subtask=blocked_subtask,
+        completed_entries=[],
+        remaining_subtasks=[blocked_subtask],
+        constraints=None,
+        current_time=0.0,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    root_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=root_state,
+        risk_level=0,
+    )
+    blocked_candidate = Candidate(
+        subtask=blocked_subtask,
+        is_critical=False,
+        actual_interaction_start_time=5.0,
+        logical_interaction_start_time=5.0,
+        estimated_first_nav_duration=0.0,
+    )
+    wait_state = SchedulerState(
+        subtask=Subtask(
+            task_name="task",
+            name="Wait for Heat Mug",
+            repetition=1,
+            subtask_type="WAIT",
+            execution=Execution(objects={}, primitive_actions=["WAIT 5.0"]),
+            duration=Duration(type="WAIT", interval=5.0),
+        ),
+        completed_entries=[],
+        remaining_subtasks=[],
+        constraints=None,
+        current_time=5.0,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    wait_node = SimulationNode(
+        heuristic_cost=5.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=root_node,
+        state=wait_state,
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        constraint_handler,
+        "get_feasible_candidates",
+        lambda node: ([], [blocked_candidate]) if node.state.remaining_subtasks else ([], []),
+    )
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_expand_single_wait",
+        lambda *_args, **_kwargs: wait_node,
+    )
+
+    oracle._best_makespan = None
+    oracle._best_sequence = []
+    oracle._search_nodes = 0
+    oracle._pruned_nodes = 0
+    oracle._idle_advances = 0
+    oracle._timeout_hit = False
+    oracle._started_at = time.perf_counter()
+
+    oracle._search(root_node, ())
+
+    assert oracle._best_sequence == ["Wait for Heat Mug"]
+    assert oracle._idle_advances == 1
+
+
+def test_exact_oracle_prefers_blocked_prenavigation_branch(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Oracle should explore PRENAV branches for blocked candidates."""
+
+    action_handler = ActionHandler(nav_graph={})
+    constraint_handler = ConstraintHandler(action_handler)
+    heuristic_manager = HeuristicManager(action_handler)
+    oracle = DeterministicExactOracle(
+        action_handler=action_handler,
+        constraint_handler=constraint_handler,
+        heuristic_manager=heuristic_manager,
+        time_limit_seconds=5.0,
+    )
+    blocked_subtask = Subtask(
+        task_name="task",
+        name="Heat Mug",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(
+            objects={"Mug|1": 1},
+            primitive_actions=["NAVIGATE_TO Mug|1", "TOGGLE_ON Mug|1"],
+        ),
+        duration=Duration(type="Interaction", interval=3.0),
+    )
+    root_state = SchedulerState(
+        subtask=blocked_subtask,
+        completed_entries=[],
+        remaining_subtasks=[blocked_subtask],
+        constraints=None,
+        current_time=0.0,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    root_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=root_state,
+        risk_level=0,
+    )
+    blocked_candidate = Candidate(
+        subtask=blocked_subtask,
+        is_critical=False,
+        actual_interaction_start_time=5.0,
+        logical_interaction_start_time=5.0,
+        estimated_first_nav_duration=2.0,
+    )
+    wait_node = SimulationNode(
+        heuristic_cost=5.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=root_node,
+        state=SchedulerState(
+            subtask=Subtask(
+                task_name="task",
+                name="Wait for Heat Mug",
+                repetition=1,
+                subtask_type="WAIT",
+                execution=Execution(objects={}, primitive_actions=["WAIT 5.0"]),
+                duration=Duration(type="WAIT", interval=5.0),
+            ),
+            completed_entries=[],
+            remaining_subtasks=[],
+            constraints=None,
+            current_time=5.0,
+            scene_positions={"agent": (0.0, 0.9, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    prenav_node = SimulationNode(
+        heuristic_cost=2.0,
+        depth=1,
+        tie_breaker=2,
+        parent_node=root_node,
+        state=SchedulerState(
+            subtask=Subtask(
+                task_name="task",
+                name="NAVIGATE_TO_Mug|1",
+                repetition=1,
+                subtask_type="NAVIGATE",
+                execution=Execution(
+                    objects={},
+                    primitive_actions=["NAVIGATE_TO Mug|1"],
+                ),
+                duration=Duration(type="NAVIGATE", interval=2.0),
+            ),
+            completed_entries=[],
+            remaining_subtasks=[],
+            constraints=None,
+            current_time=2.0,
+            scene_positions={"agent": (1.0, 0.9, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        constraint_handler,
+        "get_feasible_candidates",
+        lambda node: ([], [blocked_candidate]) if node is root_node else ([], []),
+    )
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_expand_single_wait",
+        lambda *_args, **_kwargs: wait_node,
+    )
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_expand_blocked_prenavigation",
+        lambda *_args, **_kwargs: prenav_node,
+    )
+
+    oracle._best_makespan = None
+    oracle._best_sequence = []
+    oracle._search_nodes = 0
+    oracle._pruned_nodes = 0
+    oracle._idle_advances = 0
+    oracle._timeout_hit = False
+    oracle._started_at = time.perf_counter()
+
+    oracle._search(root_node, ())
+
+    assert oracle._best_sequence == ["NAVIGATE_TO_Mug|1"]
+    assert oracle._best_makespan == 2.0
+
+
+def test_exact_oracle_respects_reserved_prenavigation_target(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Oracle should restrict branching to the reserved pre-navigation target."""
+
+    action_handler = ActionHandler(nav_graph={})
+    constraint_handler = ConstraintHandler(action_handler)
+    heuristic_manager = HeuristicManager(action_handler)
+    oracle = DeterministicExactOracle(
+        action_handler=action_handler,
+        constraint_handler=constraint_handler,
+        heuristic_manager=heuristic_manager,
+        time_limit_seconds=5.0,
+    )
+    reserved_subtask = Subtask(
+        task_name="task",
+        name="Reserved Task",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(objects={}, primitive_actions=["TOGGLE_ON Mug|1"]),
+        duration=Duration(type="Interaction", interval=3.0),
+        decomposed=True,
+    )
+    setattr(reserved_subtask, "pre_navigation_reserved", True)
+    other_subtask = Subtask(
+        task_name="task",
+        name="Other Task",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(objects={}, primitive_actions=["TOGGLE_ON Cup|1"]),
+        duration=Duration(type="Interaction", interval=3.0),
+    )
+    root_state = SchedulerState(
+        subtask=reserved_subtask,
+        completed_entries=[],
+        remaining_subtasks=[reserved_subtask, other_subtask],
+        constraints=None,
+        current_time=0.0,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    root_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=root_state,
+        risk_level=0,
+    )
+    reserved_candidate = Candidate(
+        subtask=reserved_subtask,
+        is_critical=False,
+        actual_interaction_start_time=0.0,
+        logical_interaction_start_time=0.0,
+    )
+    other_candidate = Candidate(
+        subtask=other_subtask,
+        is_critical=False,
+        actual_interaction_start_time=0.0,
+        logical_interaction_start_time=0.0,
+    )
+
+    monkeypatch.setattr(
+        constraint_handler,
+        "get_feasible_candidates",
+        lambda _node: ([reserved_candidate, other_candidate], []),
+    )
+
+    def _expand_only_reserved(
+        _node: SimulationNode,
+        candidate: Candidate,
+        *_args: object,
+        **_kwargs: object,
+    ) -> SimulationNode:
+        if candidate.subtask.name != "Reserved Task":
+            raise AssertionError("Oracle should not branch into non-reserved candidates.")
+        return SimulationNode(
+            heuristic_cost=1.0,
+            depth=1,
+            tie_breaker=1,
+            parent_node=root_node,
+            state=SchedulerState(
+                subtask=reserved_subtask,
+                completed_entries=[],
+                remaining_subtasks=[],
+                constraints=None,
+                current_time=1.0,
+                scene_positions={"agent": (0.0, 0.9, 0.0)},
+                held_object=None,
+            ),
+            risk_level=0,
+        )
+
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_expand_subtask_wo_monitoring",
+        _expand_only_reserved,
+    )
+
+    oracle._best_makespan = None
+    oracle._best_sequence = []
+    oracle._search_nodes = 0
+    oracle._pruned_nodes = 0
+    oracle._idle_advances = 0
+    oracle._timeout_hit = False
+    oracle._started_at = time.perf_counter()
+
+    oracle._search(root_node, ())
+
+    assert oracle._best_sequence == ["Reserved Task"]
 
 
 def test_compare_result_files_calculates_setting_and_task_deltas(

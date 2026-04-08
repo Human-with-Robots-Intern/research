@@ -736,7 +736,7 @@ def _edf_compute_deadline(
     nav_time: float,
     execution_time: float,
 ) -> float:
-    """Compute the EDF deadline exactly like the baseline implementation."""
+    """Compute the EDF release target using interaction-start semantics."""
 
     constraints = current_state.constraints
     current_time = current_state.current_time
@@ -760,7 +760,7 @@ def _edf_compute_deadline(
                     current_time,
                 )
                 critical_deadlines.append(
-                    predecessor_end_time + float(data["info"]["Interval"]) - nav_time
+                    predecessor_end_time + float(data["info"]["Interval"])
                 )
             deadline = max(critical_deadlines)
         else:
@@ -775,7 +775,7 @@ def _edf_compute_deadline(
                     current_time,
                 )
                 non_critical_deadlines.append(
-                    predecessor_end_time + float(data["info"]["Interval"]) - nav_time
+                    predecessor_end_time + float(data["info"]["Interval"])
                 )
             deadline = max(non_critical_deadlines)
     return deadline
