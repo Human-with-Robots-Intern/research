@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import sys
-from typing import Any
+from typing import Any, Sequence
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -22,6 +22,8 @@ from src.experiments.offline_harness import (
     run_oracle_comparison_experiment,
     save_experiment_report,
 )
+
+SUBCOMMAND_CHOICES = {"run", "oracle-compare", "compare"}
 
 
 def _add_common_run_arguments(parser: argparse.ArgumentParser) -> None:
@@ -61,8 +63,8 @@ def _add_common_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--oracle-time-limit-seconds", type=float, default=None)
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments for run/compare workflows."""
+def _build_subcommand_parser() -> argparse.ArgumentParser:
+    """Build the existing subcommand-based parser."""
 
     parser = argparse.ArgumentParser(description="Offline scheduler experiment harness.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -81,7 +83,53 @@ def parse_args() -> argparse.Namespace:
     compare_parser.add_argument("--after", type=str, required=True)
     compare_parser.add_argument("--output-path", type=str, default=None)
 
-    return parser.parse_args()
+    return parser
+
+
+def _build_flat_parser() -> argparse.ArgumentParser:
+    """Build a flat compatibility parser aligned with run_all-style flags."""
+
+    parser = argparse.ArgumentParser(
+        description="Offline scheduler experiment harness (flat compatibility mode)."
+    )
+    parser.add_argument(
+        "--offline-command",
+        choices=["run", "oracle-compare"],
+        default="run",
+        help="Offline command to execute in flat compatibility mode.",
+    )
+    _add_common_run_arguments(parser)
+    parser.add_argument("--instruction", type=str, default=None)
+    parser.add_argument("--log-path", type=str, default=None)
+    parser.add_argument("--ablation-name", type=str, default=None)
+    parser.add_argument("--simulation", action="store_true")
+    parser.add_argument("--ros", action="store_true")
+    parser.add_argument("--cloud-rendering", action="store_true")
+    parser.add_argument("--reset", action="store_true")
+    parser.add_argument("--attempt", type=int, default=None)
+    parser.add_argument("--log-level", type=str, default=None)
+    return parser
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse CLI arguments for both legacy and flat compatibility workflows."""
+
+    cli_args = list(argv) if argv is not None else sys.argv[1:]
+    if cli_args and cli_args[0] in SUBCOMMAND_CHOICES:
+        parser = _build_subcommand_parser()
+        parsed = parser.parse_args(cli_args)
+        parsed.entry_mode = "subcommand"
+        return parsed
+
+    parser = _build_flat_parser()
+    parsed = parser.parse_args(cli_args)
+    parsed.command = parsed.offline_command
+    if parsed.instruction and not parsed.instructions:
+        parsed.instructions = [parsed.instruction]
+    if parsed.command == "oracle-compare" and parsed.case and not parsed.cases:
+        parsed.cases = [parsed.case]
+    parsed.entry_mode = "flat"
+    return parsed
 
 
 def _build_run_config(args: argparse.Namespace) -> ExperimentConfig:
