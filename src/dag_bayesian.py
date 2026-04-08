@@ -476,6 +476,7 @@ def main() -> None:
             image_provider=observation_image_provider,
             openai_model_name=args.observation_openai_model,
             openai_api_key=args.observation_openai_api_key,
+            random_seed=args.gt_seed,
         )
         belief_store, monitoring_policy, belief_updater = create_monitoring_backend(
             args.belief_update_method,

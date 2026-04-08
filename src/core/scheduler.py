@@ -504,6 +504,24 @@ class Scheduler:
            - If no urgent tasks, expand all feasible tasks and valid 'WAIT' options.
         """
         expansions: List[SimulationNode] = []
+        reserved_candidate_name = self._get_reserved_prenavigation_candidate_name(
+            curr_node
+        )
+        if reserved_candidate_name is not None:
+            log.debug(
+                "[_expand_candidates] restricting expansion to reserved pre-nav target '%s'.",
+                reserved_candidate_name,
+            )
+            feasible_candidates = [
+                candidate
+                for candidate in feasible_candidates
+                if candidate.subtask.name == reserved_candidate_name
+            ]
+            not_yet_candidates = [
+                candidate
+                for candidate in not_yet_candidates
+                if candidate.subtask.name == reserved_candidate_name
+            ]
 
         # --- Policy 1 (Unified): Urgent Critical Tasks ---
         urgent_candidates = self._get_urgent_critical_candidates(
@@ -525,18 +543,9 @@ class Scheduler:
                 )
 
                 if conflict_delay > constants.EPSILON:
-                    # Calculate Nav Duration for Wait
-                    target_obj_id = candidate.subtask.execution.primitive_actions[
-                        0
-                    ].split(" ")[1]
-                    nav_time = self._estimate_navigation_duration(
-                        curr_node,
-                        target_obj_id,
-                        candidate_name=candidate.subtask.name,
+                    nav_time = self._estimate_candidate_navigation_duration(
+                        curr_node, candidate
                     )
-                    if nav_time is None:
-                        nav_time = 0.0
-
                     wait_node = self._expand_wait_wo_monitoring(
                         curr_node,
                         candidate,
@@ -578,18 +587,9 @@ class Scheduler:
             )
 
             if conflict_delay > constants.EPSILON:
-                # Calculate Nav Duration for Wait
-                target_obj_id = candidate.subtask.execution.primitive_actions[0].split(
-                    " "
-                )[1]
-                nav_time = self._estimate_navigation_duration(
-                    curr_node,
-                    target_obj_id,
-                    candidate_name=candidate.subtask.name,
+                nav_time = self._estimate_candidate_navigation_duration(
+                    curr_node, candidate
                 )
-                if nav_time is None:
-                    nav_time = 0.0
-
                 wait_node = self._expand_wait_wo_monitoring(
                     curr_node,
                     candidate,
@@ -613,42 +613,30 @@ class Scheduler:
             if child_node:
                 expansions.append(child_node)
 
-        # 1. 먼저 정렬을 수행 (정렬 기준은 유지)
         if not_yet_candidates:
-            sorted_candidates = sorted(
-                not_yet_candidates,
-                key=lambda c: (
-                    c.actual_interaction_start_time
-                    if c.actual_interaction_start_time is not None
-                    else (
-                        c.logical_interaction_start_time
-                        if c.logical_interaction_start_time is not None
-                        else float("inf")
-                    )
-                ),
-            )
-
-            sorted_wait_targets = [
-                c
-                for c in sorted_candidates
-                if c.actual_interaction_start_time != float("inf")
-                and c.actual_interaction_start_time is not None
-                and c.actual_interaction_start_time is not None
-            ]
-
-            if sorted_wait_targets:
-                representative_wait_candidate = sorted_wait_targets[0]
+            blocked_frontier = self._get_blocked_candidate_frontier(not_yet_candidates)
+            for blocked_candidate in blocked_frontier:
                 log.debug(
-                    f"[_expand_single_wait] representative_wait_candidate: {representative_wait_candidate}"
+                    "[_expand_candidates] blocked frontier candidate: %s",
+                    blocked_candidate,
                 )
                 wait_node = self._expand_single_wait(
                     curr_node,
-                    representative_wait_candidate,
+                    blocked_candidate,
                     not_yet_candidates,
                     feasible_candidates=feasible_candidates,
                 )
                 if wait_node:
                     expansions.append(wait_node)
+
+                prenavigation_node = self._expand_blocked_prenavigation(
+                    curr_node,
+                    blocked_candidate,
+                    not_yet_candidates,
+                    feasible_candidates=feasible_candidates,
+                )
+                if prenavigation_node:
+                    expansions.append(prenavigation_node)
 
         return expansions
 
@@ -808,6 +796,291 @@ class Scheduler:
             # Typically, the target of the first action is what we monitor.
             return candidate.subtask.execution.primitive_actions[0].split()[1]
         return None
+
+    def _estimate_candidate_navigation_duration(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+    ) -> float:
+        """Estimate how much navigation remains before the candidate can interact."""
+
+        primitive_actions = (
+            candidate.subtask.execution.primitive_actions
+            if candidate.subtask.execution
+            else None
+        )
+        if not primitive_actions:
+            return 0.0
+        first_action = primitive_actions[0]
+        if not first_action.startswith("NAVIGATE_TO"):
+            return float(candidate.estimated_first_nav_duration or 0.0)
+        target_obj_id = first_action.split()[1]
+        nav_time = self._estimate_navigation_duration(
+            curr_node,
+            target_obj_id,
+            candidate_name=candidate.subtask.name,
+        )
+        return 0.0 if nav_time is None else float(nav_time)
+
+    def _should_explicitly_prenavigate(self, candidate: Candidate) -> bool:
+        """Return whether a non-monitoring candidate should emit an explicit NAV step."""
+
+        primitive_actions = (
+            candidate.subtask.execution.primitive_actions
+            if candidate.subtask.execution
+            else None
+        )
+        if not primitive_actions or len(primitive_actions) <= 1:
+            return False
+        return primitive_actions[0].startswith("NAVIGATE_TO") and (
+            float(candidate.estimated_first_nav_duration or 0.0) > EPSILON
+        )
+
+    def _get_candidate_target_start_time(
+        self,
+        candidate: Candidate,
+    ) -> Optional[float]:
+        """Return the earliest target interaction time for a candidate."""
+
+        if candidate.actual_interaction_start_time is not None:
+            return float(candidate.actual_interaction_start_time)
+        if candidate.logical_interaction_start_time is not None:
+            return float(candidate.logical_interaction_start_time)
+        return None
+
+    def _get_reserved_prenavigation_candidate_name(
+        self,
+        curr_node: SimulationNode,
+    ) -> Optional[str]:
+        """Return the blocked candidate reserved by an earlier pre-navigation step."""
+
+        for remaining_subtask in curr_node.state.remaining_subtasks:
+            if getattr(remaining_subtask, "pre_navigation_reserved", False):
+                return remaining_subtask.name
+        return None
+
+    def _get_blocked_candidate_frontier(
+        self,
+        not_yet_candidates: List[Candidate],
+    ) -> List[Candidate]:
+        """Return blocked candidates on the earliest timing frontier."""
+
+        sorted_candidates = sorted(
+            not_yet_candidates,
+            key=lambda candidate: (
+                self._get_candidate_target_start_time(candidate)
+                if self._get_candidate_target_start_time(candidate) is not None
+                else float("inf"),
+                candidate.subtask.name,
+            ),
+        )
+        finite_candidates = [
+            candidate
+            for candidate in sorted_candidates
+            if self._get_candidate_target_start_time(candidate) is not None
+            and self._get_candidate_target_start_time(candidate) != float("inf")
+        ]
+        if not finite_candidates:
+            return []
+
+        earliest_target_time = self._get_candidate_target_start_time(
+            finite_candidates[0]
+        )
+        if earliest_target_time is None:
+            return []
+        return [
+            candidate
+            for candidate in finite_candidates
+            if abs(
+                float(self._get_candidate_target_start_time(candidate))
+                - earliest_target_time
+            )
+            <= EPSILON
+        ]
+
+    def _build_post_navigation_candidate(
+        self,
+        candidate: Candidate,
+        *,
+        reserve_blocked_candidate: bool = False,
+    ) -> Candidate:
+        """Create the remaining interaction candidate after pre-navigation."""
+
+        remaining_subtask = copy.deepcopy(candidate.subtask)
+        remaining_subtask.execution.primitive_actions = (
+            remaining_subtask.execution.primitive_actions[1:]
+            if remaining_subtask.execution
+            and remaining_subtask.execution.primitive_actions
+            else []
+        )
+        if reserve_blocked_candidate:
+            setattr(remaining_subtask, "pre_navigation_reserved", True)
+        return Candidate(
+            subtask=remaining_subtask,
+            is_critical=candidate.is_critical,
+            actual_interaction_start_time=candidate.actual_interaction_start_time,
+            logical_interaction_start_time=candidate.logical_interaction_start_time,
+            estimated_first_nav_duration=0.0,
+            scheduling_due=candidate.scheduling_due,
+            critical_context=candidate.critical_context,
+        )
+
+    def _expand_prenavigation_wo_monitoring(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+        not_yet_candidates: List[Candidate],
+        feasible_candidates: List[Candidate] | None = None,
+        reserve_blocked_candidate: bool = False,
+    ) -> Optional[SimulationNode]:
+        """Execute only the first navigation action as an explicit step."""
+
+        primitive_actions = (
+            candidate.subtask.execution.primitive_actions
+            if candidate.subtask.execution
+            else None
+        )
+        if not primitive_actions or len(primitive_actions) <= 1:
+            return None
+
+        first_action = primitive_actions[0]
+        if not first_action.startswith("NAVIGATE_TO"):
+            return None
+
+        navigation_info = self.action_handler.get_actions_info(curr_node, [first_action])
+        if navigation_info is None or not navigation_info.success:
+            log.warning(
+                "Action simulation failed for explicit pre-navigation of '%s'.",
+                candidate.subtask.name,
+            )
+            return None
+
+        nav_target = first_action.split()[1]
+        nav_duration = float(navigation_info.cumulative_time)
+        nav_subtask = Subtask(
+            task_name=candidate.subtask.task_name,
+            name=f"NAVIGATE_TO_{nav_target}",
+            duration=Duration(
+                interval=nav_duration,
+                type="NAVIGATE",
+                total_time=nav_duration,
+            ),
+            repetition=1,
+            subtask_type="NAVIGATE",
+            execution=Execution(objects={}, primitive_actions=[first_action]),
+            temporal_constraints=[],
+            decomposed=True,
+        )
+        nav_entry = CompletedEntry(
+            subtask=nav_subtask,
+            schedule_start_time=curr_node.state.current_time,
+            schedule_end_time=curr_node.state.current_time + nav_duration,
+            schedule_nav_time=nav_duration,
+            execution_status=bool(navigation_info.success),
+        )
+
+        post_nav_candidate = self._build_post_navigation_candidate(
+            candidate,
+            reserve_blocked_candidate=reserve_blocked_candidate,
+        )
+        new_remaining_subtasks: List[Subtask] = []
+        for remaining_subtask in curr_node.state.remaining_subtasks:
+            if remaining_subtask.name == candidate.subtask.name:
+                new_remaining_subtasks.append(post_nav_candidate.subtask)
+            else:
+                new_remaining_subtasks.append(remaining_subtask)
+
+        new_state = SchedulerState(
+            subtask=nav_subtask,
+            completed_entries=curr_node.state.completed_entries + [nav_entry],
+            remaining_subtasks=new_remaining_subtasks,
+            constraints=curr_node.state.constraints,
+            current_time=curr_node.state.current_time + nav_duration,
+            scene_positions=navigation_info.scene_positions,
+            held_object=(
+                navigation_info.held_object
+                if navigation_info.held_object is not None
+                else curr_node.state.held_object
+            ),
+        )
+
+        temp_node = SimulationNode(
+            parent_node=curr_node,
+            heuristic_cost=0.0,
+            depth=curr_node.depth + 1,
+            tie_breaker=curr_node.tie_breaker,
+            state=new_state,
+            risk_level=curr_node.risk_level,
+        )
+        all_candidates = list(feasible_candidates or []) + list(not_yet_candidates)
+        updated_candidates: List[Candidate] = []
+        replaced = False
+        for queued_candidate in all_candidates:
+            if queued_candidate.subtask.name == candidate.subtask.name:
+                updated_candidates.append(post_nav_candidate)
+                replaced = True
+            else:
+                updated_candidates.append(queued_candidate)
+        if not replaced:
+            updated_candidates.append(post_nav_candidate)
+
+        step_risk, total_heuristic_cost = self.cost_calculator.calc_heuristic(
+            temp_node,
+            post_nav_candidate,
+            updated_candidates,
+        )
+        new_cost = new_state.current_time + total_heuristic_cost
+        new_risk = max(curr_node.risk_level, step_risk)
+        return SimulationNode(
+            parent_node=curr_node,
+            heuristic_cost=new_cost,
+            depth=curr_node.depth + 1,
+            tie_breaker=next(self._counter),
+            state=new_state,
+            risk_level=new_risk,
+        )
+
+    def _should_expand_blocked_prenavigation(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+    ) -> bool:
+        """Return whether a blocked candidate should branch into early NAV."""
+
+        if not self._should_explicitly_prenavigate(candidate):
+            return False
+        target_start_time = self._get_candidate_target_start_time(candidate)
+        if target_start_time is None or target_start_time == float("inf"):
+            return False
+        nav_duration = self._estimate_candidate_navigation_duration(curr_node, candidate)
+        if nav_duration <= EPSILON:
+            return False
+        if (curr_node.state.current_time + nav_duration) >= (target_start_time - EPSILON):
+            return False
+        if constants.MONITORING_ENABLED:
+            need_monitor, _ = self._should_split_with_monitoring(curr_node, candidate)
+            if need_monitor:
+                return False
+        return True
+
+    def _expand_blocked_prenavigation(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+        not_yet_candidates: List[Candidate],
+        feasible_candidates: List[Candidate] | None = None,
+    ) -> Optional[SimulationNode]:
+        """Expand a blocked candidate by navigating early to its target."""
+
+        if not self._should_expand_blocked_prenavigation(curr_node, candidate):
+            return None
+        return self._expand_prenavigation_wo_monitoring(
+            curr_node,
+            candidate,
+            not_yet_candidates,
+            feasible_candidates,
+            reserve_blocked_candidate=True,
+        )
 
     @staticmethod
     def _normalize_monitoring_object_name(raw_object_name: Optional[str]) -> Optional[str]:
@@ -978,18 +1251,7 @@ class Scheduler:
             otherwise None.
         """
 
-        target_obj_id = candidate.subtask.execution.primitive_actions[0].split()[1]
-        nav_time = self._estimate_navigation_duration(
-            curr_node,
-            target_obj_id,
-            candidate_name=candidate.subtask.name,
-        )
-        if nav_time is None:
-            log.warning(
-                "Skipping wait expansion for '%s' because navigation time is unavailable.",
-                candidate.subtask.name,
-            )
-            return None
+        nav_time = self._estimate_candidate_navigation_duration(curr_node, candidate)
 
         # Check if monitoring is needed before waiting, using the same Bayesian logic as standard subtasks.
         need_monitor, due_info = self._should_split_with_monitoring(
