@@ -729,7 +729,6 @@ def test_heuristic_uses_monitor_subtask_duration_consistently() -> None:
     assert monitor_duration == 5.0
     assert wait_duration == 0.0
 
-
 def test_constraint_handler_handles_missing_navigation_estimate(
     monkeypatch: MonkeyPatch,
 ) -> None:
