@@ -4,15 +4,22 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
 from typing import Any
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.experiments.offline_compare import compare_result_files, save_comparison_report
 from src.experiments.offline_harness import (
     ExperimentConfig,
     apply_cli_overrides,
+    iter_oracle_report_lines,
     iter_report_lines,
     load_experiment_config,
     run_grid_experiment,
+    run_oracle_comparison_experiment,
     save_experiment_report,
 )
 
@@ -23,7 +30,14 @@ def _add_common_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", type=str, default=None, help="JSON/YAML config path.")
     parser.add_argument("--experiment-name", type=str, default=None)
     parser.add_argument("--task-folder-name", type=str, default=None)
+    parser.add_argument(
+        "--planner-type",
+        type=str,
+        choices=["bayesian", "edf", "cpm"],
+        default=None,
+    )
     parser.add_argument("--case", type=str, default=None)
+    parser.add_argument("--cases", nargs="+", default=None)
     parser.add_argument("--scene", type=str, default=None)
     parser.add_argument("--instructions", nargs="*", default=None)
     parser.add_argument("--max-tasks", type=int, default=None)
@@ -37,7 +51,14 @@ def _add_common_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--disable-monitoring", action="store_true")
     parser.add_argument("--factor-alpha", type=float, default=None)
     parser.add_argument("--bayesian-threshold-probability", type=float, default=None)
+    parser.add_argument(
+        "--nav-graph-source",
+        type=str,
+        choices=["synthetic_grid", "ai2thor_controller"],
+        default=None,
+    )
     parser.add_argument("--output-path", type=str, default=None)
+    parser.add_argument("--oracle-time-limit-seconds", type=float, default=None)
 
 
 def parse_args() -> argparse.Namespace:
@@ -48,6 +69,12 @@ def parse_args() -> argparse.Namespace:
 
     run_parser = subparsers.add_parser("run", help="Run an offline experiment grid.")
     _add_common_run_arguments(run_parser)
+
+    oracle_parser = subparsers.add_parser(
+        "oracle-compare",
+        help="Compare deterministic scheduler runs against an exact oracle.",
+    )
+    _add_common_run_arguments(oracle_parser)
 
     compare_parser = subparsers.add_parser("compare", help="Compare two result JSON files.")
     compare_parser.add_argument("--before", type=str, required=True)
@@ -66,7 +93,9 @@ def _build_run_config(args: argparse.Namespace) -> ExperimentConfig:
     overrides: dict[str, Any] = {
         "experiment_name": args.experiment_name,
         "task_folder_name": args.task_folder_name,
+        "planner_type": args.planner_type,
         "case": args.case,
+        "cases": args.cases,
         "scene": args.scene,
         "instructions": args.instructions,
         "max_tasks": args.max_tasks,
@@ -79,7 +108,9 @@ def _build_run_config(args: argparse.Namespace) -> ExperimentConfig:
         "init_prior_variance": args.init_prior_variance,
         "factor_alpha": args.factor_alpha,
         "bayesian_threshold_probability": args.bayesian_threshold_probability,
+        "nav_graph_source": args.nav_graph_source,
         "output_path": args.output_path,
+        "oracle_time_limit_seconds": args.oracle_time_limit_seconds,
     }
     merged = apply_cli_overrides(base_config, overrides)
     if args.disable_monitoring:
@@ -111,12 +142,26 @@ def _compare_command(args: argparse.Namespace) -> None:
         save_comparison_report(report, Path(args.output_path).expanduser())
 
 
+def _oracle_compare_command(args: argparse.Namespace) -> None:
+    """Execute the oracle-compare subcommand."""
+
+    config = _build_run_config(args)
+    report = run_oracle_comparison_experiment(config)
+    for line in iter_oracle_report_lines(report):
+        print(line)
+    if config.output_path:
+        save_experiment_report(report, Path(config.output_path).expanduser())
+
+
 def main() -> None:
     """CLI entrypoint."""
 
     args = parse_args()
     if args.command == "run":
         _run_command(args)
+        return
+    if args.command == "oracle-compare":
+        _oracle_compare_command(args)
         return
     _compare_command(args)
 
