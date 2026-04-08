@@ -22,6 +22,9 @@
     -   `dataclass.py`: `SchedulerState`, `SimulationNode` 등 상태 저장을 위한 데이터 클래스를 정의합니다.
 -   **`simulation/`**: AI2-THOR 시뮬레이터와의 상호작용을 담당합니다.
     -   `runner_ai2thor.py`: 시뮬레이터 컨트롤러를 초기화하고 태스크를 실행하는 함수를 포함합니다.
+-   **`experiments/`**: 오프라인 비교 실험과 분석용 실행기를 포함합니다.
+    -   `offline_harness.py`: DAG-Bayesian, EDF, CPM을 동일한 결과 스키마로 오프라인 실행하는 in-process 실험 실행기입니다.
+    -   `exact_oracle.py`: 작은 deterministic 설정에서 scheduler 결과를 비교하기 위한 exhaustive oracle baseline입니다.
 -   **`utils/`**: 입출력, 로깅, NLP, 시각화 등 범용 유틸리티 함수를 포함합니다.
 -   `tune.py`: `Optuna`를 사용한 하이퍼파라미터 튜닝 스크립트입니다.
 
@@ -70,3 +73,57 @@
     -   `--scene_type`: `kitchen` 또는 `bathroom` 중 하나를 선택하여 관련 씬들에서 실험을 진행합니다.
     -   `--predefined`: `assets/tasks/nl_instructions`의 자연어 명령어 대신 1부터 20까지의 숫자 입력을 사용하려면 이 플래그를 추가합니다.
     -   `--capture-output`: 자식 프로세스의 로그를 터미널에 실시간으로 표시하는 대신, 실행이 끝난 후 한 번에 보기 원할 때 사용합니다.
+
+### 3. 오프라인 실험 실행 (`scripts/offline_experiment.py`)
+
+-   **설명**: AI2-THOR 전체 시뮬레이션을 매번 실행하지 않고, planner-level schedule을 빠르게 비교하기 위한 오프라인 실행기입니다.
+-   **지원 planner**:
+    -   `bayesian`: 제안 방법의 오프라인 rollout
+    -   `edf`: EDF baseline의 오프라인 adapter
+    -   `cpm`: CPM baseline의 오프라인 adapter
+-   **주요 특징**:
+    -   동일한 report schema로 `makespan`, `schedule_tcsr`, `compute_time` 등을 비교할 수 있습니다.
+    -   `--nav-graph-source ai2thor_controller`를 사용하면 AI2-THOR controller에서 navigation graph를 직접 읽어 offline planner에 사용할 수 있습니다.
+    -   offline 결과는 planner-level schedule 비교에 적합하며, 실제 AI2-THOR simulation makespan과는 primitive 실행/pose 차이로 인해 소폭 차이가 날 수 있습니다.
+
+#### 오프라인 grid 실행
+
+```bash
+python scripts/offline_experiment.py run \
+  --planner-type edf \
+  --case tasks_3_constraints_2 \
+  --scene FloorPlan13 \
+  --instructions 01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json \
+  --beam-width-values 1 \
+  --beam-depth-values 1 \
+  --nav-graph-source ai2thor_controller \
+  --output-path assets/results/offline_edf_compare.json
+```
+
+#### exact oracle 비교
+
+```bash
+python scripts/offline_experiment.py oracle-compare \
+  --planner-type bayesian \
+  --cases tasks_2_constraints_1 tasks_3_constraints_1 \
+  --scene FloorPlan13 \
+  --beam-width-values 1 5 10 \
+  --beam-depth-values 1 5 10 \
+  --oracle-time-limit-seconds 30 \
+  --output-path assets/results/oracle_compare.json
+```
+
+#### 주요 인자
+
+-   `--planner-type`: `bayesian`, `edf`, `cpm` 중 하나를 선택합니다.
+-   `--case`, `--cases`: 단일 case 또는 여러 case를 지정합니다.
+-   `--instructions`: 특정 instruction 파일만 선택해 실행합니다.
+-   `--nav-graph-source`: `synthetic_grid` 또는 `ai2thor_controller` 중 하나를 선택합니다.
+-   `--init-prior-mean`, `--init-prior-variance`: planner와 simulation 사이의 조건 정렬에 사용합니다.
+-   `--output-path`: JSON report 저장 경로입니다.
+
+### 4. 결과 해석 시 주의사항
+
+-   offline harness는 planner-level 비교를 빠르게 반복하기 위한 도구입니다.
+-   `offline makespan == scheduler makespan`은 맞출 수 있어도, `simulation makespan`은 AI2-THOR의 실제 primitive 실행 결과에 따라 약간 달라질 수 있습니다.
+-   baseline인 EDF/CPM도 동일하게 offline과 AI2-THOR planner-level schedule은 정렬할 수 있지만, 실제 simulation 시간은 완전히 동일하지 않을 수 있습니다.
