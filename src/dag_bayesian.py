@@ -118,6 +118,12 @@ def parse_arguments() -> argparse.Namespace:
         help="Factor alpha 값 (기본값: constants.py 값)",
     )
     parser.add_argument(
+        "--bayesian-threshold-probability",
+        type=float,
+        default=None,
+        help="Monitoring risk tolerance eta 값 (기본값: constants.py 값)",
+    )
+    parser.add_argument(
         "--beam_width",
         type=int,
         default=10,
@@ -280,6 +286,10 @@ def main() -> None:
         constants.set_init_prior_variance(init_prior_variance)
     if args.factor_alpha is not None:
         constants.set_factor_alpha(args.factor_alpha)
+    if args.bayesian_threshold_probability is not None:
+        constants.set_bayesian_threshold_probability(
+            args.bayesian_threshold_probability
+        )
     if args.beam_width is not None:
         constants.set_beam_width(args.beam_width)
     if args.beam_depth is not None:
@@ -670,6 +680,9 @@ def main() -> None:
                 "init_prior_name": constants.INIT_PRIOR_MEAN,
                 "init_prior_variance": constants.INIT_PRIOR_VARIANCE,
                 "factor_alpha": constants.FACTOR_ALPHA,
+                "bayesian_threshold_probability": (
+                    constants.BAYESIAN_THRESHOLD_PROBABILITY
+                ),
                 "beam_width": constants.BEAM_WIDTH,
                 "beam_depth": constants.SIMULATION_DEPTH,
                 "disable_monitoring": not constants.MONITORING_ENABLED,
