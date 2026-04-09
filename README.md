@@ -74,55 +74,97 @@
     -   `--predefined`: `assets/tasks/nl_instructions`의 자연어 명령어 대신 1부터 20까지의 숫자 입력을 사용하려면 이 플래그를 추가합니다.
     -   `--capture-output`: 자식 프로세스의 로그를 터미널에 실시간으로 표시하는 대신, 실행이 끝난 후 한 번에 보기 원할 때 사용합니다.
 
-### 3. 오프라인 실험 실행 (`scripts/offline_experiment.py`)
+### 3. 오프라인 단일 실행 (`scripts/offline_experiment.py`)
 
 -   **설명**: AI2-THOR 전체 시뮬레이션을 매번 실행하지 않고, planner-level schedule을 빠르게 비교하기 위한 오프라인 실행기입니다.
--   **지원 planner**:
+-   **지원 approach**:
     -   `bayesian`: 제안 방법의 오프라인 rollout
     -   `edf`: EDF baseline의 오프라인 adapter
     -   `cpm`: CPM baseline의 오프라인 adapter
 -   **주요 특징**:
-    -   동일한 report schema로 `makespan`, `schedule_tcsr`, `compute_time` 등을 비교할 수 있습니다.
-    -   `--nav-graph-source ai2thor_controller`를 사용하면 AI2-THOR controller에서 navigation graph를 직접 읽어 offline planner에 사용할 수 있습니다.
-    -   offline 결과는 planner-level schedule 비교에 적합하며, 실제 AI2-THOR simulation makespan과는 primitive 실행/pose 차이로 인해 소폭 차이가 날 수 있습니다.
+    -   baseline과 bayesian 모두 동일한 single-run schema로 저장됩니다.
+    -   `oracle_reference_dir`가 주어지면 baseline 결과에 oracle comparison 섹션이 함께 포함됩니다.
+    -   `nav_graph_source: ai2thor_controller`는 내부적으로 cache-first로 동작하며, 캐시가 없을 때만 AI2-THOR controller를 띄웁니다.
 
-#### 오프라인 grid 실행
+#### 단일 실행 예시
 
 ```bash
-python scripts/offline_experiment.py run \
-  --planner-type edf \
+python scripts/offline_experiment.py \
+  --approach bayesian \
+  --ablation-config DEFAULT \
+  --init-prior-config CORRECT_ESTIMATE \
+  --task-folder-name sampled_10_instruction_set_for_final_experiment_251203 \
   --case tasks_3_constraints_2 \
   --scene FloorPlan13 \
-  --instructions 01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json \
-  --beam-width-values 1 \
-  --beam-depth-values 1 \
+  --instruction 01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json \
+  --beam-bound 1,1 5,5 10,10 \
   --nav-graph-source ai2thor_controller \
-  --output-path assets/results/offline_edf_compare.json
+  --oracle-reference-dir assets/results/offline_oracle_reference \
+  --output-path assets/results/offline_single_run.json
 ```
 
-#### exact oracle 비교
+#### 결과 비교 예시
 
 ```bash
-python scripts/offline_experiment.py oracle-compare \
-  --planner-type bayesian \
-  --cases tasks_2_constraints_1 tasks_3_constraints_1 \
-  --scene FloorPlan13 \
-  --beam-width-values 1 5 10 \
-  --beam-depth-values 1 5 10 \
-  --oracle-time-limit-seconds 30 \
-  --output-path assets/results/oracle_compare.json
+python scripts/offline_experiment.py compare \
+  --before assets/results/before.json \
+  --after assets/results/after.json \
+  --output-path assets/results/offline_compare.json
 ```
 
 #### 주요 인자
 
--   `--planner-type`: `bayesian`, `edf`, `cpm` 중 하나를 선택합니다.
+-   `--approach`: `bayesian`, `edf`, `cpm` 중 하나를 선택합니다.
+-   `--ablation-config`: 현재 offline batch에서는 사실상 `bayesian`에만 의미가 있습니다.
+-   `--init-prior-config`: `CORRECT_ESTIMATE`, `OVER_ESTIMATE_110` 등 초기 prior 설정 이름입니다.
+-   `--beam-bound`: `1,1 5,5 10,10`처럼 `(width, depth)` 쌍 목록을 전달합니다. 실제 beam sweep은 `bayesian`에만 적용됩니다.
 -   `--case`, `--cases`: 단일 case 또는 여러 case를 지정합니다.
--   `--instructions`: 특정 instruction 파일만 선택해 실행합니다.
+-   `--instruction`, `--instructions`: 특정 instruction 파일만 선택해 실행합니다.
 -   `--nav-graph-source`: `synthetic_grid` 또는 `ai2thor_controller` 중 하나를 선택합니다.
--   `--init-prior-mean`, `--init-prior-variance`: planner와 simulation 사이의 조건 정렬에 사용합니다.
+-   `--oracle-reference-dir`: 미리 생성된 oracle reference JSON 루트 경로입니다.
 -   `--output-path`: JSON report 저장 경로입니다.
 
-### 4. 결과 해석 시 주의사항
+### 4. 오프라인 oracle reference 생성 (`scripts/run_oracle_reference_batch.py`)
+
+-   **설명**: oracle을 baseline approach로 같이 돌리는 대신, 먼저 deterministic oracle reference를 일괄 생성한 뒤 이후 baseline 결과와 비교하는 방식입니다.
+-   **설정 파일**: `scripts/oracle_reference_config.yaml`
+-   **명령어**:
+    ```bash
+    python scripts/run_oracle_reference_batch.py --config oracle_reference_config.yaml
+    ```
+-   **출력 경로**:
+    -   single-run oracle reference:
+        `assets/results/offline_oracle_reference/<task_folder>/<scene>/<case>/<instruction>.json`
+    -   batch summary:
+        `assets/results/offline_oracle_reference/_batch_summary/offline_oracle_reference_<timestamp>.json`
+
+### 5. 오프라인 batch 실행 (`scripts/run_batch.py`)
+
+-   **설명**: `scripts/batch_config.yaml`을 읽어 offline 실험을 일괄 실행합니다.
+-   **명령어**:
+    ```bash
+    python scripts/run_batch.py --config batch_config.yaml
+    ```
+-   **현재 batch 규칙**:
+    -   `bayesian`만 `beam_bound`와 `ablation_configs`를 모두 sweep합니다.
+    -   `edf`, `cpm`은 `DEFAULT` 한 번만 실행합니다.
+    -   따라서 `edf`/`cpm`은 `NONE_MONITORING` 결과 파일을 만들지 않습니다.
+-   **출력 경로**:
+    -   single-run result:
+        `assets/results/offline_batch/<task_folder>/<scene>/<case>/<instruction_stem>/<variant>.json`
+    -   batch summary:
+        `assets/results/offline_batch/_batch_summary/offline_batch_<timestamp>.json`
+-   **variant naming 규칙**:
+    -   `bayesian`: `bayesian__{ablation}__{init_prior}__w{width}_d{depth}.json`
+    -   `edf`, `cpm`: `{approach}__DEFAULT__{init_prior}.json`
+
+### 6. Navigation Graph Cache
+
+-   `nav_graph_source: ai2thor_controller`를 사용하면 navigation graph를 `assets/cache/ai2thor_nav_graphs/<scene>.json`에 캐시합니다.
+-   캐시가 존재하면 offline 실행은 이 파일을 우선 사용하고, 캐시가 없을 때만 controller를 초기화합니다.
+-   따라서 같은 scene에 대한 반복 offline 실험에서는 AI2-THOR 초기화 비용이 크게 줄어듭니다.
+
+### 7. 결과 해석 시 주의사항
 
 -   offline harness는 planner-level 비교를 빠르게 반복하기 위한 도구입니다.
 -   `offline makespan == scheduler makespan`은 맞출 수 있어도, `simulation makespan`은 AI2-THOR의 실제 primitive 실행 결과에 따라 약간 달라질 수 있습니다.
