@@ -1,15 +1,15 @@
 {
-    "Faucet": {
-        "expected_duration": 100.00318306807272,
-        "variance": 1.9220493043100642e-05,
-        "method": "bayesian"
-    },
     "Microwave": {
-        "expected_duration": 100.52276664153207,
-        "variance": 2.9529045128476823,
+        "expected_duration": 100.58499510967398,
+        "variance": 3.7008407397653316,
         "method": "bayesian"
     },
     "CounterTop": {
+        "expected_duration": 100.0,
+        "variance": 900.0,
+        "method": "bayesian"
+    },
+    "Faucet": {
         "expected_duration": 100.0,
         "variance": 900.0,
         "method": "bayesian"
