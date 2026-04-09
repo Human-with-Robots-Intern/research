@@ -108,16 +108,42 @@ def save_oracle_reference_rows(
     """Persist oracle rows as one JSON file per instruction."""
 
     for row in rows:
+        persisted_row: dict[str, Any] = {
+            "meta_data": dict(row["meta_data"]),
+            "saved_time": row["saved_time"],
+            "approach": row["approach"],
+            "scene_name": row["scene_name"],
+            "plans": [dict(plan) for plan in row["plans"]],
+            "computation_time": row["computation_time"],
+            "scheduler_makespan": row["scheduler_makespan"],
+            "timing_success_rate_sched": row["timing_success_rate_sched"],
+            "detail_log": dict(row["detail_log"]),
+        }
+        for key in (
+            "case",
+            "instruction",
+            "completed",
+            "abort_reason",
+            "optimal_sequence",
+            "optimal_schedule_time",
+            "exact",
+            "timeout_hit",
+            "search_nodes",
+            "pruned_nodes",
+            "idle_advances",
+        ):
+            if key in row:
+                persisted_row[key] = row[key]
         output_path = build_oracle_reference_output_path(
             base_dir,
             task_folder_name=task_folder_name,
             scene_name=scene_name,
-            case_name=str(row["case"]),
-            instruction_name=str(row["instruction"]),
+            case_name=str(persisted_row["case"]),
+            instruction_name=str(persisted_row["instruction"]),
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(
-            json.dumps(dict(row), indent=2, ensure_ascii=True),
+            json.dumps(persisted_row, indent=2, ensure_ascii=True),
             encoding="utf-8",
         )
 
@@ -157,11 +183,21 @@ def summarize_oracle_results(
         for row in oracle_results
         if row["optimal_schedule_time"] is not None
     ]
-    solve_times = [float(row["solve_time"]) for row in oracle_results]
-    total_compute_times = [
-        float(row["total_compute_time"])
+    solve_times = [
+        float(row.get("solve_time", row.get("computation_time")))
         for row in oracle_results
-        if row.get("total_compute_time") is not None
+        if row.get("solve_time", row.get("computation_time")) is not None
+    ]
+    total_compute_times = [
+        float(
+            row.get(
+                "total_compute_time",
+                row.get("computation_time", row.get("solve_time")),
+            )
+        )
+        for row in oracle_results
+        if row.get("total_compute_time", row.get("computation_time", row.get("solve_time")))
+        is not None
     ]
     tcsr_values = [
         float(row["schedule_tcsr"])

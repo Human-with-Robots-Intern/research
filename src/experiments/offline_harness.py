@@ -19,10 +19,8 @@ from src.experiments.exact_oracle import (
     build_initial_oracle_upper_bound,
 )
 from src.experiments.offline_oracle_reference import (
-    DEFAULT_ORACLE_REFERENCE_DIR,
     ORACLE_REFERENCE_SCHEMA_VERSION,
     build_oracle_comparison_section,
-    build_oracle_task_key,
     load_oracle_results_for_selection,
     resolve_oracle_reference_dir,
     save_oracle_reference_rows,
@@ -44,6 +42,7 @@ from src.models.task import Duration, Execution, Subtask
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from src.utils.config import constants
 from src.utils.io_utils.result_saver import (
+    build_hybrid_single_run_payload,
     calculate_timing_success_rate,
     serialize_completed_entries,
 )
@@ -58,6 +57,7 @@ DEFAULT_BEAM_BOUND: list[BeamBound] = [(1, 1), (5, 5), (10, 10)]
 DEFAULT_INIT_PRIOR_CONFIG = "CORRECT_ESTIMATE"
 DEFAULT_ABLATION_CONFIG = "DEFAULT"
 DEFAULT_ORACLE_TIMEOUT_SECONDS = 300.0
+NAV_GRAPH_CACHE_SCHEMA_VERSION = "ai2thor_nav_graph.v1"
 INIT_PRIOR_CONFIG_MAP: dict[str, tuple[float, float]] = {
     "OVER_ESTIMATE": (140.0, constants.INIT_PRIOR_VARIANCE),
     "OVER_MEDIUM_ESTIMATE": (120.0, constants.INIT_PRIOR_VARIANCE),
@@ -102,6 +102,14 @@ def _normalize_beam_bound(raw_value: Sequence[Any]) -> list[BeamBound]:
     if not normalized:
         raise ValueError("beam_bound must contain at least one (width, depth) pair.")
     return normalized
+
+
+def _resolve_effective_beam_bounds(config: ExperimentConfig) -> list[BeamBound]:
+    """Collapse beam sweeps for planners that do not use beam search."""
+
+    if config.approach == "bayesian":
+        return list(config.beam_bound)
+    return [config.beam_bound[0]]
 
 
 @dataclass
@@ -262,8 +270,74 @@ def build_grid_nav_graph(scene_positions: Mapping[str, Position]) -> NavGraph:
     return nav_graph
 
 
+def _serialize_nav_graph(nav_graph: NavGraph) -> dict[str, Any]:
+    """Convert a navigation graph into a stable JSON payload."""
+
+    serialized_nodes = [
+        {
+            "position": [float(coord) for coord in node],
+            "neighbors": [
+                [float(coord) for coord in neighbor] for neighbor in neighbors
+            ],
+        }
+        for node, neighbors in sorted(nav_graph.items())
+    ]
+    return {
+        "schema_version": NAV_GRAPH_CACHE_SCHEMA_VERSION,
+        "grid_size": float(constants.GRID_SIZE),
+        "nodes": serialized_nodes,
+    }
+
+
+def _deserialize_nav_graph(payload: Mapping[str, Any]) -> NavGraph:
+    """Restore a navigation graph from its cached JSON representation."""
+
+    if payload.get("schema_version") != NAV_GRAPH_CACHE_SCHEMA_VERSION:
+        raise ValueError("Unsupported nav graph cache schema version.")
+    raw_nodes = payload.get("nodes")
+    if not isinstance(raw_nodes, list):
+        raise ValueError("Nav graph cache payload must contain a node list.")
+    nav_graph: NavGraph = {}
+    for raw_node in raw_nodes:
+        if not isinstance(raw_node, Mapping):
+            raise ValueError("Nav graph node entries must be mappings.")
+        position = tuple(float(coord) for coord in raw_node["position"])
+        neighbors = [
+            tuple(float(coord) for coord in neighbor)
+            for neighbor in raw_node.get("neighbors", [])
+        ]
+        nav_graph[position] = neighbors
+    return nav_graph
+
+
+def _build_nav_graph_cache_path(scene_name: str) -> Path:
+    """Return the cache file path for an AI2-THOR navigation graph."""
+
+    return constants.NAV_GRAPH_CACHE_PATH / f"{scene_name}.json"
+
+
+def _load_cached_ai2thor_nav_graph(scene_name: str) -> Optional[NavGraph]:
+    """Load a cached AI2-THOR navigation graph when available."""
+
+    cache_path = _build_nav_graph_cache_path(scene_name)
+    if not cache_path.exists():
+        return None
+    payload = json.loads(cache_path.read_text(encoding="utf-8"))
+    return _deserialize_nav_graph(payload)
+
+
+def _save_cached_ai2thor_nav_graph(scene_name: str, nav_graph: NavGraph) -> None:
+    """Persist an AI2-THOR navigation graph cache to disk."""
+
+    cache_path = _build_nav_graph_cache_path(scene_name)
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = _serialize_nav_graph(nav_graph)
+    payload["scene_name"] = scene_name
+    cache_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def load_ai2thor_nav_graph(scene_name: str) -> NavGraph:
-    """Load the navigation graph directly from an AI2-THOR controller.
+    """Load the navigation graph from cache or directly from AI2-THOR.
 
     Args:
         scene_name: AI2-THOR scene identifier such as ``FloorPlan13``.
@@ -279,10 +353,19 @@ def load_ai2thor_nav_graph(scene_name: str) -> NavGraph:
     from ithor.utils.math_utils import load_navigation_graph
     from src.simulation.runner_ai2thor import init_ai2thor_controller
 
+    try:
+        cached_nav_graph = _load_cached_ai2thor_nav_graph(scene_name)
+    except (json.JSONDecodeError, OSError, ValueError):
+        cached_nav_graph = None
+    if cached_nav_graph is not None:
+        return cached_nav_graph
+
     controller = None
     try:
         controller = init_ai2thor_controller(scene_name)
-        return load_navigation_graph(controller)
+        nav_graph = load_navigation_graph(controller)
+        _save_cached_ai2thor_nav_graph(scene_name, nav_graph)
+        return nav_graph
     except Exception as exc:  # pragma: no cover - exercised via integration usage.
         raise RuntimeError(
             f"Failed to load AI2-THOR navigation graph for scene '{scene_name}'."
@@ -389,9 +472,10 @@ def build_experiment_tasks(config: ExperimentConfig) -> list[ExperimentTask]:
     """Build the cartesian product of instructions and beam settings."""
 
     tasks: list[ExperimentTask] = []
+    effective_beam_bound = _resolve_effective_beam_bounds(config)
     for case_name in resolve_cases(config):
         for task_index, instruction in enumerate(resolve_instructions(config, case_name)):
-            for beam_width, beam_depth in config.beam_bound:
+            for beam_width, beam_depth in effective_beam_bound:
                 tasks.append(
                     ExperimentTask(
                         instruction=instruction,
@@ -427,9 +511,18 @@ def _serialize_schedule_steps(
 
     monitored_subtasks = monitored_subtasks or {}
     serialized_steps: list[dict[str, Any]] = []
+    normalized_entries: list[CompletedEntry] = []
+    for entry in completed_entries:
+        if entry.sim_start_time == float("inf"):
+            entry.sim_start_time = entry.schedule_start_time
+        if entry.sim_end_time == float("inf"):
+            entry.sim_end_time = entry.schedule_end_time
+        if entry.sim_nav_time is None:
+            entry.sim_nav_time = entry.schedule_nav_time
+        normalized_entries.append(entry)
     for entry_payload, entry in zip(
-        serialize_completed_entries(list(completed_entries)),
-        completed_entries,
+        serialize_completed_entries(list(normalized_entries)),
+        normalized_entries,
     ):
         if entry.subtask.subtask_type == "Init":
             continue
@@ -459,6 +552,113 @@ def _is_tcsr_perfect(schedule_tcsr: float | None) -> bool | None:
     if schedule_tcsr is None:
         return None
     return abs(float(schedule_tcsr) - 1.0) <= 1e-9
+
+
+def _build_result_meta_data(
+    config: ExperimentConfig,
+    result: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Build the hybrid legacy-style metadata block for one run result."""
+
+    init_prior_mean, init_prior_variance = INIT_PRIOR_CONFIG_MAP[config.init_prior_config]
+    payload: dict[str, Any] = {
+        "approach": config.approach,
+        "ablation_config": config.ablation_config,
+        "init_prior_config": config.init_prior_config,
+        "init_prior_name": init_prior_mean,
+        "init_prior_mean": init_prior_mean,
+        "init_prior_variance": init_prior_variance,
+        "beam_width": result.get("beam_width"),
+        "beam_depth": result.get("beam_depth"),
+        "disable_monitoring": not ABLATION_CONFIG_MONITORING[config.ablation_config],
+        "nav_graph_source": config.nav_graph_source,
+        "factor_alpha": config.factor_alpha,
+        "eta": config.eta,
+    }
+    return {key: value for key, value in payload.items() if value is not None}
+
+
+def _build_hybrid_result_row(
+    config: ExperimentConfig,
+    result: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Wrap one rollout result in the hybrid single-run schema."""
+
+    plans = [dict(step) for step in result["steps"]]
+    payload = build_hybrid_single_run_payload(
+        meta_data=_build_result_meta_data(config, result),
+        saved_time=datetime.now().strftime("%Y-%m-%d %H:%M"),
+        approach=(
+            config.approach
+            if config.approach == "oracle"
+            else f"{config.approach}__{config.ablation_config}"
+        ),
+        scene_name=config.scene,
+        plans=plans,
+        computation_time=(
+            float(result["total_compute_time"])
+            if result.get("total_compute_time") is not None
+            else None
+        ),
+        scheduler_makespan=(
+            float(result["final_schedule_time"])
+            if result.get("final_schedule_time") is not None
+            else None
+        ),
+        timing_success_rate_sched=(
+            float(result["schedule_tcsr"])
+            if result.get("schedule_tcsr") is not None
+            else None
+        ),
+        detail_log=result.get("timing_detail", {}),
+        extra_fields={
+            **dict(result),
+            "case_name": result.get("case"),
+            "instruction_name": result.get("instruction"),
+            "scene_name": config.scene,
+            "plans": plans,
+            "steps": plans,
+            "simulation_makespan": result.get("final_schedule_time"),
+            "timing_success_rate_sim": result.get("schedule_tcsr"),
+            "timing_success_rate_sched": result.get("schedule_tcsr"),
+        },
+    )
+    return payload
+
+
+def _build_persisted_single_run_payload(
+    row: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Collapse an in-memory hybrid row into a slim persisted payload."""
+
+    payload: dict[str, Any] = {
+        "meta_data": dict(row["meta_data"]),
+        "saved_time": row["saved_time"],
+        "approach": row["approach"],
+        "scene_name": row["scene_name"],
+        "plans": [dict(plan) for plan in row["plans"]],
+        "computation_time": row["computation_time"],
+        "scheduler_makespan": row["scheduler_makespan"],
+        "timing_success_rate_sched": row["timing_success_rate_sched"],
+        "detail_log": dict(row["detail_log"]),
+    }
+    optional_keys = [
+        "case",
+        "instruction",
+        "completed",
+        "abort_reason",
+        "optimal_sequence",
+        "optimal_schedule_time",
+        "exact",
+        "timeout_hit",
+        "search_nodes",
+        "pruned_nodes",
+        "idle_advances",
+    ]
+    for key in optional_keys:
+        if key in row:
+            payload[key] = row[key]
+    return payload
 
 
 def _apply_runtime_overrides(config: ExperimentConfig) -> dict[str, Any]:
@@ -618,6 +818,10 @@ def run_single_rollout(
         current_state.completed_entries,
         ground_truth_overrides=ground_truth_store.as_dict(),
     )
+    steps = _serialize_schedule_steps(
+        current_state.completed_entries,
+        monitored_subtasks=monitored_subtasks,
+    )
     wait_count = sum(1 for step in steps if step["subtask_type"] == "WAIT")
     monitor_count = sum(1 for step in steps if step["subtask_type"] == "Monitor")
     action_count = sum(
@@ -626,12 +830,8 @@ def run_single_rollout(
     avg_committed_steps = (
         sum(chunk_sizes) / len(chunk_sizes) if chunk_sizes else 0.0
     )
-    steps = _serialize_schedule_steps(
-        current_state.completed_entries,
-        monitored_subtasks=monitored_subtasks,
-    )
 
-    return {
+    result = {
         "case": task.case or config.case,
         "instruction": task.instruction,
         "beam_width": task.beam_width,
@@ -651,6 +851,7 @@ def run_single_rollout(
         "timing_detail": detail_log,
         "ground_truth_intervals": ground_truth_store.as_dict(),
     }
+    return _build_hybrid_result_row(config, result)
 
 
 def _simulate_subtask_actions(
@@ -1007,7 +1208,7 @@ def run_single_rollout_edf(
         for entry in current_state.completed_entries
         if entry.subtask.subtask_type not in {"WAIT", "Monitor", "Init"}
     )
-    return {
+    result = {
         "case": task.case or config.case,
         "instruction": task.instruction,
         "beam_width": task.beam_width,
@@ -1027,6 +1228,7 @@ def run_single_rollout_edf(
         "timing_detail": detail_log,
         "ground_truth_intervals": {},
     }
+    return _build_hybrid_result_row(config, result)
 
 
 def run_single_rollout_cpm(
@@ -1100,7 +1302,7 @@ def run_single_rollout_cpm(
     action_count = sum(
         1 for entry in result_schedule if entry.subtask.subtask_type not in {"WAIT", "Monitor"}
     )
-    return {
+    result = {
         "case": task.case or config.case,
         "instruction": task.instruction,
         "beam_width": task.beam_width,
@@ -1120,6 +1322,7 @@ def run_single_rollout_cpm(
         "timing_detail": detail_log,
         "ground_truth_intervals": {},
     }
+    return _build_hybrid_result_row(config, result)
 
 
 def summarize_results(results: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -1295,6 +1498,7 @@ def _build_oracle_reference_config(config: ExperimentConfig) -> ExperimentConfig
     """Build the config used for standalone oracle reference generation."""
 
     merged = asdict(config)
+    merged["approach"] = "oracle"
     merged["ablation_config"] = "NONE_MONITORING"
     merged["gt_distribution"] = "constant"
     merged["schema_version"] = ORACLE_REFERENCE_SCHEMA_VERSION
@@ -1381,7 +1585,7 @@ def _run_exact_oracle_rollout(
     result["schedule_tcsr"] = schedule_tcsr
     result["tcsr_is_one"] = _is_tcsr_perfect(schedule_tcsr)
     result["timing_detail"] = detail_log
-    return result
+    return _build_hybrid_result_row(config, result)
 
 
 def run_oracle_reference_experiment(config: ExperimentConfig) -> dict[str, Any]:
@@ -1433,9 +1637,17 @@ def run_oracle_reference_experiment(config: ExperimentConfig) -> dict[str, Any]:
 def save_experiment_report(report: Mapping[str, Any], output_path: Path) -> None:
     """Persist an experiment report as JSON."""
 
+    payload: Any = report
+    if isinstance(report.get("results"), list) and len(report["results"]) == 1:
+        payload = _build_persisted_single_run_payload(report["results"][0])
+    elif (
+        isinstance(report.get("oracle_results"), list)
+        and len(report["oracle_results"]) == 1
+    ):
+        payload = _build_persisted_single_run_payload(report["oracle_results"][0])
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        json.dumps(report, indent=2, ensure_ascii=True),
+        json.dumps(payload, indent=2, ensure_ascii=True),
         encoding="utf-8",
     )
 

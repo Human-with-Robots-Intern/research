@@ -208,9 +208,13 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             "start_time_scheduled": round(entry.schedule_start_time, 2),
             "end_time_scheduled": round(entry.schedule_end_time, 2),
             "execution_status": (
-                entry.execution_status
-                if isinstance(entry.execution_status, bool)
-                else str(entry.execution_status.name)
+                "SUCCESS"
+                if entry.execution_status is True
+                else (
+                    "FAILURE"
+                    if entry.execution_status is False
+                    else str(entry.execution_status.name)
+                )
             ),
         }
         if hasattr(entry, "primitive_action_log"):
@@ -223,6 +227,53 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             serialized_entry["monitored_subtask"] = monitored_subtask
         serialized_entries.append(serialized_entry)
     return serialized_entries
+
+
+def build_hybrid_single_run_payload(
+    *,
+    meta_data: Mapping[str, Any],
+    saved_time: str,
+    approach: str,
+    scene_name: str,
+    plans: List[dict[str, Any]],
+    computation_time: float | None,
+    scheduler_makespan: float | None,
+    timing_success_rate_sched: float | None,
+    detail_log: Mapping[str, Any],
+    extra_fields: Optional[Mapping[str, Any]] = None,
+) -> dict[str, Any]:
+    """Build a legacy-style single-run payload with offline extensions.
+
+    Args:
+        meta_data: Execution metadata for the run.
+        saved_time: Human-readable save timestamp.
+        approach: Planner label written to the legacy top-level field.
+        scene_name: Scene identifier.
+        plans: Serialized plan entries.
+        computation_time: Total wall-clock planning time.
+        scheduler_makespan: Final scheduled makespan.
+        timing_success_rate_sched: Scheduled timing-success ratio.
+        detail_log: Timing constraint detail log.
+        extra_fields: Additional offline-specific fields to merge into the payload.
+
+    Returns:
+        Hybrid single-run payload.
+    """
+
+    payload: dict[str, Any] = {
+        "meta_data": dict(meta_data),
+        "saved_time": saved_time,
+        "approach": approach,
+        "scene_name": scene_name,
+        "plans": list(plans),
+        "computation_time": computation_time,
+        "scheduler_makespan": scheduler_makespan,
+        "timing_success_rate_sched": timing_success_rate_sched,
+        "detail_log": dict(detail_log),
+    }
+    if extra_fields:
+        payload.update(dict(extra_fields))
+    return payload
 
 
 def _extract_object_types(objects: Any) -> set[str]:

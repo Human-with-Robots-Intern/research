@@ -14,11 +14,14 @@ from src.experiments.offline_compare import compare_result_files
 from src.experiments.offline_harness import (
     ExperimentConfig,
     ExperimentTask,
+    _build_hybrid_result_row,
+    _build_persisted_single_run_payload,
     _edf_compute_deadline,
     _build_deterministic_scheduler_config,
     _serialize_schedule_steps,
     apply_cli_overrides,
     build_experiment_tasks,
+    load_ai2thor_nav_graph,
     load_experiment_config,
     run_oracle_reference_experiment,
     run_grid_experiment,
@@ -160,6 +163,23 @@ def test_build_experiment_tasks_supports_multiple_cases() -> None:
     ]
 
 
+def test_build_experiment_tasks_collapses_baseline_beams() -> None:
+    """Baseline planners should only schedule one representative beam setting."""
+
+    config = ExperimentConfig(
+        approach="edf",
+        instructions=["a.json", "b.json"],
+        beam_bound=[(1, 1), (5, 5)],
+    )
+
+    tasks = build_experiment_tasks(config)
+
+    assert tasks == [
+        ExperimentTask("a.json", 1, 1, 0, "tasks_3_constraints_2"),
+        ExperimentTask("b.json", 1, 1, 1, "tasks_3_constraints_2"),
+    ]
+
+
 def test_summarize_results_outputs_setting_metrics() -> None:
     """Summary aggregation should compute per-setting averages."""
 
@@ -272,6 +292,99 @@ def test_serialize_schedule_steps_exposes_scheduled_start_and_end() -> None:
     assert steps[1]["end_time_scheduled"] == 9.5
 
 
+def test_build_hybrid_result_row_keeps_legacy_top_level_fields() -> None:
+    """Hybrid row should expose legacy-style top-level result keys."""
+
+    config = ExperimentConfig(
+        approach="bayesian",
+        ablation_config="NONE_MONITORING",
+        init_prior_config="CORRECT_ESTIMATE",
+        scene="FloorPlan1",
+    )
+    row = _build_hybrid_result_row(
+        config,
+        {
+            "case": "tasks_2_constraints_1",
+            "instruction": "task_a.json",
+            "beam_width": 1,
+            "beam_depth": 1,
+            "completed": True,
+            "abort_reason": "",
+            "total_compute_time": 0.25,
+            "final_schedule_time": 12.0,
+            "schedule_tcsr": 1.0,
+            "tcsr_is_one": True,
+            "action_count": 1,
+            "wait_count": 0,
+            "monitor_count": 0,
+            "replanning_count": 1,
+            "avg_committed_steps_per_replan": 1.0,
+            "steps": [
+                {
+                    "subtask_name": "Cook Egg",
+                    "subtask_type": "Interaction",
+                    "start_time_scheduled": 0.0,
+                    "end_time_scheduled": 12.0,
+                    "start_time_simulation": 0.0,
+                    "end_time_simulation": 12.0,
+                    "schedule_nav_time": None,
+                    "execution_status": "SUCCESS",
+                    "monitored_subtask": None,
+                }
+            ],
+            "timing_detail": {"A -> B": {"Schedule Result": "[True] : (0.0) -> (12.0s)"}},
+            "ground_truth_intervals": {},
+        },
+    )
+
+    assert row["approach"] == "bayesian__NONE_MONITORING"
+    assert row["scene_name"] == "FloorPlan1"
+    assert row["plans"][0]["start_time_scheduled"] == 0.0
+    assert row["computation_time"] == 0.25
+    assert row["scheduler_makespan"] == 12.0
+    assert row["timing_success_rate_sched"] == 1.0
+
+
+def test_build_persisted_single_run_payload_removes_duplicate_runtime_keys() -> None:
+    """Persisted payload should keep only the slim legacy-style fields."""
+
+    row = {
+        "meta_data": {"approach": "oracle"},
+        "saved_time": "2026-04-09 23:40",
+        "approach": "oracle",
+        "scene_name": "FloorPlan1",
+        "plans": [
+            {
+                "subtask_name": "Cook Egg",
+                "start_time_simulation": 0.0,
+                "end_time_simulation": 10.0,
+                "start_time_scheduled": 0.0,
+                "end_time_scheduled": 10.0,
+                "execution_status": "SUCCESS",
+            }
+        ],
+        "computation_time": 0.5,
+        "scheduler_makespan": 10.0,
+        "timing_success_rate_sched": 1.0,
+        "detail_log": {"A -> B": {"Schedule Result": "[True]"}},
+        "steps": [{"subtask_name": "duplicate"}],
+        "timing_detail": {"duplicate": True},
+        "case_name": "tasks_2_constraints_1",
+        "instruction_name": "task_a.json",
+        "case": "tasks_2_constraints_1",
+        "instruction": "task_a.json",
+        "exact": True,
+    }
+
+    payload = _build_persisted_single_run_payload(row)
+
+    assert "steps" not in payload
+    assert "timing_detail" not in payload
+    assert "case_name" not in payload
+    assert "instruction_name" not in payload
+    assert payload["plans"][0]["execution_status"] == "SUCCESS"
+
+
 def test_run_grid_experiment_returns_schema_and_writes_report(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
@@ -280,8 +393,8 @@ def test_run_grid_experiment_returns_schema_and_writes_report(
 
     config = ExperimentConfig(
         experiment_name="test-grid",
-        instructions=["task_a.json", "task_b.json"],
-        beam_bound=[(1, 1), (1, 2)],
+        instructions=["task_a.json"],
+        beam_bound=[(1, 1)],
         output_path=str(tmp_path / "report.json"),
     )
 
@@ -291,25 +404,28 @@ def test_run_grid_experiment_returns_schema_and_writes_report(
     )
     monkeypatch.setattr(
         "src.experiments.offline_harness.run_single_rollout",
-        lambda cfg, task, **_: {
-            "case": task.case or cfg.case,
-            "instruction": task.instruction,
-            "beam_width": task.beam_width,
-            "beam_depth": task.beam_depth,
-            "completed": True,
-            "abort_reason": "",
-            "total_compute_time": float(task.beam_depth),
-            "final_schedule_time": float(task.beam_width + task.beam_depth),
-            "schedule_tcsr": 1.0,
-            "action_count": 1,
-            "wait_count": 0,
-            "monitor_count": 0,
-            "replanning_count": 1,
-            "avg_committed_steps_per_replan": 1.0,
-            "steps": [],
-            "timing_detail": {},
-            "ground_truth_intervals": {"Microwave": 100.0},
-        },
+        lambda cfg, task, **_: _build_hybrid_result_row(
+            cfg,
+            {
+                "case": task.case or cfg.case,
+                "instruction": task.instruction,
+                "beam_width": task.beam_width,
+                "beam_depth": task.beam_depth,
+                "completed": True,
+                "abort_reason": "",
+                "total_compute_time": float(task.beam_depth),
+                "final_schedule_time": float(task.beam_width + task.beam_depth),
+                "schedule_tcsr": 1.0,
+                "action_count": 1,
+                "wait_count": 0,
+                "monitor_count": 0,
+                "replanning_count": 1,
+                "avg_committed_steps_per_replan": 1.0,
+                "steps": [],
+                "timing_detail": {},
+                "ground_truth_intervals": {"Microwave": 100.0},
+            },
+        ),
     )
 
     report = run_grid_experiment(config)
@@ -318,11 +434,14 @@ def test_run_grid_experiment_returns_schema_and_writes_report(
 
     assert report["schema_version"] == config.schema_version
     assert report["experiment"]["name"] == "test-grid"
-    assert len(report["results"]) == 4
+    assert len(report["results"]) == 1
     assert "w1_d1" in report["summary_by_setting"]
     assert "tasks_3_constraints_2:w1_d1" in report["summary_by_case_setting"]
     assert "best_by_task" in report["comparison"]
-    assert saved_report["config"]["experiment_name"] == "test-grid"
+    assert saved_report["approach"] == "bayesian__DEFAULT"
+    assert "plans" in saved_report
+    assert "steps" not in saved_report
+    assert "timing_detail" not in saved_report
 
 
 def test_run_grid_experiment_uses_ai2thor_nav_source(
@@ -378,6 +497,83 @@ def test_run_grid_experiment_uses_ai2thor_nav_source(
 
     assert report["config"]["nav_graph_source"] == "ai2thor_controller"
     assert report["results"][0]["nav_graph_nodes"] == 1
+
+
+def test_load_ai2thor_nav_graph_prefers_cache(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Cached nav graphs should bypass controller initialization."""
+
+    cache_dir = tmp_path / "nav_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / "FloorPlan13.json"
+    cache_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "ai2thor_nav_graph.v1",
+                "grid_size": 0.25,
+                "scene_name": "FloorPlan13",
+                "nodes": [
+                    {
+                        "position": [0.0, 0.9, 0.0],
+                        "neighbors": [[0.25, 0.9, 0.25]],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "src.experiments.offline_harness.constants.NAV_GRAPH_CACHE_PATH",
+        cache_dir,
+    )
+    monkeypatch.setattr(
+        "src.simulation.runner_ai2thor.init_ai2thor_controller",
+        lambda _scene_name: (_ for _ in ()).throw(
+            AssertionError("Controller should not be initialized on cache hit.")
+        ),
+    )
+
+    nav_graph = load_ai2thor_nav_graph("FloorPlan13")
+
+    assert nav_graph == {(0.0, 0.9, 0.0): [(0.25, 0.9, 0.25)]}
+
+
+def test_load_ai2thor_nav_graph_writes_cache_on_miss(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Cache misses should materialize a new nav graph file after loading."""
+
+    cache_dir = tmp_path / "nav_cache"
+    loaded_controller = type(
+        "DummyController",
+        (),
+        {"stop": lambda self: None},
+    )()
+    monkeypatch.setattr(
+        "src.experiments.offline_harness.constants.NAV_GRAPH_CACHE_PATH",
+        cache_dir,
+    )
+    monkeypatch.setattr(
+        "src.simulation.runner_ai2thor.init_ai2thor_controller",
+        lambda _scene_name: loaded_controller,
+    )
+    monkeypatch.setattr(
+        "ithor.utils.math_utils.load_navigation_graph",
+        lambda _controller: {(0.0, 0.9, 0.0): [(0.25, 0.9, 0.25)]},
+    )
+
+    nav_graph = load_ai2thor_nav_graph("FloorPlan13")
+
+    assert nav_graph == {(0.0, 0.9, 0.0): [(0.25, 0.9, 0.25)]}
+    cache_payload = json.loads(
+        (cache_dir / "FloorPlan13.json").read_text(encoding="utf-8")
+    )
+    assert cache_payload["schema_version"] == "ai2thor_nav_graph.v1"
+    assert cache_payload["scene_name"] == "FloorPlan13"
+    assert cache_payload["nodes"][0]["position"] == [0.0, 0.9, 0.0]
 
 
 def test_run_single_rollout_dispatches_to_edf_adapter(

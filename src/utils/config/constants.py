@@ -22,6 +22,7 @@ TASK_PATH = (
     ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment_251203"
 )
 RESULT_PATH = ASSETS_PATH / "results"
+NAV_GRAPH_CACHE_PATH = ASSETS_PATH / "cache" / "ai2thor_nav_graphs"
 
 # ========== 시뮬레이션 관련 ==========
 DEFAULT_SCENE_NAME = "FloorPlan1"
