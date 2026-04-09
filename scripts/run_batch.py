@@ -116,7 +116,7 @@ def _normalize_section_configs(
         legacy_config = dict(raw_config)
         if args.skip_completed:
             legacy_config["skip_completed"] = True
-        return args.mode or "ai2thor", legacy_config, None
+        return args.mode or "offline", None, legacy_config
 
     shared_config = {
         key: value
