@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional, Sequence
 
 from src.core.scheduler import Scheduler
@@ -12,6 +12,7 @@ from src.models.dataclass import Candidate, CompletedEntry, SchedulerState, Simu
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from src.utils.common import create_module_logger
 from src.utils.config import constants
+from src.utils.io_utils.result_saver import serialize_completed_entries
 
 log = create_module_logger(__name__, module_log=True)
 
@@ -32,6 +33,7 @@ class OracleSolution:
         idle_advances: Number of implicit idle advances performed.
         exact: Whether the result is provably exact.
         timeout_hit: Whether the search stopped because of a time limit.
+        completed_entries: Scheduled entries for the best solution branch.
     """
 
     instruction: str
@@ -44,6 +46,7 @@ class OracleSolution:
     idle_advances: int
     exact: bool
     timeout_hit: bool
+    completed_entries: list[CompletedEntry] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dictionary."""
@@ -52,13 +55,16 @@ class OracleSolution:
             "instruction": self.instruction,
             "case": self.case,
             "optimal_schedule_time": self.optimal_schedule_time,
+            "final_schedule_time": self.optimal_schedule_time,
             "optimal_sequence": list(self.optimal_sequence),
             "solve_time": self.solve_time,
+            "total_compute_time": self.solve_time,
             "search_nodes": self.search_nodes,
             "pruned_nodes": self.pruned_nodes,
             "idle_advances": self.idle_advances,
             "exact": self.exact,
             "timeout_hit": self.timeout_hit,
+            "steps": serialize_completed_entries(self.completed_entries),
         }
 
 
@@ -106,6 +112,7 @@ class DeterministicExactOracle:
         self._deadline_monotonic_tolerance = float(constants.EPSILON)
         self._best_makespan: Optional[float] = None
         self._best_sequence: list[str] = []
+        self._best_completed_entries: list[CompletedEntry] = []
         self._search_nodes = 0
         self._pruned_nodes = 0
         self._idle_advances = 0
@@ -139,6 +146,7 @@ class DeterministicExactOracle:
             else None
         )
         self._best_sequence = []
+        self._best_completed_entries = []
         self._search_nodes = 0
         self._pruned_nodes = 0
         self._idle_advances = 0
@@ -171,6 +179,7 @@ class DeterministicExactOracle:
             idle_advances=self._idle_advances,
             exact=(not self._timeout_hit and self._best_makespan is not None),
             timeout_hit=self._timeout_hit,
+            completed_entries=copy.deepcopy(self._best_completed_entries),
         )
 
     def _search(self, node: SimulationNode, sequence: tuple[str, ...]) -> None:
@@ -207,7 +216,7 @@ class DeterministicExactOracle:
 
         self._search_nodes += 1
         if not node.state.remaining_subtasks:
-            self._commit_solution(current_time, sequence)
+            self._commit_solution(current_time, sequence, node.state.completed_entries)
             return
 
         feasible_candidates, not_yet_candidates = (
@@ -278,16 +287,23 @@ class DeterministicExactOracle:
         self,
         makespan: float,
         sequence: Sequence[str],
+        completed_entries: Sequence[CompletedEntry],
     ) -> None:
         """Update the incumbent solution when a better or equal solution is found.
 
         Using ``<=`` rather than ``<`` ensures the sequence is recorded even when
         the oracle starts with an external incumbent equal to the optimal value.
+
+        Args:
+            makespan: Completed makespan for the candidate solution.
+            sequence: Executed subtask names on the winning branch.
+            completed_entries: Scheduled entries associated with the branch.
         """
 
         if self._best_makespan is None or makespan <= self._best_makespan:
             self._best_makespan = makespan
             self._best_sequence = list(sequence)
+            self._best_completed_entries = copy.deepcopy(list(completed_entries))
 
     def _order_candidates(
         self,
