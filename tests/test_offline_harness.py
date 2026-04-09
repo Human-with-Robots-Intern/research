@@ -9,16 +9,18 @@ from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 from src.core.monitoring import BeliefUpdateContext, create_observation_model
-from src.experiments.exact_oracle import DeterministicExactOracle
+from src.experiments.exact_oracle import DeterministicExactOracle, OracleSolution
 from src.experiments.offline_compare import compare_result_files
 from src.experiments.offline_harness import (
     ExperimentConfig,
     ExperimentTask,
     _edf_compute_deadline,
+    _build_deterministic_scheduler_config,
+    _serialize_schedule_steps,
     apply_cli_overrides,
     build_experiment_tasks,
     load_experiment_config,
-    run_oracle_comparison_experiment,
+    run_oracle_reference_experiment,
     run_grid_experiment,
     run_single_rollout,
     save_experiment_report,
@@ -94,10 +96,12 @@ def test_load_experiment_config_and_cli_override(tmp_path: Path) -> None:
             [
                 "experiment_name: baseline",
                 "scene: FloorPlan1",
-                "planner_type: bayesian",
-                "beam_width_values: [1, 3]",
-                "disable_monitoring: false",
-                "nav_graph_source: synthetic_grid",
+                "approach: bayesian",
+                "ablation_config: DEFAULT",
+                "beam_bound:",
+                "  - [1, 1]",
+                "  - [3, 3]",
+                'nav_graph_source: "ai2thor_controller"',
             ]
         ),
         encoding="utf-8",
@@ -108,19 +112,19 @@ def test_load_experiment_config_and_cli_override(tmp_path: Path) -> None:
         loaded,
         {
             "scene": "FloorPlan2",
-            "planner_type": "edf",
-            "disable_monitoring": True,
-            "beam_depth_values": [2, 4],
+            "approach": "edf",
+            "ablation_config": "NONE_MONITORING",
+            "beam_bound": [(2, 2), (4, 4)],
             "nav_graph_source": "ai2thor_controller",
         },
     )
 
     assert loaded.experiment_name == "baseline"
     assert merged.scene == "FloorPlan2"
-    assert merged.planner_type == "edf"
-    assert merged.disable_monitoring is True
-    assert merged.beam_width_values == [1, 3]
-    assert merged.beam_depth_values == [2, 4]
+    assert merged.approach == "edf"
+    assert merged.ablation_config == "NONE_MONITORING"
+    assert loaded.beam_bound == [(1, 1), (3, 3)]
+    assert merged.beam_bound == [(2, 2), (4, 4)]
     assert merged.nav_graph_source == "ai2thor_controller"
 
 
@@ -129,8 +133,7 @@ def test_build_experiment_tasks_expands_instruction_and_beam_grid() -> None:
 
     config = ExperimentConfig(
         instructions=["a.json", "b.json"],
-        beam_width_values=[1, 5],
-        beam_depth_values=[1, 3],
+        beam_bound=[(1, 1), (1, 3), (5, 1), (5, 3)],
     )
 
     tasks = build_experiment_tasks(config)
@@ -146,8 +149,7 @@ def test_build_experiment_tasks_supports_multiple_cases() -> None:
     config = ExperimentConfig(
         cases=["tasks_2_constraints_1", "tasks_3_constraints_1"],
         instructions=["a.json"],
-        beam_width_values=[1],
-        beam_depth_values=[1],
+        beam_bound=[(1, 1)],
     )
 
     tasks = build_experiment_tasks(config)
@@ -222,6 +224,54 @@ def test_create_observation_model_uses_seed_for_synthetic_mode() -> None:
     assert observation_a.variance == observation_b.variance
 
 
+def test_serialize_schedule_steps_exposes_scheduled_start_and_end() -> None:
+    """Serialized steps should expose explicit scheduled timing fields."""
+
+    interaction = Subtask(
+        task_name="task",
+        name="Cook Egg",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(objects={}, primitive_actions=["TOGGLE_ON Stove|1"]),
+        duration=Duration(type="Interaction", interval=5.0),
+    )
+    wait = Subtask(
+        task_name="task",
+        name="WAIT 5 to Cook Egg",
+        repetition=1,
+        subtask_type="WAIT",
+        execution=Execution(objects={}, primitive_actions=["WAIT 5"]),
+        duration=Duration(type="WAIT", interval=5.0),
+    )
+    completed_entries = [
+        CompletedEntry(
+            subtask=interaction,
+            schedule_start_time=1.0,
+            schedule_end_time=4.5,
+            schedule_nav_time=1.25,
+            sim_start_time=1.0,
+            sim_end_time=4.5,
+            execution_status=True,
+        ),
+        CompletedEntry(
+            subtask=wait,
+            schedule_start_time=4.5,
+            schedule_end_time=9.5,
+            sim_start_time=4.5,
+            sim_end_time=9.5,
+            execution_status=True,
+        ),
+    ]
+
+    steps = _serialize_schedule_steps(completed_entries)
+
+    assert steps[0]["start_time_scheduled"] == 1.0
+    assert steps[0]["end_time_scheduled"] == 4.5
+    assert steps[0]["schedule_nav_time"] == 1.25
+    assert steps[1]["start_time_scheduled"] == 4.5
+    assert steps[1]["end_time_scheduled"] == 9.5
+
+
 def test_run_grid_experiment_returns_schema_and_writes_report(
     monkeypatch: MonkeyPatch,
     tmp_path: Path,
@@ -231,8 +281,7 @@ def test_run_grid_experiment_returns_schema_and_writes_report(
     config = ExperimentConfig(
         experiment_name="test-grid",
         instructions=["task_a.json", "task_b.json"],
-        beam_width_values=[1],
-        beam_depth_values=[1, 2],
+        beam_bound=[(1, 1), (1, 2)],
         output_path=str(tmp_path / "report.json"),
     )
 
@@ -283,8 +332,7 @@ def test_run_grid_experiment_uses_ai2thor_nav_source(
 
     config = ExperimentConfig(
         instructions=["task_a.json"],
-        beam_width_values=[1],
-        beam_depth_values=[1],
+        beam_bound=[(1, 1)],
         nav_graph_source="ai2thor_controller",
     )
 
@@ -338,10 +386,9 @@ def test_run_single_rollout_dispatches_to_edf_adapter(
     """EDF planner type should delegate to the EDF rollout adapter."""
 
     config = ExperimentConfig(
-        planner_type="edf",
+        approach="edf",
         instructions=["task_a.json"],
-        beam_width_values=[1],
-        beam_depth_values=[1],
+        beam_bound=[(1, 1)],
     )
     task = ExperimentTask("task_a.json", 1, 1, 0, config.case)
 
@@ -385,10 +432,9 @@ def test_run_single_rollout_dispatches_to_cpm_adapter(
     """CPM planner type should delegate to the CPM rollout adapter."""
 
     config = ExperimentConfig(
-        planner_type="cpm",
+        approach="cpm",
         instructions=["task_a.json"],
-        beam_width_values=[1],
-        beam_depth_values=[1],
+        beam_bound=[(1, 1)],
     )
     task = ExperimentTask("task_a.json", 1, 1, 0, config.case)
 
@@ -426,60 +472,19 @@ def test_run_single_rollout_dispatches_to_cpm_adapter(
     assert result["final_schedule_time"] == 2.0
 
 
-def test_run_oracle_comparison_experiment_combines_scheduler_and_oracle(
+def test_run_oracle_reference_experiment_writes_oracle_summary(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Oracle comparison runner should join deterministic and oracle results."""
+    """Oracle reference runner should emit per-instruction oracle rows."""
 
     config = ExperimentConfig(
         experiment_name="oracle-grid",
         cases=["tasks_2_constraints_1"],
         instructions=["task_a.json"],
-        beam_width_values=[1],
-        beam_depth_values=[1],
+        beam_bound=[(1, 1)],
         oracle_time_limit_seconds=5.0,
     )
 
-    monkeypatch.setattr(
-        "src.experiments.offline_harness.run_grid_experiment",
-        lambda cfg: {
-            "schema_version": cfg.schema_version,
-            "saved_time": "2026-04-08T00:00:00",
-            "experiment": {"name": cfg.experiment_name, "tags": []},
-            "config": {"disable_monitoring": True},
-            "selected_instructions": {"tasks_2_constraints_1": ["task_a.json"]},
-            "summary_by_setting": {},
-            "summary_by_case_setting": {},
-            "comparison": {
-                "best_by_task": {
-                    "tasks_2_constraints_1::task_a.json": {
-                        "case": "tasks_2_constraints_1",
-                        "instruction": "task_a.json",
-                        "beam_width": 1,
-                        "beam_depth": 1,
-                        "final_schedule_time": 120.0,
-                        "total_compute_time": 1.0,
-                    }
-                }
-            },
-            "results": [
-                {
-                    "case": "tasks_2_constraints_1",
-                    "instruction": "task_a.json",
-                    "beam_width": 1,
-                    "beam_depth": 1,
-                    "completed": True,
-                    "final_schedule_time": 120.0,
-                    "total_compute_time": 1.0,
-                    "schedule_tcsr": 1.0,
-                    "wait_count": 0,
-                    "monitor_count": 0,
-                    "replanning_count": 1,
-                    "avg_committed_steps_per_replan": 1.0,
-                }
-            ],
-        },
-    )
     monkeypatch.setattr(
         "src.experiments.offline_harness._apply_runtime_overrides",
         lambda _cfg: {},
@@ -498,21 +503,104 @@ def test_run_oracle_comparison_experiment_combines_scheduler_and_oracle(
             "case": "tasks_2_constraints_1",
             "instruction": "task_a.json",
             "optimal_schedule_time": 100.0,
+            "final_schedule_time": 100.0,
             "optimal_sequence": ["A", "B"],
             "solve_time": 0.2,
+            "total_compute_time": 0.2,
             "search_nodes": 10,
             "pruned_nodes": 3,
             "idle_advances": 1,
             "exact": True,
             "timeout_hit": False,
+            "schedule_tcsr": 1.0,
+            "tcsr_is_one": True,
+            "steps": [
+                {
+                    "subtask_name": "A",
+                    "subtask_type": "Interaction",
+                    "start_time_scheduled": 0.0,
+                    "end_time_scheduled": 10.0,
+                    "start_time_simulation": 0.0,
+                    "end_time_simulation": 10.0,
+                    "schedule_nav_time": None,
+                    "execution_status": True,
+                    "monitored_subtask": None,
+                }
+            ],
+            "timing_detail": {},
         },
     )
 
-    report = run_oracle_comparison_experiment(config)
+    monkeypatch.setattr(
+        "src.experiments.offline_harness.save_oracle_reference_rows",
+        lambda *args, **kwargs: None,
+    )
 
-    assert report["schema_version"] == "offline_oracle_comparison.v1"
+    report = run_oracle_reference_experiment(config)
+
+    assert report["schema_version"] == "offline_oracle_reference.v1"
     assert report["oracle_summary"]["exact_instructions"] == 1
-    assert report["gap_by_setting"]["w1_d1"]["avg_absolute_gap"] == 20.0
+    assert report["oracle_results"][0]["optimal_schedule_time"] == 100.0
+    assert report["oracle_summary"]["avg_total_compute_time"] == 0.2
+    assert report["oracle_summary"]["avg_schedule_tcsr"] == 1.0
+
+
+def test_oracle_solution_as_dict_exposes_timing_payload() -> None:
+    """Oracle solution payload should expose per-step scheduled timings."""
+
+    subtask = Subtask(
+        task_name="task",
+        name="Cook Egg",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(objects={}, primitive_actions=["TOGGLE_ON Stove|1"]),
+        duration=Duration(type="Interaction", interval=5.0),
+    )
+    solution = OracleSolution(
+        instruction="task_a.json",
+        case="tasks_2_constraints_1",
+        optimal_schedule_time=12.0,
+        optimal_sequence=["Cook Egg"],
+        solve_time=0.25,
+        search_nodes=3,
+        pruned_nodes=1,
+        idle_advances=0,
+        exact=True,
+        timeout_hit=False,
+        completed_entries=[
+            CompletedEntry(
+                subtask=subtask,
+                schedule_start_time=2.0,
+                schedule_end_time=12.0,
+                sim_start_time=2.0,
+                sim_end_time=12.0,
+                execution_status=True,
+            )
+        ],
+    )
+
+    payload = solution.as_dict()
+
+    assert payload["final_schedule_time"] == 12.0
+    assert payload["total_compute_time"] == 0.25
+    assert payload["steps"][0]["start_time_scheduled"] == 2.0
+    assert payload["steps"][0]["end_time_scheduled"] == 12.0
+
+
+def test_build_deterministic_scheduler_config_uses_edf_for_oracle() -> None:
+    """Oracle comparisons should default to an EDF deterministic baseline."""
+
+    config = ExperimentConfig(
+        approach="oracle",
+        ablation_config="DEFAULT",
+        gt_distribution="gaussian",
+    )
+
+    deterministic_config = _build_deterministic_scheduler_config(config)
+
+    assert deterministic_config.approach == "edf"
+    assert deterministic_config.ablation_config == "NONE_MONITORING"
+    assert deterministic_config.gt_distribution == "constant"
 
 
 def test_exact_oracle_orders_candidates_by_name() -> None:

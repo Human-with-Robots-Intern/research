@@ -7,7 +7,6 @@ import heapq
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from itertools import product
 from pathlib import Path
 from statistics import mean, median
 from time import perf_counter
@@ -18,6 +17,16 @@ from src.core import Agent, Scheduler
 from src.experiments.exact_oracle import (
     DeterministicExactOracle,
     build_initial_oracle_upper_bound,
+)
+from src.experiments.offline_oracle_reference import (
+    DEFAULT_ORACLE_REFERENCE_DIR,
+    ORACLE_REFERENCE_SCHEMA_VERSION,
+    build_oracle_comparison_section,
+    build_oracle_task_key,
+    load_oracle_results_for_selection,
+    resolve_oracle_reference_dir,
+    save_oracle_reference_rows,
+    summarize_oracle_results,
 )
 from src.core.monitoring import (
     create_ground_truth_store,
@@ -34,12 +43,36 @@ from src.models.dataclass import (
 from src.models.task import Duration, Execution, Subtask
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from src.utils.config import constants
-from src.utils.io_utils.result_saver import calculate_timing_success_rate
+from src.utils.io_utils.result_saver import (
+    calculate_timing_success_rate,
+    serialize_completed_entries,
+)
 from src.utils.io_utils.task_io import load_scene_positions, load_task_data_from_sampled_set
 from src.utils.task.task_util import TaskUtil
 
 Position = Tuple[float, float, float]
 NavGraph = Dict[Position, list[Position]]
+BeamBound = tuple[int, int]
+
+DEFAULT_BEAM_BOUND: list[BeamBound] = [(1, 1), (5, 5), (10, 10)]
+DEFAULT_INIT_PRIOR_CONFIG = "CORRECT_ESTIMATE"
+DEFAULT_ABLATION_CONFIG = "DEFAULT"
+DEFAULT_ORACLE_TIMEOUT_SECONDS = 300.0
+INIT_PRIOR_CONFIG_MAP: dict[str, tuple[float, float]] = {
+    "OVER_ESTIMATE": (140.0, constants.INIT_PRIOR_VARIANCE),
+    "OVER_MEDIUM_ESTIMATE": (120.0, constants.INIT_PRIOR_VARIANCE),
+    "CORRECT_ESTIMATE": (100.0, constants.INIT_PRIOR_VARIANCE),
+    "UNDER_MEDIUM_ESTIMATE": (80.0, constants.INIT_PRIOR_VARIANCE),
+    "UNDER_ESTIMATE": (60.0, constants.INIT_PRIOR_VARIANCE),
+    "OVER_ESTIMATE_130": (130.0, constants.INIT_PRIOR_VARIANCE),
+    "OVER_ESTIMATE_110": (110.0, constants.INIT_PRIOR_VARIANCE),
+    "UNDER_ESTIMATE_90": (90.0, constants.INIT_PRIOR_VARIANCE),
+    "UNDER_ESTIMATE_70": (70.0, constants.INIT_PRIOR_VARIANCE),
+}
+ABLATION_CONFIG_MONITORING: dict[str, bool] = {
+    "DEFAULT": True,
+    "NONE_MONITORING": False,
+}
 
 
 def _quantize_position(position: Position) -> Position:
@@ -51,6 +84,26 @@ def _quantize_position(position: Position) -> Position:
     )
 
 
+def _normalize_beam_bound(raw_value: Sequence[Any]) -> list[BeamBound]:
+    """Normalize beam bound entries into integer ``(width, depth)`` tuples."""
+
+    normalized: list[BeamBound] = []
+    for raw_entry in raw_value:
+        if isinstance(raw_entry, str):
+            width_str, depth_str = raw_entry.split(",", maxsplit=1)
+            normalized.append((int(width_str), int(depth_str)))
+            continue
+        if isinstance(raw_entry, Sequence) and not isinstance(raw_entry, (str, bytes)):
+            if len(raw_entry) != 2:
+                raise ValueError(f"Invalid beam_bound entry: {raw_entry}")
+            normalized.append((int(raw_entry[0]), int(raw_entry[1])))
+            continue
+        raise ValueError(f"Unsupported beam_bound entry: {raw_entry}")
+    if not normalized:
+        raise ValueError("beam_bound must contain at least one (width, depth) pair.")
+    return normalized
+
+
 @dataclass
 class ExperimentConfig:
     """Serializable configuration for an offline experiment session."""
@@ -58,27 +111,45 @@ class ExperimentConfig:
     experiment_name: str = "offline_experiment"
     tags: list[str] = field(default_factory=list)
     task_folder_name: str = "sampled_10_instruction_set_for_final_experiment_251203"
-    planner_type: str = "bayesian"
+    approach: str = "bayesian"
+    ablation_config: str = DEFAULT_ABLATION_CONFIG
+    init_prior_config: str = DEFAULT_INIT_PRIOR_CONFIG
     case: str = "tasks_3_constraints_2"
     cases: list[str] = field(default_factory=list)
     scene: str = "FloorPlan13"
     instructions: list[str] = field(default_factory=list)
     max_tasks: int = 3
-    beam_width_values: list[int] = field(default_factory=lambda: [1, 5, 10])
-    beam_depth_values: list[int] = field(default_factory=lambda: [1, 5, 10])
+    beam_bound: list[BeamBound] = field(
+        default_factory=lambda: list(DEFAULT_BEAM_BOUND)
+    )
     belief_update_method: str = "bayesian"
     gt_distribution: str = "constant"
     gt_seed: int = 42
-    init_prior_mean: Optional[float] = None
-    init_prior_variance: Optional[float] = None
-    disable_monitoring: bool = False
     factor_alpha: Optional[float] = None
-    bayesian_threshold_probability: Optional[float] = None
+    eta: Optional[float] = None
     observation_mode: str = "synthetic_gaussian"
-    nav_graph_source: str = "synthetic_grid"
+    nav_graph_source: str = "ai2thor_controller"
     output_path: Optional[str] = None
-    oracle_time_limit_seconds: float = 30.0
+    oracle_reference_dir: Optional[str] = None
+    oracle_time_limit_seconds: float = DEFAULT_ORACLE_TIMEOUT_SECONDS
     schema_version: str = "offline_harness.v1"
+
+    def __post_init__(self) -> None:
+        """Normalize config payloads loaded from YAML/CLI."""
+
+        self.tags = [str(tag) for tag in self.tags]
+        self.cases = [str(case_name) for case_name in self.cases]
+        self.instructions = [str(instruction) for instruction in self.instructions]
+        self.approach = str(self.approach)
+        self.ablation_config = str(self.ablation_config)
+        self.init_prior_config = str(self.init_prior_config)
+        self.beam_bound = _normalize_beam_bound(self.beam_bound)
+        if self.approach not in {"bayesian", "edf", "cpm", "oracle"}:
+            raise ValueError(f"Unsupported approach: {self.approach}")
+        if self.ablation_config not in ABLATION_CONFIG_MONITORING:
+            raise ValueError(f"Unsupported ablation_config: {self.ablation_config}")
+        if self.init_prior_config not in INIT_PRIOR_CONFIG_MAP:
+            raise ValueError(f"Unsupported init_prior_config: {self.init_prior_config}")
 
 
 @dataclass(frozen=True)
@@ -320,10 +391,7 @@ def build_experiment_tasks(config: ExperimentConfig) -> list[ExperimentTask]:
     tasks: list[ExperimentTask] = []
     for case_name in resolve_cases(config):
         for task_index, instruction in enumerate(resolve_instructions(config, case_name)):
-            for beam_width, beam_depth in product(
-                config.beam_width_values,
-                config.beam_depth_values,
-            ):
+            for beam_width, beam_depth in config.beam_bound:
                 tasks.append(
                     ExperimentTask(
                         instruction=instruction,
@@ -350,29 +418,71 @@ def _copy_schedule_to_sim_fields(state: SchedulerState) -> None:
             entry.sim_nav_time = entry.schedule_nav_time
 
 
+def _serialize_schedule_steps(
+    completed_entries: Sequence[CompletedEntry],
+    *,
+    monitored_subtasks: Mapping[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Serialize scheduled entries with explicit start/end timing fields."""
+
+    monitored_subtasks = monitored_subtasks or {}
+    serialized_steps: list[dict[str, Any]] = []
+    for entry_payload, entry in zip(
+        serialize_completed_entries(list(completed_entries)),
+        completed_entries,
+    ):
+        if entry.subtask.subtask_type == "Init":
+            continue
+        serialized_steps.append(
+            {
+                "subtask_name": entry_payload["subtask_name"],
+                "subtask_type": entry.subtask.subtask_type,
+                "start_time_scheduled": entry_payload["start_time_scheduled"],
+                "end_time_scheduled": entry_payload["end_time_scheduled"],
+                "start_time_simulation": entry_payload["start_time_simulation"],
+                "end_time_simulation": entry_payload["end_time_simulation"],
+                "schedule_nav_time": (
+                    round(float(entry.schedule_nav_time), 2)
+                    if entry.schedule_nav_time is not None
+                    else None
+                ),
+                "execution_status": entry_payload["execution_status"],
+                "monitored_subtask": monitored_subtasks.get(entry.subtask.name),
+            }
+        )
+    return serialized_steps
+
+
+def _is_tcsr_perfect(schedule_tcsr: float | None) -> bool | None:
+    """Return whether the schedule TCSR is exactly satisfied."""
+
+    if schedule_tcsr is None:
+        return None
+    return abs(float(schedule_tcsr) - 1.0) <= 1e-9
+
+
 def _apply_runtime_overrides(config: ExperimentConfig) -> dict[str, Any]:
     """Apply temporary constants overrides and return previous values."""
 
+    init_prior_mean, init_prior_variance = INIT_PRIOR_CONFIG_MAP[config.init_prior_config]
     previous_values = {
         "task_path": constants.TASK_PATH,
         "monitoring_enabled": constants.MONITORING_ENABLED,
         "init_prior_mean": constants.INIT_PRIOR_MEAN,
         "init_prior_variance": constants.INIT_PRIOR_VARIANCE,
         "factor_alpha": constants.FACTOR_ALPHA,
-        "bayesian_threshold_probability": constants.BAYESIAN_THRESHOLD_PROBABILITY,
+        "eta": constants.BAYESIAN_THRESHOLD_PROBABILITY,
     }
     constants.set_task_path(constants.ASSETS_PATH / "tasks" / config.task_folder_name)
-    constants.set_monitoring_enabled(not config.disable_monitoring)
-    if config.init_prior_mean is not None:
-        constants.set_init_prior_mean(config.init_prior_mean)
-    if config.init_prior_variance is not None:
-        constants.set_init_prior_variance(config.init_prior_variance)
+    constants.set_monitoring_enabled(
+        ABLATION_CONFIG_MONITORING[config.ablation_config]
+    )
+    constants.set_init_prior_mean(init_prior_mean)
+    constants.set_init_prior_variance(init_prior_variance)
     if config.factor_alpha is not None:
         constants.set_factor_alpha(config.factor_alpha)
-    if config.bayesian_threshold_probability is not None:
-        constants.set_bayesian_threshold_probability(
-            config.bayesian_threshold_probability
-        )
+    if config.eta is not None:
+        constants.set_bayesian_threshold_probability(config.eta)
     return previous_values
 
 
@@ -384,9 +494,7 @@ def _restore_runtime_overrides(previous_values: Mapping[str, Any]) -> None:
     constants.set_init_prior_mean(previous_values["init_prior_mean"])
     constants.set_init_prior_variance(previous_values["init_prior_variance"])
     constants.set_factor_alpha(previous_values["factor_alpha"])
-    constants.set_bayesian_threshold_probability(
-        previous_values["bayesian_threshold_probability"]
-    )
+    constants.set_bayesian_threshold_probability(previous_values["eta"])
 
 
 def run_single_rollout(
@@ -398,22 +506,22 @@ def run_single_rollout(
 ) -> dict[str, Any]:
     """Execute one offline rollout for a task/beam combination."""
 
-    if config.planner_type == "edf":
+    if config.approach == "edf":
         return run_single_rollout_edf(
             config,
             task,
             nav_graph=nav_graph,
             scene_positions=scene_positions,
         )
-    if config.planner_type == "cpm":
+    if config.approach == "cpm":
         return run_single_rollout_cpm(
             config,
             task,
             nav_graph=nav_graph,
             scene_positions=scene_positions,
         )
-    if config.planner_type != "bayesian":
-        raise ValueError(f"Unsupported planner_type: {config.planner_type}")
+    if config.approach != "bayesian":
+        raise ValueError(f"Unsupported approach for rollout: {config.approach}")
 
     task_data = load_task_data_from_sampled_set(
         task.case or config.case,
@@ -465,11 +573,11 @@ def run_single_rollout(
     )
 
     total_compute_time = 0.0
-    steps: list[dict[str, Any]] = []
     chunk_sizes: list[int] = []
     replanning_count = 0
     aborted = False
     abort_reason = ""
+    monitored_subtasks: dict[str, Any] = {}
     while current_state.remaining_subtasks:
         next_state, compute_elapsed_time = scheduler.get_next_state(current_state)
         planned_states = [] if next_state is None else [next_state]
@@ -484,27 +592,19 @@ def run_single_rollout(
         executed_in_chunk = 0
         for next_state in planned_states:
             _copy_schedule_to_sim_fields(next_state)
-            last_entry = next_state.completed_entries[-1]
             monitored_subtask: Optional[dict[str, Any]] = None
             if (
-                not config.disable_monitoring
+                ABLATION_CONFIG_MONITORING[config.ablation_config]
                 and next_state.subtask.subtask_type == "Monitor"
             ):
                 next_state, monitored_subtask = agent.update_monitoring_belief(next_state)
                 _copy_schedule_to_sim_fields(next_state)
 
-            steps.append(
-                {
-                    "subtask_name": next_state.subtask.name,
-                    "subtask_type": next_state.subtask.subtask_type,
-                    "schedule_end_time": last_entry.schedule_end_time,
-                    "schedule_nav_time": last_entry.schedule_nav_time,
-                    "monitored_subtask": monitored_subtask,
-                }
-            )
+            if monitored_subtask is not None:
+                monitored_subtasks[next_state.subtask.name] = monitored_subtask
             current_state = next_state
             executed_in_chunk += 1
-            if len(steps) > 500:
+            if len(current_state.completed_entries) > 500:
                 aborted = True
                 abort_reason = "step_guard_exceeded"
                 break
@@ -526,6 +626,10 @@ def run_single_rollout(
     avg_committed_steps = (
         sum(chunk_sizes) / len(chunk_sizes) if chunk_sizes else 0.0
     )
+    steps = _serialize_schedule_steps(
+        current_state.completed_entries,
+        monitored_subtasks=monitored_subtasks,
+    )
 
     return {
         "case": task.case or config.case,
@@ -537,6 +641,7 @@ def run_single_rollout(
         "total_compute_time": total_compute_time,
         "final_schedule_time": current_state.current_time,
         "schedule_tcsr": schedule_tcsr,
+        "tcsr_is_one": _is_tcsr_perfect(schedule_tcsr),
         "action_count": action_count,
         "wait_count": wait_count,
         "monitor_count": monitor_count,
@@ -895,16 +1000,7 @@ def run_single_rollout_edf(
         current_state.constraints,
         current_state.completed_entries,
     )
-    steps = [
-        {
-            "subtask_name": entry.subtask.name,
-            "subtask_type": entry.subtask.subtask_type,
-            "schedule_end_time": entry.schedule_end_time,
-            "schedule_nav_time": entry.schedule_nav_time,
-            "monitored_subtask": None,
-        }
-        for entry in current_state.completed_entries[1:]
-    ]
+    steps = _serialize_schedule_steps(current_state.completed_entries)
     wait_count = sum(1 for entry in current_state.completed_entries if entry.subtask.subtask_type == "WAIT")
     action_count = sum(
         1
@@ -921,6 +1017,7 @@ def run_single_rollout_edf(
         "total_compute_time": total_compute_time,
         "final_schedule_time": current_state.current_time,
         "schedule_tcsr": schedule_tcsr,
+        "tcsr_is_one": _is_tcsr_perfect(schedule_tcsr),
         "action_count": action_count,
         "wait_count": wait_count,
         "monitor_count": 0,
@@ -998,16 +1095,7 @@ def run_single_rollout_cpm(
         current_state.constraints,
         current_state.completed_entries,
     )
-    steps = [
-        {
-            "subtask_name": entry.subtask.name,
-            "subtask_type": entry.subtask.subtask_type,
-            "schedule_end_time": entry.schedule_end_time,
-            "schedule_nav_time": entry.schedule_nav_time,
-            "monitored_subtask": None,
-        }
-        for entry in result_schedule
-    ]
+    steps = _serialize_schedule_steps(result_schedule)
     wait_count = sum(1 for entry in result_schedule if entry.subtask.subtask_type == "WAIT")
     action_count = sum(
         1 for entry in result_schedule if entry.subtask.subtask_type not in {"WAIT", "Monitor"}
@@ -1022,6 +1110,7 @@ def run_single_rollout_cpm(
         "total_compute_time": total_compute_time,
         "final_schedule_time": current_state.current_time,
         "schedule_tcsr": schedule_tcsr,
+        "tcsr_is_one": _is_tcsr_perfect(schedule_tcsr),
         "action_count": action_count,
         "wait_count": wait_count,
         "monitor_count": 0,
@@ -1172,7 +1261,7 @@ def run_grid_experiment(config: ExperimentConfig) -> dict[str, Any]:
             )
             for task in tasks
         ]
-        return {
+        report = {
             "schema_version": config.schema_version,
             "saved_time": datetime.now().isoformat(timespec="seconds"),
             "experiment": {
@@ -1186,8 +1275,30 @@ def run_grid_experiment(config: ExperimentConfig) -> dict[str, Any]:
             "comparison": compare_ready_summary(results),
             "results": results,
         }
+        oracle_results = load_oracle_results_for_selection(
+            base_dir=resolve_oracle_reference_dir(config.oracle_reference_dir),
+            task_folder_name=config.task_folder_name,
+            scene_name=config.scene,
+            selected_instructions=selected_instructions,
+        )
+        report["oracle_comparison"] = build_oracle_comparison_section(
+            scheduler_results=results,
+            selected_instructions=selected_instructions,
+            oracle_results=oracle_results,
+        )
+        return report
     finally:
         _restore_runtime_overrides(previous_values)
+
+
+def _build_oracle_reference_config(config: ExperimentConfig) -> ExperimentConfig:
+    """Build the config used for standalone oracle reference generation."""
+
+    merged = asdict(config)
+    merged["ablation_config"] = "NONE_MONITORING"
+    merged["gt_distribution"] = "constant"
+    merged["schema_version"] = ORACLE_REFERENCE_SCHEMA_VERSION
+    return ExperimentConfig(**merged)
 
 
 def _build_deterministic_scheduler_config(config: ExperimentConfig) -> ExperimentConfig:
@@ -1201,16 +1312,13 @@ def _build_deterministic_scheduler_config(config: ExperimentConfig) -> Experimen
     """
 
     merged = asdict(config)
-    merged["disable_monitoring"] = True
+    merged["ablation_config"] = "NONE_MONITORING"
+    if merged["approach"] == "oracle":
+        # Oracle comparison still needs a deterministic scheduler baseline.
+        merged["approach"] = "edf"
     merged["gt_distribution"] = "constant"
     merged["schema_version"] = "offline_harness.v1"
     return ExperimentConfig(**merged)
-
-
-def _build_oracle_task_key(case_name: str, instruction: str) -> str:
-    """Return a stable lookup key for an instruction inside a case."""
-
-    return f"{case_name}::{instruction}"
 
 
 def _run_exact_oracle_rollout(
@@ -1258,157 +1366,67 @@ def _run_exact_oracle_rollout(
         heuristic_manager=HeuristicManager(action_handler),
         time_limit_seconds=config.oracle_time_limit_seconds,
     )
-    return oracle.solve(
+    solution = oracle.solve(
         initial_state,
         instruction=instruction,
         case=case_name,
         incumbent_upper_bound=build_initial_oracle_upper_bound(incumbent_upper_bound),
-    ).as_dict()
+    )
+    _, schedule_tcsr, detail_log = calculate_timing_success_rate(
+        constraints,
+        solution.completed_entries,
+    )
+    result = solution.as_dict()
+    result["steps"] = _serialize_schedule_steps(solution.completed_entries)
+    result["schedule_tcsr"] = schedule_tcsr
+    result["tcsr_is_one"] = _is_tcsr_perfect(schedule_tcsr)
+    result["timing_detail"] = detail_log
+    return result
 
 
-def summarize_oracle_results(
-    oracle_results: Sequence[Mapping[str, Any]],
-) -> dict[str, Any]:
-    """Aggregate deterministic oracle results across instructions.
+def run_oracle_reference_experiment(config: ExperimentConfig) -> dict[str, Any]:
+    """Generate and persist deterministic oracle reference rows."""
 
-    Args:
-        oracle_results: Per-instruction oracle rows.
-
-    Returns:
-        Compact summary dictionary for reporting.
-    """
-
-    schedule_times = [
-        float(row["optimal_schedule_time"])
-        for row in oracle_results
-        if row["optimal_schedule_time"] is not None
-    ]
-    solve_times = [float(row["solve_time"]) for row in oracle_results]
-    exact_count = sum(1 for row in oracle_results if bool(row["exact"]))
-    return {
-        "num_instructions": len(oracle_results),
-        "exact_instructions": exact_count,
-        "avg_optimal_schedule_time": mean(schedule_times) if schedule_times else None,
-        "avg_solve_time": mean(solve_times) if solve_times else None,
-    }
-
-
-def summarize_oracle_gaps(
-    scheduler_results: Sequence[Mapping[str, Any]],
-    oracle_results: Sequence[Mapping[str, Any]],
-) -> dict[str, dict[str, Any]]:
-    """Aggregate scheduler-oracle gaps by beam setting.
-
-    Args:
-        scheduler_results: Deterministic scheduler rollout rows.
-        oracle_results: Per-instruction oracle rows.
-
-    Returns:
-        Beam-setting summary including absolute and relative oracle gaps.
-    """
-
-    oracle_by_task = {
-        _build_oracle_task_key(str(row["case"]), str(row["instruction"])): row
-        for row in oracle_results
-    }
-    grouped: dict[str, list[Mapping[str, Any]]] = {}
-    for row in scheduler_results:
-        beam_key = f"w{int(row['beam_width'])}_d{int(row['beam_depth'])}"
-        grouped.setdefault(beam_key, []).append(row)
-
-    summary: dict[str, dict[str, Any]] = {}
-    for beam_key, rows in grouped.items():
-        scheduler_times: list[float] = []
-        oracle_times: list[float] = []
-        absolute_gaps: list[float] = []
-        relative_gaps: list[float] = []
-        exact_matches = 0
-        for row in rows:
-            oracle_row = oracle_by_task.get(
-                _build_oracle_task_key(str(row["case"]), str(row["instruction"]))
-            )
-            if oracle_row is None or oracle_row["optimal_schedule_time"] is None:
-                continue
-            scheduler_time = float(row["final_schedule_time"])
-            oracle_time = float(oracle_row["optimal_schedule_time"])
-            absolute_gap = scheduler_time - oracle_time
-            relative_gap = (
-                absolute_gap / oracle_time if abs(oracle_time) > constants.EPSILON else 0.0
-            )
-            scheduler_times.append(scheduler_time)
-            oracle_times.append(oracle_time)
-            absolute_gaps.append(absolute_gap)
-            relative_gaps.append(relative_gap)
-            if bool(oracle_row["exact"]):
-                exact_matches += 1
-
-        summary[beam_key] = {
-            "num_runs": len(rows),
-            "matched_oracle_runs": len(absolute_gaps),
-            "exact_oracle_runs": exact_matches,
-            "avg_scheduler_time": mean(scheduler_times) if scheduler_times else None,
-            "avg_oracle_time": mean(oracle_times) if oracle_times else None,
-            "avg_absolute_gap": mean(absolute_gaps) if absolute_gaps else None,
-            "avg_relative_gap": mean(relative_gaps) if relative_gaps else None,
-        }
-    return summary
-
-
-def run_oracle_comparison_experiment(config: ExperimentConfig) -> dict[str, Any]:
-    """Compare deterministic scheduler rollouts against an exact oracle.
-
-    Args:
-        config: User experiment configuration. Monitoring is disabled internally
-            to align with the deterministic oracle definition.
-
-    Returns:
-        Structured report containing scheduler results, oracle results, and gap
-        summaries.
-    """
-
-    deterministic_config = _build_deterministic_scheduler_config(config)
-    scheduler_report = run_grid_experiment(deterministic_config)
-    previous_values = _apply_runtime_overrides(deterministic_config)
+    reference_config = _build_oracle_reference_config(config)
+    selected_instructions = build_selected_instruction_map(reference_config)
+    previous_values = _apply_runtime_overrides(reference_config)
     try:
-        scene_positions = load_scene_positions(f"{deterministic_config.scene}_positions.json")
-        nav_graph = resolve_nav_graph(deterministic_config, scene_positions)
-        best_by_task = scheduler_report["comparison"]["best_by_task"]
+        scene_positions = load_scene_positions(f"{reference_config.scene}_positions.json")
+        nav_graph = resolve_nav_graph(reference_config, scene_positions)
         oracle_results: list[dict[str, Any]] = []
-        for case_name, instructions in build_selected_instruction_map(
-            deterministic_config
-        ).items():
+        for case_name, instructions in selected_instructions.items():
             for instruction in instructions:
-                task_key = _build_oracle_task_key(case_name, instruction)
-                incumbent = best_by_task.get(task_key, {}).get("final_schedule_time")
                 oracle_results.append(
                     _run_exact_oracle_rollout(
-                        deterministic_config,
+                        reference_config,
                         case_name=case_name,
                         instruction=instruction,
                         nav_graph=nav_graph,
                         scene_positions=scene_positions,
-                        incumbent_upper_bound=incumbent,
+                        incumbent_upper_bound=None,
                     )
                 )
     finally:
         _restore_runtime_overrides(previous_values)
 
+    reference_dir = resolve_oracle_reference_dir(reference_config.oracle_reference_dir)
+    save_oracle_reference_rows(
+        oracle_results,
+        base_dir=reference_dir,
+        task_folder_name=reference_config.task_folder_name,
+        scene_name=reference_config.scene,
+    )
     return {
-        "schema_version": "offline_oracle_comparison.v1",
+        "schema_version": ORACLE_REFERENCE_SCHEMA_VERSION,
         "saved_time": datetime.now().isoformat(timespec="seconds"),
         "experiment": {
             "name": config.experiment_name,
             "tags": list(config.tags),
         },
-        "config": asdict(deterministic_config),
-        "selected_instructions": scheduler_report["selected_instructions"],
-        "scheduler_report": scheduler_report,
+        "config": asdict(reference_config),
+        "selected_instructions": selected_instructions,
         "oracle_results": oracle_results,
         "oracle_summary": summarize_oracle_results(oracle_results),
-        "gap_by_setting": summarize_oracle_gaps(
-            scheduler_report["results"],
-            oracle_results,
-        ),
     }
 
 
@@ -1437,7 +1455,7 @@ def iter_report_lines(report: Mapping[str, Any]) -> Iterable[str]:
 
 
 def iter_oracle_report_lines(report: Mapping[str, Any]) -> Iterable[str]:
-    """Yield a compact CLI preview for oracle comparison reports."""
+    """Yield a compact CLI preview for oracle reference reports."""
 
     yield f"Experiment: {report['experiment']['name']}"
     oracle_summary = report["oracle_summary"]
@@ -1445,13 +1463,7 @@ def iter_oracle_report_lines(report: Mapping[str, Any]) -> Iterable[str]:
         "Oracle: "
         f"exact={oracle_summary['exact_instructions']}/{oracle_summary['num_instructions']}, "
         f"avg_optimal_schedule_time={oracle_summary['avg_optimal_schedule_time']}, "
-        f"avg_solve_time={oracle_summary['avg_solve_time']}"
+        f"avg_solve_time={oracle_summary['avg_solve_time']}, "
+        f"avg_total_compute_time={oracle_summary['avg_total_compute_time']}, "
+        f"avg_schedule_tcsr={oracle_summary['avg_schedule_tcsr']}"
     )
-    for setting, metrics in report["gap_by_setting"].items():
-        yield (
-            f"- {setting}: matched_oracle_runs={metrics['matched_oracle_runs']}/{metrics['num_runs']}, "
-            f"avg_scheduler_time={metrics['avg_scheduler_time']}, "
-            f"avg_oracle_time={metrics['avg_oracle_time']}, "
-            f"avg_absolute_gap={metrics['avg_absolute_gap']}, "
-            f"avg_relative_gap={metrics['avg_relative_gap']}"
-        )

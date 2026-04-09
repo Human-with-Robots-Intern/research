@@ -15,7 +15,7 @@ import threading
 import time
 import traceback
 from collections import defaultdict
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from itertools import product
@@ -23,9 +23,18 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from src.experiments.offline_harness import (
+    DEFAULT_ABLATION_CONFIG,
+    DEFAULT_BEAM_BOUND,
+    DEFAULT_INIT_PRIOR_CONFIG,
+    DEFAULT_ORACLE_TIMEOUT_SECONDS,
     ExperimentConfig as OfflineExperimentConfig,
-    load_experiment_config,
     resolve_instructions,
+)
+from src.experiments.offline_oracle_reference import (
+    DEFAULT_ORACLE_REFERENCE_DIR,
+    build_offline_task_directory,
+    build_oracle_reference_output_path,
+    resolve_oracle_reference_dir,
 )
 from src.utils.config.constants import (
     ASSETS_PATH,
@@ -154,26 +163,41 @@ class BatchTask:
 class OfflineBatchOptions:
     """Options for constructing offline subprocess jobs."""
 
-    base_config_path: Path | None
-    command: str
-    planner_types: list[str]
+    approaches: list[str]
+    ablation_configs: list[str]
+    init_prior_configs: list[str]
     task_folder_names: list[str]
     cases: list[str]
     scenes: list[str]
     instructions: list[str]
     max_tasks: int | None
-    beam_width_values: list[int]
-    beam_depth_values: list[int]
+    beam_bound: list[tuple[int, int]]
     nav_graph_source: str | None
     output_dir: Path
+    oracle_reference_dir: Path
     experiment_name: str | None = None
-    disable_monitoring: bool = False
     gt_distribution: str | None = None
     gt_seed: int | None = None
-    init_prior_mean: float | None = None
-    init_prior_variance: float | None = None
     factor_alpha: float | None = None
-    bayesian_threshold_probability: float | None = None
+    eta: float | None = None
+    oracle_time_limit_seconds: float | None = None
+    skip_completed: bool = True
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
+    tags: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class OracleReferenceBatchOptions:
+    """Options for constructing oracle reference subprocess jobs."""
+
+    task_folder_names: list[str]
+    cases: list[str]
+    scenes: list[str]
+    instructions: list[str]
+    max_tasks: int | None
+    nav_graph_source: str | None
+    oracle_reference_dir: Path
+    experiment_name: str | None = None
     oracle_time_limit_seconds: float | None = None
     skip_completed: bool = True
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
@@ -293,6 +317,26 @@ def _append_flag(command: list[str], flag: str, value: Any) -> None:
         command.extend(str(item) for item in value)
         return
     command.extend([flag, str(value)])
+
+
+def _normalize_offline_beam_bound(value: Any) -> list[tuple[int, int]]:
+    """Normalize offline beam bounds into integer width/depth tuples."""
+
+    if not isinstance(value, (list, tuple)):
+        raise ValueError("beam_bound must be a list of (width, depth) pairs.")
+    normalized: list[tuple[int, int]] = []
+    for raw_entry in value:
+        if isinstance(raw_entry, str):
+            width_str, depth_str = raw_entry.split(",", maxsplit=1)
+            normalized.append((int(width_str), int(depth_str)))
+            continue
+        if isinstance(raw_entry, (list, tuple)) and len(raw_entry) == 2:
+            normalized.append((int(raw_entry[0]), int(raw_entry[1])))
+            continue
+        raise ValueError(f"Invalid beam_bound entry: {raw_entry}")
+    if not normalized:
+        raise ValueError("beam_bound must contain at least one pair.")
+    return normalized
 
 
 def _reset_ros_state(file_copy_lock: threading.Lock, logger: logging.Logger) -> None:
@@ -843,25 +887,34 @@ def build_ai2thor_tasks(
 def _build_offline_options(config: Mapping[str, Any]) -> OfflineBatchOptions:
     """Normalize offline YAML config into a typed options object."""
 
-    base_config_path = config.get("base_config")
-    resolved_base_config_path = (
-        _resolve_repo_path(base_config_path) if base_config_path is not None else None
+    approaches = [str(value) for value in config.get("approaches", [])]
+    approaches = [value for value in approaches if value != "oracle"]
+    if not approaches:
+        raise ValueError("Offline config must provide at least one non-oracle approach.")
+    scene_types_config = config.get("scene_type", "kitchen")
+    scene_types = (
+        [scene_types_config]
+        if isinstance(scene_types_config, str)
+        else [str(value) for value in scene_types_config]
     )
-    base_config = load_experiment_config(resolved_base_config_path)
-    planner_types = list(config.get("planner_types", [base_config.planner_type]))
-    cases = list(config.get("cases", []))
+    scene_lists = dict(config.get("scene_lists", {}))
+    scenes = [
+        str(scene_name)
+        for scene_type in scene_types
+        for scene_name in scene_lists.get(scene_type, [])
+    ]
+    if not scenes:
+        raise ValueError(
+            "Offline config must resolve at least one scene from scene_type/scene_lists."
+        )
+    cases = [str(value) for value in config.get("cases", [])]
     if not cases and config.get("case") is not None:
         cases = [str(config["case"])]
     if not cases:
-        cases = list(base_config.cases) or [base_config.case]
-    scenes = list(config.get("scenes", []))
-    if not scenes and config.get("scene") is not None:
-        scenes = [str(config["scene"])]
-    if not scenes:
-        scenes = [base_config.scene]
-    if not scenes:
-        raise ValueError("Offline config must provide 'scene' or 'scenes'.")
-    raw_task_folder_names = config.get("task_folder_name", base_config.task_folder_name)
+        raise ValueError("Offline config must provide at least one case.")
+    raw_task_folder_names = config.get(
+        "task_folder_name", "sampled_10_instruction_set_for_final_experiment_251203"
+    )
     if isinstance(raw_task_folder_names, str):
         task_folder_names = [raw_task_folder_names]
     else:
@@ -869,46 +922,97 @@ def _build_offline_options(config: Mapping[str, Any]) -> OfflineBatchOptions:
     output_dir = _resolve_repo_path(
         config.get("output_dir", "assets/results/offline_batch")
     )
+    oracle_reference_dir = resolve_oracle_reference_dir(
+        str(config.get("oracle_reference_dir", DEFAULT_ORACLE_REFERENCE_DIR))
+    )
+    raw_beam_bound = config.get("beam_bound", list(DEFAULT_BEAM_BOUND))
+    beam_bound = _normalize_offline_beam_bound(raw_beam_bound)
     return OfflineBatchOptions(
-        base_config_path=resolved_base_config_path,
-        command=str(config.get("command", "run")),
-        planner_types=planner_types,
+        approaches=approaches,
+        ablation_configs=[
+            str(value)
+            for value in config.get("ablation_configs", [DEFAULT_ABLATION_CONFIG])
+        ],
+        init_prior_configs=[
+            str(value)
+            for value in config.get(
+                "init_prior_configs", [DEFAULT_INIT_PRIOR_CONFIG]
+            )
+        ],
         task_folder_names=task_folder_names,
         cases=cases,
         scenes=scenes,
-        instructions=list(config.get("instructions", base_config.instructions)),
-        max_tasks=config.get("max_tasks", base_config.max_tasks),
-        beam_width_values=[
-            int(value)
-            for value in config.get("beam_width_values", base_config.beam_width_values)
-        ],
-        beam_depth_values=[
-            int(value)
-            for value in config.get("beam_depth_values", base_config.beam_depth_values)
-        ],
-        nav_graph_source=config.get("nav_graph_source", base_config.nav_graph_source),
+        instructions=[str(value) for value in config.get("instructions", [])],
+        max_tasks=config.get("max_tasks", 3),
+        beam_bound=beam_bound,
+        nav_graph_source=config.get("nav_graph_source", "ai2thor_controller"),
         output_dir=output_dir,
-        experiment_name=config.get("experiment_name", base_config.experiment_name),
-        disable_monitoring=bool(
-            config.get("disable_monitoring", base_config.disable_monitoring)
-        ),
-        gt_distribution=config.get("gt_distribution", base_config.gt_distribution),
-        gt_seed=config.get("gt_seed", base_config.gt_seed),
-        init_prior_mean=config.get("init_prior_mean", base_config.init_prior_mean),
-        init_prior_variance=config.get(
-            "init_prior_variance", base_config.init_prior_variance
-        ),
-        factor_alpha=config.get("factor_alpha", base_config.factor_alpha),
-        bayesian_threshold_probability=config.get(
-            "bayesian_threshold_probability",
-            base_config.bayesian_threshold_probability,
-        ),
+        oracle_reference_dir=oracle_reference_dir,
+        experiment_name=config.get("experiment_name"),
+        gt_distribution=config.get("gt_distribution"),
+        gt_seed=config.get("gt_seed"),
+        factor_alpha=config.get("factor_alpha"),
+        eta=config.get("eta"),
         oracle_time_limit_seconds=config.get(
-            "oracle_time_limit_seconds", base_config.oracle_time_limit_seconds
+            "oracle_time_limit_seconds", DEFAULT_ORACLE_TIMEOUT_SECONDS
         ),
         skip_completed=bool(config.get("skip_completed", True)),
         timeout_seconds=int(config.get("timeout_seconds", DEFAULT_TIMEOUT_SECONDS)),
-        tags=[str(tag) for tag in config.get("tags", base_config.tags)],
+        tags=[str(tag) for tag in config.get("tags", [])],
+    )
+
+
+def _build_oracle_reference_options(
+    config: Mapping[str, Any],
+) -> OracleReferenceBatchOptions:
+    """Normalize config into oracle reference batch options."""
+
+    scene_types_config = config.get("scene_type", "kitchen")
+    scene_types = (
+        [scene_types_config]
+        if isinstance(scene_types_config, str)
+        else [str(value) for value in scene_types_config]
+    )
+    scene_lists = dict(config.get("scene_lists", {}))
+    scenes = [
+        str(scene_name)
+        for scene_type in scene_types
+        for scene_name in scene_lists.get(scene_type, [])
+    ]
+    if not scenes:
+        raise ValueError(
+            "Oracle reference config must resolve at least one scene from scene_type/scene_lists."
+        )
+    cases = [str(value) for value in config.get("cases", [])]
+    if not cases and config.get("case") is not None:
+        cases = [str(config["case"])]
+    if not cases:
+        raise ValueError("Oracle reference config must provide at least one case.")
+    raw_task_folder_names = config.get(
+        "task_folder_name", "sampled_10_instruction_set_for_final_experiment_251203"
+    )
+    if isinstance(raw_task_folder_names, str):
+        task_folder_names = [raw_task_folder_names]
+    else:
+        task_folder_names = [str(value) for value in raw_task_folder_names]
+    oracle_reference_dir = resolve_oracle_reference_dir(
+        str(config.get("oracle_reference_dir", DEFAULT_ORACLE_REFERENCE_DIR))
+    )
+    return OracleReferenceBatchOptions(
+        task_folder_names=task_folder_names,
+        cases=cases,
+        scenes=scenes,
+        instructions=[str(value) for value in config.get("instructions", [])],
+        max_tasks=config.get("max_tasks", 3),
+        nav_graph_source=config.get("nav_graph_source", "ai2thor_controller"),
+        oracle_reference_dir=oracle_reference_dir,
+        experiment_name=config.get("experiment_name"),
+        oracle_time_limit_seconds=config.get(
+            "oracle_time_limit_seconds", DEFAULT_ORACLE_TIMEOUT_SECONDS
+        ),
+        skip_completed=bool(config.get("skip_completed", True)),
+        timeout_seconds=int(config.get("timeout_seconds", DEFAULT_TIMEOUT_SECONDS)),
+        tags=[str(tag) for tag in config.get("tags", [])],
     )
 
 
@@ -916,53 +1020,47 @@ def _make_offline_config(
     options: OfflineBatchOptions,
     *,
     task_folder_name: str,
-    planner_type: str,
+    approach: str,
+    ablation_config: str,
+    init_prior_config: str,
     scene_name: str,
     case_name: str,
 ) -> OfflineExperimentConfig:
     """Build an effective offline experiment config for task discovery."""
 
-    base_config = load_experiment_config(options.base_config_path)
-    payload = asdict(base_config)
-    payload.update(
-        {
-            "planner_type": planner_type,
-            "scene": scene_name,
-            "case": case_name,
-            "cases": [case_name],
-            "task_folder_name": task_folder_name,
-            "beam_width_values": list(options.beam_width_values),
-            "beam_depth_values": list(options.beam_depth_values),
-            "instructions": list(options.instructions),
-            "max_tasks": options.max_tasks,
-            "experiment_name": options.experiment_name or base_config.experiment_name,
-            "tags": list(options.tags) or list(base_config.tags),
-            "disable_monitoring": options.disable_monitoring,
-            "gt_distribution": (
-                options.gt_distribution
-                if options.gt_distribution is not None
-                else base_config.gt_distribution
-            ),
-            "gt_seed": options.gt_seed if options.gt_seed is not None else base_config.gt_seed,
-            "nav_graph_source": (
-                options.nav_graph_source
-                if options.nav_graph_source is not None
-                else base_config.nav_graph_source
-            ),
-        }
-    )
-    if options.init_prior_mean is not None:
-        payload["init_prior_mean"] = options.init_prior_mean
-    if options.init_prior_variance is not None:
-        payload["init_prior_variance"] = options.init_prior_variance
+    payload: dict[str, Any] = {
+        "approach": approach,
+        "ablation_config": ablation_config,
+        "init_prior_config": init_prior_config,
+        "scene": scene_name,
+        "case": case_name,
+        "cases": [case_name],
+        "task_folder_name": task_folder_name,
+        "beam_bound": list(options.beam_bound),
+        "instructions": list(options.instructions),
+        "max_tasks": options.max_tasks if options.max_tasks is not None else 3,
+        "experiment_name": options.experiment_name or "offline_experiment",
+        "tags": list(options.tags),
+        "nav_graph_source": (
+            options.nav_graph_source
+            if options.nav_graph_source is not None
+            else "ai2thor_controller"
+        ),
+        "oracle_time_limit_seconds": (
+            options.oracle_time_limit_seconds
+            if options.oracle_time_limit_seconds is not None
+            else DEFAULT_ORACLE_TIMEOUT_SECONDS
+        ),
+        "oracle_reference_dir": str(options.oracle_reference_dir),
+    }
+    if options.gt_distribution is not None:
+        payload["gt_distribution"] = options.gt_distribution
+    if options.gt_seed is not None:
+        payload["gt_seed"] = options.gt_seed
     if options.factor_alpha is not None:
         payload["factor_alpha"] = options.factor_alpha
-    if options.bayesian_threshold_probability is not None:
-        payload["bayesian_threshold_probability"] = (
-            options.bayesian_threshold_probability
-        )
-    if options.oracle_time_limit_seconds is not None:
-        payload["oracle_time_limit_seconds"] = options.oracle_time_limit_seconds
+    if options.eta is not None:
+        payload["eta"] = options.eta
     return OfflineExperimentConfig(**payload)
 
 
@@ -970,27 +1068,61 @@ def _build_offline_output_path(
     options: OfflineBatchOptions,
     *,
     task_folder_name: str | None,
-    planner_type: str,
+    approach: str,
+    ablation_config: str,
+    init_prior_config: str,
     scene_name: str,
     case_name: str | None,
     instruction_name: str | None,
 ) -> Path:
     """Construct a deterministic JSON report path for one offline subprocess."""
 
-    case_token = _sanitize_token(case_name) if case_name is not None else "multi_case"
-    instruction_token = (
-        _sanitize_token(Path(instruction_name).stem)
-        if instruction_name is not None
-        else "aggregate"
-    )
-    task_folder_token = (
-        _sanitize_token(task_folder_name) if task_folder_name is not None else "default"
+    task_dir = build_offline_task_directory(
+        options.output_dir,
+        task_folder_name=(
+            str(task_folder_name) if task_folder_name is not None else "default"
+        ),
+        scene_name=scene_name,
+        case_name=str(case_name) if case_name is not None else "multi_case",
+        instruction_name=(
+            str(instruction_name) if instruction_name is not None else "aggregate.json"
+        ),
     )
     filename = (
-        f"offline_{options.command}_{task_folder_token}_{_sanitize_token(planner_type)}_"
-        f"{_sanitize_token(scene_name)}_{case_token}_{instruction_token}.json"
+        f"{_sanitize_token(approach)}__{_sanitize_token(ablation_config)}__"
+        f"{_sanitize_token(init_prior_config)}.json"
     )
-    return options.output_dir / filename
+    return task_dir / filename
+
+
+def _make_oracle_reference_discovery_config(
+    options: OracleReferenceBatchOptions,
+    *,
+    task_folder_name: str,
+    scene_name: str,
+    case_name: str,
+) -> OfflineExperimentConfig:
+    """Build a minimal offline config used only for instruction discovery."""
+
+    return OfflineExperimentConfig(
+        task_folder_name=task_folder_name,
+        case=case_name,
+        cases=[case_name],
+        scene=scene_name,
+        instructions=list(options.instructions),
+        max_tasks=options.max_tasks if options.max_tasks is not None else 3,
+        nav_graph_source=(
+            options.nav_graph_source
+            if options.nav_graph_source is not None
+            else "ai2thor_controller"
+        ),
+        oracle_reference_dir=str(options.oracle_reference_dir),
+        oracle_time_limit_seconds=(
+            options.oracle_time_limit_seconds
+            if options.oracle_time_limit_seconds is not None
+            else DEFAULT_ORACLE_TIMEOUT_SECONDS
+        ),
+    )
 
 
 def _is_completed_offline_report(report_path: Path) -> bool:
@@ -1019,96 +1151,11 @@ def build_offline_tasks(
     offline_script_path = PROJECT_ROOT / "scripts/offline_experiment.py"
     worker_log_dir = LOG_PATH / f"{run_timestamp}-worker_logs"
     tasks: list[BatchTask] = []
-    if options.command == "oracle-compare":
-        if not options.cases:
-            raise ValueError("Offline oracle-compare requires 'cases'.")
-        for task_folder_name, planner_type, scene_name in product(
-            options.task_folder_names,
-            options.planner_types,
-            options.scenes,
-        ):
-            output_path = _build_offline_output_path(
-                options,
-                task_folder_name=task_folder_name,
-                planner_type=planner_type,
-                scene_name=scene_name,
-                case_name="_".join(options.cases),
-                instruction_name=None,
-            )
-            if options.skip_completed and _is_completed_offline_report(output_path):
-                logger.critical("Skip completed offline report: %s", output_path)
-                continue
-            command = [
-                os.environ.get("PYTHON", sys.executable),
-                str(offline_script_path),
-            ]
-            if options.base_config_path is not None:
-                command.extend(["--config", str(options.base_config_path)])
-            _append_flag(command, "--offline-command", "oracle-compare")
-            _append_flag(command, "--planner-type", planner_type)
-            _append_flag(command, "--task-folder-name", task_folder_name)
-            _append_flag(command, "--cases", options.cases)
-            _append_flag(command, "--scene", scene_name)
-            _append_flag(command, "--beam-width-values", options.beam_width_values)
-            _append_flag(command, "--beam-depth-values", options.beam_depth_values)
-            _append_flag(command, "--nav-graph-source", options.nav_graph_source)
-            _append_flag(command, "--gt-distribution", options.gt_distribution)
-            _append_flag(command, "--gt-seed", options.gt_seed)
-            _append_flag(command, "--init-prior-mean", options.init_prior_mean)
-            _append_flag(
-                command,
-                "--init-prior-variance",
-                options.init_prior_variance,
-            )
-            _append_flag(command, "--factor-alpha", options.factor_alpha)
-            _append_flag(
-                command,
-                "--bayesian-threshold-probability",
-                options.bayesian_threshold_probability,
-            )
-            _append_flag(
-                command,
-                "--experiment-name",
-                options.experiment_name or f"offline_oracle_{planner_type}",
-            )
-            _append_flag(
-                command,
-                "--log-path",
-                worker_log_dir
-                / f"offline_oracle_{_sanitize_token(task_folder_name)}_{planner_type}_{scene_name}.log",
-            )
-            _append_flag(command, "--output-path", output_path)
-            _append_flag(
-                command,
-                "--oracle-time-limit-seconds",
-                options.oracle_time_limit_seconds,
-            )
-            if options.disable_monitoring:
-                command.append("--disable-monitoring")
-            tasks.append(
-                BatchTask(
-                    name=f"offline-oracle:{task_folder_name}:{planner_type}:{scene_name}",
-                    command=command,
-                    log_path=worker_log_dir
-                    / f"offline_oracle_{_sanitize_token(task_folder_name)}_{planner_type}_{scene_name}.log",
-                    metadata={
-                        "mode": "offline",
-                        "task_folder": task_folder_name,
-                        "command": "oracle-compare",
-                        "planner": planner_type,
-                        "scene": scene_name,
-                        "cases": ",".join(options.cases),
-                    },
-                    max_retries=1,
-                    timeout_seconds=options.timeout_seconds,
-                    cwd=PROJECT_ROOT,
-                )
-            )
-        return tasks
-
-    for task_folder_name, planner_type, scene_name, case_name in product(
+    for task_folder_name, approach, ablation_config, init_prior_config, scene_name, case_name in product(
         options.task_folder_names,
-        options.planner_types,
+        options.approaches,
+        options.ablation_configs,
+        options.init_prior_configs,
         options.scenes,
         options.cases,
     ):
@@ -1116,15 +1163,23 @@ def build_offline_tasks(
             offline_config = _make_offline_config(
                 options,
                 task_folder_name=task_folder_name,
-                planner_type=planner_type,
+                approach=approach,
+                ablation_config=ablation_config,
+                init_prior_config=init_prior_config,
                 scene_name=scene_name,
                 case_name=case_name,
             )
-            instruction_names = resolve_instructions(offline_config, case_name)
+            instruction_names = (
+                resolve_instructions(offline_config, case_name)
+                if approach != "oracle"
+                else list(offline_config.instructions)
+                or resolve_instructions(offline_config, case_name)
+            )
         except FileNotFoundError as exc:
             logger.warning(
-                "Skipping offline task discovery for folder='%s', case='%s', scene='%s': %s",
+                "Skipping offline task discovery for folder='%s', approach='%s', case='%s', scene='%s': %s",
                 task_folder_name,
+                approach,
                 case_name,
                 scene_name,
                 exc,
@@ -1134,7 +1189,9 @@ def build_offline_tasks(
             output_path = _build_offline_output_path(
                 options,
                 task_folder_name=task_folder_name,
-                planner_type=planner_type,
+                approach=approach,
+                ablation_config=ablation_config,
+                init_prior_config=init_prior_config,
                 scene_name=scene_name,
                 case_name=case_name,
                 instruction_name=instruction_name,
@@ -1143,35 +1200,32 @@ def build_offline_tasks(
                 logger.critical("Skip completed offline report: %s", output_path)
                 continue
             command = [os.environ.get("PYTHON", sys.executable), str(offline_script_path)]
-            if options.base_config_path is not None:
-                command.extend(["--config", str(options.base_config_path)])
-            _append_flag(command, "--offline-command", "run")
-            _append_flag(command, "--planner-type", planner_type)
+            _append_flag(command, "--approach", approach)
+            _append_flag(command, "--ablation-config", ablation_config)
+            _append_flag(command, "--init-prior-config", init_prior_config)
             _append_flag(command, "--task-folder-name", task_folder_name)
             _append_flag(command, "--case", case_name)
             _append_flag(command, "--scene", scene_name)
             _append_flag(command, "--instruction", instruction_name)
-            _append_flag(command, "--beam-width-values", options.beam_width_values)
-            _append_flag(command, "--beam-depth-values", options.beam_depth_values)
+            _append_flag(
+                command,
+                "--beam-bound",
+                [f"{width},{depth}" for width, depth in options.beam_bound],
+            )
             _append_flag(command, "--nav-graph-source", options.nav_graph_source)
+            _append_flag(
+                command,
+                "--oracle-reference-dir",
+                str(options.oracle_reference_dir),
+            )
             _append_flag(command, "--gt-distribution", options.gt_distribution)
             _append_flag(command, "--gt-seed", options.gt_seed)
-            _append_flag(command, "--init-prior-mean", options.init_prior_mean)
-            _append_flag(
-                command,
-                "--init-prior-variance",
-                options.init_prior_variance,
-            )
             _append_flag(command, "--factor-alpha", options.factor_alpha)
-            _append_flag(
-                command,
-                "--bayesian-threshold-probability",
-                options.bayesian_threshold_probability,
-            )
+            _append_flag(command, "--eta", options.eta)
             _append_flag(
                 command,
                 "--experiment-name",
-                options.experiment_name or f"offline_batch_{planner_type}",
+                options.experiment_name or f"offline_batch_{approach}",
             )
             _append_flag(
                 command,
@@ -1179,34 +1233,41 @@ def build_offline_tasks(
                 worker_log_dir
                 / (
                     f"offline_run_{_sanitize_token(task_folder_name)}_"
-                    f"{planner_type}_{case_name}_{scene_name}_"
+                    f"{_sanitize_token(approach)}_{_sanitize_token(ablation_config)}_"
+                    f"{_sanitize_token(init_prior_config)}_{case_name}_{scene_name}_"
                     f"{Path(instruction_name).stem}.log"
                 ),
             )
             _append_flag(command, "--output-path", output_path)
-            if options.disable_monitoring:
-                command.append("--disable-monitoring")
+            _append_flag(
+                command,
+                "--oracle-time-limit-seconds",
+                options.oracle_time_limit_seconds,
+            )
             tasks.append(
                 BatchTask(
                     name=(
-                        f"offline-run:{task_folder_name}:{planner_type}:"
-                        f"{case_name}:{instruction_name}"
+                        f"offline-run:{task_folder_name}:{approach}:{ablation_config}:"
+                        f"{init_prior_config}:{case_name}:{instruction_name}"
                     ),
                     command=command,
                     log_path=worker_log_dir
                     / (
                         f"offline_run_{_sanitize_token(task_folder_name)}_"
-                        f"{planner_type}_{case_name}_{scene_name}_"
+                        f"{_sanitize_token(approach)}_{_sanitize_token(ablation_config)}_"
+                        f"{_sanitize_token(init_prior_config)}_{case_name}_{scene_name}_"
                         f"{Path(instruction_name).stem}.log"
                     ),
                     metadata={
                         "mode": "offline",
                         "task_folder": task_folder_name,
-                        "command": "run",
-                        "planner": planner_type,
+                        "approach": approach,
+                        "ablation_config": ablation_config,
+                        "init_prior_config": init_prior_config,
                         "case": case_name,
                         "scene": scene_name,
                         "instruction": instruction_name,
+                        "output_path": str(output_path),
                     },
                     max_retries=1,
                     timeout_seconds=options.timeout_seconds,
@@ -1214,6 +1275,110 @@ def build_offline_tasks(
                 )
             )
     logger.critical("Found %s offline tasks to run.", len(tasks))
+    return tasks
+
+
+def build_oracle_reference_tasks(
+    config: Mapping[str, Any],
+    *,
+    run_timestamp: str,
+    logger: logging.Logger,
+) -> list[BatchTask]:
+    """Build subprocess tasks for standalone oracle reference generation."""
+
+    options = _build_oracle_reference_options(config)
+    oracle_script_path = PROJECT_ROOT / "scripts/offline_oracle_reference.py"
+    worker_log_dir = LOG_PATH / f"{run_timestamp}-worker_logs"
+    tasks: list[BatchTask] = []
+    for task_folder_name, scene_name, case_name in product(
+        options.task_folder_names,
+        options.scenes,
+        options.cases,
+    ):
+        try:
+            discovery_config = _make_oracle_reference_discovery_config(
+                options,
+                task_folder_name=task_folder_name,
+                scene_name=scene_name,
+                case_name=case_name,
+            )
+            instruction_names = resolve_instructions(discovery_config, case_name)
+        except FileNotFoundError as exc:
+            logger.warning(
+                "Skipping oracle reference discovery for folder='%s', case='%s', scene='%s': %s",
+                task_folder_name,
+                case_name,
+                scene_name,
+                exc,
+            )
+            continue
+        for instruction_name in instruction_names:
+            reference_path = build_oracle_reference_output_path(
+                options.oracle_reference_dir,
+                task_folder_name=task_folder_name,
+                scene_name=scene_name,
+                case_name=case_name,
+                instruction_name=instruction_name,
+            )
+            if options.skip_completed and _is_completed_offline_report(reference_path):
+                logger.critical("Skip completed oracle reference: %s", reference_path)
+                continue
+            command = [os.environ.get("PYTHON", sys.executable), str(oracle_script_path)]
+            _append_flag(command, "--task-folder-name", task_folder_name)
+            _append_flag(command, "--case", case_name)
+            _append_flag(command, "--scene", scene_name)
+            _append_flag(command, "--instruction", instruction_name)
+            _append_flag(command, "--nav-graph-source", options.nav_graph_source)
+            _append_flag(
+                command,
+                "--oracle-reference-dir",
+                str(options.oracle_reference_dir),
+            )
+            _append_flag(
+                command,
+                "--experiment-name",
+                options.experiment_name or "offline_oracle_reference",
+            )
+            _append_flag(
+                command,
+                "--output-path",
+                worker_log_dir
+                / (
+                    f"offline_oracle_reference_{_sanitize_token(task_folder_name)}_"
+                    f"{case_name}_{scene_name}_{Path(instruction_name).stem}.json"
+                ),
+            )
+            _append_flag(
+                command,
+                "--oracle-time-limit-seconds",
+                options.oracle_time_limit_seconds,
+            )
+            tasks.append(
+                BatchTask(
+                    name=(
+                        f"offline-oracle-reference:{task_folder_name}:"
+                        f"{case_name}:{instruction_name}"
+                    ),
+                    command=command,
+                    log_path=worker_log_dir
+                    / (
+                        f"offline_oracle_reference_{_sanitize_token(task_folder_name)}_"
+                        f"{case_name}_{scene_name}_{Path(instruction_name).stem}.log"
+                    ),
+                    metadata={
+                        "mode": "offline_oracle_reference",
+                        "task_folder": task_folder_name,
+                        "case": case_name,
+                        "scene": scene_name,
+                        "instruction": instruction_name,
+                        "output_path": str(reference_path),
+                    },
+                    max_retries=1,
+                    timeout_seconds=options.timeout_seconds,
+                    cwd=PROJECT_ROOT,
+                )
+            )
+    logger.critical("Found %s oracle reference tasks to run.", len(tasks))
     return tasks
 
 
