@@ -14,10 +14,12 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.experiments.batch import (  # noqa: E402
+    build_oracle_reference_batch_summary_path,
     build_oracle_reference_tasks,
     execute_batch_tasks,
     generate_run_timestamp,
     log_dry_run,
+    write_batch_summary,
 )
 from src.utils.common import create_module_logger  # noqa: E402
 
@@ -94,6 +96,17 @@ def main() -> None:
         return
     max_workers = int(raw_config.get("max_workers") or 4)
     execute_batch_tasks(tasks, max_workers=max_workers, logger=logger)
+    summary_path = build_oracle_reference_batch_summary_path(
+        raw_config,
+        run_timestamp=run_timestamp,
+    )
+    write_batch_summary(
+        tasks,
+        summary_path=summary_path,
+        run_timestamp=run_timestamp,
+        mode="offline_oracle_reference",
+    )
+    logger.critical("Saved oracle reference batch summary: %s", summary_path)
 
 
 if __name__ == "__main__":

@@ -16,11 +16,13 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.experiments.batch import (
     BatchTask,
+    build_offline_batch_summary_path,
     build_ai2thor_tasks,
     build_offline_tasks,
     execute_batch_tasks,
     generate_run_timestamp,
     log_dry_run,
+    write_batch_summary,
 )
 from src.utils.common import create_module_logger
 
@@ -208,6 +210,21 @@ def main() -> None:
         or 4
     )
     execute_batch_tasks(tasks, max_workers=max_workers, logger=logger)
+    if mode in {"offline", "both"} and offline_config is not None:
+        offline_tasks = [
+            task for task in tasks if task.metadata.get("mode") == "offline"
+        ]
+        summary_path = build_offline_batch_summary_path(
+            offline_config,
+            run_timestamp=run_timestamp,
+        )
+        write_batch_summary(
+            offline_tasks,
+            summary_path=summary_path,
+            run_timestamp=run_timestamp,
+            mode=mode,
+        )
+        logger.critical("Saved offline batch summary: %s", summary_path)
 
 
 if __name__ == "__main__":
