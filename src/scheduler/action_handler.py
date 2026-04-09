@@ -202,7 +202,7 @@ class ActionHandler:
         sim_state = copy.deepcopy(initial_node.state)
         current_scene_positions = sim_state.scene_positions
         current_held_object = sim_state.held_object
-        new_held_object = None
+        new_held_object = sim_state.held_object
         current_cumulative_time = 0.0
         for i, action_str in enumerate(primitive_actions):
             # log.debug(

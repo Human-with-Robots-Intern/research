@@ -910,15 +910,15 @@ class Scheduler:
         *,
         reserve_blocked_candidate: bool = False,
     ) -> Candidate:
-        """Create the remaining interaction candidate after pre-navigation."""
+        """Create the remaining interaction candidate after pre-navigation.
+
+        The original primitive_actions are preserved intact so that the subtask
+        object recorded in CompletedEntry is consistent with EDF/CPM baselines.
+        Re-simulation from the already-navigated position yields nav ≈ 0, so
+        timing is unaffected.
+        """
 
         remaining_subtask = copy.deepcopy(candidate.subtask)
-        remaining_subtask.execution.primitive_actions = (
-            remaining_subtask.execution.primitive_actions[1:]
-            if remaining_subtask.execution
-            and remaining_subtask.execution.primitive_actions
-            else []
-        )
         if reserve_blocked_candidate:
             setattr(remaining_subtask, "pre_navigation_reserved", True)
         return Candidate(
