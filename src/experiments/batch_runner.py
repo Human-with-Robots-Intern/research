@@ -179,7 +179,7 @@ class OfflineBatchOptions:
     gt_distribution: str | None = None
     gt_seed: int | None = None
     factor_alpha: float | None = None
-    eta: float | None = None
+    etas: list[float | None] = field(default_factory=lambda: [None])
     oracle_time_limit_seconds: float | None = None
     skip_completed: bool = True
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
@@ -961,6 +961,18 @@ def build_ai2thor_tasks(
     return tasks_to_run
 
 
+def _normalize_etas(config: Mapping[str, Any]) -> list[float | None]:
+    """Return the list of eta values to sweep from the YAML config.
+
+    Supports both the legacy scalar ``eta`` key and the new list ``etas`` key.
+    """
+    if "etas" in config:
+        raw = config["etas"]
+        return [float(e) if e is not None else None for e in raw]
+    raw = config.get("eta")
+    return [float(raw) if raw is not None else None]
+
+
 def _build_offline_options(config: Mapping[str, Any]) -> OfflineBatchOptions:
     """Normalize offline YAML config into a typed options object."""
 
@@ -1029,7 +1041,7 @@ def _build_offline_options(config: Mapping[str, Any]) -> OfflineBatchOptions:
         gt_distribution=config.get("gt_distribution"),
         gt_seed=config.get("gt_seed"),
         factor_alpha=config.get("factor_alpha"),
-        eta=config.get("eta"),
+        etas=_normalize_etas(config),
         oracle_time_limit_seconds=config.get(
             "oracle_time_limit_seconds", DEFAULT_ORACLE_TIMEOUT_SECONDS
         ),
@@ -1103,6 +1115,7 @@ def _make_offline_config(
     scene_name: str,
     case_name: str,
     beam_bound: tuple[int, int],
+    eta: float | None = None,
 ) -> OfflineExperimentConfig:
     """Build an effective offline experiment config for task discovery."""
 
@@ -1137,8 +1150,8 @@ def _make_offline_config(
         payload["gt_seed"] = options.gt_seed
     if options.factor_alpha is not None:
         payload["factor_alpha"] = options.factor_alpha
-    if options.eta is not None:
-        payload["eta"] = options.eta
+    if eta is not None:
+        payload["eta"] = eta
     return OfflineExperimentConfig(**payload)
 
 
@@ -1177,6 +1190,7 @@ def _build_offline_variant_name(
     *,
     beam_width: int,
     beam_depth: int,
+    eta: float | None = None,
 ) -> str:
     """Build the offline single-run filename stem for one variant."""
 
@@ -1185,7 +1199,10 @@ def _build_offline_variant_name(
         f"{_sanitize_token(init_prior_config)}"
     )
     if approach == "bayesian":
-        return f"{base_name}__w{beam_width}_d{beam_depth}"
+        name = f"{base_name}__w{beam_width}_d{beam_depth}"
+        if eta is not None:
+            name += f"__eta{eta}"
+        return name
     return base_name
 
 
@@ -1197,6 +1214,7 @@ def _build_offline_worker_log_name(
     init_prior_config: str,
     beam_width: int,
     beam_depth: int,
+    eta: float | None = None,
     case_name: str,
     scene_name: str,
     instruction_name: str,
@@ -1209,6 +1227,7 @@ def _build_offline_worker_log_name(
         init_prior_config,
         beam_width=beam_width,
         beam_depth=beam_depth,
+        eta=eta,
     )
     return (
         f"offline_run_{_sanitize_token(task_folder_name)}_{variant_name}_"
@@ -1224,6 +1243,7 @@ def _build_offline_task_name(
     init_prior_config: str,
     beam_width: int,
     beam_depth: int,
+    eta: float | None = None,
     case_name: str,
     instruction_name: str,
 ) -> str:
@@ -1235,6 +1255,8 @@ def _build_offline_task_name(
     )
     if approach == "bayesian":
         base_name = f"{base_name}:w{beam_width}:d{beam_depth}"
+        if eta is not None:
+            base_name = f"{base_name}:eta{eta}"
     return f"{base_name}:{case_name}:{instruction_name}"
 
 
@@ -1247,6 +1269,7 @@ def _build_offline_output_path(
     init_prior_config: str,
     beam_width: int,
     beam_depth: int,
+    eta: float | None = None,
     scene_name: str,
     case_name: str | None,
     instruction_name: str | None,
@@ -1271,6 +1294,7 @@ def _build_offline_output_path(
             init_prior_config,
             beam_width=beam_width,
             beam_depth=beam_depth,
+            eta=eta,
         )
         + ".json"
     )
@@ -1349,108 +1373,119 @@ def build_offline_tasks(
             options.beam_bound,
         )
         for ablation_config in effective_ablation_configs:
-            for beam_bound in effective_beam_bounds:
-                try:
-                    offline_config = _make_offline_config(
-                        options,
-                        task_folder_name=task_folder_name,
-                        approach=approach,
-                        ablation_config=ablation_config,
-                        init_prior_config=init_prior_config,
-                        scene_name=scene_name,
-                        case_name=case_name,
-                        beam_bound=beam_bound,
-                    )
-                    instruction_names = (
-                        resolve_instructions(offline_config, case_name)
-                        if approach != "oracle"
-                        else list(offline_config.instructions)
-                        or resolve_instructions(offline_config, case_name)
-                    )
-                except FileNotFoundError as exc:
-                    logger.warning(
-                        "Skipping offline task discovery for folder='%s', approach='%s', case='%s', scene='%s': %s",
-                        task_folder_name,
-                        approach,
-                        case_name,
-                        scene_name,
-                        exc,
-                    )
-                    continue
-                for instruction_name in instruction_names:
-                    output_path = _build_offline_output_path(
-                        options,
-                        task_folder_name=task_folder_name,
-                        approach=approach,
-                        ablation_config=ablation_config,
-                        init_prior_config=init_prior_config,
-                        beam_width=beam_bound[0],
-                        beam_depth=beam_bound[1],
-                        scene_name=scene_name,
-                        case_name=case_name,
-                        instruction_name=instruction_name,
-                    )
-                    if options.skip_completed and _is_completed_offline_report(output_path):
-                        logger.critical("Skip completed offline report: %s", output_path)
+            # eta sweep applies only to bayesian DEFAULT ablation; all others use None.
+            effective_etas: list[float | None] = (
+                options.etas
+                if approach == "bayesian" and ablation_config == "DEFAULT"
+                else [None]
+            )
+            for eta in effective_etas:
+                for beam_bound in effective_beam_bounds:
+                    try:
+                        offline_config = _make_offline_config(
+                            options,
+                            task_folder_name=task_folder_name,
+                            approach=approach,
+                            ablation_config=ablation_config,
+                            init_prior_config=init_prior_config,
+                            scene_name=scene_name,
+                            case_name=case_name,
+                            beam_bound=beam_bound,
+                            eta=eta,
+                        )
+                        instruction_names = (
+                            resolve_instructions(offline_config, case_name)
+                            if approach != "oracle"
+                            else list(offline_config.instructions)
+                            or resolve_instructions(offline_config, case_name)
+                        )
+                    except FileNotFoundError as exc:
+                        logger.warning(
+                            "Skipping offline task discovery for folder='%s', approach='%s', case='%s', scene='%s': %s",
+                            task_folder_name,
+                            approach,
+                            case_name,
+                            scene_name,
+                            exc,
+                        )
                         continue
-                    log_path = worker_log_dir / _build_offline_worker_log_name(
-                        task_folder_name=task_folder_name,
-                        approach=approach,
-                        ablation_config=ablation_config,
-                        init_prior_config=init_prior_config,
-                        beam_width=beam_bound[0],
-                        beam_depth=beam_bound[1],
-                        case_name=case_name,
-                        scene_name=scene_name,
-                        instruction_name=instruction_name,
-                    )
-                    command = [os.environ.get("PYTHON", sys.executable), str(offline_script_path)]
-                    _append_flag(command, "--approach", approach)
-                    _append_flag(command, "--ablation-config", ablation_config)
-                    _append_flag(command, "--init-prior-config", init_prior_config)
-                    _append_flag(command, "--task-folder-name", task_folder_name)
-                    _append_flag(command, "--case", case_name)
-                    _append_flag(command, "--scene", scene_name)
-                    _append_flag(command, "--instruction", instruction_name)
-                    _append_flag(
-                        command,
-                        "--beam-bound",
-                        [f"{beam_bound[0]},{beam_bound[1]}"],
-                    )
-                    _append_flag(command, "--nav-graph-source", options.nav_graph_source)
-                    _append_flag(
-                        command,
-                        "--oracle-reference-dir",
-                        str(options.oracle_reference_dir),
-                    )
-                    _append_flag(command, "--gt-distribution", options.gt_distribution)
-                    _append_flag(command, "--gt-seed", options.gt_seed)
-                    _append_flag(command, "--factor-alpha", options.factor_alpha)
-                    _append_flag(command, "--eta", options.eta)
-                    _append_flag(
-                        command,
-                        "--experiment-name",
-                        options.experiment_name or f"offline_batch_{approach}",
-                    )
-                    _append_flag(command, "--log-path", log_path)
-                    _append_flag(command, "--output-path", output_path)
-                    _append_flag(
-                        command,
-                        "--oracle-time-limit-seconds",
-                        options.oracle_time_limit_seconds,
-                    )
-                    tasks.append(
-                        BatchTask(
-                            name=_build_offline_task_name(
-                                task_folder_name=task_folder_name,
-                                approach=approach,
-                                ablation_config=ablation_config,
-                                init_prior_config=init_prior_config,
-                                beam_width=beam_bound[0],
-                                beam_depth=beam_bound[1],
-                                case_name=case_name,
-                                instruction_name=instruction_name,
-                            ),
+                    for instruction_name in instruction_names:
+                        output_path = _build_offline_output_path(
+                            options,
+                            task_folder_name=task_folder_name,
+                            approach=approach,
+                            ablation_config=ablation_config,
+                            init_prior_config=init_prior_config,
+                            beam_width=beam_bound[0],
+                            beam_depth=beam_bound[1],
+                            eta=eta,
+                            scene_name=scene_name,
+                            case_name=case_name,
+                            instruction_name=instruction_name,
+                        )
+                        if options.skip_completed and _is_completed_offline_report(output_path):
+                            logger.critical("Skip completed offline report: %s", output_path)
+                            continue
+                        log_path = worker_log_dir / _build_offline_worker_log_name(
+                            task_folder_name=task_folder_name,
+                            approach=approach,
+                            ablation_config=ablation_config,
+                            init_prior_config=init_prior_config,
+                            beam_width=beam_bound[0],
+                            beam_depth=beam_bound[1],
+                            eta=eta,
+                            case_name=case_name,
+                            scene_name=scene_name,
+                            instruction_name=instruction_name,
+                        )
+                        command = [os.environ.get("PYTHON", sys.executable), str(offline_script_path)]
+                        _append_flag(command, "--approach", approach)
+                        _append_flag(command, "--ablation-config", ablation_config)
+                        _append_flag(command, "--init-prior-config", init_prior_config)
+                        _append_flag(command, "--task-folder-name", task_folder_name)
+                        _append_flag(command, "--case", case_name)
+                        _append_flag(command, "--scene", scene_name)
+                        _append_flag(command, "--instruction", instruction_name)
+                        _append_flag(
+                            command,
+                            "--beam-bound",
+                            [f"{beam_bound[0]},{beam_bound[1]}"],
+                        )
+                        _append_flag(command, "--nav-graph-source", options.nav_graph_source)
+                        _append_flag(
+                            command,
+                            "--oracle-reference-dir",
+                            str(options.oracle_reference_dir),
+                        )
+                        _append_flag(command, "--gt-distribution", options.gt_distribution)
+                        _append_flag(command, "--gt-seed", options.gt_seed)
+                        _append_flag(command, "--factor-alpha", options.factor_alpha)
+                        _append_flag(command, "--eta", eta)
+                        _append_flag(
+                            command,
+                            "--experiment-name",
+                            options.experiment_name or f"offline_batch_{approach}",
+                        )
+                        _append_flag(command, "--log-path", log_path)
+                        _append_flag(command, "--output-path", output_path)
+                        _append_flag(
+                            command,
+                            "--oracle-time-limit-seconds",
+                            options.oracle_time_limit_seconds,
+                        )
+                        tasks.append(
+                            BatchTask(
+                                name=_build_offline_task_name(
+                                    task_folder_name=task_folder_name,
+                                    approach=approach,
+                                    ablation_config=ablation_config,
+                                    init_prior_config=init_prior_config,
+                                    beam_width=beam_bound[0],
+                                    beam_depth=beam_bound[1],
+                                    eta=eta,
+                                    case_name=case_name,
+                                    instruction_name=instruction_name,
+                                ),
                             command=command,
                             log_path=log_path,
                             metadata={

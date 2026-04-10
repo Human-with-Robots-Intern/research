@@ -49,7 +49,7 @@ def test_build_offline_options_reads_run_all_style_keys() -> None:
     assert options.ablation_configs == ["DEFAULT", "NONE_MONITORING"]
     assert options.init_prior_configs == ["OVER_ESTIMATE_110"]
     assert options.beam_bound == [(1, 1), (5, 5)]
-    assert options.eta == 0.25
+    assert options.etas == [0.25]
     assert options.nav_graph_source == "ai2thor_controller"
     assert options.oracle_time_limit_seconds == 300
 
@@ -103,8 +103,8 @@ def test_build_offline_tasks_uses_new_cli_surface(
     assert "--beam-bound" in command
     beam_bound_index = command.index("--beam-bound")
     assert command[beam_bound_index + 1 : beam_bound_index + 2] == ["1,1"]
-    assert "--eta" in command
-    assert "0.4" in command
+    # NONE_MONITORING ablation: eta sweep does not apply, so --eta is not emitted
+    assert "--eta" not in command
     assert "--nav-graph-source" in command
     assert "ai2thor_controller" in command
     assert "--oracle-time-limit-seconds" in command
