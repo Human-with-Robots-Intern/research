@@ -1330,7 +1330,7 @@ def build_offline_tasks(
     """Build subprocess tasks for offline experiment batches."""
 
     options = _build_offline_options(config)
-    offline_script_path = PROJECT_ROOT / "scripts/offline_experiment.py"
+    offline_script_path = PROJECT_ROOT / "scripts/offline/offline_experiment.py"
     worker_log_dir = LOG_PATH / f"{run_timestamp}-worker_logs"
     tasks: list[BatchTask] = []
     for task_folder_name, approach, init_prior_config, scene_name, case_name in product(

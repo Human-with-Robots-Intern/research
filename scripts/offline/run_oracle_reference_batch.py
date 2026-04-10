@@ -9,7 +9,8 @@ from typing import Any
 
 import yaml
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# Repo root (contains src/); parents[0]=offline, parents[1]=scripts, parents[2]=root
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -34,7 +35,12 @@ def parse_args() -> argparse.Namespace:
         "--config",
         type=str,
         default="oracle_reference_config.yaml",
-        help="YAML config path. Relative paths are resolved from scripts/.",
+        help=(
+            "YAML config path. "
+            "repo-relative if starting with scripts/; "
+            "else under scripts/ for multi-segment paths; "
+            "else next to this script (scripts/offline/)."
+        ),
     )
     parser.add_argument(
         "--dry-run",
@@ -50,12 +56,20 @@ def parse_args() -> argparse.Namespace:
 
 
 def _resolve_config_path(config_path: str) -> Path:
-    """Resolve a config path relative to the scripts directory when needed."""
+    """Resolve a config path for CLI use (aligned with ``run_batch.py``)."""
 
     candidate = Path(config_path).expanduser()
     if candidate.is_absolute():
         return candidate
-    return Path(__file__).parent / candidate
+    offline_dir = Path(__file__).resolve().parent
+    scripts_dir = offline_dir.parent
+    project_root = scripts_dir.parent
+    parts = candidate.parts
+    if parts and parts[0] == "scripts":
+        return project_root / candidate
+    if len(parts) == 1:
+        return offline_dir / candidate
+    return scripts_dir / candidate
 
 
 def load_config(config_path: str) -> dict[str, Any]:
