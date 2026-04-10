@@ -20,7 +20,11 @@ from src.models.task import Subtask
 from src.scheduler.action_handler import ActionHandler
 from src.utils.common import create_module_logger
 from src.utils.config import EPSILON
-from src.utils.config.constants import MONITORING_DURATION, TIMING_TOLERANCE_ABS
+from src.utils.config.constants import (
+    CONSTRAINT_MERGE_THRESHOLD,
+    MONITORING_DURATION,
+    TIMING_TOLERANCE_ABS,
+)
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
@@ -364,7 +368,7 @@ class ConstraintHandler:
                 latest_critical_time = max(critical_times)
                 if (
                     abs(earliest_critical_time - latest_critical_time)
-                    > TIMING_TOLERANCE_ABS // 2
+                    > CONSTRAINT_MERGE_THRESHOLD
                 ):
                     # Must satisfy all critical intervals: pick the latest (most restrictive) time
                     log.debug(

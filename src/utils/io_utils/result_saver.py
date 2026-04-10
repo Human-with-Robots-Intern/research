@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 from src.utils.common.logger import create_module_logger
 from src.utils.config import constants
 from src.utils.config.constants import (
+    CONSECUTIVE_TASK_WAIT_TOLERANCE,
     EPSILON,
     RESULT_PATH,
     TIMING_TOLERANCE_ABS,
@@ -65,6 +66,7 @@ def calculate_timing_success_rate(
     constraints: DiGraph,
     result_schedule: List[CompletedEntry],
     ground_truth_overrides: Optional[Mapping[str, float]] = None,
+    tolerance_abs: float = TIMING_TOLERANCE_ABS,
 ) -> Tuple[float | None, float | None, Dict[str, Any]]:
     """
     Calculates the success rate of timing constraints based on simulation and schedule results.
@@ -127,13 +129,20 @@ def calculate_timing_success_rate(
             succ_entry.sim_nav_time if succ_entry.sim_nav_time is not None else 0.0
         )
         ratio_allowance = interval * TIMING_TOLERANCE_RATIO
-        tolerance = max(5, min(TIMING_TOLERANCE_ABS, ratio_allowance))
+        tolerance = max(5, min(tolerance_abs, ratio_allowance))
 
         actual_diff_sim = (succ_start_time_sim + sim_nav_time) - pred_end_time_sim
 
         if is_critical:
-            if abs(interval - actual_diff_sim) <= tolerance:
-                succeeded_timing_constraints_sim_cnt += 1
+            if interval < EPSILON:
+                # (0, True): check that successor nav started immediately after pred.
+                # Nav time itself is physical; only wait_time (before nav starts) matters.
+                wait_time_sim = succ_start_time_sim - pred_end_time_sim
+                if abs(wait_time_sim) <= CONSECUTIVE_TASK_WAIT_TOLERANCE:
+                    succeeded_timing_constraints_sim_cnt += 1
+            else:
+                if abs(interval - actual_diff_sim) <= tolerance:
+                    succeeded_timing_constraints_sim_cnt += 1
         else:  # Non-critical
             if (interval - actual_diff_sim) <= tolerance:
                 succeeded_timing_constraints_sim_cnt += 1
@@ -155,9 +164,10 @@ def calculate_timing_success_rate(
         if is_critical:
             # For (0, True) constraint, tasks must be consecutive, meaning the successor's
             # navigation starts immediately after the predecessor finishes. The "wait time" should be near zero.
+            # Nav time is physically inevitable; only the scheduler wait before nav is evaluated.
             if interval < EPSILON:
                 wait_time = succ_start_time_sched - pred_end_time_sched
-                if abs(wait_time) <= tolerance:
+                if abs(wait_time) <= CONSECUTIVE_TASK_WAIT_TOLERANCE:
                     succeeded_timing_constraints_sched_cnt += 1
                     sched_constraint_met = True
             # For other critical constraints, the total gap must match the interval.
@@ -208,9 +218,13 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             "start_time_scheduled": round(entry.schedule_start_time, 2),
             "end_time_scheduled": round(entry.schedule_end_time, 2),
             "execution_status": (
-                entry.execution_status
-                if isinstance(entry.execution_status, bool)
-                else str(entry.execution_status.name)
+                "SUCCESS"
+                if entry.execution_status is True
+                else (
+                    "FAILURE"
+                    if entry.execution_status is False
+                    else str(entry.execution_status.name)
+                )
             ),
         }
         if hasattr(entry, "primitive_action_log"):
@@ -223,6 +237,53 @@ def serialize_completed_entries(result_schedule: List[CompletedEntry]) -> List[d
             serialized_entry["monitored_subtask"] = monitored_subtask
         serialized_entries.append(serialized_entry)
     return serialized_entries
+
+
+def build_hybrid_single_run_payload(
+    *,
+    meta_data: Mapping[str, Any],
+    saved_time: str,
+    approach: str,
+    scene_name: str,
+    plans: List[dict[str, Any]],
+    computation_time: float | None,
+    scheduler_makespan: float | None,
+    timing_success_rate_sched: float | None,
+    detail_log: Mapping[str, Any],
+    extra_fields: Optional[Mapping[str, Any]] = None,
+) -> dict[str, Any]:
+    """Build a legacy-style single-run payload with offline extensions.
+
+    Args:
+        meta_data: Execution metadata for the run.
+        saved_time: Human-readable save timestamp.
+        approach: Planner label written to the legacy top-level field.
+        scene_name: Scene identifier.
+        plans: Serialized plan entries.
+        computation_time: Total wall-clock planning time.
+        scheduler_makespan: Final scheduled makespan.
+        timing_success_rate_sched: Scheduled timing-success ratio.
+        detail_log: Timing constraint detail log.
+        extra_fields: Additional offline-specific fields to merge into the payload.
+
+    Returns:
+        Hybrid single-run payload.
+    """
+
+    payload: dict[str, Any] = {
+        "meta_data": dict(meta_data),
+        "saved_time": saved_time,
+        "approach": approach,
+        "scene_name": scene_name,
+        "plans": list(plans),
+        "computation_time": computation_time,
+        "scheduler_makespan": scheduler_makespan,
+        "timing_success_rate_sched": timing_success_rate_sched,
+        "detail_log": dict(detail_log),
+    }
+    if extra_fields:
+        payload.update(dict(extra_fields))
+    return payload
 
 
 def _extract_object_types(objects: Any) -> set[str]:

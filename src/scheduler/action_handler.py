@@ -8,6 +8,7 @@ from ithor.utils.math_utils import adjust_if_unreachable
 from src.models.dataclass import ActionResult, ActionSimulationLog, SimulationNode
 from src.utils.common import create_module_logger
 from src.utils.config.constants import (
+    ACTION_SPLIT_PRECISION,
     EPSILON,
     GRASP_ACTION_DURATION,
     MONITORING_DURATION,
@@ -202,7 +203,7 @@ class ActionHandler:
         sim_state = copy.deepcopy(initial_node.state)
         current_scene_positions = sim_state.scene_positions
         current_held_object = sim_state.held_object
-        new_held_object = None
+        new_held_object = sim_state.held_object
         current_cumulative_time = 0.0
         for i, action_str in enumerate(primitive_actions):
             # log.debug(
@@ -706,7 +707,7 @@ class ActionHandler:
                 ].cumulative_time
 
                 # TIMING_TOLERANCE 검사: 비율과 절대 허용폭을 함께 고려
-                allowable_deviation = TIMING_TOLERANCE_ABS
+                allowable_deviation = ACTION_SPLIT_PRECISION
 
                 if (
                     abs(duration_if_place_included - target_cutoff_time)
@@ -756,7 +757,7 @@ class ActionHandler:
                 split_successful = True
                 # 추가적으로, pre_log의 최종 완료 시간이 target_cutoff_time 대비 허용 오차 창을 만족하는지 확인
                 final_pre_log_duration = pre_log.results[-1].cumulative_time
-                allowable_deviation = TIMING_TOLERANCE_ABS
+                allowable_deviation = ACTION_SPLIT_PRECISION
                 if (
                     abs(final_pre_log_duration - target_cutoff_time)
                     > allowable_deviation + EPSILON

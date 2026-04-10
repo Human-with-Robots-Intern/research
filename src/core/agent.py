@@ -165,7 +165,7 @@ class Agent:
             The unchanged state and a diagnostics payload for logging/results.
         """
 
-        from utils.task.constraints_util import get_critical_start_info
+        from src.utils.task.constraints_util import get_critical_start_info
 
         monitoring_target_sub_name = extract_monitoring_target_name(state.subtask.name)
         monitoring_target_obj_name = self._extract_monitoring_object_name(state)

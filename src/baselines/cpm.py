@@ -257,10 +257,10 @@ def update_state(
         subtask=next_subtask,
         completed_entries=new_completed,
         remaining_subtasks=new_remaining,
-        constraints=constraints,
+        constraints=current_state.constraints,
         current_time=current_state.current_time + subtask_duration,
         scene_positions=exec_info.scene_positions,
-        held_object=current_state.held_object,
+        held_object=exec_info.held_object,
         agent_location=current_state.agent_location,
     )
     return next_state
