@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from scripts.offline_oracle_reference import build_config, parse_args
+from scripts.offline.offline_oracle_reference import build_config, parse_args
 from src.experiments.offline_harness import ExperimentConfig, run_grid_experiment
 from src.experiments.offline_oracle_reference import (
     build_oracle_reference_output_path,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from scripts.offline_experiment import _build_run_config, parse_args
+from scripts.offline.offline_experiment import _build_run_config, parse_args
 from src.experiments.offline_harness import load_experiment_config
 
 
