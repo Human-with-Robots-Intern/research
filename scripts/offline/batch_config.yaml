@@ -87,5 +87,5 @@ nav_graph_source: "ai2thor_controller"
 oracle_time_limit_seconds: 300
 
 # Result settings
-output_dir: "assets/results/offline_batch"
+output_dir: "assets/results/offline_exp_result/offline_batch"
 oracle_reference_dir: "assets/results/offline_oracle_reference"
