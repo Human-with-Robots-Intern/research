@@ -180,6 +180,29 @@ python scripts/offline/offline_experiment.py compare \
     -   `--skip_oracle_violated`: oracle 자체 스케줄이 constraint를 위반한 instruction을 집계에서 제외합니다.
 -   **출력 경로**: `--base_dir` (또는 `--output_dir`) 아래에 저장됩니다.
 
+#### `offline_analysis_summary.json` 읽는 법
+
+집계 단위는 **approach × case**입니다. 같은 `case` 아래의 **모든 scene·instruction**이 평균에 포함됩니다 (per-instruction 값은 `offline_comparison_raw.json` 참고).
+
+-   **최상위 키 (approach_key)**: 배치 결과 파일 stem에서 유도됩니다.
+    -   `cpm`, `edf`: 파일명이 `cpm__DEFAULT__…`, `edf__DEFAULT__…` 형태일 때 각각 한 키.
+    -   Bayesian: `bayesian__{ablation}__{beam}` — 예) `bayesian__DEFAULT__w10_d10` (`bayesian__DEFAULT__CORRECT_ESTIMATE__w10_d10.json` → ablation + beam만 유지).
+-   **두 번째 키**: case 폴더명 — 예) `tasks_2_constraints_2`.
+-   **값(지표 객체)**: 아래 필드는 모두 해당 (approach, case) 셀에 대한 통계입니다.
+
+| 필드 | 의미 |
+|------|------|
+| `sr` | **완료율(%)**. `n`개 instruction 중 batch JSON의 `completed == true`인 비율 × 100. |
+| `tsr` | **평균 schedule TSR(%)**. instruction마다 `timing_success_rate_sched`(0~1)를 평균한 뒤 × 100. 정의는 `calculate_timing_success_rate`와 동일. |
+| `makespan` | **평균 planner makespan**(초). batch의 `scheduler_makespan`이 있는 instruction만 평균. |
+| `makespan_sr_1` | 완료된 instruction만 모아 같은 방식으로 평균한 makespan (실패·중단 run 제외). |
+| `makespan_gap` | instruction별 `(scheduler_makespan - oracle optimal_schedule_time)`의 평균(초). 양수면 oracle보다 길게 걸린 경우가 평균적으로 많음. |
+| `makespan_gap_sr_1` | 위 gap을 **완료된** instruction만으로 평균. |
+| `computation_time` | batch `computation_time`(초) 평균. |
+| `computation_time_gap` | instruction별 `(batch computation_time - oracle computation_time)` 평균(초). |
+
+`--skip_oracle_violated`를 켜면, oracle JSON의 `steps[].detail_log`에 `[False]`가 있는 instruction은 집계에서 빠집니다. Oracle이 제약을 어긴 채로 기록된 경우 `optimal_schedule_time`이 왜곡되어 gap이 부정확해질 수 있어 사용합니다.
+
 ### 7. Navigation Graph Cache
 
 -   `nav_graph_source: ai2thor_controller`를 사용하면 navigation graph를 `assets/cache/ai2thor_nav_graphs/<scene>.json`에 캐시합니다.

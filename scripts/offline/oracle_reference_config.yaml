@@ -30,7 +30,7 @@ cases:
   - "tasks_3_constraints_2"
 
 max_tasks: 10
-skip_completed: false
+skip_completed: true
 
 # Oracle reference settings
 nav_graph_source: "ai2thor_controller"
