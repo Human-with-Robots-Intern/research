@@ -859,8 +859,17 @@ def test_exact_oracle_orders_candidates_by_name() -> None:
     assert [c.subtask.name for c in ordered] == ["A Task", "M Task", "Z Task"]
 
 
-def test_exact_oracle_prunes_high_risk_nodes() -> None:
-    """Strict oracle should reject branches whose scheduler risk reaches 2."""
+def test_exact_oracle_does_not_prune_high_risk_nodes() -> None:
+    """Oracle must NOT prune branches by risk_level.
+
+    risk_level >= 2 was previously used to prune oracle branches but caused the
+    oracle to miss valid schedules (e.g. FloorPlan1/tasks_2_constraints_2 found
+    303s instead of the correct 253s optimum because the valid path had a
+    candidate with slack=-2.21s → risk=2, incorrectly pruned).
+
+    Correctness is enforced by _is_critical_deadline_violated and the
+    branch-and-bound makespan bound, not by risk_level.
+    """
 
     action_handler = ActionHandler(nav_graph={})
     constraint_handler = ConstraintHandler(action_handler)
@@ -885,7 +894,7 @@ def test_exact_oracle_prunes_high_risk_nodes() -> None:
     state = SchedulerState(
         subtask=subtask,
         completed_entries=[CompletedEntry(subtask=subtask, schedule_end_time=10.0)],
-        remaining_subtasks=[],
+        remaining_subtasks=[],  # leaf node → commits solution immediately
         constraints=None,
         current_time=10.0,
         scene_positions={"agent": (0.0, 0.9, 0.0)},
@@ -897,9 +906,12 @@ def test_exact_oracle_prunes_high_risk_nodes() -> None:
         tie_breaker=0,
         parent_node=None,
         state=state,
-        risk_level=2,
+        risk_level=2,  # previously caused incorrect pruning
     )
 
+    oracle._best_makespan = None
+    oracle._best_sequence = []
+    oracle._best_completed_entries = []
     oracle._started_at = time.perf_counter()
     oracle._timeout_hit = False
     oracle._search_nodes = 0
@@ -907,8 +919,11 @@ def test_exact_oracle_prunes_high_risk_nodes() -> None:
 
     oracle._search(risky_node, ("Risky Task",))
 
-    assert oracle._search_nodes == 0
-    assert oracle._pruned_nodes == 1
+    # Node must be explored — risk_level no longer prunes
+    assert oracle._search_nodes == 1
+    assert oracle._pruned_nodes == 0
+    # Leaf node with no remaining subtasks commits a solution
+    assert oracle._best_makespan == 10.0
 
 
 def test_exact_oracle_records_explicit_prenavigation_sequence(

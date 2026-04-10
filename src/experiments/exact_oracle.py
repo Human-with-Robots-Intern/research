@@ -8,10 +8,16 @@ from dataclasses import dataclass, field
 from typing import Any, Optional, Sequence
 
 from src.core.scheduler import Scheduler
-from src.models.dataclass import Candidate, CompletedEntry, SchedulerState, SimulationNode
+from src.models.dataclass import (
+    Candidate,
+    CompletedEntry,
+    SchedulerState,
+    SimulationNode,
+)
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from src.utils.common import create_module_logger
 from src.utils.config import constants
+from src.utils.config.constants import CONSECUTIVE_TASK_WAIT_TOLERANCE
 from src.utils.io_utils.result_saver import serialize_completed_entries
 
 log = create_module_logger(__name__, module_log=True)
@@ -141,9 +147,7 @@ class DeterministicExactOracle:
         """
 
         self._best_makespan = (
-            float(incumbent_upper_bound)
-            if incumbent_upper_bound is not None
-            else None
+            float(incumbent_upper_bound) if incumbent_upper_bound is not None else None
         )
         self._best_sequence = []
         self._best_completed_entries = []
@@ -202,10 +206,17 @@ class DeterministicExactOracle:
             self._timeout_hit = True
             return
 
-        if node.risk_level >= 2:
-            self._pruned_nodes += 1
-            return
-
+        # NOTE: risk_level is NOT used for oracle pruning because the oracle must
+        # evaluate schedules that are slightly late (within evaluation tolerance) as
+        # valid.  The scheduler's risk_level uses its own planning tolerance, which
+        # may differ from the oracle's evaluation tolerance checked in
+        # _is_critical_deadline_violated.  Using risk_level here would cause the
+        # oracle to incorrectly prune paths where a critical task is executed a few
+        # seconds after its logical_interaction_start_time but still within the
+        # acceptable evaluation window, leading the oracle to miss shorter valid
+        # schedules.  Correctness is instead enforced by:
+        #   1. _is_critical_deadline_violated  (per-candidate check in Branch A)
+        #   2. branch-and-bound makespan bound (below)
         current_time = float(node.state.current_time)
         if (
             self._best_makespan is not None
@@ -222,8 +233,8 @@ class DeterministicExactOracle:
         feasible_candidates, not_yet_candidates = (
             self.constraint_handler.get_feasible_candidates(node)
         )
-        reserved_candidate_name = self.scheduler._get_reserved_prenavigation_candidate_name(
-            node
+        reserved_candidate_name = (
+            self.scheduler._get_reserved_prenavigation_candidate_name(node)
         )
         if reserved_candidate_name is not None:
             feasible_candidates = [
@@ -338,7 +349,15 @@ class DeterministicExactOracle:
         lit = candidate.logical_interaction_start_time
         if lit is None:
             return False
-        return float(node.state.current_time) > lit + constants.TIMING_TOLERANCE_ABS
+        # For (0, True) consecutive constraints the oracle uses the same stricter
+        # tolerance as the evaluator: only scheduling overhead is allowed, not the
+        # full TIMING_TOLERANCE_ABS window.
+        ctx = candidate.critical_context
+        if ctx is not None and ctx.interval == 0.0:
+            tolerance = CONSECUTIVE_TASK_WAIT_TOLERANCE
+        else:
+            tolerance = constants.TIMING_TOLERANCE_ABS
+        return float(node.state.current_time) > lit + tolerance
 
     def _order_candidates(
         self,
