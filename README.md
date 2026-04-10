@@ -30,7 +30,7 @@
 
 ## 실행 방법
 
-각 알고리즘은 개별 Python 스크립트로 직접 실행하거나, `scripts/run_all.py`를 통해 전체 실험을 자동화할 수 있습니다.
+각 알고리즘은 개별 Python 스크립트로 직접 실행하거나, `scripts/run_all_251028_pdk.py`와 설정 YAML을 통해 전체 실험을 자동화할 수 있습니다.
 
 ### 1. 개별 알고리즘 실행
 
@@ -57,24 +57,25 @@
     -   `--instruction`: LLM이 계획으로 변환할 자연어 명령어입니다.
 -   **참고**: `OPENAI_API_KEY` 환경변수 설정이 필요합니다.
 
-### 2. 전체 실험 자동화 (`scripts/run_all.py`)
+### 2. 전체 실험 자동화 (`scripts/run_all_251028_pdk.py`)
 
--   **설명**: 이 스크립트는 여러 알고리즘, 씬, 태스크 조합에 대한 실험을 자동으로 실행하고 결과를 관리하는 메인 실행기입니다.
--   **주요 기능**:
-    -   지정된 `scene_type` (kitchen, bathroom)에 따라 여러 씬에서 순차적으로 실험을 실행합니다.
-    -   사전에 정의된 모든 알고리즘(`approaches` 변수)에 대해 태스크를 수행합니다.
-    -   LLM 기반 접근 방식 (`cap`, `progprompt`)은 실패 시 재시도 로직을 포함하여 안정성을 높입니다.
-    -   기타 알고리즘 (`cpm`, `edf`, `dag_bayesian`)은 표준 입력(stdin)을 통해 태스크를 자동으로 전달하여 실행합니다.
--   **명령어**:
+-   **설명**: AI2-THOR 시뮬레이션 상에서 여러 알고리즘·씬·태스크 조합을 돌리는 배치 실행기입니다. 실행 대상과 씬 목록은 **YAML 설정**으로 조정하고, CLI는 설정 경로와 드라이런 위주입니다.
+-   **설정 파일**: `scripts/run_all_config.yaml` (기본값). `scene_type`, `scene_lists`, `approaches`, `llm_scripts`, `task_folder_name`, `ablation_configs`, `init_prior_configs` 등을 이 파일에서 수정합니다.
+-   **주요 기능** (설정 기준, 스크립트 내부 동작):
+    -   `scene_type`에 해당하는 씬들을 `scene_lists`에서 읽어 순차 실행합니다.
+    -   `approaches`에 나열된 스케줄러 스크립트 경로를 subprocess로 실행합니다.
+    -   `llm_scripts`에 속한 베이스라인은 실패 시 재시도 로직을 탑니다.
+-   **명령어** (저장소 루트에서):
     ```bash
-    python scripts/run_all.py --scene_type kitchen
+    python scripts/run_all_251028_pdk.py
+    python scripts/run_all_251028_pdk.py --config run_all_config.yaml --dry-run
     ```
--   **인자**:
-    -   `--scene_type`: `kitchen` 또는 `bathroom` 중 하나를 선택하여 관련 씬들에서 실험을 진행합니다.
-    -   `--predefined`: `assets/tasks/nl_instructions`의 자연어 명령어 대신 1부터 20까지의 숫자 입력을 사용하려면 이 플래그를 추가합니다.
-    -   `--capture-output`: 자식 프로세스의 로그를 터미널에 실시간으로 표시하는 대신, 실행이 끝난 후 한 번에 보기 원할 때 사용합니다.
+-   **CLI 인자**:
+    -   `--config`: 설정 YAML 경로. 상대 경로는 `scripts/` 디렉터리 기준입니다.
+    -   `--dry-run`: 실제 실행 없이 수행될 실험 목록만 확인합니다.
+    -   `--skip-completed`: 이미 결과 JSON이 있으면 해당 태스크를 건너뜁니다 (기본 동작과 맞춘 플래그).
 
-### 3. 오프라인 단일 실행 (`scripts/offline_experiment.py`)
+### 3. 오프라인 단일 실행 (`scripts/offline/offline_experiment.py`)
 
 -   **설명**: AI2-THOR 전체 시뮬레이션을 매번 실행하지 않고, planner-level schedule을 빠르게 비교하기 위한 오프라인 실행기입니다.
 -   **지원 approach**:
@@ -89,7 +90,7 @@
 #### 단일 실행 예시
 
 ```bash
-python scripts/offline_experiment.py \
+python scripts/offline/offline_experiment.py \
   --approach bayesian \
   --ablation-config DEFAULT \
   --init-prior-config CORRECT_ESTIMATE \
@@ -99,14 +100,14 @@ python scripts/offline_experiment.py \
   --instruction 01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json \
   --beam-bound 1,1 5,5 10,10 \
   --nav-graph-source ai2thor_controller \
-  --oracle-reference-dir assets/results/offline_oracle_reference \
+  --oracle-reference-dir assets/results/offline_exp_result/offline_oracle_reference \
   --output-path assets/results/offline_single_run.json
 ```
 
 #### 결과 비교 예시
 
 ```bash
-python scripts/offline_experiment.py compare \
+python scripts/offline/offline_experiment.py compare \
   --before assets/results/before.json \
   --after assets/results/after.json \
   --output-path assets/results/offline_compare.json
@@ -124,26 +125,30 @@ python scripts/offline_experiment.py compare \
 -   `--oracle-reference-dir`: 미리 생성된 oracle reference JSON 루트 경로입니다.
 -   `--output-path`: JSON report 저장 경로입니다.
 
-### 4. 오프라인 oracle reference 생성 (`scripts/run_oracle_reference_batch.py`)
+### 4. 오프라인 oracle reference 생성 (`scripts/offline/run_oracle_reference_batch.py`)
 
 -   **설명**: oracle을 baseline approach로 같이 돌리는 대신, 먼저 deterministic oracle reference를 일괄 생성한 뒤 이후 baseline 결과와 비교하는 방식입니다.
--   **설정 파일**: `scripts/oracle_reference_config.yaml`
+-   **설정 파일**: `scripts/offline/oracle_reference_config.yaml`
 -   **명령어**:
     ```bash
-    python scripts/run_oracle_reference_batch.py --config oracle_reference_config.yaml
+    cd scripts/offline && python run_oracle_reference_batch.py --config oracle_reference_config.yaml
+    python scripts/offline/run_oracle_reference_batch.py --config scripts/offline/oracle_reference_config.yaml
     ```
 -   **출력 경로**:
     -   single-run oracle reference:
-        `assets/results/offline_oracle_reference/<task_folder>/<scene>/<case>/<instruction>.json`
+        `assets/results/offline_exp_result/offline_oracle_reference/<task_folder>/<scene>/<case>/<instruction>.json`
     -   batch summary:
-        `assets/results/offline_oracle_reference/_batch_summary/offline_oracle_reference_<timestamp>.json`
+        `assets/results/offline_exp_result/offline_oracle_reference/_batch_summary/offline_oracle_reference_<timestamp>.json`
 
-### 5. 오프라인 batch 실행 (`scripts/run_batch.py`)
+### 5. 오프라인 batch 실행 (`scripts/offline/run_batch.py`)
 
--   **설명**: `scripts/batch_config.yaml`을 읽어 offline 실험을 일괄 실행합니다.
+-   **설명**: `scripts/offline/batch_config.yaml`을 읽어 offline 실험을 일괄 실행합니다.
 -   **명령어**:
     ```bash
-    python scripts/run_batch.py --config batch_config.yaml
+    # scripts/offline 에서 파일명만 지정
+    cd scripts/offline && python run_batch.py --config batch_config.yaml
+    # 저장소 루트에서 repo-relative 경로 지정 가능
+    python scripts/offline/run_batch.py --config scripts/offline/batch_config.yaml
     ```
 -   **현재 batch 규칙**:
     -   `bayesian`만 `beam_bound`와 `ablation_configs`를 모두 sweep합니다.
@@ -151,20 +156,37 @@ python scripts/offline_experiment.py compare \
     -   따라서 `edf`/`cpm`은 `NONE_MONITORING` 결과 파일을 만들지 않습니다.
 -   **출력 경로**:
     -   single-run result:
-        `assets/results/offline_batch/<task_folder>/<scene>/<case>/<instruction_stem>/<variant>.json`
+        `assets/results/offline_exp_result/offline_batch/<task_folder>/<scene>/<case>/<instruction_stem>/<variant>.json`
     -   batch summary:
-        `assets/results/offline_batch/_batch_summary/offline_batch_<timestamp>.json`
+        `assets/results/offline_exp_result/offline_batch/_batch_summary/offline_batch_<timestamp>.json`
 -   **variant naming 규칙**:
     -   `bayesian`: `bayesian__{ablation}__{init_prior}__w{width}_d{depth}.json`
     -   `edf`, `cpm`: `{approach}__DEFAULT__{init_prior}.json`
 
-### 6. Navigation Graph Cache
+### 6. 결과 비교 분석 (`assets/result_analysis/offline_comparison.py`)
+
+-   **설명**: oracle reference와 각 approach의 batch 결과를 비교하여 두 가지 산출물을 생성합니다.
+    1.  `offline_comparison_raw.json`: scene/case/instruction별 oracle 필드 + approach별 makespan/computation_time gap
+    2.  `offline_analysis_summary.json`: approach/case별 집계 지표 (sr, tsr, makespan, makespan_sr_1, makespan_gap, makespan_gap_sr_1, computation_time, computation_time_gap)
+-   **명령어**:
+    ```bash
+    python -m assets.result_analysis.offline_comparison \
+      --base_dir assets/results/offline_exp_result \
+      --task_folder sampled_10_instruction_set_for_final_experiment_251203
+    ```
+-   **주요 인자**:
+    -   `--base_dir`: `offline_oracle_reference/`와 `offline_batch/`를 포함하는 루트 경로입니다.
+    -   `--task_folder`: oracle reference와 batch 하위에 있는 task 폴더명입니다.
+    -   `--skip_oracle_violated`: oracle 자체 스케줄이 constraint를 위반한 instruction을 집계에서 제외합니다.
+-   **출력 경로**: `--base_dir` (또는 `--output_dir`) 아래에 저장됩니다.
+
+### 7. Navigation Graph Cache
 
 -   `nav_graph_source: ai2thor_controller`를 사용하면 navigation graph를 `assets/cache/ai2thor_nav_graphs/<scene>.json`에 캐시합니다.
 -   캐시가 존재하면 offline 실행은 이 파일을 우선 사용하고, 캐시가 없을 때만 controller를 초기화합니다.
 -   따라서 같은 scene에 대한 반복 offline 실험에서는 AI2-THOR 초기화 비용이 크게 줄어듭니다.
 
-### 7. 결과 해석 시 주의사항
+### 8. 결과 해석 시 주의사항
 
 -   offline harness는 planner-level 비교를 빠르게 반복하기 위한 도구입니다.
 -   `offline makespan == scheduler makespan`은 맞출 수 있어도, `simulation makespan`은 AI2-THOR의 실제 primitive 실행 결과에 따라 약간 달라질 수 있습니다.
