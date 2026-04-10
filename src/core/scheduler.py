@@ -682,7 +682,6 @@ class Scheduler:
             if 0 >= (
                 candidate.logical_interaction_start_time
                 - physical_earliest_start
-                - TIMING_TOLERANCE_ABS // 2
             ):
                 # Timing Tolerance 때문에 앞당겨 작업을 한건지, 늦어서 한건지 구분하여 알려주는 로그
                 if (
@@ -772,7 +771,7 @@ class Scheduler:
                         + candidate.estimated_first_nav_duration
                     )
 
-                    if 0 >= logical_start - physical_start - (TIMING_TOLERANCE_ABS / 2):
+                    if 0 >= logical_start - physical_start:
                         # Urgent but blocked! Find feasible predecessors recursively.
                         log.debug(
                             f"Found BLOCKED URGENT task: {candidate.subtask.name} "
