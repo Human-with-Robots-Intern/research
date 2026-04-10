@@ -239,6 +239,9 @@ class DeterministicExactOracle:
 
         # Branch A: execute each feasible candidate now (neutral ordering).
         for candidate in self._order_candidates(node, feasible_candidates):
+            if self._is_critical_deadline_violated(node, candidate):
+                self._pruned_nodes += 1
+                continue
             child_node = self.scheduler._expand_subtask_wo_monitoring(
                 node,
                 candidate,
@@ -304,6 +307,38 @@ class DeterministicExactOracle:
             self._best_makespan = makespan
             self._best_sequence = list(sequence)
             self._best_completed_entries = copy.deepcopy(list(completed_entries))
+
+    def _is_critical_deadline_violated(
+        self,
+        node: SimulationNode,
+        candidate: Candidate,
+    ) -> bool:
+        """Return True when a critical candidate's interaction deadline has passed.
+
+        A feasible candidate that is critical keeps its ``logical_interaction_start_time``
+        from when its predecessor completed.  Because ``_assign_scheduling_due`` only
+        scans ``not_yet_candidates``, critical tasks that have already become feasible
+        lose their deadline tracking and receive ``scheduling_due = inf``, making
+        ``_calculate_candidate_risk_and_urgency`` return ``risk = 0``.
+
+        This check closes that gap: if the oracle's current time is more than
+        ``TIMING_TOLERANCE_ABS`` past the critical task's required start time, the
+        branch is pruned to prevent recording constraint-violating schedules as optimal.
+
+        Args:
+            node: Current DFS node.
+            candidate: Feasible candidate about to be expanded.
+
+        Returns:
+            True when the candidate is critical and its deadline has been exceeded
+            beyond the evaluation tolerance.
+        """
+        if not candidate.is_critical:
+            return False
+        lit = candidate.logical_interaction_start_time
+        if lit is None:
+            return False
+        return float(node.state.current_time) > lit + constants.TIMING_TOLERANCE_ABS
 
     def _order_candidates(
         self,

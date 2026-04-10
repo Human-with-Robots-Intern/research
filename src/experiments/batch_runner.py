@@ -1484,7 +1484,7 @@ def build_oracle_reference_tasks(
     """Build subprocess tasks for standalone oracle reference generation."""
 
     options = _build_oracle_reference_options(config)
-    oracle_script_path = PROJECT_ROOT / "scripts/offline_oracle_reference.py"
+    oracle_script_path = PROJECT_ROOT / "scripts/offline/offline_oracle_reference.py"
     worker_log_dir = LOG_PATH / f"{run_timestamp}-worker_logs"
     tasks: list[BatchTask] = []
     for task_folder_name, scene_name, case_name in product(

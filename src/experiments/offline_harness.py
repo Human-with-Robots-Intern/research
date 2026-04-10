@@ -1297,10 +1297,10 @@ def run_single_rollout_cpm(
         current_state.constraints,
         current_state.completed_entries,
     )
-    steps = _serialize_schedule_steps(result_schedule)
-    wait_count = sum(1 for entry in result_schedule if entry.subtask.subtask_type == "WAIT")
+    steps = _serialize_schedule_steps(current_state.completed_entries)
+    wait_count = sum(1 for entry in current_state.completed_entries if entry.subtask.subtask_type == "WAIT")
     action_count = sum(
-        1 for entry in result_schedule if entry.subtask.subtask_type not in {"WAIT", "Monitor"}
+        1 for entry in current_state.completed_entries if entry.subtask.subtask_type not in {"WAIT", "Monitor"}
     )
     result = {
         "case": task.case or config.case,
