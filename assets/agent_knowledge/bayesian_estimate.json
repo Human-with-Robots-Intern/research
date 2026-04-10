@@ -1,10 +1,25 @@
 {
-    "Microwave": {
-        "expected_duration": 100.58499510967398,
-        "variance": 3.7008407397653316,
+    "CoffeeMachine": {
+        "expected_duration": 100.5884211426968,
+        "variance": 3.744498126475466,
         "method": "bayesian"
     },
     "CounterTop": {
+        "expected_duration": 100.0,
+        "variance": 900.0,
+        "method": "bayesian"
+    },
+    "Egg": {
+        "expected_duration": 100.0,
+        "variance": 900.0,
+        "method": "bayesian"
+    },
+    "StoveKnob": {
+        "expected_duration": 99.47686012560348,
+        "variance": 0.2531071403476517,
+        "method": "bayesian"
+    },
+    "StoveBurner": {
         "expected_duration": 100.0,
         "variance": 900.0,
         "method": "bayesian"
