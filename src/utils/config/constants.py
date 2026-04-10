@@ -172,6 +172,18 @@ TIMING_TOLERANCE_RATIO = 0.3
 TIMING_TOLERANCE_ABS = 12.5  # 결과 이상하면, 15로 rollback 할 것
 MONITORING_SPLIT_TOLERANCE_ABS = 15.0
 TSR_EVAL_TOLERANCE_ABS = 12.5
+
+# Evaluation-only tolerance for (0, True) consecutive constraints.
+# (0, True) means the successor navigation must start immediately after the
+# predecessor finishes; nav time itself is physically inevitable and not a
+# "wait".  This value captures only scheduling-cycle precision overhead.
+CONSECUTIVE_TASK_WAIT_TOLERANCE = 2.0
+
+# Scheduler-internal thresholds — conceptually distinct from evaluation tolerances.
+# Values intentionally match the original TIMING_TOLERANCE_ABS-derived expressions
+# so scheduler behaviour is unchanged; names make the distinction explicit.
+CONSTRAINT_MERGE_THRESHOLD = 6.25  # TODO: calibrate from physical measurements
+ACTION_SPLIT_PRECISION = 12.5      # TODO: calibrate from physical measurements
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 3
 BEAM_WIDTH = 3

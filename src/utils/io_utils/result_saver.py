@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 from src.utils.common.logger import create_module_logger
 from src.utils.config import constants
 from src.utils.config.constants import (
+    CONSECUTIVE_TASK_WAIT_TOLERANCE,
     EPSILON,
     RESULT_PATH,
     TIMING_TOLERANCE_ABS,
@@ -132,8 +133,15 @@ def calculate_timing_success_rate(
         actual_diff_sim = (succ_start_time_sim + sim_nav_time) - pred_end_time_sim
 
         if is_critical:
-            if abs(interval - actual_diff_sim) <= tolerance:
-                succeeded_timing_constraints_sim_cnt += 1
+            if interval < EPSILON:
+                # (0, True): check that successor nav started immediately after pred.
+                # Nav time itself is physical; only wait_time (before nav starts) matters.
+                wait_time_sim = succ_start_time_sim - pred_end_time_sim
+                if abs(wait_time_sim) <= CONSECUTIVE_TASK_WAIT_TOLERANCE:
+                    succeeded_timing_constraints_sim_cnt += 1
+            else:
+                if abs(interval - actual_diff_sim) <= tolerance:
+                    succeeded_timing_constraints_sim_cnt += 1
         else:  # Non-critical
             if (interval - actual_diff_sim) <= tolerance:
                 succeeded_timing_constraints_sim_cnt += 1
@@ -155,9 +163,10 @@ def calculate_timing_success_rate(
         if is_critical:
             # For (0, True) constraint, tasks must be consecutive, meaning the successor's
             # navigation starts immediately after the predecessor finishes. The "wait time" should be near zero.
+            # Nav time is physically inevitable; only the scheduler wait before nav is evaluated.
             if interval < EPSILON:
                 wait_time = succ_start_time_sched - pred_end_time_sched
-                if abs(wait_time) <= tolerance:
+                if abs(wait_time) <= CONSECUTIVE_TASK_WAIT_TOLERANCE:
                     succeeded_timing_constraints_sched_cnt += 1
                     sched_constraint_met = True
             # For other critical constraints, the total gap must match the interval.
