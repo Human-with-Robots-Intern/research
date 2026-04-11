@@ -136,11 +136,11 @@ class HeuristicManager:
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
             )
             return 0, slack
-        elif slack >= -(constants.TIMING_TOLERANCE_ABS / 2):
-            log.debug(
-                f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
-            )
-            return 0, slack
+        # elif slack >= -(constants.TIMING_TOLERANCE_ABS / 2):
+        #     log.debug(
+        #         f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
+        #     )
+        #     return 0, slack
         else:
 
             log.debug(

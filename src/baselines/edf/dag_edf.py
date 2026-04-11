@@ -131,7 +131,7 @@ def update_state(
         constraints=current_state.constraints,
         current_time=current_state.current_time + subtask_duration,
         scene_positions=exec_info.scene_positions,
-        held_object=current_state.held_object,
+        held_object=exec_info.held_object,
         agent_location=current_state.agent_location,
     )
     return next_state
@@ -240,10 +240,10 @@ def compute_deadline_for_subtask(
     [규칙]
         1. 기본규칙
             deadline = current_time + execution_time(이동시간 포함)
-        2. subtask가 non critical in edge만 있으면 (이동의 시작시간을 deadline으로 설정해서 실제 행위의 시작이 constraint를 만족하도록 설정.):
-            deadline = max(선행 subtask의 end_time + edge의 interval)-nav_time
+        2. subtask가 non critical in edge만 있으면:
+            deadline = max(선행 subtask의 end_time + edge의 interval)
         3. subtask가 critical in edge를 포함한다면:
-            deadline = max(critical edge의(선행 subtask의 end_time + edge interval))-nav_time
+            deadline = max(critical edge의(선행 subtask의 end_time + edge interval))
     """
     constraints = current_state.constraints
     current_time = current_state.current_time
@@ -272,9 +272,7 @@ def compute_deadline_for_subtask(
                     ),
                     current_time,
                 )
-                critical_deadlines.append(
-                    pred_end_time + data["info"]["Interval"] - nav_time
-                )
+                critical_deadlines.append(pred_end_time + data["info"]["Interval"])
             # 가장 긴 deadline을 선택 (모든 critical constraint를 만족해야 함)
             deadline = max(critical_deadlines)
         else:
@@ -289,9 +287,7 @@ def compute_deadline_for_subtask(
                     ),
                     current_time,
                 )
-                non_critical_deadlines.append(
-                    pred_end_time + data["info"]["Interval"] - nav_time
-                )
+                non_critical_deadlines.append(pred_end_time + data["info"]["Interval"])
             # 가장 긴 deadline을 선택
             deadline = max(non_critical_deadlines)
 

@@ -1,27 +1,28 @@
-# Configuration for run_all.py
+# Configuration for run_batch.py (offline only)
 simulation: true # Enable Simulation mode
 cloud_rendering: true
 
 num_runs_per_instruction: 1 #반복 시행 횟수
 max_retries: 1 # set to be 1
 retry_delay_seconds: 2 # Delay in seconds between retries
-max_workers: 12 # Maximum number of workers
+max_workers: 6 # Maximum number of workers
 instruction_delay_seconds: 0 # Delay in seconds between instructions
 
 # Logging configuration
 log_level: "WARNING" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 start_idx: 1 # 시작하는 task의 번호
+
 # Execution settings
 
 # 실행하고자 하는 방법론리스트, 실행하지 않으려면 주석처리
 approaches:
-  - "src/baselines/cpm.py"
-  - "src/baselines/edf/dag_edf.py"
-  # - "src/dag_bayesian.py"
+  - "bayesian"
+  - "edf"
+  - "cpm"
 # Scripts that use LLMs and are subject to retries on failure
 llm_scripts:
-  # - "src/baselines/progprompt/prog_ai2thor.py"
-  # - "src/baselines/cap/cap_ai2thor.py"
+  # - "progprompt"
+  # - "cap"
 # # Scene lists for each scene type
 scene_type: # Default scene type to run. Options: 'kitchen', 'bathroom'
   - kitchen
@@ -43,23 +44,53 @@ scene_lists:
     # - "FloorPlan301"
 ablation_configs:
   - DEFAULT
-  # - NONE_MONITORING
+  - NONE_MONITORING
 init_prior_configs: #초기 시간 값 종류
-  # - CORRECT_ESTIMATE
+  - CORRECT_ESTIMATE
   # - OVER_ESTIMATE
   # - UNDER_ESTIMATE
   # - OVER_MEDIUM_ESTIMATE
   # - UNDER_MEDIUM_ESTIMATE
-  - OVER_ESTIMATE_130
-  - OVER_ESTIMATE_110
-  - UNDER_ESTIMATE_90
-  - UNDER_ESTIMATE_70
-  
+  # - OVER_ESTIMATE_130
+  # - OVER_ESTIMATE_110
+  # - UNDER_ESTIMATE_90
+  # - UNDER_ESTIMATE_70
 
 # ------------------------------------------------------------------------------
 # Task Filtering
 # ------------------------------------------------------------------------------
-task_folder_name: ["sampled_10_instruction_set_for_final_experiment_251231_bluebottle","sampled_10_instruction_set_for_final_experiment_251231_5070", "sampled_10_instruction_set_for_final_experiment_251231_laptop4", "sampled_10_instruction_set_for_final_experiment_251231_laptop6", "sampled_10_instruction_set_for_final_experiment_251203" ] # Folder under assets/tasks/
+task_folder_name:
+  - "sampled_10_instruction_set_for_final_experiment_251203"
 min_task_count: 0
 min_constraint_count: 0
 skip_completed: true
+
+# ------------------------------------------------------------------------------
+# Offline-only settings
+# ------------------------------------------------------------------------------
+cases:
+  - "tasks_2_constraints_1"
+  - "tasks_2_constraints_2"
+  - "tasks_3_constraints_1"
+  - "tasks_3_constraints_2"
+
+
+max_tasks: 10
+
+beam_bound:
+  - [1, 1]
+  - [5, 5]
+  - [10, 10]
+  - [20, 20]
+
+etas:
+  - 0.01
+  - 0.1
+  - 0.5
+  - 0.9
+nav_graph_source: "ai2thor_controller"
+oracle_time_limit_seconds: 300
+
+# Result settings
+output_dir: "assets/results/offline_exp_result/offline_batch"
+oracle_reference_dir: "assets/results/offline_oracle_reference"

@@ -930,6 +930,12 @@ class ParticleFilterBeliefUpdater:
         resample_count = int(state.get("resample_count", 0))
         resampled = False
 
+        posterior_mean = float(np.sum(updated_weights * particles))
+        posterior_variance = max(
+            MIN_VARIANCE,
+            float(np.sum(updated_weights * np.square(particles - posterior_mean))),
+        )
+
         if ess_before_resample < self._resample_threshold * float(len(particles)):
             particles = _systematic_resample(
                 particles=particles,
@@ -946,11 +952,11 @@ class ParticleFilterBeliefUpdater:
             resample_count += 1
             resampled = True
 
-        posterior_mean = float(np.sum(updated_weights * particles))
-        posterior_variance = float(
-            np.sum(updated_weights * np.square(particles - posterior_mean))
-        )
-        posterior_variance = max(MIN_VARIANCE, posterior_variance)
+            posterior_mean = float(np.sum(updated_weights * particles))
+            posterior_variance = max(
+                MIN_VARIANCE,
+                float(np.sum(updated_weights * np.square(particles - posterior_mean))),
+            )
         ess_after_resample = float(BeliefStore._compute_ess(updated_weights))
         posterior_diagnostics = _summarize_particle_posterior(
             particles=particles,
@@ -1107,6 +1113,7 @@ def create_observation_model(
     image_provider: Optional[Callable[[], Any]] = None,
     openai_model_name: str = "gpt-4.1-mini",
     openai_api_key: Optional[str] = None,
+    random_seed: Optional[int] = None,
 ) -> ObservationModel:
     """Create an observation model for simulation or real-world monitoring.
 
@@ -1115,6 +1122,7 @@ def create_observation_model(
         image_provider: Optional callback supplying the latest frame/image.
         openai_model_name: OpenAI multimodal model used for VLM observations.
         openai_api_key: Optional API key override for the OpenAI client.
+        random_seed: Optional seed used by stochastic observation backends.
 
     Returns:
         Configured observation model.
@@ -1124,7 +1132,10 @@ def create_observation_model(
     """
 
     if mode == "synthetic_gaussian":
-        return GaussianSyntheticObservationModel()
+        rng = None
+        if random_seed is not None:
+            rng = np.random.default_rng(random_seed)
+        return GaussianSyntheticObservationModel(rng=rng)
     if mode == "openai_vlm":
         if image_provider is None:
             raise ValueError(
