@@ -20,8 +20,7 @@ from src.utils.config.constants import (
     CONSECUTIVE_TASK_WAIT_TOLERANCE,
     EPSILON,
     RESULT_PATH,
-    TIMING_TOLERANCE_ABS,
-    TIMING_TOLERANCE_RATIO,
+    TSR_EVAL_TOLERANCE_ABS,
 )
 from src.utils.visualizers.visualizer import visualize
 
@@ -66,7 +65,7 @@ def calculate_timing_success_rate(
     constraints: DiGraph,
     result_schedule: List[CompletedEntry],
     ground_truth_overrides: Optional[Mapping[str, float]] = None,
-    tolerance_abs: float = TIMING_TOLERANCE_ABS,
+    tolerance_abs: float = TSR_EVAL_TOLERANCE_ABS,
 ) -> Tuple[float | None, float | None, Dict[str, Any]]:
     """
     Calculates the success rate of timing constraints based on simulation and schedule results.
@@ -128,8 +127,7 @@ def calculate_timing_success_rate(
         sim_nav_time = (
             succ_entry.sim_nav_time if succ_entry.sim_nav_time is not None else 0.0
         )
-        ratio_allowance = interval * TIMING_TOLERANCE_RATIO
-        tolerance = max(5, min(tolerance_abs, ratio_allowance))
+        tolerance = tolerance_abs
 
         actual_diff_sim = (succ_start_time_sim + sim_nav_time) - pred_end_time_sim
 

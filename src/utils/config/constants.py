@@ -164,13 +164,6 @@ FACTOR_ALPHA = 0.001
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
 
-# Timing tolerance can be interpreted both as a ratio and an absolute cap.
-# The ratio (30%) mirrors the previous behaviour, while the absolute value
-# allows capping the tolerance window for large intervals.
-TIMING_TOLERANCE_DEFAULT = 100.0
-TIMING_TOLERANCE_RATIO = 0.3
-TIMING_TOLERANCE_ABS = 12.5  # 결과 이상하면, 15로 rollback 할 것
-MONITORING_SPLIT_TOLERANCE_ABS = 15.0
 TSR_EVAL_TOLERANCE_ABS = 12.5
 
 # Evaluation-only tolerance for (0, True) consecutive constraints.
@@ -180,8 +173,6 @@ TSR_EVAL_TOLERANCE_ABS = 12.5
 CONSECUTIVE_TASK_WAIT_TOLERANCE = 2.0
 
 # Scheduler-internal thresholds — conceptually distinct from evaluation tolerances.
-# Values intentionally match the original TIMING_TOLERANCE_ABS-derived expressions
-# so scheduler behaviour is unchanged; names make the distinction explicit.
 CONSTRAINT_MERGE_THRESHOLD = 6.25  # TODO: calibrate from physical measurements
 ACTION_SPLIT_PRECISION = 12.5      # TODO: calibrate from physical measurements
 # ========== 스케줄러 설정 ==========

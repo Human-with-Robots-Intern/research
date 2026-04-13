@@ -78,6 +78,12 @@ def test_action_split_precision_constant_exists() -> None:
     assert constants.ACTION_SPLIT_PRECISION == 12.5
 
 
+def test_tsr_eval_tolerance_constant_exists() -> None:
+    """TSR_EVAL_TOLERANCE_ABS must be defined and equal 12.5."""
+    assert hasattr(constants, "TSR_EVAL_TOLERANCE_ABS")
+    assert constants.TSR_EVAL_TOLERANCE_ABS == 12.5
+
+
 # ---------------------------------------------------------------------------
 # (0, True) constraint — 핵심 실패 테스트 (구현 전 실패, 구현 후 통과)
 # ---------------------------------------------------------------------------
@@ -128,7 +134,7 @@ def test_zero_critical_exactly_at_boundary_succeeds() -> None:
 
 
 def test_nonzero_critical_within_tolerance_succeeds() -> None:
-    """(100,True): interaction diff == 100s, within TIMING_TOLERANCE_ABS → TSR=1.0."""
+    """(100,True): interaction diff == 100s, within TSR_EVAL_TOLERANCE_ABS → TSR=1.0."""
     g, entries = _make_schedule(
         interval=100.0, is_critical=True,
         pred_end=20.0, succ_start=115.0, succ_nav=5.0,
@@ -140,7 +146,7 @@ def test_nonzero_critical_within_tolerance_succeeds() -> None:
 
 def test_noncritical_on_time_succeeds() -> None:
     """(100,False): non-critical interval is replaced by INIT_PRIOR_MEAN=140s.
-    actual_diff = 130s, (140 - 130) = 10 ≤ TIMING_TOLERANCE_ABS(12.5) → TSR=1.0.
+    actual_diff = 130s, (140 - 130) = 10 ≤ TSR_EVAL_TOLERANCE_ABS(12.5) → TSR=1.0.
     """
     g, entries = _make_schedule(
         interval=100.0, is_critical=False,

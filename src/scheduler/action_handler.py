@@ -17,7 +17,6 @@ from src.utils.config.constants import (
     REACHABLE_DISTANCE_THRESHOLD,
     REAL_NAV_DURATION,
     STATIC_ACTION_SET,
-    TIMING_TOLERANCE_ABS,
     TOGGLE_ACTION_DURATION,
 )
 
