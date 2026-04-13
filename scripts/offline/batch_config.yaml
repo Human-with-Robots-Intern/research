@@ -91,6 +91,14 @@ etas:
 nav_graph_source: "ai2thor_controller"
 oracle_time_limit_seconds: 300
 
+# ------------------------------------------------------------------------------
+# Optional PF-vs-Bayesian experiment axes
+# ------------------------------------------------------------------------------
+gt_distribution: null        # null -> "constant"
+belief_update_method: null   # null -> "bayesian"
+particle_distribution: null  # null -> PF uses gt_distribution, others use "gaussian"
+factor_alpha: null           # null -> constants.py default
+
 # Result settings
 output_dir: "assets/results/offline_exp_result/offline_batch"
 oracle_reference_dir: "assets/results/offline_oracle_reference"

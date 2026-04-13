@@ -236,6 +236,11 @@ class Agent:
 
         monitored_subtask = {
             "updated_subtask_name": critical_start_sub_name,
+            "critical_start_subtask_name": critical_start_sub_name,
+            "critical_end_subtask_name": monitoring_target_sub_name,
+            "critical_interval_key": (
+                f"{critical_start_sub_name} -> {monitoring_target_sub_name}"
+            ),
             "original_expected_time": prior_mean,
             "updated_expected_time": update_result.posterior_mean,
             "ground_truth_time": gt_interval,

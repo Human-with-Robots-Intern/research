@@ -24,6 +24,7 @@ def test_build_offline_options_reads_run_all_style_keys() -> None:
 
     config: dict[str, Any] = {
         "approaches": ["bayesian", "oracle"],
+        "suite_name": "scalability",
         "scene_type": ["kitchen"],
         "scene_lists": {
             "kitchen": ["FloorPlan13", "FloorPlan18"],
@@ -52,6 +53,7 @@ def test_build_offline_options_reads_run_all_style_keys() -> None:
     assert options.etas == [0.25]
     assert options.nav_graph_source == "ai2thor_controller"
     assert options.oracle_time_limit_seconds == 300
+    assert options.suite_name == "scalability"
 
 
 def test_build_offline_tasks_uses_new_cli_surface(
@@ -67,6 +69,7 @@ def test_build_offline_tasks_uses_new_cli_surface(
 
     config: dict[str, Any] = {
         "approaches": ["bayesian"],
+        "suite_name": "eta_sensitivity",
         "scene_type": ["kitchen"],
         "scene_lists": {
             "kitchen": ["FloorPlan13"],
@@ -96,6 +99,8 @@ def test_build_offline_tasks_uses_new_cli_surface(
 
     assert "--approach" in command
     assert "bayesian" in command
+    assert "--suite-name" in command
+    assert command[command.index("--suite-name") + 1] == "eta_sensitivity"
     assert "--ablation-config" in command
     assert "NONE_MONITORING" in command
     assert "--init-prior-config" in command
@@ -111,15 +116,20 @@ def test_build_offline_tasks_uses_new_cli_surface(
     assert "300" in command
 
     output_path = Path(command[command.index("--output-path") + 1])
-    assert output_path.parts[-5:] == (
+    assert output_path.parts[-7:] == (
         "sampled_10_instruction_set_for_final_experiment_251203",
+        "OVER_ESTIMATE_110",
         "FloorPlan13",
         "tasks_3_constraints_2",
         "task_a",
-        "bayesian__NONE_MONITORING__OVER_ESTIMATE_110__w1_d1.json",
+        "bayesian",
+        "NONE_MONITORING__w1_d1.json",
     )
     assert tasks[0].metadata["output_path"] == str(output_path)
     assert "output_path=" in tasks[0].summary()
+    assert tasks[0].metadata["suite_name"] == "eta_sensitivity"
+    assert tasks[0].metadata["baseline_name"] == "bayesian"
+    assert tasks[0].metadata["eta"] is None
     assert tasks[0].metadata["beam_width"] == 1
     assert tasks[0].metadata["beam_depth"] == 1
 
@@ -130,6 +140,140 @@ def test_build_offline_tasks_uses_new_cli_surface(
     assert "--disable-monitoring" not in command
     assert "--init-prior-mean" not in command
     assert "--init-prior-variance" not in command
+
+
+def test_build_offline_tasks_propagates_pf_distribution_and_variant_suffix(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """PF batch tasks should emit the new CLI flags and unique variant suffixes."""
+
+    monkeypatch.setattr(
+        "src.experiments.batch_runner.resolve_instructions",
+        lambda _config, _case_name: ["task_a.json"],
+    )
+
+    config: dict[str, Any] = {
+        "approaches": ["bayesian"],
+        "suite_name": "pf_vs_bayesian",
+        "scene_type": ["kitchen"],
+        "scene_lists": {
+            "kitchen": ["FloorPlan13"],
+            "bathroom": [],
+            "real_world": [],
+        },
+        "ablation_configs": ["DEFAULT"],
+        "init_prior_configs": ["OVER_ESTIMATE_110"],
+        "task_folder_name": ["sampled_10_instruction_set_for_final_experiment_251203"],
+        "cases": ["tasks_3_constraints_2"],
+        "beam_bound": [[10, 10]],
+        "etas": [0.1],
+        "belief_update_method": "particle_filter",
+        "gt_distribution": "lognormal",
+        "gt_seed": 7,
+        "particle_distribution": "mixture",
+        "nav_graph_source": "ai2thor_controller",
+        "oracle_time_limit_seconds": 300,
+        "output_dir": str(tmp_path),
+        "skip_completed": False,
+    }
+
+    tasks = build_offline_tasks(
+        config,
+        run_timestamp="20260409_1200",
+        logger=logging.getLogger("test_batch_runner_pf"),
+    )
+
+    assert len(tasks) == 1
+    command = tasks[0].command
+
+    assert "--belief-update-method" in command
+    assert command[command.index("--belief-update-method") + 1] == "particle_filter"
+    assert "--gt-distribution" in command
+    assert command[command.index("--gt-distribution") + 1] == "lognormal"
+    assert "--gt-seed" in command
+    assert command[command.index("--gt-seed") + 1] == "7"
+    assert "--particle-distribution" in command
+    assert command[command.index("--particle-distribution") + 1] == "mixture"
+
+    output_path = Path(command[command.index("--output-path") + 1])
+    assert output_path.parts[-7:] == (
+        "sampled_10_instruction_set_for_final_experiment_251203",
+        "OVER_ESTIMATE_110",
+        "FloorPlan13",
+        "tasks_3_constraints_2",
+        "task_a",
+        "particle_filter",
+        "DEFAULT__w10_d10__eta0.1__gtlognormal__pdistmixture.json",
+    )
+    assert tasks[0].metadata["suite_name"] == "pf_vs_bayesian"
+    assert tasks[0].metadata["baseline_name"] == "particle_filter"
+    assert tasks[0].metadata["eta"] == 0.1
+    assert tasks[0].metadata["belief_update_method"] == "particle_filter"
+    assert tasks[0].metadata["gt_distribution"] == "lognormal"
+    assert tasks[0].metadata["particle_distribution"] == "mixture"
+
+
+def test_build_offline_tasks_sweeps_monitoring_budget_suffixes(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Monitoring-budget runs should produce distinct mb-tagged variants."""
+
+    monkeypatch.setattr(
+        "src.experiments.batch_runner.resolve_instructions",
+        lambda _config, _case_name: ["task_a.json"],
+    )
+
+    config: dict[str, Any] = {
+        "approaches": ["bayesian"],
+        "suite_name": "monitoring_budget",
+        "scene_type": ["kitchen"],
+        "scene_lists": {
+            "kitchen": ["FloorPlan13"],
+            "bathroom": [],
+            "real_world": [],
+        },
+        "ablation_configs": ["DEFAULT"],
+        "init_prior_configs": ["CORRECT_ESTIMATE"],
+        "task_folder_name": ["sampled_10_instruction_set_for_final_experiment_251203"],
+        "cases": ["tasks_3_constraints_2"],
+        "beam_bound": [[10, 10]],
+        "etas": [0.1],
+        "gt_distribution": "gaussian",
+        "belief_update_method": "bayesian",
+        "max_monitoring_per_critical_intervals": [1, "uncap"],
+        "nav_graph_source": "ai2thor_controller",
+        "oracle_time_limit_seconds": 300,
+        "output_dir": str(tmp_path),
+        "skip_completed": False,
+    }
+
+    tasks = build_offline_tasks(
+        config,
+        run_timestamp="20260409_1200",
+        logger=logging.getLogger("test_batch_runner_monitoring_budget"),
+    )
+
+    assert len(tasks) == 2
+    output_names = sorted(
+        Path(task.command[task.command.index("--output-path") + 1]).name for task in tasks
+    )
+    assert output_names == [
+        "DEFAULT__w10_d10__eta0.1__gtgaussian__mb1.json",
+        "DEFAULT__w10_d10__eta0.1__gtgaussian__mbuncap.json",
+    ]
+    monitoring_budget_labels = {
+        task.metadata["monitoring_budget_per_critical"] for task in tasks
+    }
+    assert monitoring_budget_labels == {"1", "uncap"}
+    assert any(
+        task.name.endswith(":mb1:tasks_3_constraints_2:task_a.json") for task in tasks
+    )
+    assert any(
+        task.name.endswith(":mbuncap:tasks_3_constraints_2:task_a.json")
+        for task in tasks
+    )
 
 
 def test_build_offline_tasks_collapses_baseline_beams(
@@ -179,8 +323,14 @@ def test_build_offline_tasks_collapses_baseline_beams(
         beam_bound_index = command.index("--beam-bound")
         assert command[beam_bound_index + 1 : beam_bound_index + 2] == ["1,1"]
         output_path = Path(command[command.index("--output-path") + 1])
-        assert output_path.name == (
-            f"{task.metadata['approach']}__DEFAULT__OVER_ESTIMATE_110.json"
+        assert output_path.parts[-7:] == (
+            "sampled_10_instruction_set_for_final_experiment_251203",
+            "OVER_ESTIMATE_110",
+            "FloorPlan13",
+            "tasks_3_constraints_2",
+            "task_a",
+            task.metadata["approach"],
+            f"{task.metadata['approach']}.json",
         )
         assert "__w1_d1" not in output_path.name
         assert "__w5_d5" not in output_path.name
@@ -190,6 +340,65 @@ def test_build_offline_tasks_collapses_baseline_beams(
         assert task.metadata["ablation_config"] == "DEFAULT"
         assert task.metadata["beam_width"] == 1
         assert task.metadata["beam_depth"] == 1
+
+
+def test_build_offline_tasks_shortens_worker_log_names_for_long_instructions(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Keep worker log filenames below filesystem component limits."""
+
+    long_instruction = (
+        "02_fill_bowl_with_water_and_heat_the_bread_using_microwave_"
+        "and_put_apple_and_lettuce_in_fridge.json"
+    )
+    monkeypatch.setattr(
+        "src.experiments.batch_runner.resolve_instructions",
+        lambda _config, _case_name: [long_instruction],
+    )
+
+    config: dict[str, Any] = {
+        "approaches": ["bayesian"],
+        "suite_name": "scalability",
+        "scene_type": ["kitchen"],
+        "scene_lists": {
+            "kitchen": ["FloorPlan27"],
+            "bathroom": [],
+            "real_world": [],
+        },
+        "ablation_configs": ["DEFAULT"],
+        "init_prior_configs": ["CORRECT_ESTIMATE"],
+        "task_folder_name": ["sampled_10_instruction_set_for_final_experiment_251203"],
+        "cases": ["tasks_3_constraints_2"],
+        "beam_bound": [[1, 1]],
+        "etas": [0.1],
+        "gt_distribution": "gaussian",
+        "nav_graph_source": "ai2thor_controller",
+        "oracle_time_limit_seconds": 300,
+        "output_dir": str(tmp_path),
+        "skip_completed": False,
+    }
+
+    tasks = build_offline_tasks(
+        config,
+        run_timestamp="20260413_0032",
+        logger=logging.getLogger("test_batch_runner_long_names"),
+    )
+
+    assert len(tasks) == 1
+    assert tasks[0].log_path.name.endswith(".log")
+    assert len(tasks[0].log_path.name) < 255
+    assert tasks[0].log_path.parts[-9:] == (
+        "20260413_0032",
+        "scalability",
+        "sampled_10_instruction_set_for_final_experiment_251203",
+        "CORRECT_ESTIMATE",
+        "FloorPlan27",
+        "tasks_3_constraints_2",
+        "02_fill_bowl_with_water_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge",
+        "bayesian",
+        "DEFAULT__w1_d1__eta0.1__gtgaussian.log",
+    )
 
 
 def test_build_oracle_reference_tasks_uses_separate_script(

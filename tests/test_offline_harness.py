@@ -18,6 +18,7 @@ from src.experiments.offline_harness import (
     _build_persisted_single_run_payload,
     _edf_compute_deadline,
     _build_deterministic_scheduler_config,
+    _resolve_particle_distribution,
     _serialize_schedule_steps,
     apply_cli_overrides,
     build_experiment_tasks,
@@ -180,6 +181,22 @@ def test_build_experiment_tasks_collapses_baseline_beams() -> None:
     ]
 
 
+def test_resolve_particle_distribution_defaults_to_gt_for_pf() -> None:
+    """PF runs should inherit the GT family unless explicitly overridden."""
+
+    pf_config = ExperimentConfig(
+        belief_update_method="particle_filter",
+        gt_distribution="mixture",
+    )
+    bayesian_config = ExperimentConfig(
+        belief_update_method="bayesian",
+        gt_distribution="lognormal",
+    )
+
+    assert _resolve_particle_distribution(pf_config) == "mixture"
+    assert _resolve_particle_distribution(bayesian_config) == "gaussian"
+
+
 def test_summarize_results_outputs_setting_metrics() -> None:
     """Summary aggregation should compute per-setting averages."""
 
@@ -300,6 +317,7 @@ def test_build_hybrid_result_row_keeps_legacy_top_level_fields() -> None:
         ablation_config="NONE_MONITORING",
         init_prior_config="CORRECT_ESTIMATE",
         scene="FloorPlan1",
+        suite_name="scalability",
     )
     row = _build_hybrid_result_row(
         config,
@@ -339,10 +357,92 @@ def test_build_hybrid_result_row_keeps_legacy_top_level_fields() -> None:
 
     assert row["approach"] == "bayesian__NONE_MONITORING"
     assert row["scene_name"] == "FloorPlan1"
+    assert row["meta_data"]["suite_name"] == "scalability"
+    assert row["meta_data"]["baseline_name"] == "bayesian"
     assert row["plans"][0]["start_time_scheduled"] == 0.0
     assert row["computation_time"] == 0.25
     assert row["scheduler_makespan"] == 12.0
     assert row["timing_success_rate_sched"] == 1.0
+
+
+def test_build_hybrid_result_row_marks_particle_filter_baseline_name() -> None:
+    """PF-backed Bayesian runs should expose a particle_filter baseline label."""
+
+    config = ExperimentConfig(
+        approach="bayesian",
+        ablation_config="DEFAULT",
+        init_prior_config="CORRECT_ESTIMATE",
+        belief_update_method="particle_filter",
+        gt_distribution="mixture",
+        scene="FloorPlan1",
+        suite_name="pf_vs_bayesian",
+    )
+    row = _build_hybrid_result_row(
+        config,
+        {
+            "case": "tasks_2_constraints_1",
+            "instruction": "task_a.json",
+            "beam_width": 10,
+            "beam_depth": 10,
+            "completed": True,
+            "abort_reason": "",
+            "total_compute_time": 0.25,
+            "final_schedule_time": 12.0,
+            "schedule_tcsr": 1.0,
+            "tcsr_is_one": True,
+            "action_count": 1,
+            "wait_count": 0,
+            "monitor_count": 1,
+            "replanning_count": 1,
+            "avg_committed_steps_per_replan": 1.0,
+            "steps": [],
+            "timing_detail": {},
+            "ground_truth_intervals": {"Microwave": 100.0},
+            "particle_distribution": "mixture",
+        },
+    )
+
+    assert row["meta_data"]["suite_name"] == "pf_vs_bayesian"
+    assert row["meta_data"]["baseline_name"] == "particle_filter"
+
+
+def test_build_hybrid_result_row_keeps_monitoring_budget_label() -> None:
+    """Monitoring-budget runs should persist the per-critical quota label."""
+
+    config = ExperimentConfig(
+        approach="bayesian",
+        ablation_config="DEFAULT",
+        init_prior_config="CORRECT_ESTIMATE",
+        scene="FloorPlan1",
+        suite_name="monitoring_budget",
+        max_monitoring_per_critical_interval=-1,
+    )
+    row = _build_hybrid_result_row(
+        config,
+        {
+            "case": "tasks_2_constraints_1",
+            "instruction": "task_a.json",
+            "beam_width": 10,
+            "beam_depth": 10,
+            "completed": True,
+            "abort_reason": "",
+            "total_compute_time": 0.25,
+            "final_schedule_time": 12.0,
+            "schedule_tcsr": 1.0,
+            "tcsr_is_one": True,
+            "action_count": 1,
+            "wait_count": 0,
+            "monitor_count": 1,
+            "replanning_count": 1,
+            "avg_committed_steps_per_replan": 1.0,
+            "steps": [],
+            "timing_detail": {},
+            "ground_truth_intervals": {},
+            "monitoring_budget_per_critical": "uncap",
+        },
+    )
+
+    assert row["meta_data"]["monitoring_budget_per_critical"] == "uncap"
 
 
 def test_build_persisted_single_run_payload_removes_duplicate_runtime_keys() -> None:

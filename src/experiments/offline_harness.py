@@ -58,6 +58,14 @@ DEFAULT_INIT_PRIOR_CONFIG = "CORRECT_ESTIMATE"
 DEFAULT_ABLATION_CONFIG = "DEFAULT"
 DEFAULT_ORACLE_TIMEOUT_SECONDS = 300.0
 NAV_GRAPH_CACHE_SCHEMA_VERSION = "ai2thor_nav_graph.v1"
+SUPPORTED_BELIEF_UPDATE_METHODS = {"bayesian", "particle_filter"}
+SUPPORTED_DURATION_DISTRIBUTIONS = {
+    "constant",
+    "gaussian",
+    "lognormal",
+    "gamma",
+    "mixture",
+}
 INIT_PRIOR_CONFIG_MAP: dict[str, tuple[float, float]] = {
     "OVER_ESTIMATE": (140.0, constants.INIT_PRIOR_VARIANCE),
     "OVER_MEDIUM_ESTIMATE": (120.0, constants.INIT_PRIOR_VARIANCE),
@@ -117,6 +125,7 @@ class ExperimentConfig:
     """Serializable configuration for an offline experiment session."""
 
     experiment_name: str = "offline_experiment"
+    suite_name: Optional[str] = None
     tags: list[str] = field(default_factory=list)
     task_folder_name: str = "sampled_10_instruction_set_for_final_experiment_251203"
     approach: str = "bayesian"
@@ -133,8 +142,10 @@ class ExperimentConfig:
     belief_update_method: str = "bayesian"
     gt_distribution: str = "constant"
     gt_seed: int = 42
+    particle_distribution: Optional[str] = None
     factor_alpha: Optional[float] = None
     eta: Optional[float] = None
+    max_monitoring_per_critical_interval: Optional[int] = None
     observation_mode: str = "synthetic_gaussian"
     nav_graph_source: str = "ai2thor_controller"
     output_path: Optional[str] = None
@@ -145,12 +156,28 @@ class ExperimentConfig:
     def __post_init__(self) -> None:
         """Normalize config payloads loaded from YAML/CLI."""
 
+        if self.suite_name is not None:
+            self.suite_name = str(self.suite_name)
         self.tags = [str(tag) for tag in self.tags]
         self.cases = [str(case_name) for case_name in self.cases]
         self.instructions = [str(instruction) for instruction in self.instructions]
         self.approach = str(self.approach)
         self.ablation_config = str(self.ablation_config)
         self.init_prior_config = str(self.init_prior_config)
+        self.belief_update_method = str(self.belief_update_method)
+        self.gt_distribution = str(self.gt_distribution)
+        if self.particle_distribution is not None:
+            self.particle_distribution = str(self.particle_distribution)
+        if isinstance(self.max_monitoring_per_critical_interval, str):
+            raw_budget = self.max_monitoring_per_critical_interval.strip().lower()
+            if raw_budget in {"uncap", "unbounded", "inf", "infinity"}:
+                self.max_monitoring_per_critical_interval = -1
+            else:
+                self.max_monitoring_per_critical_interval = int(raw_budget)
+        elif self.max_monitoring_per_critical_interval is not None:
+            self.max_monitoring_per_critical_interval = int(
+                self.max_monitoring_per_critical_interval
+            )
         self.beam_bound = _normalize_beam_bound(self.beam_bound)
         if self.approach not in {"bayesian", "edf", "cpm", "oracle"}:
             raise ValueError(f"Unsupported approach: {self.approach}")
@@ -158,6 +185,19 @@ class ExperimentConfig:
             raise ValueError(f"Unsupported ablation_config: {self.ablation_config}")
         if self.init_prior_config not in INIT_PRIOR_CONFIG_MAP:
             raise ValueError(f"Unsupported init_prior_config: {self.init_prior_config}")
+        if self.belief_update_method not in SUPPORTED_BELIEF_UPDATE_METHODS:
+            raise ValueError(
+                f"Unsupported belief_update_method: {self.belief_update_method}"
+            )
+        if self.gt_distribution not in SUPPORTED_DURATION_DISTRIBUTIONS:
+            raise ValueError(f"Unsupported gt_distribution: {self.gt_distribution}")
+        if (
+            self.particle_distribution is not None
+            and self.particle_distribution not in SUPPORTED_DURATION_DISTRIBUTIONS
+        ):
+            raise ValueError(
+                f"Unsupported particle_distribution: {self.particle_distribution}"
+            )
 
 
 @dataclass(frozen=True)
@@ -213,6 +253,50 @@ def apply_cli_overrides(
         if value is not None:
             merged[key] = value
     return ExperimentConfig(**merged)
+
+
+def _resolve_particle_distribution(config: ExperimentConfig) -> str:
+    """Resolve the PF particle prior family for one run.
+
+    When the user does not explicitly choose a particle distribution, PF runs
+    default to the active GT family so the particle posterior can represent the
+    same non-Gaussian support being tested. Non-PF runs keep the legacy
+    Gaussian approximation.
+    """
+
+    if config.particle_distribution is not None:
+        return config.particle_distribution
+    if config.belief_update_method == "particle_filter":
+        return config.gt_distribution
+    return "gaussian"
+
+
+def _resolve_monitoring_budget_label(
+    max_monitoring_per_critical_interval: int | None,
+) -> str | None:
+    """Return the serialized monitoring-budget label for one run."""
+
+    if max_monitoring_per_critical_interval is None:
+        return None
+    if int(max_monitoring_per_critical_interval) < 0:
+        return "uncap"
+    return str(int(max_monitoring_per_critical_interval))
+
+
+def _mean_or_none(values: Sequence[float]) -> float | None:
+    """Return the arithmetic mean or ``None`` when the input is empty."""
+
+    return mean(values) if values else None
+
+
+def _p95_or_none(values: Sequence[float]) -> float | None:
+    """Return the empirical p95 or ``None`` for empty inputs."""
+
+    if not values:
+        return None
+    ordered = sorted(float(value) for value in values)
+    index = max(0, min(len(ordered) - 1, int(round((len(ordered) - 1) * 0.95))))
+    return ordered[index]
 
 
 def build_grid_nav_graph(scene_positions: Mapping[str, Position]) -> NavGraph:
@@ -554,6 +638,25 @@ def _is_tcsr_perfect(schedule_tcsr: float | None) -> bool | None:
     return abs(float(schedule_tcsr) - 1.0) <= 1e-9
 
 
+def _count_monitoring_events_by_interval(
+    completed_entries: Sequence[CompletedEntry],
+) -> dict[str, int]:
+    """Count executed monitoring actions keyed by their critical-end target name."""
+
+    from src.utils.common import extract_monitoring_target_name
+
+    counts: dict[str, int] = {}
+    for entry in completed_entries:
+        if entry.subtask.subtask_type != "Monitor":
+            continue
+        try:
+            target_name = extract_monitoring_target_name(entry.subtask.name)
+        except ValueError:
+            continue
+        counts[target_name] = counts.get(target_name, 0) + 1
+    return counts
+
+
 def _build_result_meta_data(
     config: ExperimentConfig,
     result: Mapping[str, Any],
@@ -561,7 +664,15 @@ def _build_result_meta_data(
     """Build the hybrid legacy-style metadata block for one run result."""
 
     init_prior_mean, init_prior_variance = INIT_PRIOR_CONFIG_MAP[config.init_prior_config]
+    baseline_name = (
+        "particle_filter"
+        if config.approach == "bayesian"
+        and config.belief_update_method == "particle_filter"
+        else config.approach
+    )
     payload: dict[str, Any] = {
+        "suite_name": config.suite_name,
+        "baseline_name": baseline_name,
         "approach": config.approach,
         "ablation_config": config.ablation_config,
         "init_prior_config": config.init_prior_config,
@@ -572,8 +683,15 @@ def _build_result_meta_data(
         "beam_depth": result.get("beam_depth"),
         "disable_monitoring": not ABLATION_CONFIG_MONITORING[config.ablation_config],
         "nav_graph_source": config.nav_graph_source,
+        "belief_update_method": config.belief_update_method,
+        "gt_distribution": config.gt_distribution,
+        "gt_seed": config.gt_seed,
+        "particle_distribution": result.get("particle_distribution"),
         "factor_alpha": config.factor_alpha,
         "eta": config.eta,
+        "monitoring_budget_per_critical": _resolve_monitoring_budget_label(
+            config.max_monitoring_per_critical_interval
+        ),
     }
     return {key: value for key, value in payload.items() if value is not None}
 
@@ -654,6 +772,16 @@ def _build_persisted_single_run_payload(
         "search_nodes",
         "pruned_nodes",
         "idle_advances",
+        "actual_monitor_count_total",
+        "actual_monitor_count_by_interval",
+        "initial_planning_time",
+        "replanning_time_total",
+        "replanning_time_mean",
+        "replanning_time_p95",
+        "belief_update_count",
+        "belief_update_time_total",
+        "belief_update_time_mean",
+        "monitoring_budget_per_critical",
     ]
     for key in optional_keys:
         if key in row:
@@ -744,11 +872,13 @@ def run_single_rollout(
         config.observation_mode,
         random_seed=config.gt_seed,
     )
+    particle_distribution = _resolve_particle_distribution(config)
     belief_store, monitoring_policy, belief_updater = create_monitoring_backend(
         config.belief_update_method,
         bayesian_load,
-        particle_distribution="gaussian",
+        particle_distribution=particle_distribution,
         observation_model=observation_model,
+        random_seed=config.gt_seed,
     )
     ground_truth_store = create_ground_truth_store(
         constants.CRITICAL_OBJECT_GROUND_TRUTH,
@@ -770,9 +900,14 @@ def run_single_rollout(
         monitoring_policy=monitoring_policy,
         beam_width=task.beam_width,
         simulation_depth=task.beam_depth,
+        max_monitoring_per_critical_interval=(
+            config.max_monitoring_per_critical_interval
+        ),
     )
 
     total_compute_time = 0.0
+    replanning_durations: list[float] = []
+    belief_update_durations: list[float] = []
     chunk_sizes: list[int] = []
     replanning_count = 0
     aborted = False
@@ -783,6 +918,7 @@ def run_single_rollout(
         planned_states = [] if next_state is None else [next_state]
 
         total_compute_time += compute_elapsed_time
+        replanning_durations.append(float(compute_elapsed_time))
         replanning_count += 1
         if not planned_states:
             aborted = True
@@ -797,7 +933,11 @@ def run_single_rollout(
                 ABLATION_CONFIG_MONITORING[config.ablation_config]
                 and next_state.subtask.subtask_type == "Monitor"
             ):
+                belief_update_started_at = perf_counter()
                 next_state, monitored_subtask = agent.update_monitoring_belief(next_state)
+                belief_update_durations.append(
+                    perf_counter() - belief_update_started_at
+                )
                 _copy_schedule_to_sim_fields(next_state)
 
             if monitored_subtask is not None:
@@ -827,8 +967,14 @@ def run_single_rollout(
     action_count = sum(
         1 for step in steps if step["subtask_type"] not in {"WAIT", "Monitor"}
     )
+    monitor_count_by_interval = _count_monitoring_events_by_interval(
+        current_state.completed_entries
+    )
     avg_committed_steps = (
         sum(chunk_sizes) / len(chunk_sizes) if chunk_sizes else 0.0
+    )
+    monitoring_budget_label = _resolve_monitoring_budget_label(
+        config.max_monitoring_per_critical_interval
     )
 
     result = {
@@ -845,11 +991,26 @@ def run_single_rollout(
         "action_count": action_count,
         "wait_count": wait_count,
         "monitor_count": monitor_count,
+        "actual_monitor_count_total": monitor_count,
+        "actual_monitor_count_by_interval": monitor_count_by_interval,
         "replanning_count": replanning_count,
+        "initial_planning_time": (
+            replanning_durations[0] if replanning_durations else None
+        ),
+        "replanning_time_total": total_compute_time,
+        "replanning_time_mean": _mean_or_none(replanning_durations),
+        "replanning_time_p95": _p95_or_none(replanning_durations),
+        "belief_update_count": len(belief_update_durations),
+        "belief_update_time_total": (
+            sum(belief_update_durations) if belief_update_durations else 0.0
+        ),
+        "belief_update_time_mean": _mean_or_none(belief_update_durations),
         "avg_committed_steps_per_replan": avg_committed_steps,
         "steps": steps,
         "timing_detail": detail_log,
         "ground_truth_intervals": ground_truth_store.as_dict(),
+        "particle_distribution": particle_distribution,
+        "monitoring_budget_per_critical": monitoring_budget_label,
     }
     return _build_hybrid_result_row(config, result)
 

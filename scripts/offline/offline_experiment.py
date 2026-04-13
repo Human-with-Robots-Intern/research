@@ -7,7 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any, Sequence
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# parents[0]=offline, parents[1]=scripts, parents[2]=repo root
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -34,6 +35,7 @@ def _add_common_run_arguments(parser: argparse.ArgumentParser) -> None:
         "--config", type=str, default=None, help="JSON/YAML config path."
     )
     parser.add_argument("--experiment-name", type=str, default=None)
+    parser.add_argument("--suite-name", type=str, default=None)
     parser.add_argument("--task-folder-name", type=str, default=None)
     parser.add_argument(
         "--approach",
@@ -52,8 +54,14 @@ def _add_common_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--belief-update-method", type=str, default=None)
     parser.add_argument("--gt-distribution", type=str, default=None)
     parser.add_argument("--gt-seed", type=int, default=None)
+    parser.add_argument("--particle-distribution", type=str, default=None)
     parser.add_argument("--factor-alpha", type=float, default=None)
     parser.add_argument("--eta", type=float, default=None)
+    parser.add_argument(
+        "--max-monitoring-per-critical-interval",
+        type=int,
+        default=None,
+    )
     parser.add_argument(
         "--nav-graph-source",
         type=str,
@@ -131,6 +139,7 @@ def _build_run_config(args: argparse.Namespace) -> ExperimentConfig:
     )
     overrides: dict[str, Any] = {
         "experiment_name": args.experiment_name,
+        "suite_name": args.suite_name,
         "task_folder_name": args.task_folder_name,
         "approach": args.approach,
         "ablation_config": args.ablation_config,
@@ -144,8 +153,12 @@ def _build_run_config(args: argparse.Namespace) -> ExperimentConfig:
         "belief_update_method": args.belief_update_method,
         "gt_distribution": args.gt_distribution,
         "gt_seed": args.gt_seed,
+        "particle_distribution": args.particle_distribution,
         "factor_alpha": args.factor_alpha,
         "eta": args.eta,
+        "max_monitoring_per_critical_interval": (
+            args.max_monitoring_per_critical_interval
+        ),
         "nav_graph_source": args.nav_graph_source,
         "oracle_reference_dir": args.oracle_reference_dir,
         "output_path": args.output_path,

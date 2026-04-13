@@ -1585,6 +1585,42 @@ def test_agent_update_monitoring_belief_updates_constraints_and_metadata(
     )
 
 
+def test_scheduler_monitoring_budget_counts_completed_monitors_per_interval() -> None:
+    """Per-critical monitoring budgets should count executed monitor steps locally."""
+
+    state, start_subtask, _monitor_subtask, end_subtask = _build_monitoring_update_state()
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+        max_monitoring_per_critical_interval=1,
+    )
+
+    assert scheduler._count_monitoring_events_for_interval(
+        state,
+        critical_start_sub_end_time=28.01,
+        critical_end_sub_name=end_subtask.name,
+    ) == 1
+    assert scheduler._monitoring_budget_reached(
+        state,
+        critical_start_sub_end_time=28.01,
+        critical_end_sub_name=end_subtask.name,
+    )
+
+    scheduler_two = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+        max_monitoring_per_critical_interval=2,
+    )
+    assert not scheduler_two._monitoring_budget_reached(
+        state,
+        critical_start_sub_end_time=28.01,
+        critical_end_sub_name=end_subtask.name,
+    )
+
+
 def test_agent_update_monitoring_belief_with_particle_filter_updates_constraints(
     monkeypatch: MonkeyPatch,
 ) -> None:
