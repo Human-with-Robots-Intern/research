@@ -43,7 +43,10 @@ from src.models.task import Duration, Execution, Subtask
 from src.scheduler.action_handler import ActionHandler
 from src.scheduler.constraint_handler import ConstraintHandler
 from src.scheduler.heuristic_manager import HeuristicManager
-from src.utils.config.constants import BAYESIAN_THRESHOLD_PROBABILITY, NAV_STEP_DURATION
+from src.utils.config.constants import (
+    BAYESIAN_THRESHOLD_PROBABILITY,
+    NAV_STEP_DURATION,
+)
 from src.utils.io_utils.result_saver import (
     calculate_timing_success_rate,
     serialize_completed_entries,
@@ -1012,6 +1015,170 @@ def test_heuristic_uses_monitor_subtask_duration_consistently() -> None:
     assert monitor_duration == 5.0
     assert wait_duration == 0.0
 
+
+def test_future_conflict_positive_delay_is_penalized(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Any positive future-conflict delay should be penalized under strict semantics."""
+
+    action_handler = ActionHandler(nav_graph={})
+    heuristic_manager = HeuristicManager(action_handler)
+    candidate_subtask = _make_subtask(
+        "Start Bread Heating",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+    )
+    target_subtask = _make_subtask(
+        "Turn Off Microwave",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    reserved_last_subtask = _make_subtask(
+        "Turn Off Faucet",
+        primitive_actions=["TOGGLE_OFF Faucet|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        candidate_subtask.name,
+        target_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True},
+    )
+    state = SchedulerState(
+        subtask=candidate_subtask,
+        completed_entries=[],
+        remaining_subtasks=[candidate_subtask, target_subtask, reserved_last_subtask],
+        constraints=constraints,
+        current_time=0.0,
+        scene_positions={},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=False,
+        estimated_first_nav_duration=0.0,
+    )
+
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_estimated_pure_interaction_time",
+        lambda subtask: 4.5 if subtask.name == candidate_subtask.name else 0.0,
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_reserved_windows",
+        lambda _node: [(100.0, 110.0, "reserved-owner", reserved_last_subtask.name)],
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_chain_info",
+        lambda _node, subtask: (5.0, {subtask.name}, subtask.name),
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_task_interaction_location",
+        lambda _subtask, _scene_positions: (0.0, 0.0, 0.0),
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_estimate_navigation_time_between_positions",
+        lambda _a, _b: 2.5,
+    )
+
+    conflict_delay, victim = heuristic_manager.check_future_conflict(
+        curr_node, candidate
+    )
+
+    assert conflict_delay == pytest.approx(8.0)
+    assert victim == target_subtask.name
+
+
+def test_future_conflict_zero_wait_is_ignored(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Zero effective wait should not be treated as a future conflict."""
+
+    action_handler = ActionHandler(nav_graph={})
+    heuristic_manager = HeuristicManager(action_handler)
+    candidate_subtask = _make_subtask(
+        "Start Bread Heating",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+    )
+    target_subtask = _make_subtask(
+        "Turn Off Microwave",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    reserved_last_subtask = _make_subtask(
+        "Turn Off Faucet",
+        primitive_actions=["TOGGLE_OFF Faucet|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        candidate_subtask.name,
+        target_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True},
+    )
+    state = SchedulerState(
+        subtask=candidate_subtask,
+        completed_entries=[],
+        remaining_subtasks=[candidate_subtask, target_subtask, reserved_last_subtask],
+        constraints=constraints,
+        current_time=0.0,
+        scene_positions={},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=False,
+        estimated_first_nav_duration=0.0,
+    )
+
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_estimated_pure_interaction_time",
+        lambda subtask: 4.5 if subtask.name == candidate_subtask.name else 0.0,
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_reserved_windows",
+        lambda _node: [(100.0, 105.0, "reserved-owner", reserved_last_subtask.name)],
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_chain_info",
+        lambda _node, subtask: (5.0, {subtask.name}, subtask.name),
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_task_interaction_location",
+        lambda _subtask, _scene_positions: (0.0, 0.0, 0.0),
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_estimate_navigation_time_between_positions",
+        lambda _a, _b: 0.0,
+    )
+
+    conflict_delay, victim = heuristic_manager.check_future_conflict(
+        curr_node, candidate
+    )
+
+    assert conflict_delay == pytest.approx(0.0)
+    assert victim is None
+
 def test_constraint_handler_handles_missing_navigation_estimate(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -1199,6 +1366,59 @@ def test_constraint_handler_marks_failed_predecessor_as_unavailable() -> None:
     assert is_critical is False
     assert status == "FAILED_PREDECESSOR"
     assert critical_info == {}
+
+
+def test_constraint_handler_assigns_due_from_not_ready_critical_inferred_due() -> None:
+    """Feasible candidates should inherit due from blocked critical candidates."""
+
+    action_handler = ActionHandler(nav_graph={})
+    constraint_handler = ConstraintHandler(action_handler)
+    feasible_candidate = Candidate(
+        subtask=_make_subtask(
+            "Wash Spoon",
+            primitive_actions=["PLACE Spoon|01 CounterTop|01"],
+        ),
+        is_critical=False,
+    )
+    blocked_critical = Candidate(
+        subtask=_make_subtask(
+            "Turn Off Microwave",
+            primitive_actions=["TOGGLE_OFF Microwave|01"],
+        ),
+        is_critical=True,
+        logical_interaction_start_time=None,
+        scheduling_due=SchedulingDue(
+            due_date=165.0,
+            due_related_sub_name="Turn Off Microwave",
+        ),
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=feasible_candidate.subtask,
+            completed_entries=[],
+            remaining_subtasks=[feasible_candidate.subtask, blocked_critical.subtask],
+            constraints=nx.DiGraph(),
+            current_time=150.0,
+            scene_positions={},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    constraint_handler._assign_scheduling_due(
+        [feasible_candidate],
+        [blocked_critical],
+        curr_node,
+    )
+
+    assert feasible_candidate.scheduling_due == SchedulingDue(
+        due_date=165.0,
+        due_related_sub_name="Turn Off Microwave",
+    )
 
 
 def test_scheduler_detects_active_bayesian_monitoring_interval() -> None:

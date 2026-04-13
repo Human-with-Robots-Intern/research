@@ -23,7 +23,6 @@ from src.utils.config import EPSILON
 from src.utils.config.constants import (
     CONSTRAINT_MERGE_THRESHOLD,
     MONITORING_DURATION,
-    TIMING_TOLERANCE_ABS,
 )
 
 log = create_module_logger(__name__, True, logging.DEBUG)
@@ -483,22 +482,40 @@ class ConstraintHandler:
         """
 
         # Find the earliest logical start time among upcoming critical tasks
-        valid_crit_candidates = [
-            c
-            for c in not_yet_candidates
-            if c.is_critical
-            and c.logical_interaction_start_time is not None
-            and c.logical_interaction_start_time >= curr_node.state.current_time
-            and c.logical_interaction_start_time != float("inf")
-        ]
+        valid_crit_candidates: list[tuple[float, Candidate]] = []
+        for candidate in not_yet_candidates:
+            if not candidate.is_critical:
+                continue
+
+            effective_due = candidate.logical_interaction_start_time
+            if (
+                effective_due is None
+                or effective_due == float("inf")
+                or effective_due < curr_node.state.current_time
+            ):
+                inferred_due = candidate.scheduling_due.due_date
+                if (
+                    inferred_due != float("inf")
+                    and inferred_due >= curr_node.state.current_time
+                ):
+                    effective_due = inferred_due
+
+            if (
+                effective_due is None
+                or effective_due == float("inf")
+                or effective_due < curr_node.state.current_time
+            ):
+                continue
+
+            valid_crit_candidates.append((float(effective_due), candidate))
+
         if valid_crit_candidates:
-            # Sort by logical start time to find the *next* critical scheduling_due
-            valid_crit_candidates.sort(key=lambda x: x.logical_interaction_start_time)
-            next_crit = valid_crit_candidates[0]
+            valid_crit_candidates.sort(key=lambda item: item[0])
+            next_due, next_crit = valid_crit_candidates[0]
 
             # Assign the calculated scheduling_due (IN-PLACE) while preserving critical metadata.
             new_scheduling_due = SchedulingDue(
-                due_date=next_crit.logical_interaction_start_time,
+                due_date=next_due,
                 due_related_sub_name=next_crit.subtask.name,
             )
         else:
