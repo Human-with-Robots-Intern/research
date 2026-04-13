@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import dataclasses
 import time
 from dataclasses import dataclass, field
 from typing import Any, Optional, Sequence
@@ -17,7 +18,11 @@ from src.models.dataclass import (
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from src.utils.common import create_module_logger
 from src.utils.config import constants
-from src.utils.config.constants import CONSECUTIVE_TASK_WAIT_TOLERANCE
+from src.utils.config.constants import (
+    CONSECUTIVE_TASK_WAIT_TOLERANCE,
+    TSR_EVAL_TOLERANCE_ABS,
+)
+from src.utils.io_utils.result_saver import calculate_timing_success_rate
 from src.utils.io_utils.result_saver import serialize_completed_entries
 
 log = create_module_logger(__name__, module_log=True)
@@ -116,7 +121,9 @@ class DeterministicExactOracle:
             simulation_depth=1,
         )
         self._deadline_monotonic_tolerance = float(constants.EPSILON)
+        self._perfect_tcsr_tolerance = 1e-9
         self._best_makespan: Optional[float] = None
+        self._incumbent_upper_bound: Optional[float] = None
         self._best_sequence: list[str] = []
         self._best_completed_entries: list[CompletedEntry] = []
         self._search_nodes = 0
@@ -146,7 +153,8 @@ class DeterministicExactOracle:
             OracleSolution containing the best schedule found and exactness flags.
         """
 
-        self._best_makespan = (
+        self._best_makespan = None
+        self._incumbent_upper_bound = (
             float(incumbent_upper_bound) if incumbent_upper_bound is not None else None
         )
         self._best_sequence = []
@@ -218,15 +226,23 @@ class DeterministicExactOracle:
         #   1. _is_critical_deadline_violated  (per-candidate check in Branch A)
         #   2. branch-and-bound makespan bound (below)
         current_time = float(node.state.current_time)
+        incumbent_bound = (
+            self._best_makespan
+            if self._best_makespan is not None
+            else self._incumbent_upper_bound
+        )
         if (
-            self._best_makespan is not None
-            and current_time >= self._best_makespan - self._deadline_monotonic_tolerance
+            incumbent_bound is not None
+            and current_time > incumbent_bound + self._deadline_monotonic_tolerance
         ):
             self._pruned_nodes += 1
             return
 
         self._search_nodes += 1
         if not node.state.remaining_subtasks:
+            if not self._is_terminal_schedule_valid(node.state):
+                self._pruned_nodes += 1
+                return
             self._commit_solution(current_time, sequence, node.state.completed_entries)
             return
 
@@ -293,6 +309,27 @@ class DeterministicExactOracle:
                     if self._timeout_hit:
                         return
 
+        # Branch C: pre-task strategic delay for feasible non-critical candidates.
+        # When a non-critical task is feasible now but starting it immediately would
+        # cause a parallel timing constraint to expire in a tight window, it can be
+        # better to idle until a pending critical deadline and only then start the
+        # non-critical work.  Branch A never discovers this because it always tries
+        # immediate execution; Branch B only waits for *blocked* candidates.
+        # Branch C closes the gap by generating one "wait-until-LIT" node per
+        # distinct future critical LIT, allowing the oracle to explore schedules
+        # where non-critical tasks are deliberately deferred.
+        if not reserved_candidate_name:
+            for delay_until in self._collect_pretask_delay_targets(
+                current_time, feasible_candidates, not_yet_candidates
+            ):
+                wait_node = self._expand_pretask_delay_wait(
+                    node, delay_until, feasible_candidates, not_yet_candidates
+                )
+                if wait_node is not None:
+                    self._search(wait_node, sequence + (wait_node.state.subtask.name,))
+                    if self._timeout_hit:
+                        return
+
         # Dead-end: no feasible candidates and no future releases.
         if not feasible_candidates and not not_yet_candidates:
             return
@@ -318,6 +355,26 @@ class DeterministicExactOracle:
             self._best_makespan = makespan
             self._best_sequence = list(sequence)
             self._best_completed_entries = copy.deepcopy(list(completed_entries))
+        if (
+            self._incumbent_upper_bound is None
+            or makespan < self._incumbent_upper_bound
+        ):
+            self._incumbent_upper_bound = makespan
+
+    def _is_terminal_schedule_valid(self, state: SchedulerState) -> bool:
+        """Return True only when the completed deterministic schedule satisfies all timing constraints."""
+
+        if not state.constraints:
+            return True
+
+        _, schedule_tcsr, _ = calculate_timing_success_rate(
+            state.constraints,
+            list(state.completed_entries),
+        )
+        return (
+            schedule_tcsr is not None
+            and abs(float(schedule_tcsr) - 1.0) <= self._perfect_tcsr_tolerance
+        )
 
     def _is_critical_deadline_violated(
         self,
@@ -333,7 +390,7 @@ class DeterministicExactOracle:
         ``_calculate_candidate_risk_and_urgency`` return ``risk = 0``.
 
         This check closes that gap: if the oracle's current time is more than
-        ``TIMING_TOLERANCE_ABS`` past the critical task's required start time, the
+        ``TSR_EVAL_TOLERANCE_ABS`` past the critical task's required start time, the
         branch is pruned to prevent recording constraint-violating schedules as optimal.
 
         Args:
@@ -351,12 +408,12 @@ class DeterministicExactOracle:
             return False
         # For (0, True) consecutive constraints the oracle uses the same stricter
         # tolerance as the evaluator: only scheduling overhead is allowed, not the
-        # full TIMING_TOLERANCE_ABS window.
+        # full evaluation tolerance window.
         ctx = candidate.critical_context
         if ctx is not None and ctx.interval == 0.0:
             tolerance = CONSECUTIVE_TASK_WAIT_TOLERANCE
         else:
-            tolerance = constants.TIMING_TOLERANCE_ABS
+            tolerance = TSR_EVAL_TOLERANCE_ABS
         return float(node.state.current_time) > lit + tolerance
 
     def _order_candidates(
@@ -434,6 +491,86 @@ class DeterministicExactOracle:
             list(not_yet_candidates),
             feasible_candidates=list(feasible_candidates),
         )
+
+    def _collect_pretask_delay_targets(
+        self,
+        current_time: float,
+        feasible_candidates: Sequence[Candidate],
+        not_yet_candidates: Sequence[Candidate],
+    ) -> list[float]:
+        """Return distinct future critical LITs worth waiting for in Branch C.
+
+        Only returns targets when there is at least one feasible non-critical
+        candidate (otherwise there is nothing to delay).  Targets are the
+        ``logical_interaction_start_time`` values of all critical candidates
+        (both feasible and not-yet) that lie strictly in the future.
+
+        Args:
+            current_time: Current DFS time.
+            feasible_candidates: Immediately executable candidates.
+            not_yet_candidates: Candidates blocked by timing or readiness.
+
+        Returns:
+            Sorted list of distinct delay target times.
+        """
+        has_non_critical_feasible = any(
+            not c.is_critical for c in feasible_candidates
+        )
+        if not has_non_critical_feasible:
+            return []
+
+        targets: set[float] = set()
+        for c in list(feasible_candidates) + list(not_yet_candidates):
+            if not c.is_critical:
+                continue
+            lit = c.logical_interaction_start_time
+            if lit is not None and lit > current_time + constants.EPSILON:
+                targets.add(float(lit))
+
+        return sorted(targets)
+
+    def _expand_pretask_delay_wait(
+        self,
+        node: SimulationNode,
+        delay_until: float,
+        feasible_candidates: Sequence[Candidate],
+        not_yet_candidates: Sequence[Candidate],
+    ) -> Optional[SimulationNode]:
+        """Create a free idle-wait node that advances time to delay_until.
+
+        Uses the first feasible non-critical candidate as a vehicle for
+        ``_expand_wait_wo_monitoring`` with ``nav_duration=0`` so the wait is
+        a pure time advance with no implied navigation.  All remaining tasks
+        are preserved unchanged; the DFS continues normally from delay_until.
+
+        Args:
+            node: Current DFS node.
+            delay_until: Target time to advance to (a critical task's LIT).
+            feasible_candidates: Immediately executable candidates.
+            not_yet_candidates: Candidates blocked by timing or readiness.
+
+        Returns:
+            Wait node with ``current_time == delay_until``, or ``None``.
+        """
+        vehicle = next(
+            (c for c in feasible_candidates if not c.is_critical), None
+        )
+        if vehicle is None:
+            return None
+
+        delayed_vehicle = dataclasses.replace(
+            vehicle, actual_interaction_start_time=delay_until
+        )
+        wait_node = self.scheduler._expand_wait_wo_monitoring(
+            node,
+            delayed_vehicle,
+            list(not_yet_candidates),
+            nav_duration=0.0,
+            feasible_candidates=list(feasible_candidates),
+        )
+        if wait_node is not None:
+            self._idle_advances += 1
+        return wait_node
 
 
 def build_scheduler_state_after_subtask(
