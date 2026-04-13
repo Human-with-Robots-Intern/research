@@ -22,14 +22,19 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+# parents[0]=result_analysis, parents[1]=assets, parents[2]=repo root
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from src.utils.common.logger import create_module_logger
 from src.utils.config.constants import (
     CONSECUTIVE_TASK_WAIT_TOLERANCE,
-    TIMING_TOLERANCE_RATIO,
 )
 
 logger = create_module_logger(__name__)
@@ -63,13 +68,14 @@ def _build_approach_key_from_stem(stem: str) -> str:
         baseline_name = "particle_filter" if "pf" in suffixes else "bayesian"
         key = f"{baseline_name}__{ablation}__{beam}"
         for suffix in suffixes:
-            if (
-                suffix.startswith("eta")
-                or suffix.startswith("gt")
-                or suffix.startswith("pdist")
-                or suffix.startswith("mb")
-            ):
-                key += f"__{suffix}"
+                if (
+                    suffix.startswith("eta")
+                    or suffix.startswith("gt")
+                    or suffix.startswith("pdist")
+                    or suffix.startswith("plik")
+                    or suffix.startswith("mb")
+                ):
+                    key += f"__{suffix}"
         return f"{init_prior}__{key}" if init_prior is not None else key
 
     return stem
@@ -122,11 +128,14 @@ def build_approach_key(
 
     gt_distribution = str(meta_data.get("gt_distribution", "constant"))
     particle_distribution = meta_data.get("particle_distribution")
+    particle_likelihood_family = meta_data.get("particle_likelihood_family")
 
     if baseline_name == "particle_filter":
         key += f"__gt{_sanitize_token(gt_distribution)}"
         if particle_distribution not in {None, gt_distribution}:
             key += f"__pdist{_sanitize_token(particle_distribution)}"
+        if particle_likelihood_family not in {None, "gaussian"}:
+            key += f"__plik{_sanitize_token(particle_likelihood_family)}"
         monitoring_budget = meta_data.get("monitoring_budget_per_critical")
         if monitoring_budget is not None:
             key += f"__mb{_sanitize_token(monitoring_budget)}"
@@ -332,6 +341,9 @@ def build_raw(
                         "belief_update_method": meta_data.get("belief_update_method"),
                         "gt_distribution": meta_data.get("gt_distribution"),
                         "particle_distribution": meta_data.get("particle_distribution"),
+                        "particle_likelihood_family": meta_data.get(
+                            "particle_likelihood_family"
+                        ),
                         "eta": meta_data.get("eta"),
                     }
 
@@ -483,8 +495,7 @@ def _recompute_tsr_from_detail_log(
         succ_interaction_start = float(t_match.group(3))
         actual_diff = succ_interaction_start - pred_end
 
-        ratio_allowance = interval * TIMING_TOLERANCE_RATIO
-        tolerance = max(5.0, min(tolerance_abs, ratio_allowance))
+        tolerance = tolerance_abs
 
         if is_critical:
             if abs(interval - actual_diff) <= tolerance:
