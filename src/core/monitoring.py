@@ -9,19 +9,13 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Mapping, Optional, Protocol
 
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import gamma as gamma_dist
+from scipy.stats import lognorm, norm
 
 from src.utils.common import create_module_logger
 
 log = create_module_logger(module_name=__name__, module_log=True)
-from src.utils.config.constants import (
-    AGENT_KNOWLEDGE_PATH,
-    BAYESIAN_THRESHOLD_PROBABILITY,
-    FACTOR_ALPHA,
-    INIT_PRIOR_MEAN,
-    INIT_PRIOR_VARIANCE,
-    MIN_VARIANCE,
-)
+import src.utils.config.constants as config_constants
 
 BeliefMethod = Literal["bayesian", "particle_filter"]
 ObservationMode = Literal["synthetic_gaussian", "openai_vlm"]
@@ -154,12 +148,15 @@ class GroundTruthStore:
 
         sampled = _sample_positive_duration(
             distribution=self._config.distribution,
-            mean=max(MIN_VARIANCE, float(base_interval)),
-            variance=max(MIN_VARIANCE, float(base_interval) * 0.1),
+            mean=max(config_constants.MIN_VARIANCE, float(base_interval)),
+            variance=resolve_duration_sampling_variance(
+                distribution=self._config.distribution,
+                mean=max(config_constants.MIN_VARIANCE, float(base_interval)),
+            ),
             sample_count=1,
             rng=self._rng,
         )[0]
-        return max(MIN_VARIANCE, float(sampled))
+        return max(config_constants.MIN_VARIANCE, float(sampled))
 
 @dataclass(frozen=True)
 class BeliefSummary:
@@ -288,12 +285,18 @@ class GaussianSyntheticObservationModel:
     def __init__(
         self,
         *,
-        alpha: float = FACTOR_ALPHA,
-        min_variance: float = MIN_VARIANCE,
+        alpha: Optional[float] = None,
+        min_variance: Optional[float] = None,
         rng: Optional[np.random.Generator] = None,
     ) -> None:
-        self._alpha = alpha
-        self._min_variance = min_variance
+        self._alpha = (
+            float(config_constants.FACTOR_ALPHA) if alpha is None else float(alpha)
+        )
+        self._min_variance = (
+            float(config_constants.MIN_VARIANCE)
+            if min_variance is None
+            else float(min_variance)
+        )
         self._rng = rng or np.random.default_rng()
 
     def observe(self, context: BeliefUpdateContext) -> ObservationResult:
@@ -349,7 +352,7 @@ class OpenAIVLMProgressObservationModel:
         alpha: float = 0.08,
         progress_floor: float = 0.05,
         progress_ceiling: float = 0.99,
-        min_variance: float = MIN_VARIANCE,
+        min_variance: Optional[float] = None,
         api_key: Optional[str] = None,
         client: Optional[Any] = None,
     ) -> None:
@@ -359,7 +362,11 @@ class OpenAIVLMProgressObservationModel:
         self._alpha = alpha
         self._progress_floor = progress_floor
         self._progress_ceiling = progress_ceiling
-        self._min_variance = min_variance
+        self._min_variance = (
+            float(config_constants.MIN_VARIANCE)
+            if min_variance is None
+            else float(min_variance)
+        )
         if client is not None:
             self._client = client
         else:
@@ -511,7 +518,7 @@ class BeliefStore:
         state = self.get_state(object_name)
         return BeliefSummary(
             expected_duration=float(state["expected_duration"]),
-            variance=max(MIN_VARIANCE, float(state["variance"])),
+            variance=max(config_constants.MIN_VARIANCE, float(state["variance"])),
             method=state["method"],
         )
 
@@ -567,7 +574,7 @@ class BeliefStore:
             output_path: Optional override path for the persisted JSON file.
         """
 
-        path = output_path or (AGENT_KNOWLEDGE_PATH / "bayesian_estimate.json")
+        path = output_path or (config_constants.AGENT_KNOWLEDGE_PATH / "bayesian_estimate.json")
         with open(path, "w", encoding="utf-8") as file_obj:
             json.dump(self.as_dict(), file_obj, indent=4)
 
@@ -583,8 +590,8 @@ class BeliefStore:
         """Create the default Gaussian summary."""
 
         return {
-            "expected_duration": float(INIT_PRIOR_MEAN),
-            "variance": float(INIT_PRIOR_VARIANCE),
+            "expected_duration": float(config_constants.INIT_PRIOR_MEAN),
+            "variance": float(config_constants.INIT_PRIOR_VARIANCE),
             "method": "bayesian",
         }
 
@@ -600,9 +607,9 @@ class BeliefStore:
 
         expected_duration = max(
             0.0,
-            float(raw_state.get("expected_duration", INIT_PRIOR_MEAN)),
+            float(raw_state.get("expected_duration", config_constants.INIT_PRIOR_MEAN)),
         )
-        variance = max(MIN_VARIANCE, float(raw_state.get("variance", INIT_PRIOR_VARIANCE)))
+        variance = max(config_constants.MIN_VARIANCE, float(raw_state.get("variance", config_constants.INIT_PRIOR_VARIANCE)))
         method: BeliefMethod = raw_state.get("method", "bayesian")
         normalized: dict[str, Any] = {
             "expected_duration": expected_duration,
@@ -653,8 +660,8 @@ class BeliefStore:
 
         particles = _sample_positive_duration(
             distribution=self._particle_distribution,
-            mean=max(MIN_VARIANCE, mean),
-            variance=max(MIN_VARIANCE, variance),
+            mean=max(config_constants.MIN_VARIANCE, mean),
+            variance=max(config_constants.MIN_VARIANCE, variance),
             sample_count=self._particle_count,
             rng=self._rng,
         )
@@ -723,17 +730,23 @@ class BayesianMonitoringPolicy:
         self,
         belief_store: BeliefStore,
         *,
-        threshold_probability: float = BAYESIAN_THRESHOLD_PROBABILITY,
+        threshold_probability: Optional[float] = None,
     ) -> None:
         """Initialize the Bayesian trigger policy.
 
         Args:
             belief_store: Shared belief store for summary access.
-            threshold_probability: Quantile threshold for trigger timing.
+            threshold_probability: Quantile threshold for trigger timing. If
+                omitted, uses the current value of
+                ``config_constants.BAYESIAN_THRESHOLD_PROBABILITY`` (so
+                ``constants.set_bayesian_threshold_probability`` before
+                construction is respected).
         """
 
         self.method: BeliefMethod = "bayesian"
         self._belief_store = belief_store
+        if threshold_probability is None:
+            threshold_probability = config_constants.BAYESIAN_THRESHOLD_PROBABILITY
         self._threshold_probability = threshold_probability
 
     def compute_trigger_time(self, context: MonitoringTriggerContext) -> float:
@@ -747,7 +760,7 @@ class BayesianMonitoringPolicy:
         """
 
         z_score = float(norm.ppf(self._threshold_probability))
-        sigma = math.sqrt(max(MIN_VARIANCE, context.variance))
+        sigma = math.sqrt(max(config_constants.MIN_VARIANCE, context.variance))
         return context.critical_start_end_time + context.mean_duration + (sigma * z_score)
 
 
@@ -758,17 +771,21 @@ class ParticleFilterMonitoringPolicy:
         self,
         belief_store: BeliefStore,
         *,
-        threshold_probability: float = BAYESIAN_THRESHOLD_PROBABILITY,
+        threshold_probability: Optional[float] = None,
     ) -> None:
         """Initialize the particle-filter trigger policy.
 
         Args:
             belief_store: Shared belief store for particle access.
-            threshold_probability: Quantile threshold for trigger timing.
+            threshold_probability: Quantile threshold for trigger timing. If
+                omitted, uses the current value of
+                ``config_constants.BAYESIAN_THRESHOLD_PROBABILITY``.
         """
 
         self.method: BeliefMethod = "particle_filter"
         self._belief_store = belief_store
+        if threshold_probability is None:
+            threshold_probability = config_constants.BAYESIAN_THRESHOLD_PROBABILITY
         self._threshold_probability = threshold_probability
 
     def compute_trigger_time(self, context: MonitoringTriggerContext) -> float:
@@ -852,7 +869,7 @@ class BayesianBeliefUpdater:
             + (likelihood_variance * context.prior_mean)
         ) / (likelihood_variance + context.prior_variance)
         posterior_variance = max(
-            MIN_VARIANCE,
+            config_constants.MIN_VARIANCE,
             (likelihood_variance * context.prior_variance)
             / (likelihood_variance + context.prior_variance),
         )
@@ -884,6 +901,7 @@ class ParticleFilterBeliefUpdater:
         belief_store: BeliefStore,
         *,
         resample_threshold: float = 0.5,
+        likelihood_family: Optional[GroundTruthDistribution] = None,
         observation_model: Optional[ObservationModel] = None,
         rng: Optional[np.random.Generator] = None,
     ) -> None:
@@ -898,6 +916,7 @@ class ParticleFilterBeliefUpdater:
         self.method: BeliefMethod = "particle_filter"
         self._belief_store = belief_store
         self._resample_threshold = resample_threshold
+        self._likelihood_family = likelihood_family
         self._rng = rng or np.random.default_rng()
         self._observation_model = observation_model or GaussianSyntheticObservationModel(
             rng=self._rng
@@ -919,11 +938,13 @@ class ParticleFilterBeliefUpdater:
         observation_result = self._observation_model.observe(context)
         observation = observation_result.observation
         likelihood_variance = observation_result.variance
+        effective_likelihood_family = self._likelihood_family or "gaussian"
 
-        likelihood = norm.pdf(
-            observation,
-            loc=particles,
-            scale=math.sqrt(max(MIN_VARIANCE, likelihood_variance)),
+        likelihood = evaluate_duration_observation_likelihood(
+            observation=observation,
+            hypotheses=particles,
+            variance=likelihood_variance,
+            family=effective_likelihood_family,
         )
         updated_weights = BeliefStore._normalize_weights(weights * likelihood)
         ess_before_resample = BeliefStore._compute_ess(updated_weights)
@@ -932,7 +953,7 @@ class ParticleFilterBeliefUpdater:
 
         posterior_mean = float(np.sum(updated_weights * particles))
         posterior_variance = max(
-            MIN_VARIANCE,
+            config_constants.MIN_VARIANCE,
             float(np.sum(updated_weights * np.square(particles - posterior_mean))),
         )
 
@@ -942,10 +963,10 @@ class ParticleFilterBeliefUpdater:
                 weights=updated_weights,
                 rng=self._rng,
             )
-            jitter_std = math.sqrt(max(MIN_VARIANCE, posterior_variance)) * 0.05
+            jitter_std = math.sqrt(max(config_constants.MIN_VARIANCE, posterior_variance)) * 0.05
             particles = np.clip(
                 particles + self._rng.normal(0.0, jitter_std, size=len(particles)),
-                a_min=MIN_VARIANCE,
+                a_min=config_constants.MIN_VARIANCE,
                 a_max=None,
             )
             updated_weights = np.ones_like(updated_weights) / float(len(updated_weights))
@@ -954,7 +975,7 @@ class ParticleFilterBeliefUpdater:
 
             posterior_mean = float(np.sum(updated_weights * particles))
             posterior_variance = max(
-                MIN_VARIANCE,
+                config_constants.MIN_VARIANCE,
                 float(np.sum(updated_weights * np.square(particles - posterior_mean))),
             )
         ess_after_resample = float(BeliefStore._compute_ess(updated_weights))
@@ -995,6 +1016,7 @@ class ParticleFilterBeliefUpdater:
             "particle_distribution": state.get(
                 "particle_distribution", "gaussian"
             ),
+            "particle_likelihood_family": effective_likelihood_family,
         }
         self._belief_store.set_state(context.object_name, belief_state)
         return BeliefUpdateResult(
@@ -1012,6 +1034,7 @@ class ParticleFilterBeliefUpdater:
                 "ess_ratio_after_resample": ess_after_resample / float(len(particles)),
                 "resampled": resampled,
                 "resample_count": resample_count,
+                "particle_likelihood_family": effective_likelihood_family,
                 **posterior_diagnostics,
             },
         )
@@ -1046,6 +1069,7 @@ def create_belief_updater(
     belief_store: BeliefStore,
     observation_model: Optional[ObservationModel] = None,
     *,
+    particle_likelihood_family: Optional[GroundTruthDistribution] = None,
     rng: Optional[np.random.Generator] = None,
 ) -> BeliefUpdater:
     """Create the runtime posterior updater.
@@ -1071,6 +1095,7 @@ def create_belief_updater(
     if method == "particle_filter":
         return ParticleFilterBeliefUpdater(
             belief_store,
+            likelihood_family=particle_likelihood_family,
             observation_model=observation_model,
             rng=rng,
         )
@@ -1081,7 +1106,9 @@ def create_monitoring_backend(
     method: BeliefMethod,
     initial_beliefs: Optional[Mapping[str, Mapping[str, Any]]] = None,
     *,
+    particle_count: int = 128,
     particle_distribution: GroundTruthDistribution = "gaussian",
+    particle_likelihood_family: Optional[GroundTruthDistribution] = None,
     observation_model: Optional[ObservationModel] = None,
     random_seed: Optional[int] = None,
 ) -> tuple[BeliefStore, MonitoringPolicy, BeliefUpdater]:
@@ -1108,6 +1135,7 @@ def create_monitoring_backend(
     )
     belief_store = BeliefStore(
         initial_beliefs,
+        particle_count=particle_count,
         particle_distribution=particle_distribution,
         rng=belief_store_rng,
     )
@@ -1117,6 +1145,7 @@ def create_monitoring_backend(
         method,
         belief_store,
         observation_model=observation_model,
+        particle_likelihood_family=particle_likelihood_family,
         rng=updater_rng,
     )
     return belief_store, monitoring_policy, belief_updater
@@ -1271,8 +1300,8 @@ def _sample_positive_duration(
         Positive duration samples.
     """
 
-    clipped_mean = max(MIN_VARIANCE, float(mean))
-    clipped_variance = max(MIN_VARIANCE, float(variance))
+    clipped_mean = max(config_constants.MIN_VARIANCE, float(mean))
+    clipped_variance = max(config_constants.MIN_VARIANCE, float(variance))
     sample_size = max(1, int(sample_count))
 
     if distribution == "constant":
@@ -1284,13 +1313,13 @@ def _sample_positive_duration(
             size=sample_size,
         )
     elif distribution == "lognormal":
-        sigma_sq = math.log(1.0 + (clipped_variance / max(MIN_VARIANCE, clipped_mean**2)))
-        sigma = math.sqrt(max(MIN_VARIANCE, sigma_sq))
+        sigma_sq = math.log(1.0 + (clipped_variance / max(config_constants.MIN_VARIANCE, clipped_mean**2)))
+        sigma = math.sqrt(max(config_constants.MIN_VARIANCE, sigma_sq))
         mu = math.log(clipped_mean) - (0.5 * sigma_sq)
         samples = rng.lognormal(mean=mu, sigma=sigma, size=sample_size)
     elif distribution == "gamma":
-        shape = max(MIN_VARIANCE, (clipped_mean**2) / clipped_variance)
-        scale = max(MIN_VARIANCE, clipped_variance / clipped_mean)
+        shape = max(config_constants.MIN_VARIANCE, (clipped_mean**2) / clipped_variance)
+        scale = max(config_constants.MIN_VARIANCE, clipped_variance / clipped_mean)
         samples = rng.gamma(shape=shape, scale=scale, size=sample_size)
     else:
         std = math.sqrt(clipped_variance)
@@ -1305,7 +1334,76 @@ def _sample_positive_duration(
             scale=component_scales[component_choices],
         )
 
-    return np.clip(np.asarray(samples, dtype=float), a_min=MIN_VARIANCE, a_max=None)
+    return np.clip(np.asarray(samples, dtype=float), a_min=config_constants.MIN_VARIANCE, a_max=None)
+
+
+def resolve_duration_sampling_variance(
+    *,
+    distribution: GroundTruthDistribution,
+    mean: float,
+) -> float:
+    """Return a family-specific default variance for duration sampling.
+
+    The reviewer-facing robustness experiments should keep the Gaussian case at
+    roughly ``mean=100, std=30`` while making non-Gaussian families
+    substantially harder. We therefore use broader default spreads for the
+    heavy-tailed / multimodal families instead of the previous tiny
+    ``base_interval * 0.1`` variance that kept every draw near 100.
+    """
+
+    clipped_mean = max(config_constants.MIN_VARIANCE, float(mean))
+    std_ratio_by_family: dict[GroundTruthDistribution, float] = {
+        "constant": 0.0,
+        "gaussian": 0.30,
+        "lognormal": 0.50,
+        "gamma": 0.50,
+        "mixture": 0.60,
+    }
+    std_ratio = std_ratio_by_family[distribution]
+    if std_ratio <= 0.0:
+        return config_constants.MIN_VARIANCE
+    std = std_ratio * clipped_mean
+    return max(config_constants.MIN_VARIANCE, std**2)
+
+
+def evaluate_duration_observation_likelihood(
+    *,
+    observation: float,
+    hypotheses: np.ndarray,
+    variance: float,
+    family: GroundTruthDistribution,
+) -> np.ndarray:
+    """Evaluate one duration-observation likelihood family over particle hypotheses."""
+
+    clipped_variance = max(config_constants.MIN_VARIANCE, float(variance))
+    clipped_hypotheses = np.maximum(config_constants.MIN_VARIANCE, np.asarray(hypotheses, dtype=float))
+
+    if family in {"constant", "gaussian"}:
+        return norm.pdf(
+            observation,
+            loc=clipped_hypotheses,
+            scale=math.sqrt(clipped_variance),
+        )
+    if family == "lognormal":
+        sigma_sq = np.log1p(clipped_variance / np.square(clipped_hypotheses))
+        sigma = np.sqrt(np.maximum(config_constants.MIN_VARIANCE, sigma_sq))
+        mu = np.log(clipped_hypotheses) - (0.5 * sigma_sq)
+        return lognorm.pdf(observation, s=sigma, scale=np.exp(mu))
+    if family == "gamma":
+        shape = np.maximum(config_constants.MIN_VARIANCE, np.square(clipped_hypotheses) / clipped_variance)
+        scale = np.maximum(config_constants.MIN_VARIANCE, clipped_variance / clipped_hypotheses)
+        return gamma_dist.pdf(observation, a=shape, scale=scale)
+    if family == "mixture":
+        std = math.sqrt(clipped_variance)
+        left_loc = np.maximum(config_constants.MIN_VARIANCE, clipped_hypotheses - (0.75 * std))
+        right_loc = clipped_hypotheses + (0.75 * std)
+        left_scale = max(1.0, 0.45 * std)
+        right_scale = max(1.0, 0.55 * std)
+        return (
+            0.5 * norm.pdf(observation, loc=left_loc, scale=left_scale)
+            + 0.5 * norm.pdf(observation, loc=right_loc, scale=right_scale)
+        )
+    raise ValueError(f"Unsupported likelihood family: {family}")
 
 
 def _weighted_quantile(
@@ -1371,12 +1469,12 @@ def _summarize_particle_posterior(
     weighted_mean = float(np.sum(normalized_weights * particles))
     centered_particles = particles - weighted_mean
     weighted_variance = float(np.sum(normalized_weights * np.square(centered_particles)))
-    weighted_std = math.sqrt(max(MIN_VARIANCE, weighted_variance))
+    weighted_std = math.sqrt(max(config_constants.MIN_VARIANCE, weighted_variance))
     weighted_third_moment = float(
         np.sum(normalized_weights * np.power(centered_particles, 3))
     )
     weighted_skewness = weighted_third_moment / max(
-        MIN_VARIANCE,
+        config_constants.MIN_VARIANCE,
         weighted_std**3,
     )
     left_tail_width = max(0.0, quantile_p50 - quantile_p10)

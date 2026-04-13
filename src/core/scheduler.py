@@ -29,7 +29,7 @@ from src.utils.config import (
     RESET,
     constants,
 )
-from src.utils.config.constants import BEAM_WIDTH, INIT_PRIOR_VARIANCE, SIMULATION_DEPTH
+from src.utils.config.constants import BEAM_WIDTH, SIMULATION_DEPTH
 from src.utils.task import TaskUtil
 
 if TYPE_CHECKING:
@@ -212,7 +212,7 @@ class Scheduler:
                     start_entry = completed_entries_map[start_name]
                     if start_entry.subtask.subtask_type != "Monitor":
                         interval = info.get("Interval", 0.0)
-                        variance = info.get("Variance", INIT_PRIOR_VARIANCE)
+                        variance = info.get("Variance", constants.INIT_PRIOR_VARIANCE)
                         due_date = start_entry.schedule_end_time + interval
                         active_intervals.append(
                             (
@@ -1874,9 +1874,9 @@ class Scheduler:
         edge_data = curr_state.constraints.get_edge_data(
             critical_start_sub_name, critical_end_sub_name
         )
-        variance_val = INIT_PRIOR_VARIANCE
+        variance_val = constants.INIT_PRIOR_VARIANCE
         if edge_data and "info" in edge_data:
-            variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
+            variance_val = edge_data["info"].get("Variance", constants.INIT_PRIOR_VARIANCE)
 
         original_absolute_monitoring_trigger_time = (
             self._compute_monitoring_trigger_time(
@@ -2366,9 +2366,9 @@ class Scheduler:
         edge_data = curr_state.constraints.get_edge_data(
             critical_start_sub_name, critical_end_sub_name
         )
-        variance_val = INIT_PRIOR_VARIANCE
+        variance_val = constants.INIT_PRIOR_VARIANCE
         if edge_data and "info" in edge_data:
-            variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
+            variance_val = edge_data["info"].get("Variance", constants.INIT_PRIOR_VARIANCE)
 
         original_absolute_monitoring_trigger_time = (
             self._compute_monitoring_trigger_time(

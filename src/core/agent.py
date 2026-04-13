@@ -11,10 +11,8 @@ from src.core.monitoring import (
 )
 from src.models.dataclass import SchedulerState
 from src.utils.common import create_module_logger, extract_monitoring_target_name
-from src.utils.config.constants import (
-    CRITICAL_OBJECT_GROUND_TRUTH,
-    MIN_VARIANCE,
-)
+import src.utils.config.constants as config_constants
+from src.utils.config.constants import CRITICAL_OBJECT_GROUND_TRUTH
 
 if TYPE_CHECKING:
     from src.scheduler import ConstraintHandler
@@ -126,7 +124,9 @@ class Agent:
         """
 
         summary = self.belief_store.get_summary(obj_name)
-        return max(0.0, summary.expected_duration), max(summary.variance, MIN_VARIANCE)
+        return max(0.0, summary.expected_duration), max(
+            summary.variance, config_constants.MIN_VARIANCE
+        )
 
     def _extract_monitoring_object_name(self, state: SchedulerState) -> Optional[str]:
         """Extract the object type associated with a monitoring subtask.
