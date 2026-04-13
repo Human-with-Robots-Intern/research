@@ -27,7 +27,6 @@ from src.utils.config import (
     MONITORING_DURATION,
     RED,
     RESET,
-    TIMING_TOLERANCE_ABS,
     constants,
 )
 from src.utils.config.constants import BEAM_WIDTH, INIT_PRIOR_VARIANCE, SIMULATION_DEPTH
@@ -287,7 +286,7 @@ class Scheduler:
                 risk_level=0,
             )
             current_beam: List[SimulationNode] = [init_node]
-            best_solutions: List[SimulationNode] = []
+            complete_solutions: List[SimulationNode] = []
 
             log.debug(
                 f"[_simulate_search] Starting Layer-wise Beam Search (Width={self.search_width}, Depth={self.simulation_depth})"
@@ -312,7 +311,7 @@ class Scheduler:
                         log.debug(
                             f"  [Solution Found] Node depth {curr_node.depth} finished all tasks."
                         )
-                        best_solutions.append(curr_node)
+                        complete_solutions.append(curr_node)
                         continue
                     log.debug(
                         f"\n=== [Beam Step] Depth {d} -> {d+1} | Beam Size: {len(current_beam)} | Current Time: {curr_state.current_time:.2f} ==="
@@ -400,58 +399,82 @@ class Scheduler:
                 )
 
             # 4. Final Collection
-            # Add nodes that reached max depth but still have tasks remaining
-            if current_beam:
-                best_solutions.extend(current_beam)
+            frontier_solutions = list(current_beam) if current_beam else []
+            if complete_solutions:
+                candidate_type = "complete"
+                selection_pool = complete_solutions
+            else:
+                candidate_type = "frontier"
+                selection_pool = frontier_solutions
 
-            if not best_solutions:
-                log.error("[_simulate_search] best_solutions empty => no feasible path")
+            if not selection_pool:
+                log.error("[_simulate_search] winner selection pool empty => no feasible path")
                 return None
 
-            def get_depth1_cost(node: SimulationNode) -> float:
-                """Backtrack to find the heuristic cost at Depth 1."""
-
+            def get_depth1_node(node: SimulationNode) -> SimulationNode:
+                """Backtrack to the depth-1 node that would actually be committed."""
                 curr = node
                 while curr.depth > 1:
                     if curr.parent_node:
                         curr = curr.parent_node
                     else:
                         break
-                return curr.heuristic_cost
+                return curr
 
+            depth1_node_by_node = {
+                id(node): get_depth1_node(node) for node in selection_pool
+            }
             depth1_cost_by_node = {
-                id(node): get_depth1_cost(node) for node in best_solutions
+                id(node): depth1_node_by_node[id(node)].heuristic_cost
+                for node in selection_pool
+            }
+            depth1_risk_by_node = {
+                id(node): depth1_node_by_node[id(node)].risk_level
+                for node in selection_pool
             }
 
             # 5. Select Winner
-            # [Modified] Sort by Risk Level first, then Leaf Node Cost (Make-span).
-            # We prefer the path that finishes all tasks earliest (Lowest total cost).
-            # Depth 1 Cost can be misleading if an action (like Wait) has low immediate cost
-            # but delays the overall schedule.
-            best_solutions.sort(
-                key=lambda nd: (
-                    nd.risk_level,
-                    nd.heuristic_cost + depth1_cost_by_node[id(nd)],
+            # Complete solutions reflect full-path risk, so compare on the leaf.
+            # Frontier solutions are only used for receding-horizon commitment, so
+            # compare using the risk of the immediate committed action rather than
+            # the accumulated leaf risk at the search horizon.
+            if candidate_type == "complete":
+                selection_pool.sort(
+                    key=lambda nd: (
+                        nd.risk_level,
+                        nd.heuristic_cost,
+                        depth1_cost_by_node[id(nd)],
+                    )
                 )
-            )
+            else:
+                selection_pool.sort(
+                    key=lambda nd: (
+                        depth1_risk_by_node[id(nd)],
+                        nd.heuristic_cost,
+                        depth1_cost_by_node[id(nd)],
+                    )
+                )
             log.debug(
-                f"best_solutions: {best_solutions[0].state.subtask.name}, {best_solutions[0].heuristic_cost} {depth1_cost_by_node[id(best_solutions[0])]}"
+                "[_simulate_search] best_solution "
+                f"(type={candidate_type}, leaf={selection_pool[0].state.subtask.name}, "
+                f"leaf_risk={selection_pool[0].risk_level}, "
+                f"depth1_risk={depth1_risk_by_node[id(selection_pool[0])]}, "
+                f"leaf_cost={selection_pool[0].heuristic_cost:.2f}, "
+                f"depth1_cost={depth1_cost_by_node[id(selection_pool[0])]:.2f})"
             )
 
-            winner = best_solutions[0]
+            winner = selection_pool[0]
 
             # Trace back to find the immediate next action (Depth 1)
-            immediate_node = winner
-            while immediate_node.depth > 1:
-                if immediate_node.parent_node:
-                    immediate_node = immediate_node.parent_node
-                else:
-                    break
+            immediate_node = depth1_node_by_node[id(winner)]
 
             log.debug(
                 f"\n[_simulate_search] Final Decision: Path selected (Leaf: '{winner.state.subtask.name}').\n"
                 f"  -> Immediate Action: '{immediate_node.state.subtask.name}'\n"
-                f"  (Risk={winner.risk_level}, Depth1_Cost={depth1_cost_by_node[id(winner)]:.2f}, Leaf_Cost={winner.heuristic_cost:.2f}, Depth={winner.depth})"
+                f"  (CandidateType={candidate_type}, LeafRisk={winner.risk_level}, "
+                f"Depth1Risk={depth1_risk_by_node[id(winner)]}, "
+                f"Depth1_Cost={depth1_cost_by_node[id(winner)]:.2f}, "
+                f"Leaf_Cost={winner.heuristic_cost:.2f}, Depth={winner.depth})"
             )
             return winner
         finally:
@@ -690,10 +713,10 @@ class Scheduler:
                 candidate.logical_interaction_start_time
                 - physical_earliest_start
             ):
-                # Timing Tolerance 때문에 앞당겨 작업을 한건지, 늦어서 한건지 구분하여 알려주는 로그
+                # 시작 시점이 logical start보다 빠른지/늦은지 구분하는 로그
                 if (
                     candidate.logical_interaction_start_time - physical_earliest_start
-                    > TIMING_TOLERANCE_ABS // 2
+                    > 0
                 ):
                     log.debug(
                         f"[_get_urgent_critical_candidates] 앞당겨 작업을 함: {candidate.logical_interaction_start_time - physical_earliest_start}"
