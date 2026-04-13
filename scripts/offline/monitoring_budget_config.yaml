@@ -19,7 +19,7 @@ max_monitoring_per_critical_intervals:
   - 3
   - uncap
 
-gt_distribution: "gaussian"
+gt_distribution: "constant"
 belief_update_method: "bayesian"
 gt_seed: 42
 

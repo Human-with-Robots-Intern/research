@@ -14,16 +14,20 @@ from src.experiments.offline_compare import compare_result_files
 from src.experiments.offline_harness import (
     ExperimentConfig,
     ExperimentTask,
+    _apply_runtime_overrides,
     _build_hybrid_result_row,
+    _build_oracle_reference_config,
     _build_persisted_single_run_payload,
     _edf_compute_deadline,
     _build_deterministic_scheduler_config,
+    _restore_runtime_overrides,
     _resolve_particle_distribution,
     _serialize_schedule_steps,
     apply_cli_overrides,
     build_experiment_tasks,
     load_ai2thor_nav_graph,
     load_experiment_config,
+    load_scene_positions,
     run_oracle_reference_experiment,
     run_grid_experiment,
     run_single_rollout,
@@ -768,6 +772,46 @@ def test_run_single_rollout_dispatches_to_cpm_adapter(
     assert result["final_schedule_time"] == 2.0
 
 
+def test_run_single_rollout_frontier_selection_avoids_leaf_risk_pathology() -> None:
+    """Frontier winner selection should avoid the known 303s pathology path."""
+
+    config = ExperimentConfig(
+        approach="bayesian",
+        ablation_config="NONE_MONITORING",
+        init_prior_config="CORRECT_ESTIMATE",
+        case="tasks_2_constraints_2",
+        scene="FloorPlan1",
+        instructions=["01_boil_potato_and_heat_the_bread_using_microwave.json"],
+        beam_bound=[(10, 10)],
+        belief_update_method="bayesian",
+        gt_distribution="constant",
+        eta=0.1,
+    )
+    task = ExperimentTask(
+        "01_boil_potato_and_heat_the_bread_using_microwave.json",
+        10,
+        10,
+        0,
+        config.case,
+    )
+    scene_positions = load_scene_positions("FloorPlan1_positions.json")
+    nav_graph = load_ai2thor_nav_graph("FloorPlan1")
+
+    previous_values = _apply_runtime_overrides(config)
+    try:
+        result = run_single_rollout(
+            config,
+            task,
+            nav_graph=nav_graph,
+            scene_positions=scene_positions,
+        )
+    finally:
+        _restore_runtime_overrides(previous_values)
+
+    assert result["schedule_tcsr"] == 1.0
+    assert result["final_schedule_time"] < 280.0
+
+
 def test_run_oracle_reference_experiment_writes_oracle_summary(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -839,6 +883,22 @@ def test_run_oracle_reference_experiment_writes_oracle_summary(
     assert report["oracle_results"][0]["optimal_schedule_time"] == 100.0
     assert report["oracle_summary"]["avg_total_compute_time"] == 0.2
     assert report["oracle_summary"]["avg_schedule_tcsr"] == 1.0
+
+
+def test_build_oracle_reference_config_forces_constant_gt() -> None:
+    """Oracle reference rows use deterministic GT; batch YAML gt_distribution is overridden."""
+
+    base = ExperimentConfig(
+        approach="bayesian",
+        ablation_config="DEFAULT",
+        gt_distribution="lognormal",
+        gt_seed=99,
+    )
+    ref = _build_oracle_reference_config(base)
+    assert ref.approach == "oracle"
+    assert ref.ablation_config == "NONE_MONITORING"
+    assert ref.gt_distribution == "constant"
+    assert ref.gt_seed == 99
 
 
 def test_oracle_solution_as_dict_exposes_timing_payload() -> None:
@@ -1024,6 +1084,8 @@ def test_exact_oracle_does_not_prune_high_risk_nodes() -> None:
     assert oracle._pruned_nodes == 0
     # Leaf node with no remaining subtasks commits a solution
     assert oracle._best_makespan == 10.0
+
+
 
 
 def test_exact_oracle_records_explicit_prenavigation_sequence(

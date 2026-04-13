@@ -9,6 +9,7 @@ from assets.result_analysis.offline_comparison import (
     build_approach_key,
     build_raw,
     build_tol_sweep,
+    load_oracle,
 )
 
 
@@ -237,9 +238,37 @@ def test_build_tol_sweep_reads_new_layout(tmp_path: Path) -> None:
     assert tol_sweep["30.0"] == {
         "OVER_ESTIMATE__particle_filter__DEFAULT__w10_d10__eta0.1__gtmixture": {
             case: {
+                "n_instructions": 1,
                 "sr": 100.0,
                 "tsr": 100.0,
                 "makespan": 123.0,
             }
         }
     }
+
+
+def test_load_oracle_flags_top_level_detail_log_violation(tmp_path: Path) -> None:
+    """Oracle validity checks should inspect the persisted top-level detail log."""
+
+    oracle_path = tmp_path / "oracle.json"
+    _write_json(
+        oracle_path,
+        {
+            "optimal_schedule_time": 100.0,
+            "computation_time": 1.5,
+            "exact": True,
+            "timing_success_rate_sched": 0.8,
+            "detail_log": {
+                "a -> b": {
+                    "Original Timing Constraint": "(0.0, True)",
+                    "Schedule Result": "[False] : (10.00) -> (20.00s)",
+                }
+            },
+            "steps": [],
+        },
+    )
+
+    oracle = load_oracle(oracle_path)
+
+    assert oracle["constraint_violated"] is True
+    assert oracle["tsr"] == 0.8

@@ -7,13 +7,14 @@ Produces two output files:
 
 2. offline_analysis_summary.json
    Per approach/case: aggregated metrics (sr, tsr, makespan, makespan_sr_1,
-   makespan_gap, makespan_gap_sr_1, computation_time, computation_time_gap).
+   makespan_gap, makespan_gap_sr_1, computation_time, computation_time_gap,
+   n_instructions).
 
 Optional (--tolerance-sweep):
 
 3. offline_analysis_tol_sweep.json
-   Per tolerance/approach/case: TSR re-computed from saved detail_log.
-   Does not require re-running the batch scheduler.
+   Per tolerance/approach/case: TSR re-computed from saved detail_log, plus
+   ``n_instructions`` per cell. Does not require re-running the batch scheduler.
 """
 
 from __future__ import annotations
@@ -141,12 +142,25 @@ def build_approach_key(
 
 def _oracle_has_constraint_violation(data: dict[str, Any]) -> bool:
     """Return True when any constraint in the oracle's own detail_log is marked [False]."""
+    def _contains_false_marker(payload: Any) -> bool:
+        if isinstance(payload, str):
+            return payload.startswith("[False]")
+        if isinstance(payload, dict):
+            return any(_contains_false_marker(value) for value in payload.values())
+        if isinstance(payload, list):
+            return any(_contains_false_marker(value) for value in payload)
+        return False
+
+    if _contains_false_marker(data.get("detail_log", {})):
+        return True
+
     for step in data.get("steps", []):
-        for constraint_result in step.get("detail_log", {}).values():
-            if isinstance(constraint_result, str) and constraint_result.startswith(
-                "[False]"
-            ):
-                return True
+        if _contains_false_marker(step.get("detail_log", {})):
+            return True
+
+    tsr_raw = data.get("timing_success_rate_sched")
+    if tsr_raw is not None and float(tsr_raw) < 1.0 - 1e-9:
+        return True
     return False
 
 
@@ -154,10 +168,12 @@ def load_oracle(path: Path) -> dict[str, Any]:
     with path.open() as f:
         data = json.load(f)
     violated = _oracle_has_constraint_violation(data)
+    tsr_raw = data.get("timing_success_rate_sched")
     return {
         "optimal_schedule_time": data["optimal_schedule_time"],
         "computation_time": data["computation_time"],
         "exact": data["exact"],
+        "tsr": float(tsr_raw) if tsr_raw is not None else None,
         "constraint_violated": violated,
     }
 
@@ -333,6 +349,10 @@ def aggregate(
 ) -> dict[str, Any]:
     """Aggregate raw per-instruction data into per-approach/case summary.
 
+    Each summary cell includes ``n_instructions``: the count of oracle-matched
+    instructions that contributed a row for that ``(approach_key, case)``. Counts
+    can differ across approaches when some batch JSONs are missing.
+
     Args:
         raw: Output of :func:`build_raw`.
         skip_oracle_violated: When True, exclude instructions where the oracle's
@@ -399,6 +419,7 @@ def aggregate(
             )
 
             summary[approach_key][case] = {
+                "n_instructions": int(n),
                 "sr": round(sr, 4),
                 "tsr": round(tsr_pct, 4),
                 "makespan": _round(makespan, 4),
@@ -488,7 +509,8 @@ def build_tol_sweep(
 
     Returns:
         Nested dict:
-        result[tolerance_str][approach_key][case] = list of {tsr, makespan, ...}
+        result[tolerance_str][approach_key][case] = dict with ``n_instructions``,
+        ``sr``, ``tsr``, ``makespan`` (means over matched batch files).
     """
     batch_root = base_dir / batch_dirname / task_folder
 
@@ -546,6 +568,7 @@ def build_tol_sweep(
                 )
                 sr = len([e for e in entries if e["completed"]]) / n * 100
                 result[tol_str][approach_key][case] = {
+                    "n_instructions": int(n),
                     "sr": round(sr, 4),
                     "tsr": round(tsr_mean * 100, 4),
                     "makespan": _round(makespan_mean, 4),
@@ -656,9 +679,6 @@ def main() -> None:
             json.dump(tol_sweep, f, indent=2, sort_keys=True)
         print(f"Saved: {tol_path}")
 
-
-if __name__ == "__main__":
-    main()
 
 if __name__ == "__main__":
     main()

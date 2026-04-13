@@ -1,0 +1,28 @@
+max_workers: 1
+
+scene_type:
+  - kitchen
+scene_lists:
+  kitchen:
+    - "FloorPlan1"
+    - "FloorPlan7"
+    - "FloorPlan13"
+    - "FloorPlan18"
+    - "FloorPlan27"
+  bathroom:
+  real_world:
+
+task_folder_name:
+  - "sampled_10_instruction_set_for_final_experiment_251203"
+cases:
+  - "tasks_2_constraints_1"
+  - "tasks_2_constraints_2"
+  - "tasks_3_constraints_1"
+  - "tasks_3_constraints_2"
+
+max_tasks: 10
+skip_completed: true
+
+nav_graph_source: "ai2thor_controller"
+oracle_time_limit_seconds: 1800
+oracle_reference_dir: "assets/results/offline_oracle_reference_regen_20260413"

@@ -240,7 +240,7 @@ def test_build_offline_tasks_sweeps_monitoring_budget_suffixes(
         "cases": ["tasks_3_constraints_2"],
         "beam_bound": [[10, 10]],
         "etas": [0.1],
-        "gt_distribution": "gaussian",
+        "gt_distribution": "constant",
         "belief_update_method": "bayesian",
         "max_monitoring_per_critical_intervals": [1, "uncap"],
         "nav_graph_source": "ai2thor_controller",
@@ -260,8 +260,8 @@ def test_build_offline_tasks_sweeps_monitoring_budget_suffixes(
         Path(task.command[task.command.index("--output-path") + 1]).name for task in tasks
     )
     assert output_names == [
-        "DEFAULT__w10_d10__eta0.1__gtgaussian__mb1.json",
-        "DEFAULT__w10_d10__eta0.1__gtgaussian__mbuncap.json",
+        "DEFAULT__w10_d10__eta0.1__mb1.json",
+        "DEFAULT__w10_d10__eta0.1__mbuncap.json",
     ]
     monitoring_budget_labels = {
         task.metadata["monitoring_budget_per_critical"] for task in tasks

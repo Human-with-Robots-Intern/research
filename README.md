@@ -221,13 +221,13 @@ python scripts/offline/run_experiment_suite.py --suite monitoring_budget --dry-r
     -   approach: `bayesian`
     -   ablation: `DEFAULT`
     -   GT: `constant`
-    -   prior: `CORRECT_ESTIMATE`
-    -   beam: `[1,1]`, `[5,5]`, `[10,10]`, `[20,20]`
+    -   prior: `UNDER_ESTIMATE`, `CORRECT_ESTIMATE`, `OVER_ESTIMATE` (`eta_sensitivity_config.yaml` 기준)
+    -   beam: `[10,10]` (η만 스윕)
     -   eta: `0.01`, `0.1`, `0.5`, `0.9`
 -   `monitoring_budget`
     -   approach: `bayesian`
     -   ablation: `DEFAULT`
-    -   GT: `gaussian`
+    -   GT: `constant` (scalability·η suite와 동일 GT로 budget 효과만 비교)
     -   prior: `CORRECT_ESTIMATE`
     -   beam: `[10,10]`
     -   eta: `0.1`
@@ -255,6 +255,10 @@ python scripts/offline/run_experiment_suite.py --suite monitoring_budget --dry-r
         `assets/results/offline_oracle_reference/<task_folder>/<scene>/<case>/<instruction>.json`
     -   batch summary:
         `assets/results/offline_oracle_reference/_batch_summary/offline_oracle_reference_<timestamp>.json`
+-   **Oracle JSON vs 배치 GT (`gt_seed` / `gt_distribution`)**:
+    -   Oracle reference는 `offline_harness` 안에서 **deterministic exact oracle**로 생성되며, 내부적으로 reference용 설정에 **`gt_distribution: constant`**가 고정됩니다(`ExperimentConfig` 병합). `oracle_reference_config.yaml`에 `gt_seed` 항목이 없어도 됩니다.
+    -   베이지안(및 PF) **오프라인 배치**는 각 suite YAML의 **`gt_seed`**, **`gt_distribution`**으로 모니터링·GT 샘플링을 돌립니다. 재현성을 위해 suite 간 비교할 때는 **`gt_seed`를 맞추는 것**을 권장합니다.
+    -   `offline_comparison`의 **makespan_gap**은 배치 `scheduler_makespan`과 oracle의 **`optimal_schedule_time`** 차이입니다. Oracle 쪽은 위 결정적 탐색 값이고, 배치 쪽 품질·TCSR은 해당 run의 GT 설정에 의존합니다.
 
 ### 6. 오프라인 batch 실행 (`scripts/offline/run_batch.py`)
 
@@ -271,11 +275,12 @@ python scripts/offline/run_experiment_suite.py --suite monitoring_budget --dry-r
     -   `scripts/offline/eta_sensitivity_config.yaml`
     -   `scripts/offline/monitoring_budget_config.yaml`
     -   `scripts/offline/pf_vs_bayesian_*_config.yaml`
--   **현재 batch 규칙**:
-    -   `bayesian`만 `beam_bound`와 `ablation_configs` sweep의 대상입니다.
-    -   `edf`, `cpm`은 `DEFAULT` 한 번만 실행합니다.
+-   **현재 batch 규칙** (`src/experiments/batch_runner.py`):
+    -   **`bayesian`만** YAML의 전체 **`beam_bound`** 목록과 **`ablation_configs`** 스윕 대상입니다(실제 **beam search** 폭·깊이 스윕).
+    -   **`edf` / `cpm`** 은 **beam search를 쓰지 않습니다.** YAML의 `beam_bound` 목록은 알고리즘에 반영되지 않으며, 오프라인 CLI·메타데이터 통일을 위해 **`beam_bound`의 첫 `(width, depth)`만** subprocess 인자로 넘길 뿐입니다. 결과 파일명도 `edf.json` / `cpm.json`처럼 beam 접미사가 없습니다. 스케일러빌리티 표의 **beam 축은 베이지안 전용**이고, EDF/CPM은 **고정된 베이스라인 한 점**으로만 나란히 둡니다.
+    -   **`edf` / `cpm`** 은 **`DEFAULT` ablation 한 번만** 실행합니다(`NONE_MONITORING` 등 다른 ablation YAML 항목은 적용되지 않음).
     -   따라서 `edf`/`cpm`은 `NONE_MONITORING` 결과 파일을 만들지 않습니다.
-    -   `max_monitoring_per_critical_intervals`는 현재 `bayesian + DEFAULT` 변형에서만 의미가 있습니다.
+    -   `max_monitoring_per_critical_intervals`는 현재 **`bayesian` + `DEFAULT`** 변형에서만 스윕됩니다.
 -   **추가 batch 설정 키**:
     -   `belief_update_method`: `bayesian` 또는 `particle_filter`
     -   `gt_distribution`: `constant`, `gaussian`, `lognormal`, `gamma`, `mixture`
@@ -347,12 +352,13 @@ python scripts/offline/run_batch.py \
     -   예:
         -   `CORRECT_ESTIMATE__bayesian__DEFAULT__w10_d10__eta0.1`
         -   `UNDER_ESTIMATE__particle_filter__DEFAULT__w10_d10__eta0.1__gtlognormal`
-        -   `CORRECT_ESTIMATE__bayesian__DEFAULT__w10_d10__eta0.1__gtgaussian__mb2`
+        -   `CORRECT_ESTIMATE__bayesian__DEFAULT__w10_d10__eta0.1__mb2` (monitoring_budget, `constant` GT)
 -   **두 번째 키**: case 폴더명. 예: `tasks_2_constraints_2`
 -   **값(지표 객체)**: 아래 필드는 모두 해당 `(approach_key, case)` 셀의 통계입니다.
 
 | 필드 | 의미 |
 |------|------|
+| `n_instructions` | 해당 `(approach_key, case)`에 평균을 낸 instruction 수(배치 JSON이 있는 oracle-matched 행만; approach마다 다를 수 있음) |
 | `sr` | 완료율(%) |
 | `tsr` | 평균 schedule TCSR(%) |
 | `makespan` | 평균 planner makespan(초) |
