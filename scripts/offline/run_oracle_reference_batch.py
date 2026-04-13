@@ -34,7 +34,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=str,
-        default="oracle_reference_config.yaml",
+        default="scripts/offline/configs/oracle_reference_config.yaml",
         help=(
             "YAML config path. "
             "repo-relative if starting with scripts/; "

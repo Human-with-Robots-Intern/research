@@ -18,6 +18,7 @@ etas:
 gt_distribution: "mixture"
 belief_update_method: "particle_filter"
 particle_distribution: "gaussian"
+particle_likelihood_family: "mixture"
 gt_seed: 42
 
 scene_type: [kitchen]

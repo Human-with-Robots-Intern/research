@@ -1,7 +1,9 @@
-max_workers: 6
-skip_completed: true
-timeout_seconds: 1200
-suite_name: "pf_vs_bayesian"
+# Minimal offline batch: 3 init priors × 3 etas × 1 scene × 1 case × 1 instruction.
+# Use to verify meta_data.eta / init_prior_config and runtime behavior after harness overrides.
+max_workers: 2
+skip_completed: false
+timeout_seconds: 600
+suite_name: "eta_sensitivity_smoke"
 
 approaches: ["bayesian"]
 ablation_configs: [DEFAULT]
@@ -13,31 +15,25 @@ init_prior_configs:
 beam_bound:
   - [10, 10]
 etas:
+  - 0.01
   - 0.1
+  - 0.9
 
 gt_distribution: "constant"
-belief_update_method: "particle_filter"
-particle_distribution: "gaussian"
+belief_update_method: "bayesian"
 gt_seed: 42
 
 scene_type: [kitchen]
 scene_lists:
   kitchen:
     - "FloorPlan1"
-    - "FloorPlan7"
-    - "FloorPlan13"
-    - "FloorPlan18"
-    - "FloorPlan27"
 
 cases:
   - "tasks_2_constraints_1"
-  - "tasks_2_constraints_2"
-  - "tasks_3_constraints_1"
-  - "tasks_3_constraints_2"
 
 task_folder_name:
   - "sampled_10_instruction_set_for_final_experiment_251203"
-max_tasks: 10
+max_tasks: 1
 
-output_dir: "assets/results/offline_exp_result/offline_batch_pf_vs_bayesian"
+output_dir: "assets/results/offline_exp_result/offline_batch_eta_sensitivity_smoke"
 oracle_reference_dir: "assets/results/offline_oracle_reference"

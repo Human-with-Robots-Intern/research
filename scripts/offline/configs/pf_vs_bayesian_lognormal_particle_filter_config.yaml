@@ -17,7 +17,7 @@ etas:
 
 gt_distribution: "lognormal"
 belief_update_method: "particle_filter"
-particle_distribution: "lognormal"
+particle_distribution: "gaussian"
 gt_seed: 42
 
 scene_type: [kitchen]

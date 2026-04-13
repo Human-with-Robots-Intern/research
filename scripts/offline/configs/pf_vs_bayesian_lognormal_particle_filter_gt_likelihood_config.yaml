@@ -15,9 +15,10 @@ beam_bound:
 etas:
   - 0.1
 
-gt_distribution: "mixture"
+gt_distribution: "lognormal"
 belief_update_method: "particle_filter"
 particle_distribution: "gaussian"
+particle_likelihood_family: "lognormal"
 gt_seed: 42
 
 scene_type: [kitchen]

@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=str,
-        default="batch_config.yaml",
+        default="scripts/offline/configs/batch_config.yaml",
         help=(
             "YAML config path. "
             "repo-relative if starting with scripts/; "
@@ -71,7 +71,7 @@ def _resolve_config_path(config_path: str) -> Path:
 
     - Absolute paths are used as given.
     - Paths starting with ``scripts/`` are resolved from the repository root
-      (so ``scripts/offline/batch_config.yaml`` does not duplicate ``offline/``).
+      (so ``scripts/offline/configs/batch_config.yaml`` does not duplicate ``offline/``).
     - Multi-segment paths otherwise resolve from ``scripts/`` (e.g.
       ``offline/batch_config.yaml``).
     - A single filename (e.g. default ``batch_config.yaml``) resolves next to

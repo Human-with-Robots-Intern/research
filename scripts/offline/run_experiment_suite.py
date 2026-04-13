@@ -30,25 +30,27 @@ DEFAULT_SUITE_ORDER = (
     "monitoring_budget",
     "pf_vs_bayesian",
 )
-DEFAULT_ORACLE_CONFIG = "oracle_reference_config.yaml"
+DEFAULT_ORACLE_CONFIG = "scripts/offline/configs/oracle_reference_config.yaml"
 DEFAULT_TASK_FOLDER = "sampled_10_instruction_set_for_final_experiment_251203"
 DEFAULT_OUTPUT_DIR = "assets/results/offline_batch"
 DEFAULT_NAV_GRAPH_SOURCE = "ai2thor_controller"
 
 SUITE_REGISTRY: dict[str, tuple[str, ...]] = {
     "pf_vs_bayesian": (
-        "scripts/offline/pf_vs_bayesian_constant_bayesian_config.yaml",
-        "scripts/offline/pf_vs_bayesian_constant_particle_filter_config.yaml",
-        "scripts/offline/pf_vs_bayesian_gaussian_bayesian_config.yaml",
-        "scripts/offline/pf_vs_bayesian_gaussian_particle_filter_config.yaml",
-        "scripts/offline/pf_vs_bayesian_lognormal_bayesian_config.yaml",
-        "scripts/offline/pf_vs_bayesian_lognormal_particle_filter_config.yaml",
-        "scripts/offline/pf_vs_bayesian_mixture_bayesian_config.yaml",
-        "scripts/offline/pf_vs_bayesian_mixture_particle_filter_config.yaml",
+        "scripts/offline/configs/pf_vs_bayesian_constant_bayesian_config.yaml",
+        "scripts/offline/configs/pf_vs_bayesian_constant_particle_filter_config.yaml",
+        "scripts/offline/configs/pf_vs_bayesian_gaussian_bayesian_config.yaml",
+        "scripts/offline/configs/pf_vs_bayesian_gaussian_particle_filter_config.yaml",
+        "scripts/offline/configs/pf_vs_bayesian_lognormal_bayesian_config.yaml",
+        "scripts/offline/configs/pf_vs_bayesian_lognormal_particle_filter_config.yaml",
+        "scripts/offline/configs/pf_vs_bayesian_lognormal_particle_filter_gt_likelihood_config.yaml",
+        "scripts/offline/configs/pf_vs_bayesian_mixture_bayesian_config.yaml",
+        "scripts/offline/configs/pf_vs_bayesian_mixture_particle_filter_config.yaml",
+        "scripts/offline/configs/pf_vs_bayesian_mixture_particle_filter_gt_likelihood_config.yaml",
     ),
-    "scalability": ("scripts/offline/scalability_config.yaml",),
-    "eta_sensitivity": ("scripts/offline/eta_sensitivity_config.yaml",),
-    "monitoring_budget": ("scripts/offline/monitoring_budget_config.yaml",),
+    "scalability": ("scripts/offline/configs/scalability_config.yaml",),
+    "eta_sensitivity": ("scripts/offline/configs/eta_sensitivity_config.yaml",),
+    "monitoring_budget": ("scripts/offline/configs/monitoring_budget_config.yaml",),
 }
 
 
