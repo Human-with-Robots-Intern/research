@@ -26,6 +26,7 @@
 -   **`experiments/`**: 오프라인 비교 실험과 분석용 실행기를 포함합니다.
     -   `offline_harness.py`: DAG-Bayesian, EDF, CPM을 동일한 결과 스키마로 오프라인 실행하는 in-process 실험 실행기입니다.
     -   `exact_oracle.py`: 작은 deterministic 설정에서 scheduler 결과를 비교하기 위한 exhaustive oracle baseline입니다.
+    -   `belief_robustness.py`: scheduler를 배제한 PF-vs-Bayesian Monte Carlo 벤치마크입니다. Reviewer 10 대응용 non-Gaussian robustness 비교와 trigger calibration 분석에 사용합니다.
 -   **`utils/`**: 입출력, 로깅, NLP, 시각화 등 범용 유틸리티 함수를 포함합니다.
 -   `tune.py`: `Optuna`를 사용한 하이퍼파라미터 튜닝 스크립트입니다.
 
@@ -85,14 +86,7 @@
     -   `bayesian`: 제안 방법의 오프라인 rollout
     -   `edf`: EDF baseline adapter
     -   `cpm`: CPM baseline adapter
--   **주요 특징**:
-    -   모든 approach가 동일한 single-run schema로 저장됩니다.
-    -   `belief_update_method`로 `bayesian`과 `particle_filter`를 전환할 수 있습니다.
-    -   `gt_distribution`으로 runtime GT duration 분포(`constant`, `gaussian`, `lognormal`, `gamma`, `mixture`)를 선택할 수 있습니다.
-    -   PF 실행 시 `particle_distribution`을 따로 주지 않으면 기본적으로 현재 `gt_distribution`을 따라갑니다.
-    -   `oracle_reference_dir`를 주면 결과 JSON에 oracle comparison 필드가 함께 포함됩니다.
-    -   `nav_graph_source: ai2thor_controller`는 cache-first로 동작하며, 캐시가 없을 때만 AI2-THOR controller를 띄웁니다.
-    -   `max_monitoring_per_critical_interval`를 지정하면 critical interval당 monitoring 실행 횟수 상한을 둘 수 있습니다. 값을 생략하면 uncapped입니다.
+-   **주요 특징**: approach 공통 스키마, `belief_update_method`·`gt_distribution`·PF용 `particle_distribution`, `oracle_reference_dir`, `nav_graph_source`(캐시 우선), `max_monitoring_per_critical_interval`(선택) 등. 세부는 `python scripts/offline/offline_experiment.py --help`.
 
 #### 단일 실행 예시
 
@@ -115,27 +109,7 @@ python scripts/offline/offline_experiment.py \
   --output-path assets/results/offline_single_run.json
 ```
 
-#### PF 단일 실행 예시
-
-```bash
-python scripts/offline/offline_experiment.py \
-  --approach bayesian \
-  --ablation-config DEFAULT \
-  --init-prior-config UNDER_ESTIMATE \
-  --task-folder-name sampled_10_instruction_set_for_final_experiment_251203 \
-  --case tasks_3_constraints_2 \
-  --scene FloorPlan13 \
-  --instruction 01_boil_potato_and_heat_the_bread_using_microwave_and_put_apple_and_lettuce_in_fridge.json \
-  --beam-bound 10,10 \
-  --belief-update-method particle_filter \
-  --gt-distribution lognormal \
-  --particle-distribution lognormal \
-  --gt-seed 42 \
-  --eta 0.1 \
-  --nav-graph-source ai2thor_controller \
-  --oracle-reference-dir assets/results/offline_oracle_reference \
-  --output-path assets/results/offline_pf_single_run.json
-```
+PF는 `--belief-update-method particle_filter`와 `--gt-distribution` / `--particle-distribution`만 맞춰 바꾸면 됩니다.
 
 #### 결과 비교 예시
 
@@ -148,21 +122,7 @@ python scripts/offline/offline_experiment.py compare \
 
 #### 주요 인자
 
--   `--approach`: `bayesian`, `edf`, `cpm` 중 하나를 선택합니다.
--   `--ablation-config`: 현재 offline batch에서는 사실상 `bayesian`에만 의미가 있습니다.
--   `--init-prior-config`: 대표적으로 `UNDER_ESTIMATE`, `CORRECT_ESTIMATE`, `OVER_ESTIMATE`를 사용합니다.
--   `--beam-bound`: `10,10`처럼 `(width, depth)` 쌍을 전달합니다.
--   `--belief-update-method`: `bayesian` 또는 `particle_filter`를 선택합니다.
--   `--gt-distribution`: monitoring에 사용되는 runtime GT duration 분포입니다.
--   `--particle-distribution`: PF particle initialization 분포입니다. 생략 시 PF는 `gt_distribution`, 비-PF는 `gaussian`을 사용합니다.
--   `--eta`: monitoring trigger risk tolerance입니다.
--   `--max-monitoring-per-critical-interval`: critical interval당 monitoring 실행 횟수 상한입니다. 생략하면 uncapped입니다.
--   `--gt-seed`: GT sampling, observation model, PF initialization/resampling에 사용되는 seed입니다.
--   `--case`, `--cases`: 단일 case 또는 여러 case를 지정합니다.
--   `--instruction`, `--instructions`: 특정 instruction 파일만 선택해 실행합니다.
--   `--nav-graph-source`: `synthetic_grid` 또는 `ai2thor_controller` 중 하나를 선택합니다.
--   `--oracle-reference-dir`: 미리 생성된 oracle reference JSON 루트 경로입니다.
--   `--output-path`: JSON report 저장 경로입니다.
+`--approach`, `--beam-bound`, `--belief-update-method`, `--gt-distribution`, `--gt-seed`, `--eta`, `--case`/`--instruction`, `--nav-graph-source`, `--oracle-reference-dir`, `--output-path` 등. `--ablation-config`는 배치에서 주로 베이지안에 적용됩니다.
 
 ### 4. 오프라인 suite 실행 (`scripts/offline/run_experiment_suite.py`)
 
@@ -173,11 +133,7 @@ python scripts/offline/offline_experiment.py compare \
     -   `monitoring_budget`: critical interval당 monitoring 횟수 cap(`1`, `2`, `3`, `uncap`)을 비교합니다.
     -   `pf_vs_bayesian`: non-Gaussian GT에서 Bayesian vs Particle Filter를 비교합니다.
     -   `all`: `scalability -> eta_sensitivity -> monitoring_budget -> pf_vs_bayesian` 순서로 모두 실행합니다.
--   **기본 동작**:
-    -   suite 실행 전 oracle reference preflight를 먼저 수행합니다.
-    -   oracle preflight는 항상 `skip-completed` semantics로 동작합니다.
-    -   각 suite 종료 후 `offline_comparison.py`를 자동 실행합니다.
-    -   lower-level script인 `run_oracle_reference_batch.py`, `run_batch.py`, `offline_comparison.py`는 그대로 유지됩니다.
+-   **기본 동작**: suite마다 oracle reference preflight(`skip-completed`) → `run_batch.py` → 끝나면 `offline_comparison.py` 호출. 동일 단계는 `run_oracle_reference_batch.py` / `run_batch.py` / `offline_comparison.py`로 단독 실행도 가능합니다.
 
 #### 권장 실행 예시
 
@@ -195,189 +151,119 @@ python scripts/offline/run_experiment_suite.py --suite all
 python scripts/offline/run_experiment_suite.py --suite monitoring_budget --dry-run
 ```
 
-#### Suite별 config
+#### 설정 파일 (`scripts/offline/`)
 
--   `scripts/offline/scalability_config.yaml`
--   `scripts/offline/eta_sensitivity_config.yaml`
--   `scripts/offline/monitoring_budget_config.yaml`
--   `scripts/offline/pf_vs_bayesian_constant_bayesian_config.yaml`
--   `scripts/offline/pf_vs_bayesian_constant_particle_filter_config.yaml`
--   `scripts/offline/pf_vs_bayesian_gaussian_bayesian_config.yaml`
--   `scripts/offline/pf_vs_bayesian_gaussian_particle_filter_config.yaml`
--   `scripts/offline/pf_vs_bayesian_lognormal_bayesian_config.yaml`
--   `scripts/offline/pf_vs_bayesian_lognormal_particle_filter_config.yaml`
--   `scripts/offline/pf_vs_bayesian_mixture_bayesian_config.yaml`
--   `scripts/offline/pf_vs_bayesian_mixture_particle_filter_config.yaml`
+`scalability_config.yaml`, `eta_sensitivity_config.yaml`, `monitoring_budget_config.yaml`, `oracle_reference_config.yaml`, `pf_vs_bayesian_<gt>_<belief>_config.yaml` 패턴 등. 출력 경로만 바꿔 oracle을 다시 뽑을 때는 `oracle_reference_regen_config.yaml`처럼 `oracle_reference_dir`만 조정한 복제본을 쓰면 됩니다.
 
-#### 현재 suite 설계 요약
+#### Suite 한 줄 요약
 
--   `scalability`
-    -   approaches: `bayesian`, `edf`, `cpm`
-    -   ablation: `DEFAULT`, `NONE_MONITORING`
-    -   GT: `constant`
-    -   prior: `CORRECT_ESTIMATE`
-    -   beam: `[1,1]`, `[5,5]`, `[10,10]`, `[20,20]`
--   `eta_sensitivity`
-    -   approach: `bayesian`
-    -   ablation: `DEFAULT`
-    -   GT: `constant`
-    -   prior: `UNDER_ESTIMATE`, `CORRECT_ESTIMATE`, `OVER_ESTIMATE` (`eta_sensitivity_config.yaml` 기준)
-    -   beam: `[10,10]` (η만 스윕)
-    -   eta: `0.01`, `0.1`, `0.5`, `0.9`
--   `monitoring_budget`
-    -   approach: `bayesian`
-    -   ablation: `DEFAULT`
-    -   GT: `constant` (scalability·η suite와 동일 GT로 budget 효과만 비교)
-    -   prior: `CORRECT_ESTIMATE`
-    -   beam: `[10,10]`
-    -   eta: `0.1`
-    -   monitoring budget: `1`, `2`, `3`, `uncap`
--   `pf_vs_bayesian`
-    -   approach: `bayesian`
-    -   ablation: `DEFAULT`
-    -   GT: `constant`, `gaussian`, `lognormal`, `mixture`
-    -   belief: `bayesian` vs `particle_filter`
-    -   prior: `UNDER_ESTIMATE`, `CORRECT_ESTIMATE`, `OVER_ESTIMATE`
-    -   beam: `[10,10]`
-    -   eta: `0.1`
+스윕 범위·prior는 **각 YAML**이 정본입니다. 개념만 보면: **`scalability`**는 베이지안(beam·`NONE_MONITORING` 등) + EDF/CPM 비교 한 점, **`eta_sensitivity`**는 베이지안·prior·η, **`monitoring_budget`** / **`pf_vs_bayesian`**는 이름 그대로. 배치에서 beam·ablation을 어떻게 적용하는지는 **6. 오프라인 batch** 절을 보면 됩니다.
 
 ### 5. 오프라인 oracle reference 생성 (`scripts/offline/run_oracle_reference_batch.py`)
 
--   **설명**: oracle을 batch baseline으로 함께 저장하는 대신, deterministic oracle reference를 먼저 일괄 생성한 뒤 이후 baseline 결과와 비교하는 방식입니다.
--   **설정 파일**: `scripts/offline/oracle_reference_config.yaml`
+Deterministic oracle reference를 먼저 만들고 배치 결과와 비교합니다.
+
+-   **설정**: `scripts/offline/oracle_reference_config.yaml` (기본 `assets/results/offline_oracle_reference/…`)
 -   **명령어**:
     ```bash
     cd scripts/offline && python run_oracle_reference_batch.py --config oracle_reference_config.yaml
     python scripts/offline/run_oracle_reference_batch.py --config scripts/offline/oracle_reference_config.yaml
     ```
--   **출력 경로**:
-    -   single-run oracle reference:
-        `assets/results/offline_oracle_reference/<task_folder>/<scene>/<case>/<instruction>.json`
-    -   batch summary:
-        `assets/results/offline_oracle_reference/_batch_summary/offline_oracle_reference_<timestamp>.json`
--   **Oracle JSON vs 배치 GT (`gt_seed` / `gt_distribution`)**:
-    -   Oracle reference는 `offline_harness` 안에서 **deterministic exact oracle**로 생성되며, 내부적으로 reference용 설정에 **`gt_distribution: constant`**가 고정됩니다(`ExperimentConfig` 병합). `oracle_reference_config.yaml`에 `gt_seed` 항목이 없어도 됩니다.
-    -   베이지안(및 PF) **오프라인 배치**는 각 suite YAML의 **`gt_seed`**, **`gt_distribution`**으로 모니터링·GT 샘플링을 돌립니다. 재현성을 위해 suite 간 비교할 때는 **`gt_seed`를 맞추는 것**을 권장합니다.
-    -   `offline_comparison`의 **makespan_gap**은 배치 `scheduler_makespan`과 oracle의 **`optimal_schedule_time`** 차이입니다. Oracle 쪽은 위 결정적 탐색 값이고, 배치 쪽 품질·TCSR은 해당 run의 GT 설정에 의존합니다.
+-   **출력**: `…/offline_oracle_reference/<task_folder>/<scene>/<case>/<instruction>.json`, 요약은 `_batch_summary/`.
+-   **배치와의 관계**: oracle 쪽은 harness에서 **GT `constant` 고정**의 결정적 값. 배치는 suite YAML의 **`gt_seed` / `gt_distribution`**을 따르므로, 비교 시 시드·분포를 맞출지 스스로 정하면 됩니다. `offline_comparison`의 **`makespan_gap`**은 배치 makespan − oracle **`optimal_schedule_time`**.
 
 ### 6. 오프라인 batch 실행 (`scripts/offline/run_batch.py`)
 
--   **설명**: YAML config를 읽어 offline 실험을 일괄 실행합니다. `run_experiment_suite.py` 없이도 특정 config만 직접 돌릴 수 있습니다.
--   **명령어**:
-    ```bash
-    # scripts/offline 에서 파일명만 지정
-    cd scripts/offline && python run_batch.py --config batch_config.yaml
-    # 저장소 루트에서 repo-relative 경로 지정 가능
-    python scripts/offline/run_batch.py --config scripts/offline/scalability_config.yaml
-    ```
--   **자주 쓰는 config**:
-    -   `scripts/offline/scalability_config.yaml`
-    -   `scripts/offline/eta_sensitivity_config.yaml`
-    -   `scripts/offline/monitoring_budget_config.yaml`
-    -   `scripts/offline/pf_vs_bayesian_*_config.yaml`
--   **현재 batch 규칙** (`src/experiments/batch_runner.py`):
-    -   **`bayesian`만** YAML의 전체 **`beam_bound`** 목록과 **`ablation_configs`** 스윕 대상입니다(실제 **beam search** 폭·깊이 스윕).
-    -   **`edf` / `cpm`** 은 **beam search를 쓰지 않습니다.** YAML의 `beam_bound` 목록은 알고리즘에 반영되지 않으며, 오프라인 CLI·메타데이터 통일을 위해 **`beam_bound`의 첫 `(width, depth)`만** subprocess 인자로 넘길 뿐입니다. 결과 파일명도 `edf.json` / `cpm.json`처럼 beam 접미사가 없습니다. 스케일러빌리티 표의 **beam 축은 베이지안 전용**이고, EDF/CPM은 **고정된 베이스라인 한 점**으로만 나란히 둡니다.
-    -   **`edf` / `cpm`** 은 **`DEFAULT` ablation 한 번만** 실행합니다(`NONE_MONITORING` 등 다른 ablation YAML 항목은 적용되지 않음).
-    -   따라서 `edf`/`cpm`은 `NONE_MONITORING` 결과 파일을 만들지 않습니다.
-    -   `max_monitoring_per_critical_intervals`는 현재 **`bayesian` + `DEFAULT`** 변형에서만 스윕됩니다.
--   **추가 batch 설정 키**:
-    -   `belief_update_method`: `bayesian` 또는 `particle_filter`
-    -   `gt_distribution`: `constant`, `gaussian`, `lognormal`, `gamma`, `mixture`
-    -   `particle_distribution`: PF particle initialization 분포
-    -   `factor_alpha`: synthetic Gaussian observation variance 계수 override
-    -   `max_monitoring_per_critical_intervals`: critical interval당 monitoring cap 목록
-
-#### 결과 저장 구조
-
--   result JSON:
-    `assets/results/offline_exp_result/<suite_dir>/<task_folder>/<init_prior>/<scene>/<case>/<instruction_stem>/<baseline>/<file>.json`
--   worker log:
-    `logs/<run_timestamp>/<suite_name>/<task_folder>/<init_prior>/<scene>/<case>/<instruction_stem>/<baseline>/<file>.log`
--   batch summary:
-    `assets/results/offline_exp_result/<suite_dir>/_batch_summary/<suite_name>_<timestamp>.json`
-
-`init prior`는 모든 suite에서 공통 상위 폴더로 유지됩니다. 따라서 `scalability`, `eta_sensitivity`, `monitoring_budget`도 `CORRECT_ESTIMATE/` 폴더를 명시적으로 갖습니다.
-
-#### 파일명 규칙
-
--   `bayesian`: `DEFAULT__w10_d10[__eta0.1][__gtgaussian][__mb2].json`
--   `particle_filter`: `DEFAULT__w10_d10[__eta0.1]__gtlognormal[__pdistlognormal][__mb2].json`
--   `edf`: `edf.json`
--   `cpm`: `cpm.json`
-
-즉 baseline 이름은 파일명이 아니라 상위 baseline 폴더로 표현됩니다.
-
-#### PF-vs-Bayesian batch 실행 예시
+YAML을 읽어 일괄 실행합니다 (`run_experiment_suite.py` 없이도 동일 config로 가능).
 
 ```bash
-python scripts/offline/run_batch.py \
-  --config scripts/offline/pf_vs_bayesian_lognormal_particle_filter_config.yaml
-
-python scripts/offline/run_batch.py \
-  --config scripts/offline/pf_vs_bayesian_lognormal_bayesian_config.yaml
+cd scripts/offline && python run_batch.py --config scalability_config.yaml
+python scripts/offline/run_batch.py --config scripts/offline/scalability_config.yaml
 ```
+
+-   **규칙 요약** (`batch_runner.py`): **`beam_bound`·`ablation_configs`·(일부) monitoring cap 전체 스윕은 베이지안만.** EDF/CPM은 beam 미사용, YAML의 ablation 목록과 무관하게 **`DEFAULT` 한 번**, 산출물은 `edf.json` / `cpm.json`.
+-   **YAML에서 자주 보는 키**: `belief_update_method`, `gt_distribution`, `particle_distribution`, `factor_alpha`, `max_monitoring_per_critical_intervals` 등(타입·허용값은 코드·샘플 YAML 참고).
+
+#### 결과 경로
+
+`assets/results/offline_exp_result/<suite_dir>/<task_folder>/<init_prior>/…/<baseline>/<파일>.json` — 로그는 `logs/<run_timestamp>/…`, 요약은 `<suite_dir>/_batch_summary/`. 대부분 suite는 prior가 `CORRECT_ESTIMATE/` 한 종류이고, **`eta_sensitivity`** 만 `init_prior_configs`에 따라 prior 폴더가 여러 개 생깁니다. 베이지안 파일명에 beam·η·GT 등이 붙고, EDF/CPM은 위와 같이 고정 파일명입니다.
 
 ### 7. 결과 비교 분석 (`assets/result_analysis/offline_comparison.py`)
 
--   **설명**: oracle reference와 각 approach의 batch 결과를 비교하여 세 가지 산출물을 생성합니다.
-    1.  `offline_comparison_raw.json`: scene/case/instruction별 oracle 필드 + approach별 makespan/computation_time gap
-    2.  `offline_analysis_summary.json`: approach/case별 집계 지표
-    3.  `offline_analysis_tol_sweep.json`: 저장된 `detail_log`를 재채점하여 tolerance별 TCSR을 다시 계산한 결과
--   **명령어**:
-    ```bash
-    python -m assets.result_analysis.offline_comparison \
-      --base_dir assets/results \
-      --batch_dirname offline_exp_result/offline_batch_pf_vs_bayesian \
-      --oracle_dirname offline_oracle_reference \
-      --task_folder sampled_10_instruction_set_for_final_experiment_251203 \
-      --tolerance-sweep 5.0 8.0 12.5 15.0
-    ```
--   **주요 인자**:
-    -   `--base_dir`: oracle/batch 결과 루트를 포함하는 경로입니다.
-    -   `--batch_dirname`: batch 결과 디렉터리 이름입니다. 예: `offline_exp_result/offline_batch_scalability`
-    -   `--oracle_dirname`: oracle reference 디렉터리 이름입니다. 기본값은 `offline_oracle_reference`입니다.
-    -   `--task_folder`: oracle reference와 batch 하위에 있는 task 폴더명입니다.
-    -   `--skip_oracle_violated`: oracle 자체 스케줄이 constraint를 위반한 instruction을 집계에서 제외합니다.
-    -   `--tolerance-sweep`: batch scheduler를 재실행하지 않고, 저장된 `detail_log`로 tolerance별 TCSR을 다시 계산합니다.
--   **출력 경로**: `--base_dir` 또는 `--output_dir` 아래에 저장됩니다.
+`offline_comparison_raw.json`, `offline_analysis_summary.json`, `offline_analysis_tol_sweep.json` 세 종류를 만듭니다. summary·tol_sweep 셀에는 평균에 쓰인 행 수인 **`n_instructions`**가 들어갑니다.
 
-#### `offline_analysis_summary.json` 읽는 법
+```bash
+python -m assets.result_analysis.offline_comparison \
+  --base_dir assets/results \
+  --batch_dirname offline_exp_result/offline_batch_pf_vs_bayesian \
+  --oracle_dirname offline_oracle_reference \
+  --task_folder sampled_10_instruction_set_for_final_experiment_251203 \
+  --tolerance-sweep 5.0 8.0 12.5 15.0
+```
 
-집계 단위는 **approach_key × case**입니다. 같은 `case` 아래의 모든 scene·instruction이 평균에 포함됩니다.
+`--batch_dirname`, `--oracle_dirname`, `--task_folder`, `--skip_oracle_violated`, `--tolerance-sweep` 등은 `python -m assets.result_analysis.offline_comparison --help` 참고. 집계 단위는 **`approach_key` × case**이고, 키는 run `meta_data`에서 유도됩니다. **한 instruction 폴더에 예전 설정 JSON이 남아 있으면** 키가 섞여 평균이 오염될 수 있으니, 설정 변경 후에는 오래된 파일을 정리한 뒤 돌리는 것이 안전합니다.
 
--   **approach_key 생성 원칙**:
-    -   가능하면 `meta_data` 기반으로 생성합니다.
-    -   `init_prior_config`, `baseline_name`, `ablation_config`, `beam_width`, `beam_depth`, `eta`, `gt_distribution`, `particle_distribution`, `monitoring_budget_per_critical`를 key에 반영합니다.
-    -   예:
-        -   `CORRECT_ESTIMATE__bayesian__DEFAULT__w10_d10__eta0.1`
-        -   `UNDER_ESTIMATE__particle_filter__DEFAULT__w10_d10__eta0.1__gtlognormal`
-        -   `CORRECT_ESTIMATE__bayesian__DEFAULT__w10_d10__eta0.1__mb2` (monitoring_budget, `constant` GT)
--   **두 번째 키**: case 폴더명. 예: `tasks_2_constraints_2`
--   **값(지표 객체)**: 아래 필드는 모두 해당 `(approach_key, case)` 셀의 통계입니다.
+### 8. Scheduler-Free Belief Robustness Benchmark (`scripts/offline/belief_distribution_benchmark.py`)
 
-| 필드 | 의미 |
-|------|------|
-| `n_instructions` | 해당 `(approach_key, case)`에 평균을 낸 instruction 수(배치 JSON이 있는 oracle-matched 행만; approach마다 다를 수 있음) |
-| `sr` | 완료율(%) |
-| `tsr` | 평균 schedule TCSR(%) |
-| `makespan` | 평균 planner makespan(초) |
-| `makespan_sr_1` | 완료된 instruction만 모아 평균한 makespan |
-| `makespan_gap` | `(scheduler_makespan - oracle optimal_schedule_time)` 평균 |
-| `makespan_gap_sr_1` | 완료된 instruction만 대상으로 한 makespan gap |
-| `computation_time` | 평균 planner computation time(초) |
-| `computation_time_gap` | `(batch computation_time - oracle computation_time)` 평균 |
+PF와 Bayesian belief update 자체를 **scheduler 없이** 비교할 때 쓰는 Monte Carlo 벤치마크입니다. GT 분포, GT mean shift, prior mismatch, observation family를 바꿔가며 `late_trigger_rate`, `calibration_error`, `trigger_abs_error` 등을 직접 비교합니다.
 
-`--skip_oracle_violated`를 켜면 oracle JSON의 constraint 위반 instruction이 집계에서 빠집니다. `--tolerance-sweep`는 평가 기준만 바꾸는 post-hoc 재채점이며, scheduler의 실제 행동이나 makespan을 다시 생성하지는 않습니다.
+-   **기본 용도**: 탐색형 범용 benchmark
+-   **Reviewer 10 대응용 용도**: `--preset reviewer10`으로 고정된 revision 설정 + reviewer용 CSV + LaTeX table 생성
 
-### 8. Navigation Graph Cache
+#### 일반 실행 예시
 
--   `nav_graph_source: ai2thor_controller`를 사용하면 navigation graph를 `assets/cache/ai2thor_nav_graphs/<scene>.json`에 캐시합니다.
--   캐시가 존재하면 offline 실행은 이 파일을 우선 사용하고, 캐시가 없을 때만 controller를 초기화합니다.
--   따라서 같은 scene에 대한 반복 offline 실험에서는 AI2-THOR 초기화 비용이 크게 줄어듭니다.
+```bash
+python scripts/offline/belief_distribution_benchmark.py \
+  --output-dir assets/results/offline_exp_result/belief_distribution_benchmark \
+  --episodes 200 \
+  --gt-distributions gaussian lognormal mixture \
+  --gt-mean-multipliers 1.0 \
+  --prior-configs UNDER_ESTIMATE CORRECT_ESTIMATE OVER_ESTIMATE \
+  --etas 0.1 \
+  --observation-families gaussian same_as_gt \
+  --pf-particle-distributions gaussian
+```
 
-### 9. 결과 해석 시 주의사항
+-   `--gt-variance`를 **생략**하면 family-specific GT variance preset을 사용합니다.
+    -   `gaussian`: 대략 `mean=100, std=30`
+    -   `lognormal`, `mixture`: 더 넓은 stress preset
+-   `--gt-mean-multipliers`는 `base_duration`에 곱해 GT mean을 만듭니다.
+    -   예: `base_duration=100`, `--gt-mean-multipliers 0.6 1.0 1.4`면 GT mean이 `60 / 100 / 140`
 
--   offline harness는 planner-level 비교를 빠르게 반복하기 위한 도구입니다.
--   `offline makespan == scheduler makespan`은 맞출 수 있어도, `simulation makespan`은 AI2-THOR의 실제 primitive 실행 결과에 따라 약간 달라질 수 있습니다.
--   baseline인 EDF/CPM도 동일하게 offline과 AI2-THOR planner-level schedule은 정렬할 수 있지만, 실제 simulation 시간은 완전히 동일하지 않을 수 있습니다.
+#### Reviewer 10 preset 예시
+
+```bash
+python scripts/offline/belief_distribution_benchmark.py \
+  --preset reviewer10 \
+  --output-dir assets/results/offline_exp_result/belief_reviewer10_comparison \
+  --episodes 200 \
+  --no-episode-csv
+```
+
+이 preset은 내부적으로 다음을 고정합니다.
+
+-   `gt_distributions = gaussian, lognormal, mixture`
+-   `gt_mean_multipliers = 0.6, 1.0, 1.4`
+-   `prior_configs = UNDER_ESTIMATE, CORRECT_ESTIMATE, OVER_ESTIMATE`
+-   `eta = 0.1`
+-   `observation_families = gaussian, same_as_gt`
+-   `pf-particle-distributions = gaussian`
+-   reviewer용 CSV 출력 + LaTeX table 생성
+
+주요 산출물:
+
+-   `belief_benchmark_summary.json`, `belief_benchmark_summary.csv`
+-   `belief_reviewer10_main_shared_gaussian.csv`
+-   `belief_reviewer10_main_same_as_gt.csv`
+-   `belief_reviewer10_pf_likelihood_upgrade.csv`
+-   `latex_tables/tab_belief_robustness_main_shared_gaussian.tex`
+-   `latex_tables/tab_belief_robustness_main_same_as_gt.tex`
+
+#### 구 스크립트 호환성
+
+`scripts/offline/reviewer10_belief_comparison.py`는 기존 명령을 깨지 않게 남겨둔 **호환 래퍼**입니다. 새 실험은 가능하면 `belief_distribution_benchmark.py --preset reviewer10` 기준으로 실행하는 것을 권장합니다.
+
+### 9. 캐시·해석
+
+-   `nav_graph_source: ai2thor_controller`이면 `assets/cache/ai2thor_nav_graphs/<scene>.json`을 우선 사용해 THOR 기동 비용을 줄입니다.
+-   Offline은 **planner-level** 비교용입니다. `simulation makespan`은 실제 THOR 실행에 따라 달라질 수 있고, EDF/CPM도 동일합니다.
