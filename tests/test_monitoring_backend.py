@@ -27,6 +27,8 @@ from src.core.monitoring import (
     ParticleFilterMonitoringPolicy,
     create_monitoring_backend,
     create_observation_model,
+    evaluate_duration_observation_likelihood,
+    resolve_duration_sampling_variance,
 )
 from src.core.scheduler import Scheduler
 from src.models.dataclass import (
@@ -243,6 +245,30 @@ def test_bayesian_monitoring_policy_matches_gaussian_quantile() -> None:
     assert trigger_time == expected_trigger_time
 
 
+def test_bayesian_monitoring_policy_default_follows_runtime_eta_constant() -> None:
+    """Omitted ``threshold_probability`` must read the live global ``eta``/threshold.
+
+    Regression guard: a default parameter evaluated only at import time caused
+    ``constants.set_bayesian_threshold_probability`` (offline harness / CLI) to
+    be ignored when constructing ``BayesianMonitoringPolicy(belief_store)``.
+    """
+
+    import src.utils.config.constants as runtime_constants
+
+    belief_store = BeliefStore({"Mug": {"expected_duration": 20.0, "variance": 9.0}})
+    previous = float(runtime_constants.BAYESIAN_THRESHOLD_PROBABILITY)
+    try:
+        runtime_constants.set_bayesian_threshold_probability(0.25)
+        policy_a = BayesianMonitoringPolicy(belief_store)
+        assert policy_a._threshold_probability == pytest.approx(0.25)
+
+        runtime_constants.set_bayesian_threshold_probability(0.75)
+        policy_b = BayesianMonitoringPolicy(belief_store)
+        assert policy_b._threshold_probability == pytest.approx(0.75)
+    finally:
+        runtime_constants.set_bayesian_threshold_probability(previous)
+
+
 def test_particle_filter_monitoring_policy_uses_weighted_quantile() -> None:
     """Particle-filter trigger policy should use the empirical particle quantile."""
 
@@ -413,9 +439,32 @@ def test_ground_truth_store_can_presample_requested_objects() -> None:
     )
 
     assert set(sampled_intervals.keys()) == {"Microwave", "CoffeeMachine"}
+    assert sampled_intervals["Microwave"] != sampled_intervals["CoffeeMachine"]
     assert "CounterTop" not in sampled_intervals
     assert ground_truth_store.as_dict() == sampled_intervals
-    assert sampled_intervals["Microwave"] != sampled_intervals["CoffeeMachine"]
+
+
+def test_default_gt_sampling_variance_uses_harder_non_gaussian_presets() -> None:
+    """Default GT sampling variance should widen non-Gaussian stress cases."""
+
+    mean = 100.0
+
+    assert resolve_duration_sampling_variance(
+        distribution="gaussian",
+        mean=mean,
+    ) == pytest.approx(900.0)
+    assert resolve_duration_sampling_variance(
+        distribution="lognormal",
+        mean=mean,
+    ) == pytest.approx(2500.0)
+    assert resolve_duration_sampling_variance(
+        distribution="gamma",
+        mean=mean,
+    ) == pytest.approx(2500.0)
+    assert resolve_duration_sampling_variance(
+        distribution="mixture",
+        mean=mean,
+    ) == pytest.approx(3600.0)
 
 
 def test_scheduler_compute_monitoring_trigger_time_uses_bayesian_policy() -> None:
@@ -1742,6 +1791,105 @@ def test_create_monitoring_backend_initializes_particles_with_selected_distribut
     assert particle_state["particle_distribution"] == "lognormal"
     assert min(particle_state["particles"]) > 0.0
     assert len(set(particle_state["particles"])) > 1
+
+
+def test_particle_filter_belief_updater_uses_configured_likelihood_family(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """PF updater should evaluate weights with the configured likelihood family."""
+
+    captured: dict[str, Any] = {}
+
+    def _fake_likelihood(
+        *,
+        observation: float,
+        hypotheses: np.ndarray,
+        variance: float,
+        family: str,
+    ) -> np.ndarray:
+        captured["observation"] = observation
+        captured["variance"] = variance
+        captured["family"] = family
+        return np.ones_like(hypotheses, dtype=float)
+
+    monkeypatch.setattr(
+        "src.core.monitoring.evaluate_duration_observation_likelihood",
+        _fake_likelihood,
+    )
+
+    belief_store = BeliefStore(
+        {
+            "Mug": {
+                "expected_duration": 20.0,
+                "variance": 16.0,
+                "method": "particle_filter",
+                "particles": [12.0, 18.0, 24.0],
+                "weights": [1 / 3, 1 / 3, 1 / 3],
+            }
+        },
+    )
+    updater = ParticleFilterBeliefUpdater(
+        belief_store,
+        likelihood_family="mixture",
+        observation_model=_FixedObservationModel(observation=18.0, variance=4.0),
+        rng=np.random.default_rng(0),
+    )
+
+    result = updater.update(
+        BeliefUpdateContext(
+            object_name="Mug",
+            gt_interval=15.0,
+            prior_mean=20.0,
+            prior_variance=16.0,
+            elapsed_interval=12.0,
+        )
+    )
+
+    assert captured["family"] == "mixture"
+    assert result.diagnostics["particle_likelihood_family"] == "mixture"
+
+
+def test_create_monitoring_backend_passes_particle_likelihood_family() -> None:
+    """PF backend should preserve the configured likelihood family during updates."""
+
+    belief_store, _monitoring_policy, belief_updater = create_monitoring_backend(
+        "particle_filter",
+        {"Mug": {"expected_duration": 20.0, "variance": 16.0}},
+        particle_distribution="gaussian",
+        particle_likelihood_family="lognormal",
+        observation_model=_FixedObservationModel(observation=18.0, variance=4.0),
+        random_seed=0,
+    )
+
+    result = belief_updater.update(
+        BeliefUpdateContext(
+            object_name="Mug",
+            gt_interval=15.0,
+            prior_mean=20.0,
+            prior_variance=16.0,
+            elapsed_interval=12.0,
+        )
+    )
+
+    assert belief_store.get_state("Mug")["particle_distribution"] == "gaussian"
+    assert result.diagnostics["particle_likelihood_family"] == "lognormal"
+
+
+def test_evaluate_duration_observation_likelihood_supports_non_gaussian_families() -> None:
+    """Shared likelihood evaluator should support the configured non-Gaussian families."""
+
+    hypotheses = np.array([80.0, 100.0, 120.0], dtype=float)
+
+    for family in ("gaussian", "lognormal", "gamma", "mixture"):
+        weights = evaluate_duration_observation_likelihood(
+            observation=105.0,
+            hypotheses=hypotheses,
+            variance=25.0,
+            family=family,
+        )
+        assert weights.shape == hypotheses.shape
+        assert np.all(np.isfinite(weights))
+        assert np.all(weights >= 0.0)
 
 
 def test_agent_update_monitoring_belief_updates_constraints_and_metadata(

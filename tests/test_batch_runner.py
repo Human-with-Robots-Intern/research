@@ -172,6 +172,7 @@ def test_build_offline_tasks_propagates_pf_distribution_and_variant_suffix(
         "gt_distribution": "lognormal",
         "gt_seed": 7,
         "particle_distribution": "mixture",
+        "particle_likelihood_family": "lognormal",
         "nav_graph_source": "ai2thor_controller",
         "oracle_time_limit_seconds": 300,
         "output_dir": str(tmp_path),
@@ -195,6 +196,8 @@ def test_build_offline_tasks_propagates_pf_distribution_and_variant_suffix(
     assert command[command.index("--gt-seed") + 1] == "7"
     assert "--particle-distribution" in command
     assert command[command.index("--particle-distribution") + 1] == "mixture"
+    assert "--particle-likelihood-family" in command
+    assert command[command.index("--particle-likelihood-family") + 1] == "lognormal"
 
     output_path = Path(command[command.index("--output-path") + 1])
     assert output_path.parts[-7:] == (
@@ -204,7 +207,7 @@ def test_build_offline_tasks_propagates_pf_distribution_and_variant_suffix(
         "tasks_3_constraints_2",
         "task_a",
         "particle_filter",
-        "DEFAULT__w10_d10__eta0.1__gtlognormal__pdistmixture.json",
+        "DEFAULT__w10_d10__eta0.1__gtlognormal__pdistmixture__pliklognormal.json",
     )
     assert tasks[0].metadata["suite_name"] == "pf_vs_bayesian"
     assert tasks[0].metadata["baseline_name"] == "particle_filter"
@@ -212,6 +215,7 @@ def test_build_offline_tasks_propagates_pf_distribution_and_variant_suffix(
     assert tasks[0].metadata["belief_update_method"] == "particle_filter"
     assert tasks[0].metadata["gt_distribution"] == "lognormal"
     assert tasks[0].metadata["particle_distribution"] == "mixture"
+    assert tasks[0].metadata["particle_likelihood_family"] == "lognormal"
 
 
 def test_build_offline_tasks_sweeps_monitoring_budget_suffixes(

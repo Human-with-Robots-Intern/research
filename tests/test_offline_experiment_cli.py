@@ -36,6 +36,8 @@ def test_parse_args_accepts_new_offline_flags() -> None:
             "7",
             "--particle-distribution",
             "gamma",
+            "--particle-likelihood-family",
+            "lognormal",
             "--eta",
             "0.35",
             "--max-monitoring-per-critical-interval",
@@ -55,6 +57,7 @@ def test_parse_args_accepts_new_offline_flags() -> None:
     assert args.gt_distribution == "mixture"
     assert args.gt_seed == 7
     assert args.particle_distribution == "gamma"
+    assert args.particle_likelihood_family == "lognormal"
     assert args.eta == 0.35
     assert args.max_monitoring_per_critical_interval == 2
     assert args.nav_graph_source == "ai2thor_controller"
@@ -157,6 +160,7 @@ def test_build_run_config_preserves_pf_distribution_fields(tmp_path: Path) -> No
                 "belief_update_method: bayesian",
                 "gt_distribution: gaussian",
                 "gt_seed: 42",
+                "particle_likelihood_family: gaussian",
             ]
         ),
         encoding="utf-8",
@@ -174,6 +178,8 @@ def test_build_run_config_preserves_pf_distribution_fields(tmp_path: Path) -> No
             "9",
             "--particle-distribution",
             "mixture",
+            "--particle-likelihood-family",
+            "lognormal",
         ]
     )
 
@@ -183,3 +189,4 @@ def test_build_run_config_preserves_pf_distribution_fields(tmp_path: Path) -> No
     assert config.gt_distribution == "lognormal"
     assert config.gt_seed == 9
     assert config.particle_distribution == "mixture"
+    assert config.particle_likelihood_family == "lognormal"

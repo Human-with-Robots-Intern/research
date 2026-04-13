@@ -40,7 +40,7 @@ def _value_after(command: tuple[str, ...], flag: str) -> str:
 def test_pf_vs_bayesian_plan_orders_oracle_batches_and_analysis(
     tmp_path: Path,
 ) -> None:
-    """The PF-vs-Bayesian suite should stage oracle, 8 batch configs, then analysis."""
+    """The PF-vs-Bayesian suite should stage oracle, 10 batch configs, then analysis."""
 
     plan = build_execution_plan(
         requested_suite="pf_vs_bayesian",
@@ -59,9 +59,11 @@ def test_pf_vs_bayesian_plan_orders_oracle_batches_and_analysis(
         "batch",
         "batch",
         "batch",
+        "batch",
+        "batch",
         "analysis",
     ]
-    assert [stage.suite for stage in plan.stages[1:9]] == ["pf_vs_bayesian"] * 8
+    assert [stage.suite for stage in plan.stages[1:11]] == ["pf_vs_bayesian"] * 10
     assert plan.stages[-1].suite == "pf_vs_bayesian"
 
 
@@ -121,7 +123,7 @@ def test_all_plan_uses_single_oracle_and_expected_suite_order(tmp_path: Path) ->
         ("batch", "monitoring_budget"),
         ("analysis", "monitoring_budget"),
     ]
-    assert sequence[7:-1] == [("batch", "pf_vs_bayesian")] * 8
+    assert sequence[7:-1] == [("batch", "pf_vs_bayesian")] * 10
     assert sequence[-1] == ("analysis", "pf_vs_bayesian")
 
 

@@ -378,6 +378,7 @@ def test_build_hybrid_result_row_marks_particle_filter_baseline_name() -> None:
         init_prior_config="CORRECT_ESTIMATE",
         belief_update_method="particle_filter",
         gt_distribution="mixture",
+        particle_likelihood_family="lognormal",
         scene="FloorPlan1",
         suite_name="pf_vs_bayesian",
     )
@@ -403,11 +404,13 @@ def test_build_hybrid_result_row_marks_particle_filter_baseline_name() -> None:
             "timing_detail": {},
             "ground_truth_intervals": {"Microwave": 100.0},
             "particle_distribution": "mixture",
+            "particle_likelihood_family": "lognormal",
         },
     )
 
     assert row["meta_data"]["suite_name"] == "pf_vs_bayesian"
     assert row["meta_data"]["baseline_name"] == "particle_filter"
+    assert row["meta_data"]["particle_likelihood_family"] == "lognormal"
 
 
 def test_build_hybrid_result_row_keeps_monitoring_budget_label() -> None:

@@ -44,10 +44,11 @@ def test_build_approach_key_uses_init_prior_and_baseline_name() -> None:
         "eta": 0.1,
         "gt_distribution": "mixture",
         "particle_distribution": "gaussian",
+        "particle_likelihood_family": "mixture",
     }
     assert build_approach_key("ignored", pf_meta) == (
         "OVER_ESTIMATE__particle_filter__DEFAULT__w10_d10"
-        "__eta0.1__gtmixture__pdistgaussian"
+        "__eta0.1__gtmixture__pdistgaussian__plikmixture"
     )
 
     assert build_approach_key(
@@ -151,6 +152,7 @@ def test_build_raw_reads_prior_and_baseline_directories(tmp_path: Path) -> None:
                 "eta": 0.1,
                 "gt_distribution": "lognormal",
                 "particle_distribution": "gaussian",
+                "particle_likelihood_family": "lognormal",
                 "belief_update_method": "particle_filter",
             },
         },
@@ -174,7 +176,7 @@ def test_build_raw_reads_prior_and_baseline_directories(tmp_path: Path) -> None:
     assert (
         entry[
             "UNDER_ESTIMATE__particle_filter__DEFAULT__w10_d10__eta0.1"
-            "__gtlognormal__pdistgaussian"
+            "__gtlognormal__pdistgaussian__pliklognormal"
         ]["completed"]
         is False
     )
@@ -223,6 +225,7 @@ def test_build_tol_sweep_reads_new_layout(tmp_path: Path) -> None:
                 "beam_depth": 10,
                 "eta": 0.1,
                 "gt_distribution": "mixture",
+                "particle_likelihood_family": "mixture",
                 "belief_update_method": "particle_filter",
             },
         },
@@ -236,7 +239,7 @@ def test_build_tol_sweep_reads_new_layout(tmp_path: Path) -> None:
     )
 
     assert tol_sweep["30.0"] == {
-        "OVER_ESTIMATE__particle_filter__DEFAULT__w10_d10__eta0.1__gtmixture": {
+        "OVER_ESTIMATE__particle_filter__DEFAULT__w10_d10__eta0.1__gtmixture__plikmixture": {
             case: {
                 "n_instructions": 1,
                 "sr": 100.0,
