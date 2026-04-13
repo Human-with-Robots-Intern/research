@@ -20,7 +20,7 @@ from src.models.dataclass import (
     SimulationNode,
 )
 from src.models.task import Duration, Execution, Subtask
-from src.utils.common import create_module_logger
+from src.utils.common import create_module_logger, extract_monitoring_target_name
 from src.utils.common.decorators import time_logger
 from src.utils.config import (
     EPSILON,
@@ -91,6 +91,7 @@ class Scheduler:
         monitoring_policy: Optional[MonitoringPolicy] = None,
         beam_width: int = BEAM_WIDTH,
         simulation_depth: int = SIMULATION_DEPTH,
+        max_monitoring_per_critical_interval: int | None = None,
     ) -> None:
         """Initialize the scheduler and its expansion policies.
 
@@ -101,6 +102,9 @@ class Scheduler:
             monitoring_policy: Optional backend-specific monitoring trigger policy.
             beam_width: Layer-wise beam width.
             simulation_depth: Lookahead depth for beam search.
+            max_monitoring_per_critical_interval: Optional cap for how many
+                monitoring actions may execute within one critical interval.
+                Negative values represent an explicit unbounded budget.
         """
 
         self.search_width = beam_width
@@ -114,6 +118,9 @@ class Scheduler:
         self.monitoring_policy = monitoring_policy or create_monitoring_policy(
             "bayesian",
             BeliefStore(),
+        )
+        self.max_monitoring_per_critical_interval = (
+            max_monitoring_per_critical_interval
         )
         self._counter = itertools.count()
         self._search_cache: Optional[SchedulerSearchCache] = None
@@ -799,6 +806,59 @@ class Scheduler:
             # Typically, the target of the first action is what we monitor.
             return candidate.subtask.execution.primitive_actions[0].split()[1]
         return None
+
+    def _resolve_effective_monitoring_budget(self) -> int | None:
+        """Return the active per-critical-interval monitoring cap."""
+
+        if self.max_monitoring_per_critical_interval is None:
+            return None
+        if int(self.max_monitoring_per_critical_interval) < 0:
+            return None
+        return int(self.max_monitoring_per_critical_interval)
+
+    def _count_monitoring_events_for_interval(
+        self,
+        curr_state: SchedulerState,
+        *,
+        critical_start_sub_end_time: float,
+        critical_end_sub_name: str,
+    ) -> int:
+        """Return how many monitors have already executed for one interval."""
+
+        monitor_count = 0
+        for completed_entry in curr_state.completed_entries:
+            if completed_entry.subtask.subtask_type != "Monitor":
+                continue
+            if completed_entry.schedule_start_time < critical_start_sub_end_time:
+                continue
+            try:
+                monitored_target_name = extract_monitoring_target_name(
+                    completed_entry.subtask.name
+                )
+            except ValueError:
+                continue
+            if monitored_target_name == critical_end_sub_name:
+                monitor_count += 1
+        return monitor_count
+
+    def _monitoring_budget_reached(
+        self,
+        curr_state: SchedulerState,
+        *,
+        critical_start_sub_end_time: float,
+        critical_end_sub_name: str,
+    ) -> bool:
+        """Return whether monitoring is exhausted for the current interval."""
+
+        effective_budget = self._resolve_effective_monitoring_budget()
+        if effective_budget is None:
+            return False
+        completed_monitors = self._count_monitoring_events_for_interval(
+            curr_state,
+            critical_start_sub_end_time=critical_start_sub_end_time,
+            critical_end_sub_name=critical_end_sub_name,
+        )
+        return completed_monitors >= effective_budget
 
     def _estimate_candidate_navigation_duration(
         self,
@@ -1751,6 +1811,19 @@ class Scheduler:
             critical_start_completed_entry.schedule_end_time
         )
 
+        if self._monitoring_budget_reached(
+            curr_state,
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            critical_end_sub_name=critical_end_sub_name,
+        ):
+            log.debug(
+                "Monitoring budget reached for '%s'. Falling back to non-monitoring expansion.",
+                critical_end_sub_name,
+            )
+            return self._expand_subtask_wo_monitoring(
+                curr_node, candidate, not_yet_candidates, feasible_candidates
+            )
+
         monitoring_target_obj = next(
             (
                 (remain_sub.execution.primitive_actions[0].split()[1])
@@ -2249,6 +2322,23 @@ class Scheduler:
         critical_start_sub_actual_end_time = (
             critical_start_completed_entry.schedule_end_time
         )
+
+        if self._monitoring_budget_reached(
+            curr_state,
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            critical_end_sub_name=critical_end_sub_name,
+        ):
+            log.debug(
+                "Monitoring budget reached for '%s'. Falling back to wait-without-monitoring.",
+                critical_end_sub_name,
+            )
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
+            )
         # Retrieve variance from the edge info
         edge_data = curr_state.constraints.get_edge_data(
             critical_start_sub_name, critical_end_sub_name

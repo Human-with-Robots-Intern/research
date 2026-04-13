@@ -1045,6 +1045,8 @@ def create_belief_updater(
     method: BeliefMethod,
     belief_store: BeliefStore,
     observation_model: Optional[ObservationModel] = None,
+    *,
+    rng: Optional[np.random.Generator] = None,
 ) -> BeliefUpdater:
     """Create the runtime posterior updater.
 
@@ -1064,11 +1066,13 @@ def create_belief_updater(
         return BayesianBeliefUpdater(
             belief_store,
             observation_model=observation_model,
+            rng=rng,
         )
     if method == "particle_filter":
         return ParticleFilterBeliefUpdater(
             belief_store,
             observation_model=observation_model,
+            rng=rng,
         )
     raise ValueError(f"Unsupported belief update method: {method}")
 
@@ -1079,6 +1083,7 @@ def create_monitoring_backend(
     *,
     particle_distribution: GroundTruthDistribution = "gaussian",
     observation_model: Optional[ObservationModel] = None,
+    random_seed: Optional[int] = None,
 ) -> tuple[BeliefStore, MonitoringPolicy, BeliefUpdater]:
     """Build a complete monitoring backend bundle.
 
@@ -1087,15 +1092,24 @@ def create_monitoring_backend(
         initial_beliefs: Existing belief mapping from task initialization.
         particle_distribution: Distribution family used for PF particle initialization.
         observation_model: Optional shared observation model used by the updater.
+        random_seed: Optional seed used to make PF initialization/resampling reproducible.
 
     Returns:
         Tuple of shared belief store, scheduler policy, and runtime updater.
     """
 
     log.info("Creating monitoring backend: %s", method)
+    seed_value = int(random_seed) if random_seed is not None else None
+    belief_store_rng = (
+        np.random.default_rng(seed_value) if seed_value is not None else None
+    )
+    updater_rng = (
+        np.random.default_rng(seed_value + 1) if seed_value is not None else None
+    )
     belief_store = BeliefStore(
         initial_beliefs,
         particle_distribution=particle_distribution,
+        rng=belief_store_rng,
     )
     belief_store.ensure_method_for_all(method)
     monitoring_policy = create_monitoring_policy(method, belief_store)
@@ -1103,6 +1117,7 @@ def create_monitoring_backend(
         method,
         belief_store,
         observation_model=observation_model,
+        rng=updater_rng,
     )
     return belief_store, monitoring_policy, belief_updater
 

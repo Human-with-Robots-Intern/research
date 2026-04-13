@@ -36,34 +36,107 @@ logger = create_module_logger(__name__)
 EPSILON = 1e-6
 
 
-def build_approach_key(stem: str) -> str:
+def _sanitize_token(value: Any) -> str:
+    """Return a filesystem-friendly token used in summary keys."""
+
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", str(value)).strip("_")
+
+
+def _build_approach_key_from_stem(stem: str) -> str:
+    """Fallback parser for legacy result filenames without rich metadata."""
+
+    parts = stem.split("__")
+    approach = parts[0]
+    init_prior = parts[2] if len(parts) > 2 else None
+
+    if approach == "cpm":
+        return f"{init_prior}__cpm" if init_prior is not None else "cpm"
+    if approach == "edf":
+        return f"{init_prior}__edf" if init_prior is not None else "edf"
+    if approach == "bayesian":
+        if len(parts) < 4:
+            return stem
+        ablation = parts[1]
+        beam = parts[3]
+        suffixes = parts[4:]
+        baseline_name = "particle_filter" if "pf" in suffixes else "bayesian"
+        key = f"{baseline_name}__{ablation}__{beam}"
+        for suffix in suffixes:
+            if (
+                suffix.startswith("eta")
+                or suffix.startswith("gt")
+                or suffix.startswith("pdist")
+                or suffix.startswith("mb")
+            ):
+                key += f"__{suffix}"
+        return f"{init_prior}__{key}" if init_prior is not None else key
+
+    return stem
+
+
+def build_approach_key(
+    stem: str,
+    meta_data: dict[str, Any] | None = None,
+) -> str:
     """Convert result filename stem to a short approach key.
 
     Examples:
-        cpm__DEFAULT__CORRECT_ESTIMATE                          → cpm
-        edf__DEFAULT__CORRECT_ESTIMATE                          → edf
-        bayesian__DEFAULT__CORRECT_ESTIMATE__w1_d1              → bayesian__DEFAULT__w1_d1
-        bayesian__NONE_MONITORING__CORRECT_ESTIMATE__w5_d5      → bayesian__NONE_MONITORING__w5_d5
-        bayesian__DEFAULT__CORRECT_ESTIMATE__w10_d10__eta0.1    → bayesian__DEFAULT__w10_d10__eta0.1
+        cpm__DEFAULT__CORRECT_ESTIMATE
+            -> CORRECT_ESTIMATE__cpm
+        edf__DEFAULT__CORRECT_ESTIMATE
+            -> CORRECT_ESTIMATE__edf
+        DEFAULT__w10_d10__eta0.1__gtlognormal + metadata(prior=UNDER_ESTIMATE)
+            -> UNDER_ESTIMATE__bayesian__DEFAULT__w10_d10__eta0.1__gtlognormal
     """
-    parts = stem.split("__")
-    approach = parts[0]
+    if not isinstance(meta_data, dict):
+        return _build_approach_key_from_stem(stem)
 
-    if approach == "cpm":
-        return "cpm"
-    if approach == "edf":
-        return "edf"
-    if approach == "bayesian":
-        # parts: ["bayesian", ablation, init_prior, beam] or
-        #        ["bayesian", ablation, init_prior, beam, "eta{value}"]
-        ablation = parts[1]
-        beam = parts[3]  # e.g. "w1_d1"
-        key = f"bayesian__{ablation}__{beam}"
-        if len(parts) >= 5 and parts[4].startswith("eta"):
-            key += f"__{parts[4]}"
-        return key
+    init_prior = meta_data.get("init_prior_config")
+    prior_prefix = (
+        f"{_sanitize_token(init_prior)}__" if init_prior is not None else ""
+    )
 
-    return stem
+    baseline_name = str(
+        meta_data.get("baseline_name")
+        or meta_data.get("approach")
+        or stem.split("__")[0]
+    )
+    if baseline_name == "cpm":
+        return f"{prior_prefix}cpm"
+    if baseline_name == "edf":
+        return f"{prior_prefix}edf"
+    if baseline_name not in {"bayesian", "particle_filter"}:
+        return stem
+
+    ablation = meta_data.get("ablation_config")
+    beam_width = meta_data.get("beam_width")
+    beam_depth = meta_data.get("beam_depth")
+    if ablation is None or beam_width is None or beam_depth is None:
+        return _build_approach_key_from_stem(stem)
+
+    key = f"{baseline_name}__{ablation}__w{beam_width}_d{beam_depth}"
+    eta = meta_data.get("eta")
+    if eta is not None:
+        key += f"__eta{eta}"
+
+    gt_distribution = str(meta_data.get("gt_distribution", "constant"))
+    particle_distribution = meta_data.get("particle_distribution")
+
+    if baseline_name == "particle_filter":
+        key += f"__gt{_sanitize_token(gt_distribution)}"
+        if particle_distribution not in {None, gt_distribution}:
+            key += f"__pdist{_sanitize_token(particle_distribution)}"
+        monitoring_budget = meta_data.get("monitoring_budget_per_critical")
+        if monitoring_budget is not None:
+            key += f"__mb{_sanitize_token(monitoring_budget)}"
+        return f"{prior_prefix}{key}"
+
+    if gt_distribution != "constant":
+        key += f"__gt{_sanitize_token(gt_distribution)}"
+    monitoring_budget = meta_data.get("monitoring_budget_per_critical")
+    if monitoring_budget is not None:
+        key += f"__mb{_sanitize_token(monitoring_budget)}"
+    return f"{prior_prefix}{key}"
 
 
 def _oracle_has_constraint_violation(data: dict[str, Any]) -> bool:
@@ -93,11 +166,19 @@ def load_baseline(path: Path) -> dict[str, Any]:
     with path.open() as f:
         data = json.load(f)
     tsr_raw = data.get("timing_success_rate_sched")
+    meta_data = data.get("meta_data", {})
+    if not isinstance(meta_data, dict):
+        meta_data = {}
     return {
         "completed": bool(data.get("completed", False)),
         "tsr": float(tsr_raw) if tsr_raw is not None else 0.0,
         "makespan": data.get("scheduler_makespan"),
         "computation_time": data.get("computation_time"),
+        "scene_name": data.get("scene_name"),
+        "case": data.get("case", data.get("case_name")),
+        "instruction": data.get("instruction", data.get("instruction_name")),
+        "detail_log": data.get("detail_log", {}),
+        "meta_data": meta_data,
     }
 
 
@@ -105,13 +186,47 @@ def _round(value: float | None, ndigits: int) -> float | None:
     return round(value, ndigits) if value is not None else None
 
 
-def build_raw(base_dir: Path, task_folder: str) -> dict[str, Any]:
+def _extract_batch_identity(
+    batch_file: Path,
+    *,
+    batch_root: Path,
+    baseline: dict[str, Any],
+) -> tuple[str, str, str] | None:
+    """Return ``(scene, case, instruction_stem)`` for one saved batch file."""
+
+    scene = baseline.get("scene_name")
+    case = baseline.get("case")
+    instruction = baseline.get("instruction")
+    if scene is not None and case is not None and instruction is not None:
+        return str(scene), str(case), Path(str(instruction)).stem
+
+    relative_parts = batch_file.relative_to(batch_root).parts
+    if len(relative_parts) >= 6:
+        return relative_parts[-5], relative_parts[-4], relative_parts[-3]
+    if len(relative_parts) >= 4:
+        return relative_parts[-4], relative_parts[-3], relative_parts[-2]
+    return None
+
+
+def _iter_batch_result_files(batch_root: Path) -> list[Path]:
+    """Return all saved batch result JSON files under one task folder."""
+
+    return sorted(path for path in batch_root.rglob("*.json") if path.is_file())
+
+
+def build_raw(
+    base_dir: Path,
+    task_folder: str,
+    *,
+    batch_dirname: str = "offline_batch",
+    oracle_dirname: str = "offline_oracle_reference",
+) -> dict[str, Any]:
     """Walk oracle reference tree and match each instruction to batch results.
 
     Returns nested dict: raw[scene][case][instruction] = {oracle: ..., approach: ...}
     """
-    oracle_root = base_dir / "offline_oracle_reference" / task_folder
-    batch_root = base_dir / "offline_batch" / task_folder
+    oracle_root = base_dir / oracle_dirname / task_folder
+    batch_root = base_dir / batch_dirname / task_folder
 
     if not oracle_root.exists():
         raise FileNotFoundError(f"Oracle reference directory not found: {oracle_root}")
@@ -119,6 +234,25 @@ def build_raw(base_dir: Path, task_folder: str) -> dict[str, Any]:
         raise FileNotFoundError(f"Batch directory not found: {batch_root}")
 
     raw: dict[str, Any] = {}
+    batch_index: dict[tuple[str, str, str], list[tuple[Path, dict[str, Any]]]] = (
+        defaultdict(list)
+    )
+
+    for batch_file in _iter_batch_result_files(batch_root):
+        try:
+            baseline = load_baseline(batch_file)
+        except Exception as e:
+            logger.warning("Failed to load %s: %s", batch_file, e)
+            continue
+        identity = _extract_batch_identity(
+            batch_file,
+            batch_root=batch_root,
+            baseline=baseline,
+        )
+        if identity is None:
+            logger.warning("Failed to infer batch identity for %s", batch_file)
+            continue
+        batch_index[identity].append((batch_file, baseline))
 
     for scene_dir in sorted(oracle_root.iterdir()):
         if not scene_dir.is_dir():
@@ -139,10 +273,10 @@ def build_raw(base_dir: Path, task_folder: str) -> dict[str, Any]:
                     logger.warning("Failed to load oracle %s: %s", oracle_file, e)
                     continue
 
-                batch_dir = batch_root / scene / case / instruction
-                if not batch_dir.exists():
+                matched_batch_files = batch_index.get((scene, case, instruction), [])
+                if not matched_batch_files:
                     logger.warning(
-                        "No batch directory: %s / %s / %s", scene, case, instruction
+                        "No batch results: %s / %s / %s", scene, case, instruction
                     )
                     continue
 
@@ -152,13 +286,12 @@ def build_raw(base_dir: Path, task_folder: str) -> dict[str, Any]:
                     "oracle_valid": oracle_valid,
                 }
 
-                for batch_file in sorted(batch_dir.glob("*.json")):
-                    approach_key = build_approach_key(batch_file.stem)
-                    try:
-                        baseline = load_baseline(batch_file)
-                    except Exception as e:
-                        logger.warning("Failed to load %s: %s", batch_file, e)
-                        continue
+                for batch_file, baseline in sorted(
+                    matched_batch_files,
+                    key=lambda item: item[0].as_posix(),
+                ):
+                    meta_data = baseline.get("meta_data", {})
+                    approach_key = build_approach_key(batch_file.stem, meta_data)
 
                     makespan = baseline["makespan"]
                     comp_time = baseline["computation_time"]
@@ -180,6 +313,10 @@ def build_raw(base_dir: Path, task_folder: str) -> dict[str, Any]:
                             if comp_time is not None
                             else None
                         ),
+                        "belief_update_method": meta_data.get("belief_update_method"),
+                        "gt_distribution": meta_data.get("gt_distribution"),
+                        "particle_distribution": meta_data.get("particle_distribution"),
+                        "eta": meta_data.get("eta"),
                     }
 
                 raw.setdefault(scene, {}).setdefault(case, {})[instruction] = entry
@@ -342,6 +479,8 @@ def build_tol_sweep(
     base_dir: Path,
     task_folder: str,
     tolerances: list[float],
+    *,
+    batch_dirname: str = "offline_batch",
 ) -> dict[str, Any]:
     """Re-compute TSR for each tolerance from existing batch detail_logs.
 
@@ -351,45 +490,45 @@ def build_tol_sweep(
         Nested dict:
         result[tolerance_str][approach_key][case] = list of {tsr, makespan, ...}
     """
-    batch_root = base_dir / "offline_batch" / task_folder
+    batch_root = base_dir / batch_dirname / task_folder
 
     # records[tol][approach][case] = list of per-instruction dicts
     records: dict[str, dict[str, dict[str, list[dict[str, Any]]]]] = {
         str(tol): defaultdict(lambda: defaultdict(list)) for tol in tolerances
     }
 
-    for scene_dir in sorted(batch_root.iterdir()):
-        if not scene_dir.is_dir():
+    for batch_file in _iter_batch_result_files(batch_root):
+        try:
+            baseline = load_baseline(batch_file)
+        except Exception as e:
+            logger.warning("Failed to load %s: %s", batch_file, e)
             continue
-        for case_dir in sorted(scene_dir.iterdir()):
-            if not case_dir.is_dir():
-                continue
-            case = case_dir.name
-            for instr_dir in sorted(case_dir.iterdir()):
-                if not instr_dir.is_dir():
-                    continue
-                for batch_file in sorted(instr_dir.glob("*.json")):
-                    approach_key = build_approach_key(batch_file.stem)
-                    try:
-                        with batch_file.open() as f:
-                            data = json.load(f)
-                    except Exception as e:
-                        logger.warning("Failed to load %s: %s", batch_file, e)
-                        continue
+        identity = _extract_batch_identity(
+            batch_file,
+            batch_root=batch_root,
+            baseline=baseline,
+        )
+        if identity is None:
+            logger.warning("Failed to infer batch identity for %s", batch_file)
+            continue
+        _scene, case, _instruction = identity
+        approach_key = build_approach_key(
+            batch_file.stem,
+            baseline.get("meta_data"),
+        )
+        detail_log = baseline.get("detail_log", {})
+        makespan = baseline.get("makespan")
+        completed = bool(baseline.get("completed", False))
 
-                    detail_log = data.get("detail_log", {})
-                    makespan = data.get("scheduler_makespan")
-                    completed = bool(data.get("completed", False))
-
-                    for tol in tolerances:
-                        tsr = _recompute_tsr_from_detail_log(detail_log, tol)
-                        records[str(tol)][approach_key][case].append(
-                            {
-                                "tsr": tsr if tsr is not None else 0.0,
-                                "makespan": makespan,
-                                "completed": completed,
-                            }
-                        )
+        for tol in tolerances:
+            tsr = _recompute_tsr_from_detail_log(detail_log, tol)
+            records[str(tol)][approach_key][case].append(
+                {
+                    "tsr": tsr if tsr is not None else 0.0,
+                    "makespan": makespan,
+                    "completed": completed,
+                }
+            )
 
     # Aggregate per approach/case
     result: dict[str, Any] = {}
@@ -431,6 +570,18 @@ def main() -> None:
         help="Root directory containing offline_oracle_reference/ and offline_batch/.",
     )
     parser.add_argument(
+        "--batch_dirname",
+        type=str,
+        default="offline_batch",
+        help="Batch result subdirectory under --base_dir.",
+    )
+    parser.add_argument(
+        "--oracle_dirname",
+        type=str,
+        default="offline_oracle_reference",
+        help="Oracle reference subdirectory under --base_dir.",
+    )
+    parser.add_argument(
         "--output_dir",
         type=Path,
         default=None,
@@ -462,7 +613,12 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("Building raw comparison...")
-    raw = build_raw(args.base_dir, args.task_folder)
+    raw = build_raw(
+        args.base_dir,
+        args.task_folder,
+        batch_dirname=args.batch_dirname,
+        oracle_dirname=args.oracle_dirname,
+    )
 
     raw_path = output_dir / "offline_comparison_raw.json"
     with raw_path.open("w") as f:
@@ -490,7 +646,10 @@ def main() -> None:
     if args.tolerance_sweep:
         print(f"Running tolerance sweep: {args.tolerance_sweep} ...")
         tol_sweep = build_tol_sweep(
-            args.base_dir, args.task_folder, args.tolerance_sweep
+            args.base_dir,
+            args.task_folder,
+            args.tolerance_sweep,
+            batch_dirname=args.batch_dirname,
         )
         tol_path = output_dir / "offline_analysis_tol_sweep.json"
         with tol_path.open("w") as f:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import gc
+import hashlib
 import json
 import logging
 import os
@@ -32,7 +33,6 @@ from src.experiments.offline_harness import (
 )
 from src.experiments.offline_oracle_reference import (
     DEFAULT_ORACLE_REFERENCE_DIR,
-    build_offline_task_directory,
     build_oracle_reference_output_path,
     resolve_oracle_reference_dir,
 )
@@ -176,8 +176,14 @@ class OfflineBatchOptions:
     output_dir: Path
     oracle_reference_dir: Path
     experiment_name: str | None = None
+    suite_name: str | None = None
+    belief_update_method: str | None = None
     gt_distribution: str | None = None
     gt_seed: int | None = None
+    particle_distribution: str | None = None
+    max_monitoring_per_critical_intervals: list[int | None] = field(
+        default_factory=lambda: [None]
+    )
     factor_alpha: float | None = None
     etas: list[float | None] = field(default_factory=lambda: [None])
     oracle_time_limit_seconds: float | None = None
@@ -299,6 +305,25 @@ def _sanitize_token(value: str) -> str:
     """Normalize an arbitrary string into a filename-safe token."""
 
     return re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("_")
+
+
+def _compact_filename_token(
+    value: str,
+    *,
+    max_length: int = 48,
+    hash_length: int = 10,
+) -> str:
+    """Shorten a token for filename use while keeping it deterministic."""
+
+    sanitized = _sanitize_token(value)
+    if len(sanitized) <= max_length:
+        return sanitized
+    digest = hashlib.sha1(sanitized.encode("utf-8")).hexdigest()[:hash_length]
+    separator = "_"
+    prefix_length = max_length - len(separator) - len(digest)
+    if prefix_length <= 0:
+        return digest[:max_length]
+    return f"{sanitized[:prefix_length]}{separator}{digest}"
 
 
 def _append_flag(command: list[str], flag: str, value: Any) -> None:
@@ -973,6 +998,35 @@ def _normalize_etas(config: Mapping[str, Any]) -> list[float | None]:
     return [float(raw) if raw is not None else None]
 
 
+def _normalize_monitoring_budgets(config: Mapping[str, Any]) -> list[int | None]:
+    """Return the monitoring-budget sweep for offline runs.
+
+    ``None`` means the budget axis is unused for the run family.
+    Negative values represent an explicit unbounded (`uncap`) budget.
+    """
+
+    raw = config.get("max_monitoring_per_critical_intervals")
+    if raw is None:
+        raw = config.get("max_monitoring_per_critical_interval")
+    if raw is None:
+        return [None]
+    raw_values = raw if isinstance(raw, list) else [raw]
+    normalized: list[int | None] = []
+    for value in raw_values:
+        if value is None:
+            normalized.append(-1)
+            continue
+        if isinstance(value, str):
+            lowered = value.strip().lower()
+            if lowered in {"uncap", "unbounded", "inf", "infinity"}:
+                normalized.append(-1)
+                continue
+            normalized.append(int(lowered))
+            continue
+        normalized.append(int(value))
+    return normalized or [None]
+
+
 def _build_offline_options(config: Mapping[str, Any]) -> OfflineBatchOptions:
     """Normalize offline YAML config into a typed options object."""
 
@@ -1038,8 +1092,14 @@ def _build_offline_options(config: Mapping[str, Any]) -> OfflineBatchOptions:
         output_dir=output_dir,
         oracle_reference_dir=oracle_reference_dir,
         experiment_name=config.get("experiment_name"),
+        suite_name=(
+            str(config["suite_name"]) if config.get("suite_name") is not None else None
+        ),
+        belief_update_method=config.get("belief_update_method"),
         gt_distribution=config.get("gt_distribution"),
         gt_seed=config.get("gt_seed"),
+        particle_distribution=config.get("particle_distribution"),
+        max_monitoring_per_critical_intervals=_normalize_monitoring_budgets(config),
         factor_alpha=config.get("factor_alpha"),
         etas=_normalize_etas(config),
         oracle_time_limit_seconds=config.get(
@@ -1116,6 +1176,7 @@ def _make_offline_config(
     case_name: str,
     beam_bound: tuple[int, int],
     eta: float | None = None,
+    max_monitoring_per_critical_interval: int | None = None,
 ) -> OfflineExperimentConfig:
     """Build an effective offline experiment config for task discovery."""
 
@@ -1123,6 +1184,7 @@ def _make_offline_config(
         "approach": approach,
         "ablation_config": ablation_config,
         "init_prior_config": init_prior_config,
+        "suite_name": options.suite_name,
         "scene": scene_name,
         "case": case_name,
         "cases": [case_name],
@@ -1148,11 +1210,33 @@ def _make_offline_config(
         payload["gt_distribution"] = options.gt_distribution
     if options.gt_seed is not None:
         payload["gt_seed"] = options.gt_seed
+    if options.belief_update_method is not None:
+        payload["belief_update_method"] = options.belief_update_method
+    if options.particle_distribution is not None:
+        payload["particle_distribution"] = options.particle_distribution
     if options.factor_alpha is not None:
         payload["factor_alpha"] = options.factor_alpha
     if eta is not None:
         payload["eta"] = eta
+    if max_monitoring_per_critical_interval is not None:
+        payload["max_monitoring_per_critical_interval"] = (
+            max_monitoring_per_critical_interval
+        )
     return OfflineExperimentConfig(**payload)
+
+
+def _resolve_offline_baseline_name(
+    approach: str,
+    *,
+    belief_update_method: str | None = None,
+) -> str:
+    """Return the effective baseline family label for one offline task."""
+
+    if approach != "bayesian":
+        return str(approach)
+    if _resolve_offline_belief_update_method(belief_update_method) == "particle_filter":
+        return "particle_filter"
+    return "bayesian"
 
 
 def _resolve_offline_beam_bounds_for_approach(
@@ -1183,6 +1267,65 @@ def _resolve_offline_ablation_configs_for_approach(
     return [DEFAULT_ABLATION_CONFIG]
 
 
+def _resolve_offline_monitoring_budgets_for_variant(
+    approach: str,
+    *,
+    ablation_config: str,
+    budgets: Sequence[int | None],
+) -> list[int | None]:
+    """Return the effective monitoring-budget sweep for one offline variant."""
+
+    if approach != "bayesian" or ablation_config != DEFAULT_ABLATION_CONFIG:
+        return [None]
+    normalized_budgets = [budget for budget in budgets] or [None]
+    return normalized_budgets
+
+
+def _resolve_offline_belief_update_method(belief_update_method: str | None) -> str:
+    """Normalize the belief backend used for offline monitoring."""
+
+    return str(belief_update_method or "bayesian")
+
+
+def _resolve_offline_gt_distribution(gt_distribution: str | None) -> str:
+    """Normalize the runtime GT distribution used for offline monitoring."""
+
+    return str(gt_distribution or "constant")
+
+
+def _resolve_offline_particle_distribution(
+    *,
+    belief_update_method: str | None,
+    gt_distribution: str | None,
+    particle_distribution: str | None,
+) -> str:
+    """Normalize the PF particle prior family used for one offline run."""
+
+    if particle_distribution is not None:
+        return str(particle_distribution)
+    if _resolve_offline_belief_update_method(belief_update_method) == "particle_filter":
+        return _resolve_offline_gt_distribution(gt_distribution)
+    return "gaussian"
+
+
+def _resolve_offline_suite_log_dir_name(suite_name: str | None) -> str:
+    """Return the directory token used for one offline suite's worker logs."""
+
+    return _sanitize_token(suite_name or "offline_batch")
+
+
+def _resolve_monitoring_budget_label(
+    max_monitoring_per_critical_interval: int | None,
+) -> str | None:
+    """Return the serialized monitoring-budget token for one run."""
+
+    if max_monitoring_per_critical_interval is None:
+        return None
+    if int(max_monitoring_per_critical_interval) < 0:
+        return "uncap"
+    return str(int(max_monitoring_per_critical_interval))
+
+
 def _build_offline_variant_name(
     approach: str,
     ablation_config: str,
@@ -1191,47 +1334,118 @@ def _build_offline_variant_name(
     beam_width: int,
     beam_depth: int,
     eta: float | None = None,
+    belief_update_method: str | None = None,
+    gt_distribution: str | None = None,
+    particle_distribution: str | None = None,
+    max_monitoring_per_critical_interval: int | None = None,
 ) -> str:
     """Build the offline single-run filename stem for one variant."""
 
-    base_name = (
-        f"{_sanitize_token(approach)}__{_sanitize_token(ablation_config)}__"
-        f"{_sanitize_token(init_prior_config)}"
+    del init_prior_config
+    baseline_name = _resolve_offline_baseline_name(
+        approach,
+        belief_update_method=belief_update_method,
     )
-    if approach == "bayesian":
-        name = f"{base_name}__w{beam_width}_d{beam_depth}"
-        if eta is not None:
-            name += f"__eta{eta}"
+    if baseline_name == "edf":
+        return "edf"
+    if baseline_name == "cpm":
+        return "cpm"
+
+    name = f"{_sanitize_token(ablation_config)}__w{beam_width}_d{beam_depth}"
+    if eta is not None:
+        name += f"__eta{eta}"
+
+    normalized_gt_distribution = _resolve_offline_gt_distribution(gt_distribution)
+    effective_particle_distribution = _resolve_offline_particle_distribution(
+        belief_update_method=belief_update_method,
+        gt_distribution=gt_distribution,
+        particle_distribution=particle_distribution,
+    )
+
+    if baseline_name == "particle_filter":
+        name += f"__gt{_sanitize_token(normalized_gt_distribution)}"
+        if effective_particle_distribution != normalized_gt_distribution:
+            name += f"__pdist{_sanitize_token(effective_particle_distribution)}"
+        monitoring_budget_label = _resolve_monitoring_budget_label(
+            max_monitoring_per_critical_interval
+        )
+        if monitoring_budget_label is not None:
+            name += f"__mb{_sanitize_token(monitoring_budget_label)}"
         return name
-    return base_name
+
+    if normalized_gt_distribution != "constant":
+        name += f"__gt{_sanitize_token(normalized_gt_distribution)}"
+    monitoring_budget_label = _resolve_monitoring_budget_label(
+        max_monitoring_per_critical_interval
+    )
+    if monitoring_budget_label is not None:
+        name += f"__mb{_sanitize_token(monitoring_budget_label)}"
+    return name
+
+
+def _build_offline_result_directory(
+    options: OfflineBatchOptions,
+    *,
+    task_folder_name: str | None,
+    init_prior_config: str,
+    scene_name: str,
+    case_name: str | None,
+    instruction_name: str | None,
+    approach: str,
+    belief_update_method: str | None = None,
+) -> Path:
+    """Return the canonical output directory for one offline result variant."""
+
+    baseline_name = _resolve_offline_baseline_name(
+        approach,
+        belief_update_method=belief_update_method,
+    )
+    instruction_stem = Path(
+        str(instruction_name) if instruction_name is not None else "aggregate.json"
+    ).stem
+    return (
+        options.output_dir
+        / (str(task_folder_name) if task_folder_name is not None else "default")
+        / _sanitize_token(init_prior_config)
+        / scene_name
+        / (str(case_name) if case_name is not None else "multi_case")
+        / instruction_stem
+        / baseline_name
+    )
 
 
 def _build_offline_worker_log_name(
     *,
-    task_folder_name: str,
     approach: str,
     ablation_config: str,
     init_prior_config: str,
     beam_width: int,
     beam_depth: int,
     eta: float | None = None,
-    case_name: str,
-    scene_name: str,
-    instruction_name: str,
+    belief_update_method: str | None = None,
+    gt_distribution: str | None = None,
+    particle_distribution: str | None = None,
+    max_monitoring_per_critical_interval: int | None = None,
 ) -> str:
     """Build a deterministic worker log filename for one offline subprocess."""
 
-    variant_name = _build_offline_variant_name(
-        approach,
-        ablation_config,
-        init_prior_config,
-        beam_width=beam_width,
-        beam_depth=beam_depth,
-        eta=eta,
-    )
+    del init_prior_config
     return (
-        f"offline_run_{_sanitize_token(task_folder_name)}_{variant_name}_"
-        f"{case_name}_{scene_name}_{Path(instruction_name).stem}.log"
+        _build_offline_variant_name(
+            approach,
+            ablation_config,
+            "unused",
+            beam_width=beam_width,
+            beam_depth=beam_depth,
+            eta=eta,
+            belief_update_method=belief_update_method,
+            gt_distribution=gt_distribution,
+            particle_distribution=particle_distribution,
+            max_monitoring_per_critical_interval=(
+                max_monitoring_per_critical_interval
+            ),
+        )
+        + ".log"
     )
 
 
@@ -1244,6 +1458,10 @@ def _build_offline_task_name(
     beam_width: int,
     beam_depth: int,
     eta: float | None = None,
+    belief_update_method: str | None = None,
+    gt_distribution: str | None = None,
+    particle_distribution: str | None = None,
+    max_monitoring_per_critical_interval: int | None = None,
     case_name: str,
     instruction_name: str,
 ) -> str:
@@ -1257,6 +1475,31 @@ def _build_offline_task_name(
         base_name = f"{base_name}:w{beam_width}:d{beam_depth}"
         if eta is not None:
             base_name = f"{base_name}:eta{eta}"
+        normalized_gt_distribution = _resolve_offline_gt_distribution(gt_distribution)
+        normalized_belief_method = _resolve_offline_belief_update_method(
+            belief_update_method
+        )
+        effective_particle_distribution = _resolve_offline_particle_distribution(
+            belief_update_method=belief_update_method,
+            gt_distribution=gt_distribution,
+            particle_distribution=particle_distribution,
+        )
+        if normalized_gt_distribution != "constant":
+            base_name = f"{base_name}:gt{_sanitize_token(normalized_gt_distribution)}"
+        if normalized_belief_method == "particle_filter":
+            base_name = f"{base_name}:pf"
+            if effective_particle_distribution not in {
+                "gaussian",
+                normalized_gt_distribution,
+            }:
+                base_name = (
+                    f"{base_name}:pdist{_sanitize_token(effective_particle_distribution)}"
+                )
+        monitoring_budget_label = _resolve_monitoring_budget_label(
+            max_monitoring_per_critical_interval
+        )
+        if monitoring_budget_label is not None:
+            base_name = f"{base_name}:mb{_sanitize_token(monitoring_budget_label)}"
     return f"{base_name}:{case_name}:{instruction_name}"
 
 
@@ -1270,22 +1513,29 @@ def _build_offline_output_path(
     beam_width: int,
     beam_depth: int,
     eta: float | None = None,
+    belief_update_method: str | None = None,
+    gt_distribution: str | None = None,
+    particle_distribution: str | None = None,
+    max_monitoring_per_critical_interval: int | None = None,
     scene_name: str,
     case_name: str | None,
     instruction_name: str | None,
 ) -> Path:
     """Construct a deterministic JSON report path for one offline subprocess."""
 
-    task_dir = build_offline_task_directory(
-        options.output_dir,
+    task_dir = _build_offline_result_directory(
+        options,
         task_folder_name=(
             str(task_folder_name) if task_folder_name is not None else "default"
         ),
+        init_prior_config=init_prior_config,
         scene_name=scene_name,
         case_name=str(case_name) if case_name is not None else "multi_case",
         instruction_name=(
             str(instruction_name) if instruction_name is not None else "aggregate.json"
         ),
+        approach=approach,
+        belief_update_method=belief_update_method,
     )
     filename = (
         _build_offline_variant_name(
@@ -1295,10 +1545,68 @@ def _build_offline_output_path(
             beam_width=beam_width,
             beam_depth=beam_depth,
             eta=eta,
+            belief_update_method=belief_update_method,
+            gt_distribution=gt_distribution,
+            particle_distribution=particle_distribution,
+            max_monitoring_per_critical_interval=(
+                max_monitoring_per_critical_interval
+            ),
         )
         + ".json"
     )
     return task_dir / filename
+
+
+def _build_offline_worker_log_path(
+    *,
+    worker_log_root: Path,
+    suite_name: str | None,
+    task_folder_name: str,
+    init_prior_config: str,
+    scene_name: str,
+    case_name: str,
+    instruction_name: str,
+    approach: str,
+    ablation_config: str,
+    beam_width: int,
+    beam_depth: int,
+    eta: float | None = None,
+    belief_update_method: str | None = None,
+    gt_distribution: str | None = None,
+    particle_distribution: str | None = None,
+    max_monitoring_per_critical_interval: int | None = None,
+) -> Path:
+    """Construct the canonical worker log path for one offline subprocess."""
+
+    baseline_name = _resolve_offline_baseline_name(
+        approach,
+        belief_update_method=belief_update_method,
+    )
+    instruction_stem = Path(instruction_name).stem
+    return (
+        worker_log_root
+        / _resolve_offline_suite_log_dir_name(suite_name)
+        / _sanitize_token(task_folder_name)
+        / _sanitize_token(init_prior_config)
+        / scene_name
+        / case_name
+        / instruction_stem
+        / baseline_name
+        / _build_offline_worker_log_name(
+            approach=approach,
+            ablation_config=ablation_config,
+            init_prior_config=init_prior_config,
+            beam_width=beam_width,
+            beam_depth=beam_depth,
+            eta=eta,
+            belief_update_method=belief_update_method,
+            gt_distribution=gt_distribution,
+            particle_distribution=particle_distribution,
+            max_monitoring_per_critical_interval=(
+                max_monitoring_per_critical_interval
+            ),
+        )
+    )
 
 
 def _make_oracle_reference_discovery_config(
@@ -1355,7 +1663,7 @@ def build_offline_tasks(
 
     options = _build_offline_options(config)
     offline_script_path = PROJECT_ROOT / "scripts/offline/offline_experiment.py"
-    worker_log_dir = LOG_PATH / f"{run_timestamp}-worker_logs"
+    worker_log_root = LOG_PATH / _sanitize_token(run_timestamp)
     tasks: list[BatchTask] = []
     for task_folder_name, approach, init_prior_config, scene_name, case_name in product(
         options.task_folder_names,
@@ -1379,133 +1687,211 @@ def build_offline_tasks(
                 if approach == "bayesian" and ablation_config == "DEFAULT"
                 else [None]
             )
+            effective_monitoring_budgets = (
+                _resolve_offline_monitoring_budgets_for_variant(
+                    approach,
+                    ablation_config=ablation_config,
+                    budgets=options.max_monitoring_per_critical_intervals,
+                )
+            )
             for eta in effective_etas:
-                for beam_bound in effective_beam_bounds:
-                    try:
-                        offline_config = _make_offline_config(
-                            options,
-                            task_folder_name=task_folder_name,
-                            approach=approach,
-                            ablation_config=ablation_config,
-                            init_prior_config=init_prior_config,
-                            scene_name=scene_name,
-                            case_name=case_name,
-                            beam_bound=beam_bound,
-                            eta=eta,
-                        )
-                        instruction_names = (
-                            resolve_instructions(offline_config, case_name)
-                            if approach != "oracle"
-                            else list(offline_config.instructions)
-                            or resolve_instructions(offline_config, case_name)
-                        )
-                    except FileNotFoundError as exc:
-                        logger.warning(
-                            "Skipping offline task discovery for folder='%s', approach='%s', case='%s', scene='%s': %s",
-                            task_folder_name,
-                            approach,
-                            case_name,
-                            scene_name,
-                            exc,
-                        )
-                        continue
-                    for instruction_name in instruction_names:
-                        output_path = _build_offline_output_path(
-                            options,
-                            task_folder_name=task_folder_name,
-                            approach=approach,
-                            ablation_config=ablation_config,
-                            init_prior_config=init_prior_config,
-                            beam_width=beam_bound[0],
-                            beam_depth=beam_bound[1],
-                            eta=eta,
-                            scene_name=scene_name,
-                            case_name=case_name,
-                            instruction_name=instruction_name,
-                        )
-                        if options.skip_completed and _is_completed_offline_report(output_path):
-                            logger.critical("Skip completed offline report: %s", output_path)
+                for monitoring_budget in effective_monitoring_budgets:
+                    for beam_bound in effective_beam_bounds:
+                        try:
+                            offline_config = _make_offline_config(
+                                options,
+                                task_folder_name=task_folder_name,
+                                approach=approach,
+                                ablation_config=ablation_config,
+                                init_prior_config=init_prior_config,
+                                scene_name=scene_name,
+                                case_name=case_name,
+                                beam_bound=beam_bound,
+                                eta=eta,
+                                max_monitoring_per_critical_interval=monitoring_budget,
+                            )
+                            instruction_names = (
+                                resolve_instructions(offline_config, case_name)
+                                if approach != "oracle"
+                                else list(offline_config.instructions)
+                                or resolve_instructions(offline_config, case_name)
+                            )
+                        except FileNotFoundError as exc:
+                            logger.warning(
+                                "Skipping offline task discovery for folder='%s', approach='%s', case='%s', scene='%s': %s",
+                                task_folder_name,
+                                approach,
+                                case_name,
+                                scene_name,
+                                exc,
+                            )
                             continue
-                        log_path = worker_log_dir / _build_offline_worker_log_name(
-                            task_folder_name=task_folder_name,
-                            approach=approach,
-                            ablation_config=ablation_config,
-                            init_prior_config=init_prior_config,
-                            beam_width=beam_bound[0],
-                            beam_depth=beam_bound[1],
-                            eta=eta,
-                            case_name=case_name,
-                            scene_name=scene_name,
-                            instruction_name=instruction_name,
-                        )
-                        command = [os.environ.get("PYTHON", sys.executable), str(offline_script_path)]
-                        _append_flag(command, "--approach", approach)
-                        _append_flag(command, "--ablation-config", ablation_config)
-                        _append_flag(command, "--init-prior-config", init_prior_config)
-                        _append_flag(command, "--task-folder-name", task_folder_name)
-                        _append_flag(command, "--case", case_name)
-                        _append_flag(command, "--scene", scene_name)
-                        _append_flag(command, "--instruction", instruction_name)
-                        _append_flag(
-                            command,
-                            "--beam-bound",
-                            [f"{beam_bound[0]},{beam_bound[1]}"],
-                        )
-                        _append_flag(command, "--nav-graph-source", options.nav_graph_source)
-                        _append_flag(
-                            command,
-                            "--oracle-reference-dir",
-                            str(options.oracle_reference_dir),
-                        )
-                        _append_flag(command, "--gt-distribution", options.gt_distribution)
-                        _append_flag(command, "--gt-seed", options.gt_seed)
-                        _append_flag(command, "--factor-alpha", options.factor_alpha)
-                        _append_flag(command, "--eta", eta)
-                        _append_flag(
-                            command,
-                            "--experiment-name",
-                            options.experiment_name or f"offline_batch_{approach}",
-                        )
-                        _append_flag(command, "--log-path", log_path)
-                        _append_flag(command, "--output-path", output_path)
-                        _append_flag(
-                            command,
-                            "--oracle-time-limit-seconds",
-                            options.oracle_time_limit_seconds,
-                        )
-                        tasks.append(
-                            BatchTask(
-                                name=_build_offline_task_name(
-                                    task_folder_name=task_folder_name,
-                                    approach=approach,
-                                    ablation_config=ablation_config,
-                                    init_prior_config=init_prior_config,
-                                    beam_width=beam_bound[0],
-                                    beam_depth=beam_bound[1],
-                                    eta=eta,
-                                    case_name=case_name,
-                                    instruction_name=instruction_name,
-                                ),
-                            command=command,
-                            log_path=log_path,
-                            metadata={
-                                "mode": "offline",
-                                "task_folder": task_folder_name,
-                                "approach": approach,
-                                "ablation_config": ablation_config,
-                                "init_prior_config": init_prior_config,
-                                "beam_width": beam_bound[0],
-                                "beam_depth": beam_bound[1],
-                                "case": case_name,
-                                "scene": scene_name,
-                                "instruction": instruction_name,
-                                "output_path": str(output_path),
-                            },
-                            max_retries=1,
-                            timeout_seconds=options.timeout_seconds,
-                            cwd=PROJECT_ROOT,
-                        )
-                    )
+                        for instruction_name in instruction_names:
+                            output_path = _build_offline_output_path(
+                                options,
+                                task_folder_name=task_folder_name,
+                                approach=approach,
+                                ablation_config=ablation_config,
+                                init_prior_config=init_prior_config,
+                                beam_width=beam_bound[0],
+                                beam_depth=beam_bound[1],
+                                eta=eta,
+                                belief_update_method=options.belief_update_method,
+                                gt_distribution=options.gt_distribution,
+                                particle_distribution=options.particle_distribution,
+                                max_monitoring_per_critical_interval=monitoring_budget,
+                                scene_name=scene_name,
+                                case_name=case_name,
+                                instruction_name=instruction_name,
+                            )
+                            if options.skip_completed and _is_completed_offline_report(
+                                output_path
+                            ):
+                                logger.critical(
+                                    "Skip completed offline report: %s", output_path
+                                )
+                                continue
+                            log_path = _build_offline_worker_log_path(
+                                worker_log_root=worker_log_root,
+                                suite_name=options.suite_name,
+                                task_folder_name=task_folder_name,
+                                init_prior_config=init_prior_config,
+                                scene_name=scene_name,
+                                case_name=case_name,
+                                instruction_name=instruction_name,
+                                approach=approach,
+                                ablation_config=ablation_config,
+                                beam_width=beam_bound[0],
+                                beam_depth=beam_bound[1],
+                                eta=eta,
+                                belief_update_method=options.belief_update_method,
+                                gt_distribution=options.gt_distribution,
+                                particle_distribution=options.particle_distribution,
+                                max_monitoring_per_critical_interval=monitoring_budget,
+                            )
+                            command = [
+                                os.environ.get("PYTHON", sys.executable),
+                                str(offline_script_path),
+                            ]
+                            _append_flag(command, "--approach", approach)
+                            _append_flag(command, "--suite-name", options.suite_name)
+                            _append_flag(command, "--ablation-config", ablation_config)
+                            _append_flag(
+                                command, "--init-prior-config", init_prior_config
+                            )
+                            _append_flag(command, "--task-folder-name", task_folder_name)
+                            _append_flag(command, "--case", case_name)
+                            _append_flag(command, "--scene", scene_name)
+                            _append_flag(command, "--instruction", instruction_name)
+                            _append_flag(
+                                command,
+                                "--beam-bound",
+                                [f"{beam_bound[0]},{beam_bound[1]}"],
+                            )
+                            _append_flag(
+                                command, "--nav-graph-source", options.nav_graph_source
+                            )
+                            _append_flag(
+                                command,
+                                "--oracle-reference-dir",
+                                str(options.oracle_reference_dir),
+                            )
+                            _append_flag(
+                                command,
+                                "--belief-update-method",
+                                options.belief_update_method,
+                            )
+                            _append_flag(
+                                command, "--gt-distribution", options.gt_distribution
+                            )
+                            _append_flag(command, "--gt-seed", options.gt_seed)
+                            _append_flag(
+                                command,
+                                "--particle-distribution",
+                                options.particle_distribution,
+                            )
+                            _append_flag(command, "--factor-alpha", options.factor_alpha)
+                            _append_flag(command, "--eta", eta)
+                            _append_flag(
+                                command,
+                                "--max-monitoring-per-critical-interval",
+                                monitoring_budget,
+                            )
+                            _append_flag(
+                                command,
+                                "--experiment-name",
+                                options.experiment_name or f"offline_batch_{approach}",
+                            )
+                            _append_flag(command, "--log-path", log_path)
+                            _append_flag(command, "--output-path", output_path)
+                            _append_flag(
+                                command,
+                                "--oracle-time-limit-seconds",
+                                options.oracle_time_limit_seconds,
+                            )
+                            tasks.append(
+                                BatchTask(
+                                    name=_build_offline_task_name(
+                                        task_folder_name=task_folder_name,
+                                        approach=approach,
+                                        ablation_config=ablation_config,
+                                        init_prior_config=init_prior_config,
+                                        beam_width=beam_bound[0],
+                                        beam_depth=beam_bound[1],
+                                        eta=eta,
+                                        belief_update_method=options.belief_update_method,
+                                        gt_distribution=options.gt_distribution,
+                                        particle_distribution=options.particle_distribution,
+                                        max_monitoring_per_critical_interval=(
+                                            monitoring_budget
+                                        ),
+                                        case_name=case_name,
+                                        instruction_name=instruction_name,
+                                    ),
+                                    command=command,
+                                    log_path=log_path,
+                                    metadata={
+                                        "mode": "offline",
+                                        "suite_name": options.suite_name,
+                                        "task_folder": task_folder_name,
+                                        "approach": approach,
+                                        "baseline_name": _resolve_offline_baseline_name(
+                                            approach,
+                                            belief_update_method=(
+                                                options.belief_update_method
+                                            ),
+                                        ),
+                                        "ablation_config": ablation_config,
+                                        "init_prior_config": init_prior_config,
+                                        "beam_width": beam_bound[0],
+                                        "beam_depth": beam_bound[1],
+                                        "eta": eta,
+                                        "belief_update_method": (
+                                            options.belief_update_method or "bayesian"
+                                        ),
+                                        "gt_distribution": (
+                                            options.gt_distribution or "constant"
+                                        ),
+                                        "particle_distribution": _resolve_offline_particle_distribution(
+                                            belief_update_method=options.belief_update_method,
+                                            gt_distribution=options.gt_distribution,
+                                            particle_distribution=options.particle_distribution,
+                                        ),
+                                        "monitoring_budget_per_critical": (
+                                            _resolve_monitoring_budget_label(
+                                                monitoring_budget
+                                            )
+                                        ),
+                                        "case": case_name,
+                                        "scene": scene_name,
+                                        "instruction": instruction_name,
+                                        "output_path": str(output_path),
+                                    },
+                                    max_retries=1,
+                                    timeout_seconds=options.timeout_seconds,
+                                    cwd=PROJECT_ROOT,
+                                )
+                            )
     logger.critical("Found %s offline tasks to run.", len(tasks))
     return tasks
 

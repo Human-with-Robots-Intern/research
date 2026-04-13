@@ -35,4 +35,4 @@ skip_completed: true
 # Oracle reference settings
 nav_graph_source: "ai2thor_controller"
 oracle_time_limit_seconds: 1800
-oracle_reference_dir: "assets/results/offline_exp_result/offline_oracle_reference"
+oracle_reference_dir: "assets/results/offline_oracle_reference"
