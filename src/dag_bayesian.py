@@ -545,7 +545,7 @@ def main() -> None:
                 logger.error("No feasible solution found.")
                 break
 
-            if args.simulation:
+            if args.simulation and not args.ros:
                 sim_elapsed_time, execution_status, sim_nav_time = execute_subtask(
                     controller, next_state.subtask, logger, action_interface
                 )
