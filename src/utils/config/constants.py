@@ -160,7 +160,7 @@ def set_task_path(value: Path) -> None:
     TASK_PATH = value
 
 
-FACTOR_ALPHA = 0.001
+FACTOR_ALPHA = 0.01
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
 

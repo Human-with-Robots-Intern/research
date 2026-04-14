@@ -682,9 +682,10 @@ class Scheduler:
     ) -> List[Candidate]:
         """
         Identifies critical candidates that are 'Urgent'.
-        Urgent means the task's physical earliest start time is greater than or equal to
-        its logical start time (minus tolerance).
-        This covers both 'On-time' (within tolerance) and 'Missed' (overdue) cases.
+
+        Urgent means the task has entered the same near-deadline window that makes it
+        feasible for immediate handling. This keeps Policy 1 aligned with the
+        feasibility gate used for critical tasks that are inside the monitoring horizon.
         Also checks not_yet_candidates for urgent but blocked tasks, prioritizing their feasible predecessors.
         """
 
@@ -709,21 +710,20 @@ class Scheduler:
                 f"[_get_urgent_critical_candidates] candidate.logical_interaction_start_time: {candidate.logical_interaction_start_time}, physical_earliest_start: {physical_earliest_start}"
             )
 
-            if 0 >= (
-                candidate.logical_interaction_start_time
-                - physical_earliest_start
-            ):
-                # 시작 시점이 logical start보다 빠른지/늦은지 구분하는 로그
-                if (
+            if (
+                candidate.logical_interaction_start_time - physical_earliest_start
+            ) <= (MONITORING_DURATION + EPSILON):
+                slack_to_logical = (
                     candidate.logical_interaction_start_time - physical_earliest_start
-                    > 0
-                ):
+                )
+                # 시작 시점이 logical start보다 얼마나 이른지/늦은지 구분하는 로그
+                if slack_to_logical > 0:
                     log.debug(
-                        f"[_get_urgent_critical_candidates] 앞당겨 작업을 함: {candidate.logical_interaction_start_time - physical_earliest_start}"
+                        f"[_get_urgent_critical_candidates] monitoring horizon inside: {slack_to_logical}"
                     )
                 else:
                     log.debug(
-                        f"[_get_urgent_critical_candidates] 늦어서 작업을 함: {candidate.logical_interaction_start_time - physical_earliest_start}"
+                        f"[_get_urgent_critical_candidates] 늦어서 작업을 함: {slack_to_logical}"
                     )
                 # Update actual interaction start time
                 # We start as soon as physically possible (ASAP)
@@ -731,7 +731,7 @@ class Scheduler:
 
                 log.debug(
                     f"Found URGENT CRITICAL candidate: {candidate.subtask.name} "
-                    f"(Physical: {physical_earliest_start:.2f} >= Logical: {candidate.logical_interaction_start_time:.2f} - Tol)"
+                    f"(Physical: {physical_earliest_start:.2f}, Logical: {candidate.logical_interaction_start_time:.2f}, Horizon: {MONITORING_DURATION:.2f})"
                 )
                 urgent_list.append(candidate)
 
@@ -801,11 +801,13 @@ class Scheduler:
                         + candidate.estimated_first_nav_duration
                     )
 
-                    if 0 >= logical_start - physical_start:
+                    if (
+                        logical_start - physical_start
+                    ) <= (MONITORING_DURATION + EPSILON):
                         # Urgent but blocked! Find feasible predecessors recursively.
                         log.debug(
                             f"Found BLOCKED URGENT task: {candidate.subtask.name} "
-                            f"(Physical: {physical_start:.2f} >= Logical: {logical_start:.2f} - Tol). Tracing ancestors."
+                            f"(Physical: {physical_start:.2f}, Logical: {logical_start:.2f}, Horizon: {MONITORING_DURATION:.2f}). Tracing ancestors."
                         )
 
                         len_before = len(urgent_list)
@@ -907,6 +909,41 @@ class Scheduler:
             candidate_name=candidate.subtask.name,
         )
         return 0.0 if nav_time is None else float(nav_time)
+
+    def _estimate_subtask_navigation_buffer(
+        self,
+        curr_node: SimulationNode,
+        subtask_name: str,
+        *,
+        feasible_candidates: List[Candidate] | None = None,
+        not_yet_candidates: List[Candidate] | None = None,
+    ) -> float:
+        """Estimate navigation still required before a subtask can interact."""
+
+        all_candidates = list(feasible_candidates or []) + list(not_yet_candidates or [])
+        for queued_candidate in all_candidates:
+            if queued_candidate.subtask.name == subtask_name:
+                return self._estimate_candidate_navigation_duration(
+                    curr_node, queued_candidate
+                )
+
+        for remaining_subtask in curr_node.state.remaining_subtasks:
+            if remaining_subtask.name != subtask_name:
+                continue
+            primitive_actions = (
+                remaining_subtask.execution.primitive_actions
+                if remaining_subtask.execution
+                else None
+            )
+            if not primitive_actions:
+                return 0.0
+            full_action_info = self.action_handler.get_actions_info(
+                curr_node, primitive_actions
+            )
+            if full_action_info is None or not full_action_info.success:
+                return 0.0
+            return float(full_action_info.first_nav_duration or 0.0)
+        return 0.0
 
     def _should_explicitly_prenavigate(self, candidate: Candidate) -> bool:
         """Return whether a non-monitoring candidate should emit an explicit NAV step."""
@@ -1280,6 +1317,55 @@ class Scheduler:
             self._search_cache.monitoring_triggers[trigger_cache_key] = trigger_time
         return trigger_time
 
+    @staticmethod
+    def _compute_critical_deadline(
+        *,
+        critical_start_sub_end_time: float,
+        critical_interval_duration: float,
+    ) -> float:
+        """Return the absolute deadline of one critical interval."""
+
+        return critical_start_sub_end_time + critical_interval_duration
+
+    def _monitoring_can_finish_before_deadline(
+        self,
+        *,
+        monitoring_start_time: float,
+        critical_start_sub_end_time: float,
+        critical_interval_duration: float,
+        post_monitor_buffer: float = 0.0,
+    ) -> bool:
+        """Return whether monitoring can complete before the critical deadline.
+
+        Args:
+            monitoring_start_time: Planned absolute monitoring start time.
+            critical_start_sub_end_time: Absolute end time of the critical start.
+            critical_interval_duration: Allowed duration until the critical end.
+            post_monitor_buffer: Extra time that must remain after monitoring
+                (for example navigation before the critical-end interaction).
+        """
+
+        critical_deadline = self._compute_critical_deadline(
+            critical_start_sub_end_time=critical_start_sub_end_time,
+            critical_interval_duration=critical_interval_duration,
+        )
+        required_completion_time = (
+            monitoring_start_time
+            + MONITORING_DURATION
+            + max(0.0, float(post_monitor_buffer))
+        )
+        feasible = required_completion_time <= (critical_deadline + EPSILON)
+        if not feasible:
+            log.debug(
+                "[_monitoring_can_finish_before_deadline] infeasible: "
+                "monitor_start=%.2f monitor_end+buffer=%.2f deadline=%.2f buffer=%.2f",
+                monitoring_start_time,
+                required_completion_time,
+                critical_deadline,
+                float(post_monitor_buffer),
+            )
+        return feasible
+
     # ==========================================================================
     #           SUBTASK EXPANSION: Single Subtask or Wait
     # ==========================================================================
@@ -1611,6 +1697,7 @@ class Scheduler:
         critical_interval_duration: Optional[float] = None,
         monitoring_target_sub_name: Optional[str] = None,
         is_critical_link: bool = True,
+        critical_end_post_monitor_buffer: float = 0.0,
     ) -> Optional[SimulationNode]:
         """Execute monitoring immediately and update state/constraints for a follow-up `candidate`."""
 
@@ -1736,17 +1823,49 @@ class Scheduler:
                     critical_start_sub_name, monitor_sub.name
                 ]["info"] = edge_info_start
 
-            critical_deadline = critical_start_sub_end_time + critical_interval_duration
+            critical_deadline = self._compute_critical_deadline(
+                critical_start_sub_end_time=critical_start_sub_end_time,
+                critical_interval_duration=critical_interval_duration,
+            )
+            if not self._monitoring_can_finish_before_deadline(
+                monitoring_start_time=monitor_start_time,
+                critical_start_sub_end_time=critical_start_sub_end_time,
+                critical_interval_duration=critical_interval_duration,
+                post_monitor_buffer=critical_end_post_monitor_buffer,
+            ):
+                log.debug(
+                    "[_insert_monitoring_step] immediate monitoring for '%s' would miss critical deadline %.2f with post-monitor buffer %.2f. Rejecting monitoring branch.",
+                    critical_end_sub_name,
+                    critical_deadline,
+                    critical_end_post_monitor_buffer,
+                )
+                return None
 
             # [Restored] '정확한 타이밍' 준수를 위해 Critical Deadline 기준으로 Interval을 재계산하여 적용합니다.
             # Fallback 상황(target_start=current)이라도 Critical Constraint가 있다면 그 시간을 지켜야 합니다.
-            interval_mon_to_end = max(0.0, critical_deadline - monitor_finish_time)
-            edge_info_end = {"Interval": interval_mon_to_end, "IsCritical": True}
+            interval_mon_to_end = (
+                critical_deadline
+                - monitor_finish_time
+                - critical_end_post_monitor_buffer
+            )
+            if interval_mon_to_end < -EPSILON:
+                log.debug(
+                    "[_insert_monitoring_step] monitoring for '%s' leaves negative slack %.2f after reserving post-monitor buffer %.2f. Rejecting monitoring branch.",
+                    critical_end_sub_name,
+                    interval_mon_to_end,
+                    critical_end_post_monitor_buffer,
+                )
+                return None
+            edge_info_end = {
+                "Interval": max(0.0, interval_mon_to_end),
+                "IsCritical": True,
+            }
 
             log.debug(
                 f"[_insert_monitoring_step] Updating Edge '{monitor_sub.name}' -> '{critical_end_sub_name}'\n"
                 f"  - CriticalDeadline: {critical_deadline:.2f} (StartEnd: {critical_start_sub_end_time:.2f} + Interval: {critical_interval_duration:.2f})\n"
                 f"  - MonitorFinish: {monitor_finish_time:.2f}\n"
+                f"  - PostMonitorBuffer: {critical_end_post_monitor_buffer:.2f}\n"
                 f"  - 모니터링 끝난 시간 부터, 다음 critical subtask 시작 시간까지의 시간: {interval_mon_to_end:.2f} "
             )
 
@@ -1886,6 +2005,12 @@ class Scheduler:
                 variance=variance_val,
             )
         )
+        critical_end_nav_buffer = self._estimate_subtask_navigation_buffer(
+            curr_node,
+            critical_end_sub_name,
+            feasible_candidates=feasible_candidates,
+            not_yet_candidates=not_yet_candidates,
+        )
 
         full_candidate_action_info_check = self.action_handler.get_actions_info(
             curr_node, candidate.subtask.execution.primitive_actions
@@ -1911,6 +2036,21 @@ class Scheduler:
         ):
             log.debug(
                 f"Candidate {original_task_name} finishes before monitoring trigger ({original_absolute_monitoring_trigger_time:.2f}). Executing without split.\n"
+            )
+            return self._expand_subtask_wo_monitoring(
+                curr_node, candidate, not_yet_candidates, feasible_candidates
+            )
+
+        if not self._monitoring_can_finish_before_deadline(
+            monitoring_start_time=original_absolute_monitoring_trigger_time,
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            critical_interval_duration=original_critical_interval_duration,
+            post_monitor_buffer=critical_end_nav_buffer,
+        ):
+            log.debug(
+                "Monitoring trigger for '%s' would finish after the critical deadline once nav buffer %.2f is reserved. Falling back to non-monitoring expansion.",
+                critical_end_sub_name,
+                critical_end_nav_buffer,
             )
             return self._expand_subtask_wo_monitoring(
                 curr_node, candidate, not_yet_candidates, feasible_candidates
@@ -1953,7 +2093,7 @@ class Scheduler:
                 )
             # [Fallback] 분할 실패 시, 작업을 시작하기 '전'에 미리 모니터링을 수행하는 경로를 탐색에 추가합니다.
             # 모니터링 시간만큼 작업 착수가 지연되지만, 불확실성을 해소할 수 있는 안전한 선택지입니다.
-            return self._insert_monitoring_step(
+            inserted_monitor_node = self._insert_monitoring_step(
                 curr_node=curr_node,
                 candidate=candidate,
                 monitoring_target_obj=monitoring_target_obj,
@@ -1966,6 +2106,16 @@ class Scheduler:
                 critical_interval_duration=original_critical_interval_duration,
                 monitoring_target_sub_name=critical_end_sub_name,
                 is_critical_link=False,
+                critical_end_post_monitor_buffer=critical_end_nav_buffer,
+            )
+            if inserted_monitor_node is not None:
+                return inserted_monitor_node
+            log.debug(
+                "Immediate monitoring fallback for '%s' could not satisfy the critical deadline. Executing without monitoring.",
+                critical_end_sub_name,
+            )
+            return self._expand_subtask_wo_monitoring(
+                curr_node, candidate, not_yet_candidates, feasible_candidates
             )
 
         log.info(f"{pre_actions_log.total_time_used()},{pre_actions_log=}")
@@ -2034,6 +2184,23 @@ class Scheduler:
             f"  EARLY subtask {early_sub_task.name} expanded. Actual Monitoring Trigger Time: {actual_monitoring_trigger_time:.2f} "
             f"(Original trigger was: {original_absolute_monitoring_trigger_time:.2f})"
         )
+
+        if not self._monitoring_can_finish_before_deadline(
+            monitoring_start_time=actual_monitoring_trigger_time,
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            critical_interval_duration=original_critical_interval_duration,
+            post_monitor_buffer=self._estimate_subtask_navigation_buffer(
+                node_after_early_sub,
+                critical_end_sub_name,
+            ),
+        ):
+            log.debug(
+                "Actual monitoring timing drifted past the feasible deadline for '%s'. Falling back to non-monitoring expansion.",
+                critical_end_sub_name,
+            )
+            return self._expand_subtask_wo_monitoring(
+                curr_node, candidate, not_yet_candidates, feasible_candidates
+            )
 
         state_after_early_expansion = node_after_early_sub.state
 
@@ -2153,19 +2320,57 @@ class Scheduler:
                 f"Added internal constraint: '{early_sub_task.name}' -> '{mon_sub_task_for_main_interval.name}'."
             )
 
+        critical_end_sub_original_deadline = self._compute_critical_deadline(
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            critical_interval_duration=original_critical_interval_duration,
+        )
+        mon_sub_expected_completion_time = (
+            actual_monitoring_trigger_time + MONITORING_DURATION
+        )
+        remain_sub_total_duration = (
+            float(post_actions_log.total_time_used())
+            if remain_subtask and post_actions_log and post_actions_log.results
+            else 0.0
+        )
+        must_finish_critical_end_before_remain = bool(
+            remain_subtask
+            and (
+                mon_sub_expected_completion_time + remain_sub_total_duration
+                > (critical_end_sub_original_deadline + EPSILON)
+            )
+        )
         if remain_subtask:
-            info_mon_to_remain = {"Interval": 0.0, "IsCritical": False}
-            if not new_constraints_graph.has_edge(
-                mon_sub_task_for_main_interval.name, remain_subtask.name
-            ):
-                new_constraints_graph.add_edge(
-                    mon_sub_task_for_main_interval.name,
-                    remain_subtask.name,
-                    info=info_mon_to_remain,
-                )
+            if must_finish_critical_end_before_remain:
+                info_crit_end_to_remain = {"Interval": 0.0, "IsCritical": False}
+                if not new_constraints_graph.has_edge(
+                    critical_end_sub_name, remain_subtask.name
+                ):
+                    new_constraints_graph.add_edge(
+                        critical_end_sub_name,
+                        remain_subtask.name,
+                        info=info_crit_end_to_remain,
+                    )
                 log.debug(
-                    f"Added internal constraint: '{mon_sub_task_for_main_interval.name}' -> '{remain_subtask.name}'."
+                    "Forced '%s' before '%s' because the remain segment (%.2fs) cannot finish before critical deadline %.2f once monitoring completes at %.2f.",
+                    critical_end_sub_name,
+                    remain_subtask.name,
+                    remain_sub_total_duration,
+                    critical_end_sub_original_deadline,
+                    mon_sub_expected_completion_time,
                 )
+            else:
+                info_mon_to_remain = {"Interval": 0.0, "IsCritical": False}
+                if not new_constraints_graph.has_edge(
+                    mon_sub_task_for_main_interval.name, remain_subtask.name
+                ):
+                    new_constraints_graph.add_edge(
+                        mon_sub_task_for_main_interval.name,
+                        remain_subtask.name,
+                        info=info_mon_to_remain,
+                    )
+                    log.debug(
+                        f"Added internal constraint: '{mon_sub_task_for_main_interval.name}' -> '{remain_subtask.name}'."
+                    )
 
         interval_crit_start_to_mon = (
             actual_monitoring_trigger_time - critical_start_sub_actual_end_time
@@ -2190,16 +2395,26 @@ class Scheduler:
             f"Added/Updated main monitoring constraint: '{critical_start_sub_name}' -> '{mon_sub_task_for_main_interval.name}', Interval: {info_crit_start_to_mon['Interval']:.2f}."
         )
 
-        critical_end_sub_original_deadline = (
-            critical_start_sub_actual_end_time + original_critical_interval_duration
-        )
-        mon_sub_expected_completion_time = (
-            actual_monitoring_trigger_time + MONITORING_DURATION
+        critical_end_nav_buffer_after_monitor = self._estimate_subtask_navigation_buffer(
+            node_after_early_sub,
+            critical_end_sub_name,
         )
 
         interval_mon_to_crit_end = (
-            critical_end_sub_original_deadline - mon_sub_expected_completion_time
+            critical_end_sub_original_deadline
+            - mon_sub_expected_completion_time
+            - critical_end_nav_buffer_after_monitor
         )
+        if interval_mon_to_crit_end < -EPSILON:
+            log.debug(
+                "Monitoring branch for '%s' produced negative slack %.2f after reserving nav buffer %.2f. Falling back to non-monitoring expansion.",
+                critical_end_sub_name,
+                interval_mon_to_crit_end,
+                critical_end_nav_buffer_after_monitor,
+            )
+            return self._expand_subtask_wo_monitoring(
+                curr_node, candidate, not_yet_candidates, feasible_candidates
+            )
         info_mon_to_crit_end = {
             "Interval": max(0.0, interval_mon_to_crit_end),
             "IsCritical": True,
@@ -2222,6 +2437,7 @@ class Scheduler:
             f"[DEBUG _expand_subtask_with_monitoring] Updating Edge '{mon_sub_task_for_main_interval.name}' -> '{critical_end_sub_name}'\n"
             f"  - CritEndDeadline: {critical_end_sub_original_deadline:.2f}\n"
             f"  - MonitorFinish: {mon_sub_expected_completion_time:.2f}\n"
+            f"  - NavBufferAfterMonitor: {critical_end_nav_buffer_after_monitor:.2f}\n"
             f"  - Calc Interval: {interval_mon_to_crit_end:.2f} (Prev: {prev_interval_sub})"
         )
 
@@ -2389,11 +2605,11 @@ class Scheduler:
         )
 
         # 현재 시간에서 wait하고 모니터링을하는게 deadline을 넘기면 wo monitoring으로 fallback
-        if (
-            original_absolute_monitoring_trigger_time
-            + MONITORING_DURATION
-            + nav_duration
-            > candidate.logical_interaction_start_time
+        if not self._monitoring_can_finish_before_deadline(
+            monitoring_start_time=original_absolute_monitoring_trigger_time,
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            critical_interval_duration=original_critical_interval_duration,
+            post_monitor_buffer=nav_duration,
         ):
             return self._expand_wait_wo_monitoring(
                 curr_node,
