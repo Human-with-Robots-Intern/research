@@ -1,6 +1,6 @@
 """Render one combined alpha-sweep belief-robustness table.
 
-This helper aggregates the fixed-mean reviewer10 shape-stress runs at
+This helper aggregates the fixed-mean shape-stress GT runs at
 alpha={0.1, 0.01, 0.001} into a single LaTeX table and a companion Markdown
 note that explains how to read the metrics.
 """
@@ -18,26 +18,26 @@ DEFAULT_ALPHA_SUMMARY_PATHS: tuple[tuple[float, Path], ...] = (
         0.1,
         Path(
             "assets/results/offline_exp_result/"
-            "belief_reviewer10_shape_stress_alpha01/belief_benchmark_summary.json"
+            "belief_shape_stress_alpha01/belief_benchmark_summary.json"
         ),
     ),
     (
         0.01,
         Path(
             "assets/results/offline_exp_result/"
-            "belief_reviewer10_shape_stress_alpha001/belief_benchmark_summary.json"
+            "belief_shape_stress_alpha001/belief_benchmark_summary.json"
         ),
     ),
     (
         0.001,
         Path(
             "assets/results/offline_exp_result/"
-            "belief_reviewer10_shape_stress_alpha0001/belief_benchmark_summary.json"
+            "belief_shape_stress_alpha0001/belief_benchmark_summary.json"
         ),
     ),
 )
 DEFAULT_OUTPUT_DIR = Path(
-    "assets/results/offline_exp_result/belief_reviewer10_shape_stress_v2"
+    "assets/results/offline_exp_result/belief_shape_stress_alpha_sweep"
 )
 GT_ORDER = ("gaussian", "lognormal", "mixture")
 METHOD_ORDER = (
@@ -199,8 +199,8 @@ def render_alpha_sweep_latex_table(rows: list[dict[str, Any]]) -> str:
         r"\bottomrule",
         r"\end{tabular}}",
         (
-            r"\caption{Fixed-mean belief robustness under the reviewer10 "
-            r"shape-stress profile. All rows use the same-as-GT observation "
+            r"\caption{Fixed-mean belief robustness under the "
+            r"shape-stress GT profile. All rows use the same-as-GT observation "
             r"setting with prior mean $\mu_0=100$ (CORRECT\_ESTIMATE), GT mean "
             r"$\mathbb{E}[T]=100$, $\eta="
             + f"{eta:.1f}"
@@ -208,7 +208,7 @@ def render_alpha_sweep_latex_table(rows: list[dict[str, Any]]) -> str:
             + str(episode_count)
             + r" Monte Carlo episodes, and 1024 particles for PF. "
             r"Heavy-tail denotes the fixed-mean lognormal GT under the same "
-            r"reviewer10 shape-stress sampler. Non-Gaussian denotes the "
+            r"shape-stress sampler. Non-Gaussian denotes the "
             r"fixed-mean bimodal mixture "
             r"$0.5\mathcal{N}(50,10^2)+0.5\mathcal{N}(150,10^2)$. "
             r"For Gaussian GT, PF with GT-family is identical to PF with "
@@ -258,7 +258,7 @@ def render_alpha_sweep_markdown(rows: list[dict[str, Any]]) -> str:
         "",
         (
             "Additional fixed-mean GTs are `Heavy-tail (Lognormal)` and the "
-            "reviewer10 shape-stress mixture `0.5 N(50, 10^2) + 0.5 N(150, 10^2)`."
+            "shape-stress mixture `0.5 N(50, 10^2) + 0.5 N(150, 10^2)`."
         ),
         "",
         "| Alpha | GT | Method | Late | Cal (|Late-eta|) | Posterior Mean Error | Trigger Error |",
@@ -446,8 +446,8 @@ def _latex_escape(text: str) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Render one combined alpha-sweep table for the reviewer10 "
-            "fixed-mean shape-stress belief robustness runs."
+            "Render one combined alpha-sweep table for fixed-mean "
+            "shape-stress belief robustness runs."
         ),
     )
     parser.add_argument(

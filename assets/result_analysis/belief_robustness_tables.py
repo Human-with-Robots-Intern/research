@@ -1,4 +1,4 @@
-"""Export reviewer-facing LaTeX tables for belief robustness benchmarks."""
+"""Export LaTeX tables for belief robustness benchmarks."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.experiments.belief_robustness import (
-    build_reviewer10_appendix_rows,
-    build_reviewer10_main_table_rows,
+    build_belief_appendix_rows,
+    build_belief_main_table_rows,
 )
 
 GT_ORDER = ["gaussian", "lognormal", "mixture"]
@@ -39,22 +39,23 @@ def render_belief_robustness_tables(
     *,
     eta: float = 0.1,
 ) -> dict[str, str]:
-    """Render main and appendix LaTeX tables for the reviewer benchmark."""
+    """Render main and appendix LaTeX tables for the belief benchmark."""
 
-    main_shared_gaussian_rows = build_reviewer10_main_table_rows(
-        summary_rows,
+    eta_rows = [row for row in summary_rows if abs(float(row["eta"]) - eta) < 1e-9]
+    main_shared_gaussian_rows = build_belief_main_table_rows(
+        eta_rows,
         observation_setting="shared_gaussian",
     )
-    main_same_as_gt_rows = build_reviewer10_main_table_rows(
-        summary_rows,
+    main_same_as_gt_rows = build_belief_main_table_rows(
+        eta_rows,
         observation_setting="same_as_gt",
     )
-    appendix_shared_gaussian_rows = build_reviewer10_appendix_rows(
-        summary_rows,
+    appendix_shared_gaussian_rows = build_belief_appendix_rows(
+        eta_rows,
         observation_setting="shared_gaussian",
     )
-    appendix_same_as_gt_rows = build_reviewer10_appendix_rows(
-        summary_rows,
+    appendix_same_as_gt_rows = build_belief_appendix_rows(
+        eta_rows,
         observation_setting="same_as_gt",
     )
 
@@ -136,7 +137,7 @@ def _render_main_table(
         r"\bottomrule",
         r"\end{tabular}}",
         (
-            r"\caption{Reviewer-10 belief robustness benchmark under "
+            r"\caption{Belief robustness benchmark under "
             + setting_caption
             + rf". Metrics are aggregated across UNDER/CORRECT/OVER priors with equal weight. Here $\eta={eta:.1f}$."
             + r"}"
@@ -188,7 +189,7 @@ def _render_appendix_table(
         r"\bottomrule",
         r"\end{tabular}}",
         (
-            r"\caption{Appendix reviewer-10 belief robustness results under "
+            r"\caption{Appendix belief robustness results under "
             + setting_caption
             + rf", split by prior condition. Here $\eta={eta:.1f}$."
             + r"}"
@@ -199,13 +200,24 @@ def _render_appendix_table(
     return "\n".join(lines)
 
 
+def _order_index(order: list[str], value: str, list_name: str) -> int:
+    """Return the position of *value* in *order*, raising a clear error if missing."""
+    try:
+        return order.index(value)
+    except ValueError:
+        raise ValueError(
+            f"{value!r} not found in {list_name} = {order}. "
+            "Add it to the ordering list at the top of this module."
+        ) from None
+
+
 def _sort_main_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(
         rows,
         key=lambda row: (
-            GT_ORDER.index(str(row["gt_distribution"])),
+            _order_index(GT_ORDER, str(row["gt_distribution"]), "GT_ORDER"),
             float(row["gt_mean_multiplier"]),
-            METHOD_ORDER.index(str(row["method_label"])),
+            _order_index(METHOD_ORDER, str(row["method_label"]), "METHOD_ORDER"),
         ),
     )
 
@@ -214,10 +226,10 @@ def _sort_appendix_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(
         rows,
         key=lambda row: (
-            GT_ORDER.index(str(row["gt_distribution"])),
+            _order_index(GT_ORDER, str(row["gt_distribution"]), "GT_ORDER"),
             float(row["gt_mean_multiplier"]),
-            PRIOR_ORDER.index(str(row["prior_config"])),
-            METHOD_ORDER.index(str(row["method_label"])),
+            _order_index(PRIOR_ORDER, str(row["prior_config"]), "PRIOR_ORDER"),
+            _order_index(METHOD_ORDER, str(row["method_label"]), "METHOD_ORDER"),
         ),
     )
 
@@ -263,17 +275,21 @@ def _setting_token(observation_setting: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Export LaTeX tables for the reviewer-10 belief robustness benchmark.",
+        description="Export LaTeX tables for the belief robustness benchmark.",
     )
     parser.add_argument(
         "--summary-path",
         type=Path,
-        default=Path("assets/results/offline_exp_result/belief_reviewer10_comparison/belief_benchmark_summary.json"),
+        default=Path(
+            "assets/results/offline_exp_result/belief_latex_export/belief_benchmark_summary.json"
+        ),
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("assets/results/offline_exp_result/belief_reviewer10_comparison/latex_tables"),
+        default=Path(
+            "assets/results/offline_exp_result/belief_latex_export/latex_tables"
+        ),
     )
     parser.add_argument(
         "--eta",

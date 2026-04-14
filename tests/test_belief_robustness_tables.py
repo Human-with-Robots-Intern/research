@@ -1,4 +1,4 @@
-"""Tests for reviewer-10 belief robustness LaTeX table export."""
+"""Tests for belief robustness LaTeX table export."""
 
 from __future__ import annotations
 
