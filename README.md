@@ -205,59 +205,28 @@ python -m assets.result_analysis.offline_comparison \
 
 ### 8. Scheduler-Free Belief Robustness Benchmark (`scripts/offline/belief_distribution_benchmark.py`)
 
-PF와 Bayesian belief update 자체를 **scheduler 없이** 비교할 때 쓰는 Monte Carlo 벤치마크입니다. GT 분포, GT mean shift, prior mismatch, observation family를 바꿔가며 `late_trigger_rate`, `calibration_error`, `trigger_abs_error` 등을 직접 비교합니다.
+PF와 Bayesian belief update 자체를 **scheduler 없이** 비교할 때 쓰는 Monte Carlo 벤치마크입니다. shape-stress GT(고정 평균)와 순차 관측 하에서 `late_trigger_rate`, `calibration_error`, `trigger_abs_error` 등을 비교합니다.
 
--   **기본 용도**: 탐색형 범용 benchmark
--   **Reviewer 10 대응용 용도**: `--preset reviewer10`으로 고정된 revision 설정 + reviewer용 CSV + LaTeX table 생성
+-   **설정**: `--config scripts/offline/configs/belief_shape_stress_benchmark.yaml` 등 YAML(`BeliefBenchmarkConfig` 키 + 선택적 `output_dir`, `latex_export`, `latex_dir`, `observation_alphas`). CLI는 YAML을 덮어씁니다.
+-   **LaTeX·용지용 표**: `--latex-export` 또는 YAML `latex_export: true`이면, 요약 JSON/CSV 외에 비교용 CSV와 `latex_tables/*.tex`를 추가로 씁니다. `--latex-dir`만 줘도 동일하게 켜질 수 있습니다. (구 YAML 키 `reviewer10_comparison`은 읽기만 하며 경고 후 `latex_export`로 취급합니다.)
 
-#### 일반 실행 예시
+#### 실행 예시
 
 ```bash
+python scripts/offline/belief_distribution_benchmark.py \
+  --config scripts/offline/configs/belief_shape_stress_benchmark.yaml
+
 python scripts/offline/belief_distribution_benchmark.py \
   --output-dir assets/results/offline_exp_result/belief_distribution_benchmark \
   --episodes 200 \
-  --gt-distributions gaussian lognormal mixture \
-  --gt-mean-multipliers 1.0 \
-  --prior-configs UNDER_ESTIMATE CORRECT_ESTIMATE OVER_ESTIMATE \
-  --etas 0.1 \
-  --observation-families gaussian same_as_gt \
-  --pf-particle-distributions gaussian
-```
-
--   `--gt-variance`를 **생략**하면 family-specific GT variance preset을 사용합니다.
-    -   `gaussian`: 대략 `mean=100, std=30`
-    -   `lognormal`, `mixture`: 더 넓은 stress preset
--   `--gt-mean-multipliers`는 `base_duration`에 곱해 GT mean을 만듭니다.
-    -   예: `base_duration=100`, `--gt-mean-multipliers 0.6 1.0 1.4`면 GT mean이 `60 / 100 / 140`
-
-#### Reviewer 10 preset 예시
-
-```bash
-python scripts/offline/belief_distribution_benchmark.py \
-  --preset reviewer10 \
-  --output-dir assets/results/offline_exp_result/belief_reviewer10_comparison \
-  --episodes 200 \
+  --latex-export \
   --no-episode-csv
 ```
 
-이 preset은 내부적으로 다음을 고정합니다.
-
--   `gt_distributions = gaussian, lognormal, mixture`
--   `gt_mean_multipliers = 0.6, 1.0, 1.4`
--   `prior_configs = UNDER_ESTIMATE, CORRECT_ESTIMATE, OVER_ESTIMATE`
--   `eta = 0.1`
--   `observation_families = gaussian, same_as_gt`
--   `pf-particle-distributions = gaussian`
--   reviewer용 CSV 출력 + LaTeX table 생성
-
 주요 산출물:
 
--   `belief_benchmark_summary.json`, `belief_benchmark_summary.csv`
--   `belief_reviewer10_main_shared_gaussian.csv`
--   `belief_reviewer10_main_same_as_gt.csv`
--   `belief_reviewer10_pf_likelihood_upgrade.csv`
--   `latex_tables/tab_belief_robustness_main_shared_gaussian.tex`
--   `latex_tables/tab_belief_robustness_main_same_as_gt.tex`
+-   항상: `belief_benchmark_summary.json`, `belief_benchmark_summary.csv` (및 선택 시 episode CSV)
+-   LaTeX export 켠 경우: `belief_latex_export_comparison_rows.csv` 등 비교 CSV, `latex_tables/tab_belief_robustness_*.tex`
 
 ### 9. 캐시·해석
 
