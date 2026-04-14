@@ -1,0 +1,31 @@
+# Scheduler-free PF vs Bayesian robustness (shape-stress GT only).
+# Top-level keys match ``BeliefBenchmarkConfig``; lists are accepted for tuple fields.
+# Optional script keys: ``output_dir``, ``reviewer10_comparison``, ``latex_dir``.
+
+methods:
+  - bayesian
+  - particle_filter
+etas:
+  - 0.1
+max_sequential_observations: 20
+sequential_horizon_multiplier: 2.0
+episode_count: 200
+base_duration: 100.0
+gt_mean_multipliers:
+  - 1.0
+gt_variance: null
+prior_variance: 900.0
+observation_alpha: 0.01
+observation_families:
+  - gaussian
+  - same_as_gt
+particle_count: 1024
+particle_distributions:
+  - gaussian
+object_name: BenchmarkObject
+random_seed: 42
+write_episode_rows: true
+
+# output_dir: assets/results/offline_exp_result/belief_distribution_benchmark
+# reviewer10_comparison: false
+# latex_dir: null
