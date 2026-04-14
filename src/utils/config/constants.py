@@ -175,6 +175,7 @@ CONSECUTIVE_TASK_WAIT_TOLERANCE = 2.0
 # Scheduler-internal thresholds — conceptually distinct from evaluation tolerances.
 CONSTRAINT_MERGE_THRESHOLD = 6.25  # TODO: calibrate from physical measurements
 ACTION_SPLIT_PRECISION = 12.5      # TODO: calibrate from physical measurements
+RISK_GRACE_SECONDS = 2.0
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 3
 BEAM_WIDTH = 3

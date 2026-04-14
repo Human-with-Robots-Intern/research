@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 import numpy as np
@@ -53,7 +53,8 @@ class HeuristicManager:
         [Heuristic Function h(n) Implementation]
         This implements the paper's heuristic cost function h(n) with practical extensions.
         - Risk Level: Maps to the paper's concept of 'temporal violation risk' (Slack Time Analysis).
-          It explicitly assigns high penalties (Risk=2) for negative slack or future conflicts.
+          It explicitly assigns high penalties (Risk=2) for negative slack or future conflicts
+          that exceed a small internal grace band.
         - Heuristic Cost: Corresponds to Eq (1) in the paper:
           h(n) = Sum(Duration_rem) + MST(Trem) + Sum(Unstarted_Critical_Intervals)
           (See _calculate_remaining_work_cost for details).
@@ -109,13 +110,18 @@ class HeuristicManager:
         future_conflict_delay, victim_task_name = self.check_future_conflict(
             current_node, candidate
         )
-        if future_conflict_delay > constants.EPSILON:
+        if future_conflict_delay > constants.RISK_GRACE_SECONDS:
             log.warning(
                 f"[_calculate_candidate_risk_and_urgency] Future Conflict Delay ({future_conflict_delay:.2f}) "
-                f"exceeds EPSILON. "
+                f"exceeds grace ({constants.RISK_GRACE_SECONDS:.2f}s). "
                 f"Victim: {victim_task_name}. Risk: 2.0"
             )
             return 2, 10000.0 + future_conflict_delay
+        elif future_conflict_delay > constants.EPSILON:
+            log.debug(
+                f"[_calculate_candidate_risk_and_urgency] Future Conflict Delay ({future_conflict_delay:.2f}) "
+                f"within grace ({constants.RISK_GRACE_SECONDS:.2f}s). Keep Risk: 0.0"
+            )
 
         # 2. Calculate Slack
         total_time_needed = (
@@ -131,11 +137,12 @@ class HeuristicManager:
         )
 
         # 3. Map Slack to Base Risk & Cost
-        if slack >= 0:
+        if slack >= -constants.RISK_GRACE_SECONDS:
             log.debug(
-                f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
+                f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} within grace "
+                f"({constants.RISK_GRACE_SECONDS:.2f}s) -> Risk: 0.0"
             )
-            return 0, slack
+            return 0, max(slack, 0.0)
         else:
 
             log.debug(
@@ -260,6 +267,90 @@ class HeuristicManager:
 
         return total_duration, chain_members, last_task_name
 
+    def _build_chain_launch_profile(
+        self,
+        current_node: SimulationNode,
+        candidate: Candidate,
+    ) -> Tuple[float, Set[str], Dict[str, float]]:
+        """Return timing-aware launch information for the candidate's zero-interval chain.
+
+        Returns:
+            chain_end_delay:
+                Delay from ``current_time`` to the end of the candidate's committed
+                zero-interval chain, including the candidate's initial navigation.
+            chain_members:
+                Names of subtasks executed as part of that zero-interval chain.
+            launch_profile:
+                Mapping from each chain subtask that launches a positive critical
+                interval to the delay from ``current_time`` to the end of that
+                source subtask.
+        """
+
+        initial_nav_delay = float(candidate.estimated_first_nav_duration or 0.0)
+        graph = current_node.state.constraints
+        scene_positions = current_node.state.scene_positions
+
+        chain_members: Set[str] = {candidate.subtask.name}
+        launch_profile: Dict[str, float] = {}
+
+        def maybe_record_launch_source(subtask_name: str, source_end_delay: float) -> None:
+            for _, _, data in graph.out_edges(subtask_name, data=True):
+                info = data.get("info", {})
+                if (
+                    info.get("IsCritical")
+                    and info.get("Interval", 0.0) > constants.EPSILON
+                ):
+                    launch_profile[subtask_name] = source_end_delay
+                    return
+
+        curr_name = candidate.subtask.name
+        curr_subtask = candidate.subtask
+        curr_pos = self._get_task_interaction_location(curr_subtask, scene_positions)
+        cumulative_delay = initial_nav_delay + self._get_estimated_pure_interaction_time(
+            curr_subtask
+        )
+        maybe_record_launch_source(curr_name, cumulative_delay)
+
+        while True:
+            next_name = None
+            for _, target, data in graph.out_edges(curr_name, data=True):
+                info = data.get("info", {})
+                if (
+                    info.get("IsCritical")
+                    and info.get("Interval", 0.0) <= constants.EPSILON
+                ):
+                    next_name = target
+                    break
+
+            if next_name is None or next_name in chain_members:
+                break
+
+            next_subtask = next(
+                (
+                    t
+                    for t in current_node.state.remaining_subtasks
+                    if t.name == next_name
+                ),
+                None,
+            )
+            if next_subtask is None:
+                break
+
+            next_pos = self._get_task_interaction_location(next_subtask, scene_positions)
+            nav_delay = self._estimate_navigation_time_between_positions(
+                curr_pos, next_pos
+            )
+            cumulative_delay += nav_delay + self._get_estimated_pure_interaction_time(
+                next_subtask
+            )
+            chain_members.add(next_name)
+            maybe_record_launch_source(next_name, cumulative_delay)
+
+            curr_name = next_name
+            curr_pos = next_pos
+
+        return cumulative_delay, chain_members, launch_profile
+
     def _calculate_remaining_work_cost(
         self, current_node: SimulationNode, candidate: Candidate
     ) -> float:
@@ -272,8 +363,12 @@ class HeuristicManager:
             # [Modified] WAIT는 연결된 작업들을 활성화(부채 탕감)하지 않아야 함.
             # 단순히 시간을 보내는 것이므로, 체인으로 묶인 후속 작업들의 부채를 탕감해주면 안 됨.
             chain_members = {candidate.subtask.name}
+            chain_end_delay = 0.0
+            launch_profile: Dict[str, float] = {}
         else:
-            _, chain_members, _ = self._get_chain_info(current_node, candidate.subtask)
+            chain_end_delay, chain_members, launch_profile = (
+                self._build_chain_launch_profile(current_node, candidate)
+            )
 
         # 2. 남은 태스크 목록 (이번 후보 제외)
         remaining_tasks = [
@@ -309,16 +404,18 @@ class HeuristicManager:
         debt = 0.0
         graph = current_node.state.constraints
 
+        use_residual_debt = (
+            constants.MONITORING_ENABLED and candidate.subtask.subtask_type != "WAIT"
+        )
         activated_tasks = {candidate.subtask.name}
         debt_infos = []
 
-        # [Modified] 모든 후손(descendants)을 활성화하면 미래의 부채까지 과도하게 탕감되어
-        # 현재 실행하는 체인의 가치가 비정상적으로 높아지는 문제가 있습니다.
-        # 따라서 현재 실행되는 체인((0, True) 연결 포함)만 탕감 대상으로 삼기 위해
-        # descendants 확장 로직을 비활성화합니다.
-        # (참고: 실행되는 체인 멤버들은 이미 remaining_names에서 제외되어 자동으로 탕감됩니다.)
-        if candidate.subtask.subtask_type != "WAIT" and graph.has_node(
-            candidate.subtask.name
+        # NONE_MONITORING keeps the legacy timing-blind debt credit so that the
+        # existing baseline semantics remain unchanged.
+        if (
+            not use_residual_debt
+            and candidate.subtask.subtask_type != "WAIT"
+            and graph.has_node(candidate.subtask.name)
         ):
             activated_tasks.update(nx.descendants(graph, candidate.subtask.name))
 
@@ -326,14 +423,30 @@ class HeuristicManager:
             info = data.get("info", {})
             # Critical하면서 Interval이 있는 경우 (유효한 제약조건)
             if info.get("IsCritical") and info.get("Interval", 0.0) > constants.EPSILON:
+                interval = float(info["Interval"])
+                if use_residual_debt and u in launch_profile:
+                    source_end_delay = launch_profile[u]
+                    elapsed_after_launch_by_child_completion = max(
+                        0.0, chain_end_delay - source_end_delay
+                    )
+                    residual_debt = max(
+                        0.0, interval - elapsed_after_launch_by_child_completion
+                    )
+                    debt += residual_debt
+                    debt_infos.append(
+                        f"{u} -> {v} (ResidualDebt: {residual_debt:.2f} / Interval: {interval:.2f}, "
+                        f"chain_end_delay={chain_end_delay:.2f}, source_end_delay={source_end_delay:.2f})"
+                    )
+                    continue
+
                 # 시작점 u가 아직 남은 작업 목록에 있다면 (= 아직 타이머가 안 켜졌다면)
                 # 이 Interval은 우리가 짊어지고 있는 '잠재적 비용'입니다.
                 if u in remaining_names:
                     # [Improved] If 'u' is activated by this candidate, skip adding debt.
                     if u in activated_tasks:
                         continue
-                    debt += info["Interval"]
-                    debt_infos.append(f"{u} -> {v} (Interval: {info['Interval']})")
+                    debt += interval
+                    debt_infos.append(f"{u} -> {v} (Interval: {interval})")
 
         log.debug(
             f"[_calculate_remaining_work_cost] {sum_duration + mst_time + debt:.2f} = WorkSum({sum_duration:.2f}) + MST({mst_time:.2f}) + Debt({debt:.2f})"
