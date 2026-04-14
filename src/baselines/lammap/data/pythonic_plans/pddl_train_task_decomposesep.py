@@ -1,12 +1,12 @@
 # Task Description: Put an Egg in the Fridge, and place a pot containing Apple slices into the refrigerator.
 
-# GENERAL TASK DECOMPOSITION 
-# Decompose and parallel subtasks where ever possible
-# Independent subtasks:
+# GENERAL TASK DECOMPOSITION
+# Decompose into sequential subtasks (single robot executes all subtasks one by one)
+# Subtasks:
 # SubTask 1: Put an Egg in the Fridge. (Skills Required: GoToObject, PickupObject, OpenObject, PutObject, CloseObject)
 # SubTask 2: Prepare Apple Slices. (Skills Required: GoToObject, PickupObject, SliceObject, PutObject)
 # SubTask 3: Place the Pot with Apple Slices in the Fridge. (Skills Required: GoToObject, PickupObject, PutObject, OpenObject, CloseObject)
-# We can parallelize SubTask 1 and SubTask 2 because they don't depend on each other.
+# SubTask 3 depends on SubTask 2. SubTask 1 is independent but executed sequentially by the single robot.
 
 # action description from domain for tasks required
 
@@ -132,12 +132,12 @@ Effects: (object-close Robot Fridge), (not (inaction Robot))
 # Task Description: Make a sandwich with sliced lettuce, sliced tomato, sliced bread and serve it on a washed plate.
 
 # GENERAL TASK DECOMPOSITION
-# Decompose and parallelize subtasks where ever possible
-# Independent subtasks:
+# Decompose into sequential subtasks (single robot executes all subtasks one by one)
+# Subtasks:
 # SubTask 1: Slice the Lettuce, Tomato, and Bread. (Skills Required: GoToObject, PickupObject, SliceObject, PutObject)
-# SubTask 2: Wash the Plate. (Skills Required: GoToObject, PickupObject, PutObject, SwitchOn, SwitchOff)
+# SubTask 2: Wash the Plate. (Skills Required: GoToObject, PickupObject, PutObject, ToggleObjectOn, ToggleObjectOff)
 # SubTask 3: Assemble the Sandwich. (Skills Required: GoToObject, PickupObject, PutObject)
-# We can parallelize SubTask 1 and SubTask 2 because they don't depend on each other.
+# SubTask 3 depends on SubTask 1 and 2. All subtasks executed sequentially by the single robot.
 
 # action description from domain for tasks required
 #Subtask 1: Prepare Lettuce Slices

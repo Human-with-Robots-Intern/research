@@ -44,8 +44,8 @@ def generate_video(input_path, prefix, char_id=0, image_synthesis=['normal'], fr
             subprocess.call(command_set)
             print("Video generated at ", '{}/video_{}.mp4'.format(output_path, vid_mod))
 
-robots = [{'name': 'robot1', 'skills': ['GoToObject', 'OpenObject', 'CloseObject', 'BreakObject', 'SliceObject', 'SwitchOn', 'SwitchOff', 'PickupObject', 'PutObject', 'DropHandObject', 'ThrowObject', 'PushObject', 'PullObject']}, 
-          {'name': 'robot2', 'skills': ['GoToObject', 'OpenObject', 'CloseObject', 'BreakObject', 'SliceObject', 'SwitchOn', 'SwitchOff', 'PickupObject', 'PutObject', 'DropHandObject', 'ThrowObject', 'PushObject', 'PullObject']}]
+robots = [{'name': 'robot1', 'skills': ['GoToObject', 'OpenObject', 'CloseObject', 'BreakObject', 'SliceObject', 'ToggleObjectOn', 'ToggleObjectOff', 'PickupObject', 'PutObject', 'DropHandObject', 'ThrowObject', 'PushObject', 'PullObject']}, 
+          {'name': 'robot2', 'skills': ['GoToObject', 'OpenObject', 'CloseObject', 'BreakObject', 'SliceObject', 'ToggleObjectOn', 'ToggleObjectOff', 'PickupObject', 'PutObject', 'DropHandObject', 'ThrowObject', 'PushObject', 'PullObject']}]
 
 # the robots.py is not used, so I assume we can do the same
 floor_no = 1
@@ -285,7 +285,7 @@ def PutObject(robot, put_obj, recp):
                 dist_to_recp = dist
     action_queue.append({'action':'PutObject', 'objectId':recp_obj_id, 'agent_id':agent_id})
          
-def SwitchOn(robot, sw_obj):
+def ToggleObjectOn(robot, sw_obj):
     robot_name = robot['name']
     agent_id = int(robot_name[-1]) - 1
     objs = list(set([obj["objectId"] for obj in c.last_event.metadata["objects"]]))
@@ -298,7 +298,7 @@ def SwitchOn(robot, sw_obj):
     
     action_queue.append({'action':'ToggleObjectOn', 'objectId':sw_obj_id, 'agent_id':agent_id})      
         
-def SwitchOff(robot, sw_obj):
+def ToggleObjectOff(robot, sw_obj):
     robot_name = robot['name']
     agent_id = int(robot_name[-1]) - 1
     objs = list(set([obj["objectId"] for obj in c.last_event.metadata["objects"]]))
@@ -389,11 +389,11 @@ def wash_apple(robot):
     # 4: Put the Apple in the Sink.
     PutObject(robot, 'Apple', 'Sink')
     # 5: Switch on the Faucet.
-    SwitchOn(robot, 'Faucet')
+    ToggleObjectOn(robot, 'Faucet')
     # 6: Wait for a while to let the Apple wash.
     time.sleep(5)
     # 7: Switch off the Faucet.
-    SwitchOff(robot, 'Faucet')
+    ToggleObjectOff(robot, 'Faucet')
     # 8: Pick up the washed Apple.
     PickupObject(robot, 'Apple')
     # 9: Go to the CounterTop.
@@ -412,11 +412,11 @@ def wash_tomato(robot):
     # 4: Put the Tomato in the Sink.
     PutObject(robot, 'Tomato', 'Sink')
     # 5: Switch on the Faucet.
-    SwitchOn(robot, 'Faucet')
+    ToggleObjectOn(robot, 'Faucet')
     # 6: Wait for a while to let the Tomato wash.
     time.sleep(5)
     # 7: Switch off the Faucet.
-    SwitchOff(robot, 'Faucet')
+    ToggleObjectOff(robot, 'Faucet')
     # 8: Pick up the washed Tomato.
     PickupObject(robot, 'Tomato')
     # 9: Go to the CounterTop.
@@ -435,11 +435,11 @@ def wash_lettuce(robot):
     # 4: Put the Lettuce in the Sink.
     PutObject(robot, 'Lettuce', 'Sink')
     # 5: Switch on the Faucet.
-    SwitchOn(robot, 'Faucet')
+    ToggleObjectOn(robot, 'Faucet')
     # 6: Wait for a while to let the Lettuce wash.
     time.sleep(5)
     # 7: Switch off the Faucet.
-    SwitchOff(robot, 'Faucet')
+    ToggleObjectOff(robot, 'Faucet')
     # 8: Pick up the washed Lettuce.
     PickupObject(robot, 'Lettuce')
     # 9: Go to the CounterTop.
@@ -458,11 +458,11 @@ def wash_potato(robot):
     # 4: Put the Potato in the Sink.
     PutObject(robot, 'Potato', 'Sink')
     # 5: Switch on the Faucet.
-    SwitchOn(robot, 'Faucet')
+    ToggleObjectOn(robot, 'Faucet')
     # 6: Wait for a while to let the Potato wash.
     time.sleep(5)
     # 7: Switch off the Faucet.
-    SwitchOff(robot, 'Faucet')
+    ToggleObjectOff(robot, 'Faucet')
     # 8: Pick up the washed Potato.
     PickupObject(robot, 'Potato')
     # 9: Go to the CounterTop.

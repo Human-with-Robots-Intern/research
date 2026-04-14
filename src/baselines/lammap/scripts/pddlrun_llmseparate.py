@@ -25,7 +25,7 @@ if _lammap_base not in sys.path:
     sys.path.insert(0, _lammap_base)
 
 import resources.actions as actions
-import resources.robots as robots
+import resources.robots as robots_config
 
 # Constants
 DEFAULT_MAX_TOKENS = 128
@@ -953,15 +953,12 @@ class TaskManager:
                     trans_cnt_tasks.append(values[3])
                     min_trans_cnt_tasks.append(values[4])
             
-            # Prepare robot configurations
+            # Single-agent: always use the one robot regardless of test file robot IDs
             available_robots = []
             for robots_list in robots_test_tasks:
-                task_robots = []
-                for i, r_id in enumerate(robots_list):
-                    rob = robots.robots[r_id-1]  # Direct reference like original
-                    rob['name'] = f'robot{i+1}'  # Use f-string for consistency
-                    task_robots.append(rob)
-                available_robots.append(task_robots)
+                rob = copy.deepcopy(robots_config.robots[0])
+                rob['name'] = 'robot1'
+                available_robots.append([rob])
             
             return test_tasks, available_robots, gt_test_tasks, trans_cnt_tasks, min_trans_cnt_tasks
             
@@ -1217,10 +1214,10 @@ class TaskManager:
             prompt += allocated_prompt
             prompt += decomposed_plan
             prompt += f"\n# TASK ALLOCATION"
-            prompt += f"\n# Scenario: There are {len(robots)} robots available. The task should be performed using the minimum number of robots necessary. Robot should be assigned to subtasks that match its skills and mass capacity. Using your reasoning come up with a solution to satisfy all constraints."
+            prompt += f"\n# Scenario: There is 1 robot available with all skills. All subtasks are assigned to Robot 1 and executed sequentially."
             prompt += f"\n\nrobots = {robots}"
             prompt += f"\n{objects_ai}"
-            prompt += f"\n\n# IMPORTANT: The AI should ensure that the robots assigned to the tasks have all the necessary skills to perform the tasks. IMPORTANT: Determine whether the subtasks must be performed sequentially or in parallel, or a combination of both and allocate robots based on availability. "
+            prompt += f"\n\n# IMPORTANT: All subtasks must be assigned to Robot 1. Determine the sequential order of subtask execution."
             prompt += f"\n# SOLUTION\n"
             
             # Handle different GPT versions like the original
@@ -1345,159 +1342,45 @@ class TaskManager:
             objects_ai: str,
             prompt_allocation_set: str
         ) -> List[str]:
-        """Extract problem files from subtasks."""
+        """Extract problem files from subtasks (single-agent: always use allactionrobot.pddl)."""
         problem_pddl: List[str] = []
 
-        # Robust matchers for the Assigned Robots block
-        assigned_block_re = re.compile(
-            r'(?is)\*\*Assigned\s*Robots?\*\*\s*:\s*(.*?)\n\*\*Objects\s*Involved\*\*\s*:',
-            re.IGNORECASE | re.DOTALL
-        )
-        assigned_block_fallback = re.compile(
-            r'(?is)\bAssigned\s*Robots?\b\s*:\s*(.*?)\n\bObjects\s*Involved\b\s*:',
-            re.IGNORECASE | re.DOTALL
-        )
+        # Always use the single allactionrobot domain
+        domain_path = os.path.join(self.base_path, "resources", "allactionrobot.pddl")
+        domain_content = file_processor.read_file(domain_path) or ""
+        if not domain_content:
+            print(f"Domain file not found or empty: {domain_path}")
+            return problem_pddl
 
-        # Match "robot 1" and "robots 1"
-        robot_num_re = re.compile(r'\brobots?\s*(\d+)\b', re.IGNORECASE)
-
-        # Phrases that imply "pick a single robot among the listed ones"
-        single_choice_phrase_re = re.compile(
-            r'\b(any\s+one|either|one\s+of|choose\s+one|pick\s+one|any\s+robot\s+among|any\s+of)\b',
-            re.IGNORECASE
+        problem_fileexamplepath = os.path.join(
+            self.base_path, "data", "pythonic_plans", f"{prompt_allocation_set}_problem.py"
         )
+        problem_examplecontent = file_processor.read_file(problem_fileexamplepath) or ""
 
         for subtask in subtasks:
-            m = assigned_block_re.search(subtask) or assigned_block_fallback.search(subtask)
-            if not m:
-                print("Invalid subtask structure, skipping")
-                continue
+            prompt = (
+                "\n" + problem_examplecontent +
+                " Finish the tasks like example\n"
+                "Subtask examination from action perspective:" + subtask +
+                "\nDomain file content:" + domain_content +
+                "\n based on the objects available for potential usage below." + objects_ai +
+                "Task description: generate the problem file. Based on the objects above, "
+                "the domain file preconditions, actions, and subtask examination. "
+                "IMPORTANT the robot initiates strictly as not inaction and robot "
+                "(which includes location)\n"
+                "#IMPORTANT, strictly follow the structure, stop generating after the Problem file generation is done."
+            )
 
-            assigned_robots = m.group(1).strip()
-
-            # Extract robot numbers
-            robot_numbers = robot_num_re.findall(assigned_robots)
-
-            # Fallback: capture bare numbers if "robot(s)" isn't repeated before each number
-            if not robot_numbers:
-                robot_numbers = re.findall(r'\b\d+\b', assigned_robots)
-
-            # Normalize like ["robot1", "robot2", ...]
-            normalized_robot_numbers = [f"robot{num}" for num in robot_numbers]
-
-            # Detect phrasing that indicates a single-choice (not team) among listed robots
-            single_choice = bool(single_choice_phrase_re.search(assigned_robots))
-
-            # Team detection
-            is_team = ("team" in assigned_robots.lower()) or ("allactionrobot" in assigned_robots.lower())
-
-            # If wording says "any one/either/one of/..." and we have numbers, treat as single-robot
-            if single_choice and normalized_robot_numbers:
-                # Deterministic selection policy: smallest robot number
-                try:
-                    smallest = min(int(n[len("robot"):]) for n in normalized_robot_numbers)
-                    normalized_robot_numbers = [f"robot{smallest}"]
-                except ValueError:
-                    # Fallback to the first listed if parsing failed
-                    normalized_robot_numbers = [normalized_robot_numbers[0]]
-                is_team = False
-
-            if (not single_choice) and (len(normalized_robot_numbers) > 1):
-                is_team = True
-
-            if is_team:
-                # Team task: concatenate all team domains
-                all_domain_contents = ""
-                for robot in normalized_robot_numbers:
-                    domain_path = os.path.join(self.base_path, "resources", f"{robot}.pddl")
-                    domain_text = file_processor.read_file(domain_path)
-                    if domain_text:
-                        all_domain_contents += domain_text
-
-                if not all_domain_contents:
-                    print("No team robot domains found; skipping team prompt.")
-                    continue
-
-                problem_fileexamplepath = os.path.join(
-                    self.base_path, "data", "pythonic_plans", f"{prompt_allocation_set}_teamproblem.py"
-                )
-                problem_examplecontent = file_processor.read_file(problem_fileexamplepath) or ""
-
-                prompt = (
-                    "\n" + problem_examplecontent +
-                    "Strictly follow the structure and finish the tasks like example\n"
-                    "Subtask examination from action perspective:" + subtask +
-                    "\nDomain file content:" + all_domain_contents +
-                    "\n based on the objects available below." + objects_ai +
-                    "Task description: extract the problem files, based on the objects above, "
-                    "the preconditions, actions, and subtask examination.\n"
-                    "#IMPORTANT, strictly follow the structure, stop generating after the Problem file generation is done."
-                )
-
-                if "gpt" not in gpt_version:
-                    _, text = llm.query_model(prompt, gpt_version, max_tokens=1000, stop=["def"], frequency_penalty=0.30)
-                else:
-                    messages = [
-                        {"role": "system", "content": "You are a Robot PDDL problem Expert"},
-                        {"role": "user", "content": prompt}
-                    ]
-                    _, text = llm.query_model(messages, gpt_version, max_tokens=1000, frequency_penalty=0.4)
-
-                problem_pddl.append(text)
-
+            if "gpt" not in gpt_version:
+                _, text = llm.query_model(prompt, gpt_version, max_tokens=1000, stop=["def"], frequency_penalty=0.30)
             else:
-                # Single-robot case
-                if not normalized_robot_numbers:
-                    print("No robot number found in Assigned Robot; skipping.")
-                    print("Assigned Robots content:", assigned_robots)
-                    continue
+                messages = [
+                    {"role": "system", "content": "You are a Robot PDDL problem Expert"},
+                    {"role": "user", "content": prompt}
+                ]
+                _, text = llm.query_model(messages, gpt_version, max_tokens=1400, frequency_penalty=0.4)
 
-                # Deterministic single-robot choice: if multiple remain, take smallest
-                if len(normalized_robot_numbers) > 1:
-                    try:
-                        smallest = min(int(n[len("robot"):]) for n in normalized_robot_numbers)
-                        normalized_robot_numbers = [f"robot{smallest}"]
-                    except ValueError:
-                        normalized_robot_numbers = [normalized_robot_numbers[0]]
-
-                robotassignnumber = f"{normalized_robot_numbers[0].replace(' ', '')}.pddl"
-                domain_path = os.path.join(self.base_path, "resources", robotassignnumber)
-                # print("this is a solo work")
-                # print(domain_path)
-
-                domain_content = file_processor.read_file(domain_path) or ""
-                if not domain_content:
-                    print(f"Domain file not found or empty: {domain_path}")
-                    continue
-
-                problem_fileexamplepath = os.path.join(
-                    self.base_path, "data", "pythonic_plans", f"{prompt_allocation_set}_problem.py"
-                )
-                problem_examplecontent = file_processor.read_file(problem_fileexamplepath) or ""
-
-                prompt = (
-                    "\n" + problem_examplecontent +
-                    " Finish the tasks like example\n"
-                    "Subtask examination from action perspective:" + subtask +
-                    "\nDomain file content:" + domain_content +
-                    "\n based on the objects available for potential usage below." + objects_ai +
-                    "Task description: generate the problem file. Based on the objects above, "
-                    "the domain file preconditions, actions, and subtask examination. "
-                    "IMPORTANT the robot initiates strictly as not inaction and robot "
-                    "(which includes location)\n"
-                    "#IMPORTANT, strictly follow the structure, stop generating after the Problem file generation is done."
-                )
-
-                if "gpt" not in gpt_version:
-                    _, text = llm.query_model(prompt, gpt_version, max_tokens=1000, stop=["def"], frequency_penalty=0.30)
-                else:
-                    messages = [
-                        {"role": "system", "content": "You are a Robot PDDL problem Expert"},
-                        {"role": "user", "content": prompt}
-                    ]
-                    _, text = llm.query_model(messages, gpt_version, max_tokens=1400, frequency_penalty=0.4)
-
-                problem_pddl.append(text)
+            problem_pddl.append(text)
 
         return problem_pddl
 

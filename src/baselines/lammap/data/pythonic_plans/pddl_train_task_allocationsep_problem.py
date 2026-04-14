@@ -26,11 +26,11 @@ Parameters: ?robot, ?potato
 Preconditions: (holding Robot Knife), (not (inaction ?robot))
 Effects: (sliced ?potato), (not (inaction ?robot))
 
-Assigned Robots: Robot 1
+Assigned Robot: Robot 1
 Objects Involved: Potato, knife
 
 #Domain file content,
-(define (domain robot1)
+(define (domain allactionrobot)
   (:requirements :strips :typing :negative-preconditions) 
   (:types robot object)
   (:predicates
@@ -38,8 +38,8 @@ Objects Involved: Potato, knife
     (inaction ?robot - robot) 
     (holding ?robot - robot ?object - object)
     (at-location  ?object - object ?location - object)
-    (switch-on ?robot - robot ?object - object)
-    (switch-off ?robot - robot ?object - object)
+    (toggled-on ?robot - robot ?object - object)
+    (toggled-off ?robot - robot ?object - object)
     (object-open ?robot - robot ?object - object)
     (object-close ?robot - robot ?object - object)
     (break ?robot - robot ?object - object)
@@ -90,7 +90,7 @@ Objects Involved: Potato, knife
     )
   )
   
-  (:action SwitchOn
+  (:action ToggleObjectOn
     :parameters (?robot - robot ?object - object)
     :precondition (and 
                     (not(inaction ?robot))
@@ -98,12 +98,12 @@ Objects Involved: Potato, knife
     )   
     :effect (and
               (not(inaction ?robot))
-              (switch-on ?robot ?object)
+              (toggled-on ?robot ?object)
     ) 
   )
 
 
-  (:action Switchoff
+  (:action ToggleObjectOff
     :parameters (?robot - robot ?object - object)
     :precondition (and
                     (not(inaction ?robot))
@@ -111,7 +111,7 @@ Objects Involved: Potato, knife
     )
     :effect (and
                 (not(inaction ?robot))
-                (switch-off ?robot ?object)
+                (toggled-off ?robot ?object)
     )    
   )
 
@@ -216,7 +216,7 @@ Goals:
 pddl
 
 (define (problem slice_potato_problem)
-  (:domain robot1)
+  (:domain allactionrobot)
   (:objects
     robot1 - robot
     potato - object
@@ -226,9 +226,8 @@ pddl
   (:init
     (at robot1 counterTop)
     (at-location potato counterTop)
-    (at-location knife)
-    (inaction robot1)
-    (inaction robot3)
+    (at-location knife counterTop)
+    (not (inaction robot1))
   )
   (:goal
     (and

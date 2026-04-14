@@ -102,7 +102,7 @@ def run_lammap_planning(
             "name": "robot1",
             "skills": [
                 "GoToObject", "OpenObject", "CloseObject", "BreakObject",
-                "SliceObject", "SwitchOn", "SwitchOff", "PickupObject",
+                "SliceObject", "ToggleObjectOn", "ToggleObjectOff", "PickupObject",
                 "PutObject", "DropHandObject", "ThrowObject", "PushObject",
                 "PullObject",
             ],

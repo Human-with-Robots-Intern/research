@@ -15,7 +15,7 @@ import sys
 sys.path.append(".")
 
 import resources.actions as actions
-import resources.robots as robots
+import resources.robots as robots_config
 
 
 def LM(prompt, gpt_version, max_tokens=128, temperature=0, stop=None, logprobs=1, frequency_penalty=0):
@@ -102,15 +102,12 @@ if __name__ == "__main__":
                     
     print(f"\n----Test set tasks----\n{test_tasks}\nTotal: {len(test_tasks)} tasks\n")
     # prepare list of robots for the tasks
+    # Single-agent: always use the one robot regardless of test file robot IDs
     available_robots = []
     for robots_list in robots_test_tasks:
-        task_robots = []
-        for i, r_id in enumerate(robots_list):
-            rob = robots.robots [r_id-1]
-            # rename the robot
-            rob['name'] = 'robot' + str(i+1)
-            task_robots.append(rob)
-        available_robots.append(task_robots)
+        rob = copy.deepcopy(robots_config.robots[0])
+        rob['name'] = 'robot1'
+        available_robots.append([rob])
         
     
     ######## Train Task Decomposition ########

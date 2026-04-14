@@ -107,9 +107,9 @@ def parse_lammap_code_to_actions(code: str) -> List[dict]:
         PickupObject(robots[0], 'Apple')
         GoToObject(robots[0], 'Sink')
         PutObject(robots[0], 'Apple', 'Sink')
-        SwitchOn(robots[0], 'Faucet')
+        ToggleObjectOn(robots[0], 'Faucet')
         time.sleep(5)
-        SwitchOff(robots[0], 'Faucet')
+        ToggleObjectOff(robots[0], 'Faucet')
 
     Returns:
         List of action dicts: [{'action': 'GoToObject', 'args': ['Apple']}, ...]
@@ -119,7 +119,7 @@ def parse_lammap_code_to_actions(code: str) -> List[dict]:
     # 함수 호출 패턴 매칭
     # GoToObject(robots[0], 'Apple') 또는 GoToObject(robot, 'Apple')
     func_pattern = re.compile(
-        r"(GoToObject|PickupObject|PutObject|SwitchOn|SwitchOff|"
+        r"(GoToObject|PickupObject|PutObject|ToggleObjectOn|ToggleObjectOff|"
         r"OpenObject|CloseObject|SliceObject|BreakObject|CleanObject|"
         r"DropHandObject|ThrowObject|PushObject|PullObject)"
         r"\s*\(\s*(?:robots?\[?\d*\]?|robots?)\s*,\s*(.*?)\s*\)",
@@ -162,8 +162,8 @@ def convert_to_primitive_actions(
         GoToObject    → NAVIGATE_TO <objectId>
         PickupObject  → GRASP <objectId>
         PutObject     → PLACE_INSIDE/PLACE_ON_TOP <receptacleId>
-        SwitchOn      → TOGGLE_ON <objectId>
-        SwitchOff     → TOGGLE_OFF <objectId>
+        ToggleObjectOn  → TOGGLE_ON <objectId>
+        ToggleObjectOff → TOGGLE_OFF <objectId>
         OpenObject    → OPEN <objectId>
         CloseObject   → CLOSE <objectId>
         SliceObject   → SLICE <objectId>
@@ -199,14 +199,14 @@ def convert_to_primitive_actions(
                     f"Receptacle not found: {args[-1]}, skipping {place_type}"
                 )
 
-        elif action_name == "SwitchOn" and args:
+        elif action_name == "ToggleObjectOn" and args:
             obj_id = resolve_object_id(controller, args[0])
             if obj_id:
                 primitive_actions.append(f"TOGGLE_ON {obj_id}")
             else:
                 logger.warning(f"Object not found: {args[0]}, skipping TOGGLE_ON")
 
-        elif action_name == "SwitchOff" and args:
+        elif action_name == "ToggleObjectOff" and args:
             obj_id = resolve_object_id(controller, args[0])
             if obj_id:
                 primitive_actions.append(f"TOGGLE_OFF {obj_id}")

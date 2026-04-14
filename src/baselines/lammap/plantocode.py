@@ -141,8 +141,8 @@ Available AI2-THOR functions (assume these are imported and available):
 - GoToObject(robot, object_name)
 - PickupObject(robot, object_name) 
 - PutObject(robot, object_name, target_location)
-- SwitchOn(robot, object_name)
-- SwitchOff(robot, object_name)
+- ToggleObjectOn(robot, object_name)
+- ToggleObjectOff(robot, object_name)
 - time.sleep(seconds)
 
 Available variables (assume these are defined):
@@ -271,8 +271,8 @@ The following AI2-THOR functions are ALREADY DEFINED and available:
 - GoToObject(robot, object_name)
 - PickupObject(robot, object_name) 
 - PutObject(robot, object_name, target_location)
-- SwitchOn(robot, object_name)
-- SwitchOff(robot, object_name)
+- ToggleObjectOn(robot, object_name)
+- ToggleObjectOff(robot, object_name)
 - time.sleep(seconds)
 
 DO NOT create new function definitions for these. Use them directly as shown in the template.
@@ -362,8 +362,8 @@ Return ONLY the corrected code that follows the template structure exactly.
 # - GoToObject(robot, object_name)
 # - PickupObject(robot, object_name) 
 # - PutObject(robot, object_name, target_location)
-# - SwitchOn(robot, object_name)
-# - SwitchOff(robot, object_name)
+# - ToggleObjectOn(robot, object_name)
+# - ToggleObjectOff(robot, object_name)
 # - time.sleep(seconds)
 # 
 # DO NOT create new function definitions for these. Use them directly as shown in the template.
@@ -387,11 +387,11 @@ def wash_apple(robots):
     # 4: Put the Apple in the Sink.
     PutObject(robots[0], 'Apple', 'Sink')
     # 5: Switch on the Faucet.
-    SwitchOn(robots[0], 'Faucet')
+    ToggleObjectOn(robots[0], 'Faucet')
     # 6: Wait for a while to let the Apple wash.
     time.sleep(5)
     # 7: Switch off the Faucet.
-    SwitchOff(robots[0], 'Faucet')
+    ToggleObjectOff(robots[0], 'Faucet')
     # 8: Pick up the washed Apple.
     PickupObject(robots[0], 'Apple')
     # 9: Go to the CounterTop.
@@ -410,11 +410,11 @@ def wash_tomato(robots):
     # 4: Put the Tomato in the Sink.
     PutObject(robots[1], 'Tomato', 'Sink')
     # 5: Switch on the Faucet.
-    SwitchOn(robots[1], 'Faucet')
+    ToggleObjectOn(robots[1], 'Faucet')
     # 6: Wait for a while to let the Tomato wash.
     time.sleep(5)
     # 7: Switch off the Faucet.
-    SwitchOff(robots[1], 'Faucet')
+    ToggleObjectOff(robots[1], 'Faucet')
     # 8: Pick up the washed Tomato.
     PickupObject(robots[1], 'Tomato')
     # 9: Go to the CounterTop.
@@ -433,11 +433,11 @@ def wash_lettuce(robots):
     # 4: Put the Lettuce in the Sink.
     PutObject(robots[0], 'Lettuce', 'Sink')
     # 5: Switch on the Faucet.
-    SwitchOn(robots[0], 'Faucet')
+    ToggleObjectOn(robots[0], 'Faucet')
     # 6: Wait for a while to let the Lettuce wash.
     time.sleep(5)
     # 7: Switch off the Faucet.
-    SwitchOff(robots[0], 'Faucet')
+    ToggleObjectOff(robots[0], 'Faucet')
     # 8: Pick up the washed Lettuce.
     PickupObject(robots[0], 'Lettuce')
     # 9: Go to the CounterTop.
@@ -456,11 +456,11 @@ def wash_potato(robots):
     # 4: Put the Potato in the Sink.
     PutObject(robots[1], 'Potato', 'Sink')
     # 5: Switch on the Faucet.
-    SwitchOn(robots[1], 'Faucet')
+    ToggleObjectOn(robots[1], 'Faucet')
     # 6: Wait for a while to let the Potato wash.
     time.sleep(5)
     # 7: Switch off the Faucet.
-    SwitchOff(robots[1], 'Faucet')
+    ToggleObjectOff(robots[1], 'Faucet')
     # 8: Pick up the washed Potato.
     PickupObject(robots[1], 'Potato')
     # 9: Go to the CounterTop.
@@ -812,7 +812,7 @@ import time
 import threading
 
 # Import AI2-THOR controller functions
-# from ai2thor_controller import GoToObject, PickupObject, PutObject, SwitchOn, SwitchOff
+# from ai2thor_controller import GoToObject, PickupObject, PutObject, ToggleObjectOn, ToggleObjectOff
 
 {plan_to_code}
 

@@ -109,7 +109,7 @@ def main():
         report = validator.validate_plan_file(
             folder,
             task_spec,
-            robots=["robot1", "robot2"]
+            robots=["robot1"]
         )
         results.append(report.to_dict())
 

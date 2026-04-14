@@ -63,10 +63,10 @@ def canonical_action_name(name: str) -> str:
         return "open"
     if n in {"closeobject", "close"}:
         return "close"
-    if n in {"switchonobject", "switchon"}:
-        return "switchon"
-    if n in {"switchoffobject", "switchoff"}:
-        return "switchoff"
+    if n in {"toggleobjecton", "toggleon", "switchonobject", "switchon"}:
+        return "toggleon"
+    if n in {"toggleobjectoff", "toggleoff", "switchoffobject", "switchoff"}:
+        return "toggleoff"
     if n in {"gotoobject", "goto"}:
         return "goto"
     return n
@@ -167,13 +167,13 @@ def normalize_expected_step(step: str) -> Optional[Tuple[str, List[str]]]:
     if m:
         return ("close", [normalize_name(m.group(1))])
 
-    m = re.match(r"switchon\s+(.+)$", s)
+    m = re.match(r"(?:toggleobjecton|toggleon|switchon)\s+(.+)$", s)
     if m:
-        return ("switchon", [normalize_name(m.group(1))])
+        return ("toggleon", [normalize_name(m.group(1))])
 
-    m = re.match(r"switchoff\s+(.+)$", s)
+    m = re.match(r"(?:toggleobjectoff|toggleoff|switchoff)\s+(.+)$", s)
     if m:
-        return ("switchoff", [normalize_name(m.group(1))])
+        return ("toggleoff", [normalize_name(m.group(1))])
 
     m = re.match(r"grab\s+(.+)$", s)
     if m:
@@ -216,7 +216,7 @@ def action_matches_expected(act: ParsedAction, expected: Tuple[str, List[str]]) 
     if exp_name == "put":
         return len(args_n) >= 3 and args_n[1] == exp_args[0] and args_n[2] == exp_args[1]
 
-    if exp_name in {"open", "close", "switchon", "switchoff"}:
+    if exp_name in {"open", "close", "toggleon", "toggleoff"}:
         return len(args_n) >= 2 and args_n[1] == exp_args[0]
 
     return False
@@ -249,15 +249,15 @@ def execute_action(st: SymbolicState, act: ParsedAction) -> Tuple[bool, Optional
         st.state[target] = "CLOSED"
         return True, None
 
-    if name == "switchon":
+    if name == "toggleon":
         if len(args_n) < 2:
-            return False, "bad_args:switchon"
+            return False, "bad_args:toggleon"
 
         target = args_n[1]
 
         # microwave는 닫힌 상태에서만 켤 수 있다고 가정
         if target == "microwave" and st.state.get(target, "CLOSED") != "CLOSED":
-            return False, "switchon_with_open_microwave"
+            return False, "toggleon_with_open_microwave"
 
         st.state[target] = "ON"
 
@@ -270,9 +270,9 @@ def execute_action(st: SymbolicState, act: ParsedAction) -> Tuple[bool, Optional
 
         return True, None
 
-    if name == "switchoff":
+    if name == "toggleoff":
         if len(args_n) < 2:
-            return False, "bad_args:switchoff"
+            return False, "bad_args:toggleoff"
         target = args_n[1]
         st.state[target] = "OFF"
         return True, None

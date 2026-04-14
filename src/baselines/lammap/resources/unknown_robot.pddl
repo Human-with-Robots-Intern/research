@@ -6,8 +6,8 @@
     (inaction ?robot - robot) 
     (holding ?robot - robot ?object - object)
     (at-location  ?object - object ?location - object)
-    (switch-on ?robot - robot ?object - object)
-    (switch-off ?robot - robot ?object - object)
+    (toggled-on ?robot - robot ?object - object)
+    (toggled-off ?robot - robot ?object - object)
     (object-open ?robot - robot ?object - object)
     (object-close ?robot - robot ?object - object)
     (break ?robot - robot ?object - object)
@@ -51,7 +51,7 @@
     )
   )
   
-  (:action SwitchOn
+  (:action ToggleObjectOn
     :parameters (?robot - robot ?object - object)
     :precondition (and 
                     (not(inaction ?robot))
@@ -59,12 +59,12 @@
     )   
     :effect (and
               (not(inaction ?robot))
-              (switch-on ?robot ?object)
+              (toggled-on ?robot ?object)
     ) 
   )
 
 
-  (:action Switchoff
+  (:action ToggleObjectOff
     :parameters (?robot - robot ?object - object)
     :precondition (and
                     (not(inaction ?robot))
@@ -72,7 +72,7 @@
     )
     :effect (and
                 (not(inaction ?robot))
-                (switch-off ?robot ?object)
+                (toggled-off ?robot ?object)
     )    
   )
 
