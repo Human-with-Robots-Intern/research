@@ -84,6 +84,24 @@ def test_scalability_plan_orders_oracle_batch_and_analysis(tmp_path: Path) -> No
     ]
 
 
+def test_skip_oracle_preflight_omits_oracle_stage(tmp_path: Path) -> None:
+    """With ``skip_oracle_preflight``, the plan should start at batch then analysis."""
+
+    plan = build_execution_plan(
+        requested_suite="scalability",
+        oracle_config_path=_write_oracle_config(tmp_path),
+        force_skip_completed=False,
+        temp_dir=tmp_path,
+        skip_oracle_preflight=True,
+    )
+
+    assert [(stage.kind, stage.suite) for stage in plan.stages] == [
+        ("batch", "scalability"),
+        ("analysis", "scalability"),
+    ]
+    assert plan.oracle_config == {}
+
+
 def test_monitoring_budget_plan_orders_oracle_batch_and_analysis(
     tmp_path: Path,
 ) -> None:
@@ -141,6 +159,23 @@ def test_skip_completed_flag_is_forwarded_to_oracle_and_batch(tmp_path: Path) ->
     batch_command = plan.stages[1].command
 
     assert "--skip-completed" in oracle_command
+    assert "--skip-completed" in batch_command
+
+
+def test_skip_completed_applies_only_to_batch_when_oracle_skipped(
+    tmp_path: Path,
+) -> None:
+    """Skip-completed on the suite runner should still reach batch when oracle is off."""
+
+    plan = build_execution_plan(
+        requested_suite="scalability",
+        oracle_config_path=_write_oracle_config(tmp_path),
+        force_skip_completed=True,
+        temp_dir=tmp_path,
+        skip_oracle_preflight=True,
+    )
+
+    batch_command = plan.stages[0].command
     assert "--skip-completed" in batch_command
 
 

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import networkx as nx
+from src.core.scheduler import Scheduler
 from src.core.monitoring import BeliefUpdateContext, create_observation_model
 from src.experiments.exact_oracle import DeterministicExactOracle, OracleSolution
 from src.experiments.offline_compare import compare_result_files
@@ -813,6 +814,66 @@ def test_run_single_rollout_frontier_selection_avoids_leaf_risk_pathology() -> N
 
     assert result["schedule_tcsr"] == 1.0
     assert result["final_schedule_time"] < 280.0
+
+
+def test_frontier_selection_key_prefers_better_depth1_cost_after_float_noise_tie() -> None:
+    """Frontier float noise should not outweigh the committed depth-1 action cost."""
+
+    wash_first_key = Scheduler._frontier_selection_key(
+        depth1_risk=0,
+        leaf_cost=174.39000000000001,
+        depth1_cost=265.03,
+    )
+    prepare_pan_key = Scheduler._frontier_selection_key(
+        depth1_risk=0,
+        leaf_cost=174.39000000000004,
+        depth1_cost=245.64,
+    )
+
+    assert prepare_pan_key < wash_first_key
+
+
+def test_run_single_rollout_frontier_selection_avoids_float_noise_tie_break_bug() -> None:
+    """T3C2 case06 should commit to the earlier productive chain under B=10."""
+
+    config = ExperimentConfig(
+        approach="bayesian",
+        ablation_config="DEFAULT",
+        init_prior_config="CORRECT_ESTIMATE",
+        case="tasks_3_constraints_2",
+        scene="FloorPlan1",
+        instructions=[
+            "06_heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon.json"
+        ],
+        beam_bound=[(10, 10)],
+        belief_update_method="bayesian",
+        gt_distribution="constant",
+        eta=0.1,
+    )
+    task = ExperimentTask(
+        "06_heat_the_potato_using_microwave_and_cook_egg_and_wash_all_fork_and_spoon.json",
+        10,
+        10,
+        0,
+        config.case,
+    )
+    scene_positions = load_scene_positions("FloorPlan1_positions.json")
+    nav_graph = load_ai2thor_nav_graph("FloorPlan1")
+
+    previous_values = _apply_runtime_overrides(config)
+    try:
+        result = run_single_rollout(
+            config,
+            task,
+            nav_graph=nav_graph,
+            scene_positions=scene_positions,
+        )
+    finally:
+        _restore_runtime_overrides(previous_values)
+
+    assert result["schedule_tcsr"] == 1.0
+    assert result["final_schedule_time"] < 200.0
+    assert result["steps"][2]["subtask_name"] == "Prepare Pan on Stove and Heat"
 
 
 def test_run_oracle_reference_experiment_writes_oracle_summary(

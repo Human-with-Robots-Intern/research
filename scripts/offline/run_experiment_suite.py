@@ -123,6 +123,15 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Force skip-completed behavior on offline batch stages.",
     )
+    parser.add_argument(
+        "--skip-oracle-preflight",
+        action="store_true",
+        help=(
+            "Skip the merged oracle reference batch subprocess. Use when JSON "
+            "references already exist under each suite's oracle_reference_dir; "
+            "batch and analysis still run (analysis still reads that tree)."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -459,32 +468,48 @@ def build_execution_plan(
     oracle_config_path: str | Path,
     force_skip_completed: bool,
     temp_dir: str | Path,
+    skip_oracle_preflight: bool = False,
 ) -> ExecutionPlan:
-    """Build the full staged plan for one suite invocation."""
+    """Build the full staged plan for one suite invocation.
+
+    Args:
+        requested_suite: Single suite name or ``\"all\"``.
+        oracle_config_path: Base YAML merged with suite scope when oracle runs.
+        force_skip_completed: Append ``--skip-completed`` to offline batch stages.
+        temp_dir: Writable directory for merged oracle YAML (if oracle runs).
+        skip_oracle_preflight: If True, omit the oracle subprocess; merged config
+            is not written and ``oracle_config`` is empty.
+    """
 
     suite_names = _resolve_suite_names(requested_suite)
     suites = tuple(
         _load_suite_definition(suite_name, SUITE_REGISTRY[suite_name])
         for suite_name in suite_names
     )
-    base_oracle_config = _load_yaml_config(oracle_config_path)
-    merged_oracle_config = _merge_oracle_config(
-        base_oracle_config=base_oracle_config,
-        suites=suites,
-    )
-    merged_oracle_config_path = write_merged_oracle_config(
-        merged_oracle_config,
-        output_path=Path(temp_dir) / "merged_oracle_reference_config.yaml",
-    )
-
-    stages: list[StageSpec] = [
-        StageSpec(
-            kind="oracle",
-            suite=None,
-            command=_build_oracle_stage_command(merged_oracle_config_path),
-            description="oracle preflight",
+    stages: list[StageSpec] = []
+    merged_oracle_config_path: Path
+    merged_oracle_config: dict[str, Any]
+    if skip_oracle_preflight:
+        merged_oracle_config_path = Path(temp_dir) / "oracle_preflight_skipped"
+        merged_oracle_config = {}
+    else:
+        base_oracle_config = _load_yaml_config(oracle_config_path)
+        merged_oracle_config = _merge_oracle_config(
+            base_oracle_config=base_oracle_config,
+            suites=suites,
         )
-    ]
+        merged_oracle_config_path = write_merged_oracle_config(
+            merged_oracle_config,
+            output_path=Path(temp_dir) / "merged_oracle_reference_config.yaml",
+        )
+        stages.append(
+            StageSpec(
+                kind="oracle",
+                suite=None,
+                command=_build_oracle_stage_command(merged_oracle_config_path),
+                description="oracle preflight",
+            )
+        )
     for suite in suites:
         for config_path in suite.config_paths:
             stages.append(
@@ -527,7 +552,13 @@ def _log_dry_run(plan: ExecutionPlan, logger: Any) -> None:
         "DRY RUN MODE: offline suite plan for %s",
         ", ".join(plan.suite_names),
     )
-    logger.critical("Generated oracle config: %s", plan.oracle_config_path)
+    if plan.stages and plan.stages[0].kind == "oracle":
+        logger.critical("Generated oracle config: %s", plan.oracle_config_path)
+    else:
+        logger.critical(
+            "Oracle preflight skipped (--skip-oracle-preflight); "
+            "batch/analysis use existing oracle_reference_dir trees."
+        )
     logger.critical("=" * 80)
     for index, stage in enumerate(plan.stages, start=1):
         suite_label = stage.suite or "shared"
@@ -571,6 +602,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             oracle_config_path=args.oracle_config,
             force_skip_completed=args.skip_completed,
             temp_dir=temp_dir,
+            skip_oracle_preflight=args.skip_oracle_preflight,
         )
         if args.dry_run:
             _log_dry_run(plan, logger)
