@@ -1,6 +1,7 @@
 # Scheduler-free PF vs Bayesian robustness (shape-stress GT only).
 # Top-level keys match ``BeliefBenchmarkConfig``; lists are accepted for tuple fields.
-# Optional script keys: ``output_dir``, ``reviewer10_comparison``, ``latex_dir``.
+# Optional script keys: ``output_dir``, ``latex_export``, ``latex_dir``,
+# ``observation_alphas`` (factor-α sweep; do not set ``observation_alpha`` in the same file).
 
 methods:
   - bayesian
@@ -10,12 +11,16 @@ etas:
 max_sequential_observations: 20
 sequential_horizon_multiplier: 2.0
 episode_count: 200
+# Fixed prior mean / reference duration. GT means are base_duration * gt_mean_multipliers.
 base_duration: 100.0
 gt_mean_multipliers:
   - 1.0
 gt_variance: null
 prior_variance: 900.0
-observation_alpha: 0.01
+# Default: compare two observation-noise scales (matches common offline factor-α pairs).
+observation_alphas:
+  - 0.001
+  - 0.01
 observation_families:
   - gaussian
   - same_as_gt
@@ -27,5 +32,5 @@ random_seed: 42
 write_episode_rows: true
 
 # output_dir: assets/results/offline_exp_result/belief_distribution_benchmark
-# reviewer10_comparison: false
+# latex_export: false
 # latex_dir: null

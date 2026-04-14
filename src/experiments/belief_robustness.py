@@ -2,7 +2,7 @@
 
 This module isolates the monitoring backend from the scheduler so we can compare
 Bayesian and particle-filter trigger behavior under a **single** experimental
-regime: the reviewer-style **shape-stress** ground-truth sampler (fixed mean,
+regime: the **shape-stress** ground-truth sampler (fixed mean,
 amplified family-specific spread / mixture stress) over
 ``SHAPE_STRESS_GT_DISTRIBUTIONS``, with **sequential** monitoring observations
 driven by ``BayesianMonitoringPolicy`` / ``ParticleFilterMonitoringPolicy`` in
@@ -51,10 +51,11 @@ class BeliefBenchmarkConfig:
     """Describe a scheduler-free PF-vs-Bayesian Monte Carlo benchmark.
 
     Ground truth is always sampled with the shape-stress profile over
-    ``SHAPE_STRESS_GT_DISTRIBUTIONS``. The prior mean is fixed at
-    ``base_duration`` (correct-mean assumption) so the only source of
-    mismatch is the GT distribution shape. Observations use the
-    sequential monitoring timeline (see module docstring).
+    ``SHAPE_STRESS_GT_DISTRIBUTIONS``. The prior mean stays fixed at
+    ``base_duration`` (100 by default), while ``gt_mean_multipliers``
+    move the ground-truth mean away from that anchor to create location
+    misspecification on top of the GT shape mismatch. Observations use
+    the sequential monitoring timeline (see module docstring).
     """
 
     methods: tuple[BeliefMethod, ...] = ("bayesian", "particle_filter")
@@ -79,7 +80,12 @@ class BeliefBenchmarkConfig:
 
 
 BELIEF_BENCHMARK_SCRIPT_OPTION_KEYS: frozenset[str] = frozenset(
-    {"output_dir", "reviewer10_comparison", "latex_dir"}
+    {
+        "output_dir",
+        "latex_export",
+        "latex_dir",
+        "observation_alphas",
+    }
 )
 
 _BENCHMARK_LIST_LIKE_FIELD_NAMES: frozenset[str] = frozenset(
@@ -100,10 +106,10 @@ def belief_benchmark_config_and_script_options_from_flat_mapping(
 ) -> tuple[BeliefBenchmarkConfig, dict[str, Any]]:
     """Split a flat mapping into a ``BeliefBenchmarkConfig`` and script-only options.
 
-    Script-only keys (``output_dir``, ``reviewer10_comparison``, ``latex_dir``)
-    are returned in the second mapping and are not part of
-    ``BeliefBenchmarkConfig``. List values for tuple-typed benchmark fields are
-    coerced to tuples for YAML friendliness.
+    Script-only keys (``output_dir``, ``latex_export``, ``latex_dir``,
+    ``observation_alphas``) are returned in the second mapping and are not part
+    of ``BeliefBenchmarkConfig``. List values for tuple-typed benchmark fields
+    are coerced to tuples for YAML friendliness.
 
     Args:
         raw: Typically the top-level mapping from ``yaml.safe_load``.
@@ -133,6 +139,12 @@ def belief_benchmark_config_and_script_options_from_flat_mapping(
         for key in BELIEF_BENCHMARK_SCRIPT_OPTION_KEYS
         if key in raw
     }
+    if "observation_alphas" in script_options:
+        oa = script_options["observation_alphas"]
+        if isinstance(oa, (list, tuple)):
+            script_options["observation_alphas"] = tuple(float(x) for x in oa)
+        else:
+            script_options["observation_alphas"] = (float(oa),)
     baseline = BeliefBenchmarkConfig() if base is None else base
     updates: dict[str, Any] = {}
     for name in field_names:
@@ -154,6 +166,7 @@ class EpisodeResult:
     gt_distribution: GroundTruthDistribution
     gt_target_mean: float
     gt_mean_multiplier: float
+    prior_mean: float
     observation_setting: str
     observation_family: GroundTruthDistribution
     eta: float
@@ -181,7 +194,7 @@ def sample_ground_truth_duration(
 ) -> float:
     """Sample one latent interval length using the shape-stress GT profile only."""
 
-    return _sample_reviewer10_shape_stress_duration(
+    return _sample_shape_stress_ground_truth_duration(
         distribution=distribution,
         base_duration=base_duration,
         gt_variance=gt_variance,
@@ -189,7 +202,7 @@ def sample_ground_truth_duration(
     )
 
 
-def _sample_reviewer10_shape_stress_duration(
+def _sample_shape_stress_ground_truth_duration(
     *,
     distribution: GroundTruthDistribution,
     base_duration: float,
@@ -628,6 +641,7 @@ def run_single_episode(
         gt_distribution=gt_distribution,
         gt_target_mean=float(gt_target_mean),
         gt_mean_multiplier=float(gt_mean_multiplier),
+        prior_mean=float(prior_mean),
         observation_setting=observation_setting,
         observation_family=observation_family,
         eta=float(eta),
@@ -647,7 +661,7 @@ def run_single_episode(
 
 
 def summarize_episode_rows(rows: list[EpisodeResult]) -> list[dict[str, Any]]:
-    """Aggregate episode-level rows into compact reviewer-friendly summaries."""
+    """Aggregate episode-level rows into compact per-cell summaries."""
 
     grouped: dict[
         tuple[str, float, str, str, float, str, str, str | None],
@@ -686,6 +700,8 @@ def summarize_episode_rows(rows: list[EpisodeResult]) -> list[dict[str, Any]]:
                 "gt_distribution": gt_distribution,
                 "gt_target_mean": mean(row.gt_target_mean for row in group_rows),
                 "gt_mean_multiplier": float(gt_mean_multiplier),
+                "prior_config": _derive_prior_config(float(gt_mean_multiplier)),
+                "prior_mean": mean(row.prior_mean for row in group_rows),
                 "observation_setting": observation_setting,
                 "observation_family": observation_family,
                 "eta": float(eta),
@@ -729,147 +745,147 @@ def run_belief_robustness_benchmark(
     for gt_distribution in SHAPE_STRESS_GT_DISTRIBUTIONS:
         for gt_mean_multiplier in config.gt_mean_multipliers:
             gt_target_mean = float(config.base_duration) * float(gt_mean_multiplier)
-            prior_mean = gt_target_mean
+            prior_mean = float(config.base_duration)
             prior_variance = float(config.prior_variance)
             for observation_family_spec in config.observation_families:
-                    observation_setting, observation_family = (
-                        resolve_observation_family(
-                            gt_distribution=gt_distribution,
-                            observation_family_spec=observation_family_spec,
-                        )
+                observation_setting, observation_family = (
+                    resolve_observation_family(
+                        gt_distribution=gt_distribution,
+                        observation_family_spec=observation_family_spec,
                     )
-                    for eta in config.etas:
-                        for episode_index in range(config.episode_count):
-                            gt_interval = sample_ground_truth_duration(
-                                distribution=gt_distribution,
-                                base_duration=gt_target_mean,
-                                gt_variance=config.gt_variance,
-                                rng=master_rng,
-                            )
+                )
+                for eta in config.etas:
+                    for episode_index in range(config.episode_count):
+                        gt_interval = sample_ground_truth_duration(
+                            distribution=gt_distribution,
+                            base_duration=gt_target_mean,
+                            gt_variance=config.gt_variance,
+                            rng=master_rng,
+                        )
 
-                            variant_index = 0
-                            for method_index, method in enumerate(config.methods):
-                                if method == "bayesian":
-                                    backend_seed = (
-                                        int(config.random_seed)
-                                        + (episode_index * 10000)
-                                        + (method_index * 1000)
+                        variant_index = 0
+                        for method_index, method in enumerate(config.methods):
+                            if method == "bayesian":
+                                backend_seed = (
+                                    int(config.random_seed)
+                                    + (episode_index * 10000)
+                                    + (method_index * 1000)
+                                )
+                                observations = (
+                                    sample_trigger_sequential_observation_sequence(
+                                        method=method,
+                                        observation_family=observation_family,
+                                        gt_interval=gt_interval,
+                                        prior_mean=prior_mean,
+                                        prior_variance=prior_variance,
+                                        eta=float(eta),
+                                        observation_alpha=config.observation_alpha,
+                                        object_name=config.object_name,
+                                        rng=np.random.default_rng(backend_seed),
+                                        particle_count=config.particle_count,
+                                        particle_distribution=None,
+                                        particle_likelihood_family=None,
+                                        backend_seed=backend_seed,
+                                        max_observations=config.max_sequential_observations,
+                                        horizon_multiplier=config.sequential_horizon_multiplier,
                                     )
-                                    observations = (
-                                        sample_trigger_sequential_observation_sequence(
-                                            method=method,
-                                            observation_family=observation_family,
-                                            gt_interval=gt_interval,
-                                            prior_mean=prior_mean,
-                                            prior_variance=prior_variance,
-                                            eta=float(eta),
-                                            observation_alpha=config.observation_alpha,
-                                            object_name=config.object_name,
-                                            rng=np.random.default_rng(backend_seed),
-                                            particle_count=config.particle_count,
-                                            particle_distribution=None,
-                                            particle_likelihood_family=None,
-                                            backend_seed=backend_seed,
-                                            max_observations=config.max_sequential_observations,
-                                            horizon_multiplier=config.sequential_horizon_multiplier,
-                                        )
+                                )
+                                episode_rows.append(
+                                    run_single_episode(
+                                        method=method,
+                                        gt_distribution=gt_distribution,
+                                        gt_target_mean=gt_target_mean,
+                                        gt_mean_multiplier=float(
+                                            gt_mean_multiplier
+                                        ),
+                                        observation_setting=observation_setting,
+                                        observation_family=observation_family,
+                                        eta=float(eta),
+                                        episode_index=episode_index,
+                                        gt_interval=gt_interval,
+                                        prior_mean=prior_mean,
+                                        prior_variance=prior_variance,
+                                        observations=observations,
+                                        particle_count=config.particle_count,
+                                        particle_distribution=None,
+                                        particle_likelihood_family=None,
+                                        backend_seed=backend_seed,
                                     )
-                                    episode_rows.append(
-                                        run_single_episode(
-                                            method=method,
-                                            gt_distribution=gt_distribution,
-                                            gt_target_mean=gt_target_mean,
-                                            gt_mean_multiplier=float(
-                                                gt_mean_multiplier
-                                            ),
-                                            observation_setting=observation_setting,
-                                            observation_family=observation_family,
-                                            eta=float(eta),
-                                            episode_index=episode_index,
-                                            gt_interval=gt_interval,
-                                            prior_mean=prior_mean,
-                                            prior_variance=prior_variance,
-                                            observations=observations,
-                                            particle_count=config.particle_count,
-                                            particle_distribution=None,
-                                            particle_likelihood_family=None,
-                                            backend_seed=backend_seed,
-                                        )
-                                    )
-                                    continue
+                                )
+                                continue
 
-                                particle_variants: list[
-                                    tuple[
-                                        GroundTruthDistribution, GroundTruthDistribution
-                                    ]
-                                ] = [
-                                    (particle_distribution, "gaussian")
-                                    for particle_distribution in config.particle_distributions
+                            particle_variants: list[
+                                tuple[
+                                    GroundTruthDistribution, GroundTruthDistribution
                                 ]
-                                if (
-                                    observation_setting == "same_as_gt"
-                                    and gt_distribution in {"lognormal", "mixture"}
-                                ):
-                                    particle_variants.extend(
-                                        (
-                                            particle_distribution,
-                                            gt_distribution,
-                                        )
-                                        for particle_distribution in config.particle_distributions
+                            ] = [
+                                (particle_distribution, "gaussian")
+                                for particle_distribution in config.particle_distributions
+                            ]
+                            if (
+                                observation_setting == "same_as_gt"
+                                and gt_distribution in {"lognormal", "mixture"}
+                            ):
+                                particle_variants.extend(
+                                    (
+                                        particle_distribution,
+                                        gt_distribution,
                                     )
+                                    for particle_distribution in config.particle_distributions
+                                )
 
-                                for (
-                                    particle_distribution,
-                                    particle_likelihood_family,
-                                ) in particle_variants:
-                                    backend_seed = (
-                                        int(config.random_seed)
-                                        + (episode_index * 10000)
-                                        + (method_index * 1000)
-                                        + variant_index
+                            for (
+                                particle_distribution,
+                                particle_likelihood_family,
+                            ) in particle_variants:
+                                backend_seed = (
+                                    int(config.random_seed)
+                                    + (episode_index * 10000)
+                                    + (method_index * 1000)
+                                    + variant_index
+                                )
+                                variant_index += 1
+                                observations = (
+                                    sample_trigger_sequential_observation_sequence(
+                                        method=method,
+                                        observation_family=observation_family,
+                                        gt_interval=gt_interval,
+                                        prior_mean=prior_mean,
+                                        prior_variance=prior_variance,
+                                        eta=float(eta),
+                                        observation_alpha=config.observation_alpha,
+                                        object_name=config.object_name,
+                                        rng=np.random.default_rng(backend_seed),
+                                        particle_count=config.particle_count,
+                                        particle_distribution=particle_distribution,
+                                        particle_likelihood_family=particle_likelihood_family,
+                                        backend_seed=backend_seed,
+                                        max_observations=config.max_sequential_observations,
+                                        horizon_multiplier=config.sequential_horizon_multiplier,
                                     )
-                                    variant_index += 1
-                                    observations = (
-                                        sample_trigger_sequential_observation_sequence(
-                                            method=method,
-                                            observation_family=observation_family,
-                                            gt_interval=gt_interval,
-                                            prior_mean=prior_mean,
-                                            prior_variance=prior_variance,
-                                            eta=float(eta),
-                                            observation_alpha=config.observation_alpha,
-                                            object_name=config.object_name,
-                                            rng=np.random.default_rng(backend_seed),
-                                            particle_count=config.particle_count,
-                                            particle_distribution=particle_distribution,
-                                            particle_likelihood_family=particle_likelihood_family,
-                                            backend_seed=backend_seed,
-                                            max_observations=config.max_sequential_observations,
-                                            horizon_multiplier=config.sequential_horizon_multiplier,
-                                        )
+                                )
+                                episode_rows.append(
+                                    run_single_episode(
+                                        method=method,
+                                        gt_distribution=gt_distribution,
+                                        gt_target_mean=gt_target_mean,
+                                        gt_mean_multiplier=float(
+                                            gt_mean_multiplier
+                                        ),
+                                        observation_setting=observation_setting,
+                                        observation_family=observation_family,
+                                        eta=float(eta),
+                                        episode_index=episode_index,
+                                        gt_interval=gt_interval,
+                                        prior_mean=prior_mean,
+                                        prior_variance=prior_variance,
+                                        observations=observations,
+                                        particle_count=config.particle_count,
+                                        particle_distribution=particle_distribution,
+                                        particle_likelihood_family=particle_likelihood_family,
+                                        backend_seed=backend_seed,
                                     )
-                                    episode_rows.append(
-                                        run_single_episode(
-                                            method=method,
-                                            gt_distribution=gt_distribution,
-                                            gt_target_mean=gt_target_mean,
-                                            gt_mean_multiplier=float(
-                                                gt_mean_multiplier
-                                            ),
-                                            observation_setting=observation_setting,
-                                            observation_family=observation_family,
-                                            eta=float(eta),
-                                            episode_index=episode_index,
-                                            gt_interval=gt_interval,
-                                            prior_mean=prior_mean,
-                                            prior_variance=prior_variance,
-                                            observations=observations,
-                                            particle_count=config.particle_count,
-                                            particle_distribution=particle_distribution,
-                                            particle_likelihood_family=particle_likelihood_family,
-                                            backend_seed=backend_seed,
-                                        )
-                                    )
+                                )
 
     summary_rows = summarize_episode_rows(episode_rows)
     return {
@@ -884,18 +900,35 @@ def save_belief_robustness_results(
     *,
     output_dir: Path,
     write_episode_rows: bool,
+    summary_metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Path]:
-    """Persist benchmark outputs as JSON and CSV files."""
+    """Persist benchmark outputs as JSON and CSV files.
+
+    Args:
+        results: Must include ``config``, ``summary_rows``, and optionally
+            ``episode_rows`` (list of dicts) when ``write_episode_rows`` is True.
+        output_dir: Directory for ``belief_benchmark_summary.{json,csv}``.
+        write_episode_rows: When True, also write ``belief_benchmark_episode_rows.csv``.
+        summary_metadata: Optional extra top-level keys merged into the summary
+            JSON (for example ``observation_alpha_sweep``).
+    """
 
     output_dir.mkdir(parents=True, exist_ok=True)
     summary_json_path = output_dir / "belief_benchmark_summary.json"
     summary_csv_path = output_dir / "belief_benchmark_summary.csv"
     episode_csv_path = output_dir / "belief_benchmark_episode_rows.csv"
 
-    summary_payload = {
+    summary_payload: dict[str, Any] = {
         "config": results["config"],
         "summary_rows": results["summary_rows"],
     }
+    if summary_metadata:
+        for key, value in dict(summary_metadata).items():
+            if key in summary_payload:
+                raise ValueError(
+                    f"summary_metadata key {key!r} collides with reserved summary keys."
+                )
+            summary_payload[key] = value
     with summary_json_path.open("w", encoding="utf-8") as file_obj:
         json.dump(summary_payload, file_obj, indent=2)
 
@@ -912,10 +945,10 @@ def save_belief_robustness_results(
     return written_paths
 
 
-def build_reviewer10_comparison_rows(
+def build_belief_comparison_rows(
     summary_rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Extract the exact reviewer-10 comparison slices from summary rows."""
+    """Extract LaTeX-export comparison slices from benchmark summary rows."""
 
     extracted_rows: list[dict[str, Any]] = []
     for row in summary_rows:
@@ -1006,20 +1039,28 @@ def build_reviewer10_comparison_rows(
     return extracted_rows
 
 
-def build_reviewer10_bf_vs_pf_rows(
+def build_belief_bf_vs_pf_rows(
     summary_rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Build paired BF-vs-PF rows for scenarios 1 and 2."""
 
-    rows_by_key = {
-        (
+    rows_by_key: dict[tuple, dict[str, Any]] = {}
+    for row in summary_rows:
+        key = (
             row["gt_distribution"],
-            row["gt_mean_multiplier"],
+            float(row["gt_mean_multiplier"]),
             row["observation_setting"],
             row["variant"],
-        ): row
-        for row in summary_rows
-    }
+            float(row["eta"]),
+        )
+        if key in rows_by_key:
+            raise ValueError(
+                f"Duplicate summary row for key {key}. Each "
+                "(gt_distribution, gt_mean_multiplier, observation_setting, variant, eta) "
+                "combination must appear at most once."
+            )
+        rows_by_key[key] = row
+
     paired_rows: list[dict[str, Any]] = []
     targets = [
         ("gaussian", "gaussian_gt_shared_gaussian_observation"),
@@ -1033,69 +1074,76 @@ def build_reviewer10_bf_vs_pf_rows(
             if row["observation_setting"] == "shared_gaussian"
         }
     )
+    etas = sorted(
+        {
+            float(row["eta"])
+            for row in summary_rows
+            if row["observation_setting"] == "shared_gaussian"
+        }
+    )
     for gt_distribution, scenario in targets:
         for gt_mean_multiplier in gt_mean_multipliers:
-            bayes = rows_by_key.get(
-                (
-                    gt_distribution,
-                    float(gt_mean_multiplier),
-                    "shared_gaussian",
-                    "bayesian",
+            for eta in etas:
+                bayes = rows_by_key.get(
+                    (gt_distribution, float(gt_mean_multiplier), "shared_gaussian", "bayesian", eta)
                 )
-            )
-            pf = rows_by_key.get(
-                (
-                    gt_distribution,
-                    float(gt_mean_multiplier),
-                    "shared_gaussian",
-                    "particle_filter[gaussian]",
+                pf = rows_by_key.get(
+                    (gt_distribution, float(gt_mean_multiplier), "shared_gaussian", "particle_filter[gaussian]", eta)
                 )
-            )
-            if bayes is None or pf is None:
-                continue
-            paired_rows.append(
-                {
-                    "scenario": scenario,
-                    "gt_distribution": gt_distribution,
-                    "gt_target_mean": bayes["gt_target_mean"],
-                    "gt_mean_multiplier": gt_mean_multiplier,
-                    "bayesian_late_trigger_rate": bayes["late_trigger_rate"],
-                    "pf_late_trigger_rate": pf["late_trigger_rate"],
-                    "bayesian_calibration_error": bayes["calibration_error"],
-                    "pf_calibration_error": pf["calibration_error"],
-                    "calibration_error_delta_pf_minus_bayesian": (
-                        float(pf["calibration_error"])
-                        - float(bayes["calibration_error"])
-                    ),
-                    "late_trigger_delta_pf_minus_bayesian": (
-                        float(pf["late_trigger_rate"])
-                        - float(bayes["late_trigger_rate"])
-                    ),
-                    "bayesian_mean_trigger_abs_error": bayes["mean_trigger_abs_error"],
-                    "pf_mean_trigger_abs_error": pf["mean_trigger_abs_error"],
-                    "trigger_abs_error_delta_pf_minus_bayesian": (
-                        float(pf["mean_trigger_abs_error"])
-                        - float(bayes["mean_trigger_abs_error"])
-                    ),
-                }
-            )
+                if bayes is None or pf is None:
+                    continue
+                paired_rows.append(
+                    {
+                        "scenario": scenario,
+                        "gt_distribution": gt_distribution,
+                        "gt_target_mean": bayes["gt_target_mean"],
+                        "gt_mean_multiplier": gt_mean_multiplier,
+                        "eta": eta,
+                        "bayesian_late_trigger_rate": bayes["late_trigger_rate"],
+                        "pf_late_trigger_rate": pf["late_trigger_rate"],
+                        "bayesian_calibration_error": bayes["calibration_error"],
+                        "pf_calibration_error": pf["calibration_error"],
+                        "calibration_error_delta_pf_minus_bayesian": (
+                            float(pf["calibration_error"])
+                            - float(bayes["calibration_error"])
+                        ),
+                        "late_trigger_delta_pf_minus_bayesian": (
+                            float(pf["late_trigger_rate"])
+                            - float(bayes["late_trigger_rate"])
+                        ),
+                        "bayesian_mean_trigger_abs_error": bayes["mean_trigger_abs_error"],
+                        "pf_mean_trigger_abs_error": pf["mean_trigger_abs_error"],
+                        "trigger_abs_error_delta_pf_minus_bayesian": (
+                            float(pf["mean_trigger_abs_error"])
+                            - float(bayes["mean_trigger_abs_error"])
+                        ),
+                    }
+                )
     return paired_rows
 
 
-def build_reviewer10_pf_likelihood_upgrade_rows(
+def build_belief_pf_likelihood_upgrade_rows(
     summary_rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Compare PF with Gaussian likelihood vs GT-family likelihood."""
 
-    rows_by_key = {
-        (
+    rows_by_key: dict[tuple, dict[str, Any]] = {}
+    for row in summary_rows:
+        key = (
             row["gt_distribution"],
-            row["gt_mean_multiplier"],
+            float(row["gt_mean_multiplier"]),
             row["observation_setting"],
             row["variant"],
-        ): row
-        for row in summary_rows
-    }
+            float(row["eta"]),
+        )
+        if key in rows_by_key:
+            raise ValueError(
+                f"Duplicate summary row for key {key}. Each "
+                "(gt_distribution, gt_mean_multiplier, observation_setting, variant, eta) "
+                "combination must appear at most once."
+            )
+        rows_by_key[key] = row
+
     comparison_rows: list[dict[str, Any]] = []
     gt_mean_multipliers = sorted(
         {
@@ -1104,73 +1152,72 @@ def build_reviewer10_pf_likelihood_upgrade_rows(
             if row["observation_setting"] == "same_as_gt"
         }
     )
+    etas = sorted(
+        {
+            float(row["eta"])
+            for row in summary_rows
+            if row["observation_setting"] == "same_as_gt"
+        }
+    )
     for gt_distribution in ("lognormal", "mixture"):
         for gt_mean_multiplier in gt_mean_multipliers:
-            pf_gaussian = rows_by_key.get(
-                (
-                    gt_distribution,
-                    float(gt_mean_multiplier),
-                    "same_as_gt",
-                    "particle_filter[gaussian]",
+            for eta in etas:
+                pf_gaussian = rows_by_key.get(
+                    (gt_distribution, float(gt_mean_multiplier), "same_as_gt", "particle_filter[gaussian]", eta)
                 )
-            )
-            pf_family = rows_by_key.get(
-                (
-                    gt_distribution,
-                    float(gt_mean_multiplier),
-                    "same_as_gt",
-                    f"particle_filter[gaussian;lik={gt_distribution}]",
+                pf_family = rows_by_key.get(
+                    (gt_distribution, float(gt_mean_multiplier), "same_as_gt", f"particle_filter[gaussian;lik={gt_distribution}]", eta)
                 )
-            )
-            if pf_gaussian is None or pf_family is None:
-                continue
-            comparison_rows.append(
-                {
-                    "scenario": "pf_gaussian_vs_gt_family_likelihood",
-                    "gt_distribution": gt_distribution,
-                    "gt_target_mean": pf_gaussian["gt_target_mean"],
-                    "gt_mean_multiplier": gt_mean_multiplier,
-                    "pf_gaussian_likelihood_late_trigger_rate": pf_gaussian[
-                        "late_trigger_rate"
-                    ],
-                    "pf_gt_family_likelihood_late_trigger_rate": pf_family[
-                        "late_trigger_rate"
-                    ],
-                    "pf_gaussian_likelihood_calibration_error": pf_gaussian[
-                        "calibration_error"
-                    ],
-                    "pf_gt_family_likelihood_calibration_error": pf_family[
-                        "calibration_error"
-                    ],
-                    "calibration_error_delta_family_minus_gaussian": (
-                        float(pf_family["calibration_error"])
-                        - float(pf_gaussian["calibration_error"])
-                    ),
-                    "late_trigger_delta_family_minus_gaussian": (
-                        float(pf_family["late_trigger_rate"])
-                        - float(pf_gaussian["late_trigger_rate"])
-                    ),
-                    "pf_gaussian_likelihood_mean_trigger_abs_error": pf_gaussian[
-                        "mean_trigger_abs_error"
-                    ],
-                    "pf_gt_family_likelihood_mean_trigger_abs_error": pf_family[
-                        "mean_trigger_abs_error"
-                    ],
-                    "trigger_abs_error_delta_family_minus_gaussian": (
-                        float(pf_family["mean_trigger_abs_error"])
-                        - float(pf_gaussian["mean_trigger_abs_error"])
-                    ),
-                }
-            )
+                if pf_gaussian is None or pf_family is None:
+                    continue
+                comparison_rows.append(
+                    {
+                        "scenario": "pf_gaussian_vs_gt_family_likelihood",
+                        "gt_distribution": gt_distribution,
+                        "gt_target_mean": pf_gaussian["gt_target_mean"],
+                        "gt_mean_multiplier": gt_mean_multiplier,
+                        "eta": eta,
+                        "pf_gaussian_likelihood_late_trigger_rate": pf_gaussian[
+                            "late_trigger_rate"
+                        ],
+                        "pf_gt_family_likelihood_late_trigger_rate": pf_family[
+                            "late_trigger_rate"
+                        ],
+                        "pf_gaussian_likelihood_calibration_error": pf_gaussian[
+                            "calibration_error"
+                        ],
+                        "pf_gt_family_likelihood_calibration_error": pf_family[
+                            "calibration_error"
+                        ],
+                        "calibration_error_delta_family_minus_gaussian": (
+                            float(pf_family["calibration_error"])
+                            - float(pf_gaussian["calibration_error"])
+                        ),
+                        "late_trigger_delta_family_minus_gaussian": (
+                            float(pf_family["late_trigger_rate"])
+                            - float(pf_gaussian["late_trigger_rate"])
+                        ),
+                        "pf_gaussian_likelihood_mean_trigger_abs_error": pf_gaussian[
+                            "mean_trigger_abs_error"
+                        ],
+                        "pf_gt_family_likelihood_mean_trigger_abs_error": pf_family[
+                            "mean_trigger_abs_error"
+                        ],
+                        "trigger_abs_error_delta_family_minus_gaussian": (
+                            float(pf_family["mean_trigger_abs_error"])
+                            - float(pf_gaussian["mean_trigger_abs_error"])
+                        ),
+                    }
+                )
     return comparison_rows
 
 
-def build_reviewer10_main_table_rows(
+def build_belief_main_table_rows(
     summary_rows: list[dict[str, Any]],
     *,
     observation_setting: str,
 ) -> list[dict[str, Any]]:
-    """Aggregate reviewer rows across priors for one main-table setting."""
+    """Aggregate rows for one main-table observation setting (mean over duplicate keys)."""
 
     grouped: dict[tuple[str, float, str], list[dict[str, Any]]] = {}
     for row in summary_rows:
@@ -1218,12 +1265,12 @@ def build_reviewer10_main_table_rows(
     return main_rows
 
 
-def build_reviewer10_appendix_rows(
+def build_belief_appendix_rows(
     summary_rows: list[dict[str, Any]],
     *,
     observation_setting: str,
 ) -> list[dict[str, Any]]:
-    """Keep the reviewer rows per method for appendix reporting."""
+    """Keep one appendix row per method for the given observation setting."""
 
     appendix_rows: list[dict[str, Any]] = []
     for row in summary_rows:
@@ -1238,6 +1285,9 @@ def build_reviewer10_appendix_rows(
                 "gt_distribution": row["gt_distribution"],
                 "gt_mean_multiplier": row["gt_mean_multiplier"],
                 "gt_target_mean": row["gt_target_mean"],
+                "prior_config": str(
+                    row.get("prior_config", "CORRECT_ESTIMATE"),
+                ),
                 "method_label": method_label,
                 "late_trigger_rate": row["late_trigger_rate"],
                 "calibration_error": row["calibration_error"],
@@ -1255,45 +1305,45 @@ def build_reviewer10_appendix_rows(
     return appendix_rows
 
 
-def save_reviewer10_comparison_results(
+def save_belief_latex_export_csvs(
     results: dict[str, Any],
     *,
     output_dir: Path,
 ) -> dict[str, Path]:
-    """Write reviewer-10 specific comparison CSV files."""
+    """Write comparison CSV files used by the LaTeX export pipeline."""
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    comparison_rows = build_reviewer10_comparison_rows(results["summary_rows"])
-    bf_vs_pf_rows = build_reviewer10_bf_vs_pf_rows(results["summary_rows"])
-    pf_likelihood_rows = build_reviewer10_pf_likelihood_upgrade_rows(
+    comparison_rows = build_belief_comparison_rows(results["summary_rows"])
+    bf_vs_pf_rows = build_belief_bf_vs_pf_rows(results["summary_rows"])
+    pf_likelihood_rows = build_belief_pf_likelihood_upgrade_rows(
         results["summary_rows"]
     )
-    main_shared_gaussian_rows = build_reviewer10_main_table_rows(
+    main_shared_gaussian_rows = build_belief_main_table_rows(
         results["summary_rows"],
         observation_setting="shared_gaussian",
     )
-    main_same_as_gt_rows = build_reviewer10_main_table_rows(
+    main_same_as_gt_rows = build_belief_main_table_rows(
         results["summary_rows"],
         observation_setting="same_as_gt",
     )
-    appendix_shared_gaussian_rows = build_reviewer10_appendix_rows(
+    appendix_shared_gaussian_rows = build_belief_appendix_rows(
         results["summary_rows"],
         observation_setting="shared_gaussian",
     )
-    appendix_same_as_gt_rows = build_reviewer10_appendix_rows(
+    appendix_same_as_gt_rows = build_belief_appendix_rows(
         results["summary_rows"],
         observation_setting="same_as_gt",
     )
 
-    comparison_csv = output_dir / "belief_reviewer10_comparison_rows.csv"
-    bf_vs_pf_csv = output_dir / "belief_reviewer10_bf_vs_pf.csv"
-    pf_likelihood_csv = output_dir / "belief_reviewer10_pf_likelihood_upgrade.csv"
-    main_shared_gaussian_csv = output_dir / "belief_reviewer10_main_shared_gaussian.csv"
-    main_same_as_gt_csv = output_dir / "belief_reviewer10_main_same_as_gt.csv"
+    comparison_csv = output_dir / "belief_latex_export_comparison_rows.csv"
+    bf_vs_pf_csv = output_dir / "belief_latex_export_bf_vs_pf.csv"
+    pf_likelihood_csv = output_dir / "belief_latex_export_pf_likelihood_upgrade.csv"
+    main_shared_gaussian_csv = output_dir / "belief_latex_export_main_shared_gaussian.csv"
+    main_same_as_gt_csv = output_dir / "belief_latex_export_main_same_as_gt.csv"
     appendix_shared_gaussian_csv = (
-        output_dir / "belief_reviewer10_appendix_shared_gaussian.csv"
+        output_dir / "belief_latex_export_appendix_shared_gaussian.csv"
     )
-    appendix_same_as_gt_csv = output_dir / "belief_reviewer10_appendix_same_as_gt.csv"
+    appendix_same_as_gt_csv = output_dir / "belief_latex_export_appendix_same_as_gt.csv"
 
     _write_csv(comparison_csv, comparison_rows)
     _write_csv(bf_vs_pf_csv, bf_vs_pf_rows)
@@ -1304,13 +1354,13 @@ def save_reviewer10_comparison_results(
     _write_csv(appendix_same_as_gt_csv, appendix_same_as_gt_rows)
 
     return {
-        "reviewer10_comparison_csv": comparison_csv,
-        "reviewer10_bf_vs_pf_csv": bf_vs_pf_csv,
-        "reviewer10_pf_likelihood_upgrade_csv": pf_likelihood_csv,
-        "reviewer10_main_shared_gaussian_csv": main_shared_gaussian_csv,
-        "reviewer10_main_same_as_gt_csv": main_same_as_gt_csv,
-        "reviewer10_appendix_shared_gaussian_csv": appendix_shared_gaussian_csv,
-        "reviewer10_appendix_same_as_gt_csv": appendix_same_as_gt_csv,
+        "latex_export_comparison_csv": comparison_csv,
+        "latex_export_bf_vs_pf_csv": bf_vs_pf_csv,
+        "latex_export_pf_likelihood_upgrade_csv": pf_likelihood_csv,
+        "latex_export_main_shared_gaussian_csv": main_shared_gaussian_csv,
+        "latex_export_main_same_as_gt_csv": main_same_as_gt_csv,
+        "latex_export_appendix_shared_gaussian_csv": appendix_shared_gaussian_csv,
+        "latex_export_appendix_same_as_gt_csv": appendix_same_as_gt_csv,
     }
 
 
@@ -1347,7 +1397,7 @@ def _format_variant_label(
 
 
 def _resolve_method_label(row: dict[str, Any]) -> str | None:
-    """Map one summary row to a reviewer-facing method label."""
+    """Map one summary row to a human-readable method label for tables."""
 
     variant = str(row["variant"])
     if variant == "bayesian":
@@ -1377,6 +1427,20 @@ def _gaussian_conjugate_update(
         (likelihood_variance * prior_variance) / (likelihood_variance + prior_variance),
     )
     return float(posterior_mean), float(posterior_variance)
+
+
+def _derive_prior_config(gt_mean_multiplier: float) -> str:
+    """Derive prior condition label from the GT mean multiplier.
+
+    * multiplier > 1  → GT mean > prior mean → prior UNDER_ESTIMATEs
+    * multiplier = 1  → GT mean = prior mean → CORRECT_ESTIMATE
+    * multiplier < 1  → GT mean < prior mean → prior OVER_ESTIMATEs
+    """
+    if gt_mean_multiplier > 1.0 + 1e-9:
+        return "UNDER_ESTIMATE"
+    if gt_mean_multiplier < 1.0 - 1e-9:
+        return "OVER_ESTIMATE"
+    return "CORRECT_ESTIMATE"
 
 
 def _normalize_weights(weights: np.ndarray) -> np.ndarray:

@@ -15,9 +15,9 @@ from src.experiments.belief_robustness import (
     SHAPE_STRESS_GT_DISTRIBUTIONS,
     BeliefBenchmarkConfig,
     belief_benchmark_config_and_script_options_from_flat_mapping,
-    build_reviewer10_bf_vs_pf_rows,
-    build_reviewer10_main_table_rows,
-    build_reviewer10_pf_likelihood_upgrade_rows,
+    build_belief_bf_vs_pf_rows,
+    build_belief_main_table_rows,
+    build_belief_pf_likelihood_upgrade_rows,
     run_belief_robustness_benchmark,
     run_single_episode,
     sample_ground_truth_duration,
@@ -54,6 +54,28 @@ def test_belief_robustness_benchmark_returns_paired_summary_rows() -> None:
         assert bayesian_row["mean_gt_interval"] == particle_row["mean_gt_interval"]
         assert 0.0 <= bayesian_row["late_trigger_rate"] <= 1.0
         assert 0.0 <= particle_row["late_trigger_rate"] <= 1.0
+
+
+def test_save_belief_robustness_accepts_summary_metadata(tmp_path: Path) -> None:
+    """Optional ``summary_metadata`` should appear in the summary JSON root."""
+
+    config = BeliefBenchmarkConfig(
+        etas=(0.1,),
+        episode_count=1,
+        gt_mean_multipliers=(1.0,),
+        observation_families=("gaussian",),
+        random_seed=1,
+        write_episode_rows=False,
+    )
+    results = run_belief_robustness_benchmark(config)
+    paths = save_belief_robustness_results(
+        results,
+        output_dir=tmp_path,
+        write_episode_rows=False,
+        summary_metadata={"observation_alpha_sweep": [0.01, 0.02]},
+    )
+    payload = json.loads(paths["summary_json"].read_text(encoding="utf-8"))
+    assert payload["observation_alpha_sweep"] == [0.01, 0.02]
 
 
 def test_belief_robustness_results_are_written_to_json_and_csv(tmp_path) -> None:
@@ -109,7 +131,7 @@ def test_belief_robustness_benchmark_supports_multiple_pf_particle_families() ->
     )
 
 
-def test_reviewer10_extractors_build_expected_comparison_rows() -> None:
+def test_belief_latex_export_extractors_build_expected_comparison_rows() -> None:
     """Reviewer-10 helper tables should extract the intended slices."""
 
     config = BeliefBenchmarkConfig(
@@ -122,11 +144,11 @@ def test_reviewer10_extractors_build_expected_comparison_rows() -> None:
     )
     results = run_belief_robustness_benchmark(config)
 
-    bf_vs_pf_rows = build_reviewer10_bf_vs_pf_rows(results["summary_rows"])
-    pf_upgrade_rows = build_reviewer10_pf_likelihood_upgrade_rows(
+    bf_vs_pf_rows = build_belief_bf_vs_pf_rows(results["summary_rows"])
+    pf_upgrade_rows = build_belief_pf_likelihood_upgrade_rows(
         results["summary_rows"]
     )
-    main_rows = build_reviewer10_main_table_rows(
+    main_rows = build_belief_main_table_rows(
         results["summary_rows"],
         observation_setting="shared_gaussian",
     )
@@ -168,6 +190,8 @@ def test_gt_mean_multiplier_propagates_into_episode_and_summary_rows() -> None:
     assert {row["gt_mean_multiplier"] for row in episode_rows} == {0.6, 1.4}
     assert {row["gt_mean_multiplier"] for row in summary_rows} == {0.6, 1.4}
     assert {row["gt_target_mean"] for row in summary_rows} == {60.0, 140.0}
+    assert {row["prior_mean"] for row in episode_rows} == {100.0}
+    assert {row["prior_mean"] for row in summary_rows} == {100.0}
 
 
 def test_calibration_error_matches_late_rate_minus_eta() -> None:
@@ -336,19 +360,21 @@ def test_belief_benchmark_flat_mapping_coerces_lists_and_script_options() -> Non
             "methods": ["bayesian"],
             "episode_count": 5,
             "output_dir": "/tmp/belief_out",
-            "reviewer10_comparison": True,
+            "latex_export": True,
+            "observation_alphas": [0.01, 0.05],
         }
     )
     assert cfg.methods == ("bayesian",)
     assert cfg.episode_count == 5
     assert script_opts == {
         "output_dir": "/tmp/belief_out",
-        "reviewer10_comparison": True,
+        "latex_export": True,
+        "observation_alphas": (0.01, 0.05),
     }
 
 
 def test_default_belief_shape_stress_yaml_loads() -> None:
-    """Bundled default YAML should parse to the baseline ``BeliefBenchmarkConfig``."""
+    """Bundled default YAML should match baseline config plus α sweep script options."""
 
     repo = Path(__file__).resolve().parents[1]
     yaml_path = (
@@ -361,4 +387,4 @@ def test_default_belief_shape_stress_yaml_loads() -> None:
     raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
     cfg, opts = belief_benchmark_config_and_script_options_from_flat_mapping(raw)
     assert cfg == BeliefBenchmarkConfig()
-    assert opts == {}
+    assert opts == {"observation_alphas": (0.001, 0.01)}
