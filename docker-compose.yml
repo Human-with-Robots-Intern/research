@@ -45,8 +45,6 @@ services:
     networks:
       - uttp_net
 
- 
-
   ros:
     build:
       context: .
@@ -66,6 +64,7 @@ services:
       memlock: -1
     devices:
       - /dev/dri:/dev/dri
+      - /dev/ttyACM0:/dev/ttyACM0
       # 환경별 장치는 docker-compose.override.yml에서 설정
     volumes:
       - .:/app
@@ -73,7 +72,7 @@ services:
       - /dev:/dev  # 시리얼 포트 접근을 위해 /dev 전체 마운트
     stdin_open: true
     tty: true
-    command: ["./scripts/run_with_ros_env.sh", "uvicorn", "ttp_client.ros_bridge_server:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["./scripts/infra/run_with_ros_env.sh", "uvicorn", "ttp_client.ros_bridge_server:app", "--host", "0.0.0.0", "--port", "8000"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/docs"]
       interval: 5s
@@ -88,6 +87,7 @@ services:
       # - ROS_DOMAIN_ID=0
       # - CYCLONEDDS_URI=<CycloneDDS><Domain><General><NetworkInterfaceAddress>eno1</NetworkInterfaceAddress></General></Domain></CycloneDDS>
       - DISPLAY=${DISPLAY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
 
 networks:
   uttp_net:
