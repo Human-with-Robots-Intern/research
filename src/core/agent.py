@@ -154,12 +154,17 @@ class Agent:
         return raw_object.split("|")[0]
 
     def update_monitoring_belief(
-        self, state: SchedulerState
+        self,
+        state: SchedulerState,
+        vlm_progress: Optional[int] = None,
     ) -> Tuple[SchedulerState, Optional[Dict[str, Any]]]:
         """Update posterior belief after executing a monitoring subtask.
 
         Args:
             state: Scheduler state after the monitoring subtask completed.
+            vlm_progress: VLM-estimated progress (0-130, step 10) from the
+                ROS container.  When provided, the observation model uses
+                this value instead of synthetic sampling.
 
         Returns:
             The unchanged state and a diagnostics payload for logging/results.
@@ -212,6 +217,7 @@ class Agent:
                 prior_mean=prior_mean,
                 prior_variance=prior_variance,
                 elapsed_interval=critical_elapsed_interval,
+                vlm_progress=vlm_progress,
             )
         )
 

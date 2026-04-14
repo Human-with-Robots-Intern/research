@@ -215,8 +215,10 @@ def _resolve_observation_mode(args: argparse.Namespace) -> str:
 
     if args.observation_mode != "auto":
         return args.observation_mode
-    if args.ros:
-        return "openai_vlm"
+    # In ROS mode, VLM is called by the ROS container and the progress
+    # value is passed through vlm_progress in BeliefUpdateContext.
+    # The TTP-side observation model uses synthetic_gaussian as the base,
+    # which switches to VLM-derived observation when vlm_progress is set.
     return "synthetic_gaussian"
 
 
@@ -386,15 +388,20 @@ def main() -> None:
             input_natural_language = instruction
             task_data = None
 
-            try:
-                choice = int(instruction)
-                if 1 <= choice <= len(task_files):
-                    task_file_name = task_files[choice - 1]
-                    task_data = load_task_data_from_file(task_file_name)
-                    input_natural_language = Path(task_file_name).stem
-            except ValueError:
-                # It's a natural language instruction, not a number
-                pass
+            if instruction.endswith(".json"):
+                # Direct task file name — load it from TASK_PATH
+                task_data = load_task_data_from_file(instruction)
+                input_natural_language = Path(instruction).stem
+            else:
+                try:
+                    choice = int(instruction)
+                    if 1 <= choice <= len(task_files):
+                        task_file_name = task_files[choice - 1]
+                        task_data = load_task_data_from_file(task_file_name)
+                        input_natural_language = Path(task_file_name).stem
+                except ValueError:
+                    # It's a natural language instruction, not a number
+                    pass
             save_scene_state(
                 controller=controller,
                 output_path=base_result_path / f"states{int(init_prior_mean)}",
@@ -519,7 +526,12 @@ def main() -> None:
         total_compute_time, total_sim_time = 0, 0
 
         ros_executor = (
-            RosExecutor(trajectory_log_path=trajectory_log_path) if args.ros else None
+            RosExecutor(
+                trajectory_log_path=trajectory_log_path,
+                instruction=input_natural_language,
+            )
+            if args.ros
+            else None
         )
 
         while not is_end:
@@ -608,8 +620,13 @@ def main() -> None:
                     not args.disable_monitoring
                     and next_state.subtask.subtask_type == "Monitor"
                 ):
+                    # Extract VLM progress from ROS action logs (if available)
+                    vlm_progress = None
+                    if action_logs:
+                        vlm_progress = action_logs[-1].get("progress")
+
                     next_state, monitored_subtask = agent.update_monitoring_belief(
-                        next_state
+                        next_state, vlm_progress=vlm_progress
                     )
                     next_state.completed_entries[-1].monitored_subtask = (
                         monitored_subtask

@@ -203,6 +203,8 @@ class BeliefUpdateContext:
         prior_mean: Prior expected duration.
         prior_variance: Prior variance.
         elapsed_interval: Elapsed time since the critical start completed.
+        vlm_progress: VLM-estimated progress (0-130, step 10) from the
+            ROS container.  ``None`` when running in simulation mode.
     """
 
     object_name: str
@@ -210,6 +212,7 @@ class BeliefUpdateContext:
     prior_mean: float
     prior_variance: float
     elapsed_interval: float
+    vlm_progress: Optional[int] = None
 
 
 @dataclass
@@ -297,15 +300,41 @@ class GaussianSyntheticObservationModel:
         self._rng = rng or np.random.default_rng()
 
     def observe(self, context: BeliefUpdateContext) -> ObservationResult:
-        """Sample a synthetic total-duration observation.
+        """Sample a total-duration observation.
+
+        When ``context.vlm_progress`` is set (real-world ROS mode), the
+        observation is derived from the VLM progress value:
+            ``observation = prior_mean * (vlm_progress / 100)``
+        Otherwise falls back to the synthetic Gaussian sampler.
 
         Args:
             context: Posterior update inputs.
 
         Returns:
-            Synthetic observation payload used by either inference backend.
+            Observation payload used by either inference backend.
         """
 
+        if context.vlm_progress is not None:
+            # Real-world: VLM already estimated progress in the ROS container.
+            progress_ratio = context.vlm_progress / 100.0  # 0.0 ~ 1.3
+            observation = float(context.prior_mean * progress_ratio)
+            variance = max(
+                self._min_variance,
+                self._alpha * (context.prior_mean - context.elapsed_interval) ** 2,
+            )
+            return ObservationResult(
+                observation=observation,
+                variance=variance,
+                metadata={
+                    "observation_model": "vlm_progress",
+                    "vlm_progress": context.vlm_progress,
+                    "progress_ratio": progress_ratio,
+                    "prior_mean": context.prior_mean,
+                    "elapsed_interval": float(context.elapsed_interval),
+                },
+            )
+
+        # Simulation: synthetic Gaussian observation
         variance = max(
             self._min_variance,
             self._alpha * (context.prior_mean - context.elapsed_interval) ** 2,

@@ -119,13 +119,24 @@ class SimulateObjectState:
 class RosExecutor:
     """Handles execution of subtasks via a remote ROS bridge."""
 
-    def __init__(self, trajectory_log_path: Path) -> None:
-        """Initializes the RosExecutor."""
+    def __init__(
+        self, trajectory_log_path: Path, instruction: Optional[str] = None
+    ) -> None:
+        """Initializes the RosExecutor.
+
+        Args:
+            trajectory_log_path: Path to the trajectory log directory.
+            instruction: The full natural-language instruction given at
+                program start (e.g. "Cook Sausage and Do Laundry").
+                Forwarded to the ROS bridge for VLM prompt selection
+                during monitoring actions.
+        """
         self.ros_bridge_url = os.getenv("ROS_BRIDGE_URL", "http://localhost:8000")
         self.object_state_simulator = SimulateObjectState(trajectory_log_path)
         self.held_object: Optional[str] = None
         self.ros_start_time: Optional[float] = None
         self.total_ros_time: float = 0.0
+        self.instruction: Optional[str] = instruction
         # Initialize client-side translator
         self.translator = InstructionTranslator()
         logger.info(f"ROS Bridge URL set to: {self.ros_bridge_url}")
@@ -168,6 +179,7 @@ class RosExecutor:
 
             primitive_action_parts = primitive_action.split(" ")
             action_verb = primitive_action_parts[0].lower()
+            progress = None
 
             if action_verb == "wait":
                 wait_duration = float(primitive_action_parts[1])
@@ -180,31 +192,41 @@ class RosExecutor:
                     logger.critical(
                         f"primitive_action: {primitive_action} translated to translated_parts: {translated_parts}"
                     )
+                    payload: Dict[str, Any] = {"action_parts": translated_parts}
+                    # For monitoring actions, include the full instruction so
+                    # the ROS bridge can select the correct VLM prompt.
+                    if action_verb.startswith("monitoring") and self.instruction:
+                        payload["instruction"] = self.instruction
+
                     response = requests.post(
                         f"{self.ros_bridge_url}/execute_translated_action",
-                        json={"action_parts": translated_parts},
+                        json=payload,
                         timeout=300,
                     )
                     response.raise_for_status()
                     result = response.json()
                     success = result.get("success", False)
+                    progress = result.get("progress", None)
                 except requests.RequestException as e:
                     logger.error(
                         f"HTTP request for action '{primitive_action}' failed: {e}"
                     )
                     success = False
+                    progress = None
 
             action_end_time = time.time()
             elapsed_time = action_end_time - action_start_time
             logger.info(f"Action '{primitive_action}' took {elapsed_time:.2f} seconds")
             total_elapsed_time += elapsed_time
-            action_log.append(
-                {
-                    "action": primitive_action,
-                    "duration": elapsed_time,
-                    "success": success,
-                }
-            )
+            log_entry: Dict[str, Any] = {
+                "action": primitive_action,
+                "duration": elapsed_time,
+                "success": success,
+            }
+            # progress is only set for monitoring actions via ROS VLM
+            if progress is not None:
+                log_entry["progress"] = progress
+            action_log.append(log_entry)
 
             if not success:
                 logger.error(f"Action '{primitive_action}' failed. Stopping task.")
