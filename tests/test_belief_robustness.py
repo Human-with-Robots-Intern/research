@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import json
 import math
+from pathlib import Path
 
 import numpy as np
+import pytest
+import yaml
 
 from src.core.monitoring import ObservationResult
 from src.experiments.belief_robustness import (
     SHAPE_STRESS_GT_DISTRIBUTIONS,
     BeliefBenchmarkConfig,
+    belief_benchmark_config_and_script_options_from_flat_mapping,
     build_reviewer10_bf_vs_pf_rows,
     build_reviewer10_main_table_rows,
     build_reviewer10_pf_likelihood_upgrade_rows,
@@ -313,3 +317,48 @@ def test_shape_stress_sampling_profile_strengthens_lognormal_tail() -> None:
     q90 = samples[int(0.9 * (len(samples) - 1))]
     assert q10 < 45.0
     assert q90 > 165.0
+
+
+def test_belief_benchmark_flat_mapping_rejects_unknown_keys() -> None:
+    """Unknown keys should raise ``ValueError`` with an explicit message."""
+
+    with pytest.raises(ValueError, match="Unknown keys"):
+        belief_benchmark_config_and_script_options_from_flat_mapping(
+            {"episode_count": 1, "typo_field": 0}
+        )
+
+
+def test_belief_benchmark_flat_mapping_coerces_lists_and_script_options() -> None:
+    """YAML-friendly lists should become tuples; script keys are split out."""
+
+    cfg, script_opts = belief_benchmark_config_and_script_options_from_flat_mapping(
+        {
+            "methods": ["bayesian"],
+            "episode_count": 5,
+            "output_dir": "/tmp/belief_out",
+            "reviewer10_comparison": True,
+        }
+    )
+    assert cfg.methods == ("bayesian",)
+    assert cfg.episode_count == 5
+    assert script_opts == {
+        "output_dir": "/tmp/belief_out",
+        "reviewer10_comparison": True,
+    }
+
+
+def test_default_belief_shape_stress_yaml_loads() -> None:
+    """Bundled default YAML should parse to the baseline ``BeliefBenchmarkConfig``."""
+
+    repo = Path(__file__).resolve().parents[1]
+    yaml_path = (
+        repo
+        / "scripts"
+        / "offline"
+        / "configs"
+        / "belief_shape_stress_benchmark.yaml"
+    )
+    raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+    cfg, opts = belief_benchmark_config_and_script_options_from_flat_mapping(raw)
+    assert cfg == BeliefBenchmarkConfig()
+    assert opts == {}
