@@ -259,10 +259,6 @@ python scripts/offline/belief_distribution_benchmark.py \
 -   `latex_tables/tab_belief_robustness_main_shared_gaussian.tex`
 -   `latex_tables/tab_belief_robustness_main_same_as_gt.tex`
 
-#### 구 스크립트 호환성
-
-`scripts/offline/reviewer10_belief_comparison.py`는 기존 명령을 깨지 않게 남겨둔 **호환 래퍼**입니다. 새 실험은 가능하면 `belief_distribution_benchmark.py --preset reviewer10` 기준으로 실행하는 것을 권장합니다.
-
 ### 9. 캐시·해석
 
 -   `nav_graph_source: ai2thor_controller`이면 `assets/cache/ai2thor_nav_graphs/<scene>.json`을 우선 사용해 THOR 기동 비용을 줄입니다.

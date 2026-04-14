@@ -158,6 +158,7 @@ class GroundTruthStore:
         )[0]
         return max(config_constants.MIN_VARIANCE, float(sampled))
 
+
 @dataclass(frozen=True)
 class BeliefSummary:
     """Summarize a belief distribution for scheduling decisions.
@@ -433,7 +434,9 @@ class OpenAIVLMProgressObservationModel:
         )
         raw_payload = getattr(response, "output_text", "")
         if not raw_payload:
-            raise ValueError("OpenAI VLM response did not contain structured output text.")
+            raise ValueError(
+                "OpenAI VLM response did not contain structured output text."
+            )
 
         parsed_payload = json.loads(raw_payload)
         raw_progress = float(parsed_payload["progress"])
@@ -574,7 +577,9 @@ class BeliefStore:
             output_path: Optional override path for the persisted JSON file.
         """
 
-        path = output_path or (config_constants.AGENT_KNOWLEDGE_PATH / "bayesian_estimate.json")
+        path = output_path or (
+            config_constants.AGENT_KNOWLEDGE_PATH / "bayesian_estimate.json"
+        )
         with open(path, "w", encoding="utf-8") as file_obj:
             json.dump(self.as_dict(), file_obj, indent=4)
 
@@ -609,7 +614,10 @@ class BeliefStore:
             0.0,
             float(raw_state.get("expected_duration", config_constants.INIT_PRIOR_MEAN)),
         )
-        variance = max(config_constants.MIN_VARIANCE, float(raw_state.get("variance", config_constants.INIT_PRIOR_VARIANCE)))
+        variance = max(
+            config_constants.MIN_VARIANCE,
+            float(raw_state.get("variance", config_constants.INIT_PRIOR_VARIANCE)),
+        )
         method: BeliefMethod = raw_state.get("method", "bayesian")
         normalized: dict[str, Any] = {
             "expected_duration": expected_duration,
@@ -665,7 +673,9 @@ class BeliefStore:
             sample_count=self._particle_count,
             rng=self._rng,
         )
-        weights = np.ones(self._particle_count, dtype=float) / float(self._particle_count)
+        weights = np.ones(self._particle_count, dtype=float) / float(
+            self._particle_count
+        )
         return {
             "particles": particles.tolist(),
             "weights": weights.tolist(),
@@ -758,10 +768,11 @@ class BayesianMonitoringPolicy:
         Returns:
             Absolute trigger time.
         """
-
         z_score = float(norm.ppf(self._threshold_probability))
         sigma = math.sqrt(max(config_constants.MIN_VARIANCE, context.variance))
-        return context.critical_start_end_time + context.mean_duration + (sigma * z_score)
+        return (
+            context.critical_start_end_time + context.mean_duration + (sigma * z_score)
+        )
 
 
 class ParticleFilterMonitoringPolicy:
@@ -847,8 +858,8 @@ class BayesianBeliefUpdater:
         self.method: BeliefMethod = "bayesian"
         self._belief_store = belief_store
         self._rng = rng or np.random.default_rng()
-        self._observation_model = observation_model or GaussianSyntheticObservationModel(
-            rng=self._rng
+        self._observation_model = (
+            observation_model or GaussianSyntheticObservationModel(rng=self._rng)
         )
 
     def update(self, context: BeliefUpdateContext) -> BeliefUpdateResult:
@@ -918,8 +929,8 @@ class ParticleFilterBeliefUpdater:
         self._resample_threshold = resample_threshold
         self._likelihood_family = likelihood_family
         self._rng = rng or np.random.default_rng()
-        self._observation_model = observation_model or GaussianSyntheticObservationModel(
-            rng=self._rng
+        self._observation_model = (
+            observation_model or GaussianSyntheticObservationModel(rng=self._rng)
         )
 
     def update(self, context: BeliefUpdateContext) -> BeliefUpdateResult:
@@ -963,13 +974,17 @@ class ParticleFilterBeliefUpdater:
                 weights=updated_weights,
                 rng=self._rng,
             )
-            jitter_std = math.sqrt(max(config_constants.MIN_VARIANCE, posterior_variance)) * 0.05
+            jitter_std = (
+                math.sqrt(max(config_constants.MIN_VARIANCE, posterior_variance)) * 0.05
+            )
             particles = np.clip(
                 particles + self._rng.normal(0.0, jitter_std, size=len(particles)),
                 a_min=config_constants.MIN_VARIANCE,
                 a_max=None,
             )
-            updated_weights = np.ones_like(updated_weights) / float(len(updated_weights))
+            updated_weights = np.ones_like(updated_weights) / float(
+                len(updated_weights)
+            )
             resample_count += 1
             resampled = True
 
@@ -1013,9 +1028,7 @@ class ParticleFilterBeliefUpdater:
             "weights": updated_weights.tolist(),
             "ess": ess_after_resample,
             "resample_count": resample_count,
-            "particle_distribution": state.get(
-                "particle_distribution", "gaussian"
-            ),
+            "particle_distribution": state.get("particle_distribution", "gaussian"),
             "particle_likelihood_family": effective_likelihood_family,
         }
         self._belief_store.set_state(context.object_name, belief_state)
@@ -1030,7 +1043,8 @@ class ParticleFilterBeliefUpdater:
                 **observation_result.metadata,
                 "ess_before_resample": ess_before_resample,
                 "ess_after_resample": ess_after_resample,
-                "ess_ratio_before_resample": ess_before_resample / float(len(particles)),
+                "ess_ratio_before_resample": ess_before_resample
+                / float(len(particles)),
                 "ess_ratio_after_resample": ess_after_resample / float(len(particles)),
                 "resampled": resampled,
                 "resample_count": resample_count,
@@ -1313,7 +1327,10 @@ def _sample_positive_duration(
             size=sample_size,
         )
     elif distribution == "lognormal":
-        sigma_sq = math.log(1.0 + (clipped_variance / max(config_constants.MIN_VARIANCE, clipped_mean**2)))
+        sigma_sq = math.log(
+            1.0
+            + (clipped_variance / max(config_constants.MIN_VARIANCE, clipped_mean**2))
+        )
         sigma = math.sqrt(max(config_constants.MIN_VARIANCE, sigma_sq))
         mu = math.log(clipped_mean) - (0.5 * sigma_sq)
         samples = rng.lognormal(mean=mu, sigma=sigma, size=sample_size)
@@ -1334,7 +1351,11 @@ def _sample_positive_duration(
             scale=component_scales[component_choices],
         )
 
-    return np.clip(np.asarray(samples, dtype=float), a_min=config_constants.MIN_VARIANCE, a_max=None)
+    return np.clip(
+        np.asarray(samples, dtype=float),
+        a_min=config_constants.MIN_VARIANCE,
+        a_max=None,
+    )
 
 
 def resolve_duration_sampling_variance(
@@ -1376,7 +1397,9 @@ def evaluate_duration_observation_likelihood(
     """Evaluate one duration-observation likelihood family over particle hypotheses."""
 
     clipped_variance = max(config_constants.MIN_VARIANCE, float(variance))
-    clipped_hypotheses = np.maximum(config_constants.MIN_VARIANCE, np.asarray(hypotheses, dtype=float))
+    clipped_hypotheses = np.maximum(
+        config_constants.MIN_VARIANCE, np.asarray(hypotheses, dtype=float)
+    )
 
     if family in {"constant", "gaussian"}:
         return norm.pdf(
@@ -1390,19 +1413,25 @@ def evaluate_duration_observation_likelihood(
         mu = np.log(clipped_hypotheses) - (0.5 * sigma_sq)
         return lognorm.pdf(observation, s=sigma, scale=np.exp(mu))
     if family == "gamma":
-        shape = np.maximum(config_constants.MIN_VARIANCE, np.square(clipped_hypotheses) / clipped_variance)
-        scale = np.maximum(config_constants.MIN_VARIANCE, clipped_variance / clipped_hypotheses)
+        shape = np.maximum(
+            config_constants.MIN_VARIANCE,
+            np.square(clipped_hypotheses) / clipped_variance,
+        )
+        scale = np.maximum(
+            config_constants.MIN_VARIANCE, clipped_variance / clipped_hypotheses
+        )
         return gamma_dist.pdf(observation, a=shape, scale=scale)
     if family == "mixture":
         std = math.sqrt(clipped_variance)
-        left_loc = np.maximum(config_constants.MIN_VARIANCE, clipped_hypotheses - (0.75 * std))
+        left_loc = np.maximum(
+            config_constants.MIN_VARIANCE, clipped_hypotheses - (0.75 * std)
+        )
         right_loc = clipped_hypotheses + (0.75 * std)
         left_scale = max(1.0, 0.45 * std)
         right_scale = max(1.0, 0.55 * std)
-        return (
-            0.5 * norm.pdf(observation, loc=left_loc, scale=left_scale)
-            + 0.5 * norm.pdf(observation, loc=right_loc, scale=right_scale)
-        )
+        return 0.5 * norm.pdf(
+            observation, loc=left_loc, scale=left_scale
+        ) + 0.5 * norm.pdf(observation, loc=right_loc, scale=right_scale)
     raise ValueError(f"Unsupported likelihood family: {family}")
 
 
@@ -1468,7 +1497,9 @@ def _summarize_particle_posterior(
     quantile_p90 = _weighted_quantile(particles, normalized_weights, 0.9)
     weighted_mean = float(np.sum(normalized_weights * particles))
     centered_particles = particles - weighted_mean
-    weighted_variance = float(np.sum(normalized_weights * np.square(centered_particles)))
+    weighted_variance = float(
+        np.sum(normalized_weights * np.square(centered_particles))
+    )
     weighted_std = math.sqrt(max(config_constants.MIN_VARIANCE, weighted_variance))
     weighted_third_moment = float(
         np.sum(normalized_weights * np.power(centered_particles, 3))

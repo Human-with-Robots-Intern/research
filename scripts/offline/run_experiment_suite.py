@@ -205,10 +205,7 @@ def _collect_common_path(
 ) -> Path:
     """Resolve one path-valued config key and require a single unique result."""
 
-    candidates = {
-        resolver(config.get(key, default))
-        for config in raw_configs
-    }
+    candidates = {resolver(config.get(key, default)) for config in raw_configs}
     if len(candidates) != 1:
         rendered = ", ".join(str(path) for path in sorted(candidates))
         raise ValueError(f"{context} must share a single {key}: {rendered}")
@@ -222,9 +219,7 @@ def _derive_analysis_paths(
 ) -> tuple[Path, str, str]:
     """Return the common base_dir plus batch/oracle relative dirnames."""
 
-    common_base = Path(
-        os.path.commonpath([str(output_dir), str(oracle_reference_dir)])
-    )
+    common_base = Path(os.path.commonpath([str(output_dir), str(oracle_reference_dir)]))
     batch_dirname = output_dir.relative_to(common_base).as_posix()
     oracle_dirname = oracle_reference_dir.relative_to(common_base).as_posix()
     return common_base, batch_dirname, oracle_dirname
@@ -291,10 +286,7 @@ def _require_common_string_value(
 ) -> str:
     """Return one normalized scalar value shared by all selected configs."""
 
-    values = {
-        str(config.get(key, default))
-        for config in raw_configs
-    }
+    values = {str(config.get(key, default)) for config in raw_configs}
     if len(values) != 1:
         rendered = ", ".join(sorted(values))
         raise ValueError(f"{context} must share a single {key}: {rendered}")
@@ -309,7 +301,9 @@ def _merge_scene_scope(
     scene_type_order: list[str] = []
     merged_scene_lists: dict[str, list[str]] = {}
     for config in raw_configs:
-        scene_types = _normalize_string_list(config.get("scene_type"), default="kitchen")
+        scene_types = _normalize_string_list(
+            config.get("scene_type"), default="kitchen"
+        )
         scene_lists = dict(config.get("scene_lists", {}))
         for scene_type in scene_types:
             if scene_type not in scene_type_order:
@@ -350,11 +344,7 @@ def _merge_oracle_config(
         ]
     )
     task_folder_names = _unique_preserve_order(
-        [
-            task_folder
-            for suite in suites
-            for task_folder in suite.task_folder_names
-        ]
+        [task_folder for suite in suites for task_folder in suite.task_folder_names]
     )
     instructions = _unique_preserve_order(
         [
