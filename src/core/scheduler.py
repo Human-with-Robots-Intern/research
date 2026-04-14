@@ -20,6 +20,7 @@ from src.models.dataclass import (
     SimulationNode,
 )
 from src.models.task import Duration, Execution, Subtask
+from src.scheduler.deadline_utils import get_candidate_effective_due, has_finite_due
 from src.utils.common import create_module_logger, extract_monitoring_target_name
 from src.utils.common.decorators import time_logger
 from src.utils.config import (
@@ -1530,12 +1531,10 @@ class Scheduler:
         #     )
         #     return False, None
 
+        candidate_due = get_candidate_effective_due(candidate)
+
         # critical end subtask가 아닐 때.
-        if (
-            candidate.scheduling_due
-            and candidate.scheduling_due.due_date != float("inf")
-            and candidate.scheduling_due.due_date < urgent_due.due_date
-        ):
+        if has_finite_due(candidate_due) and candidate_due.due_date < urgent_due.due_date:
             # The candidate is MORE URGENT than the monitoring target.
             # Check if there is an active interval for the urgent task itself.
             urgent_interval_pair = next(
@@ -1543,7 +1542,7 @@ class Scheduler:
                     item
                     for item in active_intervals
                     if item[1].due_related_sub_name
-                    == candidate.scheduling_due.due_related_sub_name
+                    == candidate_due.due_related_sub_name
                 ),
                 None,
             )
@@ -1560,7 +1559,7 @@ class Scheduler:
                 # The urgent task is not monitorable (or not in active list).
                 # Skipping monitoring completely to focus on the deadline.
                 log.debug(
-                    f"[_should_split_with_monitoring] Skipping monitoring. Candidate has urgent deadline ({candidate.scheduling_due.due_date:.2f}) "
+                    f"[_should_split_with_monitoring] Skipping monitoring. Candidate has urgent deadline ({candidate_due.due_date:.2f}) "
                     f"which is tighter than high variance target ({urgent_due.due_date:.2f})."
                 )
                 return False, None
@@ -2515,7 +2514,7 @@ class Scheduler:
         candidate's actual_interaction_start_time.
         """
         # candidate는 wait for의 대상 subtask임.
-        # candidate로 만드는 wait for candidate의 scheduling_due는 candidate의 logical_interaction_start_time 기준으로 계산됨.
+        # wait candidate는 global due와 self due(logical start)를 모두 보존한다.
         log.debug(
             f"[_expand_wait_with_monitoring] Waiting for {candidate.subtask.name}"
         )
@@ -2654,15 +2653,11 @@ class Scheduler:
         )
 
         # Create a synthetic candidate to represent the 'Wait' action for the heuristic calculator.
-        # [Fix 251216] Preserve the original scheduling_due to allow proper risk assessment
         wait_candidate = Candidate(
             subtask=wait_sub,
             is_critical=candidate.is_critical,
-            # Inherit the deadline to let heuristic manager know about the pressure
-            scheduling_due=SchedulingDue(
-                due_date=candidate.logical_interaction_start_time,
-                due_related_sub_name=candidate.subtask.name,
-            ),
+            logical_interaction_start_time=candidate.logical_interaction_start_time,
+            scheduling_due=candidate.scheduling_due,
         )
 
         # Global Risk Check을 위해 feasible_candidates도 포함하여 전달
@@ -2919,11 +2914,10 @@ class Scheduler:
         )
 
         # Create a synthetic candidate to represent the 'Wait' action for the heuristic calculator.
-        # [Fix 251216] Preserve the original scheduling_due to allow proper risk assessment
         wait_candidate = Candidate(
             subtask=wait_sub,
             is_critical=candidate.is_critical,
-            # Inherit the deadline to let heuristic manager know about the pressure
+            logical_interaction_start_time=candidate.logical_interaction_start_time,
             scheduling_due=candidate.scheduling_due,
         )
 

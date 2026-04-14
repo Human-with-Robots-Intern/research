@@ -476,9 +476,10 @@ class ConstraintHandler:
         curr_node: SimulationNode,
     ) -> None:
         """
-        Assigns scheduling due to feasible candidates based on the logical earliest start time
-        of the next upcoming critical task found in the not_yet list.
-        Modifies the feasible list IN-PLACE.
+        Assign global routing due to feasible candidates based on the next critical task.
+
+        The candidate's own critical-end deadline remains available via
+        ``logical_interaction_start_time`` and is consumed by downstream safety checks.
         """
 
         # Find the earliest logical start time among upcoming critical tasks
@@ -526,18 +527,7 @@ class ConstraintHandler:
             )
 
         for feasible_candidate in feasible_candidates:
-            own_due = feasible_candidate.logical_interaction_start_time
-            if (
-                feasible_candidate.is_critical
-                and own_due is not None
-                and own_due != float("inf")
-            ):
-                feasible_candidate.scheduling_due = SchedulingDue(
-                    due_date=float(own_due),
-                    due_related_sub_name=feasible_candidate.subtask.name,
-                )
-            else:
-                feasible_candidate.scheduling_due = new_scheduling_due
+            feasible_candidate.scheduling_due = new_scheduling_due
 
     def get_required_predecessors(
         self,
