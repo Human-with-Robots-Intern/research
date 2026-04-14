@@ -222,7 +222,7 @@ class ManipulationTask(Process):
             if object_id is not None:
                 # data = self.get_gripper_info_from_json(object_id, self.save_data_path_gripper)
                 request_rtn.command.position = 1.0
-                request_rtn.command.max_effort = 0.0
+                request_rtn.command.max_effort = 0.5
             else:
                 ...# 에러 
                 print("object_id is None")

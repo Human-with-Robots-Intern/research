@@ -89,26 +89,24 @@ EXCLUSIVE_TASK_GROUPS: List[Set[str]] = [
     # pan으로 인한 constraint
     {
         "cook_sausage",
-        "cook_chicken",
+        "cook_tomato",
         "place_pan_on_stove",
     },
     # plate로 인한 constraint
-    {
-        "put_banana_on_plate",
-        "cook_sausage",
-        "cook_chicken",
-        "put_tomato_on_plate",
-    },
+    # {
+    #     "put_banana_on_plate",
+    #     "cook_sausage",
+    # },
     # blue bowl로 인한 constraint
-    {
-        "put_tomato_in_blue_bowl",
-        "move_blue_bowl_to_sink"
-    },
+    # {
+    #     "put_tomato_in_blue_bowl",
+    #     "move_blue_bowl_to_sink"
+    # },
     # tomato로 인한 constraint
-    {
-        "put_tomato_on_plate",
-        "put_tomato_in_blue_bowl",
-    },
+    # {
+    #     "put_tomato_on_plate",
+    #     "put_tomato_in_blue_bowl",
+    # },
 
 
 ]
