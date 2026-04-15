@@ -675,7 +675,8 @@ def main():
                 trajectory_log_path=Path(
                     base_result_path
                     / f"states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}/trajectory_log.json"
-                )
+                ),
+                instruction=input_natural_language,
             )
             real_executed_result_schedule = ros_executor.execute_schedule(
                 result_schedule

@@ -472,7 +472,8 @@ if __name__ == "__main__":
                 trajectory_log_path=(
                     base_result_path
                     / f"states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/progprompt/trajectory_log.json"
-                )
+                ),
+                instruction=instruction,
             )
         generate_plan(controller, task, args, logger, action_interface)
     except ProgPromptActionFailedError as e:

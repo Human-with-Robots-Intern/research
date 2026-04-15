@@ -384,7 +384,7 @@ def main():
         t_ctrl = time.time()
         logger.info(f"[LAMMAP] 컨트롤러 초기화 시작 (scene={scene_name})...")
         if args.ros:
-            ros_executor = RosExecutor(trajectory_log_path=trajectory_path)
+            ros_executor = RosExecutor(trajectory_log_path=trajectory_path, instruction=instruction)
         else:
             platform_obj = CloudRendering if args.cloud_rendering else None
             controller = init_ai2thor_controller(scene_name, platform=platform_obj)
