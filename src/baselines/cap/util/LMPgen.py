@@ -7,6 +7,7 @@ AI2-THOR와 같은 시뮬레이션 환경에서 자연어 명령을 코드로 �
 실행하는 데 사용됩니다.
 """
 import ast
+import json
 import os
 import re
 import sys
@@ -643,23 +644,53 @@ class LMP_wrapper:
     객체 정보 조회, 상태 확인 등의 API를 제공합니다.
     """
 
+    # ROS 모드에서 사용하는 JSON 파일 경로
+    _ROS_DYNAMIC_STATES_PATH = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "../../../../assets/ros/dynamic/object_states.json",
+    )
+    _ROS_STATIC_INIT_STATES_PATH = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "../../../../assets/ros/static/object_init_states.json",
+    )
+    _ROS_STATIC_ABILITIES_PATH = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "../../../../assets/ros/static/object_abilities.json",
+    )
+
     def __init__(self, controller: Any, cfg: Dict[str, Any], render: bool = False):
         """LMP_wrapper 인스턴스를 초기화합니다.
 
         Args:
-            controller (Any): AI2-THOR 컨트롤러 인스턴스.
+            controller (Any): AI2-THOR 컨트롤러 인스턴스. ROS 모드에서는 None.
             cfg (Dict[str, Any]): 관련 설정 딕셔너리.
             render (bool, optional): 렌더링 여부. Defaults to False.
         """
         self.controller = controller
         self._cfg = cfg
-        self.object_names = list(
-            set(
-                obj["objectType"].lower()
-                for obj in controller.step("Pass").metadata["objects"]
-            )
-        )
+        self.ros_mode = controller is None
         self.render = render
+
+        if self.ros_mode:
+            with open(self._ROS_STATIC_INIT_STATES_PATH, "r") as f:
+                init_states = json.load(f)
+            self.object_names = list(init_states.keys())
+        else:
+            self.object_names = list(
+                set(
+                    obj["objectType"].lower()
+                    for obj in controller.step("Pass").metadata["objects"]
+                )
+            )
+
+    def _load_dynamic_states(self) -> Dict[str, Any]:
+        """ROS 모드에서 동적 객체 상태 JSON 파일을 읽어 반환합니다.
+
+        Returns:
+            Dict[str, Any]: 객체 이름을 키로, 상태 딕셔너리를 값으로 하는 딕셔너리.
+        """
+        with open(self._ROS_DYNAMIC_STATES_PATH, "r") as f:
+            return json.load(f)
 
     def is_obj_visible(self, obj_name: str) -> bool:
         """특정 객체가 현재 시야에 보이는지 확인합니다.
@@ -670,6 +701,9 @@ class LMP_wrapper:
         Returns:
             bool: 객체가 보이면 True, 그렇지 않으면 False.
         """
+        if self.ros_mode:
+            return True
+
         data = self.controller.step("Pass").metadata["objects"]
         visible_obj_names = [
             obj["objectType"].lower() for obj in data if obj["visible"]
@@ -700,19 +734,25 @@ class LMP_wrapper:
             return None
 
         obj_name_lower = obj_name.lower()
-        all_objects = self.controller.last_event.metadata["objects"]
 
         # Special handling for 'sink' -> find a 'sinkbasin'
         if obj_name_lower == "sink":
             logger.info("Query is for 'Sink', redirecting to find 'SinkBasin'.")
-            for obj in all_objects:
+            if self.ros_mode:
+                # ROS 모드에서는 'sink|sinkbasin' 키를 사용
+                return "sink|sinkbasin"
+            for obj in self.controller.last_event.metadata["objects"]:
                 if obj["objectType"] == "SinkBasin":
                     logger.info(f"Found SinkBasin with ID '{obj['objectId']}'.")
                     return obj["objectId"]
             logger.warning("Could not find any SinkBasin in the scene.")
             return None
 
+        if self.ros_mode:
+            return obj_name_lower
+
         # Normal object search (exact match)
+        all_objects = self.controller.last_event.metadata["objects"]
         for obj in all_objects:
             if obj["objectType"].lower() == obj_name_lower:
                 return obj["objectId"]
@@ -730,6 +770,17 @@ class LMP_wrapper:
         Returns:
             List[str]: 객체의 현재 '참'인 상태 목록.
         """
+        if self.ros_mode:
+            dynamic_states = self._load_dynamic_states()
+            obj_data = dynamic_states.get(obj_id, {})
+            true_state = [
+                key
+                for key, value in obj_data.items()
+                if isinstance(value, bool) and value is True
+            ]
+            print(f"{obj_id}의 현재 상태: {true_state}")
+            return true_state
+
         properties = [
             "isInteractable",
             "isToggled",
@@ -767,6 +818,13 @@ class LMP_wrapper:
         Returns:
             List[str]: 객체가 가진 능력 목록.
         """
+        if self.ros_mode:
+            if os.path.exists(self._ROS_STATIC_ABILITIES_PATH):
+                with open(self._ROS_STATIC_ABILITIES_PATH, "r") as f:
+                    abilities_data = json.load(f)
+                return abilities_data.get(obj_id, [])
+            return []
+
         properties = [
             "toggleable",
             "breakable",
@@ -797,6 +855,13 @@ class LMP_wrapper:
         Returns:
             Optional[List[str]]: 부모 객체의 ID 목록. 없으면 None을 반환합니다.
         """
+        if self.ros_mode:
+            dynamic_states = self._load_dynamic_states()
+            obj_data = dynamic_states.get(obj_id, {})
+            parentReceptacles = obj_data.get("parentReceptacles", None)
+            print(f"{obj_id}의 부모 리셉터클: {parentReceptacles}")
+            return parentReceptacles
+
         data = self.controller.step("Pass").metadata["objects"]
         parentReceptacles = None
         for obj in data:
@@ -812,6 +877,14 @@ class LMP_wrapper:
         Returns:
             Optional[str]: 손에 들고 있는 객체의 ID. 없으면 None을 반환합니다.
         """
+        if self.ros_mode:
+            dynamic_states = self._load_dynamic_states()
+            for obj_name, obj_data in dynamic_states.items():
+                receptacles = obj_data.get("parentReceptacles", None)
+                if receptacles and "agent" in receptacles:
+                    return obj_name
+            return None
+
         data = self.controller.last_event.metadata["objects"]
         for obj in data:
             if obj.get("isPickedUp", False):

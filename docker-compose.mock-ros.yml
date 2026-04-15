@@ -1,0 +1,63 @@
+services:
+  mock-ros:
+    image: python:3.10-slim
+    container_name: ros
+    volumes:
+      - ./ros/ttp_ws/ttp_client:/app/ttp_client
+    working_dir: /app
+    command:
+      - sh
+      - -c
+      - "pip install -q fastapi uvicorn && python -m uvicorn ttp_client.ttp_client.mock_ros_bridge_server:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    networks:
+      - test_net
+
+  ttp:
+    build:
+      context: .
+      target: ttp_development
+      args:
+        - UID=${UID}
+        - GID=${GID}
+        - USERNAME=${USERNAME}
+        - PYTORCH_INDEX_URL=${PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}
+    image: research-ttp:latest
+    container_name: ttp
+    volumes:
+      - .:/app
+    stdin_open: true
+    tty: true
+    working_dir: /app
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - ROS_BRIDGE_URL=http://ros:8000
+      - DISPLAY=${DISPLAY:-:99}
+      - TRANSFORMERS_CACHE=/app/.cache/huggingface
+      - HF_HOME=/app/.cache/huggingface
+    depends_on:
+      mock-ros:
+        condition: service_healthy
+    networks:
+      - test_net
+
+networks:
+  test_net:
+    driver: bridge
