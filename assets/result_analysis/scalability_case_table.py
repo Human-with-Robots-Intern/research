@@ -20,12 +20,20 @@ DEFAULT_OUT = (
 
 BEAMS: list[tuple[str, str]] = [
     ("w1_d1", "B=1"),
-    ("w5_d5", "B=5"),
     ("w10_d10", "B=10"),
     ("w20_d20", "B=20"),
 ]
 
 METHOD_SPECS: list[tuple[str, str, dict[str, str]]] = [
+    (
+        "edf",
+        r"EDF",
+        {
+            "w1_d1": "CORRECT_ESTIMATE__edf",
+            "w10_d10": "CORRECT_ESTIMATE__edf",
+            "w20_d20": "CORRECT_ESTIMATE__edf",
+        },
+    ),
     (
         "ours",
         r"Ours",
@@ -60,24 +68,90 @@ def _tex_num(x: float, nd: int = 1) -> str:
     return f"${x:.{nd}f}$"
 
 
-def _fmt_value(value: float, *, digits: int, bold: bool = False) -> str:
+def _fmt_value(value: float, *, digits: int, style: str = "") -> str:
     cell = _tex_num(value, digits)
-    if bold:
+    if style == "best":
         return rf"{{\boldmath {cell}}}"
+    if style == "second":
+        return rf"\underline{{{cell}}}"
     return cell
+
+
+def _compute_highlight_styles(
+    values: list[float],
+    *,
+    higher_is_better: bool,
+    tolerance: float = 1e-9,
+) -> list[str]:
+    """Return cell styles (`best`, `second`, or ``) for one metric column."""
+
+    if not values:
+        return []
+
+    unique_sorted = sorted(set(values), reverse=higher_is_better)
+    best_value = unique_sorted[0]
+    second_value = unique_sorted[1] if len(unique_sorted) > 1 else None
+    styles: list[str] = []
+    for value in values:
+        if abs(value - best_value) <= tolerance:
+            styles.append("best")
+        elif second_value is not None and abs(value - second_value) <= tolerance:
+            styles.append("second")
+        else:
+            styles.append("")
+    return styles
+
+
+def _build_highlight_map(
+    summary: Mapping[str, Any],
+    present_methods: list[tuple[str, str, dict[str, str]]],
+) -> dict[tuple[str, str, str], dict[str, str]]:
+    """Build per-case, per-beam metric highlight styles across methods."""
+
+    metric_specs = [
+        ("tsr", True),
+        ("makespan_gap", False),
+        ("computation_time", False),
+    ]
+    highlight_map: dict[tuple[str, str, str], dict[str, str]] = {}
+
+    for case, _short in CASES:
+        for beam_key, _beam_label in BEAMS:
+            for metric_name, higher_is_better in metric_specs:
+                summary_keys: list[str] = []
+                values: list[float] = []
+                for _method_id, _label, key_map in present_methods:
+                    summary_key = key_map[beam_key]
+                    metrics = summary.get(summary_key, {}).get(case)
+                    if metrics is None:
+                        continue
+                    summary_keys.append(summary_key)
+                    values.append(float(metrics[metric_name]))
+
+                styles = _compute_highlight_styles(
+                    values,
+                    higher_is_better=higher_is_better,
+                )
+                highlight_map[(case, beam_key, metric_name)] = dict(
+                    zip(summary_keys, styles)
+                )
+
+    return highlight_map
 
 def _build_tabular(summary: Mapping[str, Any]) -> str:
     head = (
-        r"\begin{tabular}{@{}llrrrrrrrr@{}}"
+        r"\begin{tabular}{@{}llrrrrrrrrr@{}}"
         "\n\\toprule\n"
         r"\multirow{2}{*}{\textbf{Method}} & \multirow{2}{*}{\textbf{Task}} & "
-        r"\multicolumn{4}{c}{\textbf{TCSR} ($\uparrow$)} & "
-        r"\multicolumn{4}{c}{\textbf{Gap} ($\downarrow$)} \\"
+        r"\multicolumn{3}{c}{\textbf{TCSR} ($\uparrow$)} & "
+        r"\multicolumn{3}{c}{\textbf{Gap} ($\downarrow$)} & "
+        r"\multicolumn{3}{c}{\textbf{CT} ($\downarrow$)} \\"
         "\n"
-        r"\cmidrule(lr){3-6}\cmidrule(lr){7-10}"
+        r"\cmidrule(lr){3-5}\cmidrule(lr){6-8}\cmidrule(lr){9-11}"
         "\n"
-        r"& & \textbf{B=1} & \textbf{B=5} & \textbf{B=10} & \textbf{B=20} "
-        r"& \textbf{B=1} & \textbf{B=5} & \textbf{B=10} & \textbf{B=20} \\"
+        r"& & \textbf{B=1} & \textbf{B=10} & \textbf{B=20} "
+        r"& \textbf{B=1} & \textbf{B=10} & \textbf{B=20} "
+        r"& \textbf{B=1} & \textbf{B=10} & \textbf{B=20} \\"
         "\n\\midrule\n"
     )
     present_methods = [
@@ -86,8 +160,9 @@ def _build_tabular(summary: Mapping[str, Any]) -> str:
         if any(key in summary for key in key_map.values())
     ]
     if not present_methods:
-        raise KeyError("No supported Ours/Ours wo Mon. keys found in summary.")
+        raise KeyError("No supported EDF/Ours/Ours wo Mon. keys found in summary.")
 
+    highlight_map = _build_highlight_map(summary, present_methods)
     chunks: list[str] = []
     for method_index, (_method_id, label, key_map) in enumerate(present_methods):
         for case_index, (case, short) in enumerate(CASES):
@@ -98,18 +173,45 @@ def _build_tabular(summary: Mapping[str, Any]) -> str:
             )
             tsr_cells: list[str] = []
             gap_cells: list[str] = []
+            ct_cells: list[str] = []
             for beam_key, _beam_label in BEAMS:
                 summary_key = key_map[beam_key]
                 metrics = summary.get(summary_key, {}).get(case)
                 if metrics is None:
                     tsr_cells.append("--")
                     gap_cells.append("--")
+                    ct_cells.append("--")
                     continue
-                tsr_cells.append(_fmt_value(float(metrics["tsr"]), digits=1))
-                gap_cells.append(_fmt_value(float(metrics["makespan_gap"]), digits=1))
+                tsr_cells.append(
+                    _fmt_value(
+                        float(metrics["tsr"]),
+                        digits=1,
+                        style=highlight_map[(case, beam_key, "tsr")].get(
+                            summary_key, ""
+                        ),
+                    )
+                )
+                gap_cells.append(
+                    _fmt_value(
+                        float(metrics["makespan_gap"]),
+                        digits=1,
+                        style=highlight_map[(case, beam_key, "makespan_gap")].get(
+                            summary_key, ""
+                        ),
+                    )
+                )
+                ct_cells.append(
+                    _fmt_value(
+                        float(metrics["computation_time"]),
+                        digits=3,
+                        style=highlight_map[(case, beam_key, "computation_time")].get(
+                            summary_key, ""
+                        ),
+                    )
+                )
             chunks.append(
                 f"{prefix} & \\textbf{{{short}}} & "
-                + " & ".join(tsr_cells + gap_cells)
+                + " & ".join(tsr_cells + gap_cells + ct_cells)
                 + " \\\\\n"
             )
 
@@ -128,13 +230,14 @@ def build_tex(summary: Mapping[str, Any]) -> str:
         r"\begin{table}[t]" "\n"
         r"\centering" "\n"
         r"{\small" "\n"
-        r"\setlength{\tabcolsep}{4.5pt}" "\n"
+        r"\setlength{\tabcolsep}{3.5pt}" "\n"
         r"\renewcommand{\arraystretch}{1.05}" "\n"
         + tabular
         + "}\n"
         r"\caption{Scalability results under the constant-duration setting with "
         r"CORRECT\_ESTIMATE prior and $\eta=0.1$. Higher TCSR is better, while "
-        r"lower oracle gap is better. Columns sweep beam size $B \in \{1,5,10,20\}$.}"
+        r"lower oracle gap and computation time are better. Columns sweep beam "
+        r"size $B \in \{1,10,20\}$.}"
         "\n"
         r"\label{tab:scalability_case_results}"
         "\n"

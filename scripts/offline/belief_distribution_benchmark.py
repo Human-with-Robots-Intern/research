@@ -16,16 +16,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from assets.result_analysis.belief_robustness_tables import (
+    render_belief_robustness_tables,
+    save_rendered_tables,
+)
 from src.experiments.belief_robustness import (
     BeliefBenchmarkConfig,
     belief_benchmark_config_and_script_options_from_flat_mapping,
     run_belief_robustness_benchmark,
-    save_belief_robustness_results,
     save_belief_latex_export_csvs,
-)
-from assets.result_analysis.belief_robustness_tables import (
-    render_belief_robustness_tables,
-    save_rendered_tables,
+    save_belief_robustness_results,
 )
 
 
@@ -229,8 +229,8 @@ def _resolve_cli_defaults(
         raise ValueError(
             "YAML must not set both ``observation_alpha`` and ``observation_alphas``."
         )
-    yaml_config, script_opts = belief_benchmark_config_and_script_options_from_flat_mapping(
-        yaml_payload
+    yaml_config, script_opts = (
+        belief_benchmark_config_and_script_options_from_flat_mapping(yaml_payload)
     )
 
     if args.observation_alpha is not None and args.observation_alphas is not None:
@@ -316,7 +316,13 @@ def _resolve_cli_defaults(
     else:
         latex_dir = None
 
-    return config, Path(output_dir), emit_latex_export, latex_dir, observation_alpha_sweep
+    return (
+        config,
+        Path(output_dir),
+        emit_latex_export,
+        latex_dir,
+        observation_alpha_sweep,
+    )
 
 
 def _run_observation_alpha_sweep(

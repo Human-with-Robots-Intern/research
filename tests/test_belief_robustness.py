@@ -132,7 +132,7 @@ def test_belief_robustness_benchmark_supports_multiple_pf_particle_families() ->
 
 
 def test_belief_latex_export_extractors_build_expected_comparison_rows() -> None:
-    """Reviewer-10 helper tables should extract the intended slices."""
+    """Comparison helpers should still work after removing GT-family PF rows."""
 
     config = BeliefBenchmarkConfig(
         etas=(0.1,),
@@ -161,14 +161,12 @@ def test_belief_latex_export_extractors_build_expected_comparison_rows() -> None
         row["scenario"] == "non_gaussian_gt_shared_gaussian_observation"
         for row in bf_vs_pf_rows
     )
-    assert {row["gt_distribution"] for row in pf_upgrade_rows} == {
-        "lognormal",
-        "mixture",
-    }
+    assert pf_upgrade_rows == []
     assert {row["gt_mean_multiplier"] for row in bf_vs_pf_rows} == {0.6, 1.0, 1.4}
     assert all("mean_posterior_mean_abs_error" in row for row in main_rows)
     assert any(row["method_label"] == "Bayesian" for row in main_rows)
     assert any(row["method_label"] == "PF (Gaussian likelihood)" for row in main_rows)
+    assert all(";lik=" not in row["variant"] for row in results["summary_rows"])
 
 
 def test_gt_mean_multiplier_propagates_into_episode_and_summary_rows() -> None:

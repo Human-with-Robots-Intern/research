@@ -219,7 +219,9 @@ def _render_overall_table(
             if metric_name in {"tsr", "computation_time"}
             or _has_meaningful_makespan(row.tsr)
         ]
-        target_values = [getattr(rows[index], metric_name) for index in target_indices]
+        target_values = [
+            _display_value(getattr(rows[index], metric_name)) for index in target_indices
+        ]
         target_styles = _compute_highlight_styles(
             target_values,
             higher_is_better=higher_is_better,
@@ -421,6 +423,12 @@ def _fmt(value: float, digits: int) -> str:
     return f"{value:.{digits}f}"
 
 
+def _display_value(value: float) -> float:
+    """Clamp negative display values to zero for LaTeX output."""
+
+    return max(0.0, value)
+
+
 def _has_meaningful_makespan(tsr: float, tolerance: float = 1e-9) -> bool:
     """Return whether makespan/gap should be shown for the given TCSR."""
 
@@ -439,7 +447,7 @@ def _format_metric_cell(
     if not enabled:
         return "--"
 
-    rendered = _fmt(value, digits)
+    rendered = _fmt(_display_value(value), digits)
     if style == "best":
         return rf"\textbf{{{rendered}}}"
     if style == "second":
@@ -500,7 +508,7 @@ def _compute_case_highlights(
                 )
             ]
             values = [
-                float(summary[raw_key][case_name][metric_name])
+                _display_value(float(summary[raw_key][case_name][metric_name]))
                 for raw_key in raw_keys
             ]
             styles = _compute_highlight_styles(

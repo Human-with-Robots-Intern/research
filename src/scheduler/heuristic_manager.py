@@ -858,12 +858,19 @@ class HeuristicManager:
                             r_last_pos, target_pos
                         )
 
-                    total_delay = wait_delay + travel_time
+                    # DEFAULT runs should charge only the temporal blocking delay
+                    # here. Adding travel from the reserved owner's tail task can
+                    # overestimate conflict severity for productive interleavings.
+                    total_delay = (
+                        wait_delay
+                        if constants.MONITORING_ENABLED
+                        else wait_delay + travel_time
+                    )
 
                     log.debug(
                         f"  [Future Conflict] Chain caused '{target_name}' (Start {ready_time:.2f}) "
                         f"overlaps with Merged Reserved Window [{r_start:.2f}, {r_end:.2f}] (Owners: {r_owners}). "
-                        f"Wait: {wait_delay:.2f} = Total Delay: {total_delay:.2f}"
+                        f"Wait: {wait_delay:.2f}, Travel: {travel_time:.2f} -> ConflictDelay: {total_delay:.2f}"
                     )
                     if total_delay > max_conflict:
                         max_conflict = total_delay

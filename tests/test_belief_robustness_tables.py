@@ -138,9 +138,11 @@ def test_render_belief_robustness_tables_aggregates_across_priors() -> None:
     rendered = render_belief_robustness_tables(summary_rows, eta=0.1)
     main_table = rendered["tab_belief_robustness_main_shared_gaussian.tex"]
 
-    assert "Lognormal & 100 & Bayesian & 0.200 & 0.100 & 2.000 & 3.000" in main_table
+    assert "Trigger Time Error" in main_table
+    assert main_table.index("Trigger Time Error") < main_table.index("Posterior Mean Error")
+    assert "Lognormal & 100 & Bayesian & 0.200 & 0.100 & 3.000 & 2.000" in main_table
     assert (
-        "Lognormal & 100 & PF (Gaussian likelihood) & 0.500 & 0.400 & 5.000 & 6.000"
+        "Lognormal & 100 & PF (Gaussian likelihood) & 0.500 & 0.400 & 6.000 & 5.000"
         in main_table
     )
 

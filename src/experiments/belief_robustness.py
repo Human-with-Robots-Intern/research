@@ -822,17 +822,6 @@ def run_belief_robustness_benchmark(
                                 (particle_distribution, "gaussian")
                                 for particle_distribution in config.particle_distributions
                             ]
-                            if (
-                                observation_setting == "same_as_gt"
-                                and gt_distribution in {"lognormal", "mixture"}
-                            ):
-                                particle_variants.extend(
-                                    (
-                                        particle_distribution,
-                                        gt_distribution,
-                                    )
-                                    for particle_distribution in config.particle_distributions
-                                )
 
                             for (
                                 particle_distribution,

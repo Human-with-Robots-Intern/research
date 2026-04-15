@@ -1,18 +1,14 @@
-"""Tests for DeterministicExactOracle._is_critical_deadline_violated.
+"""Tests for strict oracle timing validation and deadline pruning."""
 
-Verifies that:
-- Non-critical candidates are never pruned.
-- Candidates with no LIT are never pruned.
-- interval > 0 candidates use TSR_EVAL_TOLERANCE_ABS.
-- interval == 0 (consecutive) candidates use the stricter CONSECUTIVE_TASK_WAIT_TOLERANCE.
-"""
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import networkx as nx
+
 from src.experiments.exact_oracle import DeterministicExactOracle
-from src.models.dataclass import CriticalContext
-from src.utils.config import constants
+from src.models.dataclass import Candidate, CompletedEntry, CriticalContext, SchedulerState
+from src.models.task import Duration, Execution, Subtask
 
 
 def _oracle() -> DeterministicExactOracle:
@@ -26,153 +22,245 @@ def _oracle() -> DeterministicExactOracle:
 
 
 def _node(current_time: float):
-    n = MagicMock()
-    n.state.current_time = current_time
-    return n
+    node = MagicMock()
+    node.state.current_time = current_time
+    return node
 
 
-def _candidate(is_critical: bool, lit: float | None, interval: float = 100.0):
-    c = MagicMock()
-    c.is_critical = is_critical
-    c.logical_interaction_start_time = lit
-    c.critical_context = (
-        CriticalContext(
-            source_subtask=None,
-            source_end_time=None,
-            interval=interval,
-            logical_start_time=lit,
-        )
-        if lit is not None
-        else None
+def _subtask(name: str) -> Subtask:
+    return Subtask(
+        task_name="task",
+        name=name,
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(objects={}, primitive_actions=["WAIT 0.0"]),
+        duration=Duration(type="Interaction", interval=1.0),
     )
-    return c
 
 
-# ---------------------------------------------------------------------------
-# Edge cases — always False
-# ---------------------------------------------------------------------------
+def _entry(
+    name: str,
+    schedule_start: float,
+    schedule_end: float,
+    *,
+    nav_time: float = 0.0,
+) -> CompletedEntry:
+    return CompletedEntry(
+        subtask=_subtask(name),
+        schedule_start_time=schedule_start,
+        schedule_end_time=schedule_end,
+        sim_start_time=schedule_start,
+        sim_end_time=schedule_end,
+        schedule_nav_time=nav_time,
+        execution_status=True,
+    )
+
+
+def _terminal_state(
+    completed_entries: list[CompletedEntry],
+    constraints: nx.DiGraph | None,
+) -> SchedulerState:
+    current_subtask = completed_entries[-1].subtask if completed_entries else _subtask("Idle")
+    current_time = (
+        float(completed_entries[-1].schedule_end_time) if completed_entries else 0.0
+    )
+    return SchedulerState(
+        subtask=current_subtask,
+        completed_entries=completed_entries,
+        remaining_subtasks=[],
+        constraints=constraints,
+        current_time=current_time,
+        scene_positions={},
+        held_object=None,
+    )
+
+
+def _candidate(
+    is_critical: bool,
+    lit: float | None,
+    *,
+    interval: float = 100.0,
+    nav_duration: float = 0.0,
+) -> Candidate:
+    return Candidate(
+        subtask=_subtask("Candidate"),
+        is_critical=is_critical,
+        logical_interaction_start_time=lit,
+        estimated_first_nav_duration=nav_duration,
+        critical_context=(
+            CriticalContext(
+                source_subtask="Pred",
+                source_end_time=10.0,
+                interval=interval,
+                logical_start_time=lit,
+            )
+            if lit is not None
+            else None
+        ),
+    )
 
 
 def test_not_critical_never_violated() -> None:
-    """Non-critical candidate is never pruned regardless of timing."""
+    """Non-critical candidates are never pruned by strict deadline checks."""
+
     assert (
-        _oracle()._is_critical_deadline_violated(_node(100.0), _candidate(False, 10.0))
+        _oracle()._is_critical_deadline_violated(
+            _node(100.0),
+            _candidate(False, 10.0, nav_duration=2.0),
+        )
         is False
     )
 
 
 def test_lit_none_never_violated() -> None:
-    """Critical candidate without LIT is never pruned."""
+    """Critical candidates without a logical interaction time stay unpruned."""
+
     assert (
         _oracle()._is_critical_deadline_violated(_node(100.0), _candidate(True, None))
         is False
     )
 
 
-# ---------------------------------------------------------------------------
-# interval > 0: uses TSR_EVAL_TOLERANCE_ABS (12.5s)
-# ---------------------------------------------------------------------------
+def test_positive_interval_critical_uses_nav_reach_time_strictly() -> None:
+    """Positive critical intervals prune once nav makes the interaction start late."""
 
-
-def test_nonzero_critical_within_timing_tolerance_not_violated() -> None:
-    """current_time = lit + TSR_EVAL_TOLERANCE_ABS - 0.1 → not violated."""
-    lit = 50.0
     oracle = _oracle()
+    lit = 50.0
+
     assert (
         oracle._is_critical_deadline_violated(
-            _node(lit + constants.TSR_EVAL_TOLERANCE_ABS - 0.1),
-            _candidate(True, lit, interval=100.0),
+            _node(lit - 2.0),
+            _candidate(True, lit, interval=100.0, nav_duration=2.0),
         )
         is False
     )
-
-
-def test_nonzero_critical_exceeds_timing_tolerance_violated() -> None:
-    """current_time = lit + TSR_EVAL_TOLERANCE_ABS + 0.1 → violated."""
-    lit = 50.0
-    oracle = _oracle()
     assert (
         oracle._is_critical_deadline_violated(
-            _node(lit + constants.TSR_EVAL_TOLERANCE_ABS + 0.1),
-            _candidate(True, lit, interval=100.0),
+            _node(lit - 2.0 + 0.1),
+            _candidate(True, lit, interval=100.0, nav_duration=2.0),
         )
         is True
     )
 
 
-# ---------------------------------------------------------------------------
-# interval == 0 (consecutive): uses CONSECUTIVE_TASK_WAIT_TOLERANCE (2.0s)
-# ---------------------------------------------------------------------------
+def test_zero_interval_critical_wait_within_numeric_epsilon_not_violated() -> None:
+    """A consecutive edge tolerates only tiny numeric noise, not semantic wait."""
 
-
-def test_zero_interval_critical_wait_within_consecutive_tolerance_not_violated() -> None:
-    """(0,True): wait=1.5s ≤ CONSECUTIVE_TASK_WAIT_TOLERANCE(2.0s) → not violated."""
-    lit = 20.0
     oracle = _oracle()
+    lit = 20.0
+
     assert (
         oracle._is_critical_deadline_violated(
-            _node(lit + 1.5),
+            _node(lit + (oracle._strict_timing_epsilon / 2.0)),
             _candidate(True, lit, interval=0.0),
         )
         is False
     )
 
 
-def test_zero_interval_critical_exceeds_consecutive_tolerance_violated() -> None:
-    """(0,True): wait > 2.0s but < 12.5s → VIOLATED (stricter threshold).
+def test_zero_interval_critical_wait_beyond_numeric_epsilon_violated() -> None:
+    """Any positive wait beyond numeric epsilon breaks a consecutive edge."""
 
-    Currently FAILS: uses TSR_EVAL_TOLERANCE_ABS=12.5 → not violated (returns False).
-    After Task 1 fix: uses CONSECUTIVE_TASK_WAIT_TOLERANCE=2.0 → violated (returns True).
-    """
-    lit = 20.0
     oracle = _oracle()
-    # wait = CONSECUTIVE_TASK_WAIT_TOLERANCE + 0.1 = 2.1s
-    # 2.1 > 2.0 (CONSECUTIVE_TASK_WAIT_TOLERANCE) → violated
-    # 2.1 < 12.5 (TSR_EVAL_TOLERANCE_ABS) → would NOT be violated without fix
+    lit = 20.0
+
     assert (
         oracle._is_critical_deadline_violated(
-            _node(lit + constants.CONSECUTIVE_TASK_WAIT_TOLERANCE + 0.1),
+            _node(lit + (oracle._strict_timing_epsilon * 2.0)),
             _candidate(True, lit, interval=0.0),
         )
         is True
     )
 
 
-def test_invalid_terminal_schedule_is_not_committed() -> None:
-    """Oracle should reject terminal schedules whose recomputed TCSR is below 1."""
+def test_late_by_less_than_twelve_point_five_seconds_is_rejected_by_oracle() -> None:
+    """Terminal schedules no longer inherit evaluator tolerance for critical edges."""
 
     oracle = _oracle()
-    state = MagicMock()
-    state.current_time = 10.0
-    state.remaining_subtasks = []
-    state.constraints = object()
-    state.completed_entries = []
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        "Start Microwave",
+        "Turn Off Microwave",
+        info={"Interval": 100.0, "IsCritical": True},
+    )
+    state = _terminal_state(
+        [
+            _entry("Start Microwave", 0.0, 20.0),
+            _entry("Turn Off Microwave", 115.5, 130.5, nav_time=5.0),
+        ],
+        constraints,
+    )
 
-    with patch(
-        "src.experiments.exact_oracle.calculate_timing_success_rate",
-        return_value=(None, 0.5, {"a -> b": {"Schedule Result": "[False]"}}),
-    ) as mocked_calc:
-        solution = oracle.solve(
-            state,
-            instruction="demo.json",
-            case="tasks_2_constraints_1",
-            incumbent_upper_bound=123.0,
-        )
+    assert oracle._is_terminal_schedule_valid(state) is False
 
-    mocked_calc.assert_called_once()
+    solution = oracle.solve(
+        state,
+        instruction="demo.json",
+        case="tasks_2_constraints_1",
+        incumbent_upper_bound=None,
+    )
+
     assert solution.optimal_schedule_time is None
     assert solution.exact is False
+
+
+def test_zero_interval_terminal_wait_beyond_numeric_epsilon_is_rejected() -> None:
+    """Strict terminal validation rejects any scheduled wait on a consecutive edge."""
+
+    oracle = _oracle()
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        "Predecessor",
+        "Successor",
+        info={"Interval": 0.0, "IsCritical": True},
+    )
+    state = _terminal_state(
+        [
+            _entry("Predecessor", 0.0, 20.0),
+            _entry("Successor", 20.01, 25.01, nav_time=3.0),
+        ],
+        constraints,
+    )
+
+    assert oracle._is_terminal_schedule_valid(state) is False
+
+
+def test_strictly_on_time_terminal_schedule_is_committed() -> None:
+    """A schedule that exactly matches planner timing semantics remains valid."""
+
+    oracle = _oracle()
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        "Start Microwave",
+        "Turn Off Microwave",
+        info={"Interval": 100.0, "IsCritical": True},
+    )
+    state = _terminal_state(
+        [
+            _entry("Start Microwave", 0.0, 20.0),
+            _entry("Turn Off Microwave", 115.0, 130.0, nav_time=5.0),
+        ],
+        constraints,
+    )
+
+    assert oracle._is_terminal_schedule_valid(state) is True
+
+    solution = oracle.solve(
+        state,
+        instruction="demo.json",
+        case="tasks_2_constraints_1",
+        incumbent_upper_bound=None,
+    )
+
+    assert solution.optimal_schedule_time == 130.0
+    assert solution.exact is True
 
 
 def test_external_upper_bound_is_not_treated_as_solution() -> None:
     """An incumbent upper bound should remain a bound until a valid leaf is committed."""
 
     oracle = _oracle()
-    state = MagicMock()
-    state.current_time = 10.0
-    state.remaining_subtasks = []
-    state.constraints = None
-    state.completed_entries = []
+    state = _terminal_state([], None)
 
     solution = oracle.solve(
         state,
@@ -181,6 +269,6 @@ def test_external_upper_bound_is_not_treated_as_solution() -> None:
         incumbent_upper_bound=123.0,
     )
 
-    assert solution.optimal_schedule_time == 10.0
+    assert solution.optimal_schedule_time == 0.0
     assert solution.exact is True
     assert solution.optimal_sequence == []

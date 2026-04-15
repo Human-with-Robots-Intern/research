@@ -707,6 +707,97 @@ def test_scheduler_expands_blocked_candidate_prenavigation_frontier(
     }
 
 
+def test_scheduler_keeps_early_critical_blocked_for_wait_or_prenavigation(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Positive critical tasks inside the horizon must not execute their interaction early."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    predecessor = _make_subtask(
+        "Start Kettle",
+        primitive_actions=["TOGGLE_ON Kettle|01"],
+    )
+    critical_subtask = _make_subtask(
+        "Turn Off Kettle",
+        primitive_actions=["NAVIGATE_TO Kettle|01", "TOGGLE_OFF Kettle|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        predecessor.name,
+        critical_subtask.name,
+        info={"Interval": 20.0, "IsCritical": True},
+    )
+    node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=_make_subtask("Init", primitive_actions=["WAIT 0"], subtask_type="Init"),
+            completed_entries=[
+                CompletedEntry(
+                    subtask=predecessor,
+                    schedule_start_time=0.0,
+                    schedule_end_time=0.0,
+                    execution_status=True,
+                )
+            ],
+            remaining_subtasks=[critical_subtask],
+            constraints=constraints,
+            current_time=10.0,
+            scene_positions={"agent": (0.0, 0.0, 0.0), "Kettle|01": (1.0, 0.0, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    blocked_candidate = Candidate(
+        subtask=critical_subtask,
+        is_critical=True,
+        actual_interaction_start_time=20.0,
+        logical_interaction_start_time=20.0,
+        estimated_first_nav_duration=2.0,
+    )
+    wait_node = SimulationNode(
+        heuristic_cost=1.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=node,
+        state=node.state,
+        risk_level=0,
+    )
+    prenav_node = SimulationNode(
+        heuristic_cost=2.0,
+        depth=1,
+        tie_breaker=2,
+        parent_node=node,
+        state=node.state,
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_single_subtask",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("Early critical interaction should stay blocked.")
+        ),
+    )
+    monkeypatch.setattr(scheduler, "_expand_single_wait", lambda *_args, **_kwargs: wait_node)
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_blocked_prenavigation",
+        lambda *_args, **_kwargs: prenav_node,
+    )
+
+    expansions = scheduler._expand_candidates(node, [], [blocked_candidate])
+
+    assert expansions == [wait_node, prenav_node]
+
+
 def test_scheduler_skips_blocked_prenavigation_for_monitoring_candidates(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -1068,7 +1159,7 @@ def test_heuristic_uses_monitor_subtask_duration_consistently() -> None:
 def test_future_conflict_positive_delay_is_penalized(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Any positive future-conflict delay should be penalized under strict semantics."""
+    """Positive conflict-avoidance wait should be reported from the existing delay logic."""
 
     action_handler = ActionHandler(nav_graph={})
     heuristic_manager = HeuristicManager(action_handler)
@@ -1143,7 +1234,7 @@ def test_future_conflict_positive_delay_is_penalized(
         curr_node, candidate
     )
 
-    assert conflict_delay == pytest.approx(8.0)
+    assert conflict_delay == pytest.approx(5.5)
     assert victim == target_subtask.name
 
 
@@ -1227,6 +1318,106 @@ def test_future_conflict_zero_wait_is_ignored(
 
     assert conflict_delay == pytest.approx(0.0)
     assert victim is None
+
+
+def test_positive_future_conflict_delay_is_violation_without_semantic_grace(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Risk should flip to violation once future conflict delay is meaningfully positive."""
+
+    action_handler = ActionHandler(nav_graph={})
+    heuristic_manager = HeuristicManager(action_handler)
+    candidate_subtask = _make_subtask(
+        "Start Bread Heating",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=candidate_subtask,
+            completed_entries=[],
+            remaining_subtasks=[candidate_subtask],
+            constraints=nx.DiGraph(),
+            current_time=0.0,
+            scene_positions={},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=False,
+        scheduling_due=SchedulingDue(due_date=20.0, due_related_sub_name=None),
+    )
+
+    monkeypatch.setattr(
+        heuristic_manager,
+        "check_future_conflict",
+        lambda *_args, **_kwargs: (1.5, "Turn Off Microwave"),
+    )
+
+    risk_level, heuristic_cost = heuristic_manager._calculate_candidate_risk_and_urgency(
+        curr_node, candidate
+    )
+
+    assert risk_level == 2
+    assert heuristic_cost == pytest.approx(10001.5)
+
+
+def test_negative_slack_is_violation_without_semantic_grace(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Risk should flip to violation as soon as deadline slack becomes negative."""
+
+    action_handler = ActionHandler(nav_graph={})
+    heuristic_manager = HeuristicManager(action_handler)
+    candidate_subtask = _make_subtask(
+        "Start Bread Heating",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=candidate_subtask,
+            completed_entries=[],
+            remaining_subtasks=[candidate_subtask],
+            constraints=nx.DiGraph(),
+            current_time=0.0,
+            scene_positions={},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=False,
+        scheduling_due=SchedulingDue(due_date=10.0, due_related_sub_name=None),
+    )
+
+    monkeypatch.setattr(
+        heuristic_manager,
+        "check_future_conflict",
+        lambda *_args, **_kwargs: (0.0, None),
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_estimate_total_time_needed_for_deadline_violation_check",
+        lambda *_args, **_kwargs: 10.1,
+    )
+
+    risk_level, heuristic_cost = heuristic_manager._calculate_candidate_risk_and_urgency(
+        curr_node, candidate
+    )
+
+    assert risk_level == 2
+    assert heuristic_cost == pytest.approx(10000.1)
+
 
 def test_constraint_handler_handles_missing_navigation_estimate(
     monkeypatch: MonkeyPatch,
@@ -1468,6 +1659,80 @@ def test_constraint_handler_assigns_due_from_not_ready_critical_inferred_due() -
         due_date=165.0,
         due_related_sub_name="Turn Off Microwave",
     )
+
+
+def test_constraint_handler_keeps_critical_candidate_blocked_until_exact_interaction_start(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Critical candidates must remain blocked while nav would still arrive early."""
+
+    action_handler = ActionHandler(nav_graph={})
+    constraint_handler = ConstraintHandler(action_handler)
+    subtask = _make_subtask(
+        "Turn Off Kettle",
+        primitive_actions=["NAVIGATE_TO Kettle|01", "TOGGLE_OFF Kettle|01"],
+    )
+    state = SchedulerState(
+        subtask=_make_subtask("Init", primitive_actions=["WAIT 0"], subtask_type="Init"),
+        completed_entries=[],
+        remaining_subtasks=[subtask],
+        constraints=nx.DiGraph(),
+        current_time=10.0,
+        scene_positions={"agent": (0.0, 0.0, 0.0), "Kettle|01": (1.0, 0.0, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        constraint_handler,
+        "get_logical_interaction_start_time",
+        lambda *_args, **_kwargs: (
+            20.0,
+            True,
+            "COMPLETED",
+            {
+                "critical_source": "Start Kettle",
+                "critical_source_end_time": 0.0,
+                "critical_interval": 20.0,
+                "critical_start_time": 20.0,
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        constraint_handler,
+        "_assign_scheduling_due",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        action_handler,
+        "get_actions_info",
+        lambda _node, _actions: ActionResult(
+            action_full_name="NAVIGATE_TO Kettle|01",
+            action_type="NAVIGATE_TO",
+            cumulative_time=2.0,
+            action_duration=2.0,
+            scene_positions={"agent": (1.0, 0.0, 0.0)},
+            held_object=None,
+            success=True,
+            first_nav_duration=2.0,
+        ),
+    )
+
+    feasible_candidates, not_yet_candidates = constraint_handler.get_feasible_candidates(
+        curr_node
+    )
+
+    assert feasible_candidates == []
+    assert len(not_yet_candidates) == 1
+    assert not_yet_candidates[0].logical_interaction_start_time == pytest.approx(20.0)
+    assert not_yet_candidates[0].actual_interaction_start_time == pytest.approx(20.0)
 
 
 def test_scheduler_detects_active_bayesian_monitoring_interval() -> None:

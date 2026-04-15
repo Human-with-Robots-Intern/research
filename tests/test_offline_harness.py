@@ -21,6 +21,7 @@ from src.experiments.offline_harness import (
     _build_persisted_single_run_payload,
     _edf_compute_deadline,
     _build_deterministic_scheduler_config,
+    _run_exact_oracle_rollout,
     _restore_runtime_overrides,
     _resolve_particle_distribution,
     _serialize_schedule_steps,
@@ -872,7 +873,7 @@ def test_run_single_rollout_frontier_selection_avoids_float_noise_tie_break_bug(
         _restore_runtime_overrides(previous_values)
 
     assert result["schedule_tcsr"] == 1.0
-    assert result["final_schedule_time"] < 200.0
+    assert result["final_schedule_time"] < 220.0
     assert result["steps"][2]["subtask_name"] == "Prepare Pan on Stove and Heat"
 
 
@@ -947,6 +948,142 @@ def test_run_oracle_reference_experiment_writes_oracle_summary(
     assert report["oracle_results"][0]["optimal_schedule_time"] == 100.0
     assert report["oracle_summary"]["avg_total_compute_time"] == 0.2
     assert report["oracle_summary"]["avg_schedule_tcsr"] == 1.0
+
+
+def test_run_exact_oracle_rollout_keeps_schedule_tcsr_for_reporting(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Exact oracle rollout should still expose post-hoc TCSR in its payload."""
+
+    config = ExperimentConfig(
+        approach="oracle",
+        ablation_config="NONE_MONITORING",
+        scene="FloorPlan1",
+        oracle_time_limit_seconds=5.0,
+    )
+    start_subtask = Subtask(
+        task_name="task",
+        name="Start Microwave",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(objects={}, primitive_actions=["TOGGLE_ON Microwave|1"]),
+        duration=Duration(type="Interaction", interval=5.0),
+    )
+    end_subtask = Subtask(
+        task_name="task",
+        name="Turn Off Microwave",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(objects={}, primitive_actions=["TOGGLE_OFF Microwave|1"]),
+        duration=Duration(type="Interaction", interval=5.0),
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        start_subtask.name,
+        end_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True},
+    )
+    initial_state = SchedulerState(
+        subtask=start_subtask,
+        completed_entries=[],
+        remaining_subtasks=[start_subtask, end_subtask],
+        constraints=constraints,
+        current_time=0.0,
+        scene_positions={},
+        held_object=None,
+    )
+    strict_solution = OracleSolution(
+        instruction="task_a.json",
+        case="tasks_2_constraints_1",
+        optimal_schedule_time=130.0,
+        optimal_sequence=["Start Microwave", "Turn Off Microwave"],
+        solve_time=0.25,
+        search_nodes=4,
+        pruned_nodes=1,
+        idle_advances=0,
+        exact=True,
+        timeout_hit=False,
+        completed_entries=[
+            CompletedEntry(
+                subtask=start_subtask,
+                schedule_start_time=0.0,
+                schedule_end_time=20.0,
+                sim_start_time=0.0,
+                sim_end_time=20.0,
+                execution_status=True,
+            ),
+            CompletedEntry(
+                subtask=end_subtask,
+                schedule_start_time=115.0,
+                schedule_end_time=130.0,
+                sim_start_time=115.0,
+                sim_end_time=130.0,
+                schedule_nav_time=5.0,
+                execution_status=True,
+            ),
+        ],
+    )
+
+    class _FakeOracle:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            _ = args, kwargs
+
+        def solve(self, *args: Any, **kwargs: Any) -> OracleSolution:
+            _ = args, kwargs
+            return strict_solution
+
+    monkeypatch.setattr(
+        "src.experiments.offline_harness.load_task_data_from_sampled_set",
+        lambda *_args, **_kwargs: {"task": "data"},
+    )
+    monkeypatch.setattr(
+        "src.experiments.offline_harness.TaskUtil.build_tasks_and_constraints",
+        lambda *_args, **_kwargs: ([start_subtask, end_subtask], constraints, None),
+    )
+    monkeypatch.setattr(
+        "src.experiments.offline_harness.TaskUtil.get_init_state",
+        lambda *_args, **_kwargs: initial_state,
+    )
+    monkeypatch.setattr(
+        "src.experiments.offline_harness.ActionHandler",
+        lambda *_args, **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "src.experiments.offline_harness.ConstraintHandler",
+        lambda *_args, **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "src.experiments.offline_harness.HeuristicManager",
+        lambda *_args, **_kwargs: object(),
+    )
+    monkeypatch.setattr(
+        "src.experiments.offline_harness.DeterministicExactOracle",
+        _FakeOracle,
+    )
+    monkeypatch.setattr(
+        "src.experiments.offline_harness.calculate_timing_success_rate",
+        lambda *_args, **_kwargs: (
+            None,
+            0.5,
+            {"Start Microwave -> Turn Off Microwave": {"Schedule Result": "[False]"}},
+        ),
+    )
+
+    result = _run_exact_oracle_rollout(
+        config,
+        case_name="tasks_2_constraints_1",
+        instruction="task_a.json",
+        nav_graph={},
+        scene_positions={},
+        incumbent_upper_bound=None,
+    )
+
+    assert result["final_schedule_time"] == 130.0
+    assert result["schedule_tcsr"] == 0.5
+    assert result["timing_success_rate_sched"] == 0.5
+    assert result["timing_detail"]["Start Microwave -> Turn Off Microwave"][
+        "Schedule Result"
+    ] == "[False]"
 
 
 def test_build_oracle_reference_config_forces_constant_gt() -> None:
@@ -1343,6 +1480,144 @@ def test_exact_oracle_records_explicit_wait_sequence(
     oracle._search(root_node, ())
 
     assert oracle._best_sequence == ["Wait for Heat Mug"]
+    assert oracle._idle_advances == 1
+
+
+def test_exact_oracle_records_feasible_conflict_avoidance_wait_sequence(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Oracle should branch on feasible conflict-avoidance waits like the scheduler."""
+
+    action_handler = ActionHandler(nav_graph={})
+    constraint_handler = ConstraintHandler(action_handler)
+    heuristic_manager = HeuristicManager(action_handler)
+    oracle = DeterministicExactOracle(
+        action_handler=action_handler,
+        constraint_handler=constraint_handler,
+        heuristic_manager=heuristic_manager,
+        time_limit_seconds=5.0,
+    )
+    feasible_subtask = Subtask(
+        task_name="task",
+        name="Heat Mug",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(
+            objects={"Mug|1": 1},
+            primitive_actions=["NAVIGATE_TO Mug|1", "TOGGLE_ON Mug|1"],
+        ),
+        duration=Duration(type="Interaction", interval=3.0),
+    )
+    root_state = SchedulerState(
+        subtask=feasible_subtask,
+        completed_entries=[],
+        remaining_subtasks=[feasible_subtask],
+        constraints=nx.DiGraph(),
+        current_time=0.0,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    root_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=root_state,
+        risk_level=0,
+    )
+    feasible_candidate = Candidate(
+        subtask=feasible_subtask,
+        is_critical=False,
+        actual_interaction_start_time=0.0,
+        logical_interaction_start_time=0.0,
+        estimated_first_nav_duration=0.0,
+    )
+    wait_node = SimulationNode(
+        heuristic_cost=1.5,
+        depth=1,
+        tie_breaker=1,
+        parent_node=root_node,
+        state=SchedulerState(
+            subtask=Subtask(
+                task_name="task",
+                name="Wait for Heat Mug",
+                repetition=1,
+                subtask_type="WAIT",
+                execution=Execution(objects={}, primitive_actions=["WAIT 1.5"]),
+                duration=Duration(type="WAIT", interval=1.5),
+            ),
+            completed_entries=[],
+            remaining_subtasks=[],
+            constraints=nx.DiGraph(),
+            current_time=1.5,
+            scene_positions={"agent": (0.0, 0.9, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    execute_node = SimulationNode(
+        heuristic_cost=5.0,
+        depth=1,
+        tie_breaker=2,
+        parent_node=root_node,
+        state=SchedulerState(
+            subtask=feasible_subtask,
+            completed_entries=[],
+            remaining_subtasks=[],
+            constraints=nx.DiGraph(),
+            current_time=5.0,
+            scene_positions={"agent": (1.0, 0.9, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    seen_delay: float | None = None
+
+    monkeypatch.setattr(
+        constraint_handler,
+        "get_feasible_candidates",
+        lambda node: ([feasible_candidate], []) if node is root_node else ([], []),
+    )
+    monkeypatch.setattr(
+        oracle.scheduler.cost_calculator,
+        "check_future_conflict",
+        lambda *_args, **_kwargs: (1.5, "Victim"),
+    )
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_estimate_candidate_navigation_duration",
+        lambda *_args, **_kwargs: 0.0,
+    )
+
+    def _expand_wait(*_args: object, **kwargs: object) -> SimulationNode:
+        nonlocal seen_delay
+        seen_delay = float(kwargs["additional_delay"])
+        return wait_node
+
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_expand_wait_wo_monitoring",
+        _expand_wait,
+    )
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_expand_subtask_wo_monitoring",
+        lambda *_args, **_kwargs: execute_node,
+    )
+
+    oracle._best_makespan = None
+    oracle._best_sequence = []
+    oracle._search_nodes = 0
+    oracle._pruned_nodes = 0
+    oracle._idle_advances = 0
+    oracle._timeout_hit = False
+    oracle._started_at = time.perf_counter()
+
+    oracle._search(root_node, ())
+
+    assert seen_delay == 1.5
+    assert oracle._best_sequence == ["Wait for Heat Mug"]
+    assert oracle._best_makespan == 1.5
     assert oracle._idle_advances == 1
 
 

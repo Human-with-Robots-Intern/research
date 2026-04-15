@@ -18,11 +18,6 @@ from src.models.dataclass import (
 from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 from src.utils.common import create_module_logger
 from src.utils.config import constants
-from src.utils.config.constants import (
-    CONSECUTIVE_TASK_WAIT_TOLERANCE,
-    TSR_EVAL_TOLERANCE_ABS,
-)
-from src.utils.io_utils.result_saver import calculate_timing_success_rate
 from src.utils.io_utils.result_saver import serialize_completed_entries
 
 log = create_module_logger(__name__, module_log=True)
@@ -85,9 +80,9 @@ class DeterministicExactOracle:
     This oracle intentionally excludes monitoring and online belief updates.
     It reuses the project's action simulation and candidate feasibility logic
     so the comparison stays aligned with the scheduler's deterministic timing
-    semantics. In strict mode, any branch whose propagated scheduler risk level
-    reaches ``2`` is pruned immediately so the oracle only considers
-    timing-feasible schedules under the same violation logic as the scheduler.
+    semantics. Terminal validation and critical-deadline pruning use strict
+    planner semantics derived directly from the constraint graph rather than the
+    evaluator's tolerant TCSR metric.
     """
 
     def __init__(
@@ -121,7 +116,7 @@ class DeterministicExactOracle:
             simulation_depth=1,
         )
         self._deadline_monotonic_tolerance = float(constants.EPSILON)
-        self._perfect_tcsr_tolerance = 1e-9
+        self._strict_timing_epsilon = 1e-6
         self._best_makespan: Optional[float] = None
         self._incumbent_upper_bound: Optional[float] = None
         self._best_sequence: list[str] = []
@@ -214,17 +209,13 @@ class DeterministicExactOracle:
             self._timeout_hit = True
             return
 
-        # NOTE: risk_level is NOT used for oracle pruning because the oracle must
-        # evaluate schedules that are slightly late (within evaluation tolerance) as
-        # valid.  The scheduler's risk_level uses its own planning tolerance, which
-        # may differ from the oracle's evaluation tolerance checked in
-        # _is_critical_deadline_violated.  Using risk_level here would cause the
-        # oracle to incorrectly prune paths where a critical task is executed a few
-        # seconds after its logical_interaction_start_time but still within the
-        # acceptable evaluation window, leading the oracle to miss shorter valid
-        # schedules.  Correctness is instead enforced by:
-        #   1. _is_critical_deadline_violated  (per-candidate check in Branch A)
-        #   2. branch-and-bound makespan bound (below)
+        # NOTE: risk_level is intentionally NOT used for oracle pruning.
+        # Scheduler risk is a search aid and can diverge from the oracle's exact
+        # branch semantics because it depends on partial lookahead/reservations.
+        # Oracle correctness is enforced by:
+        #   1. strict per-candidate deadline pruning in _is_critical_deadline_violated
+        #   2. strict terminal constraint validation in _is_terminal_schedule_valid
+        #   3. the branch-and-bound makespan bound below
         current_time = float(node.state.current_time)
         incumbent_bound = (
             self._best_makespan
@@ -264,11 +255,25 @@ class DeterministicExactOracle:
                 if candidate.subtask.name == reserved_candidate_name
             ]
 
-        # Branch A: execute each feasible candidate now (neutral ordering).
+        # Branch A: for each feasible candidate, explore an explicit
+        # conflict-avoidance WAIT branch (when one exists) and then the
+        # immediate execution branch. This keeps oracle branching aligned with
+        # the scheduler's deterministic search space, where a currently
+        # feasible task may still benefit from a small delay before starting.
         for candidate in self._order_candidates(node, feasible_candidates):
             if self._is_critical_deadline_violated(node, candidate):
                 self._pruned_nodes += 1
                 continue
+            wait_node = self._expand_feasible_conflict_avoidance_wait(
+                node,
+                candidate,
+                feasible_candidates,
+                not_yet_candidates,
+            )
+            if wait_node is not None:
+                self._search(wait_node, sequence + (wait_node.state.subtask.name,))
+                if self._timeout_hit:
+                    return
             child_node = self.scheduler._expand_subtask_wo_monitoring(
                 node,
                 candidate,
@@ -362,19 +367,54 @@ class DeterministicExactOracle:
             self._incumbent_upper_bound = makespan
 
     def _is_terminal_schedule_valid(self, state: SchedulerState) -> bool:
-        """Return True only when the completed deterministic schedule satisfies all timing constraints."""
+        """Return True only when the completed schedule satisfies strict timing semantics."""
 
         if not state.constraints:
             return True
 
-        _, schedule_tcsr, _ = calculate_timing_success_rate(
-            state.constraints,
-            list(state.completed_entries),
-        )
-        return (
-            schedule_tcsr is not None
-            and abs(float(schedule_tcsr) - 1.0) <= self._perfect_tcsr_tolerance
-        )
+        entry_map = {
+            completed_entry.subtask.name: completed_entry
+            for completed_entry in state.completed_entries
+        }
+
+        for predecessor_name, successor_name, edge_data in state.constraints.edges(
+            data=True
+        ):
+            if self._is_monitoring_edge(predecessor_name, successor_name):
+                continue
+
+            predecessor_entry = entry_map.get(predecessor_name)
+            successor_entry = entry_map.get(successor_name)
+            if predecessor_entry is None or successor_entry is None:
+                return False
+
+            interval, is_critical = self._read_constraint_info(edge_data)
+            predecessor_end = float(predecessor_entry.schedule_end_time)
+            successor_nav_start = float(successor_entry.schedule_start_time)
+            successor_interaction_start = self._get_schedule_interaction_start(
+                successor_entry
+            )
+
+            if is_critical:
+                if interval > self._strict_timing_epsilon:
+                    actual_interval = successor_interaction_start - predecessor_end
+                    if (
+                        abs(actual_interval - interval)
+                        > self._strict_timing_epsilon
+                    ):
+                        return False
+                elif (
+                    abs(successor_nav_start - predecessor_end)
+                    > self._strict_timing_epsilon
+                ):
+                    return False
+            elif (
+                successor_interaction_start + self._strict_timing_epsilon
+                < predecessor_end + interval
+            ):
+                return False
+
+        return True
 
     def _is_critical_deadline_violated(
         self,
@@ -389,32 +429,55 @@ class DeterministicExactOracle:
         lose their deadline tracking and receive ``scheduling_due = inf``, making
         ``_calculate_candidate_risk_and_urgency`` return ``risk = 0``.
 
-        This check closes that gap: if the oracle's current time is more than
-        ``TSR_EVAL_TOLERANCE_ABS`` past the critical task's required start time, the
-        branch is pruned to prevent recording constraint-violating schedules as optimal.
+        This check closes that gap using strict planner semantics rather than
+        evaluator tolerance. Positive critical intervals require the successor's
+        interaction start to match the logical interaction start exactly; zero
+        critical intervals require the successor navigation to start immediately.
 
         Args:
             node: Current DFS node.
             candidate: Feasible candidate about to be expanded.
 
         Returns:
-            True when the candidate is critical and its deadline has been exceeded
-            beyond the evaluation tolerance.
+            True when the candidate is critical and it can no longer satisfy the
+            strict timing constraint.
         """
         if not candidate.is_critical:
             return False
         lit = candidate.logical_interaction_start_time
         if lit is None:
             return False
-        # For (0, True) consecutive constraints the oracle uses the same stricter
-        # tolerance as the evaluator: only scheduling overhead is allowed, not the
-        # full evaluation tolerance window.
+
         ctx = candidate.critical_context
-        if ctx is not None and ctx.interval == 0.0:
-            tolerance = CONSECUTIVE_TASK_WAIT_TOLERANCE
-        else:
-            tolerance = TSR_EVAL_TOLERANCE_ABS
-        return float(node.state.current_time) > lit + tolerance
+        current_time = float(node.state.current_time)
+        if ctx is not None and abs(float(ctx.interval)) <= self._strict_timing_epsilon:
+            return current_time > float(lit) + self._strict_timing_epsilon
+
+        required_interaction_start = current_time + float(
+            candidate.estimated_first_nav_duration or 0.0
+        )
+        return required_interaction_start > float(lit) + self._strict_timing_epsilon
+
+    def _is_monitoring_edge(self, predecessor_name: str, successor_name: str) -> bool:
+        """Return True when either endpoint belongs to a monitoring-only edge."""
+
+        return predecessor_name.lower().startswith(
+            "monitoring"
+        ) or successor_name.lower().startswith("monitoring")
+
+    def _read_constraint_info(
+        self,
+        edge_data: dict[str, Any],
+    ) -> tuple[float, bool]:
+        """Extract the interval and critical flag from a constraint edge."""
+
+        info = edge_data.get("info", {})
+        return float(info.get("Interval", 0.0)), bool(info.get("IsCritical", False))
+
+    def _get_schedule_interaction_start(self, entry: CompletedEntry) -> float:
+        """Return the scheduled interaction-start timestamp for an entry."""
+
+        return float(entry.schedule_start_time) + float(entry.schedule_nav_time or 0.0)
 
     def _order_candidates(
         self,
@@ -491,6 +554,47 @@ class DeterministicExactOracle:
             list(not_yet_candidates),
             feasible_candidates=list(feasible_candidates),
         )
+
+    def _expand_feasible_conflict_avoidance_wait(
+        self,
+        node: SimulationNode,
+        candidate: Candidate,
+        feasible_candidates: Sequence[Candidate],
+        not_yet_candidates: Sequence[Candidate],
+    ) -> Optional[SimulationNode]:
+        """Create an explicit WAIT successor for a feasible future-conflicting step.
+
+        The scheduler can deliberately delay a currently feasible candidate by a
+        small amount when immediate execution would collide with a reserved
+        future critical window. The oracle must branch on the same explicit
+        wait to preserve search-space parity with the scheduler.
+        """
+
+        if node.state.constraints is None:
+            return None
+
+        conflict_delay, _ = self.scheduler.cost_calculator.check_future_conflict(
+            node,
+            candidate,
+        )
+        if float(conflict_delay) <= constants.EPSILON:
+            return None
+
+        nav_duration = self.scheduler._estimate_candidate_navigation_duration(
+            node,
+            candidate,
+        )
+        wait_node = self.scheduler._expand_wait_wo_monitoring(
+            node,
+            candidate,
+            list(not_yet_candidates),
+            nav_duration=nav_duration,
+            feasible_candidates=list(feasible_candidates),
+            additional_delay=float(conflict_delay),
+        )
+        if wait_node is not None:
+            self._idle_advances += 1
+        return wait_node
 
     def _collect_pretask_delay_targets(
         self,

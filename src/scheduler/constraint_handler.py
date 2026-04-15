@@ -247,11 +247,28 @@ class ConstraintHandler:
                 critical_context=critical_ctx,
             )
 
+            # Critical subtasks must stay blocked until the interaction itself can
+            # legally start. Allowing "within monitoring horizon" here turns a
+            # strict interaction-start constraint into a soft deadline because the
+            # scheduler would then execute the full nav+interaction sequence early.
+            #
+            # Non-critical tasks keep the broader horizon gate so the scheduler can
+            # still reason about nearby opportunities without semantic exactness.
+            physical_earliest_interaction_start = current_time + first_nav_duration
+            if is_critical:
+                is_feasible_now = (
+                    logical_interaction_start_time
+                    <= (physical_earliest_interaction_start + EPSILON)
+                )
+            else:
+                is_feasible_now = (
+                    logical_interaction_start_time - MONITORING_DURATION
+                    <= physical_earliest_interaction_start
+                )
+
             # 현재 시간에 "상호작용을 시작"할 수 있는 경우 feasible
             # 즉, effective_interaction_start_time이 현재 시간과 거의 같아야 함.
-            if logical_interaction_start_time - MONITORING_DURATION <= (
-                current_time + first_nav_duration
-            ):
+            if is_feasible_now:
                 log.debug(
                     f"Subtask '{sub.name}' is feasible now (interaction can start at {candidate.actual_interaction_start_time:.2f}, current_time: {current_time:.2f}, first_nav_duration: {first_nav_duration:.2f})."
                 )

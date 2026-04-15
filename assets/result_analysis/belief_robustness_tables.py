@@ -112,11 +112,11 @@ def _render_main_table(
                 str(row["method_label"]),
                 _format_metric(float(row["late_trigger_rate"]), digits=3),
                 _format_metric(float(row["calibration_error"]), digits=3),
+                _format_metric(float(row["mean_trigger_abs_error"]), digits=3),
                 _format_metric(
                     float(row["mean_posterior_mean_abs_error"]),
                     digits=3,
                 ),
-                _format_metric(float(row["mean_trigger_abs_error"]), digits=3),
             ]
         )
         + r" \\"
@@ -131,7 +131,7 @@ def _render_main_table(
         r"\resizebox{\linewidth}{!}{%",
         r"\begin{tabular}{@{}l c|l c c c c@{}}",
         r"\toprule",
-        r"GT & Mean & Method & \textbf{Late ($\downarrow$)} & \textbf{|Late-$\eta$| ($\downarrow$)} & \textbf{Posterior Mean Error ($\downarrow$)} & \textbf{Trigger Error ($\downarrow$)} \\",
+        r"GT & Mean & Method & \textbf{Late ($\downarrow$)} & \textbf{$|$Late$-\eta|$ ($\downarrow$)} & \textbf{Trigger Time Error ($\downarrow$)} & \textbf{Posterior Mean Error ($\downarrow$)} \\",
         r"\midrule",
         *body_lines,
         r"\bottomrule",
@@ -164,11 +164,11 @@ def _render_appendix_table(
                 str(row["method_label"]),
                 _format_metric(float(row["late_trigger_rate"]), digits=3),
                 _format_metric(float(row["calibration_error"]), digits=3),
+                _format_metric(float(row["mean_trigger_abs_error"]), digits=3),
                 _format_metric(
                     float(row["mean_posterior_mean_abs_error"]),
                     digits=3,
                 ),
-                _format_metric(float(row["mean_trigger_abs_error"]), digits=3),
             ]
         )
         + r" \\"
@@ -183,7 +183,7 @@ def _render_appendix_table(
         r"\resizebox{\linewidth}{!}{%",
         r"\begin{tabular}{@{}l c l|l c c c c@{}}",
         r"\toprule",
-        r"GT & Mean & Prior & Method & \textbf{Late ($\downarrow$)} & \textbf{|Late-$\eta$| ($\downarrow$)} & \textbf{Posterior Mean Error ($\downarrow$)} & \textbf{Trigger Error ($\downarrow$)} \\",
+        r"GT & Mean & Prior & Method & \textbf{Late ($\downarrow$)} & \textbf{$|$Late$-\eta|$ ($\downarrow$)} & \textbf{Trigger Time Error ($\downarrow$)} & \textbf{Posterior Mean Error ($\downarrow$)} \\",
         r"\midrule",
         *body_lines,
         r"\bottomrule",

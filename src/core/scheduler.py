@@ -403,16 +403,14 @@ class Scheduler:
                 )
 
             # 4. Final Collection
-            frontier_solutions = list(current_beam) if current_beam else []
-            if complete_solutions:
-                candidate_type = "complete"
-                selection_pool = complete_solutions
-            else:
-                candidate_type = "frontier"
-                selection_pool = frontier_solutions
+            # Roll back to the mixed winner-selection policy so complete and
+            # frontier candidates compete in the same pool.
+            best_solutions = list(complete_solutions)
+            if current_beam:
+                best_solutions.extend(current_beam)
 
-            if not selection_pool:
-                log.error("[_simulate_search] winner selection pool empty => no feasible path")
+            if not best_solutions:
+                log.error("[_simulate_search] best_solutions empty => no feasible path")
                 return None
 
             def get_depth1_node(node: SimulationNode) -> SimulationNode:
@@ -426,46 +424,34 @@ class Scheduler:
                 return curr
 
             depth1_node_by_node = {
-                id(node): get_depth1_node(node) for node in selection_pool
+                id(node): get_depth1_node(node) for node in best_solutions
             }
             depth1_cost_by_node = {
                 id(node): depth1_node_by_node[id(node)].heuristic_cost
-                for node in selection_pool
+                for node in best_solutions
             }
             depth1_risk_by_node = {
                 id(node): depth1_node_by_node[id(node)].risk_level
-                for node in selection_pool
+                for node in best_solutions
             }
 
             # 5. Select Winner
-            # Complete solutions reflect full-path risk, so compare on the leaf.
-            # Frontier solutions are only used for receding-horizon commitment, so
-            # compare using the risk of the immediate committed action rather than
-            # the accumulated leaf risk at the search horizon.
-            if candidate_type == "complete":
-                selection_pool.sort(
-                    key=lambda nd: (
-                        nd.risk_level,
-                        nd.heuristic_cost,
-                        depth1_cost_by_node[id(nd)],
-                    )
+            best_solutions.sort(
+                key=lambda nd: (
+                    nd.risk_level,
+                    nd.heuristic_cost + depth1_cost_by_node[id(nd)],
                 )
-            else:
-                selection_pool = self._order_frontier_selection_pool(
-                    selection_pool,
-                    depth1_cost_by_node,
-                    depth1_risk_by_node,
-                )
+            )
             log.debug(
-                "[_simulate_search] best_solution "
-                f"(type={candidate_type}, leaf={selection_pool[0].state.subtask.name}, "
-                f"leaf_risk={selection_pool[0].risk_level}, "
-                f"depth1_risk={depth1_risk_by_node[id(selection_pool[0])]}, "
-                f"leaf_cost={selection_pool[0].heuristic_cost:.2f}, "
-                f"depth1_cost={depth1_cost_by_node[id(selection_pool[0])]:.2f})"
+                "[_simulate_search] rollback best_solution "
+                f"(leaf={best_solutions[0].state.subtask.name}, "
+                f"leaf_risk={best_solutions[0].risk_level}, "
+                f"depth1_risk={depth1_risk_by_node[id(best_solutions[0])]}, "
+                f"leaf_cost={best_solutions[0].heuristic_cost:.2f}, "
+                f"depth1_cost={depth1_cost_by_node[id(best_solutions[0])]:.2f})"
             )
 
-            winner = selection_pool[0]
+            winner = best_solutions[0]
 
             # Trace back to find the immediate next action (Depth 1)
             immediate_node = depth1_node_by_node[id(winner)]
@@ -473,7 +459,7 @@ class Scheduler:
             log.debug(
                 f"\n[_simulate_search] Final Decision: Path selected (Leaf: '{winner.state.subtask.name}').\n"
                 f"  -> Immediate Action: '{immediate_node.state.subtask.name}'\n"
-                f"  (CandidateType={candidate_type}, LeafRisk={winner.risk_level}, "
+                f"  (LeafRisk={winner.risk_level}, "
                 f"Depth1Risk={depth1_risk_by_node[id(winner)]}, "
                 f"Depth1_Cost={depth1_cost_by_node[id(winner)]:.2f}, "
                 f"Leaf_Cost={winner.heuristic_cost:.2f}, Depth={winner.depth})"
@@ -726,6 +712,15 @@ class Scheduler:
             if (
                 candidate.logical_interaction_start_time - physical_earliest_start
             ) <= (MONITORING_DURATION + EPSILON):
+                if not self._can_candidate_start_interaction_now(curr_node, candidate):
+                    log.debug(
+                        "Found horizon-urgent critical candidate '%s', but interaction cannot start exactly yet "
+                        "(Physical: %.2f, Logical: %.2f). Keeping it blocked for wait/prenav expansion.",
+                        candidate.subtask.name,
+                        physical_earliest_start,
+                        candidate.logical_interaction_start_time,
+                    )
+                    continue
                 slack_to_logical = (
                     candidate.logical_interaction_start_time - physical_earliest_start
                 )
@@ -827,12 +822,23 @@ class Scheduler:
                         find_feasible_ancestor(candidate.subtask.name)
 
                         if len(urgent_list) == len_before:
-                            log.debug(
-                                f"No feasible ancestors found for {candidate.subtask.name}. "
-                                f"Adding the task itself as it is time-ready/urgent."
-                            )
-                            candidate.actual_interaction_start_time = physical_start
-                            urgent_list.append(candidate)
+                            if self._can_candidate_start_interaction_now(
+                                curr_node, candidate
+                            ):
+                                log.debug(
+                                    f"No feasible ancestors found for {candidate.subtask.name}. "
+                                    f"Adding the task itself as it is time-ready/urgent."
+                                )
+                                candidate.actual_interaction_start_time = physical_start
+                                urgent_list.append(candidate)
+                            else:
+                                log.debug(
+                                    "Blocked urgent task '%s' is inside the monitoring horizon but still early "
+                                    "(Physical: %.2f, Logical: %.2f). Leaving it to blocked wait/prenav expansion.",
+                                    candidate.subtask.name,
+                                    physical_start,
+                                    logical_start,
+                                )
 
         return urgent_list
 
@@ -994,6 +1000,27 @@ class Scheduler:
             if getattr(remaining_subtask, "pre_navigation_reserved", False):
                 return remaining_subtask.name
         return None
+
+    @staticmethod
+    def _can_candidate_start_interaction_now(
+        curr_node: SimulationNode,
+        candidate: Candidate,
+    ) -> bool:
+        """Return whether the candidate can begin interacting now or is already late.
+
+        Strict timing semantics are anchored on interaction start time. Entering the
+        monitoring horizon may make a task urgent, but it must not make the task
+        executable early.
+        """
+
+        if candidate.logical_interaction_start_time is None:
+            return True
+        physical_earliest_start = (
+            curr_node.state.current_time + candidate.estimated_first_nav_duration
+        )
+        return physical_earliest_start >= (
+            float(candidate.logical_interaction_start_time) - EPSILON
+        )
 
     def _get_blocked_candidate_frontier(
         self,
@@ -2279,15 +2306,37 @@ class Scheduler:
             # [Safety Check 250130] Prevent redundant monitoring
             # If the immediately preceding task was ALREADY a monitoring action for the SAME object,
             # we should NOT insert another monitoring step. This prevents infinite monitoring loops.
+            predecessor_monitor_target_obj = None
+            predecessor_monitor_target_name = None
             if (
                 curr_node.state.subtask
                 and curr_node.state.subtask.subtask_type == "Monitor"
-                and monitoring_target_obj
-                and monitoring_target_obj in curr_node.state.subtask.name
+            ):
+                predecessor_execution = curr_node.state.subtask.execution
+                if (
+                    predecessor_execution
+                    and predecessor_execution.objects
+                    and predecessor_execution.objects[0] is not None
+                ):
+                    predecessor_monitor_target_obj = predecessor_execution.objects[0]
+                try:
+                    predecessor_monitor_target_name = extract_monitoring_target_name(
+                        curr_node.state.subtask.name
+                    )
+                except ValueError:
+                    predecessor_monitor_target_name = None
+            if (
+                curr_node.state.subtask
+                and curr_node.state.subtask.subtask_type == "Monitor"
+                and (
+                    predecessor_monitor_target_obj == monitoring_target_obj
+                    or predecessor_monitor_target_name == critical_end_sub_name
+                )
             ):
                 log.warning(
                     f"[_expand_subtask_with_monitoring] Redundant monitoring detected! "
-                    f"Predecessor '{curr_node.state.subtask.name}' already monitored '{monitoring_target_obj}'. "
+                    f"Predecessor '{curr_node.state.subtask.name}' already monitored "
+                    f"target_obj='{monitoring_target_obj}' / target_sub='{critical_end_sub_name}'. "
                     f"Skipping monitoring insertion and proceeding with original task."
                 )
                 return self._expand_subtask_wo_monitoring(
@@ -2813,6 +2862,94 @@ class Scheduler:
             critical_interval_duration=original_critical_interval_duration,
             post_monitor_buffer=nav_duration,
         ):
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
+            )
+
+        if total_wait_duration <= EPSILON:
+            monitoring_target_obj = candidate.subtask.execution.primitive_actions[
+                0
+            ].split()[1]
+            predecessor_monitor_target_obj = None
+            predecessor_monitor_target_name = None
+            if (
+                curr_state.subtask is not None
+                and curr_state.subtask.subtask_type == "Monitor"
+            ):
+                predecessor_execution = curr_state.subtask.execution
+                if (
+                    predecessor_execution
+                    and predecessor_execution.objects
+                    and predecessor_execution.objects[0] is not None
+                ):
+                    predecessor_monitor_target_obj = predecessor_execution.objects[0]
+                try:
+                    predecessor_monitor_target_name = extract_monitoring_target_name(
+                        curr_state.subtask.name
+                    )
+                except ValueError:
+                    predecessor_monitor_target_name = None
+            if (
+                curr_state.subtask is not None
+                and curr_state.subtask.subtask_type == "Monitor"
+                and (
+                    predecessor_monitor_target_obj == monitoring_target_obj
+                    or predecessor_monitor_target_name == critical_end_sub_name
+                )
+            ):
+                log.debug(
+                    "[_expand_wait_with_monitoring] Zero-duration wait for '%s' "
+                    "immediately after monitoring the same target. Falling back to "
+                    "wait-without-monitoring to avoid redundant re-monitoring.",
+                    candidate.subtask.name,
+                )
+                return self._expand_wait_wo_monitoring(
+                    curr_node,
+                    candidate,
+                    not_yet_candidates,
+                    nav_duration=nav_duration,
+                    feasible_candidates=feasible_candidates,
+                )
+            predecessor_name = (
+                curr_state.subtask.name
+                if curr_state.subtask is not None
+                else critical_start_sub_name
+            )
+            target_start_time = (
+                self._get_candidate_target_start_time(candidate)
+                or curr_state.current_time
+            )
+            log.debug(
+                "[_expand_wait_with_monitoring] Zero-duration wait for '%s'. "
+                "Skipping synthetic WAIT node and inserting immediate monitoring.",
+                candidate.subtask.name,
+            )
+            inserted_monitor_node = self._insert_monitoring_step(
+                curr_node=curr_node,
+                candidate=candidate,
+                monitoring_target_obj=monitoring_target_obj,
+                predecessor_name=predecessor_name,
+                target_actual_start_time=target_start_time,
+                not_yet_candidates=not_yet_candidates,
+                critical_start_sub_name=critical_start_sub_name,
+                critical_start_sub_end_time=critical_start_sub_actual_end_time,
+                critical_end_sub_name=critical_end_sub_name,
+                critical_interval_duration=original_critical_interval_duration,
+                monitoring_target_sub_name=critical_end_sub_name,
+                is_critical_link=True,
+                critical_end_post_monitor_buffer=nav_duration,
+            )
+            if inserted_monitor_node is not None:
+                return inserted_monitor_node
+            log.debug(
+                "[_expand_wait_with_monitoring] Immediate monitoring fallback for '%s' "
+                "was rejected. Falling back to wait-without-monitoring.",
+                candidate.subtask.name,
+            )
             return self._expand_wait_wo_monitoring(
                 curr_node,
                 candidate,

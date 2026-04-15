@@ -107,6 +107,39 @@ def test_build_alpha_sweep_rows_keeps_gaussian_and_mixture_layout() -> None:
     ]
 
 
+def test_build_alpha_sweep_rows_accepts_results_without_gt_family_variant() -> None:
+    """New benchmark outputs should render with Bayesian and PF-only rows."""
+
+    summary_rows_by_alpha = {
+        0.01: [
+            _make_summary_row(
+                gt_distribution="lognormal",
+                variant="bayesian",
+                late_trigger_rate=0.2,
+                calibration_error=0.1,
+                mean_posterior_mean_abs_error=2.0,
+                mean_trigger_abs_error=3.0,
+            ),
+            _make_summary_row(
+                gt_distribution="lognormal",
+                variant="particle_filter[gaussian]",
+                late_trigger_rate=0.3,
+                calibration_error=0.2,
+                mean_posterior_mean_abs_error=4.0,
+                mean_trigger_abs_error=5.0,
+            ),
+        ]
+    }
+
+    rows = build_alpha_sweep_rows(summary_rows_by_alpha, gt_distributions=("lognormal",))
+
+    assert len(rows) == 2
+    assert [row["method_label"] for row in rows] == [
+        "Bayesian",
+        "PF (Gaussian)",
+    ]
+
+
 def test_render_alpha_sweep_outputs_include_formulas_and_bold_minima() -> None:
     """Rendered LaTeX/Markdown should expose formulas and highlight best metrics."""
 
@@ -185,10 +218,25 @@ def test_render_alpha_sweep_outputs_include_formulas_and_bold_minima() -> None:
     markdown = render_alpha_sweep_markdown(rows)
 
     assert r"\textbf{0.200}" in latex
-    assert r"v_{\mathrm{obs}}(t)=\max(\epsilon,\alpha(\mu_0-t)^2)" in latex
+    assert "Trigger Time Error" in latex
+    assert latex.index("Trigger Time Error") < latex.index("Posterior Mean Error")
+    assert (
+        r"v_{\mathrm{obs},i,k}=\max(\epsilon,\alpha(\hat{\mu}_{i,k-1}-t_{i,k})^2)"
+        in latex
+    )
     assert "PF with GT-family is identical to PF with Gaussian" in latex
     assert "Heavy-tail (Lognormal)" in latex
+    assert r"0.5\mathcal{N}(35,15^2)+0.5\mathcal{N}(165,15^2)" in latex
     assert "**0.200**" in markdown
+    assert (
+        "| Alpha | GT | Method | Late | |Late-eta| | Trigger Time Error | Posterior Mean Error |"
+        in markdown
+    )
     assert "## Metric Definitions" in markdown
     assert r"$$\mathrm{Late}=\frac{1}{N}\sum_{i=1}^{N}\mathbf{1}" in markdown
+    assert (
+        r"$$\mathrm{TriggerTimeError}=\frac{1}{N}\sum_{i=1}^{N}\left|\hat{t}_i^{(\eta)}-T_i\right|$$"
+        in markdown
+    )
     assert "PF (GT-family)" in markdown
+    assert "same observation-setting family" in markdown

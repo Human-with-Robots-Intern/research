@@ -66,7 +66,12 @@ def build_alpha_sweep_rows(
     gt_distributions: tuple[str, ...] = GT_ORDER,
     observation_setting: str = "same_as_gt",
 ) -> list[dict[str, Any]]:
-    """Extract the fixed-mean alpha sweep rows shown in the final table."""
+    """Extract the fixed-mean alpha sweep rows shown in the final table.
+
+    The current benchmark emits Bayesian and PF-with-Gaussian-likelihood rows
+    only. Older saved summaries may still include GT-family PF rows, so this
+    extractor keeps them when present instead of requiring them.
+    """
 
     table_rows: list[dict[str, Any]] = []
     for alpha in sorted(summary_rows_by_alpha.keys(), reverse=True):
@@ -82,10 +87,16 @@ def build_alpha_sweep_rows(
                 "bayesian",
                 "particle_filter[gaussian]",
             ]
-            if gt_distribution != "gaussian":
-                required_variants.append(
-                    f"particle_filter[gaussian;lik={gt_distribution}]"
-                )
+            optional_gt_family_variant = (
+                None
+                if gt_distribution == "gaussian"
+                else f"particle_filter[gaussian;lik={gt_distribution}]"
+            )
+            if (
+                optional_gt_family_variant is not None
+                and optional_gt_family_variant in rows_by_variant
+            ):
+                required_variants.append(optional_gt_family_variant)
 
             missing_variants = [
                 variant
@@ -134,6 +145,9 @@ def render_alpha_sweep_latex_table(rows: list[dict[str, Any]]) -> str:
         raise ValueError("No rows were provided for LaTeX rendering.")
 
     metric_minima = _compute_metric_minima(rows)
+    has_gt_family_rows = any(
+        str(row["method_label"]) == "PF (GT-family)" for row in rows
+    )
     body_lines: list[str] = []
     previous_alpha: float | None = None
     previous_gt: str | None = None
@@ -165,12 +179,12 @@ def render_alpha_sweep_latex_table(rows: list[dict[str, Any]]) -> str:
                         metric_minima[(key, "calibration_error")],
                     ),
                     _format_latex_metric(
-                        float(row["mean_posterior_mean_abs_error"]),
-                        metric_minima[(key, "mean_posterior_mean_abs_error")],
-                    ),
-                    _format_latex_metric(
                         float(row["mean_trigger_abs_error"]),
                         metric_minima[(key, "mean_trigger_abs_error")],
+                    ),
+                    _format_latex_metric(
+                        float(row["mean_posterior_mean_abs_error"]),
+                        metric_minima[(key, "mean_posterior_mean_abs_error")],
                     ),
                 ]
             )
@@ -181,6 +195,12 @@ def render_alpha_sweep_latex_table(rows: list[dict[str, Any]]) -> str:
 
     eta = float(rows[0]["eta"])
     episode_count = int(rows[0]["episode_count"])
+    family_caption_note = (
+        r"For Gaussian GT, PF with GT-family is identical to PF with "
+        r"Gaussian and is omitted. "
+        if has_gt_family_rows
+        else r"Only Bayesian and PF with Gaussian likelihood are shown. "
+    )
     lines = [
         r"\begin{table}[t]",
         r"\centering",
@@ -191,8 +211,8 @@ def render_alpha_sweep_latex_table(rows: list[dict[str, Any]]) -> str:
             r"Factor $\alpha$ & GT & Method & "
             r"\textbf{Late ($\downarrow$)} & "
             r"\textbf{$|$Late$-\eta|$ ($\downarrow$)} & "
-            r"\textbf{Posterior Mean Error ($\downarrow$)} & "
-            r"\textbf{Trigger Error ($\downarrow$)} \\"
+            r"\textbf{Trigger Time Error ($\downarrow$)} & "
+            r"\textbf{Posterior Mean Error ($\downarrow$)} \\"
         ),
         r"\midrule",
         *body_lines,
@@ -210,24 +230,26 @@ def render_alpha_sweep_latex_table(rows: list[dict[str, Any]]) -> str:
             r"Heavy-tail denotes the fixed-mean lognormal GT under the same "
             r"shape-stress sampler. Non-Gaussian denotes the "
             r"fixed-mean bimodal mixture "
-            r"$0.5\mathcal{N}(50,10^2)+0.5\mathcal{N}(150,10^2)$. "
-            r"For Gaussian GT, PF with GT-family is identical to PF with "
-            r"Gaussian and is omitted. Within each "
+            r"$0.5\mathcal{N}(35,15^2)+0.5\mathcal{N}(165,15^2)$. "
+            + family_caption_note
+            + r"Within each "
             r"$(\alpha,\mathrm{GT})$ block, bold marks the lowest value.}"
         ),
         r"\label{tab:belief_robustness_alpha_sweep_shape_stress}",
         (
             r"\parbox{0.98\linewidth}{\footnotesize "
             r"Observation variance proxy: "
-            r"$v_{\mathrm{obs}}(t)=\max(\epsilon,\alpha(\mu_0-t)^2)$. "
+            r"$v_{\mathrm{obs},i,k}=\max(\epsilon,\alpha(\hat{\mu}_{i,k-1}-t_{i,k})^2)$. "
             r"Metrics: "
             r"$\mathrm{Late}=\frac{1}{N}\sum_{i=1}^N \mathbf{1}[\hat{t}_i^{(\eta)} > T_i]$, "
             r"$|\mathrm{Late}-\eta|=\left|\mathrm{Late}-\eta\right|$, "
-            r"$\mathrm{PosteriorMeanError}=\frac{1}{N}\sum_{i=1}^N |\hat{\mu}_i-T_i|$, "
-            r"$\mathrm{TriggerError}=\frac{1}{N}\sum_{i=1}^N |\hat{t}_i^{(\eta)}-T_i|$. "
-            r"Here $T_i$ is the GT duration on episode $i$, $\hat{\mu}_i$ is the "
-            r"final posterior mean, and $\hat{t}_i^{(\eta)}$ is the method's "
-            r"trigger estimate at quantile $\eta$.}"
+            r"$\mathrm{TriggerTimeError}=\frac{1}{N}\sum_{i=1}^N |\hat{t}_i^{(\eta)}-T_i|$, "
+            r"$\mathrm{PosteriorMeanError}=\frac{1}{N}\sum_{i=1}^N |\hat{\mu}_i-T_i|$. "
+            r"Here $T_i$ is the GT duration on episode $i$, "
+            r"$\hat{\mu}_{i,k-1}$ is the current belief mean before observation "
+            r"step $k$, $\hat{\mu}_i$ is the final posterior mean, and "
+            r"$\hat{t}_i^{(\eta)}$ is the method's trigger estimate at quantile "
+            r"$\eta$.}"
         ),
         r"\end{table}",
     ]
@@ -241,6 +263,9 @@ def render_alpha_sweep_markdown(rows: list[dict[str, Any]]) -> str:
         raise ValueError("No rows were provided for Markdown rendering.")
 
     metric_minima = _compute_metric_minima(rows)
+    has_gt_family_rows = any(
+        str(row["method_label"]) == "PF (GT-family)" for row in rows
+    )
     eta = float(rows[0]["eta"])
     episode_count = int(rows[0]["episode_count"])
     table_lines = [
@@ -258,10 +283,10 @@ def render_alpha_sweep_markdown(rows: list[dict[str, Any]]) -> str:
         "",
         (
             "Additional fixed-mean GTs are `Heavy-tail (Lognormal)` and the "
-            "shape-stress mixture `0.5 N(50, 10^2) + 0.5 N(150, 10^2)`."
+            "shape-stress mixture `0.5 N(35, 15^2) + 0.5 N(165, 15^2)`."
         ),
         "",
-        "| Alpha | GT | Method | Late | Cal (|Late-eta|) | Posterior Mean Error | Trigger Error |",
+        "| Alpha | GT | Method | Late | |Late-eta| | Trigger Time Error | Posterior Mean Error |",
         "| --- | --- | --- | ---: | ---: | ---: | ---: |",
     ]
 
@@ -283,12 +308,12 @@ def render_alpha_sweep_markdown(rows: list[dict[str, Any]]) -> str:
                         metric_minima[(key, "calibration_error")],
                     ),
                     _format_markdown_metric(
-                        float(row["mean_posterior_mean_abs_error"]),
-                        metric_minima[(key, "mean_posterior_mean_abs_error")],
-                    ),
-                    _format_markdown_metric(
                         float(row["mean_trigger_abs_error"]),
                         metric_minima[(key, "mean_trigger_abs_error")],
+                    ),
+                    _format_markdown_metric(
+                        float(row["mean_posterior_mean_abs_error"]),
+                        metric_minima[(key, "mean_posterior_mean_abs_error")],
                     ),
                 ]
             )
@@ -300,17 +325,24 @@ def render_alpha_sweep_markdown(rows: list[dict[str, Any]]) -> str:
             "",
             "## How To Read",
             "",
-            "- Each `(alpha, GT)` block compares methods under exactly the same latent GT episodes and the same observation schedule.",
+            "- Each `(alpha, GT)` block compares methods under exactly the same latent GT episodes and the same observation-setting family.",
+            "- The exact monitoring schedule is still method-specific because each backend recomputes its own trigger times from its current posterior.",
             "- `Late` is the empirical fraction of episodes where the trigger happens after the true completion time. Smaller means safer, but it can also be overly conservative.",
-            "- `Cal = |Late-eta|` is the calibration metric. This is the cleanest way to check whether the method's late-trigger frequency matches the target quantile `eta`.",
-            "- `Posterior Mean Error` checks belief accuracy, while `Trigger Error` checks decision accuracy. Both are absolute errors, so lower is better.",
-            "- For Gaussian GT, `PF (GT-family)` is omitted because GT-family and Gaussian likelihood are the same model.",
+            "- `|Late-eta|` is the calibration metric. This is the cleanest way to check whether the method's late-trigger frequency matches the target quantile `eta`.",
+            "- `Trigger Time Error` checks decision timing accuracy, while `Posterior Mean Error` checks belief accuracy. Both are absolute errors, so lower is better.",
+            (
+                "- For Gaussian GT, `PF (GT-family)` is omitted because GT-family "
+                "and Gaussian likelihood are the same model."
+                if has_gt_family_rows
+                else "- This export includes the Bayesian baseline and the PF "
+                "(Gaussian likelihood) variant only."
+            ),
             "",
             "## Metric Definitions",
             "",
             "Observation variance scale:",
             "",
-            r"$$v_{\text{obs}}(t)=\max(\epsilon,\alpha(\mu_0-t)^2)$$",
+            r"$$v_{\text{obs},i,k}=\max(\epsilon,\alpha(\hat{\mu}_{i,k-1}-t_{i,k})^2)$$",
             "",
             "Late-trigger rate:",
             "",
@@ -320,22 +352,38 @@ def render_alpha_sweep_markdown(rows: list[dict[str, Any]]) -> str:
             "",
             r"$$\mathrm{Cal}=\left|\mathrm{Late}-\eta\right|$$",
             "",
+            "Trigger time error:",
+            "",
+            r"$$\mathrm{TriggerTimeError}=\frac{1}{N}\sum_{i=1}^{N}\left|\hat{t}_i^{(\eta)}-T_i\right|$$",
+            "",
             "Posterior mean error:",
             "",
             r"$$\mathrm{PosteriorMeanError}=\frac{1}{N}\sum_{i=1}^{N}\left|\hat{\mu}_i-T_i\right|$$",
             "",
-            "Trigger error:",
-            "",
-            r"$$\mathrm{TriggerError}=\frac{1}{N}\sum_{i=1}^{N}\left|\hat{t}_i^{(\eta)}-T_i\right|$$",
-            "",
-            "Here `T_i` is the GT duration for episode `i`, `\\hat{\\mu}_i` is the final posterior mean, and `\\hat{t}_i^{(\\eta)}` is the method's trigger estimate at quantile `eta`.",
+            "Here `T_i` is the GT duration for episode `i`, `\\hat{\\mu}_{i,k-1}` is the current belief mean before observation step `k`, `\\hat{\\mu}_i` is the final posterior mean, and `\\hat{t}_i^{(\\eta)}` is the method's trigger estimate at quantile `eta`.",
             "",
             "## Short Takeaway",
             "",
             "- Lower `alpha` makes the synthetic observations tighter, and all methods improve sharply from `0.1` to `0.001`.",
             "- Under Gaussian GT, Bayesian stays the strongest method once `alpha` becomes small.",
-            "- Under heavy-tail lognormal GT, `PF (GT-family)` does not help here; Bayesian remains clearly better on posterior and trigger accuracy.",
-            "- Under the fixed-mean mixture GT, `PF (GT-family)` becomes the strongest PF variant and is best overall at `alpha = 0.001` on all four metrics in this table.",
+            (
+                "- Under heavy-tail lognormal GT, `PF (GT-family)` does not help "
+                "here; Bayesian remains clearly better on posterior and trigger "
+                "accuracy."
+                if has_gt_family_rows
+                else "- Under the non-Gaussian GTs in this export, the main "
+                "comparison is whether PF with Gaussian likelihood can close the "
+                "gap to the Bayesian baseline."
+            ),
+            (
+                "- Under the fixed-mean mixture GT, `PF (GT-family)` becomes the "
+                "strongest PF variant and is best overall at `alpha = 0.001` on "
+                "all four metrics in this table."
+                if has_gt_family_rows
+                else "- The strongest benefits now come from tighter observations "
+                "(`alpha` small) rather than from adding extra PF likelihood "
+                "variants."
+            ),
         ]
     )
     return "\n".join(table_lines)
