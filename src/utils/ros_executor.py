@@ -192,9 +192,9 @@ class RosExecutor:
                         f"primitive_action: {primitive_action} translated to translated_parts: {translated_parts}"
                     )
                     payload: Dict[str, Any] = {"action_parts": translated_parts}
-                    # For monitoring actions, include the full instruction so
-                    # the ROS bridge can select the correct VLM prompt.
-                    if action_verb.startswith("monitoring") and self.instruction:
+                    # Always include instruction so the ROS bridge can set
+                    # Arduino LED mode and select the correct VLM prompt.
+                    if self.instruction:
                         payload["instruction"] = self.instruction
 
                     response = requests.post(

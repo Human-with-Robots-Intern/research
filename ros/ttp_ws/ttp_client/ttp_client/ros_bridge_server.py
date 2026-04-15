@@ -6,6 +6,8 @@ import threading
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 
+import time as _time
+
 import cv2
 import numpy as np
 import serial
@@ -23,6 +25,9 @@ logger = logging.getLogger(__name__)
 
 # Instruction ID for MONITORING actions
 _MONITORING_INSTRUCTION = 20
+
+# "Return to initial position" pattern: NAVIGATE_TO(10), node 100
+_RETURN_HOME_ACTION = [0, 10, 100, 100]
 
 # ROS topic for the RealSense color image
 COLOR_TOPIC = "/camera/color/image_raw"
@@ -127,6 +132,21 @@ def _send_arduino_task_mode(ser: Optional[serial.Serial], instruction: Optional[
     print(f"[ros_bridge] Sent to Arduino: {cmd.strip()}", flush=True)
 
 
+_TASK_COMPLETE_FLAG = "/app/.task_complete"
+
+
+def _signal_task_complete() -> None:
+    """Write a flag file when the robot returns to initial position."""
+    try:
+        with open(_TASK_COMPLETE_FLAG, "w") as f:
+            f.write(_time.strftime("%Y%m%d_%H%M%S"))
+        print("[ros_bridge] Task complete — robot returning to initial position.", flush=True)
+        # Reset arduino task mode for next instruction
+        app.state.arduino_task_set = False
+    except Exception as e:
+        print(f"[ros_bridge] Failed to write completion flag: {e}", flush=True)
+
+
 def _init_vlm_estimator(camera: Any) -> Any:
     """Create the VLM progress estimator (lazy OpenAI client)."""
     try:
@@ -202,6 +222,14 @@ async def execute_translated_action(parts_request: ActionPartsRequest) -> Dict[s
         try:
             instruction = int(parts_request.action_parts[1])
         except (IndexError, ValueError, TypeError):
+            pass
+
+        # Detect "return to initial position" and signal completion
+        try:
+            parts_int = [int(x) for x in parts_request.action_parts[:4]]
+            if parts_int == _RETURN_HOME_ACTION:
+                _signal_task_complete()
+        except (ValueError, TypeError, IndexError):
             pass
 
         if instruction == _MONITORING_INSTRUCTION:
