@@ -2,6 +2,7 @@ import argparse
 import concurrent.futures
 import gc
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -17,6 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import psutil
+import requests
 import yaml
 
 from src.utils.common import create_module_logger
@@ -328,10 +330,11 @@ def _run_script_and_log(
     """
     wrapper_script = (
         SCRIPTS_PATH
+        / "infra"
         / "run_project.sh"
         # 해당 스크립트는 ros container 빌드시 실행되도록 변경됨.
         # if is_simulation
-        # else SCRIPTS_PATH / "run_with_ros_env.sh"
+        # else SCRIPTS_PATH / "infra" / "run_with_ros_env.sh"
     )
 
     cmd = [
@@ -430,6 +433,28 @@ def _run_script_and_log(
         f"Stderr: {result.stderr}"
     )
     return result
+
+
+def return_to_initial_position(ros_bridge_url: str = "http://localhost:8000") -> None:
+    """Sends a command to the robot to return to the initial position."""
+    try:
+        # Action parts: [robot_model, action_id, object_id, position]
+        # NAVIGATE_TO is 10. Initial position is Node 100.
+        action_parts = [0, 10, 100, 100]
+        logger.info("Sending 'Return to Initial Position' command...")
+        response = requests.post(
+            f"{ros_bridge_url}/execute_translated_action",
+            json={"action_parts": action_parts},
+            timeout=30,
+        )
+        response.raise_for_status()
+        result = response.json()
+        if result.get("success"):
+            logger.info("Successfully returned to initial position.")
+        else:
+            logger.warning("Robot failed to return to initial position.")
+    except Exception as e:
+        logger.error(f"Error returning to initial position: {e}")
 
 
 def worker(task: ExperimentTask) -> None:
@@ -557,6 +582,11 @@ def worker(task: ExperimentTask) -> None:
                     f"LLM baseline {b_path.name} failed after {task.max_retries} attempts."
                 )
     finally:
+        # Return robot to initial position after each real-world task (success or failure)
+        if not task.is_simulation:
+            ros_bridge_url = os.getenv("ROS_BRIDGE_URL", "http://localhost:8000")
+            return_to_initial_position(ros_bridge_url)
+
         # Force garbage collection after each task
         gc.collect()
 
@@ -571,7 +601,9 @@ def load_instruction_case_mapping_from_scenes(
     target_scenes: List[str],
     task_folder_names: str | List[str],
     min_task_count: int = 0,
+    max_task_count: int = 99,
     min_constraint_count: int = 0,
+    max_constraint_count: int = 99,
 ) -> Dict[str, Dict[str, List[Tuple[str, str]]]]:
     """
     Loads instruction files and maps them to cases and scenes.
@@ -582,8 +614,10 @@ def load_instruction_case_mapping_from_scenes(
     Args:
         target_scenes (List[str]): A list of scene names to include.
         task_folder_names (str | List[str]): The name(s) of the folder(s) within 'assets/tasks/' to search.
-        min_task_count (int): The minimum number of tasks for a case to be included.
-        min_constraint_count (int): The minimum number of constraints for a case to be included.
+        min_task_count (int): The minimum number of tasks for a case to be included (inclusive).
+        max_task_count (int): The maximum number of tasks for a case to be included (inclusive).
+        min_constraint_count (int): The minimum number of constraints for a case to be included (inclusive).
+        max_constraint_count (int): The maximum number of constraints for a case to be included (inclusive).
 
     Returns:
         Dict[str, Dict[str, List[Tuple[str, str]]]]: A nested dictionary mapping case names to
@@ -614,7 +648,8 @@ def load_instruction_case_mapping_from_scenes(
 
             num_tasks, num_constraints = map(int, match.groups())
 
-            if num_tasks < min_task_count or num_constraints < min_constraint_count:
+            if not (min_task_count <= num_tasks <= max_task_count) or \
+               not (min_constraint_count <= num_constraints <= max_constraint_count):
                 continue
 
             for scene_name in target_scenes:
@@ -835,6 +870,7 @@ def main() -> None:
     max_retries: int = config.get("max_retries", 10)
     max_workers: int = config.get("max_workers", 10)
     num_gpus: int = config.get("num_gpus", 0)
+    start_idx: int = config.get("start_idx", 1)
 
     is_dry_run: bool = args.dry_run
 
@@ -864,13 +900,17 @@ def main() -> None:
     ]
 
     min_task_count = config.get("min_task_count", 0)
+    max_task_count = config.get("max_task_count", 99)
     min_constraint_count = config.get("min_constraint_count", 0)
+    max_constraint_count = config.get("max_constraint_count", 99)
     task_folder_name = config.get(
         "task_folder_name", "decomposed_rightbefore_final_251031"
     )
     case_instruction_mapping: Dict[str, Dict[str, List[Tuple[str, str]]]] = (
         load_instruction_case_mapping_from_scenes(
-            target_scenes, task_folder_name, min_task_count, min_constraint_count
+            target_scenes, task_folder_name,
+            min_task_count, max_task_count,
+            min_constraint_count, max_constraint_count
         )
     )
 
@@ -941,6 +981,10 @@ def main() -> None:
             for scene_name, instructions in scene_map.items():
                 for instruction_path, task_src_folder_name in instructions:
                     instr_path_obj = Path(instruction_path)
+                    # Apply start_idx filter
+                    instr_idx_match = re.match(r"(\d+)_", instr_path_obj.name)
+                    if instr_idx_match and int(instr_idx_match.group(1)) < start_idx:
+                        continue
                     # Apply execute_dict filter if it's defined
                     if execute_dict:
                         if case_name not in execute_dict:

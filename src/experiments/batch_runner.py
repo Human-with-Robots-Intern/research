@@ -653,7 +653,9 @@ def load_instruction_case_mapping_from_scenes(
     task_folder_names: str | list[str],
     logger: logging.Logger,
     min_task_count: int = 0,
+    max_task_count: int = 99,
     min_constraint_count: int = 0,
+    max_constraint_count: int = 99,
 ) -> dict[str, dict[str, list[tuple[str, str]]]]:
     """Load instruction file paths grouped by case and scene."""
 
@@ -675,7 +677,8 @@ def load_instruction_case_mapping_from_scenes(
             if match is None:
                 continue
             num_tasks, num_constraints = map(int, match.groups())
-            if num_tasks < min_task_count or num_constraints < min_constraint_count:
+            if not (min_task_count <= num_tasks <= max_task_count) or \
+               not (min_constraint_count <= num_constraints <= max_constraint_count):
                 continue
             for scene_name in target_scenes:
                 scene_folder = test_case / scene_name
@@ -837,7 +840,9 @@ def build_ai2thor_tasks(
         ),
         logger=logger,
         min_task_count=int(config.get("min_task_count", 0)),
+        max_task_count=int(config.get("max_task_count", 99)),
         min_constraint_count=int(config.get("min_constraint_count", 0)),
+        max_constraint_count=int(config.get("max_constraint_count", 99)),
     )
     ablation_names_to_run = list(config.get("ablation_configs", []))
     if ablation_names_to_run:

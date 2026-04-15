@@ -108,9 +108,9 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "-s",
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
-        help="시뮬레이션 실행 여부 (default: True)",
+        help="시뮬레이션 실행 여부 (default: False)",
     )
     parser.add_argument(
         "--ros",
@@ -277,12 +277,10 @@ def generate_plan(
     if args.prompt_task_examples == "default":
         if args.ros:
             default_examples = [
-                "cook_chicken",
+                "cook_sausage",
                 "put orange bowl on sink",
-                "do_laundry",
+                "make_tea_in_teapot",
             ]
-            # ROS 예시는 개수가 적을 수 있으므로 args.prompt_num_examples 조정이 필요할 수도 있음
-            # 현재 파일에는 3개만 있으므로 len(default_examples)와 비교하여 안전하게 순회하도록 수정 필요
         else:
             default_examples = [
                 "Heat Potato using Microwave and set the table for lunch",

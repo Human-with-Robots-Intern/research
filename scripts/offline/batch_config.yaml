@@ -62,7 +62,9 @@ init_prior_configs: #초기 시간 값 종류
 task_folder_name:
   - "sampled_10_instruction_set_for_final_experiment_251203"
 min_task_count: 0
+max_task_count: 99
 min_constraint_count: 0
+max_constraint_count: 99
 skip_completed: true
 
 # ------------------------------------------------------------------------------

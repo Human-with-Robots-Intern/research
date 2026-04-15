@@ -13,9 +13,9 @@
         ]
     },
     "pan": {
-        "position": 31,
+        "position": 33,
         "parentReceptacles": [
-            "table"
+            "stove"
         ]
     },
     "sausage": {
@@ -53,13 +53,13 @@
         "parentReceptacles": [
             "table"
         ],
-        "isToggled": false
+        "isToggled": true
     },
     "tea_cup": {
-        "position": 39,
+        "position": 38,
         "isCooked": false,
         "parentReceptacles": [
-            "table"
+            "tea_pot"
         ]
     },
     "green_cup": {
@@ -69,10 +69,10 @@
         ]
     },
     "tomato": {
-        "position": 42,
+        "position": 31,
         "isCooked": false,
         "parentReceptacles": [
-            "table"
+            "pan"
         ]
     },
     "table": {
