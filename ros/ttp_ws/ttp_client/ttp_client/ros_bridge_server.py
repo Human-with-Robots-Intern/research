@@ -204,7 +204,11 @@ async def execute_translated_action(parts_request: ActionPartsRequest) -> Dict[s
     try:
         # Set Arduino LED task mode on first request with instruction
         if not app.state.arduino_task_set and parts_request.instruction:
-            _send_arduino_task_mode(app.state.arduino, parts_request.instruction)
+            try:
+                _send_arduino_task_mode(app.state.arduino, parts_request.instruction)
+            except Exception as arduino_err:
+                print(f"[ros_bridge] WARNING: Arduino command failed (non-fatal): {arduino_err}", flush=True)
+                app.state.arduino = None
             app.state.arduino_task_set = True
 
         loop = asyncio.get_event_loop()
