@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 
+import cv2
+import numpy as np
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -20,6 +23,8 @@ logger = logging.getLogger(__name__)
 # Instruction ID for MONITORING actions
 _MONITORING_INSTRUCTION = 20
 
+# ROS topic for the RealSense color image
+COLOR_TOPIC = "/camera/color/image_raw"
 
 
 class ActionPartsRequest(BaseModel):
@@ -37,23 +42,58 @@ class ActionPartsRequest(BaseModel):
     instruction: Optional[str] = None
 
 
-def _init_realsense_camera() -> Any:
-    """Try to initialise the RealSense camera; return ``None`` on failure."""
-    try:
-        from object_detect_topic.opencv_realsense import realsense_camera
+class RosCamera:
+    """Subscribes to a ROS Image topic and always holds the latest frame.
 
-        cam = realsense_camera(
-            height=480, width=640, fps=30, use_color=True, use_depth=False
+    Exposes a ``read()`` method compatible with cv2.VideoCapture so that
+    VLMProgressEstimator can use it as a drop-in replacement.
+    """
+
+    def __init__(self, topic: str = COLOR_TOPIC) -> None:
+        self._frame: Optional[np.ndarray] = None
+        self._lock = threading.Lock()
+        self._topic = topic
+        self._sub = None
+
+    def start(self) -> None:
+        """Create ROS subscriber (must be called after rclpy.init)."""
+        from .ros_communicate import _ros_client_node
+        from sensor_msgs.msg import Image
+
+        if _ros_client_node is None:
+            print("[RosCamera] WARNING: ROS node not available.", flush=True)
+            return
+
+        self._sub = _ros_client_node.create_subscription(
+            Image, self._topic, self._image_callback, 1
         )
-        if cam.isOpened():
-            logger.info("RealSense camera initialised successfully.")
-            return cam
-        else:
-            logger.warning("RealSense camera could not be opened.")
-            return None
-    except Exception:
-        logger.exception("Failed to initialise RealSense camera.")
-        return None
+        print(f"[RosCamera] Subscribed to {self._topic}", flush=True)
+
+    def _image_callback(self, msg: Any) -> None:
+        """Convert ROS Image to BGR numpy array and store."""
+        try:
+            h, w = msg.height, msg.width
+            if msg.encoding == "rgb8":
+                frame = np.frombuffer(msg.data, dtype=np.uint8).reshape(h, w, 3)
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            elif msg.encoding == "bgr8":
+                frame = np.frombuffer(msg.data, dtype=np.uint8).reshape(h, w, 3)
+            else:
+                frame = np.frombuffer(msg.data, dtype=np.uint8).reshape(h, w, 3)
+            with self._lock:
+                self._frame = frame
+        except Exception as e:
+            logger.error("RosCamera callback error: %s", e)
+
+    def read(self) -> tuple:
+        """Return (success, frame) like cv2.VideoCapture.read()."""
+        with self._lock:
+            if self._frame is not None:
+                return True, self._frame.copy()
+        return False, None
+
+    def release(self) -> None:
+        pass
 
 
 def _init_vlm_estimator(camera: Any) -> Any:
@@ -62,26 +102,22 @@ def _init_vlm_estimator(camera: Any) -> Any:
         from .vlm_progress_estimator import VLMProgressEstimator
 
         estimator = VLMProgressEstimator(camera=camera)
-        logger.info("VLM progress estimator created.")
+        print("[ros_bridge] VLM progress estimator created.", flush=True)
         return estimator
-    except Exception:
-        logger.exception("Failed to create VLM progress estimator.")
+    except Exception as e:
+        print(f"[ros_bridge] ERROR: Failed to create VLM progress estimator: {e}", flush=True)
         return None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> None:
-    """Handles startup and shutdown events for the FastAPI application.
-
-    Args:
-        app: The FastAPI application instance.
-    """
+    """Handles startup and shutdown events for the FastAPI application."""
     print("Initializing ROS communication...")
     init_ros_communication()
 
-    # Initialise RealSense camera and VLM estimator once at startup
-    camera = _init_realsense_camera()
-    app.state.realsense_cam = camera
+    camera = RosCamera(COLOR_TOPIC)
+    camera.start()
+    app.state.camera = camera
     app.state.vlm_estimator = _init_vlm_estimator(camera)
 
     yield
@@ -102,21 +138,10 @@ app = FastAPI(lifespan=lifespan)
 async def execute_translated_action(parts_request: ActionPartsRequest) -> Dict[str, Any]:
     """Execute a pre-translated primitive action via ROS.
 
-    This endpoint receives already translated action parts from the client
-    (ttp container) and forwards them to the ROS service without reading
-    or translating any mapping/position files on the ROS side.
-
     For monitoring actions (instruction 20), after the ROS service call
-    completes a RealSense frame is captured and sent to a VLM to
-    estimate cooking progress.  The progress value (0-130, step 10) is
-    included in the response.
-
-    Args:
-        parts_request: The request containing translated action parts.
-
-    Returns:
-        A dictionary with at least ``success``.  For monitoring actions
-        it additionally contains ``progress`` (int or None).
+    completes a camera frame is captured and sent to a VLM to estimate
+    cooking progress.  The progress value (0-130, step 10) is included
+    in the response.
     """
     try:
         loop = asyncio.get_event_loop()
@@ -137,7 +162,6 @@ async def execute_translated_action(parts_request: ActionPartsRequest) -> Dict[s
             pass
 
         if instruction == _MONITORING_INSTRUCTION:
-            # action_parts[2] is the object_id (e.g. 33 for stove)
             object_id = None
             try:
                 object_id = int(parts_request.action_parts[2])
@@ -164,9 +188,7 @@ async def _estimate_monitoring_progress(
     """Capture a frame and query the VLM for cooking progress."""
     estimator = app.state.vlm_estimator
     if estimator is None:
-        logger.warning(
-            "VLM estimator not available — returning progress=None."
-        )
+        logger.warning("VLM estimator not available — returning progress=None.")
         return None
 
     loop = asyncio.get_event_loop()
@@ -178,14 +200,6 @@ async def _estimate_monitoring_progress(
 
 @app.post("/shutdown")
 async def shutdown_server() -> Dict[str, str]:
-    """A placeholder for a graceful shutdown endpoint.
-
-    Note:
-        A simple shutdown endpoint like this might not work with all server
-        configurations (e.g., multiple uvicorn workers). A more robust
-        solution might involve process signaling.
-    """
-
     return {"message": "Shutdown command received. Note: This is a placeholder."}
 
 

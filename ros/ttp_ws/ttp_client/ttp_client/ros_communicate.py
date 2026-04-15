@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import sys
+import threading
 import time
 from typing import List
 
 import rclpy
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from robot_manager_interface.srv import RobotManager
 
 
 _ros_client_node: RobotManagerClient | None = None
+_spin_thread: threading.Thread | None = None
+_executor: MultiThreadedExecutor | None = None
 
 
 class RobotManagerClient(Node):
@@ -50,15 +54,21 @@ def init_ros_communication(args: list[int] | None = None) -> None:
     Initialize the ROS communication client.
 
     This function should be called once before any communication calls.
+    Starts a background spin thread so that subscriptions (e.g. camera
+    image topic) receive callbacks continuously.
 
     Args:
         args: Command line arguments for rclpy initialization.
     """
-    global _ros_client_node
+    global _ros_client_node, _spin_thread, _executor
     if _ros_client_node is None:
         rclpy.init(args=args)
         _ros_client_node = RobotManagerClient()
-        _ros_client_node.get_logger().info("ROS communication initialized.")
+        _executor = MultiThreadedExecutor()
+        _executor.add_node(_ros_client_node)
+        _spin_thread = threading.Thread(target=_executor.spin, daemon=True)
+        _spin_thread.start()
+        _ros_client_node.get_logger().info("ROS communication initialized (background spin).")
 
 
 def shutdown_ros_communication() -> None:
@@ -67,12 +77,16 @@ def shutdown_ros_communication() -> None:
 
     This function should be called once after all communication is finished.
     """
-    global _ros_client_node
+    global _ros_client_node, _spin_thread, _executor
     if _ros_client_node is not None:
         _ros_client_node.get_logger().info("Shutting down ROS communication.")
+        if _executor is not None:
+            _executor.shutdown()
+            _executor = None
         _ros_client_node.destroy_node()
         rclpy.shutdown()
         _ros_client_node = None
+        _spin_thread = None
 
 
 def communicate(action_parts: List[int]) -> dict:
@@ -115,7 +129,9 @@ def communicate(action_parts: List[int]) -> dict:
     start_time = time.time()
 
     future = _ros_client_node.send_request(robot_model, instruction, a, b)
-    rclpy.spin_until_future_complete(_ros_client_node, future)
+    # Wait for future completion — the background executor handles spinning
+    while not future.done():
+        time.sleep(0.05)
 
     # 특정 instruction에 대해 최소 대기 시간 보장 (예: instruction 29번은 최소 5초)
     min_duration_map: dict[int, float] = {

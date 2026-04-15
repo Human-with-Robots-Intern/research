@@ -286,14 +286,14 @@ class VLMProgressEstimator:
         return self._client
 
     def capture_frame(self) -> Optional[np.ndarray]:
-        """Capture a single color frame from the RealSense camera."""
+        """Capture a single color frame from the camera."""
         if self._camera is None:
             logger.warning("No camera available — skipping frame capture.")
             return None
 
         success, frame = self._camera.read()
         if not success or frame is None:
-            logger.error("Failed to capture frame from RealSense camera.")
+            logger.error("Failed to capture frame from camera.")
             return None
         return frame
 
