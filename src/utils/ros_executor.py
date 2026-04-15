@@ -13,7 +13,6 @@ from src.models.task import Subtask
 from src.utils.common.logger import create_module_logger
 from src.utils.decorators import log_ros_action_state
 from src.utils.translate import InstructionTranslator
-EXPERIMENT_WAIT_DURATION = 10
 logger = create_module_logger(module_name=__name__, module_log=True)
 
 Position: TypeAlias = Tuple[float, float, float]
@@ -183,7 +182,7 @@ class RosExecutor:
 
             if action_verb == "wait":
                 wait_duration = float(primitive_action_parts[1])
-                time.sleep(EXPERIMENT_WAIT_DURATION)
+                time.sleep(wait_duration)
                 logger.info(f"Waiting for {wait_duration} seconds")
                 success = True
             else:
@@ -253,7 +252,7 @@ class RosExecutor:
                 )
             elif action_verb.startswith("wait"):
                 self.object_state_simulator._simulate_wait(
-                    wait_duration=EXPERIMENT_WAIT_DURATION, duration=float(primitive_action_parts[1])
+                    wait_duration=float(primitive_action_parts[1]), duration=float(primitive_action_parts[1])
                 )
             elif action_verb.startswith("monitoring"):
                 self.object_state_simulator._simulate_monitoring(duration=elapsed_time)

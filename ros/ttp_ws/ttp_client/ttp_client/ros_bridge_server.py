@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 import cv2
 import numpy as np
+import serial
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -25,6 +26,10 @@ _MONITORING_INSTRUCTION = 20
 
 # ROS topic for the RealSense color image
 COLOR_TOPIC = "/camera/color/image_raw"
+
+# Arduino serial port for LED control
+ARDUINO_PORT = "/dev/arduino"
+ARDUINO_BAUD = 9600
 
 
 class ActionPartsRequest(BaseModel):
@@ -96,6 +101,32 @@ class RosCamera:
         pass
 
 
+def _init_arduino(port: str = ARDUINO_PORT, baud: int = ARDUINO_BAUD) -> Optional[serial.Serial]:
+    """Open serial connection to Arduino for LED control."""
+    try:
+        ser = serial.Serial(port, baud, timeout=1)
+        print(f"[ros_bridge] Arduino connected on {port}", flush=True)
+        return ser
+    except Exception as e:
+        print(f"[ros_bridge] WARNING: Arduino not available ({e})", flush=True)
+        return None
+
+
+def _send_arduino_task_mode(ser: Optional[serial.Serial], instruction: Optional[str]) -> None:
+    """Send T1 (sausage) or T2 (tomato) to Arduino based on instruction."""
+    if ser is None or instruction is None:
+        return
+    inst_lower = instruction.lower()
+    if "tomato" in inst_lower:
+        cmd = "T2\n"
+    elif "sausage" in inst_lower:
+        cmd = "T1\n"
+    else:
+        return
+    ser.write(cmd.encode())
+    print(f"[ros_bridge] Sent to Arduino: {cmd.strip()}", flush=True)
+
+
 def _init_vlm_estimator(camera: Any) -> Any:
     """Create the VLM progress estimator (lazy OpenAI client)."""
     try:
@@ -119,9 +150,16 @@ async def lifespan(app: FastAPI) -> None:
     camera.start()
     app.state.camera = camera
     app.state.vlm_estimator = _init_vlm_estimator(camera)
+    app.state.arduino = _init_arduino()
+    app.state.arduino_task_set = False  # track whether we've sent T1/T2
 
     yield
 
+    if app.state.arduino is not None:
+        try:
+            app.state.arduino.close()
+        except Exception:
+            pass
     if camera is not None:
         try:
             camera.release()
@@ -144,6 +182,11 @@ async def execute_translated_action(parts_request: ActionPartsRequest) -> Dict[s
     in the response.
     """
     try:
+        # Set Arduino LED task mode on first request with instruction
+        if not app.state.arduino_task_set and parts_request.instruction:
+            _send_arduino_task_mode(app.state.arduino, parts_request.instruction)
+            app.state.arduino_task_set = True
+
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None, communicate, parts_request.action_parts
