@@ -38,8 +38,7 @@ if TYPE_CHECKING:
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
-FRONTIER_LEAF_TIE_DECIMALS = 6
-FRONTIER_LEAF_SELECTION_MARGIN = 6.0
+STRICT_INTERACTION_READINESS_EPSILON = 1e-6
 
 ActiveIntervalCacheKey: TypeAlias = Tuple[int, Tuple[Tuple[str, float], ...]]
 MonitoringTriggerCacheKey: TypeAlias = Tuple[str, Optional[str], float, float, float]
@@ -635,41 +634,51 @@ class Scheduler:
             if child_node:
                 expansions.append(child_node)
 
-        if not_yet_candidates:
-            blocked_frontier = self._get_blocked_candidate_frontier(not_yet_candidates)
-            for blocked_candidate in blocked_frontier:
-                log.debug(
-                    "[_expand_candidates] blocked frontier candidate: %s",
-                    blocked_candidate,
-                )
-                if self._has_dominating_productive_filler(
-                    curr_node,
-                    blocked_candidate,
-                    feasible_candidates,
-                    not_yet_candidates,
-                ):
-                    log.debug(
-                        "[_expand_candidates] suppressed blocked wait/prenav for '%s' because a productive filler preserves its frontier.",
-                        blocked_candidate.subtask.name,
-                    )
-                    continue
-                wait_node = self._expand_single_wait(
-                    curr_node,
-                    blocked_candidate,
-                    not_yet_candidates,
-                    feasible_candidates=feasible_candidates,
-                )
-                if wait_node:
-                    expansions.append(wait_node)
+        expansions.extend(
+            self._expand_blocked_frontier_candidates(
+                curr_node,
+                feasible_candidates,
+                not_yet_candidates,
+            )
+        )
 
-                prenavigation_node = self._expand_blocked_prenavigation(
-                    curr_node,
-                    blocked_candidate,
-                    not_yet_candidates,
-                    feasible_candidates=feasible_candidates,
-                )
-                if prenavigation_node:
-                    expansions.append(prenavigation_node)
+        return expansions
+
+    def _expand_blocked_frontier_candidates(
+        self,
+        curr_node: SimulationNode,
+        feasible_candidates: List[Candidate],
+        not_yet_candidates: List[Candidate],
+    ) -> List[SimulationNode]:
+        """Expand wait/prenav alternatives for the earliest blocked frontier."""
+
+        expansions: List[SimulationNode] = []
+        if not not_yet_candidates:
+            return expansions
+
+        blocked_frontier = self._get_blocked_candidate_frontier(not_yet_candidates)
+        for blocked_candidate in blocked_frontier:
+            log.debug(
+                "[_expand_candidates] blocked frontier candidate: %s",
+                blocked_candidate,
+            )
+            wait_node = self._expand_single_wait(
+                curr_node,
+                blocked_candidate,
+                not_yet_candidates,
+                feasible_candidates=feasible_candidates,
+            )
+            if wait_node:
+                expansions.append(wait_node)
+
+            prenavigation_node = self._expand_blocked_prenavigation(
+                curr_node,
+                blocked_candidate,
+                not_yet_candidates,
+                feasible_candidates=feasible_candidates,
+            )
+            if prenavigation_node:
+                expansions.append(prenavigation_node)
 
         return expansions
 
@@ -703,8 +712,9 @@ class Scheduler:
                 f"[_get_urgent_critical_candidates] diff: {candidate.logical_interaction_start_time - physical_earliest_start}"
             )
 
-            # Check urgency: Are we at or past the time we should start?
-            # We use a tolerance to allow starting slightly early (On-time).
+            # Check urgency: Are we at or past the horizon where this critical
+            # candidate deserves attention? Exact interaction-start readiness is
+            # enforced separately by ``_can_candidate_start_interaction_now``.
             log.debug(
                 f"[_get_urgent_critical_candidates] candidate.logical_interaction_start_time: {candidate.logical_interaction_start_time}, physical_earliest_start: {physical_earliest_start}"
             )
@@ -1010,7 +1020,8 @@ class Scheduler:
 
         Strict timing semantics are anchored on interaction start time. Entering the
         monitoring horizon may make a task urgent, but it must not make the task
-        executable early.
+        executable early. Only a tiny numeric epsilon is allowed here so
+        sub-second semantic lateness is not treated as on time.
         """
 
         if candidate.logical_interaction_start_time is None:
@@ -1019,7 +1030,8 @@ class Scheduler:
             curr_node.state.current_time + candidate.estimated_first_nav_duration
         )
         return physical_earliest_start >= (
-            float(candidate.logical_interaction_start_time) - EPSILON
+            float(candidate.logical_interaction_start_time)
+            - STRICT_INTERACTION_READINESS_EPSILON
         )
 
     def _get_blocked_candidate_frontier(
@@ -1062,197 +1074,6 @@ class Scheduler:
             )
             <= EPSILON
         ]
-
-    @staticmethod
-    def _frontier_selection_key(
-        depth1_risk: int,
-        leaf_cost: float,
-        depth1_cost: float,
-    ) -> tuple[int, float, float, float]:
-        """Build a stable sort key for receding-horizon frontier commits."""
-
-        raw_leaf_cost = float(leaf_cost)
-        return (
-            depth1_risk,
-            round(raw_leaf_cost, FRONTIER_LEAF_TIE_DECIMALS),
-            float(depth1_cost),
-            raw_leaf_cost,
-        )
-
-    def _order_frontier_selection_pool(
-        self,
-        selection_pool: List[SimulationNode],
-        depth1_cost_by_node: Dict[int, float],
-        depth1_risk_by_node: Dict[int, int],
-    ) -> List[SimulationNode]:
-        """Order frontier candidates for receding-horizon commitment.
-
-        Under DEFAULT runs, a small leaf-cost gap at the search horizon can be a
-        horizon artifact rather than a meaningful long-term advantage. In that
-        narrow band, prefer the lower immediate committed cost.
-        """
-
-        ordered_pool = sorted(
-            selection_pool,
-            key=lambda nd: self._frontier_selection_key(
-                depth1_risk_by_node[id(nd)],
-                nd.heuristic_cost,
-                depth1_cost_by_node[id(nd)],
-            ),
-        )
-        if not constants.MONITORING_ENABLED or not ordered_pool:
-            return ordered_pool
-
-        best_node = ordered_pool[0]
-        best_depth1_risk = depth1_risk_by_node[id(best_node)]
-        best_leaf_cost = float(best_node.heuristic_cost)
-        preferred_nodes = [
-            node
-            for node in ordered_pool
-            if depth1_risk_by_node[id(node)] == best_depth1_risk
-            and float(node.heuristic_cost)
-            <= best_leaf_cost + FRONTIER_LEAF_SELECTION_MARGIN
-        ]
-        if len(preferred_nodes) <= 1:
-            return ordered_pool
-
-        preferred_nodes.sort(
-            key=lambda nd: (
-                float(depth1_cost_by_node[id(nd)]),
-                self._frontier_selection_key(
-                    depth1_risk_by_node[id(nd)],
-                    nd.heuristic_cost,
-                    depth1_cost_by_node[id(nd)],
-                ),
-            )
-        )
-        if preferred_nodes[0] is not best_node:
-            log.debug(
-                "[_simulate_search] frontier leaf-margin reprioritized winner "
-                "from '%s' to '%s' (best_leaf=%.2f, margin=%.2f, old_depth1=%.2f, new_depth1=%.2f)",
-                best_node.state.subtask.name,
-                preferred_nodes[0].state.subtask.name,
-                best_leaf_cost,
-                FRONTIER_LEAF_SELECTION_MARGIN,
-                depth1_cost_by_node[id(best_node)],
-                depth1_cost_by_node[id(preferred_nodes[0])],
-            )
-
-        preferred_node_ids = {id(node) for node in preferred_nodes}
-        return preferred_nodes + [
-            node for node in ordered_pool if id(node) not in preferred_node_ids
-        ]
-
-    @staticmethod
-    def _is_productive_candidate(candidate: Candidate) -> bool:
-        """Return whether a candidate is real work rather than wait/nav/monitor."""
-
-        subtask_type = (candidate.subtask.subtask_type or "").strip()
-        return subtask_type not in {"WAIT", "NAVIGATE", "Monitor", "MONITORING"}
-
-    @staticmethod
-    def _find_candidate_by_name(
-        candidates: List[Candidate],
-        subtask_name: str,
-    ) -> Optional[Candidate]:
-        """Return the candidate matching ``subtask_name`` if present."""
-
-        return next(
-            (candidate for candidate in candidates if candidate.subtask.name == subtask_name),
-            None,
-        )
-
-    def _productive_candidate_preserves_blocked_frontier(
-        self,
-        curr_node: SimulationNode,
-        productive_candidate: Candidate,
-        blocked_candidate: Candidate,
-        feasible_candidates: List[Candidate],
-        not_yet_candidates: List[Candidate],
-    ) -> bool:
-        """Return whether one productive step dominates blocked wait/prenav.
-
-        We simulate a single non-monitoring productive step, then recompute the
-        frontier. If the original blocked candidate still exists and its earliest
-        target time did not move later, executing the productive step first is at
-        least as good as committing to blocked wait/prenav immediately.
-        """
-
-        original_blocked_target_time = self._get_candidate_target_start_time(
-            blocked_candidate
-        )
-        if (
-            original_blocked_target_time is None
-            or original_blocked_target_time == float("inf")
-        ):
-            return False
-
-        simulated_child = self._expand_subtask_wo_monitoring(
-            curr_node,
-            productive_candidate,
-            not_yet_candidates,
-            feasible_candidates,
-        )
-        if simulated_child is None:
-            return False
-
-        child_feasible, child_not_yet = self.constraint_handler.get_feasible_candidates(
-            simulated_child
-        )
-        child_blocked_candidate = self._find_candidate_by_name(
-            child_feasible + child_not_yet,
-            blocked_candidate.subtask.name,
-        )
-        if child_blocked_candidate is None:
-            return False
-
-        updated_blocked_target_time = self._get_candidate_target_start_time(
-            child_blocked_candidate
-        )
-        if (
-            updated_blocked_target_time is None
-            or updated_blocked_target_time == float("inf")
-        ):
-            return False
-
-        preserves_frontier = (
-            updated_blocked_target_time <= original_blocked_target_time + EPSILON
-        )
-        if preserves_frontier:
-            log.debug(
-                "[_productive_candidate_preserves_blocked_frontier] '%s' dominates blocked wait/prenav for '%s' "
-                "(target %.2f -> %.2f).",
-                productive_candidate.subtask.name,
-                blocked_candidate.subtask.name,
-                original_blocked_target_time,
-                updated_blocked_target_time,
-            )
-        return preserves_frontier
-
-    def _has_dominating_productive_filler(
-        self,
-        curr_node: SimulationNode,
-        blocked_candidate: Candidate,
-        feasible_candidates: List[Candidate],
-        not_yet_candidates: List[Candidate],
-    ) -> bool:
-        """Return whether blocked wait/prenav is dominated by a productive step."""
-
-        productive_candidates = [
-            candidate
-            for candidate in feasible_candidates
-            if self._is_productive_candidate(candidate)
-        ]
-        for productive_candidate in productive_candidates:
-            if self._productive_candidate_preserves_blocked_frontier(
-                curr_node,
-                productive_candidate,
-                blocked_candidate,
-                feasible_candidates,
-                not_yet_candidates,
-            ):
-                return True
-        return False
 
     def _build_post_navigation_candidate(
         self,
@@ -2969,7 +2790,6 @@ class Scheduler:
             ),
             temporal_constraints=None,
         )
-
         wait_start_time = curr_state.current_time
         wait_end_time = curr_state.current_time + total_wait_duration
 

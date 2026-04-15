@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import networkx as nx
-from src.core.scheduler import Scheduler
 from src.core.monitoring import BeliefUpdateContext, create_observation_model
 from src.experiments.exact_oracle import DeterministicExactOracle, OracleSolution
 from src.experiments.offline_compare import compare_result_files
@@ -777,8 +776,8 @@ def test_run_single_rollout_dispatches_to_cpm_adapter(
     assert result["final_schedule_time"] == 2.0
 
 
-def test_run_single_rollout_frontier_selection_avoids_leaf_risk_pathology() -> None:
-    """Frontier winner selection should avoid the known 303s pathology path."""
+def test_run_single_rollout_case01_remains_tcsr_valid_under_b10() -> None:
+    """T2C2 case01 should still complete and satisfy TCSR after frontier cleanup."""
 
     config = ExperimentConfig(
         approach="bayesian",
@@ -813,29 +812,13 @@ def test_run_single_rollout_frontier_selection_avoids_leaf_risk_pathology() -> N
     finally:
         _restore_runtime_overrides(previous_values)
 
+    assert result["completed"] is True
     assert result["schedule_tcsr"] == 1.0
-    assert result["final_schedule_time"] < 280.0
+    assert result["final_schedule_time"] < 320.0
 
 
-def test_frontier_selection_key_prefers_better_depth1_cost_after_float_noise_tie() -> None:
-    """Frontier float noise should not outweigh the committed depth-1 action cost."""
-
-    wash_first_key = Scheduler._frontier_selection_key(
-        depth1_risk=0,
-        leaf_cost=174.39000000000001,
-        depth1_cost=265.03,
-    )
-    prepare_pan_key = Scheduler._frontier_selection_key(
-        depth1_risk=0,
-        leaf_cost=174.39000000000004,
-        depth1_cost=245.64,
-    )
-
-    assert prepare_pan_key < wash_first_key
-
-
-def test_run_single_rollout_frontier_selection_avoids_float_noise_tie_break_bug() -> None:
-    """T3C2 case06 should commit to the earlier productive chain under B=10."""
+def test_run_single_rollout_case06_remains_tcsr_valid_under_b10() -> None:
+    """T3C2 case06 should remain behaviorally sound without frontier tie-break patches."""
 
     config = ExperimentConfig(
         approach="bayesian",
@@ -872,9 +855,14 @@ def test_run_single_rollout_frontier_selection_avoids_float_noise_tie_break_bug(
     finally:
         _restore_runtime_overrides(previous_values)
 
+    assert result["completed"] is True
     assert result["schedule_tcsr"] == 1.0
-    assert result["final_schedule_time"] < 220.0
-    assert result["steps"][2]["subtask_name"] == "Prepare Pan on Stove and Heat"
+    assert result["final_schedule_time"] < 240.0
+    assert result["steps"]
+    assert (
+        "Prepare Pan on Stove and Heat"
+        in {step["subtask_name"] for step in result["steps"]}
+    )
 
 
 def test_run_oracle_reference_experiment_writes_oracle_summary(

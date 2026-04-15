@@ -156,24 +156,332 @@ class HeuristicManager:
         """Estimates time needed for nav + interaction + lookahead return trip."""
         # 0,true로 묶인 A -> B가 있을 때 현재 지점에서 A까지 이동하는데 걸리는 시간
         nav_time = candidate.estimated_first_nav_duration or 0.0
-        # A,B의 총 작업 소요 시간
-        chain_duration, _, _ = self._get_chain_info(current_node, candidate.subtask)
+        due_related_sub_name = (
+            candidate.scheduling_due.due_related_sub_name
+            if candidate.scheduling_due is not None
+            else None
+        )
 
         is_target_self = (
             candidate.scheduling_due
-            and candidate.scheduling_due.due_related_sub_name == candidate.subtask.name
+            and due_related_sub_name == candidate.subtask.name
         )
 
+        simulated_profile = self._try_build_simulated_candidate_chain_profile(
+            current_node, candidate
+        )
         if is_target_self:
             total_time = nav_time
-        else:
+        elif simulated_profile is not None:
+            chain_duration, chain_members, last_task_name, _, _ = simulated_profile
             total_time = nav_time + chain_duration
+            if due_related_sub_name and due_related_sub_name not in chain_members:
+                total_time += self._calculate_lookahead_nav_time(
+                    current_node,
+                    last_task_name,
+                    due_related_sub_name,
+                )
+        else:
+            # A,B의 총 작업 소요 시간
+            chain_duration, chain_members, last_task_name = self._get_chain_info(
+                current_node, candidate.subtask
+            )
+            total_time = (
+                nav_time
+                + chain_duration
+                + self._get_candidate_due_check_duration_correction(
+                    current_node,
+                    candidate,
+                    nav_time,
+                )
+            )
+            if due_related_sub_name and due_related_sub_name not in chain_members:
+                total_time += self._calculate_lookahead_nav_time(
+                    current_node,
+                    last_task_name,
+                    due_related_sub_name,
+                )
 
         return total_time
 
-    def _calculate_lookahead_nav_time(
-        self, current_node: SimulationNode, candidate: Candidate, future_crit_name: str
+    def _try_build_simulated_candidate_chain_profile(
+        self,
+        current_node: SimulationNode,
+        candidate: Candidate,
+    ) -> Optional[Tuple[float, Set[str], str, float, Dict[str, float]]]:
+        """Return a chain profile using actual simulated primitive runtimes.
+
+        The returned tuple is:
+            ``(chain_duration, chain_members, last_task_name, chain_end_delay,
+            launch_profile)``
+
+        ``chain_duration`` is measured from the candidate's interaction start,
+        so the first subtask's initial navigation is excluded. ``chain_end_delay``
+        is measured from ``current_time`` and therefore includes the candidate's
+        first navigation.
+        """
+
+        graph = current_node.state.constraints
+        chain_duration = 0.0
+        chain_end_delay = 0.0
+        chain_members: Set[str] = set()
+        launch_profile: Dict[str, float] = {}
+        last_task_name = candidate.subtask.name
+        sim_node = current_node
+        curr_subtask = candidate.subtask
+        is_first_subtask = True
+
+        def maybe_record_launch_source(subtask_name: str, source_end_delay: float) -> None:
+            if graph is None or not graph.has_node(subtask_name):
+                return
+            for _, _, data in graph.out_edges(subtask_name, data=True):
+                info = data.get("info", {})
+                if (
+                    info.get("IsCritical")
+                    and info.get("Interval", 0.0) > constants.EPSILON
+                ):
+                    launch_profile[subtask_name] = source_end_delay
+                    return
+
+        while True:
+            if curr_subtask.name in chain_members:
+                break
+
+            exec_info = self._simulate_subtask_from_node(sim_node, curr_subtask)
+            if exec_info is None:
+                return None
+
+            step_total = float(exec_info.cumulative_time)
+            first_nav = float(exec_info.first_nav_duration or 0.0)
+
+            chain_end_delay += step_total
+            if is_first_subtask:
+                chain_duration += max(0.0, step_total - first_nav)
+                is_first_subtask = False
+            else:
+                chain_duration += step_total
+
+            chain_members.add(curr_subtask.name)
+            last_task_name = curr_subtask.name
+            maybe_record_launch_source(curr_subtask.name, chain_end_delay)
+            sim_node = self._advance_simulated_node(sim_node, curr_subtask, exec_info)
+
+            next_name = self._get_zero_interval_successor_name(graph, curr_subtask.name)
+            if next_name is None:
+                break
+
+            next_subtask = self._get_remaining_subtask_by_name(current_node, next_name)
+            if next_subtask is None:
+                break
+            curr_subtask = next_subtask
+
+        return (
+            chain_duration,
+            chain_members,
+            last_task_name,
+            chain_end_delay,
+            launch_profile,
+        )
+
+    def _build_candidate_chain_profile_static(
+        self,
+        current_node: SimulationNode,
+        candidate: Candidate,
+    ) -> Tuple[float, Set[str], str, float, Dict[str, float]]:
+        """Return the legacy static chain profile used as a simulation fallback."""
+
+        graph = current_node.state.constraints
+        scene_positions = current_node.state.scene_positions
+        initial_nav_delay = float(candidate.estimated_first_nav_duration or 0.0)
+        chain_members: Set[str] = {candidate.subtask.name}
+        launch_profile: Dict[str, float] = {}
+        curr_name = candidate.subtask.name
+        curr_subtask = candidate.subtask
+        curr_pos = self._get_task_interaction_location(curr_subtask, scene_positions)
+        last_task_name = curr_name
+        chain_duration = self._get_estimated_pure_interaction_time(curr_subtask)
+        chain_end_delay = initial_nav_delay + chain_duration
+
+        def maybe_record_launch_source(subtask_name: str, source_end_delay: float) -> None:
+            if graph is None or not graph.has_node(subtask_name):
+                return
+            for _, _, data in graph.out_edges(subtask_name, data=True):
+                info = data.get("info", {})
+                if (
+                    info.get("IsCritical")
+                    and info.get("Interval", 0.0) > constants.EPSILON
+                ):
+                    launch_profile[subtask_name] = source_end_delay
+                    return
+
+        maybe_record_launch_source(curr_name, chain_end_delay)
+
+        while True:
+            next_name = self._get_zero_interval_successor_name(graph, curr_name)
+            if next_name is None or next_name in chain_members:
+                break
+
+            next_subtask = self._get_remaining_subtask_by_name(current_node, next_name)
+            if next_subtask is None:
+                break
+
+            next_pos = self._get_task_interaction_location(next_subtask, scene_positions)
+            nav_delay = self._estimate_navigation_time_between_positions(
+                curr_pos, next_pos
+            )
+            interaction_time = self._get_estimated_pure_interaction_time(next_subtask)
+            chain_duration += nav_delay + interaction_time
+            chain_end_delay += nav_delay + interaction_time
+            chain_members.add(next_name)
+            maybe_record_launch_source(next_name, chain_end_delay)
+
+            curr_name = next_name
+            last_task_name = curr_name
+            curr_pos = next_pos
+
+        return (
+            chain_duration,
+            chain_members,
+            last_task_name,
+            chain_end_delay,
+            launch_profile,
+        )
+
+    def _get_candidate_chain_profile(
+        self,
+        current_node: SimulationNode,
+        candidate: Candidate,
+    ) -> Tuple[float, Set[str], str, float, Dict[str, float]]:
+        """Return the best available chain timing profile for an active candidate."""
+
+        simulated_profile = self._try_build_simulated_candidate_chain_profile(
+            current_node, candidate
+        )
+        if simulated_profile is not None:
+            return simulated_profile
+        return self._build_candidate_chain_profile_static(current_node, candidate)
+
+    def _simulate_subtask_from_node(
+        self,
+        current_node: SimulationNode,
+        subtask: Subtask,
+    ):
+        """Simulate a subtask's primitive sequence from the provided node."""
+
+        primitive_actions = (
+            subtask.execution.primitive_actions if subtask.execution else None
+        )
+        if not primitive_actions:
+            return None
+
+        try:
+            exec_info = self.action_handler.get_actions_info(
+                current_node, primitive_actions
+            )
+        except ValueError:
+            return None
+        if exec_info is None or not exec_info.success:
+            return None
+        return exec_info
+
+    @staticmethod
+    def _advance_simulated_node(
+        current_node: SimulationNode,
+        subtask: Subtask,
+        exec_info,
+    ) -> SimulationNode:
+        """Return a lightweight successor node after a simulated subtask run."""
+
+        new_state = current_node.state._replace(
+            subtask=subtask,
+            current_time=float(current_node.state.current_time)
+            + float(exec_info.cumulative_time),
+            scene_positions=exec_info.scene_positions,
+            held_object=exec_info.held_object,
+        )
+        return current_node._replace(state=new_state)
+
+    @staticmethod
+    def _get_zero_interval_successor_name(
+        graph: Optional[nx.DiGraph],
+        subtask_name: str,
+    ) -> Optional[str]:
+        """Return the immediate zero-interval critical successor, if any."""
+
+        if graph is None or not graph.has_node(subtask_name):
+            return None
+
+        for _, target, data in graph.out_edges(subtask_name, data=True):
+            info = data.get("info", {})
+            if (
+                info.get("IsCritical")
+                and info.get("Interval", 0.0) <= constants.EPSILON
+            ):
+                return target
+        return None
+
+    @staticmethod
+    def _get_remaining_subtask_by_name(
+        current_node: SimulationNode,
+        subtask_name: str,
+    ) -> Optional[Subtask]:
+        """Return a remaining subtask by name from the current search node."""
+
+        return next(
+            (
+                subtask
+                for subtask in current_node.state.remaining_subtasks
+                if subtask.name == subtask_name
+            ),
+            None,
+        )
+
+    def _get_candidate_due_check_duration_correction(
+        self,
+        current_node: SimulationNode,
+        candidate: Candidate,
+        nav_time: float,
     ) -> float:
+        """Return the delta between simulated and static candidate duration.
+
+        Deadline checks are sensitive to small timing errors. When the static
+        subtask duration underestimates the simulated execution time, the slack
+        calculation can incorrectly label a branch as safe. This correction keeps
+        the inexpensive chain estimate but anchors the candidate's own duration to
+        the action simulator whenever cached simulation data is available.
+        """
+
+        primitive_actions = (
+            candidate.subtask.execution.primitive_actions
+            if candidate.subtask.execution
+            else None
+        )
+        if not primitive_actions:
+            return 0.0
+
+        exec_info = self.action_handler.get_actions_info(current_node, primitive_actions)
+        if exec_info is None:
+            return 0.0
+
+        estimated_total = nav_time + self._get_estimated_pure_interaction_time(
+            candidate.subtask
+        )
+        return float(exec_info.cumulative_time) - float(estimated_total)
+
+    def _calculate_lookahead_nav_time(
+        self,
+        current_node: SimulationNode,
+        origin_subtask_name: str,
+        future_crit_name: str,
+    ) -> float:
+        origin_subtask = next(
+            (
+                t
+                for t in current_node.state.remaining_subtasks
+                if t.name == origin_subtask_name
+            ),
+            None,
+        )
         future_subtask = next(
             (
                 t
@@ -182,11 +490,11 @@ class HeuristicManager:
             ),
             None,
         )
-        if not future_subtask:
+        if origin_subtask is None or not future_subtask:
             return 0.0
 
         current_target_pos = self._get_task_interaction_location(
-            candidate.subtask, current_node.state.scene_positions
+            origin_subtask, current_node.state.scene_positions
         ) or tuple(current_node.state.scene_positions.get("agent", (0, 0, 0)))
 
         future_target_pos = self._get_task_interaction_location(
@@ -286,70 +594,10 @@ class HeuristicManager:
                 source subtask.
         """
 
-        initial_nav_delay = float(candidate.estimated_first_nav_duration or 0.0)
-        graph = current_node.state.constraints
-        scene_positions = current_node.state.scene_positions
-
-        chain_members: Set[str] = {candidate.subtask.name}
-        launch_profile: Dict[str, float] = {}
-
-        def maybe_record_launch_source(subtask_name: str, source_end_delay: float) -> None:
-            for _, _, data in graph.out_edges(subtask_name, data=True):
-                info = data.get("info", {})
-                if (
-                    info.get("IsCritical")
-                    and info.get("Interval", 0.0) > constants.EPSILON
-                ):
-                    launch_profile[subtask_name] = source_end_delay
-                    return
-
-        curr_name = candidate.subtask.name
-        curr_subtask = candidate.subtask
-        curr_pos = self._get_task_interaction_location(curr_subtask, scene_positions)
-        cumulative_delay = initial_nav_delay + self._get_estimated_pure_interaction_time(
-            curr_subtask
+        _, chain_members, _, chain_end_delay, launch_profile = (
+            self._get_candidate_chain_profile(current_node, candidate)
         )
-        maybe_record_launch_source(curr_name, cumulative_delay)
-
-        while True:
-            next_name = None
-            for _, target, data in graph.out_edges(curr_name, data=True):
-                info = data.get("info", {})
-                if (
-                    info.get("IsCritical")
-                    and info.get("Interval", 0.0) <= constants.EPSILON
-                ):
-                    next_name = target
-                    break
-
-            if next_name is None or next_name in chain_members:
-                break
-
-            next_subtask = next(
-                (
-                    t
-                    for t in current_node.state.remaining_subtasks
-                    if t.name == next_name
-                ),
-                None,
-            )
-            if next_subtask is None:
-                break
-
-            next_pos = self._get_task_interaction_location(next_subtask, scene_positions)
-            nav_delay = self._estimate_navigation_time_between_positions(
-                curr_pos, next_pos
-            )
-            cumulative_delay += nav_delay + self._get_estimated_pure_interaction_time(
-                next_subtask
-            )
-            chain_members.add(next_name)
-            maybe_record_launch_source(next_name, cumulative_delay)
-
-            curr_name = next_name
-            curr_pos = next_pos
-
-        return cumulative_delay, chain_members, launch_profile
+        return chain_end_delay, chain_members, launch_profile
 
     def _calculate_remaining_work_cost(
         self, current_node: SimulationNode, candidate: Candidate
@@ -366,8 +614,8 @@ class HeuristicManager:
             chain_end_delay = 0.0
             launch_profile: Dict[str, float] = {}
         else:
-            chain_end_delay, chain_members, launch_profile = (
-                self._build_chain_launch_profile(current_node, candidate)
+            _, chain_members, _, chain_end_delay, launch_profile = (
+                self._get_candidate_chain_profile(current_node, candidate)
             )
 
         # 2. 남은 태스크 목록 (이번 후보 제외)
@@ -490,7 +738,7 @@ class HeuristicManager:
                         "TOGGLE_ON": TOGGLE_ACTION_DURATION,
                         "TOGGLE_OFF": TOGGLE_ACTION_DURATION,
                         "SLICE": TOGGLE_ACTION_DURATION,
-                        "FILL": PLACE_ACTION_DURATION,
+                        "FILL": TOGGLE_ACTION_DURATION,
                     }
                     duration_sum += duration_map.get(
                         action_type, TOGGLE_ACTION_DURATION
@@ -627,104 +875,22 @@ class HeuristicManager:
             - max_conflict (float): The maximum delay required to resolve the conflict.
             - victim_task_name (Optional[str]): The name of the future task that is impacted (delayed).
         """
-        # 1. Identify all future timer tasks launched by the candidate's chain
-        # 현재 작업할 subtask
-        candidate_name = candidate.subtask.name
         graph = current_node.state.constraints
-
-        future_tasks_info = (
-            []
-        )  # List of (target_name, relative_ready_time_from_chain_start)
-
-        # We need to track the cumulative time from the start of the candidate execution
-        # to the completion of each task in the chain.
-        curr_name = candidate_name
-
-        # Duration of the candidate task itself
-        cumulative_time = self._get_estimated_pure_interaction_time(candidate.subtask)
-
-        # Check candidate's outgoing timer edges
-        for _, target, data in graph.out_edges(curr_name, data=True):
-            info = data.get("info", {})
-            if info.get("IsCritical") and info.get("Interval", 0.0) > constants.EPSILON:
-                # Found a timer edge. The timer starts when curr_task ENDS.
-                # 현재 작업 마치고, interval뒤에 작업 시작하니까 상대적인 ready time은 candidate_duration + info["Interval"]
-                future_tasks_info.append((target, cumulative_time + info["Interval"]))
-
-        # Traverse the rest of the chain
-        while True:
-            next_name = None
-
-            # (0,True)로 묶인 A->B에서 B를 next_name으로 설정
-            for _, target, data in graph.out_edges(curr_name, data=True):
-                info = data.get("info", {})
-                if (
-                    info.get("IsCritical")
-                    and info.get("Interval", 0.0) <= constants.EPSILON
-                ):
-                    next_name = target
-                    break
-
-            # 남아있는 job 중에서 (0,True) 제약의 predecessor가 포함되는지 확인하고 next_sub으로 할당
-            if next_name:
-                # Found next link in chain. Find the subtask object.
-                next_sub = next(
-                    (
-                        t
-                        for t in current_node.state.remaining_subtasks
-                        if t.name == next_name
-                    ),
-                    None,
-                )
-                if not next_sub:
-                    break
-
-                # Calculate Nav + Interaction to get to the end of next_sub
-                # Current Pos is location of curr_name task
-                if curr_name == candidate.subtask.name:
-                    curr_sub = candidate.subtask
-                else:
-                    curr_sub = next(
-                        (
-                            t
-                            for t in current_node.state.remaining_subtasks
-                            if t.name == curr_name
-                        ),
-                        None,
-                    )
-
-                if curr_sub:
-                    curr_pos = self._get_task_interaction_location(
-                        curr_sub, current_node.state.scene_positions
-                    )
-                else:
-                    curr_pos = None  # Should not happen
-
-                next_pos = self._get_task_interaction_location(
-                    next_sub, current_node.state.scene_positions
-                )
-
-                nav_time = self._estimate_navigation_time_between_positions(
-                    curr_pos, next_pos
-                )
-                interaction_time = self._get_estimated_pure_interaction_time(next_sub)
-
-                cumulative_time += nav_time + interaction_time
-
-                # Check next task's outgoing timer edges
-                for _, target, data in graph.out_edges(next_name, data=True):
+        _, _, _, _, launch_profile = self._get_candidate_chain_profile(
+            current_node, candidate
+        )
+        future_tasks_info: List[Tuple[str, float]] = []
+        if graph is not None:
+            for source_name, source_end_delay in launch_profile.items():
+                for _, target, data in graph.out_edges(source_name, data=True):
                     info = data.get("info", {})
                     if (
                         info.get("IsCritical")
                         and info.get("Interval", 0.0) > constants.EPSILON
                     ):
                         future_tasks_info.append(
-                            (target, cumulative_time + info["Interval"])
+                            (target, source_end_delay + float(info["Interval"]))
                         )
-
-                curr_name = next_name
-            else:
-                break
 
         if not future_tasks_info:
             return 0.0, None
@@ -767,10 +933,7 @@ class HeuristicManager:
         max_conflict = 0.0
         victim_task_name = None
 
-        # Chain Start Time (estimated)
-        cand_nav = candidate.estimated_first_nav_duration or 0.0
         current_time = current_node.state.current_time
-        chain_start_time = current_time + cand_nav
 
         for target_name, relative_ready_time in future_tasks_info:
             target_subtask = next(
@@ -785,7 +948,7 @@ class HeuristicManager:
                 continue
 
             # Expected Ready Time for Future Task
-            ready_time = chain_start_time + relative_ready_time
+            ready_time = current_time + relative_ready_time
 
             # Target Duration (Chain)
             target_dur, _, _ = self._get_chain_info(current_node, target_subtask)

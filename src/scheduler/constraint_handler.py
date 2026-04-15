@@ -28,6 +28,7 @@ from src.utils.config.constants import (
 log = create_module_logger(__name__, True, logging.DEBUG)
 
 TimeSlotCacheKey: TypeAlias = Tuple[int, str, str]
+STRICT_INTERACTION_READINESS_EPSILON = 1e-6
 
 
 class ConstraintHandler:
@@ -254,11 +255,17 @@ class ConstraintHandler:
             #
             # Non-critical tasks keep the broader horizon gate so the scheduler can
             # still reason about nearby opportunities without semantic exactness.
+            #
+            # Critical readiness only gets a tiny numeric epsilon here; the legacy
+            # ``EPSILON`` constant is too large and behaves like semantic grace.
             physical_earliest_interaction_start = current_time + first_nav_duration
             if is_critical:
                 is_feasible_now = (
                     logical_interaction_start_time
-                    <= (physical_earliest_interaction_start + EPSILON)
+                    <= (
+                        physical_earliest_interaction_start
+                        + STRICT_INTERACTION_READINESS_EPSILON
+                    )
                 )
             else:
                 is_feasible_now = (

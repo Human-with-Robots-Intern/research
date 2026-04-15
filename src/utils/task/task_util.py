@@ -120,7 +120,7 @@ class TaskUtil:
                         "TOGGLE_ON": TOGGLE_ACTION_DURATION,
                         "TOGGLE_OFF": TOGGLE_ACTION_DURATION,
                         "SLICE": TOGGLE_ACTION_DURATION,
-                        "FILL": PLACE_ACTION_DURATION,
+                        "FILL": TOGGLE_ACTION_DURATION,
                     }
                     total_duration += duration_map.get(
                         action_name, TOGGLE_ACTION_DURATION

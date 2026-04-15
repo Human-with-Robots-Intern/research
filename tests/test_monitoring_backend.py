@@ -1320,6 +1320,181 @@ def test_future_conflict_zero_wait_is_ignored(
     assert victim is None
 
 
+def test_candidate_chain_profile_uses_simulated_runtime_for_internal_navigation() -> None:
+    """Candidate chain timing should include internal nav from the real action simulation."""
+
+    agent_pos = (0.0, 0.0, 0.0)
+    apple_pos = (1.0, 0.0, 0.0)
+    plate_pos = (2.0, 0.0, 0.0)
+    nav_graph = {
+        agent_pos: [apple_pos],
+        apple_pos: [agent_pos, plate_pos],
+        plate_pos: [apple_pos],
+    }
+    action_handler = ActionHandler(nav_graph=nav_graph)
+    heuristic_manager = HeuristicManager(action_handler)
+    candidate_subtask = _make_subtask(
+        "Move Apple to Plate",
+        primitive_actions=[
+            "NAVIGATE_TO Apple|01",
+            "GRASP Apple|01",
+            "NAVIGATE_TO Plate|01",
+            "PLACE_ON_TOP Plate|01",
+        ],
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=candidate_subtask,
+            completed_entries=[],
+            remaining_subtasks=[candidate_subtask],
+            constraints=nx.DiGraph(),
+            current_time=0.0,
+            scene_positions={
+                "agent": agent_pos,
+                "Apple|01": apple_pos,
+                "Plate|01": plate_pos,
+            },
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    exec_info = action_handler.get_actions_info(
+        curr_node, candidate_subtask.execution.primitive_actions
+    )
+    assert exec_info is not None
+
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=False,
+        estimated_first_nav_duration=float(exec_info.first_nav_duration or 0.0),
+    )
+
+    profile = heuristic_manager._try_build_simulated_candidate_chain_profile(
+        curr_node,
+        candidate,
+    )
+
+    assert profile is not None
+    chain_duration, chain_members, last_task_name, chain_end_delay, launch_profile = (
+        profile
+    )
+    assert chain_duration == pytest.approx(
+        float(exec_info.cumulative_time) - float(exec_info.first_nav_duration or 0.0)
+    )
+    assert chain_end_delay == pytest.approx(float(exec_info.cumulative_time))
+    assert chain_members == {candidate_subtask.name}
+    assert last_task_name == candidate_subtask.name
+    assert launch_profile == {}
+
+
+def test_future_conflict_uses_simulated_chain_end_delay_for_internal_navigation(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Future conflict should use the simulated chain end delay, not the static subtask duration."""
+
+    action_handler = ActionHandler(nav_graph={})
+    heuristic_manager = HeuristicManager(action_handler)
+    candidate_subtask = _make_subtask(
+        "Start Bread Heating",
+        primitive_actions=[
+            "NAVIGATE_TO Bread|01",
+            "GRASP Bread|01",
+            "NAVIGATE_TO Microwave|01",
+            "PLACE_INSIDE Microwave|01",
+        ],
+    )
+    target_subtask = _make_subtask(
+        "Turn Off Microwave",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    reserved_last_subtask = _make_subtask(
+        "Turn Off Faucet",
+        primitive_actions=["TOGGLE_OFF Faucet|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        candidate_subtask.name,
+        target_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True},
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=candidate_subtask,
+            completed_entries=[],
+            remaining_subtasks=[
+                candidate_subtask,
+                target_subtask,
+                reserved_last_subtask,
+            ],
+            constraints=constraints,
+            current_time=0.0,
+            scene_positions={},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=False,
+        estimated_first_nav_duration=2.0,
+    )
+    simulated_exec = ActionResult(
+        action_full_name="PLACE_INSIDE Microwave|01",
+        action_type="PLACE_INSIDE",
+        cumulative_time=7.0,
+        action_duration=1.0,
+        scene_positions={},
+        held_object=None,
+        success=True,
+        first_nav_duration=2.0,
+    )
+
+    monkeypatch.setattr(
+        action_handler,
+        "get_actions_info",
+        lambda _node, actions: (
+            simulated_exec
+            if actions == candidate_subtask.execution.primitive_actions
+            else None
+        ),
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_reserved_windows",
+        lambda _node: [(107.5, 109.0, "reserved-owner", reserved_last_subtask.name)],
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_chain_info",
+        lambda _node, subtask: (1.0, {subtask.name}, subtask.name),
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_task_interaction_location",
+        lambda _subtask, _scene_positions: (0.0, 0.0, 0.0),
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_estimate_navigation_time_between_positions",
+        lambda _a, _b: 0.0,
+    )
+
+    conflict_delay, victim = heuristic_manager.check_future_conflict(
+        curr_node, candidate
+    )
+
+    assert conflict_delay == pytest.approx(2.0)
+    assert victim == target_subtask.name
+
+
 def test_positive_future_conflict_delay_is_violation_without_semantic_grace(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -1733,6 +1908,192 @@ def test_constraint_handler_keeps_critical_candidate_blocked_until_exact_interac
     assert len(not_yet_candidates) == 1
     assert not_yet_candidates[0].logical_interaction_start_time == pytest.approx(20.0)
     assert not_yet_candidates[0].actual_interaction_start_time == pytest.approx(20.0)
+
+
+def test_constraint_handler_rejects_subsecond_critical_lateness(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Critical feasibility must not treat sub-second lateness as semantically on time."""
+
+    action_handler = ActionHandler(nav_graph={})
+    constraint_handler = ConstraintHandler(action_handler)
+    subtask = _make_subtask(
+        "Turn Off Microwave",
+        primitive_actions=["NAVIGATE_TO Microwave|01", "TOGGLE_OFF Microwave|01"],
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=_make_subtask("Init", primitive_actions=["WAIT 0"], subtask_type="Init"),
+            completed_entries=[],
+            remaining_subtasks=[subtask],
+            constraints=nx.DiGraph(),
+            current_time=10.0,
+            scene_positions={
+                "agent": (0.0, 0.0, 0.0),
+                "Microwave|01": (1.0, 0.0, 0.0),
+            },
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        constraint_handler,
+        "get_logical_interaction_start_time",
+        lambda *_args, **_kwargs: (
+            12.48,
+            True,
+            "COMPLETED",
+            {
+                "critical_source": "Start Microwave",
+                "critical_source_end_time": 0.0,
+                "critical_interval": 12.48,
+                "critical_start_time": 12.48,
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        constraint_handler,
+        "_assign_scheduling_due",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        action_handler,
+        "get_actions_info",
+        lambda _node, _actions: ActionResult(
+            action_full_name="NAVIGATE_TO Microwave|01",
+            action_type="NAVIGATE_TO",
+            cumulative_time=2.0,
+            action_duration=2.0,
+            scene_positions={"agent": (1.0, 0.0, 0.0)},
+            held_object=None,
+            success=True,
+            first_nav_duration=2.0,
+        ),
+    )
+
+    feasible_candidates, not_yet_candidates = constraint_handler.get_feasible_candidates(
+        curr_node
+    )
+
+    assert feasible_candidates == []
+    assert len(not_yet_candidates) == 1
+    assert not_yet_candidates[0].logical_interaction_start_time == pytest.approx(12.48)
+    assert not_yet_candidates[0].actual_interaction_start_time == pytest.approx(12.48)
+
+
+def test_scheduler_interaction_readiness_rejects_subsecond_critical_lateness() -> None:
+    """Interaction readiness must reject even small semantic lateness."""
+
+    candidate = Candidate(
+        subtask=_make_subtask(
+            "Turn Off Microwave",
+            primitive_actions=["NAVIGATE_TO Microwave|01", "TOGGLE_OFF Microwave|01"],
+        ),
+        is_critical=True,
+        logical_interaction_start_time=12.48,
+        estimated_first_nav_duration=2.0,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=candidate.subtask,
+            completed_entries=[],
+            remaining_subtasks=[candidate.subtask],
+            constraints=nx.DiGraph(),
+            current_time=10.0,
+            scene_positions={},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    assert Scheduler._can_candidate_start_interaction_now(curr_node, candidate) is False
+
+
+def test_heuristic_manager_accounts_for_lookahead_nav_to_future_due_target(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Future-due slack must include travel to the due-related critical target."""
+
+    action_handler = ActionHandler(nav_graph={})
+    heuristic_manager = HeuristicManager(action_handler)
+    current_subtask = _make_subtask(
+        "Place Potato in Pot and Start Boiling on Stove",
+        primitive_actions=["NAVIGATE_TO Stove|01", "PLACE_ON_TOP Potato|01 Stove|01"],
+    )
+    future_due_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Bread",
+        primitive_actions=["NAVIGATE_TO Microwave|01", "TOGGLE_OFF Microwave|01"],
+    )
+    candidate = Candidate(
+        subtask=current_subtask,
+        is_critical=True,
+        logical_interaction_start_time=122.4,
+        actual_interaction_start_time=122.64,
+        estimated_first_nav_duration=0.24,
+        scheduling_due=SchedulingDue(
+            due_date=147.25,
+            due_related_sub_name=future_due_subtask.name,
+        ),
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=current_subtask,
+            completed_entries=[],
+            remaining_subtasks=[current_subtask, future_due_subtask],
+            constraints=nx.DiGraph(),
+            current_time=122.4,
+            scene_positions={},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_chain_info",
+        lambda *_args, **_kwargs: (23.97, {current_subtask.name}, current_subtask.name),
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_get_candidate_due_check_duration_correction",
+        lambda *_args, **_kwargs: 0.96,
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_calculate_lookahead_nav_time",
+        lambda *_args, **_kwargs: 0.16,
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "check_future_conflict",
+        lambda *_args, **_kwargs: (0.0, None),
+    )
+
+    total_needed = heuristic_manager._estimate_total_time_needed_for_deadline_violation_check(
+        curr_node,
+        candidate,
+    )
+    risk, urgency = heuristic_manager._calculate_candidate_risk_and_urgency(
+        curr_node,
+        candidate,
+    )
+
+    assert total_needed == pytest.approx(25.33)
+    assert risk == 2
+    assert urgency == pytest.approx(10000.48)
 
 
 def test_scheduler_detects_active_bayesian_monitoring_interval() -> None:
