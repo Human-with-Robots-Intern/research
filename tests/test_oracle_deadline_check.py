@@ -1,4 +1,4 @@
-"""Tests for relaxed oracle timing semantics and reporting behavior."""
+"""Tests for tolerance-aware oracle timing validity and pruning."""
 
 from __future__ import annotations
 
@@ -101,7 +101,7 @@ def _candidate(
 
 
 def test_not_critical_never_violated() -> None:
-    """Non-critical candidates are never pruned by strict deadline checks."""
+    """Non-critical candidates are never pruned by oracle deadline checks."""
 
     assert (
         _oracle()._is_critical_deadline_violated(
@@ -121,60 +121,78 @@ def test_lit_none_never_violated() -> None:
     )
 
 
-def test_positive_interval_critical_lateness_is_not_pruned() -> None:
-    """Positive critical lateness stays executable under late-continue semantics."""
+def test_positive_interval_critical_within_tolerance_is_not_pruned() -> None:
+    """Positive critical candidates stay feasible while within TCSR tolerance."""
 
     oracle = _oracle()
-    lit = 50.0
+    target_interaction_start = 110.0
 
     assert (
         oracle._is_critical_deadline_violated(
-            _node(lit - 2.0),
-            _candidate(True, lit, interval=100.0, nav_duration=2.0),
+            _node(target_interaction_start + 10.4),
+            _candidate(
+                True,
+                target_interaction_start,
+                interval=100.0,
+                nav_duration=2.0,
+            ),
         )
         is False
     )
+
+
+def test_positive_interval_critical_beyond_tolerance_is_pruned() -> None:
+    """Positive critical candidates are pruned once interaction start is too late."""
+
+    oracle = _oracle()
+    target_interaction_start = 110.0
+
     assert (
         oracle._is_critical_deadline_violated(
-            _node(lit - 2.0 + 0.1),
-            _candidate(True, lit, interval=100.0, nav_duration=2.0),
+            _node(target_interaction_start + 10.6),
+            _candidate(
+                True,
+                target_interaction_start,
+                interval=100.0,
+                nav_duration=2.0,
+            ),
         )
-        is False
+        is True
     )
 
 
-def test_zero_interval_critical_wait_within_numeric_epsilon_not_violated() -> None:
-    """A consecutive edge is never pruned purely for lateness during search."""
+def test_zero_interval_critical_wait_within_tolerance_not_violated() -> None:
+    """Consecutive edges remain feasible while schedule-start wait is tolerated."""
 
     oracle = _oracle()
-    lit = 20.0
+    lit = 10.0
 
     assert (
         oracle._is_critical_deadline_violated(
-            _node(lit + (oracle._strict_timing_epsilon / 2.0)),
+            _node(11.9),
             _candidate(True, lit, interval=0.0),
         )
         is False
     )
 
 
-def test_zero_interval_critical_wait_beyond_numeric_epsilon_is_not_pruned() -> None:
-    """Even a late consecutive edge remains executable under relaxed search semantics."""
+def test_zero_interval_critical_wait_beyond_tolerance_is_pruned() -> None:
+    """Consecutive edges are pruned once schedule-start wait exceeds tolerance."""
 
     oracle = _oracle()
-    lit = 20.0
+    lit = 10.0
 
     assert (
         oracle._is_critical_deadline_violated(
-            _node(lit + (oracle._strict_timing_epsilon * 2.0)),
+            _node(12.1),
             _candidate(True, lit, interval=0.0),
         )
-        is False
+        is True
     )
 
 
-def test_late_terminal_schedule_is_kept_for_reporting() -> None:
-    """Late terminal schedules are still committed; TCSR is reported separately."""
+def test_positive_interval_terminal_schedule_within_tolerance_is_valid() -> None:
+    """Critical schedules within evaluation tolerance remain oracle-valid."""
 
     oracle = _oracle()
     constraints = nx.DiGraph()
@@ -186,7 +204,7 @@ def test_late_terminal_schedule_is_kept_for_reporting() -> None:
     state = _terminal_state(
         [
             _entry("Start Microwave", 0.0, 20.0),
-            _entry("Turn Off Microwave", 115.5, 130.5, nav_time=5.0),
+            _entry("Turn Off Microwave", 127.4, 142.4, nav_time=5.0),
         ],
         constraints,
     )
@@ -200,12 +218,43 @@ def test_late_terminal_schedule_is_kept_for_reporting() -> None:
         incumbent_upper_bound=None,
     )
 
-    assert solution.optimal_schedule_time == 130.5
+    assert solution.optimal_schedule_time == 142.4
     assert solution.exact is True
 
 
-def test_zero_interval_terminal_wait_beyond_numeric_epsilon_is_kept() -> None:
-    """Late consecutive handoffs are still committed under relaxed semantics."""
+def test_positive_interval_terminal_schedule_beyond_tolerance_is_invalid() -> None:
+    """Critical schedules beyond evaluation tolerance are rejected by the oracle."""
+
+    oracle = _oracle()
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        "Start Microwave",
+        "Turn Off Microwave",
+        info={"Interval": 100.0, "IsCritical": True},
+    )
+    state = _terminal_state(
+        [
+            _entry("Start Microwave", 0.0, 20.0),
+            _entry("Turn Off Microwave", 127.6, 142.6, nav_time=5.0),
+        ],
+        constraints,
+    )
+
+    assert oracle._is_terminal_schedule_valid(state) is False
+
+    solution = oracle.solve(
+        state,
+        instruction="demo.json",
+        case="tasks_2_constraints_1",
+        incumbent_upper_bound=None,
+    )
+
+    assert solution.optimal_schedule_time is None
+    assert solution.exact is False
+
+
+def test_zero_interval_terminal_wait_within_tolerance_is_valid() -> None:
+    """Consecutive handoffs are valid while the pre-navigation wait is tolerated."""
 
     oracle = _oracle()
     constraints = nx.DiGraph()
@@ -217,7 +266,7 @@ def test_zero_interval_terminal_wait_beyond_numeric_epsilon_is_kept() -> None:
     state = _terminal_state(
         [
             _entry("Predecessor", 0.0, 20.0),
-            _entry("Successor", 20.01, 25.01, nav_time=3.0),
+            _entry("Successor", 21.9, 26.9, nav_time=3.0),
         ],
         constraints,
     )
@@ -231,12 +280,43 @@ def test_zero_interval_terminal_wait_beyond_numeric_epsilon_is_kept() -> None:
         incumbent_upper_bound=None,
     )
 
-    assert solution.optimal_schedule_time == 25.01
+    assert solution.optimal_schedule_time == 26.9
     assert solution.exact is True
 
 
+def test_zero_interval_terminal_wait_beyond_tolerance_is_invalid() -> None:
+    """Consecutive handoffs beyond tolerated wait are rejected."""
+
+    oracle = _oracle()
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        "Predecessor",
+        "Successor",
+        info={"Interval": 0.0, "IsCritical": True},
+    )
+    state = _terminal_state(
+        [
+            _entry("Predecessor", 0.0, 20.0),
+            _entry("Successor", 22.1, 27.1, nav_time=3.0),
+        ],
+        constraints,
+    )
+
+    assert oracle._is_terminal_schedule_valid(state) is False
+
+    solution = oracle.solve(
+        state,
+        instruction="demo.json",
+        case="tasks_2_constraints_1",
+        incumbent_upper_bound=None,
+    )
+
+    assert solution.optimal_schedule_time is None
+    assert solution.exact is False
+
+
 def test_on_time_terminal_schedule_is_still_committed() -> None:
-    """On-time schedules remain valid under relaxed oracle semantics."""
+    """Exactly on-time schedules remain valid under tolerance-aware semantics."""
 
     oracle = _oracle()
     constraints = nx.DiGraph()

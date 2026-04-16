@@ -1561,6 +1561,28 @@ class Scheduler:
 
         return critical_start_sub_end_time + critical_interval_duration
 
+    def _refresh_node_heuristic_cost(
+        self,
+        node: SimulationNode,
+        *,
+        context: str,
+    ) -> SimulationNode:
+        """Recompute ``g+h`` after a branch rewrites the child state in-place."""
+
+        refreshed_remaining_cost = self.cost_calculator.estimate_remaining_work_from_state(
+            node
+        )
+        refreshed_total_cost = node.state.current_time + refreshed_remaining_cost
+        log.debug(
+            "[_refresh_node_heuristic_cost] %s: refreshed total cost %.2f = current_time %.2f + remaining %.2f (previous %.2f)",
+            context,
+            refreshed_total_cost,
+            node.state.current_time,
+            refreshed_remaining_cost,
+            node.heuristic_cost,
+        )
+        return node._replace(heuristic_cost=refreshed_total_cost)
+
     def _monitoring_can_finish_before_deadline(
         self,
         *,
@@ -2116,7 +2138,11 @@ class Scheduler:
                 constraints=constraints_with_critical
             )
 
-        return monitor_node._replace(state=updated_state)
+        refreshed_node = monitor_node._replace(state=updated_state)
+        return self._refresh_node_heuristic_cost(
+            refreshed_node,
+            context=f"monitor-insert:{candidate.subtask.name}",
+        )
 
     # -----------------------------------------------------
     # (B) 서브태스크 (with monitoring) - 정책 2 적용
@@ -2750,7 +2776,11 @@ class Scheduler:
             held_object=state_after_early_expansion.held_object,
         )
 
-        return node_after_early_sub._replace(state=updated_final_state)
+        refreshed_node = node_after_early_sub._replace(state=updated_final_state)
+        return self._refresh_node_heuristic_cost(
+            refreshed_node,
+            context=f"monitor-split:{candidate.subtask.name}",
+        )
 
     # -----------------------------------------------------
     # (C) Wait expansions
@@ -3007,23 +3037,18 @@ class Scheduler:
         if feasible_candidates:
             all_candidates = feasible_candidates + not_yet_candidates
 
-        step_risk, total_heuristic_cost = self.cost_calculator.calc_heuristic(
+        step_risk, _ = self.cost_calculator.calc_heuristic(
             curr_node,
             wait_candidate,
             all_candidates,
             # Wait action creates delay. We must check if this delay hurts ANY feasible or not_yet task.
         )
 
-        new_cost = wait_end_time + total_heuristic_cost
-
         # Accumulate max risk level
         new_risk = max(curr_node.risk_level, step_risk)
 
         log.info(
             f"[_expand_wait_with_monitoring] Waiting for{candidate.subtask.name}: end_time({wait_end_time:.2f}) = current_time({curr_state.current_time:.2f}) + wait_duration({total_wait_duration:.2f})"
-        )
-        log.info(
-            f"cost({new_cost:.2f}) = end_time({wait_end_time:.2f}) + total_heuristic_cost({total_heuristic_cost:.2f})\n"
         )
 
         monitoring_sub = TaskUtil.create_monitoring_subtask(
@@ -3143,13 +3168,17 @@ class Scheduler:
 
         # return node_after_early_sub._replace(state=updated_final_state)
 
-        return SimulationNode(
+        refreshed_node = SimulationNode(
             parent_node=curr_node,
-            heuristic_cost=new_cost,
+            heuristic_cost=wait_end_time,
             depth=curr_node.depth + 1,
             tie_breaker=next(self._counter),
             state=new_state,
             risk_level=new_risk,
+        )
+        return self._refresh_node_heuristic_cost(
+            refreshed_node,
+            context=f"monitor-wait:{candidate.subtask.name}",
         )
 
     def _expand_wait_wo_monitoring(

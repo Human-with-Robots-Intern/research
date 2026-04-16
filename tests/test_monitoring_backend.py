@@ -82,6 +82,12 @@ class _DummyHeuristicManager:
 
         return 0, 0.0
 
+    def estimate_remaining_work_from_state(self, current_node: SimulationNode) -> float:
+        """Return a neutral remaining-work estimate for state-refresh tests."""
+
+        _ = current_node
+        return 0.0
+
 
 class _FixedObservationModel:
     """Return a deterministic observation payload for updater tests."""
@@ -1182,6 +1188,105 @@ def test_scheduler_winner_selection_uses_leaf_total_cost_without_double_counting
 
     assert next_state is not None
     assert next_state.subtask.name == "Depth1_B"
+
+
+def test_insert_monitoring_step_refreshes_heuristic_cost_after_state_rewrite(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Monitoring insertion should score the rewritten child state, not stale pre-rewrite cost."""
+
+    action_handler = ActionHandler(nav_graph={})
+    heuristic_manager = HeuristicManager(action_handler)
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=heuristic_manager,
+    )
+
+    predecessor_subtask = _make_subtask(
+        "Prepare Coffee Machine with Mug",
+        primitive_actions=["GRASP Mug|01"],
+    )
+    target_subtask = _make_subtask(
+        "Retrieve Coffee from Machine and Place on CounterTop",
+        primitive_actions=["NAVIGATE_TO CoffeeMachine|01", "GRASP Mug|01"],
+    )
+    curr_state = SchedulerState(
+        subtask=predecessor_subtask,
+        completed_entries=[],
+        remaining_subtasks=[],
+        constraints=nx.DiGraph(),
+        current_time=40.0,
+        scene_positions={"agent": (0.0, 0.0, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=curr_state,
+        risk_level=0,
+    )
+    candidate = Candidate(subtask=target_subtask, is_critical=True)
+
+    def _fake_expand_subtask_wo_monitoring(
+        current_node: SimulationNode,
+        monitor_candidate: Candidate,
+        not_yet_candidates: list[Candidate],
+        feasible_candidates: list[Candidate] | None = None,
+    ) -> SimulationNode:
+        _ = not_yet_candidates, feasible_candidates
+        monitor_state = SchedulerState(
+            subtask=monitor_candidate.subtask,
+            completed_entries=[
+                CompletedEntry(
+                    subtask=monitor_candidate.subtask,
+                    schedule_start_time=current_node.state.current_time,
+                    schedule_end_time=45.9,
+                )
+            ],
+            remaining_subtasks=[],
+            constraints=nx.DiGraph(),
+            current_time=45.9,
+            scene_positions=current_node.state.scene_positions,
+            held_object=current_node.state.held_object,
+        )
+        return SimulationNode(
+            heuristic_cost=123.0,
+            depth=current_node.depth + 1,
+            tie_breaker=1,
+            parent_node=current_node,
+            state=monitor_state,
+            risk_level=0,
+        )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_subtask_wo_monitoring",
+        _fake_expand_subtask_wo_monitoring,
+    )
+    monkeypatch.setattr(
+        scheduler.cost_calculator,
+        "estimate_remaining_work_from_state",
+        lambda node: 7.5,
+    )
+
+    result_node = scheduler._insert_monitoring_step(
+        curr_node=curr_node,
+        candidate=candidate,
+        monitoring_target_obj="CoffeeMachine|01",
+        predecessor_name=predecessor_subtask.name,
+        target_actual_start_time=50.0,
+        not_yet_candidates=[],
+    )
+
+    assert result_node is not None
+    assert result_node.heuristic_cost == pytest.approx(53.4)
+    assert result_node.heuristic_cost != pytest.approx(123.0)
+    assert {
+        remaining_subtask.name for remaining_subtask in result_node.state.remaining_subtasks
+    } == {target_subtask.name}
 
 
 def test_action_handler_reuses_search_scoped_action_cache(

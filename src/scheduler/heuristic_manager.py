@@ -606,6 +606,53 @@ class HeuristicManager:
         )
         return chain_end_delay, chain_members, launch_profile
 
+    def estimate_remaining_work_from_state(self, current_node: SimulationNode) -> float:
+        """Estimate remaining work directly from an already-updated scheduler state.
+
+        Monitoring branches sometimes rewrite the child node's remaining subtasks and
+        constraint graph after the initial expansion cost has already been computed.
+        In that case we want a fresh cost-to-go estimate from the rewritten state
+        without giving launch/debt credit to any not-yet-dispatched successor chain.
+        """
+
+        remaining_tasks = list(current_node.state.remaining_subtasks)
+        remaining_names = {task.name for task in remaining_tasks}
+
+        sum_duration = sum(
+            self._get_estimated_pure_interaction_time(task) for task in remaining_tasks
+        )
+
+        agent_position = current_node.state.scene_positions.get("agent")
+        next_pos = tuple(agent_position) if agent_position is not None else None
+        mst_time = self._calculate_mst_navigation_time(
+            next_pos, remaining_tasks, current_node.state.scene_positions
+        )
+
+        debt = 0.0
+        debt_infos = []
+        for u, v, data in current_node.state.constraints.edges(data=True):
+            info = data.get("info", {})
+            interval = float(info.get("Interval", 0.0))
+            if (
+                info.get("IsCritical")
+                and interval > constants.EPSILON
+                and u in remaining_names
+            ):
+                debt += interval
+                debt_infos.append(f"{u} -> {v} (Interval: {interval})")
+
+        total_cost = sum_duration + mst_time + debt
+        log.debug(
+            "[estimate_remaining_work_from_state] %.2f = WorkSum(%.2f) + MST(%.2f) + Debt(%.2f)",
+            total_cost,
+            sum_duration,
+            mst_time,
+            debt,
+        )
+        for idx, debt_info in enumerate(debt_infos, 1):
+            log.debug("    [State debt %d] %s", idx, debt_info)
+        return total_cost
+
     def _calculate_remaining_work_cost(
         self, current_node: SimulationNode, candidate: Candidate
     ) -> float:

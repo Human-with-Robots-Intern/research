@@ -80,10 +80,10 @@ class DeterministicExactOracle:
     This oracle intentionally excludes monitoring and online belief updates.
     It reuses the project's action simulation and candidate feasibility logic
     so the comparison stays aligned with the scheduler's deterministic
-    execution semantics. Under the current relaxed, EDF-like comparison mode,
-    timing misses do not invalidate a branch during oracle search; the oracle
-    solves for the best makespan over executable schedules and leaves timing
-    quality to post-hoc TCSR reporting.
+    execution semantics. A branch is considered feasible only when its
+    scheduled timing remains capable of achieving perfect post-hoc TCSR under
+    the current evaluation tolerances. The oracle therefore solves for the
+    minimum makespan among TCSR-valid deterministic schedules.
     """
 
     def __init__(
@@ -213,10 +213,8 @@ class DeterministicExactOracle:
         # NOTE: risk_level is intentionally NOT used for oracle pruning.
         # Scheduler risk is a search aid and can diverge from the oracle's
         # branch semantics because it depends on partial lookahead/reservations.
-        # In the current relaxed comparison mode, timing misses remain
-        # executable and are scored post-hoc via TCSR rather than rejected
-        # during search. The oracle therefore prunes only by branch-and-bound
-        # makespan and the time limit.
+        # Oracle correctness is enforced by tolerance-aware feasibility checks
+        # and the branch-and-bound makespan bound, not by heuristic risk_level.
         current_time = float(node.state.current_time)
         incumbent_bound = (
             self._best_makespan
@@ -364,15 +362,40 @@ class DeterministicExactOracle:
             self._incumbent_upper_bound = makespan
 
     def _is_terminal_schedule_valid(self, state: SchedulerState) -> bool:
-        """Return whether the completed branch is executable.
+        """Return whether the completed branch achieves perfect schedule TCSR.
 
-        Oracle search now follows relaxed late-continue semantics to stay
-        comparable with EDF-like baselines and the scheduler's current
-        execution behavior. Completed schedules are therefore not rejected for
-        timing misses here; TCSR is computed later for reporting.
+        This mirrors the reporting semantics used by ``calculate_timing_success_rate``
+        for schedule-side evaluation, but is kept local so oracle search does
+        not depend on reporting-only aggregation code.
         """
 
-        _ = state
+        constraints = state.constraints
+        if constraints is None:
+            return True
+
+        entry_map = {entry.subtask.name: entry for entry in state.completed_entries}
+        for predecessor_name, successor_name, edge_data in constraints.edges(data=True):
+            if self._is_monitoring_edge(predecessor_name, successor_name):
+                continue
+
+            pred_entry = entry_map.get(predecessor_name)
+            succ_entry = entry_map.get(successor_name)
+            if pred_entry is None or succ_entry is None:
+                continue
+
+            interval, is_critical = self._read_constraint_info(edge_data)
+            resolved_interval = self._resolve_schedule_interval(
+                interval=interval,
+                is_critical=is_critical,
+            )
+            if not self._is_schedule_edge_satisfied(
+                pred_entry=pred_entry,
+                succ_entry=succ_entry,
+                interval=resolved_interval,
+                is_critical=is_critical,
+            ):
+                return False
+
         return True
 
     def _is_critical_deadline_violated(
@@ -380,15 +403,55 @@ class DeterministicExactOracle:
         node: SimulationNode,
         candidate: Candidate,
     ) -> bool:
-        """Return whether a candidate must be pruned for timing lateness.
+        """Return whether a critical candidate can no longer achieve TCSR=1.0.
 
-        Under relaxed late-continue semantics, no executable candidate is
-        removed solely because it has become late relative to a critical
-        timing target. Timing quality is evaluated after rollout via TCSR.
+        Positive critical intervals use the schedule-side evaluation tolerance
+        on interaction-start timing. Consecutive ``(0, True)`` edges use the
+        dedicated consecutive wait tolerance on schedule-start timing.
         """
 
-        _ = node, candidate
-        return False
+        if not candidate.is_critical or candidate.logical_interaction_start_time is None:
+            return False
+
+        critical_context = candidate.critical_context
+        source_end_time = (
+            float(critical_context.source_end_time)
+            if critical_context is not None
+            and critical_context.source_end_time is not None
+            else None
+        )
+        interval = (
+            float(critical_context.interval)
+            if critical_context is not None
+            else float("inf")
+        )
+        current_time = float(node.state.current_time)
+
+        if interval < constants.EPSILON:
+            required_schedule_start = (
+                source_end_time
+                if source_end_time is not None
+                else float(candidate.logical_interaction_start_time)
+            )
+            latest_schedule_start = (
+                required_schedule_start + constants.CONSECUTIVE_TASK_WAIT_TOLERANCE
+            )
+            return current_time > (latest_schedule_start + self._strict_timing_epsilon)
+
+        required_interaction_start = (
+            source_end_time + constants.GT_INTERVAL
+            if source_end_time is not None
+            else float(candidate.logical_interaction_start_time)
+        )
+        latest_interaction_start = (
+            required_interaction_start + constants.TSR_EVAL_TOLERANCE_ABS
+        )
+        physical_earliest_interaction_start = (
+            current_time + float(candidate.estimated_first_nav_duration or 0.0)
+        )
+        return physical_earliest_interaction_start > (
+            latest_interaction_start + self._strict_timing_epsilon
+        )
 
     def _is_monitoring_edge(self, predecessor_name: str, successor_name: str) -> bool:
         """Return True when either endpoint belongs to a monitoring-only edge."""
@@ -406,10 +469,54 @@ class DeterministicExactOracle:
         info = edge_data.get("info", {})
         return float(info.get("Interval", 0.0)), bool(info.get("IsCritical", False))
 
+    def _resolve_schedule_interval(
+        self,
+        *,
+        interval: float,
+        is_critical: bool,
+    ) -> float:
+        """Resolve the interval used for schedule-side tolerance checks."""
+
+        if interval != 0.0 and is_critical:
+            return float(constants.GT_INTERVAL)
+        if interval != 0.0 and not is_critical:
+            return float(constants.INIT_PRIOR_MEAN)
+        return float(interval)
+
     def _get_schedule_interaction_start(self, entry: CompletedEntry) -> float:
         """Return the scheduled interaction-start timestamp for an entry."""
 
         return float(entry.schedule_start_time) + float(entry.schedule_nav_time or 0.0)
+
+    def _is_schedule_edge_satisfied(
+        self,
+        *,
+        pred_entry: CompletedEntry,
+        succ_entry: CompletedEntry,
+        interval: float,
+        is_critical: bool,
+    ) -> bool:
+        """Return whether one completed edge satisfies schedule-side TCSR rules."""
+
+        pred_end_time_sched = float(pred_entry.schedule_end_time)
+        succ_start_time_sched = float(succ_entry.schedule_start_time)
+        succ_interaction_start = self._get_schedule_interaction_start(succ_entry)
+        actual_diff_sched = succ_interaction_start - pred_end_time_sched
+
+        if is_critical:
+            if interval < constants.EPSILON:
+                wait_time = succ_start_time_sched - pred_end_time_sched
+                return abs(wait_time) <= (
+                    constants.CONSECUTIVE_TASK_WAIT_TOLERANCE
+                    + self._strict_timing_epsilon
+                )
+            return abs(interval - actual_diff_sched) <= (
+                constants.TSR_EVAL_TOLERANCE_ABS + self._strict_timing_epsilon
+            )
+
+        return (interval - actual_diff_sched) <= (
+            constants.TSR_EVAL_TOLERANCE_ABS + self._strict_timing_epsilon
+        )
 
     def _order_candidates(
         self,
