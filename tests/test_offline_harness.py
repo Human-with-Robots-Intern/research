@@ -1850,6 +1850,131 @@ def test_exact_oracle_respects_reserved_prenavigation_target(
     assert oracle._best_sequence == ["Reserved Task"]
 
 
+def test_exact_oracle_allows_safe_filler_under_reserved_prenavigation(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Oracle should keep reserved-target parity while still exploring safe filler."""
+
+    action_handler = ActionHandler(nav_graph={})
+    constraint_handler = ConstraintHandler(action_handler)
+    heuristic_manager = HeuristicManager(action_handler)
+    oracle = DeterministicExactOracle(
+        action_handler=action_handler,
+        constraint_handler=constraint_handler,
+        heuristic_manager=heuristic_manager,
+        time_limit_seconds=5.0,
+    )
+    reserved_subtask = Subtask(
+        task_name="task",
+        name="Reserved Task",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(objects={}, primitive_actions=["TOGGLE_ON Mug|1"]),
+        duration=Duration(type="Interaction", interval=3.0),
+        decomposed=True,
+    )
+    setattr(reserved_subtask, "pre_navigation_reserved", True)
+    filler_subtask = Subtask(
+        task_name="task",
+        name="Safe Filler",
+        repetition=1,
+        subtask_type="Interaction",
+        execution=Execution(objects={}, primitive_actions=["TOGGLE_ON Cup|1"]),
+        duration=Duration(type="Interaction", interval=3.0),
+    )
+    root_state = SchedulerState(
+        subtask=reserved_subtask,
+        completed_entries=[],
+        remaining_subtasks=[reserved_subtask, filler_subtask],
+        constraints=None,
+        current_time=0.0,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    root_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=root_state,
+        risk_level=0,
+    )
+    reserved_candidate = Candidate(
+        subtask=reserved_subtask,
+        is_critical=False,
+        actual_interaction_start_time=10.0,
+        logical_interaction_start_time=10.0,
+    )
+    filler_candidate = Candidate(
+        subtask=filler_subtask,
+        is_critical=False,
+        actual_interaction_start_time=0.0,
+        logical_interaction_start_time=0.0,
+    )
+
+    monkeypatch.setattr(
+        constraint_handler,
+        "get_feasible_candidates",
+        lambda _node: ([filler_candidate], [reserved_candidate]),
+    )
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_reserved_prenavigation_preserves_target",
+        lambda _curr_node, candidate, *_args, **_kwargs: candidate.subtask.name == "Safe Filler",
+    )
+
+    def _expand_subtask(
+        _node: SimulationNode,
+        candidate: Candidate,
+        *_args: object,
+        **_kwargs: object,
+    ) -> SimulationNode:
+        return SimulationNode(
+            heuristic_cost=1.0,
+            depth=1,
+            tie_breaker=1,
+            parent_node=root_node,
+            state=SchedulerState(
+                subtask=candidate.subtask,
+                completed_entries=[],
+                remaining_subtasks=[],
+                constraints=None,
+                current_time=1.0,
+                scene_positions={"agent": (0.0, 0.9, 0.0)},
+                held_object=None,
+            ),
+            risk_level=0,
+        )
+
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_expand_subtask_wo_monitoring",
+        _expand_subtask,
+    )
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_expand_blocked_prenavigation",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        oracle.scheduler,
+        "_expand_single_wait",
+        lambda *_args, **_kwargs: None,
+    )
+
+    oracle._best_makespan = None
+    oracle._best_sequence = []
+    oracle._search_nodes = 0
+    oracle._pruned_nodes = 0
+    oracle._idle_advances = 0
+    oracle._timeout_hit = False
+    oracle._started_at = time.perf_counter()
+
+    oracle._search(root_node, ())
+
+    assert oracle._best_sequence == ["Safe Filler"]
+
+
 def test_compare_result_files_calculates_setting_and_task_deltas(
     tmp_path: Path,
 ) -> None:

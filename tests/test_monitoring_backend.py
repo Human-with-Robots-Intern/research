@@ -865,6 +865,193 @@ def test_scheduler_skips_blocked_prenavigation_for_monitoring_candidates(
     assert blocked_prenav is None
 
 
+def test_scheduler_reserved_prenavigation_keeps_safe_productive_filler(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Reserved pre-navigation should still allow productive filler that preserves the target."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    reserved_subtask = _make_subtask(
+        "Turn Off Kettle",
+        primitive_actions=["TOGGLE_OFF Kettle|01"],
+        decomposed=True,
+    )
+    setattr(reserved_subtask, "pre_navigation_reserved", True)
+    filler_subtask = _make_subtask(
+        "Wash Cup",
+        primitive_actions=["CLEAN Cup|01"],
+    )
+    node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=_make_subtask("Init", primitive_actions=["WAIT 0"], subtask_type="Init"),
+            completed_entries=[],
+            remaining_subtasks=[reserved_subtask, filler_subtask],
+            constraints=nx.DiGraph(),
+            current_time=10.0,
+            scene_positions={"agent": (0.0, 0.9, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    reserved_candidate = Candidate(
+        subtask=reserved_subtask,
+        is_critical=True,
+        actual_interaction_start_time=20.0,
+        logical_interaction_start_time=20.0,
+        estimated_first_nav_duration=0.0,
+    )
+    filler_candidate = Candidate(
+        subtask=filler_subtask,
+        is_critical=False,
+        actual_interaction_start_time=10.0,
+        logical_interaction_start_time=10.0,
+        estimated_first_nav_duration=0.0,
+    )
+    filler_node = SimulationNode(
+        heuristic_cost=1.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=node,
+        state=node.state,
+        risk_level=0,
+    )
+    wait_node = SimulationNode(
+        heuristic_cost=2.0,
+        depth=1,
+        tie_breaker=2,
+        parent_node=node,
+        state=node.state,
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_reserved_prenavigation_preserves_target",
+        lambda _curr_node, candidate, *_args, **_kwargs: candidate.subtask.name == "Wash Cup",
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_single_subtask",
+        lambda _curr_node, candidate, *_args, **_kwargs: (
+            filler_node if candidate.subtask.name == "Wash Cup" else None
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_single_wait",
+        lambda *_args, **_kwargs: wait_node,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_blocked_prenavigation",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        scheduler.cost_calculator,
+        "check_future_conflict",
+        lambda *_args, **_kwargs: (0.0, None),
+    )
+
+    expansions = scheduler._expand_candidates(
+        node,
+        [filler_candidate],
+        [reserved_candidate],
+    )
+
+    assert expansions == [filler_node, wait_node]
+
+
+def test_scheduler_skips_prenavigation_when_productive_filler_preserves_frontier(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Blocked pre-navigation should be dominated by productive filler when frontier is preserved."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    filler_candidate = Candidate(
+        subtask=_make_subtask(
+            "Wash Cup",
+            primitive_actions=["CLEAN Cup|01"],
+        ),
+        is_critical=False,
+        actual_interaction_start_time=0.0,
+        logical_interaction_start_time=0.0,
+    )
+    blocked_candidate = Candidate(
+        subtask=_make_subtask(
+            "Turn Off Kettle",
+            primitive_actions=["NAVIGATE_TO Kettle|01", "TOGGLE_OFF Kettle|01"],
+        ),
+        is_critical=True,
+        actual_interaction_start_time=20.0,
+        logical_interaction_start_time=20.0,
+        estimated_first_nav_duration=2.0,
+    )
+    node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=_make_subtask("Init", primitive_actions=["WAIT 0"], subtask_type="Init"),
+            completed_entries=[],
+            remaining_subtasks=[blocked_candidate.subtask, filler_candidate.subtask],
+            constraints=nx.DiGraph(),
+            current_time=10.0,
+            scene_positions={"agent": (0.0, 0.9, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    wait_node = SimulationNode(
+        heuristic_cost=1.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=node,
+        state=node.state,
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_reserved_prenavigation_preserves_target",
+        lambda _curr_node, candidate, *_args, **_kwargs: candidate.subtask.name == "Wash Cup",
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_single_wait",
+        lambda *_args, **_kwargs: wait_node,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_blocked_prenavigation",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("Pre-navigation should be skipped when productive filler dominates.")
+        ),
+    )
+
+    expansions = scheduler._expand_blocked_frontier_candidates(
+        node,
+        [filler_candidate],
+        [blocked_candidate],
+    )
+
+    assert expansions == [wait_node]
+
+
 def test_action_handler_reuses_search_scoped_action_cache(
     monkeypatch: MonkeyPatch,
 ) -> None:

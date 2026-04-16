@@ -241,20 +241,16 @@ class DeterministicExactOracle:
         feasible_candidates, not_yet_candidates = (
             self.constraint_handler.get_feasible_candidates(node)
         )
-        reserved_candidate_name = (
-            self.scheduler._get_reserved_prenavigation_candidate_name(node)
+        reserved_candidate_name = self.scheduler._get_reserved_prenavigation_candidate_name(
+            node
         )
-        if reserved_candidate_name is not None:
-            feasible_candidates = [
-                candidate
-                for candidate in feasible_candidates
-                if candidate.subtask.name == reserved_candidate_name
-            ]
-            not_yet_candidates = [
-                candidate
-                for candidate in not_yet_candidates
-                if candidate.subtask.name == reserved_candidate_name
-            ]
+        feasible_candidates, not_yet_candidates = (
+            self.scheduler._apply_reserved_prenavigation_filter(
+                node,
+                feasible_candidates,
+                not_yet_candidates,
+            )
+        )
 
         # Branch A: for each feasible candidate, explore an explicit
         # conflict-avoidance WAIT branch (when one exists) and then the

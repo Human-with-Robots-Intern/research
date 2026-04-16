@@ -525,24 +525,13 @@ class Scheduler:
            - If no urgent tasks, expand all feasible tasks and valid 'WAIT' options.
         """
         expansions: List[SimulationNode] = []
-        reserved_candidate_name = self._get_reserved_prenavigation_candidate_name(
-            curr_node
-        )
-        if reserved_candidate_name is not None:
-            log.debug(
-                "[_expand_candidates] restricting expansion to reserved pre-nav target '%s'.",
-                reserved_candidate_name,
+        feasible_candidates, not_yet_candidates = (
+            self._apply_reserved_prenavigation_filter(
+                curr_node,
+                feasible_candidates,
+                not_yet_candidates,
             )
-            feasible_candidates = [
-                candidate
-                for candidate in feasible_candidates
-                if candidate.subtask.name == reserved_candidate_name
-            ]
-            not_yet_candidates = [
-                candidate
-                for candidate in not_yet_candidates
-                if candidate.subtask.name == reserved_candidate_name
-            ]
+        )
 
         # --- Policy 1 (Unified): Urgent Critical Tasks ---
         urgent_candidates = self._get_urgent_critical_candidates(
@@ -671,14 +660,25 @@ class Scheduler:
             if wait_node:
                 expansions.append(wait_node)
 
-            prenavigation_node = self._expand_blocked_prenavigation(
+            if self._has_productive_filler_preserving_blocked_frontier(
                 curr_node,
                 blocked_candidate,
+                feasible_candidates,
                 not_yet_candidates,
-                feasible_candidates=feasible_candidates,
-            )
-            if prenavigation_node:
-                expansions.append(prenavigation_node)
+            ):
+                log.debug(
+                    "[_expand_blocked_frontier_candidates] skipped pre-nav for '%s' because a productive filler preserves its frontier.",
+                    blocked_candidate.subtask.name,
+                )
+            else:
+                prenavigation_node = self._expand_blocked_prenavigation(
+                    curr_node,
+                    blocked_candidate,
+                    not_yet_candidates,
+                    feasible_candidates=feasible_candidates,
+                )
+                if prenavigation_node:
+                    expansions.append(prenavigation_node)
 
         return expansions
 
@@ -1010,6 +1010,177 @@ class Scheduler:
             if getattr(remaining_subtask, "pre_navigation_reserved", False):
                 return remaining_subtask.name
         return None
+
+    @staticmethod
+    def _is_productive_candidate(candidate: Candidate) -> bool:
+        """Return whether a candidate is real work rather than wait/nav/monitor."""
+
+        subtask_type = (candidate.subtask.subtask_type or "").strip()
+        return subtask_type not in {"WAIT", "NAVIGATE", "Monitor", "MONITORING"}
+
+    @staticmethod
+    def _find_candidate_by_name(
+        candidates: List[Candidate],
+        subtask_name: str,
+    ) -> Optional[Candidate]:
+        """Return the candidate matching ``subtask_name`` if present."""
+
+        return next(
+            (candidate for candidate in candidates if candidate.subtask.name == subtask_name),
+            None,
+        )
+
+    def _reserved_prenavigation_preserves_target(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+        reserved_candidate: Candidate,
+        feasible_candidates: List[Candidate],
+        not_yet_candidates: List[Candidate],
+    ) -> bool:
+        """Return whether one feasible step keeps the reserved pre-nav target intact.
+
+        Early pre-navigation should keep the blocked frontier available, but it
+        should not freeze the whole rollout when unrelated productive work can
+        still finish before the reserved interaction time.
+        """
+
+        if not self._is_productive_candidate(candidate):
+            return False
+
+        reserved_target_time = self._get_candidate_target_start_time(reserved_candidate)
+        if (
+            reserved_target_time is None
+            or reserved_target_time == float("inf")
+            or curr_node.state.current_time >= (reserved_target_time - EPSILON)
+        ):
+            return False
+
+        simulated_child = self._expand_single_subtask(
+            curr_node,
+            copy.deepcopy(candidate),
+            not_yet_candidates,
+            feasible_candidates,
+        )
+        if simulated_child is None:
+            return False
+        if simulated_child.state.current_time > (reserved_target_time + EPSILON):
+            return False
+
+        child_feasible, child_not_yet = self.constraint_handler.get_feasible_candidates(
+            simulated_child
+        )
+        child_reserved_candidate = self._find_candidate_by_name(
+            child_feasible + child_not_yet,
+            reserved_candidate.subtask.name,
+        )
+        if child_reserved_candidate is None:
+            return False
+
+        updated_target_time = self._get_candidate_target_start_time(
+            child_reserved_candidate
+        )
+        if updated_target_time is None or updated_target_time == float("inf"):
+            return False
+
+        preserves_target = updated_target_time <= (reserved_target_time + EPSILON)
+        if preserves_target:
+            log.debug(
+                "[_reserved_prenavigation_preserves_target] '%s' keeps reserved target '%s' on time "
+                "(target %.2f -> %.2f).",
+                candidate.subtask.name,
+                reserved_candidate.subtask.name,
+                reserved_target_time,
+                updated_target_time,
+            )
+        return preserves_target
+
+    def _apply_reserved_prenavigation_filter(
+        self,
+        curr_node: SimulationNode,
+        feasible_candidates: List[Candidate],
+        not_yet_candidates: List[Candidate],
+    ) -> tuple[List[Candidate], List[Candidate]]:
+        """Filter candidates when a prior pre-navigation reserved one blocked task.
+
+        The reserved target remains the only blocked frontier candidate, but we
+        still allow productive feasible work that demonstrably preserves that
+        reserved interaction frontier.
+        """
+
+        reserved_candidate_name = self._get_reserved_prenavigation_candidate_name(
+            curr_node
+        )
+        if reserved_candidate_name is None:
+            return feasible_candidates, not_yet_candidates
+
+        reserved_candidate = self._find_candidate_by_name(
+            feasible_candidates + not_yet_candidates,
+            reserved_candidate_name,
+        )
+        filtered_not_yet = [
+            candidate
+            for candidate in not_yet_candidates
+            if candidate.subtask.name == reserved_candidate_name
+        ]
+
+        if reserved_candidate is None:
+            log.debug(
+                "[_apply_reserved_prenavigation_filter] reserved target '%s' not found among candidates. "
+                "Falling back to strict target-only filter.",
+                reserved_candidate_name,
+            )
+            return (
+                [
+                    candidate
+                    for candidate in feasible_candidates
+                    if candidate.subtask.name == reserved_candidate_name
+                ],
+                filtered_not_yet,
+            )
+
+        filtered_feasible: List[Candidate] = []
+        allowed_filler_names: List[str] = []
+        for candidate in feasible_candidates:
+            if candidate.subtask.name == reserved_candidate_name:
+                filtered_feasible.append(candidate)
+                continue
+            if self._reserved_prenavigation_preserves_target(
+                curr_node,
+                candidate,
+                reserved_candidate,
+                feasible_candidates,
+                not_yet_candidates,
+            ):
+                filtered_feasible.append(candidate)
+                allowed_filler_names.append(candidate.subtask.name)
+
+        log.debug(
+            "[_apply_reserved_prenavigation_filter] reserved target '%s'; allowed fillers=%s",
+            reserved_candidate_name,
+            allowed_filler_names,
+        )
+        return filtered_feasible, filtered_not_yet
+
+    def _has_productive_filler_preserving_blocked_frontier(
+        self,
+        curr_node: SimulationNode,
+        blocked_candidate: Candidate,
+        feasible_candidates: List[Candidate],
+        not_yet_candidates: List[Candidate],
+    ) -> bool:
+        """Return whether a feasible productive step dominates early pre-navigation."""
+
+        for candidate in feasible_candidates:
+            if self._reserved_prenavigation_preserves_target(
+                curr_node,
+                candidate,
+                blocked_candidate,
+                feasible_candidates,
+                not_yet_candidates,
+            ):
+                return True
+        return False
 
     @staticmethod
     def _can_candidate_start_interaction_now(
