@@ -1052,6 +1052,138 @@ def test_scheduler_skips_prenavigation_when_productive_filler_preserves_frontier
     assert expansions == [wait_node]
 
 
+def test_scheduler_winner_selection_uses_leaf_total_cost_without_double_counting_prefix(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Final commitment should follow the best leaf, not leaf+depth1 double counting."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+        beam_width=2,
+        simulation_depth=2,
+    )
+
+    dummy_candidate = Candidate(
+        subtask=_make_subtask("Dummy", primitive_actions=["WAIT 0"]),
+        is_critical=False,
+    )
+
+    def _make_node(
+        *,
+        parent: SimulationNode | None,
+        name: str,
+        cost: float,
+        depth: int,
+        tie_breaker: int,
+    ) -> SimulationNode:
+        subtask = _make_subtask(name, primitive_actions=["WAIT 0"], subtask_type="Test")
+        state = SchedulerState(
+            subtask=subtask,
+            completed_entries=[],
+            remaining_subtasks=[subtask],
+            constraints=nx.DiGraph(),
+            current_time=float(cost),
+            scene_positions={"agent": (0.0, 0.0, 0.0)},
+            held_object=None,
+        )
+        return SimulationNode(
+            heuristic_cost=cost,
+            depth=depth,
+            tie_breaker=tie_breaker,
+            parent_node=parent,
+            state=state,
+            risk_level=0,
+        )
+
+    root_subtask = _make_subtask("Init", primitive_actions=["WAIT 0"], subtask_type="Init")
+    root_state = SchedulerState(
+        subtask=root_subtask,
+        completed_entries=[],
+        remaining_subtasks=[root_subtask],
+        constraints=nx.DiGraph(),
+        current_time=0.0,
+        scene_positions={"agent": (0.0, 0.0, 0.0)},
+        held_object=None,
+    )
+    root_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=root_state,
+        risk_level=0,
+    )
+    depth1_a = _make_node(
+        parent=root_node,
+        name="Depth1_A",
+        cost=10.0,
+        depth=1,
+        tie_breaker=1,
+    )
+    depth1_b = _make_node(
+        parent=root_node,
+        name="Depth1_B",
+        cost=40.0,
+        depth=1,
+        tie_breaker=2,
+    )
+    leaf_a = _make_node(
+        parent=depth1_a,
+        name="Leaf_A",
+        cost=100.0,
+        depth=2,
+        tie_breaker=3,
+    )
+    leaf_b = _make_node(
+        parent=depth1_b,
+        name="Leaf_B",
+        cost=95.0,
+        depth=2,
+        tie_breaker=4,
+    )
+
+    def _fake_feasible_candidates(
+        curr_node: SimulationNode,
+    ) -> tuple[list[Candidate], list[Candidate]]:
+        if curr_node.depth >= 2:
+            return [], []
+        return [dummy_candidate], []
+
+    def _fake_expand_candidates(
+        curr_node: SimulationNode,
+        feasible_candidates: list[Candidate],
+        not_yet_candidates: list[Candidate],
+    ) -> list[SimulationNode]:
+        _ = feasible_candidates, not_yet_candidates
+        subtask_name = curr_node.state.subtask.name
+        if subtask_name == "Init":
+            return [depth1_a, depth1_b]
+        if subtask_name == "Depth1_A":
+            return [leaf_a]
+        if subtask_name == "Depth1_B":
+            return [leaf_b]
+        return []
+
+    monkeypatch.setattr(
+        scheduler.constraint_handler,
+        "get_feasible_candidates",
+        _fake_feasible_candidates,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_candidates",
+        _fake_expand_candidates,
+    )
+
+    next_state, _elapsed = scheduler.get_next_state(root_state)
+
+    assert next_state is not None
+    assert next_state.subtask.name == "Depth1_B"
+
+
 def test_action_handler_reuses_search_scoped_action_cache(
     monkeypatch: MonkeyPatch,
 ) -> None:

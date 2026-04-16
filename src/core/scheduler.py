@@ -435,10 +435,18 @@ class Scheduler:
             }
 
             # 5. Select Winner
+            # ``heuristic_cost`` stored on each frontier/complete node is already
+            # the node's total ``g + h`` estimate. Re-adding the committed
+            # depth-1 cost here would double-count the path prefix and can bias
+            # the final immediate action toward a cheaper first step even when
+            # its best reachable leaf is worse. Keep depth-1 cost only as a
+            # stable tie-breaker.
             best_solutions.sort(
                 key=lambda nd: (
                     nd.risk_level,
-                    nd.heuristic_cost + depth1_cost_by_node[id(nd)],
+                    nd.heuristic_cost,
+                    depth1_cost_by_node[id(nd)],
+                    nd.tie_breaker,
                 )
             )
             log.debug(
