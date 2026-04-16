@@ -68,6 +68,21 @@ class SchedulerSearchCache:
     trigger_cache_misses: int = 0
 
 
+@dataclass(frozen=True)
+class TriggeredMonitoringObligation:
+    """Describe one active critical interval whose monitoring trigger has matured."""
+
+    critical_start_sub_name: str
+    critical_start_sub_end_time: float
+    critical_end_sub_name: str
+    critical_interval_duration: float
+    variance: float
+    trigger_time: float
+    monitoring_target_obj: str
+    target_candidate: Optional[Candidate]
+    ready_now: bool
+
+
 class Scheduler:
     """
     Beam Search based Scheduler with n-step lookahead.
@@ -526,13 +541,72 @@ class Scheduler:
         Expands candidates based on a unified policy to prioritize critical tasks.
 
         Policy Hierarchy:
-        1. Urgent Critical Tasks (Unified):
+        0. Ready-Now Critical Ends:
+           - If any critical end can begin interacting right now, expand ONLY
+             those direct execution branches. Monitoring no longer preempts an
+             already-executable critical handoff.
+        1. Trigger-Matured Monitoring Obligations:
+           - If no ready-now critical end exists, expand ONLY explicit monitor
+             branches for intervals whose monitoring trigger has matured.
+        2. Urgent Critical Tasks (Unified):
            - If any critical task is ready to start (within tolerance) or overdue,
              expand ONLY these tasks. This combines On-time, Closing, and Missed policies.
-        2. Standard Expansion:
+        3. Standard Expansion:
            - If no urgent tasks, expand all feasible tasks and valid 'WAIT' options.
         """
         expansions: List[SimulationNode] = []
+        ready_now_critical_candidates = (
+            self._collect_ready_now_critical_end_candidates(
+                curr_node,
+                feasible_candidates,
+            )
+        )
+        if ready_now_critical_candidates:
+            log.debug(
+                "Policy 0 (Ready-Now Critical): expanding %d ready-now critical candidate(s).",
+                len(ready_now_critical_candidates),
+            )
+            for candidate in ready_now_critical_candidates:
+                direct_execution_node = self._expand_subtask_wo_monitoring(
+                    curr_node,
+                    candidate,
+                    not_yet_candidates,
+                    feasible_candidates,
+                )
+                if direct_execution_node is not None:
+                    expansions.append(direct_execution_node)
+            if expansions:
+                return expansions
+            log.debug(
+                "Ready-now critical ends exist, but no direct-execution branch survived."
+            )
+            return expansions
+
+        triggered_obligations = self._collect_trigger_matured_monitoring_obligations(
+            curr_node,
+            feasible_candidates,
+            not_yet_candidates,
+        )
+        if triggered_obligations:
+            log.debug(
+                "Policy 1 (Triggered Monitoring): expanding %d triggered obligation(s).",
+                len(triggered_obligations),
+            )
+            expansions.extend(
+                self._expand_triggered_monitoring_obligations(
+                    curr_node,
+                    triggered_obligations,
+                    feasible_candidates,
+                    not_yet_candidates,
+                )
+            )
+            if expansions:
+                return expansions
+            log.debug(
+                "Triggered monitoring obligations exist, but no admissible monitor/direct-execution branch survived."
+            )
+            return expansions
+
         feasible_candidates, not_yet_candidates = (
             self._apply_reserved_prenavigation_filter(
                 curr_node,
@@ -637,7 +711,178 @@ class Scheduler:
                 feasible_candidates,
                 not_yet_candidates,
             )
+            )
+
+        return expansions
+
+    def _collect_ready_now_critical_end_candidates(
+        self,
+        curr_node: SimulationNode,
+        feasible_candidates: List[Candidate],
+    ) -> List[Candidate]:
+        """Return critical feasible candidates that can interact immediately."""
+
+        ready_now_candidates = [
+            candidate
+            for candidate in feasible_candidates
+            if candidate.is_critical
+            and self._can_candidate_start_interaction_now(curr_node, candidate)
+        ]
+        if ready_now_candidates:
+            log.debug(
+                "[_collect_ready_now_critical_end_candidates] ready-now critical candidates: %s",
+                [candidate.subtask.name for candidate in ready_now_candidates],
+            )
+        return ready_now_candidates
+
+    def _collect_trigger_matured_monitoring_obligations(
+        self,
+        curr_node: SimulationNode,
+        feasible_candidates: List[Candidate],
+        not_yet_candidates: List[Candidate],
+    ) -> List[TriggeredMonitoringObligation]:
+        """Return active critical intervals whose monitoring trigger has matured."""
+
+        current_time = curr_node.state.current_time
+        feasible_by_name = {
+            candidate.subtask.name: candidate for candidate in feasible_candidates
+        }
+        candidate_by_name = {
+            candidate.subtask.name: candidate
+            for candidate in feasible_candidates + not_yet_candidates
+        }
+        completed_entries_map = {
+            completed_entry.subtask.name: completed_entry
+            for completed_entry in curr_node.state.completed_entries
+        }
+        remaining_by_name = {
+            remaining_subtask.name: remaining_subtask
+            for remaining_subtask in curr_node.state.remaining_subtasks
+        }
+        obligations_by_target: Dict[str, TriggeredMonitoringObligation] = {}
+
+        for start_name, end_name, data in curr_node.state.constraints.edges(data=True):
+            info = data.get("info", {})
+            interval = float(info.get("Interval", 0.0))
+            if not info.get("IsCritical") or interval <= EPSILON:
+                continue
+
+            start_entry = completed_entries_map.get(start_name)
+            if start_entry is None or start_entry.subtask.subtask_type == "Monitor":
+                continue
+
+            remaining_subtask = remaining_by_name.get(end_name)
+            if remaining_subtask is None:
+                continue
+
+            if self._monitoring_budget_reached(
+                curr_node.state,
+                critical_start_sub_end_time=start_entry.schedule_end_time,
+                critical_end_sub_name=end_name,
+            ):
+                continue
+
+            monitoring_target_obj = self._get_monitoring_target_object_from_subtask(
+                remaining_subtask
+            )
+            if monitoring_target_obj is None:
+                continue
+
+            trigger_time = self._compute_monitoring_trigger_time(
+                raw_object_name=monitoring_target_obj,
+                critical_start_sub_end_time=start_entry.schedule_end_time,
+                mean_duration=interval,
+                variance=float(
+                    info.get("Variance", constants.INIT_PRIOR_VARIANCE)
+                ),
+            )
+            if current_time < (trigger_time - EPSILON):
+                continue
+
+            target_candidate = candidate_by_name.get(end_name)
+            ready_now = False
+            if target_candidate is not None and end_name in feasible_by_name:
+                ready_now = self._can_candidate_start_interaction_now(
+                    curr_node,
+                    target_candidate,
+                )
+
+            obligation = TriggeredMonitoringObligation(
+                critical_start_sub_name=start_name,
+                critical_start_sub_end_time=start_entry.schedule_end_time,
+                critical_end_sub_name=end_name,
+                critical_interval_duration=interval,
+                variance=float(info.get("Variance", constants.INIT_PRIOR_VARIANCE)),
+                trigger_time=trigger_time,
+                monitoring_target_obj=monitoring_target_obj,
+                target_candidate=target_candidate,
+                ready_now=ready_now,
+            )
+
+            existing_obligation = obligations_by_target.get(end_name)
+            if existing_obligation is None or trigger_time < (
+                existing_obligation.trigger_time - EPSILON
+            ):
+                obligations_by_target[end_name] = obligation
+
+        ordered_obligations = sorted(
+            obligations_by_target.values(),
+            key=lambda obligation: (
+                0 if obligation.ready_now else 1,
+                obligation.trigger_time,
+                obligation.critical_end_sub_name,
+            ),
         )
+        for obligation in ordered_obligations:
+            log.debug(
+                "[_collect_trigger_matured_monitoring_obligations] target='%s' trigger=%.2f current=%.2f ready_now=%s",
+                obligation.critical_end_sub_name,
+                obligation.trigger_time,
+                current_time,
+                obligation.ready_now,
+            )
+        return ordered_obligations
+
+    def _expand_triggered_monitoring_obligations(
+        self,
+        curr_node: SimulationNode,
+        obligations: List[TriggeredMonitoringObligation],
+        feasible_candidates: List[Candidate],
+        not_yet_candidates: List[Candidate],
+    ) -> List[SimulationNode]:
+        """Expand only explicit monitor or direct-execution branches for matured triggers."""
+
+        expansions: List[SimulationNode] = []
+        for obligation in obligations:
+            if obligation.ready_now:
+                target_candidate = obligation.target_candidate or self._find_candidate_by_name(
+                    feasible_candidates,
+                    obligation.critical_end_sub_name,
+                )
+                if target_candidate is None:
+                    log.debug(
+                        "[_expand_triggered_monitoring_obligations] ready target '%s' was not reconstructable as a feasible candidate.",
+                        obligation.critical_end_sub_name,
+                    )
+                    continue
+                direct_execution_node = self._expand_subtask_wo_monitoring(
+                    curr_node,
+                    target_candidate,
+                    not_yet_candidates,
+                    feasible_candidates,
+                )
+                if direct_execution_node is not None:
+                    expansions.append(direct_execution_node)
+                continue
+
+            explicit_monitor_node = self._expand_explicit_triggered_monitoring_obligation(
+                curr_node,
+                obligation,
+                not_yet_candidates,
+                feasible_candidates,
+            )
+            if explicit_monitor_node is not None:
+                expansions.append(explicit_monitor_node)
 
         return expansions
 
@@ -869,6 +1114,22 @@ class Scheduler:
             return candidate.subtask.execution.primitive_actions[0].split()[1]
         return None
 
+    @staticmethod
+    def _get_monitoring_target_object_from_subtask(
+        subtask: Subtask,
+    ) -> Optional[str]:
+        """Return the raw target object id used for monitoring one critical end."""
+
+        primitive_actions = (
+            subtask.execution.primitive_actions if subtask.execution else None
+        )
+        if not primitive_actions:
+            return None
+        first_action_parts = primitive_actions[0].split()
+        if len(first_action_parts) < 2:
+            return None
+        return first_action_parts[1]
+
     def _resolve_effective_monitoring_budget(self) -> int | None:
         """Return the active per-critical-interval monitoring cap."""
 
@@ -921,6 +1182,25 @@ class Scheduler:
             critical_end_sub_name=critical_end_sub_name,
         )
         return completed_monitors >= effective_budget
+
+    @staticmethod
+    def _resolve_monitoring_target_start_time(
+        candidate: Optional[Candidate],
+        *,
+        critical_start_sub_end_time: float,
+        critical_interval_duration: float,
+    ) -> float:
+        """Resolve the current target interaction start used after monitoring."""
+
+        if candidate is not None:
+            target_start_time = (
+                candidate.actual_interaction_start_time
+                if candidate.actual_interaction_start_time is not None
+                else candidate.logical_interaction_start_time
+            )
+            if target_start_time is not None and target_start_time != float("inf"):
+                return float(target_start_time)
+        return float(critical_start_sub_end_time + critical_interval_duration)
 
     def _estimate_candidate_navigation_duration(
         self,
@@ -2027,6 +2307,84 @@ class Scheduler:
             tie_breaker=next(self._counter),
             state=new_state,
             risk_level=new_risk,
+        )
+
+    def _expand_explicit_triggered_monitoring_obligation(
+        self,
+        curr_node: SimulationNode,
+        obligation: TriggeredMonitoringObligation,
+        not_yet_candidates: List[Candidate],
+        feasible_candidates: List[Candidate] | None = None,
+    ) -> Optional[SimulationNode]:
+        """Expand a standalone monitoring branch for a trigger-matured interval."""
+
+        target_candidate = obligation.target_candidate
+        if target_candidate is None:
+            remaining_subtask = next(
+                (
+                    subtask
+                    for subtask in curr_node.state.remaining_subtasks
+                    if subtask.name == obligation.critical_end_sub_name
+                ),
+                None,
+            )
+            if remaining_subtask is None:
+                log.debug(
+                    "[_expand_explicit_triggered_monitoring_obligation] target '%s' disappeared before expansion.",
+                    obligation.critical_end_sub_name,
+                )
+                return None
+            target_candidate = Candidate(
+                subtask=remaining_subtask,
+                is_critical=True,
+                logical_interaction_start_time=(
+                    obligation.critical_start_sub_end_time
+                    + obligation.critical_interval_duration
+                ),
+                actual_interaction_start_time=(
+                    obligation.critical_start_sub_end_time
+                    + obligation.critical_interval_duration
+                ),
+            )
+
+        target_start_time = self._resolve_monitoring_target_start_time(
+            target_candidate,
+            critical_start_sub_end_time=obligation.critical_start_sub_end_time,
+            critical_interval_duration=obligation.critical_interval_duration,
+        )
+        critical_end_nav_buffer = self._estimate_subtask_navigation_buffer(
+            curr_node,
+            obligation.critical_end_sub_name,
+            feasible_candidates=feasible_candidates,
+            not_yet_candidates=not_yet_candidates,
+        )
+        predecessor_name = (
+            curr_node.state.subtask.name
+            if curr_node.state.subtask is not None
+            else obligation.critical_start_sub_name
+        )
+        log.debug(
+            "[_expand_explicit_triggered_monitoring_obligation] inserting explicit monitor for '%s' "
+            "(trigger=%.2f current=%.2f ready_now=%s).",
+            obligation.critical_end_sub_name,
+            obligation.trigger_time,
+            curr_node.state.current_time,
+            obligation.ready_now,
+        )
+        return self._insert_monitoring_step(
+            curr_node=curr_node,
+            candidate=target_candidate,
+            monitoring_target_obj=obligation.monitoring_target_obj,
+            predecessor_name=predecessor_name,
+            target_actual_start_time=target_start_time,
+            not_yet_candidates=not_yet_candidates,
+            critical_start_sub_name=obligation.critical_start_sub_name,
+            critical_start_sub_end_time=obligation.critical_start_sub_end_time,
+            critical_end_sub_name=obligation.critical_end_sub_name,
+            critical_interval_duration=obligation.critical_interval_duration,
+            monitoring_target_sub_name=obligation.critical_end_sub_name,
+            is_critical_link=True,
+            critical_end_post_monitor_buffer=critical_end_nav_buffer,
         )
 
     def _insert_monitoring_step(

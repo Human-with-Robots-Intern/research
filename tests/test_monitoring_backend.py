@@ -30,7 +30,7 @@ from src.core.monitoring import (
     evaluate_duration_observation_likelihood,
     resolve_duration_sampling_variance,
 )
-from src.core.scheduler import Scheduler
+from src.core.scheduler import Scheduler, TriggeredMonitoringObligation
 from src.models.dataclass import (
     ActionSimulationLog,
     ActionResult,
@@ -797,6 +797,11 @@ def test_scheduler_keeps_early_critical_blocked_for_wait_or_prenavigation(
         scheduler,
         "_expand_blocked_prenavigation",
         lambda *_args, **_kwargs: prenav_node,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_trigger_matured_monitoring_obligations",
+        lambda *_args, **_kwargs: [],
     )
 
     expansions = scheduler._expand_candidates(node, [], [blocked_candidate])
@@ -1942,6 +1947,505 @@ def test_expand_wait_with_monitoring_falls_back_when_monitor_branch_is_inadmissi
     )
 
     assert result_node is fallback_wait_node
+
+
+def test_triggered_monitor_obligation_creates_explicit_monitor_branch_even_when_split_is_disallowed(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Triggered monitoring should not rely on opportunistic candidate splitting."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    handoff_predecessor = _make_subtask(
+        "Turn Off Microwave after Heating Bread",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    zero_true_successor = _make_subtask(
+        "Retrieve Heated Bread and Place on CounterTop",
+        primitive_actions=["GRASP Bread|01"],
+    )
+    coffee_end = _make_subtask(
+        "Retrieve Coffee from Machine and Place on CounterTop",
+        primitive_actions=["GRASP Mug|01"],
+    )
+    unrelated_work = _make_subtask(
+        "Wash Plate and place on counterTop",
+        primitive_actions=["WASH Plate|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        handoff_predecessor.name,
+        zero_true_successor.name,
+        info={"Interval": 0.0, "IsCritical": True},
+    )
+    curr_state = SchedulerState(
+        subtask=_make_subtask("Do Other Work", primitive_actions=["WAIT 0"]),
+        completed_entries=[],
+        remaining_subtasks=[zero_true_successor, coffee_end, unrelated_work],
+        constraints=constraints,
+        current_time=80.0,
+        scene_positions={},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=curr_state,
+        risk_level=0,
+    )
+    zero_true_candidate = Candidate(
+        subtask=zero_true_successor,
+        is_critical=True,
+        logical_interaction_start_time=80.0,
+        actual_interaction_start_time=80.0,
+    )
+    unrelated_candidate = Candidate(
+        subtask=unrelated_work,
+        is_critical=False,
+        logical_interaction_start_time=80.0,
+        actual_interaction_start_time=80.0,
+    )
+    coffee_candidate = Candidate(
+        subtask=coffee_end,
+        is_critical=True,
+        logical_interaction_start_time=120.0,
+        actual_interaction_start_time=120.0,
+    )
+
+    need_monitor, due = scheduler._should_split_with_monitoring(
+        curr_node,
+        zero_true_candidate,
+    )
+    assert need_monitor is False
+    assert due is None
+
+    obligation = TriggeredMonitoringObligation(
+        critical_start_sub_name="Start Coffee Machine",
+        critical_start_sub_end_time=20.0,
+        critical_end_sub_name=coffee_end.name,
+        critical_interval_duration=100.0,
+        variance=900.0,
+        trigger_time=70.0,
+        monitoring_target_obj="CoffeeMachine|01",
+        target_candidate=coffee_candidate,
+        ready_now=False,
+    )
+    explicit_monitor_node = SimulationNode(
+        heuristic_cost=95.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=curr_node,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                "Monitoring for Retrieve Coffee from Machine and Place on CounterTop_fake",
+                primitive_actions=["MONITORING CoffeeMachine|01"],
+                subtask_type="Monitor",
+            ),
+            completed_entries=[],
+            remaining_subtasks=[zero_true_successor, coffee_end, unrelated_work],
+            constraints=constraints,
+            current_time=95.0,
+            scene_positions={},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_trigger_matured_monitoring_obligations",
+        lambda *_args, **_kwargs: [obligation],
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_explicit_triggered_monitoring_obligation",
+        lambda *_args, **_kwargs: explicit_monitor_node,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_subtask_wo_monitoring",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("non-monitor work should be suppressed while triggered monitoring is pending")
+        ),
+    )
+
+    expansions = scheduler._expand_candidates(
+        curr_node,
+        feasible_candidates=[unrelated_candidate],
+        not_yet_candidates=[coffee_candidate],
+    )
+
+    assert expansions == [explicit_monitor_node]
+
+
+def test_triggered_monitor_obligation_allows_ready_target_direct_execution(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Ready/overdue critical ends should execute directly instead of monitoring."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    target_subtask = _make_subtask(
+        "Turn Off Stove After Cooking Egg",
+        primitive_actions=["TOGGLE_OFF StoveKnob|01"],
+    )
+    unrelated_subtask = _make_subtask(
+        "Wash Cup and place on counterTop",
+        primitive_actions=["WASH Cup|01"],
+    )
+    curr_state = SchedulerState(
+        subtask=_make_subtask("Do Other Work", primitive_actions=["WAIT 0"]),
+        completed_entries=[],
+        remaining_subtasks=[target_subtask, unrelated_subtask],
+        constraints=nx.DiGraph(),
+        current_time=100.0,
+        scene_positions={},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=curr_state,
+        risk_level=0,
+    )
+    target_candidate = Candidate(
+        subtask=target_subtask,
+        is_critical=True,
+        logical_interaction_start_time=99.0,
+        actual_interaction_start_time=100.0,
+    )
+    unrelated_candidate = Candidate(
+        subtask=unrelated_subtask,
+        is_critical=False,
+        logical_interaction_start_time=100.0,
+        actual_interaction_start_time=100.0,
+    )
+    direct_execution_node = SimulationNode(
+        heuristic_cost=107.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=curr_node,
+        state=SchedulerState(
+            subtask=target_subtask,
+            completed_entries=[],
+            remaining_subtasks=[unrelated_subtask],
+            constraints=nx.DiGraph(),
+            current_time=107.0,
+            scene_positions={},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_trigger_matured_monitoring_obligations",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("ready-now critical execution should outrank triggered monitoring collection")
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_subtask_wo_monitoring",
+        lambda _curr_node, candidate, *_args, **_kwargs: (
+            direct_execution_node
+            if candidate.subtask.name == target_subtask.name
+            else (_ for _ in ()).throw(
+                AssertionError("unrelated work should stay suppressed while a triggered obligation is pending")
+            )
+        ),
+    )
+
+    expansions = scheduler._expand_candidates(
+        curr_node,
+        feasible_candidates=[target_candidate, unrelated_candidate],
+        not_yet_candidates=[],
+    )
+
+    assert expansions == [direct_execution_node]
+
+
+def test_ready_now_critical_end_suppresses_unrelated_triggered_monitoring_obligation(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A ready-now critical handoff should execute before unrelated matured monitoring."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    handoff_predecessor = _make_subtask(
+        "Turn Off Microwave after Heating Bread",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    zero_true_successor = _make_subtask(
+        "Retrieve Heated Bread and Place on CounterTop",
+        primitive_actions=["GRASP Bread|01"],
+    )
+    competing_end = _make_subtask(
+        "Retrieve Coffee from Machine and Place on CounterTop",
+        primitive_actions=["GRASP Mug|01"],
+    )
+    unrelated_work = _make_subtask(
+        "Wash Plate and place on counterTop",
+        primitive_actions=["WASH Plate|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        handoff_predecessor.name,
+        zero_true_successor.name,
+        info={"Interval": 0.0, "IsCritical": True},
+    )
+    curr_state = SchedulerState(
+        subtask=_make_subtask("Do Other Work", primitive_actions=["WAIT 0"]),
+        completed_entries=[
+            CompletedEntry(
+                subtask=handoff_predecessor,
+                schedule_start_time=70.0,
+                schedule_end_time=80.0,
+            )
+        ],
+        remaining_subtasks=[zero_true_successor, competing_end, unrelated_work],
+        constraints=constraints,
+        current_time=80.0,
+        scene_positions={},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=curr_state,
+        risk_level=0,
+    )
+    ready_now_candidate = Candidate(
+        subtask=zero_true_successor,
+        is_critical=True,
+        logical_interaction_start_time=80.0,
+        actual_interaction_start_time=80.0,
+    )
+    unrelated_candidate = Candidate(
+        subtask=unrelated_work,
+        is_critical=False,
+        logical_interaction_start_time=80.0,
+        actual_interaction_start_time=80.0,
+    )
+    direct_execution_node = SimulationNode(
+        heuristic_cost=90.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=curr_node,
+        state=SchedulerState(
+            subtask=zero_true_successor,
+            completed_entries=[],
+            remaining_subtasks=[competing_end, unrelated_work],
+            constraints=constraints,
+            current_time=90.0,
+            scene_positions={},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_trigger_matured_monitoring_obligations",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("ready-now critical execution should outrank unrelated monitoring obligations")
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_subtask_wo_monitoring",
+        lambda _curr_node, candidate, *_args, **_kwargs: (
+            direct_execution_node
+            if candidate.subtask.name == zero_true_successor.name
+            else (_ for _ in ()).throw(
+                AssertionError("only the ready-now critical handoff should expand")
+            )
+        ),
+    )
+
+    expansions = scheduler._expand_candidates(
+        curr_node,
+        feasible_candidates=[ready_now_candidate, unrelated_candidate],
+        not_yet_candidates=[],
+    )
+
+    assert expansions == [direct_execution_node]
+
+
+def test_collect_trigger_matured_monitoring_obligations_respects_budget(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Triggered monitor obligations should disappear once the local budget is exhausted."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+        max_monitoring_per_critical_interval=1,
+    )
+    start_subtask = _make_subtask(
+        "Start Coffee Machine",
+        primitive_actions=["TOGGLE_ON CoffeeMachine|01"],
+    )
+    monitor_subtask = _make_subtask(
+        "Monitoring for Retrieve Coffee from Machine and Place on CounterTop_done",
+        primitive_actions=["MONITORING CoffeeMachine|01"],
+        subtask_type="Monitor",
+        objects=["CoffeeMachine|01"],
+        decomposed=True,
+    )
+    end_subtask = _make_subtask(
+        "Retrieve Coffee from Machine and Place on CounterTop",
+        primitive_actions=["GRASP Mug|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        start_subtask.name,
+        end_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True, "Variance": 900.0},
+    )
+    curr_state = SchedulerState(
+        subtask=_make_subtask("Do Other Work", primitive_actions=["WAIT 0"]),
+        completed_entries=[
+            CompletedEntry(
+                subtask=start_subtask,
+                schedule_start_time=0.0,
+                schedule_end_time=10.0,
+            ),
+            CompletedEntry(
+                subtask=monitor_subtask,
+                schedule_start_time=30.0,
+                schedule_end_time=35.9,
+            ),
+        ],
+        remaining_subtasks=[end_subtask],
+        constraints=constraints,
+        current_time=80.0,
+        scene_positions={},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=curr_state,
+        risk_level=0,
+    )
+    critical_end_candidate = Candidate(
+        subtask=end_subtask,
+        is_critical=True,
+        logical_interaction_start_time=110.0,
+        actual_interaction_start_time=110.0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        lambda **_kwargs: 50.0,
+    )
+
+    obligations = scheduler._collect_trigger_matured_monitoring_obligations(
+        curr_node,
+        feasible_candidates=[],
+        not_yet_candidates=[critical_end_candidate],
+    )
+
+    assert obligations == []
+
+
+def test_zero_true_successor_still_disallows_monitor_split_under_concurrent_active_interval() -> None:
+    """The strict 0,True handoff rule should survive the new explicit-monitor policy."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    handoff_predecessor = _make_subtask(
+        "Turn Off Microwave after Heating Bread",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    zero_true_successor = _make_subtask(
+        "Retrieve Heated Bread and Place on CounterTop",
+        primitive_actions=["GRASP Bread|01"],
+    )
+    active_start = _make_subtask(
+        "Start Coffee Machine",
+        primitive_actions=["TOGGLE_ON CoffeeMachine|01"],
+    )
+    active_end = _make_subtask(
+        "Retrieve Coffee from Machine and Place on CounterTop",
+        primitive_actions=["GRASP Mug|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        handoff_predecessor.name,
+        zero_true_successor.name,
+        info={"Interval": 0.0, "IsCritical": True},
+    )
+    constraints.add_edge(
+        active_start.name,
+        active_end.name,
+        info={"Interval": 100.0, "IsCritical": True, "Variance": 900.0},
+    )
+    curr_state = SchedulerState(
+        subtask=_make_subtask("Do Other Work", primitive_actions=["WAIT 0"]),
+        completed_entries=[
+            CompletedEntry(
+                subtask=active_start,
+                schedule_start_time=0.0,
+                schedule_end_time=20.0,
+            )
+        ],
+        remaining_subtasks=[zero_true_successor, active_end],
+        constraints=constraints,
+        current_time=60.0,
+        scene_positions={},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=curr_state,
+        risk_level=0,
+    )
+    zero_true_candidate = Candidate(
+        subtask=zero_true_successor,
+        is_critical=True,
+        logical_interaction_start_time=60.0,
+        actual_interaction_start_time=60.0,
+    )
+
+    need_monitor, due_info = scheduler._should_split_with_monitoring(
+        curr_node,
+        zero_true_candidate,
+    )
+
+    assert need_monitor is False
+    assert due_info is None
 
 
 def test_action_handler_reuses_search_scoped_action_cache(
