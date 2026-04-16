@@ -27,8 +27,8 @@ from src.utils.common import create_module_logger  # noqa: E402
 DEFAULT_SUITE_ORDER = (
     "scalability",
     "eta_sensitivity",
-    "monitoring_budget",
-    "pf_vs_bayesian",
+    # "monitoring_budget",
+    # "pf_vs_bayesian",
 )
 DEFAULT_ORACLE_CONFIG = "scripts/offline/configs/oracle_reference_config.yaml"
 DEFAULT_TASK_FOLDER = "sampled_10_instruction_set_for_final_experiment_251203"

@@ -1207,10 +1207,7 @@ class Scheduler:
         physical_earliest_start = (
             curr_node.state.current_time + candidate.estimated_first_nav_duration
         )
-        readiness_tolerance = max(
-            constants.RISK_GRACE_SECONDS,
-            INTERACTION_READINESS_NUMERIC_EPSILON,
-        )
+        readiness_tolerance = Scheduler._get_interaction_readiness_tolerance()
         return physical_earliest_start >= (
             float(candidate.logical_interaction_start_time)
             - readiness_tolerance
@@ -1448,6 +1445,15 @@ class Scheduler:
         )
 
     @staticmethod
+    def _get_interaction_readiness_tolerance() -> float:
+        """Return the scheduler-side grace used for critical-start readiness."""
+
+        return max(
+            constants.RISK_GRACE_SECONDS,
+            INTERACTION_READINESS_NUMERIC_EPSILON,
+        )
+
+    @staticmethod
     def _normalize_monitoring_object_name(
         raw_object_name: Optional[str],
     ) -> Optional[str]:
@@ -1621,6 +1627,93 @@ class Scheduler:
                 float(post_monitor_buffer),
             )
         return feasible
+
+    def _is_monitoring_step_admissible(
+        self,
+        pre_monitor_node: SimulationNode,
+        *,
+        monitor_start_time: float,
+        monitor_finish_time: float,
+        protected_target_name: Optional[str],
+    ) -> bool:
+        """Return whether a monitoring prefix preserves active critical-end slack.
+
+        The admissibility gate reasons only up to ``monitor_finish_time`` using the
+        current belief and current constraint graph. It does not speculate about
+        posterior updates after the monitoring step.
+        """
+
+        remaining_names = {
+            subtask.name for subtask in pre_monitor_node.state.remaining_subtasks
+        }
+        protected_end_names = {
+            due.due_related_sub_name
+            for _, due in self._get_active_monitoring_intervals(pre_monitor_node)
+            if due.due_related_sub_name in remaining_names
+        }
+        if protected_target_name and protected_target_name in remaining_names:
+            protected_end_names.add(protected_target_name)
+        if not protected_end_names:
+            return True
+
+        projected_state = pre_monitor_node.state._replace(current_time=monitor_finish_time)
+        projected_node = pre_monitor_node._replace(state=projected_state)
+        feasible_candidates, not_yet_candidates = (
+            self.constraint_handler.get_feasible_candidates(projected_node)
+        )
+        projected_candidates = {
+            candidate.subtask.name: candidate
+            for candidate in feasible_candidates + not_yet_candidates
+        }
+        readiness_tolerance = self._get_interaction_readiness_tolerance()
+
+        for target_name in sorted(protected_end_names):
+            projected_candidate = projected_candidates.get(target_name)
+            if projected_candidate is None:
+                log.debug(
+                    "[_is_monitoring_step_admissible] could not reconstruct projected readiness for protected critical end '%s' "
+                    "(monitor target '%s'). Skipping gate check for this interval.",
+                    target_name,
+                    protected_target_name,
+                )
+                continue
+
+            logical_start = projected_candidate.logical_interaction_start_time
+            actual_start = projected_candidate.actual_interaction_start_time
+            if logical_start is None or actual_start is None:
+                log.debug(
+                    "[_is_monitoring_step_admissible] projected candidate '%s' has unresolved readiness "
+                    "(logical=%s, actual=%s) after monitoring '%s'. Skipping gate check for this interval.",
+                    target_name,
+                    logical_start,
+                    actual_start,
+                    protected_target_name,
+                )
+                continue
+
+            lateness = float(actual_start) - float(logical_start)
+            if lateness > (readiness_tolerance + EPSILON):
+                protection_label = (
+                    "self-target"
+                    if target_name == protected_target_name
+                    else "competing-target"
+                )
+                log.debug(
+                    "[_is_monitoring_step_admissible] rejected monitoring for '%s': %s critical end '%s' would be late by %.2fs "
+                    "(logical=%.2f, earliest=%.2f, tol=%.2f, monitor_start=%.2f, monitor_finish=%.2f).",
+                    protected_target_name,
+                    protection_label,
+                    target_name,
+                    lateness,
+                    float(logical_start),
+                    float(actual_start),
+                    readiness_tolerance,
+                    monitor_start_time,
+                    monitor_finish_time,
+                )
+                return False
+
+        return True
 
     # ==========================================================================
     #           SUBTASK EXPANSION: Single Subtask or Wait
@@ -1993,6 +2086,19 @@ class Scheduler:
         monitor_state = monitor_node.state
         monitor_start_time = curr_node.state.current_time
         monitor_finish_time = monitor_state.current_time
+        protected_monitor_target_name = (
+            critical_end_sub_name
+            if critical_end_sub_name
+            else monitoring_target_sub_name or candidate.subtask.name
+        )
+
+        if not self._is_monitoring_step_admissible(
+            curr_node,
+            monitor_start_time=monitor_start_time,
+            monitor_finish_time=monitor_finish_time,
+            protected_target_name=protected_monitor_target_name,
+        ):
+            return None
 
         final_remaining_subtasks = list(monitor_state.remaining_subtasks)
         # Ensure candidate is in remaining (if it wasn't already)
@@ -2483,6 +2589,20 @@ class Scheduler:
             )
 
         state_after_early_expansion = node_after_early_sub.state
+
+        if not self._is_monitoring_step_admissible(
+            node_after_early_sub,
+            monitor_start_time=actual_monitoring_trigger_time,
+            monitor_finish_time=actual_monitoring_trigger_time + MONITORING_DURATION,
+            protected_target_name=critical_end_sub_name,
+        ):
+            log.debug(
+                "Split-monitor branch for '%s' was rejected by monitoring admissibility. Falling back to non-monitoring expansion.",
+                critical_end_sub_name,
+            )
+            return self._expand_subtask_wo_monitoring(
+                curr_node, candidate, not_yet_candidates, feasible_candidates
+            )
 
         # --- Phase 4: mon_sub (주요 인터벌용) 및 remain_sub 생성 ---
         mon_sub_task_for_main_interval = TaskUtil.create_monitoring_subtask(
@@ -3050,6 +3170,32 @@ class Scheduler:
         log.info(
             f"[_expand_wait_with_monitoring] Waiting for{candidate.subtask.name}: end_time({wait_end_time:.2f}) = current_time({curr_state.current_time:.2f}) + wait_duration({total_wait_duration:.2f})"
         )
+
+        pre_monitor_node = SimulationNode(
+            heuristic_cost=wait_end_time,
+            depth=curr_node.depth + 1,
+            tie_breaker=curr_node.tie_breaker,
+            parent_node=curr_node,
+            state=new_state,
+            risk_level=new_risk,
+        )
+        if not self._is_monitoring_step_admissible(
+            pre_monitor_node,
+            monitor_start_time=wait_end_time,
+            monitor_finish_time=wait_end_time + MONITORING_DURATION,
+            protected_target_name=critical_end_sub_name,
+        ):
+            log.debug(
+                "Wait-with-monitoring branch for '%s' was rejected by monitoring admissibility. Falling back to wait-without-monitoring.",
+                critical_end_sub_name,
+            )
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
+            )
 
         monitoring_sub = TaskUtil.create_monitoring_subtask(
             name=f"{critical_end_sub_name}",

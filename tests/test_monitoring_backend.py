@@ -1289,6 +1289,661 @@ def test_insert_monitoring_step_refreshes_heuristic_cost_after_state_rewrite(
     } == {target_subtask.name}
 
 
+def test_monitoring_admissibility_rejects_self_target_infeasibility(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Monitoring must be blocked if it consumes its own target's last feasible window."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    protected_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Bread",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    pre_monitor_state = SchedulerState(
+        subtask=_make_subtask("Do Other Work", primitive_actions=["WAIT 0"]),
+        completed_entries=[],
+        remaining_subtasks=[protected_subtask],
+        constraints=nx.DiGraph(),
+        current_time=90.0,
+        scene_positions={},
+        held_object=None,
+    )
+    pre_monitor_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=pre_monitor_state,
+        risk_level=0,
+    )
+    seen_projected_time: list[float] = []
+
+    monkeypatch.setattr(
+        scheduler,
+        "_get_active_monitoring_intervals",
+        lambda _node: [
+            (
+                900.0,
+                SchedulingDue(
+                    due_date=100.0,
+                    due_related_sub_name=protected_subtask.name,
+                ),
+            )
+        ],
+    )
+
+    def _fake_feasible_candidates(
+        projected_node: SimulationNode,
+    ) -> tuple[list[Candidate], list[Candidate]]:
+        seen_projected_time.append(projected_node.state.current_time)
+        return (
+            [
+                Candidate(
+                    subtask=protected_subtask,
+                    is_critical=True,
+                    logical_interaction_start_time=100.0,
+                    actual_interaction_start_time=103.2,
+                    estimated_first_nav_duration=0.0,
+                )
+            ],
+            [],
+        )
+
+    monkeypatch.setattr(
+        scheduler.constraint_handler,
+        "get_feasible_candidates",
+        _fake_feasible_candidates,
+    )
+
+    admissible = scheduler._is_monitoring_step_admissible(
+        pre_monitor_node,
+        monitor_start_time=95.0,
+        monitor_finish_time=98.0,
+        protected_target_name=protected_subtask.name,
+    )
+
+    assert admissible is False
+    assert seen_projected_time == [98.0]
+
+
+def test_monitoring_admissibility_rejects_competing_target_infeasibility(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Monitoring must be blocked if it would consume a competing critical end's slack."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    self_target = _make_subtask(
+        "Retrieve Coffee from Machine and Place on CounterTop",
+        primitive_actions=["GRASP Mug|01"],
+    )
+    competing_target = _make_subtask(
+        "Turn Off Stove After Cooking Egg",
+        primitive_actions=["TOGGLE_OFF StoveKnob|01"],
+    )
+    pre_monitor_state = SchedulerState(
+        subtask=_make_subtask("Do Other Work", primitive_actions=["WAIT 0"]),
+        completed_entries=[],
+        remaining_subtasks=[self_target, competing_target],
+        constraints=nx.DiGraph(),
+        current_time=90.0,
+        scene_positions={},
+        held_object=None,
+    )
+    pre_monitor_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=pre_monitor_state,
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_get_active_monitoring_intervals",
+        lambda _node: [
+            (
+                900.0,
+                SchedulingDue(
+                    due_date=100.0,
+                    due_related_sub_name=self_target.name,
+                ),
+            ),
+            (
+                850.0,
+                SchedulingDue(
+                    due_date=101.0,
+                    due_related_sub_name=competing_target.name,
+                ),
+            ),
+        ],
+    )
+    monkeypatch.setattr(
+        scheduler.constraint_handler,
+        "get_feasible_candidates",
+        lambda _node: (
+            [
+                Candidate(
+                    subtask=self_target,
+                    is_critical=True,
+                    logical_interaction_start_time=100.0,
+                    actual_interaction_start_time=100.0,
+                    estimated_first_nav_duration=0.0,
+                ),
+                Candidate(
+                    subtask=competing_target,
+                    is_critical=True,
+                    logical_interaction_start_time=101.0,
+                    actual_interaction_start_time=104.4,
+                    estimated_first_nav_duration=0.0,
+                ),
+            ],
+            [],
+        ),
+    )
+
+    admissible = scheduler._is_monitoring_step_admissible(
+        pre_monitor_node,
+        monitor_start_time=95.0,
+        monitor_finish_time=98.0,
+        protected_target_name=self_target.name,
+    )
+
+    assert admissible is False
+
+
+def test_monitoring_admissibility_accepts_when_all_active_critical_ends_stay_feasible(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Monitoring should remain admissible while all active ends stay within grace."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    self_target = _make_subtask(
+        "Retrieve Coffee from Machine and Place on CounterTop",
+        primitive_actions=["GRASP Mug|01"],
+    )
+    competing_target = _make_subtask(
+        "Turn Off Stove After Cooking Egg",
+        primitive_actions=["TOGGLE_OFF StoveKnob|01"],
+    )
+    pre_monitor_state = SchedulerState(
+        subtask=_make_subtask("Do Other Work", primitive_actions=["WAIT 0"]),
+        completed_entries=[],
+        remaining_subtasks=[self_target, competing_target],
+        constraints=nx.DiGraph(),
+        current_time=90.0,
+        scene_positions={},
+        held_object=None,
+    )
+    pre_monitor_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=pre_monitor_state,
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_get_active_monitoring_intervals",
+        lambda _node: [
+            (
+                900.0,
+                SchedulingDue(
+                    due_date=100.0,
+                    due_related_sub_name=self_target.name,
+                ),
+            ),
+            (
+                850.0,
+                SchedulingDue(
+                    due_date=101.0,
+                    due_related_sub_name=competing_target.name,
+                ),
+            ),
+        ],
+    )
+    monkeypatch.setattr(
+        scheduler.constraint_handler,
+        "get_feasible_candidates",
+        lambda _node: (
+            [
+                Candidate(
+                    subtask=self_target,
+                    is_critical=True,
+                    logical_interaction_start_time=100.0,
+                    actual_interaction_start_time=101.5,
+                    estimated_first_nav_duration=0.0,
+                ),
+                Candidate(
+                    subtask=competing_target,
+                    is_critical=True,
+                    logical_interaction_start_time=101.0,
+                    actual_interaction_start_time=102.8,
+                    estimated_first_nav_duration=0.0,
+                ),
+            ],
+            [],
+        ),
+    )
+
+    admissible = scheduler._is_monitoring_step_admissible(
+        pre_monitor_node,
+        monitor_start_time=95.0,
+        monitor_finish_time=98.0,
+        protected_target_name=self_target.name,
+    )
+
+    assert admissible is True
+
+
+def test_insert_monitoring_step_rejects_inadmissible_branch(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Immediate monitoring insertion should stop when the admissibility gate rejects it."""
+
+    action_handler = ActionHandler(nav_graph={})
+    heuristic_manager = HeuristicManager(action_handler)
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=heuristic_manager,
+    )
+    predecessor_subtask = _make_subtask(
+        "Prepare Coffee Machine with Mug",
+        primitive_actions=["GRASP Mug|01"],
+    )
+    target_subtask = _make_subtask(
+        "Retrieve Coffee from Machine and Place on CounterTop",
+        primitive_actions=["NAVIGATE_TO CoffeeMachine|01", "GRASP Mug|01"],
+    )
+    curr_state = SchedulerState(
+        subtask=predecessor_subtask,
+        completed_entries=[],
+        remaining_subtasks=[target_subtask],
+        constraints=nx.DiGraph(),
+        current_time=40.0,
+        scene_positions={},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=curr_state,
+        risk_level=0,
+    )
+    candidate = Candidate(subtask=target_subtask, is_critical=True)
+
+    def _fake_expand_subtask_wo_monitoring(
+        current_node: SimulationNode,
+        monitor_candidate: Candidate,
+        not_yet_candidates: list[Candidate],
+        feasible_candidates: list[Candidate] | None = None,
+    ) -> SimulationNode:
+        _ = monitor_candidate, not_yet_candidates, feasible_candidates
+        monitor_state = SchedulerState(
+            subtask=_make_subtask(
+                "Monitoring for Retrieve Coffee from Machine and Place on CounterTop_fake",
+                primitive_actions=["MONITORING CoffeeMachine|01"],
+                subtask_type="Monitor",
+            ),
+            completed_entries=[],
+            remaining_subtasks=current_node.state.remaining_subtasks,
+            constraints=nx.DiGraph(),
+            current_time=45.9,
+            scene_positions=current_node.state.scene_positions,
+            held_object=current_node.state.held_object,
+        )
+        return SimulationNode(
+            heuristic_cost=123.0,
+            depth=current_node.depth + 1,
+            tie_breaker=1,
+            parent_node=current_node,
+            state=monitor_state,
+            risk_level=0,
+        )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_subtask_wo_monitoring",
+        _fake_expand_subtask_wo_monitoring,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_is_monitoring_step_admissible",
+        lambda *_args, **_kwargs: False,
+    )
+
+    result_node = scheduler._insert_monitoring_step(
+        curr_node=curr_node,
+        candidate=candidate,
+        monitoring_target_obj="CoffeeMachine|01",
+        predecessor_name=predecessor_subtask.name,
+        target_actual_start_time=50.0,
+        not_yet_candidates=[],
+        critical_end_sub_name=target_subtask.name,
+    )
+
+    assert result_node is None
+
+
+def test_expand_subtask_with_monitoring_falls_back_when_split_monitor_is_inadmissible(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Split-monitor branches should preserve the existing non-monitor fallback."""
+
+    action_handler = ActionHandler(nav_graph={})
+    heuristic_manager = HeuristicManager(action_handler)
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=heuristic_manager,
+    )
+    start_subtask = _make_subtask(
+        "Start Coffee Machine",
+        primitive_actions=["TOGGLE_ON CoffeeMachine|01"],
+    )
+    critical_end_subtask = _make_subtask(
+        "Retrieve Coffee from Machine and Place on CounterTop",
+        primitive_actions=["NAVIGATE_TO CoffeeMachine|01", "GRASP Mug|01"],
+    )
+    candidate_subtask = _make_subtask(
+        "Wash Tomato and place on counterTop",
+        primitive_actions=["NAVIGATE_TO Sink|01", "WASH Tomato|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        start_subtask.name,
+        critical_end_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True, "Variance": 900.0},
+    )
+    curr_state = SchedulerState(
+        subtask=_make_subtask("Cook Egg in Pan", primitive_actions=["WAIT 0"]),
+        completed_entries=[
+            CompletedEntry(
+                subtask=start_subtask,
+                schedule_start_time=0.0,
+                schedule_end_time=20.0,
+            )
+        ],
+        remaining_subtasks=[candidate_subtask, critical_end_subtask],
+        constraints=constraints,
+        current_time=60.0,
+        scene_positions={"agent": (0.0, 0.0, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=curr_state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=False,
+        scheduling_due=SchedulingDue(
+            due_date=120.0,
+            due_related_sub_name=critical_end_subtask.name,
+        ),
+    )
+    full_exec = ActionResult(
+        action_full_name=" -> ".join(candidate_subtask.execution.primitive_actions),
+        action_type="WASH",
+        cumulative_time=20.0,
+        action_duration=20.0,
+        scene_positions={"agent": (0.0, 0.0, 0.0)},
+        held_object=None,
+        success=True,
+        first_nav_duration=0.0,
+    )
+    pre_actions_log = ActionSimulationLog()
+    pre_actions_log.add_result(
+        action_full_name="NAVIGATE_TO Sink|01",
+        action_type="NAVIGATE_TO",
+        cumulative_time=5.0,
+        action_duration=5.0,
+        scene_positions={"agent": (1.0, 0.0, 0.0)},
+        held_object=None,
+        success=True,
+    )
+    post_actions_log = ActionSimulationLog()
+    post_actions_log.add_result(
+        action_full_name="WASH Tomato|01",
+        action_type="WASH",
+        cumulative_time=4.0,
+        action_duration=4.0,
+        scene_positions={"agent": (1.0, 0.0, 0.0)},
+        held_object=None,
+        success=True,
+    )
+    fallback_node = SimulationNode(
+        heuristic_cost=81.0,
+        depth=1,
+        tie_breaker=3,
+        parent_node=curr_node,
+        state=SchedulerState(
+            subtask=candidate_subtask,
+            completed_entries=[],
+            remaining_subtasks=[critical_end_subtask],
+            constraints=constraints,
+            current_time=81.0,
+            scene_positions={"agent": (1.0, 0.0, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+    early_node = SimulationNode(
+        heuristic_cost=65.0,
+        depth=1,
+        tie_breaker=2,
+        parent_node=curr_node,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                "EARLY_Wash Tomato and place on counterTop",
+                primitive_actions=["NAVIGATE_TO Sink|01"],
+                decomposed=True,
+            ),
+            completed_entries=[],
+            remaining_subtasks=[candidate_subtask, critical_end_subtask],
+            constraints=constraints,
+            current_time=65.0,
+            scene_positions={"agent": (1.0, 0.0, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler.action_handler,
+        "get_actions_info",
+        lambda *_args, **_kwargs: full_exec,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        lambda **_kwargs: 65.0,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_estimate_subtask_navigation_buffer",
+        lambda *_args, **_kwargs: 0.0,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_monitoring_can_finish_before_deadline",
+        lambda **_kwargs: True,
+    )
+    monkeypatch.setattr(
+        scheduler.action_handler,
+        "split_subtask_by_cutoff_time",
+        lambda *_args, **_kwargs: (pre_actions_log, post_actions_log, True, False),
+    )
+
+    def _fake_expand_without_monitoring(
+        _curr_node: SimulationNode,
+        expanded_candidate: Candidate,
+        _not_yet_candidates: list[Candidate],
+        _feasible_candidates: list[Candidate] | None = None,
+    ) -> SimulationNode:
+        if expanded_candidate.subtask.name.startswith("EARLY_"):
+            return early_node
+        return fallback_node
+
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_subtask_wo_monitoring",
+        _fake_expand_without_monitoring,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_is_monitoring_step_admissible",
+        lambda *_args, **_kwargs: False,
+    )
+
+    result_node = scheduler._expand_subtask_with_monitoring(
+        curr_node,
+        candidate,
+        not_yet_candidates=[],
+        feasible_candidates=[candidate],
+    )
+
+    assert result_node is fallback_node
+
+
+def test_expand_wait_with_monitoring_falls_back_when_monitor_branch_is_inadmissible(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Wait-with-monitoring should preserve the existing wait-without-monitoring fallback."""
+
+    action_handler = ActionHandler(nav_graph={})
+    heuristic_manager = HeuristicManager(action_handler)
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=heuristic_manager,
+    )
+    start_subtask = _make_subtask(
+        "Cook Egg in Pan",
+        primitive_actions=["TOGGLE_ON Stove|01"],
+    )
+    critical_end_subtask = _make_subtask(
+        "Turn Off Stove After Cooking Egg",
+        primitive_actions=["TOGGLE_OFF StoveKnob|01"],
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        start_subtask.name,
+        critical_end_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True, "Variance": 900.0},
+    )
+    curr_state = SchedulerState(
+        subtask=_make_subtask("Wash Plate", primitive_actions=["WAIT 0"]),
+        completed_entries=[
+            CompletedEntry(
+                subtask=start_subtask,
+                schedule_start_time=0.0,
+                schedule_end_time=20.0,
+            )
+        ],
+        remaining_subtasks=[critical_end_subtask],
+        constraints=constraints,
+        current_time=50.0,
+        scene_positions={"agent": (0.0, 0.0, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=curr_state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=critical_end_subtask,
+        is_critical=True,
+        logical_interaction_start_time=120.0,
+        actual_interaction_start_time=120.0,
+        estimated_first_nav_duration=0.0,
+    )
+    fallback_wait_node = SimulationNode(
+        heuristic_cost=70.0,
+        depth=1,
+        tie_breaker=1,
+        parent_node=curr_node,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                "Wait for Turn Off Stove After Cooking Egg",
+                primitive_actions=["WAIT 20.0"],
+                subtask_type="WAIT",
+            ),
+            completed_entries=[],
+            remaining_subtasks=[critical_end_subtask],
+            constraints=constraints,
+            current_time=70.0,
+            scene_positions={"agent": (0.0, 0.0, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        lambda **_kwargs: 70.0,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_monitoring_can_finish_before_deadline",
+        lambda **_kwargs: True,
+    )
+    monkeypatch.setattr(
+        scheduler.cost_calculator,
+        "calc_heuristic",
+        lambda *_args, **_kwargs: (0, 0.0),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_is_monitoring_step_admissible",
+        lambda *_args, **_kwargs: False,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_wait_wo_monitoring",
+        lambda *_args, **_kwargs: fallback_wait_node,
+    )
+
+    result_node = scheduler._expand_wait_with_monitoring(
+        curr_node,
+        candidate,
+        not_yet_candidates=[],
+        nav_duration=0.0,
+        feasible_candidates=[candidate],
+    )
+
+    assert result_node is fallback_wait_node
+
+
 def test_action_handler_reuses_search_scoped_action_cache(
     monkeypatch: MonkeyPatch,
 ) -> None:
