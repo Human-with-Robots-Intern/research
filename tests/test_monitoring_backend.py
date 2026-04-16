@@ -1495,10 +1495,10 @@ def test_future_conflict_uses_simulated_chain_end_delay_for_internal_navigation(
     assert victim == target_subtask.name
 
 
-def test_positive_future_conflict_delay_is_violation_without_semantic_grace(
+def test_positive_future_conflict_delay_within_grace_is_not_violation(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Risk should flip to violation once future conflict delay is meaningfully positive."""
+    """Small future-conflict delay should remain admissible within planner grace."""
 
     action_handler = ActionHandler(nav_graph={})
     heuristic_manager = HeuristicManager(action_handler)
@@ -1533,19 +1533,24 @@ def test_positive_future_conflict_delay_is_violation_without_semantic_grace(
         "check_future_conflict",
         lambda *_args, **_kwargs: (1.5, "Turn Off Microwave"),
     )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_estimate_total_time_needed_for_deadline_violation_check",
+        lambda *_args, **_kwargs: 5.0,
+    )
 
     risk_level, heuristic_cost = heuristic_manager._calculate_candidate_risk_and_urgency(
         curr_node, candidate
     )
 
-    assert risk_level == 2
-    assert heuristic_cost == pytest.approx(10001.5)
+    assert risk_level == 0
+    assert heuristic_cost == pytest.approx(15.0)
 
 
-def test_negative_slack_is_violation_without_semantic_grace(
+def test_negative_slack_within_grace_is_not_violation(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Risk should flip to violation as soon as deadline slack becomes negative."""
+    """Small negative slack should remain admissible within planner grace."""
 
     action_handler = ActionHandler(nav_graph={})
     heuristic_manager = HeuristicManager(action_handler)
@@ -1590,8 +1595,8 @@ def test_negative_slack_is_violation_without_semantic_grace(
         curr_node, candidate
     )
 
-    assert risk_level == 2
-    assert heuristic_cost == pytest.approx(10000.1)
+    assert risk_level == 0
+    assert heuristic_cost == pytest.approx(0.0)
 
 
 def test_constraint_handler_handles_missing_navigation_estimate(
@@ -1836,10 +1841,10 @@ def test_constraint_handler_assigns_due_from_not_ready_critical_inferred_due() -
     )
 
 
-def test_constraint_handler_keeps_critical_candidate_blocked_until_exact_interaction_start(
+def test_constraint_handler_keeps_critical_candidate_blocked_when_too_early_for_buffer(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Critical candidates must remain blocked while nav would still arrive early."""
+    """Critical candidates still remain blocked when interaction would start far too early."""
 
     action_handler = ActionHandler(nav_graph={})
     constraint_handler = ConstraintHandler(action_handler)
@@ -1910,10 +1915,10 @@ def test_constraint_handler_keeps_critical_candidate_blocked_until_exact_interac
     assert not_yet_candidates[0].actual_interaction_start_time == pytest.approx(20.0)
 
 
-def test_constraint_handler_rejects_subsecond_critical_lateness(
+def test_constraint_handler_allows_small_critical_earliness_within_buffer(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Critical feasibility must not treat sub-second lateness as semantically on time."""
+    """Critical feasibility should allow small dispatch earliness within planner grace."""
 
     action_handler = ActionHandler(nav_graph={})
     constraint_handler = ConstraintHandler(action_handler)
@@ -1980,14 +1985,14 @@ def test_constraint_handler_rejects_subsecond_critical_lateness(
         curr_node
     )
 
-    assert feasible_candidates == []
-    assert len(not_yet_candidates) == 1
-    assert not_yet_candidates[0].logical_interaction_start_time == pytest.approx(12.48)
-    assert not_yet_candidates[0].actual_interaction_start_time == pytest.approx(12.48)
+    assert len(feasible_candidates) == 1
+    assert not_yet_candidates == []
+    assert feasible_candidates[0].logical_interaction_start_time == pytest.approx(12.48)
+    assert feasible_candidates[0].actual_interaction_start_time == pytest.approx(12.48)
 
 
-def test_scheduler_interaction_readiness_rejects_subsecond_critical_lateness() -> None:
-    """Interaction readiness must reject even small semantic lateness."""
+def test_scheduler_interaction_readiness_allows_small_critical_earliness() -> None:
+    """Scheduler readiness should allow small earliness within planner grace."""
 
     candidate = Candidate(
         subtask=_make_subtask(
@@ -2015,7 +2020,7 @@ def test_scheduler_interaction_readiness_rejects_subsecond_critical_lateness() -
         risk_level=0,
     )
 
-    assert Scheduler._can_candidate_start_interaction_now(curr_node, candidate) is False
+    assert Scheduler._can_candidate_start_interaction_now(curr_node, candidate) is True
 
 
 def test_heuristic_manager_accounts_for_lookahead_nav_to_future_due_target(

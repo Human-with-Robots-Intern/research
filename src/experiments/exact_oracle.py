@@ -79,10 +79,11 @@ class DeterministicExactOracle:
 
     This oracle intentionally excludes monitoring and online belief updates.
     It reuses the project's action simulation and candidate feasibility logic
-    so the comparison stays aligned with the scheduler's deterministic timing
-    semantics. Terminal validation and critical-deadline pruning use strict
-    planner semantics derived directly from the constraint graph rather than the
-    evaluator's tolerant TCSR metric.
+    so the comparison stays aligned with the scheduler's deterministic
+    execution semantics. Under the current relaxed, EDF-like comparison mode,
+    timing misses do not invalidate a branch during oracle search; the oracle
+    solves for the best makespan over executable schedules and leaves timing
+    quality to post-hoc TCSR reporting.
     """
 
     def __init__(
@@ -210,12 +211,12 @@ class DeterministicExactOracle:
             return
 
         # NOTE: risk_level is intentionally NOT used for oracle pruning.
-        # Scheduler risk is a search aid and can diverge from the oracle's exact
+        # Scheduler risk is a search aid and can diverge from the oracle's
         # branch semantics because it depends on partial lookahead/reservations.
-        # Oracle correctness is enforced by:
-        #   1. strict per-candidate deadline pruning in _is_critical_deadline_violated
-        #   2. strict terminal constraint validation in _is_terminal_schedule_valid
-        #   3. the branch-and-bound makespan bound below
+        # In the current relaxed comparison mode, timing misses remain
+        # executable and are scored post-hoc via TCSR rather than rejected
+        # during search. The oracle therefore prunes only by branch-and-bound
+        # makespan and the time limit.
         current_time = float(node.state.current_time)
         incumbent_bound = (
             self._best_makespan
@@ -367,53 +368,15 @@ class DeterministicExactOracle:
             self._incumbent_upper_bound = makespan
 
     def _is_terminal_schedule_valid(self, state: SchedulerState) -> bool:
-        """Return True only when the completed schedule satisfies strict timing semantics."""
+        """Return whether the completed branch is executable.
 
-        if not state.constraints:
-            return True
+        Oracle search now follows relaxed late-continue semantics to stay
+        comparable with EDF-like baselines and the scheduler's current
+        execution behavior. Completed schedules are therefore not rejected for
+        timing misses here; TCSR is computed later for reporting.
+        """
 
-        entry_map = {
-            completed_entry.subtask.name: completed_entry
-            for completed_entry in state.completed_entries
-        }
-
-        for predecessor_name, successor_name, edge_data in state.constraints.edges(
-            data=True
-        ):
-            if self._is_monitoring_edge(predecessor_name, successor_name):
-                continue
-
-            predecessor_entry = entry_map.get(predecessor_name)
-            successor_entry = entry_map.get(successor_name)
-            if predecessor_entry is None or successor_entry is None:
-                return False
-
-            interval, is_critical = self._read_constraint_info(edge_data)
-            predecessor_end = float(predecessor_entry.schedule_end_time)
-            successor_nav_start = float(successor_entry.schedule_start_time)
-            successor_interaction_start = self._get_schedule_interaction_start(
-                successor_entry
-            )
-
-            if is_critical:
-                if interval > self._strict_timing_epsilon:
-                    actual_interval = successor_interaction_start - predecessor_end
-                    if (
-                        abs(actual_interval - interval)
-                        > self._strict_timing_epsilon
-                    ):
-                        return False
-                elif (
-                    abs(successor_nav_start - predecessor_end)
-                    > self._strict_timing_epsilon
-                ):
-                    return False
-            elif (
-                successor_interaction_start + self._strict_timing_epsilon
-                < predecessor_end + interval
-            ):
-                return False
-
+        _ = state
         return True
 
     def _is_critical_deadline_violated(
@@ -421,42 +384,15 @@ class DeterministicExactOracle:
         node: SimulationNode,
         candidate: Candidate,
     ) -> bool:
-        """Return True when a critical candidate's interaction deadline has passed.
+        """Return whether a candidate must be pruned for timing lateness.
 
-        A feasible candidate that is critical keeps its ``logical_interaction_start_time``
-        from when its predecessor completed.  Because ``_assign_scheduling_due`` only
-        scans ``not_yet_candidates``, critical tasks that have already become feasible
-        lose their deadline tracking and receive ``scheduling_due = inf``, making
-        ``_calculate_candidate_risk_and_urgency`` return ``risk = 0``.
-
-        This check closes that gap using strict planner semantics rather than
-        evaluator tolerance. Positive critical intervals require the successor's
-        interaction start to match the logical interaction start exactly; zero
-        critical intervals require the successor navigation to start immediately.
-
-        Args:
-            node: Current DFS node.
-            candidate: Feasible candidate about to be expanded.
-
-        Returns:
-            True when the candidate is critical and it can no longer satisfy the
-            strict timing constraint.
+        Under relaxed late-continue semantics, no executable candidate is
+        removed solely because it has become late relative to a critical
+        timing target. Timing quality is evaluated after rollout via TCSR.
         """
-        if not candidate.is_critical:
-            return False
-        lit = candidate.logical_interaction_start_time
-        if lit is None:
-            return False
 
-        ctx = candidate.critical_context
-        current_time = float(node.state.current_time)
-        if ctx is not None and abs(float(ctx.interval)) <= self._strict_timing_epsilon:
-            return current_time > float(lit) + self._strict_timing_epsilon
-
-        required_interaction_start = current_time + float(
-            candidate.estimated_first_nav_duration or 0.0
-        )
-        return required_interaction_start > float(lit) + self._strict_timing_epsilon
+        _ = node, candidate
+        return False
 
     def _is_monitoring_edge(self, predecessor_name: str, successor_name: str) -> bool:
         """Return True when either endpoint belongs to a monitoring-only edge."""

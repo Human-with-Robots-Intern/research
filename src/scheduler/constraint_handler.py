@@ -23,12 +23,13 @@ from src.utils.config import EPSILON
 from src.utils.config.constants import (
     CONSTRAINT_MERGE_THRESHOLD,
     MONITORING_DURATION,
+    RISK_GRACE_SECONDS,
 )
 
 log = create_module_logger(__name__, True, logging.DEBUG)
 
 TimeSlotCacheKey: TypeAlias = Tuple[int, str, str]
-STRICT_INTERACTION_READINESS_EPSILON = 1e-6
+INTERACTION_READINESS_NUMERIC_EPSILON = 1e-6
 
 
 class ConstraintHandler:
@@ -70,6 +71,12 @@ class ConstraintHandler:
         self._search_cache_hits = 0
         self._search_cache_misses = 0
         return stats
+
+    @staticmethod
+    def _get_critical_readiness_tolerance() -> float:
+        """Return the planner-side buffer for critical interaction readiness."""
+
+        return max(RISK_GRACE_SECONDS, INTERACTION_READINESS_NUMERIC_EPSILON)
 
     @staticmethod
     def _has_failed_execution(pred_entry: CompletedEntry) -> bool:
@@ -248,23 +255,19 @@ class ConstraintHandler:
                 critical_context=critical_ctx,
             )
 
-            # Critical subtasks must stay blocked until the interaction itself can
-            # legally start. Allowing "within monitoring horizon" here turns a
-            # strict interaction-start constraint into a soft deadline because the
-            # scheduler would then execute the full nav+interaction sequence early.
+            # Critical subtasks keep a tighter readiness rule than non-critical
+            # tasks, but we still allow a small planner-side buffer so tiny
+            # estimation mismatch does not block dispatch unnecessarily.
             #
             # Non-critical tasks keep the broader horizon gate so the scheduler can
             # still reason about nearby opportunities without semantic exactness.
-            #
-            # Critical readiness only gets a tiny numeric epsilon here; the legacy
-            # ``EPSILON`` constant is too large and behaves like semantic grace.
             physical_earliest_interaction_start = current_time + first_nav_duration
             if is_critical:
                 is_feasible_now = (
                     logical_interaction_start_time
                     <= (
                         physical_earliest_interaction_start
-                        + STRICT_INTERACTION_READINESS_EPSILON
+                        + self._get_critical_readiness_tolerance()
                     )
                 )
             else:

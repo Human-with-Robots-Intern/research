@@ -1,4 +1,4 @@
-"""Tests for strict oracle timing validation and deadline pruning."""
+"""Tests for relaxed oracle timing semantics and reporting behavior."""
 
 from __future__ import annotations
 
@@ -121,8 +121,8 @@ def test_lit_none_never_violated() -> None:
     )
 
 
-def test_positive_interval_critical_uses_nav_reach_time_strictly() -> None:
-    """Positive critical intervals prune once nav makes the interaction start late."""
+def test_positive_interval_critical_lateness_is_not_pruned() -> None:
+    """Positive critical lateness stays executable under late-continue semantics."""
 
     oracle = _oracle()
     lit = 50.0
@@ -139,12 +139,12 @@ def test_positive_interval_critical_uses_nav_reach_time_strictly() -> None:
             _node(lit - 2.0 + 0.1),
             _candidate(True, lit, interval=100.0, nav_duration=2.0),
         )
-        is True
+        is False
     )
 
 
 def test_zero_interval_critical_wait_within_numeric_epsilon_not_violated() -> None:
-    """A consecutive edge tolerates only tiny numeric noise, not semantic wait."""
+    """A consecutive edge is never pruned purely for lateness during search."""
 
     oracle = _oracle()
     lit = 20.0
@@ -158,8 +158,8 @@ def test_zero_interval_critical_wait_within_numeric_epsilon_not_violated() -> No
     )
 
 
-def test_zero_interval_critical_wait_beyond_numeric_epsilon_violated() -> None:
-    """Any positive wait beyond numeric epsilon breaks a consecutive edge."""
+def test_zero_interval_critical_wait_beyond_numeric_epsilon_is_not_pruned() -> None:
+    """Even a late consecutive edge remains executable under relaxed search semantics."""
 
     oracle = _oracle()
     lit = 20.0
@@ -169,12 +169,12 @@ def test_zero_interval_critical_wait_beyond_numeric_epsilon_violated() -> None:
             _node(lit + (oracle._strict_timing_epsilon * 2.0)),
             _candidate(True, lit, interval=0.0),
         )
-        is True
+        is False
     )
 
 
-def test_late_by_less_than_twelve_point_five_seconds_is_rejected_by_oracle() -> None:
-    """Terminal schedules no longer inherit evaluator tolerance for critical edges."""
+def test_late_terminal_schedule_is_kept_for_reporting() -> None:
+    """Late terminal schedules are still committed; TCSR is reported separately."""
 
     oracle = _oracle()
     constraints = nx.DiGraph()
@@ -191,7 +191,7 @@ def test_late_by_less_than_twelve_point_five_seconds_is_rejected_by_oracle() -> 
         constraints,
     )
 
-    assert oracle._is_terminal_schedule_valid(state) is False
+    assert oracle._is_terminal_schedule_valid(state) is True
 
     solution = oracle.solve(
         state,
@@ -200,12 +200,12 @@ def test_late_by_less_than_twelve_point_five_seconds_is_rejected_by_oracle() -> 
         incumbent_upper_bound=None,
     )
 
-    assert solution.optimal_schedule_time is None
-    assert solution.exact is False
+    assert solution.optimal_schedule_time == 130.5
+    assert solution.exact is True
 
 
-def test_zero_interval_terminal_wait_beyond_numeric_epsilon_is_rejected() -> None:
-    """Strict terminal validation rejects any scheduled wait on a consecutive edge."""
+def test_zero_interval_terminal_wait_beyond_numeric_epsilon_is_kept() -> None:
+    """Late consecutive handoffs are still committed under relaxed semantics."""
 
     oracle = _oracle()
     constraints = nx.DiGraph()
@@ -222,11 +222,21 @@ def test_zero_interval_terminal_wait_beyond_numeric_epsilon_is_rejected() -> Non
         constraints,
     )
 
-    assert oracle._is_terminal_schedule_valid(state) is False
+    assert oracle._is_terminal_schedule_valid(state) is True
+
+    solution = oracle.solve(
+        state,
+        instruction="demo.json",
+        case="tasks_2_constraints_1",
+        incumbent_upper_bound=None,
+    )
+
+    assert solution.optimal_schedule_time == 25.01
+    assert solution.exact is True
 
 
-def test_strictly_on_time_terminal_schedule_is_committed() -> None:
-    """A schedule that exactly matches planner timing semantics remains valid."""
+def test_on_time_terminal_schedule_is_still_committed() -> None:
+    """On-time schedules remain valid under relaxed oracle semantics."""
 
     oracle = _oracle()
     constraints = nx.DiGraph()

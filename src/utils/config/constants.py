@@ -173,11 +173,11 @@ TSR_EVAL_TOLERANCE_ABS = 12.5
 CONSECUTIVE_TASK_WAIT_TOLERANCE = 2.0
 
 # Scheduler-internal thresholds — conceptually distinct from evaluation tolerances.
-# ``RISK_GRACE_SECONDS`` is intentionally zero so planner semantics do not allow
-# semantic lateness once slack or reserved-window delay crosses zero.
+# ``RISK_GRACE_SECONDS`` is a small planner-side buffer so dispatch does not flip
+# to violation on tiny timing noise or minor scene-estimation mismatch.
 CONSTRAINT_MERGE_THRESHOLD = 6.25  # TODO: calibrate from physical measurements
 ACTION_SPLIT_PRECISION = 12.5  # TODO: calibrate from physical measurements
-RISK_GRACE_SECONDS = 0.0
+RISK_GRACE_SECONDS = 2.0
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 3
 BEAM_WIDTH = 3

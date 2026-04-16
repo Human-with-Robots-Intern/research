@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 log = create_module_logger(module_name=__name__, module_log=True)
 
-STRICT_INTERACTION_READINESS_EPSILON = 1e-6
+INTERACTION_READINESS_NUMERIC_EPSILON = 1e-6
 
 ActiveIntervalCacheKey: TypeAlias = Tuple[int, Tuple[Tuple[str, float], ...]]
 MonitoringTriggerCacheKey: TypeAlias = Tuple[str, Optional[str], float, float, float]
@@ -1018,10 +1018,9 @@ class Scheduler:
     ) -> bool:
         """Return whether the candidate can begin interacting now or is already late.
 
-        Strict timing semantics are anchored on interaction start time. Entering the
-        monitoring horizon may make a task urgent, but it must not make the task
-        executable early. Only a tiny numeric epsilon is allowed here so
-        sub-second semantic lateness is not treated as on time.
+        Dispatch remains anchored on interaction start time, but a small planner
+        buffer is allowed so tiny timing-estimation mismatch does not force the
+        task to stay blocked.
         """
 
         if candidate.logical_interaction_start_time is None:
@@ -1029,9 +1028,13 @@ class Scheduler:
         physical_earliest_start = (
             curr_node.state.current_time + candidate.estimated_first_nav_duration
         )
+        readiness_tolerance = max(
+            constants.RISK_GRACE_SECONDS,
+            INTERACTION_READINESS_NUMERIC_EPSILON,
+        )
         return physical_earliest_start >= (
             float(candidate.logical_interaction_start_time)
-            - STRICT_INTERACTION_READINESS_EPSILON
+            - readiness_tolerance
         )
 
     def _get_blocked_candidate_frontier(

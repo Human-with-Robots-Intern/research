@@ -163,8 +163,7 @@ class HeuristicManager:
         )
 
         is_target_self = (
-            candidate.scheduling_due
-            and due_related_sub_name == candidate.subtask.name
+            candidate.scheduling_due and due_related_sub_name == candidate.subtask.name
         )
 
         simulated_profile = self._try_build_simulated_candidate_chain_profile(
@@ -231,7 +230,9 @@ class HeuristicManager:
         curr_subtask = candidate.subtask
         is_first_subtask = True
 
-        def maybe_record_launch_source(subtask_name: str, source_end_delay: float) -> None:
+        def maybe_record_launch_source(
+            subtask_name: str, source_end_delay: float
+        ) -> None:
             if graph is None or not graph.has_node(subtask_name):
                 return
             for _, _, data in graph.out_edges(subtask_name, data=True):
@@ -302,7 +303,9 @@ class HeuristicManager:
         chain_duration = self._get_estimated_pure_interaction_time(curr_subtask)
         chain_end_delay = initial_nav_delay + chain_duration
 
-        def maybe_record_launch_source(subtask_name: str, source_end_delay: float) -> None:
+        def maybe_record_launch_source(
+            subtask_name: str, source_end_delay: float
+        ) -> None:
             if graph is None or not graph.has_node(subtask_name):
                 return
             for _, _, data in graph.out_edges(subtask_name, data=True):
@@ -325,7 +328,9 @@ class HeuristicManager:
             if next_subtask is None:
                 break
 
-            next_pos = self._get_task_interaction_location(next_subtask, scene_positions)
+            next_pos = self._get_task_interaction_location(
+                next_subtask, scene_positions
+            )
             nav_delay = self._estimate_navigation_time_between_positions(
                 curr_pos, next_pos
             )
@@ -459,7 +464,9 @@ class HeuristicManager:
         if not primitive_actions:
             return 0.0
 
-        exec_info = self.action_handler.get_actions_info(current_node, primitive_actions)
+        exec_info = self.action_handler.get_actions_info(
+            current_node, primitive_actions
+        )
         if exec_info is None:
             return 0.0
 

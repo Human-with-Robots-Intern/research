@@ -9,22 +9,14 @@ from src.utils.config import constants
 def has_finite_due(due: Optional[SchedulingDue]) -> bool:
     """Return True when the due object carries a real deadline."""
 
-    return (
-        due is not None
-        and due.due_date is not None
-        and due.due_date != float("inf")
-    )
+    return due is not None and due.due_date is not None and due.due_date != float("inf")
 
 
 def get_candidate_self_due(candidate: Candidate) -> Optional[SchedulingDue]:
     """Return the candidate's own logical deadline when it is a critical end task."""
 
     due_date = candidate.logical_interaction_start_time
-    if (
-        not candidate.is_critical
-        or due_date is None
-        or due_date == float("inf")
-    ):
+    if not candidate.is_critical or due_date is None or due_date == float("inf"):
         return None
     return SchedulingDue(
         due_date=float(due_date),
@@ -35,7 +27,9 @@ def get_candidate_self_due(candidate: Candidate) -> Optional[SchedulingDue]:
 def get_candidate_effective_due(candidate: Candidate) -> SchedulingDue:
     """Resolve the safety deadline as the tighter of global due and self due."""
 
-    global_due = candidate.scheduling_due if has_finite_due(candidate.scheduling_due) else None
+    global_due = (
+        candidate.scheduling_due if has_finite_due(candidate.scheduling_due) else None
+    )
     self_due = get_candidate_self_due(candidate)
 
     if self_due and global_due:
