@@ -6,17 +6,19 @@ suite_name: "eta_sensitivity"
 approaches: ["bayesian"]
 ablation_configs: [DEFAULT]
 init_prior_configs:
+  - UNDER_ESTIMATE
   - CORRECT_ESTIMATE
+  - OVER_ESTIMATE
 
 beam_bound:
-  - [1, 1]
-  - [5, 5]
+  # - [1, 1]
+  # - [5, 5]
   - [10, 10]
-  - [20, 20]
+  # - [20, 20]
 etas:
   - 0.01
   - 0.1
-  - 0.5
+  # - 0.5
   - 0.9
 
 gt_distribution: "constant"
@@ -27,10 +29,10 @@ scene_type: [kitchen]
 scene_lists:
   kitchen:
     - "FloorPlan1"
-    - "FloorPlan7"
-    - "FloorPlan13"
-    - "FloorPlan18"
-    - "FloorPlan27"
+    # - "FloorPlan7"
+    # - "FloorPlan13"
+    # - "FloorPlan18"
+    # - "FloorPlan27"
 
 cases:
   - "tasks_2_constraints_1"
