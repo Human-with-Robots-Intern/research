@@ -7,7 +7,8 @@ Produces two output files:
 
 2. offline_analysis_summary.json
    Per approach/case: aggregated metrics (sr, tsr, makespan, makespan_sr_1,
-   makespan_gap, makespan_gap_sr_1, computation_time, computation_time_gap).
+   makespan_gap, makespan_gap_sr_1, computation_time, computation_time_gap,
+   n_instructions).
 
 Optional (--tolerance-sweep):
 
@@ -407,6 +408,7 @@ def aggregate(
                 "makespan_gap_sr_1": _round(makespan_gap_sr_1, 4),
                 "computation_time": _round(computation_time, 6),
                 "computation_time_gap": _round(computation_time_gap, 6),
+                "n_instructions": n,
             }
 
     return summary

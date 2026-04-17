@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from assets.result_analysis.offline_comparison import (
+    aggregate,
     build_approach_key,
     build_raw,
     build_tol_sweep,
@@ -243,3 +244,44 @@ def test_build_tol_sweep_reads_new_layout(tmp_path: Path) -> None:
             }
         }
     }
+
+
+def test_aggregate_includes_instruction_counts_for_summary_schema() -> None:
+    """Aggregated summaries should expose n_instructions for downstream tables."""
+
+    raw = {
+        "FloorPlan1": {
+            "tasks_2_constraints_1": {
+                "inst_a": {
+                    "oracle": {"optimal_schedule_time": 10.0},
+                    "oracle_valid": True,
+                    "CORRECT_ESTIMATE__bayesian__DEFAULT__w10_d10__eta0.1": {
+                        "completed": True,
+                        "tsr": 1.0,
+                        "makespan": 12.0,
+                        "makespan_gap": 2.0,
+                        "computation_time": 0.5,
+                        "computation_time_gap": 0.1,
+                    },
+                },
+                "inst_b": {
+                    "oracle": {"optimal_schedule_time": 10.0},
+                    "oracle_valid": True,
+                    "CORRECT_ESTIMATE__bayesian__DEFAULT__w10_d10__eta0.1": {
+                        "completed": False,
+                        "tsr": 0.5,
+                        "makespan": 14.0,
+                        "makespan_gap": 4.0,
+                        "computation_time": 0.7,
+                        "computation_time_gap": 0.2,
+                    },
+                },
+            }
+        }
+    }
+
+    summary = aggregate(raw)
+
+    assert summary["CORRECT_ESTIMATE__bayesian__DEFAULT__w10_d10__eta0.1"][
+        "tasks_2_constraints_1"
+    ]["n_instructions"] == 2
