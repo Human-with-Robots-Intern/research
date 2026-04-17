@@ -272,13 +272,11 @@ class HeuristicManager:
         Estimates cost: Sum of Durations + MST + Unstarted Critical Intervals (Debt)
         """
 
-        # 1. 이번 스텝에서 처리될 것으로 간주하는 체인 멤버 파악
-        if candidate.subtask.subtask_type == "WAIT":
-            # [Modified] WAIT는 연결된 작업들을 활성화(부채 탕감)하지 않아야 함.
-            # 단순히 시간을 보내는 것이므로, 체인으로 묶인 후속 작업들의 부채를 탕감해주면 안 됨.
-            chain_members = {candidate.subtask.name}
-        else:
-            _, chain_members, _ = self._get_chain_info(current_node, candidate.subtask)
+        # 1. 이번 스텝에서 실제로 commit되는 subtask만 처리된 것으로 간주한다.
+        # Beam search는 depth=1에서 한 subtask만 확정하므로, zero-interval successor나
+        # 더 먼 descendant까지 미리 제거하면 아직 실행하지 않은 critical debt를
+        # 과도하게 탕감하게 된다.
+        chain_members = {candidate.subtask.name}
 
         # 2. 남은 태스크 목록 (이번 후보 제외)
         remaining_tasks = [
@@ -314,18 +312,7 @@ class HeuristicManager:
         debt = 0.0
         graph = current_node.state.constraints
 
-        activated_tasks = {candidate.subtask.name}
         debt_infos = []
-
-        # [Modified] 모든 후손(descendants)을 활성화하면 미래의 부채까지 과도하게 탕감되어
-        # 현재 실행하는 체인의 가치가 비정상적으로 높아지는 문제가 있습니다.
-        # 따라서 현재 실행되는 체인((0, True) 연결 포함)만 탕감 대상으로 삼기 위해
-        # descendants 확장 로직을 비활성화합니다.
-        # (참고: 실행되는 체인 멤버들은 이미 remaining_names에서 제외되어 자동으로 탕감됩니다.)
-        if candidate.subtask.subtask_type != "WAIT" and graph.has_node(
-            candidate.subtask.name
-        ):
-            activated_tasks.update(nx.descendants(graph, candidate.subtask.name))
 
         for u, v, data in graph.edges(data=True):
             info = data.get("info", {})
@@ -334,9 +321,6 @@ class HeuristicManager:
                 # 시작점 u가 아직 남은 작업 목록에 있다면 (= 아직 타이머가 안 켜졌다면)
                 # 이 Interval은 우리가 짊어지고 있는 '잠재적 비용'입니다.
                 if u in remaining_names:
-                    # [Improved] If 'u' is activated by this candidate, skip adding debt.
-                    if u in activated_tasks:
-                        continue
                     debt += info["Interval"]
                     debt_infos.append(f"{u} -> {v} (Interval: {info['Interval']})")
 
