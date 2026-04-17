@@ -3,14 +3,14 @@ skip_completed: true
 timeout_seconds: 1200
 suite_name: "scalability"
 
-approaches: ["bayesian", "edf", "cpm"]
+approaches: ["bayesian"] # "edf", "cpm"]
 ablation_configs: [DEFAULT, NONE_MONITORING]
 init_prior_configs:
   - CORRECT_ESTIMATE
 
 beam_bound:
   - [1, 1]
-  - [5, 5]
+  # - [5, 5]
   - [10, 10]
   - [20, 20]
 etas:
@@ -24,10 +24,10 @@ scene_type: [kitchen]
 scene_lists:
   kitchen:
     - "FloorPlan1"
-    - "FloorPlan7"
-    - "FloorPlan13"
-    - "FloorPlan18"
-    - "FloorPlan27"
+    # - "FloorPlan7"
+    # - "FloorPlan13"
+    # - "FloorPlan18"
+    # - "FloorPlan27"
 
 cases:
   - "tasks_2_constraints_1"

@@ -183,7 +183,10 @@ CONSECUTIVE_TASK_WAIT_TOLERANCE = 2.0
 # Values intentionally match the original TIMING_TOLERANCE_ABS-derived expressions
 # so scheduler behaviour is unchanged; names make the distinction explicit.
 CONSTRAINT_MERGE_THRESHOLD = 6.25  # TODO: calibrate from physical measurements
-ACTION_SPLIT_PRECISION = 12.5      # TODO: calibrate from physical measurements
+ACTION_SPLIT_PRECISION = 4.0  # TODO: calibrate from physical measurements
+# A small planner-side grace keeps dispatch from oscillating on tiny timing noise
+# near the interaction boundary.
+RISK_GRACE_SECONDS = 4.0
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 3
 BEAM_WIDTH = 3

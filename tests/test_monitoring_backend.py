@@ -43,7 +43,12 @@ from src.models.task import Duration, Execution, Subtask
 from src.scheduler.action_handler import ActionHandler
 from src.scheduler.constraint_handler import ConstraintHandler
 from src.scheduler.heuristic_manager import HeuristicManager
-from src.utils.config.constants import BAYESIAN_THRESHOLD_PROBABILITY, NAV_STEP_DURATION
+from src.utils.config.constants import (
+    BAYESIAN_THRESHOLD_PROBABILITY,
+    MONITORING_DURATION,
+    NAV_STEP_DURATION,
+    RISK_GRACE_SECONDS,
+)
 from src.utils.io_utils.result_saver import (
     calculate_timing_success_rate,
     serialize_completed_entries,
@@ -1060,6 +1065,158 @@ def test_constraint_handler_handles_missing_navigation_estimate(
     assert not not_yet_candidates
     assert len(feasible_candidates) == 1
     assert feasible_candidates[0].estimated_first_nav_duration == 0.0
+
+
+def test_assign_scheduling_due_preserves_self_deadline_for_feasible_critical_candidate() -> None:
+    """Feasible critical candidates should keep their own due for heuristic self-target checks."""
+
+    constraint_handler = ConstraintHandler(_DummyActionHandler())
+    critical_now = Candidate(
+        subtask=_make_subtask(
+            "Turn Off Microwave",
+            primitive_actions=["TOGGLE_OFF Microwave|01"],
+        ),
+        is_critical=True,
+        logical_interaction_start_time=12.0,
+    )
+    filler_task = Candidate(
+        subtask=_make_subtask(
+            "Prepare Plate",
+            primitive_actions=["PUT Plate|01 Table|01"],
+        ),
+        is_critical=False,
+        logical_interaction_start_time=6.0,
+    )
+    next_critical = Candidate(
+        subtask=_make_subtask(
+            "Take Out Potato",
+            primitive_actions=["PICKUP Potato|01"],
+        ),
+        is_critical=True,
+        logical_interaction_start_time=8.0,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=critical_now.subtask,
+            completed_entries=[],
+            remaining_subtasks=[
+                critical_now.subtask,
+                filler_task.subtask,
+                next_critical.subtask,
+            ],
+            constraints=nx.DiGraph(),
+            current_time=5.0,
+            scene_positions={"agent": (0.0, 0.0, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    constraint_handler._assign_scheduling_due(
+        [critical_now, filler_task],
+        [next_critical],
+        curr_node,
+    )
+
+    assert critical_now.scheduling_due == SchedulingDue(
+        due_date=12.0,
+        due_related_sub_name="Turn Off Microwave",
+    )
+    assert filler_task.scheduling_due == SchedulingDue(
+        due_date=8.0,
+        due_related_sub_name="Take Out Potato",
+    )
+
+
+def test_urgent_horizon_marks_within_grace_candidate_urgent() -> None:
+    """Critical tasks inside the monitoring horizon and dispatch grace should become urgent."""
+
+    assert RISK_GRACE_SECONDS >= 1.0
+    scheduler = Scheduler(
+        action_handler=_DummyActionHandler(),
+        constraint_handler=ConstraintHandler(_DummyActionHandler()),
+        heuristic_manager=_DummyHeuristicManager(),
+    )
+    candidate = Candidate(
+        subtask=_make_subtask(
+            "Turn Off Microwave",
+            primitive_actions=["TOGGLE_OFF Microwave|01"],
+        ),
+        is_critical=True,
+        logical_interaction_start_time=6.0,
+        estimated_first_nav_duration=5.0,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=_make_subtask("Init", primitive_actions=["WAIT 0"], subtask_type="Init"),
+            completed_entries=[],
+            remaining_subtasks=[candidate.subtask],
+            constraints=nx.DiGraph(),
+            current_time=0.0,
+            scene_positions={"agent": (0.0, 0.0, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    urgent_candidates = scheduler._get_urgent_critical_candidates(
+        curr_node, [candidate], []
+    )
+
+    assert candidate in urgent_candidates
+    assert candidate.actual_interaction_start_time == 5.0
+
+
+def test_urgent_horizon_leaves_outside_grace_candidate_blocked() -> None:
+    """Critical tasks inside the horizon but outside grace should wait for blocked expansion."""
+
+    slack_outside_grace = RISK_GRACE_SECONDS + 0.5
+    assert slack_outside_grace < MONITORING_DURATION
+    scheduler = Scheduler(
+        action_handler=_DummyActionHandler(),
+        constraint_handler=ConstraintHandler(_DummyActionHandler()),
+        heuristic_manager=_DummyHeuristicManager(),
+    )
+    candidate = Candidate(
+        subtask=_make_subtask(
+            "Turn Off Microwave",
+            primitive_actions=["TOGGLE_OFF Microwave|01"],
+        ),
+        is_critical=True,
+        logical_interaction_start_time=5.0 + slack_outside_grace,
+        estimated_first_nav_duration=5.0,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=_make_subtask("Init", primitive_actions=["WAIT 0"], subtask_type="Init"),
+            completed_entries=[],
+            remaining_subtasks=[candidate.subtask],
+            constraints=nx.DiGraph(),
+            current_time=0.0,
+            scene_positions={"agent": (0.0, 0.0, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    urgent_candidates = scheduler._get_urgent_critical_candidates(
+        curr_node, [candidate], []
+    )
+
+    assert urgent_candidates == []
+    assert candidate.actual_interaction_start_time is None
 
 
 def test_heuristic_remaining_work_mst_uses_residual_tasks_only(
