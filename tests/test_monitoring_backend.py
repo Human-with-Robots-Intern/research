@@ -30,7 +30,11 @@ from src.core.monitoring import (
     evaluate_duration_observation_likelihood,
     resolve_duration_sampling_variance,
 )
-from src.core.scheduler import Scheduler, TriggeredMonitoringObligation
+from src.core.scheduler import (
+    ProtectedDispatchEvent,
+    Scheduler,
+    TriggeredMonitoringObligation,
+)
 from src.models.dataclass import (
     ActionSimulationLog,
     ActionResult,
@@ -2288,6 +2292,259 @@ def test_ready_now_critical_end_suppresses_unrelated_triggered_monitoring_obliga
     )
 
     assert expansions == [direct_execution_node]
+
+
+def test_standard_expansion_filters_productive_work_that_crosses_next_critical_event(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Standard expansion should keep the short wait when filler work would miss the next critical event."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    protected_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Potato",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    filler_subtask = _make_subtask(
+        "Wash Spoon and place on counterTop",
+        primitive_actions=["WASH Spoon|01"],
+    )
+    curr_state = SchedulerState(
+        subtask=_make_subtask("Monitoring done", primitive_actions=["WAIT 0"]),
+        completed_entries=[],
+        remaining_subtasks=[protected_subtask, filler_subtask],
+        constraints=nx.DiGraph(),
+        current_time=117.42,
+        scene_positions={"agent": (0.0, 0.0, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=curr_state,
+        risk_level=0,
+    )
+    filler_candidate = Candidate(
+        subtask=filler_subtask,
+        is_critical=False,
+        actual_interaction_start_time=117.42,
+        logical_interaction_start_time=117.42,
+    )
+    protected_candidate = Candidate(
+        subtask=protected_subtask,
+        is_critical=True,
+        actual_interaction_start_time=126.72,
+        logical_interaction_start_time=126.72,
+        estimated_first_nav_duration=1.6,
+    )
+    wait_node = SimulationNode(
+        heuristic_cost=125.12,
+        depth=1,
+        tie_breaker=1,
+        parent_node=curr_node,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                "Wait for Turn Off Microwave after Heating Potato",
+                primitive_actions=["WAIT 7.7"],
+                subtask_type="WAIT",
+            ),
+            completed_entries=[],
+            remaining_subtasks=[protected_subtask, filler_subtask],
+            constraints=nx.DiGraph(),
+            current_time=125.12,
+            scene_positions={"agent": (0.0, 0.0, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_ready_now_critical_end_candidates",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_trigger_matured_monitoring_obligations",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_get_urgent_critical_candidates",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_next_protected_dispatch_event",
+        lambda *_args, **_kwargs: ProtectedDispatchEvent(
+            event_time=126.72,
+            event_kind="critical_start",
+            target_subtask_name=protected_subtask.name,
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_candidate_crosses_protected_event",
+        lambda _curr_node, candidate, _event: (
+            candidate.subtask.name == filler_subtask.name
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_single_subtask",
+        lambda _curr_node, candidate, *_args, **_kwargs: (
+            (_ for _ in ()).throw(
+                AssertionError(
+                    "filler work that crosses the next protected critical event should be suppressed"
+                )
+            )
+            if candidate.subtask.name == filler_subtask.name
+            else None
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_single_wait",
+        lambda _curr_node, candidate, *_args, **_kwargs: (
+            wait_node if candidate.subtask.name == protected_subtask.name else None
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_blocked_prenavigation",
+        lambda *_args, **_kwargs: None,
+    )
+
+    expansions = scheduler._expand_candidates(
+        curr_node,
+        feasible_candidates=[filler_candidate],
+        not_yet_candidates=[protected_candidate],
+    )
+
+    assert expansions == [wait_node]
+
+
+def test_standard_expansion_adds_short_wait_for_upcoming_monitor_trigger(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """If every productive branch would cross the next monitor trigger, emit a short wait."""
+
+    action_handler = ActionHandler(nav_graph={})
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=HeuristicManager(action_handler),
+    )
+    filler_subtask = _make_subtask(
+        "Wash Spoon and place on counterTop",
+        primitive_actions=["WASH Spoon|01"],
+    )
+    curr_state = SchedulerState(
+        subtask=_make_subtask("Do Other Work", primitive_actions=["WAIT 0"]),
+        completed_entries=[],
+        remaining_subtasks=[filler_subtask],
+        constraints=nx.DiGraph(),
+        current_time=117.42,
+        scene_positions={"agent": (0.0, 0.0, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=curr_state,
+        risk_level=0,
+    )
+    filler_candidate = Candidate(
+        subtask=filler_subtask,
+        is_critical=False,
+        actual_interaction_start_time=117.42,
+        logical_interaction_start_time=117.42,
+    )
+    wait_node = SimulationNode(
+        heuristic_cost=134.44,
+        depth=1,
+        tie_breaker=1,
+        parent_node=curr_node,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                "Wait for monitor trigger",
+                primitive_actions=["WAIT 17.02"],
+                subtask_type="WAIT",
+            ),
+            completed_entries=[],
+            remaining_subtasks=[filler_subtask],
+            constraints=nx.DiGraph(),
+            current_time=134.44,
+            scene_positions={"agent": (0.0, 0.0, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_ready_now_critical_end_candidates",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_trigger_matured_monitoring_obligations",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_get_urgent_critical_candidates",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_next_protected_dispatch_event",
+        lambda *_args, **_kwargs: ProtectedDispatchEvent(
+            event_time=134.44,
+            event_kind="monitor_trigger",
+            target_subtask_name="Turn Off Stove After Cooking Egg",
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_candidate_crosses_protected_event",
+        lambda *_args, **_kwargs: True,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_single_subtask",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError(
+                "productive work that crosses the upcoming monitor trigger should be suppressed"
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_blocked_frontier_candidates",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_expand_wait_until_protected_event",
+        lambda *_args, **_kwargs: wait_node,
+    )
+
+    expansions = scheduler._expand_candidates(
+        curr_node,
+        feasible_candidates=[filler_candidate],
+        not_yet_candidates=[],
+    )
+
+    assert expansions == [wait_node]
 
 
 def test_collect_trigger_matured_monitoring_obligations_respects_budget(

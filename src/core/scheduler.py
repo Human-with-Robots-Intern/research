@@ -83,6 +83,15 @@ class TriggeredMonitoringObligation:
     ready_now: bool
 
 
+@dataclass(frozen=True)
+class ProtectedDispatchEvent:
+    """Describe the next timing point that productive filler work must preserve."""
+
+    event_time: float
+    event_kind: str
+    target_subtask_name: Optional[str]
+
+
 class Scheduler:
     """
     Beam Search based Scheduler with n-step lookahead.
@@ -615,6 +624,34 @@ class Scheduler:
             )
         )
 
+        original_feasible_candidates = list(feasible_candidates)
+        next_protected_event = self._collect_next_protected_dispatch_event(
+            curr_node,
+            feasible_candidates,
+            not_yet_candidates,
+        )
+        filtered_candidate_names: List[str] = []
+        if next_protected_event is not None:
+            safe_feasible_candidates: List[Candidate] = []
+            for candidate in feasible_candidates:
+                if self._candidate_crosses_protected_event(
+                    curr_node,
+                    candidate,
+                    next_protected_event,
+                ):
+                    filtered_candidate_names.append(candidate.subtask.name)
+                    continue
+                safe_feasible_candidates.append(candidate)
+            if filtered_candidate_names:
+                log.debug(
+                    "[_expand_candidates] filtered productive candidates %s to preserve %s for '%s' at %.2f.",
+                    filtered_candidate_names,
+                    next_protected_event.event_kind,
+                    next_protected_event.target_subtask_name,
+                    next_protected_event.event_time,
+                )
+            feasible_candidates = safe_feasible_candidates
+
         # --- Policy 1 (Unified): Urgent Critical Tasks ---
         urgent_candidates = self._get_urgent_critical_candidates(
             curr_node, feasible_candidates, not_yet_candidates
@@ -711,7 +748,21 @@ class Scheduler:
                 feasible_candidates,
                 not_yet_candidates,
             )
+        )
+
+        if (
+            next_protected_event is not None
+            and filtered_candidate_names
+            and not expansions
+        ):
+            protected_wait_node = self._expand_wait_until_protected_event(
+                curr_node,
+                next_protected_event,
+                not_yet_candidates,
+                feasible_candidates=original_feasible_candidates,
             )
+            if protected_wait_node is not None:
+                expansions.append(protected_wait_node)
 
         return expansions
 
@@ -885,6 +936,265 @@ class Scheduler:
                 expansions.append(explicit_monitor_node)
 
         return expansions
+
+    def _collect_next_protected_dispatch_event(
+        self,
+        curr_node: SimulationNode,
+        feasible_candidates: List[Candidate],
+        not_yet_candidates: List[Candidate],
+    ) -> Optional[ProtectedDispatchEvent]:
+        """Return the earliest future critical/monitoring event that must be preserved."""
+
+        current_time = float(curr_node.state.current_time)
+        protected_events: List[ProtectedDispatchEvent] = []
+        remaining_by_name = {
+            remaining_subtask.name: remaining_subtask
+            for remaining_subtask in curr_node.state.remaining_subtasks
+        }
+        completed_entries_map = {
+            completed_entry.subtask.name: completed_entry
+            for completed_entry in curr_node.state.completed_entries
+        }
+
+        for candidate in feasible_candidates + not_yet_candidates:
+            if (
+                not candidate.is_critical
+                or candidate.subtask.subtask_type == "Monitor"
+            ):
+                continue
+            target_start_time = self._get_candidate_target_start_time(candidate)
+            if (
+                target_start_time is None
+                or target_start_time == float("inf")
+                or target_start_time <= (current_time + EPSILON)
+            ):
+                continue
+            protected_events.append(
+                ProtectedDispatchEvent(
+                    event_time=float(target_start_time),
+                    event_kind="critical_start",
+                    target_subtask_name=candidate.subtask.name,
+                )
+            )
+
+        if constants.MONITORING_ENABLED:
+            for start_name, end_name, data in curr_node.state.constraints.edges(data=True):
+                info = data.get("info", {})
+                interval = float(info.get("Interval", 0.0))
+                if not info.get("IsCritical") or interval <= EPSILON:
+                    continue
+
+                start_entry = completed_entries_map.get(start_name)
+                if start_entry is None or start_entry.subtask.subtask_type == "Monitor":
+                    continue
+
+                remaining_subtask = remaining_by_name.get(end_name)
+                if remaining_subtask is None:
+                    continue
+
+                if self._monitoring_budget_reached(
+                    curr_node.state,
+                    critical_start_sub_end_time=start_entry.schedule_end_time,
+                    critical_end_sub_name=end_name,
+                ):
+                    continue
+
+                monitoring_target_obj = self._get_monitoring_target_object_from_subtask(
+                    remaining_subtask
+                )
+                if monitoring_target_obj is None:
+                    continue
+
+                trigger_time = self._compute_monitoring_trigger_time(
+                    raw_object_name=monitoring_target_obj,
+                    critical_start_sub_end_time=start_entry.schedule_end_time,
+                    mean_duration=interval,
+                    variance=float(
+                        info.get("Variance", constants.INIT_PRIOR_VARIANCE)
+                    ),
+                )
+                if trigger_time <= (current_time + EPSILON):
+                    continue
+
+                protected_events.append(
+                    ProtectedDispatchEvent(
+                        event_time=float(trigger_time),
+                        event_kind="monitor_trigger",
+                        target_subtask_name=end_name,
+                    )
+                )
+
+        if not protected_events:
+            return None
+
+        protected_event = min(
+            protected_events,
+            key=lambda event: (
+                float(event.event_time),
+                0 if event.event_kind == "critical_start" else 1,
+                event.target_subtask_name or "",
+            ),
+        )
+        log.debug(
+            "[_collect_next_protected_dispatch_event] next protected event: %s for '%s' at %.2f.",
+            protected_event.event_kind,
+            protected_event.target_subtask_name,
+            protected_event.event_time,
+        )
+        return protected_event
+
+    def _candidate_crosses_protected_event(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+        protected_event: ProtectedDispatchEvent,
+    ) -> bool:
+        """Return whether executing ``candidate`` would overrun the next protected event."""
+
+        if not self._is_productive_candidate(candidate):
+            return False
+        if (
+            protected_event.event_kind == "critical_start"
+            and candidate.subtask.name == protected_event.target_subtask_name
+        ):
+            return False
+
+        primitive_actions = (
+            candidate.subtask.execution.primitive_actions
+            if candidate.subtask.execution
+            else None
+        )
+        if not primitive_actions:
+            return False
+
+        action_info = self.action_handler.get_actions_info(curr_node, primitive_actions)
+        if action_info is None or not action_info.success:
+            return False
+
+        candidate_finish_time = (
+            float(curr_node.state.current_time) + float(action_info.cumulative_time)
+        )
+        if protected_event.event_kind == "monitor_trigger":
+            crosses_event = candidate_finish_time > (
+                float(protected_event.event_time) + EPSILON
+            )
+            if crosses_event:
+                log.debug(
+                    "[_candidate_crosses_protected_event] '%s' would finish at %.2f after monitor trigger %.2f for '%s'.",
+                    candidate.subtask.name,
+                    candidate_finish_time,
+                    protected_event.event_time,
+                    protected_event.target_subtask_name,
+                )
+            return crosses_event
+
+        if protected_event.target_subtask_name is None:
+            return False
+
+        projected_remaining_subtasks = [
+            remaining_subtask
+            for remaining_subtask in curr_node.state.remaining_subtasks
+            if remaining_subtask.name != candidate.subtask.name
+        ]
+        projected_state = curr_node.state._replace(
+            subtask=candidate.subtask,
+            current_time=candidate_finish_time,
+            scene_positions=action_info.scene_positions,
+            held_object=(
+                action_info.held_object
+                if action_info.held_object is not None
+                else curr_node.state.held_object
+            ),
+            remaining_subtasks=projected_remaining_subtasks,
+        )
+        projected_node = curr_node._replace(state=projected_state)
+        post_candidate_nav_buffer = self._estimate_subtask_navigation_buffer(
+            projected_node,
+            protected_event.target_subtask_name,
+        )
+        projected_ready_time = candidate_finish_time + post_candidate_nav_buffer
+        crosses_event = projected_ready_time > (
+            float(protected_event.event_time) + EPSILON
+        )
+        if crosses_event:
+            log.debug(
+                "[_candidate_crosses_protected_event] '%s' would make protected critical start '%s' late "
+                "(finish=%.2f, nav=%.2f, ready=%.2f, target=%.2f).",
+                candidate.subtask.name,
+                protected_event.target_subtask_name,
+                candidate_finish_time,
+                post_candidate_nav_buffer,
+                projected_ready_time,
+                protected_event.event_time,
+            )
+        return crosses_event
+
+    def _expand_wait_until_protected_event(
+        self,
+        curr_node: SimulationNode,
+        protected_event: ProtectedDispatchEvent,
+        not_yet_candidates: List[Candidate],
+        *,
+        feasible_candidates: List[Candidate] | None = None,
+    ) -> Optional[SimulationNode]:
+        """Return a short wait branch that preserves the next protected event."""
+
+        if protected_event.event_time <= (float(curr_node.state.current_time) + EPSILON):
+            return None
+
+        all_candidates = list(feasible_candidates or []) + list(not_yet_candidates)
+        target_candidate = self._find_candidate_by_name(
+            all_candidates,
+            protected_event.target_subtask_name or "",
+        )
+        if (
+            protected_event.event_kind == "critical_start"
+            and target_candidate is not None
+        ):
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                target_candidate,
+                not_yet_candidates,
+                nav_duration=self._estimate_candidate_navigation_duration(
+                    curr_node,
+                    target_candidate,
+                ),
+                feasible_candidates=feasible_candidates,
+            )
+
+        synthetic_anchor = Candidate(
+            subtask=Subtask(
+                task_name=None,
+                name=(
+                    f"{protected_event.event_kind} for "
+                    f"{protected_event.target_subtask_name or 'protected event'}"
+                ),
+                duration=Duration(interval=0.0, type="Controllable"),
+                repetition=1,
+                subtask_type="WAIT",
+                execution=Execution(
+                    objects=None,
+                    primitive_actions=["WAIT 0.0"],
+                ),
+                temporal_constraints=None,
+                decomposed=True,
+            ),
+            is_critical=True,
+            actual_interaction_start_time=float(protected_event.event_time),
+            logical_interaction_start_time=float(protected_event.event_time),
+            estimated_first_nav_duration=0.0,
+            scheduling_due=SchedulingDue(
+                due_date=float(protected_event.event_time),
+                due_related_sub_name=protected_event.target_subtask_name,
+            ),
+        )
+        return self._expand_wait_wo_monitoring(
+            curr_node,
+            synthetic_anchor,
+            not_yet_candidates,
+            nav_duration=0.0,
+            feasible_candidates=feasible_candidates,
+        )
 
     def _expand_blocked_frontier_candidates(
         self,
