@@ -67,6 +67,15 @@ class SchedulerSearchCache:
     trigger_cache_misses: int = 0
 
 
+@dataclass(frozen=True)
+class MonitoringObligation:
+    """Resolved active monitoring obligation for one critical interval."""
+
+    trigger_time: float
+    variance: float
+    due: SchedulingDue
+
+
 class Scheduler:
     """
     Beam Search based Scheduler with n-step lookahead.
@@ -802,6 +811,25 @@ class Scheduler:
             return candidate.subtask.execution.primitive_actions[0].split()[1]
         return None
 
+    def _get_monitoring_target_obj_for_subtask_name(
+        self,
+        curr_node: SimulationNode,
+        subtask_name: str,
+    ) -> Optional[str]:
+        """Return the object id associated with the named critical-end subtask."""
+
+        return next(
+            (
+                remain_sub.execution.primitive_actions[0].split()[1]
+                for remain_sub in curr_node.state.remaining_subtasks
+                if remain_sub.name == subtask_name
+                and remain_sub.execution
+                and remain_sub.execution.primitive_actions
+                and len(remain_sub.execution.primitive_actions[0].split()) > 1
+            ),
+            None,
+        )
+
     @staticmethod
     def _extract_monitoring_target_object_from_subtask(
         subtask: Optional[Subtask],
@@ -951,6 +979,144 @@ class Scheduler:
             candidate_name=candidate.subtask.name,
         )
         return 0.0 if nav_time is None else float(nav_time)
+
+    def _estimate_candidate_monitoring_window_end(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+        *,
+        expansion_kind: str,
+    ) -> Optional[float]:
+        """Estimate the latest time at which this expansion can host a monitor."""
+
+        if expansion_kind == "wait":
+            target_start_time = self._get_candidate_target_start_time(candidate)
+            if target_start_time is None:
+                return None
+            return max(curr_node.state.current_time, float(target_start_time))
+
+        primitive_actions = (
+            candidate.subtask.execution.primitive_actions
+            if candidate.subtask.execution
+            else None
+        )
+        if not primitive_actions:
+            return None
+
+        action_info = self.action_handler.get_actions_info(curr_node, primitive_actions)
+        if action_info is None or not action_info.success:
+            log.debug(
+                "[_estimate_candidate_monitoring_window_end] Could not simulate '%s' while checking monitoring relevance.",
+                candidate.subtask.name,
+            )
+            return None
+        return curr_node.state.current_time + float(action_info.cumulative_time)
+
+    def _resolve_monitoring_obligation(
+        self,
+        curr_node: SimulationNode,
+        *,
+        variance_hint: float,
+        due: SchedulingDue,
+    ) -> Optional[MonitoringObligation]:
+        """Resolve one cached active interval into a trigger-bearing obligation."""
+
+        critical_end_sub_name = due.due_related_sub_name
+        if critical_end_sub_name is None:
+            return None
+
+        monitoring_target_obj = self._get_monitoring_target_obj_for_subtask_name(
+            curr_node, critical_end_sub_name
+        )
+        if monitoring_target_obj is None:
+            log.debug(
+                "[_resolve_monitoring_obligation] Could not determine monitoring target for '%s'.",
+                critical_end_sub_name,
+            )
+            return None
+
+        completed_entries_map = {
+            ce.subtask.name: ce for ce in curr_node.state.completed_entries
+        }
+        incoming_edges = curr_node.state.constraints.in_edges(
+            critical_end_sub_name, data=True
+        )
+        for critical_start_sub_name, _end_name, data in incoming_edges:
+            info = data.get("info", {})
+            if not info.get("IsCritical") or info.get("Interval", 0.0) <= EPSILON:
+                continue
+
+            start_entry = completed_entries_map.get(critical_start_sub_name)
+            if start_entry is None or start_entry.subtask.subtask_type == "Monitor":
+                continue
+
+            interval = float(info.get("Interval", 0.0))
+            due_date = start_entry.schedule_end_time + interval
+            if abs(due_date - due.due_date) > EPSILON:
+                continue
+
+            variance = float(info.get("Variance", variance_hint))
+            trigger_time = self._compute_monitoring_trigger_time(
+                raw_object_name=monitoring_target_obj,
+                critical_start_sub_end_time=start_entry.schedule_end_time,
+                mean_duration=interval,
+                variance=variance,
+            )
+            return MonitoringObligation(
+                trigger_time=trigger_time,
+                variance=variance,
+                due=SchedulingDue(
+                    due_date=due_date,
+                    due_related_sub_name=critical_end_sub_name,
+                ),
+            )
+
+        log.debug(
+            "[_resolve_monitoring_obligation] Could not match an active critical edge for '%s' (due=%.2f).",
+            critical_end_sub_name,
+            due.due_date,
+        )
+        return None
+
+    def _get_relevant_monitoring_obligations(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+        *,
+        expansion_kind: str,
+    ) -> List[MonitoringObligation]:
+        """Return monitoring obligations whose trigger actually lands in this expansion."""
+
+        active_intervals = self._get_active_monitoring_intervals(curr_node)
+        if not active_intervals:
+            return []
+
+        candidate_window_end = self._estimate_candidate_monitoring_window_end(
+            curr_node,
+            candidate,
+            expansion_kind=expansion_kind,
+        )
+        if candidate_window_end is None:
+            return []
+
+        obligations: List[MonitoringObligation] = []
+        for variance, due in active_intervals:
+            if expansion_kind == "wait" and due.due_related_sub_name != candidate.subtask.name:
+                # Current wait expansion only knows how to split for the waited-on target.
+                continue
+
+            obligation = self._resolve_monitoring_obligation(
+                curr_node,
+                variance_hint=float(variance),
+                due=due,
+            )
+            if obligation is None:
+                continue
+            if obligation.trigger_time <= candidate_window_end + EPSILON:
+                obligations.append(obligation)
+
+        obligations.sort(key=lambda obligation: obligation.trigger_time)
+        return obligations
 
     def _get_candidate_target_start_time(
         self,
@@ -1299,7 +1465,9 @@ class Scheduler:
 
         # 모니터링 필요?
         need_monitor, due_info = self._should_split_with_monitoring(
-            curr_node, candidate
+            curr_node,
+            candidate,
+            expansion_kind="action",
         )
         if need_monitor and constants.MONITORING_ENABLED:
             log.debug(
@@ -1342,10 +1510,13 @@ class Scheduler:
 
         # Check if monitoring is needed before waiting, using the same Bayesian logic as standard subtasks.
         need_monitor, due_info = self._should_split_with_monitoring(
-            curr_node, candidate
+            curr_node,
+            candidate,
+            expansion_kind="wait",
         )
 
         if need_monitor and constants.MONITORING_ENABLED:
+            candidate.scheduling_due = due_info
             return self._expand_wait_with_monitoring(
                 curr_node,
                 candidate,
@@ -1366,7 +1537,11 @@ class Scheduler:
     # Helper: 모니터링 필요한지
     # ======================
     def _should_split_with_monitoring(
-        self, curr_node: SimulationNode, candidate: Candidate
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+        *,
+        expansion_kind: str = "action",
     ) -> tuple[bool, Optional[SchedulingDue]]:
         """
         Determines if a task should be split for monitoring based on three rules.
@@ -1408,29 +1583,44 @@ class Scheduler:
                 return False, None
 
         # Rule 3: Split only if an active critical interval exists.
-        active_intervals = self._get_active_monitoring_intervals(curr_node)
+        relevant_obligations = self._get_relevant_monitoring_obligations(
+            curr_node,
+            candidate,
+            expansion_kind=expansion_kind,
+        )
 
-        if not active_intervals:
+        if not relevant_obligations:
             log.debug(
-                f"[_should_split_with_monitoring] No active critical intervals found. No monitoring for {candidate.subtask.name}."
+                "[_should_split_with_monitoring] No trigger-matured monitoring obligation intersects '%s' (%s expansion).",
+                candidate.subtask.name,
+                expansion_kind,
             )
             return False, None
 
-        # If an active interval exists, a split is necessary.
-        # Select the monitoring target from the active Bayesian intervals only.
-        # We prioritize the interval with the HIGHEST variance to reduce uncertainty first.
-        # Tie-breaker: If variances are equal, prioritize the one with the EARLIEST due date.
-        urgent_var, urgent_due = max(
-            active_intervals, key=lambda item: (item[0], -item[1].due_date)
+        earliest_trigger_time = relevant_obligations[0].trigger_time
+        earliest_obligations = [
+            obligation
+            for obligation in relevant_obligations
+            if abs(obligation.trigger_time - earliest_trigger_time) <= EPSILON
+        ]
+        selected_obligation = max(
+            earliest_obligations,
+            key=lambda obligation: (obligation.variance, -obligation.due.due_date),
         )
 
-        candidate.scheduling_due = urgent_due
+        candidate.scheduling_due = selected_obligation.due
         log.debug(
-            f"[_should_split_with_monitoring] Active interval found targeting '{urgent_due.due_related_sub_name}' "
-            f"(due: {urgent_due.due_date:.2f}, var: {urgent_var:.2f})."
+            "[_should_split_with_monitoring] Selected monitoring obligation for '%s' (%s expansion): "
+            "target='%s', trigger=%.2f, due=%.2f, contenders=%d.",
+            candidate.subtask.name,
+            expansion_kind,
+            selected_obligation.due.due_related_sub_name,
+            selected_obligation.trigger_time,
+            selected_obligation.due.due_date,
+            len(earliest_obligations),
         )
 
-        return True, urgent_due
+        return True, selected_obligation.due
 
     # -----------------------------------------------------
     # (A) 서브태스크 (no monitoring)
@@ -2268,6 +2458,11 @@ class Scheduler:
         curr_state = curr_node.state
 
         critical_end_sub_name = candidate.subtask.name
+        if (
+            candidate.scheduling_due is not None
+            and candidate.scheduling_due.due_related_sub_name
+        ):
+            critical_end_sub_name = candidate.scheduling_due.due_related_sub_name
 
         # Find the start of the critical interval
         incoming_constraints_to_crit_end = self.constraint_handler.get_time_slots(
@@ -2331,7 +2526,10 @@ class Scheduler:
         if edge_data and "info" in edge_data:
             variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
 
-        monitoring_target_obj = self._extract_monitoring_target(candidate)
+        monitoring_target_obj = self._get_monitoring_target_obj_for_subtask_name(
+            curr_node,
+            critical_end_sub_name,
+        )
         if monitoring_target_obj is None:
             return self._expand_wait_wo_monitoring(
                 curr_node,
