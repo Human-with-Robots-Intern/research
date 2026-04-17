@@ -27,7 +27,6 @@ from src.utils.config import (
     MONITORING_DURATION,
     RED,
     RESET,
-    TIMING_TOLERANCE_ABS,
     constants,
 )
 from src.utils.config.constants import BEAM_WIDTH, INIT_PRIOR_VARIANCE, SIMULATION_DEPTH
@@ -37,6 +36,8 @@ if TYPE_CHECKING:
     from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 
 log = create_module_logger(module_name=__name__, module_log=True)
+
+INTERACTION_READINESS_NUMERIC_EPSILON = 1e-6
 
 ActiveIntervalCacheKey: TypeAlias = Tuple[int, Tuple[Tuple[str, float], ...]]
 MonitoringTriggerCacheKey: TypeAlias = Tuple[str, Optional[str], float, float, float]
@@ -659,9 +660,9 @@ class Scheduler:
     ) -> List[Candidate]:
         """
         Identifies critical candidates that are 'Urgent'.
-        Urgent means the task's physical earliest start time is greater than or equal to
-        its logical start time (minus tolerance).
-        This covers both 'On-time' (within tolerance) and 'Missed' (overdue) cases.
+        Urgent means the task has entered the same near-deadline window as the
+        monitoring horizon. Exact interaction-start readiness is still checked
+        separately so we do not dispatch a critical task too early.
         Also checks not_yet_candidates for urgent but blocked tasks, prioritizing their feasible predecessors.
         """
 
@@ -680,27 +681,35 @@ class Scheduler:
                 f"[_get_urgent_critical_candidates] diff: {candidate.logical_interaction_start_time - physical_earliest_start}"
             )
 
-            # Check urgency: Are we at or past the time we should start?
-            # We use a tolerance to allow starting slightly early (On-time).
+            # Check urgency inside the monitoring horizon. Actual dispatch still
+            # needs to satisfy the interaction-start readiness grace.
             log.debug(
                 f"[_get_urgent_critical_candidates] candidate.logical_interaction_start_time: {candidate.logical_interaction_start_time}, physical_earliest_start: {physical_earliest_start}"
             )
 
-            if 0 >= (
-                candidate.logical_interaction_start_time
-                - physical_earliest_start
-            ):
-                # Timing Tolerance 때문에 앞당겨 작업을 한건지, 늦어서 한건지 구분하여 알려주는 로그
-                if (
-                    candidate.logical_interaction_start_time - physical_earliest_start
-                    > TIMING_TOLERANCE_ABS // 2
-                ):
+            if (
+                candidate.logical_interaction_start_time - physical_earliest_start
+            ) <= (MONITORING_DURATION + EPSILON):
+                if not self._can_candidate_start_interaction_now(curr_node, candidate):
                     log.debug(
-                        f"[_get_urgent_critical_candidates] 앞당겨 작업을 함: {candidate.logical_interaction_start_time - physical_earliest_start}"
+                        "Found horizon-urgent critical candidate '%s', but interaction is still early "
+                        "(Physical: %.2f, Logical: %.2f, Grace: %.2f).",
+                        candidate.subtask.name,
+                        physical_earliest_start,
+                        candidate.logical_interaction_start_time,
+                        constants.RISK_GRACE_SECONDS,
+                    )
+                    continue
+                slack_to_logical = (
+                    candidate.logical_interaction_start_time - physical_earliest_start
+                )
+                if slack_to_logical > 0:
+                    log.debug(
+                        f"[_get_urgent_critical_candidates] grace-dispatch inside monitoring horizon: {slack_to_logical}"
                     )
                 else:
                     log.debug(
-                        f"[_get_urgent_critical_candidates] 늦어서 작업을 함: {candidate.logical_interaction_start_time - physical_earliest_start}"
+                        f"[_get_urgent_critical_candidates] 늦어서 작업을 함: {slack_to_logical}"
                     )
                 # Update actual interaction start time
                 # We start as soon as physically possible (ASAP)
@@ -708,7 +717,7 @@ class Scheduler:
 
                 log.debug(
                     f"Found URGENT CRITICAL candidate: {candidate.subtask.name} "
-                    f"(Physical: {physical_earliest_start:.2f} >= Logical: {candidate.logical_interaction_start_time:.2f} - Tol)"
+                    f"(Physical: {physical_earliest_start:.2f}, Logical: {candidate.logical_interaction_start_time:.2f}, Horizon: {MONITORING_DURATION:.2f})"
                 )
                 urgent_list.append(candidate)
 
@@ -778,23 +787,37 @@ class Scheduler:
                         + candidate.estimated_first_nav_duration
                     )
 
-                    if 0 >= logical_start - physical_start:
+                    if (
+                        logical_start - physical_start
+                    ) <= (MONITORING_DURATION + EPSILON):
                         # Urgent but blocked! Find feasible predecessors recursively.
                         log.debug(
                             f"Found BLOCKED URGENT task: {candidate.subtask.name} "
-                            f"(Physical: {physical_start:.2f} >= Logical: {logical_start:.2f} - Tol). Tracing ancestors."
+                            f"(Physical: {physical_start:.2f}, Logical: {logical_start:.2f}, Horizon: {MONITORING_DURATION:.2f}). Tracing ancestors."
                         )
 
                         len_before = len(urgent_list)
                         find_feasible_ancestor(candidate.subtask.name)
 
                         if len(urgent_list) == len_before:
-                            log.debug(
-                                f"No feasible ancestors found for {candidate.subtask.name}. "
-                                f"Adding the task itself as it is time-ready/urgent."
-                            )
-                            candidate.actual_interaction_start_time = physical_start
-                            urgent_list.append(candidate)
+                            if self._can_candidate_start_interaction_now(
+                                curr_node, candidate
+                            ):
+                                log.debug(
+                                    f"No feasible ancestors found for {candidate.subtask.name}. "
+                                    f"Adding the task itself as it is time-ready/urgent."
+                                )
+                                candidate.actual_interaction_start_time = physical_start
+                                urgent_list.append(candidate)
+                            else:
+                                log.debug(
+                                    "Blocked urgent task '%s' is inside the monitoring horizon but still early "
+                                    "(Physical: %.2f, Logical: %.2f, Grace: %.2f). Leaving it to blocked wait/prenav expansion.",
+                                    candidate.subtask.name,
+                                    physical_start,
+                                    logical_start,
+                                    constants.RISK_GRACE_SECONDS,
+                                )
 
         return urgent_list
 
@@ -910,6 +933,26 @@ class Scheduler:
         if candidate.logical_interaction_start_time is not None:
             return float(candidate.logical_interaction_start_time)
         return None
+
+    @staticmethod
+    def _can_candidate_start_interaction_now(
+        curr_node: SimulationNode,
+        candidate: Candidate,
+    ) -> bool:
+        """Return whether the candidate can start interacting under planner grace."""
+
+        if candidate.logical_interaction_start_time is None:
+            return True
+        physical_earliest_start = (
+            curr_node.state.current_time + candidate.estimated_first_nav_duration
+        )
+        readiness_tolerance = max(
+            constants.RISK_GRACE_SECONDS,
+            INTERACTION_READINESS_NUMERIC_EPSILON,
+        )
+        return physical_earliest_start >= (
+            float(candidate.logical_interaction_start_time) - readiness_tolerance
+        )
 
     def _get_reserved_prenavigation_candidate_name(
         self,
