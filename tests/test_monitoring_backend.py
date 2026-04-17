@@ -43,6 +43,7 @@ from src.models.task import Duration, Execution, Subtask
 from src.scheduler.action_handler import ActionHandler
 from src.scheduler.constraint_handler import ConstraintHandler
 from src.scheduler.heuristic_manager import HeuristicManager
+from src.utils.common import extract_monitoring_target_name
 from src.utils.config.constants import (
     BAYESIAN_THRESHOLD_PROBABILITY,
     MONITORING_DURATION,
@@ -81,6 +82,29 @@ class _DummyHeuristicManager:
         """Return a neutral heuristic for dependency injection only."""
 
         return 0, 0.0
+
+
+class _MonitoringOnlyActionHandler:
+    """Simulate only monitoring actions for zero-wait wait-path tests."""
+
+    def get_actions_info(self, current_node: SimulationNode, actions: list[str]) -> Any:
+        """Return a fixed monitoring duration and reject unrelated simulations."""
+
+        if len(actions) != 1 or not actions[0].startswith("MONITORING "):
+            raise AssertionError(
+                "_MonitoringOnlyActionHandler only supports MONITORING actions."
+            )
+
+        return ActionResult(
+            action_full_name=actions[0],
+            action_type="MONITORING",
+            cumulative_time=MONITORING_DURATION,
+            action_duration=MONITORING_DURATION,
+            scene_positions=current_node.state.scene_positions,
+            held_object=current_node.state.held_object,
+            success=True,
+            first_nav_duration=0.0,
+        )
 
 
 class _FixedObservationModel:
@@ -221,6 +245,140 @@ def _build_monitoring_update_state() -> tuple[SchedulerState, Subtask, Subtask, 
         held_object=None,
     )
     return state, start_subtask, monitor_subtask, end_subtask
+
+
+def _build_zero_wait_wait_monitoring_fixture(
+    *,
+    previous_same_target_monitor: bool = False,
+    current_time: float = 90.0,
+    target_start_time: float = 128.01,
+    estimated_first_nav_duration: float = 0.0,
+) -> tuple[Scheduler, SimulationNode, Candidate]:
+    """Create a wait-with-monitoring case whose computed wait duration is zero."""
+
+    action_handler = _MonitoringOnlyActionHandler()
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=_DummyHeuristicManager(),
+    )
+
+    start_subtask = _make_subtask(
+        "Start Microwave for Heating Potato",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+        subtask_type="Interaction",
+    )
+    end_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Potato",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+        subtask_type="Interaction",
+    )
+    critical_interval_duration = target_start_time - 28.01
+
+    if previous_same_target_monitor:
+        current_subtask = _make_subtask(
+            "Monitoring for Turn Off Microwave after Heating Potato_prev",
+            primitive_actions=["MONITORING Microwave|01"],
+            subtask_type="Monitor",
+            objects=["Microwave|01"],
+            decomposed=True,
+        )
+    else:
+        current_subtask = _make_subtask(
+            "Wash Fork and place on counterTop",
+            primitive_actions=["CLEAN Fork|01"],
+            subtask_type="Interaction",
+        )
+
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        start_subtask.name,
+        end_subtask.name,
+        info={
+            "Interval": critical_interval_duration,
+            "IsCritical": True,
+            "Variance": 900.0,
+        },
+    )
+
+    completed_entries = [
+        CompletedEntry(
+            subtask=start_subtask,
+            schedule_start_time=0.0,
+            schedule_end_time=28.01,
+            sim_start_time=0.0,
+            sim_end_time=28.01,
+            execution_status=TaskExecutionStatus.SUCCESS,
+        ),
+        CompletedEntry(
+            subtask=current_subtask,
+            schedule_start_time=84.10,
+            schedule_end_time=current_time,
+            sim_start_time=84.10,
+            sim_end_time=current_time,
+            execution_status=TaskExecutionStatus.SUCCESS,
+        ),
+    ]
+
+    state = SchedulerState(
+        subtask=current_subtask,
+        completed_entries=completed_entries,
+        remaining_subtasks=[end_subtask],
+        constraints=constraints,
+        current_time=current_time,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=end_subtask,
+        is_critical=True,
+        actual_interaction_start_time=target_start_time,
+        logical_interaction_start_time=target_start_time,
+        estimated_first_nav_duration=estimated_first_nav_duration,
+    )
+    return scheduler, node, candidate
+
+
+def _monitor_target_name(subtask: Subtask) -> str:
+    """Return the encoded monitoring target name for regression-style assertions."""
+
+    try:
+        return extract_monitoring_target_name(subtask.name)
+    except ValueError:
+        return subtask.name
+
+
+def _assert_no_zero_duration_waits(completed_entries: list[CompletedEntry]) -> None:
+    """Guard against synthetic WAIT 0 artifacts in scheduled plans."""
+
+    for entry in completed_entries:
+        if entry.subtask.subtask_type != "WAIT":
+            continue
+        duration = entry.schedule_end_time - entry.schedule_start_time
+        assert not math.isclose(duration, 0.0, abs_tol=1e-9)
+
+
+def _assert_no_immediate_same_target_remonitoring(
+    completed_entries: list[CompletedEntry],
+) -> None:
+    """Guard against immediate same-target monitor duplication."""
+
+    for previous_entry, current_entry in zip(completed_entries, completed_entries[1:]):
+        if previous_entry.subtask.subtask_type != "Monitor":
+            continue
+        if current_entry.subtask.subtask_type != "Monitor":
+            continue
+        assert _monitor_target_name(previous_entry.subtask) != _monitor_target_name(
+            current_entry.subtask
+        )
 
 
 def test_bayesian_monitoring_policy_matches_gaussian_quantile() -> None:
@@ -1776,6 +1934,220 @@ def test_scheduler_monitoring_budget_counts_completed_monitors_per_interval() ->
         critical_start_sub_end_time=28.01,
         critical_end_sub_name=end_subtask.name,
     )
+
+
+def test_expand_wait_with_monitoring_zero_wait_inserts_monitor_without_wait_node(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Zero computed wait should skip synthetic WAIT creation and insert monitoring directly."""
+
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture()
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        lambda **_kwargs: curr_node.state.current_time,
+    )
+
+    result_node = scheduler._expand_wait_with_monitoring(curr_node, candidate, [])
+
+    assert result_node is not None
+    assert result_node.state.subtask.subtask_type == "Monitor"
+    new_entries = result_node.state.completed_entries[
+        len(curr_node.state.completed_entries) :
+    ]
+    assert len(new_entries) == 1
+    assert new_entries[0].subtask.subtask_type == "Monitor"
+    assert result_node.state.current_time == pytest.approx(
+        curr_node.state.current_time + MONITORING_DURATION
+    )
+    _assert_no_zero_duration_waits(result_node.state.completed_entries)
+    _assert_no_immediate_same_target_remonitoring(result_node.state.completed_entries)
+
+
+def test_expand_wait_with_monitoring_zero_wait_suppresses_same_target_remonitor(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Immediate same-target re-monitoring should fall back instead of stacking monitors."""
+
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture(
+        previous_same_target_monitor=True
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        lambda **_kwargs: curr_node.state.current_time,
+    )
+
+    result_node = scheduler._expand_wait_with_monitoring(curr_node, candidate, [])
+
+    assert result_node is not None
+    assert result_node.state.subtask.subtask_type == "WAIT"
+    new_entries = result_node.state.completed_entries[
+        len(curr_node.state.completed_entries) :
+    ]
+    assert len(new_entries) == 1
+    assert new_entries[0].subtask.subtask_type == "WAIT"
+    assert new_entries[0].schedule_end_time > new_entries[0].schedule_start_time
+    _assert_no_zero_duration_waits(result_node.state.completed_entries)
+    _assert_no_immediate_same_target_remonitoring(result_node.state.completed_entries)
+
+
+def test_heuristic_manager_treats_negative_slack_within_grace_as_safe(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Scheduler risk grace should keep mildly late candidates out of risk 2."""
+
+    heuristic_manager = HeuristicManager(_DummyActionHandler())
+    subtask = _make_subtask(
+        "Turn Off Microwave after Heating Potato",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    state = SchedulerState(
+        subtask=subtask,
+        completed_entries=[],
+        remaining_subtasks=[subtask],
+        constraints=nx.DiGraph(),
+        current_time=10.0,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=subtask,
+        is_critical=True,
+        scheduling_due=SchedulingDue(
+            due_date=25.0,
+            due_related_sub_name=subtask.name,
+        ),
+    )
+
+    monkeypatch.setattr(
+        heuristic_manager,
+        "check_future_conflict",
+        lambda _current_node, _candidate: (0.0, None),
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_estimate_total_time_needed_for_deadline_violation_check",
+        lambda _current_node, _candidate: 15.0 + (RISK_GRACE_SECONDS / 2.0),
+    )
+
+    risk_level, urgency_cost = heuristic_manager._calculate_candidate_risk_and_urgency(
+        node, candidate
+    )
+
+    assert risk_level == 0
+    assert urgency_cost == pytest.approx(0.0)
+
+
+def test_heuristic_manager_marks_negative_slack_outside_grace_as_risky(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Candidates later than planner grace should still become high risk."""
+
+    heuristic_manager = HeuristicManager(_DummyActionHandler())
+    subtask = _make_subtask(
+        "Turn Off Microwave after Heating Potato",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+    )
+    state = SchedulerState(
+        subtask=subtask,
+        completed_entries=[],
+        remaining_subtasks=[subtask],
+        constraints=nx.DiGraph(),
+        current_time=10.0,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=subtask,
+        is_critical=True,
+        scheduling_due=SchedulingDue(
+            due_date=25.0,
+            due_related_sub_name=subtask.name,
+        ),
+    )
+
+    monkeypatch.setattr(
+        heuristic_manager,
+        "check_future_conflict",
+        lambda _current_node, _candidate: (0.0, None),
+    )
+    monkeypatch.setattr(
+        heuristic_manager,
+        "_estimate_total_time_needed_for_deadline_violation_check",
+        lambda _current_node, _candidate: 15.0 + RISK_GRACE_SECONDS + 0.5,
+    )
+
+    risk_level, urgency_cost = heuristic_manager._calculate_candidate_risk_and_urgency(
+        node, candidate
+    )
+
+    assert risk_level == 2
+    assert urgency_cost > 10000.0
+
+
+def test_expand_wait_with_monitoring_clamps_to_latest_safe_monitor_start(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Wait-with-monitoring should stop at the latest safe monitor point, not fall back to a longer plain wait."""
+
+    current_time = 169.75
+    target_start_time = 196.86585658205928
+    nav_duration = 1.60
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture(
+        current_time=current_time,
+        target_start_time=target_start_time,
+        estimated_first_nav_duration=nav_duration,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        lambda **_kwargs: 194.44,
+    )
+
+    result_node = scheduler._expand_wait_with_monitoring(
+        curr_node,
+        candidate,
+        [],
+        nav_duration=nav_duration,
+    )
+
+    assert result_node is not None
+    assert result_node.state.subtask.subtask_type == "WAIT"
+
+    expected_monitor_start = (
+        target_start_time - MONITORING_DURATION - nav_duration
+    )
+    assert result_node.state.current_time == pytest.approx(expected_monitor_start)
+
+    monitoring_subtasks = [
+        subtask
+        for subtask in result_node.state.remaining_subtasks
+        if subtask.subtask_type == "Monitor"
+    ]
+    assert len(monitoring_subtasks) == 1
+    monitor_subtask = monitoring_subtasks[0]
+    monitor_to_end = result_node.state.constraints.edges[
+        monitor_subtask.name,
+        candidate.subtask.name,
+    ]["info"]["Interval"]
+    assert monitor_to_end == pytest.approx(0.0, abs=1e-9)
 
 
 def test_agent_update_monitoring_belief_with_particle_filter_updates_constraints(

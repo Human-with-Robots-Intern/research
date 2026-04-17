@@ -830,6 +830,78 @@ class Scheduler:
             return candidate.subtask.execution.primitive_actions[0].split()[1]
         return None
 
+    @staticmethod
+    def _extract_monitoring_target_object_from_subtask(
+        subtask: Optional[Subtask],
+    ) -> Optional[str]:
+        """Return the monitored object id recorded on a monitoring subtask."""
+
+        if subtask is None or subtask.execution is None:
+            return None
+
+        objects = subtask.execution.objects
+        if isinstance(objects, (list, tuple)) and objects:
+            first_object = objects[0]
+            if first_object is not None:
+                return str(first_object)
+
+        primitive_actions = subtask.execution.primitive_actions or []
+        if not primitive_actions:
+            return None
+
+        parts = primitive_actions[0].split()
+        if len(parts) > 1:
+            return parts[1]
+        return None
+
+    @staticmethod
+    def _extract_monitoring_target_name_from_subtask(
+        subtask: Optional[Subtask],
+    ) -> Optional[str]:
+        """Return the monitored critical-end subtask name when encoded in the name."""
+
+        if subtask is None:
+            return None
+        try:
+            return extract_monitoring_target_name(subtask.name)
+        except ValueError:
+            return None
+
+    def _just_monitored_target(
+        self,
+        curr_state: SchedulerState,
+        *,
+        monitoring_target_obj: Optional[str],
+        monitoring_target_sub_name: Optional[str],
+    ) -> bool:
+        """Return whether the immediately previous committed step already monitored the target."""
+
+        previous_subtask = curr_state.subtask
+        if previous_subtask is None or previous_subtask.subtask_type != "Monitor":
+            return False
+
+        previous_target_obj = self._extract_monitoring_target_object_from_subtask(
+            previous_subtask
+        )
+        if (
+            monitoring_target_obj is not None
+            and previous_target_obj is not None
+            and previous_target_obj == monitoring_target_obj
+        ):
+            return True
+
+        previous_target_name = self._extract_monitoring_target_name_from_subtask(
+            previous_subtask
+        )
+        if (
+            monitoring_target_sub_name is not None
+            and previous_target_name is not None
+            and previous_target_name == monitoring_target_sub_name
+        ):
+            return True
+
+        return False
+
     def _resolve_effective_monitoring_budget(self) -> int | None:
         """Return the active per-critical-interval monitoring cap."""
 
@@ -1299,6 +1371,20 @@ class Scheduler:
             self._search_cache.trigger_cache_misses += 1
             self._search_cache.monitoring_triggers[trigger_cache_key] = trigger_time
         return trigger_time
+
+    @staticmethod
+    def _compute_latest_safe_monitoring_start_time(
+        *,
+        target_interaction_start_time: float,
+        post_monitor_buffer: float = 0.0,
+    ) -> float:
+        """Return the latest monitor-start time that still preserves the target start."""
+
+        return (
+            float(target_interaction_start_time)
+            - MONITORING_DURATION
+            - max(0.0, float(post_monitor_buffer))
+        )
 
     # ==========================================================================
     #           SUBTASK EXPANSION: Single Subtask or Wait
@@ -1957,11 +2043,10 @@ class Scheduler:
             # [Safety Check 250130] Prevent redundant monitoring
             # If the immediately preceding task was ALREADY a monitoring action for the SAME object,
             # we should NOT insert another monitoring step. This prevents infinite monitoring loops.
-            if (
-                curr_node.state.subtask
-                and curr_node.state.subtask.subtask_type == "Monitor"
-                and monitoring_target_obj
-                and monitoring_target_obj in curr_node.state.subtask.name
+            if self._just_monitored_target(
+                curr_state,
+                monitoring_target_obj=monitoring_target_obj,
+                monitoring_target_sub_name=critical_end_sub_name,
             ):
                 log.warning(
                     f"[_expand_subtask_with_monitoring] Redundant monitoring detected! "
@@ -2313,7 +2398,7 @@ class Scheduler:
         not_yet_candidates: List[Candidate],
         nav_duration: float = 0.0,
         feasible_candidates: List[Candidate] = None,
-    ) -> SimulationNode:
+    ) -> Optional[SimulationNode]:
         """
         Performs monitoring and, if needed, a follow-up wait until the
         candidate's actual_interaction_start_time.
@@ -2390,31 +2475,132 @@ class Scheduler:
         if edge_data and "info" in edge_data:
             variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
 
+        monitoring_target_obj = self._extract_monitoring_target(candidate)
+        if monitoring_target_obj is None:
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
+            )
+
         original_absolute_monitoring_trigger_time = (
             self._compute_monitoring_trigger_time(
-                raw_object_name=candidate.subtask.execution.primitive_actions[
-                    0
-                ].split()[1],
+                raw_object_name=monitoring_target_obj,
                 critical_start_sub_end_time=critical_start_sub_actual_end_time,
                 mean_duration=original_critical_interval_duration,
                 variance=variance_val,
             )
         )
 
+        target_start_time = (
+            self._get_candidate_target_start_time(candidate)
+            or candidate.logical_interaction_start_time
+        )
+        if target_start_time is None:
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
+            )
+
+        latest_safe_monitoring_start_time = (
+            self._compute_latest_safe_monitoring_start_time(
+                target_interaction_start_time=target_start_time,
+                post_monitor_buffer=nav_duration,
+            )
+        )
+        effective_monitoring_start_time = min(
+            original_absolute_monitoring_trigger_time,
+            latest_safe_monitoring_start_time,
+        )
+        if effective_monitoring_start_time < original_absolute_monitoring_trigger_time:
+            log.debug(
+                "[_expand_wait_with_monitoring] Clamped monitor start for '%s' from %.2f to latest safe %.2f "
+                "(target_start=%.2f, nav_buffer=%.2f).",
+                candidate.subtask.name,
+                original_absolute_monitoring_trigger_time,
+                effective_monitoring_start_time,
+                target_start_time,
+                nav_duration,
+            )
+
+        # If we are already beyond the latest feasible monitor point, this branch
+        # can no longer monitor without sacrificing the critical end.
+        if (
+            curr_state.current_time + MONITORING_DURATION + nav_duration
+            > target_start_time + EPSILON
+        ):
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
+            )
+
         total_wait_duration = max(
-            0,
-            original_absolute_monitoring_trigger_time
-            - curr_state.current_time
-            - nav_duration,
+            0.0,
+            effective_monitoring_start_time - curr_state.current_time,
         )
 
-        # 현재 시간에서 wait하고 모니터링을하는게 deadline을 넘기면 wo monitoring으로 fallback
-        if (
-            original_absolute_monitoring_trigger_time
-            + MONITORING_DURATION
-            + nav_duration
-            > candidate.logical_interaction_start_time
-        ):
+        if total_wait_duration <= EPSILON:
+            if self._just_monitored_target(
+                curr_state,
+                monitoring_target_obj=monitoring_target_obj,
+                monitoring_target_sub_name=critical_end_sub_name,
+            ):
+                log.debug(
+                    "[_expand_wait_with_monitoring] Zero-duration wait for '%s' immediately after monitoring the same target. "
+                    "Falling back to wait-without-monitoring.",
+                    candidate.subtask.name,
+                )
+                return self._expand_wait_wo_monitoring(
+                    curr_node,
+                    candidate,
+                    not_yet_candidates,
+                    nav_duration=nav_duration,
+                    feasible_candidates=feasible_candidates,
+                )
+
+            predecessor_name = (
+                curr_state.subtask.name
+                if curr_state.subtask is not None
+                else critical_start_sub_name
+            )
+            target_start_time = (
+                self._get_candidate_target_start_time(candidate)
+                or curr_state.current_time
+            )
+            log.debug(
+                "[_expand_wait_with_monitoring] Zero-duration wait for '%s'. "
+                "Skipping synthetic WAIT node and inserting immediate monitoring.",
+                candidate.subtask.name,
+            )
+            inserted_monitor_node = self._insert_monitoring_step(
+                curr_node=curr_node,
+                candidate=candidate,
+                monitoring_target_obj=monitoring_target_obj,
+                predecessor_name=predecessor_name,
+                target_actual_start_time=target_start_time,
+                not_yet_candidates=not_yet_candidates,
+                critical_start_sub_name=critical_start_sub_name,
+                critical_start_sub_end_time=critical_start_sub_actual_end_time,
+                critical_end_sub_name=critical_end_sub_name,
+                critical_interval_duration=original_critical_interval_duration,
+                monitoring_target_sub_name=critical_end_sub_name,
+                is_critical_link=True,
+            )
+            if inserted_monitor_node is not None:
+                return inserted_monitor_node
+            log.debug(
+                "[_expand_wait_with_monitoring] Immediate monitoring fallback for '%s' was rejected. "
+                "Falling back to wait-without-monitoring.",
+                candidate.subtask.name,
+            )
             return self._expand_wait_wo_monitoring(
                 curr_node,
                 candidate,
@@ -2495,7 +2681,7 @@ class Scheduler:
 
         monitoring_sub = TaskUtil.create_monitoring_subtask(
             name=f"{critical_end_sub_name}",
-            obj=candidate.subtask.execution.primitive_actions[0].split()[1],
+            obj=monitoring_target_obj,
         )
         monitoring_sub.decomposed = True
 
@@ -2554,6 +2740,7 @@ class Scheduler:
         interval_mon_to_crit_end = (
             critical_end_sub_logical_start_time
             - monitoring_sub_expected_completion_time
+            - nav_duration
         )
         info_mon_to_crit_end = {
             "Interval": max(0.0, interval_mon_to_crit_end),

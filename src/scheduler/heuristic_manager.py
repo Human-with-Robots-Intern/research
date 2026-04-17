@@ -131,11 +131,11 @@ class HeuristicManager:
         )
 
         # 3. Map Slack to Base Risk & Cost
-        if slack >= 0:
+        if slack >= -constants.RISK_GRACE_SECONDS:
             log.debug(
                 f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
             )
-            return 0, slack
+            return 0, max(0.0, slack)
         # elif slack >= -(constants.TIMING_TOLERANCE_ABS / 2):
         #     log.debug(
         #         f"[_calculate_candidate_risk_and_urgency] Slack: {slack:.2f} -> Risk: 0.0"
