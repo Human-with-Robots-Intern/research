@@ -14,9 +14,9 @@ from scipy.stats import norm
 from src.utils.common import create_module_logger
 
 log = create_module_logger(module_name=__name__, module_log=True)
+from src.utils.config import constants
 from src.utils.config.constants import (
     AGENT_KNOWLEDGE_PATH,
-    BAYESIAN_THRESHOLD_PROBABILITY,
     FACTOR_ALPHA,
     INIT_PRIOR_MEAN,
     INIT_PRIOR_VARIANCE,
@@ -723,7 +723,7 @@ class BayesianMonitoringPolicy:
         self,
         belief_store: BeliefStore,
         *,
-        threshold_probability: float = BAYESIAN_THRESHOLD_PROBABILITY,
+        threshold_probability: Optional[float] = None,
     ) -> None:
         """Initialize the Bayesian trigger policy.
 
@@ -734,7 +734,11 @@ class BayesianMonitoringPolicy:
 
         self.method: BeliefMethod = "bayesian"
         self._belief_store = belief_store
-        self._threshold_probability = threshold_probability
+        self._threshold_probability = float(
+            constants.BAYESIAN_THRESHOLD_PROBABILITY
+            if threshold_probability is None
+            else threshold_probability
+        )
 
     def compute_trigger_time(self, context: MonitoringTriggerContext) -> float:
         """Compute the trigger from Gaussian mean and variance.
@@ -758,7 +762,7 @@ class ParticleFilterMonitoringPolicy:
         self,
         belief_store: BeliefStore,
         *,
-        threshold_probability: float = BAYESIAN_THRESHOLD_PROBABILITY,
+        threshold_probability: Optional[float] = None,
     ) -> None:
         """Initialize the particle-filter trigger policy.
 
@@ -769,7 +773,11 @@ class ParticleFilterMonitoringPolicy:
 
         self.method: BeliefMethod = "particle_filter"
         self._belief_store = belief_store
-        self._threshold_probability = threshold_probability
+        self._threshold_probability = float(
+            constants.BAYESIAN_THRESHOLD_PROBABILITY
+            if threshold_probability is None
+            else threshold_probability
+        )
 
     def compute_trigger_time(self, context: MonitoringTriggerContext) -> float:
         """Compute the trigger from a weighted particle quantile.
