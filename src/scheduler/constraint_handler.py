@@ -509,39 +509,18 @@ class ConstraintHandler:
             )
 
         for feasible_candidate in feasible_candidates:
-            # [주의! 뭔지 모르는 코드]
-            # # Case 1: Critical Task 처리
-            # if feasible_candidate.is_critical:
-            #     critical_ctx = feasible_candidate.critical_context
-
-            #     # 1-1. 선행 제약이 명확한 경우: 자신의 제약 조건에 따른 마감 기한 계산
-            #     if (
-            #         critical_ctx
-            #         and critical_ctx.source_subtask
-            #         and critical_ctx.source_end_time is not None
-            #     ):
-            #         inferred_due = critical_ctx.source_end_time + critical_ctx.interval
-
-            #         # 마감 기한이 이미 지났다면 즉시 실행하도록 조정 (선택 사항)
-            #         if inferred_due <= curr_node.state.current_time:
-            #              inferred_due = curr_node.state.current_time + EPSILON
-
-            #         feasible_candidate.scheduling_due = SchedulingDue(
-            #             due_date=inferred_due,
-            #             due_related_sub_name=feasible_candidate.subtask.name,
-            #         )
-            #     # 1-2. 선행 제약이 없는 Floating Critical Task인 경우:
-            #     else:
-            #         # 전역 데드라인(new_scheduling_due)이 유효하다면 이를 상속받아 우선순위 확보
-            #         if new_scheduling_due.due_date != float("inf"):
-            #             feasible_candidate.scheduling_due = new_scheduling_due
-            #         # 그렇지 않다면 기본값 유지 (또는 별도 처리)
-
-            # # Case 2: Non-Critical Task 처리
-            # else:
-            #     # 다음 Critical Task 시작 전까지 끝내야 함
-            #     feasible_candidate.scheduling_due = new_scheduling_due
-            feasible_candidate.scheduling_due = new_scheduling_due
+            own_due = feasible_candidate.logical_interaction_start_time
+            if (
+                feasible_candidate.is_critical
+                and own_due is not None
+                and own_due != float("inf")
+            ):
+                feasible_candidate.scheduling_due = SchedulingDue(
+                    due_date=float(own_due),
+                    due_related_sub_name=feasible_candidate.subtask.name,
+                )
+            else:
+                feasible_candidate.scheduling_due = new_scheduling_due
 
     def get_required_predecessors(
         self,
