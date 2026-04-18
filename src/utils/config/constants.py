@@ -80,8 +80,8 @@ WAIT_TIME_UPPER_BOUND = 200.0  # 'wait' 액션의 최대 허용 시간 (초)
 BAYESIAN_THRESHOLD_PROBABILITY = 0.1  # New threshold probability (eta)
 
 GT_INTERVAL = 100.0
-INIT_PRIOR_MEAN = 140.0
-INIT_PRIOR_VARIANCE = 900.0
+INIT_PRIOR_MEAN = 100.0
+INIT_PRIOR_VARIANCE = 1600.0
 
 
 # 지우지 마시오. 실험 돌릴동안만 쓰자구요 ㅎㅎㅎ

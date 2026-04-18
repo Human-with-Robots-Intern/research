@@ -2728,6 +2728,79 @@ def test_expand_wait_with_monitoring_clamps_to_latest_safe_monitor_start(
     assert monitor_to_end == pytest.approx(0.0, abs=1e-9)
 
 
+def test_expand_wait_with_monitoring_truncates_for_earlier_other_target_trigger(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Wait-with-monitoring should stop before an earlier different-target trigger."""
+
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture(
+        current_time=34.15,
+        target_start_time=128.01,
+        estimated_first_nav_duration=1.60,
+    )
+
+    other_start_subtask = _make_subtask(
+        "Cook Egg in Pan",
+        primitive_actions=["COOK Egg|01"],
+        subtask_type="Interaction",
+    )
+    other_end_subtask = _make_subtask(
+        "Turn Off Stove After Cooking Egg",
+        primitive_actions=["TOGGLE_OFF StoveKnob|01"],
+        subtask_type="Interaction",
+    )
+    curr_node.state.constraints.add_edge(
+        other_start_subtask.name,
+        other_end_subtask.name,
+        info={
+            "Interval": 100.0,
+            "IsCritical": True,
+            "Variance": 900.0,
+        },
+    )
+    curr_node.state.completed_entries.append(
+        CompletedEntry(
+            subtask=other_start_subtask,
+            schedule_start_time=0.0,
+            schedule_end_time=20.0,
+            sim_start_time=0.0,
+            sim_end_time=20.0,
+            execution_status=TaskExecutionStatus.SUCCESS,
+        )
+    )
+    curr_node.state.remaining_subtasks.append(other_end_subtask)
+
+    def _trigger_for_target(**kwargs: Any) -> float:
+        raw_object_name = kwargs["raw_object_name"]
+        if raw_object_name == "Microwave|01":
+            return 120.0
+        if raw_object_name == "StoveKnob|01":
+            return 60.0
+        raise AssertionError(f"Unexpected monitoring target: {raw_object_name}")
+
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        _trigger_for_target,
+    )
+
+    result_node = scheduler._expand_wait_with_monitoring(
+        curr_node,
+        candidate,
+        list(curr_node.state.remaining_subtasks),
+        nav_duration=1.60,
+    )
+
+    assert result_node is not None
+    assert result_node.state.subtask.subtask_type == "WAIT"
+    assert result_node.state.current_time == pytest.approx(60.0)
+    assert result_node.state.completed_entries[-1].schedule_nav_time == pytest.approx(0.0)
+    assert all(
+        subtask.subtask_type != "Monitor" for subtask in result_node.state.remaining_subtasks
+    )
+    _assert_no_zero_duration_waits(result_node.state.completed_entries)
+
+
 def test_expand_wait_with_monitoring_scores_against_post_wait_state(
     monkeypatch: MonkeyPatch,
 ) -> None:

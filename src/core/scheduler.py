@@ -1084,6 +1084,7 @@ class Scheduler:
         candidate: Candidate,
         *,
         expansion_kind: str,
+        restrict_wait_target: bool = True,
     ) -> List[MonitoringObligation]:
         """Return monitoring obligations whose trigger actually lands in this expansion."""
 
@@ -1101,7 +1102,11 @@ class Scheduler:
 
         obligations: List[MonitoringObligation] = []
         for variance, due in active_intervals:
-            if expansion_kind == "wait" and due.due_related_sub_name != candidate.subtask.name:
+            if (
+                expansion_kind == "wait"
+                and restrict_wait_target
+                and due.due_related_sub_name != candidate.subtask.name
+            ):
                 # Current wait expansion only knows how to split for the waited-on target.
                 continue
 
@@ -1117,6 +1122,38 @@ class Scheduler:
 
         obligations.sort(key=lambda obligation: obligation.trigger_time)
         return obligations
+
+    def _get_wait_preempting_monitoring_obligation(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+        *,
+        current_target_sub_name: str,
+        local_monitoring_start_time: float,
+    ) -> Optional[MonitoringObligation]:
+        """Return an earlier other-target monitoring trigger that should preempt this wait.
+
+        Wait-with-monitoring branches are generated from one blocked candidate, but
+        the scheduler should not sleep past an earlier monitoring trigger for a
+        different active critical interval. When that happens, we truncate the
+        current wait and let the next replanning step handle the earlier target.
+        """
+
+        global_obligations = self._get_relevant_monitoring_obligations(
+            curr_node,
+            candidate,
+            expansion_kind="wait",
+            restrict_wait_target=False,
+        )
+        for obligation in global_obligations:
+            other_target_sub_name = obligation.due.due_related_sub_name
+            if other_target_sub_name == current_target_sub_name:
+                continue
+            if obligation.trigger_time <= (curr_node.state.current_time + EPSILON):
+                continue
+            if obligation.trigger_time < (local_monitoring_start_time - EPSILON):
+                return obligation
+        return None
 
     def _get_candidate_target_start_time(
         self,
@@ -2578,6 +2615,33 @@ class Scheduler:
                 original_absolute_monitoring_trigger_time,
                 effective_monitoring_start_time,
                 target_start_time,
+            )
+
+        preempting_obligation = self._get_wait_preempting_monitoring_obligation(
+            curr_node,
+            candidate,
+            current_target_sub_name=critical_end_sub_name,
+            local_monitoring_start_time=effective_monitoring_start_time,
+        )
+        if preempting_obligation is not None:
+            truncated_wait_duration = (
+                preempting_obligation.trigger_time - curr_state.current_time
+            )
+            log.debug(
+                "[_expand_wait_with_monitoring] Truncating wait for '%s' at %.2f because earlier monitoring "
+                "for '%s' becomes due at %.2f.",
+                candidate.subtask.name,
+                preempting_obligation.trigger_time,
+                preempting_obligation.due.due_related_sub_name,
+                preempting_obligation.trigger_time,
+            )
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=0.0,
+                feasible_candidates=feasible_candidates,
+                max_wait_duration=truncated_wait_duration,
             )
 
         # If we are already beyond the latest feasible monitor point, this branch
