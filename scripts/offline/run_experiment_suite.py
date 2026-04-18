@@ -27,13 +27,18 @@ from src.utils.common import create_module_logger  # noqa: E402
 DEFAULT_SUITE_ORDER = (
     "scalability",
     "eta_sensitivity",
-    "monitoring_budget",
-    "pf_vs_bayesian",
+    # "monitoring_budget",
+    # "pf_vs_bayesian",
 )
 DEFAULT_ORACLE_CONFIG = "oracle_reference_config.yaml"
 DEFAULT_TASK_FOLDER = "sampled_10_instruction_set_for_final_experiment_251203"
 DEFAULT_OUTPUT_DIR = "assets/results/offline_batch"
 DEFAULT_NAV_GRAPH_SOURCE = "ai2thor_controller"
+
+SUITE_LATEX_MODULE: dict[str, str] = {
+    "scalability": "assets.result_analysis.scalability_case_table",
+    "eta_sensitivity": "assets.result_analysis.eta_sensitivity_tables",
+}
 
 SUITE_REGISTRY: dict[str, tuple[str, ...]] = {
     "pf_vs_bayesian": (
@@ -203,10 +208,7 @@ def _collect_common_path(
 ) -> Path:
     """Resolve one path-valued config key and require a single unique result."""
 
-    candidates = {
-        resolver(config.get(key, default))
-        for config in raw_configs
-    }
+    candidates = {resolver(config.get(key, default)) for config in raw_configs}
     if len(candidates) != 1:
         rendered = ", ".join(str(path) for path in sorted(candidates))
         raise ValueError(f"{context} must share a single {key}: {rendered}")
@@ -220,9 +222,7 @@ def _derive_analysis_paths(
 ) -> tuple[Path, str, str]:
     """Return the common base_dir plus batch/oracle relative dirnames."""
 
-    common_base = Path(
-        os.path.commonpath([str(output_dir), str(oracle_reference_dir)])
-    )
+    common_base = Path(os.path.commonpath([str(output_dir), str(oracle_reference_dir)]))
     batch_dirname = output_dir.relative_to(common_base).as_posix()
     oracle_dirname = oracle_reference_dir.relative_to(common_base).as_posix()
     return common_base, batch_dirname, oracle_dirname
@@ -289,10 +289,7 @@ def _require_common_string_value(
 ) -> str:
     """Return one normalized scalar value shared by all selected configs."""
 
-    values = {
-        str(config.get(key, default))
-        for config in raw_configs
-    }
+    values = {str(config.get(key, default)) for config in raw_configs}
     if len(values) != 1:
         rendered = ", ".join(sorted(values))
         raise ValueError(f"{context} must share a single {key}: {rendered}")
@@ -307,7 +304,9 @@ def _merge_scene_scope(
     scene_type_order: list[str] = []
     merged_scene_lists: dict[str, list[str]] = {}
     for config in raw_configs:
-        scene_types = _normalize_string_list(config.get("scene_type"), default="kitchen")
+        scene_types = _normalize_string_list(
+            config.get("scene_type"), default="kitchen"
+        )
         scene_lists = dict(config.get("scene_lists", {}))
         for scene_type in scene_types:
             if scene_type not in scene_type_order:
@@ -348,11 +347,7 @@ def _merge_oracle_config(
         ]
     )
     task_folder_names = _unique_preserve_order(
-        [
-            task_folder
-            for suite in suites
-            for task_folder in suite.task_folder_names
-        ]
+        [task_folder for suite in suites for task_folder in suite.task_folder_names]
     )
     instructions = _unique_preserve_order(
         [
@@ -446,6 +441,37 @@ def _build_analysis_stage_command(
     )
 
 
+def _build_latex_stage_command(
+    suite: SuiteDefinition,
+) -> tuple[str, ...] | None:
+    """Return the LaTeX export subprocess command for a suite, or None if unsupported."""
+
+    module = SUITE_LATEX_MODULE.get(suite.name)
+    if module is None:
+        return None
+
+    summary_path = suite.analysis_output_dir / "offline_analysis_summary.json"
+    latex_out_dir = suite.analysis_output_dir / "latex_tables"
+    python = os.environ.get("PYTHON", sys.executable)
+
+    if suite.name == "scalability":
+        return (
+            python, "-m", module,
+            "--summary", str(summary_path),
+            "--output", str(latex_out_dir / "scalability_case_table.tex"),
+        )
+
+    if suite.name == "eta_sensitivity":
+        return (
+            python, "-m", module,
+            "--summary", str(summary_path),
+            "--batch-root", str(suite.output_dir),
+            "--out-dir", str(latex_out_dir),
+        )
+
+    return None
+
+
 def write_merged_oracle_config(
     config: Mapping[str, Any],
     *,
@@ -516,6 +542,16 @@ def build_execution_plan(
                         task_folder_name=task_folder_name,
                     ),
                     description=f"offline analysis: {task_folder_name}",
+                )
+            )
+        latex_command = _build_latex_stage_command(suite)
+        if latex_command is not None:
+            stages.append(
+                StageSpec(
+                    kind="latex",
+                    suite=suite.name,
+                    command=latex_command,
+                    description=f"latex export: {suite.name}",
                 )
             )
     return ExecutionPlan(
