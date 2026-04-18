@@ -28,7 +28,7 @@ from src.core.monitoring import (
     create_monitoring_backend,
     create_observation_model,
 )
-from src.core.scheduler import Scheduler
+from src.core.scheduler import MonitoringObligation, Scheduler
 from src.models.dataclass import (
     ActionSimulationLog,
     ActionResult,
@@ -2726,10 +2726,10 @@ def test_expand_wait_with_monitoring_clamps_to_latest_safe_monitor_start(
     assert monitor_to_end == pytest.approx(0.0, abs=1e-9)
 
 
-def test_expand_wait_with_monitoring_truncates_for_earlier_other_target_trigger(
+def test_expand_single_wait_prefers_earlier_other_target_monitoring_event(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Wait-with-monitoring should stop before an earlier different-target trigger."""
+    """Event-driven wait should advance to an earlier other-target monitoring event."""
 
     scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture(
         current_time=34.15,
@@ -2767,6 +2767,13 @@ def test_expand_wait_with_monitoring_truncates_for_earlier_other_target_trigger(
         )
     )
     curr_node.state.remaining_subtasks.append(other_end_subtask)
+    other_candidate = Candidate(
+        subtask=other_end_subtask,
+        is_critical=True,
+        actual_interaction_start_time=120.0,
+        logical_interaction_start_time=120.0,
+        estimated_first_nav_duration=0.0,
+    )
 
     def _trigger_for_target(**kwargs: Any) -> float:
         raw_object_name = kwargs["raw_object_name"]
@@ -2782,21 +2789,407 @@ def test_expand_wait_with_monitoring_truncates_for_earlier_other_target_trigger(
         _trigger_for_target,
     )
 
-    result_node = scheduler._expand_wait_with_monitoring(
+    result_node = scheduler._expand_single_wait(
         curr_node,
         candidate,
-        list(curr_node.state.remaining_subtasks),
-        nav_duration=1.60,
+        [candidate, other_candidate],
     )
 
     assert result_node is not None
     assert result_node.state.subtask.subtask_type == "WAIT"
+    assert result_node.state.subtask.name == f"Wait for {other_end_subtask.name}"
     assert result_node.state.current_time == pytest.approx(60.0)
     assert result_node.state.completed_entries[-1].schedule_nav_time == pytest.approx(0.0)
+    monitoring_subtasks = [
+        subtask
+        for subtask in result_node.state.remaining_subtasks
+        if subtask.subtask_type == "Monitor"
+    ]
+    assert len(monitoring_subtasks) == 1
+    assert _monitor_target_name(monitoring_subtasks[0]) == other_end_subtask.name
+    _assert_no_zero_duration_waits(result_node.state.completed_entries)
+
+
+def test_expand_single_wait_immediately_rescues_overdue_other_target_monitoring(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """An overdue other-target trigger should insert monitoring now instead of a second wait."""
+
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture(
+        current_time=60.0,
+        target_start_time=128.01,
+    )
+    other_start_subtask = _make_subtask(
+        "Cook Egg in Pan",
+        primitive_actions=["COOK Egg|01"],
+        subtask_type="Interaction",
+    )
+    other_end_subtask = _make_subtask(
+        "Turn Off Stove After Cooking Egg",
+        primitive_actions=["TOGGLE_OFF StoveKnob|01"],
+        subtask_type="Interaction",
+    )
+    curr_node.state.constraints.add_edge(
+        other_start_subtask.name,
+        other_end_subtask.name,
+        info={
+            "Interval": 100.0,
+            "IsCritical": True,
+            "Variance": 900.0,
+        },
+    )
+    curr_node.state.completed_entries.append(
+        CompletedEntry(
+            subtask=other_start_subtask,
+            schedule_start_time=0.0,
+            schedule_end_time=20.0,
+            sim_start_time=0.0,
+            sim_end_time=20.0,
+            execution_status=TaskExecutionStatus.SUCCESS,
+        )
+    )
+    curr_node.state.remaining_subtasks.append(other_end_subtask)
+    other_candidate = Candidate(
+        subtask=other_end_subtask,
+        is_critical=True,
+        actual_interaction_start_time=120.0,
+        logical_interaction_start_time=120.0,
+        estimated_first_nav_duration=0.0,
+    )
+
+    def _trigger_for_target(**kwargs: Any) -> float:
+        raw_object_name = kwargs["raw_object_name"]
+        if raw_object_name == "Microwave|01":
+            return 120.0
+        if raw_object_name == "StoveKnob|01":
+            return 50.0
+        raise AssertionError(f"Unexpected monitoring target: {raw_object_name}")
+
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        _trigger_for_target,
+    )
+
+    result_node = scheduler._expand_single_wait(
+        curr_node,
+        candidate,
+        [candidate, other_candidate],
+    )
+
+    assert result_node is not None
+    assert result_node.state.subtask.subtask_type == "Monitor"
+    new_entries = result_node.state.completed_entries[
+        len(curr_node.state.completed_entries) :
+    ]
+    assert len(new_entries) == 1
+    assert new_entries[0].subtask.subtask_type == "Monitor"
+    assert _monitor_target_name(new_entries[0].subtask) == other_end_subtask.name
+    _assert_no_zero_duration_waits(result_node.state.completed_entries)
+    _assert_no_immediate_same_target_remonitoring(result_node.state.completed_entries)
+
+
+def test_expand_single_wait_ignores_missing_rescue_target_and_falls_back_to_local_wait(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A rescue obligation without an exact candidate should not block the local wait event."""
+
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture(
+        current_time=34.15,
+        target_start_time=128.01,
+        estimated_first_nav_duration=1.60,
+    )
+    missing_obligation = MonitoringObligation(
+        trigger_time=60.0,
+        variance=900.0,
+        due=SchedulingDue(
+            due_date=120.0,
+            due_related_sub_name="Missing Target",
+        ),
+    )
+
+    def _stub_obligations(
+        _curr_node: SimulationNode,
+        _candidate: Candidate,
+        *,
+        expansion_kind: str,
+        restrict_wait_target: bool = True,
+    ) -> list[MonitoringObligation]:
+        if expansion_kind != "wait":
+            return []
+        if restrict_wait_target:
+            return []
+        return [missing_obligation]
+
+    monkeypatch.setattr(
+        scheduler,
+        "_get_relevant_monitoring_obligations",
+        _stub_obligations,
+    )
+
+    result_node = scheduler._expand_single_wait(curr_node, candidate, [candidate])
+
+    assert result_node is not None
+    assert result_node.state.subtask.subtask_type == "WAIT"
+    assert result_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
+    assert result_node.state.current_time == pytest.approx(candidate.actual_interaction_start_time)
+    assert result_node.state.completed_entries[-1].schedule_nav_time == pytest.approx(
+        1.60
+    )
+
+
+def test_expand_single_wait_skips_late_local_monitor_and_falls_back_to_local_execute(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A late local monitor should not survive just because the drifted target start is later."""
+
+    action_handler = _MonitoringOnlyActionHandler(nav_duration=1.44)
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=_DummyHeuristicManager(),
+    )
+    start_subtask = _make_subtask(
+        "Cook Egg in Pan",
+        primitive_actions=["COOK Egg|01"],
+        subtask_type="Interaction",
+    )
+    current_subtask = _make_subtask(
+        "REMAIN_Wash Cup and place on counterTop",
+        primitive_actions=["CLEAN Cup|01"],
+        subtask_type="Interaction",
+        decomposed=True,
+    )
+    end_subtask = _make_subtask(
+        "Turn Off Stove After Cooking Egg",
+        primitive_actions=["TOGGLE_OFF StoveKnob|01"],
+        subtask_type="Interaction",
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        start_subtask.name,
+        end_subtask.name,
+        info={"Interval": 100.0, "IsCritical": True, "Variance": 1600.0},
+    )
+    state = SchedulerState(
+        subtask=current_subtask,
+        completed_entries=[
+            CompletedEntry(
+                subtask=start_subtask,
+                schedule_start_time=44.40,
+                schedule_end_time=64.23,
+                sim_start_time=44.40,
+                sim_end_time=64.23,
+                execution_status=TaskExecutionStatus.SUCCESS,
+            ),
+            CompletedEntry(
+                subtask=current_subtask,
+                schedule_start_time=151.43,
+                schedule_end_time=169.54,
+                sim_start_time=151.43,
+                sim_end_time=169.54,
+                execution_status=TaskExecutionStatus.SUCCESS,
+            ),
+        ],
+        remaining_subtasks=[end_subtask],
+        constraints=constraints,
+        current_time=169.54,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=end_subtask,
+        is_critical=True,
+        actual_interaction_start_time=170.98,
+        logical_interaction_start_time=170.98,
+        estimated_first_nav_duration=1.44,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        lambda **_kwargs: 152.967937378216,
+    )
+
+    result_node = scheduler._expand_single_wait(curr_node, candidate, [candidate])
+
+    assert result_node is not None
+    assert result_node.state.subtask.subtask_type == "WAIT"
+    assert result_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
+    assert result_node.state.current_time == pytest.approx(170.98)
     assert all(
         subtask.subtask_type != "Monitor" for subtask in result_node.state.remaining_subtasks
     )
     _assert_no_zero_duration_waits(result_node.state.completed_entries)
+
+
+def test_expand_single_wait_rejects_immediate_zero_interval_successor() -> None:
+    """A zero-interval critical successor should not materialize as a scheduler WAIT branch."""
+
+    scheduler = Scheduler(
+        action_handler=_DummyActionHandler(),
+        constraint_handler=ConstraintHandler(_DummyActionHandler()),
+        heuristic_manager=_DummyHeuristicManager(),
+    )
+    predecessor_subtask = _make_subtask(
+        "Turn Off Faucet after Pot is Filled",
+        primitive_actions=["TOGGLE_OFF Faucet|01"],
+        subtask_type="Interaction",
+    )
+    candidate_subtask = _make_subtask(
+        "Place Pot on Stove and Start Boiling",
+        primitive_actions=["PLACE Pot|01 StoveBurner|01"],
+        subtask_type="Interaction",
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        predecessor_subtask.name,
+        candidate_subtask.name,
+        info={"Interval": 0.0, "IsCritical": True},
+    )
+    state = SchedulerState(
+        subtask=predecessor_subtask,
+        completed_entries=[
+            CompletedEntry(
+                subtask=predecessor_subtask,
+                schedule_start_time=117.40,
+                schedule_end_time=123.73,
+                sim_start_time=117.40,
+                sim_end_time=123.73,
+                execution_status=TaskExecutionStatus.SUCCESS,
+            )
+        ],
+        remaining_subtasks=[candidate_subtask],
+        constraints=constraints,
+        current_time=123.73,
+        scene_positions={
+            "agent": (0.0, 0.0, 0.0),
+            "StoveBurner|01": (1.0, 0.0, 0.0),
+        },
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=True,
+        logical_interaction_start_time=127.65,
+        actual_interaction_start_time=127.65,
+        estimated_first_nav_duration=0.0,
+    )
+
+    result_node = scheduler._expand_single_wait(curr_node, candidate, [candidate])
+
+    assert result_node is None
+
+
+def test_expand_candidates_skips_conflict_wait_for_immediate_zero_interval_successor(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Conflict-avoidance should not create WAIT for an immediate zero-interval successor."""
+
+    scheduler = Scheduler(
+        action_handler=_DummyActionHandler(),
+        constraint_handler=ConstraintHandler(_DummyActionHandler()),
+        heuristic_manager=_DummyHeuristicManager(),
+    )
+    predecessor_subtask = _make_subtask(
+        "Turn Off Faucet after Pot is Filled",
+        primitive_actions=["TOGGLE_OFF Faucet|01"],
+        subtask_type="Interaction",
+    )
+    candidate_subtask = _make_subtask(
+        "Place Pot on Stove and Start Boiling",
+        primitive_actions=["PLACE Pot|01 StoveBurner|01"],
+        subtask_type="Interaction",
+    )
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        predecessor_subtask.name,
+        candidate_subtask.name,
+        info={"Interval": 0.0, "IsCritical": True},
+    )
+    state = SchedulerState(
+        subtask=predecessor_subtask,
+        completed_entries=[
+            CompletedEntry(
+                subtask=predecessor_subtask,
+                schedule_start_time=117.40,
+                schedule_end_time=123.73,
+                sim_start_time=117.40,
+                sim_end_time=123.73,
+                execution_status=TaskExecutionStatus.SUCCESS,
+            )
+        ],
+        remaining_subtasks=[candidate_subtask],
+        constraints=constraints,
+        current_time=123.73,
+        scene_positions={
+            "agent": (0.0, 0.0, 0.0),
+            "StoveBurner|01": (1.0, 0.0, 0.0),
+        },
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=True,
+        logical_interaction_start_time=123.73,
+        actual_interaction_start_time=123.73,
+        estimated_first_nav_duration=0.0,
+    )
+
+    monkeypatch.setattr(
+        scheduler.cost_calculator,
+        "check_future_conflict",
+        lambda *_args, **_kwargs: (4.0, "Victim Task"),
+        raising=False,
+    )
+
+    def _stub_expand_single_subtask(
+        current_node: SimulationNode,
+        expanded_candidate: Candidate,
+        _not_yet_candidates: list[Candidate],
+        _feasible_candidates: list[Candidate] | None = None,
+    ) -> SimulationNode:
+        next_state = current_node.state._replace(subtask=expanded_candidate.subtask)
+        return SimulationNode(
+            heuristic_cost=0.0,
+            depth=current_node.depth + 1,
+            tie_breaker=1,
+            parent_node=current_node,
+            state=next_state,
+            risk_level=current_node.risk_level,
+        )
+
+    monkeypatch.setattr(scheduler, "_expand_single_subtask", _stub_expand_single_subtask)
+
+    expansions = scheduler._expand_candidates(curr_node, [candidate], [])
+
+    assert len(expansions) == 1
+    assert expansions[0].state.subtask.name == candidate_subtask.name
+    assert all(node.state.subtask.subtask_type != "WAIT" for node in expansions)
 
 
 def test_expand_wait_with_monitoring_scores_against_post_wait_state(
