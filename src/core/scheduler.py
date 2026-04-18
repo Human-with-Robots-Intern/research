@@ -2188,7 +2188,10 @@ class Scheduler:
                     critical_start_sub_name, monitor_sub.name
                 ]["info"] = edge_info_start
 
-            critical_deadline = critical_start_sub_end_time + critical_interval_duration
+            critical_deadline = self._resolve_original_critical_deadline(
+                critical_start_sub_end_time=critical_start_sub_end_time,
+                critical_interval_duration=critical_interval_duration,
+            )
 
             # [Restored] '정확한 타이밍' 준수를 위해 Critical Deadline 기준으로 Interval을 재계산하여 적용합니다.
             # Fallback 상황(target_start=current)이라도 Critical Constraint가 있다면 그 시간을 지켜야 합니다.
@@ -2386,8 +2389,9 @@ class Scheduler:
                 f"Failed to split {original_task_name} with cutoff {duration_for_early_sub_target:.2f}. "
                 f"Switching to Pre-Monitoring (Check-Before-Act) strategy as a fallback."
             )
-            critical_deadline = (
-                critical_start_sub_actual_end_time + original_critical_interval_duration
+            critical_deadline = self._resolve_original_critical_deadline(
+                critical_start_sub_end_time=critical_start_sub_actual_end_time,
+                critical_interval_duration=original_critical_interval_duration,
             )
             if self._immediate_monitoring_misses_critical_deadline(
                 current_time=curr_state.current_time,
@@ -2658,8 +2662,9 @@ class Scheduler:
             f"Added/Updated main monitoring constraint: '{critical_start_sub_name}' -> '{mon_sub_task_for_main_interval.name}', Interval: {info_crit_start_to_mon['Interval']:.2f}."
         )
 
-        critical_end_sub_original_deadline = (
-            critical_start_sub_actual_end_time + original_critical_interval_duration
+        critical_end_sub_original_deadline = self._resolve_original_critical_deadline(
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            critical_interval_duration=original_critical_interval_duration,
         )
         mon_sub_expected_completion_time = (
             actual_monitoring_trigger_time + MONITORING_DURATION
@@ -3097,8 +3102,10 @@ class Scheduler:
             f"Added/Updated main monitoring constraint: '{critical_start_sub_name}' -> '{monitoring_sub.name}', Interval: {info_crit_start_to_mon['Interval']:.2f}."
         )
 
-        critical_end_sub_logical_start_time = (
-            critical_start_sub_actual_end_time + original_critical_interval_duration
+        critical_end_sub_logical_start_time = self._resolve_original_critical_deadline(
+            selected_obligation=selected_obligation,
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            critical_interval_duration=original_critical_interval_duration,
         )
         monitoring_sub_expected_completion_time = wait_end_time + MONITORING_DURATION
 
