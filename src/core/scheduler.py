@@ -517,6 +517,41 @@ class Scheduler:
            - If no urgent tasks, expand all feasible tasks and valid 'WAIT' options.
         """
         expansions: List[SimulationNode] = []
+        sticky_candidate, sticky_candidate_kind = self._get_pending_monitoring_candidate(
+            curr_node,
+            feasible_candidates,
+            not_yet_candidates,
+        )
+        if sticky_candidate is not None:
+            log.debug(
+                "[_expand_candidates] Recovering sticky monitoring target '%s' (%s) after preempted wait.",
+                sticky_candidate.subtask.name,
+                sticky_candidate_kind,
+            )
+            if sticky_candidate_kind == "feasible":
+                sticky_node = self._expand_single_subtask(
+                    curr_node,
+                    sticky_candidate,
+                    not_yet_candidates,
+                    feasible_candidates,
+                )
+                if sticky_node is not None:
+                    return [sticky_node]
+            elif sticky_candidate_kind == "not_yet":
+                sticky_wait_node = self._expand_single_wait(
+                    curr_node,
+                    sticky_candidate,
+                    not_yet_candidates,
+                    feasible_candidates=feasible_candidates,
+                )
+                if sticky_wait_node is not None:
+                    return [sticky_wait_node]
+            log.debug(
+                "[_expand_candidates] Sticky monitoring target '%s' could not be recovered. "
+                "Falling back to normal expansion.",
+                sticky_candidate.subtask.name,
+            )
+
         # --- Policy 1 (Unified): Urgent Critical Tasks ---
         urgent_candidates = self._get_urgent_critical_candidates(
             curr_node, feasible_candidates, not_yet_candidates
@@ -1219,6 +1254,36 @@ class Scheduler:
             )
             <= EPSILON
         ]
+
+    def _get_pending_monitoring_candidate(
+        self,
+        curr_node: SimulationNode,
+        feasible_candidates: List[Candidate],
+        not_yet_candidates: List[Candidate],
+    ) -> tuple[Optional[Candidate], Optional[str]]:
+        """Resolve a single-use sticky monitoring target from the current state."""
+
+        pending_due = curr_node.state.pending_monitoring_due
+        if pending_due is None or pending_due.due_related_sub_name is None:
+            return None, None
+
+        target_name = pending_due.due_related_sub_name
+        for candidate in feasible_candidates:
+            if candidate.subtask.name == target_name:
+                candidate.scheduling_due = pending_due
+                return candidate, "feasible"
+
+        for candidate in not_yet_candidates:
+            if candidate.subtask.name == target_name:
+                candidate.scheduling_due = pending_due
+                return candidate, "not_yet"
+
+        log.debug(
+            "[_get_pending_monitoring_candidate] Sticky monitoring target '%s' is no longer present. "
+            "Ignoring single-use handoff.",
+            target_name,
+        )
+        return None, None
 
     @staticmethod
     def _build_wait_navigation_action(candidate: Candidate) -> Optional[str]:
@@ -2636,6 +2701,7 @@ class Scheduler:
                 nav_duration=0.0,
                 feasible_candidates=feasible_candidates,
                 max_wait_duration=truncated_wait_duration,
+                pending_monitoring_due=preempting_obligation.due,
             )
 
         # If we are already beyond the latest feasible monitor point, this branch
@@ -2906,6 +2972,7 @@ class Scheduler:
         feasible_candidates: List[Candidate] = None,
         max_wait_duration: Optional[float] = None,
         additional_delay: float = 0.0,
+        pending_monitoring_due: Optional[SchedulingDue] = None,
     ) -> Optional[SimulationNode]:
         """
         Inserts a single "Wait" action until the candidate's actual_interaction_start_time.
@@ -2977,6 +3044,10 @@ class Scheduler:
         if simulated_wait is None:
             return None
         wait_sub, _completed_entry, new_state = simulated_wait
+        if pending_monitoring_due is not None:
+            new_state = new_state._replace(
+                pending_monitoring_due=pending_monitoring_due
+            )
         end_time = new_state.current_time
 
         # Create a synthetic candidate to represent the 'Wait' action for the heuristic calculator.
