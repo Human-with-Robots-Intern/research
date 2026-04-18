@@ -70,6 +70,20 @@ class MonitoringObligation:
     due: SchedulingDue
 
 
+@dataclass(frozen=True)
+class WaitExpansionEvent:
+    """One event that a blocked-frontier wait expansion may advance to."""
+
+    kind: str
+    candidate: Candidate
+    event_time: float
+    nav_duration: float
+    raw_trigger_time: float = float("inf")
+    variance: float = float("-inf")
+    due_date: float = float("inf")
+    obligation: Optional[MonitoringObligation] = None
+
+
 class Scheduler:
     """
     Beam Search based Scheduler with n-step lookahead.
@@ -517,41 +531,6 @@ class Scheduler:
            - If no urgent tasks, expand all feasible tasks and valid 'WAIT' options.
         """
         expansions: List[SimulationNode] = []
-        sticky_candidate, sticky_candidate_kind = self._get_pending_monitoring_candidate(
-            curr_node,
-            feasible_candidates,
-            not_yet_candidates,
-        )
-        if sticky_candidate is not None:
-            log.debug(
-                "[_expand_candidates] Recovering sticky monitoring target '%s' (%s) after preempted wait.",
-                sticky_candidate.subtask.name,
-                sticky_candidate_kind,
-            )
-            if sticky_candidate_kind == "feasible":
-                sticky_node = self._expand_single_subtask(
-                    curr_node,
-                    sticky_candidate,
-                    not_yet_candidates,
-                    feasible_candidates,
-                )
-                if sticky_node is not None:
-                    return [sticky_node]
-            elif sticky_candidate_kind == "not_yet":
-                sticky_wait_node = self._expand_single_wait(
-                    curr_node,
-                    sticky_candidate,
-                    not_yet_candidates,
-                    feasible_candidates=feasible_candidates,
-                )
-                if sticky_wait_node is not None:
-                    return [sticky_wait_node]
-            log.debug(
-                "[_expand_candidates] Sticky monitoring target '%s' could not be recovered. "
-                "Falling back to normal expansion.",
-                sticky_candidate.subtask.name,
-            )
-
         # --- Policy 1 (Unified): Urgent Critical Tasks ---
         urgent_candidates = self._get_urgent_critical_candidates(
             curr_node, feasible_candidates, not_yet_candidates
@@ -1150,38 +1129,6 @@ class Scheduler:
         obligations.sort(key=lambda obligation: obligation.trigger_time)
         return obligations
 
-    def _get_wait_preempting_monitoring_obligation(
-        self,
-        curr_node: SimulationNode,
-        candidate: Candidate,
-        *,
-        current_target_sub_name: str,
-        local_monitoring_start_time: float,
-    ) -> Optional[MonitoringObligation]:
-        """Return an earlier other-target monitoring trigger that should preempt this wait.
-
-        Wait-with-monitoring branches are generated from one blocked candidate, but
-        the scheduler should not sleep past an earlier monitoring trigger for a
-        different active critical interval. When that happens, we truncate the
-        current wait and let the next replanning step handle the earlier target.
-        """
-
-        global_obligations = self._get_relevant_monitoring_obligations(
-            curr_node,
-            candidate,
-            expansion_kind="wait",
-            restrict_wait_target=False,
-        )
-        for obligation in global_obligations:
-            other_target_sub_name = obligation.due.due_related_sub_name
-            if other_target_sub_name == current_target_sub_name:
-                continue
-            if obligation.trigger_time <= (curr_node.state.current_time + EPSILON):
-                continue
-            if obligation.trigger_time < (local_monitoring_start_time - EPSILON):
-                return obligation
-        return None
-
     def _get_candidate_target_start_time(
         self,
         candidate: Candidate,
@@ -1255,35 +1202,74 @@ class Scheduler:
             <= EPSILON
         ]
 
-    def _get_pending_monitoring_candidate(
-        self,
-        curr_node: SimulationNode,
+    @staticmethod
+    def _select_monitoring_obligation(
+        obligations: List[MonitoringObligation],
+    ) -> Optional[MonitoringObligation]:
+        """Pick one obligation using the scheduler's trigger-first arbitration."""
+
+        if not obligations:
+            return None
+
+        earliest_trigger_time = min(
+            obligation.trigger_time for obligation in obligations
+        )
+        earliest_obligations = [
+            obligation
+            for obligation in obligations
+            if abs(obligation.trigger_time - earliest_trigger_time) <= EPSILON
+        ]
+        return max(
+            earliest_obligations,
+            key=lambda obligation: (obligation.variance, -obligation.due.due_date),
+        )
+
+    @staticmethod
+    def _select_wait_event(
+        events: List[WaitExpansionEvent],
+    ) -> Optional[WaitExpansionEvent]:
+        """Select the next wait event using event-time-first arbitration."""
+
+        if not events:
+            return None
+
+        earliest_event_time = min(event.event_time for event in events)
+        earliest_events = [
+            event
+            for event in events
+            if abs(event.event_time - earliest_event_time) <= EPSILON
+        ]
+        return min(
+            earliest_events,
+            key=lambda event: (
+                0 if event.obligation is not None else 1,
+                event.raw_trigger_time,
+                -event.variance,
+                event.due_date,
+                event.candidate.subtask.name,
+            ),
+        )
+
+    @staticmethod
+    def _find_candidate_by_name(
+        target_name: Optional[str],
         feasible_candidates: List[Candidate],
         not_yet_candidates: List[Candidate],
-    ) -> tuple[Optional[Candidate], Optional[str]]:
-        """Resolve a single-use sticky monitoring target from the current state."""
+    ) -> Optional[Candidate]:
+        """Return the exact candidate whose subtask name matches the target."""
 
-        pending_due = curr_node.state.pending_monitoring_due
-        if pending_due is None or pending_due.due_related_sub_name is None:
-            return None, None
+        if target_name is None:
+            return None
 
-        target_name = pending_due.due_related_sub_name
         for candidate in feasible_candidates:
             if candidate.subtask.name == target_name:
-                candidate.scheduling_due = pending_due
-                return candidate, "feasible"
+                return candidate
 
         for candidate in not_yet_candidates:
             if candidate.subtask.name == target_name:
-                candidate.scheduling_due = pending_due
-                return candidate, "not_yet"
+                return candidate
 
-        log.debug(
-            "[_get_pending_monitoring_candidate] Sticky monitoring target '%s' is no longer present. "
-            "Ignoring single-use handoff.",
-            target_name,
-        )
-        return None, None
+        return None
 
     @staticmethod
     def _build_wait_navigation_action(candidate: Candidate) -> Optional[str]:
@@ -1601,37 +1587,128 @@ class Scheduler:
             Optional[SimulationNode]: The resulting child node if successful,
             otherwise None.
         """
+        if self._wait_is_disallowed_for_candidate(curr_node, candidate):
+            log.debug(
+                "[_expand_single_wait] Wait is disallowed for '%s'. Skipping wait expansion.",
+                candidate.subtask.name,
+            )
+            return None
 
-        nav_time = self._estimate_candidate_navigation_duration(curr_node, candidate)
-
-        # Check if monitoring is needed before waiting, using the same Bayesian logic as standard subtasks.
-        need_monitor, due_info = self._should_split_with_monitoring(
+        local_nav_time = self._estimate_candidate_navigation_duration(
+            curr_node, candidate
+        )
+        wait_events = self._collect_wait_events(
             curr_node,
             candidate,
-            expansion_kind="wait",
+            feasible_candidates or [],
+            not_yet_candidates,
+            local_nav_duration=local_nav_time,
         )
-
-        if need_monitor and constants.MONITORING_ENABLED:
-            candidate.scheduling_due = due_info
-            return self._expand_wait_with_monitoring(
-                curr_node,
-                candidate,
-                not_yet_candidates,
-                nav_duration=nav_time,
-                feasible_candidates=feasible_candidates,
-            )
-        else:
+        selected_event = self._select_wait_event(wait_events)
+        if selected_event is None:
             return self._expand_wait_wo_monitoring(
                 curr_node,
                 candidate,
                 not_yet_candidates,
-                nav_duration=nav_time,
+                nav_duration=local_nav_time,
                 feasible_candidates=feasible_candidates,
             )
+
+        if selected_event.obligation is not None and constants.MONITORING_ENABLED:
+            selected_event.candidate.scheduling_due = selected_event.obligation.due
+            return self._expand_wait_with_monitoring(
+                curr_node,
+                selected_event.candidate,
+                not_yet_candidates,
+                nav_duration=selected_event.nav_duration,
+                feasible_candidates=feasible_candidates,
+                selected_obligation=selected_event.obligation,
+            )
+
+        return self._expand_wait_wo_monitoring(
+            curr_node,
+            candidate,
+            not_yet_candidates,
+            nav_duration=local_nav_time,
+            feasible_candidates=feasible_candidates,
+        )
 
     # ======================
     # Helper: 모니터링 필요한지
     # ======================
+    def _monitoring_split_is_disallowed(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+    ) -> bool:
+        """Return whether the candidate is categorically ineligible for monitoring."""
+
+        if (
+            curr_node.state.subtask
+            and curr_node.state.subtask.subtask_type == "WAIT"
+            and curr_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
+        ):
+            log.debug(
+                f"[_should_split_with_monitoring] Just finished waiting for {candidate.subtask.name}. Skip monitoring."
+            )
+            return True
+
+        if candidate.subtask.decomposed:
+            log.debug(
+                f"[_should_split_with_monitoring] Subtask {candidate.subtask.name} is already handled/decomposed. No split."
+            )
+            return True
+
+        immediate_predecessor_name = self._get_immediate_critical_predecessor_name(
+            curr_node, candidate
+        )
+        if immediate_predecessor_name is not None:
+            log.debug(
+                "[_should_split_with_monitoring] Subtask %s has an immediate critical predecessor (%s). "
+                "Monitoring is disallowed.",
+                candidate.subtask.name,
+                immediate_predecessor_name,
+            )
+            return True
+
+        return False
+
+    def _get_immediate_critical_predecessor_name(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+    ) -> Optional[str]:
+        """Return the immediate critical predecessor name when the candidate has a zero-interval in-edge."""
+
+        in_slots = self.constraint_handler.get_time_slots(
+            candidate.subtask.name, curr_node.state.constraints, direction="in"
+        )
+        for slot in in_slots:
+            if slot.is_critical and slot.interval <= EPSILON:
+                return slot.related_subtask_name
+        return None
+
+    def _wait_is_disallowed_for_candidate(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+    ) -> bool:
+        """Return whether scheduler-generated wait branches are forbidden for the candidate."""
+
+        immediate_predecessor_name = self._get_immediate_critical_predecessor_name(
+            curr_node, candidate
+        )
+        if immediate_predecessor_name is None:
+            return False
+
+        log.debug(
+            "[_wait_is_disallowed_for_candidate] Candidate %s has an immediate critical predecessor (%s). "
+            "Scheduler-generated WAIT is disallowed.",
+            candidate.subtask.name,
+            immediate_predecessor_name,
+        )
+        return True
+
     def _should_split_with_monitoring(
         self,
         curr_node: SimulationNode,
@@ -1648,35 +1725,8 @@ class Scheduler:
         Returns:
             True if the candidate should be split for monitoring, False otherwise.
         """
-
-        # curr_node의 subtask가 wait였고, wait의 대상이 candidate라면, monitoring 필요 없음
-        if (
-            curr_node.state.subtask
-            and curr_node.state.subtask.subtask_type == "WAIT"
-            and curr_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
-        ):
-            log.debug(
-                f"[_should_split_with_monitoring] Just finished waiting for {candidate.subtask.name}. Skip monitoring."
-            )
+        if self._monitoring_split_is_disallowed(curr_node, candidate):
             return False, None
-
-        # Rule 1: Don't re-split tasks.
-        if candidate.subtask.decomposed:
-            log.debug(
-                f"[_should_split_with_monitoring] Subtask {candidate.subtask.name} is already handled/decomposed. No split."
-            )
-            return False, None
-
-        # Rule 2: Don't split if an immediate critical predecessor exists.
-        in_slots = self.constraint_handler.get_time_slots(
-            candidate.subtask.name, curr_node.state.constraints, direction="in"
-        )
-        for slot in in_slots:
-            if slot.is_critical and slot.interval < EPSILON:
-                log.debug(
-                    f"[_should_split_with_monitoring] Subtask {candidate.subtask.name} has an immediate critical predecessor ({slot.related_subtask_name}). Monitoring is disallowed."
-                )
-                return False, None
 
         # Rule 3: Split only if an active critical interval exists.
         relevant_obligations = self._get_relevant_monitoring_obligations(
@@ -1693,16 +1743,11 @@ class Scheduler:
             )
             return False, None
 
-        earliest_trigger_time = relevant_obligations[0].trigger_time
-        earliest_obligations = [
-            obligation
-            for obligation in relevant_obligations
-            if abs(obligation.trigger_time - earliest_trigger_time) <= EPSILON
-        ]
-        selected_obligation = max(
-            earliest_obligations,
-            key=lambda obligation: (obligation.variance, -obligation.due.due_date),
+        selected_obligation = self._select_monitoring_obligation(
+            relevant_obligations
         )
+        if selected_obligation is None:
+            return False, None
 
         candidate.scheduling_due = selected_obligation.due
         log.debug(
@@ -1713,10 +1758,138 @@ class Scheduler:
             selected_obligation.due.due_related_sub_name,
             selected_obligation.trigger_time,
             selected_obligation.due.due_date,
-            len(earliest_obligations),
+            len(relevant_obligations),
         )
 
         return True, selected_obligation.due
+
+    def _build_wait_monitor_event(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+        obligation: MonitoringObligation,
+        *,
+        kind: str,
+        nav_duration: float,
+    ) -> Optional[WaitExpansionEvent]:
+        """Build one monitor-bearing wait event if it is still safe to realize."""
+
+        target_start_time = self._get_candidate_target_start_time(candidate)
+        if target_start_time is None:
+            return None
+
+        if (
+            curr_node.state.current_time + MONITORING_DURATION + nav_duration
+            > target_start_time + EPSILON
+        ):
+            return None
+
+        latest_safe_start_time = self._compute_latest_safe_monitoring_start_time(
+            target_interaction_start_time=target_start_time
+        )
+        if kind == "local_monitor":
+            event_time = max(
+                curr_node.state.current_time,
+                min(obligation.trigger_time, latest_safe_start_time),
+            )
+        else:
+            event_time = max(curr_node.state.current_time, obligation.trigger_time)
+            if event_time > latest_safe_start_time + EPSILON:
+                return None
+
+        return WaitExpansionEvent(
+            kind=kind,
+            candidate=candidate,
+            event_time=event_time,
+            nav_duration=nav_duration,
+            raw_trigger_time=obligation.trigger_time,
+            variance=obligation.variance,
+            due_date=obligation.due.due_date,
+            obligation=obligation,
+        )
+
+    def _collect_wait_events(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+        feasible_candidates: List[Candidate],
+        not_yet_candidates: List[Candidate],
+        *,
+        local_nav_duration: float,
+    ) -> List[WaitExpansionEvent]:
+        """Collect the next meaningful wait events for one blocked-frontier candidate."""
+
+        events: List[WaitExpansionEvent] = []
+        target_start_time = self._get_candidate_target_start_time(candidate)
+        if (
+            target_start_time is not None
+            and target_start_time > curr_node.state.current_time + EPSILON
+        ):
+            events.append(
+                WaitExpansionEvent(
+                    kind="local_execute",
+                    candidate=candidate,
+                    event_time=target_start_time,
+                    nav_duration=local_nav_duration,
+                    due_date=target_start_time,
+                )
+            )
+
+        if not constants.MONITORING_ENABLED:
+            return events
+
+        if not self._monitoring_split_is_disallowed(curr_node, candidate):
+            local_obligation = self._select_monitoring_obligation(
+                self._get_relevant_monitoring_obligations(
+                    curr_node,
+                    candidate,
+                    expansion_kind="wait",
+                )
+            )
+            if local_obligation is not None:
+                local_event = self._build_wait_monitor_event(
+                    curr_node,
+                    candidate,
+                    local_obligation,
+                    kind="local_monitor",
+                    nav_duration=local_nav_duration,
+                )
+                if local_event is not None:
+                    events.append(local_event)
+
+        current_target_name = candidate.subtask.name
+        global_obligations = self._get_relevant_monitoring_obligations(
+            curr_node,
+            candidate,
+            expansion_kind="wait",
+            restrict_wait_target=False,
+        )
+        for obligation in global_obligations:
+            rescue_target_name = obligation.due.due_related_sub_name
+            if rescue_target_name == current_target_name:
+                continue
+
+            rescue_candidate = self._find_candidate_by_name(
+                rescue_target_name,
+                feasible_candidates,
+                not_yet_candidates,
+            )
+            if rescue_candidate is None:
+                continue
+            if self._monitoring_split_is_disallowed(curr_node, rescue_candidate):
+                continue
+
+            rescue_event = self._build_wait_monitor_event(
+                curr_node,
+                rescue_candidate,
+                obligation,
+                kind="rescue_monitor",
+                nav_duration=0.0,
+            )
+            if rescue_event is not None:
+                events.append(rescue_event)
+
+        return events
 
     # -----------------------------------------------------
     # (A) 서브태스크 (no monitoring)
@@ -2540,6 +2713,7 @@ class Scheduler:
         not_yet_candidates: List[Candidate],
         nav_duration: float = 0.0,
         feasible_candidates: List[Candidate] = None,
+        selected_obligation: Optional[MonitoringObligation] = None,
     ) -> Optional[SimulationNode]:
         """
         Performs monitoring and, if needed, a follow-up wait until the
@@ -2550,6 +2724,13 @@ class Scheduler:
         log.debug(
             f"[_expand_wait_with_monitoring] Waiting for {candidate.subtask.name}"
         )
+
+        if self._wait_is_disallowed_for_candidate(curr_node, candidate):
+            log.debug(
+                "[_expand_wait_with_monitoring] Wait is disallowed for '%s'. Skipping wait-with-monitoring branch.",
+                candidate.subtask.name,
+            )
+            return None
 
         curr_state = curr_node.state
 
@@ -2614,14 +2795,6 @@ class Scheduler:
                 nav_duration=nav_duration,
                 feasible_candidates=feasible_candidates,
             )
-        # Retrieve variance from the edge info
-        edge_data = curr_state.constraints.get_edge_data(
-            critical_start_sub_name, critical_end_sub_name
-        )
-        variance_val = INIT_PRIOR_VARIANCE
-        if edge_data and "info" in edge_data:
-            variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
-
         monitoring_target_obj = self._get_monitoring_target_obj_for_subtask_name(
             curr_node,
             critical_end_sub_name,
@@ -2635,14 +2808,23 @@ class Scheduler:
                 feasible_candidates=feasible_candidates,
             )
 
-        original_absolute_monitoring_trigger_time = (
-            self._compute_monitoring_trigger_time(
-                raw_object_name=monitoring_target_obj,
-                critical_start_sub_end_time=critical_start_sub_actual_end_time,
-                mean_duration=original_critical_interval_duration,
-                variance=variance_val,
+        if selected_obligation is None:
+            edge_data = curr_state.constraints.get_edge_data(
+                critical_start_sub_name, critical_end_sub_name
             )
-        )
+            variance_val = INIT_PRIOR_VARIANCE
+            if edge_data and "info" in edge_data:
+                variance_val = edge_data["info"].get("Variance", INIT_PRIOR_VARIANCE)
+            original_absolute_monitoring_trigger_time = (
+                self._compute_monitoring_trigger_time(
+                    raw_object_name=monitoring_target_obj,
+                    critical_start_sub_end_time=critical_start_sub_actual_end_time,
+                    mean_duration=original_critical_interval_duration,
+                    variance=variance_val,
+                )
+            )
+        else:
+            original_absolute_monitoring_trigger_time = selected_obligation.trigger_time
 
         target_start_time = (
             self._get_candidate_target_start_time(candidate)
@@ -2674,34 +2856,6 @@ class Scheduler:
                 original_absolute_monitoring_trigger_time,
                 effective_monitoring_start_time,
                 target_start_time,
-            )
-
-        preempting_obligation = self._get_wait_preempting_monitoring_obligation(
-            curr_node,
-            candidate,
-            current_target_sub_name=critical_end_sub_name,
-            local_monitoring_start_time=effective_monitoring_start_time,
-        )
-        if preempting_obligation is not None:
-            truncated_wait_duration = (
-                preempting_obligation.trigger_time - curr_state.current_time
-            )
-            log.debug(
-                "[_expand_wait_with_monitoring] Truncating wait for '%s' at %.2f because earlier monitoring "
-                "for '%s' becomes due at %.2f.",
-                candidate.subtask.name,
-                preempting_obligation.trigger_time,
-                preempting_obligation.due.due_related_sub_name,
-                preempting_obligation.trigger_time,
-            )
-            return self._expand_wait_wo_monitoring(
-                curr_node,
-                candidate,
-                not_yet_candidates,
-                nav_duration=0.0,
-                feasible_candidates=feasible_candidates,
-                max_wait_duration=truncated_wait_duration,
-                pending_monitoring_due=preempting_obligation.due,
             )
 
         # If we are already beyond the latest feasible monitor point, this branch
@@ -2800,11 +2954,7 @@ class Scheduler:
         wait_candidate = Candidate(
             subtask=wait_sub,
             is_critical=candidate.is_critical,
-            # Inherit the deadline to let heuristic manager know about the pressure
-            scheduling_due=SchedulingDue(
-                due_date=candidate.logical_interaction_start_time,
-                due_related_sub_name=candidate.subtask.name,
-            ),
+            scheduling_due=candidate.scheduling_due,
         )
 
         # Global Risk Check을 위해 feasible_candidates도 포함하여 전달
@@ -2972,7 +3122,6 @@ class Scheduler:
         feasible_candidates: List[Candidate] = None,
         max_wait_duration: Optional[float] = None,
         additional_delay: float = 0.0,
-        pending_monitoring_due: Optional[SchedulingDue] = None,
     ) -> Optional[SimulationNode]:
         """
         Inserts a single "Wait" action until the candidate's actual_interaction_start_time.
@@ -2993,6 +3142,13 @@ class Scheduler:
         """
         curr_state = curr_node.state
         depth = curr_node.depth
+
+        if self._wait_is_disallowed_for_candidate(curr_node, candidate):
+            log.debug(
+                "[_expand_wait_wo_monitoring] Wait is disallowed for '%s'. Skipping wait branch.",
+                candidate.subtask.name,
+            )
+            return None
 
         target_start_time = (
             candidate.actual_interaction_start_time
@@ -3044,10 +3200,6 @@ class Scheduler:
         if simulated_wait is None:
             return None
         wait_sub, _completed_entry, new_state = simulated_wait
-        if pending_monitoring_due is not None:
-            new_state = new_state._replace(
-                pending_monitoring_due=pending_monitoring_due
-            )
         end_time = new_state.current_time
 
         # Create a synthetic candidate to represent the 'Wait' action for the heuristic calculator.

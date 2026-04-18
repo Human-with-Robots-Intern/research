@@ -41,8 +41,6 @@ class SchedulerState(NamedTuple):
     held_object: Optional[str]
     # agent의 위치 (landmark)
     agent_location: str = None
-    # wait preemption으로 놓치기 쉬운 monitoring target을 한 step 동안 복구하기 위한 힌트
-    pending_monitoring_due: Optional["SchedulingDue"] = None
 
 
 class SimulationNode(NamedTuple):
