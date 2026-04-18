@@ -1507,6 +1507,39 @@ class Scheduler:
         )
 
     @staticmethod
+    def _resolve_original_critical_deadline(
+        *,
+        selected_obligation: Optional[MonitoringObligation] = None,
+        critical_start_sub_end_time: Optional[float] = None,
+        critical_interval_duration: Optional[float] = None,
+    ) -> float:
+        """Return the original critical deadline for a monitoring decision."""
+
+        if selected_obligation is not None:
+            return float(selected_obligation.due.due_date)
+        if (
+            critical_start_sub_end_time is None
+            or critical_interval_duration is None
+        ):
+            raise ValueError(
+                "Either selected_obligation or critical interval timing must be provided."
+            )
+        return float(critical_start_sub_end_time) + float(critical_interval_duration)
+
+    @staticmethod
+    def _monitoring_finishes_before_critical_deadline(
+        *,
+        monitor_start_time: float,
+        critical_deadline: float,
+    ) -> bool:
+        """Return whether monitoring starting at ``monitor_start_time`` finishes before the deadline."""
+
+        return (
+            float(monitor_start_time) + MONITORING_DURATION
+            <= float(critical_deadline) + EPSILON
+        )
+
+    @staticmethod
     def _immediate_monitoring_misses_critical_deadline(
         *,
         current_time: float,
@@ -1514,9 +1547,9 @@ class Scheduler:
     ) -> bool:
         """Return whether starting monitoring now would finish after the deadline."""
 
-        return (
-            float(current_time) + MONITORING_DURATION
-            > float(critical_deadline) + EPSILON
+        return not Scheduler._monitoring_finishes_before_critical_deadline(
+            monitor_start_time=current_time,
+            critical_deadline=critical_deadline,
         )
 
     # ==========================================================================
@@ -1777,6 +1810,9 @@ class Scheduler:
         target_start_time = self._get_candidate_target_start_time(candidate)
         if target_start_time is None:
             return None
+        original_critical_deadline = self._resolve_original_critical_deadline(
+            selected_obligation=obligation
+        )
 
         if (
             curr_node.state.current_time + MONITORING_DURATION + nav_duration
@@ -1784,8 +1820,15 @@ class Scheduler:
         ):
             return None
 
-        latest_safe_start_time = self._compute_latest_safe_monitoring_start_time(
+        latest_safe_target_start_time = self._compute_latest_safe_monitoring_start_time(
             target_interaction_start_time=target_start_time
+        )
+        latest_safe_deadline_start_time = self._compute_latest_safe_monitoring_start_time(
+            target_interaction_start_time=original_critical_deadline
+        )
+        latest_safe_start_time = min(
+            latest_safe_target_start_time,
+            latest_safe_deadline_start_time,
         )
         if kind == "local_monitor":
             event_time = max(
@@ -1796,6 +1839,11 @@ class Scheduler:
             event_time = max(curr_node.state.current_time, obligation.trigger_time)
             if event_time > latest_safe_start_time + EPSILON:
                 return None
+        if not self._monitoring_finishes_before_critical_deadline(
+            monitor_start_time=event_time,
+            critical_deadline=original_critical_deadline,
+        ):
+            return None
 
         return WaitExpansionEvent(
             kind=kind,
@@ -2839,10 +2887,20 @@ class Scheduler:
                 feasible_candidates=feasible_candidates,
             )
 
-        latest_safe_monitoring_start_time = (
-            self._compute_latest_safe_monitoring_start_time(
-                target_interaction_start_time=target_start_time,
-            )
+        original_critical_deadline = self._resolve_original_critical_deadline(
+            selected_obligation=selected_obligation,
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            critical_interval_duration=original_critical_interval_duration,
+        )
+        latest_safe_target_start_time = self._compute_latest_safe_monitoring_start_time(
+            target_interaction_start_time=target_start_time,
+        )
+        latest_safe_deadline_start_time = self._compute_latest_safe_monitoring_start_time(
+            target_interaction_start_time=original_critical_deadline,
+        )
+        latest_safe_monitoring_start_time = min(
+            latest_safe_target_start_time,
+            latest_safe_deadline_start_time,
         )
         effective_monitoring_start_time = min(
             original_absolute_monitoring_trigger_time,
@@ -2851,11 +2909,35 @@ class Scheduler:
         if effective_monitoring_start_time < original_absolute_monitoring_trigger_time:
             log.debug(
                 "[_expand_wait_with_monitoring] Clamped monitor start for '%s' from %.2f to latest safe %.2f "
-                "(target_start=%.2f).",
+                "(target_start=%.2f, critical_deadline=%.2f).",
                 candidate.subtask.name,
                 original_absolute_monitoring_trigger_time,
                 effective_monitoring_start_time,
                 target_start_time,
+                original_critical_deadline,
+            )
+
+        actual_monitoring_start_time = max(
+            curr_state.current_time + nav_duration,
+            effective_monitoring_start_time,
+        )
+        if not self._monitoring_finishes_before_critical_deadline(
+            monitor_start_time=actual_monitoring_start_time,
+            critical_deadline=original_critical_deadline,
+        ):
+            log.debug(
+                "[_expand_wait_with_monitoring] Monitoring for '%s' would finish at %.2f after original critical deadline %.2f. "
+                "Falling back to wait-without-monitoring.",
+                candidate.subtask.name,
+                actual_monitoring_start_time + MONITORING_DURATION,
+                original_critical_deadline,
+            )
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                candidate,
+                not_yet_candidates,
+                nav_duration=nav_duration,
+                feasible_candidates=feasible_candidates,
             )
 
         # If we are already beyond the latest feasible monitor point, this branch
