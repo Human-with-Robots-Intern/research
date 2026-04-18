@@ -2499,7 +2499,6 @@ def test_expand_wait_with_monitoring_zero_wait_inserts_monitor_without_wait_node
     _assert_no_zero_duration_waits(result_node.state.completed_entries)
     _assert_no_immediate_same_target_remonitoring(result_node.state.completed_entries)
 
-
 def test_expand_wait_with_monitoring_zero_wait_suppresses_same_target_remonitor(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -2526,7 +2525,6 @@ def test_expand_wait_with_monitoring_zero_wait_suppresses_same_target_remonitor(
     assert new_entries[0].schedule_end_time > new_entries[0].schedule_start_time
     _assert_no_zero_duration_waits(result_node.state.completed_entries)
     _assert_no_immediate_same_target_remonitoring(result_node.state.completed_entries)
-
 
 def test_expand_wait_wo_monitoring_scores_against_post_wait_state(
     monkeypatch: MonkeyPatch,

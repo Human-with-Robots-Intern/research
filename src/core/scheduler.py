@@ -22,13 +22,7 @@ from src.models.dataclass import (
 from src.models.task import Duration, Execution, Subtask
 from src.utils.common import create_module_logger, extract_monitoring_target_name
 from src.utils.common.decorators import time_logger
-from src.utils.config import (
-    EPSILON,
-    MONITORING_DURATION,
-    RED,
-    RESET,
-    constants,
-)
+from src.utils.config import EPSILON, MONITORING_DURATION, RED, RESET, constants
 from src.utils.config.constants import BEAM_WIDTH, INIT_PRIOR_VARIANCE, SIMULATION_DEPTH
 from src.utils.task import TaskUtil
 
@@ -129,9 +123,7 @@ class Scheduler:
             "bayesian",
             BeliefStore(),
         )
-        self.max_monitoring_per_critical_interval = (
-            max_monitoring_per_critical_interval
-        )
+        self.max_monitoring_per_critical_interval = max_monitoring_per_critical_interval
         self._counter = itertools.count()
         self._search_cache: Optional[SchedulerSearchCache] = None
 
@@ -668,9 +660,9 @@ class Scheduler:
                 f"[_get_urgent_critical_candidates] candidate.logical_interaction_start_time: {candidate.logical_interaction_start_time}, physical_earliest_start: {physical_earliest_start}"
             )
 
-            if (
-                candidate.logical_interaction_start_time - physical_earliest_start
-            ) <= (MONITORING_DURATION + EPSILON):
+            if (candidate.logical_interaction_start_time - physical_earliest_start) <= (
+                MONITORING_DURATION + EPSILON
+            ):
                 if not self._can_candidate_start_interaction_now(curr_node, candidate):
                     log.debug(
                         "Found horizon-urgent critical candidate '%s', but interaction is still early "
@@ -768,9 +760,9 @@ class Scheduler:
                         + candidate.estimated_first_nav_duration
                     )
 
-                    if (
-                        logical_start - physical_start
-                    ) <= (MONITORING_DURATION + EPSILON):
+                    if (logical_start - physical_start) <= (
+                        MONITORING_DURATION + EPSILON
+                    ):
                         # Urgent but blocked! Find feasible predecessors recursively.
                         log.debug(
                             f"Found BLOCKED URGENT task: {candidate.subtask.name} "
@@ -1273,7 +1265,9 @@ class Scheduler:
                 )
 
         effective_wait_duration = (
-            idle_wait_duration if primitive_actions else nav_duration + idle_wait_duration
+            idle_wait_duration
+            if primitive_actions
+            else nav_duration + idle_wait_duration
         )
         if effective_wait_duration > EPSILON or not primitive_actions:
             primitive_actions.append(f"WAIT {effective_wait_duration}")
