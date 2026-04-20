@@ -27,8 +27,8 @@ from src.utils.common import create_module_logger  # noqa: E402
 DEFAULT_SUITE_ORDER = (
     "scalability",
     "eta_sensitivity",
-    # "monitoring_budget",
-    # "pf_vs_bayesian",
+    "monitoring_budget",
+    "pf_vs_bayesian",
 )
 DEFAULT_ORACLE_CONFIG = "scripts/offline/config/oracle_reference_config.yaml"
 DEFAULT_TASK_FOLDER = "sampled_10_instruction_set_for_final_experiment_251203"
@@ -38,12 +38,12 @@ DEFAULT_NAV_GRAPH_SOURCE = "ai2thor_controller"
 SUITE_LATEX_MODULE: dict[str, str] = {
     "scalability": "assets.result_analysis.scalability_case_table",
     "eta_sensitivity": "assets.result_analysis.eta_sensitivity_tables",
+    "pf_vs_bayesian": "assets.result_analysis.pf_vs_bayesian_table",
+    "monitoring_budget": "assets.result_analysis.monitoring_budget_table",
 }
 
 SUITE_REGISTRY: dict[str, tuple[str, ...]] = {
     "pf_vs_bayesian": (
-        "scripts/offline/config/pf_vs_bayesian_constant_bayesian_config.yaml",
-        "scripts/offline/config/pf_vs_bayesian_constant_particle_filter_config.yaml",
         "scripts/offline/config/pf_vs_bayesian_gaussian_bayesian_config.yaml",
         "scripts/offline/config/pf_vs_bayesian_gaussian_particle_filter_config.yaml",
         "scripts/offline/config/pf_vs_bayesian_lognormal_bayesian_config.yaml",
@@ -456,17 +456,50 @@ def _build_latex_stage_command(
 
     if suite.name == "scalability":
         return (
-            python, "-m", module,
-            "--summary", str(summary_path),
-            "--output", str(latex_out_dir / "scalability_case_table.tex"),
+            python,
+            "-m",
+            module,
+            "--summary",
+            str(summary_path),
+            "--output",
+            str(latex_out_dir / "scalability_case_table.tex"),
         )
 
     if suite.name == "eta_sensitivity":
         return (
-            python, "-m", module,
-            "--summary", str(summary_path),
-            "--batch-root", str(suite.output_dir),
-            "--out-dir", str(latex_out_dir),
+            python,
+            "-m",
+            module,
+            "--summary",
+            str(summary_path),
+            "--batch-root",
+            str(suite.output_dir),
+            "--out-dir",
+            str(latex_out_dir),
+        )
+
+    if suite.name == "pf_vs_bayesian":
+        return (
+            python,
+            "-m",
+            module,
+            "--summary",
+            str(summary_path),
+            "--raw",
+            str(suite.analysis_output_dir / "offline_comparison_raw.json"),
+            "--output",
+            str(latex_out_dir / "pf_vs_bayesian_overall.tex"),
+        )
+
+    if suite.name == "monitoring_budget":
+        return (
+            python,
+            "-m",
+            module,
+            "--summary",
+            str(summary_path),
+            "--out-dir",
+            str(latex_out_dir),
         )
 
     return None
