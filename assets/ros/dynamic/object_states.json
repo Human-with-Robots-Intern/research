@@ -2,47 +2,33 @@
     "banana": {
         "position": 7,
         "isCooked": false,
-        "parentReceptacles": [
-            "shelf"
-        ]
+        "parentReceptacles": ["shelf"]
     },
-    "plate": {
+    "plate":{
         "position": 15,
-        "parentReceptacles": [
-            "table"
-        ]
+        "parentReceptacles": ["table"]
     },
-    "pan": {
-        "position": 33,
-        "parentReceptacles": [
-            "stove"
-        ]
+    "pan" : {
+        "position": 31,
+        "parentReceptacles": ["table"]
     },
-    "sausage": {
-        "position": 33,
+    "sausage" : {
+        "position": 32,
         "isCooked": false,
-        "parentReceptacles": [
-            "pan"
-        ]
+        "parentReceptacles": ["table"]
     },
     "stove": {
         "position": 33,
-        "parentReceptacles": [
-            "table"
-        ],
+        "parentReceptacles": ["table"],
         "isToggled": false
     },
     "orange_bowl": {
-        "position": 37,
-        "parentReceptacles": [
-            "sink|sinkbasin"
-        ]
+        "position": 34,
+        "parentReceptacles": ["table"]
     },
     "blue_bowl": {
         "position": 35,
-        "parentReceptacles": [
-            "table"
-        ]
+        "parentReceptacles": ["table"]
     },
     "sink|sinkbasin": {
         "position": 37,
@@ -50,33 +36,26 @@
     },
     "laundry_machine": {
         "position": 38,
-        "parentReceptacles": [
-            "table"
-        ],
+        "parentReceptacles": ["table"],
         "isToggled": false
     },
     "chicken": {
         "position": 39,
         "isCooked": false,
-        "parentReceptacles": [
-            "table"
-        ]
+        "parentReceptacles": ["table"]
     },
     "cup": {
         "position": 40,
-        "parentReceptacles": [
-            "table"
-        ]
+        "parentReceptacles": ["table"]
     },
     "tomato": {
         "position": 42,
         "isCooked": false,
-        "parentReceptacles": [
-            "shelf"
-        ]
+        "parentReceptacles": ["shelf"]
     },
     "table": {
         "position": 43,
         "parentReceptacles": null
     }
 }
+

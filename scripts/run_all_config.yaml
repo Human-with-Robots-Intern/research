@@ -11,14 +11,14 @@ instruction_delay_seconds: 0 # Delay in seconds between instructions
 # Logging configuration
 log_level: "WARNING" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 start_idx: 1 # 시작하는 task의 번호
+end_idx: 1 # 끝나는 task의 번호 (포함)
 # Execution settings
-
 # 실행하고자 하는 방법론리스트, 실행하지 않으려면 주석처리
 approaches:
   # - "src/baselines/cpm.py"
   # - "src/baselines/edf/dag_edf.py"
   # - "src/dag_bayesian.py"
-# Scripts that use LLMs and are subject to retries on failure
+#Scripts that use LLMs and are subject to retries on failure
 llm_scripts:
   - "src/baselines/lammap/lammap_ai2thor.py"
   # - "src/baselines/progprompt/prog_ai2thor.py"
@@ -43,15 +43,15 @@ scene_lists:
   real_world:
     # - "FloorPlan301"
 ablation_configs:
-  - DEFAULT
-  # - NONE_MONITORING
+  # - DEFAULT
+  - NONE_MONITORING
 init_prior_configs: #초기 시간 값 종류
-  # - CORRECT_ESTIMATE
+  - CORRECT_ESTIMATE
   # - OVER_ESTIMATE
   # - UNDER_ESTIMATE
   # - OVER_MEDIUM_ESTIMATE
   # - UNDER_MEDIUM_ESTIMATE
-  - OVER_ESTIMATE_130
+  # - OVER_ESTIMATE_130
   # - OVER_ESTIMATE_110
   # - UNDER_ESTIMATE_90
   # - UNDER_ESTIMATE_70
@@ -61,6 +61,8 @@ init_prior_configs: #초기 시간 값 종류
 # Task Filtering
 # ------------------------------------------------------------------------------
 task_folder_name: ["sampled_10_instruction_set_for_final_experiment_251203"] # Folder under assets/tasks/
-min_task_count: 0
-min_constraint_count: 0
-skip_completed: true
+min_task_count: 2
+max_task_count: 2
+min_constraint_count: 1
+max_constraint_count: 1
+skip_completed: false
