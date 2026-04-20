@@ -181,6 +181,7 @@ class OfflineBatchOptions:
     gt_distribution: str | None = None
     gt_seed: int | None = None
     particle_distribution: str | None = None
+    particle_likelihood_family: str | None = None
     max_monitoring_per_critical_intervals: list[int | None] = field(
         default_factory=lambda: [None]
     )
@@ -1099,6 +1100,7 @@ def _build_offline_options(config: Mapping[str, Any]) -> OfflineBatchOptions:
         gt_distribution=config.get("gt_distribution"),
         gt_seed=config.get("gt_seed"),
         particle_distribution=config.get("particle_distribution"),
+        particle_likelihood_family=config.get("particle_likelihood_family"),
         max_monitoring_per_critical_intervals=_normalize_monitoring_budgets(config),
         factor_alpha=config.get("factor_alpha"),
         etas=_normalize_etas(config),
@@ -1214,6 +1216,8 @@ def _make_offline_config(
         payload["belief_update_method"] = options.belief_update_method
     if options.particle_distribution is not None:
         payload["particle_distribution"] = options.particle_distribution
+    if options.particle_likelihood_family is not None:
+        payload["particle_likelihood_family"] = options.particle_likelihood_family
     if options.factor_alpha is not None:
         payload["factor_alpha"] = options.factor_alpha
     if eta is not None:
@@ -1308,6 +1312,20 @@ def _resolve_offline_particle_distribution(
     return "gaussian"
 
 
+def _resolve_offline_particle_likelihood_family(
+    *,
+    belief_update_method: str | None,
+    particle_likelihood_family: str | None,
+) -> str | None:
+    """Normalize the PF likelihood family used for one offline run."""
+
+    if _resolve_offline_belief_update_method(belief_update_method) != "particle_filter":
+        return None
+    if particle_likelihood_family is None:
+        return None
+    return str(particle_likelihood_family)
+
+
 def _resolve_offline_suite_log_dir_name(suite_name: str | None) -> str:
     """Return the directory token used for one offline suite's worker logs."""
 
@@ -1337,6 +1355,7 @@ def _build_offline_variant_name(
     belief_update_method: str | None = None,
     gt_distribution: str | None = None,
     particle_distribution: str | None = None,
+    particle_likelihood_family: str | None = None,
     max_monitoring_per_critical_interval: int | None = None,
 ) -> str:
     """Build the offline single-run filename stem for one variant."""
@@ -1361,11 +1380,17 @@ def _build_offline_variant_name(
         gt_distribution=gt_distribution,
         particle_distribution=particle_distribution,
     )
+    effective_particle_likelihood_family = _resolve_offline_particle_likelihood_family(
+        belief_update_method=belief_update_method,
+        particle_likelihood_family=particle_likelihood_family,
+    )
 
     if baseline_name == "particle_filter":
         name += f"__gt{_sanitize_token(normalized_gt_distribution)}"
         if effective_particle_distribution != normalized_gt_distribution:
             name += f"__pdist{_sanitize_token(effective_particle_distribution)}"
+        if effective_particle_likelihood_family not in {None, "gaussian"}:
+            name += f"__plik{_sanitize_token(effective_particle_likelihood_family)}"
         monitoring_budget_label = _resolve_monitoring_budget_label(
             max_monitoring_per_critical_interval
         )
@@ -1425,6 +1450,7 @@ def _build_offline_worker_log_name(
     belief_update_method: str | None = None,
     gt_distribution: str | None = None,
     particle_distribution: str | None = None,
+    particle_likelihood_family: str | None = None,
     max_monitoring_per_critical_interval: int | None = None,
 ) -> str:
     """Build a deterministic worker log filename for one offline subprocess."""
@@ -1441,6 +1467,7 @@ def _build_offline_worker_log_name(
             belief_update_method=belief_update_method,
             gt_distribution=gt_distribution,
             particle_distribution=particle_distribution,
+            particle_likelihood_family=particle_likelihood_family,
             max_monitoring_per_critical_interval=(
                 max_monitoring_per_critical_interval
             ),
@@ -1461,6 +1488,7 @@ def _build_offline_task_name(
     belief_update_method: str | None = None,
     gt_distribution: str | None = None,
     particle_distribution: str | None = None,
+    particle_likelihood_family: str | None = None,
     max_monitoring_per_critical_interval: int | None = None,
     case_name: str,
     instruction_name: str,
@@ -1484,6 +1512,10 @@ def _build_offline_task_name(
             gt_distribution=gt_distribution,
             particle_distribution=particle_distribution,
         )
+        effective_particle_likelihood_family = _resolve_offline_particle_likelihood_family(
+            belief_update_method=belief_update_method,
+            particle_likelihood_family=particle_likelihood_family,
+        )
         if normalized_gt_distribution != "constant":
             base_name = f"{base_name}:gt{_sanitize_token(normalized_gt_distribution)}"
         if normalized_belief_method == "particle_filter":
@@ -1494,6 +1526,10 @@ def _build_offline_task_name(
             }:
                 base_name = (
                     f"{base_name}:pdist{_sanitize_token(effective_particle_distribution)}"
+                )
+            if effective_particle_likelihood_family not in {None, "gaussian"}:
+                base_name = (
+                    f"{base_name}:plik{_sanitize_token(effective_particle_likelihood_family)}"
                 )
         monitoring_budget_label = _resolve_monitoring_budget_label(
             max_monitoring_per_critical_interval
@@ -1516,6 +1552,7 @@ def _build_offline_output_path(
     belief_update_method: str | None = None,
     gt_distribution: str | None = None,
     particle_distribution: str | None = None,
+    particle_likelihood_family: str | None = None,
     max_monitoring_per_critical_interval: int | None = None,
     scene_name: str,
     case_name: str | None,
@@ -1548,6 +1585,7 @@ def _build_offline_output_path(
             belief_update_method=belief_update_method,
             gt_distribution=gt_distribution,
             particle_distribution=particle_distribution,
+            particle_likelihood_family=particle_likelihood_family,
             max_monitoring_per_critical_interval=(
                 max_monitoring_per_critical_interval
             ),
@@ -1574,6 +1612,7 @@ def _build_offline_worker_log_path(
     belief_update_method: str | None = None,
     gt_distribution: str | None = None,
     particle_distribution: str | None = None,
+    particle_likelihood_family: str | None = None,
     max_monitoring_per_critical_interval: int | None = None,
 ) -> Path:
     """Construct the canonical worker log path for one offline subprocess."""
@@ -1602,6 +1641,7 @@ def _build_offline_worker_log_path(
             belief_update_method=belief_update_method,
             gt_distribution=gt_distribution,
             particle_distribution=particle_distribution,
+            particle_likelihood_family=particle_likelihood_family,
             max_monitoring_per_critical_interval=(
                 max_monitoring_per_critical_interval
             ),
@@ -1739,6 +1779,9 @@ def build_offline_tasks(
                                 belief_update_method=options.belief_update_method,
                                 gt_distribution=options.gt_distribution,
                                 particle_distribution=options.particle_distribution,
+                                particle_likelihood_family=(
+                                    options.particle_likelihood_family
+                                ),
                                 max_monitoring_per_critical_interval=monitoring_budget,
                                 scene_name=scene_name,
                                 case_name=case_name,
@@ -1767,6 +1810,9 @@ def build_offline_tasks(
                                 belief_update_method=options.belief_update_method,
                                 gt_distribution=options.gt_distribution,
                                 particle_distribution=options.particle_distribution,
+                                particle_likelihood_family=(
+                                    options.particle_likelihood_family
+                                ),
                                 max_monitoring_per_critical_interval=monitoring_budget,
                             )
                             command = [
@@ -1810,6 +1856,11 @@ def build_offline_tasks(
                                 "--particle-distribution",
                                 options.particle_distribution,
                             )
+                            _append_flag(
+                                command,
+                                "--particle-likelihood-family",
+                                options.particle_likelihood_family,
+                            )
                             _append_flag(command, "--factor-alpha", options.factor_alpha)
                             _append_flag(command, "--eta", eta)
                             _append_flag(
@@ -1842,6 +1893,9 @@ def build_offline_tasks(
                                         belief_update_method=options.belief_update_method,
                                         gt_distribution=options.gt_distribution,
                                         particle_distribution=options.particle_distribution,
+                                        particle_likelihood_family=(
+                                            options.particle_likelihood_family
+                                        ),
                                         max_monitoring_per_critical_interval=(
                                             monitoring_budget
                                         ),
@@ -1876,6 +1930,14 @@ def build_offline_tasks(
                                             belief_update_method=options.belief_update_method,
                                             gt_distribution=options.gt_distribution,
                                             particle_distribution=options.particle_distribution,
+                                        ),
+                                        "particle_likelihood_family": (
+                                            _resolve_offline_particle_likelihood_family(
+                                                belief_update_method=options.belief_update_method,
+                                                particle_likelihood_family=(
+                                                    options.particle_likelihood_family
+                                                ),
+                                            )
                                         ),
                                         "monitoring_budget_per_critical": (
                                             _resolve_monitoring_budget_label(

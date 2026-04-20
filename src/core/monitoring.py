@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Literal, Mapping, Optional, Protocol
 
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import gamma as gamma_dist
+from scipy.stats import lognorm, norm
 
 from src.utils.common import create_module_logger
 
@@ -32,6 +33,12 @@ GroundTruthDistribution = Literal[
     "gamma",
     "mixture",
 ]
+
+GROUND_TRUTH_GAUSSIAN_STD_RATIO = 0.4
+GROUND_TRUTH_LOGNORMAL_SIGMA_SQ = math.log(2.0)
+GROUND_TRUTH_MIXTURE_COMPONENT_PROBS = (0.5, 0.5)
+GROUND_TRUTH_MIXTURE_COMPONENT_MEAN_RATIOS = (0.35, 1.65)
+GROUND_TRUTH_MIXTURE_COMPONENT_STD_RATIO = 0.15
 
 
 @dataclass(frozen=True)
@@ -151,15 +158,11 @@ class GroundTruthStore:
         Returns:
             Positive sampled duration.
         """
-
-        sampled = _sample_positive_duration(
+        return _sample_ground_truth_duration(
             distribution=self._config.distribution,
-            mean=max(MIN_VARIANCE, float(base_interval)),
-            variance=max(MIN_VARIANCE, float(base_interval) * 0.1),
-            sample_count=1,
+            base_interval=base_interval,
             rng=self._rng,
-        )[0]
-        return max(MIN_VARIANCE, float(sampled))
+        )
 
 @dataclass(frozen=True)
 class BeliefSummary:
@@ -628,6 +631,9 @@ class BeliefStore:
                             "particle_distribution",
                             self._particle_distribution,
                         ),
+                        "particle_likelihood_family": raw_state.get(
+                            "particle_likelihood_family"
+                        ),
                     }
                 )
 
@@ -892,6 +898,7 @@ class ParticleFilterBeliefUpdater:
         belief_store: BeliefStore,
         *,
         resample_threshold: float = 0.5,
+        likelihood_family: Optional[GroundTruthDistribution] = None,
         observation_model: Optional[ObservationModel] = None,
         rng: Optional[np.random.Generator] = None,
     ) -> None:
@@ -906,6 +913,7 @@ class ParticleFilterBeliefUpdater:
         self.method: BeliefMethod = "particle_filter"
         self._belief_store = belief_store
         self._resample_threshold = resample_threshold
+        self._likelihood_family = likelihood_family
         self._rng = rng or np.random.default_rng()
         self._observation_model = observation_model or GaussianSyntheticObservationModel(
             rng=self._rng
@@ -927,11 +935,13 @@ class ParticleFilterBeliefUpdater:
         observation_result = self._observation_model.observe(context)
         observation = observation_result.observation
         likelihood_variance = observation_result.variance
+        effective_likelihood_family = self._likelihood_family or "gaussian"
 
-        likelihood = norm.pdf(
-            observation,
-            loc=particles,
-            scale=math.sqrt(max(MIN_VARIANCE, likelihood_variance)),
+        likelihood = evaluate_duration_observation_likelihood(
+            observation=observation,
+            hypotheses=particles,
+            variance=likelihood_variance,
+            family=effective_likelihood_family,
         )
         updated_weights = BeliefStore._normalize_weights(weights * likelihood)
         ess_before_resample = BeliefStore._compute_ess(updated_weights)
@@ -1003,6 +1013,7 @@ class ParticleFilterBeliefUpdater:
             "particle_distribution": state.get(
                 "particle_distribution", "gaussian"
             ),
+            "particle_likelihood_family": effective_likelihood_family,
         }
         self._belief_store.set_state(context.object_name, belief_state)
         return BeliefUpdateResult(
@@ -1020,6 +1031,7 @@ class ParticleFilterBeliefUpdater:
                 "ess_ratio_after_resample": ess_after_resample / float(len(particles)),
                 "resampled": resampled,
                 "resample_count": resample_count,
+                "particle_likelihood_family": effective_likelihood_family,
                 **posterior_diagnostics,
             },
         )
@@ -1054,6 +1066,7 @@ def create_belief_updater(
     belief_store: BeliefStore,
     observation_model: Optional[ObservationModel] = None,
     *,
+    particle_likelihood_family: Optional[GroundTruthDistribution] = None,
     rng: Optional[np.random.Generator] = None,
 ) -> BeliefUpdater:
     """Create the runtime posterior updater.
@@ -1079,6 +1092,7 @@ def create_belief_updater(
     if method == "particle_filter":
         return ParticleFilterBeliefUpdater(
             belief_store,
+            likelihood_family=particle_likelihood_family,
             observation_model=observation_model,
             rng=rng,
         )
@@ -1090,6 +1104,7 @@ def create_monitoring_backend(
     initial_beliefs: Optional[Mapping[str, Mapping[str, Any]]] = None,
     *,
     particle_distribution: GroundTruthDistribution = "gaussian",
+    particle_likelihood_family: Optional[GroundTruthDistribution] = None,
     observation_model: Optional[ObservationModel] = None,
     random_seed: Optional[int] = None,
 ) -> tuple[BeliefStore, MonitoringPolicy, BeliefUpdater]:
@@ -1125,6 +1140,7 @@ def create_monitoring_backend(
         method,
         belief_store,
         observation_model=observation_model,
+        particle_likelihood_family=particle_likelihood_family,
         rng=updater_rng,
     )
     return belief_store, monitoring_policy, belief_updater
@@ -1196,6 +1212,65 @@ def create_ground_truth_store(
             random_seed=random_seed,
         ),
     )
+
+
+def _sample_ground_truth_duration(
+    *,
+    distribution: GroundTruthDistribution,
+    base_interval: float,
+    rng: np.random.Generator,
+) -> float:
+    """Sample one latent GT duration using the experiment-facing distribution design.
+
+    The GT sampler is intentionally distinct from the generic particle sampler:
+    ground-truth families should follow the experiment design, while PF prior
+    particles should continue matching the configured summary mean/variance.
+
+    When ``base_interval`` is 100s, the implemented GT families reduce to:
+    - gaussian:  N(100, 1600)
+    - lognormal: LogNormal(log(100 / sqrt(2)), log(2))
+    - mixture:   0.5 N(35, 225) + 0.5 N(165, 225)
+    """
+
+    mean = max(MIN_VARIANCE, float(base_interval))
+
+    if distribution == "constant":
+        sample = mean
+    elif distribution == "gaussian":
+        sample = rng.normal(
+            loc=mean,
+            scale=max(math.sqrt(MIN_VARIANCE), mean * GROUND_TRUTH_GAUSSIAN_STD_RATIO),
+        )
+    elif distribution == "lognormal":
+        sigma_sq = GROUND_TRUTH_LOGNORMAL_SIGMA_SQ
+        sigma = math.sqrt(sigma_sq)
+        mu = math.log(mean / math.sqrt(math.exp(sigma_sq)))
+        sample = rng.lognormal(mean=mu, sigma=sigma)
+    elif distribution == "gamma":
+        variance = max(
+            MIN_VARIANCE,
+            (mean * GROUND_TRUTH_GAUSSIAN_STD_RATIO) ** 2,
+        )
+        shape = max(MIN_VARIANCE, (mean**2) / variance)
+        scale = max(MIN_VARIANCE, variance / mean)
+        sample = rng.gamma(shape=shape, scale=scale)
+    else:
+        component = int(
+            rng.choice(
+                [0, 1],
+                p=list(GROUND_TRUTH_MIXTURE_COMPONENT_PROBS),
+            )
+        )
+        component_mean = (
+            mean * GROUND_TRUTH_MIXTURE_COMPONENT_MEAN_RATIOS[component]
+        )
+        component_std = max(
+            math.sqrt(MIN_VARIANCE),
+            mean * GROUND_TRUTH_MIXTURE_COMPONENT_STD_RATIO,
+        )
+        sample = rng.normal(loc=component_mean, scale=component_std)
+
+    return max(MIN_VARIANCE, float(sample))
 
 
 def _encode_image_as_data_url(image_payload: Any) -> str:
@@ -1314,6 +1389,46 @@ def _sample_positive_duration(
         )
 
     return np.clip(np.asarray(samples, dtype=float), a_min=MIN_VARIANCE, a_max=None)
+
+
+def evaluate_duration_observation_likelihood(
+    *,
+    observation: float,
+    hypotheses: np.ndarray,
+    variance: float,
+    family: GroundTruthDistribution,
+) -> np.ndarray:
+    """Evaluate one duration-observation likelihood family over particle hypotheses."""
+
+    clipped_variance = max(MIN_VARIANCE, float(variance))
+    clipped_hypotheses = np.maximum(MIN_VARIANCE, np.asarray(hypotheses, dtype=float))
+
+    if family in {"constant", "gaussian"}:
+        return norm.pdf(
+            observation,
+            loc=clipped_hypotheses,
+            scale=math.sqrt(clipped_variance),
+        )
+    if family == "lognormal":
+        sigma_sq = np.log1p(clipped_variance / np.square(clipped_hypotheses))
+        sigma = np.sqrt(np.maximum(MIN_VARIANCE, sigma_sq))
+        mu = np.log(clipped_hypotheses) - (0.5 * sigma_sq)
+        return lognorm.pdf(observation, s=sigma, scale=np.exp(mu))
+    if family == "gamma":
+        shape = np.maximum(MIN_VARIANCE, np.square(clipped_hypotheses) / clipped_variance)
+        scale = np.maximum(MIN_VARIANCE, clipped_variance / clipped_hypotheses)
+        return gamma_dist.pdf(observation, a=shape, scale=scale)
+    if family == "mixture":
+        std = math.sqrt(clipped_variance)
+        left_loc = np.maximum(MIN_VARIANCE, clipped_hypotheses - (0.75 * std))
+        right_loc = clipped_hypotheses + (0.75 * std)
+        left_scale = max(1.0, 0.45 * std)
+        right_scale = max(1.0, 0.55 * std)
+        return (
+            0.5 * norm.pdf(observation, loc=left_loc, scale=left_scale)
+            + 0.5 * norm.pdf(observation, loc=right_loc, scale=right_scale)
+        )
+    raise ValueError(f"Unsupported likelihood family: {family}")
 
 
 def _weighted_quantile(
