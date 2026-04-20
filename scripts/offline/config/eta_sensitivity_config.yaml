@@ -16,6 +16,7 @@ beam_bound:
   - [10, 10]
   # - [20, 20]
 etas:
+  # - 0.0  # mathematically undefined: norm.ppf(0.0) = -inf → trigger_time = -inf
   - 0.01
   - 0.1
   # - 0.5
@@ -29,10 +30,10 @@ scene_type: [kitchen]
 scene_lists:
   kitchen:
     - "FloorPlan1"
-    # - "FloorPlan7"
-    # - "FloorPlan13"
-    # - "FloorPlan18"
-    # - "FloorPlan27"
+    - "FloorPlan7"
+    - "FloorPlan13"
+    - "FloorPlan18"
+    - "FloorPlan27"
 
 cases:
   - "tasks_2_constraints_1"
@@ -41,8 +42,8 @@ cases:
   - "tasks_3_constraints_2"
 
 task_folder_name:
-  - "sampled_10_instruction_set_for_final_experiment_251203"
-max_tasks: 10
+  - "decomposed_final_revision_metadata_260402_v1"
+max_tasks: 18
 
 output_dir: "assets/results/offline_exp_result/offline_batch_eta_sensitivity"
 oracle_reference_dir: "assets/results/offline_oracle_reference"

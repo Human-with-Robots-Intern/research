@@ -22,14 +22,14 @@ scene_lists:
 # Task Filtering
 # ------------------------------------------------------------------------------
 task_folder_name:
-  - "sampled_10_instruction_set_for_final_experiment_251203"
+  - "decomposed_final_revision_metadata_260402_v1"
 cases:
   - "tasks_2_constraints_1"
   - "tasks_2_constraints_2"
   - "tasks_3_constraints_1"
   - "tasks_3_constraints_2"
 
-max_tasks: 10
+max_tasks: 18
 skip_completed: true
 
 # Oracle reference settings

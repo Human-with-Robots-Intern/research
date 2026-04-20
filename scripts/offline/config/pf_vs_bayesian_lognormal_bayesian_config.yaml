@@ -6,9 +6,7 @@ suite_name: "pf_vs_bayesian"
 approaches: ["bayesian"]
 ablation_configs: [DEFAULT]
 init_prior_configs:
-  - UNDER_ESTIMATE
   - CORRECT_ESTIMATE
-  - OVER_ESTIMATE
 
 beam_bound:
   - [10, 10]
