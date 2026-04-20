@@ -17,6 +17,7 @@ dist/
 *.txt
 *.tex
 *.pdf
+api_key.txt
 
 # Logs
 *.log
