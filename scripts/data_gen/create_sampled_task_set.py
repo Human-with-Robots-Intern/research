@@ -27,20 +27,20 @@ from src.utils.config.constants import ASSETS_PATH
 # --- Configuration Constants ---
 
 # 1. Source and Destination
-SOURCE_DIR = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_251202"
+SOURCE_DIR = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_260402_v1"
 OUTPUT_DIR = (
-    ASSETS_PATH / "tasks" / "sampled_10_instruction_set_for_final_experiment_251202"
+    ASSETS_PATH / "tasks" / "sampled_18_instruction_set_for_final_experiment_260402"
 )
-SOURCE_METADATA_PATH = SOURCE_DIR.parent / f"{SOURCE_DIR.name}.json"
+SOURCE_METADATA_PATH = ASSETS_PATH / "tasks" / "decomposed_final_revision_metadata_260402.json"
 
 
 # 2. Sampling Policy
-NUM_COMMON_TO_SAMPLE_PER_CASE = 10
+NUM_COMMON_TO_SAMPLE_PER_CASE = 18
 RANDOM_SEED = 42
 
 
 # 3. Case Filtering Policy
-MIN_COMMON_INSTRUCTIONS_REQUIRED = 10
+MIN_COMMON_INSTRUCTIONS_REQUIRED = 18
 
 
 # --- End of Configuration ---

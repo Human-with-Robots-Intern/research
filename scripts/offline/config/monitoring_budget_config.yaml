@@ -1,19 +1,23 @@
 max_workers: 6
 skip_completed: true
 timeout_seconds: 1200
-suite_name: "pf_vs_bayesian"
+suite_name: "monitoring_budget"
 
 approaches: ["bayesian"]
 ablation_configs: [DEFAULT]
 init_prior_configs:
-  - UNDER_ESTIMATE
   - CORRECT_ESTIMATE
-  - OVER_ESTIMATE
 
 beam_bound:
   - [10, 10]
 etas:
   - 0.1
+
+max_monitoring_per_critical_intervals:
+  - 1
+  - 2
+  - 3
+  - uncap
 
 gt_distribution: "gaussian"
 belief_update_method: "bayesian"
@@ -35,8 +39,8 @@ cases:
   - "tasks_3_constraints_2"
 
 task_folder_name:
-  - "sampled_10_instruction_set_for_final_experiment_251203"
-max_tasks: 10
+  - "decomposed_final_revision_metadata_260402_v1"
+max_tasks: 18
 
-output_dir: "assets/results/offline_exp_result/offline_batch_pf_vs_bayesian"
+output_dir: "assets/results/offline_exp_result/offline_batch_monitoring_budget"
 oracle_reference_dir: "assets/results/offline_oracle_reference"

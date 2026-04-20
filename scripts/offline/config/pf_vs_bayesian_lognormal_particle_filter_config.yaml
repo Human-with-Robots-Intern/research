@@ -1,23 +1,22 @@
 max_workers: 6
 skip_completed: true
 timeout_seconds: 1200
-suite_name: "scalability"
+suite_name: "pf_vs_bayesian"
 
-approaches: ["bayesian", "edf", "cpm"]
-ablation_configs: [DEFAULT, NONE_MONITORING]
+approaches: ["bayesian"]
+ablation_configs: [DEFAULT]
 init_prior_configs:
   - CORRECT_ESTIMATE
 
 beam_bound:
-  - [1, 1]
-  - [5, 5]
   - [10, 10]
-  - [20, 20]
 etas:
   - 0.1
 
-gt_distribution: "constant"
-belief_update_method: "bayesian"
+gt_distribution: "lognormal"
+belief_update_method: "particle_filter"
+particle_distribution: "lognormal"
+particle_likelihood_family: "lognormal"
 gt_seed: 42
 
 scene_type: [kitchen]
@@ -39,5 +38,5 @@ task_folder_name:
   - "sampled_10_instruction_set_for_final_experiment_251203"
 max_tasks: 10
 
-output_dir: "assets/results/offline_exp_result/offline_batch_scalability"
+output_dir: "assets/results/offline_exp_result/offline_batch_pf_vs_bayesian"
 oracle_reference_dir: "assets/results/offline_oracle_reference"

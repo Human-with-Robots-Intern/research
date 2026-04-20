@@ -6,16 +6,14 @@ suite_name: "pf_vs_bayesian"
 approaches: ["bayesian"]
 ablation_configs: [DEFAULT]
 init_prior_configs:
-  - UNDER_ESTIMATE
   - CORRECT_ESTIMATE
-  - OVER_ESTIMATE
 
 beam_bound:
   - [10, 10]
 etas:
   - 0.1
 
-gt_distribution: "constant"
+gt_distribution: "gaussian"
 belief_update_method: "bayesian"
 gt_seed: 42
 

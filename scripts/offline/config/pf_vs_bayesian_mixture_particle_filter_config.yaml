@@ -6,9 +6,7 @@ suite_name: "pf_vs_bayesian"
 approaches: ["bayesian"]
 ablation_configs: [DEFAULT]
 init_prior_configs:
-  - UNDER_ESTIMATE
   - CORRECT_ESTIMATE
-  - OVER_ESTIMATE
 
 beam_bound:
   - [10, 10]
@@ -18,6 +16,7 @@ etas:
 gt_distribution: "mixture"
 belief_update_method: "particle_filter"
 particle_distribution: "mixture"
+particle_likelihood_family: "mixture"
 gt_seed: 42
 
 scene_type: [kitchen]

@@ -34,12 +34,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=str,
-        default="oracle_reference_config.yaml",
+        default="scripts/offline/config/oracle_reference_config.yaml",
         help=(
             "YAML config path. "
             "repo-relative if starting with scripts/; "
             "else under scripts/ for multi-segment paths; "
-            "else next to this script (scripts/offline/)."
+            "else next to this script (scripts/offline/config/)."
         ),
     )
     parser.add_argument(
@@ -68,7 +68,7 @@ def _resolve_config_path(config_path: str) -> Path:
     if parts and parts[0] == "scripts":
         return project_root / candidate
     if len(parts) == 1:
-        return offline_dir / candidate
+        return offline_dir / "config" / candidate
     return scripts_dir / candidate
 
 
