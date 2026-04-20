@@ -613,6 +613,65 @@ def test_ground_truth_store_can_presample_requested_objects() -> None:
     assert sampled_intervals["Microwave"] != sampled_intervals["CoffeeMachine"]
 
 
+def test_ground_truth_store_gaussian_matches_wide_gt_design() -> None:
+    """Gaussian GT sampling should match the intended wide 100s-centered design."""
+
+    object_names = {f"Obj{i}": 100.0 for i in range(4000)}
+    ground_truth_store = GroundTruthStore(
+        object_names,
+        config=GroundTruthConfig(distribution="gaussian", random_seed=3),
+    )
+
+    samples = np.asarray(
+        list(ground_truth_store.ensure_intervals().values()),
+        dtype=float,
+    )
+
+    assert samples.mean() == pytest.approx(100.0, abs=2.0)
+    assert samples.std(ddof=0) == pytest.approx(40.0, abs=3.0)
+
+
+def test_ground_truth_store_lognormal_is_heavy_tailed() -> None:
+    """Log-normal GT sampling should be much broader than the mild legacy sampler."""
+
+    object_names = {f"Obj{i}": 100.0 for i in range(4000)}
+    ground_truth_store = GroundTruthStore(
+        object_names,
+        config=GroundTruthConfig(distribution="lognormal", random_seed=5),
+    )
+
+    samples = np.asarray(
+        list(ground_truth_store.ensure_intervals().values()),
+        dtype=float,
+    )
+
+    assert samples.mean() == pytest.approx(100.0, abs=5.0)
+    assert np.quantile(samples, 0.95) > 250.0
+    assert np.quantile(samples, 0.50) < 80.0
+
+
+def test_ground_truth_store_mixture_has_two_separated_modes() -> None:
+    """Mixture GT sampling should place mass near both low and high modes."""
+
+    object_names = {f"Obj{i}": 100.0 for i in range(4000)}
+    ground_truth_store = GroundTruthStore(
+        object_names,
+        config=GroundTruthConfig(distribution="mixture", random_seed=7),
+    )
+
+    samples = np.asarray(
+        list(ground_truth_store.ensure_intervals().values()),
+        dtype=float,
+    )
+
+    low_cluster_ratio = float(np.mean((samples >= 5.0) & (samples <= 65.0)))
+    high_cluster_ratio = float(np.mean((samples >= 135.0) & (samples <= 195.0)))
+
+    assert samples.mean() == pytest.approx(100.0, abs=5.0)
+    assert low_cluster_ratio > 0.35
+    assert high_cluster_ratio > 0.35
+
+
 def test_scheduler_compute_monitoring_trigger_time_uses_bayesian_policy() -> None:
     """Scheduler should delegate trigger timing to the Bayesian policy."""
 
@@ -2257,6 +2316,36 @@ def test_particle_filter_belief_updater_returns_particle_state() -> None:
     assert "particle_quantile_p90" in result.diagnostics
     assert "particle_tail_spread" in result.diagnostics
     assert "particle_weighted_skewness" in result.diagnostics
+
+
+def test_particle_filter_belief_updater_records_likelihood_family() -> None:
+    """PF updater should surface an explicit non-Gaussian likelihood family."""
+
+    belief_store = BeliefStore(
+        {"Mug": {"expected_duration": 20.0, "variance": 16.0}},
+        rng=np.random.default_rng(0),
+    )
+    belief_store.ensure_method("Mug", "particle_filter")
+    updater = ParticleFilterBeliefUpdater(
+        belief_store,
+        likelihood_family="gamma",
+        rng=np.random.default_rng(0),
+    )
+
+    result = updater.update(
+        BeliefUpdateContext(
+            object_name="Mug",
+            gt_interval=15.0,
+            prior_mean=20.0,
+            prior_variance=16.0,
+            elapsed_interval=12.0,
+        )
+    )
+
+    stored_state = belief_store.get_state("Mug")
+
+    assert stored_state["particle_likelihood_family"] == "gamma"
+    assert result.diagnostics["particle_likelihood_family"] == "gamma"
 
 
 def test_belief_updaters_accept_shared_observation_model() -> None:

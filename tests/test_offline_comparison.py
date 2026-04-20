@@ -44,10 +44,11 @@ def test_build_approach_key_uses_init_prior_and_baseline_name() -> None:
         "eta": 0.1,
         "gt_distribution": "mixture",
         "particle_distribution": "gaussian",
+        "particle_likelihood_family": "gamma",
     }
     assert build_approach_key("ignored", pf_meta) == (
         "OVER_ESTIMATE__particle_filter__DEFAULT__w10_d10"
-        "__eta0.1__gtmixture__pdistgaussian"
+        "__eta0.1__gtmixture__pdistgaussian__plikgamma"
     )
 
     assert build_approach_key(
