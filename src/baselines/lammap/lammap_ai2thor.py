@@ -81,6 +81,7 @@ def run_lammap_planning(
     gpt_version: str,
     api_key_file: str,
     logger: logging.Logger,
+    wait_units: int = 100,
 ) -> str:
     """LaMMA-P의 PDDL 계획 생성 → 코드 변환 파이프라인을 실행합니다.
 
@@ -135,6 +136,7 @@ def run_lammap_planning(
         base_path=base_path,
         gpt_version=gpt_version,
         api_key_file=api_key_file,
+        wait_units=wait_units,
     )
     logger.info(f"[LAMMAP] TaskManager 초기화 완료 ({time.time()-t0:.1f}s)")
 
@@ -162,6 +164,7 @@ def run_lammap_planning(
     translator = MimicFormatTranslator(
         api_key_file=api_key_file,
         gpt_version=gpt_version,
+        wait_units=wait_units,
     )
 
     logger.info("[LAMMAP] translate_to_mimic_format 호출 중 (LLM)...")
@@ -318,6 +321,12 @@ def parse_arguments() -> argparse.Namespace:
         default=None,
         help="태스크 폴더 이름",
     )
+    parser.add_argument(
+        "--llm-cache-file",
+        type=str,
+        default=None,
+        help="사전 계산된 LLM 결과 캐시 파일 경로 (없으면 실제 LLM 호출)",
+    )
     return parser.parse_args()
 
 
@@ -418,33 +427,64 @@ def main():
             objects_ai = get_scene_objects_for_lammap(controller)
         logger.info(f"[LAMMAP] 씬 객체 정보 추출 완료 ({time.time()-t_obj:.1f}s)")
 
-        # --- LaMMA-P 계획 생성 ---
+        # --- LaMMA-P 계획 생성 (캐시 우선 조회) ---
         computation_time_start = time.time()
+        mimic_code = None
 
-        if args.task_file:
-            mimic_code = run_lammap_from_task_file(
-                base_path=lammap_base,
-                task_file=args.task_file,
-                task_index=args.task_index,
-                objects_ai=objects_ai,
-                gpt_version=args.gpt_version,
-                api_key_file=args.openai_api_key_file,
-                logger=logger,
-            )
-            if not task_string:
-                with open(args.task_file) as f:
-                    tasks = json.load(f)
-                task_string = tasks[args.task_index]["instruction"]
-        else:
-            mimic_code = run_lammap_planning(
-                base_path=lammap_base,
-                task=task_string,
-                floor_plan=int(scene_name.replace("FloorPlan", "")),
-                objects_ai=objects_ai,
-                gpt_version=args.gpt_version,
-                api_key_file=args.openai_api_key_file,
-                logger=logger,
-            )
+        wait_units = int(args.init_prior_mean) if args.init_prior_mean is not None else 100
+
+        if args.llm_cache_file and Path(args.llm_cache_file).exists():
+            # task_folder_name에서 vN 파싱 → 인덱스 결정
+            version_idx = 0
+            if args.task_folder_name:
+                vm = re.search(r"_v(\d+)$", args.task_folder_name)
+                if vm:
+                    version_idx = int(vm.group(1)) - 1  # v1 → 0, v5 → 4
+
+            # 캐시 키: case|instruction|duration (duration = init_prior_mean)
+            instr_name = instruction if instruction.endswith(".json") else instruction_dir_name + ".json"
+            cache_key = f"{args.case}|{instr_name}|{wait_units}"
+            with open(args.llm_cache_file) as _cf:
+                _cache = json.load(_cf)
+
+            cached_list = _cache.get(cache_key, [])
+            if version_idx < len(cached_list) and cached_list[version_idx]:
+                mimic_code = cached_list[version_idx]
+                logger.info(
+                    f"[LAMMAP] 캐시 히트: {cache_key} [v{version_idx+1}] "
+                    f"(코드 길이: {len(mimic_code)})"
+                )
+            else:
+                logger.warning(
+                    f"[LAMMAP] 캐시 미스: {cache_key} [v{version_idx+1}] → 실제 LLM 호출"
+                )
+
+        if mimic_code is None:
+            if args.task_file:
+                mimic_code = run_lammap_from_task_file(
+                    base_path=lammap_base,
+                    task_file=args.task_file,
+                    task_index=args.task_index,
+                    objects_ai=objects_ai,
+                    gpt_version=args.gpt_version,
+                    api_key_file=args.openai_api_key_file,
+                    logger=logger,
+                )
+                if not task_string:
+                    with open(args.task_file) as f:
+                        tasks = json.load(f)
+                    task_string = tasks[args.task_index]["instruction"]
+            else:
+                mimic_code = run_lammap_planning(
+                    base_path=lammap_base,
+                    task=task_string,
+                    floor_plan=int(scene_name.replace("FloorPlan", "")),
+                    objects_ai=objects_ai,
+                    gpt_version=args.gpt_version,
+                    api_key_file=args.openai_api_key_file,
+                    logger=logger,
+                    wait_units=wait_units,
+                )
 
         logger.info(f"LaMMA-P 계획 생성 완료")
         logger.info(f"생성된 코드:\n{mimic_code[:500]}...")

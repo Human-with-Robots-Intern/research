@@ -144,7 +144,7 @@ def parse_arguments() -> argparse.Namespace:
         help="시뮬레이션에 사용할 씬 이름 (default: FloorPlan1)",
     )
     parser.add_argument(
-        "--prompt-num-examples", type=int, default=4, choices=range(1, 5)
+        "--prompt-num-examples", type=int, default=1, choices=range(1, 5)
     )
     parser.add_argument(
         "--prompt-task-examples-ablation",
@@ -277,9 +277,7 @@ def generate_plan(
     if args.prompt_task_examples == "default":
         if args.ros:
             default_examples = [
-                "cook_sausage",
-                "put orange bowl on sink",
-                "make_tea_in_teapot",
+                "cook_sausage and make_tea_in_teapot",
             ]
         else:
             default_examples = [

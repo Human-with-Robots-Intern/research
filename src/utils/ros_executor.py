@@ -182,8 +182,10 @@ class RosExecutor:
 
             if action_verb == "wait":
                 wait_duration = float(primitive_action_parts[1])
-                time.sleep(wait_duration)
-                logger.info(f"Waiting for {wait_duration} seconds")
+                # WAIT_TIME = wait_duration
+                WAIT_TIME = 10
+                time.sleep(WAIT_TIME)
+                logger.info(f"Waiting for {WAIT_TIME} seconds")
                 success = True
             else:
                 try:

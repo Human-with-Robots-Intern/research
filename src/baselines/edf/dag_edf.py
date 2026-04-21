@@ -30,7 +30,7 @@ from src.utils.io_utils.task_io import (
     load_task_data_from_sampled_set,
 )
 from src.utils.ros_executor import RosExecutor
-from utils.task.task_util import TaskUtil
+from src.utils.task.task_util import TaskUtil
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
@@ -397,7 +397,7 @@ def parse_arguments():
     parser.add_argument(
         "-s",
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
     )
     parser.add_argument(

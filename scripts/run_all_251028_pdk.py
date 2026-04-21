@@ -16,7 +16,7 @@ from datetime import datetime
 from enum import Enum
 from itertools import product
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import psutil
 import requests
@@ -160,6 +160,7 @@ class ExperimentTask:
     log_dir_timestamp: str
     gpu_id: int  # Assigned GPU ID for this task
     task_folder_name: str = "default_task_folder"  # The task folder name
+    llm_cache_file: Optional[str] = None  # 사전 계산된 LLM 캐시 파일 경로
 
 
 def get_memory_usage() -> float:
@@ -307,6 +308,7 @@ def _run_script_and_log(
     attempt: int,
     gpu_id: int,
     task_folder_name: str,
+    llm_cache_file: Optional[str] = None,
 ) -> subprocess.CompletedProcess:
     """
     Constructs and runs a script command, capturing and logging the output.
@@ -362,6 +364,9 @@ def _run_script_and_log(
         cmd.append("--simulation")
         if cloud_rendering:
             cmd.append("--cloud-rendering")
+
+    if llm_cache_file:
+        cmd.extend(["--llm-cache-file", llm_cache_file])
 
     for key, value in (ablation_params | init_prior_params).items():
         if isinstance(value, bool):
@@ -511,7 +516,7 @@ def worker(task: ExperimentTask) -> None:
         )
 
         if b_type == BaselineType.SCHEDULER:
-            buffer_between_instructions = 0 if task.is_simulation else 30
+            buffer_between_instructions = 0 if task.is_simulation else 20
             if buffer_between_instructions > 0:
                 logger.info(
                     f"Waiting for {buffer_between_instructions} seconds before starting."
@@ -533,6 +538,7 @@ def worker(task: ExperimentTask) -> None:
                     attempt=attempt,
                     gpu_id=task.gpu_id,
                     task_folder_name=task.task_folder_name,
+                    llm_cache_file=task.llm_cache_file,
                 )
                 if result.returncode == 0:
                     logger.info(
@@ -571,6 +577,7 @@ def worker(task: ExperimentTask) -> None:
                     attempt=attempt,
                     gpu_id=task.gpu_id,
                     task_folder_name=task.task_folder_name,
+                    llm_cache_file=task.llm_cache_file,
                 )
                 if result.returncode == 0:
                     logger.info(
@@ -874,6 +881,7 @@ def main() -> None:
     cloud_rendering: bool = config.get("cloud_rendering", False)
     num_runs_per_instruction: int = config.get("num_runs_per_instruction", 1)
     max_retries: int = config.get("max_retries", 10)
+    llm_cache_file: Optional[str] = config.get("llm_cache_file", None)
     max_workers: int = config.get("max_workers", 10)
     num_gpus: int = config.get("num_gpus", 0)
     start_idx: int = config.get("start_idx", 1)
@@ -1048,6 +1056,7 @@ def main() -> None:
                             log_dir_timestamp=run_timestamp,
                             gpu_id=gpu_id,
                             task_folder_name=task_src_folder_name,
+                            llm_cache_file=llm_cache_file,
                         )
                         tasks_to_run.append(task)
 

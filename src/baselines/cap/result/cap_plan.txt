@@ -1,34 +1,45 @@
-# 10_cook_tomato_and_make_tea_in_teapot_and_put_purple_bowl_in_sink.json.
-objects = ['banana', 'plate', 'pan', 'sausage', 'stove', 'orange_bowl', 'purple_bowl', 'sink|sinkbasin', 'tea_pot', 'tea_cup', 'green_cup', 'tomato', 'table', 'carrot', 'blue_pot']
+# 07_make_tomato_sauce_and_make_tea_in_teapot_and_put_green_cup_in_sink.json.
+# say that you will make tomato sauce and tea, and put green cup in sink
+say('OK - make tomato sauce, make tea, and put green cup in sink')
 
-# cook tomato and make tea in teapot and put purple bowl in sink
-say('OK - cook tomato, make tea, and put purple bowl in sink')
-
-# cook tomato
+# Task 1: Make Tomato Sauce — tomato sauce requires blue_pot, NOT pan
 tomato_id = get_obj_id('tomato')
-pan_id = get_obj_id('pan')
-stove_id = get_obj_id('stove')
-if tomato_id and pan_id and stove_id:
+blue_pot_id = get_obj_id('blue_pot')
+if tomato_id and blue_pot_id:
     move_to(tomato_id)
     if parse_question('is anything in hand?'):
         drop()
     pickup(tomato_id)
-    move_to(pan_id)
-    put(pan_id)
-    move_to(pan_id)
+    move_to(blue_pot_id)
+    put(blue_pot_id)
+else:
+    say("I can't find tomato or blue_pot.")
+
+# put blue_pot on the stove
+blue_pot_id = get_obj_id('blue_pot')
+stove_id = get_obj_id('stove')
+if blue_pot_id and stove_id:
+    move_to(blue_pot_id)
     if parse_question('is anything in hand?'):
         drop()
-    pickup(pan_id)
+    pickup(blue_pot_id)
     move_to(stove_id)
     put(stove_id)
+else:
+    say("I can't find blue_pot or stove.")
+
+# turn on stove and wait for tomato sauce
+stove_id = get_obj_id('stove')
+if stove_id:
     move_to(stove_id)
     toggle_on(stove_id)
-    wait(140)
+    wait(10)
     toggle_off(stove_id)
 else:
-    say("I can't find tomato, pan, or stove.")
+    say("I can't find the stove.")
 
-# make tea in teapot
+# Task 2: Make Tea
+# put tea_cup into tea_pot
 tea_cup_id = get_obj_id('tea_cup')
 tea_pot_id = get_obj_id('tea_pot')
 if tea_cup_id and tea_pot_id:
@@ -38,25 +49,35 @@ if tea_cup_id and tea_pot_id:
     pickup(tea_cup_id)
     move_to(tea_pot_id)
     put(tea_pot_id)
-    move_to(tea_pot_id)
-    toggle_on(tea_pot_id)
-    wait(140)
-    toggle_off(tea_pot_id)
 else:
     say("I can't find tea_cup or tea_pot.")
 
-# put purple bowl in sink
-purple_bowl_id = get_obj_id('purple_bowl')
+# turn on tea_pot and wait for tea to be ready
+tea_pot_id = get_obj_id('tea_pot')
+if tea_pot_id:
+    move_to(tea_pot_id)
+    toggle_on(tea_pot_id)
+    wait(10)
+    toggle_off(tea_pot_id)
+else:
+    say("I can't find the tea_pot.")
+
+# Task 3: Put Green Cup in Sink
+green_cup_id = get_obj_id('green_cup')
 sink_id = get_obj_id('sink|sinkbasin')
-if purple_bowl_id and sink_id:
-    move_to(purple_bowl_id)
+if green_cup_id and sink_id:
+    move_to(green_cup_id)
     if parse_question('is anything in hand?'):
         drop()
-    pickup(purple_bowl_id)
+    pickup(green_cup_id)
     move_to(sink_id)
     put(sink_id)
 else:
-    say("I can't find purple_bowl or sink.")
+    say("I can't find green_cup or sink.")
+
+# is anything in hand?.
+obj_in_hand = get_obj_in_hand()
+ret_val = obj_in_hand is not None
 
 # is anything in hand?.
 obj_in_hand = get_obj_in_hand()

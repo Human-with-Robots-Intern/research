@@ -3,6 +3,7 @@ simulation: false # Enable Simulation mode
 cloud_rendering: false  # 로컬 디스플레이 테스트용 (DISPLAY=:1)
 
 num_runs_per_instruction: 1 #반복 시행 횟수
+# llm_cache_file: "assets/lammap_llm_cache.json"  # 사전 계산 캐시 활성화 시 주석 해제
 max_retries: 1 # set to be 1
 retry_delay_seconds: 2 # Delay in seconds between retries
 max_workers: 1 # Maximum number of workers
@@ -10,8 +11,7 @@ instruction_delay_seconds: 0 # Delay in seconds between instructions
 
 # Logging configuration
 log_level: "WARNING" # Log level for the script. Options: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
-start_idx: 1 # 시작하는 task의 번호
-end_idx: 1 # 끝나는 task의 번호 (포함)
+
 # Execution settings
 # 실행하고자 하는 방법론리스트, 실행하지 않으려면 주석처리
 approaches:
@@ -60,15 +60,12 @@ init_prior_configs: #초기 시간 값 종류
 # ------------------------------------------------------------------------------
 # Task Filtering
 # ------------------------------------------------------------------------------
-task_folder_name: ["sampled_10_instruction_set_for_final_experiment_251203"] # Folder under assets/tasks/
-min_task_count: 2
-max_task_count: 2
-min_constraint_count: 1
-max_constraint_count: 1
-skip_completed: false
-task_folder_name: ["decomposed_final_revision_260416_realworld_v1"] # Folder under assets/tasks/
+task_folder_name: ["decomposed_final_revision_260416_realworld_v5"] # Folder under assets/tasks/
+
 min_task_count: 3
-max_task_count: 99
+max_task_count: 3
 min_constraint_count: 2
-max_constraint_count: 99
-skip_completed: true
+max_constraint_count: 2
+start_idx: 1 # 시작하는 task의 번호
+end_idx: 7 # 끝나는 task의 번호 (포함)
+skip_completed: false

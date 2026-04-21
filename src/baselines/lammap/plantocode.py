@@ -114,11 +114,12 @@ class LLMHandler:
 
 class MimicFormatTranslator:
     """Translates complete PDDL plans to mimic format using OpenAI API."""
-    
-    def __init__(self, api_key_file: str, gpt_version: str = "gpt-4o"):
+
+    def __init__(self, api_key_file: str, gpt_version: str = "gpt-4o", wait_units: int = 100):
         self.gpt_version = gpt_version
         self.llm = LLMHandler(api_key_file)
-        print(f"Initialized MimicFormatTranslator with {gpt_version}")
+        self.wait_units = wait_units
+        print(f"Initialized MimicFormatTranslator with {gpt_version}, wait_units={wait_units}")
     
     def validate_mimic_code(self, mimic_code: str, task_description: str) -> Tuple[bool, str]:
         """Validate if the generated mimic code would be executable by execute_plan.py.
@@ -360,14 +361,19 @@ Return ONLY the corrected code that follows the template structure exactly.
         few_shot_examples = f"""# CRITICAL INSTRUCTION: DO NOT REDEFINE AI2-THOR FUNCTIONS
 # The following AI2-THOR functions are ALREADY DEFINED and available:
 # - GoToObject(robot, object_name)
-# - PickupObject(robot, object_name) 
+# - PickupObject(robot, object_name)
 # - PutObject(robot, object_name, target_location)
 # - ToggleObjectOn(robot, object_name)
 # - ToggleObjectOff(robot, object_name)
 # - time.sleep(seconds)
-# 
+#
 # DO NOT create new function definitions for these. Use them directly as shown in the template.
 # DO NOT add "def GoToObject(...):" or similar definitions.
+#
+# WAIT TIME GUIDELINE:
+# - For autonomous operations (stove cooking, boiling, making tea, etc.), use time.sleep({self.wait_units}).
+# - For immediate sequential actions (pick then place), no sleep needed.
+# - Turn off appliances immediately after their operation completes.
 
 # Example: Complete PDDL Plan Translation with Multi-Robot Coordination
 Task: Wash multiple vegetables (apple, tomato, lettuce, potato)

@@ -1,16 +1,16 @@
 # Python ai2thor control script
-import numpy as np
-import time
 # A list of available functions. The LLM must use the function names and formats from this list.
-# Available functions: move_to, pickup, slice, say, put,  drop, toggle_on, toggle_off, open, close, is_obj_visible, get_obj_names, get_obj_id
-from utils import move_to, pickup, slice, say, put,  drop, toggle_on, toggle_off, open, close, is_obj_visible, get_obj_names, get_obj_id
-from plan_utils import parse_question
+# Available functions: move_to, pickup, slice, say, put, drop, toggle_on, toggle_off, open, close, is_obj_visible, get_obj_names, get_obj_id, parse_question, wait
 
+# [RULES]
+# - Making tomato sauce: ALWAYS place tomato inside blue_pot first, then place blue_pot on stove. Never use pan for tomato sauce.
+# - Cooking sausage: use pan on stove.
+# - Making tea: place tea_cup inside tea_pot, then toggle_on tea_pot.
 
 objects = ['banana', 'plate', 'pan', 'sausage', 'stove', 'orange_bowl', 'purple_bowl', 'sink|sinkbasin', 'tea_pot', 'tea_cup', 'green_cup', 'tomato', 'table', 'carrot', 'blue_pot',]
-# cook sausage in a pan on the stove.
-say('OK - cook sausage')
-# first put sausage into the pan
+# cook sausage in a pan on the stove, make tomato sauce using blue_pot, and make tea using the tea_pot.
+say('OK - cook sausage, make tomato sauce, and make tea')
+# Task 1: Cook Sausage — sausage goes into the pan
 sausage_id = get_obj_id('sausage')
 pan_id = get_obj_id('pan')
 if sausage_id and pan_id:
@@ -34,7 +34,7 @@ if pan_id and stove_id:
     put(stove_id)
 else:
     say("I can't find pan or stove.")
-# turn on stove and wait for cooking
+# turn on stove and wait for sausage to cook
 stove_id = get_obj_id('stove')
 if stove_id:
     move_to(stove_id)
@@ -43,11 +43,40 @@ if stove_id:
     toggle_off(stove_id)
 else:
     say("I can't find the stove.")
-
-
-objects = ['banana', 'plate', 'pan', 'sausage', 'stove', 'orange_bowl', 'purple_bowl', 'sink|sinkbasin', 'tea_pot', 'tea_cup', 'green_cup', 'tomato', 'table', 'carrot', 'blue_pot',]
-# make tea using the tea_pot.
-say('OK - make tea')
+# Task 2: Make Tomato Sauce — tomato sauce requires blue_pot, NOT pan
+tomato_id = get_obj_id('tomato')
+blue_pot_id = get_obj_id('blue_pot')
+if tomato_id and blue_pot_id:
+    move_to(tomato_id)
+    if parse_question('is anything in hand?'):
+        drop()
+    pickup(tomato_id)
+    move_to(blue_pot_id)
+    put(blue_pot_id)
+else:
+    say("I can't find tomato or blue_pot.")
+# put blue_pot on the stove
+blue_pot_id = get_obj_id('blue_pot')
+stove_id = get_obj_id('stove')
+if blue_pot_id and stove_id:
+    move_to(blue_pot_id)
+    if parse_question('is anything in hand?'):
+        drop()
+    pickup(blue_pot_id)
+    move_to(stove_id)
+    put(stove_id)
+else:
+    say("I can't find blue_pot or stove.")
+# turn on stove and wait for tomato sauce
+stove_id = get_obj_id('stove')
+if stove_id:
+    move_to(stove_id)
+    toggle_on(stove_id)
+    wait(10)
+    toggle_off(stove_id)
+else:
+    say("I can't find the stove.")
+# Task 3: Make Tea
 # put tea_cup into tea_pot
 tea_cup_id = get_obj_id('tea_cup')
 tea_pot_id = get_obj_id('tea_pot')
@@ -69,61 +98,3 @@ if tea_pot_id:
     toggle_off(tea_pot_id)
 else:
     say("I can't find the tea_pot.")
-
-
-objects = ['banana', 'plate', 'pan', 'sausage', 'stove', 'orange_bowl', 'purple_bowl', 'sink|sinkbasin', 'tea_pot', 'tea_cup', 'green_cup', 'tomato', 'table', 'carrot', 'blue_pot',]
-# put orange_bowl and green_cup in the sink.
-say('OK - put orange_bowl and green_cup in the sink')
-# put orange_bowl in sink
-orange_bowl_id = get_obj_id('orange_bowl')
-sink_id = get_obj_id('sink|sinkbasin')
-if orange_bowl_id and sink_id:
-    move_to(orange_bowl_id)
-    if parse_question('is anything in hand?'):
-        drop()
-    pickup(orange_bowl_id)
-    move_to(sink_id)
-    put(sink_id)
-else:
-    say("I can't find orange_bowl or sink.")
-# put green_cup in sink
-green_cup_id = get_obj_id('green_cup')
-sink_id = get_obj_id('sink|sinkbasin')
-if green_cup_id and sink_id:
-    move_to(green_cup_id)
-    if parse_question('is anything in hand?'):
-        drop()
-    pickup(green_cup_id)
-    move_to(sink_id)
-    put(sink_id)
-else:
-    say("I can't find green_cup or sink.")
-
-
-objects = ['banana', 'plate', 'pan', 'sausage', 'stove', 'orange_bowl', 'purple_bowl', 'sink|sinkbasin', 'tea_pot', 'tea_cup', 'green_cup', 'tomato', 'table', 'carrot', 'blue_pot',]
-# place banana and carrot on the plate.
-say('OK - place banana and carrot on the plate')
-# place banana on plate
-banana_id = get_obj_id('banana')
-plate_id = get_obj_id('plate')
-if banana_id and plate_id:
-    move_to(banana_id)
-    if parse_question('is anything in hand?'):
-        drop()
-    pickup(banana_id)
-    move_to(plate_id)
-    put(plate_id)
-else:
-    say("I can't find banana or plate.")
-# place carrot on plate
-carrot_id = get_obj_id('carrot')
-plate_id = get_obj_id('plate')
-if carrot_id and plate_id:
-    move_to(carrot_id)
-    if parse_question('is anything in hand?'):
-        drop()
-    pickup(carrot_id)
-    move_to(plate_id)
-    put(plate_id)
-else:
-    say("I can't find carrot or plate.")

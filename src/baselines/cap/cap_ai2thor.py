@@ -536,11 +536,21 @@ def setup_LMP(
     # fixed_vars.update({"time": time}) # time.sleep() 대신 시뮬레이션의 wait()를 사용하도록 유도하기 위해 주석 처리
     fixed_vars.update({"controller": Controller})
 
+    # ROS 모드에서 지원하지 않는 액션을 프롬프트에서도 제거합니다.
+    _ROS_UNSUPPORTED_ACTIONS = {"slice"}
+    if ros_executor is not None:
+        for action in _ROS_UNSUPPORTED_ACTIONS:
+            cfg_scene["lmps"]["scene_ui"]["prompt_text"] = (
+                cfg_scene["lmps"]["scene_ui"]["prompt_text"].replace(f", {action}", "").replace(f"{action}, ", "")
+            )
+
     # LMP가 사용할 수 있는 API(가변 변수, 주로 액션 함수)를 정의합니다.
     if ros_executor is not None:
-        # ROS 모드: 모든 액션을 timed_action_ros로 감쌈
+        # ROS 모드: real-world에서 지원하지 않는 액션 제외
         variable_vars = {}
         for action_name in _ACTION_NAMES:
+            if action_name in _ROS_UNSUPPORTED_ACTIONS:
+                continue
             variable_vars[action_name] = timed_action_ros(
                 logger, action_name, ros_executor
             )
