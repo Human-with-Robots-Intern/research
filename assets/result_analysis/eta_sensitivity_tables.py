@@ -191,12 +191,29 @@ def _weighted_optional(
 # ---------------------------------------------------------------------------
 
 @lru_cache(maxsize=None)
-def _n_uncontrollable_targets(case_name: str, scene_name: str, instruction_name: str) -> int:
+def _n_uncontrollable_targets(
+    task_folder_name: str,
+    case_name: str,
+    scene_name: str,
+    instruction_name: str,
+) -> int:
+    """Count critical-interval endpoints used for Mon./Unc. normalization."""
+
     from src.utils.config.constants import EPSILON
-    from src.utils.io_utils.task_io import load_task_data_from_sampled_set
     from src.utils.task.task_util import TaskUtil
 
-    task_data = load_task_data_from_sampled_set(case_name, scene_name, instruction_name)
+    instruction_stem = Path(str(instruction_name)).stem
+    task_path = (
+        ASSETS_PATH
+        / "tasks"
+        / task_folder_name
+        / case_name
+        / scene_name
+        / f"{instruction_stem}.json"
+    )
+    if not task_path.is_file():
+        raise FileNotFoundError(f"Task file not found: {task_path}")
+    task_data = json.loads(task_path.read_text(encoding="utf-8"))
     _, constraints, _ = TaskUtil.build_tasks_and_constraints(
         task_data,
         scene_file_name=f"{scene_name}_physics_environment.json",
@@ -273,7 +290,16 @@ def load_monitor_summary(
         ):
             continue
 
-        n_unc = _n_uncontrollable_targets(str(case_name), str(scene_name), str(instruction_name))
+        try:
+            n_unc = _n_uncontrollable_targets(
+                task_folder_name,
+                str(case_name),
+                str(scene_name),
+                str(instruction_name),
+            )
+        except FileNotFoundError as exc:
+            print(f"[warn] skip monitor row (task JSON): {exc}")
+            continue
         per_unc = float(monitor_count) / n_unc if n_unc > 0 else 0.0
         key = _setting_key(str(init_prior), _eta_token(eta))
         buckets.setdefault(key, {}).setdefault(str(case_name), []).append(

@@ -805,12 +805,25 @@ class Scheduler:
         return urgent_list
 
     def _extract_monitoring_target(self, candidate: Candidate) -> Optional[str]:
-        if (
-            candidate.subtask.execution
-            and candidate.subtask.execution.primitive_actions
-        ):
-            # Typically, the target of the first action is what we monitor.
-            return candidate.subtask.execution.primitive_actions[0].split()[1]
+        return self._extract_first_actionable_object_id(candidate.subtask)
+
+    @staticmethod
+    def _extract_first_actionable_object_id(
+        subtask: Optional[Subtask],
+    ) -> Optional[str]:
+        """Return the first non-WAIT object id mentioned by a subtask's actions."""
+
+        if subtask is None or subtask.execution is None:
+            return None
+
+        primitive_actions = subtask.execution.primitive_actions or []
+        for action in primitive_actions:
+            parts = str(action).split()
+            if len(parts) <= 1:
+                continue
+            if parts[0].upper() == "WAIT":
+                continue
+            return parts[1]
         return None
 
     def _get_monitoring_target_obj_for_subtask_name(
@@ -818,16 +831,27 @@ class Scheduler:
         curr_node: SimulationNode,
         subtask_name: str,
     ) -> Optional[str]:
-        """Return the object id associated with the named critical-end subtask."""
+        """Return the object id associated with the named critical-end subtask.
+
+        Searches both remaining_subtasks and the current candidate subtask so
+        that a task being waited on (already promoted out of remaining) is
+        still resolvable.
+        """
+
+        current_subtask = curr_node.state.subtask
+        candidates_to_search = list(curr_node.state.remaining_subtasks)
+        if current_subtask is not None:
+            candidates_to_search.append(current_subtask)
 
         return next(
             (
-                remain_sub.execution.primitive_actions[0].split()[1]
-                for remain_sub in curr_node.state.remaining_subtasks
-                if remain_sub.name == subtask_name
-                and remain_sub.execution
-                and remain_sub.execution.primitive_actions
-                and len(remain_sub.execution.primitive_actions[0].split()) > 1
+                target_obj_id
+                for sub in candidates_to_search
+                for target_obj_id in [
+                    self._extract_first_actionable_object_id(sub)
+                ]
+                if sub.name == subtask_name
+                and target_obj_id is not None
             ),
             None,
         )
@@ -851,10 +875,7 @@ class Scheduler:
         if not primitive_actions:
             return None
 
-        parts = primitive_actions[0].split()
-        if len(parts) > 1:
-            return parts[1]
-        return None
+        return Scheduler._extract_first_actionable_object_id(subtask)
 
     @staticmethod
     def _extract_monitoring_target_name_from_subtask(
@@ -1218,25 +1239,35 @@ class Scheduler:
         )
 
     @staticmethod
+    def _wait_event_sort_key(event: WaitExpansionEvent) -> tuple[object, ...]:
+        """Rank wait events so rescue monitoring cleanly falls back to local options."""
+
+        kind_priority = (
+            0
+            if event.kind == "rescue_monitor"
+            else 1
+            if event.kind == "local_monitor"
+            else 2
+        )
+        return (
+            kind_priority,
+            event.event_time,
+            event.raw_trigger_time,
+            -event.variance,
+            event.due_date,
+            event.candidate.subtask.name,
+        )
+
+    @staticmethod
     def _select_wait_event(
         events: List[WaitExpansionEvent],
     ) -> Optional[WaitExpansionEvent]:
-        """Select the next wait event using event-time-first arbitration."""
+        """Select the next wait event using monitoring-first fallback arbitration."""
 
         if not events:
             return None
 
-        return min(
-            events,
-            key=lambda event: (
-                event.event_time,
-                0 if event.obligation is not None else 1,
-                event.raw_trigger_time,
-                -event.variance,
-                event.due_date,
-                event.candidate.subtask.name,
-            ),
-        )
+        return min(events, key=Scheduler._wait_event_sort_key)
 
     @staticmethod
     def _wait_nodes_are_equivalent(
@@ -1254,6 +1285,30 @@ class Scheduler:
             and len(first.state.completed_entries)
             == len(second.state.completed_entries)
         )
+
+    @staticmethod
+    def _count_monitor_subtasks(subtasks: List[Subtask]) -> int:
+        """Return how many pending monitoring subtasks are present."""
+
+        return sum(1 for subtask in subtasks if subtask.subtask_type == "Monitor")
+
+    def _wait_event_realized_monitoring(
+        self,
+        curr_node: SimulationNode,
+        expanded_node: Optional[SimulationNode],
+    ) -> bool:
+        """Return whether expanding a wait event actually inserted a monitor step."""
+
+        if expanded_node is None:
+            return False
+
+        current_subtask = expanded_node.state.subtask
+        if current_subtask is not None and current_subtask.subtask_type == "Monitor":
+            return True
+
+        return self._count_monitor_subtasks(
+            expanded_node.state.remaining_subtasks
+        ) > self._count_monitor_subtasks(curr_node.state.remaining_subtasks)
 
     @staticmethod
     def _find_candidate_by_name(
@@ -1288,12 +1343,14 @@ class Scheduler:
         if not primitive_actions:
             return None
 
-        first_action = primitive_actions[0]
-        if first_action.startswith("NAVIGATE_TO"):
-            return first_action
-
-        parts = first_action.split()
-        if len(parts) > 1:
+        for action in primitive_actions:
+            parts = action.split()
+            if len(parts) <= 1:
+                continue
+            if parts[0].upper() == "WAIT":
+                continue
+            if parts[0] == "NAVIGATE_TO":
+                return action
             return f"NAVIGATE_TO {parts[1]}"
         return None
 
@@ -1724,9 +1781,7 @@ class Scheduler:
             ),
             None,
         )
-        should_add_local_execute_backup = (
-            local_execute_event is not None and selected_event.kind != "local_execute"
-        )
+        should_add_local_execute_backup = False
         if should_add_local_execute_backup:
             local_execute_wait_node = self._expand_wait_event(
                 curr_node,
@@ -2385,11 +2440,9 @@ class Scheduler:
 
         monitoring_target_obj = next(
             (
-                (remain_sub.execution.primitive_actions[0].split()[1])
+                self._extract_first_actionable_object_id(remain_sub)
                 for remain_sub in curr_node.state.remaining_subtasks
                 if remain_sub.name == critical_end_sub_name
-                and remain_sub.execution
-                and remain_sub.execution.primitive_actions
             ),
             None,
         )
