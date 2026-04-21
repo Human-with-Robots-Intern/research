@@ -220,6 +220,10 @@ class TaskUtil:
 
             base_action, target_obj = parts
 
+            # WAIT carries a numeric duration, not an object id to normalize.
+            if base_action == "WAIT":
+                return action
+
             # If the target object is already valid in the scene, no change needed
             if target_obj in all_object_ids_in_scene:
                 return action

@@ -28,7 +28,7 @@ from src.core.monitoring import (
     create_monitoring_backend,
     create_observation_model,
 )
-from src.core.scheduler import MonitoringObligation, Scheduler
+from src.core.scheduler import MonitoringObligation, Scheduler, WaitExpansionEvent
 from src.models.dataclass import (
     ActionSimulationLog,
     ActionResult,
@@ -696,6 +696,70 @@ def test_scheduler_compute_monitoring_trigger_time_uses_bayesian_policy() -> Non
         28.01 + 100.0 + (math.sqrt(900.0) * norm.ppf(BAYESIAN_THRESHOLD_PROBABILITY))
     )
     assert trigger_time == expected_trigger_time
+
+
+def test_scheduler_monitor_target_extraction_skips_leading_wait() -> None:
+    """Monitoring target lookup should ignore a leading WAIT action."""
+
+    scheduler = Scheduler(
+        action_handler=_DummyActionHandler(),
+        constraint_handler=ConstraintHandler(_DummyActionHandler()),
+        heuristic_manager=_DummyHeuristicManager(),
+    )
+    target_subtask = _make_subtask(
+        "Turn Off Faucet after Filling Pot",
+        primitive_actions=[
+            "WAIT 2.0",
+            "TOGGLE_OFF Faucet|01",
+            "GRASP Pot|01",
+        ],
+        subtask_type="Interaction",
+    )
+    node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                "Init", primitive_actions=["WAIT 0"], subtask_type="Init"
+            ),
+            completed_entries=[],
+            remaining_subtasks=[target_subtask],
+            constraints=nx.DiGraph(),
+            current_time=0.0,
+            scene_positions={"agent": (0.0, 0.9, 0.0)},
+            held_object=None,
+        ),
+        risk_level=0,
+    )
+
+    assert (
+        scheduler._get_monitoring_target_obj_for_subtask_name(
+            node,
+            "Turn Off Faucet after Filling Pot",
+        )
+        == "Faucet|01"
+    )
+
+
+def test_scheduler_wait_navigation_skips_leading_wait() -> None:
+    """Staged waits should navigate toward the first actionable object, not WAIT duration."""
+
+    candidate = Candidate(
+        subtask=_make_subtask(
+            "Turn Off Faucet after Filling Pot",
+            primitive_actions=[
+                "WAIT 2.0",
+                "TOGGLE_OFF Faucet|01",
+                "GRASP Pot|01",
+            ],
+            subtask_type="Interaction",
+        ),
+        is_critical=True,
+    )
+
+    assert Scheduler._build_wait_navigation_action(candidate) == "NAVIGATE_TO Faucet|01"
 
 
 def test_scheduler_executes_feasible_candidate_atomically_without_staging(
@@ -3181,6 +3245,380 @@ def test_expand_single_wait_skips_late_local_monitor_and_falls_back_to_local_exe
         subtask.subtask_type != "Monitor" for subtask in result_node.state.remaining_subtasks
     )
     _assert_no_zero_duration_waits(result_node.state.completed_entries)
+
+
+def test_expand_wait_options_prefers_rescue_monitor_before_local_execute(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Wait expansion should commit to a feasible rescue monitor before plain waiting."""
+
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture()
+    rescue_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Bread",
+        primitive_actions=["TOGGLE_OFF Microwave|02"],
+        subtask_type="Interaction",
+    )
+    rescue_candidate = Candidate(
+        subtask=rescue_subtask,
+        is_critical=True,
+        actual_interaction_start_time=96.0,
+        logical_interaction_start_time=96.0,
+        estimated_first_nav_duration=0.0,
+    )
+    rescue_obligation = MonitoringObligation(
+        trigger_time=52.0,
+        variance=900.0,
+        due=SchedulingDue(
+            due_date=96.0,
+            due_related_sub_name=rescue_subtask.name,
+        ),
+    )
+    local_execute_event = WaitExpansionEvent(
+        kind="local_execute",
+        candidate=candidate,
+        event_time=40.0,
+        nav_duration=0.0,
+        due_date=40.0,
+    )
+    rescue_event = WaitExpansionEvent(
+        kind="rescue_monitor",
+        candidate=rescue_candidate,
+        event_time=52.0,
+        nav_duration=0.0,
+        raw_trigger_time=52.0,
+        variance=900.0,
+        due_date=96.0,
+        obligation=rescue_obligation,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_estimate_candidate_navigation_duration",
+        lambda *_args, **_kwargs: 0.0,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_wait_events",
+        lambda *_args, **_kwargs: [local_execute_event, rescue_event],
+    )
+
+    rescue_monitor_subtask = _make_subtask(
+        "Monitoring for Turn Off Microwave after Heating Bread_test",
+        primitive_actions=["MONITORING Microwave|02"],
+        subtask_type="Monitor",
+        decomposed=True,
+    )
+    rescue_node = SimulationNode(
+        parent_node=curr_node,
+        heuristic_cost=0.0,
+        depth=curr_node.depth + 1,
+        tie_breaker=1,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                "Wait for Turn Off Microwave after Heating Bread",
+                primitive_actions=["WAIT 1.0"],
+                subtask_type="WAIT",
+            ),
+            completed_entries=list(curr_node.state.completed_entries),
+            remaining_subtasks=list(curr_node.state.remaining_subtasks)
+            + [rescue_monitor_subtask],
+            constraints=curr_node.state.constraints,
+            current_time=curr_node.state.current_time + 1.0,
+            scene_positions=curr_node.state.scene_positions,
+            held_object=curr_node.state.held_object,
+        ),
+        risk_level=curr_node.risk_level,
+    )
+    local_execute_node = SimulationNode(
+        parent_node=curr_node,
+        heuristic_cost=0.0,
+        depth=curr_node.depth + 1,
+        tie_breaker=2,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                f"Wait for {candidate.subtask.name}",
+                primitive_actions=["WAIT 5.0"],
+                subtask_type="WAIT",
+            ),
+            completed_entries=list(curr_node.state.completed_entries),
+            remaining_subtasks=list(curr_node.state.remaining_subtasks),
+            constraints=curr_node.state.constraints,
+            current_time=curr_node.state.current_time + 5.0,
+            scene_positions=curr_node.state.scene_positions,
+            held_object=curr_node.state.held_object,
+        ),
+        risk_level=curr_node.risk_level,
+    )
+
+    attempted_kinds: list[str] = []
+
+    def _stub_expand_wait_event(
+        _curr_node: SimulationNode,
+        _original_candidate: Candidate,
+        selected_event: WaitExpansionEvent | None,
+        _not_yet_candidates: list[Candidate],
+        feasible_candidates: list[Candidate] | None = None,
+        local_nav_time: float = 0.0,
+    ) -> SimulationNode | None:
+        _ = feasible_candidates, local_nav_time
+        assert selected_event is not None
+        attempted_kinds.append(selected_event.kind)
+        if selected_event.kind == "rescue_monitor":
+            return rescue_node
+        if selected_event.kind == "local_execute":
+            return local_execute_node
+        return None
+
+    monkeypatch.setattr(scheduler, "_expand_wait_event", _stub_expand_wait_event)
+
+    wait_nodes = scheduler._expand_wait_options(curr_node, candidate, [candidate])
+
+    assert wait_nodes
+    assert wait_nodes[0] is rescue_node
+    assert wait_nodes == [rescue_node]
+    assert attempted_kinds == ["rescue_monitor"]
+
+
+def test_expand_wait_options_falls_back_when_rescue_monitor_does_not_materialize(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A rescue-monitor attempt that degrades into plain waiting should fall back locally."""
+
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture()
+    rescue_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Bread",
+        primitive_actions=["TOGGLE_OFF Microwave|02"],
+        subtask_type="Interaction",
+    )
+    rescue_candidate = Candidate(
+        subtask=rescue_subtask,
+        is_critical=True,
+        actual_interaction_start_time=96.0,
+        logical_interaction_start_time=96.0,
+        estimated_first_nav_duration=0.0,
+    )
+    rescue_obligation = MonitoringObligation(
+        trigger_time=52.0,
+        variance=900.0,
+        due=SchedulingDue(
+            due_date=96.0,
+            due_related_sub_name=rescue_subtask.name,
+        ),
+    )
+    local_execute_event = WaitExpansionEvent(
+        kind="local_execute",
+        candidate=candidate,
+        event_time=40.0,
+        nav_duration=0.0,
+        due_date=40.0,
+    )
+    rescue_event = WaitExpansionEvent(
+        kind="rescue_monitor",
+        candidate=rescue_candidate,
+        event_time=52.0,
+        nav_duration=0.0,
+        raw_trigger_time=52.0,
+        variance=900.0,
+        due_date=96.0,
+        obligation=rescue_obligation,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_estimate_candidate_navigation_duration",
+        lambda *_args, **_kwargs: 0.0,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_wait_events",
+        lambda *_args, **_kwargs: [local_execute_event, rescue_event],
+    )
+
+    rescue_fallback_node = SimulationNode(
+        parent_node=curr_node,
+        heuristic_cost=0.0,
+        depth=curr_node.depth + 1,
+        tie_breaker=1,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                f"Wait for {rescue_candidate.subtask.name}",
+                primitive_actions=["WAIT 3.0"],
+                subtask_type="WAIT",
+            ),
+            completed_entries=list(curr_node.state.completed_entries),
+            remaining_subtasks=list(curr_node.state.remaining_subtasks),
+            constraints=curr_node.state.constraints,
+            current_time=curr_node.state.current_time + 3.0,
+            scene_positions=curr_node.state.scene_positions,
+            held_object=curr_node.state.held_object,
+        ),
+        risk_level=curr_node.risk_level,
+    )
+    local_execute_node = SimulationNode(
+        parent_node=curr_node,
+        heuristic_cost=0.0,
+        depth=curr_node.depth + 1,
+        tie_breaker=2,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                f"Wait for {candidate.subtask.name}",
+                primitive_actions=["WAIT 5.0"],
+                subtask_type="WAIT",
+            ),
+            completed_entries=list(curr_node.state.completed_entries),
+            remaining_subtasks=list(curr_node.state.remaining_subtasks),
+            constraints=curr_node.state.constraints,
+            current_time=curr_node.state.current_time + 5.0,
+            scene_positions=curr_node.state.scene_positions,
+            held_object=curr_node.state.held_object,
+        ),
+        risk_level=curr_node.risk_level,
+    )
+
+    attempted_kinds: list[str] = []
+
+    def _stub_expand_wait_event(
+        _curr_node: SimulationNode,
+        _original_candidate: Candidate,
+        selected_event: WaitExpansionEvent | None,
+        _not_yet_candidates: list[Candidate],
+        feasible_candidates: list[Candidate] | None = None,
+        local_nav_time: float = 0.0,
+    ) -> SimulationNode | None:
+        _ = feasible_candidates, local_nav_time
+        assert selected_event is not None
+        attempted_kinds.append(selected_event.kind)
+        if selected_event.kind == "rescue_monitor":
+            return rescue_fallback_node
+        if selected_event.kind == "local_execute":
+            return local_execute_node
+        return None
+
+    monkeypatch.setattr(scheduler, "_expand_wait_event", _stub_expand_wait_event)
+
+    wait_nodes = scheduler._expand_wait_options(curr_node, candidate, [candidate])
+
+    assert wait_nodes
+    assert wait_nodes[0] is local_execute_node
+    assert attempted_kinds[:2] == ["rescue_monitor", "local_execute"]
+    assert rescue_fallback_node not in wait_nodes
+
+
+def test_expand_wait_options_prefers_local_monitor_before_local_execute(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A realized local-monitor wait should suppress the plain long-wait backup."""
+
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture()
+    local_execute_event = WaitExpansionEvent(
+        kind="local_execute",
+        candidate=candidate,
+        event_time=40.0,
+        nav_duration=0.0,
+        due_date=40.0,
+    )
+    local_monitor_event = WaitExpansionEvent(
+        kind="local_monitor",
+        candidate=candidate,
+        event_time=32.0,
+        nav_duration=0.0,
+        raw_trigger_time=32.0,
+        variance=400.0,
+        due_date=40.0,
+        obligation=MonitoringObligation(
+            trigger_time=32.0,
+            variance=400.0,
+            due=SchedulingDue(
+                due_date=40.0,
+                due_related_sub_name=candidate.subtask.name,
+            ),
+        ),
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_estimate_candidate_navigation_duration",
+        lambda *_args, **_kwargs: 0.0,
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_collect_wait_events",
+        lambda *_args, **_kwargs: [local_execute_event, local_monitor_event],
+    )
+
+    local_monitor_subtask = _make_subtask(
+        f"Monitoring for {candidate.subtask.name}_test",
+        primitive_actions=["MONITORING Faucet|01"],
+        subtask_type="Monitor",
+        decomposed=True,
+    )
+    local_monitor_node = SimulationNode(
+        parent_node=curr_node,
+        heuristic_cost=0.0,
+        depth=curr_node.depth + 1,
+        tie_breaker=1,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                f"Wait for {candidate.subtask.name}",
+                primitive_actions=["WAIT 2.0"],
+                subtask_type="WAIT",
+            ),
+            completed_entries=list(curr_node.state.completed_entries),
+            remaining_subtasks=list(curr_node.state.remaining_subtasks)
+            + [local_monitor_subtask],
+            constraints=curr_node.state.constraints,
+            current_time=curr_node.state.current_time + 2.0,
+            scene_positions=curr_node.state.scene_positions,
+            held_object=curr_node.state.held_object,
+        ),
+        risk_level=curr_node.risk_level,
+    )
+    local_execute_node = SimulationNode(
+        parent_node=curr_node,
+        heuristic_cost=0.0,
+        depth=curr_node.depth + 1,
+        tie_breaker=2,
+        state=SchedulerState(
+            subtask=_make_subtask(
+                f"Wait for {candidate.subtask.name}",
+                primitive_actions=["WAIT 5.0"],
+                subtask_type="WAIT",
+            ),
+            completed_entries=list(curr_node.state.completed_entries),
+            remaining_subtasks=list(curr_node.state.remaining_subtasks),
+            constraints=curr_node.state.constraints,
+            current_time=curr_node.state.current_time + 5.0,
+            scene_positions=curr_node.state.scene_positions,
+            held_object=curr_node.state.held_object,
+        ),
+        risk_level=curr_node.risk_level,
+    )
+
+    attempted_kinds: list[str] = []
+
+    def _stub_expand_wait_event(
+        _curr_node: SimulationNode,
+        _original_candidate: Candidate,
+        selected_event: WaitExpansionEvent | None,
+        _not_yet_candidates: list[Candidate],
+        feasible_candidates: list[Candidate] | None = None,
+        local_nav_time: float = 0.0,
+    ) -> SimulationNode | None:
+        _ = feasible_candidates, local_nav_time
+        assert selected_event is not None
+        attempted_kinds.append(selected_event.kind)
+        if selected_event.kind == "local_monitor":
+            return local_monitor_node
+        if selected_event.kind == "local_execute":
+            return local_execute_node
+        return None
+
+    monkeypatch.setattr(scheduler, "_expand_wait_event", _stub_expand_wait_event)
+
+    wait_nodes = scheduler._expand_wait_options(curr_node, candidate, [candidate])
+
+    assert wait_nodes == [local_monitor_node]
+    assert attempted_kinds == ["local_monitor"]
 
 
 def test_expand_single_wait_rejects_immediate_zero_interval_successor() -> None:
