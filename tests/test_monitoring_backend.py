@@ -1280,6 +1280,69 @@ def test_constraint_handler_handles_missing_navigation_estimate(
     assert feasible_candidates[0].estimated_first_nav_duration == 0.0
 
 
+def test_constraint_handler_keeps_horizon_only_critical_in_not_yet(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Candidates inside the monitoring horizon but outside readiness grace stay blocked."""
+
+    action_handler = ActionHandler(nav_graph={})
+    constraint_handler = ConstraintHandler(action_handler)
+    subtask = _make_subtask(
+        "Turn Off Stove After Cooking Egg",
+        primitive_actions=["NAVIGATE_TO StoveKnob|01", "TOGGLE_OFF StoveKnob|01"],
+    )
+    state = SchedulerState(
+        subtask=subtask,
+        completed_entries=[],
+        remaining_subtasks=[subtask],
+        constraints=nx.DiGraph(),
+        current_time=0.0,
+        scene_positions={"agent": (0.0, 0.0, 0.0), "StoveKnob|01": (1.0, 0.0, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+
+    monkeypatch.setattr(
+        action_handler,
+        "get_actions_info",
+        lambda *_args, **_kwargs: ActionResult(
+            action_full_name="NAVIGATE_TO StoveKnob|01",
+            action_type="NAVIGATE_TO",
+            cumulative_time=5.0,
+            action_duration=5.0,
+            scene_positions=state.scene_positions,
+            held_object=None,
+            success=True,
+            first_nav_duration=5.0,
+        ),
+    )
+    monkeypatch.setattr(
+        constraint_handler,
+        "get_logical_interaction_start_time",
+        lambda *_args, **_kwargs: (10.0, True, "COMPLETED", {}),
+    )
+    monkeypatch.setattr(
+        constraint_handler,
+        "_assign_scheduling_due",
+        lambda *_args, **_kwargs: None,
+    )
+
+    feasible_candidates, not_yet_candidates = constraint_handler.get_feasible_candidates(
+        curr_node
+    )
+
+    assert not feasible_candidates
+    assert len(not_yet_candidates) == 1
+    assert not_yet_candidates[0].subtask.name == subtask.name
+
+
 def test_assign_scheduling_due_preserves_self_deadline_for_feasible_critical_candidate() -> None:
     """Feasible critical candidates should keep their own due for heuristic self-target checks."""
 

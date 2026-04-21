@@ -23,18 +23,60 @@ import argparse
 import json
 import re
 from collections import defaultdict
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from src.utils.common.logger import create_module_logger
 from src.utils.config.constants import (
+    ASSETS_PATH,
     CONSECUTIVE_TASK_WAIT_TOLERANCE,
     TIMING_TOLERANCE_RATIO,
+)
+from src.utils.task.primitive_action_semantics import (
+    classify_issue_group,
+    find_first_task_sequence_issue,
 )
 
 logger = create_module_logger(__name__)
 
 EPSILON = 1e-6
+
+
+@lru_cache(maxsize=None)
+def _load_translation_validation(
+    task_folder: str,
+    case: str,
+    scene: str,
+    instruction: str,
+) -> dict[str, Any]:
+    """Return action-semantic translation validity for one task JSON."""
+
+    task_path = ASSETS_PATH / "tasks" / task_folder / case / scene / f"{instruction}.json"
+    if not task_path.exists():
+        return {
+            "translation_valid": False,
+            "translation_issue_group": "Missing translated task file",
+        }
+
+    try:
+        task_data = json.loads(task_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {
+            "translation_valid": False,
+            "translation_issue_group": f"Unreadable translated task file: {exc}",
+        }
+
+    issue = find_first_task_sequence_issue(task_data)
+    if issue is None:
+        return {
+            "translation_valid": True,
+            "translation_issue_group": None,
+        }
+    return {
+        "translation_valid": False,
+        "translation_issue_group": classify_issue_group(issue),
+    }
 
 
 def _sanitize_token(value: Any) -> str:
@@ -159,11 +201,16 @@ def load_oracle(path: Path) -> dict[str, Any]:
     with path.open() as f:
         data = json.load(f)
     violated = _oracle_has_constraint_violation(data)
+    optimal_schedule_time = data.get("optimal_schedule_time")
+    exact = bool(data.get("exact", False))
     return {
-        "optimal_schedule_time": data["optimal_schedule_time"],
+        "optimal_schedule_time": optimal_schedule_time,
         "computation_time": data["computation_time"],
-        "exact": data["exact"],
+        "exact": exact,
         "constraint_violated": violated,
+        # Oracle references without an exact optimal schedule cannot support
+        # makespan-gap comparison, even if the file itself was written cleanly.
+        "reference_available": exact and optimal_schedule_time is not None,
     }
 
 
@@ -285,10 +332,21 @@ def build_raw(
                     )
                     continue
 
-                oracle_valid = not oracle_data.get("constraint_violated", False)
+                oracle_valid = (
+                    not oracle_data.get("constraint_violated", False)
+                    and oracle_data.get("reference_available", False)
+                )
+                translation_check = _load_translation_validation(
+                    task_folder=task_folder,
+                    case=case,
+                    scene=scene,
+                    instruction=instruction,
+                )
                 entry: dict[str, Any] = {
                     "oracle": oracle_data,
                     "oracle_valid": oracle_valid,
+                    "translation_valid": translation_check["translation_valid"],
+                    "translation_issue_group": translation_check["translation_issue_group"],
                 }
 
                 for batch_file, baseline in sorted(
@@ -302,22 +360,23 @@ def build_raw(
                     comp_time = baseline["computation_time"]
                     oracle_makespan = oracle_data["optimal_schedule_time"]
                     oracle_comp_time = oracle_data["computation_time"]
+                    makespan_gap = None
+                    if makespan is not None and oracle_makespan is not None:
+                        makespan_gap = _round(float(makespan) - float(oracle_makespan), 4)
+
+                    computation_time_gap = None
+                    if comp_time is not None and oracle_comp_time is not None:
+                        computation_time_gap = _round(
+                            float(comp_time) - float(oracle_comp_time), 6
+                        )
 
                     entry[approach_key] = {
                         "completed": baseline["completed"],
                         "tsr": baseline["tsr"],
                         "makespan": _round(makespan, 4),
-                        "makespan_gap": (
-                            _round(makespan - oracle_makespan, 4)
-                            if makespan is not None
-                            else None
-                        ),
+                        "makespan_gap": makespan_gap,
                         "computation_time": _round(comp_time, 6),
-                        "computation_time_gap": (
-                            _round(comp_time - oracle_comp_time, 6)
-                            if comp_time is not None
-                            else None
-                        ),
+                        "computation_time_gap": computation_time_gap,
                         "belief_update_method": meta_data.get("belief_update_method"),
                         "gt_distribution": meta_data.get("gt_distribution"),
                         "particle_distribution": meta_data.get("particle_distribution"),
@@ -337,7 +396,7 @@ def _mean(values: list[float]) -> float | None:
 
 
 def aggregate(
-    raw: dict[str, Any], *, skip_oracle_violated: bool = False
+    raw: dict[str, Any], *, skip_oracle_violated: bool = False, skip_translation_invalid: bool = True
 ) -> dict[str, Any]:
     """Aggregate raw per-instruction data into per-approach/case summary.
 
@@ -353,14 +412,37 @@ def aggregate(
     records: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(
         lambda: defaultdict(list)
     )
+    case_filter_counts: dict[str, dict[str, int]] = defaultdict(
+        lambda: {
+            "n_instructions_total": 0,
+            "n_translation_valid": 0,
+            "n_oracle_valid": 0,
+            "n_after_filters": 0,
+        }
+    )
 
     for _scene, cases in raw.items():
         for case, instructions in cases.items():
             for _instruction, entry in instructions.items():
-                if skip_oracle_violated and not entry.get("oracle_valid", True):
+                case_filter_counts[case]["n_instructions_total"] += 1
+                translation_valid = bool(entry.get("translation_valid", True))
+                oracle_valid = bool(entry.get("oracle_valid", True))
+                if translation_valid:
+                    case_filter_counts[case]["n_translation_valid"] += 1
+                if oracle_valid:
+                    case_filter_counts[case]["n_oracle_valid"] += 1
+                if skip_translation_invalid and not translation_valid:
                     continue
+                if skip_oracle_violated and not oracle_valid:
+                    continue
+                case_filter_counts[case]["n_after_filters"] += 1
                 for approach_key, metrics in entry.items():
-                    if approach_key in ("oracle", "oracle_valid"):
+                    if approach_key in (
+                        "oracle",
+                        "oracle_valid",
+                        "translation_valid",
+                        "translation_issue_group",
+                    ):
                         continue
                     records[approach_key][case].append(metrics)
 
@@ -416,6 +498,10 @@ def aggregate(
                 "computation_time": _round(computation_time, 6),
                 "computation_time_gap": _round(computation_time_gap, 6),
                 "n_instructions": n,
+                "n_instructions_total": case_filter_counts[case]["n_instructions_total"],
+                "n_translation_valid": case_filter_counts[case]["n_translation_valid"],
+                "n_oracle_valid": case_filter_counts[case]["n_oracle_valid"],
+                "n_after_filters": case_filter_counts[case]["n_after_filters"],
             }
 
     return summary
@@ -601,8 +687,17 @@ def main() -> None:
         action="store_true",
         default=False,
         help=(
-            "Exclude instructions where the oracle's own schedule violates a constraint. "
-            "These entries have inflated optimal_schedule_time and distort makespan gap metrics."
+            "Exclude instructions where the oracle reference is unusable "
+            "(constraint-violated, timed out, or missing optimal_schedule_time)."
+        ),
+    )
+    parser.add_argument(
+        "--include_translation_invalid",
+        action="store_true",
+        default=False,
+        help=(
+            "Include translation-invalid instructions in aggregate denominators. "
+            "By default, action-semantically invalid translated tasks are excluded."
         ),
     )
     parser.add_argument(
@@ -634,18 +729,22 @@ def main() -> None:
         json.dump(raw, f, indent=2)
     print(f"Saved: {raw_path}")
 
-    # Report oracle constraint violation stats
-    total = violated = 0
+    # Report unusable oracle reference stats
+    total = invalid = 0
     for cases in raw.values():
         for instructions in cases.values():
             for entry in instructions.values():
                 total += 1
                 if not entry.get("oracle_valid", True):
-                    violated += 1
-    print(f"Oracle constraint violations: {violated}/{total} instructions")
+                    invalid += 1
+    print(f"Invalid oracle references: {invalid}/{total} instructions")
 
     print("Aggregating summary...")
-    summary = aggregate(raw, skip_oracle_violated=args.skip_oracle_violated)
+    summary = aggregate(
+        raw,
+        skip_oracle_violated=args.skip_oracle_violated,
+        skip_translation_invalid=not args.include_translation_invalid,
+    )
 
     summary_path = output_dir / "offline_analysis_summary.json"
     with summary_path.open("w") as f:

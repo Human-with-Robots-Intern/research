@@ -21,6 +21,12 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+from assets.result_analysis.utils.multi_source import (
+    load_json_objects,
+    mean_std,
+    resolve_source_paths,
+)
+
 DEFAULT_SUMMARY = (
     "assets/results/offline_exp_result/analysis/pf_vs_bayesian/"
     "offline_analysis_summary.json"
@@ -157,8 +163,15 @@ def load_gap_plus_summary(
             for entry in instructions.values():
                 if not isinstance(entry, dict):
                     continue
+                if not entry.get("translation_valid", True):
+                    continue
                 for setting_key, metrics in entry.items():
-                    if setting_key in {"oracle", "oracle_valid"}:
+                    if setting_key in {
+                        "oracle",
+                        "oracle_valid",
+                        "translation_valid",
+                        "translation_issue_group",
+                    }:
                         continue
                     if not isinstance(metrics, dict):
                         continue
@@ -185,36 +198,40 @@ def load_gap_plus_summary(
 
 
 def _format_tex(
-    value: float | None,
+    stats: tuple[float | None, float | None],
     digits: int,
     *,
     highlight: bool = False,
 ) -> str:
+    value, std = stats
     if value is None:
         return "--"
-    cell = f"${value:.{digits}f}$"
+    std_value = 0.0 if std is None else std
+    cell = f"${value:.{digits}f} \\pm {std_value:.{digits}f}$"
     if highlight:
         return rf"{{\boldmath {cell}}}"
     return cell
 
 
 def _best_pair(
-    left: float | None,
-    right: float | None,
+    left: tuple[float | None, float | None],
+    right: tuple[float | None, float | None],
     *,
     higher_is_better: bool,
 ) -> tuple[bool, bool]:
-    if left is None and right is None:
+    left_mean = left[0]
+    right_mean = right[0]
+    if left_mean is None and right_mean is None:
         return False, False
-    if left is None:
+    if left_mean is None:
         return False, True
-    if right is None:
+    if right_mean is None:
         return True, False
-    if abs(left - right) <= EPSILON:
+    if abs(left_mean - right_mean) <= EPSILON:
         return True, True
     if higher_is_better:
-        return left > right, right > left
-    return left < right, right < left
+        return left_mean > right_mean, right_mean > left_mean
+    return left_mean < right_mean, right_mean < left_mean
 
 
 def _collect_rows(
@@ -279,6 +296,50 @@ def _collect_rows(
     return rows
 
 
+def _aggregate_rows(
+    row_groups: list[list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    buckets: dict[tuple[str, str], dict[str, list[float]]] = {}
+    for rows in row_groups:
+        for row in rows:
+            bucket = buckets.setdefault(
+                (row["init_prior"], row["gt_distribution"]),
+                {
+                    "bayes_tcsr": [],
+                    "pf_tcsr": [],
+                    "bayes_gap": [],
+                    "pf_gap": [],
+                    "bayes_ct": [],
+                    "pf_ct": [],
+                },
+            )
+            for field in bucket:
+                value = row.get(field)
+                if value is None:
+                    continue
+                bucket[field].append(float(value))
+
+    aggregated_rows: list[dict[str, Any]] = []
+    for init_prior in INIT_PRIOR_ORDER:
+        for gt_distribution in GT_ORDER:
+            bucket = buckets.get((init_prior, gt_distribution))
+            if bucket is None:
+                continue
+            aggregated_rows.append(
+                {
+                    "init_prior": init_prior,
+                    "gt_distribution": gt_distribution,
+                    "bayes_tcsr": mean_std(bucket["bayes_tcsr"]),
+                    "pf_tcsr": mean_std(bucket["pf_tcsr"]),
+                    "bayes_gap": mean_std(bucket["bayes_gap"]),
+                    "pf_gap": mean_std(bucket["pf_gap"]),
+                    "bayes_ct": mean_std(bucket["bayes_ct"]),
+                    "pf_ct": mean_std(bucket["pf_ct"]),
+                }
+            )
+    return aggregated_rows
+
+
 def _present_priors(rows: list[dict[str, Any]]) -> list[str]:
     """Return priors that actually appear in the collected rows."""
 
@@ -307,7 +368,8 @@ def _build_caption_text(present_priors: list[str]) -> str:
         r"instruction-count-weighted across the four task-complexity cases and "
         r"five kitchen scenes "
         + prior_phrase
-        + r". Gap$^{+}$ averages $\max(0,\mathrm{makespan}-\mathrm{oracle})$ "
+        + r", computed over translation-valid instructions only. "
+        + r"Gap$^{+}$ averages $\max(0,\mathrm{makespan}-\mathrm{oracle})$ "
         r"over instructions with TCSR\,=\,100\%; cells with no valid "
         r"instruction are shown as --. Bold marks the better method within "
         r"each row for the given metric.}"
@@ -389,36 +451,12 @@ def _build_tabular(
                 f"\\textbf{{{GT_LABEL[row['gt_distribution']]}}} & "
                 + " & ".join(
                     [
-                        _format_tex(
-                            row["bayes_tcsr"],
-                            1,
-                            highlight=tcsr_best[0],
-                        ),
-                        _format_tex(
-                            row["pf_tcsr"],
-                            1,
-                            highlight=tcsr_best[1],
-                        ),
-                        _format_tex(
-                            row["bayes_gap"],
-                            1,
-                            highlight=gap_best[0],
-                        ),
-                        _format_tex(
-                            row["pf_gap"],
-                            1,
-                            highlight=gap_best[1],
-                        ),
-                        _format_tex(
-                            row["bayes_ct"],
-                            3,
-                            highlight=ct_best[0],
-                        ),
-                        _format_tex(
-                            row["pf_ct"],
-                            3,
-                            highlight=ct_best[1],
-                        ),
+                _format_tex(row["bayes_tcsr"], 1, highlight=tcsr_best[0]),
+                        _format_tex(row["pf_tcsr"], 1, highlight=tcsr_best[1]),
+                        _format_tex(row["bayes_gap"], 1, highlight=gap_best[0]),
+                        _format_tex(row["pf_gap"], 1, highlight=gap_best[1]),
+                        _format_tex(row["bayes_ct"], 3, highlight=ct_best[0]),
+                        _format_tex(row["pf_ct"], 3, highlight=ct_best[1]),
                     ]
                 )
                 + r" \\"
@@ -453,36 +491,12 @@ def _build_tabular(
                     f"{prefix} & \\textbf{{{GT_LABEL[row['gt_distribution']]}}} & "
                     + " & ".join(
                         [
-                            _format_tex(
-                                row["bayes_tcsr"],
-                                1,
-                                highlight=tcsr_best[0],
-                            ),
-                            _format_tex(
-                                row["pf_tcsr"],
-                                1,
-                                highlight=tcsr_best[1],
-                            ),
-                            _format_tex(
-                                row["bayes_gap"],
-                                1,
-                                highlight=gap_best[0],
-                            ),
-                            _format_tex(
-                                row["pf_gap"],
-                                1,
-                                highlight=gap_best[1],
-                            ),
-                            _format_tex(
-                                row["bayes_ct"],
-                                3,
-                                highlight=ct_best[0],
-                            ),
-                            _format_tex(
-                                row["pf_ct"],
-                                3,
-                                highlight=ct_best[1],
-                            ),
+                            _format_tex(row["bayes_tcsr"], 1, highlight=tcsr_best[0]),
+                            _format_tex(row["pf_tcsr"], 1, highlight=tcsr_best[1]),
+                            _format_tex(row["bayes_gap"], 1, highlight=gap_best[0]),
+                            _format_tex(row["pf_gap"], 1, highlight=gap_best[1]),
+                            _format_tex(row["bayes_ct"], 3, highlight=ct_best[0]),
+                            _format_tex(row["pf_ct"], 3, highlight=ct_best[1]),
                         ]
                     )
                     + r" \\"
@@ -497,15 +511,18 @@ def _build_tabular(
 
 
 def build_tex(
-    summary: dict[str, Any],
-    raw: dict[str, Any],
+    summaries: list[dict[str, Any]],
+    raws: list[dict[str, Any]],
 ) -> str:
-    gap_plus_summary = load_gap_plus_summary(raw)
-    rows = _collect_rows(summary, gap_plus_summary)
+    row_groups = [
+        _collect_rows(summary, load_gap_plus_summary(raw))
+        for summary, raw in zip(summaries, raws)
+    ]
+    rows = _aggregate_rows(row_groups)
     if not rows:
         raise KeyError("No PF-vs-Bayesian keys found in summary.")
     present_priors = _present_priors(rows)
-    tabular = _build_tabular(summary, gap_plus_summary)
+    tabular = _build_tabular_from_rows(rows)
     return (
         r"\begin{table*}[t]"
         "\n"
@@ -522,13 +539,123 @@ def build_tex(
         + tabular
         + "}\n"
         + "}\n"
-        + _build_caption_text(present_priors)
+        + _build_caption_text(present_priors).replace(
+            r"Bold marks the better method within each row for the given metric.}",
+            r"Entries report mean $\pm$ standard deviation over five decomposed "
+            r"instruction sets (v1--v5). Bold marks the better method within "
+            r"each row for the given metric.}",
+        )
         + "\n"
         + r"\label{tab:pf_vs_bayesian_overall}"
         + "\n"
         + r"\end{table*}"
         + "\n"
     )
+
+
+def _build_tabular_from_rows(rows: list[dict[str, Any]]) -> str:
+    if not rows:
+        raise KeyError("No PF-vs-Bayesian keys found in summary.")
+
+    present_priors = _present_priors(rows)
+    single_prior = len(present_priors) == 1
+
+    lines: list[str] = []
+    if single_prior:
+        lines.append(r"\begin{tabular}{@{}l|rr|rr|rr@{}}" "\n")
+    else:
+        lines.append(r"\begin{tabular}{@{}ll|rr|rr|rr@{}}" "\n")
+    lines.append(r"\toprule" "\n")
+    if single_prior:
+        lines.append(
+            r"\multirow{2}{*}{\textbf{GT}} & "
+            r"\multicolumn{2}{c}{\textbf{TCSR (\%)} ($\uparrow$)} & "
+            r"\multicolumn{2}{c}{\textbf{Gap$^{+}$ (s)} ($\downarrow$)} & "
+            r"\multicolumn{2}{c}{\textbf{CT (s)} ($\downarrow$)} \\"
+            "\n"
+        )
+        lines.append(
+            r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}" "\n"
+        )
+        lines.append(
+            r"& \textbf{Bayes} & \textbf{PF} & "
+            r"\textbf{Bayes} & \textbf{PF} & "
+            r"\textbf{Bayes} & \textbf{PF} \\"
+            "\n"
+        )
+    else:
+        lines.append(
+            r"\multirow{2}{*}{\textbf{Init Prior}} & "
+            r"\multirow{2}{*}{\textbf{GT}} & "
+            r"\multicolumn{2}{c}{\textbf{TCSR (\%)} ($\uparrow$)} & "
+            r"\multicolumn{2}{c}{\textbf{Gap$^{+}$ (s)} ($\downarrow$)} & "
+            r"\multicolumn{2}{c}{\textbf{CT (s)} ($\downarrow$)} \\"
+            "\n"
+        )
+        lines.append(
+            r"\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}" "\n"
+        )
+        lines.append(
+            r"& & \textbf{Bayes} & \textbf{PF} & "
+            r"\textbf{Bayes} & \textbf{PF} & "
+            r"\textbf{Bayes} & \textbf{PF} \\"
+            "\n"
+        )
+    lines.append(r"\midrule" "\n")
+
+    if single_prior:
+        for row in rows:
+            tcsr_best = _best_pair(row["bayes_tcsr"], row["pf_tcsr"], higher_is_better=True)
+            gap_best = _best_pair(row["bayes_gap"], row["pf_gap"], higher_is_better=False)
+            ct_best = _best_pair(row["bayes_ct"], row["pf_ct"], higher_is_better=False)
+            lines.append(
+                f"\\textbf{{{GT_LABEL[row['gt_distribution']]}}} & "
+                + " & ".join(
+                    [
+                        _format_tex(row["bayes_tcsr"], 1, highlight=tcsr_best[0]),
+                        _format_tex(row["pf_tcsr"], 1, highlight=tcsr_best[1]),
+                        _format_tex(row["bayes_gap"], 1, highlight=gap_best[0]),
+                        _format_tex(row["pf_gap"], 1, highlight=gap_best[1]),
+                        _format_tex(row["bayes_ct"], 3, highlight=ct_best[0]),
+                        _format_tex(row["pf_ct"], 3, highlight=ct_best[1]),
+                    ]
+                )
+                + r" \\"
+                + "\n"
+            )
+    else:
+        for prior_index, init_prior in enumerate(present_priors):
+            prior_rows = [row for row in rows if row["init_prior"] == init_prior]
+            for row_index, row in enumerate(prior_rows):
+                tcsr_best = _best_pair(row["bayes_tcsr"], row["pf_tcsr"], higher_is_better=True)
+                gap_best = _best_pair(row["bayes_gap"], row["pf_gap"], higher_is_better=False)
+                ct_best = _best_pair(row["bayes_ct"], row["pf_ct"], higher_is_better=False)
+                prefix = (
+                    rf"\multirow{{{len(prior_rows)}}}{{*}}{{\textbf{{{INIT_PRIOR_LABEL[init_prior]}}}}}"
+                    if row_index == 0
+                    else ""
+                )
+                lines.append(
+                    f"{prefix} & \\textbf{{{GT_LABEL[row['gt_distribution']]}}} & "
+                    + " & ".join(
+                        [
+                            _format_tex(row["bayes_tcsr"], 1, highlight=tcsr_best[0]),
+                            _format_tex(row["pf_tcsr"], 1, highlight=tcsr_best[1]),
+                            _format_tex(row["bayes_gap"], 1, highlight=gap_best[0]),
+                            _format_tex(row["pf_gap"], 1, highlight=gap_best[1]),
+                            _format_tex(row["bayes_ct"], 3, highlight=ct_best[0]),
+                            _format_tex(row["pf_ct"], 3, highlight=ct_best[1]),
+                        ]
+                    )
+                    + r" \\"
+                    + "\n"
+                )
+            if prior_index != len(present_priors) - 1:
+                lines.append(r"\midrule" "\n")
+
+    lines.append(r"\bottomrule" "\n")
+    lines.append(r"\end{tabular}" "\n")
+    return "".join(lines)
 
 
 def main() -> None:
@@ -538,6 +665,18 @@ def main() -> None:
         type=Path,
         default=PROJECT_ROOT / DEFAULT_SUMMARY,
         help="Path to offline_analysis_summary.json.",
+    )
+    parser.add_argument(
+        "--analysis-root",
+        type=Path,
+        default=None,
+        help="Root directory containing per-task-folder analysis outputs.",
+    )
+    parser.add_argument(
+        "--task-folders",
+        nargs="+",
+        default=None,
+        help="Task folder names to aggregate under --analysis-root.",
     )
     parser.add_argument(
         "--raw",
@@ -554,9 +693,21 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    summary = _load_json(args.summary)
-    raw = _load_json(args.raw)
-    tex = build_tex(summary, raw)
+    summary_paths = resolve_source_paths(
+        single_path=args.summary,
+        analysis_root=args.analysis_root,
+        task_folders=args.task_folders,
+        filename="offline_analysis_summary.json",
+    )
+    raw_paths = resolve_source_paths(
+        single_path=args.raw,
+        analysis_root=args.analysis_root,
+        task_folders=args.task_folders,
+        filename="offline_comparison_raw.json",
+    )
+    summaries = load_json_objects(summary_paths)
+    raws = load_json_objects(raw_paths)
+    tex = build_tex(summaries, raws)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(tex, encoding="utf-8")
     print(f"Saved LaTeX table to {args.output}")

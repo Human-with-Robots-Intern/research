@@ -32,8 +32,15 @@ cases:
   - "tasks_3_constraints_1"
   - "tasks_3_constraints_2"
 
+
 task_folder_name:
-  - "sampled_10_instruction_set_for_final_experiment_251203"
+  - "decomposed_final_revision_metadata_260402_v1"
+  - "decomposed_final_revision_metadata_260402_v2"
+  - "decomposed_final_revision_metadata_260402_v3"
+  - "decomposed_final_revision_metadata_260402_v4"
+  - "decomposed_final_revision_metadata_260402_v5"
+  
+
 max_tasks: 10
 
 output_dir: "assets/results/offline_exp_result/offline_batch_pf_vs_bayesian"

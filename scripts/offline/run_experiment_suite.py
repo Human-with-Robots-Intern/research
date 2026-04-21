@@ -424,6 +424,8 @@ def _build_analysis_stage_command(
 ) -> tuple[str, ...]:
     """Return the analysis subprocess command for one task folder."""
 
+    analysis_output_dir = suite.analysis_output_dir / task_folder_name
+
     return (
         os.environ.get("PYTHON", sys.executable),
         "-m",
@@ -437,12 +439,14 @@ def _build_analysis_stage_command(
         "--task_folder",
         task_folder_name,
         "--output_dir",
-        str(suite.analysis_output_dir),
+        str(analysis_output_dir),
     )
 
 
 def _build_latex_stage_command(
     suite: SuiteDefinition,
+    *,
+    task_folder_names: Sequence[str],
 ) -> tuple[str, ...] | None:
     """Return the LaTeX export subprocess command for a suite, or None if unsupported."""
 
@@ -450,17 +454,21 @@ def _build_latex_stage_command(
     if module is None:
         return None
 
-    summary_path = suite.analysis_output_dir / "offline_analysis_summary.json"
     latex_out_dir = suite.analysis_output_dir / "latex_tables"
     python = os.environ.get("PYTHON", sys.executable)
+    common_args = (
+        "--analysis-root",
+        str(suite.analysis_output_dir),
+        "--task-folders",
+        *task_folder_names,
+    )
 
     if suite.name == "scalability":
         return (
             python,
             "-m",
             module,
-            "--summary",
-            str(summary_path),
+            *common_args,
             "--output",
             str(latex_out_dir / "scalability_case_table.tex"),
         )
@@ -470,8 +478,7 @@ def _build_latex_stage_command(
             python,
             "-m",
             module,
-            "--summary",
-            str(summary_path),
+            *common_args,
             "--batch-root",
             str(suite.output_dir),
             "--out-dir",
@@ -483,10 +490,7 @@ def _build_latex_stage_command(
             python,
             "-m",
             module,
-            "--summary",
-            str(summary_path),
-            "--raw",
-            str(suite.analysis_output_dir / "offline_comparison_raw.json"),
+            *common_args,
             "--output",
             str(latex_out_dir / "pf_vs_bayesian_overall.tex"),
         )
@@ -496,8 +500,7 @@ def _build_latex_stage_command(
             python,
             "-m",
             module,
-            "--summary",
-            str(summary_path),
+            *common_args,
             "--out-dir",
             str(latex_out_dir),
         )
@@ -577,14 +580,17 @@ def build_execution_plan(
                     description=f"offline analysis: {task_folder_name}",
                 )
             )
-        latex_command = _build_latex_stage_command(suite)
+        latex_command = _build_latex_stage_command(
+            suite,
+            task_folder_names=suite.task_folder_names,
+        )
         if latex_command is not None:
             stages.append(
                 StageSpec(
                     kind="latex",
                     suite=suite.name,
                     command=latex_command,
-                    description=f"latex export: {suite.name}",
+                    description=f"latex export: {suite.name} (aggregated)",
                 )
             )
     return ExecutionPlan(

@@ -9,6 +9,12 @@ from typing import Any, Mapping
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+from assets.result_analysis.utils.multi_source import (
+    load_json_objects,
+    mean_std,
+    resolve_source_paths,
+)
+
 DEFAULT_SUMMARY = (
     "assets/results/offline_exp_result/offline_batch_scalability/"
     "analysis/scalability/offline_analysis_summary.json"
@@ -64,12 +70,17 @@ CASES: list[tuple[str, str]] = [
 ]
 
 
-def _tex_num(x: float, nd: int = 1) -> str:
-    return f"${x:.{nd}f}$"
-
-
-def _fmt_value(value: float, *, digits: int, style: str = "") -> str:
-    cell = _tex_num(value, digits)
+def _fmt_value(
+    mean: float | None,
+    std: float | None,
+    *,
+    digits: int,
+    style: str = "",
+) -> str:
+    if mean is None:
+        return "--"
+    std_value = 0.0 if std is None else std
+    cell = f"${mean:.{digits}f} \\pm {std_value:.{digits}f}$"
     if style == "best":
         return rf"{{\boldmath {cell}}}"
     if style == "second":
@@ -102,8 +113,27 @@ def _compute_highlight_styles(
     return styles
 
 
+def _collect_stats(
+    summaries: list[Mapping[str, Any]],
+    *,
+    summary_key: str,
+    case_name: str,
+    field: str,
+) -> tuple[float | None, float | None]:
+    values: list[float] = []
+    for summary in summaries:
+        metrics = summary.get(summary_key, {}).get(case_name)
+        if metrics is None:
+            continue
+        value = metrics.get(field)
+        if value is None:
+            continue
+        values.append(float(value))
+    return mean_std(values)
+
+
 def _build_highlight_map(
-    summary: Mapping[str, Any],
+    summaries: list[Mapping[str, Any]],
     present_methods: list[tuple[str, str, dict[str, str]]],
 ) -> dict[tuple[str, str, str], dict[str, str]]:
     """Build per-case, per-beam metric highlight styles across methods."""
@@ -122,11 +152,16 @@ def _build_highlight_map(
                 values: list[float] = []
                 for _method_id, _label, key_map in present_methods:
                     summary_key = key_map[beam_key]
-                    metrics = summary.get(summary_key, {}).get(case)
-                    if metrics is None:
+                    mean, _std = _collect_stats(
+                        summaries,
+                        summary_key=summary_key,
+                        case_name=case,
+                        field=metric_name,
+                    )
+                    if mean is None:
                         continue
                     summary_keys.append(summary_key)
-                    values.append(float(metrics[metric_name]))
+                    values.append(mean)
 
                 styles = _compute_highlight_styles(
                     values,
@@ -139,7 +174,7 @@ def _build_highlight_map(
     return highlight_map
 
 
-def _build_tabular(summary: Mapping[str, Any]) -> str:
+def _build_tabular(summaries: list[Mapping[str, Any]]) -> str:
     head = (
         r"\begin{tabular}{@{}llrrrrrrrrr@{}}"
         "\n\\toprule\n"
@@ -158,12 +193,12 @@ def _build_tabular(summary: Mapping[str, Any]) -> str:
     present_methods = [
         (method_id, label, key_map)
         for method_id, label, key_map in METHOD_SPECS
-        if any(key in summary for key in key_map.values())
+        if any(any(key in summary for summary in summaries) for key in key_map.values())
     ]
     if not present_methods:
         raise KeyError("No supported EDF/Ours/Ours wo Mon. keys found in summary.")
 
-    highlight_map = _build_highlight_map(summary, present_methods)
+    highlight_map = _build_highlight_map(summaries, present_methods)
     chunks: list[str] = []
     for method_index, (_method_id, label, key_map) in enumerate(present_methods):
         for case_index, (case, short) in enumerate(CASES):
@@ -175,15 +210,33 @@ def _build_tabular(summary: Mapping[str, Any]) -> str:
             ct_cells: list[str] = []
             for beam_key, _beam_label in BEAMS:
                 summary_key = key_map[beam_key]
-                metrics = summary.get(summary_key, {}).get(case)
-                if metrics is None:
+                tsr_mean, tsr_std = _collect_stats(
+                    summaries,
+                    summary_key=summary_key,
+                    case_name=case,
+                    field="tsr",
+                )
+                gap_mean, gap_std = _collect_stats(
+                    summaries,
+                    summary_key=summary_key,
+                    case_name=case,
+                    field="makespan_gap",
+                )
+                ct_mean, ct_std = _collect_stats(
+                    summaries,
+                    summary_key=summary_key,
+                    case_name=case,
+                    field="computation_time",
+                )
+                if tsr_mean is None and gap_mean is None and ct_mean is None:
                     tsr_cells.append("--")
                     gap_cells.append("--")
                     ct_cells.append("--")
                     continue
                 tsr_cells.append(
                     _fmt_value(
-                        float(metrics["tsr"]),
+                        tsr_mean,
+                        tsr_std,
                         digits=1,
                         style=highlight_map[(case, beam_key, "tsr")].get(
                             summary_key, ""
@@ -192,7 +245,8 @@ def _build_tabular(summary: Mapping[str, Any]) -> str:
                 )
                 gap_cells.append(
                     _fmt_value(
-                        float(metrics["makespan_gap"]),
+                        gap_mean,
+                        gap_std,
                         digits=1,
                         style=highlight_map[(case, beam_key, "makespan_gap")].get(
                             summary_key, ""
@@ -201,7 +255,8 @@ def _build_tabular(summary: Mapping[str, Any]) -> str:
                 )
                 ct_cells.append(
                     _fmt_value(
-                        float(metrics["computation_time"]),
+                        ct_mean,
+                        ct_std,
                         digits=3,
                         style=highlight_map[(case, beam_key, "computation_time")].get(
                             summary_key, ""
@@ -223,8 +278,8 @@ def _build_tabular(summary: Mapping[str, Any]) -> str:
     return head + "".join(chunks) + "\\bottomrule\n\\end{tabular}\n"
 
 
-def build_tex(summary: Mapping[str, Any]) -> str:
-    tabular = _build_tabular(summary)
+def build_tex(summaries: list[Mapping[str, Any]]) -> str:
+    tabular = _build_tabular(summaries)
     return (
         r"\begin{table}[t]"
         "\n"
@@ -237,9 +292,11 @@ def build_tex(summary: Mapping[str, Any]) -> str:
         r"\renewcommand{\arraystretch}{1.05}"
         "\n" + tabular + "}\n"
         r"\caption{Scalability results under the constant-duration setting with "
-        r"CORRECT\_ESTIMATE prior and $\eta=0.1$. Higher TCSR is better, while "
-        r"lower oracle gap and computation time are better. Columns sweep beam "
-        r"size $B \in \{1,10,20\}$.}"
+        r"CORRECT\_ESTIMATE prior and $\eta=0.1$. Entries report mean $\pm$ standard "
+        r"deviation over five decomposed instruction sets (v1--v5), computed over "
+        r"translation-valid instructions only. Higher TCSR is better, while lower "
+        r"oracle gap and computation time are better. Columns sweep beam size "
+        r"$B \in \{1,10,20\}$.}"
         "\n"
         r"\label{tab:scalability_case_results}"
         "\n"
@@ -257,6 +314,18 @@ def main() -> None:
         help="Path to offline_analysis_summary.json.",
     )
     parser.add_argument(
+        "--analysis-root",
+        type=Path,
+        default=None,
+        help="Root directory containing per-task-folder analysis outputs.",
+    )
+    parser.add_argument(
+        "--task-folders",
+        nargs="+",
+        default=None,
+        help="Task folder names to aggregate under --analysis-root.",
+    )
+    parser.add_argument(
         "-o",
         "--output",
         type=Path,
@@ -265,9 +334,15 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    summary = json.loads(args.summary.read_text())
+    summary_paths = resolve_source_paths(
+        single_path=args.summary,
+        analysis_root=args.analysis_root,
+        task_folders=args.task_folders,
+        filename="offline_analysis_summary.json",
+    )
+    summaries = load_json_objects(summary_paths)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(build_tex(summary), encoding="utf-8")
+    args.output.write_text(build_tex(summaries), encoding="utf-8")
     print(args.output)
 
 
