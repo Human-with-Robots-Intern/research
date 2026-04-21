@@ -55,6 +55,7 @@ def _add_common_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--gt-distribution", type=str, default=None)
     parser.add_argument("--gt-seed", type=int, default=None)
     parser.add_argument("--particle-distribution", type=str, default=None)
+    parser.add_argument("--particle-likelihood-family", type=str, default=None)
     parser.add_argument("--factor-alpha", type=float, default=None)
     parser.add_argument("--eta", type=float, default=None)
     parser.add_argument(
@@ -154,6 +155,7 @@ def _build_run_config(args: argparse.Namespace) -> ExperimentConfig:
         "gt_distribution": args.gt_distribution,
         "gt_seed": args.gt_seed,
         "particle_distribution": args.particle_distribution,
+        "particle_likelihood_family": args.particle_likelihood_family,
         "factor_alpha": args.factor_alpha,
         "eta": args.eta,
         "max_monitoring_per_critical_interval": (

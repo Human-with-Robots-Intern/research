@@ -10,6 +10,7 @@ from scripts.offline.run_experiment_suite import (
     PROJECT_ROOT,
     _load_suite_definition,
     build_execution_plan,
+    parse_args,
 )
 
 
@@ -37,10 +38,18 @@ def _value_after(command: tuple[str, ...], flag: str) -> str:
     return command[index + 1]
 
 
+def test_parse_args_accepts_pf_vs_bayesian_suite() -> None:
+    """The suite CLI should expose the PF-vs-Bayesian comparison entrypoint again."""
+
+    args = parse_args(["--suite", "pf_vs_bayesian"])
+
+    assert args.suite == "pf_vs_bayesian"
+
+
 def test_pf_vs_bayesian_plan_orders_oracle_batches_and_analysis(
     tmp_path: Path,
 ) -> None:
-    """The PF-vs-Bayesian suite should stage oracle, 8 batch configs, then analysis."""
+    """The PF-vs-Bayesian suite should stage oracle, 6 batch configs, analysis, then LaTeX."""
 
     plan = build_execution_plan(
         requested_suite="pf_vs_bayesian",
@@ -57,16 +66,15 @@ def test_pf_vs_bayesian_plan_orders_oracle_batches_and_analysis(
         "batch",
         "batch",
         "batch",
-        "batch",
-        "batch",
         "analysis",
+        "latex",
     ]
-    assert [stage.suite for stage in plan.stages[1:9]] == ["pf_vs_bayesian"] * 8
+    assert [stage.suite for stage in plan.stages[1:7]] == ["pf_vs_bayesian"] * 6
     assert plan.stages[-1].suite == "pf_vs_bayesian"
 
 
 def test_scalability_plan_orders_oracle_batch_and_analysis(tmp_path: Path) -> None:
-    """The scalability suite should stage one oracle, one batch, and one analysis."""
+    """The scalability suite should stage oracle, batch, analysis, then LaTeX export."""
 
     plan = build_execution_plan(
         requested_suite="scalability",
@@ -79,13 +87,14 @@ def test_scalability_plan_orders_oracle_batch_and_analysis(tmp_path: Path) -> No
         ("oracle", None),
         ("batch", "scalability"),
         ("analysis", "scalability"),
+        ("latex", "scalability"),
     ]
 
 
 def test_monitoring_budget_plan_orders_oracle_batch_and_analysis(
     tmp_path: Path,
 ) -> None:
-    """The monitoring-budget suite should stage one oracle, one batch, and analysis."""
+    """The monitoring-budget suite should stage oracle, batch, analysis, and LaTeX."""
 
     plan = build_execution_plan(
         requested_suite="monitoring_budget",
@@ -98,6 +107,7 @@ def test_monitoring_budget_plan_orders_oracle_batch_and_analysis(
         ("oracle", None),
         ("batch", "monitoring_budget"),
         ("analysis", "monitoring_budget"),
+        ("latex", "monitoring_budget"),
     ]
 
 
@@ -112,17 +122,23 @@ def test_all_plan_uses_single_oracle_and_expected_suite_order(tmp_path: Path) ->
     )
 
     sequence = [(stage.kind, stage.suite) for stage in plan.stages]
-    assert sequence[:7] == [
+    assert sequence[:10] == [
         ("oracle", None),
         ("batch", "scalability"),
         ("analysis", "scalability"),
+        ("latex", "scalability"),
         ("batch", "eta_sensitivity"),
         ("analysis", "eta_sensitivity"),
+        ("latex", "eta_sensitivity"),
         ("batch", "monitoring_budget"),
         ("analysis", "monitoring_budget"),
+        ("latex", "monitoring_budget"),
     ]
-    assert sequence[7:-1] == [("batch", "pf_vs_bayesian")] * 8
-    assert sequence[-1] == ("analysis", "pf_vs_bayesian")
+    assert sequence[10:16] == [("batch", "pf_vs_bayesian")] * 6
+    assert sequence[16:] == [
+        ("analysis", "pf_vs_bayesian"),
+        ("latex", "pf_vs_bayesian"),
+    ]
 
 
 def test_skip_completed_flag_is_forwarded_to_oracle_and_batch(tmp_path: Path) -> None:
@@ -154,7 +170,7 @@ def test_analysis_paths_are_inferred_from_output_and_oracle_dirs(
         temp_dir=tmp_path,
     )
 
-    analysis_command = plan.stages[-1].command
+    analysis_command = plan.stages[-2].command
 
     assert _value_after(analysis_command, "--base_dir") == str(
         PROJECT_ROOT / "assets/results"
@@ -167,6 +183,34 @@ def test_analysis_paths_are_inferred_from_output_and_oracle_dirs(
     )
     assert _value_after(analysis_command, "--output_dir") == str(
         PROJECT_ROOT / "assets/results/offline_exp_result/analysis/pf_vs_bayesian"
+    )
+
+
+def test_pf_vs_bayesian_latex_stage_targets_summary_and_raw(tmp_path: Path) -> None:
+    """The PF-vs-Bayesian suite should emit a dedicated LaTeX export stage."""
+
+    plan = build_execution_plan(
+        requested_suite="pf_vs_bayesian",
+        oracle_config_path=_write_oracle_config(tmp_path),
+        force_skip_completed=False,
+        temp_dir=tmp_path,
+    )
+
+    latex_command = plan.stages[-1].command
+
+    assert plan.stages[-1].kind == "latex"
+    assert latex_command[2] == "assets.result_analysis.pf_vs_bayesian_table"
+    assert _value_after(latex_command, "--summary") == str(
+        PROJECT_ROOT
+        / "assets/results/offline_exp_result/analysis/pf_vs_bayesian/offline_analysis_summary.json"
+    )
+    assert _value_after(latex_command, "--raw") == str(
+        PROJECT_ROOT
+        / "assets/results/offline_exp_result/analysis/pf_vs_bayesian/offline_comparison_raw.json"
+    )
+    assert _value_after(latex_command, "--output") == str(
+        PROJECT_ROOT
+        / "assets/results/offline_exp_result/analysis/pf_vs_bayesian/latex_tables/pf_vs_bayesian_overall.tex"
     )
 
 

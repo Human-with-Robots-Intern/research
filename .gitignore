@@ -15,6 +15,9 @@ dist/
 *.spec
 *.kit
 *.txt
+*.tex
+*.pdf
+api_key.txt
 
 # Logs
 *.log

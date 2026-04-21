@@ -3,6 +3,7 @@ import concurrent.futures
 import gc
 import logging
 import os
+import os
 import re
 import shutil
 import subprocess
@@ -510,7 +511,7 @@ def worker(task: ExperimentTask) -> None:
         )
 
         if b_type == BaselineType.SCHEDULER:
-            buffer_between_instructions = 0 if task.is_simulation else 10
+            buffer_between_instructions = 0 if task.is_simulation else 30
             if buffer_between_instructions > 0:
                 logger.info(
                     f"Waiting for {buffer_between_instructions} seconds before starting."
@@ -549,7 +550,12 @@ def worker(task: ExperimentTask) -> None:
                     f"Scheduler baseline {b_path.name} failed after {task.max_retries} attempts."
                 )
         elif b_type == BaselineType.LLM:
-            buffer_between_instructions = 2 if task.is_simulation else 30
+            buffer_between_instructions = 2 if task.is_simulation else 20
+            if buffer_between_instructions > 0:
+                logger.info(
+                    f"Waiting for {buffer_between_instructions} seconds before starting."
+                )
+                time.sleep(buffer_between_instructions)
             for attempt in range(1, task.max_retries + 1):
                 result = _run_script_and_log(
                     b_path,
@@ -871,6 +877,7 @@ def main() -> None:
     max_workers: int = config.get("max_workers", 10)
     num_gpus: int = config.get("num_gpus", 0)
     start_idx: int = config.get("start_idx", 1)
+    end_idx: int = config.get("end_idx", 99999)
 
     is_dry_run: bool = args.dry_run
 
@@ -983,8 +990,10 @@ def main() -> None:
                     instr_path_obj = Path(instruction_path)
                     # Apply start_idx filter
                     instr_idx_match = re.match(r"(\d+)_", instr_path_obj.name)
-                    if instr_idx_match and int(instr_idx_match.group(1)) < start_idx:
-                        continue
+                    if instr_idx_match:
+                        instr_idx = int(instr_idx_match.group(1))
+                        if instr_idx < start_idx or instr_idx > end_idx:
+                            continue
                     # Apply execute_dict filter if it's defined
                     if execute_dict:
                         if case_name not in execute_dict:

@@ -233,20 +233,6 @@ class DeterministicExactOracle:
         feasible_candidates, not_yet_candidates = (
             self.constraint_handler.get_feasible_candidates(node)
         )
-        reserved_candidate_name = (
-            self.scheduler._get_reserved_prenavigation_candidate_name(node)
-        )
-        if reserved_candidate_name is not None:
-            feasible_candidates = [
-                candidate
-                for candidate in feasible_candidates
-                if candidate.subtask.name == reserved_candidate_name
-            ]
-            not_yet_candidates = [
-                candidate
-                for candidate in not_yet_candidates
-                if candidate.subtask.name == reserved_candidate_name
-            ]
 
         # Branch A: execute each feasible candidate now (neutral ordering).
         for candidate in self._order_candidates(node, feasible_candidates):
@@ -265,23 +251,9 @@ class DeterministicExactOracle:
             if self._timeout_hit:
                 return
 
-        # Branch B: blocked-candidate branches (WAIT and early PRENAV).
+        # Branch B: blocked-candidate branches (explicit staged WAIT only).
         if not_yet_candidates:
             for blocked_candidate in self._order_blocked_candidates(not_yet_candidates):
-                prenav_node = self._expand_blocked_prenavigation(
-                    node,
-                    blocked_candidate,
-                    feasible_candidates,
-                    not_yet_candidates,
-                )
-                if prenav_node is not None:
-                    self._search(
-                        prenav_node,
-                        sequence + (prenav_node.state.subtask.name,),
-                    )
-                    if self._timeout_hit:
-                        return
-
                 wait_node = self._expand_blocked_wait(
                     node,
                     blocked_candidate,
@@ -418,22 +390,6 @@ class DeterministicExactOracle:
         if wait_node is not None:
             self._idle_advances += 1
         return wait_node
-
-    def _expand_blocked_prenavigation(
-        self,
-        node: SimulationNode,
-        candidate: Candidate,
-        feasible_candidates: Sequence[Candidate],
-        not_yet_candidates: Sequence[Candidate],
-    ) -> Optional[SimulationNode]:
-        """Create an early NAV-only successor for a blocked candidate."""
-
-        return self.scheduler._expand_blocked_prenavigation(
-            node,
-            candidate,
-            list(not_yet_candidates),
-            feasible_candidates=list(feasible_candidates),
-        )
 
 
 def build_scheduler_state_after_subtask(

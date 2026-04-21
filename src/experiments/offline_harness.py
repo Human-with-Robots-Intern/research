@@ -143,6 +143,7 @@ class ExperimentConfig:
     gt_distribution: str = "constant"
     gt_seed: int = 42
     particle_distribution: Optional[str] = None
+    particle_likelihood_family: Optional[str] = None
     factor_alpha: Optional[float] = None
     eta: Optional[float] = None
     max_monitoring_per_critical_interval: Optional[int] = None
@@ -168,6 +169,8 @@ class ExperimentConfig:
         self.gt_distribution = str(self.gt_distribution)
         if self.particle_distribution is not None:
             self.particle_distribution = str(self.particle_distribution)
+        if self.particle_likelihood_family is not None:
+            self.particle_likelihood_family = str(self.particle_likelihood_family)
         if isinstance(self.max_monitoring_per_critical_interval, str):
             raw_budget = self.max_monitoring_per_critical_interval.strip().lower()
             if raw_budget in {"uncap", "unbounded", "inf", "infinity"}:
@@ -197,6 +200,14 @@ class ExperimentConfig:
         ):
             raise ValueError(
                 f"Unsupported particle_distribution: {self.particle_distribution}"
+            )
+        if (
+            self.particle_likelihood_family is not None
+            and self.particle_likelihood_family not in SUPPORTED_DURATION_DISTRIBUTIONS
+        ):
+            raise ValueError(
+                "Unsupported particle_likelihood_family: "
+                f"{self.particle_likelihood_family}"
             )
 
 
@@ -687,6 +698,7 @@ def _build_result_meta_data(
         "gt_distribution": config.gt_distribution,
         "gt_seed": config.gt_seed,
         "particle_distribution": result.get("particle_distribution"),
+        "particle_likelihood_family": result.get("particle_likelihood_family"),
         "factor_alpha": config.factor_alpha,
         "eta": config.eta,
         "monitoring_budget_per_critical": _resolve_monitoring_budget_label(
@@ -877,6 +889,7 @@ def run_single_rollout(
         config.belief_update_method,
         bayesian_load,
         particle_distribution=particle_distribution,
+        particle_likelihood_family=config.particle_likelihood_family,
         observation_model=observation_model,
         random_seed=config.gt_seed,
     )
@@ -1010,6 +1023,7 @@ def run_single_rollout(
         "timing_detail": detail_log,
         "ground_truth_intervals": ground_truth_store.as_dict(),
         "particle_distribution": particle_distribution,
+        "particle_likelihood_family": config.particle_likelihood_family,
         "monitoring_budget_per_critical": monitoring_budget_label,
     }
     return _build_hybrid_result_row(config, result)

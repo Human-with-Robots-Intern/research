@@ -1,7 +1,7 @@
 max_workers: 6
 skip_completed: true
 timeout_seconds: 1200
-suite_name: "eta_sensitivity"
+suite_name: "pf_vs_bayesian"
 
 approaches: ["bayesian"]
 ablation_configs: [DEFAULT]
@@ -9,17 +9,11 @@ init_prior_configs:
   - CORRECT_ESTIMATE
 
 beam_bound:
-  - [1, 1]
-  - [5, 5]
   - [10, 10]
-  - [20, 20]
 etas:
-  - 0.01
   - 0.1
-  - 0.5
-  - 0.9
 
-gt_distribution: "constant"
+gt_distribution: "lognormal"
 belief_update_method: "bayesian"
 gt_seed: 42
 
@@ -42,5 +36,5 @@ task_folder_name:
   - "sampled_10_instruction_set_for_final_experiment_251203"
 max_tasks: 10
 
-output_dir: "assets/results/offline_exp_result/offline_batch_eta_sensitivity"
+output_dir: "assets/results/offline_exp_result/offline_batch_pf_vs_bayesian"
 oracle_reference_dir: "assets/results/offline_oracle_reference"

@@ -7,7 +7,8 @@ Produces two output files:
 
 2. offline_analysis_summary.json
    Per approach/case: aggregated metrics (sr, tsr, makespan, makespan_sr_1,
-   makespan_gap, makespan_gap_sr_1, computation_time, computation_time_gap).
+   makespan_gap, makespan_gap_sr_1, computation_time, computation_time_gap,
+   n_instructions).
 
 Optional (--tolerance-sweep):
 
@@ -66,6 +67,7 @@ def _build_approach_key_from_stem(stem: str) -> str:
                 suffix.startswith("eta")
                 or suffix.startswith("gt")
                 or suffix.startswith("pdist")
+                or suffix.startswith("plik")
                 or suffix.startswith("mb")
             ):
                 key += f"__{suffix}"
@@ -121,11 +123,14 @@ def build_approach_key(
 
     gt_distribution = str(meta_data.get("gt_distribution", "constant"))
     particle_distribution = meta_data.get("particle_distribution")
+    particle_likelihood_family = meta_data.get("particle_likelihood_family")
 
     if baseline_name == "particle_filter":
         key += f"__gt{_sanitize_token(gt_distribution)}"
         if particle_distribution not in {None, gt_distribution}:
             key += f"__pdist{_sanitize_token(particle_distribution)}"
+        if particle_likelihood_family not in {None, "gaussian"}:
+            key += f"__plik{_sanitize_token(particle_likelihood_family)}"
         monitoring_budget = meta_data.get("monitoring_budget_per_critical")
         if monitoring_budget is not None:
             key += f"__mb{_sanitize_token(monitoring_budget)}"
@@ -316,6 +321,9 @@ def build_raw(
                         "belief_update_method": meta_data.get("belief_update_method"),
                         "gt_distribution": meta_data.get("gt_distribution"),
                         "particle_distribution": meta_data.get("particle_distribution"),
+                        "particle_likelihood_family": meta_data.get(
+                            "particle_likelihood_family"
+                        ),
                         "eta": meta_data.get("eta"),
                     }
 
@@ -407,6 +415,7 @@ def aggregate(
                 "makespan_gap_sr_1": _round(makespan_gap_sr_1, 4),
                 "computation_time": _round(computation_time, 6),
                 "computation_time_gap": _round(computation_time_gap, 6),
+                "n_instructions": n,
             }
 
     return summary

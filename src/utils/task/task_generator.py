@@ -51,10 +51,11 @@ class TaskGenerator:
     등
     """
 
-    def __init__(self, is_rag: bool = False, is_test: bool = False):
+    def __init__(self, is_rag: bool = False, is_test: bool = False, use_cache: bool = True):
         self.client = initialize_openai()
         self.is_rag = is_rag
         self.is_test = is_test
+        self.use_cache = use_cache
         # 추가적으로 필요한 상태(예: knowledge 등) 여기서 관리 가능
 
     def load_file(self, file_path: Path, file_type: str) -> Any:
@@ -103,7 +104,7 @@ class TaskGenerator:
             )
         elif scene_type == "kitchen":
             examples_prompt = self.load_file(
-                Path(PROMPT_PATH) / "e2e_generator_ver13_kitchen.txt", "txt"
+                Path(PROMPT_PATH) / "e2e_generator_ver13_kitchen_one_shot.txt", "txt"
             )
         else:
             examples_prompt = self.load_file(
@@ -171,7 +172,7 @@ class TaskGenerator:
 
         # 캐싱 체크
         prompt_key = get_cache_key(full_prompt)
-        cached_result = check_cache(prompt_key)
+        cached_result = check_cache(prompt_key) if self.use_cache else None
         if cached_result:
             logger.info("Using cached result.")
             output = cached_result
@@ -179,8 +180,8 @@ class TaskGenerator:
             # OpenAI 호출
             output = self._call_openai(full_prompt)
             if output and validate_output_format(output):
-                # 캐시에 저장
-                store_cache(prompt_key, output)
+                if self.use_cache:
+                    store_cache(prompt_key, output)
             else:
                 raise ValueError("Task generation failed. (Invalid Format)")
 
