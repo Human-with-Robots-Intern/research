@@ -2408,6 +2408,241 @@ def test_expand_subtask_with_monitoring_skips_late_pre_monitor_fallback(
     assert new_entries[0].subtask.subtask_type == "Interaction"
 
 
+def test_should_split_with_monitoring_ignores_late_action_monitor_outside_window(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Action expansion should ignore a raw trigger that lands after the current action window."""
+
+    action_handler = _DummyActionHandler()
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=_DummyHeuristicManager(),
+        monitoring_policy=BayesianMonitoringPolicy(BeliefStore()),
+    )
+
+    start_subtask = _make_subtask(
+        "Start Microwave for Heating Potato",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+        subtask_type="Interaction",
+    )
+    current_subtask = _make_subtask(
+        "Wash Spatula in Sink",
+        primitive_actions=["CLEAN Spatula|01"],
+        subtask_type="Interaction",
+    )
+    candidate_subtask = _make_subtask(
+        "Put Lettuce in Fridge",
+        primitive_actions=["PLACE_ON_TOP Lettuce|01 Fridge|01"],
+        subtask_type="Interaction",
+    )
+    end_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Potato",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+        subtask_type="Interaction",
+    )
+
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        start_subtask.name,
+        end_subtask.name,
+        info={"Interval": 60.0, "IsCritical": True, "Variance": 1600.0},
+    )
+
+    state = SchedulerState(
+        subtask=current_subtask,
+        completed_entries=[
+            CompletedEntry(
+                subtask=start_subtask,
+                schedule_start_time=24.32,
+                schedule_end_time=29.77,
+                sim_start_time=24.32,
+                sim_end_time=29.77,
+                execution_status=TaskExecutionStatus.SUCCESS,
+            ),
+            CompletedEntry(
+                subtask=current_subtask,
+                schedule_start_time=52.33,
+                schedule_end_time=61.79,
+                sim_start_time=52.33,
+                sim_end_time=61.79,
+                execution_status=TaskExecutionStatus.SUCCESS,
+            ),
+        ],
+        remaining_subtasks=[candidate_subtask, end_subtask],
+        constraints=constraints,
+        current_time=61.79,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=False,
+    )
+
+    monkeypatch.setattr(
+        action_handler,
+        "get_actions_info",
+        lambda *_args, **_kwargs: ActionResult(
+            action_full_name="PLACE_ON_TOP Lettuce|01 Fridge|01",
+            action_type="PLACE_ON_TOP",
+            cumulative_time=22.56,
+            action_duration=22.56,
+            scene_positions=dict(state.scene_positions),
+            held_object=state.held_object,
+            success=True,
+            first_nav_duration=0.0,
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        lambda **_kwargs: 141.03,
+    )
+
+    need_monitor, due_info = scheduler._should_split_with_monitoring(
+        curr_node,
+        candidate,
+        expansion_kind="action",
+    )
+
+    assert need_monitor is False
+    assert due_info is None
+
+
+def test_expand_subtask_with_monitoring_keeps_late_action_trigger_unsplit(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A late raw trigger should leave the action unsplit instead of forcing a clamped monitor."""
+
+    action_handler = _DummyActionHandler()
+    scheduler = Scheduler(
+        action_handler=action_handler,
+        constraint_handler=ConstraintHandler(action_handler),
+        heuristic_manager=_DummyHeuristicManager(),
+        monitoring_policy=BayesianMonitoringPolicy(BeliefStore()),
+    )
+
+    start_subtask = _make_subtask(
+        "Start Microwave for Heating Potato",
+        primitive_actions=["TOGGLE_ON Microwave|01"],
+        subtask_type="Interaction",
+    )
+    current_subtask = _make_subtask(
+        "Wash Spatula in Sink",
+        primitive_actions=["CLEAN Spatula|01"],
+        subtask_type="Interaction",
+    )
+    candidate_subtask = _make_subtask(
+        "Put Lettuce in Fridge",
+        primitive_actions=["PLACE_ON_TOP Lettuce|01 Fridge|01"],
+        subtask_type="Interaction",
+    )
+    end_subtask = _make_subtask(
+        "Turn Off Microwave after Heating Potato",
+        primitive_actions=["TOGGLE_OFF Microwave|01"],
+        subtask_type="Interaction",
+    )
+
+    constraints = nx.DiGraph()
+    constraints.add_edge(
+        start_subtask.name,
+        end_subtask.name,
+        info={"Interval": 60.0, "IsCritical": True, "Variance": 1600.0},
+    )
+
+    state = SchedulerState(
+        subtask=current_subtask,
+        completed_entries=[
+            CompletedEntry(
+                subtask=start_subtask,
+                schedule_start_time=24.32,
+                schedule_end_time=29.77,
+                sim_start_time=24.32,
+                sim_end_time=29.77,
+                execution_status=TaskExecutionStatus.SUCCESS,
+            ),
+            CompletedEntry(
+                subtask=current_subtask,
+                schedule_start_time=52.33,
+                schedule_end_time=61.79,
+                sim_start_time=52.33,
+                sim_end_time=61.79,
+                execution_status=TaskExecutionStatus.SUCCESS,
+            ),
+        ],
+        remaining_subtasks=[candidate_subtask, end_subtask],
+        constraints=constraints,
+        current_time=61.79,
+        scene_positions={"agent": (0.0, 0.9, 0.0)},
+        held_object=None,
+    )
+    curr_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=0,
+        tie_breaker=0,
+        parent_node=None,
+        state=state,
+        risk_level=0,
+    )
+    candidate = Candidate(
+        subtask=candidate_subtask,
+        is_critical=False,
+        scheduling_due=SchedulingDue(
+            due_date=89.77,
+            due_related_sub_name=end_subtask.name,
+        ),
+    )
+
+    monkeypatch.setattr(
+        action_handler,
+        "get_actions_info",
+        lambda *_args, **_kwargs: ActionResult(
+            action_full_name="PLACE_ON_TOP Lettuce|01 Fridge|01",
+            action_type="PLACE_ON_TOP",
+            cumulative_time=22.56,
+            action_duration=22.56,
+            scene_positions=dict(state.scene_positions),
+            held_object=state.held_object,
+            success=True,
+            first_nav_duration=0.0,
+        ),
+    )
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        lambda **_kwargs: 141.03,
+    )
+
+    monkeypatch.setattr(
+        action_handler,
+        "split_subtask_by_cutoff_time",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("late raw trigger should not request an action split")
+        ),
+        raising=False,
+    )
+
+    result_node = scheduler._expand_subtask_with_monitoring(curr_node, candidate, [])
+
+    assert result_node is not None
+    assert result_node.state.subtask.name == candidate_subtask.name
+    assert result_node.state.subtask.subtask_type == "Interaction"
+    assert result_node.state.current_time == pytest.approx(84.35)
+    assert all(
+        subtask.subtask_type != "Monitor"
+        for subtask in result_node.state.remaining_subtasks
+    )
+
+
 def test_particle_filter_belief_updater_returns_particle_state() -> None:
     """Particle-filter updater should keep particle state and expose ESS."""
 
@@ -3250,9 +3485,11 @@ def test_expand_single_wait_skips_late_local_monitor_and_falls_back_to_local_exe
 def test_expand_wait_options_prefers_rescue_monitor_before_local_execute(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """Wait expansion should commit to a feasible rescue monitor before plain waiting."""
+    """An earlier rescue-monitor event should remain primary while keeping a capped local backup."""
 
-    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture()
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture(
+        current_time=30.0,
+    )
     rescue_subtask = _make_subtask(
         "Turn Off Microwave after Heating Bread",
         primitive_actions=["TOGGLE_OFF Microwave|02"],
@@ -3276,9 +3513,9 @@ def test_expand_wait_options_prefers_rescue_monitor_before_local_execute(
     local_execute_event = WaitExpansionEvent(
         kind="local_execute",
         candidate=candidate,
-        event_time=40.0,
+        event_time=80.0,
         nav_duration=0.0,
-        due_date=40.0,
+        due_date=80.0,
     )
     rescue_event = WaitExpansionEvent(
         kind="rescue_monitor",
@@ -3351,6 +3588,7 @@ def test_expand_wait_options_prefers_rescue_monitor_before_local_execute(
     )
 
     attempted_kinds: list[str] = []
+    captured_backup_wait_durations: list[float | None] = []
 
     def _stub_expand_wait_event(
         _curr_node: SimulationNode,
@@ -3359,6 +3597,7 @@ def test_expand_wait_options_prefers_rescue_monitor_before_local_execute(
         _not_yet_candidates: list[Candidate],
         feasible_candidates: list[Candidate] | None = None,
         local_nav_time: float = 0.0,
+        max_wait_duration: float | None = None,
     ) -> SimulationNode | None:
         _ = feasible_candidates, local_nav_time
         assert selected_event is not None
@@ -3366,6 +3605,7 @@ def test_expand_wait_options_prefers_rescue_monitor_before_local_execute(
         if selected_event.kind == "rescue_monitor":
             return rescue_node
         if selected_event.kind == "local_execute":
+            captured_backup_wait_durations.append(max_wait_duration)
             return local_execute_node
         return None
 
@@ -3375,16 +3615,19 @@ def test_expand_wait_options_prefers_rescue_monitor_before_local_execute(
 
     assert wait_nodes
     assert wait_nodes[0] is rescue_node
-    assert wait_nodes == [rescue_node]
-    assert attempted_kinds == ["rescue_monitor"]
+    assert wait_nodes[1] is local_execute_node
+    assert attempted_kinds == ["rescue_monitor", "local_execute"]
+    assert captured_backup_wait_durations == [pytest.approx(22.0)]
 
 
 def test_expand_wait_options_falls_back_when_rescue_monitor_does_not_materialize(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """A rescue-monitor attempt that degrades into plain waiting should fall back locally."""
+    """A degraded earlier rescue-monitor attempt should still retain the capped local backup."""
 
-    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture()
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture(
+        current_time=30.0,
+    )
     rescue_subtask = _make_subtask(
         "Turn Off Microwave after Heating Bread",
         primitive_actions=["TOGGLE_OFF Microwave|02"],
@@ -3408,9 +3651,9 @@ def test_expand_wait_options_falls_back_when_rescue_monitor_does_not_materialize
     local_execute_event = WaitExpansionEvent(
         kind="local_execute",
         candidate=candidate,
-        event_time=40.0,
+        event_time=80.0,
         nav_duration=0.0,
-        due_date=40.0,
+        due_date=80.0,
     )
     rescue_event = WaitExpansionEvent(
         kind="rescue_monitor",
@@ -3476,6 +3719,7 @@ def test_expand_wait_options_falls_back_when_rescue_monitor_does_not_materialize
     )
 
     attempted_kinds: list[str] = []
+    captured_backup_wait_durations: list[float | None] = []
 
     def _stub_expand_wait_event(
         _curr_node: SimulationNode,
@@ -3484,6 +3728,7 @@ def test_expand_wait_options_falls_back_when_rescue_monitor_does_not_materialize
         _not_yet_candidates: list[Candidate],
         feasible_candidates: list[Candidate] | None = None,
         local_nav_time: float = 0.0,
+        max_wait_duration: float | None = None,
     ) -> SimulationNode | None:
         _ = feasible_candidates, local_nav_time
         assert selected_event is not None
@@ -3491,6 +3736,7 @@ def test_expand_wait_options_falls_back_when_rescue_monitor_does_not_materialize
         if selected_event.kind == "rescue_monitor":
             return rescue_fallback_node
         if selected_event.kind == "local_execute":
+            captured_backup_wait_durations.append(max_wait_duration)
             return local_execute_node
         return None
 
@@ -3499,17 +3745,21 @@ def test_expand_wait_options_falls_back_when_rescue_monitor_does_not_materialize
     wait_nodes = scheduler._expand_wait_options(curr_node, candidate, [candidate])
 
     assert wait_nodes
-    assert wait_nodes[0] is local_execute_node
+    assert wait_nodes[0] is rescue_fallback_node
+    assert wait_nodes[1] is local_execute_node
     assert attempted_kinds[:2] == ["rescue_monitor", "local_execute"]
-    assert rescue_fallback_node not in wait_nodes
+    assert rescue_fallback_node in wait_nodes
+    assert captured_backup_wait_durations == [pytest.approx(22.0)]
 
 
 def test_expand_wait_options_prefers_local_monitor_before_local_execute(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    """A realized local-monitor wait should suppress the plain long-wait backup."""
+    """A realized local-monitor wait should remain primary and keep a capped local backup."""
 
-    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture()
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture(
+        current_time=20.0,
+    )
     local_execute_event = WaitExpansionEvent(
         kind="local_execute",
         candidate=candidate,
@@ -3595,6 +3845,7 @@ def test_expand_wait_options_prefers_local_monitor_before_local_execute(
     )
 
     attempted_kinds: list[str] = []
+    captured_backup_wait_durations: list[float | None] = []
 
     def _stub_expand_wait_event(
         _curr_node: SimulationNode,
@@ -3603,6 +3854,7 @@ def test_expand_wait_options_prefers_local_monitor_before_local_execute(
         _not_yet_candidates: list[Candidate],
         feasible_candidates: list[Candidate] | None = None,
         local_nav_time: float = 0.0,
+        max_wait_duration: float | None = None,
     ) -> SimulationNode | None:
         _ = feasible_candidates, local_nav_time
         assert selected_event is not None
@@ -3610,6 +3862,7 @@ def test_expand_wait_options_prefers_local_monitor_before_local_execute(
         if selected_event.kind == "local_monitor":
             return local_monitor_node
         if selected_event.kind == "local_execute":
+            captured_backup_wait_durations.append(max_wait_duration)
             return local_execute_node
         return None
 
@@ -3617,8 +3870,100 @@ def test_expand_wait_options_prefers_local_monitor_before_local_execute(
 
     wait_nodes = scheduler._expand_wait_options(curr_node, candidate, [candidate])
 
-    assert wait_nodes == [local_monitor_node]
-    assert attempted_kinds == ["local_monitor"]
+    assert wait_nodes == [local_monitor_node, local_execute_node]
+    assert attempted_kinds == ["local_monitor", "local_execute"]
+    assert captured_backup_wait_durations == [pytest.approx(12.0)]
+
+
+def test_collect_wait_events_ignores_late_local_monitor_beyond_wait_window(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A raw trigger after the target start should not produce a local-monitor wait event."""
+
+    current_time = 29.77
+    target_start_time = 89.77
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture(
+        current_time=current_time,
+        target_start_time=target_start_time,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        lambda **_kwargs: 141.03,
+    )
+
+    wait_events = scheduler._collect_wait_events(
+        curr_node,
+        candidate,
+        feasible_candidates=[],
+        not_yet_candidates=[candidate],
+        local_nav_duration=0.0,
+    )
+
+    local_monitor_events = [
+        event for event in wait_events if event.kind == "local_monitor"
+    ]
+    assert local_monitor_events == []
+
+
+def test_collect_wait_events_allows_monitor_reconsideration_after_same_target_wait(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """A scheduler-generated wait for the same target should not suppress the follow-up monitor checkpoint."""
+
+    scheduler, curr_node, candidate = _build_zero_wait_wait_monitoring_fixture(
+        current_time=110.0,
+        target_start_time=128.01,
+    )
+    wait_subtask = _make_subtask(
+        f"Wait for {candidate.subtask.name}",
+        primitive_actions=["WAIT 20.0"],
+        subtask_type="WAIT",
+    )
+    waited_state = SchedulerState(
+        subtask=wait_subtask,
+        completed_entries=curr_node.state.completed_entries
+        + [
+            CompletedEntry(
+                subtask=wait_subtask,
+                schedule_start_time=90.0,
+                schedule_end_time=110.0,
+                sim_start_time=90.0,
+                sim_end_time=110.0,
+                execution_status=TaskExecutionStatus.SUCCESS,
+            )
+        ],
+        remaining_subtasks=curr_node.state.remaining_subtasks,
+        constraints=curr_node.state.constraints,
+        current_time=110.0,
+        scene_positions=curr_node.state.scene_positions,
+        held_object=curr_node.state.held_object,
+    )
+    waited_node = SimulationNode(
+        heuristic_cost=0.0,
+        depth=curr_node.depth + 1,
+        tie_breaker=curr_node.tie_breaker + 1,
+        parent_node=curr_node,
+        state=waited_state,
+        risk_level=curr_node.risk_level,
+    )
+
+    monkeypatch.setattr(
+        scheduler,
+        "_compute_monitoring_trigger_time",
+        lambda **_kwargs: 110.0,
+    )
+
+    wait_events = scheduler._collect_wait_events(
+        waited_node,
+        candidate,
+        feasible_candidates=[],
+        not_yet_candidates=[candidate],
+        local_nav_duration=0.0,
+    )
+
+    assert any(event.kind == "local_monitor" for event in wait_events)
 
 
 def test_expand_single_wait_rejects_immediate_zero_interval_successor() -> None:

@@ -36,10 +36,10 @@ cases:
 
 task_folder_name:
   - "decomposed_final_revision_metadata_260402_v1"
-  - "decomposed_final_revision_metadata_260402_v2"
-  - "decomposed_final_revision_metadata_260402_v3"
-  - "decomposed_final_revision_metadata_260402_v4"
-  - "decomposed_final_revision_metadata_260402_v5"
+  # - "decomposed_final_revision_metadata_260402_v2"
+  # - "decomposed_final_revision_metadata_260402_v3"
+  # - "decomposed_final_revision_metadata_260402_v4"
+  # - "decomposed_final_revision_metadata_260402_v5"
 max_tasks: 10
 
 output_dir: "assets/results/offline_exp_result/offline_batch_pf_vs_bayesian"

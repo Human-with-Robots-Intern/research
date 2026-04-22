@@ -190,10 +190,11 @@ class DeterministicExactOracle:
         """Depth-first branch-and-bound search over deterministic schedules.
 
         Branching is heuristic-free: every feasible candidate is explored in
-        neutral (name-sorted) order, and an idle-advance branch toward the next
-        release time is always considered alongside immediate execution — not
-        only as a fallback.  This ensures the oracle is independent of the
-        scheduling heuristic used during online execution.
+        neutral (name-sorted) order. The oracle also explores deterministic
+        WAIT successors that exist in the scheduler's no-monitoring action
+        space, including blocked-frontier waits and feasible conflict-avoidance
+        waits. This keeps the oracle aligned with the scheduler's legal
+        successor set without importing the scheduler's heuristic ranking.
 
         Args:
             node: Current deterministic scheduler state.
@@ -250,6 +251,20 @@ class DeterministicExactOracle:
             self._search(child_node, sequence + (child_node.state.subtask.name,))
             if self._timeout_hit:
                 return
+
+            conflict_wait_node = self._expand_feasible_conflict_wait(
+                node,
+                candidate,
+                feasible_candidates,
+                not_yet_candidates,
+            )
+            if conflict_wait_node is not None:
+                self._search(
+                    conflict_wait_node,
+                    sequence + (conflict_wait_node.state.subtask.name,),
+                )
+                if self._timeout_hit:
+                    return
 
         # Branch B: blocked-candidate branches (explicit staged WAIT only).
         if not_yet_candidates:
@@ -381,11 +396,53 @@ class DeterministicExactOracle:
             WAIT child node, or ``None`` when no useful wait exists.
         """
 
-        wait_node = self.scheduler._expand_single_wait(
+        nav_time = self.scheduler._estimate_candidate_navigation_duration(
+            node,
+            candidate,
+        )
+        wait_node = self.scheduler._expand_wait_wo_monitoring(
             node,
             candidate,
             list(not_yet_candidates),
+            nav_duration=nav_time,
             feasible_candidates=list(feasible_candidates),
+        )
+        if wait_node is not None:
+            self._idle_advances += 1
+        return wait_node
+
+    def _expand_feasible_conflict_wait(
+        self,
+        node: SimulationNode,
+        candidate: Candidate,
+        feasible_candidates: Sequence[Candidate],
+        not_yet_candidates: Sequence[Candidate],
+    ) -> Optional[SimulationNode]:
+        """Create the scheduler's deterministic conflict-avoidance wait branch.
+
+        The online scheduler may explicitly wait even for already-feasible
+        candidates when immediate execution would collide with a future
+        reserved critical window. The exact oracle must include the same
+        no-monitoring successor in its legal search space.
+        """
+
+        conflict_delay, _victim_task_name = (
+            self.scheduler.cost_calculator.check_future_conflict(node, candidate)
+        )
+        if conflict_delay <= constants.EPSILON:
+            return None
+
+        nav_time = self.scheduler._estimate_candidate_navigation_duration(
+            node,
+            candidate,
+        )
+        wait_node = self.scheduler._expand_wait_wo_monitoring(
+            node,
+            candidate,
+            list(not_yet_candidates),
+            nav_duration=nav_time,
+            feasible_candidates=list(feasible_candidates),
+            additional_delay=conflict_delay,
         )
         if wait_node is not None:
             self._idle_advances += 1

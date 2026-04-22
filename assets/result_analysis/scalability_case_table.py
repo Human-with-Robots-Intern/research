@@ -76,11 +76,12 @@ def _fmt_value(
     *,
     digits: int,
     style: str = "",
+    scale: float = 1.0,
 ) -> str:
     if mean is None:
         return "--"
-    std_value = 0.0 if std is None else std
-    cell = f"${mean:.{digits}f} \\pm {std_value:.{digits}f}$"
+    mean *= scale
+    cell = f"${mean:.{digits}f}$"
     if style == "best":
         return rf"{{\boldmath {cell}}}"
     if style == "second":
@@ -180,8 +181,8 @@ def _build_tabular(summaries: list[Mapping[str, Any]]) -> str:
         "\n\\toprule\n"
         r"\multirow{2}{*}{\textbf{Method}} & \multirow{2}{*}{\textbf{Task}} & "
         r"\multicolumn{3}{c}{\textbf{TCSR} ($\uparrow$)} & "
-        r"\multicolumn{3}{c}{\textbf{Gap} ($\downarrow$)} & "
-        r"\multicolumn{3}{c}{\textbf{CT} ($\downarrow$)} \\"
+        r"\multicolumn{3}{c}{\textbf{Gap (s)} ($\downarrow$)} & "
+        r"\multicolumn{3}{c}{\textbf{CT (s)} ($\downarrow$)} \\"
         "\n"
         r"\cmidrule(lr){3-5}\cmidrule(lr){6-8}\cmidrule(lr){9-11}"
         "\n"
@@ -237,7 +238,8 @@ def _build_tabular(summaries: list[Mapping[str, Any]]) -> str:
                     _fmt_value(
                         tsr_mean,
                         tsr_std,
-                        digits=1,
+                        digits=2,
+                        scale=0.01,
                         style=highlight_map[(case, beam_key, "tsr")].get(
                             summary_key, ""
                         ),
@@ -247,7 +249,7 @@ def _build_tabular(summaries: list[Mapping[str, Any]]) -> str:
                     _fmt_value(
                         gap_mean,
                         gap_std,
-                        digits=1,
+                        digits=2,
                         style=highlight_map[(case, beam_key, "makespan_gap")].get(
                             summary_key, ""
                         ),
@@ -257,7 +259,7 @@ def _build_tabular(summaries: list[Mapping[str, Any]]) -> str:
                     _fmt_value(
                         ct_mean,
                         ct_std,
-                        digits=3,
+                        digits=2,
                         style=highlight_map[(case, beam_key, "computation_time")].get(
                             summary_key, ""
                         ),
@@ -292,9 +294,10 @@ def build_tex(summaries: list[Mapping[str, Any]]) -> str:
         r"\renewcommand{\arraystretch}{1.05}"
         "\n" + tabular + "}\n"
         r"\caption{Scalability results under the constant-duration setting with "
-        r"CORRECT\_ESTIMATE prior and $\eta=0.1$. Entries report mean $\pm$ standard "
-        r"deviation over five decomposed instruction sets (v1--v5), computed over "
-        r"translation-valid instructions only. Higher TCSR is better, while lower "
+        r"CORRECT\_ESTIMATE prior and $\eta=0.1$. Entries report means over five "
+        r"decomposed instruction sets (v1--v5), computed over "
+        r"translation-valid instructions only. TCSR is reported on the unit interval "
+        r"(e.g., 1.00 instead of 100\%). Higher TCSR is better, while lower "
         r"oracle gap and computation time are better. Columns sweep beam size "
         r"$B \in \{1,10,20\}$.}"
         "\n"

@@ -45,10 +45,10 @@ SUITE_LATEX_MODULE: dict[str, str] = {
 SUITE_REGISTRY: dict[str, tuple[str, ...]] = {
     "pf_vs_bayesian": (
         "scripts/offline/config/pf_vs_bayesian_gaussian_bayesian_config.yaml",
-        "scripts/offline/config/pf_vs_bayesian_gaussian_particle_filter_config.yaml",
         "scripts/offline/config/pf_vs_bayesian_lognormal_bayesian_config.yaml",
-        "scripts/offline/config/pf_vs_bayesian_lognormal_particle_filter_config.yaml",
         "scripts/offline/config/pf_vs_bayesian_mixture_bayesian_config.yaml",
+        "scripts/offline/config/pf_vs_bayesian_gaussian_particle_filter_config.yaml",
+        "scripts/offline/config/pf_vs_bayesian_lognormal_particle_filter_config.yaml",
         "scripts/offline/config/pf_vs_bayesian_mixture_particle_filter_config.yaml",
     ),
     "scalability": ("scripts/offline/config/scalability_config.yaml",),

@@ -85,14 +85,17 @@ def _eta_token(value: object) -> str:
 def _tex(
     mean: float | None,
     std: float | None,
-    nd: int = 1,
+    nd: int = 2,
     *,
     bold: bool = False,
     underline: bool = False,
+    scale: float = 1.0,
 ) -> str:
     if mean is None:
         return "--"
+    mean *= scale
     std_value = 0.0 if std is None else std
+    std_value *= scale
     s = f"{mean:.{nd}f} \\pm {std_value:.{nd}f}"
     if bold:
         return rf"{{\boldmath ${s}$}}"
@@ -103,9 +106,10 @@ def _tex(
 
 def _rank_format(
     values: list[tuple[float | None, float | None]],
-    nd: int = 1,
+    nd: int = 2,
     *,
     higher_is_better: bool,
+    scale: float = 1.0,
 ) -> list[str]:
     """Return formatted strings for each value: bold=best, underline=second-best."""
     eps = 1e-9
@@ -122,11 +126,11 @@ def _rank_format(
             continue
         sv = sign * mean
         if rank0_val is not None and abs(sv - rank0_val) < eps:
-            result.append(_tex(mean, std, nd=nd, bold=True))
+            result.append(_tex(mean, std, nd=nd, bold=True, scale=scale))
         elif rank1_val is not None and abs(sv - rank1_val) < eps:
-            result.append(_tex(mean, std, nd=nd, underline=True))
+            result.append(_tex(mean, std, nd=nd, underline=True, scale=scale))
         else:
-            result.append(_tex(mean, std, nd=nd))
+            result.append(_tex(mean, std, nd=nd, scale=scale))
     return result
 
 
@@ -561,10 +565,10 @@ def _overall_tabular(
     lines.append(r"\toprule" "\n")
     lines.append(
         r"\textbf{Init Prior} & \textbf{$\eta$} & "
-        r"\textbf{TCSR (\%)} ($\uparrow$) & "
+        r"\textbf{TCSR} ($\uparrow$) & "
         r"\textbf{Gap$^{+}$ (s)} ($\downarrow$) & "
-        r"\textbf{Mon./Unc.} ($\downarrow$) & "
-        r"\textbf{Avg. Mon.} ($\downarrow$) \\" "\n"
+        r"\textbf{Mon./Unc. (count)} ($\downarrow$) & "
+        r"\textbf{Avg. Mon. (count)} ($\downarrow$) \\" "\n"
     )
     lines.append(r"\midrule" "\n")
 
@@ -595,8 +599,8 @@ def _overall_tabular(
             )
             lines.append(
                 f"{prior_cell} & ${eta}$ & "
-                f"{_tex(tsr_mean, tsr_std, nd=1, bold=(tsr_mean is not None and abs(tsr_mean - 100.0) < 1e-6))} & "
-                f"{_tex(gap_mean, gap_std, nd=1)} & "
+                f"{_tex(tsr_mean, tsr_std, nd=2, scale=0.01, bold=(tsr_mean is not None and abs(tsr_mean - 100.0) < 1e-6))} & "
+                f"{_tex(gap_mean, gap_std, nd=2)} & "
                 f"{_tex(avg_per_unc_mean, avg_per_unc_std, nd=2)} & "
                 f"{_tex(avg_mon_mean, avg_mon_std, nd=2)} \\\\\n"
             )
@@ -625,11 +629,12 @@ def build_overall_tex(
         r"\caption{Eta-sensitivity results (constant GT, DEFAULT planner, $W{=}D{=}10$). "
         r"Rows aggregate over all four task-complexity cases, and entries report mean $\pm$ "
         r"standard deviation over five decomposed instruction sets (v1--v5), computed over "
-        r"translation-valid instructions only. "
+        r"translation-valid instructions only. TCSR is reported on the unit interval "
+        r"(e.g., 1.00 instead of 100\%). "
         r"Higher TCSR and lower Gap$^{+}$ / monitor counts are better. "
         r"Gap$^{+}$ averages $\max(0,\text{makespan}-\text{oracle})$ over "
-        r"instructions with TCSR\,=\,100\%; cells with no valid instruction are shown as --. "
-        r"Bold: TCSR\,=\,100\%.}"
+        r"instructions with TCSR\,=\,1.00; cells with no valid instruction are shown as --. "
+        r"Bold: TCSR\,=\,1.00.}"
         "\n"
         r"\label{tab:eta_sensitivity_overall}"
         "\n"
@@ -667,9 +672,9 @@ def _by_case_tabular(
     # header row 1: metric group labels
     lines.append(
         r"\multirow{2}{*}{\textbf{Init Prior}} & \multirow{2}{*}{\textbf{Case}} & "
-        rf"\multicolumn{{{n_eta}}}{{c}}{{\textbf{{TCSR (\%)}} ($\uparrow$)}} & "
+        rf"\multicolumn{{{n_eta}}}{{c}}{{\textbf{{TCSR}} ($\uparrow$)}} & "
         rf"\multicolumn{{{n_eta}}}{{c}}{{\textbf{{Gap$^{{+}}$ (s)}} ($\downarrow$)}} & "
-        rf"\multicolumn{{{n_eta}}}{{c}}{{\textbf{{Mon./Int.}}}} \\" "\n"
+        rf"\multicolumn{{{n_eta}}}{{c}}{{\textbf{{Mon./Int. (count)}}}} \\" "\n"
     )
     # cmidrule positions
     def _cmidrule(start: int, end: int) -> str:
@@ -719,8 +724,13 @@ def _by_case_tabular(
                     )
                 )
 
-            tsr_cells = _rank_format(tsr_vals, nd=1, higher_is_better=True)
-            gap_cells = _rank_format(gap_vals, nd=1, higher_is_better=False)
+            tsr_cells = _rank_format(
+                tsr_vals,
+                nd=2,
+                higher_is_better=True,
+                scale=0.01,
+            )
+            gap_cells = _rank_format(gap_vals, nd=2, higher_is_better=False)
             unc_cells = [_tex(mean, std, nd=2) for mean, std in unc_vals]
 
             lines.append(
@@ -758,9 +768,10 @@ def build_by_case_tex(
         r"task-complexity case (constant GT, DEFAULT planner, $W{=}D{=}10$). "
         r"Each metric shows three values for $\eta\in\{0.01,0.1,0.9\}$, reported as "
         r"mean $\pm$ standard deviation over five decomposed instruction sets (v1--v5), "
-        r"computed over translation-valid instructions only. "
+        r"computed over translation-valid instructions only. TCSR is reported on the unit "
+        r"interval (e.g., 1.00 instead of 100\%). "
         r"Gap$^{+}$ averages $\max(0,\text{makespan}-\text{oracle})$ over "
-        r"instructions with TCSR\,=\,100\%; cells with no valid instruction are shown as --. "
+        r"instructions with TCSR\,=\,1.00; cells with no valid instruction are shown as --. "
         r"Bold: best $\eta$ per row for TCSR / Gap$^{+}$; underline: second-best. "
         r"Mon./Int. is reported for reference only and is not highlighted.}"
         "\n"

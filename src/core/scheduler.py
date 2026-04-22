@@ -1239,35 +1239,25 @@ class Scheduler:
         )
 
     @staticmethod
-    def _wait_event_sort_key(event: WaitExpansionEvent) -> tuple[object, ...]:
-        """Rank wait events so rescue monitoring cleanly falls back to local options."""
-
-        kind_priority = (
-            0
-            if event.kind == "rescue_monitor"
-            else 1
-            if event.kind == "local_monitor"
-            else 2
-        )
-        return (
-            kind_priority,
-            event.event_time,
-            event.raw_trigger_time,
-            -event.variance,
-            event.due_date,
-            event.candidate.subtask.name,
-        )
-
-    @staticmethod
     def _select_wait_event(
         events: List[WaitExpansionEvent],
     ) -> Optional[WaitExpansionEvent]:
-        """Select the next wait event using monitoring-first fallback arbitration."""
+        """Select the next wait event using event-time-first arbitration."""
 
         if not events:
             return None
 
-        return min(events, key=Scheduler._wait_event_sort_key)
+        return min(
+            events,
+            key=lambda event: (
+                event.event_time,
+                0 if event.obligation is not None else 1,
+                event.raw_trigger_time,
+                -event.variance,
+                event.due_date,
+                event.candidate.subtask.name,
+            ),
+        )
 
     @staticmethod
     def _wait_nodes_are_equivalent(
@@ -1284,31 +1274,9 @@ class Scheduler:
             and abs(first.state.current_time - second.state.current_time) <= EPSILON
             and len(first.state.completed_entries)
             == len(second.state.completed_entries)
+            and tuple(subtask.name for subtask in first.state.remaining_subtasks)
+            == tuple(subtask.name for subtask in second.state.remaining_subtasks)
         )
-
-    @staticmethod
-    def _count_monitor_subtasks(subtasks: List[Subtask]) -> int:
-        """Return how many pending monitoring subtasks are present."""
-
-        return sum(1 for subtask in subtasks if subtask.subtask_type == "Monitor")
-
-    def _wait_event_realized_monitoring(
-        self,
-        curr_node: SimulationNode,
-        expanded_node: Optional[SimulationNode],
-    ) -> bool:
-        """Return whether expanding a wait event actually inserted a monitor step."""
-
-        if expanded_node is None:
-            return False
-
-        current_subtask = expanded_node.state.subtask
-        if current_subtask is not None and current_subtask.subtask_type == "Monitor":
-            return True
-
-        return self._count_monitor_subtasks(
-            expanded_node.state.remaining_subtasks
-        ) > self._count_monitor_subtasks(curr_node.state.remaining_subtasks)
 
     @staticmethod
     def _find_candidate_by_name(
@@ -1695,6 +1663,7 @@ class Scheduler:
         not_yet_candidates: List[Candidate],
         feasible_candidates: List[Candidate] = None,
         local_nav_time: float = 0.0,
+        max_wait_duration: Optional[float] = None,
     ) -> Optional[SimulationNode]:
         """Expand one selected wait event into a concrete child node."""
 
@@ -1705,6 +1674,7 @@ class Scheduler:
                 not_yet_candidates,
                 nav_duration=local_nav_time,
                 feasible_candidates=feasible_candidates,
+                max_wait_duration=max_wait_duration,
             )
 
         if selected_event.obligation is not None and constants.MONITORING_ENABLED:
@@ -1727,6 +1697,7 @@ class Scheduler:
             not_yet_candidates,
             nav_duration=selected_event.nav_duration,
             feasible_candidates=feasible_candidates,
+            max_wait_duration=max_wait_duration,
         )
 
     def _expand_wait_options(
@@ -1781,8 +1752,15 @@ class Scheduler:
             ),
             None,
         )
-        should_add_local_execute_backup = False
+        should_add_local_execute_backup = (
+            local_execute_event is not None and selected_event.kind != "local_execute"
+        )
         if should_add_local_execute_backup:
+            backup_max_wait_duration = None
+            if selected_event.obligation is not None:
+                backup_max_wait_duration = max(
+                    0.0, selected_event.event_time - curr_node.state.current_time
+                )
             local_execute_wait_node = self._expand_wait_event(
                 curr_node,
                 candidate,
@@ -1790,6 +1768,7 @@ class Scheduler:
                 not_yet_candidates,
                 feasible_candidates=feasible_candidates,
                 local_nav_time=local_nav_time,
+                max_wait_duration=backup_max_wait_duration,
             )
             if (
                 local_execute_wait_node is not None
@@ -1811,16 +1790,6 @@ class Scheduler:
         candidate: Candidate,
     ) -> bool:
         """Return whether the candidate is categorically ineligible for monitoring."""
-
-        if (
-            curr_node.state.subtask
-            and curr_node.state.subtask.subtask_type == "WAIT"
-            and curr_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
-        ):
-            log.debug(
-                f"[_should_split_with_monitoring] Just finished waiting for {candidate.subtask.name}. Skip monitoring."
-            )
-            return True
 
         if candidate.subtask.decomposed:
             log.debug(
@@ -2475,6 +2444,10 @@ class Scheduler:
                 variance=variance_val,
             )
         )
+        original_critical_deadline = self._resolve_original_critical_deadline(
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            critical_interval_duration=original_critical_interval_duration,
+        )
 
         full_candidate_action_info_check = self.action_handler.get_actions_info(
             curr_node, candidate.subtask.execution.primitive_actions
@@ -2796,16 +2769,12 @@ class Scheduler:
             f"Added/Updated main monitoring constraint: '{critical_start_sub_name}' -> '{mon_sub_task_for_main_interval.name}', Interval: {info_crit_start_to_mon['Interval']:.2f}."
         )
 
-        critical_end_sub_original_deadline = self._resolve_original_critical_deadline(
-            critical_start_sub_end_time=critical_start_sub_actual_end_time,
-            critical_interval_duration=original_critical_interval_duration,
-        )
         mon_sub_expected_completion_time = (
             actual_monitoring_trigger_time + MONITORING_DURATION
         )
 
         interval_mon_to_crit_end = (
-            critical_end_sub_original_deadline - mon_sub_expected_completion_time
+            original_critical_deadline - mon_sub_expected_completion_time
         )
         info_mon_to_crit_end = {
             "Interval": max(0.0, interval_mon_to_crit_end),
@@ -2827,7 +2796,7 @@ class Scheduler:
 
         log.debug(
             f"[DEBUG _expand_subtask_with_monitoring] Updating Edge '{mon_sub_task_for_main_interval.name}' -> '{critical_end_sub_name}'\n"
-            f"  - CritEndDeadline: {critical_end_sub_original_deadline:.2f}\n"
+            f"  - CritEndDeadline: {original_critical_deadline:.2f}\n"
             f"  - MonitorFinish: {mon_sub_expected_completion_time:.2f}\n"
             f"  - Calc Interval: {interval_mon_to_crit_end:.2f} (Prev: {prev_interval_sub})"
         )
