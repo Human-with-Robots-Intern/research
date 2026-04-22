@@ -27,6 +27,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from assets.result_analysis.utils.multi_source import (
+    load_json_objects,
+    mean_std,
+    resolve_source_paths,
+)
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -66,15 +72,17 @@ def _setting_key(budget: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _tex(
-    x: float | None,
+    mean: float | None,
+    std: float | None,
     nd: int = 1,
     *,
     bold: bool = False,
     underline: bool = False,
 ) -> str:
-    if x is None:
+    if mean is None:
         return "--"
-    s = f"{x:.{nd}f}"
+    std_value = 0.0 if std is None else std
+    s = f"{mean:.{nd}f} \\pm {std_value:.{nd}f}"
     if bold:
         return rf"{{\boldmath ${s}$}}"
     if underline:
@@ -83,54 +91,60 @@ def _tex(
 
 
 def _rank_format(
-    values: list[float | None],
+    values: list[tuple[float | None, float | None]],
     nd: int = 1,
     *,
     higher_is_better: bool,
 ) -> list[str]:
     eps = 1e-9
     sign = -1.0 if higher_is_better else 1.0
-    present = [v for v in values if v is not None]
+    present = [v[0] for v in values if v[0] is not None]
     sorted_unique = sorted({sign * v for v in present})
     rank0 = sorted_unique[0] if sorted_unique else None
     rank1 = sorted_unique[1] if len(sorted_unique) > 1 else None
 
     result = []
-    for v in values:
-        if v is None:
+    for mean, std in values:
+        if mean is None:
             result.append("--")
             continue
-        sv = sign * v
+        sv = sign * mean
         if rank0 is not None and abs(sv - rank0) < eps:
-            result.append(_tex(v, nd=nd, bold=True))
+            result.append(_tex(mean, std, nd=nd, bold=True))
         elif rank1 is not None and abs(sv - rank1) < eps:
-            result.append(_tex(v, nd=nd, underline=True))
+            result.append(_tex(mean, std, nd=nd, underline=True))
         else:
-            result.append(_tex(v, nd=nd))
+            result.append(_tex(mean, std, nd=nd))
     return result
 
 
-def _weighted(case_metrics: dict[str, dict[str, Any]], field: str) -> float | None:
-    weighted: list[tuple[int, float]] = []
-    for m in case_metrics.values():
-        if field not in m:
-            return None
-        n = int(m.get("n_instructions") or 0)
-        if n <= 0:
-            return None
-        weighted.append((n, float(m[field])))
-    if not weighted:
-        return None
-    denom = sum(n for n, _ in weighted)
-    return sum(n * v for n, v in weighted) / denom if denom else None
+def _collect_stats(
+    summaries: list[dict[str, Any]],
+    *,
+    setting_key: str,
+    case_name: str,
+    field: str,
+) -> tuple[float | None, float | None]:
+    values: list[float] = []
+    for summary in summaries:
+        metrics = summary.get(setting_key, {}).get(case_name, {})
+        if not isinstance(metrics, dict):
+            continue
+        value = metrics.get(field)
+        if value is None:
+            continue
+        values.append(float(value))
+    return mean_std(values)
 
 
 # ---------------------------------------------------------------------------
 # Table builder
 # ---------------------------------------------------------------------------
 
-def _by_case_tabular(summary: dict[str, Any]) -> str:
-    present_budgets = [b for b in BUDGET_ORDER if _setting_key(b) in summary]
+def _by_case_tabular(summaries: list[dict[str, Any]]) -> str:
+    present_budgets = [
+        b for b in BUDGET_ORDER if any(_setting_key(b) in summary for summary in summaries)
+    ]
     n_mb = len(present_budgets)
     budget_header = " & ".join(
         rf"\textbf{{{BUDGET_LABEL[b]}}}" for b in present_budgets
@@ -162,19 +176,35 @@ def _by_case_tabular(summary: dict[str, Any]) -> str:
     lines.append(r"\midrule" "\n")
 
     for case_name, case_label in CASES:
-        tsr_vals: list[float | None] = []
-        gap_vals: list[float | None] = []
-        ct_vals: list[float | None] = []
+        tsr_vals: list[tuple[float | None, float | None]] = []
+        gap_vals: list[tuple[float | None, float | None]] = []
+        ct_vals: list[tuple[float | None, float | None]] = []
 
         for budget in present_budgets:
             key = _setting_key(budget)
-            m = summary.get(key, {}).get(case_name, {})
-            tsr_vals.append(float(m["tsr"]) if "tsr" in m else None)
+            tsr_vals.append(
+                _collect_stats(
+                    summaries,
+                    setting_key=key,
+                    case_name=case_name,
+                    field="tsr",
+                )
+            )
             gap_vals.append(
-                float(m["makespan_gap_sr_1"]) if "makespan_gap_sr_1" in m else None
+                _collect_stats(
+                    summaries,
+                    setting_key=key,
+                    case_name=case_name,
+                    field="makespan_gap_sr_1",
+                )
             )
             ct_vals.append(
-                float(m["computation_time"]) if "computation_time" in m else None
+                _collect_stats(
+                    summaries,
+                    setting_key=key,
+                    case_name=case_name,
+                    field="computation_time",
+                )
             )
 
         tsr_cells = _rank_format(tsr_vals, nd=1, higher_is_better=True)
@@ -193,8 +223,8 @@ def _by_case_tabular(summary: dict[str, Any]) -> str:
     return "".join(lines)
 
 
-def build_by_case_tex(summary: dict[str, Any]) -> str:
-    tabular = _by_case_tabular(summary)
+def build_by_case_tex(summaries: list[dict[str, Any]]) -> str:
+    tabular = _by_case_tabular(summaries)
     return (
         r"\begin{table}[t]" "\n"
         r"\centering" "\n"
@@ -207,8 +237,10 @@ def build_by_case_tex(summary: dict[str, Any]) -> str:
         "}\n"
         r"\caption{Effect of monitoring budget (max monitors per critical interval) "
         r"under CORRECT\_ESTIMATE prior (Gaussian GT, DEFAULT planner, $W{=}D{=}10$, $\eta{=}0.1$). "
-        r"Gap$^{+}$ averages $\max(0,\text{makespan}-\text{oracle})$ over successful instructions. "
-        r"Bold: best; underline: second-best per row.}"
+        r"Entries report mean $\pm$ standard deviation over five decomposed instruction sets "
+        r"(v1--v5), computed over translation-valid instructions only. Gap$^{+}$ averages "
+        r"$\max(0,\text{makespan}-\text{oracle})$ over successful instructions. Bold: best; "
+        r"underline: second-best per row.}"
         "\n"
         r"\label{tab:monitoring_budget_by_case}"
         "\n"
@@ -229,22 +261,40 @@ def main() -> None:
         default=PROJECT_ROOT / DEFAULT_SUMMARY,
     )
     parser.add_argument(
+        "--analysis-root",
+        type=Path,
+        default=None,
+        help="Root directory containing per-task-folder analysis outputs.",
+    )
+    parser.add_argument(
+        "--task-folders",
+        nargs="+",
+        default=None,
+        help="Task folder names to aggregate under --analysis-root.",
+    )
+    parser.add_argument(
         "--out-dir",
         type=Path,
         default=PROJECT_ROOT / DEFAULT_OUT_DIR,
     )
     args = parser.parse_args()
 
-    summary = json.loads(args.summary.read_text(encoding="utf-8"))
+    summary_paths = resolve_source_paths(
+        single_path=args.summary,
+        analysis_root=args.analysis_root,
+        task_folders=args.task_folders,
+        filename="offline_analysis_summary.json",
+    )
+    summaries = load_json_objects(summary_paths)
 
     for budget in BUDGET_ORDER:
         key = _setting_key(budget)
-        if key not in summary:
+        if not any(key in summary for summary in summaries):
             print(f"[warn] missing in summary: {key}")
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     out_path = args.out_dir / "monitoring_budget_by_case.tex"
-    out_path.write_text(build_by_case_tex(summary), encoding="utf-8")
+    out_path.write_text(build_by_case_tex(summaries), encoding="utf-8")
     print(out_path)
 
 

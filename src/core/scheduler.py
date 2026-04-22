@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import itertools
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, TypeAlias
 
 from src.core.monitoring import (
@@ -30,9 +30,6 @@ if TYPE_CHECKING:
     from src.scheduler import ActionHandler, ConstraintHandler, HeuristicManager
 
 log = create_module_logger(module_name=__name__, module_log=True)
-
-INTERACTION_READINESS_NUMERIC_EPSILON = 1e-6
-
 ActiveIntervalCacheKey: TypeAlias = Tuple[int, Tuple[Tuple[str, float], ...]]
 MonitoringTriggerCacheKey: TypeAlias = Tuple[str, Optional[str], float, float, float]
 ActionInfoCache: TypeAlias = Dict[object, Optional[ActionResult]]
@@ -628,14 +625,13 @@ class Scheduler:
                     "[_expand_candidates] blocked frontier candidate: %s",
                     blocked_candidate,
                 )
-                wait_node = self._expand_single_wait(
+                wait_nodes = self._expand_wait_options(
                     curr_node,
                     blocked_candidate,
                     not_yet_candidates,
                     feasible_candidates=feasible_candidates,
                 )
-                if wait_node:
-                    expansions.append(wait_node)
+                expansions.extend(wait_nodes)
 
         return expansions
 
@@ -809,12 +805,25 @@ class Scheduler:
         return urgent_list
 
     def _extract_monitoring_target(self, candidate: Candidate) -> Optional[str]:
-        if (
-            candidate.subtask.execution
-            and candidate.subtask.execution.primitive_actions
-        ):
-            # Typically, the target of the first action is what we monitor.
-            return candidate.subtask.execution.primitive_actions[0].split()[1]
+        return self._extract_first_actionable_object_id(candidate.subtask)
+
+    @staticmethod
+    def _extract_first_actionable_object_id(
+        subtask: Optional[Subtask],
+    ) -> Optional[str]:
+        """Return the first non-WAIT object id mentioned by a subtask's actions."""
+
+        if subtask is None or subtask.execution is None:
+            return None
+
+        primitive_actions = subtask.execution.primitive_actions or []
+        for action in primitive_actions:
+            parts = str(action).split()
+            if len(parts) <= 1:
+                continue
+            if parts[0].upper() == "WAIT":
+                continue
+            return parts[1]
         return None
 
     def _get_monitoring_target_obj_for_subtask_name(
@@ -822,16 +831,27 @@ class Scheduler:
         curr_node: SimulationNode,
         subtask_name: str,
     ) -> Optional[str]:
-        """Return the object id associated with the named critical-end subtask."""
+        """Return the object id associated with the named critical-end subtask.
+
+        Searches both remaining_subtasks and the current candidate subtask so
+        that a task being waited on (already promoted out of remaining) is
+        still resolvable.
+        """
+
+        current_subtask = curr_node.state.subtask
+        candidates_to_search = list(curr_node.state.remaining_subtasks)
+        if current_subtask is not None:
+            candidates_to_search.append(current_subtask)
 
         return next(
             (
-                remain_sub.execution.primitive_actions[0].split()[1]
-                for remain_sub in curr_node.state.remaining_subtasks
-                if remain_sub.name == subtask_name
-                and remain_sub.execution
-                and remain_sub.execution.primitive_actions
-                and len(remain_sub.execution.primitive_actions[0].split()) > 1
+                target_obj_id
+                for sub in candidates_to_search
+                for target_obj_id in [
+                    self._extract_first_actionable_object_id(sub)
+                ]
+                if sub.name == subtask_name
+                and target_obj_id is not None
             ),
             None,
         )
@@ -855,10 +875,7 @@ class Scheduler:
         if not primitive_actions:
             return None
 
-        parts = primitive_actions[0].split()
-        if len(parts) > 1:
-            return parts[1]
-        return None
+        return Scheduler._extract_first_actionable_object_id(subtask)
 
     @staticmethod
     def _extract_monitoring_target_name_from_subtask(
@@ -1153,10 +1170,7 @@ class Scheduler:
         physical_earliest_start = (
             curr_node.state.current_time + candidate.estimated_first_nav_duration
         )
-        readiness_tolerance = max(
-            constants.RISK_GRACE_SECONDS,
-            INTERACTION_READINESS_NUMERIC_EPSILON,
-        )
+        readiness_tolerance = constants.RISK_GRACE_SECONDS
         return physical_earliest_start >= (
             float(candidate.logical_interaction_start_time) - readiness_tolerance
         )
@@ -1233,21 +1247,35 @@ class Scheduler:
         if not events:
             return None
 
-        earliest_event_time = min(event.event_time for event in events)
-        earliest_events = [
-            event
-            for event in events
-            if abs(event.event_time - earliest_event_time) <= EPSILON
-        ]
         return min(
-            earliest_events,
+            events,
             key=lambda event: (
+                event.event_time,
                 0 if event.obligation is not None else 1,
                 event.raw_trigger_time,
                 -event.variance,
                 event.due_date,
                 event.candidate.subtask.name,
             ),
+        )
+
+    @staticmethod
+    def _wait_nodes_are_equivalent(
+        first: Optional[SimulationNode],
+        second: Optional[SimulationNode],
+    ) -> bool:
+        """Return whether two wait expansions represent the same committed step."""
+
+        if first is None or second is None:
+            return False
+
+        return (
+            first.state.subtask.name == second.state.subtask.name
+            and abs(first.state.current_time - second.state.current_time) <= EPSILON
+            and len(first.state.completed_entries)
+            == len(second.state.completed_entries)
+            and tuple(subtask.name for subtask in first.state.remaining_subtasks)
+            == tuple(subtask.name for subtask in second.state.remaining_subtasks)
         )
 
     @staticmethod
@@ -1283,12 +1311,14 @@ class Scheduler:
         if not primitive_actions:
             return None
 
-        first_action = primitive_actions[0]
-        if first_action.startswith("NAVIGATE_TO"):
-            return first_action
-
-        parts = first_action.split()
-        if len(parts) > 1:
+        for action in primitive_actions:
+            parts = action.split()
+            if len(parts) <= 1:
+                continue
+            if parts[0].upper() == "WAIT":
+                continue
+            if parts[0] == "NAVIGATE_TO":
+                return action
             return f"NAVIGATE_TO {parts[1]}"
         return None
 
@@ -1517,10 +1547,7 @@ class Scheduler:
 
         if selected_obligation is not None:
             return float(selected_obligation.due.due_date)
-        if (
-            critical_start_sub_end_time is None
-            or critical_interval_duration is None
-        ):
+        if critical_start_sub_end_time is None or critical_interval_duration is None:
             raise ValueError(
                 "Either selected_obligation or critical interval timing must be provided."
             )
@@ -1620,12 +1647,74 @@ class Scheduler:
             Optional[SimulationNode]: The resulting child node if successful,
             otherwise None.
         """
+        wait_nodes = self._expand_wait_options(
+            curr_node,
+            candidate,
+            not_yet_candidates,
+            feasible_candidates=feasible_candidates,
+        )
+        return wait_nodes[0] if wait_nodes else None
+
+    def _expand_wait_event(
+        self,
+        curr_node: SimulationNode,
+        original_candidate: Candidate,
+        selected_event: Optional[WaitExpansionEvent],
+        not_yet_candidates: List[Candidate],
+        feasible_candidates: List[Candidate] = None,
+        local_nav_time: float = 0.0,
+        max_wait_duration: Optional[float] = None,
+    ) -> Optional[SimulationNode]:
+        """Expand one selected wait event into a concrete child node."""
+
+        if selected_event is None:
+            return self._expand_wait_wo_monitoring(
+                curr_node,
+                original_candidate,
+                not_yet_candidates,
+                nav_duration=local_nav_time,
+                feasible_candidates=feasible_candidates,
+                max_wait_duration=max_wait_duration,
+            )
+
+        if selected_event.obligation is not None and constants.MONITORING_ENABLED:
+            monitor_candidate = replace(
+                selected_event.candidate,
+                scheduling_due=selected_event.obligation.due,
+            )
+            return self._expand_wait_with_monitoring(
+                curr_node,
+                monitor_candidate,
+                not_yet_candidates,
+                nav_duration=selected_event.nav_duration,
+                feasible_candidates=feasible_candidates,
+                selected_obligation=selected_event.obligation,
+            )
+
+        return self._expand_wait_wo_monitoring(
+            curr_node,
+            selected_event.candidate,
+            not_yet_candidates,
+            nav_duration=selected_event.nav_duration,
+            feasible_candidates=feasible_candidates,
+            max_wait_duration=max_wait_duration,
+        )
+
+    def _expand_wait_options(
+        self,
+        curr_node: SimulationNode,
+        candidate: Candidate,
+        not_yet_candidates: List[Candidate],
+        feasible_candidates: List[Candidate] = None,
+    ) -> List[SimulationNode]:
+        """Expand the primary wait event and keep a local execute fallback when relevant."""
+
         if self._wait_is_disallowed_for_candidate(curr_node, candidate):
             log.debug(
                 "[_expand_single_wait] Wait is disallowed for '%s'. Skipping wait expansion.",
                 candidate.subtask.name,
             )
-            return None
+            return []
 
         local_nav_time = self._estimate_candidate_navigation_duration(
             curr_node, candidate
@@ -1638,33 +1727,59 @@ class Scheduler:
             local_nav_duration=local_nav_time,
         )
         selected_event = self._select_wait_event(wait_events)
-        if selected_event is None:
-            return self._expand_wait_wo_monitoring(
-                curr_node,
-                candidate,
-                not_yet_candidates,
-                nav_duration=local_nav_time,
-                feasible_candidates=feasible_candidates,
-            )
 
-        if selected_event.obligation is not None and constants.MONITORING_ENABLED:
-            selected_event.candidate.scheduling_due = selected_event.obligation.due
-            return self._expand_wait_with_monitoring(
-                curr_node,
-                selected_event.candidate,
-                not_yet_candidates,
-                nav_duration=selected_event.nav_duration,
-                feasible_candidates=feasible_candidates,
-                selected_obligation=selected_event.obligation,
-            )
-
-        return self._expand_wait_wo_monitoring(
+        wait_nodes: List[SimulationNode] = []
+        primary_wait_node = self._expand_wait_event(
             curr_node,
             candidate,
+            selected_event,
             not_yet_candidates,
-            nav_duration=local_nav_time,
             feasible_candidates=feasible_candidates,
+            local_nav_time=local_nav_time,
         )
+        if primary_wait_node is not None:
+            wait_nodes.append(primary_wait_node)
+
+        if selected_event is None:
+            return wait_nodes
+
+        local_execute_event = next(
+            (
+                event
+                for event in wait_events
+                if event.kind == "local_execute"
+                and event.candidate.subtask.name == candidate.subtask.name
+            ),
+            None,
+        )
+        should_add_local_execute_backup = (
+            local_execute_event is not None and selected_event.kind != "local_execute"
+        )
+        if should_add_local_execute_backup:
+            backup_max_wait_duration = None
+            if selected_event.obligation is not None:
+                backup_max_wait_duration = max(
+                    0.0, selected_event.event_time - curr_node.state.current_time
+                )
+            local_execute_wait_node = self._expand_wait_event(
+                curr_node,
+                candidate,
+                local_execute_event,
+                not_yet_candidates,
+                feasible_candidates=feasible_candidates,
+                local_nav_time=local_nav_time,
+                max_wait_duration=backup_max_wait_duration,
+            )
+            if (
+                local_execute_wait_node is not None
+                and not self._wait_nodes_are_equivalent(
+                    primary_wait_node,
+                    local_execute_wait_node,
+                )
+            ):
+                wait_nodes.append(local_execute_wait_node)
+
+        return wait_nodes
 
     # ======================
     # Helper: 모니터링 필요한지
@@ -1675,16 +1790,6 @@ class Scheduler:
         candidate: Candidate,
     ) -> bool:
         """Return whether the candidate is categorically ineligible for monitoring."""
-
-        if (
-            curr_node.state.subtask
-            and curr_node.state.subtask.subtask_type == "WAIT"
-            and curr_node.state.subtask.name == f"Wait for {candidate.subtask.name}"
-        ):
-            log.debug(
-                f"[_should_split_with_monitoring] Just finished waiting for {candidate.subtask.name}. Skip monitoring."
-            )
-            return True
 
         if candidate.subtask.decomposed:
             log.debug(
@@ -1776,9 +1881,7 @@ class Scheduler:
             )
             return False, None
 
-        selected_obligation = self._select_monitoring_obligation(
-            relevant_obligations
-        )
+        selected_obligation = self._select_monitoring_obligation(relevant_obligations)
         if selected_obligation is None:
             return False, None
 
@@ -1823,8 +1926,10 @@ class Scheduler:
         latest_safe_target_start_time = self._compute_latest_safe_monitoring_start_time(
             target_interaction_start_time=target_start_time
         )
-        latest_safe_deadline_start_time = self._compute_latest_safe_monitoring_start_time(
-            target_interaction_start_time=original_critical_deadline
+        latest_safe_deadline_start_time = (
+            self._compute_latest_safe_monitoring_start_time(
+                target_interaction_start_time=original_critical_deadline
+            )
         )
         latest_safe_start_time = min(
             latest_safe_target_start_time,
@@ -2304,11 +2409,9 @@ class Scheduler:
 
         monitoring_target_obj = next(
             (
-                (remain_sub.execution.primitive_actions[0].split()[1])
+                self._extract_first_actionable_object_id(remain_sub)
                 for remain_sub in curr_node.state.remaining_subtasks
                 if remain_sub.name == critical_end_sub_name
-                and remain_sub.execution
-                and remain_sub.execution.primitive_actions
             ),
             None,
         )
@@ -2340,6 +2443,10 @@ class Scheduler:
                 mean_duration=original_critical_interval_duration,
                 variance=variance_val,
             )
+        )
+        original_critical_deadline = self._resolve_original_critical_deadline(
+            critical_start_sub_end_time=critical_start_sub_actual_end_time,
+            critical_interval_duration=original_critical_interval_duration,
         )
 
         full_candidate_action_info_check = self.action_handler.get_actions_info(
@@ -2662,16 +2769,12 @@ class Scheduler:
             f"Added/Updated main monitoring constraint: '{critical_start_sub_name}' -> '{mon_sub_task_for_main_interval.name}', Interval: {info_crit_start_to_mon['Interval']:.2f}."
         )
 
-        critical_end_sub_original_deadline = self._resolve_original_critical_deadline(
-            critical_start_sub_end_time=critical_start_sub_actual_end_time,
-            critical_interval_duration=original_critical_interval_duration,
-        )
         mon_sub_expected_completion_time = (
             actual_monitoring_trigger_time + MONITORING_DURATION
         )
 
         interval_mon_to_crit_end = (
-            critical_end_sub_original_deadline - mon_sub_expected_completion_time
+            original_critical_deadline - mon_sub_expected_completion_time
         )
         info_mon_to_crit_end = {
             "Interval": max(0.0, interval_mon_to_crit_end),
@@ -2693,7 +2796,7 @@ class Scheduler:
 
         log.debug(
             f"[DEBUG _expand_subtask_with_monitoring] Updating Edge '{mon_sub_task_for_main_interval.name}' -> '{critical_end_sub_name}'\n"
-            f"  - CritEndDeadline: {critical_end_sub_original_deadline:.2f}\n"
+            f"  - CritEndDeadline: {original_critical_deadline:.2f}\n"
             f"  - MonitorFinish: {mon_sub_expected_completion_time:.2f}\n"
             f"  - Calc Interval: {interval_mon_to_crit_end:.2f} (Prev: {prev_interval_sub})"
         )
@@ -2900,8 +3003,10 @@ class Scheduler:
         latest_safe_target_start_time = self._compute_latest_safe_monitoring_start_time(
             target_interaction_start_time=target_start_time,
         )
-        latest_safe_deadline_start_time = self._compute_latest_safe_monitoring_start_time(
-            target_interaction_start_time=original_critical_deadline,
+        latest_safe_deadline_start_time = (
+            self._compute_latest_safe_monitoring_start_time(
+                target_interaction_start_time=original_critical_deadline,
+            )
         )
         latest_safe_monitoring_start_time = min(
             latest_safe_target_start_time,
@@ -3036,14 +3141,6 @@ class Scheduler:
         wait_sub, _completed_entry, wait_state = simulated_wait
         wait_end_time = wait_state.current_time
 
-        # Create a synthetic candidate to represent the 'Wait' action for the heuristic calculator.
-        # [Fix 251216] Preserve the original scheduling_due to allow proper risk assessment
-        wait_candidate = Candidate(
-            subtask=wait_sub,
-            is_critical=candidate.is_critical,
-            scheduling_due=candidate.scheduling_due,
-        )
-
         # Global Risk Check을 위해 feasible_candidates도 포함하여 전달
         all_candidates = not_yet_candidates
         if feasible_candidates:
@@ -3117,6 +3214,12 @@ class Scheduler:
             "Interval": max(0.0, interval_mon_to_crit_end),
             "IsCritical": True,
         }
+
+        wait_candidate = Candidate(
+            subtask=wait_sub,
+            is_critical=candidate.is_critical,
+            scheduling_due=candidate.scheduling_due,
+        )
 
         # [DEBUG LOG] Check Interval Update in _expand_subtask_with_monitoring
         prev_interval_sub = "N/A"
@@ -3291,12 +3394,9 @@ class Scheduler:
         wait_sub, _completed_entry, new_state = simulated_wait
         end_time = new_state.current_time
 
-        # Create a synthetic candidate to represent the 'Wait' action for the heuristic calculator.
-        # [Fix 251216] Preserve the original scheduling_due to allow proper risk assessment
         wait_candidate = Candidate(
             subtask=wait_sub,
             is_critical=candidate.is_critical,
-            # Inherit the deadline to let heuristic manager know about the pressure
             scheduling_due=candidate.scheduling_due,
         )
 

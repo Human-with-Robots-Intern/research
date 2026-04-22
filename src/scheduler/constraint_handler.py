@@ -22,7 +22,7 @@ from src.utils.common import create_module_logger
 from src.utils.config import EPSILON
 from src.utils.config.constants import (
     CONSTRAINT_MERGE_THRESHOLD,
-    MONITORING_DURATION,
+    RISK_GRACE_SECONDS,
     TIMING_TOLERANCE_ABS,
 )
 
@@ -248,10 +248,11 @@ class ConstraintHandler:
                 critical_context=critical_ctx,
             )
 
-            # 현재 시간에 "상호작용을 시작"할 수 있는 경우 feasible
-            # 즉, effective_interaction_start_time이 현재 시간과 거의 같아야 함.
-            if logical_interaction_start_time - MONITORING_DURATION <= (
-                current_time + first_nav_duration
+            # 현재 시간에 "상호작용을 시작"할 수 있는 경우만 feasible.
+            # Monitoring horizon은 scheduler의 wait/urgent path에서 처리하고,
+            # candidate 분류는 interaction-start readiness와 planner grace로만 결정한다.
+            if logical_interaction_start_time <= (
+                current_time + first_nav_duration + RISK_GRACE_SECONDS
             ):
                 log.debug(
                     f"Subtask '{sub.name}' is feasible now (interaction can start at {candidate.actual_interaction_start_time:.2f}, current_time: {current_time:.2f}, first_nav_duration: {first_nav_duration:.2f})."

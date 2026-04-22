@@ -186,7 +186,7 @@ CONSTRAINT_MERGE_THRESHOLD = 6.25  # TODO: calibrate from physical measurements
 ACTION_SPLIT_PRECISION = 4.0  # TODO: calibrate from physical measurements
 # A small planner-side grace keeps dispatch from oscillating on tiny timing noise
 # near the interaction boundary.
-RISK_GRACE_SECONDS = 4.0
+RISK_GRACE_SECONDS = 4.5
 # ========== 스케줄러 설정 ==========
 SIMULATION_DEPTH = 3
 BEAM_WIDTH = 3

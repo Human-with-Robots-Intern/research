@@ -23,6 +23,10 @@ scene_lists:
 # ------------------------------------------------------------------------------
 task_folder_name:
   - "decomposed_final_revision_metadata_260402_v1"
+  - "decomposed_final_revision_metadata_260402_v2"
+  - "decomposed_final_revision_metadata_260402_v3"
+  - "decomposed_final_revision_metadata_260402_v4"
+  - "decomposed_final_revision_metadata_260402_v5"
 cases:
   - "tasks_2_constraints_1"
   - "tasks_2_constraints_2"
