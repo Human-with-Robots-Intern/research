@@ -82,7 +82,7 @@ def parse_arguments() -> argparse.Namespace:
 
     parser.add_argument(
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
         help="Simulation 모드 사용 여부 (default: False)",
     )
@@ -213,12 +213,10 @@ def _sanitize_filename(value: str) -> str:
 def _resolve_observation_mode(args: argparse.Namespace) -> str:
     """Resolve the runtime observation backend from CLI arguments."""
 
-    if args.observation_mode != "auto":
-        return args.observation_mode
-    # In ROS mode, VLM is called by the ROS container and the progress
-    # value is passed through vlm_progress in BeliefUpdateContext.
-    # The TTP-side observation model uses synthetic_gaussian as the base,
-    # which switches to VLM-derived observation when vlm_progress is set.
+    if args.ros:
+        return "synthetic_gaussian"
+    if args.ros and not args.disable_monitoring:
+        return "openai_vlm"
     return "synthetic_gaussian"
 
 

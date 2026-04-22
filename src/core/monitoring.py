@@ -295,10 +295,18 @@ class GaussianSyntheticObservationModel:
         self,
         *,
         alpha: float = FACTOR_ALPHA,
+        sigma_floor_sq: float = 100.0,
+        vlm_alpha: float = 0.08,
+        progress_floor: float = 0.05,
+        progress_ceiling: float = 0.99,
         min_variance: float = MIN_VARIANCE,
         rng: Optional[np.random.Generator] = None,
     ) -> None:
         self._alpha = alpha
+        self._sigma_floor_sq = sigma_floor_sq
+        self._vlm_alpha = vlm_alpha
+        self._progress_floor = progress_floor
+        self._progress_ceiling = progress_ceiling
         self._min_variance = min_variance
         self._rng = rng or np.random.default_rng()
 
@@ -319,11 +327,19 @@ class GaussianSyntheticObservationModel:
 
         if context.vlm_progress is not None:
             # Real-world: VLM already estimated progress in the ROS container.
-            progress_ratio = context.vlm_progress / 100.0  # 0.0 ~ 1.3
-            observation = float(context.prior_mean * progress_ratio)
+            raw_progress_ratio = context.vlm_progress / 100.0  # 0.0 ~ 1.3
+            progress = float(np.clip(raw_progress_ratio, self._progress_floor, self._progress_ceiling))
+            observation = float(context.elapsed_interval / progress)
             variance = max(
                 self._min_variance,
-                self._alpha * (context.prior_mean - context.elapsed_interval) ** 2,
+                self._sigma_floor_sq
+                + self._vlm_alpha * (1.0 - progress) ** 2 * (observation ** 2),
+            )
+            log.info(
+                f"[Observe/vlm_progress] object={context.object_name} | "
+                f"vlm_progress={context.vlm_progress} raw_ratio={raw_progress_ratio:.3f} clipped={progress:.3f} | "
+                f"elapsed={context.elapsed_interval:.3f} prior_mean={context.prior_mean:.3f} | "
+                f"observation={observation:.3f} variance={variance:.3f}"
             )
             return ObservationResult(
                 observation=observation,
@@ -331,7 +347,7 @@ class GaussianSyntheticObservationModel:
                 metadata={
                     "observation_model": "vlm_progress",
                     "vlm_progress": context.vlm_progress,
-                    "progress_ratio": progress_ratio,
+                    "progress_ratio": progress,
                     "prior_mean": context.prior_mean,
                     "elapsed_interval": float(context.elapsed_interval),
                 },
@@ -344,6 +360,12 @@ class GaussianSyntheticObservationModel:
         )
         observation = float(
             self._rng.normal(loc=context.gt_interval, scale=math.sqrt(variance))
+        )
+        log.info(
+            f"[Observe/synthetic] object={context.object_name} | "
+            f"vlm_progress=None (synthetic fallback) | "
+            f"gt_interval={context.gt_interval:.3f} elapsed={context.elapsed_interval:.3f} | "
+            f"observation={observation:.3f} variance={variance:.3f}"
         )
         return ObservationResult(
             observation=observation,
@@ -898,6 +920,15 @@ class BayesianBeliefUpdater:
             MIN_VARIANCE,
             (likelihood_variance * context.prior_variance)
             / (likelihood_variance + context.prior_variance),
+        )
+
+        log.info(
+            f"[BayesianUpdate] object={context.object_name} | "
+            f"vlm_progress={context.vlm_progress} | "
+            f"observation={observation:.3f} | "
+            f"prior_mean={context.prior_mean:.3f} prior_var={context.prior_variance:.3f} | "
+            f"posterior_mean={posterior_mean:.3f} posterior_var={posterior_variance:.3f} | "
+            f"elapsed_interval={context.elapsed_interval:.3f}"
         )
 
         belief_state = {

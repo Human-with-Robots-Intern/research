@@ -51,9 +51,9 @@ class SimulateObjectState:
 
     
     @log_ros_action_state
-    def _simulate_monitoring(self, duration: Optional[float]) -> None:
+    def _simulate_monitoring(self, target_obj_id: Optional[str], duration: Optional[float]) -> None:
         """Simulates monitoring."""
-        logger.info("Monitoring")
+        logger.info(f"Monitoring {target_obj_id}")
 
     @log_ros_action_state
     def _simulate_toggle_on(self, target_obj_id: Optional[str], duration: Optional[float]) -> None:
@@ -260,7 +260,9 @@ class RosExecutor:
                     wait_duration=float(primitive_action_parts[1]), duration=float(primitive_action_parts[1])
                 )
             elif action_verb.startswith("monitoring"):
-                self.object_state_simulator._simulate_monitoring(duration=elapsed_time)
+                self.object_state_simulator._simulate_monitoring(
+                    primitive_action_parts[1].lower(), duration=elapsed_time
+                )
             elif action_verb.startswith("toggle_on"):
                 self.object_state_simulator._simulate_toggle_on(
                     primitive_action_parts[1].lower(), duration=elapsed_time

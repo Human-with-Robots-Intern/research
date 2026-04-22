@@ -1,9 +1,9 @@
 {
     "banana": {
-        "position": 7,
+        "position": 15,
         "isCooked": false,
         "parentReceptacles": [
-            "table"
+            "plate"
         ]
     },
     "plate": {
@@ -13,9 +13,9 @@
         ]
     },
     "pan": {
-        "position": 33,
+        "position": 31,
         "parentReceptacles": [
-            "stove"
+            "table"
         ]
     },
     "sausage": {
@@ -53,7 +53,7 @@
         "parentReceptacles": [
             "table"
         ],
-        "isToggled": true
+        "isToggled": false
     },
     "tea_cup": {
         "position": 38,
@@ -69,10 +69,10 @@
         ]
     },
     "tomato": {
-        "position": 31,
+        "position": 42,
         "isCooked": false,
         "parentReceptacles": [
-            "pan"
+            "table"
         ]
     },
     "table": {

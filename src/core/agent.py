@@ -208,7 +208,13 @@ class Agent:
 
         # 5) 베이지안 업데이트 계산
         # critical 제약이 시작 된 이후 경과된 separation interval
-        critical_elapsed_interval = state.current_time - critical_start_sub_end_time
+        # ROS 모드에서는 sim_end_time이 실제 ROS 누적 시간이므로 이를 사용.
+        # sim_end_time이 inf이면 (미실행 시뮬레이션 등) 논리 시간으로 fallback.
+        monitoring_sim_end_time = state.completed_entries[-1].sim_end_time
+        if monitoring_sim_end_time != float("inf"):
+            critical_elapsed_interval = monitoring_sim_end_time - critical_start_sub_end_time
+        else:
+            critical_elapsed_interval = state.current_time - critical_start_sub_end_time
 
         update_result = self.belief_updater.update(
             BeliefUpdateContext(
