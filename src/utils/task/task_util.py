@@ -5,7 +5,7 @@ import json
 import random
 import uuid
 from pathlib import Path
-from typing import Dict, List, Literal, Tuple, Union
+from typing import Dict, List, Literal, Optional, Tuple, Union
 
 from dotenv import load_dotenv
 from networkx import DiGraph
@@ -184,6 +184,161 @@ class TaskUtil:
 
         return tasks
 
+    @staticmethod
+    def _parse_primitive_action(action: str) -> Tuple[str, str]:
+        """Split one primitive action into ``(ACTION_TYPE, ARGUMENT)``."""
+
+        parts = action.split(" ", 1)
+        if len(parts) == 1:
+            return parts[0].upper(), ""
+        return parts[0].upper(), parts[1]
+
+    @staticmethod
+    def _object_type(object_ref: str) -> str:
+        """Return the object category prefix from a full object id."""
+
+        return object_ref.split("|", 1)[0]
+
+    @classmethod
+    def _infer_missing_hold_repair_target(
+        cls,
+        destination_obj: str,
+        recent_places: List[Dict[str, str]],
+    ) -> Optional[str]:
+        """Infer which object should be re-grasped before an invalid PLACE.
+
+        The current translation failures are highly templatic:
+        - ingredient placed into ``Pan``/``Pot`` and then the container is moved
+          to ``StoveBurner`` without re-grasping the container;
+        - ingredient placed into ``Pot`` and then the pot is moved to ``Sink``
+          without re-grasping the pot;
+        - occasionally a ``Mug``/``Cup`` should be re-grasped before placing it
+          on the coffee machine.
+        """
+
+        destination_type = cls._object_type(destination_obj)
+        for context in reversed(recent_places):
+            receptacle_type = context["receptacle_type"]
+            if destination_type == "StoveBurner" and receptacle_type in {"Pan", "Pot"}:
+                return context["receptacle_id"]
+            if destination_type == "Sink" and receptacle_type == "Pot":
+                return context["receptacle_id"]
+            if destination_type == "CoffeeMachine" and context["held_object_type"] in {
+                "Mug",
+                "Cup",
+            }:
+                return context["held_object_id"]
+        return None
+
+    @classmethod
+    def repair_held_object_semantics(cls, tasks: List[Task]) -> List[Task]:
+        """Repair common held-object semantic omissions in primitive sequences.
+
+        This pass performs a lightweight symbolic replay over the full
+        instruction order and inserts the minimal re-grasp sequence needed for
+        templatic translation failures:
+        - insert ``GRASP <container>`` when we are already at the container;
+        - otherwise insert ``NAVIGATE_TO <container>``, ``GRASP <container>``.
+
+        The pass intentionally remains conservative: if no reliable repair
+        target can be inferred from the prior place history, the original
+        sequence is preserved.
+        """
+
+        subtasks = cls.tasks_to_subtasks(tasks, mode="all")
+        held_object: Optional[str] = None
+        current_anchor: Optional[str] = None
+        recent_places: List[Dict[str, str]] = []
+
+        for subtask in subtasks:
+            actions = subtask.execution.primitive_actions
+            if not actions:
+                continue
+
+            repaired_actions: List[str] = []
+            action_anchor_meta: List[Tuple[Optional[str], Optional[str]]] = []
+            local_anchor = current_anchor
+
+            def append_action(action: str) -> None:
+                nonlocal held_object, local_anchor
+
+                before_anchor = local_anchor
+                action_type, target_obj = cls._parse_primitive_action(action)
+
+                if action_type == "NAVIGATE_TO" and target_obj:
+                    local_anchor = target_obj
+                elif action_type == "GRASP" and target_obj:
+                    if held_object is None:
+                        held_object = target_obj
+                elif action_type in {"PLACE_INSIDE", "PLACE_ON_TOP"} and target_obj:
+                    if held_object is not None:
+                        recent_places.append(
+                            {
+                                "action_type": action_type,
+                                "receptacle_id": target_obj,
+                                "receptacle_type": cls._object_type(target_obj),
+                                "held_object_id": held_object,
+                                "held_object_type": cls._object_type(held_object),
+                            }
+                        )
+                        held_object = None
+
+                repaired_actions.append(action)
+                action_anchor_meta.append((before_anchor, local_anchor))
+
+            for action in actions:
+                action_type, target_obj = cls._parse_primitive_action(action)
+
+                if (
+                    action_type in {"PLACE_INSIDE", "PLACE_ON_TOP"}
+                    and target_obj
+                    and held_object is None
+                ):
+                    repair_target = cls._infer_missing_hold_repair_target(
+                        target_obj,
+                        recent_places,
+                    )
+                    if repair_target:
+                        popped_destination_nav: Optional[str] = None
+                        if repaired_actions:
+                            prev_type, prev_target = cls._parse_primitive_action(
+                                repaired_actions[-1]
+                            )
+                            if (
+                                prev_type == "NAVIGATE_TO"
+                                and prev_target == target_obj
+                            ):
+                                popped_destination_nav = repaired_actions.pop()
+                                before_anchor, _ = action_anchor_meta.pop()
+                                local_anchor = before_anchor
+
+                        inserted_actions: List[str] = []
+                        if local_anchor != repair_target:
+                            nav_action = f"NAVIGATE_TO {repair_target}"
+                            append_action(nav_action)
+                            inserted_actions.append(nav_action)
+
+                        grasp_action = f"GRASP {repair_target}"
+                        append_action(grasp_action)
+                        inserted_actions.append(grasp_action)
+
+                        if popped_destination_nav is not None:
+                            append_action(popped_destination_nav)
+
+                        log.debug(
+                            "[repair_held_object_semantics] Inserted %s before '%s' in subtask '%s'.",
+                            inserted_actions,
+                            action,
+                            subtask.name,
+                        )
+
+                append_action(action)
+
+            subtask.execution.primitive_actions = repaired_actions
+            current_anchor = local_anchor
+
+        return tasks
+
     @classmethod
     def check_obj_id(cls, scene_name: str, tasks: List[Task]) -> List[Task]:
         """
@@ -324,6 +479,7 @@ class TaskUtil:
         tasks = Task.parse_instruction(task_data)
         tasks = cls.check_obj_id(scene_file_name, tasks)
         tasks = cls.refine_primitive_actions(tasks)
+        tasks = cls.repair_held_object_semantics(tasks)
 
         # 3) enable_decomposition 옵션 처리
         if enable_decomposition:
