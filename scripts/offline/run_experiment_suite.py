@@ -27,7 +27,7 @@ from src.utils.common import create_module_logger  # noqa: E402
 DEFAULT_SUITE_ORDER = (
     "scalability",
     "eta_sensitivity",
-    "monitoring_budget",
+    # "monitoring_budget",
     "pf_vs_bayesian",
 )
 DEFAULT_ORACLE_CONFIG = "scripts/offline/config/oracle_reference_config.yaml"
