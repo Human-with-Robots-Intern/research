@@ -534,8 +534,8 @@ def _build_tabular_from_rows(rows: list[dict[str, Any]]) -> str:
     if single_prior:
         lines.append(
             r"\multirow{2}{*}{\textbf{GT}} & "
-            r"\multicolumn{2}{c}{\textbf{TCSR} ($\uparrow$)} & "
             r"\multicolumn{2}{c}{\textbf{SR} ($\uparrow$)} & "
+            r"\multicolumn{2}{c}{\textbf{TCSR} ($\uparrow$)} & "
             r"\multicolumn{2}{c}{\textbf{Gap$^{+}$ (s)} ($\downarrow$)} & "
             r"\multicolumn{2}{c}{\textbf{CT (s)} ($\downarrow$)} \\"
             "\n"
@@ -554,8 +554,8 @@ def _build_tabular_from_rows(rows: list[dict[str, Any]]) -> str:
         lines.append(
             r"\multirow{2}{*}{\textbf{Init Prior}} & "
             r"\multirow{2}{*}{\textbf{GT}} & "
-            r"\multicolumn{2}{c}{\textbf{TCSR} ($\uparrow$)} & "
             r"\multicolumn{2}{c}{\textbf{SR} ($\uparrow$)} & "
+            r"\multicolumn{2}{c}{\textbf{TCSR} ($\uparrow$)} & "
             r"\multicolumn{2}{c}{\textbf{Gap$^{+}$ (s)} ($\downarrow$)} & "
             r"\multicolumn{2}{c}{\textbf{CT (s)} ($\downarrow$)} \\"
             "\n"
@@ -582,10 +582,10 @@ def _build_tabular_from_rows(rows: list[dict[str, Any]]) -> str:
                 f"\\textbf{{{GT_LABEL[row['gt_distribution']]}}} & "
                 + " & ".join(
                     [
-                        _format_tex(row["bayes_tcsr"], 2, highlight=tcsr_best[0], scale=0.01),
-                        _format_tex(row["pf_tcsr"], 2, highlight=tcsr_best[1], scale=0.01),
                         _format_tex(row["bayes_sr"], 2, highlight=sr_best[0]),
                         _format_tex(row["pf_sr"], 2, highlight=sr_best[1]),
+                        _format_tex(row["bayes_tcsr"], 2, highlight=tcsr_best[0], scale=0.01),
+                        _format_tex(row["pf_tcsr"], 2, highlight=tcsr_best[1], scale=0.01),
                         _format_tex(row["bayes_gap"], 2, highlight=gap_best[0]),
                         _format_tex(row["pf_gap"], 2, highlight=gap_best[1]),
                         _format_tex(row["bayes_ct"], 2, highlight=ct_best[0]),
@@ -612,10 +612,10 @@ def _build_tabular_from_rows(rows: list[dict[str, Any]]) -> str:
                     f"{prefix} & \\textbf{{{GT_LABEL[row['gt_distribution']]}}} & "
                     + " & ".join(
                         [
-                            _format_tex(row["bayes_tcsr"], 2, highlight=tcsr_best[0], scale=0.01),
-                            _format_tex(row["pf_tcsr"], 2, highlight=tcsr_best[1], scale=0.01),
                             _format_tex(row["bayes_sr"], 2, highlight=sr_best[0]),
                             _format_tex(row["pf_sr"], 2, highlight=sr_best[1]),
+                            _format_tex(row["bayes_tcsr"], 2, highlight=tcsr_best[0], scale=0.01),
+                            _format_tex(row["pf_tcsr"], 2, highlight=tcsr_best[1], scale=0.01),
                             _format_tex(row["bayes_gap"], 2, highlight=gap_best[0]),
                             _format_tex(row["pf_gap"], 2, highlight=gap_best[1]),
                             _format_tex(row["bayes_ct"], 2, highlight=ct_best[0]),

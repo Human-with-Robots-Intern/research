@@ -561,14 +561,13 @@ def _overall_tabular(
     valid_gap_sources: list[dict[str, dict[str, dict[str, float | int]]]],
 ) -> str:
     lines: list[str] = []
-    lines.append(r"\begin{tabular}{@{}llrrrr@{}}" "\n")
+    lines.append(r"\begin{tabular}{@{}llrrr@{}}" "\n")
     lines.append(r"\toprule" "\n")
     lines.append(
         r"\textbf{Init Prior} & \textbf{$\eta$} & "
         r"\textbf{TCSR} ($\uparrow$) & "
         r"\textbf{Gap$^{+}$ (s)} ($\downarrow$) & "
-        r"\textbf{Mon./Unc. (count)} ($\downarrow$) & "
-        r"\textbf{Avg. Mon. (count)} ($\downarrow$) \\" "\n"
+        r"\textbf{Mon./Unc. (count)} ($\downarrow$) \\" "\n"
     )
     lines.append(r"\midrule" "\n")
 
@@ -591,7 +590,6 @@ def _overall_tabular(
             tsr_mean, tsr_std = overall_stats["tsr"]
             gap_mean, gap_std = overall_stats["gap"]
             avg_per_unc_mean, avg_per_unc_std = overall_stats["avg_per_unc"]
-            avg_mon_mean, avg_mon_std = overall_stats["avg_mon"]
 
             prior_cell = (
                 rf"\multirow{{{len(present_etas)}}}{{*}}{{\textbf{{{INIT_PRIOR_LABEL[prior]}}}}}"
@@ -601,8 +599,7 @@ def _overall_tabular(
                 f"{prior_cell} & ${eta}$ & "
                 f"{_tex(tsr_mean, tsr_std, nd=2, scale=0.01, bold=(tsr_mean is not None and abs(tsr_mean - 100.0) < 1e-6))} & "
                 f"{_tex(gap_mean, gap_std, nd=2)} & "
-                f"{_tex(avg_per_unc_mean, avg_per_unc_std, nd=2)} & "
-                f"{_tex(avg_mon_mean, avg_mon_std, nd=2)} \\\\\n"
+                f"{_tex(avg_per_unc_mean, avg_per_unc_std, nd=2)} \\\\\n"
             )
         if prior_idx != len(present_priors) - 1:
             lines.append(r"\midrule" "\n")
