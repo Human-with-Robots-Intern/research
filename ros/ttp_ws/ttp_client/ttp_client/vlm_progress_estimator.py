@@ -21,6 +21,12 @@ import numpy as np
 # Directory where VLM call logs (input image + prompt + response) are saved
 VLM_LOG_DIR = Path("/app/assets/results/vlm_logs")
 
+# Directory containing image few-shot examples:
+#   <FEW_SHOT_DIR>/<subdir>/progress_<NNN>.jpg
+# where <subdir> matches the prompt key (sausage, tomato, tea) and <NNN> is the
+# progress value (010, 020, ..., 130).
+FEW_SHOT_DIR = Path("/app/ros/ttp_ws/data_ur/few_shots")
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +36,8 @@ logger = logging.getLogger(__name__)
 # Each entry contains:
 #   - description: human-readable label (for logging)
 #   - instruction: the main prompt text sent to the VLM
-#   - few_shots: text-only few-shot examples (no images)
+#   - few_shot_subdir: subdirectory name under FEW_SHOT_DIR containing
+#     progress_<NNN>.jpg reference images (or None for no few-shots)
 #
 # To modify prompts, edit the dictionaries below.
 # ---------------------------------------------------------------------------
@@ -39,104 +46,48 @@ MONITORING_PROMPTS: Dict[str, Dict[str, Any]] = {
     "sausage": {
         "description": "소시지 굽기 진행도",
         "instruction": (
-            "This image shows sausage(s) being cooked on a pan/stove. "
-            "Estimate the cooking progress as an integer between 0 and 130 (in steps of 10). "
-            "0 means cooking has not started at all. "
-            "50 means about half-cooked. "
-            "100 means perfectly done. "
-            "Values above 100 (110, 120, 130) mean overcooked/burnt. "
+            "This image shows sausage(s) being pan-fried on a pan/stove. "
+            "IMPORTANT setup note: an LED strip is placed DIRECTLY UNDER the sausage object itself, "
+            "so the sausage glows from below and its apparent surface color is dominated by the LED color "
+            "transmitted/diffused through the sausage body. Judge progress by the overall color the sausage emits. "
+            "Estimate the cooking progress as an integer between 0 and 130 (in steps of 10), "
+            "based mainly on the perceived surface color of the sausage. "
+            "0 = raw, bright pink glow, pan not yet hot. "
+            "50 = about half-cooked, glow fading from pink toward light brown. "
+            "100 = perfectly done, even reddish-brown glow all over. "
+            "110-130 = overcooked/burnt, dark brown to near-black charred tones. "
             "Return ONLY a JSON object with a single key 'progress' whose value is the integer."
         ),
-        "few_shots": [
-            {
-                "role": "user",
-                "text": "The sausage is pink and raw, the pan is just starting to heat up.",
-            },
-            {"role": "assistant", "text": '{"progress": 10}'},
-            {
-                "role": "user",
-                "text": "The surface is starting to turn slightly brown.",
-            },
-            {"role": "assistant", "text": '{"progress": 40}'},
-            {
-                "role": "user",
-                "text": "The sausage is evenly browned all over with nice grill marks.",
-            },
-            {"role": "assistant", "text": '{"progress": 100}'},
-            {
-                "role": "user",
-                "text": "The sausage has many blackened/charred spots.",
-            },
-            {"role": "assistant", "text": '{"progress": 120}'},
-        ],
+        "few_shot_subdir": "sausage",
     },
     "tomato": {
-        "description": "토마토 요리 진행도",
+        "description": "토마토 소스 졸이기 진행도",
         "instruction": (
-            "This image shows tomato(es) being cooked on a pan/stove. "
-            "Estimate the cooking progress as an integer between 0 and 130 (in steps of 10). "
-            "0 means cooking has not started at all. "
-            "50 means about half-cooked (softening, releasing juices). "
-            "100 means perfectly done (fully softened, slightly caramelized). "
-            "Values above 100 (110, 120, 130) mean overcooked/burnt. "
+            "This image shows tomatoes being simmered/reduced into a sauce in a pan or pot. "
+            "The task is to boil down fresh tomatoes until they become a thick tomato sauce. "
+            "Estimate the cooking progress as an integer between 0 and 130 (in steps of 10), "
+            "based on the color, thickness, and water content of the sauce. "
+            "0 = just placed: bright/light red fresh tomato chunks, very watery, pan/pot just heating up. "
+            "50 = about half-reduced: deeper red, still somewhat liquid, tomatoes breaking down. "
+            "100 = perfectly done: rich deep red, thick and glossy sauce, most water evaporated. "
+            "110-130 = over-reduced/burnt: dark reddish-brown, dried out, scorched at the bottom. "
             "Return ONLY a JSON object with a single key 'progress' whose value is the integer."
         ),
-        "few_shots": [
-            {
-                "role": "user",
-                "text": "The tomato slices are fresh and firm on the pan, just placed.",
-            },
-            {"role": "assistant", "text": '{"progress": 10}'},
-            {
-                "role": "user",
-                "text": "The tomatoes are starting to soften and release some juice.",
-            },
-            {"role": "assistant", "text": '{"progress": 40}'},
-            {
-                "role": "user",
-                "text": "The tomatoes are fully softened and slightly caramelized.",
-            },
-            {"role": "assistant", "text": '{"progress": 100}'},
-            {
-                "role": "user",
-                "text": "The tomatoes are dried out and heavily charred.",
-            },
-            {"role": "assistant", "text": '{"progress": 120}'},
-        ],
+        "few_shot_subdir": "tomato",
     },
     "tea": {
         "description": "차 우리기 진행도",
         "instruction": (
-            "This image shows tea being brewed in a teapot or cup. "
-            "Estimate the brewing progress as an integer between 0 and 130 (in steps of 10). "
-            "0 means brewing has not started (clear water). "
-            "50 means halfway brewed (light color). "
-            "100 means perfectly brewed (ideal color and strength). "
-            "Values above 100 (110, 120, 130) mean over-brewed/too strong. "
+            "This image shows tea (green tea) being brewed in a teapot or cup. "
+            "Estimate the brewing progress as an integer between 0 and 130 (in steps of 10), "
+            "based on the color of the liquid. "
+            "0 = not started: nearly clear/whitish water, tea leaves/bag just placed. "
+            "50 = halfway: light green tint developing. "
+            "100 = perfectly brewed: rich green color, ideal strength. "
+            "110-130 = over-brewed: very dark green, overly strong/bitter-looking. "
             "Return ONLY a JSON object with a single key 'progress' whose value is the integer."
         ),
-        "few_shots": [
-            {
-                "role": "user",
-                "text": "The water is nearly clear with the tea bag just placed in.",
-            },
-            {"role": "assistant", "text": '{"progress": 10}'},
-            {
-                "role": "user",
-                "text": "The water has a light golden/amber tint.",
-            },
-            {"role": "assistant", "text": '{"progress": 40}'},
-            {
-                "role": "user",
-                "text": "The tea has a rich, deep color — looks perfectly brewed.",
-            },
-            {"role": "assistant", "text": '{"progress": 100}'},
-            {
-                "role": "user",
-                "text": "The tea is very dark and opaque, over-steeped.",
-            },
-            {"role": "assistant", "text": '{"progress": 120}'},
-        ],
+        "few_shot_subdir": "tea",
     },
     "default": {
         "description": "일반 요리 진행도",
@@ -147,7 +98,7 @@ MONITORING_PROMPTS: Dict[str, Dict[str, Any]] = {
             "Values above 100 mean overcooked/over-processed. "
             "Return ONLY a JSON object with a single key 'progress' whose value is the integer."
         ),
-        "few_shots": [],
+        "few_shot_subdir": None,
     },
 }
 
@@ -160,6 +111,41 @@ def _encode_frame_as_data_url(frame: np.ndarray, quality: int = 85) -> str:
         raise RuntimeError("Failed to encode frame as JPEG.")
     b64 = base64.b64encode(buf.tobytes()).decode("utf-8")
     return f"data:image/jpeg;base64,{b64}"
+
+
+# Cache of (subdir -> [(progress, data_url), ...]) to avoid re-reading files.
+_FEW_SHOT_CACHE: Dict[str, list] = {}
+
+
+def _load_image_few_shots(subdir: Optional[str]) -> list:
+    """Load progress_<NNN>.jpg reference images from FEW_SHOT_DIR/<subdir>.
+
+    Returns a list of (progress_int, data_url_str) sorted by progress.
+    Results are cached per subdir.
+    """
+    if not subdir:
+        return []
+    if subdir in _FEW_SHOT_CACHE:
+        return _FEW_SHOT_CACHE[subdir]
+
+    folder = FEW_SHOT_DIR / subdir
+    if not folder.is_dir():
+        logger.warning("Few-shot dir not found: %s", folder)
+        _FEW_SHOT_CACHE[subdir] = []
+        return []
+
+    shots = []
+    for path in sorted(folder.glob("progress_*.jpg")):
+        try:
+            progress = int(path.stem.replace("progress_", ""))
+        except ValueError:
+            continue
+        with open(path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("utf-8")
+        shots.append((progress, f"data:image/jpeg;base64,{b64}"))
+    logger.info("Loaded %d image few-shots from %s", len(shots), folder)
+    _FEW_SHOT_CACHE[subdir] = shots
+    return shots
 
 
 # Maps object_id (from object_init_states.json "position" field) to a
@@ -208,13 +194,28 @@ def _build_messages(
     image_data_url: str,
 ) -> list:
     """Build the OpenAI chat messages from a prompt template and image."""
-    messages = []
+    messages: list = []
 
-    # Few-shot examples (text only)
-    for shot in prompt_template.get("few_shots", []):
-        messages.append({"role": shot["role"], "content": shot["text"]})
+    # Image few-shot examples: each is a (user-image, assistant-json) pair.
+    few_shots = _load_image_few_shots(prompt_template.get("few_shot_subdir"))
+    for progress, shot_data_url in few_shots:
+        messages.append(
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Example reference image."},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": shot_data_url, "detail": "low"},
+                    },
+                ],
+            }
+        )
+        messages.append(
+            {"role": "assistant", "content": json.dumps({"progress": progress})}
+        )
 
-    # Actual query with image
+    # Actual query with the live camera frame + full instruction.
     messages.append(
         {
             "role": "user",
@@ -270,7 +271,7 @@ class VLMProgressEstimator:
         self,
         camera: Any = None,
         *,
-        model_name: str = "gpt-4.1-mini",
+        model_name: str = "gpt-4.1",
         api_key: Optional[str] = None,
     ) -> None:
         self._camera = camera

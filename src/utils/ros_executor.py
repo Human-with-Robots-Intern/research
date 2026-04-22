@@ -206,6 +206,11 @@ class RosExecutor:
                     result = response.json()
                     success = result.get("success", False)
                     progress = result.get("progress", None)
+                    if progress is not None:
+                        logger.info(
+                            f"[VLM] progress received from ROS bridge for "
+                            f"'{primitive_action}': {progress}"
+                        )
                 except requests.RequestException as e:
                     logger.error(
                         f"HTTP request for action '{primitive_action}' failed: {e}"

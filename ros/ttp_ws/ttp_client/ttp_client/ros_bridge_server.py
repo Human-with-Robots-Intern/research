@@ -110,10 +110,26 @@ def _init_arduino(port: str = ARDUINO_PORT, baud: int = ARDUINO_BAUD) -> Optiona
     """Open serial connection to Arduino for LED control."""
     try:
         ser = serial.Serial(port, baud, timeout=1)
-        print(f"[ros_bridge] Arduino connected on {port}", flush=True)
+        _time.sleep(2)  # Arduino resets on serial open (DTR); wait for boot
+        ser.write(b"D100000\n")  # Set LED gradient duration to 100 seconds
+        print(f"[ros_bridge] Arduino connected on {port}, duration set to 100s", flush=True)
         return ser
     except Exception as e:
         print(f"[ros_bridge] WARNING: Arduino not available ({e})", flush=True)
+        return None
+
+
+def _reconnect_arduino(port: str = ARDUINO_PORT, baud: int = ARDUINO_BAUD) -> Optional[serial.Serial]:
+    """Attempt to reconnect to Arduino, returning new serial handle or None."""
+    print(f"[ros_bridge] Attempting Arduino reconnect on {port}...", flush=True)
+    try:
+        ser = serial.Serial(port, baud, timeout=1)
+        _time.sleep(2)  # Wait for Arduino boot after DTR reset
+        ser.write(b"D100000\n")
+        print(f"[ros_bridge] Arduino reconnected on {port}, duration set to 100s", flush=True)
+        return ser
+    except Exception as e:
+        print(f"[ros_bridge] Arduino reconnect failed: {e}", flush=True)
         return None
 
 
@@ -142,7 +158,7 @@ def _signal_task_complete() -> None:
             f.write(_time.strftime("%Y%m%d_%H%M%S"))
         print("[ros_bridge] Task complete — robot returning to initial position.", flush=True)
         # Reset arduino task mode for next instruction
-        app.state.arduino_task_set = False
+        app.state.arduino_last_instruction = None
     except Exception as e:
         print(f"[ros_bridge] Failed to write completion flag: {e}", flush=True)
 
@@ -171,7 +187,7 @@ async def lifespan(app: FastAPI) -> None:
     app.state.camera = camera
     app.state.vlm_estimator = _init_vlm_estimator(camera)
     app.state.arduino = _init_arduino()
-    app.state.arduino_task_set = False  # track whether we've sent T1/T2
+    app.state.arduino_last_instruction = None  # track last instruction sent to Arduino
 
     yield
 
@@ -202,14 +218,20 @@ async def execute_translated_action(parts_request: ActionPartsRequest) -> Dict[s
     in the response.
     """
     try:
-        # Set Arduino LED task mode on first request with instruction
-        if not app.state.arduino_task_set and parts_request.instruction:
+        # Set Arduino LED task mode when instruction changes
+        if parts_request.instruction and parts_request.instruction != app.state.arduino_last_instruction:
             try:
                 _send_arduino_task_mode(app.state.arduino, parts_request.instruction)
+                app.state.arduino_last_instruction = parts_request.instruction
             except Exception as arduino_err:
                 print(f"[ros_bridge] WARNING: Arduino command failed (non-fatal): {arduino_err}", flush=True)
-                app.state.arduino = None
-            app.state.arduino_task_set = True
+                app.state.arduino = _reconnect_arduino()
+                if app.state.arduino is not None:
+                    try:
+                        _send_arduino_task_mode(app.state.arduino, parts_request.instruction)
+                        app.state.arduino_last_instruction = parts_request.instruction
+                    except Exception:
+                        app.state.arduino = None
 
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
