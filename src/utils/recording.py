@@ -125,6 +125,14 @@ class ActionCamRecorder:
             "-reconnect", "1",
             "-reconnect_streamed", "1",
             "-reconnect_delay_max", "5",
+            # Enlarge probe so h264-over-mpegts input can be detected
+            # reliably before we try to open the mp4 output. With the
+            # defaults (5 MB / 5 s) a freshly-accepted '-listen 1'
+            # server occasionally doesn't feed enough bytes in time and
+            # ffmpeg gives up with "Could not write header for output
+            # file #0 (incorrect codec parameters ?)".
+            "-probesize", "10M",
+            "-analyzeduration", "10000000",
             "-use_wallclock_as_timestamps", "1",
             "-fflags", "+genpts",
             "-i", self.stream_url,
@@ -160,9 +168,14 @@ class ActionCamRecorder:
                 stderr=self._stderr_fh,
             )
             try:
-                rc = proc.wait(timeout=1.5)
+                # 3s: MPEG-TS input probe with the enlarged probesize
+                # needs a second or two of stream data to detect the
+                # h264 extradata; 1.5s was truncating probe before it
+                # could succeed and the wrapper misread it as a dead
+                # process.
+                rc = proc.wait(timeout=3.0)
             except subprocess.TimeoutExpired:
-                # Still running after 1.5s → stream is flowing. Success.
+                # Still running after 3s → stream is flowing. Success.
                 self._proc = proc
                 if attempt > 1:
                     logger.info(
