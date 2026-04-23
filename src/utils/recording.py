@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 import signal
-import socket
 import subprocess
 import time
 from pathlib import Path
@@ -22,11 +21,11 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CAMERA_HOST = "192.168.0.9"
 DEFAULT_CAMERA_PORT = 9986
-# Max seconds to wait for the MJPEG server (serve_actioncam.sh) to come
-# back into a listening state between tasks. Each client disconnect
-# causes the server's 'ffmpeg -listen 1' to exit and the shell loop to
-# respawn it after a `sleep 1` + v4l2 re-init — usually 2–4s.
-DEFAULT_SERVER_WAIT_SECONDS = 15
+# Total seconds budgeted for Popen-retry attempts. Each failed attempt
+# spends ~1.5s (ffmpeg startup + fail) + 2s backoff (~3.5s/round), and
+# a serve_actioncam.sh restart cycle is ~2–4s, so 30s gives roughly 7–8
+# rounds — plenty of slack for worst-case v4l2 re-init.
+DEFAULT_SERVER_WAIT_SECONDS = 30
 # Default 0: with the serve_actioncam.sh layout (ffmpeg -listen 1 in a
 # while-loop), a flush session ends up *disconnecting* the server which
 # then restarts, and the main recorder that follows races against the
@@ -73,40 +72,6 @@ class ActionCamRecorder:
         self._stderr_fh = None
         self._stderr_log_path: Optional[Path] = None
 
-    def _wait_for_server(self) -> bool:
-        """Block until ``host:port`` accepts TCP connections or timeout.
-
-        The laptop3 MJPEG server cycles ffmpeg per client (``-listen 1`` +
-        while-loop), so between two tasks there is a gap of a few seconds
-        where the port is closed. Starting the recorder's ffmpeg during
-        that gap produces "Connection refused" and an empty mp4 — this
-        pre-check avoids that race.
-        """
-        if self.server_wait_seconds <= 0:
-            return True
-        deadline = time.monotonic() + self.server_wait_seconds
-        delay = 0.25
-        attempts = 0
-        while time.monotonic() < deadline:
-            attempts += 1
-            try:
-                with socket.create_connection((self.host, self.port), timeout=1.0):
-                    if attempts > 1:
-                        logger.info(
-                            "[ActionCamRecorder] Server %s:%d accepted after %d attempt(s).",
-                            self.host, self.port, attempts,
-                        )
-                    return True
-            except (OSError, socket.timeout):
-                pass
-            time.sleep(delay)
-            delay = min(1.0, delay * 1.5)
-        logger.error(
-            "[ActionCamRecorder] Timed out waiting %ds for %s:%d to listen.",
-            self.server_wait_seconds, self.host, self.port,
-        )
-        return False
-
     def _flush_stale_buffer(self) -> None:
         if self.flush_seconds <= 0:
             return
@@ -135,24 +100,27 @@ class ActionCamRecorder:
     def __enter__(self) -> "ActionCamRecorder":
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.output_path = self.output_dir / f"{self.file_stem}.mp4"
+        self._stderr_log_path = self.output_dir / f"{self.file_stem}.ffmpeg.log"
 
-        # The serve_actioncam.sh server restarts ffmpeg between clients,
-        # so we must wait for :port to come back up before launching our
-        # own ffmpeg — otherwise it dies instantly with "Connection refused".
-        if not self._wait_for_server():
-            self._proc = None
-            return self
-
+        # Do NOT pre-check with a raw TCP connect: the server uses
+        # 'ffmpeg -listen 1' which accepts exactly one client and dies on
+        # disconnect, so a probe connect would itself consume the slot
+        # and force the server back into its sleep-1-and-respawn cycle —
+        # the next real attempt then races the restart.
+        #
+        # Strategy: actually spawn the recorder ffmpeg, give it ~1.5s to
+        # either establish a working stream or die with "Connection
+        # refused". If it dies, back off while the server respawns and
+        # try again. server_wait_seconds caps the total retry budget.
         self._flush_stale_buffer()
 
-        # NOTE: do NOT pass -nostdin here. The __exit__ path writes 'q' to
-        # ffmpeg's stdin to trigger a graceful shutdown (so the mp4 moov
-        # atom gets finalized); -nostdin makes ffmpeg ignore stdin, which
-        # forces us down the SIGKILL fallback and corrupts the file.
-        # -reconnect_* covers the case where the server drops mid-stream.
-        cmd = [
+        base_cmd = [
             "ffmpeg",
             "-loglevel", "warning",
+            # -reconnect_* handles mid-stream drops; initial-connect
+            # retries are driven by our Python loop below because
+            # ffmpeg's reconnect flags don't reliably cover "refused
+            # before the first byte".
             "-reconnect", "1",
             "-reconnect_streamed", "1",
             "-reconnect_delay_max", "5",
@@ -164,39 +132,63 @@ class ActionCamRecorder:
             "-y",
             str(self.output_path),
         ]
-        logger.info(
-            "[ActionCamRecorder] Start: %s -> %s", self.stream_url, self.output_path
-        )
-        # Keep stderr in a sibling log file so recorder failures (e.g. the
-        # server hasn't re-bound :9986 yet) leave a trace — previously the
-        # recorder could die silently because stderr was /dev/null.
-        self._stderr_log_path = self.output_dir / f"{self.file_stem}.ffmpeg.log"
-        self._stderr_fh = open(self._stderr_log_path, "wb")
-        self._proc = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=self._stderr_fh,
-        )
 
-        # Fail fast if the main recorder died before opening the output
-        # (connection refused, wrong URL, etc.). Without this the worker
-        # keeps running thinking recording is on.
-        time.sleep(1.0)
-        if self._proc.poll() is not None:
-            rc = self._proc.returncode
+        deadline = time.monotonic() + max(self.server_wait_seconds, 2)
+        attempt = 0
+        retry_delay = 2.0
+        while True:
+            attempt += 1
+            # Truncate on first attempt, append on retries so we keep a
+            # record of each failure in the same .ffmpeg.log.
+            mode = "wb" if attempt == 1 else "ab"
+            self._stderr_fh = open(self._stderr_log_path, mode)
+            logger.info(
+                "[ActionCamRecorder] Start (attempt %d): %s -> %s",
+                attempt, self.stream_url, self.output_path,
+            )
+            proc = subprocess.Popen(
+                base_cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=self._stderr_fh,
+            )
             try:
-                tail = self._stderr_log_path.read_text(errors="replace")[-500:]
+                rc = proc.wait(timeout=1.5)
+            except subprocess.TimeoutExpired:
+                # Still running after 1.5s → stream is flowing. Success.
+                self._proc = proc
+                if attempt > 1:
+                    logger.info(
+                        "[ActionCamRecorder] Recording established on attempt %d.",
+                        attempt,
+                    )
+                return self
+
+            # ffmpeg died during startup — typically "Connection refused"
+            # while serve_actioncam.sh is respawning. Close the stderr
+            # handle, log a tail, and back off.
+            try:
+                self._stderr_fh.close()
+            except Exception:
+                pass
+            try:
+                tail = self._stderr_log_path.read_text(errors="replace")[-400:]
             except Exception:
                 tail = "(stderr unreadable)"
-            logger.error(
-                "[ActionCamRecorder] ffmpeg exited immediately (rc=%s). "
-                "Last stderr: %s",
-                rc,
-                tail,
+            logger.warning(
+                "[ActionCamRecorder] ffmpeg exited rc=%s on attempt %d. "
+                "Tail: %s", rc, attempt, tail.strip().splitlines()[-1:],
             )
-            self._proc = None
-        return self
+
+            if time.monotonic() + retry_delay >= deadline:
+                logger.error(
+                    "[ActionCamRecorder] Giving up after %d attempts "
+                    "(total budget %ds). Task will run without recording.",
+                    attempt, self.server_wait_seconds,
+                )
+                self._proc = None
+                return self
+            time.sleep(retry_delay)
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         proc = self._proc
