@@ -129,7 +129,13 @@ class ActionCamRecorder:
             "-fflags", "+genpts",
             "-i", self.stream_url,
             "-c:v", "copy",
-            "-movflags", "+faststart",
+            # Fragmented mp4: write a valid empty moov up front and emit
+            # a new moof per keyframe. With +faststart we had moov-less
+            # files whenever ffmpeg didn't reach its post-processing
+            # stage (ffprobe: "moov atom not found"). With fragments the
+            # file stays playable even if ffmpeg is SIGKILLed — at worst
+            # we lose the tail up to the last keyframe.
+            "-movflags", "+frag_keyframe+empty_moov+default_base_moof",
             "-y",
             str(self.output_path),
         ]
