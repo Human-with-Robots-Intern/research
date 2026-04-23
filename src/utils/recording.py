@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import signal
 import subprocess
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -20,7 +21,13 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CAMERA_HOST = "192.168.0.9"
 DEFAULT_CAMERA_PORT = 9986
-DEFAULT_FLUSH_SECONDS = 5
+# Default 0: with the serve_actioncam.sh layout (ffmpeg -listen 1 in a
+# while-loop), a flush session ends up *disconnecting* the server which
+# then restarts, and the main recorder that follows races against the
+# port being closed — empty videos/ was the symptom. Set >0 only if the
+# camera serving stack is later changed to one that keeps the port open
+# across clients (nginx-rtmp, mediamtx, ffmpeg without -listen, etc.).
+DEFAULT_FLUSH_SECONDS = 0
 
 
 class ActionCamRecorder:
@@ -55,6 +62,8 @@ class ActionCamRecorder:
         self.stream_url = f"http://{host}:{port}"
         self.output_path: Optional[Path] = None
         self._proc: Optional[subprocess.Popen] = None
+        self._stderr_fh = None
+        self._stderr_log_path: Optional[Path] = None
 
     def _flush_stale_buffer(self) -> None:
         if self.flush_seconds <= 0:
@@ -105,12 +114,35 @@ class ActionCamRecorder:
         logger.info(
             "[ActionCamRecorder] Start: %s -> %s", self.stream_url, self.output_path
         )
+        # Keep stderr in a sibling log file so recorder failures (e.g. the
+        # server hasn't re-bound :9986 yet) leave a trace — previously the
+        # recorder could die silently because stderr was /dev/null.
+        self._stderr_log_path = self.output_dir / f"{self.file_stem}.ffmpeg.log"
+        self._stderr_fh = open(self._stderr_log_path, "wb")
         self._proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stderr=self._stderr_fh,
         )
+
+        # Fail fast if the main recorder died before opening the output
+        # (connection refused, wrong URL, etc.). Without this the worker
+        # keeps running thinking recording is on.
+        time.sleep(1.0)
+        if self._proc.poll() is not None:
+            rc = self._proc.returncode
+            try:
+                tail = self._stderr_log_path.read_text(errors="replace")[-500:]
+            except Exception:
+                tail = "(stderr unreadable)"
+            logger.error(
+                "[ActionCamRecorder] ffmpeg exited immediately (rc=%s). "
+                "Last stderr: %s",
+                rc,
+                tail,
+            )
+            self._proc = None
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -163,6 +195,11 @@ class ActionCamRecorder:
                     pass
         finally:
             self._proc = None
+            try:
+                if self._stderr_fh is not None:
+                    self._stderr_fh.close()
+            except Exception:
+                pass
             if self.output_path and self.output_path.exists():
                 size_mb = self.output_path.stat().st_size / (1024 * 1024)
                 logger.info(
