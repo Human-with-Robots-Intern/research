@@ -925,6 +925,69 @@ class Scheduler:
 
         return False
 
+    @staticmethod
+    def _build_critical_family_key(
+        *,
+        critical_start_sub_name: str,
+        critical_end_sub_name: str,
+    ) -> str:
+        """Return a stable identifier for one critical interval family."""
+
+        return f"{critical_start_sub_name}::{critical_end_sub_name}"
+
+    def _replace_monitoring_residual_edge(
+        self,
+        graph,
+        *,
+        critical_start_sub_name: str,
+        critical_end_sub_name: str,
+        monitoring_sub_name: str,
+        edge_info: dict,
+    ) -> None:
+        """Keep only the latest monitoring residual edge for one critical family."""
+
+        family_key = self._build_critical_family_key(
+            critical_start_sub_name=critical_start_sub_name,
+            critical_end_sub_name=critical_end_sub_name,
+        )
+        stale_predecessors: list[str] = []
+
+        for pred_name, _, data in graph.in_edges(critical_end_sub_name, data=True):
+            if pred_name == monitoring_sub_name:
+                continue
+            info = data.get("info", {})
+            if not info.get("IsMonitoringResidual", False):
+                continue
+            if info.get("CriticalFamilyKey") != family_key:
+                continue
+            stale_predecessors.append(pred_name)
+
+        for pred_name in stale_predecessors:
+            graph.remove_edge(pred_name, critical_end_sub_name)
+
+        if stale_predecessors:
+            log.debug(
+                "[_replace_monitoring_residual_edge] Replaced stale monitoring residuals for '%s': %s",
+                critical_end_sub_name,
+                stale_predecessors,
+            )
+
+        updated_edge_info = {
+            **edge_info,
+            "IsMonitoringResidual": True,
+            "CriticalFamilyKey": family_key,
+        }
+        if not graph.has_edge(monitoring_sub_name, critical_end_sub_name):
+            graph.add_edge(
+                monitoring_sub_name,
+                critical_end_sub_name,
+                info=updated_edge_info,
+            )
+        else:
+            graph.edges[monitoring_sub_name, critical_end_sub_name]["info"].update(
+                updated_edge_info
+            )
+
     def _resolve_effective_monitoring_budget(self) -> int | None:
         """Return the active per-critical-interval monitoring cap."""
 
@@ -1757,27 +1820,43 @@ class Scheduler:
         )
         if should_add_local_execute_backup:
             backup_max_wait_duration = None
+            skip_local_execute_backup = False
             if selected_event.obligation is not None:
                 backup_max_wait_duration = max(
                     0.0, selected_event.event_time - curr_node.state.current_time
                 )
-            local_execute_wait_node = self._expand_wait_event(
-                curr_node,
-                candidate,
-                local_execute_event,
-                not_yet_candidates,
-                feasible_candidates=feasible_candidates,
-                local_nav_time=local_nav_time,
-                max_wait_duration=backup_max_wait_duration,
-            )
-            if (
-                local_execute_wait_node is not None
-                and not self._wait_nodes_are_equivalent(
-                    primary_wait_node,
-                    local_execute_wait_node,
+                if backup_max_wait_duration <= (
+                    float(local_execute_event.nav_duration) + EPSILON
+                ):
+                    log.debug(
+                        "[_expand_wait_options] Skipping local execute backup for '%s' "
+                        "because the capped wait window %.2fs collapses to navigation-only "
+                        "(nav_duration=%.2fs) after selecting %s.",
+                        candidate.subtask.name,
+                        backup_max_wait_duration,
+                        float(local_execute_event.nav_duration),
+                        selected_event.kind,
+                    )
+                    skip_local_execute_backup = True
+
+            if not skip_local_execute_backup:
+                local_execute_wait_node = self._expand_wait_event(
+                    curr_node,
+                    candidate,
+                    local_execute_event,
+                    not_yet_candidates,
+                    feasible_candidates=feasible_candidates,
+                    local_nav_time=local_nav_time,
+                    max_wait_duration=backup_max_wait_duration,
                 )
-            ):
-                wait_nodes.append(local_execute_wait_node)
+                if (
+                    local_execute_wait_node is not None
+                    and not self._wait_nodes_are_equivalent(
+                        primary_wait_node,
+                        local_execute_wait_node,
+                    )
+                ):
+                    wait_nodes.append(local_execute_wait_node)
 
         return wait_nodes
 
@@ -2310,16 +2389,13 @@ class Scheduler:
                 f"  - 모니터링 끝난 시간 부터, 다음 critical subtask 시작 시간까지의 시간: {interval_mon_to_end:.2f} "
             )
 
-            if not constraints_with_critical.has_edge(
-                monitor_sub.name, critical_end_sub_name
-            ):
-                constraints_with_critical.add_edge(
-                    monitor_sub.name, critical_end_sub_name, info=edge_info_end
-                )
-            else:
-                constraints_with_critical.edges[
-                    monitor_sub.name, critical_end_sub_name
-                ]["info"] = edge_info_end
+            self._replace_monitoring_residual_edge(
+                constraints_with_critical,
+                critical_start_sub_name=critical_start_sub_name,
+                critical_end_sub_name=critical_end_sub_name,
+                monitoring_sub_name=monitor_sub.name,
+                edge_info=edge_info_end,
+            )
 
             updated_state = updated_state._replace(
                 constraints=constraints_with_critical
@@ -2801,18 +2877,13 @@ class Scheduler:
             f"  - Calc Interval: {interval_mon_to_crit_end:.2f} (Prev: {prev_interval_sub})"
         )
 
-        if not new_constraints_graph.has_edge(
-            mon_sub_task_for_main_interval.name, critical_end_sub_name
-        ):
-            new_constraints_graph.add_edge(
-                mon_sub_task_for_main_interval.name,
-                critical_end_sub_name,
-                info=info_mon_to_crit_end,
-            )
-        else:
-            new_constraints_graph.edges[
-                mon_sub_task_for_main_interval.name, critical_end_sub_name
-            ]["info"].update(info_mon_to_crit_end)
+        self._replace_monitoring_residual_edge(
+            new_constraints_graph,
+            critical_start_sub_name=critical_start_sub_name,
+            critical_end_sub_name=critical_end_sub_name,
+            monitoring_sub_name=mon_sub_task_for_main_interval.name,
+            edge_info=info_mon_to_crit_end,
+        )
 
         # Verify update
         check_interval_sub = new_constraints_graph.edges[
@@ -3237,18 +3308,13 @@ class Scheduler:
             f"  - Mon -> CritEnd Interval: {interval_mon_to_crit_end:.2f} (Prev: {prev_interval_sub})"
         )
 
-        if not new_constraints_graph.has_edge(
-            monitoring_sub.name, critical_end_sub_name
-        ):
-            new_constraints_graph.add_edge(
-                monitoring_sub.name,
-                critical_end_sub_name,
-                info=info_mon_to_crit_end,
-            )
-        else:
-            new_constraints_graph.edges[monitoring_sub.name, critical_end_sub_name][
-                "info"
-            ].update(info_mon_to_crit_end)
+        self._replace_monitoring_residual_edge(
+            new_constraints_graph,
+            critical_start_sub_name=critical_start_sub_name,
+            critical_end_sub_name=critical_end_sub_name,
+            monitoring_sub_name=monitoring_sub.name,
+            edge_info=info_mon_to_crit_end,
+        )
 
         # Verify update
         check_interval_sub = new_constraints_graph.edges[
