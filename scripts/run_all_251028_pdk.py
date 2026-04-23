@@ -51,7 +51,11 @@ MAX_RETRIES = 10
 # host IP or port changes.
 CAMERA_HOST = os.getenv("ACTIONCAM_HOST", "192.168.0.9")
 CAMERA_PORT = int(os.getenv("ACTIONCAM_PORT", "9986"))
-RECORD_FLUSH_SECONDS = int(os.getenv("ACTIONCAM_FLUSH_SECONDS", "5"))
+# Flush defaults to 0: with serve_actioncam.sh's 'ffmpeg -listen 1'
+# layout, a flush session eats the single server slot and then the
+# main recorder races the respawn. Only enable (>0) if the server
+# stack is swapped for one that keeps :9986 open across clients.
+RECORD_FLUSH_SECONDS = int(os.getenv("ACTIONCAM_FLUSH_SECONDS", "0"))
 
 # Memory management constants
 MEMORY_THRESHOLD_PERCENT = 85.0  # Pause new tasks if memory usage exceeds this
