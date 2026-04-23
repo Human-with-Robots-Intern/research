@@ -11,6 +11,7 @@ import threading
 import time
 import traceback
 from collections import defaultdict
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -30,6 +31,7 @@ from src.utils.config.constants import (
     RESULT_PATH,
     SCRIPTS_PATH,
 )
+from src.utils.recording import ActionCamRecorder
 
 # Create a single timestamp for the entire script run
 RUN_TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
@@ -43,6 +45,13 @@ logger = create_module_logger(
     run_timestamp=RUN_TIMESTAMP,
 )
 MAX_RETRIES = 10
+
+# Action-cam recording (real-world tasks only). The cam is served by
+# laptop3 (scripts/infra/serve_actioncam.sh). Override via env vars if the
+# host IP or port changes.
+CAMERA_HOST = os.getenv("ACTIONCAM_HOST", "192.168.0.9")
+CAMERA_PORT = int(os.getenv("ACTIONCAM_PORT", "9986"))
+RECORD_FLUSH_SECONDS = int(os.getenv("ACTIONCAM_FLUSH_SECONDS", "5"))
 
 # Memory management constants
 MEMORY_THRESHOLD_PERCENT = 85.0  # Pause new tasks if memory usage exceeds this
@@ -504,6 +513,14 @@ def worker(task: ExperimentTask) -> None:
         )
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Real-world tasks pull the laptop3 action-cam MJPEG stream per
+        # attempt. Simulation runs skip recording entirely.
+        use_recorder = not task.is_simulation
+        video_output_dir = (
+            LOG_PATH / f"{task.log_dir_timestamp}-worker_logs" / "videos"
+        )
+        file_stem = Path(log_file_name).stem
+
         logger.critical(
             f"WORKER START | Baseline: {b_path.name} | Ablation: {task.ablation_name} | "
             f"Prior: {task.init_prior_name} | Case: {task.case_name} | Scene: {task.scene_name} | "
@@ -519,21 +536,33 @@ def worker(task: ExperimentTask) -> None:
                 time.sleep(buffer_between_instructions)
 
             for attempt in range(1, task.max_retries + 1):
-                result = _run_script_and_log(
-                    b_path,
-                    task.ablation_name,
-                    task.case_name,
-                    task.scene_name,
-                    instr_path_obj,
-                    task.is_simulation,
-                    task.cloud_rendering,
-                    log_file_path,
-                    task.ablation_params,
-                    task.init_prior_params,
-                    attempt=attempt,
-                    gpu_id=task.gpu_id,
-                    task_folder_name=task.task_folder_name,
+                recorder_ctx = (
+                    ActionCamRecorder(
+                        video_output_dir,
+                        f"{file_stem}_try{attempt}",
+                        host=CAMERA_HOST,
+                        port=CAMERA_PORT,
+                        flush_seconds=RECORD_FLUSH_SECONDS,
+                    )
+                    if use_recorder
+                    else nullcontext()
                 )
+                with recorder_ctx:
+                    result = _run_script_and_log(
+                        b_path,
+                        task.ablation_name,
+                        task.case_name,
+                        task.scene_name,
+                        instr_path_obj,
+                        task.is_simulation,
+                        task.cloud_rendering,
+                        log_file_path,
+                        task.ablation_params,
+                        task.init_prior_params,
+                        attempt=attempt,
+                        gpu_id=task.gpu_id,
+                        task_folder_name=task.task_folder_name,
+                    )
                 if result.returncode == 0:
                     logger.info(
                         f"Scheduler baseline {b_path.name} succeeded on attempt {attempt}."
@@ -557,21 +586,33 @@ def worker(task: ExperimentTask) -> None:
                 )
                 time.sleep(buffer_between_instructions)
             for attempt in range(1, task.max_retries + 1):
-                result = _run_script_and_log(
-                    b_path,
-                    task.ablation_name,
-                    task.case_name,
-                    task.scene_name,
-                    instr_path_obj,
-                    task.is_simulation,
-                    task.cloud_rendering,
-                    log_file_path,
-                    task.ablation_params,
-                    task.init_prior_params,
-                    attempt=attempt,
-                    gpu_id=task.gpu_id,
-                    task_folder_name=task.task_folder_name,
+                recorder_ctx = (
+                    ActionCamRecorder(
+                        video_output_dir,
+                        f"{file_stem}_try{attempt}",
+                        host=CAMERA_HOST,
+                        port=CAMERA_PORT,
+                        flush_seconds=RECORD_FLUSH_SECONDS,
+                    )
+                    if use_recorder
+                    else nullcontext()
                 )
+                with recorder_ctx:
+                    result = _run_script_and_log(
+                        b_path,
+                        task.ablation_name,
+                        task.case_name,
+                        task.scene_name,
+                        instr_path_obj,
+                        task.is_simulation,
+                        task.cloud_rendering,
+                        log_file_path,
+                        task.ablation_params,
+                        task.init_prior_params,
+                        attempt=attempt,
+                        gpu_id=task.gpu_id,
+                        task_folder_name=task.task_folder_name,
+                    )
                 if result.returncode == 0:
                     logger.info(
                         f"LLM baseline {b_path.name} succeeded on attempt {attempt}."
