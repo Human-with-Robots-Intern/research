@@ -411,7 +411,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
         gcr_mid_groups=[
             CG(
                 OC("tea_cup", parentReceptacles=["tea_pot"]),
-                OC("tea_pot", parentReceptacles=["table"]),
+                OC("tea_pot", isToggled=False),
 
             ),
         ],
