@@ -53,7 +53,7 @@ echo "[serve_actioncam] stream URL: http://0.0.0.0:${CAM_PORT} (MPEG-TS / H.264)
 while true; do
     ffmpeg -f v4l2 -input_format mjpeg -video_size "$CAM_SIZE" -framerate 30 \
         -i "$CAM_DEVICE" \
-        -vf "transpose=2,format=yuv420p" \
+        -vf "format=yuv420p" \
         -c:v libx264 -preset "$CAM_PRESET" -tune zerolatency \
         -pix_fmt yuv420p -g "$CAM_GOP" -crf "$CAM_CRF" \
         -f mpegts -listen 1 "http://0.0.0.0:${CAM_PORT}" || true
