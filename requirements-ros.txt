@@ -5,3 +5,4 @@ empy==3.3.4
 pyrealsense2
 transforms3d
 openai
+pyserial
