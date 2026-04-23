@@ -87,9 +87,12 @@ class ActionCamRecorder:
 
         self._flush_stale_buffer()
 
+        # NOTE: do NOT pass -nostdin here. The __exit__ path writes 'q' to
+        # ffmpeg's stdin to trigger a graceful shutdown (so the mp4 moov
+        # atom gets finalized); -nostdin makes ffmpeg ignore stdin, which
+        # forces us down the SIGKILL fallback and corrupts the file.
         cmd = [
             "ffmpeg",
-            "-nostdin",
             "-loglevel", "warning",
             "-use_wallclock_as_timestamps", "1",
             "-fflags", "+genpts",
@@ -115,25 +118,49 @@ class ActionCamRecorder:
         if proc is None:
             return
         try:
-            # 'q' on stdin lets ffmpeg flush trailing packets and write the
-            # mp4 moov atom; plain SIGKILL produces a truncated, unplayable
-            # file.
+            # Preferred path: send 'q' to stdin so ffmpeg writes the trailer
+            # (mp4 moov atom) before exiting. SIGKILL leaves an unplayable
+            # truncated file; SIGINT/SIGTERM do let ffmpeg finalize, so keep
+            # them as fallbacks.
+            graceful = False
             try:
                 if proc.stdin is not None:
                     proc.stdin.write(b"q")
                     proc.stdin.flush()
                     proc.stdin.close()
+                proc.wait(timeout=5)
+                graceful = True
+            except subprocess.TimeoutExpired:
+                pass
             except Exception:
                 pass
-            try:
-                proc.wait(timeout=10)
-            except subprocess.TimeoutExpired:
+
+            if not graceful:
                 proc.send_signal(signal.SIGINT)
                 try:
                     proc.wait(timeout=5)
+                    graceful = True
                 except subprocess.TimeoutExpired:
-                    proc.kill()
-                    proc.wait(timeout=5)
+                    pass
+
+            if not graceful:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=3)
+                    graceful = True
+                except subprocess.TimeoutExpired:
+                    pass
+
+            if not graceful:
+                logger.warning(
+                    "[ActionCamRecorder] ffmpeg ignored q/SIGINT/SIGTERM; "
+                    "SIGKILLing (output mp4 may be truncated)."
+                )
+                proc.kill()
+                try:
+                    proc.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    pass
         finally:
             self._proc = None
             if self.output_path and self.output_path.exists():

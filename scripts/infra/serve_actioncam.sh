@@ -30,7 +30,11 @@ echo "[serve_actioncam] stream URL: http://0.0.0.0:${CAM_PORT}"
 # includes an optional buffer-flush stage — the first frames right after
 # server restart can be stale/warm-up frames.
 while true; do
-    ffmpeg -f v4l2 -video_size "$CAM_SIZE" -i "$CAM_DEVICE" \
+    # XPRO 415 only advertises MJPG 1280x720@30 on /dev/video8, so we must
+    # pin -input_format / -framerate — ffmpeg's default raw-pixel negotiation
+    # stalls here and blocks the -listen 1 output muxer from binding.
+    ffmpeg -f v4l2 -input_format mjpeg -video_size "$CAM_SIZE" -framerate 30 \
+        -i "$CAM_DEVICE" \
         -vf "transpose=2,format=yuvj420p" \
         -c:v mjpeg -q:v 5 -f mpjpeg -listen 1 "http://0.0.0.0:${CAM_PORT}" || true
     echo "[serve_actioncam] ffmpeg exited (code=$?). Restarting in 1s..."
