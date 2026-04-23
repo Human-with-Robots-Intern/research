@@ -501,8 +501,12 @@ def main() -> None:
             belief_updater=belief_updater,
             belief_store=belief_store,
             ground_truth_store=ground_truth_store,
+            real_world_mode=args.ros,
         )
-        cost_calculator = HeuristicManager(action_handler)
+        cost_calculator = HeuristicManager(
+            action_handler,
+            real_world_mode=args.ros,
+        )
         scheduler = Scheduler(
             action_handler=action_handler,
             constraint_handler=constraint_handler,
@@ -510,6 +514,7 @@ def main() -> None:
             monitoring_policy=monitoring_policy,
             beam_width=constants.BEAM_WIDTH,
             simulation_depth=constants.SIMULATION_DEPTH,
+            real_world_mode=args.ros,
         )
         scene_poses: Dict[str, Any] = load_scene_positions(
             f"{scene_name}_positions.json"

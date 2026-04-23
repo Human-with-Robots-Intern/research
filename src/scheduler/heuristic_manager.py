@@ -32,14 +32,47 @@ class HeuristicManager:
     Evaluates immediate costs (navigation, urgency) and future costs (remaining workload).
     """
 
-    def __init__(self, action_handler: "ActionHandler"):
+    def __init__(self, action_handler: "ActionHandler", real_world_mode: bool = False):
         self.action_handler = action_handler
+        self.real_world_mode = bool(real_world_mode)
         self.alpha = constants.ALPHA_HEURISTIC
         self.beta = constants.BETA_HEURISTIC
         self.gamma = constants.GAMMA_HEURISTIC
         log.info(
             f"HeuristicManager initialized with weights: alpha={self.alpha}, beta={self.beta}, gamma={self.gamma}"
         )
+
+    def _has_real_world_late_due_signal(
+        self,
+        current_node: SimulationNode,
+        candidate: Candidate,
+    ) -> bool:
+        """Return whether ROS monitoring already marked this critical target due/late."""
+
+        if not self.real_world_mode:
+            return False
+
+        completed_names = {
+            entry.subtask.name for entry in current_node.state.completed_entries
+        }
+
+        for pred_name, _end_name, data in current_node.state.constraints.in_edges(
+            candidate.subtask.name, data=True
+        ):
+            info = data.get("info", {})
+            if not info.get("IsCritical", False):
+                continue
+            if not pred_name.startswith("Monitoring for"):
+                continue
+            if pred_name not in completed_names:
+                continue
+            if bool(info.get("LateObservation", False)):
+                return True
+            if info.get("IsMonitoringResidual", False) and float(
+                info.get("Interval", float("inf"))
+            ) <= constants.EPSILON:
+                return True
+        return False
 
     def calc_heuristic(
         self,
@@ -103,6 +136,14 @@ class HeuristicManager:
 
         current_time = current_node.state.current_time
         deadline = candidate.scheduling_due.due_date
+        if self.real_world_mode and candidate.is_critical:
+            if self._has_real_world_late_due_signal(current_node, candidate):
+                deadline = min(deadline, current_time)
+            elif candidate.logical_interaction_start_time is not None:
+                deadline = min(
+                    deadline,
+                    float(candidate.logical_interaction_start_time),
+                )
 
         # 1. Future Reservation Check
         # 내가 시작하는 타이머 작업이 미래에 예약된 윈도우와 충돌하는지 검사

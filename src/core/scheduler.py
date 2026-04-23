@@ -107,6 +107,7 @@ class Scheduler:
         beam_width: int = BEAM_WIDTH,
         simulation_depth: int = SIMULATION_DEPTH,
         max_monitoring_per_critical_interval: int | None = None,
+        real_world_mode: bool = False,
     ) -> None:
         """Initialize the scheduler and its expansion policies.
 
@@ -130,6 +131,7 @@ class Scheduler:
         self.constraint_handler = constraint_handler
         self.action_handler = action_handler
         self.cost_calculator = heuristic_manager
+        self.real_world_mode = bool(real_world_mode)
         self.monitoring_policy = monitoring_policy or create_monitoring_policy(
             "bayesian",
             BeliefStore(),
@@ -188,6 +190,38 @@ class Scheduler:
         return tuple(
             (entry.subtask.name, entry.schedule_end_time) for entry in completed_entries
         )
+
+    def _has_real_world_late_due_signal(
+        self,
+        curr_node: SimulationNode,
+        target_subtask_name: str,
+    ) -> bool:
+        """Return whether the latest ROS monitoring already marked a target due/late."""
+
+        if not self.real_world_mode:
+            return False
+
+        completed_names = {
+            entry.subtask.name for entry in curr_node.state.completed_entries
+        }
+
+        for pred_name, _end_name, data in curr_node.state.constraints.in_edges(
+            target_subtask_name, data=True
+        ):
+            info = data.get("info", {})
+            if not info.get("IsCritical", False):
+                continue
+            if not pred_name.startswith("Monitoring for"):
+                continue
+            if pred_name not in completed_names:
+                continue
+            if bool(info.get("LateObservation", False)):
+                return True
+            if info.get("IsMonitoringResidual", False) and float(
+                info.get("Interval", float("inf"))
+            ) <= EPSILON:
+                return True
+        return False
 
     def _get_active_monitoring_intervals(
         self, curr_node: SimulationNode
@@ -528,6 +562,25 @@ class Scheduler:
            - If no urgent tasks, expand all feasible tasks and valid 'WAIT' options.
         """
         expansions: List[SimulationNode] = []
+
+        forced_monitor_candidate = self._get_forced_followup_monitoring_candidate(
+            curr_node,
+            feasible_candidates,
+        )
+        if forced_monitor_candidate is not None:
+            log.debug(
+                "Policy 0 (Committed Follow-up): Expanding only forced monitoring '%s' after committed wait '%s'.",
+                forced_monitor_candidate.subtask.name,
+                curr_node.state.subtask.name if curr_node.state.subtask else "N/A",
+            )
+            child_node = self._expand_single_subtask(
+                curr_node,
+                forced_monitor_candidate,
+                not_yet_candidates,
+                feasible_candidates,
+            )
+            return [child_node] if child_node else []
+
         # --- Policy 1 (Unified): Urgent Critical Tasks ---
         urgent_candidates = self._get_urgent_critical_candidates(
             curr_node, feasible_candidates, not_yet_candidates
@@ -654,12 +707,24 @@ class Scheduler:
             if not candidate.is_critical:
                 continue
 
-            if candidate.logical_interaction_start_time is None:
-                continue
-
             physical_earliest_start = (
                 curr_node.state.current_time + candidate.estimated_first_nav_duration
             )
+
+            if self._has_real_world_late_due_signal(curr_node, candidate.subtask.name):
+                candidate.actual_interaction_start_time = physical_earliest_start
+                log.debug(
+                    "Found ROS due-now critical candidate '%s' from late observation "
+                    "(Physical: %.2f).",
+                    candidate.subtask.name,
+                    physical_earliest_start,
+                )
+                urgent_list.append(candidate)
+                continue
+
+            if candidate.logical_interaction_start_time is None:
+                continue
+
             log.debug(
                 f"[_get_urgent_critical_candidates] diff: {candidate.logical_interaction_start_time - physical_earliest_start}"
             )
@@ -740,67 +805,81 @@ class Scheduler:
             ):
                 continue
 
-            incoming_slots = self.constraint_handler.get_time_slots(
-                candidate.subtask.name, curr_node.state.constraints, "in"
+            physical_start = (
+                curr_node.state.current_time
+                + candidate.estimated_first_nav_duration
             )
-            critical_slots = [s for s in incoming_slots if s.is_critical]
 
-            if critical_slots:
-                target_slot = max(critical_slots, key=lambda s: s.interval)
-                critical_start_sub_name = target_slot.related_subtask_name
-                critical_interval_duration = target_slot.interval
-
-                # 선행 작업 완료 시간 조회
-                pred_entry = next(
-                    (
-                        ce
-                        for ce in curr_node.state.completed_entries
-                        if ce.subtask.name == critical_start_sub_name
-                    ),
-                    None,
+            if self._has_real_world_late_due_signal(curr_node, candidate.subtask.name):
+                log.debug(
+                    "Found ROS due-now blocked candidate '%s' from late observation "
+                    "(Physical: %.2f, Planner Logical: %.2f).",
+                    candidate.subtask.name,
+                    physical_start,
+                    candidate.logical_interaction_start_time,
                 )
-                if pred_entry:
-                    critical_start_sub_end_time = pred_entry.schedule_end_time
+                candidate.actual_interaction_start_time = physical_start
+                urgent_list.append(candidate)
+                continue
 
-                    logical_start = (
-                        critical_start_sub_end_time + critical_interval_duration
-                    )
-                    physical_start = (
-                        curr_node.state.current_time
-                        + candidate.estimated_first_nav_duration
-                    )
+            logical_start = None
+            if self.real_world_mode:
+                logical_start = candidate.logical_interaction_start_time
+            else:
+                incoming_slots = self.constraint_handler.get_time_slots(
+                    candidate.subtask.name, curr_node.state.constraints, "in"
+                )
+                critical_slots = [s for s in incoming_slots if s.is_critical]
 
-                    if (logical_start - physical_start) <= (
-                        MONITORING_DURATION + EPSILON
-                    ):
-                        # Urgent but blocked! Find feasible predecessors recursively.
-                        log.debug(
-                            f"Found BLOCKED URGENT task: {candidate.subtask.name} "
-                            f"(Physical: {physical_start:.2f}, Logical: {logical_start:.2f}, Horizon: {MONITORING_DURATION:.2f}). Tracing ancestors."
+                if critical_slots:
+                    target_slot = max(critical_slots, key=lambda s: s.interval)
+                    critical_start_sub_name = target_slot.related_subtask_name
+                    critical_interval_duration = target_slot.interval
+
+                    pred_entry = next(
+                        (
+                            ce
+                            for ce in curr_node.state.completed_entries
+                            if ce.subtask.name == critical_start_sub_name
+                        ),
+                        None,
+                    )
+                    if pred_entry:
+                        logical_start = (
+                            pred_entry.schedule_end_time + critical_interval_duration
                         )
 
-                        len_before = len(urgent_list)
-                        find_feasible_ancestor(candidate.subtask.name)
+            if logical_start is not None and (logical_start - physical_start) <= (
+                MONITORING_DURATION + EPSILON
+            ):
+                # Urgent but blocked! Find feasible predecessors recursively.
+                log.debug(
+                    f"Found BLOCKED URGENT task: {candidate.subtask.name} "
+                    f"(Physical: {physical_start:.2f}, Logical: {logical_start:.2f}, Horizon: {MONITORING_DURATION:.2f}). Tracing ancestors."
+                )
 
-                        if len(urgent_list) == len_before:
-                            if self._can_candidate_start_interaction_now(
-                                curr_node, candidate
-                            ):
-                                log.debug(
-                                    f"No feasible ancestors found for {candidate.subtask.name}. "
-                                    f"Adding the task itself as it is time-ready/urgent."
-                                )
-                                candidate.actual_interaction_start_time = physical_start
-                                urgent_list.append(candidate)
-                            else:
-                                log.debug(
-                                    "Blocked urgent task '%s' is inside the monitoring horizon but still early "
-                                    "(Physical: %.2f, Logical: %.2f, Grace: %.2f). Leaving it to blocked staged-wait expansion.",
-                                    candidate.subtask.name,
-                                    physical_start,
-                                    logical_start,
-                                    constants.RISK_GRACE_SECONDS,
-                                )
+                len_before = len(urgent_list)
+                find_feasible_ancestor(candidate.subtask.name)
+
+                if len(urgent_list) == len_before:
+                    if self._can_candidate_start_interaction_now(
+                        curr_node, candidate
+                    ):
+                        log.debug(
+                            f"No feasible ancestors found for {candidate.subtask.name}. "
+                            f"Adding the task itself as it is time-ready/urgent."
+                        )
+                        candidate.actual_interaction_start_time = physical_start
+                        urgent_list.append(candidate)
+                    else:
+                        log.debug(
+                            "Blocked urgent task '%s' is inside the monitoring horizon but still early "
+                            "(Physical: %.2f, Logical: %.2f, Grace: %.2f). Leaving it to blocked staged-wait expansion.",
+                            candidate.subtask.name,
+                            physical_start,
+                            logical_start,
+                            constants.RISK_GRACE_SECONDS,
+                        )
 
         return urgent_list
 
@@ -924,6 +1003,42 @@ class Scheduler:
             return True
 
         return False
+
+    @staticmethod
+    def _get_forced_followup_monitoring_name(
+        subtask: Optional[Subtask],
+    ) -> Optional[str]:
+        """Return the committed monitoring follow-up attached to a staging wait."""
+
+        if subtask is None or subtask.subtask_type != "WAIT":
+            return None
+        followup_name = getattr(subtask, "_forced_followup_monitoring_name", None)
+        if not followup_name:
+            return None
+        return str(followup_name)
+
+    def _get_forced_followup_monitoring_candidate(
+        self,
+        curr_node: SimulationNode,
+        feasible_candidates: List[Candidate],
+    ) -> Optional[Candidate]:
+        """Return the monitoring candidate committed by the immediately previous wait."""
+
+        forced_name = self._get_forced_followup_monitoring_name(
+            curr_node.state.subtask
+        )
+        if forced_name is None:
+            return None
+
+        for candidate in feasible_candidates:
+            if candidate.subtask.name == forced_name:
+                return candidate
+
+        log.debug(
+            "[_get_forced_followup_monitoring_candidate] Committed follow-up monitoring '%s' was not feasible in the next expansion. Falling back to normal policy.",
+            forced_name,
+        )
+        return None
 
     @staticmethod
     def _build_critical_family_key(
@@ -1173,6 +1288,14 @@ class Scheduler:
         restrict_wait_target: bool = True,
     ) -> List[MonitoringObligation]:
         """Return monitoring obligations whose trigger actually lands in this expansion."""
+
+        if self._has_real_world_late_due_signal(curr_node, candidate.subtask.name):
+            log.debug(
+                "[_get_relevant_monitoring_obligations] Skipping monitoring obligations for '%s' "
+                "because the latest ROS observation already marked it due/late.",
+                candidate.subtask.name,
+            )
+            return []
 
         active_intervals = self._get_active_monitoring_intervals(curr_node)
         if not active_intervals:
@@ -3222,6 +3345,7 @@ class Scheduler:
             obj=monitoring_target_obj,
         )
         monitoring_sub.decomposed = True
+        setattr(wait_sub, "_forced_followup_monitoring_name", monitoring_sub.name)
 
         # --- Phase 5: 제약 조건 그래프 및 remaining_subtasks 업데이트 ---
         # 없던 wait subtask가 생긴 상황, 모니터링 task도 만들었음. 제약 조건으로 연결해야 함.
