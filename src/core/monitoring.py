@@ -336,8 +336,6 @@ class OpenAIVLMProgressObservationModel:
         model_name: OpenAI multimodal model used for progress estimation.
         sigma_floor_sq: Additive observation variance floor for VLM outputs.
         alpha: Heteroscedastic variance scale driven by progress uncertainty.
-        progress_floor: Lower bound applied to progress estimates.
-        progress_ceiling: Upper bound applied to progress estimates.
         min_variance: Numeric lower bound for returned variances.
         api_key: Optional OpenAI API key override.
         client: Optional prebuilt OpenAI client for tests or custom setup.
@@ -350,8 +348,6 @@ class OpenAIVLMProgressObservationModel:
         model_name: str = "gpt-4.1-mini",
         sigma_floor_sq: float = 100.0,
         alpha: float = 0.08,
-        progress_floor: float = 0.05,
-        progress_ceiling: float = 0.99,
         min_variance: float = MIN_VARIANCE,
         api_key: Optional[str] = None,
         client: Optional[Any] = None,
@@ -360,8 +356,6 @@ class OpenAIVLMProgressObservationModel:
         self._model_name = model_name
         self._sigma_floor_sq = sigma_floor_sq
         self._alpha = alpha
-        self._progress_floor = progress_floor
-        self._progress_ceiling = progress_ceiling
         self._min_variance = min_variance
         if client is not None:
             self._client = client
@@ -434,10 +428,24 @@ class OpenAIVLMProgressObservationModel:
         parsed_payload = json.loads(raw_payload)
         raw_progress = float(parsed_payload["progress"])
         raw_confidence = float(parsed_payload["confidence"])
-        progress = float(
-            np.clip(raw_progress, self._progress_floor, self._progress_ceiling)
-        )
+        progress = raw_progress
         confidence = float(np.clip(raw_confidence, 0.1, 1.0))
+        if not math.isfinite(progress) or progress <= 0.0:
+            # Do not clamp progress. A non-positive value cannot be inverted into
+            # a total-duration estimate, so treat it as an uninformative reading.
+            return ObservationResult(
+                observation=float(context.prior_mean),
+                variance=max(self._min_variance, 1e12),
+                metadata={
+                    "observation_model": "openai_vlm",
+                    "raw_progress": raw_progress,
+                    "progress": progress,
+                    "confidence": confidence,
+                    "rationale": parsed_payload["rationale"],
+                    "invalid_progress": True,
+                },
+            )
+
         observation = float(context.elapsed_interval / progress)
         variance = max(
             self._min_variance,
@@ -453,6 +461,7 @@ class OpenAIVLMProgressObservationModel:
                 "progress": progress,
                 "confidence": confidence,
                 "rationale": parsed_payload["rationale"],
+                "invalid_progress": False,
             },
         )
 

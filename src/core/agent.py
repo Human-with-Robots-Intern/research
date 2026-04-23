@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from src.core.monitoring import (
@@ -32,6 +33,7 @@ class Agent:
         belief_updater: Optional[BeliefUpdater] = None,
         belief_store: Optional[BeliefStore] = None,
         ground_truth_store: Optional[GroundTruthStore] = None,
+        real_world_mode: bool = False,
     ) -> None:
         """Initialize the runtime monitoring agent.
 
@@ -51,6 +53,7 @@ class Agent:
         self.ground_truth_store = ground_truth_store or GroundTruthStore(
             CRITICAL_OBJECT_GROUND_TRUTH
         )
+        self.real_world_mode = bool(real_world_mode)
         self.estimate_knowledge: Dict[str, Dict[str, Any]] = self.belief_store.as_dict()
         self.constraint_handler = constraint_handler
 
@@ -73,6 +76,8 @@ class Agent:
         critical_start_sub_name: str,
         monitoring_target_sub_name: str,
         critical_start_sub_end_time: float,
+        elapsed_interval: float,
+        late_due_observation: bool,
     ) -> None:
         """Persist posterior summaries and rewrite the active constraint edges.
 
@@ -112,12 +117,17 @@ class Agent:
         edge_info["IsCritical"] = True
         edge_info["IsMonitoringResidual"] = False
         edge_info["CriticalFamilyKey"] = family_key
+        edge_info["LateObservation"] = late_due_observation
+        edge_info["ObservedElapsedInterval"] = elapsed_interval
 
         #    - (현재 모니터링 서브태스크, 모니터링 대상) 간 엣지에 잔여 구간 반영
-        updated_interval = max(
-            0.0,
-            critical_start_sub_end_time + posterior_mean - state.current_time,
-        )
+        if self.real_world_mode:
+            updated_interval = max(0.0, posterior_mean - elapsed_interval)
+        else:
+            updated_interval = max(
+                0.0,
+                critical_start_sub_end_time + posterior_mean - state.current_time,
+            )
 
         if not state.constraints.has_edge(state.subtask.name, monitoring_target_sub_name):
             state.constraints.add_edge(
@@ -133,6 +143,8 @@ class Agent:
         edge_info["IsCritical"] = True
         edge_info["IsMonitoringResidual"] = True
         edge_info["CriticalFamilyKey"] = family_key
+        edge_info["LateObservation"] = late_due_observation
+        edge_info["ObservedElapsedInterval"] = elapsed_interval
 
     def _get_prior_estimate(self, obj_name: str) -> Tuple[float, float]:
         """Return the prior summary for a monitored object.
@@ -171,6 +183,44 @@ class Agent:
         if not raw_object:
             return None
         return raw_object.split("|")[0]
+
+    @staticmethod
+    def _find_completed_entry(
+        state: SchedulerState,
+        subtask_name: str,
+    ) -> Optional[Any]:
+        """Return the completed entry for ``subtask_name`` when available."""
+
+        return next(
+            (entry for entry in state.completed_entries if entry.subtask.name == subtask_name),
+            None,
+        )
+
+    def _resolve_elapsed_interval(
+        self,
+        state: SchedulerState,
+        *,
+        critical_start_sub_name: str,
+        critical_start_sub_end_time: float,
+    ) -> Tuple[float, bool]:
+        """Return the elapsed interval used for posterior updates.
+
+        In ROS mode, use actual elapsed wall-clock time recovered from completed
+        entries. Otherwise preserve the planner-clock behavior.
+        """
+
+        if self.real_world_mode:
+            start_entry = self._find_completed_entry(state, critical_start_sub_name)
+            monitor_entry = self._find_completed_entry(state, state.subtask.name)
+            if (
+                start_entry is not None
+                and monitor_entry is not None
+                and math.isfinite(start_entry.sim_end_time)
+                and math.isfinite(monitor_entry.sim_end_time)
+            ):
+                return max(0.0, monitor_entry.sim_end_time - start_entry.sim_end_time), True
+
+        return max(0.0, state.current_time - critical_start_sub_end_time), False
 
     def update_monitoring_belief(
         self, state: SchedulerState
@@ -222,7 +272,11 @@ class Agent:
 
         # 5) 베이지안 업데이트 계산
         # critical 제약이 시작 된 이후 경과된 separation interval
-        critical_elapsed_interval = state.current_time - critical_start_sub_end_time
+        critical_elapsed_interval, used_actual_elapsed = self._resolve_elapsed_interval(
+            state,
+            critical_start_sub_name=critical_start_sub_name,
+            critical_start_sub_end_time=critical_start_sub_end_time,
+        )
 
         update_result = self.belief_updater.update(
             BeliefUpdateContext(
@@ -242,6 +296,12 @@ class Agent:
             belief_diff = float("inf") if update_result.posterior_mean != 0 else 0.0
 
         log.info("%s_diff: %s", self.belief_updater.method, belief_diff)
+        remaining_after_monitor = (
+            update_result.posterior_mean - critical_elapsed_interval
+        )
+        late_due_observation = bool(
+            self.real_world_mode and remaining_after_monitor <= 0.0
+        )
 
         self._update_knowledge_and_constraints(
             state=state,
@@ -251,6 +311,8 @@ class Agent:
             critical_start_sub_name=critical_start_sub_name,
             monitoring_target_sub_name=monitoring_target_sub_name,
             critical_start_sub_end_time=critical_start_sub_end_time,
+            elapsed_interval=critical_elapsed_interval,
+            late_due_observation=late_due_observation,
         )
 
         monitored_subtask = {
@@ -265,6 +327,10 @@ class Agent:
             "ground_truth_time": gt_interval,
             "ground_truth_distribution": self.ground_truth_store.distribution,
             "update_method": update_result.method,
+            "elapsed_interval_used": critical_elapsed_interval,
+            "uses_actual_elapsed_interval": used_actual_elapsed,
+            "remaining_after_monitor": remaining_after_monitor,
+            "late_due_observation": late_due_observation,
             **update_result.diagnostics,
         }
 
