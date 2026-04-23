@@ -46,46 +46,129 @@ MONITORING_PROMPTS: Dict[str, Dict[str, Any]] = {
     "sausage": {
         "description": "소시지 굽기 진행도",
         "instruction": (
-            "This image shows sausage(s) being pan-fried on a pan/stove. "
-            "IMPORTANT setup note: an LED strip is placed DIRECTLY UNDER the sausage object itself, "
-            "so the sausage glows from below and its apparent surface color is dominated by the LED color "
-            "transmitted/diffused through the sausage body. Judge progress by the overall color the sausage emits. "
-            "Estimate the cooking progress as an integer between 0 and 130 (in steps of 10), "
-            "based mainly on the perceived surface color of the sausage. "
-            "0 = raw, bright pink glow, pan not yet hot. "
-            "50 = about half-cooked, glow fading from pink toward light brown. "
-            "100 = perfectly done, even reddish-brown glow all over. "
-            "110-130 = overcooked/burnt, dark brown to near-black charred tones. "
-            "Return ONLY a JSON object with a single key 'progress' whose value is the integer."
+            "This image simulates sausage pan-frying. An LED strip is placed DIRECTLY UNDER "
+            "the sausage, and the translucent silicone sausage body glows in a color that "
+            "encodes doneness. The sausage body has a natural pink tint even with no LED, "
+            "so at very dim anchors the body's native pink can partly show through. "
+            "Judge ONLY the glowing sausage — ignore the green pan, trays, AR markers, "
+            "background, wires, tape, and everything else in the frame. "
+            "The glow sweeps from bright hot-pink → warm pink / coral → dim red-pink, with "
+            "BRIGHTNESS monotonically decreasing from anchor 20 to 120 and hue slowly "
+            "warming (adding red). NO brown, NO orange, NO yellow, NO pure black appears. "
+            "IMPORTANT: anchors 20 / 40 / 60 look quite similar — all bright pink, "
+            "differing only in a small amount of brightness and a subtle red-shift. "
+            "Anchors 80 / 100 / 120 are clearly dimmer; 120 in particular barely glows. "
+            "Use BRIGHTNESS as the primary cue and rely on the 14 reference images above — "
+            "they are authoritative. "
+            "Output: integer progress in {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, "
+            "110, 120, 130}. "
+            "Key anchors (14 reference images above cover all values in 10-step): "
+            "0 = LED COMPLETELY OFF — sausage shows only its natural unlit pink, NO glow. "
+            "20 = brightest glow; sausage body uniformly lit in vivid pink. "
+            "40 = still bright pink, very close to 20 (nearly indistinguishable). "
+            "60 = bright pink, slight warm / red lean just starting to appear. "
+            "80 = noticeably dimmer than 60; pink-coral tone, glow more localized. "
+            "100 = clearly dim; dull coral / pink-red, glow significantly reduced. "
+            "120 = barely glowing; very close to anchor 0 but a faint red tint remains. "
+            "130 = essentially dead; nearly indistinguishable from 0 (extreme overcook). "
+            "Intermediate values (10, 30, 50, 70, 90, 110) interpolate between neighbors — "
+            "use the provided reference images for these. "
+            "Calibration rules: "
+            "(a) If the sausage shows NO glow at all (pure native pink body, no LED "
+            "contribution), return 0. Do NOT return 120/130 unless a faint dim glow is "
+            "still visible. "
+            "(b) BRIGHTEST glow → 20. DIMMEST faint glow → 130. 0 is for NO glow at all. "
+            "(c) If you cannot tell two adjacent values apart, pick LOWER. "
+            "(d) Do NOT confuse anchor 130 (nearly off) with anchor 20 (very bright). If "
+            "the sausage is clearly LIT and VIVID pink, it is 10-60, never 120/130. "
+            "Return ONLY a JSON object: "
+            "{\"observed_color\": \"<short phrase describing brightness + hue>\", "
+            "\"closest_anchor\": <integer in {0, 10, 20, ..., 130}>, "
+            "\"progress\": <same integer as closest_anchor>}."
         ),
         "few_shot_subdir": "sausage",
     },
     "tomato": {
         "description": "토마토 소스 졸이기 진행도",
         "instruction": (
-            "This image shows tomatoes being simmered/reduced into a sauce in a pan or pot. "
-            "The task is to boil down fresh tomatoes until they become a thick tomato sauce. "
-            "Estimate the cooking progress as an integer between 0 and 130 (in steps of 10), "
-            "based on the color, thickness, and water content of the sauce. "
-            "0 = just placed: bright/light red fresh tomato chunks, very watery, pan/pot just heating up. "
-            "50 = about half-reduced: deeper red, still somewhat liquid, tomatoes breaking down. "
-            "100 = perfectly done: rich deep red, thick and glossy sauce, most water evaporated. "
-            "110-130 = over-reduced/burnt: dark reddish-brown, dried out, scorched at the bottom. "
-            "Return ONLY a JSON object with a single key 'progress' whose value is the integer."
+            "This image simulates tomato-sauce reduction. An LED is placed DIRECTLY UNDER "
+            "a blue pot (covered by a thick white paper diffuser with black grid marks), so "
+            "you see a GLOWING SPOT on the diffuser whose color and brightness encode "
+            "reduction progress. "
+            "Judge ONLY the glowing spot on the white diffuser — ignore the blue pot, "
+            "diffuser grid lines, background, red tomato shape, wires, and everything else. "
+            "DO NOT infer from 'thickness', 'water content', or 'glossiness'; those cues "
+            "are NOT present in this setup. "
+            "The glow sweeps along a SINGLE pale-pink → red axis, with hue becoming more "
+            "red-saturated and overall brightness decreasing as progress advances. "
+            "There is NO brown, NO orange, NO black — only pink/red variants. "
+            "Output: integer progress in {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, "
+            "110, 120, 130}. "
+            "Key anchors (14 reference images above cover all values in 10-step): "
+            "0 = LED COMPLETELY OFF — no glow on the diffuser at all, only the white paper "
+            "and the unlit scene. "
+            "20 = palest glow, mostly pink-white with the smallest red component; brightest. "
+            "40 = similar pale pink to 20, only marginally dimmer. "
+            "60 = clearly more saturated pink, less white-washed. "
+            "80 = pink-coral, red component emerging; clearly less bright than 60. "
+            "100 = clear red / coral-red, red now dominant, noticeably dimmer. "
+            "120 = dim deep red, clearly darker and more contained than 100 (over-reduced). "
+            "130 = very faint red glow, close to no glow at all (extreme over-reduction). "
+            "Intermediate values (10, 30, 50, 70, 90, 110) interpolate between neighbors — "
+            "use the provided reference images for these. "
+            "Calibration rules: "
+            "(a) If there is NO glowing spot on the diffuser at all, return 0. "
+            "(b) BRIGHTNESS decreases from 20 → 130; HUE shifts from pale-pink to red. "
+            "Use both cues with the references. "
+            "(c) 20 and 40 look very similar — if you cannot tell them apart, return 20. "
+            "Always pick LOWER when uncertain between adjacent values. "
+            "(d) 120/130 are ONLY for glows clearly DIMMER and more contained than the 100 "
+            "anchor. 130 is almost indistinguishable from 0 except for a faint red tint. "
+            "Return ONLY a JSON object: "
+            "{\"observed_color\": \"<short phrase describing brightness + hue>\", "
+            "\"closest_anchor\": <integer in {0, 10, 20, ..., 130}>, "
+            "\"progress\": <same integer as closest_anchor>}."
         ),
         "few_shot_subdir": "tomato",
     },
     "tea": {
         "description": "차 우리기 진행도",
         "instruction": (
-            "This image shows tea (green tea) being brewed in a teapot or cup. "
-            "Estimate the brewing progress as an integer between 0 and 130 (in steps of 10), "
-            "based on the color of the liquid. "
-            "0 = not started: nearly clear/whitish water, tea leaves/bag just placed. "
-            "50 = halfway: light green tint developing. "
-            "100 = perfectly brewed: rich green color, ideal strength. "
-            "110-130 = over-brewed: very dark green, overly strong/bitter-looking. "
-            "Return ONLY a JSON object with a single key 'progress' whose value is the integer."
+            "This image simulates tea brewing. An LED is placed DIRECTLY UNDER the teacup "
+            "(covered by a thick white diffuser/paper), so you see a GLOWING SPOT whose "
+            "color AND brightness encode brewing strength. "
+            "Judge ONLY the glowing spot — ignore cup, teabag, diffuser edges, background, "
+            "wires, arduino boards, and everything else in the frame. "
+            "IMPORTANT: in this setup the diffuser is highly reflective, so early anchors "
+            "look almost entirely white (bright, near-saturated), and the cyan/teal color "
+            "only becomes clearly visible as the LED dims in later anchors. "
+            "Use BRIGHTNESS as the primary cue, with hue saturation as a secondary cue. "
+            "Output: integer progress in {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, "
+            "110, 120, 130}. "
+            "Key anchors (14 reference images above cover all values in 10-step): "
+            "0 = LED COMPLETELY OFF — no glow on the diffuser, only the dark pre-brew "
+            "state of the cup. "
+            "20 = very bright, almost entirely white / white-cyan, barely any color visible. "
+            "40 = still very bright white, with a faint cyan tint just starting to appear. "
+            "60 = bright glow with a clear but pale cyan tint. "
+            "80 = noticeably dimmer than 60; clear pale-cyan color across the whole glow. "
+            "100 = distinctly dimmer; rich cyan / teal, color fully developed. "
+            "120 = clearly dim; darker cyan / deep teal, glow is noticeably smaller / more "
+            "contained (over-brewed). "
+            "130 = very dim teal, nearly no glow (extreme over-brew). "
+            "Intermediate values (10, 30, 50, 70, 90, 110) interpolate between neighbors — "
+            "use the provided reference images for these. "
+            "Calibration rules: "
+            "(a) If there is NO glowing spot on the diffuser at all, return 0. "
+            "(b) Brightness decreases monotonically from 20 → 130. If the glow still looks "
+            "as bright / white-washed as the 20 anchor, return 20 — do NOT jump to 100+. "
+            "(c) 120/130 are ONLY for glows clearly DIMMER and more contained than the 100 "
+            "anchor. "
+            "(d) When uncertain between two adjacent values, pick the LOWER one. "
+            "Return ONLY a JSON object: "
+            "{\"observed_color\": \"<short phrase describing brightness + hue>\", "
+            "\"closest_anchor\": <integer in {0, 10, 20, ..., 130}>, "
+            "\"progress\": <same integer as closest_anchor>}."
         ),
         "few_shot_subdir": "tea",
     },
@@ -93,14 +176,22 @@ MONITORING_PROMPTS: Dict[str, Dict[str, Any]] = {
         "description": "일반 요리 진행도",
         "instruction": (
             "This image shows a cooking/preparation process. "
-            "Estimate the progress as an integer between 0 and 130 (in steps of 10). "
-            "0 means not started. 50 means halfway. 100 means done. "
-            "Values above 100 mean overcooked/over-processed. "
-            "Return ONLY a JSON object with a single key 'progress' whose value is the integer."
+            "Estimate the progress as an integer in "
+            "{0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130}. "
+            "0 = not started. 60 = halfway. 100 = perfectly done. 120+ = overcooked. "
+            "When uncertain between two values, pick the LOWER one. "
+            "Return ONLY a JSON object: "
+            "{\"progress\": <integer in {0, 10, 20, ..., 130}>}."
         ),
         "few_shot_subdir": None,
     },
 }
+
+# The allowed discrete progress values the VLM may return.
+# 0 = not started (LED off), 10 step until 130 (overcooked cap).
+ALLOWED_PROGRESS_VALUES: tuple = (
+    0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130,
+)
 
 
 def _encode_frame_as_data_url(frame: np.ndarray, quality: int = 85) -> str:
@@ -139,6 +230,8 @@ def _load_image_few_shots(subdir: Optional[str]) -> list:
         try:
             progress = int(path.stem.replace("progress_", ""))
         except ValueError:
+            continue
+        if progress not in ALLOWED_PROGRESS_VALUES:
             continue
         with open(path, "rb") as f:
             b64 = base64.b64encode(f.read()).decode("utf-8")
@@ -197,22 +290,36 @@ def _build_messages(
     messages: list = []
 
     # Image few-shot examples: each is a (user-image, assistant-json) pair.
+    # The progress value is stated explicitly in the user turn so the VLM
+    # has an image-label correspondence in the vision track, not only in the
+    # assistant-JSON track.
     few_shots = _load_image_few_shots(prompt_template.get("few_shot_subdir"))
     for progress, shot_data_url in few_shots:
         messages.append(
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Example reference image."},
+                    {
+                        "type": "text",
+                        "text": (
+                            f"Reference anchor image: this is what progress = {progress} "
+                            f"looks like under this exact camera and lighting setup."
+                        ),
+                    },
                     {
                         "type": "image_url",
-                        "image_url": {"url": shot_data_url, "detail": "low"},
+                        "image_url": {"url": shot_data_url, "detail": "high"},
                     },
                 ],
             }
         )
         messages.append(
-            {"role": "assistant", "content": json.dumps({"progress": progress})}
+            {
+                "role": "assistant",
+                "content": json.dumps(
+                    {"closest_anchor": progress, "progress": progress}
+                ),
+            }
         )
 
     # Actual query with the live camera frame + full instruction.
@@ -223,7 +330,7 @@ def _build_messages(
                 {"type": "text", "text": prompt_template["instruction"]},
                 {
                     "type": "image_url",
-                    "image_url": {"url": image_data_url, "detail": "low"},
+                    "image_url": {"url": image_data_url, "detail": "high"},
                 },
             ],
         }
@@ -251,9 +358,8 @@ def _parse_progress(raw_text: str) -> int:
         else:
             raise ValueError(f"Could not parse progress from VLM response: {raw_text}")
 
-    # Clamp to valid range and round to nearest 10
-    value = max(0, min(130, value))
-    value = round(value / 10) * 10
+    # Snap to the closest allowed discrete progress value.
+    value = min(ALLOWED_PROGRESS_VALUES, key=lambda candidate: abs(candidate - value))
     return value
 
 
@@ -347,7 +453,7 @@ class VLMProgressEstimator:
             response = client.chat.completions.create(
                 model=self._model_name,
                 messages=messages,
-                max_tokens=50,
+                max_tokens=200,
                 temperature=0.0,
             )
             raw_text = response.choices[0].message.content.strip()
