@@ -1,8 +1,9 @@
-"""Action-cam MJPEG pull recorder for per-task real-world video capture.
+"""Action-cam pull recorder for per-task real-world video capture.
 
-Runs inside the ttp container on the remote PC. Pulls an MJPEG stream
-served by laptop3 (``scripts/infra/serve_actioncam.sh`` streaming
-/dev/video8 on port 9986) and saves it as an mp4 per task.
+Runs inside the ttp container on the remote PC. Pulls an H.264 / MPEG-TS
+stream served by laptop3 (``scripts/infra/serve_actioncam.sh`` encoding
+/dev/video8 on port 9986) and remuxes it into an mp4 per task with
+``-c:v copy`` (no re-encoding on the ttp side).
 
 Context-manager semantics mean task start = stream open, task end =
 stream close, so the remote run_all worker doesn't need any separate
@@ -36,13 +37,13 @@ DEFAULT_FLUSH_SECONDS = 0
 
 
 class ActionCamRecorder:
-    """Record the laptop3 action-cam MJPEG stream to mp4 for one task.
+    """Remux the laptop3 action-cam H.264/MPEG-TS stream to mp4 for one task.
 
     Args:
         output_dir: directory the mp4 is written to (created if missing).
         file_stem: base filename (no extension); final path is
             ``output_dir/{file_stem}.mp4``.
-        host, port: MJPEG server address (laptop3 running serve_actioncam.sh).
+        host, port: camera stream address (laptop3 running serve_actioncam.sh).
         flush_seconds: seconds to pre-consume from the stream before
             starting the real recording. The ffmpeg server uses ``-listen 1``
             and restarts via a while-loop after each client disconnect, so
