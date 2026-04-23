@@ -54,6 +54,16 @@ class Agent:
         self.estimate_knowledge: Dict[str, Dict[str, Any]] = self.belief_store.as_dict()
         self.constraint_handler = constraint_handler
 
+    @staticmethod
+    def _build_critical_family_key(
+        *,
+        critical_start_sub_name: str,
+        critical_end_sub_name: str,
+    ) -> str:
+        """Return a stable identifier for one critical interval family."""
+
+        return f"{critical_start_sub_name}::{critical_end_sub_name}"
+
     def _update_knowledge_and_constraints(
         self,
         state: SchedulerState,
@@ -78,42 +88,51 @@ class Agent:
 
         self.estimate_knowledge = self.belief_store.as_dict()
         self.belief_store.persist()
+        family_key = self._build_critical_family_key(
+            critical_start_sub_name=critical_start_sub_name,
+            critical_end_sub_name=monitoring_target_sub_name,
+        )
 
         # 2) constraints 그래프 업데이트 (이 로직은 유지)
         #    - (critical_start_sub_name, monitoring_target_sub_name)에 posterior_mean 반영
 
-        if state.constraints.has_edge(
+        if not state.constraints.has_edge(
             critical_start_sub_name, monitoring_target_sub_name
         ):
-            edge_info = state.constraints.edges[
-                critical_start_sub_name, monitoring_target_sub_name
-            ].setdefault("info", {})
-            edge_info["Interval"] = posterior_mean
-            edge_info["Variance"] = posterior_variance
-        else:
-            log.warning(
-                "Constraint edge %s -> %s missing while updating posterior mean.",
+            state.constraints.add_edge(
                 critical_start_sub_name,
                 monitoring_target_sub_name,
+                info={},
             )
+        edge_info = state.constraints.edges[
+            critical_start_sub_name, monitoring_target_sub_name
+        ].setdefault("info", {})
+        edge_info["Interval"] = posterior_mean
+        edge_info["Variance"] = posterior_variance
+        edge_info["IsCritical"] = True
+        edge_info["IsMonitoringResidual"] = False
+        edge_info["CriticalFamilyKey"] = family_key
 
         #    - (현재 모니터링 서브태스크, 모니터링 대상) 간 엣지에 잔여 구간 반영
-        updated_interval = (
-            critical_start_sub_end_time + posterior_mean - state.current_time
+        updated_interval = max(
+            0.0,
+            critical_start_sub_end_time + posterior_mean - state.current_time,
         )
 
-        if state.constraints.has_edge(state.subtask.name, monitoring_target_sub_name):
-            edge_info = state.constraints.edges[
-                state.subtask.name, monitoring_target_sub_name
-            ].setdefault("info", {})
-            edge_info["Interval"] = updated_interval
-            edge_info["Variance"] = posterior_variance
-        else:
-            log.warning(
-                "Constraint edge %s -> %s missing while updating monitor residual interval.",
+        if not state.constraints.has_edge(state.subtask.name, monitoring_target_sub_name):
+            state.constraints.add_edge(
                 state.subtask.name,
                 monitoring_target_sub_name,
+                info={},
             )
+        edge_info = state.constraints.edges[
+            state.subtask.name, monitoring_target_sub_name
+        ].setdefault("info", {})
+        edge_info["Interval"] = updated_interval
+        edge_info["Variance"] = posterior_variance
+        edge_info["IsCritical"] = True
+        edge_info["IsMonitoringResidual"] = True
+        edge_info["CriticalFamilyKey"] = family_key
 
     def _get_prior_estimate(self, obj_name: str) -> Tuple[float, float]:
         """Return the prior summary for a monitored object.

@@ -89,6 +89,33 @@ class ConstraintHandler:
             return True
         return getattr(execution_status, "name", None) == "FAILURE"
 
+    @staticmethod
+    def _collapse_monitoring_residual_context(
+        raw_context: list[tuple[str, float, float, dict]],
+    ) -> list[tuple[str, float, float]]:
+        """Keep only the latest monitoring residual edge for each critical family."""
+
+        collapsed_context: list[tuple[str, float, float]] = []
+        latest_residual_by_family: dict[str, tuple[str, float, float]] = {}
+
+        for pred_name, pred_end_time, interval, info in raw_context:
+            if info.get("IsMonitoringResidual", False):
+                family_key = info.get("CriticalFamilyKey")
+                if family_key is not None:
+                    prev = latest_residual_by_family.get(family_key)
+                    if prev is None or pred_end_time > prev[1] + EPSILON:
+                        latest_residual_by_family[family_key] = (
+                            pred_name,
+                            pred_end_time,
+                            interval,
+                        )
+                    continue
+
+            collapsed_context.append((pred_name, pred_end_time, interval))
+
+        collapsed_context.extend(latest_residual_by_family.values())
+        return collapsed_context
+
     def get_time_slots(
         self, subtask_name: str, constraints: DiGraph, direction: str
     ) -> List[TimeSlot]:
@@ -315,7 +342,7 @@ class ConstraintHandler:
 
         # 선행 작업이 있는 Task에 대하여
         critical_times = []
-        critical_context = []
+        raw_critical_context = []
         non_critical_earliest_start = 0.0
         all_predecessors_finished = True
         any_predecessor_failed = False
@@ -346,12 +373,19 @@ class ConstraintHandler:
                 log.debug(
                     f"current_subtask {sub.name} has critical constraint: {pred_name} -> {sub.name} = {curr_logical_interaction_start_time} ({pred_end_time=}, {interval=})"
                 )
-                critical_times.append(curr_logical_interaction_start_time)
-                critical_context.append((pred_name, pred_end_time, interval))
+                raw_critical_context.append((pred_name, pred_end_time, interval, info))
             else:
                 non_critical_earliest_start = max(
                     non_critical_earliest_start, curr_logical_interaction_start_time
                 )
+
+        critical_context = self._collapse_monitoring_residual_context(
+            raw_critical_context
+        )
+        critical_times = [
+            pred_end_time + interval
+            for _, pred_end_time, interval in critical_context
+        ]
         # 선행 작업 성공 / 실패 여부 확인
         if any_predecessor_failed:
             log.error(
