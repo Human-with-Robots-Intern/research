@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import signal
+import socket
 import subprocess
 import time
 from pathlib import Path
@@ -21,6 +22,11 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CAMERA_HOST = "192.168.0.9"
 DEFAULT_CAMERA_PORT = 9986
+# Max seconds to wait for the MJPEG server (serve_actioncam.sh) to come
+# back into a listening state between tasks. Each client disconnect
+# causes the server's 'ffmpeg -listen 1' to exit and the shell loop to
+# respawn it after a `sleep 1` + v4l2 re-init — usually 2–4s.
+DEFAULT_SERVER_WAIT_SECONDS = 15
 # Default 0: with the serve_actioncam.sh layout (ffmpeg -listen 1 in a
 # while-loop), a flush session ends up *disconnecting* the server which
 # then restarts, and the main recorder that follows races against the
@@ -53,17 +59,53 @@ class ActionCamRecorder:
         host: str = DEFAULT_CAMERA_HOST,
         port: int = DEFAULT_CAMERA_PORT,
         flush_seconds: int = DEFAULT_FLUSH_SECONDS,
+        server_wait_seconds: int = DEFAULT_SERVER_WAIT_SECONDS,
     ) -> None:
         self.output_dir = Path(output_dir)
         self.file_stem = file_stem
         self.host = host
         self.port = port
         self.flush_seconds = max(0, int(flush_seconds))
+        self.server_wait_seconds = max(0, int(server_wait_seconds))
         self.stream_url = f"http://{host}:{port}"
         self.output_path: Optional[Path] = None
         self._proc: Optional[subprocess.Popen] = None
         self._stderr_fh = None
         self._stderr_log_path: Optional[Path] = None
+
+    def _wait_for_server(self) -> bool:
+        """Block until ``host:port`` accepts TCP connections or timeout.
+
+        The laptop3 MJPEG server cycles ffmpeg per client (``-listen 1`` +
+        while-loop), so between two tasks there is a gap of a few seconds
+        where the port is closed. Starting the recorder's ffmpeg during
+        that gap produces "Connection refused" and an empty mp4 — this
+        pre-check avoids that race.
+        """
+        if self.server_wait_seconds <= 0:
+            return True
+        deadline = time.monotonic() + self.server_wait_seconds
+        delay = 0.25
+        attempts = 0
+        while time.monotonic() < deadline:
+            attempts += 1
+            try:
+                with socket.create_connection((self.host, self.port), timeout=1.0):
+                    if attempts > 1:
+                        logger.info(
+                            "[ActionCamRecorder] Server %s:%d accepted after %d attempt(s).",
+                            self.host, self.port, attempts,
+                        )
+                    return True
+            except (OSError, socket.timeout):
+                pass
+            time.sleep(delay)
+            delay = min(1.0, delay * 1.5)
+        logger.error(
+            "[ActionCamRecorder] Timed out waiting %ds for %s:%d to listen.",
+            self.server_wait_seconds, self.host, self.port,
+        )
+        return False
 
     def _flush_stale_buffer(self) -> None:
         if self.flush_seconds <= 0:
@@ -94,15 +136,26 @@ class ActionCamRecorder:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.output_path = self.output_dir / f"{self.file_stem}.mp4"
 
+        # The serve_actioncam.sh server restarts ffmpeg between clients,
+        # so we must wait for :port to come back up before launching our
+        # own ffmpeg — otherwise it dies instantly with "Connection refused".
+        if not self._wait_for_server():
+            self._proc = None
+            return self
+
         self._flush_stale_buffer()
 
         # NOTE: do NOT pass -nostdin here. The __exit__ path writes 'q' to
         # ffmpeg's stdin to trigger a graceful shutdown (so the mp4 moov
         # atom gets finalized); -nostdin makes ffmpeg ignore stdin, which
         # forces us down the SIGKILL fallback and corrupts the file.
+        # -reconnect_* covers the case where the server drops mid-stream.
         cmd = [
             "ffmpeg",
             "-loglevel", "warning",
+            "-reconnect", "1",
+            "-reconnect_streamed", "1",
+            "-reconnect_delay_max", "5",
             "-use_wallclock_as_timestamps", "1",
             "-fflags", "+genpts",
             "-i", self.stream_url,
