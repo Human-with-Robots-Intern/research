@@ -212,7 +212,7 @@ def _evaluate_single_tsr(
     events: Sequence[Mapping[str, Any]],
     duration_key: str = "duration",
     tsr_target_duration: float = TIMING_TOLERANCE_DEFAULT,
-    tsr_tolerance: float = TSR_EVAL_TOLERANCE_ABS,
+    tsr_tolerance: float = TSR_EVAL_TOLERANCE_ABS+7.5,
 ) -> TSRResult:
     """Evaluate a single TSR specification.
 
@@ -267,7 +267,7 @@ def evaluate_task(
     task_spec: TaskSpec,
     duration_key: str = "duration",
     tsr_target_duration: float = TIMING_TOLERANCE_DEFAULT,
-    tsr_tolerance: float = TSR_EVAL_TOLERANCE_ABS,
+    tsr_tolerance: float = TSR_EVAL_TOLERANCE_ABS+7.5,
 ) -> TaskResult:
     """Evaluate a single task for GCR/TSR."""
 

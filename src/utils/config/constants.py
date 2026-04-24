@@ -164,7 +164,7 @@ FACTOR_ALPHA = 0.001
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
 
-# Timing tolerance can be interpreted both as a ratio and an absolute cap.
+# Timing tolerance can be finterpreted both as a ratio and an absolute cap.
 # The ratio (30%) mirrors the previous behaviour, while the absolute value
 # allows capping the tolerance window for large intervals.
 TIMING_TOLERANCE_DEFAULT = 100.0

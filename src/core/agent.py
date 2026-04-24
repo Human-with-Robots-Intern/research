@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 import math
+from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from src.core.monitoring import (
@@ -21,6 +24,47 @@ if TYPE_CHECKING:
     from src.scheduler import ConstraintHandler
 
 log = create_module_logger(module_name=__name__, module_log=True)
+
+
+_VLM_OBSERVE_RESULTS_DIR = (
+    Path(__file__).resolve().parents[2] / "assets" / "vlm_observe_results"
+)
+_RECIPE_KEYWORDS = (
+    ("sausage", "Sausage"),
+    ("tomato", "Tomato"),
+    ("tea", "Tea"),
+)
+
+
+def _match_recipe(subtask_name: str) -> Optional[str]:
+    for recipe, keyword in _RECIPE_KEYWORDS:
+        if keyword in subtask_name:
+            return recipe
+    return None
+
+
+def _record_vlm_observation(
+    subtask_name: str,
+    object_name: str,
+    vlm_progress: Optional[int],
+    elapsed_interval: float,
+) -> None:
+    if vlm_progress is None:
+        return
+    recipe = _match_recipe(subtask_name)
+    if recipe is None:
+        return
+    _VLM_OBSERVE_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    record = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "vlm_progress": vlm_progress,
+        "elapsed_interval": float(elapsed_interval),
+        "object": object_name,
+        "subtask": subtask_name,
+    }
+    target = _VLM_OBSERVE_RESULTS_DIR / f"{recipe}_observe_results.jsonl"
+    with target.open("a", encoding="utf-8") as fp:
+        fp.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
 class Agent:
@@ -292,6 +336,13 @@ class Agent:
                 elapsed_interval=critical_elapsed_interval,
                 vlm_progress=vlm_progress,
             )
+        )
+
+        _record_vlm_observation(
+            subtask_name=monitoring_target_sub_name,
+            object_name=monitoring_target_obj_name,
+            vlm_progress=vlm_progress,
+            elapsed_interval=critical_elapsed_interval,
         )
 
         # ZeroDivisionError 방지

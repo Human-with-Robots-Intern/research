@@ -60,12 +60,17 @@ init_prior_configs: #초기 시간 값 종류
 # ------------------------------------------------------------------------------
 # Task Filtering
 # ------------------------------------------------------------------------------
-task_folder_name: ["decomposed_final_revision_260416_realworld_v1"] # Folder under assets/tasks/
+task_folder_name:
+  - "decomposed_final_revision_260416_realworld_v1"
+  # - "decomposed_final_revision_260416_realworld_v2"
+  # - "decomposed_final_revision_260416_realworld_v3"
+  # - "decomposed_final_revision_260416_realworld_v4"
+  # - "decomposed_final_revision_260416_realworld_v5" # Folder under assets/tasks/
 
 min_task_count: 2
 max_task_count: 2
 min_constraint_count: 1
 max_constraint_count: 1
-start_idx: 6 # 시작하는 task의 번호
-end_idx: 6 # 끝나는 task의 번호 (포함)
+start_idx: 1 # 시작하는 task의 번호
+end_idx: 7 # 끝나는 task의 번호 (포함)
 skip_completed: false
