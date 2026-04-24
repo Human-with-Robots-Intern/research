@@ -862,7 +862,7 @@ class TaskManager:
  result logging.
     """
     
-    def __init__(self, base_path: str, gpt_version: str, api_key_file: str, prompt_decompse_set: str = "pddl_train_task_decomposesep", prompt_allocation_set: str = "pddl_train_task_allocationsep"):
+    def __init__(self, base_path: str, gpt_version: str, api_key_file: str, prompt_decompse_set: str = "pddl_train_task_decomposesep", prompt_allocation_set: str = "pddl_train_task_allocationsep", wait_units: int = 100):
         """Initialize the task manager.
         
         Args:
@@ -876,6 +876,7 @@ class TaskManager:
         self.gpt_version = gpt_version
         self.prompt_decompse_set = prompt_decompse_set
         self.prompt_allocation_set = prompt_allocation_set
+        self.wait_units = wait_units
         
         # Initialize components
         self.llm = LLMHandler(api_key_file)
@@ -1186,6 +1187,23 @@ class TaskManager:
             prompt += decompose_prompt
             prompt += "# GENERAL TASK DECOMPOSITION \n"
             prompt += "Decompose and parallel subtasks where ever possible.\n\n"
+            prompt += (
+                "# Temporal Guidelines\n"
+                "- Some subtasks involve autonomous operations that require waiting (e.g., cooking on stove, boiling water, making tea).\n"
+                f"- For such operations, include a wait action with duration = {self.wait_units} time units.\n"
+                "- Actions that immediately follow each other (pick up then place) have 0 gap.\n"
+                "- Turn off appliances immediately after their operation completes.\n\n"
+                "# Makespan Minimization (single robot)\n"
+                "- The goal is to MINIMIZE total makespan (total time until all tasks complete).\n"
+                "- During long wait actions (e.g., stove cooking, boiling), the robot is idle and should\n"
+                "  INTERLEAVE independent subtasks that do not depend on the waiting operation.\n"
+                "- Example: while sausage is cooking (wait 100 units), simultaneously prepare tea,\n"
+                "  place items on plate, or move objects to sink — DO NOT wait idly.\n"
+                "- Only block (wait) when no other independent subtask remains, OR when all remaining\n"
+                "  subtasks depend on the current operation completing.\n"
+                "- Preserve turn-off-immediately constraints: when a wait ends, the next action must be\n"
+                "  the corresponding off/remove action, even if interleaved tasks are unfinished.\n\n"
+            )
             prompt += f"# Task Description: {task}"
             
             if "gpt" not in self.gpt_version:
