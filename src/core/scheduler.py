@@ -1948,6 +1948,18 @@ class Scheduler:
                 backup_max_wait_duration = max(
                     0.0, selected_event.event_time - curr_node.state.current_time
                 )
+                if (
+                    selected_event.kind == "local_monitor"
+                    and primary_wait_node is not None
+                ):
+                    log.debug(
+                        "[_expand_wait_options] Skipping local execute backup for '%s' "
+                        "because the realized local_monitor primary already commits the "
+                        "same %.2fs checkpoint with forced follow-up.",
+                        candidate.subtask.name,
+                        backup_max_wait_duration,
+                    )
+                    skip_local_execute_backup = True
                 if backup_max_wait_duration <= (
                     float(local_execute_event.nav_duration) + EPSILON
                 ):
