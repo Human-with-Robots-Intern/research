@@ -3,7 +3,6 @@ __pycache__/
 *.py[cod]
 *.o
 *.pyo
-
 # Build / Packaging
 build/
 dist/
@@ -85,3 +84,4 @@ assets/tune/debug_trajectories/**/*.json
 docker-compose.override.yml
 
 .bench_cache/
+assets/ros/dynamic/object_states.json
