@@ -29,7 +29,37 @@
 #   CAM_GOP    (default 30)         — keyframe interval (every N frames)
 
 set -u
-CAM_DEVICE="${CAM_DEVICE:-/dev/video8}"
+
+# Auto-detect action cam by UVC card name if CAM_DEVICE isn't set.
+# The cam occasionally re-enumerates itself with a different VID/PID
+# (observed: 1f3a:1002 "mediacom XPRO 415" → 1f3a:100e "Android"), so
+# the kernel assigns a new /dev/videoN index each time and hardcoding
+# /dev/video8 breaks after any such flip.
+autodetect_cam_device() {
+    for dev in /dev/video*; do
+        [ -c "$dev" ] || continue
+        if v4l2-ctl -d "$dev" --info 2>/dev/null | grep -q "Android: UVC Camera"; then
+            # The action cam advertises two video nodes — pick the one
+            # that actually exposes MJPG capture (the other is metadata).
+            if v4l2-ctl -d "$dev" --list-formats 2>/dev/null | grep -q "MJPG"; then
+                echo "$dev"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+if [ -z "${CAM_DEVICE:-}" ]; then
+    if CAM_DEVICE=$(autodetect_cam_device); then
+        echo "[serve_actioncam] auto-detected CAM_DEVICE=$CAM_DEVICE"
+    else
+        echo "[serve_actioncam] ERROR: no 'Android: UVC Camera' with MJPG capture found on /dev/video*" >&2
+        echo "[serve_actioncam] check that the action cam is UVC-bound (see auto-memory hardware_actioncam_xpro415_uvc_recipe.md)" >&2
+        exit 1
+    fi
+fi
+
 CAM_PORT="${CAM_PORT:-9986}"
 CAM_SIZE="${CAM_SIZE:-1280x720}"
 CAM_PRESET="${CAM_PRESET:-ultrafast}"
