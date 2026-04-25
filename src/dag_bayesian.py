@@ -615,6 +615,11 @@ def main() -> None:
                 last_entry.sim_end_time = ros_start_offset + elapsed_time
                 last_entry.execution_status = success
                 last_entry.primitive_action_log = action_logs
+                last_entry.schedule_start_time = last_entry.sim_start_time
+                last_entry.schedule_end_time = last_entry.sim_end_time
+                next_state = next_state._replace(
+                    current_time=last_entry.sim_end_time
+                )
 
                 if not success:
                     break
