@@ -173,6 +173,7 @@ class ExperimentTask:
     log_dir_timestamp: str
     gpu_id: int  # Assigned GPU ID for this task
     task_folder_name: str = "default_task_folder"  # The task folder name
+    llm_cache_file: Path | None = None  # LaMMaP precomputed primitive_actions cache
 
 
 def get_memory_usage() -> float:
@@ -320,6 +321,7 @@ def _run_script_and_log(
     attempt: int,
     gpu_id: int,
     task_folder_name: str,
+    llm_cache_file: Path | None = None,
 ) -> subprocess.CompletedProcess:
     """
     Constructs and runs a script command, capturing and logging the output.
@@ -375,6 +377,9 @@ def _run_script_and_log(
         cmd.append("--simulation")
         if cloud_rendering:
             cmd.append("--cloud-rendering")
+
+    if llm_cache_file is not None:
+        cmd.extend(["--llm-cache-file", str(llm_cache_file)])
 
     for key, value in (ablation_params | init_prior_params).items():
         if isinstance(value, bool):
@@ -566,6 +571,7 @@ def worker(task: ExperimentTask) -> None:
                         attempt=attempt,
                         gpu_id=task.gpu_id,
                         task_folder_name=task.task_folder_name,
+                        llm_cache_file=task.llm_cache_file,
                     )
                 if result.returncode == 0:
                     logger.info(
@@ -616,6 +622,7 @@ def worker(task: ExperimentTask) -> None:
                         attempt=attempt,
                         gpu_id=task.gpu_id,
                         task_folder_name=task.task_folder_name,
+                        llm_cache_file=task.llm_cache_file,
                     )
                 if result.returncode == 0:
                     logger.info(
@@ -1010,8 +1017,18 @@ def main() -> None:
     gpu_counter = 0
     # num_gpus is now loaded from config above
 
+    # LaMMaP precomputed cache path is selected by scene_type (real_world/kitchen/bathroom).
+    # The first scene_type wins when multiple are configured.
+    primary_scene_type = scene_types[0] if scene_types else None
+
     for baseline in baselines:
         b_type, b_path = baseline
+        is_lammap = "lammap" in str(b_path).lower()
+        lammap_cache_file: Path | None = None
+        if is_lammap and primary_scene_type:
+            lammap_cache_file = (
+                ASSETS_PATH / f"lammap_llm_cache_{primary_scene_type}.json"
+            )
 
         # Use all ablation configs for dag_bayesian, only DEFAULT for others.
         ablations_to_use = ablation_configs_to_run
@@ -1093,6 +1110,7 @@ def main() -> None:
                             log_dir_timestamp=run_timestamp,
                             gpu_id=gpu_id,
                             task_folder_name=task_src_folder_name,
+                            llm_cache_file=lammap_cache_file,
                         )
                         tasks_to_run.append(task)
 

@@ -298,7 +298,7 @@ class GaussianSyntheticObservationModel:
         sigma_floor_sq: float = 100.0,
         vlm_alpha: float = 0.08,
         progress_floor: float = 0.05,
-        progress_ceiling: float = 0.99,
+        progress_ceiling: float = 1.3,
         min_variance: float = MIN_VARIANCE,
         rng: Optional[np.random.Generator] = None,
     ) -> None:

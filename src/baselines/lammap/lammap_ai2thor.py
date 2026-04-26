@@ -30,6 +30,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from typing import Any, List, Optional, Tuple
 
 from ai2thor.controller import Controller
 from ai2thor.platform import CloudRendering
@@ -38,9 +39,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 
 from ithor.handlers.action import Action
 from src.baselines.lammap.action_adapter import (
-    convert_to_primitive_actions,
     execute_primitive_actions,
-    parse_lammap_code_to_actions,
+    flatten_mimic_to_primitive_actions,
 )
 from src.simulation.runner_ai2thor import init_ai2thor_controller
 from src.utils.common import create_module_logger
@@ -73,6 +73,33 @@ def get_scene_objects_for_lammap(controller: Controller) -> str:
     return f"\n\nobjects = {json.dumps(obj_list, indent=2)}"
 
 
+def _build_action_durations(scene_type: str) -> dict:
+    """Per-primitive-action duration table for LLM prompts.
+
+    `scene_type='real_world'` uses REAL_NAV_DURATION; ai2thor scenes (kitchen,
+    bathroom) use the per-step nav cost since path length varies. Kitchen
+    additionally gets OPEN/CLOSE/SLICE entries so the LLM can budget the cost
+    of microwave-open and egg-slice style actions when computing residual sleep.
+    """
+    nav = constants.REAL_NAV_DURATION if scene_type == "real_world" else constants.NAV_STEP_DURATION
+    table = {
+        "NAVIGATE_TO": nav,
+        "GRASP": constants.GRASP_ACTION_DURATION,
+        "PLACE_INSIDE": constants.PLACE_ACTION_DURATION,
+        "PLACE_ON_TOP": constants.PLACE_ACTION_DURATION,
+        "TOGGLE_ON": constants.TOGGLE_ACTION_DURATION,
+        "TOGGLE_OFF": constants.TOGGLE_ACTION_DURATION,
+        "MONITORING": constants.MONITORING_DURATION,
+    }
+    if scene_type != "real_world":
+        # AI2-THOR scenes also expose OPEN/CLOSE/SLICE primitives. constants.py
+        # has no dedicated duration; treat them like TOGGLE-class interactions.
+        table["OPEN"] = constants.TOGGLE_ACTION_DURATION
+        table["CLOSE"] = constants.TOGGLE_ACTION_DURATION
+        table["SLICE"] = constants.TOGGLE_ACTION_DURATION
+    return table
+
+
 def run_lammap_planning(
     base_path: str,
     task: str,
@@ -82,11 +109,17 @@ def run_lammap_planning(
     api_key_file: str,
     logger: logging.Logger,
     wait_units: int = 100,
-) -> str:
+    scene_type: str = "real_world",
+) -> Tuple[str, int]:
     """LaMMA-P의 PDDL 계획 생성 → 코드 변환 파이프라인을 실행합니다.
 
+    Args:
+        scene_type: 'real_world' or 'kitchen'/'bathroom'. Selects NAV duration.
+
     Returns:
-        생성된 실행 코드 (Python string)
+        (mimic_code, llm_call_count) — `llm_call_count` is the total number of
+        OpenAI calls across TaskManager (decompose/allocate/problem-gen/validate)
+        and MimicFormatTranslator (translate + validate-and-fix).
     """
     # LaMMA-P 경로 설정
     lammap_scripts = os.path.join(base_path, "scripts")
@@ -96,6 +129,8 @@ def run_lammap_planning(
     # pddlrun_llmseparate의 핵심 클래스 import
     from scripts.pddlrun_llmseparate import TaskManager
     from plantocode import MimicFormatTranslator
+
+    action_durations = _build_action_durations(scene_type)
 
     # 로봇 설정 (단일 로봇, 모든 스킬)
     available_robots = [
@@ -137,6 +172,8 @@ def run_lammap_planning(
         gpt_version=gpt_version,
         api_key_file=api_key_file,
         wait_units=wait_units,
+        action_durations=action_durations,
+        scene_type=scene_type,
     )
     logger.info(f"[LAMMAP] TaskManager 초기화 완료 ({time.time()-t0:.1f}s)")
 
@@ -165,6 +202,8 @@ def run_lammap_planning(
         api_key_file=api_key_file,
         gpt_version=gpt_version,
         wait_units=wait_units,
+        action_durations=action_durations,
+        scene_type=scene_type,
     )
 
     logger.info("[LAMMAP] translate_to_mimic_format 호출 중 (LLM)...")
@@ -181,7 +220,13 @@ def run_lammap_planning(
         mimic_code = corrected_code
     logger.info(f"[LAMMAP] 코드 검증 완료 ({time.time()-t3:.1f}s, valid={is_valid})")
 
-    return mimic_code
+    llm_call_count = (
+        getattr(task_manager.llm, "call_count", 0)
+        + getattr(translator.llm, "call_count", 0)
+    )
+    logger.info(f"[LAMMAP] 총 LLM 호출 수: {llm_call_count}")
+
+    return mimic_code, llm_call_count
 
 
 def run_lammap_from_task_file(
@@ -192,7 +237,7 @@ def run_lammap_from_task_file(
     gpt_version: str,
     api_key_file: str,
     logger: logging.Logger,
-) -> str:
+) -> Tuple[str, int]:
     """exp/ 폴더의 태스크 파일에서 특정 태스크를 로드하여 실행합니다."""
     with open(task_file, "r") as f:
         tasks = json.load(f)
@@ -330,10 +375,78 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main():
-    approach_name = "lammap_ai2thor_simulation"
-    args = parse_arguments()
+def _load_cached_primitive_actions(
+    cache_file: Optional[str],
+    *,
+    scene: str,
+    case: Optional[str],
+    instruction: Optional[str],
+    instruction_dir_name: str,
+    duration: int,
+    task_folder_name: Optional[str],
+    logger: logging.Logger,
+) -> Optional[List[str]]:
+    """Look up `{scene}|{case}|{instruction_filename}|{duration}` in the cache.
 
+    Version index is derived from a `_v(\\d+)` suffix in `task_folder_name`
+    (precompute_lammap_llm.py stores attempts as a list ordered by attempt).
+    Returns None on miss; caller decides whether to fail-fast.
+    """
+    if not cache_file:
+        return None
+    cache_path = Path(cache_file)
+    if not cache_path.exists():
+        logger.warning(f"[LAMMAP] cache file not found: {cache_path}")
+        return None
+
+    instr_name = instruction if (instruction and instruction.endswith(".json")) else f"{instruction_dir_name}.json"
+    cache_key = f"{scene}|{case}|{instr_name}|{duration}"
+
+    version_idx = 0
+    if task_folder_name:
+        vm = re.search(r"_v(\d+)$", task_folder_name)
+        if vm:
+            version_idx = int(vm.group(1)) - 1
+
+    with cache_path.open("r", encoding="utf-8") as f:
+        cache = json.load(f)
+
+    cached_list = cache.get(cache_key, [])
+    if version_idx < len(cached_list) and cached_list[version_idx]:
+        entry = cached_list[version_idx]
+
+        # New dict format: {"primitive_actions": [...], "planning_computation_time": ..., ...}
+        if isinstance(entry, dict) and "primitive_actions" in entry:
+            actions = entry["primitive_actions"]
+            pct = entry.get("planning_computation_time")
+            logger.info(
+                f"[LAMMAP] 캐시 히트: {cache_key} [v{version_idx + 1}] "
+                f"(actions={len(actions)}, planning_computation_time={pct}s)"
+            )
+            return actions
+
+        # Backward-compat: bare list of primitive_actions.
+        if isinstance(entry, list):
+            logger.info(
+                f"[LAMMAP] 캐시 히트(legacy list): {cache_key} [v{version_idx + 1}] "
+                f"(actions={len(entry)})"
+            )
+            return entry
+
+        # Legacy mimic_code cache (string) — incompatible with this version.
+        logger.error(
+            f"[LAMMAP] 캐시 형식이 구버전(mimic_code 문자열)입니다. "
+            f"`scripts/precompute_lammap_llm.py`를 새 버전으로 다시 돌려 "
+            f"primitive_actions 형식으로 재생성하세요. key={cache_key}"
+        )
+        return None
+
+    logger.warning(f"[LAMMAP] 캐시 미스: {cache_key} [v{version_idx + 1}]")
+    return None
+
+
+def main():
+    args = parse_arguments()
     scene_name = args.scene
     instruction = args.instruction
 
@@ -347,8 +460,13 @@ def main():
     else:
         base_result_path = constants.RESULT_PATH
 
-    if args.ros:
-        approach_name = f"{approach_name}_ros"
+    approach_name_base = "lammap"
+    if args.simulation:
+        approach_name = f"{approach_name_base}_simulation"
+    elif args.ros:
+        approach_name = f"{approach_name_base}_ros"
+    else:
+        approach_name = approach_name_base
 
     logger = create_module_logger(
         module_name=approach_name,
@@ -356,49 +474,38 @@ def main():
         level=args.log_level,
     )
 
-    # LaMMA-P 기본 경로
-    lammap_base = os.path.dirname(os.path.abspath(__file__))
+    # instruction_dir_name and task_string follow the run_all convention used
+    # by other baselines (cpm/dag_bayesian/progprompt).
+    if instruction and instruction.endswith(".json"):
+        instruction_dir_name = Path(instruction).stem
+        m = re.match(r"\d+_(.*)", instruction_dir_name)
+        task_string = m.group(1).replace("_", " ") if m else instruction_dir_name.replace("_", " ")
+    elif instruction:
+        instruction_dir_name = re.sub(r"[^a-zA-Z0-9]+", "_", instruction).strip("_")
+        task_string = instruction
+    elif args.task_file:
+        instruction_dir_name = f"lammap_task_{args.task_index}"
+        task_string = None
+    else:
+        raise ValueError("--instruction or --task-file is required")
+
+    trajectory_path = (
+        base_result_path
+        / f"states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
+    )
+    if trajectory_path.exists():
+        trajectory_path.unlink()
 
     controller = None
-    ros_executor = None
-    action_handler = None
+    action_interface: Any = None
     t_main_start = time.time()
+    wait_units = int(args.init_prior_mean) if args.init_prior_mean is not None else 100
 
     try:
-        # instruction_dir_name 및 task_string 결정
-        if instruction and instruction.endswith(".json"):
-            # run_all 모드: instruction이 JSON 파일명
-            instruction_dir_name = Path(instruction).stem
-            m = re.match(r"\d+_(.*)", instruction_dir_name)
-            task_string = m.group(1).replace("_", " ") if m else instruction_dir_name.replace("_", " ")
-        elif instruction:
-            # standalone 모드: instruction이 자연어
-            instruction_dir_name = re.sub(r"[^a-zA-Z0-9]+", "_", instruction).strip("_")
-            task_string = instruction
-        elif args.task_file:
-            instruction_dir_name = f"lammap_task_{args.task_index}"
-            task_string = None  # task_file에서 나중에 설정
-        else:
-            raise ValueError("--instruction 또는 --task-file이 필요합니다")
-
-        # trajectory 경로
-        trajectory_path = (
-            base_result_path
-            / f"states{int(args.init_prior_mean)}/{args.case}/{instruction_dir_name}/{scene_name}/{approach_name}/trajectory_log.json"
-        )
-        if trajectory_path.exists():
-            trajectory_path.unlink()
-
-        # --- 컨트롤러 초기화 ---
-        t_ctrl = time.time()
-        logger.info(f"[LAMMAP] 컨트롤러 초기화 시작 (scene={scene_name})...")
-        if args.ros:
-            ros_executor = RosExecutor(trajectory_log_path=trajectory_path, instruction=instruction)
-        else:
+        # --- Action interface (progprompt pattern) ---
+        if args.simulation:
             platform_obj = CloudRendering if args.cloud_rendering else None
             controller = init_ai2thor_controller(scene_name, platform=platform_obj)
-            logger.info(f"[LAMMAP] ai2thor Controller 생성 완료 ({time.time()-t_ctrl:.1f}s)")
-
             save_scene_state(
                 controller=controller,
                 output_path=base_result_path / f"states{int(args.init_prior_mean)}",
@@ -408,57 +515,63 @@ def main():
                 approach_name=approach_name,
                 state_label="init",
             )
-
-            action_handler = Action(
+            action_interface = Action(
                 controller,
                 logger=logger,
                 trajectory_log_json_path=trajectory_path,
             )
-        logger.info(f"[LAMMAP] 컨트롤러 초기화 완료 ({time.time()-t_ctrl:.1f}s)")
-
-        # --- 씬 객체 정보 추출 ---
-        t_obj = time.time()
-        logger.info("[LAMMAP] 씬 객체 정보 추출 중...")
-        if args.ros:
-            with open("assets/ros/static/object_init_states.json") as f:
-                ros_objs = json.load(f)
-            objects_ai = f"\n\nobjects = {json.dumps(list(ros_objs.keys()))}"
+        elif args.ros:
+            save_scene_state(
+                controller=None,
+                output_path=base_result_path / f"states{int(args.init_prior_mean)}",
+                case_name=args.case,
+                scene_name=scene_name,
+                instruction=instruction_dir_name,
+                approach_name=approach_name,
+                state_label="init",
+            )
+            action_interface = RosExecutor(
+                trajectory_log_path=trajectory_path,
+                instruction=instruction,
+            )
         else:
-            objects_ai = get_scene_objects_for_lammap(controller)
-        logger.info(f"[LAMMAP] 씬 객체 정보 추출 완료 ({time.time()-t_obj:.1f}s)")
+            raise ValueError("Either --simulation or --ros must be set")
 
-        # --- LaMMA-P 계획 생성 (캐시 우선 조회) ---
-        computation_time_start = time.time()
-        mimic_code = None
-        wait_units = int(args.init_prior_mean) if args.init_prior_mean is not None else 100
+        # --- Resolve primitive_actions: cache-first, LLM as standalone fallback ---
+        primitive_actions = _load_cached_primitive_actions(
+            cache_file=args.llm_cache_file,
+            scene=scene_name,
+            case=args.case,
+            instruction=instruction,
+            instruction_dir_name=instruction_dir_name,
+            duration=wait_units,
+            task_folder_name=args.task_folder_name,
+            logger=logger,
+        )
 
-        if args.llm_cache_file and Path(args.llm_cache_file).exists():
-            version_idx = 0
-            if args.task_folder_name:
-                vm = re.search(r"_v(\d+)$", args.task_folder_name)
-                if vm:
-                    version_idx = int(vm.group(1)) - 1
-
-            instr_name = instruction if instruction.endswith(".json") else instruction_dir_name + ".json"
-            cache_key = f"{args.case}|{instr_name}|{wait_units}"
-            with open(args.llm_cache_file) as _cf:
-                _cache = json.load(_cf)
-
-            cached_list = _cache.get(cache_key, [])
-            if version_idx < len(cached_list) and cached_list[version_idx]:
-                mimic_code = cached_list[version_idx]
-                logger.info(
-                    f"[LAMMAP] 캐시 히트: {cache_key} [v{version_idx+1}] "
-                    f"(코드 길이: {len(mimic_code)})"
+        if primitive_actions is None:
+            if args.llm_cache_file:
+                # Cache file specified but missed — fail-fast so silent reruns of
+                # the LLM never sneak into the experiment matrix.
+                raise RuntimeError(
+                    f"[LAMMAP] cache miss for "
+                    f"{scene_name}|{args.case}|{instruction}|{wait_units}; "
+                    f"populate {args.llm_cache_file} via "
+                    f"scripts/precompute_lammap_llm.py"
                 )
+
+            # Standalone fallback: invoke the full LaMMaP pipeline.
+            logger.info("[LAMMAP] cache 미사용 — LLM/PDDL 직접 호출 (standalone 모드)")
+            if args.ros:
+                with open("assets/ros/static/object_init_states.json") as f:
+                    ros_objs = json.load(f)
+                objects_ai = f"\n\nobjects = {json.dumps(list(ros_objs.keys()))}"
             else:
-                logger.warning(
-                    f"[LAMMAP] 캐시 미스: {cache_key} [v{version_idx+1}] → 실제 LLM 호출"
-                )
+                objects_ai = get_scene_objects_for_lammap(controller)
 
-        if mimic_code is None:
+            lammap_base = os.path.dirname(os.path.abspath(__file__))
             if args.task_file:
-                mimic_code = run_lammap_from_task_file(
+                mimic_code, _llm_calls = run_lammap_from_task_file(
                     base_path=lammap_base,
                     task_file=args.task_file,
                     task_index=args.task_index,
@@ -472,7 +585,7 @@ def main():
                         tasks = json.load(f)
                     task_string = tasks[args.task_index]["instruction"]
             else:
-                mimic_code = run_lammap_planning(
+                mimic_code, _llm_calls = run_lammap_planning(
                     base_path=lammap_base,
                     task=task_string,
                     floor_plan=int(scene_name.replace("FloorPlan", "")),
@@ -481,81 +594,81 @@ def main():
                     api_key_file=args.openai_api_key_file,
                     logger=logger,
                     wait_units=wait_units,
+                    scene_type=("real_world" if args.ros else "kitchen"),
                 )
+            primitive_actions = flatten_mimic_to_primitive_actions(
+                mimic_code,
+                mode=("ros" if args.ros else "ai2thor"),
+                controller=controller,
+                logger=logger,
+            )
 
-        logger.info(f"LaMMA-P 계획 생성 완료")
-        logger.info(f"생성된 코드:\n{mimic_code[:500]}...")
+        if not primitive_actions:
+            raise RuntimeError("[LAMMAP] No primitive actions to execute")
 
-        # --- 생성된 코드를 파싱 → primitive actions 변환 ---
-        lammap_actions = parse_lammap_code_to_actions(mimic_code)
-        logger.info(f"파싱된 LaMMA-P 액션 수: {len(lammap_actions)}")
-
-        if not lammap_actions:
-            logger.error("LaMMA-P가 실행 가능한 액션을 생성하지 못했습니다")
-            sys.exit(1)
-
-        primitive_actions = convert_to_primitive_actions(
-            controller, lammap_actions, logger
-        )
-        logger.info(f"변환된 primitive action 수: {len(primitive_actions)}")
+        logger.info(f"[LAMMAP] primitive_actions ({len(primitive_actions)}):")
         for i, pa in enumerate(primitive_actions):
-            logger.info(f"  [{i+1}] {pa}")
+            logger.info(f"  [{i + 1}] {pa}")
 
-        # --- ai2thor에서 실행 ---
-        logger.info("ai2thor 실행 시작...")
-        elapsed_time, all_succeeded = execute_primitive_actions(
-            controller=controller,
-            action_interface=action_handler,
-            primitive_actions=primitive_actions,
-            logger=logger,
-        )
-
+        # --- Execute via the unified action_interface ---
+        computation_time_start = time.time()
+        if args.simulation:
+            elapsed_time, all_succeeded = execute_primitive_actions(
+                controller=controller,
+                action_interface=action_interface,
+                primitive_actions=primitive_actions,
+                logger=logger,
+            )
+        else:  # ROS
+            all_succeeded, elapsed_time, _action_logs = action_interface.execute_primitive_actions(
+                primitive_actions
+            )
         computation_time = time.time() - computation_time_start
 
         logger.info(
-            f"실행 완료 - elapsed_time: {elapsed_time}s, "
-            f"success: {all_succeeded}, "
-            f"computation_time: {computation_time:.2f}s"
+            f"[LAMMAP] 실행 완료 — elapsed={elapsed_time}s, "
+            f"success={all_succeeded}, computation_time={computation_time:.2f}s"
         )
 
-        # --- 결과 저장 ---
-        result_args = {
-            "approach_name": approach_name,
-            "user_input": instruction_dir_name,
-            "result": str(trajectory_path),
-            "json_output_path": instruction_dir_name,
-            "computation_time": computation_time,
-            "scene_name": scene_name,
-            "attempt": args.attempt,
-            "init_prior_mean": args.init_prior_mean,
-            "case_name": args.case,
-        }
-        result_save_llm(**result_args)
+        save_scene_state(
+            controller=controller,
+            output_path=base_result_path / f"states{int(args.init_prior_mean)}",
+            case_name=args.case,
+            scene_name=scene_name,
+            instruction=instruction_dir_name,
+            approach_name=approach_name,
+            state_label="end",
+        )
 
-        if not args.ros:
-            save_scene_state(
-                controller=controller,
-                output_path=base_result_path / f"states{int(args.init_prior_mean)}",
-                case_name=args.case,
-                scene_name=scene_name,
-                instruction=instruction_dir_name,
-                approach_name=approach_name,
-                state_label="end",
-            )
+        result_save_llm(
+            approach_name=approach_name,
+            user_input=instruction_dir_name,
+            result=str(trajectory_path),
+            json_output_path=instruction_dir_name,
+            computation_time=computation_time,
+            scene_name=scene_name,
+            attempt=args.attempt,
+            init_prior_mean=args.init_prior_mean,
+            case_name=args.case,
+            base_result_path=base_result_path,
+        )
 
         logger.info("[LAMMAP] 실행이 완료되었습니다.")
 
     except Exception as e:
-        logger.error(f"실행 중 오류 발생: {e}")
+        logger.error(f"[LAMMAP] 실행 중 오류 발생: {e}")
         import traceback
         traceback.print_exc()
         if controller:
-            controller.stop()
+            try:
+                controller.stop()
+            except Exception:
+                pass
         sys.exit(1)
     finally:
-        if ros_executor:
+        if isinstance(action_interface, RosExecutor):
             try:
-                ros_executor.shutdown()
+                action_interface.shutdown()
             except Exception as e:
                 logger.error(f"Error shutting down ROS executor: {e}")
         if controller:
@@ -564,7 +677,7 @@ def main():
             except Exception as e:
                 logger.error(f"Error stopping controller: {e}")
         gc.collect()
-        logger.info(f"[LAMMAP] 전체 소요시간: {time.time()-t_main_start:.1f}s. Exiting.")
+        logger.info(f"[LAMMAP] 전체 소요시간: {time.time() - t_main_start:.1f}s. Exiting.")
 
 
 if __name__ == "__main__":
