@@ -496,8 +496,12 @@ def main() -> None:
             belief_updater=belief_updater,
             belief_store=belief_store,
             ground_truth_store=ground_truth_store,
+            real_world_mode=args.ros,
         )
-        cost_calculator = HeuristicManager(action_handler)
+        cost_calculator = HeuristicManager(
+            action_handler,
+            real_world_mode=args.ros,
+        )
         scheduler = Scheduler(
             action_handler=action_handler,
             constraint_handler=constraint_handler,
@@ -505,6 +509,7 @@ def main() -> None:
             monitoring_policy=monitoring_policy,
             beam_width=constants.BEAM_WIDTH,
             simulation_depth=constants.SIMULATION_DEPTH,
+            real_world_mode=args.ros,
         )
         scene_poses: Dict[str, Any] = load_scene_positions(
             f"{scene_name}_positions.json"
@@ -600,6 +605,11 @@ def main() -> None:
                 last_entry.sim_end_time = ros_start_offset + elapsed_time
                 last_entry.execution_status = success
                 last_entry.primitive_action_log = action_logs
+                last_entry.schedule_start_time = last_entry.sim_start_time
+                last_entry.schedule_end_time = last_entry.sim_end_time
+                next_state = next_state._replace(
+                    current_time=last_entry.sim_end_time
+                )
 
                 if not success:
                     break
