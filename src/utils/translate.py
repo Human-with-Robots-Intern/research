@@ -58,7 +58,7 @@ class InstructionTranslator:
         )
 
         parts = instruction.split(" ")
-        action_name = parts[0]
+        action_name = parts[0].upper()
         object_name = parts[1]
         if object_name.lower() == "sink":
             object_name = "sink|sinkbasin"

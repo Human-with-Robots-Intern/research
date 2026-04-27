@@ -3,6 +3,7 @@ import concurrent.futures
 import gc
 import logging
 import os
+import os
 import re
 import shutil
 import subprocess
@@ -10,6 +11,7 @@ import threading
 import time
 import traceback
 from collections import defaultdict
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -29,6 +31,7 @@ from src.utils.config.constants import (
     RESULT_PATH,
     SCRIPTS_PATH,
 )
+from src.utils.recording import ActionCamRecorder
 
 # Create a single timestamp for the entire script run
 RUN_TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M")
@@ -42,6 +45,17 @@ logger = create_module_logger(
     run_timestamp=RUN_TIMESTAMP,
 )
 MAX_RETRIES = 10
+
+# Action-cam recording (real-world tasks only). The cam is served by
+# laptop3 (scripts/infra/serve_actioncam.sh). Override via env vars if the
+# host IP or port changes.
+CAMERA_HOST = os.getenv("ACTIONCAM_HOST", "192.168.0.9")
+CAMERA_PORT = int(os.getenv("ACTIONCAM_PORT", "9986"))
+# Flush defaults to 0: with serve_actioncam.sh's 'ffmpeg -listen 1'
+# layout, a flush session eats the single server slot and then the
+# main recorder races the respawn. Only enable (>0) if the server
+# stack is swapped for one that keeps :9986 open across clients.
+RECORD_FLUSH_SECONDS = int(os.getenv("ACTIONCAM_FLUSH_SECONDS", "0"))
 
 # Memory management constants
 MEMORY_THRESHOLD_PERCENT = 85.0  # Pause new tasks if memory usage exceeds this
@@ -159,6 +173,7 @@ class ExperimentTask:
     log_dir_timestamp: str
     gpu_id: int  # Assigned GPU ID for this task
     task_folder_name: str = "default_task_folder"  # The task folder name
+    llm_cache_file: Path | None = None  # LaMMaP precomputed primitive_actions cache
 
 
 def get_memory_usage() -> float:
@@ -306,6 +321,7 @@ def _run_script_and_log(
     attempt: int,
     gpu_id: int,
     task_folder_name: str,
+    llm_cache_file: Path | None = None,
 ) -> subprocess.CompletedProcess:
     """
     Constructs and runs a script command, capturing and logging the output.
@@ -361,6 +377,9 @@ def _run_script_and_log(
         cmd.append("--simulation")
         if cloud_rendering:
             cmd.append("--cloud-rendering")
+
+    if llm_cache_file is not None:
+        cmd.extend(["--llm-cache-file", str(llm_cache_file)])
 
     for key, value in (ablation_params | init_prior_params).items():
         if isinstance(value, bool):
@@ -503,6 +522,14 @@ def worker(task: ExperimentTask) -> None:
         )
         log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Real-world tasks pull the laptop3 action-cam MJPEG stream per
+        # attempt. Simulation runs skip recording entirely.
+        use_recorder = not task.is_simulation
+        video_output_dir = (
+            LOG_PATH / f"{task.log_dir_timestamp}-worker_logs" / "videos"
+        )
+        file_stem = Path(log_file_name).stem
+
         logger.critical(
             f"WORKER START | Baseline: {b_path.name} | Ablation: {task.ablation_name} | "
             f"Prior: {task.init_prior_name} | Case: {task.case_name} | Scene: {task.scene_name} | "
@@ -518,21 +545,34 @@ def worker(task: ExperimentTask) -> None:
                 time.sleep(buffer_between_instructions)
 
             for attempt in range(1, task.max_retries + 1):
-                result = _run_script_and_log(
-                    b_path,
-                    task.ablation_name,
-                    task.case_name,
-                    task.scene_name,
-                    instr_path_obj,
-                    task.is_simulation,
-                    task.cloud_rendering,
-                    log_file_path,
-                    task.ablation_params,
-                    task.init_prior_params,
-                    attempt=attempt,
-                    gpu_id=task.gpu_id,
-                    task_folder_name=task.task_folder_name,
+                recorder_ctx = (
+                    ActionCamRecorder(
+                        video_output_dir,
+                        f"{file_stem}_try{attempt}",
+                        host=CAMERA_HOST,
+                        port=CAMERA_PORT,
+                        flush_seconds=RECORD_FLUSH_SECONDS,
+                    )
+                    if use_recorder
+                    else nullcontext()
                 )
+                with recorder_ctx:
+                    result = _run_script_and_log(
+                        b_path,
+                        task.ablation_name,
+                        task.case_name,
+                        task.scene_name,
+                        instr_path_obj,
+                        task.is_simulation,
+                        task.cloud_rendering,
+                        log_file_path,
+                        task.ablation_params,
+                        task.init_prior_params,
+                        attempt=attempt,
+                        gpu_id=task.gpu_id,
+                        task_folder_name=task.task_folder_name,
+                        llm_cache_file=task.llm_cache_file,
+                    )
                 if result.returncode == 0:
                     logger.info(
                         f"Scheduler baseline {b_path.name} succeeded on attempt {attempt}."
@@ -556,21 +596,34 @@ def worker(task: ExperimentTask) -> None:
                 )
                 time.sleep(buffer_between_instructions)
             for attempt in range(1, task.max_retries + 1):
-                result = _run_script_and_log(
-                    b_path,
-                    task.ablation_name,
-                    task.case_name,
-                    task.scene_name,
-                    instr_path_obj,
-                    task.is_simulation,
-                    task.cloud_rendering,
-                    log_file_path,
-                    task.ablation_params,
-                    task.init_prior_params,
-                    attempt=attempt,
-                    gpu_id=task.gpu_id,
-                    task_folder_name=task.task_folder_name,
+                recorder_ctx = (
+                    ActionCamRecorder(
+                        video_output_dir,
+                        f"{file_stem}_try{attempt}",
+                        host=CAMERA_HOST,
+                        port=CAMERA_PORT,
+                        flush_seconds=RECORD_FLUSH_SECONDS,
+                    )
+                    if use_recorder
+                    else nullcontext()
                 )
+                with recorder_ctx:
+                    result = _run_script_and_log(
+                        b_path,
+                        task.ablation_name,
+                        task.case_name,
+                        task.scene_name,
+                        instr_path_obj,
+                        task.is_simulation,
+                        task.cloud_rendering,
+                        log_file_path,
+                        task.ablation_params,
+                        task.init_prior_params,
+                        attempt=attempt,
+                        gpu_id=task.gpu_id,
+                        task_folder_name=task.task_folder_name,
+                        llm_cache_file=task.llm_cache_file,
+                    )
                 if result.returncode == 0:
                     logger.info(
                         f"LLM baseline {b_path.name} succeeded on attempt {attempt}."
@@ -964,8 +1017,18 @@ def main() -> None:
     gpu_counter = 0
     # num_gpus is now loaded from config above
 
+    # LaMMaP precomputed cache path is selected by scene_type (real_world/kitchen/bathroom).
+    # The first scene_type wins when multiple are configured.
+    primary_scene_type = scene_types[0] if scene_types else None
+
     for baseline in baselines:
         b_type, b_path = baseline
+        is_lammap = "lammap" in str(b_path).lower()
+        lammap_cache_file: Path | None = None
+        if is_lammap and primary_scene_type:
+            lammap_cache_file = (
+                ASSETS_PATH / f"lammap_llm_cache_{primary_scene_type}.json"
+            )
 
         # Use all ablation configs for dag_bayesian, only DEFAULT for others.
         ablations_to_use = ablation_configs_to_run
@@ -1047,6 +1110,7 @@ def main() -> None:
                             log_dir_timestamp=run_timestamp,
                             gpu_id=gpu_id,
                             task_folder_name=task_src_folder_name,
+                            llm_cache_file=lammap_cache_file,
                         )
                         tasks_to_run.append(task)
 

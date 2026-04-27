@@ -648,16 +648,17 @@ class LLMHandler:
     
     def __init__(self, api_key_file: str):
         """Initialize the LLM handler.
-        
+
         Args:
             api_key_file (str): Path to the API key file
         """
         self.setup_api(api_key_file)
-    
+        self.call_count: int = 0
+
     def setup_api(self, api_key_file: str) -> None:
         """Set up the OpenAI API key."""
         try:
-            
+
             try:
                 api_key = Path(api_key_file + '.txt').read_text().strip()
                 if not api_key:
@@ -703,23 +704,24 @@ class LLMHandler:
             
         """
         retry_delay = DEFAULT_RETRY_DELAY
-        
+
         for attempt in range(MAX_RETRIES):
             try:
+                self.call_count += 1
                 if "gpt" not in gpt_version:
                     response = openai.completions.create(
-                        model=gpt_version, 
-                        prompt=prompt, 
-                        max_tokens=max_tokens, 
-                        temperature=temperature, 
-                        stop=stop, 
-                        logprobs=logprobs, 
+                        model=gpt_version,
+                        prompt=prompt,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        stop=stop,
+                        logprobs=logprobs,
                         frequency_penalty=frequency_penalty
                     )
                     return response, response.choices[0].text.strip()
                 else:
                     response = openai.chat.completions.create(
-                        model=gpt_version, 
+                        model=gpt_version,
                         messages=prompt
                     )
                     return response, response.choices[0].message.content.strip()
@@ -862,21 +864,30 @@ class TaskManager:
  result logging.
     """
     
-    def __init__(self, base_path: str, gpt_version: str, api_key_file: str, prompt_decompse_set: str = "pddl_train_task_decomposesep", prompt_allocation_set: str = "pddl_train_task_allocationsep", wait_units: int = 100):
+    def __init__(self, base_path: str, gpt_version: str, api_key_file: str, prompt_decompse_set: str = "pddl_train_task_decomposesep", prompt_allocation_set: str = "pddl_train_task_allocationsep", wait_units: int = 100, action_durations: Optional[Dict[str, float]] = None, scene_type: str = "real_world"):
         """Initialize the task manager.
-        
+
         Args:
             base_path (str): Base path for all operations
             gpt_version (str): Version of GPT to use
             api_key_file (str): Path to the API key file
             prompt_decompse_set (str): Name of the decomposition prompt set
             prompt_allocation_set (str): Name of the allocation prompt set
+            wait_units (int): Duration for autonomous wait operations.
+            action_durations (Optional[Dict[str, float]]): Per-primitive-action
+                duration table (NAVIGATE_TO/GRASP/PLACE/TOGGLE_*/MONITORING/...).
+                Injected into prompts so the LLM can reason about makespan and
+                interleaving feasibility.
+            scene_type (str): 'real_world' or 'kitchen'/'bathroom'. Selects
+                which Container Rules block to inject.
         """
         self.base_path = base_path
         self.gpt_version = gpt_version
         self.prompt_decompse_set = prompt_decompse_set
         self.prompt_allocation_set = prompt_allocation_set
         self.wait_units = wait_units
+        self.action_durations = action_durations or {}
+        self.scene_type = scene_type
         
         # Initialize components
         self.llm = LLMHandler(api_key_file)
@@ -1187,13 +1198,70 @@ class TaskManager:
             prompt += decompose_prompt
             prompt += "# GENERAL TASK DECOMPOSITION \n"
             prompt += "Decompose and parallel subtasks where ever possible.\n\n"
+            if self.scene_type == "real_world":
+                prompt += (
+                    "# Container Rules (real-world kitchen — MANDATORY)\n"
+                    "- To COOK any food on `stove` (e.g., sausage), the food MUST\n"
+                    "  first be placed INSIDE `pan`, and `pan` MUST be placed ON `stove`.\n"
+                    "  NEVER place food directly on `stove`. Cooking sequence (3 phases):\n"
+                    "    1) place food inside pan,  2) place pan on stove,\n"
+                    "    3) toggle_on stove,        4) wait or do other job,\n"
+                    "    5) toggle_off stove.\n"
+                    "- To MAKE TOMATO SAUCE, place `tomato` INSIDE `blue_pot` first, then place\n"
+                    "  `blue_pot` ON `stove`. Never use any container other than `blue_pot`.\n"
+                    "- To MAKE TEA, place `tea_cup` INSIDE `tea_pot`, then `toggle_on tea_pot`,\n"
+                    "  then `toggle_off tea_pot`. `tea_pot` is itself the appliance — do NOT put\n"
+                    "  it on stove.\n"
+                    "- For non-cooking placement (banana/carrot/cup on plate or in sink), no\n"
+                    "  intermediate container is needed.\n\n"
+                )
+            else:
+                prompt += (
+                    "# Container Rules (AI2-THOR kitchen — MANDATORY)\n"
+                    "- HEAT food in `Microwave`: GoTo Microwave -> OPEN Microwave\n"
+                    "  -> PLACE_INSIDE Microwave (food) -> CLOSE Microwave\n"
+                    "  -> TOGGLE_ON Microwave -> wait or do other job\n"
+                    "  -> TOGGLE_OFF Microwave. Microwave MUST be CLOSED before TOGGLE_ON.\n"
+                    "- COOK on STOVE: place food INSIDE `Pan` (or `Pot`), GRASP the pan,\n"
+                    "  then PLACE_ON_TOP `StoveBurner`. Then TOGGLE_ON `StoveKnob` (NOT\n"
+                    "  'Stove' or 'StoveBurner' — only `StoveKnob` is in the TOGGLE_ON list).\n"
+                    "  Stop with TOGGLE_OFF `StoveKnob`.\n"
+                    "- STORE food in `Fridge`: GoTo Fridge -> OPEN Fridge\n"
+                    "  -> PLACE_INSIDE Fridge (food) -> CLOSE Fridge. Fridge has no TOGGLE.\n"
+                    "- FILL `Pot`/`Mug` with water: GRASP Pot -> PLACE_INSIDE SinkBasin\n"
+                    "  -> TOGGLE_ON Faucet -> short wait -> TOGGLE_OFF Faucet\n"
+                    "  -> GRASP Pot to take it out for next use.\n"
+                    "- MAKE COFFEE: PLACE Mug ON CoffeeMachine -> TOGGLE_ON CoffeeMachine\n"
+                    "  -> wait -> TOGGLE_OFF CoffeeMachine.\n"
+                    "- SLICE Egg in Pan: GRASP Egg -> PLACE_ON_TOP Pan -> SLICE Egg.\n"
+                    "  The egg cracks open in the pan and cooks there.\n"
+                    "- SLICE Tomato/Potato/Apple/Bread/Lettuce: if a Knife is available,\n"
+                    "  GRASP Knife first, then SLICE <food>, then place Knife back on a\n"
+                    "  CounterTop.\n"
+                    "- BREAD heating uses `Microwave` only. Do NOT use Toaster (out of scope).\n"
+                    "- Cooking sequence on stove (3 phases): 1) place food in pan,\n"
+                    "  2) place pan on StoveBurner, 3) TOGGLE_ON StoveKnob,\n"
+                    "  4) wait or do other job, 5) TOGGLE_OFF StoveKnob.\n\n"
+                )
+            durations_block = ""
+            if self.action_durations:
+                durations_block = "# Approximate Per-Action Durations (seconds)\n"
+                for k, v in self.action_durations.items():
+                    durations_block += f"- {k}: {v}\n"
+                durations_block += (
+                    "- Use these to estimate whether a sequence of independent actions\n"
+                    "  fits inside a wait window (e.g., NAV+GRASP+NAV+PLACE ≈ sum of above)\n"
+                    "  and decide what to interleave during long wait operations.\n\n"
+                )
+
             prompt += (
                 "# Temporal Guidelines\n"
                 "- Some subtasks involve autonomous operations that require waiting (e.g., cooking on stove, boiling water, making tea).\n"
                 f"- For such operations, include a wait action with duration = {self.wait_units} time units.\n"
                 "- Actions that immediately follow each other (pick up then place) have 0 gap.\n"
                 "- Turn off appliances immediately after their operation completes.\n\n"
-                "# Makespan Minimization (single robot)\n"
+                + durations_block
+                + "# Makespan Minimization (single robot)\n"
                 "- The goal is to MINIMIZE total makespan (total time until all tasks complete).\n"
                 "- During long wait actions (e.g., stove cooking, boiling), the robot is idle and should\n"
                 "  INTERLEAVE independent subtasks that do not depend on the waiting operation.\n"

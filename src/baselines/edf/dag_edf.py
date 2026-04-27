@@ -30,7 +30,7 @@ from src.utils.io_utils.task_io import (
     load_task_data_from_sampled_set,
 )
 from src.utils.ros_executor import RosExecutor
-from utils.task.task_util import TaskUtil
+from src.utils.task.task_util import TaskUtil
 
 
 def is_executable(subtask: Subtask, current_state: SchedulerState) -> bool:
@@ -397,7 +397,7 @@ def parse_arguments():
     parser.add_argument(
         "-s",
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
     )
     parser.add_argument(
@@ -675,7 +675,8 @@ def main():
                 trajectory_log_path=Path(
                     base_result_path
                     / f"states{int(args.init_prior_mean)}/{args.case}/{args.instruction.split('.json')[0]}/{scene_name}/{approach_name}/trajectory_log.json"
-                )
+                ),
+                instruction=input_natural_language,
             )
             real_executed_result_schedule = ros_executor.execute_schedule(
                 result_schedule

@@ -780,7 +780,7 @@ def main():
         if args.ros:
             # ROS 모드: AI2-THOR 컨트롤러 대신 RosExecutor 사용
             controller = None
-            ros_executor = RosExecutor(trajectory_log_path=trajectory_path)
+            ros_executor = RosExecutor(trajectory_log_path=trajectory_path, instruction=instruction)
             action_handler = None
         else:
             # 시뮬레이션 모드: AI2-THOR 컨트롤러 초기화

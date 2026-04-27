@@ -164,7 +164,7 @@ FACTOR_ALPHA = 0.001
 SIMILARITY_THRESHOLD = 0.7
 MIN_VARIANCE = 1e-6
 
-# Timing tolerance can be interpreted both as a ratio and an absolute cap.
+# Timing tolerance can be finterpreted both as a ratio and an absolute cap.
 # The ratio (30%) mirrors the previous behaviour, while the absolute value
 # allows capping the tolerance window for large intervals.
 TIMING_TOLERANCE_DEFAULT = 100.0
@@ -188,8 +188,8 @@ ACTION_SPLIT_PRECISION = 4.0  # TODO: calibrate from physical measurements
 # near the interaction boundary.
 RISK_GRACE_SECONDS = 4.5
 # ========== 스케줄러 설정 ==========
-SIMULATION_DEPTH = 3
-BEAM_WIDTH = 3
+SIMULATION_DEPTH = 10
+BEAM_WIDTH = 10
 EPSILON = 1
 LARGE_NUMBER = 1e4
 TOP_K = 1
@@ -270,6 +270,7 @@ CRITICAL_OBJECT_INTERVALS = {
     "Egg": INIT_PRIOR_MEAN,
     "CounterTop": INIT_PRIOR_MEAN,
     "CoffeeMachine": INIT_PRIOR_MEAN,
+    "tea_pot": INIT_PRIOR_MEAN,
 }
 
 # Non-critical이지만 일관된 시간을 적용하고 싶은 객체
@@ -295,4 +296,5 @@ CRITICAL_OBJECT_GROUND_TRUTH = {
     "Mug": INIT_PRIOR_MEAN,
     "Plate": INIT_PRIOR_MEAN,
     "Bread": INIT_PRIOR_MEAN,
+    "tea_pot": GT_INTERVAL,
 }

@@ -1,33 +1,36 @@
 {
-    "OPEN": [
-    ],
-    "CLOSE": [
-    ],
+    "OPEN": [],
+    "CLOSE": [],
     "TOGGLE_ON": [
         "Stove",
-        "Laundry_Machine"
+        "tea_pot"
     ],
     "TOGGLE_OFF": [
         "Stove",
-        "Laundry_Machine"
+        "tea_pot"
     ],
     "GRASP": [
-        "Tomato",
         "Banana",
         "Sausage",
-        "Chicken",
         "Pan",
-        "Cup",
+        "green_cup",
         "Plate",
-        "blue_bowl",
-        "orange_bowl"
+        "purple_bowl",
+        "orange_bowl",
+        "tea_cup",
+        "Tomato",
+        "carrot",
+        "blue_pot"
     ],
     "RECEPTACLE": [
         "Pan",
-        "blue_bowl",
+        "purple_bowl",
         "orange_bowl",
         "Table",
         "Sink",
-        "Stove"
+        "Stove",
+        "blue_pot",
+        "Plate",
+        "tea_pot"
     ]
 }
