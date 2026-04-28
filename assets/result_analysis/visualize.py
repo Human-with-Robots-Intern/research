@@ -6,6 +6,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Ellipse
 
+# --- Global rcParams (paper style) ---
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.size": 9,
+    "axes.labelsize": 9,
+    "axes.titlesize": 9,
+    "xtick.labelsize": 8,
+    "ytick.labelsize": 8,
+    "legend.fontsize": 8,
+})
+
 # --- 데이터 준비 (공통) ---
 # 순서: [Under(60s), Under-mid(80s), Correct(100s), Over-mid(120s), Over(140s)]
 DATA = {
@@ -23,14 +34,14 @@ DATA = {
         "marker": "p",
         "style": "-",
     },
-    "tDAG + EDF": {
+    "EDF": {
         "sr": [],
         "makespan": [],
         "color": "brown",
         "marker": "x",
         "style": "-.",
     },
-    "tDAG + CPM": {
+    "CPM": {
         "sr": [],
         "makespan": [],
         "color": "green",
@@ -56,8 +67,8 @@ DATA = {
 APPROACH_LIST = {
     "dag_bayesian_DEFAULT": "Ours",
     "dag_bayesian_NONE_MONITORING": "Ours (w/o Mon.)",
-    "dag_edf": "tDAG + EDF",
-    "cpm": "tDAG + CPM",
+    "dag_edf": "EDF",
+    "cpm": "CPM",
     "progprompt": "Prog.",
     "cap_ai2thor_simulation": "CaP",
 }
@@ -220,7 +231,7 @@ def plot_separate_metrics(
         conditions (list): x축 레이블 리스트.
         output_path (str | None): 그래프를 저장할 파일 경로. None이면 화면에 표시.
     """
-    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    fig, ax = plt.subplots(1, 1, figsize=(6.0, 6.0))
 
     metrics_info = [
         (
@@ -232,9 +243,8 @@ def plot_separate_metrics(
 
     method_order = [
         "Ours",
-        "Ours (w/o Mon.)",
-        "tDAG + CPM",
-        "tDAG + EDF",
+        "CPM",
+        "EDF",
         "Prog.",
         "CaP",
     ]
@@ -262,12 +272,11 @@ def plot_separate_metrics(
                 markersize=9,
             )
 
-        ax.set_title(title, fontsize=18, pad=15, fontweight="bold")
-        ax.set_ylabel(ylabel, fontsize=16, labelpad=10)
+        ax.set_ylabel(ylabel, fontsize=22, labelpad=10)
         ax.set_xlabel(
-            r"Initial Belief Condition ($\Delta_0$)", fontsize=16, labelpad=10
+            r"Initial Belief Condition ($\Delta_0$)", fontsize=22, labelpad=10
         )
-        ax.tick_params(axis="both", which="major", labelsize=14)
+        ax.tick_params(axis="both", which="major", labelsize=18)
         ax.grid(True, linestyle="--", alpha=0.4)
 
         # Correct 조건 강조 (빨간색 세로줄, 약간 투명하게)
@@ -286,7 +295,7 @@ def plot_separate_metrics(
         loc="center right",
         bbox_to_anchor=(0.99, 0.65),  # bbox_to_anchor 조정
         ncol=1,
-        fontsize=14,
+        fontsize=17,
         framealpha=0.9,
     )
 

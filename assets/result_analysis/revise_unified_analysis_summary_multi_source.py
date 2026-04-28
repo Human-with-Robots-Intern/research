@@ -144,6 +144,13 @@ def load_argument_parser() -> argparse.Namespace:
         / "unified_analysis_summary.revised.json",
         help="Path to save the merged JSON result.",
     )
+    parser.add_argument(
+        "--row_grouping",
+        type=str,
+        default="method",
+        choices=["method", "difficulty"],
+        help="Row grouping: 'method' (default) groups methods as outer multirow with difficulty inside; 'difficulty' inverts so that each task complexity is the outer multirow with methods listed inside it.",
+    )
     return parser.parse_args()
 
 
@@ -772,6 +779,7 @@ def generate_latex_table(
     display_methods: List[str],
     ablation_style: str = "parentheses",
     std_mode: str = "combined",
+    row_grouping: str = "method",
 ) -> str:
     """Generate the complete LaTeX code for the results table.
 
@@ -863,7 +871,11 @@ def generate_latex_table(
     num_metrics = len(INCLUDED_METRICS)
 
     # Build the second row (Init Labels)
-    header_row_2_parts = [r"\multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Method}}}"]
+    outer_label = "Difficulty" if row_grouping == "difficulty" else "Method"
+    inner_label = "Method" if row_grouping == "difficulty" else "Difficulty"
+    header_row_2_parts = [
+        r"\multicolumn{2}{c|}{\multirow{2}{*}{\textbf{" + outer_label + r"}}}"
+    ]
     header_row_3_parts = []  # Will hold cmidrules
 
     # Calculate column spans
@@ -880,7 +892,9 @@ def generate_latex_table(
         header_row_3_parts.append(rf"\cmidrule(l){{{start_col}-{end_col}}}")
 
     # Build the third row (SR, GCR, TSR, Makespan repeated)
-    header_row_4_parts = [r"\multicolumn{2}{c|}{\textbf{Difficulty}}"]
+    header_row_4_parts = [
+        r"\multicolumn{2}{c|}{\textbf{" + inner_label + r"}}"
+    ]
     for _ in range(len(column_labels)):
         header_row_4_parts.append(metric_header_str)
 
@@ -894,92 +908,86 @@ def generate_latex_table(
     )
 
     # Table Body
-    for method_idx, method_key in enumerate(methods_to_plot):
-        # Handle display names
-        method_label = METHOD_DISPLAY_NAMES.get(method_key, method_key)
+    def _emit_metric_cells(method_key: str, task_key: str) -> List[str]:
+        """Build the SR/GCR/TCSR/MS cells for one (method, task) row."""
+        cells: List[str] = []
+        for init_key in init_keys:
+            metrics = data.get(method_key, {}).get(task_key, {}).get(init_key, {})
+            abl_metrics = None
+            if ablation_style == "parentheses":
+                if method_key == "dag_bayesian_DEFAULT":
+                    abl_metrics = (
+                        data.get(ABLATION_METHOD_KEY, {})
+                        .get(task_key, {})
+                        .get(init_key)
+                    )
+            for metric_key in INCLUDED_METRICS:
+                val_key = "makespan_sr_1" if metric_key == "makespan" else metric_key
+                val = metrics.get(val_key)
+                abl_val = abl_metrics.get(val_key) if abl_metrics else None
+                lookup_metric_key = val_key
+                b_global = best_global.get(
+                    (task_key, init_key, lookup_metric_key),
+                    float("inf") if metric_key == "makespan" else float("-inf"),
+                )
+                b_global_second = best_global_second.get(
+                    (task_key, init_key, lookup_metric_key), None
+                )
+                b_baseline = best_baseline.get(
+                    (task_key, init_key, lookup_metric_key),
+                    float("inf") if metric_key == "makespan" else float("-inf"),
+                )
+                b_ours = best_ours.get(
+                    (task_key, init_key, lookup_metric_key),
+                    float("inf") if metric_key == "makespan" else float("-inf"),
+                )
+                is_ours_method = "dag_bayesian" in method_key
+                cells.append(
+                    fmt_cell(
+                        val, metric_key, b_global, b_global_second, b_baseline,
+                        b_ours, is_ours_method, abl_val,
+                        show_ablation_in_parens=(ablation_style == "parentheses"),
+                        std_mode=std_mode,
+                    )
+                )
+        return cells
 
+    if row_grouping == "difficulty":
+        # Outer = Difficulty, Inner = Method
         for task_idx, task_key in enumerate(TASK_ORDER):
-            row_parts = []
-
-            # Method Name Column (with multirow)
-            if task_idx == 0:
-                row_parts.append(f"\\multirow{{3}}{{*}}{{\\textbf{{{method_label}}}}}")
-            else:
-                # For subsequent rows in a multirow block, leave the first column empty.
-                row_parts.append("")
-
-            # Task Difficulty Column
-            row_parts.append(
-                f"\\textbf{{{TASK_DISPLAY_NAMES.get(task_key, task_key)}}}"
-            )
-
-            # Metric Columns for each requested init key
-            for init_key in init_keys:
-                metrics = data.get(method_key, {}).get(task_key, {}).get(init_key, {})
-
-                # Get ablation data if applicable AND style is parentheses
-                abl_metrics = None
-                if ablation_style == "parentheses":
-                    if method_key == "dag_bayesian_DEFAULT":
-                        abl_metrics = (
-                            data.get(ABLATION_METHOD_KEY, {})
-                            .get(task_key, {})
-                            .get(init_key)
-                        )
-
-                for metric_key in INCLUDED_METRICS:
-                    # Table display logic: Use makespan_sr_1 for makespan column
-                    val_key = (
-                        "makespan_sr_1" if metric_key == "makespan" else metric_key
-                    )
-                    val = metrics.get(val_key)
-
-                    abl_val = None
-                    if abl_metrics:
-                        abl_val = abl_metrics.get(val_key)
-
-                    # For best value comparison, we also need to look up the correct key
-                    # create a temporary key for lookup
-                    lookup_metric_key = val_key
-
-                    b_global = best_global.get(
-                        (task_key, init_key, lookup_metric_key),
-                        float("inf") if metric_key == "makespan" else float("-inf"),
-                    )
-                    b_global_second = best_global_second.get(
-                        (task_key, init_key, lookup_metric_key),
-                        None,
-                    )
-                    b_baseline = best_baseline.get(
-                        (task_key, init_key, lookup_metric_key),
-                        float("inf") if metric_key == "makespan" else float("-inf"),
-                    )
-                    b_ours = best_ours.get(
-                        (task_key, init_key, lookup_metric_key),
-                        float("inf") if metric_key == "makespan" else float("-inf"),
-                    )
-
-                    is_ours_method = "dag_bayesian" in method_key
-
+            for method_idx, method_key in enumerate(methods_to_plot):
+                method_label = METHOD_DISPLAY_NAMES.get(method_key, method_key)
+                row_parts: List[str] = []
+                if method_idx == 0:
                     row_parts.append(
-                        fmt_cell(
-                            val,
-                            metric_key,
-                            b_global,
-                            b_global_second,
-                            b_baseline,
-                            b_ours,
-                            is_ours_method,
-                            abl_val,
-                            show_ablation_in_parens=(ablation_style == "parentheses"),
-                            std_mode=std_mode,
-                        )
+                        f"\\multirow{{{len(methods_to_plot)}}}{{*}}{{\\textbf{{{TASK_DISPLAY_NAMES.get(task_key, task_key)}}}}}"
                     )
-
-            lines.append(" & ".join(row_parts) + r" \\")
-
-        if method_idx < len(methods_to_plot) - 1:
-            lines.append(r"\midrule")
+                else:
+                    row_parts.append("")
+                row_parts.append(f"\\textbf{{{method_label}}}")
+                row_parts.extend(_emit_metric_cells(method_key, task_key))
+                lines.append(" & ".join(row_parts) + r" \\")
+            if task_idx < len(TASK_ORDER) - 1:
+                lines.append(r"\midrule")
+    else:
+        # Outer = Method, Inner = Difficulty (default, original)
+        for method_idx, method_key in enumerate(methods_to_plot):
+            method_label = METHOD_DISPLAY_NAMES.get(method_key, method_key)
+            for task_idx, task_key in enumerate(TASK_ORDER):
+                row_parts = []
+                if task_idx == 0:
+                    row_parts.append(
+                        f"\\multirow{{{len(TASK_ORDER)}}}{{*}}{{\\textbf{{{method_label}}}}}"
+                    )
+                else:
+                    row_parts.append("")
+                row_parts.append(
+                    f"\\textbf{{{TASK_DISPLAY_NAMES.get(task_key, task_key)}}}"
+                )
+                row_parts.extend(_emit_metric_cells(method_key, task_key))
+                lines.append(" & ".join(row_parts) + r" \\")
+            if method_idx < len(methods_to_plot) - 1:
+                lines.append(r"\midrule")
 
     # Footer
     lines.extend(
@@ -1060,6 +1068,7 @@ def main() -> None:
             methods_to_display,
             args.ablation_style,
             args.std_mode,
+            args.row_grouping,
         )
     )
 
