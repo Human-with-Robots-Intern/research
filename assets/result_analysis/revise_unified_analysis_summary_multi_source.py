@@ -54,10 +54,11 @@ METHOD_DISPLAY_NAMES: Dict[str, str] = {
     "dag_bayesian_NONE_MONITORING": "Ours (w/o Mon.)",
     "dag_bayesian_NONE_URGENCY": "Ours (w/o Urg.)",
     "dag_bayesian_NONE_REMAINING_WORK": "Ours (w/o Rem.)",
-    "dag_edf": "EDF",
-    "cpm": "CPM",
+    "dag_edf": "tDAG + EDF",
+    "cpm": "tDAG + CPM",
     "progprompt": "Prog.",
     "cap_ai2thor_simulation": "CaP",
+    "lammap_simulation": "LAMMAP",
 }
 
 # Methods to be included in the main comparison table and their order
@@ -143,6 +144,13 @@ def load_argument_parser() -> argparse.Namespace:
         / "results"
         / "unified_analysis_summary.revised.json",
         help="Path to save the merged JSON result.",
+    )
+    parser.add_argument(
+        "--row_grouping",
+        type=str,
+        default="method",
+        choices=["method", "difficulty"],
+        help="Row grouping: 'method' (default) groups methods as outer multirow with difficulty inside; 'difficulty' inverts so each task complexity is the outer multirow with methods listed inside.",
     )
     return parser.parse_args()
 
@@ -452,11 +460,20 @@ def collect_and_aggregate(
                             means = [v[0] for v in values]
                             stds = [v[1] for v in values]
 
+                            # makespan_sr_1: 성공 trial이 없는 seed의 0은 sentinel이므로 평균에서 제외.
+                            # (다른 metric은 0이 정상 값일 수 있어 그대로 사용)
+                            if metric == "makespan_sr_1":
+                                filtered = [(m, s) for m, s in zip(means, stds) if m > 0]
+                                if filtered:
+                                    means = [m for m, _ in filtered]
+                                    stds = [s for _, s in filtered]
+                                # else: keep all zeros → mean_val=0 표시 (성공 0건)
+
                             mean_val = np.mean(means)
 
                             # Variance of means (between-group variance)
                             # Use ddof=1 for sample variance if we consider these sources as samples
-                            var_means = np.var(means, ddof=1)
+                            var_means = np.var(means, ddof=1) if len(means) > 1 else 0.0
                             std_seeds = np.sqrt(var_means)
 
                             # Mean of variances (within-group variance)
@@ -537,23 +554,27 @@ def find_best_values(data: Dict[str, Any], methods_to_compare: List[str]) -> Tup
                 tcsr = get_val(metrics, "tcsr", -1.0)
                 mk = get_val(metrics, "makespan_sr_1", float("inf"))
 
+                # Exclude makespan from best-value comparison when SR < 5%
+                # (sample biased toward simpler instructions; cell will be N/A)
+                mk_for_compare = mk if (sr is None or sr >= 5.0) else float("inf")
+
                 # Add to global lists
                 global_sr.append(sr)
                 global_gcr.append(gcr)
                 global_tcsr.append(tcsr)
-                global_mk.append(mk)
+                global_mk.append(mk_for_compare)
 
                 # Add to specific lists
                 if "dag_bayesian" in method:
                     ours_sr.append(sr)
                     ours_gcr.append(gcr)
                     ours_tcsr.append(tcsr)
-                    ours_mk.append(mk)
+                    ours_mk.append(mk_for_compare)
                 else:
                     base_sr.append(sr)
                     base_gcr.append(gcr)
                     base_tcsr.append(tcsr)
-                    base_mk.append(mk)
+                    base_mk.append(mk_for_compare)
 
             # Helper to find best and second best
             def get_top_two(
@@ -772,6 +793,7 @@ def generate_latex_table(
     display_methods: List[str],
     ablation_style: str = "parentheses",
     std_mode: str = "combined",
+    row_grouping: str = "method",
 ) -> str:
     """Generate the complete LaTeX code for the results table.
 
@@ -862,25 +884,28 @@ def generate_latex_table(
     metric_header_str = " & ".join(metric_headers)
     num_metrics = len(INCLUDED_METRICS)
 
-    # Build the second row (Init Labels)
-    header_row_2_parts = [r"\multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Method}}}"]
+    # Header: side-by-side single-cell labels. Outer label first (matches body grouping).
+    if row_grouping == "difficulty":
+        outer_label, inner_label = r"\textbf{Difficulty}", r"\textbf{Method}"
+    else:
+        outer_label, inner_label = r"\textbf{Method}", r"\textbf{Difficulty}"
+    header_row_2_parts = [
+        rf"\multirow{{2}}{{*}}{{{outer_label}}}",
+        rf"\multirow{{2}}{{*}}{{{inner_label}}}",
+    ]
     header_row_3_parts = []  # Will hold cmidrules
 
-    # Calculate column spans
+    # Calculate column spans for top-level grouping (e.g., "Correct (100s)")
     for i, label in enumerate(column_labels):
         header_row_2_parts.append(rf"\multicolumn{{{num_metrics}}}{{c|}}{{{label}}}")
 
-        # cmidrule calculation
-        # First 2 columns are Method/Difficulty. Then blocks of num_metrics.
-        # Start col for block i (0-indexed i): 3 + i * num_metrics
-        # End col: 3 + i * num_metrics + num_metrics - 1
+        # cmidrule covers the metric block (cols 3..3+num_metrics-1)
         start_col = 3 + i * num_metrics
         end_col = start_col + num_metrics - 1
-
         header_row_3_parts.append(rf"\cmidrule(l){{{start_col}-{end_col}}}")
 
-    # Build the third row (SR, GCR, TSR, Makespan repeated)
-    header_row_4_parts = [r"\multicolumn{2}{c|}{\textbf{Difficulty}}"]
+    # Sub-row: empty Method/Difficulty cells, then metric names per block
+    header_row_4_parts = ["", ""]
     for _ in range(len(column_labels)):
         header_row_4_parts.append(metric_header_str)
 
@@ -893,25 +918,36 @@ def generate_latex_table(
         ]
     )
 
-    # Table Body
-    for method_idx, method_key in enumerate(methods_to_plot):
-        # Handle display names
-        method_label = METHOD_DISPLAY_NAMES.get(method_key, method_key)
+    # Table Body — outer/inner determined by row_grouping
+    if row_grouping == "difficulty":
+        outer_iter = list(enumerate(TASK_ORDER))
+        inner_iter = list(enumerate(methods_to_plot))
+    else:
+        outer_iter = list(enumerate(methods_to_plot))
+        inner_iter = list(enumerate(TASK_ORDER))
 
-        for task_idx, task_key in enumerate(TASK_ORDER):
-            row_parts = []
-
-            # Method Name Column (with multirow)
-            if task_idx == 0:
-                row_parts.append(f"\\multirow{{3}}{{*}}{{\\textbf{{{method_label}}}}}")
+    for outer_idx, outer_val in outer_iter:
+        for inner_idx, inner_val in inner_iter:
+            if row_grouping == "difficulty":
+                task_key = outer_val
+                method_key = inner_val
+                outer_label_text = TASK_DISPLAY_NAMES.get(task_key, task_key)
+                inner_label_text = METHOD_DISPLAY_NAMES.get(method_key, method_key)
             else:
-                # For subsequent rows in a multirow block, leave the first column empty.
-                row_parts.append("")
+                method_key = outer_val
+                task_key = inner_val
+                outer_label_text = METHOD_DISPLAY_NAMES.get(method_key, method_key)
+                inner_label_text = TASK_DISPLAY_NAMES.get(task_key, task_key)
 
-            # Task Difficulty Column
-            row_parts.append(
-                f"\\textbf{{{TASK_DISPLAY_NAMES.get(task_key, task_key)}}}"
-            )
+            row_parts = []
+            outer_span = len(inner_iter)
+            if inner_idx == 0:
+                row_parts.append(
+                    f"\\multirow{{{outer_span}}}{{*}}{{\\textbf{{{outer_label_text}}}}}"
+                )
+            else:
+                row_parts.append("")
+            row_parts.append(f"\\textbf{{{inner_label_text}}}")
 
             # Metric Columns for each requested init key
             for init_key in init_keys:
@@ -927,12 +963,24 @@ def generate_latex_table(
                             .get(init_key)
                         )
 
+                # SR < 5%인 method는 makespan 표본이 단순 instruction에 편향됨
+                # (e.g., LaMMAP는 fill_bowl + put_apple_lettuce 같은 쉬운 trial만 성공) →
+                # makespan 비교가 fair하지 않으므로 N/A 표시
+                sr_val_raw = metrics.get("sr")
+                sr_mean = sr_val_raw[0] if isinstance(sr_val_raw, tuple) else sr_val_raw
+                makespan_unreliable = sr_mean is not None and sr_mean < 5.0
+
                 for metric_key in INCLUDED_METRICS:
                     # Table display logic: Use makespan_sr_1 for makespan column
                     val_key = (
                         "makespan_sr_1" if metric_key == "makespan" else metric_key
                     )
                     val = metrics.get(val_key)
+
+                    # Mark makespan as N/A when SR is too low for fair comparison
+                    if metric_key == "makespan" and makespan_unreliable:
+                        row_parts.append("--")
+                        continue
 
                     abl_val = None
                     if abl_metrics:
@@ -978,7 +1026,7 @@ def generate_latex_table(
 
             lines.append(" & ".join(row_parts) + r" \\")
 
-        if method_idx < len(methods_to_plot) - 1:
+        if outer_idx < len(outer_iter) - 1:
             lines.append(r"\midrule")
 
     # Footer
@@ -1060,6 +1108,7 @@ def main() -> None:
             methods_to_display,
             args.ablation_style,
             args.std_mode,
+            args.row_grouping,
         )
     )
 

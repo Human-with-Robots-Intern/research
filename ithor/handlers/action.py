@@ -17,7 +17,7 @@ from .navigation_handler import NavigationHandler
 
 log = create_module_logger(module_name=__name__, module_log=True, level="DEBUG")
 
-ACTION_TIME_SLEEP = 0.01
+ACTION_TIME_SLEEP = 0.0001
 MOVE_BACKWARD_DISTANCE = 100
 
 

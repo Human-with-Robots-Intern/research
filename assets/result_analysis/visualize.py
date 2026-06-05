@@ -6,6 +6,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Ellipse
 
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+        "mathtext.fontset": "dejavuserif",
+        "font.size": 10,
+        "axes.labelsize": 13,
+        "xtick.labelsize": 11,
+        "ytick.labelsize": 11,
+        "legend.fontsize": 11,
+        "axes.linewidth": 0.9,
+        "pdf.fonttype": 42,
+        "ps.fonttype": 42,
+    }
+)
+
 # --- 데이터 준비 (공통) ---
 # 순서: [Under(60s), Under-mid(80s), Correct(100s), Over-mid(120s), Over(140s)]
 DATA = {
@@ -148,7 +164,7 @@ def plot_trajectory(data: dict, output_path: str | None = None) -> None:
         data (dict): 시각화에 사용할 데이터.
         output_path (str | None): 그래프를 저장할 파일 경로. None이면 화면에 표시.
     """
-    fig, ax = plt.subplots(figsize=(8, 8))
+    fig, ax = plt.subplots(figsize=(6, 6))
 
     # 각 Method별 궤적 그리기
     for name, d in data.items():
@@ -191,9 +207,6 @@ def plot_trajectory(data: dict, output_path: str | None = None) -> None:
     # --- 축 및 설정 ---
     ax.set_xlabel("Makespan (s) ↓ (Efficiency)", fontsize=16, fontweight="bold")
     ax.set_ylabel("Success Rate (%) ↑ (Robustness)", fontsize=16, fontweight="bold")
-    ax.set_title(
-        "Performance Stability across Belief Conditions", fontsize=18, fontweight="bold"
-    )
     ax.tick_params(axis="both", which="major", labelsize=14)
 
     # 그리드 및 범례
@@ -220,7 +233,7 @@ def plot_separate_metrics(
         conditions (list): x축 레이블 리스트.
         output_path (str | None): 그래프를 저장할 파일 경로. None이면 화면에 표시.
     """
-    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
+    fig, ax = plt.subplots(1, 1, figsize=(6, 5))
 
     metrics_info = [
         (
@@ -262,12 +275,14 @@ def plot_separate_metrics(
                 markersize=9,
             )
 
-        ax.set_title(title, fontsize=18, pad=15, fontweight="bold")
-        ax.set_ylabel(ylabel, fontsize=16, labelpad=10)
+        # Match paper-rendered font with legend.png:
+        # legend (canvas 14in, fontsize 24) at full \linewidth → 1.71L pt on paper.
+        # plot (canvas 6in) at 0.45\linewidth → fontsize 23 ≈ same paper size.
+        ax.set_ylabel(ylabel, fontsize=23, labelpad=8)
         ax.set_xlabel(
-            r"Initial Belief Condition ($\Delta_0$)", fontsize=16, labelpad=10
+            r"Initial Belief Condition ($\Delta_0$)", fontsize=23, labelpad=8
         )
-        ax.tick_params(axis="both", which="major", labelsize=14)
+        ax.tick_params(axis="both", which="major", labelsize=20)
         ax.grid(True, linestyle="--", alpha=0.4)
 
         # Correct 조건 강조 (빨간색 세로줄, 약간 투명하게)
@@ -278,21 +293,8 @@ def plot_separate_metrics(
         except ValueError:
             pass  # 100s가 없으면 표시하지 않음
 
-    # 범례 통합
-    handles, labels = ax.get_legend_handles_labels()
-    fig.legend(
-        handles,
-        labels,
-        loc="center right",
-        bbox_to_anchor=(0.99, 0.65),  # bbox_to_anchor 조정
-        ncol=1,
-        fontsize=14,
-        framealpha=0.9,
-    )
-
+    # 범례는 외부 legend.png에서 별도 처리
     plt.tight_layout()
-    # tight_layout 후 하단 여백 확보
-    plt.subplots_adjust(bottom=0.25)
     if output_path:
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         print(f"그래프가 저장되었습니다: {output_path}")

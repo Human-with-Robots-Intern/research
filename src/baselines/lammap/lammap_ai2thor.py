@@ -568,4 +568,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        # ai2thor cloud_rendering 의 Unity 자식 process 가 controller.stop() 후에도
+        # 안 죽고 살아있어 worker 가 종료 안 되는 문제 회피.
+        # 모든 결과 파일 저장 및 logger flush 가 main() finally 에서 이미 끝났음.
+        import os
+        os._exit(0)

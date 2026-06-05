@@ -747,6 +747,10 @@ def _find_latest_result_json_for_task(
     if approach_name.endswith("_simulation"):
         # Also search without _simulation suffix (e.g., "cpm" for "cpm_simulation")
         approach_names_to_search.append(approach_name.replace("_simulation", ""))
+    # Legacy lammap output: older runs saved into "lammap_simulation/" before
+    # the script was renamed to lammap_ai2thor_simulation.
+    if approach_name == "lammap_ai2thor_simulation":
+        approach_names_to_search.append("lammap_simulation")
 
     # Robust instruction keys: keep numeric prefix, normalize spaces to underscores
     raw_stem = Path(instruction_path).stem
