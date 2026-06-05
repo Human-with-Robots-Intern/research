@@ -1,100 +1,112 @@
 # AI2-THOR Task Scheduling Research Framework
 
-이 프로젝트는 AI2-THOR 시뮬레이션 환경에서 가사 작업을 자동 수행하기 위한 태스크 스케줄링 및 실행 프레임워크입니다. 작업 소요 시간을 동적으로 추정하는 메인 스케줄러와 여러 비교 기준(Baseline) 알고리즘을 포함하며, 모니터링 업데이트 백엔드로 Gaussian Bayesian approximation과 particle filter를 모두 지원합니다.
+This repository provides a task scheduling and execution framework for household tasks in the AI2-THOR simulation environment. It includes a dynamic scheduler that updates task-duration estimates during execution, several comparison baselines, and monitoring backends based on Gaussian Bayesian approximation and particle filtering.
 
-## 프로젝트 구조 (`src` 폴더 기준)
+## Project Structure
 
--   `dag_bayesian.py`: 제안하는 메인 스케줄링 알고리즘(DAG-Bayesian)의 실행 파일입니다. 동적 계획, 실행 모니터링, 베이지안 소요 시간 추정 및 업데이트 기능을 통합합니다.
--   **`core/`**: 메인 스케줄러의 핵심 로직입니다.
-    -   `scheduler.py`: 다음 행동을 결정하기 위한 정교한 탐색 기반 알고리즘을 구현한 스케줄러입니다.
-    -   `agent.py`: 작업 소요 시간에 대한 지식을 관리하고, 모니터링 관측 후 posterior를 업데이트하는 에이전트 모델입니다.
-    -   `monitoring.py`: Bayesian / particle-filter belief update, GT 샘플링, observation model, monitoring trigger policy를 구현합니다.
--   **`scheduler/`**: 스케줄러의 보조 모듈입니다.
-    -   `action_handler.py`: 시뮬레이터에서 원시 행동(primitive action)을 실행하고 소요 시간을 예측합니다.
-    -   `constraint_handler.py`: 태스크 간의 시간적 제약 조건 및 의존성을 관리합니다.
-    -   `heuristic_manager.py`: 스케줄러의 탐색을 안내하기 위한 휴리스틱 비용을 계산합니다.
--   **`baselines/`**: 성능 비교를 위한 다른 스케줄링/계획 알고리즘 구현체입니다.
-    -   `cpm.py`: 주 경로 방법(Critical Path Method) 기반 스케줄러.
-    -   `edf/`: 가장 빠른 마감 우선(Earliest Deadline First) 스케줄러.
-    -   `cap/`: Code as Policies. 자연어 명령을 Python 코드로 변환하여 실행하는 LLM 기반 플래너.
-    -   `progprompt/`: ProgPrompt. 자연어로부터 Python과 유사한 계획을 생성하는 LLM 기반 플래너.
--   **`models/`**: 태스크, 상태, 결과 등 프로젝트 전반에서 사용되는 데이터 구조를 정의합니다.
-    -   `task.py`: `Task`, `Subtask` 등의 클래스를 정의합니다.
-    -   `dataclass.py`: `SchedulerState`, `SimulationNode` 등 상태 저장을 위한 데이터 클래스를 정의합니다.
--   **`simulation/`**: AI2-THOR 시뮬레이터와의 상호작용을 담당합니다.
-    -   `runner_ai2thor.py`: 시뮬레이터 컨트롤러를 초기화하고 태스크를 실행하는 함수를 포함합니다.
--   **`experiments/`**: 오프라인 비교 실험과 분석용 실행기를 포함합니다.
-    -   `offline_harness.py`: DAG-Bayesian, EDF, CPM을 동일한 결과 스키마로 오프라인 실행하는 in-process 실험 실행기입니다.
-    -   `exact_oracle.py`: 작은 deterministic 설정에서 scheduler 결과를 비교하기 위한 exhaustive oracle baseline입니다.
--   **`utils/`**: 입출력, 로깅, NLP, 시각화 등 범용 유틸리티 함수를 포함합니다.
--   `tune.py`: `Optuna`를 사용한 하이퍼파라미터 튜닝 스크립트입니다.
+The main source code is organized under `src/`.
 
-## 실행 방법
+-   `dag_bayesian.py`: Entry point for the proposed DAG-Bayesian scheduling algorithm. It combines dynamic planning, execution monitoring, Bayesian duration estimation, and posterior updates.
+-   **`core/`**: Core logic for the main scheduler.
+    -   `scheduler.py`: Search-based scheduler that selects the next action.
+    -   `agent.py`: Agent model that maintains duration beliefs and updates posteriors after monitoring observations.
+    -   `monitoring.py`: Bayesian and particle-filter belief updates, ground-truth sampling, observation models, and monitoring trigger policies.
+-   **`scheduler/`**: Supporting modules for scheduling.
+    -   `action_handler.py`: Executes primitive actions in the simulator and predicts action durations.
+    -   `constraint_handler.py`: Manages temporal constraints and dependencies between tasks.
+    -   `heuristic_manager.py`: Computes heuristic costs used to guide scheduler search.
+-   **`baselines/`**: Baseline scheduling and planning methods used for comparison.
+    -   `cpm.py`: Critical Path Method (CPM) scheduler.
+    -   `edf/`: Earliest Deadline First (EDF) scheduler.
+    -   `cap/`: Code as Policies baseline that converts natural-language instructions into executable Python code.
+    -   `progprompt/`: ProgPrompt baseline that generates Python-like plans from natural-language instructions.
+-   **`models/`**: Shared data structures for tasks, states, and results.
+    -   `task.py`: Defines classes such as `Task` and `Subtask`.
+    -   `dataclass.py`: Defines state containers such as `SchedulerState` and `SimulationNode`.
+-   **`simulation/`**: Interfaces with the AI2-THOR simulator.
+    -   `runner_ai2thor.py`: Initializes simulator controllers and runs tasks.
+-   **`experiments/`**: Offline experiment and analysis runners.
+    -   `offline_harness.py`: In-process offline experiment harness for DAG-Bayesian, EDF, and CPM with a shared result schema.
+    -   `exact_oracle.py`: Exhaustive oracle baseline for small deterministic settings.
+-   **`utils/`**: General utilities for I/O, logging, NLP, visualization, and related tasks.
+-   `tune.py`: Hyperparameter tuning script using `Optuna`.
 
-각 알고리즘은 개별 Python 스크립트로 직접 실행하거나, `scripts/run_all_251028_pdk.py`와 설정 YAML을 통해 전체 실험을 자동화할 수 있습니다.
+## Running Experiments
 
--   **권장 실행 환경**: 아래 예시는 프로젝트 Python 환경이 활성화되어 있다고 가정합니다. 예: `conda activate research`
+Each algorithm can be run directly as a Python script. Full experiment batches can also be launched through YAML-driven runners, including the full AI2-THOR batch runner and the offline suite scripts.
 
-### 1. 개별 알고리즘 실행
+-   **Recommended environment**: The examples below assume that the project Python environment is active, for example:
 
-#### DAG Bayesian, CPM, EDF
-
--   **설명**: `dag_bayesian.py`, `baselines/cpm.py`, `baselines/edf/dag_edf.py` 스크립트는 실행 시 `assets/tasks`에 정의된 태스크 목록을 보여주고 사용자에게 수행할 태스크를 선택하라고 요청합니다.
--   **명령어**:
     ```bash
-    # 예시: CPM 베이스라인 실행
+    conda activate research
+    ```
+
+### 1. Running Individual Algorithms
+
+#### DAG-Bayesian, CPM, and EDF
+
+-   **Description**: `dag_bayesian.py`, `baselines/cpm.py`, and `baselines/edf/dag_edf.py` display the available tasks under `assets/tasks` and prompt the user to select a task at runtime.
+-   **Command**:
+
+    ```bash
+    # Example: run the CPM baseline
     python src/baselines/cpm.py --scene FloorPlan1
     ```
--   **인자**:
-    -   `--scene`: 시뮬레이션 환경을 지정합니다 (예: `FloorPlan1`, `FloorPlan422`).
 
-#### CAP, ProgPrompt (LLM 기반)
+-   **Arguments**:
+    -   `--scene`: Simulation scene name, such as `FloorPlan1` or `FloorPlan422`.
 
--   **설명**: Code as Policies 및 ProgPrompt 베이스라인은 실행 시 수행할 작업을 자연어 명령어 형태로 직접 받습니다.
--   **명령어**:
+#### CAP and ProgPrompt
+
+-   **Description**: The Code as Policies and ProgPrompt baselines take the target task directly as a natural-language instruction.
+-   **Command**:
+
     ```bash
-    # 예시: CAP 베이스라인 실행
+    # Example: run the CAP baseline
     python src/baselines/cap/cap_ai2thor.py --instruction "make a coffee and toast a bread"
     ```
--   **인자**:
-    -   `--instruction`: LLM이 계획으로 변환할 자연어 명령어입니다.
--   **참고**: `OPENAI_API_KEY` 환경변수 설정이 필요합니다.
 
-### 2. 전체 실험 자동화 (`scripts/run_all_251028_pdk.py`)
+-   **Arguments**:
+    -   `--instruction`: Natural-language instruction to be converted into a plan.
+-   **Note**: These LLM-based baselines require the `OPENAI_API_KEY` environment variable.
 
--   **설명**: AI2-THOR 시뮬레이션 상에서 여러 알고리즘·씬·태스크 조합을 돌리는 배치 실행기입니다. 실행 대상과 씬 목록은 **YAML 설정**으로 조정하고, CLI는 설정 경로와 드라이런 위주입니다.
--   **설정 파일**: `scripts/run_all_config.yaml` (기본값). `scene_type`, `scene_lists`, `approaches`, `llm_scripts`, `task_folder_name`, `ablation_configs`, `init_prior_configs` 등을 이 파일에서 수정합니다.
--   **주요 기능** (설정 기준, 스크립트 내부 동작):
-    -   `scene_type`에 해당하는 씬들을 `scene_lists`에서 읽어 순차 실행합니다.
-    -   `approaches`에 나열된 스케줄러 스크립트 경로를 subprocess로 실행합니다.
-    -   `llm_scripts`에 속한 베이스라인은 실패 시 재시도 로직을 탑니다.
--   **명령어** (저장소 루트에서):
+### 2. Full AI2-THOR Batch Runner
+
+-   **Description**: Batch runner for executing multiple algorithm, scene, and task combinations in AI2-THOR. Experiment targets and scene lists are configured through YAML; the CLI mainly selects the config path and dry-run behavior.
+-   **Config file**: `scripts/run_all_config.yaml` by default. Edit fields such as `scene_type`, `scene_lists`, `approaches`, `llm_scripts`, `task_folder_name`, `ablation_configs`, and `init_prior_configs` in this file.
+-   **Main behavior**:
+    -   Reads scenes from `scene_lists` according to `scene_type`.
+    -   Executes scheduler script paths listed in `approaches` as subprocesses.
+    -   Applies retry logic to baselines listed in `llm_scripts`.
+-   **Commands** from the repository root. Replace `<batch_runner>` with the anonymized batch-runner script name used in the released artifact:
+
     ```bash
-    python scripts/run_all_251028_pdk.py
-    python scripts/run_all_251028_pdk.py --config run_all_config.yaml --dry-run
+    python scripts/<batch_runner>.py
+    python scripts/<batch_runner>.py --config run_all_config.yaml --dry-run
     ```
--   **CLI 인자**:
-    -   `--config`: 설정 YAML 경로. 상대 경로는 `scripts/` 디렉터리 기준입니다.
-    -   `--dry-run`: 실제 실행 없이 수행될 실험 목록만 확인합니다.
-    -   `--skip-completed`: 이미 결과 JSON이 있으면 해당 태스크를 건너뜁니다 (기본 동작과 맞춘 플래그).
 
-### 3. 오프라인 단일 실행 (`scripts/offline/offline_experiment.py`)
+-   **CLI arguments**:
+    -   `--config`: YAML config path. Relative paths are resolved from the `scripts/` directory.
+    -   `--dry-run`: Print the experiment list without launching the runs.
+    -   `--skip-completed`: Skip tasks whose result JSON already exists. This flag matches the default skip-completed behavior.
 
--   **설명**: AI2-THOR 전체 시뮬레이션을 매번 띄우지 않고, planner-level schedule과 temporal constraint 성능을 빠르게 비교하기 위한 오프라인 실행기입니다.
--   **지원 approach**:
-    -   `bayesian`: 제안 방법의 오프라인 rollout
-    -   `edf`: EDF baseline adapter
-    -   `cpm`: CPM baseline adapter
--   **주요 특징**:
-    -   모든 approach가 동일한 single-run schema로 저장됩니다.
-    -   `belief_update_method`로 `bayesian`과 `particle_filter`를 전환할 수 있습니다.
-    -   `gt_distribution`으로 runtime GT duration 분포(`constant`, `gaussian`, `lognormal`, `gamma`, `mixture`)를 선택할 수 있습니다.
-    -   PF 실행 시 `particle_distribution`을 따로 주지 않으면 기본적으로 현재 `gt_distribution`을 따라갑니다.
-    -   `oracle_reference_dir`를 주면 결과 JSON에 oracle comparison 필드가 함께 포함됩니다.
-    -   `nav_graph_source: ai2thor_controller`는 cache-first로 동작하며, 캐시가 없을 때만 AI2-THOR controller를 띄웁니다.
-    -   `max_monitoring_per_critical_interval`를 지정하면 critical interval당 monitoring 실행 횟수 상한을 둘 수 있습니다. 값을 생략하면 uncapped입니다.
+### 3. Offline Single Run (`scripts/offline/offline_experiment.py`)
 
-#### 단일 실행 예시
+-   **Description**: Offline runner for quickly comparing planner-level schedules and temporal-constraint behavior without launching a full AI2-THOR simulation each time.
+-   **Supported approaches**:
+    -   `bayesian`: Offline rollout of the proposed method.
+    -   `edf`: EDF baseline adapter.
+    -   `cpm`: CPM baseline adapter.
+-   **Main features**:
+    -   Saves all approaches with the same single-run result schema.
+    -   Switches between `bayesian` and `particle_filter` through `belief_update_method`.
+    -   Supports runtime ground-truth duration distributions through `gt_distribution`: `constant`, `gaussian`, `lognormal`, `gamma`, or `mixture`.
+    -   Uses the current `gt_distribution` as the default `particle_distribution` for particle-filter runs if no particle distribution is specified.
+    -   Adds oracle comparison fields to result JSON files when `oracle_reference_dir` is provided.
+    -   Uses cache-first behavior for `nav_graph_source: ai2thor_controller`; the AI2-THOR controller is launched only when the cache is missing.
+    -   Supports `max_monitoring_per_critical_interval` to cap the number of monitoring actions per critical interval. If omitted, monitoring is uncapped.
+
+#### Single-Run Example
 
 ```bash
 python scripts/offline/offline_experiment.py \
@@ -115,7 +127,7 @@ python scripts/offline/offline_experiment.py \
   --output-path assets/results/offline_single_run.json
 ```
 
-#### PF 단일 실행 예시
+#### Particle-Filter Single-Run Example
 
 ```bash
 python scripts/offline/offline_experiment.py \
@@ -137,7 +149,7 @@ python scripts/offline/offline_experiment.py \
   --output-path assets/results/offline_pf_single_run.json
 ```
 
-#### 결과 비교 예시
+#### Compare Two Result Files
 
 ```bash
 python scripts/offline/offline_experiment.py compare \
@@ -146,40 +158,40 @@ python scripts/offline/offline_experiment.py compare \
   --output-path assets/results/offline_compare.json
 ```
 
-#### 주요 인자
+#### Main Arguments
 
--   `--approach`: `bayesian`, `edf`, `cpm` 중 하나를 선택합니다.
--   `--ablation-config`: 현재 offline batch에서는 사실상 `bayesian`에만 의미가 있습니다.
--   `--init-prior-config`: 대표적으로 `UNDER_ESTIMATE`, `CORRECT_ESTIMATE`, `OVER_ESTIMATE`를 사용합니다.
--   `--beam-bound`: `10,10`처럼 `(width, depth)` 쌍을 전달합니다.
--   `--belief-update-method`: `bayesian` 또는 `particle_filter`를 선택합니다.
--   `--gt-distribution`: monitoring에 사용되는 runtime GT duration 분포입니다.
--   `--particle-distribution`: PF particle initialization 분포입니다. 생략 시 PF는 `gt_distribution`, 비-PF는 `gaussian`을 사용합니다.
--   `--eta`: monitoring trigger risk tolerance입니다.
--   `--max-monitoring-per-critical-interval`: critical interval당 monitoring 실행 횟수 상한입니다. 생략하면 uncapped입니다.
--   `--gt-seed`: GT sampling, observation model, PF initialization/resampling에 사용되는 seed입니다.
--   `--case`, `--cases`: 단일 case 또는 여러 case를 지정합니다.
--   `--instruction`, `--instructions`: 특정 instruction 파일만 선택해 실행합니다.
--   `--nav-graph-source`: `synthetic_grid` 또는 `ai2thor_controller` 중 하나를 선택합니다.
--   `--oracle-reference-dir`: 미리 생성된 oracle reference JSON 루트 경로입니다.
--   `--output-path`: JSON report 저장 경로입니다.
+-   `--approach`: One of `bayesian`, `edf`, or `cpm`.
+-   `--ablation-config`: Mainly used for `bayesian` in the current offline batch setup.
+-   `--init-prior-config`: Common values include `UNDER_ESTIMATE`, `CORRECT_ESTIMATE`, and `OVER_ESTIMATE`.
+-   `--beam-bound`: Beam width and depth pair, such as `10,10`.
+-   `--belief-update-method`: Either `bayesian` or `particle_filter`.
+-   `--gt-distribution`: Runtime ground-truth duration distribution used by monitoring.
+-   `--particle-distribution`: Particle initialization distribution for particle-filter runs. If omitted, particle-filter runs use `gt_distribution`, while non-particle-filter runs use `gaussian`.
+-   `--eta`: Risk tolerance for the monitoring trigger.
+-   `--max-monitoring-per-critical-interval`: Maximum number of monitoring actions per critical interval. If omitted, monitoring is uncapped.
+-   `--gt-seed`: Seed used for ground-truth sampling, the observation model, and particle-filter initialization/resampling.
+-   `--case`, `--cases`: Select one case or multiple cases.
+-   `--instruction`, `--instructions`: Select one or more instruction files.
+-   `--nav-graph-source`: Either `synthetic_grid` or `ai2thor_controller`.
+-   `--oracle-reference-dir`: Root directory containing precomputed oracle-reference JSON files.
+-   `--output-path`: Output path for the JSON report.
 
-### 4. 오프라인 suite 실행 (`scripts/offline/run_experiment_suite.py`)
+### 4. Offline Suite Runner (`scripts/offline/run_experiment_suite.py`)
 
--   **설명**: offline 실험을 one-command로 돌리기 위한 thin orchestrator입니다. oracle reference preflight, offline batch, 결과 분석을 순서대로 호출합니다.
--   **지원 suite**:
-    -   `scalability`: beam/lookahead와 monitoring on/off의 효과를 비교합니다.
-    -   `eta_sensitivity`: Bayesian monitoring에서 `eta` 민감도를 비교합니다.
-    -   `monitoring_budget`: critical interval당 monitoring 횟수 cap(`1`, `2`, `3`, `uncap`)을 비교합니다.
-    -   `pf_vs_bayesian`: non-Gaussian GT에서 Bayesian vs Particle Filter를 비교합니다.
-    -   `all`: `scalability -> eta_sensitivity -> monitoring_budget -> pf_vs_bayesian` 순서로 모두 실행합니다.
--   **기본 동작**:
-    -   suite 실행 전 oracle reference preflight를 먼저 수행합니다.
-    -   oracle preflight는 항상 `skip-completed` semantics로 동작합니다.
-    -   각 suite 종료 후 `offline_comparison.py`를 자동 실행합니다.
-    -   lower-level script인 `run_oracle_reference_batch.py`, `run_batch.py`, `offline_comparison.py`는 그대로 유지됩니다.
+-   **Description**: Thin one-command orchestrator for offline experiments. It runs oracle-reference preflight, offline batch execution, and result analysis in sequence.
+-   **Supported suites**:
+    -   `scalability`: Compares beam/lookahead settings and monitoring on/off behavior.
+    -   `eta_sensitivity`: Compares different `eta` values for Bayesian monitoring.
+    -   `monitoring_budget`: Compares monitoring caps per critical interval (`1`, `2`, `3`, and `uncap`).
+    -   `pf_vs_bayesian`: Compares Bayesian and particle-filter updates under non-Gaussian ground-truth distributions.
+    -   `all`: Runs `scalability -> eta_sensitivity -> monitoring_budget -> pf_vs_bayesian`.
+-   **Default behavior**:
+    -   Runs oracle-reference preflight before each suite.
+    -   Uses skip-completed semantics for oracle preflight.
+    -   Runs `offline_comparison.py` automatically after each suite.
+    -   Keeps lower-level scripts such as `run_oracle_reference_batch.py`, `run_batch.py`, and `offline_comparison.py` unchanged.
 
-#### 권장 실행 예시
+#### Recommended Commands
 
 ```bash
 python scripts/offline/run_experiment_suite.py --suite scalability
@@ -189,13 +201,13 @@ python scripts/offline/run_experiment_suite.py --suite pf_vs_bayesian
 python scripts/offline/run_experiment_suite.py --suite all
 ```
 
-#### Dry-run 예시
+#### Dry-Run Example
 
 ```bash
 python scripts/offline/run_experiment_suite.py --suite monitoring_budget --dry-run
 ```
 
-#### Suite별 config
+#### Suite Config Files
 
 -   `scripts/offline/scalability_config.yaml`
 -   `scripts/offline/eta_sensitivity_config.yaml`
@@ -209,25 +221,25 @@ python scripts/offline/run_experiment_suite.py --suite monitoring_budget --dry-r
 -   `scripts/offline/pf_vs_bayesian_mixture_bayesian_config.yaml`
 -   `scripts/offline/pf_vs_bayesian_mixture_particle_filter_config.yaml`
 
-#### 현재 suite 설계 요약
+#### Current Suite Design
 
 -   `scalability`
     -   approaches: `bayesian`, `edf`, `cpm`
     -   ablation: `DEFAULT`, `NONE_MONITORING`
-    -   GT: `constant`
+    -   ground truth: `constant`
     -   prior: `CORRECT_ESTIMATE`
     -   beam: `[1,1]`, `[5,5]`, `[10,10]`, `[20,20]`
 -   `eta_sensitivity`
     -   approach: `bayesian`
     -   ablation: `DEFAULT`
-    -   GT: `constant`
+    -   ground truth: `constant`
     -   prior: `CORRECT_ESTIMATE`
     -   beam: `[1,1]`, `[5,5]`, `[10,10]`, `[20,20]`
     -   eta: `0.01`, `0.1`, `0.5`, `0.9`
 -   `monitoring_budget`
     -   approach: `bayesian`
     -   ablation: `DEFAULT`
-    -   GT: `gaussian`
+    -   ground truth: `gaussian`
     -   prior: `CORRECT_ESTIMATE`
     -   beam: `[10,10]`
     -   eta: `0.1`
@@ -235,75 +247,78 @@ python scripts/offline/run_experiment_suite.py --suite monitoring_budget --dry-r
 -   `pf_vs_bayesian`
     -   approach: `bayesian`
     -   ablation: `DEFAULT`
-    -   GT: `constant`, `gaussian`, `lognormal`, `mixture`
-    -   belief: `bayesian` vs `particle_filter`
+    -   ground truth: `constant`, `gaussian`, `lognormal`, `mixture`
+    -   belief update: `bayesian` vs. `particle_filter`
     -   prior: `UNDER_ESTIMATE`, `CORRECT_ESTIMATE`, `OVER_ESTIMATE`
-    -   beam: `[10,10]`
-    -   eta: `0.1`
 
-### 5. 오프라인 oracle reference 생성 (`scripts/offline/run_oracle_reference_batch.py`)
+### 5. Offline Oracle Reference Generation (`scripts/offline/run_oracle_reference_batch.py`)
 
--   **설명**: oracle을 batch baseline으로 함께 저장하는 대신, deterministic oracle reference를 먼저 일괄 생성한 뒤 이후 baseline 결과와 비교하는 방식입니다.
--   **설정 파일**: `scripts/offline/oracle_reference_config.yaml`
--   **명령어**:
+-   **Description**: Generates deterministic oracle references in a separate precomputation step instead of storing the oracle as another batch baseline. Later baseline results are compared against these references.
+-   **Config file**: `scripts/offline/oracle_reference_config.yaml`
+-   **Commands**:
+
     ```bash
     cd scripts/offline && python run_oracle_reference_batch.py --config oracle_reference_config.yaml
     python scripts/offline/run_oracle_reference_batch.py --config scripts/offline/oracle_reference_config.yaml
     ```
--   **출력 경로**:
-    -   single-run oracle reference:
+
+-   **Output paths**:
+    -   Single-run oracle reference:
         `assets/results/offline_oracle_reference/<task_folder>/<scene>/<case>/<instruction>.json`
-    -   batch summary:
+    -   Batch summary:
         `assets/results/offline_oracle_reference/_batch_summary/offline_oracle_reference_<timestamp>.json`
 
-### 6. 오프라인 batch 실행 (`scripts/offline/run_batch.py`)
+### 6. Offline Batch Runner (`scripts/offline/run_batch.py`)
 
--   **설명**: YAML config를 읽어 offline 실험을 일괄 실행합니다. `run_experiment_suite.py` 없이도 특정 config만 직접 돌릴 수 있습니다.
--   **명령어**:
+-   **Description**: Reads a YAML config and runs offline experiments in batch mode. This script can be used directly when only a specific config needs to be executed without `run_experiment_suite.py`.
+-   **Commands**:
+
     ```bash
-    # scripts/offline 에서 파일명만 지정
+    # From scripts/offline, pass only the file name
     cd scripts/offline && python run_batch.py --config batch_config.yaml
-    # 저장소 루트에서 repo-relative 경로 지정 가능
+
+    # From the repository root, pass a repo-relative path
     python scripts/offline/run_batch.py --config scripts/offline/scalability_config.yaml
     ```
--   **자주 쓰는 config**:
+
+-   **Common config files**:
     -   `scripts/offline/scalability_config.yaml`
     -   `scripts/offline/eta_sensitivity_config.yaml`
     -   `scripts/offline/monitoring_budget_config.yaml`
     -   `scripts/offline/pf_vs_bayesian_*_config.yaml`
--   **현재 batch 규칙**:
-    -   `bayesian`만 `beam_bound`와 `ablation_configs` sweep의 대상입니다.
-    -   `edf`, `cpm`은 `DEFAULT` 한 번만 실행합니다.
-    -   따라서 `edf`/`cpm`은 `NONE_MONITORING` 결과 파일을 만들지 않습니다.
-    -   `max_monitoring_per_critical_intervals`는 현재 `bayesian + DEFAULT` 변형에서만 의미가 있습니다.
--   **추가 batch 설정 키**:
-    -   `belief_update_method`: `bayesian` 또는 `particle_filter`
-    -   `gt_distribution`: `constant`, `gaussian`, `lognormal`, `gamma`, `mixture`
-    -   `particle_distribution`: PF particle initialization 분포
-    -   `factor_alpha`: synthetic Gaussian observation variance 계수 override
-    -   `max_monitoring_per_critical_intervals`: critical interval당 monitoring cap 목록
+-   **Current batch rules**:
+    -   Only `bayesian` is swept over `beam_bound` and `ablation_configs`.
+    -   `edf` and `cpm` run only once with `DEFAULT`.
+    -   As a result, `edf` and `cpm` do not produce `NONE_MONITORING` result files.
+    -   `max_monitoring_per_critical_intervals` is meaningful only for the `bayesian + DEFAULT` variant.
+-   **Additional batch config keys**:
+    -   `belief_update_method`: `bayesian` or `particle_filter`.
+    -   `gt_distribution`: `constant`, `gaussian`, `lognormal`, `gamma`, or `mixture`.
+    -   `particle_distribution`: Particle initialization distribution for particle-filter runs.
+    -   `factor_alpha`: Override for the synthetic Gaussian observation variance factor.
+    -   `max_monitoring_per_critical_intervals`: List of monitoring caps per critical interval.
 
-#### 결과 저장 구조
+#### Result Directory Layout
 
--   result JSON:
+-   Result JSON:
     `assets/results/offline_exp_result/<suite_dir>/<task_folder>/<init_prior>/<scene>/<case>/<instruction_stem>/<baseline>/<file>.json`
--   worker log:
+-   Worker log:
     `logs/<run_timestamp>/<suite_name>/<task_folder>/<init_prior>/<scene>/<case>/<instruction_stem>/<baseline>/<file>.log`
--   batch summary:
+-   Batch summary:
     `assets/results/offline_exp_result/<suite_dir>/_batch_summary/<suite_name>_<timestamp>.json`
 
-`init prior`는 모든 suite에서 공통 상위 폴더로 유지됩니다. 따라서 `scalability`, `eta_sensitivity`, `monitoring_budget`도 `CORRECT_ESTIMATE/` 폴더를 명시적으로 갖습니다.
+`init_prior` is kept as a common top-level folder across all suites. Therefore, `scalability`, `eta_sensitivity`, and `monitoring_budget` also explicitly contain a `CORRECT_ESTIMATE/` folder.
 
-#### 파일명 규칙
+#### File-Naming Rules
 
 -   `bayesian`: `DEFAULT__w10_d10[__eta0.1][__gtgaussian][__mb2].json`
 -   `particle_filter`: `DEFAULT__w10_d10[__eta0.1]__gtlognormal[__pdistlognormal][__mb2].json`
 -   `edf`: `edf.json`
 -   `cpm`: `cpm.json`
 
-즉 baseline 이름은 파일명이 아니라 상위 baseline 폴더로 표현됩니다.
+The baseline name is represented by the parent baseline directory, not by the file name alone.
 
-#### PF-vs-Bayesian batch 실행 예시
+#### PF-vs-Bayesian Batch Examples
 
 ```bash
 python scripts/offline/run_batch.py \
@@ -313,13 +328,14 @@ python scripts/offline/run_batch.py \
   --config scripts/offline/pf_vs_bayesian_lognormal_bayesian_config.yaml
 ```
 
-### 7. 결과 비교 분석 (`assets/result_analysis/offline_comparison.py`)
+### 7. Result Comparison and Analysis (`assets/result_analysis/offline_comparison.py`)
 
--   **설명**: oracle reference와 각 approach의 batch 결과를 비교하여 세 가지 산출물을 생성합니다.
-    1.  `offline_comparison_raw.json`: scene/case/instruction별 oracle 필드 + approach별 makespan/computation_time gap
-    2.  `offline_analysis_summary.json`: approach/case별 집계 지표
-    3.  `offline_analysis_tol_sweep.json`: 저장된 `detail_log`를 재채점하여 tolerance별 TCSR을 다시 계산한 결과
--   **명령어**:
+-   **Description**: Compares oracle references with batch results for each approach and produces three output files.
+    1.  `offline_comparison_raw.json`: Oracle fields and approach-level makespan/computation-time gaps for each scene, case, and instruction.
+    2.  `offline_analysis_summary.json`: Aggregated metrics grouped by approach and case.
+    3.  `offline_analysis_tol_sweep.json`: TCSR recomputed across tolerances from stored `detail_log` entries.
+-   **Command**:
+
     ```bash
     python -m assets.result_analysis.offline_comparison \
       --base_dir assets/results \
@@ -328,50 +344,51 @@ python scripts/offline/run_batch.py \
       --task_folder sampled_10_instruction_set_for_final_experiment_251203 \
       --tolerance-sweep 5.0 8.0 12.5 15.0
     ```
--   **주요 인자**:
-    -   `--base_dir`: oracle/batch 결과 루트를 포함하는 경로입니다.
-    -   `--batch_dirname`: batch 결과 디렉터리 이름입니다. 예: `offline_exp_result/offline_batch_scalability`
-    -   `--oracle_dirname`: oracle reference 디렉터리 이름입니다. 기본값은 `offline_oracle_reference`입니다.
-    -   `--task_folder`: oracle reference와 batch 하위에 있는 task 폴더명입니다.
-    -   `--skip_oracle_violated`: oracle 자체 스케줄이 constraint를 위반한 instruction을 집계에서 제외합니다.
-    -   `--tolerance-sweep`: batch scheduler를 재실행하지 않고, 저장된 `detail_log`로 tolerance별 TCSR을 다시 계산합니다.
--   **출력 경로**: `--base_dir` 또는 `--output_dir` 아래에 저장됩니다.
 
-#### `offline_analysis_summary.json` 읽는 법
+-   **Main arguments**:
+    -   `--base_dir`: Path containing the oracle and batch result roots.
+    -   `--batch_dirname`: Batch result directory name, such as `offline_exp_result/offline_batch_scalability`.
+    -   `--oracle_dirname`: Oracle-reference directory name. The default is `offline_oracle_reference`.
+    -   `--task_folder`: Task folder under the oracle-reference and batch result directories.
+    -   `--skip_oracle_violated`: Exclude instructions whose oracle schedule violates constraints.
+    -   `--tolerance-sweep`: Recompute TCSR for different tolerances from stored `detail_log` entries without rerunning the scheduler.
+-   **Output path**: Results are written under `--base_dir` or `--output_dir`.
 
-집계 단위는 **approach_key × case**입니다. 같은 `case` 아래의 모든 scene·instruction이 평균에 포함됩니다.
+#### Reading `offline_analysis_summary.json`
 
--   **approach_key 생성 원칙**:
-    -   가능하면 `meta_data` 기반으로 생성합니다.
-    -   `init_prior_config`, `baseline_name`, `ablation_config`, `beam_width`, `beam_depth`, `eta`, `gt_distribution`, `particle_distribution`, `monitoring_budget_per_critical`를 key에 반영합니다.
-    -   예:
+The aggregation unit is **approach_key x case**. For a given `case`, the mean includes all scenes and instructions under that case.
+
+-   **Approach-key construction**:
+    -   Keys are generated from `meta_data` when possible.
+    -   Keys include `init_prior_config`, `baseline_name`, `ablation_config`, `beam_width`, `beam_depth`, `eta`, `gt_distribution`, `particle_distribution`, and `monitoring_budget_per_critical`.
+    -   Examples:
         -   `CORRECT_ESTIMATE__bayesian__DEFAULT__w10_d10__eta0.1`
         -   `UNDER_ESTIMATE__particle_filter__DEFAULT__w10_d10__eta0.1__gtlognormal`
         -   `CORRECT_ESTIMATE__bayesian__DEFAULT__w10_d10__eta0.1__gtgaussian__mb2`
--   **두 번째 키**: case 폴더명. 예: `tasks_2_constraints_2`
--   **값(지표 객체)**: 아래 필드는 모두 해당 `(approach_key, case)` 셀의 통계입니다.
+-   **Second key**: Case folder name, such as `tasks_2_constraints_2`.
+-   **Metric object**: The following fields are reported for each `(approach_key, case)` cell.
 
-| 필드 | 의미 |
-|------|------|
-| `sr` | 완료율(%) |
-| `tsr` | 평균 schedule TCSR(%) |
-| `makespan` | 평균 planner makespan(초) |
-| `makespan_sr_1` | 완료된 instruction만 모아 평균한 makespan |
-| `makespan_gap` | `(scheduler_makespan - oracle optimal_schedule_time)` 평균 |
-| `makespan_gap_sr_1` | 완료된 instruction만 대상으로 한 makespan gap |
-| `computation_time` | 평균 planner computation time(초) |
-| `computation_time_gap` | `(batch computation_time - oracle computation_time)` 평균 |
+| Field | Meaning |
+|------|---------|
+| `sr` | Success rate (%) |
+| `tsr` | Mean schedule TCSR (%) |
+| `makespan` | Mean planner makespan in seconds |
+| `makespan_sr_1` | Mean makespan over completed instructions only |
+| `makespan_gap` | Mean `(scheduler_makespan - oracle optimal_schedule_time)` |
+| `makespan_gap_sr_1` | Makespan gap over completed instructions only |
+| `computation_time` | Mean planner computation time in seconds |
+| `computation_time_gap` | Mean `(batch computation_time - oracle computation_time)` |
 
-`--skip_oracle_violated`를 켜면 oracle JSON의 constraint 위반 instruction이 집계에서 빠집니다. `--tolerance-sweep`는 평가 기준만 바꾸는 post-hoc 재채점이며, scheduler의 실제 행동이나 makespan을 다시 생성하지는 않습니다.
+When `--skip_oracle_violated` is enabled, instructions whose oracle JSON violates constraints are excluded from aggregation. `--tolerance-sweep` performs post-hoc rescoring only; it does not regenerate scheduler actions or makespans.
 
 ### 8. Navigation Graph Cache
 
--   `nav_graph_source: ai2thor_controller`를 사용하면 navigation graph를 `assets/cache/ai2thor_nav_graphs/<scene>.json`에 캐시합니다.
--   캐시가 존재하면 offline 실행은 이 파일을 우선 사용하고, 캐시가 없을 때만 controller를 초기화합니다.
--   따라서 같은 scene에 대한 반복 offline 실험에서는 AI2-THOR 초기화 비용이 크게 줄어듭니다.
+-   With `nav_graph_source: ai2thor_controller`, navigation graphs are cached under `assets/cache/ai2thor_nav_graphs/<scene>.json`.
+-   If a cache file exists, offline runs use it first. The controller is initialized only when the cache is missing.
+-   This substantially reduces AI2-THOR initialization overhead for repeated offline experiments on the same scene.
 
-### 9. 결과 해석 시 주의사항
+### 9. Notes on Interpreting Results
 
--   offline harness는 planner-level 비교를 빠르게 반복하기 위한 도구입니다.
--   `offline makespan == scheduler makespan`은 맞출 수 있어도, `simulation makespan`은 AI2-THOR의 실제 primitive 실행 결과에 따라 약간 달라질 수 있습니다.
--   baseline인 EDF/CPM도 동일하게 offline과 AI2-THOR planner-level schedule은 정렬할 수 있지만, 실제 simulation 시간은 완전히 동일하지 않을 수 있습니다.
+-   The offline harness is designed for fast planner-level comparisons.
+-   Even when `offline makespan == scheduler makespan`, `simulation makespan` may differ slightly because it depends on the actual primitive-action execution results in AI2-THOR.
+-   EDF and CPM baselines can also be aligned between offline runs and AI2-THOR planner-level schedules, but their actual simulation times may not be exactly identical.

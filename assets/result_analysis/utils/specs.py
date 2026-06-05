@@ -81,7 +81,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             TSR(
                 name="fill_water_in_pot",
                 trigger=CG(
-                    OC("pot_", isFilledWithLiquid=True, parentReceptacles=["sink"]),
+                    OC("pot_", isFilledWithLiquid=True),
                     OC("faucet", isToggled=True),
                 ),
                 end=CG(OC("faucet", isToggled=False)),
@@ -112,7 +112,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             TSR(
                 name="fill_water_in_pot",
                 trigger=CG(
-                    OC("pot_", isFilledWithLiquid=True, parentReceptacles=["sink"]),
+                    OC("pot_", isFilledWithLiquid=True),
                     OC("faucet", isToggled=True),
                 ),
                 end=CG(OC("faucet", isToggled=False)),
@@ -136,7 +136,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             TSR(
                 name="fill_water_in_pot",
                 trigger=CG(
-                    OC("pot_", isFilledWithLiquid=True, parentReceptacles=["sink"]),
+                    OC("pot_", isFilledWithLiquid=True),
                     OC("faucet", isToggled=True),
                 ),
                 end=CG(OC("faucet", isToggled=False)),
@@ -152,7 +152,7 @@ TASK_SPECS: Dict[str, TaskSpec] = {
             TSR(
                 name="fill_water_in_bowl",
                 trigger=CG(
-                    OC("bowl", isFilledWithLiquid=True, parentReceptacles=["sink"]),
+                    OC("bowl", isFilledWithLiquid=True),
                     OC("faucet", isToggled=True),
                 ),
                 end=CG(OC("faucet", isToggled=False)),
