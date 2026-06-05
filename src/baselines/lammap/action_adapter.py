@@ -6,15 +6,35 @@ LaMMA-P의 생성 코드(GoToObject, PickupObject 등)를 파싱하여
 Action handler를 통해 ai2thor에서 실행합니다.
 """
 
+import json
 import logging
 import re
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from ai2thor.controller import Controller
 
 if TYPE_CHECKING:
     from ithor.handlers.action import Action
+
+
+_ROS_OBJECT_STATES_PATH = Path("assets/ros/static/object_init_states.json")
+
+# Receptacle keywords that imply a container → PLACE_INSIDE.
+# Anything else falls back to PLACE_ON_TOP.
+_PLACE_INSIDE_KEYWORDS = (
+    "sink",
+    "basin",
+    "microwave",
+    "fridge",
+    "oven",
+    "pot",
+    "bowl",
+    "pan",
+    "cup",
+    "trash",
+)
 
 
 def resolve_object_id(controller: Controller, object_name: str) -> Optional[str]:
@@ -247,6 +267,115 @@ def convert_to_primitive_actions(
             logger.warning(f"Unknown action: {action_name}, skipping")
 
     return primitive_actions
+
+
+def _load_ros_object_keys() -> List[str]:
+    try:
+        with _ROS_OBJECT_STATES_PATH.open("r", encoding="utf-8") as f:
+            return list(json.load(f).keys())
+    except Exception:
+        return []
+
+
+def _normalize_ros_object_name(name: str, ros_keys: List[str]) -> str:
+    """Map a mimic-code object name to an `object_init_states.json` key.
+
+    Tries lowercase and lowercase-with-underscores; for 'sink' falls back to
+    the composite 'sink|sinkbasin' key. Returns the input lowercased even on
+    miss so InstructionTranslator surfaces a clear KeyError instead of
+    silently dropping the action.
+    """
+    raw = name.strip()
+    lower = raw.lower()
+    underscored = lower.replace(" ", "_").replace("-", "_")
+
+    if underscored in ros_keys:
+        return underscored
+    if lower in ros_keys:
+        return lower
+
+    if "sink" in lower:
+        for k in ros_keys:
+            if "sink" in k:
+                return k
+
+    for k in ros_keys:
+        if underscored and (underscored in k or k in underscored):
+            return k
+
+    return underscored
+
+
+def _classify_receptacle(name: str) -> str:
+    lower = name.lower()
+    for kw in _PLACE_INSIDE_KEYWORDS:
+        if kw in lower:
+            return "PLACE_INSIDE"
+    return "PLACE_ON_TOP"
+
+
+def flatten_mimic_to_primitive_actions(
+    mimic_code: str,
+    *,
+    mode: str,
+    controller: Optional[Controller] = None,
+    logger: Optional[logging.Logger] = None,
+) -> List[str]:
+    """Convert LaMMA-P mimic_code to a flat primitive_actions list.
+
+    `mode='ai2thor'` delegates to `convert_to_primitive_actions` which uses
+    the controller to resolve objectIds. `mode='ros'` requires no controller
+    and emits lowercase tokens that match `assets/ros/static/object_init_states.json`
+    keys (single robot, sequential).
+
+    Each `PutObject(o, recep)` is expanded into a NAVIGATE_TO + PLACE_* pair
+    so downstream executors don't need to infer a navigation step.
+    """
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    actions = parse_lammap_code_to_actions(mimic_code)
+
+    if mode == "ai2thor":
+        if controller is None:
+            raise ValueError("flatten_mimic_to_primitive_actions(mode='ai2thor') requires a controller")
+        return convert_to_primitive_actions(controller, actions, logger)
+
+    if mode != "ros":
+        raise ValueError(f"Unknown mode: {mode}")
+
+    ros_keys = _load_ros_object_keys()
+    primitive: List[str] = []
+    for act in actions:
+        name = act["action"]
+        args = act["args"]
+
+        if name == "GoToObject" and args:
+            primitive.append(f"NAVIGATE_TO {_normalize_ros_object_name(args[0], ros_keys)}")
+        elif name == "PickupObject" and args:
+            primitive.append(f"GRASP {_normalize_ros_object_name(args[0], ros_keys)}")
+        elif name == "PutObject" and len(args) >= 2:
+            recep_raw = args[-1]
+            recep = _normalize_ros_object_name(recep_raw, ros_keys)
+            place_type = _classify_receptacle(recep_raw)
+            primitive.append(f"NAVIGATE_TO {recep}")
+            primitive.append(f"{place_type} {recep}")
+        elif name == "ToggleObjectOn" and args:
+            primitive.append(f"TOGGLE_ON {_normalize_ros_object_name(args[0], ros_keys)}")
+        elif name == "ToggleObjectOff" and args:
+            primitive.append(f"TOGGLE_OFF {_normalize_ros_object_name(args[0], ros_keys)}")
+        elif name == "OpenObject" and args:
+            primitive.append(f"OPEN {_normalize_ros_object_name(args[0], ros_keys)}")
+        elif name == "CloseObject" and args:
+            primitive.append(f"CLOSE {_normalize_ros_object_name(args[0], ros_keys)}")
+        elif name == "SliceObject" and args:
+            primitive.append(f"SLICE {_normalize_ros_object_name(args[0], ros_keys)}")
+        elif name == "Wait" and args:
+            primitive.append(f"WAIT {args[0]}")
+        else:
+            logger.warning(f"Skipping unsupported ROS action: {name} {args}")
+
+    return primitive
 
 
 def execute_primitive_actions(

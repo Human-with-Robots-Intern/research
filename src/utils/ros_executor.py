@@ -13,7 +13,7 @@ from src.models.task import Subtask
 from src.utils.common.logger import create_module_logger
 from src.utils.decorators import log_ros_action_state
 from src.utils.translate import InstructionTranslator
-EXPERIMENT_WAIT_DURATION = 10
+
 logger = create_module_logger(module_name=__name__, module_log=True)
 
 Position: TypeAlias = Tuple[float, float, float]
@@ -35,36 +35,47 @@ class SimulateObjectState:
         self.trajectory_log_path: Path = trajectory_log_path
 
     @log_ros_action_state
-    def _simulate_grasp(self, target_obj_id: Optional[str], duration: Optional[float]) -> None:
+    def _simulate_grasp(
+        self, target_obj_id: Optional[str], duration: Optional[float]
+    ) -> None:
         """Simulates grasping an object."""
         self.held_object = target_obj_id
-        self.object_states[target_obj_id]['parentReceptacles'] = ["agent"]
+        self.object_states[target_obj_id]["parentReceptacles"] = ["agent"]
 
     @log_ros_action_state
-    def _simulate_navigate(self, target_obj_id: Optional[str], duration: Optional[float]) -> None:
+    def _simulate_navigate(
+        self, target_obj_id: Optional[str], duration: Optional[float]
+    ) -> None:
         """Simulates grasping an object."""
         logger.info(f"Navigating to {target_obj_id}")
 
     @log_ros_action_state
-    def _simulate_wait(self, wait_duration: Optional[float], duration: Optional[float]) -> None:
+    def _simulate_wait(
+        self, wait_duration: Optional[float], duration: Optional[float]
+    ) -> None:
         """Simulates waiting for a duration."""
         logger.info(f"Waiting for {wait_duration} seconds")
 
-    
     @log_ros_action_state
-    def _simulate_monitoring(self, duration: Optional[float]) -> None:
+    def _simulate_monitoring(
+        self, target_obj_id: Optional[str], duration: Optional[float]
+    ) -> None:
         """Simulates monitoring."""
-        logger.info("Monitoring")
+        logger.info(f"Monitoring {target_obj_id}")
 
     @log_ros_action_state
-    def _simulate_toggle_on(self, target_obj_id: Optional[str], duration: Optional[float]) -> None:
+    def _simulate_toggle_on(
+        self, target_obj_id: Optional[str], duration: Optional[float]
+    ) -> None:
         """Simulates toggling on an object."""
         logger.info(f"Toggling on {target_obj_id}")
         # Check if 'isToggled' property exists before toggling
-        if 'isToggled' in self.object_states.get(target_obj_id, {}):
-            current_state: Optional[bool] = self.object_states[target_obj_id].get('isToggled')
+        if "isToggled" in self.object_states.get(target_obj_id, {}):
+            current_state: Optional[bool] = self.object_states[target_obj_id].get(
+                "isToggled"
+            )
             if isinstance(current_state, bool):
-                self.object_states[target_obj_id]['isToggled'] = not current_state
+                self.object_states[target_obj_id]["isToggled"] = not current_state
                 logger.info(
                     f"Toggled '{target_obj_id}' state to {self.object_states[target_obj_id]['isToggled']}"
                 )
@@ -76,16 +87,20 @@ class SimulateObjectState:
             logger.warning(
                 f"Object '{target_obj_id}' does not have an 'isToggled' property, skipping toggle."
             )
-    
+
     @log_ros_action_state
-    def _simulate_toggle_off(self, target_obj_id: Optional[str], duration: Optional[float]) -> None:
+    def _simulate_toggle_off(
+        self, target_obj_id: Optional[str], duration: Optional[float]
+    ) -> None:
         """Simulates toggling off an object."""
         logger.info(f"Toggling off {target_obj_id}")
         # Check if 'isToggled' property exists before toggling
-        if 'isToggled' in self.object_states.get(target_obj_id, {}):
-            current_state: Optional[bool] = self.object_states[target_obj_id].get('isToggled')
+        if "isToggled" in self.object_states.get(target_obj_id, {}):
+            current_state: Optional[bool] = self.object_states[target_obj_id].get(
+                "isToggled"
+            )
             if isinstance(current_state, bool):
-                self.object_states[target_obj_id]['isToggled'] = not current_state
+                self.object_states[target_obj_id]["isToggled"] = not current_state
                 logger.info(
                     f"Toggled '{target_obj_id}' state to {self.object_states[target_obj_id]['isToggled']}"
                 )
@@ -97,35 +112,53 @@ class SimulateObjectState:
             logger.warning(
                 f"Object '{target_obj_id}' does not have an 'isToggled' property, skipping toggle."
             )
+
     @log_ros_action_state
-    def _simulate_place(self, receptacle_id: Optional[str], duration: Optional[float]) -> None:
+    def _simulate_place(
+        self, receptacle_id: Optional[str], duration: Optional[float]
+    ) -> None:
         """Simulates placing an object in or on a receptacle."""
         if not self.held_object:
             logger.warning("Agent not holding anything. Cannot place. Action FAILED.")
-        elif not receptacle_id or receptacle_id.lower() not in self.object_states.keys():
+        elif (
+            not receptacle_id or receptacle_id.lower() not in self.object_states.keys()
+        ):
             raise ValueError(
                 f"Place target receptacle '{receptacle_id}' not found in object states."
             )
         else:
             logger.debug(f"  Placing '{self.held_object}' on/in '{receptacle_id}'.")
             if self.held_object in self.object_states:
-                self.object_states[self.held_object]['parentReceptacles'] = [receptacle_id]
-                self.object_states[self.held_object]['position'] = self.object_states[receptacle_id]['position']
+                self.object_states[self.held_object]["parentReceptacles"] = [
+                    receptacle_id
+                ]
+                self.object_states[self.held_object]["position"] = self.object_states[
+                    receptacle_id
+                ]["position"]
             self.held_object = None
-
-
 
 
 class RosExecutor:
     """Handles execution of subtasks via a remote ROS bridge."""
 
-    def __init__(self, trajectory_log_path: Path) -> None:
-        """Initializes the RosExecutor."""
+    def __init__(
+        self, trajectory_log_path: Path, instruction: Optional[str] = None
+    ) -> None:
+        """Initializes the RosExecutor.
+
+        Args:
+            trajectory_log_path: Path to the trajectory log directory.
+            instruction: The full natural-language instruction given at
+                program start (e.g. "Cook Sausage and Do Laundry").
+                Forwarded to the ROS bridge for VLM prompt selection
+                during monitoring actions.
+        """
         self.ros_bridge_url = os.getenv("ROS_BRIDGE_URL", "http://localhost:8000")
         self.object_state_simulator = SimulateObjectState(trajectory_log_path)
         self.held_object: Optional[str] = None
         self.ros_start_time: Optional[float] = None
         self.total_ros_time: float = 0.0
+        self.instruction: Optional[str] = instruction
         # Initialize client-side translator
         self.translator = InstructionTranslator()
         logger.info(f"ROS Bridge URL set to: {self.ros_bridge_url}")
@@ -168,10 +201,12 @@ class RosExecutor:
 
             primitive_action_parts = primitive_action.split(" ")
             action_verb = primitive_action_parts[0].lower()
+            progress = None
 
             if action_verb == "wait":
                 wait_duration = float(primitive_action_parts[1])
-                time.sleep(EXPERIMENT_WAIT_DURATION)
+                time.sleep(wait_duration)
+                # time.sleep(1)
                 logger.info(f"Waiting for {wait_duration} seconds")
                 success = True
             else:
@@ -180,31 +215,46 @@ class RosExecutor:
                     logger.critical(
                         f"primitive_action: {primitive_action} translated to translated_parts: {translated_parts}"
                     )
+                    payload: Dict[str, Any] = {"action_parts": translated_parts}
+                    # Always include instruction so the ROS bridge can set
+                    # Arduino LED mode and select the correct VLM prompt.
+                    if self.instruction:
+                        payload["instruction"] = self.instruction
+
                     response = requests.post(
                         f"{self.ros_bridge_url}/execute_translated_action",
-                        json={"action_parts": translated_parts},
+                        json=payload,
                         timeout=300,
                     )
                     response.raise_for_status()
                     result = response.json()
                     success = result.get("success", False)
+                    progress = result.get("progress", None)
+                    if progress is not None:
+                        logger.info(
+                            f"[VLM] progress received from ROS bridge for "
+                            f"'{primitive_action}': {progress}"
+                        )
                 except requests.RequestException as e:
                     logger.error(
                         f"HTTP request for action '{primitive_action}' failed: {e}"
                     )
                     success = False
+                    progress = None
 
             action_end_time = time.time()
             elapsed_time = action_end_time - action_start_time
             logger.info(f"Action '{primitive_action}' took {elapsed_time:.2f} seconds")
             total_elapsed_time += elapsed_time
-            action_log.append(
-                {
-                    "action": primitive_action,
-                    "duration": elapsed_time,
-                    "success": success,
-                }
-            )
+            log_entry: Dict[str, Any] = {
+                "action": primitive_action,
+                "duration": elapsed_time,
+                "success": success,
+            }
+            # progress is only set for monitoring actions via ROS VLM
+            if progress is not None:
+                log_entry["progress"] = progress
+            action_log.append(log_entry)
 
             if not success:
                 logger.error(f"Action '{primitive_action}' failed. Stopping task.")
@@ -212,7 +262,7 @@ class RosExecutor:
 
             # Simulate object state changes
             if primitive_action_parts[1].lower() == "sink":
-                primitive_action_parts[1] = "sink|sinkbasin"    
+                primitive_action_parts[1] = "sink|sinkbasin"
             if action_verb == "grasp":
                 self.object_state_simulator._simulate_grasp(
                     primitive_action_parts[1].lower(), duration=elapsed_time
@@ -231,10 +281,13 @@ class RosExecutor:
                 )
             elif action_verb.startswith("wait"):
                 self.object_state_simulator._simulate_wait(
-                    wait_duration=EXPERIMENT_WAIT_DURATION, duration=float(primitive_action_parts[1])
+                    wait_duration=float(primitive_action_parts[1]),
+                    duration=float(primitive_action_parts[1]),
                 )
             elif action_verb.startswith("monitoring"):
-                self.object_state_simulator._simulate_monitoring(duration=elapsed_time)
+                self.object_state_simulator._simulate_monitoring(
+                    primitive_action_parts[1].lower(), duration=elapsed_time
+                )
             elif action_verb.startswith("toggle_on"):
                 self.object_state_simulator._simulate_toggle_on(
                     primitive_action_parts[1].lower(), duration=elapsed_time

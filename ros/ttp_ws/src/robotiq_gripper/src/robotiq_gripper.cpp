@@ -24,7 +24,7 @@ RobotiqGripper::RobotiqGripper(const rclcpp::NodeOptions & node_options /*= rclc
 	ss.str(std::string());//flush stringstream
 
 	//ros2 parameter 설정
-	string port_name = (*this).declare_parameter("port_name", "/dev/ttyUSB0");
+	string port_name = (*this).declare_parameter("port_name", "/dev/gripper");
 	int baudrate = (*this).declare_parameter("baudrate", 115200);
 	int rate = (*this).declare_parameter("rate", 20);
 

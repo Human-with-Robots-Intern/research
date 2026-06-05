@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import threading
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+import time as _time
+
+import cv2
+import numpy as np
+import serial
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -14,6 +21,20 @@ from .ros_communicate import (
     shutdown_ros_communication,
 )
 
+logger = logging.getLogger(__name__)
+
+# Instruction ID for MONITORING actions
+_MONITORING_INSTRUCTION = 20
+
+# "Return to initial position" pattern: NAVIGATE_TO(10), node 100
+_RETURN_HOME_ACTION = [0, 10, 100, 100]
+
+# ROS topic for the RealSense color image
+COLOR_TOPIC = "/camera/color/image_raw"
+
+# Arduino serial port for LED control
+ARDUINO_PORT = "/dev/arduino"
+ARDUINO_BAUD = 9600
 
 
 class ActionPartsRequest(BaseModel):
@@ -21,21 +42,165 @@ class ActionPartsRequest(BaseModel):
 
     Attributes:
         action_parts: The translated action payload to send to the robot.
+        instruction: The full natural-language instruction given at program
+            start (e.g. "Cook Sausage and Do Laundry").  Passed through to
+            the VLM progress estimator for monitoring actions so the correct
+            prompt template can be selected.
     """
 
     action_parts: List[Any]
+    instruction: Optional[str] = None
+
+
+class RosCamera:
+    """Subscribes to a ROS Image topic and always holds the latest frame.
+
+    Exposes a ``read()`` method compatible with cv2.VideoCapture so that
+    VLMProgressEstimator can use it as a drop-in replacement.
+    """
+
+    def __init__(self, topic: str = COLOR_TOPIC) -> None:
+        self._frame: Optional[np.ndarray] = None
+        self._lock = threading.Lock()
+        self._topic = topic
+        self._sub = None
+
+    def start(self) -> None:
+        """Create ROS subscriber (must be called after rclpy.init)."""
+        from .ros_communicate import _ros_client_node
+        from sensor_msgs.msg import Image
+
+        if _ros_client_node is None:
+            print("[RosCamera] WARNING: ROS node not available.", flush=True)
+            return
+
+        self._sub = _ros_client_node.create_subscription(
+            Image, self._topic, self._image_callback, 1
+        )
+        print(f"[RosCamera] Subscribed to {self._topic}", flush=True)
+
+    def _image_callback(self, msg: Any) -> None:
+        """Convert ROS Image to BGR numpy array and store."""
+        try:
+            h, w = msg.height, msg.width
+            if msg.encoding == "rgb8":
+                frame = np.frombuffer(msg.data, dtype=np.uint8).reshape(h, w, 3)
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+            elif msg.encoding == "bgr8":
+                frame = np.frombuffer(msg.data, dtype=np.uint8).reshape(h, w, 3)
+            else:
+                frame = np.frombuffer(msg.data, dtype=np.uint8).reshape(h, w, 3)
+            with self._lock:
+                self._frame = frame
+        except Exception as e:
+            logger.error("RosCamera callback error: %s", e)
+
+    def read(self) -> tuple:
+        """Return (success, frame) like cv2.VideoCapture.read()."""
+        with self._lock:
+            if self._frame is not None:
+                return True, self._frame.copy()
+        return False, None
+
+    def release(self) -> None:
+        pass
+
+
+def _init_arduino(port: str = ARDUINO_PORT, baud: int = ARDUINO_BAUD) -> Optional[serial.Serial]:
+    """Open serial connection to Arduino for LED control."""
+    try:
+        ser = serial.Serial(port, baud, timeout=1)
+        _time.sleep(2)  # Arduino resets on serial open (DTR); wait for boot
+        ser.write(b"D100000\n")  # Set LED gradient duration to 100 seconds
+        print(f"[ros_bridge] Arduino connected on {port}, duration set to 100s", flush=True)
+        return ser
+    except Exception as e:
+        print(f"[ros_bridge] WARNING: Arduino not available ({e})", flush=True)
+        return None
+
+
+def _reconnect_arduino(port: str = ARDUINO_PORT, baud: int = ARDUINO_BAUD) -> Optional[serial.Serial]:
+    """Attempt to reconnect to Arduino, returning new serial handle or None."""
+    print(f"[ros_bridge] Attempting Arduino reconnect on {port}...", flush=True)
+    try:
+        ser = serial.Serial(port, baud, timeout=1)
+        _time.sleep(2)  # Wait for Arduino boot after DTR reset
+        ser.write(b"D100000\n")
+        print(f"[ros_bridge] Arduino reconnected on {port}, duration set to 100s", flush=True)
+        return ser
+    except Exception as e:
+        print(f"[ros_bridge] Arduino reconnect failed: {e}", flush=True)
+        return None
+
+
+def _send_arduino_task_mode(ser: Optional[serial.Serial], instruction: Optional[str]) -> None:
+    """Send T1 (sausage) or T2 (tomato) to Arduino based on instruction."""
+    if ser is None or instruction is None:
+        return
+    inst_lower = instruction.lower()
+    if "tomato" in inst_lower:
+        cmd = "T2\n"
+    elif "sausage" in inst_lower:
+        cmd = "T1\n"
+    else:
+        return
+    ser.write(cmd.encode())
+    print(f"[ros_bridge] Sent to Arduino: {cmd.strip()}", flush=True)
+
+
+_TASK_COMPLETE_FLAG = "/app/.task_complete"
+
+
+def _signal_task_complete() -> None:
+    """Write a flag file when the robot returns to initial position."""
+    try:
+        with open(_TASK_COMPLETE_FLAG, "w") as f:
+            f.write(_time.strftime("%Y%m%d_%H%M%S"))
+        print("[ros_bridge] Task complete — robot returning to initial position.", flush=True)
+        # Reset arduino task mode for next instruction
+        app.state.arduino_last_instruction = None
+    except Exception as e:
+        print(f"[ros_bridge] Failed to write completion flag: {e}", flush=True)
+
+
+def _init_vlm_estimator(camera: Any) -> Any:
+    """Create the VLM progress estimator (lazy OpenAI client)."""
+    try:
+        from .vlm_progress_estimator import VLMProgressEstimator
+
+        estimator = VLMProgressEstimator(camera=camera)
+        print("[ros_bridge] VLM progress estimator created.", flush=True)
+        return estimator
+    except Exception as e:
+        print(f"[ros_bridge] ERROR: Failed to create VLM progress estimator: {e}", flush=True)
+        return None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> None:
-    """Handles startup and shutdown events for the FastAPI application.
-
-    Args:
-        app: The FastAPI application instance.
-    """
+    """Handles startup and shutdown events for the FastAPI application."""
     print("Initializing ROS communication...")
     init_ros_communication()
+
+    camera = RosCamera(COLOR_TOPIC)
+    camera.start()
+    app.state.camera = camera
+    app.state.vlm_estimator = _init_vlm_estimator(camera)
+    app.state.arduino = _init_arduino()
+    app.state.arduino_last_instruction = None  # track last instruction sent to Arduino
+
     yield
+
+    if app.state.arduino is not None:
+        try:
+            app.state.arduino.close()
+        except Exception:
+            pass
+    if camera is not None:
+        try:
+            camera.release()
+        except Exception:
+            pass
     print("Shutting down ROS communication...")
     shutdown_ros_communication()
 
@@ -47,39 +212,91 @@ app = FastAPI(lifespan=lifespan)
 async def execute_translated_action(parts_request: ActionPartsRequest) -> Dict[str, Any]:
     """Execute a pre-translated primitive action via ROS.
 
-    This endpoint receives already translated action parts from the client
-    (ttp container) and forwards them to the ROS service without reading
-    or translating any mapping/position files on the ROS side.
-
-    Args:
-        parts_request: The request containing translated action parts.
-
-    Returns:
-        A dictionary with the success status of the action.
+    For monitoring actions (instruction 20), after the ROS service call
+    completes a camera frame is captured and sent to a VLM to estimate
+    cooking progress.  The progress value (0-130, step 10) is included
+    in the response.
     """
     try:
+        # Set Arduino LED task mode when instruction changes
+        if parts_request.instruction and parts_request.instruction != app.state.arduino_last_instruction:
+            try:
+                _send_arduino_task_mode(app.state.arduino, parts_request.instruction)
+                app.state.arduino_last_instruction = parts_request.instruction
+            except Exception as arduino_err:
+                print(f"[ros_bridge] WARNING: Arduino command failed (non-fatal): {arduino_err}", flush=True)
+                app.state.arduino = _reconnect_arduino()
+                if app.state.arduino is not None:
+                    try:
+                        _send_arduino_task_mode(app.state.arduino, parts_request.instruction)
+                        app.state.arduino_last_instruction = parts_request.instruction
+                    except Exception:
+                        app.state.arduino = None
+
         loop = asyncio.get_event_loop()
-        success = await loop.run_in_executor(None, communicate, parts_request.action_parts)
-        if success:
-            return {"success": True}
-        else:
+        result = await loop.run_in_executor(
+            None, communicate, parts_request.action_parts
+        )
+
+        if not result.get("success", False):
             raise HTTPException(
                 status_code=500, detail="Action execution failed on ROS side."
             )
+
+        # For monitoring actions, capture image and query VLM
+        instruction = None
+        try:
+            instruction = int(parts_request.action_parts[1])
+        except (IndexError, ValueError, TypeError):
+            pass
+
+        # Detect "return to initial position" and signal completion
+        try:
+            parts_int = [int(x) for x in parts_request.action_parts[:4]]
+            if parts_int == _RETURN_HOME_ACTION:
+                _signal_task_complete()
+        except (ValueError, TypeError, IndexError):
+            pass
+
+        if instruction == _MONITORING_INSTRUCTION:
+            object_id = None
+            try:
+                object_id = int(parts_request.action_parts[2])
+            except (IndexError, ValueError, TypeError):
+                pass
+
+            progress = await _estimate_monitoring_progress(
+                parts_request.instruction, object_id
+            )
+            result["progress"] = progress
+
+        return result
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+async def _estimate_monitoring_progress(
+    instruction: Optional[str],
+    object_id: Optional[int] = None,
+) -> Optional[int]:
+    """Capture a frame and query the VLM for cooking progress."""
+    estimator = app.state.vlm_estimator
+    if estimator is None:
+        logger.warning("VLM estimator not available — returning progress=None.")
+        return None
+
+    loop = asyncio.get_event_loop()
+    progress = await loop.run_in_executor(
+        None, estimator.estimate_progress, instruction, object_id, None
+    )
+    return progress
+
+
 @app.post("/shutdown")
 async def shutdown_server() -> Dict[str, str]:
-    """A placeholder for a graceful shutdown endpoint.
-
-    Note:
-        A simple shutdown endpoint like this might not work with all server
-        configurations (e.g., multiple uvicorn workers). A more robust
-        solution might involve process signaling.
-    """
-
     return {"message": "Shutdown command received. Note: This is a placeholder."}
 
 

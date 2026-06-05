@@ -82,7 +82,7 @@ def parse_arguments() -> argparse.Namespace:
 
     parser.add_argument(
         "--simulation",
-        default=True,
+        default=False,
         action="store_true",
         help="Simulation 모드 사용 여부 (default: False)",
     )
@@ -213,9 +213,9 @@ def _sanitize_filename(value: str) -> str:
 def _resolve_observation_mode(args: argparse.Namespace) -> str:
     """Resolve the runtime observation backend from CLI arguments."""
 
-    if args.observation_mode != "auto":
-        return args.observation_mode
     if args.ros:
+        return "synthetic_gaussian"
+    if args.ros and not args.disable_monitoring:
         return "openai_vlm"
     return "synthetic_gaussian"
 
@@ -386,15 +386,20 @@ def main() -> None:
             input_natural_language = instruction
             task_data = None
 
-            try:
-                choice = int(instruction)
-                if 1 <= choice <= len(task_files):
-                    task_file_name = task_files[choice - 1]
-                    task_data = load_task_data_from_file(task_file_name)
-                    input_natural_language = Path(task_file_name).stem
-            except ValueError:
-                # It's a natural language instruction, not a number
-                pass
+            if instruction.endswith(".json"):
+                # Direct task file name — load it from TASK_PATH
+                task_data = load_task_data_from_file(instruction)
+                input_natural_language = Path(instruction).stem
+            else:
+                try:
+                    choice = int(instruction)
+                    if 1 <= choice <= len(task_files):
+                        task_file_name = task_files[choice - 1]
+                        task_data = load_task_data_from_file(task_file_name)
+                        input_natural_language = Path(task_file_name).stem
+                except ValueError:
+                    # It's a natural language instruction, not a number
+                    pass
             save_scene_state(
                 controller=controller,
                 output_path=base_result_path / f"states{int(init_prior_mean)}",
@@ -524,7 +529,12 @@ def main() -> None:
         total_compute_time, total_sim_time = 0, 0
 
         ros_executor = (
-            RosExecutor(trajectory_log_path=trajectory_log_path) if args.ros else None
+            RosExecutor(
+                trajectory_log_path=trajectory_log_path,
+                instruction=input_natural_language,
+            )
+            if args.ros
+            else None
         )
 
         while not is_end:
@@ -538,7 +548,7 @@ def main() -> None:
                 logger.error("No feasible solution found.")
                 break
 
-            if args.simulation:
+            if args.simulation and not args.ros:
                 sim_elapsed_time, execution_status, sim_nav_time = execute_subtask(
                     controller, next_state.subtask, logger, action_interface
                 )
@@ -618,8 +628,13 @@ def main() -> None:
                     not args.disable_monitoring
                     and next_state.subtask.subtask_type == "Monitor"
                 ):
+                    # Extract VLM progress from ROS action logs (if available)
+                    vlm_progress = None
+                    if action_logs:
+                        vlm_progress = action_logs[-1].get("progress")
+
                     next_state, monitored_subtask = agent.update_monitoring_belief(
-                        next_state
+                        next_state, vlm_progress=vlm_progress
                     )
                     next_state.completed_entries[-1].monitored_subtask = (
                         monitored_subtask

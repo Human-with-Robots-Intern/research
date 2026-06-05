@@ -31,11 +31,12 @@ class LLMHandler:
     
     def __init__(self, api_key_file: str):
         """Initialize the LLM handler.
-        
+
         Args:
             api_key_file (str): Path to the API key file
         """
         self.setup_api(api_key_file)
+        self.call_count: int = 0
     
     def setup_api(self, api_key_file: str) -> None:
         """Set up the OpenAI API key."""
@@ -72,26 +73,27 @@ class LLMHandler:
         """Query the language model using OpenAI API.
         """
         retry_delay = DEFAULT_RETRY_DELAY
-        
+
         for attempt in range(MAX_RETRIES):
             try:
+                self.call_count += 1
                 if "gpt" not in gpt_version:
                     response = openai.completions.create(
-                        model=gpt_version, 
-                        prompt=prompt, 
-                        max_tokens=max_tokens, 
-                        temperature=temperature, 
-                        stop=stop, 
-                        logprobs=logprobs, 
+                        model=gpt_version,
+                        prompt=prompt,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        stop=stop,
+                        logprobs=logprobs,
                         frequency_penalty=frequency_penalty
                     )
                     return response, response.choices[0].text.strip()
                 else:
                     response = openai.chat.completions.create(
-                        model=gpt_version, 
-                        messages=prompt, 
-                        max_tokens=max_tokens, 
-                        temperature=temperature, 
+                        model=gpt_version,
+                        messages=prompt,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
                         frequency_penalty=frequency_penalty
                     )
                     return response, response.choices[0].message.content.strip()
@@ -115,11 +117,21 @@ class LLMHandler:
 class MimicFormatTranslator:
     """Translates complete PDDL plans to mimic format using OpenAI API."""
 
-    def __init__(self, api_key_file: str, gpt_version: str = "gpt-4o", wait_units: int = 100):
+    def __init__(self, api_key_file: str, gpt_version: str = "gpt-4o", wait_units: int = 100, action_durations: Optional[Dict[str, float]] = None, scene_type: str = "real_world"):
         self.gpt_version = gpt_version
         self.llm = LLMHandler(api_key_file)
         self.wait_units = wait_units
-        print(f"Initialized MimicFormatTranslator with {gpt_version}, wait_units={wait_units}")
+        self.action_durations = action_durations or {}
+        self.scene_type = scene_type
+        print(f"Initialized MimicFormatTranslator with {gpt_version}, wait_units={wait_units}, scene_type={scene_type}, action_durations={self.action_durations}")
+
+    def _format_action_durations_comment(self) -> str:
+        if not self.action_durations:
+            return "# (no action duration table provided)\n"
+        lines = []
+        for k, v in self.action_durations.items():
+            lines.append(f"# - {k} ≈ {v}s")
+        return "\n".join(lines) + "\n"
     
     def validate_mimic_code(self, mimic_code: str, task_description: str) -> Tuple[bool, str]:
         """Validate if the generated mimic code would be executable by execute_plan.py.
@@ -357,7 +369,9 @@ Return ONLY the corrected code that follows the template structure exactly.
             return False, f"Validation and fixing error: {str(e)}", mimic_code
     
     def create_few_shot_prompt(self, task_description: str, combined_plan: str) -> Union[str, List[Dict]]:
-        # Few-shot examples for complete plan translation
+        if self.scene_type != "real_world":
+            return self._create_kitchen_few_shot_prompt(task_description, combined_plan)
+        # Few-shot examples for complete plan translation (real-world)
         few_shot_examples = f"""# CRITICAL INSTRUCTION: DO NOT REDEFINE AI2-THOR FUNCTIONS
 # The following AI2-THOR functions are ALREADY DEFINED and available:
 # - GoToObject(robot, object_name)
@@ -375,147 +389,109 @@ Return ONLY the corrected code that follows the template structure exactly.
 # - For immediate sequential actions (pick then place), no sleep needed.
 # - Turn off appliances immediately after their operation completes.
 #
+# APPROXIMATE PER-ACTION DURATIONS (seconds):
+{self._format_action_durations_comment()}#
 # MAKESPAN MINIMIZATION (single robot):
 # - MINIMIZE total makespan: during a long time.sleep (cooking/boiling), DO NOT block idle.
 # - Instead, INTERLEAVE independent subtasks BEFORE the sleep so they run during the wait,
 #   OR restructure: start the cooking, then work on other subtasks, then come back to turn off.
+# - Use the per-action durations above to estimate whether a sequence (e.g.,
+#   GoToObject + PickupObject + GoToObject + PutObject) fits inside a time.sleep window.
 # - Only call time.sleep when no independent work remains to do during the wait.
 
-# Example: Complete PDDL Plan Translation with Multi-Robot Coordination
-Task: Wash multiple vegetables (apple, tomato, lettuce, potato)
-Complete PDDL Plan: (define (problem wash_vegetables) (:domain robot_domain) (:objects apple tomato lettuce potato sink faucet counter) (:init (at apple counter) (at tomato counter) (at lettuce counter) (at potato counter)) (:goal (and (washed apple) (washed tomato) (washed lettuce) (washed potato))))
+# Example: Complete PDDL Plan Translation (single-robot real-world kitchen)
+Task: Make a tea with tea pot and make a tomato sauce
+Complete PDDL Plan: (define (problem tea_and_sauce) (:domain robot_domain) (:objects tea_cup tea_pot tomato blue_pot stove) (:init (at tea_cup table) (at tea_pot table) (at tomato table) (at blue_pot table) (at stove kitchen)) (:goal (and (made_tea tea_pot) (made_sauce blue_pot))))
 
-# IMPORTANT: Follow this EXACT structure for AI2-THOR execution
-# NOTE: AI2-THOR functions are already imported and available - DO NOT redefine them
+# IMPORTANT: Follow this EXACT structure for AI2-THOR execution.
+# NOTE: AI2-THOR functions are already imported — DO NOT redefine them.
+# NOTE: The environment has a SINGLE robot. Use robots[0] only.
+# NOTE: Cooking has 3 phases — Prepare → Start → Stop.
+#
+# CONTAINER RULES (real-world kitchen — MANDATORY):
+# - To COOK food on `stove` (sausage, chicken, fish, etc.), the food MUST be
+#   placed INSIDE `pan` first, then `pan` placed ON `stove`. NEVER do
+#   `PutObject(robots[0], 'sausage', 'stove')`.
+# - To MAKE TOMATO SAUCE, use `blue_pot`: PutObject(robots[0], 'tomato', 'blue_pot') →
+#   PutObject(robots[0], 'blue_pot', 'stove') → ToggleObjectOn('stove') →
+#   ToggleObjectOff('stove'). Never use any container other than `blue_pot`.
+# - To MAKE TEA, place `tea_cup` INSIDE `tea_pot`, then ToggleObjectOn('tea_pot') →
+#   ToggleObjectOff('tea_pot'). tea_pot is itself the appliance — do NOT put
+#   it on stove.
+# - Non-cooking placement (banana/carrot/cup on plate or in sink) needs no
+#   intermediate container.
+#
+# RESIDUAL-WAIT RULE (critical for makespan correctness):
+# When you interleave independent work between TOGGLE_ON and TOGGLE_OFF, the
+# physical cooking time is fixed at {self.wait_units} seconds. The remaining
+# time.sleep AFTER the interleaved work must be:
+#   residual = max(0, {self.wait_units} - sum_of_interleaved_action_durations)
+# Do NOT call time.sleep({self.wait_units}) AND ALSO run interleaved work — that
+# overshoots the cook time and inflates makespan.
+#
+# OUTPUT FORMAT for time.sleep:
+# - Always emit a single LITERAL FLOAT, e.g., `time.sleep(33.08)`.
+# - Do NOT emit expressions like `time.sleep(max(0, 60 - 26.92))` or
+#   `time.sleep(wait_units - elapsed)`. Compute the value yourself using the
+#   per-action duration table above and write the resulting number directly.
+# - If interleaved work fully covers the cook time (residual <= 0), emit
+#   `time.sleep(0.0)` and proceed to TOGGLE_OFF.
 
-def wash_apple(robots):
-    # 0: Task: Wash the Apple
-    # 1: Go to the Apple.
-    GoToObject(robots[0], 'Apple')
-    # 2: Pick up the Apple.
-    PickupObject(robots[0], 'Apple')
-    # 3: Go to the Sink.
-    GoToObject(robots[0], 'Sink')
-    # 4: Put the Apple in the Sink.
-    PutObject(robots[0], 'Apple', 'Sink')
-    # 5: Switch on the Faucet.
-    ToggleObjectOn(robots[0], 'Faucet')
-    # 6: Wait for a while to let the Apple wash.
-    time.sleep(5)
-    # 7: Switch off the Faucet.
-    ToggleObjectOff(robots[0], 'Faucet')
-    # 8: Pick up the washed Apple.
-    PickupObject(robots[0], 'Apple')
-    # 9: Go to the CounterTop.
-    GoToObject(robots[0], 'CounterTop')
-    # 10: Put the washed Apple on the CounterTop.
-    PutObject(robots[0], 'Apple', 'CounterTop')
+def execute_task(robots):
+    # === Tea task — Phase A (Prepare): tea_cup in tea_pot ===
+    GoToObject(robots[0], 'tea_cup')
+    PickupObject(robots[0], 'tea_cup')
+    GoToObject(robots[0], 'tea_pot')
+    PutObject(robots[0], 'tea_cup', 'tea_pot')
+    # === Tea task — Phase B (Start): toggle on tea_pot ===
+    ToggleObjectOn(robots[0], 'tea_pot')
 
-def wash_tomato(robots):
-    # 0: Task: Wash the Tomato
-    # 1: Go to the Tomato.
-    GoToObject(robots[1], 'Tomato')
-    # 2: Pick up the Tomato.
-    PickupObject(robots[1], 'Tomato')
-    # 3: Go to the Sink.
-    GoToObject(robots[1], 'Sink')
-    # 4: Put the Tomato in the Sink.
-    PutObject(robots[1], 'Tomato', 'Sink')
-    # 5: Switch on the Faucet.
-    ToggleObjectOn(robots[1], 'Faucet')
-    # 6: Wait for a while to let the Tomato wash.
-    time.sleep(5)
-    # 7: Switch off the Faucet.
-    ToggleObjectOff(robots[1], 'Faucet')
-    # 8: Pick up the washed Tomato.
-    PickupObject(robots[1], 'Tomato')
-    # 9: Go to the CounterTop.
-    GoToObject(robots[1], 'CounterTop')
-    # 10: Put the washed Tomato on the CounterTop.
-    PutObject(robots[1], 'Tomato', 'CounterTop')
+    # === Interleave the entire tomato-sauce preparation during the tea wait ===
+    # Each NAV+GRASP+NAV+PLACE ≈ 2.1 + 4.51 + 2.1 + 4.75 = 13.46s.
+    # tomato → blue_pot
+    GoToObject(robots[0], 'tomato')
+    PickupObject(robots[0], 'tomato')
+    GoToObject(robots[0], 'blue_pot')
+    PutObject(robots[0], 'tomato', 'blue_pot')
+    # blue_pot → stove
+    GoToObject(robots[0], 'blue_pot')
+    PickupObject(robots[0], 'blue_pot')
+    GoToObject(robots[0], 'stove')
+    PutObject(robots[0], 'blue_pot', 'stove')
+    # start the stove (sauce begins cooking while tea is still steeping)
+    ToggleObjectOn(robots[0], 'stove')
 
-def wash_lettuce(robots):
-    # 0: Task: Wash the Lettuce
-    # 1: Go to the Lettuce.
-    GoToObject(robots[0], 'Lettuce')
-    # 2: Pick up the Lettuce.
-    PickupObject(robots[0], 'Lettuce')
-    # 3: Go to the Sink.
-    GoToObject(robots[0], 'Sink')
-    # 4: Put the Lettuce in the Sink.
-    PutObject(robots[0], 'Lettuce', 'Sink')
-    # 5: Switch on the Faucet.
-    ToggleObjectOn(robots[0], 'Faucet')
-    # 6: Wait for a while to let the Lettuce wash.
-    time.sleep(5)
-    # 7: Switch off the Faucet.
-    ToggleObjectOff(robots[0], 'Faucet')
-    # 8: Pick up the washed Lettuce.
-    PickupObject(robots[0], 'Lettuce')
-    # 9: Go to the CounterTop.
-    GoToObject(robots[0], 'CounterTop')
-    # 10: Put the washed Lettuce on the CounterTop.
-    PutObject(robots[0], 'Lettuce', 'CounterTop')
+    # === Residual wait for tea: tea cook time minus interleaved work ===
+    # tea cook duration = {self.wait_units}s, interleaved ≈ 3 × 13.46 ≈ 40.38s
+    # (two transports + one toggle which we ignore in the cost model).
+    # residual = max(0, {self.wait_units} - 40.38) = {max(0.0, float(self.wait_units) - 40.38):.2f}
+    # → emit the literal float directly (NO arithmetic expression):
+    time.sleep({max(0.0, float(self.wait_units) - 40.38):.2f})
 
-def wash_potato(robots):
-    # 0: Task: Wash the Potato
-    # 1: Go to the Potato.
-    GoToObject(robots[1], 'Potato')
-    # 2: Pick up the Potato.
-    PickupObject(robots[1], 'Potato')
-    # 3: Go to the Sink.
-    GoToObject(robots[1], 'Sink')
-    # 4: Put the Potato in the Sink.
-    PutObject(robots[1], 'Potato', 'Sink')
-    # 5: Switch on the Faucet.
-    ToggleObjectOn(robots[1], 'Faucet')
-    # 6: Wait for a while to let the Potato wash.
-    time.sleep(5)
-    # 7: Switch off the Faucet.
-    ToggleObjectOff(robots[1], 'Faucet')
-    # 8: Pick up the washed Potato.
-    PickupObject(robots[1], 'Potato')
-    # 9: Go to the CounterTop.
-    GoToObject(robots[1], 'CounterTop')
-    # 10: Put the washed Potato on the CounterTop.
-    PutObject(robots[1], 'Potato', 'CounterTop')
+    # === Tea task — Phase C (Stop): tea is done; tea_cup stays in tea_pot ===
+    ToggleObjectOff(robots[0], 'tea_pot')
+    # NOTE: NO retrieval here. tea_cup remains inside tea_pot.
 
-# CRITICAL: Robot task allocation and threading structure
-# Assign tasks to robots based on their skills
-# Parallelize all tasks
-# Assign Task1 to robot1 since it has all the skills to perform actions in Task 1
-task1_thread = threading.Thread(target=wash_apple, args=(robots,))
-# Assign Task2 to robot2 since it has all the skills to perform actions in Task 2
-task2_thread = threading.Thread(target=wash_tomato, args=(robots,))
+    # === Sauce task — wait for the rest of its own cook time then stop ===
+    # Sauce was started later than tea; it still needs the full {self.wait_units}s
+    # minus whatever overlap occurred with the tea wait. In this example the
+    # tea wait covered most of it, so the additional residual is short.
+    # residual_sauce = max(0, {self.wait_units} - {max(0.0, float(self.wait_units) - 40.38):.2f})
+    #                = {max(0.0, float(self.wait_units) - max(0.0, float(self.wait_units) - 40.38)):.2f}
+    time.sleep({max(0.0, float(self.wait_units) - max(0.0, float(self.wait_units) - 40.38)):.2f})
 
-# Start executing Task 1 and Task 2 in parallel
+    # === Sauce task — Phase C (Stop): sauce done; tomato stays in blue_pot ===
+    ToggleObjectOff(robots[0], 'stove')
+    # NOTE: NO retrieval here. tomato/sauce remains inside blue_pot.
+
+# Single-robot threading scaffold (kept for execution-runner compatibility)
+task1_thread = threading.Thread(target=execute_task, args=(robots,))
 task1_thread.start()
-task2_thread.start()
-
-# Wait for both Task 1 and Task 2 to finish
 task1_thread.join()
-task2_thread.join()
 
-# Assign Task3 to robot1 since it has all the skills to perform actions in Task 3
-task3_thread = threading.Thread(target=wash_lettuce, args=(robots,))
-# Assign Task4 to robot2 since it has all the skills to perform actions in Task 4
-task4_thread = threading.Thread(target=wash_potato, args=(robots,))
-
-# Start executing Task 3 and Task 4 in parallel
-task3_thread.start()
-task4_thread.start()
-
-# Wait for both Task 3 and Task 4 to finish
-task3_thread.join()
-task4_thread.join()
-
-# Task wash_apple, wash_tomato, wash_lettuce, wash_potato is done
-action_queue.append({{'action':'Done'}})
-action_queue.append({{'action':'Done'}})
 action_queue.append({{'action':'Done'}})
 
 task_over = True
-time.sleep(5)
 
 # Now translate the following complete plan:
 Task: {task_description}
@@ -535,6 +511,213 @@ def execute_task():
                 {"role": "user", "content": few_shot_examples}
             ]
     
+    def _create_kitchen_few_shot_prompt(self, task_description: str, combined_plan: str) -> Union[str, List[Dict]]:
+        """Few-shot prompt for AI2-THOR kitchen scenes.
+
+        Mirrors the scenarios used by dag_bayesian's
+        `assets/prompts/e2e_generator_ver12_kitchen.txt` (Examples 1, 3, 6)
+        but expressed as single-robot mimic Python so the parser can extract
+        `GoToObject / PickupObject / PutObject / OpenObject / CloseObject /
+        ToggleObjectOn / ToggleObjectOff / SliceObject / time.sleep` calls.
+        Uses object TYPE names (e.g., 'Microwave', 'Pot', 'StoveKnob'); the
+        action_adapter resolves them to AI2-THOR objectIds at execution time.
+        """
+        few_shot_examples = f"""# CRITICAL INSTRUCTION: DO NOT REDEFINE AI2-THOR FUNCTIONS
+# The following AI2-THOR functions are ALREADY DEFINED and available:
+# - GoToObject(robot, object_name)
+# - PickupObject(robot, object_name)
+# - PutObject(robot, object_name, target_location)
+# - OpenObject(robot, object_name)
+# - CloseObject(robot, object_name)
+# - ToggleObjectOn(robot, object_name)
+# - ToggleObjectOff(robot, object_name)
+# - SliceObject(robot, object_name)
+# - time.sleep(seconds)
+#
+# DO NOT create new function definitions for these. Use them directly.
+# DO NOT add "def GoToObject(...):" or similar definitions.
+#
+# NOTE: AI2-THOR kitchen environment. Use object TYPE names only (e.g.,
+#       'Microwave', 'Pot', 'StoveKnob') — the executor resolves them to
+#       full objectIds. The environment has a SINGLE robot — use robots[0].
+#
+# CONTAINER RULES (AI2-THOR kitchen — MANDATORY):
+# - HEAT food in `Microwave`: GoToObject(Microwave) -> OpenObject(Microwave)
+#   -> PutObject(food, Microwave) -> CloseObject(Microwave)
+#   -> ToggleObjectOn(Microwave) -> wait or do other job
+#   -> ToggleObjectOff(Microwave). Microwave MUST be CLOSED before TOGGLE_ON.
+# - COOK on STOVE: place food into `Pan` (or `Pot`) -> PickupObject(Pan)
+#   -> PutObject(Pan, StoveBurner) -> ToggleObjectOn(StoveKnob).
+#   IMPORTANT: `Stove` and `StoveBurner` are NOT in the TOGGLE_ON list —
+#   only `StoveKnob` is. Stop with ToggleObjectOff(StoveKnob).
+# - STORE in `Fridge`: GoToObject(Fridge) -> OpenObject(Fridge)
+#   -> PutObject(food, Fridge) -> CloseObject(Fridge). Fridge has no TOGGLE.
+# - FILL `Pot`/`Mug` with water: PickupObject(Pot) -> PutObject(Pot, SinkBasin)
+#   -> ToggleObjectOn(Faucet) -> wait -> ToggleObjectOff(Faucet)
+#   -> PickupObject(Pot) to take it out.
+# - MAKE COFFEE: PutObject(Mug, CoffeeMachine) -> ToggleObjectOn(CoffeeMachine)
+#   -> wait -> ToggleObjectOff(CoffeeMachine).
+# - SLICE Egg in Pan: PickupObject(Egg) -> PutObject(Egg, Pan)
+#   -> SliceObject(Egg). The egg cracks open in the pan and cooks there.
+# - SLICE other food (Tomato/Potato/Apple/Bread/Lettuce): if a Knife is
+#   available and graspable, GRASP Knife first, then SliceObject(<food>),
+#   then put Knife back.
+# - For BREAD heating use the Microwave (NOT Toaster). Bread heating in our
+#   experiments only uses Microwave.
+#
+# RESIDUAL-WAIT RULE (critical for makespan correctness):
+# When you interleave independent work between TOGGLE_ON and TOGGLE_OFF, the
+# physical cooking time is fixed at {self.wait_units} seconds. The remaining
+# time.sleep AFTER the interleaved work must be:
+#   residual = max(0, {self.wait_units} - sum_of_interleaved_action_durations)
+# Do NOT call time.sleep({self.wait_units}) AND ALSO run interleaved work — that
+# overshoots the cook time and inflates makespan.
+#
+# OUTPUT FORMAT for time.sleep:
+# - Always emit a single LITERAL FLOAT, e.g., `time.sleep(33.08)`.
+# - Do NOT emit expressions like `time.sleep(max(0, 60 - 26.92))` or
+#   `time.sleep(wait_units - elapsed)`. Compute the value yourself using the
+#   per-action duration table above and write the resulting number directly.
+# - If interleaved work fully covers the cook time (residual <= 0), emit
+#   `time.sleep(0.0)` and proceed to TOGGLE_OFF.
+
+# === Example A: Heat Potato in Microwave + place items on plate ===
+Task: Heat Potato using Microwave and set the table for lunch
+Complete PDDL Plan: (define (problem heat_and_set) (:domain robot_domain) (:objects Potato Microwave Plate Tomato Bread CounterTop) (:init (at Potato CounterTop) (at Plate CounterTop) (at Tomato CounterTop) (at Bread CounterTop)) (:goal (and (heated Potato) (on Plate CounterTop) (on Tomato CounterTop) (on Bread Plate))))
+
+def execute_task(robots):
+    # --- Microwave Phase A: Prepare + Start ---
+    GoToObject(robots[0], 'Potato')
+    PickupObject(robots[0], 'Potato')
+    GoToObject(robots[0], 'Microwave')
+    OpenObject(robots[0], 'Microwave')
+    PutObject(robots[0], 'Potato', 'Microwave')
+    CloseObject(robots[0], 'Microwave')
+    ToggleObjectOn(robots[0], 'Microwave')
+
+    # --- Interleave: set the table while microwave runs ---
+    GoToObject(robots[0], 'Plate')
+    PickupObject(robots[0], 'Plate')
+    GoToObject(robots[0], 'CounterTop')
+    PutObject(robots[0], 'Plate', 'CounterTop')
+    GoToObject(robots[0], 'Tomato')
+    PickupObject(robots[0], 'Tomato')
+    GoToObject(robots[0], 'CounterTop')
+    PutObject(robots[0], 'Tomato', 'CounterTop')
+    GoToObject(robots[0], 'Bread')
+    PickupObject(robots[0], 'Bread')
+    GoToObject(robots[0], 'Plate')
+    PutObject(robots[0], 'Bread', 'Plate')
+
+    # --- Residual wait (microwave cook time minus interleaved work) ---
+    # interleaved ≈ 3 placements × ~9.4s ≈ 28.2s
+    time.sleep({max(0.0, float(self.wait_units) - 28.2):.2f})
+
+    # --- Microwave Phase B: Stop ---
+    GoToObject(robots[0], 'Microwave')
+    ToggleObjectOff(robots[0], 'Microwave')
+
+# === Example B: Cook Egg on Stove (Pan + StoveBurner + StoveKnob + SLICE Egg) ===
+Task: Cook egg fry
+Complete PDDL Plan: (define (problem cook_egg) (:domain robot_domain) (:objects Egg Pan StoveBurner StoveKnob CounterTop) (:init (at Egg CounterTop) (at Pan CounterTop)) (:goal (cooked Egg)))
+
+def execute_task(robots):
+    # --- Place pan on stove ---
+    GoToObject(robots[0], 'Pan')
+    PickupObject(robots[0], 'Pan')
+    GoToObject(robots[0], 'StoveBurner')
+    PutObject(robots[0], 'Pan', 'StoveBurner')
+    # --- Crack egg into the pan (SliceObject on Egg-in-Pan) ---
+    GoToObject(robots[0], 'Egg')
+    PickupObject(robots[0], 'Egg')
+    GoToObject(robots[0], 'Pan')
+    PutObject(robots[0], 'Egg', 'Pan')
+    SliceObject(robots[0], 'Egg')
+    # --- Start the stove via StoveKnob (NOT Stove or StoveBurner) ---
+    GoToObject(robots[0], 'StoveKnob')
+    ToggleObjectOn(robots[0], 'StoveKnob')
+    # --- Wait for the egg to cook (no independent work to interleave here) ---
+    time.sleep({float(self.wait_units):.2f})
+    # --- Stop the stove ---
+    GoToObject(robots[0], 'StoveKnob')
+    ToggleObjectOff(robots[0], 'StoveKnob')
+
+# === Example C: Boil Potato (Fill Pot from Faucet, then heat on StoveKnob) ===
+Task: Boil Potato
+Complete PDDL Plan: (define (problem boil_potato) (:domain robot_domain) (:objects Potato Pot SinkBasin Faucet StoveBurner StoveKnob) (:init (at Potato CounterTop) (at Pot CounterTop)) (:goal (boiled Potato)))
+
+def execute_task(robots):
+    # --- Fill Pot under Faucet ---
+    GoToObject(robots[0], 'Pot')
+    PickupObject(robots[0], 'Pot')
+    GoToObject(robots[0], 'SinkBasin')
+    PutObject(robots[0], 'Pot', 'SinkBasin')
+    GoToObject(robots[0], 'Faucet')
+    ToggleObjectOn(robots[0], 'Faucet')
+    # short fill wait (literal, faucet-specific)
+    time.sleep(10.0)
+    GoToObject(robots[0], 'Faucet')
+    ToggleObjectOff(robots[0], 'Faucet')
+    # --- Move filled Pot to StoveBurner ---
+    GoToObject(robots[0], 'Pot')
+    PickupObject(robots[0], 'Pot')
+    GoToObject(robots[0], 'StoveBurner')
+    PutObject(robots[0], 'Pot', 'StoveBurner')
+    # --- Drop potato into pot ---
+    GoToObject(robots[0], 'Potato')
+    PickupObject(robots[0], 'Potato')
+    GoToObject(robots[0], 'Pot')
+    PutObject(robots[0], 'Potato', 'Pot')
+    # --- Start StoveKnob and wait for boil ---
+    GoToObject(robots[0], 'StoveKnob')
+    ToggleObjectOn(robots[0], 'StoveKnob')
+    time.sleep({float(self.wait_units):.2f})
+    GoToObject(robots[0], 'StoveKnob')
+    ToggleObjectOff(robots[0], 'StoveKnob')
+
+# === Example D: Store items in Fridge (independent placements) ===
+Task: Put tomato and apple in fridge
+Complete PDDL Plan: (define (problem store_in_fridge) (:domain robot_domain) (:objects Tomato Apple Fridge) (:init (at Tomato CounterTop) (at Apple CounterTop)) (:goal (and (in Tomato Fridge) (in Apple Fridge))))
+
+def execute_task(robots):
+    GoToObject(robots[0], 'Tomato')
+    PickupObject(robots[0], 'Tomato')
+    GoToObject(robots[0], 'Fridge')
+    OpenObject(robots[0], 'Fridge')
+    PutObject(robots[0], 'Tomato', 'Fridge')
+    CloseObject(robots[0], 'Fridge')
+    GoToObject(robots[0], 'Apple')
+    PickupObject(robots[0], 'Apple')
+    GoToObject(robots[0], 'Fridge')
+    OpenObject(robots[0], 'Fridge')
+    PutObject(robots[0], 'Apple', 'Fridge')
+    CloseObject(robots[0], 'Fridge')
+
+# Single-robot threading scaffold (kept for execution-runner compatibility)
+task1_thread = threading.Thread(target=execute_task, args=(robots,))
+task1_thread.start()
+task1_thread.join()
+
+action_queue.append({{'action':'Done'}})
+
+task_over = True
+
+# Now translate the following complete plan:
+Task: {task_description}
+Complete PDDL Plan: {combined_plan}
+
+# IMPORTANT: Generate code that follows the EXACT structure above
+def execute_task():
+    # Complete plan execution for: {task_description}
+"""
+
+        if "gpt" not in self.gpt_version:
+            return few_shot_examples
+        return [
+            {"role": "system", "content": "You are a Robot PDDL to Mimic Format Translator for AI2-THOR kitchen scenes. Translate PDDL plans into executable Python mimic code, respecting the kitchen container rules (Microwave open/close, Stove via StoveKnob, Fridge open/close, Faucet+SinkBasin for water, SliceObject(Egg) cracks egg in pan)."},
+            {"role": "user", "content": few_shot_examples},
+        ]
+
     def translate_to_mimic_format(self, task_description: str, combined_plan: str,
                                 max_tokens: int = 2048,  # Increased for complete plans
                                 temperature: float = 0.1,
