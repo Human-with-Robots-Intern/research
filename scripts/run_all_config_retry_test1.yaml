@@ -1,0 +1,36 @@
+ablation_configs:
+- DEFAULT
+approaches:
+- src/dag_bayesian.py
+cloud_rendering: true
+end_idx: 18
+execute_dict:
+  tasks_2_constraints_2:
+    FloorPlan18:
+    - 05_boil_water_with_pot_and_make_a_coffee.json
+init_prior_configs:
+- CORRECT_ESTIMATE
+instruction_delay_seconds: 0
+llm_scripts: []
+log_level: INFO
+max_constraint_count: 2
+max_retries: 1
+max_task_count: 3
+max_workers: 1
+min_constraint_count: 1
+min_task_count: 2
+num_gpus: 1
+num_runs_per_instruction: 1
+retry_delay_seconds: 2
+scene_lists:
+  bathroom: null
+  kitchen:
+  - FloorPlan18
+  real_world: null
+scene_type:
+- kitchen
+simulation: true
+skip_completed: false
+start_idx: 1
+task_folder_name:
+- decomposed_final_revision_metadata_260402_v1

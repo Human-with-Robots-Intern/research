@@ -1,0 +1,58 @@
+ablation_configs:
+- DEFAULT
+- NONE_MONITORING
+approaches:
+- src/dag_bayesian.py
+cloud_rendering: true
+end_idx: 18
+execute_dict:
+  tasks_2_constraints_2:
+    FloorPlan18:
+    - 02_boil_potato_and_make_a_coffee.json
+    - 05_boil_water_with_pot_and_make_a_coffee.json
+    - 13_fill_pot_with_water_and_make_a_coffee.json
+    FloorPlan27:
+    - 06_fill_bowl_with_water_and_cook_egg.json
+  tasks_3_constraints_1:
+    FloorPlan27:
+    - 07_heat_the_bread_using_microwave_and_wash_a_butterknife_and_wash_plate_and_cup.json
+  tasks_3_constraints_2:
+    FloorPlan18:
+    - 03_boil_water_with_pot_and_make_a_coffee_and_put_apple_and_lettuce_in_fridge.json
+    FloorPlan27:
+    - 04_fill_bowl_with_water_and_cook_egg_and_put_apple_and_lettuce_in_fridge.json
+    - 14_heat_the_potato_using_microwave_and_make_a_coffee_and_wash_a_butterknife.json
+init_prior_configs:
+- CORRECT_ESTIMATE
+instruction_delay_seconds: 0
+llm_scripts: []
+log_level: WARNING
+max_constraint_count: 2
+max_retries: 1
+max_task_count: 3
+max_workers: 32
+min_constraint_count: 1
+min_task_count: 2
+num_gpus: 2
+num_runs_per_instruction: 1
+retry_delay_seconds: 2
+scene_lists:
+  bathroom: null
+  kitchen:
+  - FloorPlan1
+  - FloorPlan7
+  - FloorPlan13
+  - FloorPlan18
+  - FloorPlan27
+  real_world: null
+scene_type:
+- kitchen
+simulation: true
+skip_completed: true
+start_idx: 1
+task_folder_name:
+- decomposed_final_revision_metadata_260402_v1
+- decomposed_final_revision_metadata_260402_v2
+- decomposed_final_revision_metadata_260402_v3
+- decomposed_final_revision_metadata_260402_v4
+- decomposed_final_revision_metadata_260402_v5

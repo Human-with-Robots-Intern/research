@@ -85,3 +85,4 @@ docker-compose.override.yml
 
 .bench_cache/
 assets/ros/dynamic/object_states.json
+assets/lammap_llm_cache*.json
